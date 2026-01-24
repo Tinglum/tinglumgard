@@ -31,7 +31,9 @@
       "Bash(timeout /t 5)",
       "Bash(git init:*)",
       "Bash(git config:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nInitial commit - Tinglumgard pork farm e-commerce platform\n\nAdd Vipps payment integration with sticky checkout sidebar\n\nCo-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nAdd Vercel deployment configuration and documentation\n\n- Add vercel.json for Vercel deployment settings\n- Add .env.local.example with all required environment variables\n- Add comprehensive VERCEL_DEPLOYMENT.md guide\n- Include Supabase setup instructions\n- Include Vipps configuration steps\n\nCo-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>\nEOF\n\\)\")"
     ]
   }
 }
