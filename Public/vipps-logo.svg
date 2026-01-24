@@ -1,13 +1,7 @@
-<svg width="120" height="40" viewBox="0 0 120 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <!-- Vipps Orange Background -->
-  <rect width="120" height="40" rx="4" fill="#FF5B24"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 60" fill="none">
+  <!-- Vipps Official Orange Background -->
+  <rect width="200" height="60" rx="8" fill="#FF5B24"/>
 
-  <!-- Vipps Text in White -->
-  <path d="M20 12L16 28H12L16 12H20Z" fill="white"/>
-  <path d="M30 12L26 28H22L26 12H30Z" fill="white"/>
-  <path d="M40 12C42.2091 12 44 13.7909 44 16C44 18.2091 42.2091 20 40 20H36L34 28H30L34 12H40ZM38 16H36L35 18H37C37.5523 18 38 17.5523 38 17C38 16.4477 37.5523 16 37 16H38Z" fill="white"/>
-  <path d="M54 12C56.2091 12 58 13.7909 58 16C58 18.2091 56.2091 20 54 20H50L48 28H44L48 12H54ZM52 16H50L49 18H51C51.5523 18 52 17.5523 52 17C52 16.4477 51.5523 16 51 16H52Z" fill="white"/>
-  <path d="M64 16C64 13.7909 65.7909 12 68 12C69.6569 12 71 13.3431 71 15H67C67 14.4477 67.4477 14 68 14C68.5523 14 69 14.4477 69 15V16H64V16ZM64 18H69V19C69 19.5523 68.5523 20 68 20C67.4477 20 67 19.5523 67 19H71C71 21.2091 69.2091 23 67 23C64.7909 23 63 21.2091 63 19V18H64Z" fill="white"/>
-  <path d="M78 12C80.2091 12 82 13.7909 82 16C82 17.1046 81 18 80 18C79 18 78 17.1046 78 16C78 14.8954 79 14 80 14H78V12ZM78 18L76 28H72L76 12H78V18Z" fill="white"/>
-  <text x="88" y="25" font-family="Arial, sans-serif" font-size="16" font-weight="700" fill="white">Vipps</text>
+  <!-- White "Vipps" Text -->
+  <text x="100" y="40" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="700" fill="white" text-anchor="middle">Vipps</text>
 </svg>

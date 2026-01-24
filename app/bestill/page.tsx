@@ -32,9 +32,6 @@ export default function CheckoutPage() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [orderConfirmed, setOrderConfirmed] = useState(false);
   const [orderId, setOrderId] = useState<string | null>(null);
-  const [customerName, setCustomerName] = useState('');
-  const [customerEmail, setCustomerEmail] = useState('');
-  const [customerPhone, setCustomerPhone] = useState('');
 
   // URL parameter handling
   useEffect(() => {
@@ -62,12 +59,6 @@ export default function CheckoutPage() {
   }, []);
 
   async function handleCheckout() {
-    // Validate customer info
-    if (!customerName || !customerEmail) {
-      alert('Vennligst fyll inn navn og e-postadresse');
-      return;
-    }
-
     setIsProcessing(true);
 
     try {
@@ -94,9 +85,9 @@ export default function CheckoutPage() {
           deliveryType: apiDeliveryType,
           freshDelivery,
           notes: '',
-          customerName,
-          customerEmail,
-          customerPhone,
+          customerName: '',
+          customerEmail: '',
+          customerPhone: '',
         }),
       });
 
@@ -301,7 +292,7 @@ export default function CheckoutPage() {
         {/* Progress Steps */}
         <div className="mb-12">
           <div className="flex items-center justify-center gap-4">
-            {[1, 2, 3, 4, 5].map((s) => (
+            {[1, 2, 3, 4].map((s) => (
               <div key={s} className="flex items-center gap-4">
                 <div className={cn(
                   "relative flex items-center justify-center w-12 h-12 rounded-full font-bold transition-all duration-500",
@@ -311,7 +302,7 @@ export default function CheckoutPage() {
                 )}>
                   {step > s ? <Check className="w-5 h-5" /> : s}
                 </div>
-                {s < 5 && (
+                {s < 4 && (
                   <div className={cn(
                     "w-12 md:w-24 h-1 rounded-full transition-all duration-500",
                     step > s ? theme.buttonPrimary : theme.borderSecondary
@@ -335,10 +326,6 @@ export default function CheckoutPage() {
             <div className="w-12 md:w-24" />
             <div className="text-center w-12 md:w-24">
               <p className={cn("text-xs font-semibold", theme.textPrimary)}>Levering</p>
-            </div>
-            <div className="w-12 md:w-24" />
-            <div className="text-center w-12 md:w-24">
-              <p className={cn("text-xs font-semibold", theme.textPrimary)}>Kontakt</p>
             </div>
           </div>
         </div>
@@ -505,13 +492,13 @@ export default function CheckoutPage() {
                   )}
                 </div>
 
-                <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-xl">
-                  <p className="text-sm text-amber-900">
-                    <strong>Obs:</strong> Ekstra produkter er avhengig av tilgjengelighet og grisestørrelse ved slakt. Vi gjør vårt beste for å oppfylle ønskene dine.
+                <div className="mb-8 p-5 bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-300 rounded-2xl shadow-sm">
+                  <p className="text-sm text-amber-900 leading-relaxed">
+                    <strong className="font-bold">Obs:</strong> Ekstra produkter er avhengig av tilgjengelighet og grisestørrelse ved slakt. Vi gjør vårt beste for å oppfylle ønskene dine.
                   </p>
                 </div>
 
-                <div className="grid gap-4">
+                <div className="grid md:grid-cols-2 gap-6">
                   {availableExtras
                     .filter(extra => !['delivery_trondheim', 'pickup_e6', 'fresh_delivery'].includes(extra.slug))
                     .map((extra) => {
@@ -522,51 +509,61 @@ export default function CheckoutPage() {
                       <div
                         key={extra.slug}
                         className={cn(
-                          "p-5 rounded-xl border-2 transition-all duration-300",
+                          "group relative p-6 rounded-2xl border-2 transition-all duration-300 cursor-pointer",
                           isSelected
-                            ? cn(theme.borderPrimary, theme.bgSecondary, "shadow-lg")
-                            : cn(theme.borderSecondary, "hover:shadow-md hover:border-opacity-60")
+                            ? cn("border-amber-500 bg-gradient-to-br from-amber-50 to-orange-50 shadow-xl scale-105")
+                            : cn(theme.borderSecondary, theme.bgCard, "hover:shadow-lg hover:scale-102 hover:border-amber-300")
                         )}
+                        onClick={() => {
+                          setExtraProducts(prev =>
+                            prev.includes(extra.slug)
+                              ? prev.filter(p => p !== extra.slug)
+                              : [...prev, extra.slug]
+                          );
+                          if (!isSelected && !extraQuantities[extra.slug]) {
+                            setExtraQuantities(prev => ({
+                              ...prev,
+                              [extra.slug]: extra.pricing_type === 'per_kg' ? 0.5 : 1
+                            }));
+                          }
+                        }}
                       >
-                        <div className="flex items-start justify-between gap-4">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setExtraProducts(prev =>
-                                prev.includes(extra.slug)
-                                  ? prev.filter(p => p !== extra.slug)
-                                  : [...prev, extra.slug]
-                              );
-                              if (!isSelected && !extraQuantities[extra.slug]) {
-                                setExtraQuantities(prev => ({
-                                  ...prev,
-                                  [extra.slug]: extra.pricing_type === 'per_kg' ? 0.5 : 1
-                                }));
-                              }
-                            }}
-                            className="flex items-start gap-3 flex-1 text-left"
-                          >
-                            <div className={cn(
-                              "w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 mt-0.5 transition-all",
-                              isSelected
-                                ? cn(theme.buttonPrimary, theme.borderPrimary)
-                                : theme.borderSecondary
-                            )}>
-                              {isSelected && <Check className={cn("w-3 h-3", theme.textOnDark)} />}
-                            </div>
-                            <div className="flex-1">
-                              <p className={cn("font-semibold text-base", theme.textPrimary)}>{extra.name_no}</p>
-                              {extra.description_no && (
-                                <p className={cn("text-sm mt-1", theme.textMuted)}>{extra.description_no}</p>
-                              )}
-                              <p className={cn("text-base font-bold mt-2", theme.textSecondary)}>
-                                {extra.price_nok} kr/{extra.pricing_type === 'per_kg' ? 'kg' : 'stk'}
-                              </p>
-                            </div>
-                          </button>
+                        {/* Selection Indicator */}
+                        <div className="absolute top-4 right-4">
+                          <div className={cn(
+                            "w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all",
+                            isSelected
+                              ? "bg-amber-500 border-amber-500 shadow-md"
+                              : "border-gray-300 bg-white group-hover:border-amber-400"
+                          )}>
+                            {isSelected && <Check className="w-4 h-4 text-white" />}
+                          </div>
+                        </div>
 
+                        {/* Product Info */}
+                        <div className="pr-8">
+                          <h4 className={cn("text-lg font-bold mb-2", theme.textPrimary)}>{extra.name_no}</h4>
+                          {extra.description_no && (
+                            <p className={cn("text-sm mb-3 leading-relaxed", theme.textMuted)}>{extra.description_no}</p>
+                          )}
+
+                          {/* Price */}
+                          <div className="flex items-baseline gap-2 mb-4">
+                            <span className={cn("text-2xl font-bold", isSelected ? "text-amber-600" : theme.textPrimary)}>
+                              {extra.price_nok} kr
+                            </span>
+                            <span className={cn("text-sm", theme.textMuted)}>
+                              /{extra.pricing_type === 'per_kg' ? 'kg' : 'stk'}
+                            </span>
+                          </div>
+
+                          {/* Quantity Selector */}
                           {isSelected && (
-                            <div className="flex items-center gap-2 flex-shrink-0">
+                            <div
+                              className="flex items-center gap-3 pt-4 border-t border-amber-200 animate-in fade-in slide-in-from-top-2 duration-300"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <label className={cn("text-sm font-semibold", theme.textPrimary)}>Mengde:</label>
                               <Input
                                 type="number"
                                 min={extra.pricing_type === 'per_kg' ? '0.1' : '1'}
@@ -581,9 +578,9 @@ export default function CheckoutPage() {
                                     }));
                                   }
                                 }}
-                                className={cn("w-20 text-center font-semibold", theme.textPrimary)}
+                                className={cn("w-24 text-center font-bold text-lg border-2 border-amber-300 focus:border-amber-500", theme.textPrimary)}
                               />
-                              <span className={cn("text-sm font-medium min-w-[2rem]", theme.textPrimary)}>
+                              <span className={cn("text-sm font-medium", theme.textPrimary)}>
                                 {extra.pricing_type === 'per_kg' ? 'kg' : 'stk'}
                               </span>
                             </div>
@@ -723,68 +720,6 @@ export default function CheckoutPage() {
                   )}
                 </div>
 
-                {step === 4 && (
-                  <button
-                    onClick={() => setStep(5)}
-                    className={cn("mt-6 w-full px-8 py-4 rounded-2xl font-bold uppercase tracking-wider hover:shadow-2xl hover:scale-105 transition-all duration-300 flex items-center justify-center gap-2", theme.buttonPrimary, theme.buttonPrimaryHover, theme.textOnDark)}
-                  >
-                    Gå videre til kontaktinformasjon
-                    <ChevronRight className="w-5 h-5" />
-                  </button>
-                )}
-              </div>
-            )}
-
-            {/* Step 5: Customer Information */}
-            {step >= 5 && (
-              <div className={cn(
-                "relative rounded-3xl p-8 border shadow-2xl transition-all duration-500 animate-in slide-in-from-bottom-4",
-                theme.bgCard,
-                theme.glassCard,
-                theme.glassBorder,
-                step === 5 ? cn("ring-2", theme.borderPrimary) : ""
-              )}>
-                <h2 className={cn("text-2xl font-bold mb-6", theme.textPrimary)}>5. Dine kontaktopplysninger</h2>
-
-                <div className="space-y-4">
-                  <div>
-                    <Label htmlFor="name" className={cn("font-semibold", theme.textPrimary)}>Fullt navn *</Label>
-                    <Input
-                      id="name"
-                      type="text"
-                      value={customerName}
-                      onChange={(e) => setCustomerName(e.target.value)}
-                      placeholder="Ola Nordmann"
-                      className="mt-2"
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="email" className={cn("font-semibold", theme.textPrimary)}>E-postadresse *</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      value={customerEmail}
-                      onChange={(e) => setCustomerEmail(e.target.value)}
-                      placeholder="ola@example.com"
-                      className="mt-2"
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="phone" className={cn("font-semibold", theme.textPrimary)}>Telefonnummer</Label>
-                    <Input
-                      id="phone"
-                      type="tel"
-                      value={customerPhone}
-                      onChange={(e) => setCustomerPhone(e.target.value)}
-                      placeholder="+47 123 45 678"
-                      className="mt-2"
-                    />
-                  </div>
-                </div>
               </div>
             )}
 
@@ -866,65 +801,56 @@ export default function CheckoutPage() {
                 </div>
               </div>
 
-              {step === 5 && customerName && customerEmail && (
-                <div className="space-y-4 mb-6 animate-in fade-in slide-in-from-bottom-2">
-                  <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl">
+              {step === 4 && boxSize && (
+                <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2">
+                  <div className="p-5 bg-gradient-to-br from-amber-50 to-orange-50 border-2 border-amber-300 rounded-2xl shadow-sm">
                     <Label htmlFor="deposit-policy" className="flex items-start gap-3 cursor-pointer">
                       <Checkbox
                         id="deposit-policy"
                         checked={agreedToDepositPolicy}
                         onCheckedChange={(checked) => setAgreedToDepositPolicy(checked as boolean)}
+                        className="mt-0.5"
                       />
-                      <span className="text-xs leading-relaxed">
-                        <strong>Jeg forstår at depositumet ikke refunderes.</strong> Dette utløser produksjonsplanlegging.
+                      <span className="text-sm leading-relaxed text-amber-900">
+                        <strong className="font-bold">Jeg forstår at depositumet ikke refunderes.</strong> Dette utløser produksjonsplanlegging.
                       </span>
                     </Label>
                   </div>
 
-                  <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl">
+                  <div className="p-5 bg-slate-50 border-2 border-slate-300 rounded-2xl">
                     <Label htmlFor="terms" className="flex items-start gap-3 cursor-pointer">
                       <Checkbox
                         id="terms"
                         checked={agreedToTerms}
                         onCheckedChange={(checked) => setAgreedToTerms(checked as boolean)}
+                        className="mt-0.5"
                       />
-                      <span className="text-xs leading-relaxed">
-                        Jeg godtar vilkårene for kjøpet
+                      <span className="text-sm leading-relaxed text-slate-800">
+                        Jeg godtar <a href="/vilkar" target="_blank" rel="noopener noreferrer" className="underline font-semibold hover:text-amber-600">vilkårene for kjøpet</a>
                       </span>
                     </Label>
                   </div>
 
-                  {/* Terms acceptance notice */}
-                  <p className={cn("text-xs text-center leading-relaxed", theme.textMuted)}>
-                    Ved å gjennomføre kjøpet aksepterer du våre{' '}
-                    <a
-                      href="/vilkar"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className={cn("font-semibold underline transition-colors", theme.textPrimary, `hover:${theme.textSecondary}`)}
-                    >
-                      vilkår for kjøp
-                    </a>
-                    .
-                  </p>
-
                   <button
                     disabled={!agreedToTerms || !agreedToDepositPolicy || isProcessing}
                     onClick={handleCheckout}
-                    className={cn("w-full px-8 py-4 rounded-2xl font-bold uppercase tracking-wider hover:shadow-2xl hover:scale-105 transition-all duration-300 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100", theme.buttonPrimary, theme.buttonPrimaryHover, theme.textOnDark)}
+                    className={cn("w-full px-8 py-5 rounded-2xl font-bold text-lg uppercase tracking-wider shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-300 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100", theme.buttonPrimary, theme.buttonPrimaryHover, theme.textOnDark)}
                   >
-                    {isProcessing ? 'Behandler...' : 'Fullfør bestilling'}
-                    {!isProcessing && <ChevronRight className="w-5 h-5" />}
+                    {isProcessing ? 'Behandler...' : 'Betal med Vipps'}
+                    {!isProcessing && <ChevronRight className="w-6 h-6" />}
                   </button>
 
                   {/* Secured by Vipps Badge */}
-                  <div className="mt-4 pt-4 border-t border-gray-200">
-                    <div className="flex items-center justify-center gap-2 text-xs text-gray-500">
-                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                  <div className="pt-4 border-t-2 border-gray-200">
+                    <div className="flex items-center justify-center gap-2 text-sm text-gray-600">
+                      <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
                       </svg>
-                      <span>Sikker betaling med Vipps</span>
+                      <span className="font-medium">Sikker betaling med Vipps</span>
                     </div>
+                    <p className="text-xs text-center text-gray-500 mt-2">
+                      Dine kontaktopplysninger hentes automatisk fra Vipps
+                    </p>
                   </div>
                 </div>
               )}
