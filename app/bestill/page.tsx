@@ -727,11 +727,11 @@ export default function CheckoutPage() {
 
           {/* Sidebar Summary - Sticky */}
           <div className="md:w-1/3 md:flex-shrink-0">
-            <div className="sticky top-4 md:top-24 lg:top-28 z-20 max-h-[calc(100vh-2rem)] md:max-h-[calc(100vh-7rem)] overflow-y-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-gray-100 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gray-300 hover:[&::-webkit-scrollbar-thumb]:bg-gray-400">
+            <div className="sticky top-4 md:top-24 lg:top-28 z-20">
               <div className={cn("rounded-3xl p-6 sm:p-8 border-2 shadow-2xl backdrop-blur-xl", theme.bgCard, theme.glassBorder)}>
               {/* Vipps Logo */}
-              <div className="flex items-center justify-center mb-6 pb-6 border-b border-gray-200">
-                <div className="relative w-32 h-12">
+              <div className="flex items-center justify-center mb-6 pb-6 border-b-2 border-gray-200">
+                <div className="relative w-40 h-14">
                   <Image
                     src="/vipps-logo.svg"
                     alt="Vipps"
@@ -803,13 +803,13 @@ export default function CheckoutPage() {
 
               {step === 4 && boxSize && (
                 <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2">
-                  <div className="p-5 bg-gradient-to-br from-amber-50 to-orange-50 border-2 border-amber-300 rounded-2xl shadow-sm">
+                  <div className="p-5 bg-gradient-to-br from-amber-50 to-orange-50 border-2 border-amber-300 rounded-xl shadow-sm">
                     <Label htmlFor="deposit-policy" className="flex items-start gap-3 cursor-pointer">
                       <Checkbox
                         id="deposit-policy"
                         checked={agreedToDepositPolicy}
                         onCheckedChange={(checked) => setAgreedToDepositPolicy(checked as boolean)}
-                        className="mt-0.5"
+                        className="mt-0.5 rounded"
                       />
                       <span className="text-sm leading-relaxed text-amber-900">
                         <strong className="font-bold">Jeg forstår at depositumet ikke refunderes.</strong> Dette utløser produksjonsplanlegging.
@@ -817,13 +817,13 @@ export default function CheckoutPage() {
                     </Label>
                   </div>
 
-                  <div className="p-5 bg-slate-50 border-2 border-slate-300 rounded-2xl">
+                  <div className="p-5 bg-slate-50 border-2 border-slate-300 rounded-xl">
                     <Label htmlFor="terms" className="flex items-start gap-3 cursor-pointer">
                       <Checkbox
                         id="terms"
                         checked={agreedToTerms}
                         onCheckedChange={(checked) => setAgreedToTerms(checked as boolean)}
-                        className="mt-0.5"
+                        className="mt-0.5 rounded"
                       />
                       <span className="text-sm leading-relaxed text-slate-800">
                         Jeg godtar <a href="/vilkar" target="_blank" rel="noopener noreferrer" className="underline font-semibold hover:text-amber-600">vilkårene for kjøpet</a>
@@ -834,21 +834,35 @@ export default function CheckoutPage() {
                   <button
                     disabled={!agreedToTerms || !agreedToDepositPolicy || isProcessing}
                     onClick={handleCheckout}
-                    className={cn("w-full px-8 py-5 rounded-2xl font-bold text-lg uppercase tracking-wider shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-300 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100", theme.buttonPrimary, theme.buttonPrimaryHover, theme.textOnDark)}
+                    className="w-full bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-bold text-lg py-5 px-8 rounded-2xl shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-300 flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:from-gray-400 disabled:to-gray-500"
+                    style={{ backgroundColor: isProcessing ? undefined : '#FF5B24' }}
                   >
-                    {isProcessing ? 'Behandler...' : 'Betal med Vipps'}
-                    {!isProcessing && <ChevronRight className="w-6 h-6" />}
+                    {isProcessing ? (
+                      'Behandler...'
+                    ) : (
+                      <>
+                        <span>Betal med</span>
+                        <div className="relative w-20 h-8">
+                          <Image
+                            src="/vipps-logo.svg"
+                            alt="Vipps"
+                            fill
+                            className="object-contain brightness-0 invert"
+                          />
+                        </div>
+                      </>
+                    )}
                   </button>
 
-                  {/* Secured by Vipps Badge */}
+                  {/* Info text */}
                   <div className="pt-4 border-t-2 border-gray-200">
-                    <div className="flex items-center justify-center gap-2 text-sm text-gray-600">
+                    <div className="flex items-center justify-center gap-2 text-sm text-gray-600 mb-2">
                       <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
                       </svg>
                       <span className="font-medium">Sikker betaling med Vipps</span>
                     </div>
-                    <p className="text-xs text-center text-gray-500 mt-2">
+                    <p className="text-xs text-center text-gray-500">
                       Dine kontaktopplysninger hentes automatisk fra Vipps
                     </p>
                   </div>
