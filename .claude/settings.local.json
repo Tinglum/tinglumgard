@@ -1,0 +1,37 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dir:*)",
+      "Bash(npm install:*)",
+      "Bash(where:*)",
+      "Bash(npm run dev:*)",
+      "Bash(find:*)",
+      "Bash(npm run typecheck:*)",
+      "Bash(npm run build:*)",
+      "Bash(npx tsc:*)",
+      "Bash(node --version:*)",
+      "Bash(cmd /c where:*)",
+      "Bash(cmd /c \"node --version && npm --version\")",
+      "Bash(cmd /c \"dir /b\")",
+      "Bash(cmd /c \"if exist public \\(echo Public folder exists\\) else \\(echo Public folder does NOT exist && mkdir public && echo Created public folder\\)\")",
+      "Bash(cmd /c \"if not exist public mkdir public\")",
+      "Bash(cmd /c \"curl -o public\\\\pig-diagram.png https://i.imgur.com/temp.png 2>nul || echo Image needs manual download\")",
+      "Bash(wc:*)",
+      "Bash(taskkill:*)",
+      "Bash(timeout /t 15 /nobreak)",
+      "Bash(ping:*)",
+      "Bash(timeout /t 8 /nobreak)",
+      "Bash(findstr:*)",
+      "Bash(timeout /t 10 /nobreak)",
+      "Bash(timeout /t 3 /nobreak)",
+      "Bash(cd:*)",
+      "Bash(timeout /t 5 /nobreak)",
+      "Bash(ls:*)",
+      "Bash(test:*)",
+      "Bash(timeout /t 5)",
+      "Bash(git init:*)",
+      "Bash(git config:*)",
+      "Bash(git add:*)"
+    ]
+  }
+}

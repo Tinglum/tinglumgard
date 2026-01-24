@@ -1,0 +1,143 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { getSession } from '@/lib/auth/session';
+import { supabaseAdmin } from '@/lib/supabase/server';
+import { vippsClient } from '@/lib/vipps/client';
+
+export async function POST(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  const session = await getSession();
+
+  if (!session) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  try {
+    const { data: order, error: orderError } = await supabaseAdmin
+      .from('orders')
+      .select('*, payments(*), order_extras(*, extras_catalog(*))')
+      .eq('id', params.id)
+      .single();
+
+    if (orderError || !order) {
+      return NextResponse.json({ error: 'Order not found' }, { status: 404 });
+    }
+
+    if (order.user_id !== session.userId && !session.isAdmin) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
+    }
+
+    const depositPayment = order.payments?.find(
+      (p: any) => p.payment_type === 'deposit' && p.status === 'completed'
+    );
+
+    if (!depositPayment) {
+      return NextResponse.json(
+        { error: 'Deposit must be paid first' },
+        { status: 400 }
+      );
+    }
+
+    const remainderPayment = order.payments?.find(
+      (p: any) => p.payment_type === 'remainder' && p.status === 'completed'
+    );
+
+    if (remainderPayment) {
+      return NextResponse.json(
+        { error: 'Remainder already paid' },
+        { status: 400 }
+      );
+    }
+
+    if (order.locked_at) {
+      return NextResponse.json({ error: 'Order is locked' }, { status: 400 });
+    }
+
+    const basePrice = order.box_size === 8 ? 3500 : 4800;
+    let deliveryFee = 0;
+    if (order.delivery_type === 'pickup_e6') {
+      deliveryFee = 250;
+    } else if (order.delivery_type === 'delivery_trondheim') {
+      deliveryFee = 300;
+    }
+    const freshFee = order.fresh_delivery ? 500 : 0;
+
+    const depositAmount = Math.floor(basePrice / 2);
+    let remainderAmount = basePrice - depositAmount + deliveryFee + freshFee;
+
+    const addOnsJson = order.add_ons_json || {};
+    if (addOnsJson.organPakke) remainderAmount += 200;
+    if (addOnsJson.grunnPakke) remainderAmount += 100;
+    if (addOnsJson.krydderpakke) remainderAmount += 150;
+
+    if (order.order_extras && order.order_extras.length > 0) {
+      order.order_extras.forEach((extra: any) => {
+        remainderAmount += extra.price_nok || 0;
+      });
+    }
+
+    const idempotencyKey = `remainder-${order.id}-${Date.now()}`;
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://tinglum.no';
+
+    const vippsResult = await vippsClient.createCheckoutSession({
+      merchantInfo: {
+        callbackUrl: `${appUrl}/api/webhooks/vipps`,
+        returnUrl: `${appUrl}/min-side`,
+        termsAndConditionsUrl: `${appUrl}/vilkar`,
+      },
+      transaction: {
+        amount: {
+          currency: 'NOK',
+          value: remainderAmount * 100,
+        },
+        reference: idempotencyKey,
+        paymentDescription: `Restbetaling ordre ${order.order_number}`,
+      },
+      configuration: {
+        userFlow: 'WEB_REDIRECT',
+      },
+    });
+
+    const { data: payment, error: paymentError } = await supabaseAdmin
+      .from('payments')
+      .insert({
+        order_id: order.id,
+        payment_type: 'remainder',
+        amount_nok: remainderAmount,
+        vipps_session_id: vippsResult.sessionId,
+        status: 'pending',
+        idempotency_key: idempotencyKey,
+      })
+      .select()
+      .single();
+
+    if (paymentError) {
+      console.error('Failed to create payment record:', paymentError);
+      return NextResponse.json(
+        { error: 'Failed to create payment record' },
+        { status: 500 }
+      );
+    }
+
+    await supabaseAdmin
+      .from('orders')
+      .update({
+        vipps_remainder_order_id: vippsResult.sessionId,
+      })
+      .eq('id', order.id);
+
+    return NextResponse.json({
+      success: true,
+      redirectUrl: vippsResult.checkoutUrl,
+      paymentId: payment.id,
+      amount: remainderAmount,
+    });
+  } catch (error) {
+    console.error('Error creating remainder payment:', error);
+    return NextResponse.json(
+      { error: 'Failed to create payment' },
+      { status: 500 }
+    );
+  }
+}
