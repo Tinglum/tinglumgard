@@ -27,9 +27,9 @@ export const no = {
   },
   timeline: {
     title: "Slik fungerer det",
-    week44: "Uke 44: Betaling fullføres",
-    week46: "Uke 46: Siste frist for endringer",
-    week48: "Uke 48: Levering og utlevering",
+    week44: "Uke 45: Betaling fullføres",
+    week46: "Uke 47: Siste frist for endringer",
+    week48: "Uke 49: Levering og utlevering",
     week44Desc: "Du får beskjed og fullfører betaling før levering.",
     week46Desc: "Endre størrelse og tillegg frem til fristen, etterpå låses bestillingen.",
     week48Desc: "Henting eller levering etter valgt alternativ."
