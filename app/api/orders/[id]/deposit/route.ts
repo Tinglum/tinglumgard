@@ -130,7 +130,7 @@ export async function POST(
 
     return NextResponse.json({
       success: true,
-      redirectUrl: vippsResult.checkoutUrl,
+      redirectUrl: vippsResult.checkoutFrontendUrl,
       paymentId: payment.id,
       amount: depositAmount,
     });

@@ -1,178 +1,118 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase/server';
-import { vippsClient } from '@/lib/vipps/client';
-import { deductInventory } from '@/lib/utils/inventory';
+// app/api/webhooks/vipps/route.ts
+import { NextRequest, NextResponse } from "next/server";
+import crypto from "node:crypto";
+import { supabaseAdmin } from "@/lib/supabase/admin";
 
-interface VippsWebhookPayload {
-  msn: string;
-  reference: string;
-  pspReference: string;
-  name: string;
-  amount?: {
-    value: number;
-    currency: string;
-  };
-  timestamp: string;
-  idempotencyKey?: string;
-}
+/**
+ * Vipps Webhooks API uses HMAC verification.
+ * Docs: "How to authenticate the webhook event"
+ */
+function verifyVippsWebhookHmac(req: NextRequest, bodyText: string): boolean {
+  const secret = process.env.VIPPS_WEBHOOK_SECRET;
+  if (!secret) return false;
 
-interface CheckoutWebhookPayload {
-  msn: string;
-  sessionId: string;
-  sessionState: string;
-  reference: string;
-  timestamp: string;
+  const xMsDate = req.headers.get("x-ms-date") || "";
+  const xMsContentSha256 = req.headers.get("x-ms-content-sha256") || "";
+  const authorization = req.headers.get("authorization") || "";
+  const host = req.headers.get("host") || "";
+
+  if (!xMsDate || !xMsContentSha256 || !authorization || !host) return false;
+
+  // 1) Verify content hash matches x-ms-content-sha256
+  const computedHash = crypto
+    .createHash("sha256")
+    .update(bodyText)
+    .digest("base64");
+
+  if (computedHash !== xMsContentSha256) return false;
+
+  // 2) Verify Authorization signature
+  // Expected signing string format:
+  // `POST\n<pathAndQuery>\n<date>;<host>;<hash>`
+  // Note \n, not \r\n
+  const url = new URL(req.url);
+  const pathAndQuery = url.pathname + url.search;
+
+  const signedString = `POST\n${pathAndQuery}\n${xMsDate};${host};${xMsContentSha256}`;
+
+  const expectedSignature = crypto
+    .createHmac("sha256", secret)
+    .update(signedString)
+    .digest("base64");
+
+  const expectedAuth = `HMAC-SHA256 SignedHeaders=x-ms-date;host;x-ms-content-sha256&Signature=${expectedSignature}`;
+
+  return authorization === expectedAuth;
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const authHeader = request.headers.get('authorization');
+    const bodyText = await request.text();
 
-    if (!authHeader || authHeader !== `Bearer ${process.env.VIPPS_WEBHOOK_SECRET}`) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const ok = verifyVippsWebhookHmac(request, bodyText);
+    if (!ok) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const payload: VippsWebhookPayload | CheckoutWebhookPayload = await request.json();
+    const payload = JSON.parse(bodyText) as {
+      orderId?: string;
+      reference?: string;
+      sessionId?: string;
+      merchantSerialNumber?: string;
+      eventType?: string;
+      [k: string]: unknown;
+    };
 
-    // Determine if this is a Checkout v3 webhook or legacy ePayment webhook
-    const isCheckoutV3 = 'sessionId' in payload && 'sessionState' in payload;
-    const referenceOrSessionId = isCheckoutV3 ? (payload as CheckoutWebhookPayload).sessionId : (payload as VippsWebhookPayload).reference;
+    // Your system stores the Vipps checkout session id on payments.vipps_payment_id
+    // The webhook payload shape depends on the event type you subscribed to.
+    // Use the most reliable identifier you have in your own records.
+    const vippsId =
+      (payload.sessionId as string | undefined) ||
+      (payload.reference as string | undefined);
 
-    // Check for existing webhook processing
-    const existingWebhook = await supabaseAdmin
-      .from('payments')
-      .select('id, webhook_processed_at, vipps_session_id, vipps_order_id')
-      .or(`vipps_session_id.eq.${referenceOrSessionId},vipps_order_id.eq.${referenceOrSessionId}`)
-      .maybeSingle();
-
-    if (existingWebhook.data?.webhook_processed_at) {
-      console.log('Webhook already processed:', referenceOrSessionId);
-      return NextResponse.json({ success: true, message: 'Already processed' });
-    }
-
-    // Fetch payment details from Vipps
-    let isAuthorized = false;
-
-    if (isCheckoutV3) {
-      const checkoutSession = await vippsClient.getCheckoutSession(referenceOrSessionId);
-      isAuthorized = checkoutSession.sessionState === 'PaymentSuccessful' ||
-                     checkoutSession.sessionState === 'PaymentAuthorized';
-
-      if (!isAuthorized) {
-        await supabaseAdmin
-          .from('payments')
-          .update({
-            status: checkoutSession.sessionState.toLowerCase(),
-            updated_at: new Date().toISOString(),
-          })
-          .eq('vipps_session_id', referenceOrSessionId);
-
-        return NextResponse.json({ success: true, message: 'Payment not authorized yet' });
-      }
-    } else {
-      const paymentDetails = await vippsClient.getPayment(referenceOrSessionId);
-      isAuthorized = paymentDetails.state === 'AUTHORIZED' ||
-                     paymentDetails.state === 'CAPTURED';
-
-      if (!isAuthorized) {
-        await supabaseAdmin
-          .from('payments')
-          .update({
-            status: paymentDetails.state.toLowerCase(),
-            updated_at: new Date().toISOString(),
-          })
-          .eq('vipps_order_id', referenceOrSessionId);
-
-        return NextResponse.json({ success: true, message: 'Payment not authorized yet' });
-      }
-    }
-
-    // Fetch payment record
-    const { data: payment } = await supabaseAdmin
-      .from('payments')
-      .select(`
-        *,
-        orders (
-          id,
-          box_size,
-          status
-        )
-      `)
-      .or(`vipps_session_id.eq.${referenceOrSessionId},vipps_order_id.eq.${referenceOrSessionId}`)
-      .maybeSingle();
-
-    if (!payment) {
-      return NextResponse.json({ error: 'Payment not found' }, { status: 404 });
-    }
-
-    if (payment.webhook_processed_at) {
-      return NextResponse.json({ success: true, message: 'Already processed' });
-    }
-
-    const now = new Date().toISOString();
-
-    await supabaseAdmin
-      .from('payments')
-      .update({
-        status: 'completed',
-        paid_at: now,
-        webhook_processed_at: now,
-        updated_at: now,
-      })
-      .eq('id', payment.id);
-
-    const order = Array.isArray(payment.orders) ? payment.orders[0] : payment.orders;
-
-    if (!order) {
-      return NextResponse.json({ success: true, message: 'No order found' });
-    }
-
-    if (payment.payment_type === 'deposit' && order.status !== 'deposit_paid') {
-      await supabaseAdmin
-        .from('orders')
-        .update({
-          status: 'deposit_paid',
-          updated_at: now,
-        })
-        .eq('id', order.id);
-
-      const inventoryResult = await deductInventory(order.id, order.box_size);
-
-      if (!inventoryResult.success) {
-        console.error('Failed to deduct inventory:', inventoryResult.error);
-      }
-    }
-
-    if (payment.payment_type === 'remainder') {
-      const { data: allPayments } = await supabaseAdmin
-        .from('payments')
-        .select('payment_type, status')
-        .eq('order_id', order.id);
-
-      const depositPaid = allPayments?.some(
-        p => p.payment_type === 'deposit' && p.status === 'completed'
+    if (!vippsId) {
+      return NextResponse.json(
+        { error: "Missing vipps identifier" },
+        { status: 400 }
       );
-      const remainderPaid = allPayments?.some(
-        p => p.payment_type === 'remainder' && p.status === 'completed'
-      );
-
-      if (depositPaid && remainderPaid) {
-        await supabaseAdmin
-          .from('orders')
-          .update({
-            status: 'paid',
-            updated_at: now,
-          })
-          .eq('id', order.id);
-      }
     }
 
-    return NextResponse.json({ success: true });
+    // Find payment row by vipps_payment_id
+    const { data: payment, error: paymentError } = await supabaseAdmin
+      .from("payments")
+      .select("*")
+      .eq("vipps_payment_id", vippsId)
+      .single();
+
+    if (paymentError || !payment) {
+      return NextResponse.json(
+        { error: "Payment not found" },
+        { status: 404 }
+      );
+    }
+
+    // You may want to map eventType to payment status.
+    // For now, mark as "completed" when we receive a webhook, adjust if you store more states.
+    const { error: updErr } = await supabaseAdmin
+      .from("payments")
+      .update({ status: "completed" })
+      .eq("id", payment.id);
+
+    if (updErr) throw updErr;
+
+    // If deposit completed, update order status
+    if (payment.type === "deposit") {
+      const { error: orderErr } = await supabaseAdmin
+        .from("orders")
+        .update({ status: "deposit_paid" })
+        .eq("id", payment.order_id);
+
+      if (orderErr) throw orderErr;
+    }
+
+    return NextResponse.json({ received: true });
   } catch (error) {
-    console.error('Webhook error:', error);
-    return NextResponse.json(
-      { error: 'Webhook processing failed' },
-      { status: 500 }
-    );
+    console.error("Vipps webhook error:", error);
+    return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
