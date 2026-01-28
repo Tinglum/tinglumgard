@@ -70,9 +70,9 @@ export async function POST(
       }
     }
 
-    // Calculate deposit amount (50% of base price)
+    // Calculate deposit amount (1% of base price)
     const basePrice = order.box_size === 8 ? 3500 : 4800;
-    const depositAmount = Math.floor(basePrice / 2);
+    const depositAmount = Math.floor(basePrice * 0.01);
 
     // Create idempotency key
     const idempotencyKey = `deposit-${order.id}-${Date.now()}`;
