@@ -100,7 +100,7 @@ export async function POST(request: NextRequest) {
         user_id: null, // Anonymous order
         order_number: orderNumber,
         box_size: boxSize,
-        status: 'pending',
+        status: 'draft',
         deposit_amount: depositAmount,
         remainder_amount: remainderAmount,
         total_amount: totalAmount,
