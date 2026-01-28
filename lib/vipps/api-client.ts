@@ -17,8 +17,8 @@ class VippsClient {
     const response = await fetch(`${vippsConfig.apiBaseUrl}/accesstoken/get`, {
       method: 'POST',
       headers: {
-        'client_id': vippsConfig.checkoutClientId,
-        'client_secret': vippsConfig.checkoutClientSecret,
+        'client_id': vippsConfig.clientId,
+        'client_secret': vippsConfig.clientSecret,
         'Ocp-Apim-Subscription-Key': vippsConfig.subscriptionKey,
       },
     });
