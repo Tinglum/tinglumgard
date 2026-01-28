@@ -88,7 +88,7 @@ export default function Page() {
                 Ullgris fra
                 <br />
                 <span className={heroStyles.headlineGradient}>
-                  Tinglum Gård2
+                  Tinglum Gård
                 </span>
               </h1>
 
