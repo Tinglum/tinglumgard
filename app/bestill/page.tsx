@@ -110,8 +110,8 @@ export default function CheckoutPage() {
   }
 
   const prices = {
-    '8': { deposit: 1750, remainder: 1750, total: 3500 },
-    '12': { deposit: 2400, remainder: 2400, total: 4800 },
+    '8': { deposit: 35, remainder: 3465, total: 3500 },
+    '12': { deposit: 48, remainder: 4752, total: 4800 },
   };
 
   const addonPrices = {
@@ -763,7 +763,7 @@ export default function CheckoutPage() {
 
               <div className={cn("border-t pt-4 mb-6", theme.borderSecondary)}>
                 <div className="flex justify-between text-sm mb-2">
-                  <span className={theme.textMuted}>Forskudd (50%)</span>
+                  <span className={theme.textMuted}>Forskudd (1%)</span>
                   <span className={cn("font-bold", theme.textPrimary)}>kr {depositTotal}</span>
                 </div>
                 <div className="flex justify-between text-sm mb-4">

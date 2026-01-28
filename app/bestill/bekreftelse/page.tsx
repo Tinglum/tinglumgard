@@ -74,7 +74,7 @@ export default function ConfirmationPage() {
     );
   }
 
-  const depositAmount = Math.floor((order.box_size === 8 ? 3500 : 4800) / 2);
+  const depositAmount = Math.floor((order.box_size === 8 ? 3500 : 4800) * 0.01);
 
   return (
     <div className={cn("min-h-screen", theme.bgGradientHero)}>
