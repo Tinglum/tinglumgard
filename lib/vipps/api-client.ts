@@ -109,6 +109,24 @@ class VippsClient {
 
     return response.json();
   }
+
+  async getCheckoutSession(sessionId: string) {
+    const accessToken = await this.getAccessToken();
+
+    const response = await fetch(`${vippsConfig.apiBaseUrl}/checkout/v3/session/${sessionId}`, {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Ocp-Apim-Subscription-Key': vippsConfig.subscriptionKey,
+        'Merchant-Serial-Number': vippsConfig.merchantSerialNumber,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to get checkout session');
+    }
+
+    return response.json();
+  }
 }
 
 export const vippsClient = new VippsClient();
