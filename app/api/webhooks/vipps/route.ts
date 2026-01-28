@@ -1,7 +1,7 @@
 // app/api/webhooks/vipps/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "node:crypto";
-import { supabaseAdmin } from "@/lib/supabase/admin";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 /**
  * Vipps Webhooks API uses HMAC verification.
