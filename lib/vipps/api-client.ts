@@ -92,6 +92,48 @@ class VippsClient {
     return response.json();
   }
 
+  async createCheckoutSession(sessionData: any) {
+    const accessToken = await this.getAccessToken();
+
+    const response = await fetch(`${vippsConfig.apiBaseUrl}/checkout/v3/session`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${accessToken}`,
+        'Ocp-Apim-Subscription-Key': vippsConfig.subscriptionKey,
+        'Merchant-Serial-Number': vippsConfig.merchantSerialNumber,
+        'Vipps-System-Name': 'tinglumgard',
+        'Vipps-System-Version': '1.0.0',
+      },
+      body: JSON.stringify(sessionData),
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`Failed to create checkout session: ${error}`);
+    }
+
+    return response.json();
+  }
+
+  async getPayment(orderId: string) {
+    const accessToken = await this.getAccessToken();
+
+    const response = await fetch(`${vippsConfig.apiBaseUrl}/ecomm/v2/payments/${orderId}`, {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Ocp-Apim-Subscription-Key': vippsConfig.subscriptionKey,
+        'Merchant-Serial-Number': vippsConfig.merchantSerialNumber,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to get payment details');
+    }
+
+    return response.json();
+  }
+
   async getPaymentStatus(reference: string) {
     const accessToken = await this.getAccessToken();
 
