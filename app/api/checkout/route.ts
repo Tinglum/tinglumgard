@@ -33,9 +33,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid box size' }, { status: 400 });
     }
 
-    if (!customerEmail || !customerName) {
-      return NextResponse.json({ error: 'Customer name and email are required' }, { status: 400 });
-    }
+    // Customer details are optional - they will be populated from Vipps after payment
 
     // Check inventory
     const inventory = await supabaseAdmin
@@ -106,8 +104,8 @@ export async function POST(request: NextRequest) {
         deposit_amount: depositAmount,
         remainder_amount: remainderAmount,
         total_amount: totalAmount,
-        customer_name: customerName,
-        customer_email: customerEmail,
+        customer_name: customerName || 'Vipps kunde',
+        customer_email: customerEmail || 'pending@vipps.no',
         customer_phone: customerPhone || null,
         delivery_type: deliveryType,
         fresh_delivery: freshDelivery,
@@ -134,10 +132,11 @@ export async function POST(request: NextRequest) {
       // Don't fail the order, but log the error
     }
 
-    // Send order confirmation email
-    try {
-      const emailTemplate = getOrderConfirmationTemplate({
-        customerName,
+    // Send order confirmation email (only if customer email is provided)
+    if (customerEmail && customerEmail !== 'pending@vipps.no') {
+      try {
+        const emailTemplate = getOrderConfirmationTemplate({
+          customerName: customerName || 'Kunde',
         orderNumber: order.order_number,
         boxSize,
         ribbeChoice,
@@ -149,14 +148,15 @@ export async function POST(request: NextRequest) {
         language: 'no',
       });
 
-      await sendEmail({
-        to: customerEmail,
-        subject: emailTemplate.subject,
-        html: emailTemplate.html,
-      });
-    } catch (emailError) {
-      console.error('Email send error:', emailError);
-      // Don't fail the order if email fails
+        await sendEmail({
+          to: customerEmail,
+          subject: emailTemplate.subject,
+          html: emailTemplate.html,
+        });
+      } catch (emailError) {
+        console.error('Email send error:', emailError);
+        // Don't fail the order if email fails
+      }
     }
 
     return NextResponse.json({
