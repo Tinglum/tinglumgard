@@ -2,5 +2,8 @@
 command = "npx next build"
 publish = ".next"
 
+[build.environment]
+  SECRETS_SCAN_OMIT_PATHS = ".next/standalone/**,.next/server/**"
+
 [[plugins]]
 package = "@netlify/plugin-nextjs"
