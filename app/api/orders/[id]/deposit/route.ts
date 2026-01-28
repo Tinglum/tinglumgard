@@ -136,8 +136,9 @@ export async function POST(
     });
   } catch (error) {
     console.error('Error creating deposit payment:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json(
-      { error: 'Failed to create payment' },
+      { error: 'Failed to create payment', details: errorMessage },
       { status: 500 }
     );
   }
