@@ -4,7 +4,7 @@ publish = ".next"
 
 [build.environment]
   SECRETS_SCAN_OMIT_PATHS = ".next/**,.netlify/**,.vercel-test,**/VERCEL_DEPLOYMENT.md,**/TEST_CUTOFF_BEHAVIOR.md,**/SCHEDULING_SETUP.md,package-lock.json,.claude/**,.gitignore"
-  SECRETS_SCAN_OMIT_KEYS = "VIPPS_ENV"
+  SECRETS_SCAN_OMIT_KEYS = "VIPPS_ENV,NEXT_PUBLIC_APP_URL"
 
 [[plugins]]
 package = "@netlify/plugin-nextjs"
