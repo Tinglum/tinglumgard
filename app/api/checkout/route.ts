@@ -166,8 +166,9 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error('Checkout error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Failed to process checkout';
     return NextResponse.json(
-      { error: 'Failed to process checkout' },
+      { error: 'Failed to process checkout', details: errorMessage },
       { status: 500 }
     );
   }
