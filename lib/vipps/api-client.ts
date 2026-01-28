@@ -48,7 +48,9 @@ class VippsClient {
     });
 
     if (!response.ok) {
-      throw new Error('Failed to exchange code for token');
+      const errorText = await response.text();
+      console.error('Vipps token exchange failed:', response.status, errorText);
+      throw new Error(`Failed to exchange code for token: ${response.status} ${errorText}`);
     }
 
     return response.json();
@@ -62,7 +64,9 @@ class VippsClient {
     });
 
     if (!response.ok) {
-      throw new Error('Failed to get user info');
+      const errorText = await response.text();
+      console.error('Vipps getUserInfo failed:', response.status, errorText);
+      throw new Error(`Failed to get user info: ${response.status} ${errorText}`);
     }
 
     return response.json();
