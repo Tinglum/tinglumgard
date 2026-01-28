@@ -31,6 +31,10 @@ export async function POST(request: NextRequest) {
     // Get the Vipps authorization URL with the state
     const authUrl = vippsClient.getAuthorizationUrl(state);
 
+    // Log the redirect URI being used (for debugging)
+    console.log('Vipps Login - Redirect URI:', process.env.NEXT_PUBLIC_APP_URL + '/api/auth/vipps/callback');
+    console.log('Vipps Login - Auth URL:', authUrl);
+
     // Return the auth URL so the client can redirect
     return NextResponse.json({ authUrl });
   } catch (error) {
