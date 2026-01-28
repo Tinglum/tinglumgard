@@ -1,6 +1,18 @@
 import { vippsConfig } from './config';
 
 class VippsClient {
+  getAuthorizationUrl(state: string): string {
+    const params = new URLSearchParams({
+      client_id: vippsConfig.clientId,
+      response_type: 'code',
+      scope: 'openid email name phoneNumber address',
+      state,
+      redirect_uri: vippsConfig.redirectUri,
+    });
+
+    return `${vippsConfig.loginBaseUrl}/access-management-1.0/access/oauth2/auth?${params.toString()}`;
+  }
+
   private async getAccessToken(): Promise<string> {
     const response = await fetch(`${vippsConfig.apiBaseUrl}/accesstoken/get`, {
       method: 'POST',
