@@ -58,7 +58,11 @@ class VippsClient {
   }
 
   async getUserInfo(accessToken: string) {
-    const response = await fetch(`${vippsConfig.loginBaseUrl}/access-management-1.0/access/userinfo`, {
+    const userInfoUrl = vippsConfig.isTest
+      ? `${vippsConfig.loginBaseUrl}/access-management-1.0/access/userinfo`
+      : `${vippsConfig.loginBaseUrl}/vipps-userinfo-api/userinfo`;
+
+    const response = await fetch(userInfoUrl, {
       headers: {
         'Authorization': `Bearer ${accessToken}`,
       },
