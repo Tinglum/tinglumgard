@@ -36,13 +36,14 @@ class VippsClient {
       grant_type: 'authorization_code',
       code,
       redirect_uri: vippsConfig.redirectUri,
+      client_id: vippsConfig.clientId,
+      client_secret: vippsConfig.clientSecret,
     });
 
     const response = await fetch(`${vippsConfig.loginBaseUrl}/access-management-1.0/access/oauth2/token`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
-        'Authorization': `Basic ${Buffer.from(`${vippsConfig.clientId}:${vippsConfig.clientSecret}`).toString('base64')}`,
       },
       body: params.toString(),
     });
