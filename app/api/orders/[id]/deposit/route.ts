@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/server';
-import { vippsClient } from '@/lib/vipps/client';
+import { vippsClient } from '@/lib/vipps/api-client';
 
 export async function POST(
   request: NextRequest,

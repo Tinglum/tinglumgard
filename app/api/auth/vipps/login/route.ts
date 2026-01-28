@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { vippsClient } from '@/lib/vipps/client';
+import { vippsClient } from '@/lib/vipps/api-client';
 import { cookies } from 'next/headers';
 
 export async function GET(request: NextRequest) {

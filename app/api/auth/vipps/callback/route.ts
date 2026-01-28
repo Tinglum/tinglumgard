@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { vippsClient } from '@/lib/vipps/client';
+import { vippsClient } from '@/lib/vipps/api-client';
 import { createSession, setSessionCookie } from '@/lib/auth/session';
 import { supabaseAdmin } from '@/lib/supabase/server';
 import { cookies } from 'next/headers';
