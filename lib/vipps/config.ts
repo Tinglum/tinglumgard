@@ -19,5 +19,5 @@ export const vippsConfig = {
       : 'https://api.vipps.no';
   },
 
-  redirectUri: process.env.VIPPS_REDIRECT_URI || `${process.env.NEXT_PUBLIC_SITE_URL}/api/auth/vipps/callback`,
+  redirectUri: process.env.VIPPS_REDIRECT_URI || `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/vipps/callback`,
 };
