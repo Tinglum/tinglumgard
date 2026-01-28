@@ -3,7 +3,7 @@ command = "npx next build"
 publish = ".next"
 
 [build.environment]
-  SECRETS_SCAN_OMIT_PATHS = ".next/standalone/**,.next/server/**"
+  SECRETS_SCAN_OMIT_PATHS = ".next/**,.netlify/**,.vercel-test,**/VERCEL_DEPLOYMENT.md,**/TEST_CUTOFF_BEHAVIOR.md,**/SCHEDULING_SETUP.md,package-lock.json"
 
 [[plugins]]
 package = "@netlify/plugin-nextjs"
