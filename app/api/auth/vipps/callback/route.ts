@@ -17,8 +17,11 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    console.log('Vipps Callback - Exchanging code for token');
     const tokens = await vippsClient.exchangeCodeForToken(code);
+    console.log('Vipps Callback - Got tokens, fetching user info');
     const userInfo = await vippsClient.getUserInfo(tokens.access_token);
+    console.log('Vipps Callback - Got user info:', { sub: userInfo.sub, email: userInfo.email });
 
     let user = await supabaseAdmin
       .from('vipps_users')
@@ -113,6 +116,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(new URL(returnTo, request.url));
   } catch (error) {
     console.error('Vipps callback error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('Vipps callback error details:', errorMessage);
     return NextResponse.redirect(new URL('/?error=auth_failed', request.url));
   }
 }
