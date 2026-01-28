@@ -66,8 +66,50 @@ export async function GET(request: NextRequest) {
     cookieStore.delete('vipps_state');
 
     const stateData = JSON.parse(Buffer.from(state, 'base64').toString());
-    const returnTo = stateData.returnTo || '/bestill';
 
+    // If there's a pending order, create it with customer details and redirect to payment
+    if (stateData.pendingOrder) {
+      const orderData = stateData.pendingOrder;
+
+      // Create the order with customer details from Vipps
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+      const createOrderResponse = await fetch(`${appUrl}/api/checkout`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ...orderData,
+          customerName: userInfo.name,
+          customerEmail: userInfo.email,
+          customerPhone: userInfo.phone_number,
+        }),
+      });
+
+      if (!createOrderResponse.ok) {
+        console.error('Failed to create order:', await createOrderResponse.text());
+        return NextResponse.redirect(new URL('/bestill?error=order_creation_failed', request.url));
+      }
+
+      const orderResult = await createOrderResponse.json();
+
+      // Immediately redirect to deposit payment
+      const depositResponse = await fetch(`${appUrl}/api/orders/${orderResult.orderId}/deposit`, {
+        method: 'POST',
+      });
+
+      if (!depositResponse.ok) {
+        console.error('Failed to create deposit payment:', await depositResponse.text());
+        return NextResponse.redirect(new URL(`/bestill?error=payment_failed&orderId=${orderResult.orderId}`, request.url));
+      }
+
+      const depositResult = await depositResponse.json();
+
+      // Redirect user to Vipps payment
+      return NextResponse.redirect(depositResult.redirectUrl);
+    }
+
+    const returnTo = stateData.returnTo || '/bestill';
     return NextResponse.redirect(new URL(returnTo, request.url));
   } catch (error) {
     console.error('Vipps callback error:', error);

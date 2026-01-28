@@ -75,58 +75,33 @@ export default function CheckoutPage() {
         quantity: extraQuantities[slug] || 1
       }));
 
-      const response = await fetch('/api/checkout', {
+      // Prepare order details for Vipps login
+      const orderDetails = {
+        boxSize: parseInt(boxSize),
+        ribbeChoice,
+        extraProducts: extrasWithQuantities,
+        deliveryType: apiDeliveryType,
+        freshDelivery,
+        notes: '',
+      };
+
+      // POST to Vipps login with order details
+      const response = await fetch('/api/auth/vipps/login', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          boxSize: parseInt(boxSize),
-          ribbeChoice,
-          extraProducts: extrasWithQuantities,
-          deliveryType: apiDeliveryType,
-          freshDelivery,
-          notes: '',
-          customerName: '',
-          customerEmail: '',
-          customerPhone: '',
-        }),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ orderDetails }),
       });
 
-      const data = await response.json();
+      const result = await response.json();
 
-      if (data.success) {
-        // Order created successfully, now initiate deposit payment
-        const orderId = data.orderId;
-
-        try {
-          // Create deposit payment session with Vipps
-          const paymentResponse = await fetch(`/api/orders/${orderId}/deposit`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-          });
-
-          const paymentData = await paymentResponse.json();
-
-          if (paymentData.success && paymentData.redirectUrl) {
-            // Redirect to Vipps payment
-            window.location.href = paymentData.redirectUrl;
-          } else {
-            // Payment creation failed, but order exists
-            console.error('Failed to create payment:', paymentData.error);
-            setOrderConfirmed(true);
-            setOrderId(orderId);
-            alert('Ordre opprettet, men betaling kunne ikke startes. Vennligst kontakt oss.');
-          }
-        } catch (paymentError) {
-          console.error('Payment creation failed:', paymentError);
-          // Fallback: show order confirmation even if payment fails
-          setOrderConfirmed(true);
-          setOrderId(orderId);
-          alert('Ordre opprettet, men betaling kunne ikke startes. Vennligst kontakt oss.');
-        }
-      } else {
-        alert('Noe gikk galt. Vennligst prøv igjen.');
-        setIsProcessing(false);
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to initiate payment');
       }
+
+      // Redirect to Vipps OAuth login
+      window.location.href = result.authUrl;
     } catch (error) {
       console.error('Checkout failed:', error);
       alert('Noe gikk galt. Vennligst prøv igjen.');
