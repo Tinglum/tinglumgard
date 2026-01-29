@@ -90,8 +90,10 @@ export async function POST(request: NextRequest) {
     const depositAmount = Math.floor(basePrice * 0.5);
     const remainderAmount = totalAmount - depositAmount;
 
-    // Generate order number
-    const orderNumber = `TL${Date.now()}-${randomBytes(2).toString('hex').toUpperCase()}`;
+    // Generate order number (max 7 characters: TL + 5 random alphanumerics)
+    // Using base36 (0-9, A-Z) for compact representation
+    const randomPart = Math.random().toString(36).substring(2, 7).toUpperCase();
+    const orderNumber = `TL${randomPart}`;
 
     // Create order
     const { data: order, error: orderError } = await supabaseAdmin
