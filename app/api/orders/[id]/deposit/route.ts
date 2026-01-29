@@ -110,6 +110,27 @@ export async function POST(
       },
       configuration: {
         userFlow: 'WEB_REDIRECT',
+        // Configure to collect customer information in Vipps
+        customerInteraction: 'CUSTOMER_PRESENT',
+      },
+      // Add logistics configuration to handle shipping
+      logistics: {
+        dynamicOptionsCallback: null, // No dynamic shipping options
+        fixedOptions: [
+          {
+            id: order.delivery_type,
+            priority: 0,
+            isDefault: true,
+            title: order.delivery_type === 'pickup_farm' ? 'Henting på gård' :
+                   order.delivery_type === 'pickup_e6' ? 'Henting E6' :
+                   'Levering Trondheim',
+            description: 'Valgt leveringsmåte',
+            amount: {
+              currency: 'NOK',
+              value: 0, // Shipping cost included in total
+            },
+          },
+        ],
       },
     };
 
