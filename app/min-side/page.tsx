@@ -47,7 +47,7 @@ export default function CustomerPortalPage() {
   const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
   const [editData, setEditData] = useState<Partial<Order>>({});
   const [cutoffWeek, setCutoffWeek] = useState(46);
-  const [cutoffYear, setCutoffYear] = useState(2024);
+  const [cutoffYear, setCutoffYear] = useState(2026);
   const [canEdit, setCanEdit] = useState(false);
   const [saving, setSaving] = useState(false);
   const [payingRemainder, setPayingRemainder] = useState<string | null>(null);
