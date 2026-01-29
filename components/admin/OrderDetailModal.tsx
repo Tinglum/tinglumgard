@@ -57,11 +57,18 @@ export function OrderDetailModal({
   const [editingNotes, setEditingNotes] = useState(false);
   const [adminNotes, setAdminNotes] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('');
+  const [syncing, setSyncing] = useState(false);
 
   if (!isOpen || !order) return null;
 
   const depositPayment = order.payments?.find((p) => p.payment_type === 'deposit');
   const remainderPayment = order.payments?.find((p) => p.payment_type === 'remainder');
+
+  // Check for mismatch between order amounts and actual payment amounts
+  const depositMismatch = depositPayment && depositPayment.amount_nok !== order.deposit_amount;
+  const remainderMismatch = remainderPayment && remainderPayment.amount_nok !== order.remainder_amount;
+  const actualDepositAmount = depositPayment?.amount_nok || order.deposit_amount;
+  const actualRemainderAmount = remainderPayment?.amount_nok || order.remainder_amount;
 
   const statusOptions = [
     { value: 'draft', label: 'Utkast' },
@@ -97,6 +104,36 @@ export function OrderDetailModal({
     if (!order) return;
     onSaveNotes(order.id, adminNotes);
     setEditingNotes(false);
+  }
+
+  async function handleSyncAmounts() {
+    if (!order) return;
+    if (!confirm('Synkroniser ordrebeløp med faktiske betalingsbeløp? Dette vil oppdatere depositum og restbeløp i ordren.')) {
+      return;
+    }
+
+    setSyncing(true);
+    try {
+      const response = await fetch('/api/admin/orders/sync-amounts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId: order.id }),
+      });
+
+      const result = await response.json();
+
+      if (response.ok && result.synced) {
+        alert('Beløp synkronisert! Oppdater siden for å se endringene.');
+        window.location.reload();
+      } else {
+        alert(result.message || 'Ingen endringer nødvendig');
+      }
+    } catch (error) {
+      console.error('Error syncing amounts:', error);
+      alert('Kunne ikke synkronisere beløp');
+    } finally {
+      setSyncing(false);
+    }
   }
 
   function startEditingNotes() {
@@ -179,7 +216,12 @@ export function OrderDetailModal({
                 <div className="flex justify-between items-center">
                   <span className="text-gray-600">Depositum</span>
                   <div className="flex items-center gap-2">
-                    <span className="font-semibold">kr {order.deposit_amount.toLocaleString('nb-NO')}</span>
+                    <span className="font-semibold">kr {actualDepositAmount.toLocaleString('nb-NO')}</span>
+                    {depositMismatch && (
+                      <span className="text-xs text-amber-600" title={`Order amount: kr ${order.deposit_amount}`}>
+                        (tilpasset)
+                      </span>
+                    )}
                     {depositPayment?.status === 'completed' ? (
                       <CheckCircle2 className="w-4 h-4 text-green-600" />
                     ) : (
@@ -190,7 +232,12 @@ export function OrderDetailModal({
                 <div className="flex justify-between items-center">
                   <span className="text-gray-600">Restbeløp</span>
                   <div className="flex items-center gap-2">
-                    <span className="font-semibold">kr {order.remainder_amount.toLocaleString('nb-NO')}</span>
+                    <span className="font-semibold">kr {actualRemainderAmount.toLocaleString('nb-NO')}</span>
+                    {remainderMismatch && (
+                      <span className="text-xs text-amber-600" title={`Order amount: kr ${order.remainder_amount}`}>
+                        (tilpasset)
+                      </span>
+                    )}
                     {remainderPayment?.status === 'completed' ? (
                       <CheckCircle2 className="w-4 h-4 text-green-600" />
                     ) : (
@@ -210,6 +257,30 @@ export function OrderDetailModal({
                 {remainderPayment && remainderPayment.status === 'completed' && (
                   <div className="text-xs text-gray-600">
                     Restbeløp betalt: {remainderPayment.paid_at ? new Date(remainderPayment.paid_at).toLocaleString('nb-NO') : 'Venter'}
+                  </div>
+                )}
+                {(depositMismatch || remainderMismatch) && (
+                  <div className="pt-3 border-t">
+                    <div className="p-3 rounded-lg bg-amber-50 border border-amber-200 mb-2">
+                      <p className="text-xs text-amber-900 mb-1">
+                        <strong>Bemerkning:</strong> Betalingsbeløp avviker fra ordrebeløp. Dette kan skylde manuell tilpasning.
+                      </p>
+                      <p className="text-xs text-amber-700">
+                        Ordre: Depositum kr {order.deposit_amount.toLocaleString('nb-NO')}, Restbeløp kr {order.remainder_amount.toLocaleString('nb-NO')}
+                      </p>
+                      <p className="text-xs text-amber-700">
+                        Faktisk: Depositum kr {actualDepositAmount.toLocaleString('nb-NO')}, Restbeløp kr {actualRemainderAmount.toLocaleString('nb-NO')}
+                      </p>
+                    </div>
+                    <Button
+                      onClick={handleSyncAmounts}
+                      disabled={syncing}
+                      size="sm"
+                      variant="outline"
+                      className="w-full"
+                    >
+                      {syncing ? 'Synkroniserer...' : 'Synkroniser beløp'}
+                    </Button>
                   </div>
                 )}
               </div>
