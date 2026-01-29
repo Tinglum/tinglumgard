@@ -24,15 +24,20 @@ import {
   CheckSquare,
   RefreshCw,
   Activity,
-  MessageSquare
+  MessageSquare,
+  Warehouse,
+  Calendar
 } from 'lucide-react';
 import { DashboardMetrics } from '@/components/admin/DashboardMetrics';
 import { OrderDetailModal } from '@/components/admin/OrderDetailModal';
 import { CustomerDatabase } from '@/components/admin/CustomerDatabase';
 import { SystemHealth } from '@/components/admin/SystemHealth';
 import { CommunicationCenter } from '@/components/admin/CommunicationCenter';
+import { InventoryManagement } from '@/components/admin/InventoryManagement';
+import { ConfigurationManagement } from '@/components/admin/ConfigurationManagement';
+import { DeliveryCalendar } from '@/components/admin/DeliveryCalendar';
 
-type TabType = 'dashboard' | 'orders' | 'customers' | 'analytics' | 'production' | 'communication' | 'health' | 'settings';
+type TabType = 'dashboard' | 'orders' | 'customers' | 'analytics' | 'production' | 'communication' | 'health' | 'inventory' | 'settings';
 
 interface Order {
   id: string;
@@ -362,7 +367,8 @@ export default function AdminPage() {
     { id: 'customers', label: 'Kunder', icon: Users },
     { id: 'analytics', label: 'Analyse', icon: BarChart3 },
     { id: 'communication', label: 'Kommunikasjon', icon: MessageSquare },
-    { id: 'production', label: 'Produksjon', icon: Package },
+    { id: 'production', label: 'Hentekalender', icon: Calendar },
+    { id: 'inventory', label: 'Lager', icon: Warehouse },
     { id: 'health', label: 'Systemhelse', icon: Activity },
     { id: 'settings', label: 'Innstillinger', icon: Settings },
   ];
@@ -745,20 +751,11 @@ export default function AdminPage() {
           </div>
         )}
 
-        {/* PRODUCTION TAB */}
-        {activeTab === 'production' && (
-          <div className="space-y-6">
-            <h2 className="text-3xl font-bold text-gray-900">Produksjonsplanlegging</h2>
-            <Card className="p-12 text-center">
-              <Package className="w-16 h-16 mx-auto mb-4 text-gray-400" />
-              <p className="text-xl font-semibold text-gray-900 mb-2">Velg ordrer for produksjonsplan</p>
-              <p className="text-gray-600 mb-6">Gå til Bestillinger-fanen, velg ordrer, og eksporter produksjonsplan</p>
-              <Button onClick={() => setActiveTab('orders')}>
-                Gå til bestillinger
-              </Button>
-            </Card>
-          </div>
-        )}
+        {/* PRODUCTION/DELIVERY CALENDAR TAB */}
+        {activeTab === 'production' && <DeliveryCalendar />}
+
+        {/* INVENTORY TAB */}
+        {activeTab === 'inventory' && <InventoryManagement />}
 
         {/* CUSTOMERS TAB */}
         {activeTab === 'customers' && <CustomerDatabase />}
@@ -769,13 +766,8 @@ export default function AdminPage() {
         {/* SYSTEM HEALTH TAB */}
         {activeTab === 'health' && <SystemHealth />}
 
-        {/* SETTINGS TAB - Placeholder */}
-        {activeTab === 'settings' && (
-          <Card className="p-12 text-center">
-            <p className="text-xl font-semibold text-gray-900 mb-2">Innstillinger</p>
-            <p className="text-gray-600">Konfigurasjon kommer snart</p>
-          </Card>
-        )}
+        {/* SETTINGS TAB */}
+        {activeTab === 'settings' && <ConfigurationManagement />}
       </div>
 
       {/* Order Detail Modal */}
