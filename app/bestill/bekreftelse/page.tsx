@@ -106,7 +106,8 @@ export default function ConfirmationPage() {
     );
   }
 
-  const depositAmount = Math.floor((order.box_size === 8 ? 3500 : 4800) * 0.01);
+  // Use actual deposit amount from order (may be customized)
+  const depositAmount = order.deposit_amount;
 
   return (
     <div className={cn("min-h-screen", theme.bgGradientHero)}>

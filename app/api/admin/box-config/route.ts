@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth/session';
 import { supabaseAdmin } from '@/lib/supabase/server';
+import { getPricingConfig } from '@/lib/config/pricing';
 
 export async function GET(request: NextRequest) {
   const session = await getSession();
@@ -18,12 +19,14 @@ export async function GET(request: NextRequest) {
 
     if (error) throw error;
 
-    // If no configs exist, create default ones
+    // If no configs exist, create default ones using dynamic pricing
     if (!boxConfigs || boxConfigs.length === 0) {
+      const pricing = await getPricingConfig();
+
       const defaultConfigs = [
         {
           box_size: 8,
-          price: 6490,
+          price: pricing.box_8kg_price,
           items: [
             { id: 'item_1', name: 'Entrecôte', quantity: 1.5, unit: 'kg' },
             { id: 'item_2', name: 'Indrefilet', quantity: 1, unit: 'kg' },
@@ -36,7 +39,7 @@ export async function GET(request: NextRequest) {
         },
         {
           box_size: 12,
-          price: 8990,
+          price: pricing.box_12kg_price,
           items: [
             { id: 'item_1', name: 'Entrecôte', quantity: 2, unit: 'kg' },
             { id: 'item_2', name: 'Indrefilet', quantity: 1.5, unit: 'kg' },

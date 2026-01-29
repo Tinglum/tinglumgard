@@ -3,6 +3,7 @@ import { supabaseAdmin } from '@/lib/supabase/server';
 import { randomBytes } from 'crypto';
 import { sendEmail } from '@/lib/email/client';
 import { getOrderConfirmationTemplate } from '@/lib/email/templates';
+import { getPricingConfig } from '@/lib/config/pricing';
 
 interface ExtraProduct {
   slug: string;
@@ -46,15 +47,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to update inventory' }, { status: 500 });
     }
 
-    // Calculate pricing
-    const basePrice = boxSize === 8 ? 3500 : 4800;
+    // Fetch dynamic pricing from config
+    const pricing = await getPricingConfig();
+
+    // Calculate pricing using dynamic config
+    const basePrice = boxSize === 8 ? pricing.box_8kg_price : pricing.box_12kg_price;
     let deliveryFee = 0;
     if (deliveryType === 'pickup_e6') {
-      deliveryFee = 300;
+      deliveryFee = pricing.delivery_fee_pickup_e6;
     } else if (deliveryType === 'delivery_trondheim') {
-      deliveryFee = 200;
+      deliveryFee = pricing.delivery_fee_trondheim;
     }
-    const freshFee = freshDelivery ? 500 : 0;
+    const freshFee = freshDelivery ? pricing.fresh_delivery_fee : 0;
 
     // Calculate extra products total from database
     let extrasTotal = 0;
@@ -87,7 +91,8 @@ export async function POST(request: NextRequest) {
     }
 
     const totalAmount = basePrice + deliveryFee + freshFee + extrasTotal;
-    const depositAmount = Math.floor(basePrice * 0.5);
+    const depositPercentage = boxSize === 8 ? pricing.box_8kg_deposit_percentage : pricing.box_12kg_deposit_percentage;
+    const depositAmount = Math.floor(basePrice * (depositPercentage / 100));
     const remainderAmount = totalAmount - depositAmount;
 
     // Generate order number (max 7 characters: TL + 5 random alphanumerics)

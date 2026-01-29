@@ -71,9 +71,8 @@ export async function POST(
       }
     }
 
-    // Calculate deposit amount (1% of base price)
-    const basePrice = order.box_size === 8 ? 3500 : 4800;
-    const depositAmount = Math.floor(basePrice * 0.01);
+    // Use the deposit amount from the order (which may be customized)
+    const depositAmount = order.deposit_amount;
 
     // Create shorter reference (max 50 chars) using order number
     const shortReference = `DEP-${order.order_number}`;

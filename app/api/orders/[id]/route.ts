@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth/session';
 import { supabaseAdmin } from '@/lib/supabase/server';
 import { isBeforeCutoff } from '@/lib/utils/date';
+import { getPricingConfig } from '@/lib/config/pricing';
 
 export async function GET(
   request: NextRequest,
@@ -108,10 +109,20 @@ export async function PATCH(
 
     // Handle box size changes
     if (box_size !== undefined) {
-      const basePrice = box_size === 8 ? 6490 : 8990;
-      const deliveryFee = (delivery_type || deliveryType) === 'delivery' ? 500 : 0;
-      const freshFee = (freshDelivery !== undefined ? freshDelivery : false) ? 200 : 0;
-      const depositAmount = Math.round(basePrice * 0.5);
+      // Fetch dynamic pricing from config
+      const pricing = await getPricingConfig();
+
+      const basePrice = box_size === 8 ? pricing.box_8kg_price : pricing.box_12kg_price;
+      let deliveryFee = 0;
+      const delType = delivery_type || deliveryType;
+      if (delType === 'pickup_e6') {
+        deliveryFee = pricing.delivery_fee_pickup_e6;
+      } else if (delType === 'delivery_trondheim') {
+        deliveryFee = pricing.delivery_fee_trondheim;
+      }
+      const freshFee = (freshDelivery !== undefined ? freshDelivery : false) ? pricing.fresh_delivery_fee : 0;
+      const depositPercentage = box_size === 8 ? pricing.box_8kg_deposit_percentage : pricing.box_12kg_deposit_percentage;
+      const depositAmount = Math.floor(basePrice * (depositPercentage / 100));
       const totalAmount = basePrice + deliveryFee + freshFee;
       const remainderAmount = totalAmount - depositAmount;
 

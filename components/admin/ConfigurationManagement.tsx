@@ -13,7 +13,10 @@ interface ConfigData {
   pricing: {
     box_8kg: number;
     box_12kg: number;
-    delivery_fee: number;
+    box_8kg_deposit_percentage: number;
+    box_12kg_deposit_percentage: number;
+    delivery_fee_pickup_e6: number;
+    delivery_fee_trondheim: number;
     fresh_delivery_fee: number;
   };
   cutoff: {
@@ -32,10 +35,13 @@ export function ConfigurationManagement() {
   const [saving, setSaving] = useState(false);
 
   // Pricing state
-  const [box8kgPrice, setBox8kgPrice] = useState(6490);
-  const [box12kgPrice, setBox12kgPrice] = useState(8990);
-  const [deliveryFee, setDeliveryFee] = useState(500);
-  const [freshFee, setFreshFee] = useState(200);
+  const [box8kgPrice, setBox8kgPrice] = useState(3500);
+  const [box12kgPrice, setBox12kgPrice] = useState(4800);
+  const [box8kgDepositPercentage, setBox8kgDepositPercentage] = useState(50);
+  const [box12kgDepositPercentage, setBox12kgDepositPercentage] = useState(50);
+  const [deliveryFeeE6, setDeliveryFeeE6] = useState(300);
+  const [deliveryFeeTrondheim, setDeliveryFeeTrondheim] = useState(200);
+  const [freshFee, setFreshFee] = useState(500);
 
   // Cutoff state
   const [cutoffYear, setCutoffYear] = useState(2026);
@@ -60,7 +66,10 @@ export function ConfigurationManagement() {
       // Set pricing
       setBox8kgPrice(data.config.pricing.box_8kg);
       setBox12kgPrice(data.config.pricing.box_12kg);
-      setDeliveryFee(data.config.pricing.delivery_fee);
+      setBox8kgDepositPercentage(data.config.pricing.box_8kg_deposit_percentage || 50);
+      setBox12kgDepositPercentage(data.config.pricing.box_12kg_deposit_percentage || 50);
+      setDeliveryFeeE6(data.config.pricing.delivery_fee_pickup_e6 || 300);
+      setDeliveryFeeTrondheim(data.config.pricing.delivery_fee_trondheim || 200);
       setFreshFee(data.config.pricing.fresh_delivery_fee);
 
       // Set cutoff
@@ -87,7 +96,10 @@ export function ConfigurationManagement() {
           pricing: {
             box_8kg: box8kgPrice,
             box_12kg: box12kgPrice,
-            delivery_fee: deliveryFee,
+            box_8kg_deposit_percentage: box8kgDepositPercentage,
+            box_12kg_deposit_percentage: box12kgDepositPercentage,
+            delivery_fee_pickup_e6: deliveryFeeE6,
+            delivery_fee_trondheim: deliveryFeeTrondheim,
             fresh_delivery_fee: freshFee,
           },
           cutoff: {
@@ -176,16 +188,57 @@ export function ConfigurationManagement() {
           </div>
 
           <div>
-            <Label>Leveringsgebyr (NOK)</Label>
+            <Label>8 kg depositum (%)</Label>
             <Input
               type="number"
-              value={deliveryFee}
-              onChange={(e) => setDeliveryFee(parseInt(e.target.value) || 0)}
+              value={box8kgDepositPercentage}
+              onChange={(e) => setBox8kgDepositPercentage(parseInt(e.target.value) || 0)}
+              className="mt-2"
+              min="0"
+              max="100"
+              step="1"
+            />
+            <p className="text-sm text-gray-600 mt-1">Prosent av grunnpris for 8 kg boks</p>
+          </div>
+
+          <div>
+            <Label>12 kg depositum (%)</Label>
+            <Input
+              type="number"
+              value={box12kgDepositPercentage}
+              onChange={(e) => setBox12kgDepositPercentage(parseInt(e.target.value) || 0)}
+              className="mt-2"
+              min="0"
+              max="100"
+              step="1"
+            />
+            <p className="text-sm text-gray-600 mt-1">Prosent av grunnpris for 12 kg boks</p>
+          </div>
+
+          <div>
+            <Label>Henting E6 gebyr (NOK)</Label>
+            <Input
+              type="number"
+              value={deliveryFeeE6}
+              onChange={(e) => setDeliveryFeeE6(parseInt(e.target.value) || 0)}
               className="mt-2"
               min="0"
               step="50"
             />
-            <p className="text-sm text-gray-600 mt-1">Kostnad for hjemlevering</p>
+            <p className="text-sm text-gray-600 mt-1">Kostnad for henting ved E6</p>
+          </div>
+
+          <div>
+            <Label>Levering Trondheim gebyr (NOK)</Label>
+            <Input
+              type="number"
+              value={deliveryFeeTrondheim}
+              onChange={(e) => setDeliveryFeeTrondheim(parseInt(e.target.value) || 0)}
+              className="mt-2"
+              min="0"
+              step="50"
+            />
+            <p className="text-sm text-gray-600 mt-1">Kostnad for levering i Trondheim</p>
           </div>
 
           <div>
@@ -205,10 +258,14 @@ export function ConfigurationManagement() {
         <div className="mt-6 p-4 rounded-lg bg-blue-50 border border-blue-200">
           <p className="text-sm text-blue-900 font-medium mb-2">Priseksempel:</p>
           <div className="grid grid-cols-2 gap-2 text-sm text-blue-800">
-            <div>8 kg boks + levering:</div>
-            <div className="font-bold">kr {(box8kgPrice + deliveryFee).toLocaleString('nb-NO')}</div>
-            <div>12 kg boks + fersk:</div>
-            <div className="font-bold">kr {(box12kgPrice + freshFee).toLocaleString('nb-NO')}</div>
+            <div>8 kg depositum ({box8kgDepositPercentage}%):</div>
+            <div className="font-bold">kr {Math.floor(box8kgPrice * (box8kgDepositPercentage / 100)).toLocaleString('nb-NO')}</div>
+            <div>12 kg depositum ({box12kgDepositPercentage}%):</div>
+            <div className="font-bold">kr {Math.floor(box12kgPrice * (box12kgDepositPercentage / 100)).toLocaleString('nb-NO')}</div>
+            <div>8 kg total + E6 + fersk:</div>
+            <div className="font-bold">kr {(box8kgPrice + deliveryFeeE6 + freshFee).toLocaleString('nb-NO')}</div>
+            <div>12 kg total + Trondheim:</div>
+            <div className="font-bold">kr {(box12kgPrice + deliveryFeeTrondheim).toLocaleString('nb-NO')}</div>
           </div>
         </div>
       </Card>

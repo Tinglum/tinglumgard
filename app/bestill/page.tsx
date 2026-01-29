@@ -32,6 +32,7 @@ export default function CheckoutPage() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [orderConfirmed, setOrderConfirmed] = useState(false);
   const [orderId, setOrderId] = useState<string | null>(null);
+  const [pricing, setPricing] = useState<any>(null);
 
   // URL parameter handling
   useEffect(() => {
@@ -41,6 +42,20 @@ export default function CheckoutPage() {
       setStep(2);
     }
   }, [searchParams]);
+
+  // Fetch pricing configuration
+  useEffect(() => {
+    async function fetchConfig() {
+      try {
+        const response = await fetch('/api/config');
+        const data = await response.json();
+        setPricing(data.pricing);
+      } catch (error) {
+        console.error('Failed to fetch pricing config:', error);
+      }
+    }
+    fetchConfig();
+  }, []);
 
   // Fetch available extras
   useEffect(() => {
@@ -109,16 +124,25 @@ export default function CheckoutPage() {
     }
   }
 
-  const prices = {
-    '8': { deposit: 35, remainder: 3465, total: 3500 },
-    '12': { deposit: 48, remainder: 4752, total: 4800 },
-  };
+  // Calculate prices from dynamic config
+  const prices = pricing ? {
+    '8': {
+      deposit: Math.floor(pricing.box_8kg_price * (pricing.box_8kg_deposit_percentage / 100)),
+      remainder: pricing.box_8kg_price - Math.floor(pricing.box_8kg_price * (pricing.box_8kg_deposit_percentage / 100)),
+      total: pricing.box_8kg_price
+    },
+    '12': {
+      deposit: Math.floor(pricing.box_12kg_price * (pricing.box_12kg_deposit_percentage / 100)),
+      remainder: pricing.box_12kg_price - Math.floor(pricing.box_12kg_price * (pricing.box_12kg_deposit_percentage / 100)),
+      total: pricing.box_12kg_price
+    },
+  } : null;
 
-  const addonPrices = {
-    trondheim: 200,
-    e6: 300,
-    fresh: 500,
-  };
+  const addonPrices = pricing ? {
+    trondheim: pricing.delivery_fee_trondheim,
+    e6: pricing.delivery_fee_pickup_e6,
+    fresh: pricing.fresh_delivery_fee,
+  } : null;
 
   const boxContents = {
     '8': [
@@ -141,9 +165,9 @@ export default function CheckoutPage() {
     ],
   };
 
-  const selectedPrice = boxSize ? prices[boxSize] : null;
-  const deliveryPrice = deliveryType === 'farm' ? 0 : deliveryType === 'trondheim' ? addonPrices.trondheim : addonPrices.e6;
-  const freshPrice = freshDelivery ? addonPrices.fresh : 0;
+  const selectedPrice = boxSize && prices ? prices[boxSize] : null;
+  const deliveryPrice = !addonPrices ? 0 : (deliveryType === 'farm' ? 0 : deliveryType === 'trondheim' ? addonPrices.trondheim : addonPrices.e6);
+  const freshPrice = freshDelivery && addonPrices ? addonPrices.fresh : 0;
 
   // Calculate extras total
   const extrasTotal = extraProducts.reduce((total, slug) => {

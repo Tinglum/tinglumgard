@@ -22,10 +22,13 @@ export async function GET(request: NextRequest) {
 
     const config = {
       pricing: {
-        box_8kg: parseInt(configMap['box_8kg_price'] || '6490'),
-        box_12kg: parseInt(configMap['box_12kg_price'] || '8990'),
-        delivery_fee: parseInt(configMap['delivery_fee'] || '500'),
-        fresh_delivery_fee: parseInt(configMap['fresh_delivery_fee'] || '200'),
+        box_8kg: parseInt(configMap['box_8kg_price'] || '3500'),
+        box_12kg: parseInt(configMap['box_12kg_price'] || '4800'),
+        box_8kg_deposit_percentage: parseInt(configMap['box_8kg_deposit_percentage'] || '50'),
+        box_12kg_deposit_percentage: parseInt(configMap['box_12kg_deposit_percentage'] || '50'),
+        delivery_fee_pickup_e6: parseInt(configMap['delivery_fee_pickup_e6'] || '300'),
+        delivery_fee_trondheim: parseInt(configMap['delivery_fee_trondheim'] || '200'),
+        fresh_delivery_fee: parseInt(configMap['fresh_delivery_fee'] || '500'),
       },
       cutoff: {
         year: parseInt(configMap['cutoff_year'] || '2026'),
@@ -60,7 +63,10 @@ export async function POST(request: NextRequest) {
       await supabaseAdmin.from('config').upsert([
         { key: 'box_8kg_price', value: pricing.box_8kg.toString() },
         { key: 'box_12kg_price', value: pricing.box_12kg.toString() },
-        { key: 'delivery_fee', value: pricing.delivery_fee.toString() },
+        { key: 'box_8kg_deposit_percentage', value: pricing.box_8kg_deposit_percentage.toString() },
+        { key: 'box_12kg_deposit_percentage', value: pricing.box_12kg_deposit_percentage.toString() },
+        { key: 'delivery_fee_pickup_e6', value: pricing.delivery_fee_pickup_e6.toString() },
+        { key: 'delivery_fee_trondheim', value: pricing.delivery_fee_trondheim.toString() },
         { key: 'fresh_delivery_fee', value: pricing.fresh_delivery_fee.toString() },
       ]);
     }

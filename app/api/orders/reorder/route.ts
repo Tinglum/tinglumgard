@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth/session';
 import { supabaseAdmin } from '@/lib/supabase/server';
 import { randomBytes } from 'crypto';
+import { getPricingConfig } from '@/lib/config/pricing';
 
 export async function POST(request: NextRequest) {
   const session = await getSession();

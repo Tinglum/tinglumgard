@@ -54,28 +54,8 @@ export async function POST(
       return NextResponse.json({ error: 'Order is locked' }, { status: 400 });
     }
 
-    const basePrice = order.box_size === 8 ? 3500 : 4800;
-    let deliveryFee = 0;
-    if (order.delivery_type === 'pickup_e6') {
-      deliveryFee = 250;
-    } else if (order.delivery_type === 'delivery_trondheim') {
-      deliveryFee = 300;
-    }
-    const freshFee = order.fresh_delivery ? 500 : 0;
-
-    const depositAmount = Math.floor(basePrice / 2);
-    let remainderAmount = basePrice - depositAmount + deliveryFee + freshFee;
-
-    const addOnsJson = order.add_ons_json || {};
-    if (addOnsJson.organPakke) remainderAmount += 200;
-    if (addOnsJson.grunnPakke) remainderAmount += 100;
-    if (addOnsJson.krydderpakke) remainderAmount += 150;
-
-    if (order.order_extras && order.order_extras.length > 0) {
-      order.order_extras.forEach((extra: any) => {
-        remainderAmount += extra.price_nok || 0;
-      });
-    }
+    // Use the remainder amount from the order (already calculated and may be customized)
+    const remainderAmount = order.remainder_amount;
 
     // Create shorter reference (max 50 chars) using order number
     const shortReference = `REM-${order.order_number}`;
