@@ -193,14 +193,14 @@ function buildEmailHTML(customerName: string, message: string, orderNumber: stri
 <body>
   <div class="container">
     <div class="header">
-      <h1>Tinglum Gård</h1>
+      <h1>Tinglumgård</h1>
     </div>
     <div class="content">
       ${personalizedMessage}
-      <p style="margin-top: 30px;">Vennlig hilsen,<br><strong>Tinglum Gård</strong></p>
+      <p style="margin-top: 30px;">Vennlig hilsen,<br><strong>Tinglumgård</strong></p>
     </div>
     <div class="footer">
-      <p>Tinglum Gård | Kvalitetsokse fra gården</p>
+      <p>Tinglumgård | Kvalitetsokse fra gården</p>
     </div>
   </div>
 </body>

@@ -413,7 +413,7 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
               </div>
               {order.fresh_delivery && (
                 <div className={cn('px-3 py-1 rounded-full bg-blue-50 text-blue-700 text-sm inline-flex items-center')}>
-                  Fersk levering (+kr 500)
+                  Fersk levering (+kr 200)
                 </div>
               )}
               {order.extra_products && order.extra_products.length > 0 && (

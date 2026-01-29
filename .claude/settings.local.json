@@ -37,7 +37,9 @@
       "Bash(cat:*)",
       "Bash(node -e:*)",
       "Bash(git commit:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(grep:*)",
+      "Bash(tail:*)"
     ]
   }
 }

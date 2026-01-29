@@ -19,7 +19,7 @@ export async function deductInventory(orderId: string, boxSize: number): Promise
     const { data: inventory, error: inventoryError } = await supabaseAdmin
       .from('inventory')
       .select('*')
-      .eq('season', process.env.CURRENT_SEASON || 'høst_2024')
+      .eq('season', process.env.CURRENT_SEASON || 'høst_2026')
       .eq('active', true)
       .single();
 
@@ -83,7 +83,7 @@ export async function restoreInventory(orderId: string): Promise<{ success: bool
     const { data: inventory, error: inventoryError } = await supabaseAdmin
       .from('inventory')
       .select('*')
-      .eq('season', process.env.CURRENT_SEASON || 'høst_2024')
+      .eq('season', process.env.CURRENT_SEASON || 'høst_2026')
       .eq('active', true)
       .single();
 
@@ -123,7 +123,7 @@ export async function getInventory() {
   const { data, error } = await supabaseAdmin
     .from('inventory')
     .select('*')
-    .eq('season', process.env.CURRENT_SEASON || 'høst_2024')
+    .eq('season', process.env.CURRENT_SEASON || 'høst_2026')
     .eq('active', true)
     .single();
 

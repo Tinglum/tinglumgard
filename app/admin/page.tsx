@@ -429,7 +429,7 @@ export default function AdminPage() {
       <div className="bg-white border-b sticky top-0 z-40">
         <div className="max-w-[1800px] mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-bold text-gray-900">Tinglum Gård - Admin</h1>
+            <h1 className="text-2xl font-bold text-gray-900">Tinglumgård - Admin</h1>
             <Button variant="outline" onClick={() => setIsAuthenticated(false)}>
               Logg ut
             </Button>

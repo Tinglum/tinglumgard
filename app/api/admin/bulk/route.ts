@@ -71,7 +71,7 @@ async function bulkUpdateStatus(orderIds: string[], newStatus: string) {
 </head>
 <body>
   <div class="container">
-    <div class="header"><h1>Tinglum Gård</h1></div>
+    <div class="header"><h1>Tinglumgård</h1></div>
     <div class="content">
       <h2>Din bestilling er klar! 🎉</h2>
       <p>Hei ${order.customer_name},</p>
@@ -83,7 +83,7 @@ async function bulkUpdateStatus(orderIds: string[], newStatus: string) {
         <li>Se detaljer på <a href="${appUrl}/min-side">Min Side</a></li>
       </ul>
       <p>Vi gleder oss til å se deg!</p>
-      <p>Vennlig hilsen,<br>Tinglum Gård</p>
+      <p>Vennlig hilsen,<br>Tinglumgård</p>
     </div>
   </div>
 </body>
@@ -133,11 +133,11 @@ async function bulkSendEmail(orderIds: string[], subject: string, message: strin
 </head>
 <body>
   <div class="container">
-    <div class="header"><h1>Tinglum Gård</h1></div>
+    <div class="header"><h1>Tinglumgård</h1></div>
     <div class="content">
       <p>Hei ${order.customer_name},</p>
       ${message.replace('{ORDER_NUMBER}', order.order_number).replace('{CUSTOMER_NAME}', order.customer_name)}
-      <p>Vennlig hilsen,<br>Tinglum Gård</p>
+      <p>Vennlig hilsen,<br>Tinglumgård</p>
     </div>
   </div>
 </body>
@@ -194,7 +194,7 @@ async function bulkLockOrders(orderIds: string[]) {
 </head>
 <body>
   <div class="container">
-    <div class="header"><h1>Tinglum Gård</h1></div>
+    <div class="header"><h1>Tinglumgård</h1></div>
     <div class="content">
       <h2>Ordre låst og ferdigstilt</h2>
       <p>Hei ${order.customer_name},</p>
@@ -202,7 +202,7 @@ async function bulkLockOrders(orderIds: string[]) {
       <p>Ingen flere endringer kan gjøres. Vi klargjør okseboksen din for henting/levering.</p>
       <p>Du vil motta beskjed når bestillingen din er klar.</p>
       <p>Takk for din bestilling!</p>
-      <p>Vennlig hilsen,<br>Tinglum Gård</p>
+      <p>Vennlig hilsen,<br>Tinglumgård</p>
     </div>
   </div>
 </body>
