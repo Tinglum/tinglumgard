@@ -77,21 +77,27 @@ export async function POST(
       });
     }
 
-    const idempotencyKey = `remainder-${order.id}-${Date.now()}`;
+    // Create shorter reference (max 50 chars) using order number
+    const shortReference = `REM-${order.order_number}`;
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://tinglum.no';
+
+    // Generate callback authorization token
+    const { randomBytes } = await import('crypto');
+    const callbackToken = randomBytes(16).toString('hex');
 
     const vippsResult = await vippsClient.createCheckoutSession({
       merchantInfo: {
         callbackUrl: `${appUrl}/api/webhooks/vipps`,
         returnUrl: `${appUrl}/min-side`,
         termsAndConditionsUrl: `${appUrl}/vilkar`,
+        callbackAuthorizationToken: callbackToken,
       },
       transaction: {
         amount: {
           currency: 'NOK',
           value: remainderAmount * 100,
         },
-        reference: idempotencyKey,
+        reference: shortReference,
         paymentDescription: `Restbetaling ordre ${order.order_number}`,
       },
       configuration: {
@@ -107,7 +113,7 @@ export async function POST(
         amount_nok: remainderAmount,
         vipps_session_id: vippsResult.sessionId,
         status: 'pending',
-        idempotency_key: idempotencyKey,
+        idempotency_key: shortReference,
       })
       .select()
       .single();
