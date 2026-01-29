@@ -22,12 +22,17 @@ import {
   Eye,
   Trash2,
   CheckSquare,
-  RefreshCw
+  RefreshCw,
+  Activity,
+  MessageSquare
 } from 'lucide-react';
 import { DashboardMetrics } from '@/components/admin/DashboardMetrics';
 import { OrderDetailModal } from '@/components/admin/OrderDetailModal';
+import { CustomerDatabase } from '@/components/admin/CustomerDatabase';
+import { SystemHealth } from '@/components/admin/SystemHealth';
+import { CommunicationCenter } from '@/components/admin/CommunicationCenter';
 
-type TabType = 'dashboard' | 'orders' | 'customers' | 'analytics' | 'production' | 'settings';
+type TabType = 'dashboard' | 'orders' | 'customers' | 'analytics' | 'production' | 'communication' | 'health' | 'settings';
 
 interface Order {
   id: string;
@@ -356,7 +361,9 @@ export default function AdminPage() {
     { id: 'orders', label: 'Bestillinger', icon: ShoppingCart },
     { id: 'customers', label: 'Kunder', icon: Users },
     { id: 'analytics', label: 'Analyse', icon: BarChart3 },
+    { id: 'communication', label: 'Kommunikasjon', icon: MessageSquare },
     { id: 'production', label: 'Produksjon', icon: Package },
+    { id: 'health', label: 'Systemhelse', icon: Activity },
     { id: 'settings', label: 'Innstillinger', icon: Settings },
   ];
 
@@ -753,11 +760,20 @@ export default function AdminPage() {
           </div>
         )}
 
-        {/* OTHER TABS - Placeholder */}
-        {(activeTab === 'customers' || activeTab === 'settings') && (
+        {/* CUSTOMERS TAB */}
+        {activeTab === 'customers' && <CustomerDatabase />}
+
+        {/* COMMUNICATION TAB */}
+        {activeTab === 'communication' && <CommunicationCenter />}
+
+        {/* SYSTEM HEALTH TAB */}
+        {activeTab === 'health' && <SystemHealth />}
+
+        {/* SETTINGS TAB - Placeholder */}
+        {activeTab === 'settings' && (
           <Card className="p-12 text-center">
-            <p className="text-xl font-semibold text-gray-900 mb-2">Kommer snart</p>
-            <p className="text-gray-600">Denne funksjonen er under utvikling</p>
+            <p className="text-xl font-semibold text-gray-900 mb-2">Innstillinger</p>
+            <p className="text-gray-600">Konfigurasjon kommer snart</p>
           </Card>
         )}
       </div>
