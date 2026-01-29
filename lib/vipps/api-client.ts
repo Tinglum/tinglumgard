@@ -104,6 +104,13 @@ class VippsClient {
   async createCheckoutSession(sessionData: any) {
     const accessToken = await this.getAccessToken();
 
+    // Add client credentials to the session data
+    const sessionDataWithAuth = {
+      ...sessionData,
+      client_id: vippsConfig.clientId,
+      client_secret: vippsConfig.clientSecret,
+    };
+
     const response = await fetch(`${vippsConfig.apiBaseUrl}/checkout/v3/session`, {
       method: 'POST',
       headers: {
@@ -114,7 +121,7 @@ class VippsClient {
         'Vipps-System-Name': 'tinglumgard',
         'Vipps-System-Version': '1.0.0',
       },
-      body: JSON.stringify(sessionData),
+      body: JSON.stringify(sessionDataWithAuth),
     });
 
     if (!response.ok) {
