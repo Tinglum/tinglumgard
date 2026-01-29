@@ -16,6 +16,7 @@ export default function ConfirmationPage() {
   const [order, setOrder] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [paymentStatus, setPaymentStatus] = useState<'pending' | 'completed' | 'failed'>('pending');
+  const [pollCount, setPollCount] = useState(0);
 
   useEffect(() => {
     async function fetchOrder() {
@@ -48,6 +49,37 @@ export default function ConfirmationPage() {
 
     fetchOrder();
   }, [orderId]);
+
+  // Poll for payment status updates (webhooks can be delayed)
+  useEffect(() => {
+    if (!orderId || paymentStatus === 'completed' || pollCount >= 10) {
+      return;
+    }
+
+    const pollInterval = setInterval(async () => {
+      try {
+        const response = await fetch(`/api/orders/${orderId}`);
+        if (response.ok) {
+          const data = await response.json();
+          const depositPayment = data.payments?.find(
+            (p: any) => p.payment_type === 'deposit'
+          );
+
+          if (depositPayment && depositPayment.status === 'completed') {
+            setPaymentStatus('completed');
+            setOrder(data);
+            clearInterval(pollInterval);
+          }
+        }
+      } catch (error) {
+        console.error('Error polling order status:', error);
+      }
+
+      setPollCount(prev => prev + 1);
+    }, 3000); // Poll every 3 seconds
+
+    return () => clearInterval(pollInterval);
+  }, [orderId, paymentStatus, pollCount]);
 
   if (loading) {
     return (
