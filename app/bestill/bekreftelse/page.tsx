@@ -117,7 +117,10 @@ export default function ConfirmationPage() {
             <CheckCircle className={cn("w-12 h-12", paymentStatus === 'completed' ? "text-green-600" : theme.textPrimary)} />
           </div>
           <h1 className={cn("text-4xl font-bold mb-2", theme.textPrimary)}>
-            {paymentStatus === 'completed' ? 'Betaling mottatt!' : 'Ordre opprettet!'}
+            {order.status === 'deposit_paid' || order.status === 'paid' ? 'Betaling mottatt!' :
+             order.status === 'ready_for_pickup' ? 'Ordre klar!' :
+             order.status === 'completed' ? 'Ordre fullført!' :
+             'Ordre opprettet!'}
           </h1>
           <p className={cn("text-lg", theme.textMuted)}>
             Ordrenummer: <span className={cn("font-mono font-semibold", theme.textPrimary)}>{order.order_number}</span>
@@ -150,9 +153,13 @@ export default function ConfirmationPage() {
               <div>
                 <p className={cn("font-semibold", theme.textPrimary)}>Status</p>
                 <p className={cn(theme.textMuted)}>
-                  {paymentStatus === 'completed' ? 'Depositum betalt' :
-                   paymentStatus === 'pending' ? 'Venter på betaling' :
-                   'Betalingsfeil'}
+                  {order.status === 'draft' && 'Venter på depositum' ||
+                   order.status === 'deposit_paid' && 'Depositum betalt - venter på rest' ||
+                   order.status === 'paid' && 'Fullstendig betalt' ||
+                   order.status === 'ready_for_pickup' && 'Klar for henting' ||
+                   order.status === 'completed' && 'Fullført' ||
+                   order.status === 'cancelled' && 'Kansellert' ||
+                   'Ukjent status'}
                 </p>
               </div>
             </div>
@@ -164,12 +171,30 @@ export default function ConfirmationPage() {
           <h2 className={cn("text-2xl font-bold mb-6", theme.textPrimary)}>Neste steg</h2>
 
           <div className="space-y-4">
-            {paymentStatus === 'pending' && (
+            {order.status === 'draft' && (
               <div className={cn("p-4 rounded-xl border-2 border-yellow-500 bg-yellow-50")}>
                 <p className="text-yellow-900 font-semibold">Betaling ikke fullført</p>
                 <p className="text-sm text-yellow-800 mt-1">
                   Depositumbetalingen på {depositAmount.toLocaleString('nb-NO')} kr er ikke fullført ennå.
                   Sjekk Vipps-appen din eller kontakt oss hvis du trenger hjelp.
+                </p>
+              </div>
+            )}
+
+            {order.status === 'deposit_paid' && (
+              <div className={cn("p-4 rounded-xl border-2 border-green-500 bg-green-50")}>
+                <p className="text-green-900 font-semibold">Depositum bekreftet! ✓</p>
+                <p className="text-sm text-green-800 mt-1">
+                  Vi har mottatt depositum. Du vil motta en påminnelse om restbetaling ca. 2 uker før henting.
+                </p>
+              </div>
+            )}
+
+            {order.status === 'paid' && (
+              <div className={cn("p-4 rounded-xl border-2 border-green-500 bg-green-50")}>
+                <p className="text-green-900 font-semibold">Fullstendig betalt! ✓</p>
+                <p className="text-sm text-green-800 mt-1">
+                  Takk for full betaling. Din bestilling vil bli klargjort for henting.
                 </p>
               </div>
             )}
@@ -180,12 +205,12 @@ export default function ConfirmationPage() {
               </div>
               <div>
                 <p className={cn("font-semibold", theme.textPrimary)}>
-                  {paymentStatus === 'completed' ? 'Depositum betalt ✓' : 'Betal depositum'}
+                  {order.status !== 'draft' ? 'Depositum betalt ✓' : 'Betal depositum'}
                 </p>
                 <p className={cn("text-sm", theme.textMuted)}>
-                  {paymentStatus === 'completed'
-                    ? 'Du vil motta en e-postbekreftelse snart.'
-                    : `Betal depositum på ${depositAmount.toLocaleString('nb-NO')} kr via Vipps.`
+                  {order.status !== 'draft'
+                    ? 'Depositum mottatt. Du har mottatt en e-postbekreftelse.'
+                    : `Betal depositum på ${order.deposit_amount.toLocaleString('nb-NO')} kr via Vipps.`
                   }
                 </p>
               </div>
