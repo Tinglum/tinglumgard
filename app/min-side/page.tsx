@@ -190,15 +190,12 @@ export default function CustomerPortalPage() {
 
   function getStatusKey(status: string): 'depositPaid' | 'remainderDue' | 'paid' | 'locked' | 'delivered' | 'completed' | 'atRisk' {
     const statusMap: Record<string, 'depositPaid' | 'remainderDue' | 'paid' | 'locked' | 'delivered' | 'completed' | 'atRisk'> = {
-      pending: 'depositPaid',
-      deposit_paid: 'depositPaid',
-      remainder_due: 'remainderDue',
-      paid: 'paid',
-      locked: 'locked',
-      ready_for_pickup: 'delivered',
-      delivered: 'delivered',
-      completed: 'completed',
-      at_risk: 'atRisk',
+      draft: 'remainderDue', // Waiting for deposit payment
+      deposit_paid: 'remainderDue', // Deposit paid, waiting for remainder
+      paid: 'paid', // Fully paid
+      ready_for_pickup: 'delivered', // Ready for pickup/delivery
+      completed: 'completed', // Order completed
+      cancelled: 'atRisk', // Order cancelled (reuse atRisk styling)
     };
     return statusMap[status] || 'depositPaid';
   }
