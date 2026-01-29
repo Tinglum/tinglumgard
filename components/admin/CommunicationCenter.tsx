@@ -52,6 +52,41 @@ export function CommunicationCenter() {
     setMessage('');
   }
 
+  async function sendToAllCustomers() {
+    if (!confirm('Er du sikker på at du vil sende denne e-posten til ALLE kunder? Dette kan ikke angres.')) {
+      return;
+    }
+
+    setSending(true);
+    try {
+      const response = await fetch('/api/admin/communication', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'send_to_all',
+          data: {
+            subject,
+            message,
+          },
+        }),
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        alert(`E-post sendt til ${result.sent} av ${result.total_customers} kunder!\n${result.failed > 0 ? `${result.failed} feilet.` : ''}`);
+        clearForm();
+      } else {
+        alert(`Feil ved sending: ${result.error || 'Ukjent feil'}`);
+      }
+    } catch (error) {
+      console.error('Error sending emails:', error);
+      alert('Kunne ikke sende e-poster. Se konsollen for detaljer.');
+    } finally {
+      setSending(false);
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -131,14 +166,20 @@ export function CommunicationCenter() {
 
             <div className="pt-4 border-t">
               <p className="text-sm text-gray-600 mb-4">
-                For å sende e-post til spesifikke kunder, velg ordrer i "Bestillinger"-fanen og bruk
-                "Send e-post" i bulk-operasjoner menyen.
+                Send e-post til alle kunder som har registrert e-postadresse, eller velg ordrer fra "Bestillinger"-fanen for målrettet sending.
               </p>
               <div className="flex gap-2">
-                <Button disabled={!subject || !message} onClick={() => alert('Velg ordrer fra Bestillinger-fanen')}>
+                <Button
+                  disabled={!subject || !message || sending}
+                  onClick={sendToAllCustomers}
+                  className="bg-[#2C1810] hover:bg-[#2C1810]/90"
+                >
                   <Send className="w-4 h-4 mr-2" />
-                  Klar til å sende
+                  {sending ? 'Sender...' : 'Send til alle kunder'}
                 </Button>
+                <p className="text-xs text-gray-500 self-center ml-2">
+                  Dette sender til alle unike e-postadresser
+                </p>
               </div>
             </div>
           </div>

@@ -33,6 +33,7 @@ import { OrderDetailModal } from '@/components/admin/OrderDetailModal';
 import { CustomerDatabase } from '@/components/admin/CustomerDatabase';
 import { SystemHealth } from '@/components/admin/SystemHealth';
 import { CommunicationCenter } from '@/components/admin/CommunicationCenter';
+import { CommunicationHistory } from '@/components/admin/CommunicationHistory';
 import { InventoryManagement } from '@/components/admin/InventoryManagement';
 import { ConfigurationManagement } from '@/components/admin/ConfigurationManagement';
 import { DeliveryCalendar } from '@/components/admin/DeliveryCalendar';
@@ -787,7 +788,33 @@ export default function AdminPage() {
         {activeTab === 'customers' && <CustomerDatabase />}
 
         {/* COMMUNICATION TAB */}
-        {activeTab === 'communication' && <CommunicationCenter />}
+        {activeTab === 'communication' && (
+          <div className="space-y-6">
+            <div className="border-b">
+              <div className="flex gap-4">
+                <button
+                  onClick={() => setActiveTab('communication')}
+                  className="pb-3 px-1 border-b-2 border-[#2C1810] text-[#2C1810] font-medium"
+                >
+                  Send e-post
+                </button>
+                <button
+                  onClick={() => {
+                    const historySection = document.getElementById('comm-history');
+                    if (historySection) historySection.scrollIntoView({ behavior: 'smooth' });
+                  }}
+                  className="pb-3 px-1 border-b-2 border-transparent text-gray-600 hover:text-gray-900 font-medium"
+                >
+                  Historikk
+                </button>
+              </div>
+            </div>
+            <CommunicationCenter />
+            <div id="comm-history">
+              <CommunicationHistory />
+            </div>
+          </div>
+        )}
 
         {/* BOX CONFIGURATION TAB */}
         {activeTab === 'boxes' && <BoxConfiguration />}

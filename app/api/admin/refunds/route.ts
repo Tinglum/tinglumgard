@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth/session';
 import { supabaseAdmin } from '@/lib/supabase/server';
 import { sendEmail } from '@/lib/email/client';
+import { initiateVippsRefund } from '@/lib/vipps/refund';
 
 export async function POST(request: NextRequest) {
   const session = await getSession();
@@ -17,6 +18,9 @@ export async function POST(request: NextRequest) {
     switch (action) {
       case 'cancel_order':
         return await cancelOrder(orderId, data.reason, data.restoreInventory);
+
+      case 'delete_order':
+        return await deleteOrder(orderId, data.processVippsRefund);
 
       case 'issue_refund':
         return await issueRefund(orderId, data.amount, data.type, data.reason);
@@ -133,6 +137,79 @@ async function cancelOrder(orderId: string, reason: string, restoreInventory: bo
     success: true,
     message: 'Order cancelled successfully',
     inventory_restored: restoreInventory,
+  });
+}
+
+async function deleteOrder(orderId: string, processVippsRefund: boolean) {
+  // Fetch order with payments
+  const { data: order, error: orderError } = await supabaseAdmin
+    .from('orders')
+    .select(`
+      *,
+      payments (*)
+    `)
+    .eq('id', orderId)
+    .single();
+
+  if (orderError) throw orderError;
+
+  // Process Vipps refund if requested and there are completed payments
+  const completedPayments = order.payments?.filter((p: any) => p.status === 'completed') || [];
+  const totalPaid = completedPayments.reduce((sum: number, p: any) => sum + p.amount_nok, 0);
+
+  if (processVippsRefund && totalPaid > 0) {
+    // Attempt Vipps refund for each completed payment
+    for (const payment of completedPayments) {
+      if (payment.vipps_order_id) {
+        const refundResult = await initiateVippsRefund(
+          payment.vipps_order_id,
+          payment.amount_nok,
+          `Refund for deleted order ${order.order_number}`
+        );
+
+        if (!refundResult.success) {
+          // Log but don't fail - admin can process manually
+          console.error(`Vipps refund failed for payment ${payment.id}:`, refundResult.error);
+        }
+      }
+    }
+  }
+
+  // Restore inventory
+  const { data: config } = await supabaseAdmin
+    .from('config')
+    .select('value')
+    .eq('key', 'max_kg_available')
+    .single();
+
+  if (config) {
+    const currentMaxKg = parseInt(config.value);
+    const newMaxKg = currentMaxKg + order.box_size;
+
+    await supabaseAdmin
+      .from('config')
+      .update({ value: newMaxKg.toString() })
+      .eq('key', 'max_kg_available');
+  }
+
+  // Delete related records (cascade delete should handle most, but be explicit)
+  await supabaseAdmin.from('payments').delete().eq('order_id', orderId);
+  await supabaseAdmin.from('order_extras').delete().eq('order_id', orderId);
+  await supabaseAdmin.from('order_history').delete().eq('order_id', orderId);
+
+  // Delete the order
+  const { error: deleteError } = await supabaseAdmin
+    .from('orders')
+    .delete()
+    .eq('id', orderId);
+
+  if (deleteError) throw deleteError;
+
+  return NextResponse.json({
+    success: true,
+    message: 'Order deleted successfully',
+    vipps_refund_attempted: processVippsRefund && totalPaid > 0,
+    refund_amount: totalPaid,
   });
 }
 

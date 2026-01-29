@@ -21,11 +21,17 @@ export async function POST(request: NextRequest) {
       case 'send_bulk':
         return await sendBulkEmail(data.orderIds, data.subject, data.message);
 
+      case 'send_to_all':
+        return await sendToAllCustomers(data.subject, data.message, data.filter);
+
       case 'get_templates':
         return getEmailTemplates();
 
       case 'get_history':
         return await getEmailHistory(data.orderId);
+
+      case 'get_all_history':
+        return await getAllEmailHistory();
 
       default:
         return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
@@ -157,6 +163,70 @@ function getEmailTemplates() {
   return NextResponse.json({ templates });
 }
 
+async function sendToAllCustomers(subject: string, message: string, filter?: { status?: string; has_email?: boolean }) {
+  let query = supabaseAdmin
+    .from('orders')
+    .select('id, customer_name, customer_email, order_number, status');
+
+  // Apply filters
+  if (filter?.status) {
+    query = query.eq('status', filter.status);
+  }
+
+  const { data: orders, error } = await query;
+
+  if (error) throw error;
+
+  // Filter out orders without valid emails
+  const validOrders = orders.filter(
+    (order: any) => order.customer_email && order.customer_email !== 'pending@vipps.no'
+  );
+
+  // Get unique emails (one email per customer)
+  const uniqueEmails = new Map<string, any>();
+  validOrders.forEach((order: any) => {
+    if (!uniqueEmails.has(order.customer_email)) {
+      uniqueEmails.set(order.customer_email, order);
+    }
+  });
+
+  const results = [];
+  for (const [email, order] of Array.from(uniqueEmails.entries())) {
+    try {
+      await sendEmail({
+        to: email,
+        subject: subject.replace('{ORDER_NUMBER}', order.order_number),
+        html: buildEmailHTML(order.customer_name, message, order.order_number),
+      });
+
+      // Log email history
+      await supabaseAdmin.from('email_log').insert({
+        order_id: order.id,
+        recipient: email,
+        subject,
+        message,
+        sent_at: new Date().toISOString(),
+      });
+
+      results.push({ email, success: true });
+    } catch (emailError) {
+      console.error(`Failed to send email to ${email}:`, emailError);
+      results.push({ email, success: false, error: emailError });
+    }
+
+    // Small delay to avoid rate limiting
+    await new Promise(resolve => setTimeout(resolve, 100));
+  }
+
+  return NextResponse.json({
+    success: true,
+    sent: results.filter((r) => r.success).length,
+    failed: results.filter((r) => !r.success).length,
+    total_customers: uniqueEmails.size,
+    results,
+  });
+}
+
 async function getEmailHistory(orderId: string) {
   const { data: history, error } = await supabaseAdmin
     .from('email_log')
@@ -166,6 +236,28 @@ async function getEmailHistory(orderId: string) {
 
   if (error) {
     console.error('Error fetching email history:', error);
+    return NextResponse.json({ history: [] });
+  }
+
+  return NextResponse.json({ history: history || [] });
+}
+
+async function getAllEmailHistory() {
+  const { data: history, error } = await supabaseAdmin
+    .from('email_log')
+    .select(`
+      *,
+      orders (
+        order_number,
+        customer_name,
+        status
+      )
+    `)
+    .order('sent_at', { ascending: false })
+    .limit(100);
+
+  if (error) {
+    console.error('Error fetching all email history:', error);
     return NextResponse.json({ history: [] });
   }
 
