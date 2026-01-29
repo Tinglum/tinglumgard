@@ -139,17 +139,41 @@ class VippsClient {
     const result = JSON.parse(responseText);
     console.log('Vipps Checkout session FULL RESPONSE:', JSON.stringify(result, null, 2));
 
-    if (!result.sessionId) {
-      console.error('ERROR: Vipps returned 200 OK but no sessionId!');
-      throw new Error('Vipps API returned success but missing sessionId');
+    // Vipps Checkout v3 returns a JWT token instead of sessionId
+    // We need to decode the token to get the session info
+    if (!result.token) {
+      console.error('ERROR: Vipps returned 200 OK but no token!');
+      throw new Error('Vipps API returned success but missing token');
     }
 
+    // Decode the JWT to extract session information
+    const tokenPayload = JSON.parse(
+      Buffer.from(result.token.split('.')[1], 'base64').toString()
+    );
+
+    console.log('Decoded token payload:', tokenPayload);
+
+    // Extract session ID and URL from the token
+    const sessionId = tokenPayload.sid;
+    const sessionUrl = tokenPayload.sessionUrl;
+
+    // Construct the checkout URL using the token
+    // The frontend expects the token as a parameter
+    const checkoutUrlWithToken = `${result.checkoutFrontendUrl}?token=${result.token}`;
+
     console.log('Vipps Checkout session created successfully:', {
-      sessionId: result.sessionId,
-      checkoutFrontendUrl: result.checkoutFrontendUrl,
+      sessionId,
+      sessionUrl,
+      checkoutUrlWithToken,
     });
 
-    return result;
+    // Return a normalized response that matches what the rest of the code expects
+    return {
+      ...result,
+      sessionId, // Add sessionId for database storage
+      sessionUrl, // Add the direct session URL
+      checkoutFrontendUrl: checkoutUrlWithToken, // Override with token-based URL
+    };
   }
 
   async getPayment(orderId: string) {
