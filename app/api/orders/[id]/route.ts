@@ -100,11 +100,34 @@ export async function PATCH(
     }
 
     const body = await request.json();
-    const { deliveryType, freshDelivery, addOns, notes } = body;
+    const { deliveryType, freshDelivery, addOns, notes, box_size, ribbe_choice, delivery_type } = body;
 
     const updateData: Record<string, unknown> = {
       last_modified_at: new Date().toISOString(),
     };
+
+    // Handle box size changes
+    if (box_size !== undefined) {
+      const basePrice = box_size === 8 ? 6490 : 8990;
+      const deliveryFee = (delivery_type || deliveryType) === 'delivery' ? 500 : 0;
+      const freshFee = (freshDelivery !== undefined ? freshDelivery : false) ? 200 : 0;
+      const depositAmount = Math.round(basePrice * 0.5);
+      const totalAmount = basePrice + deliveryFee + freshFee;
+      const remainderAmount = totalAmount - depositAmount;
+
+      updateData.box_size = box_size;
+      updateData.total_amount = totalAmount;
+      updateData.deposit_amount = depositAmount;
+      updateData.remainder_amount = remainderAmount;
+    }
+
+    if (ribbe_choice !== undefined) {
+      updateData.ribbe_choice = ribbe_choice;
+    }
+
+    if (delivery_type !== undefined) {
+      updateData.delivery_type = delivery_type;
+    }
 
     if (deliveryType !== undefined) {
       updateData.delivery_type = deliveryType;

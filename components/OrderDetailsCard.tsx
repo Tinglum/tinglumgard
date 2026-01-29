@@ -26,6 +26,7 @@ import { Card } from '@/components/ui/card';
 import { StatusBadge } from '@/components/StatusBadge';
 import { OrderStatusTimeline } from '@/components/OrderStatusTimeline';
 import { ExtrasUpsellModal } from '@/components/ExtrasUpsellModal';
+import { OrderModificationModal } from '@/components/OrderModificationModal';
 
 interface Payment {
   id: string;
@@ -72,8 +73,10 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
   const theme = getThemeClasses();
 
   const [showExtrasModal, setShowExtrasModal] = useState(false);
+  const [showModificationModal, setShowModificationModal] = useState(false);
   const [addingExtras, setAddingExtras] = useState(false);
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
+  const [reordering, setReordering] = useState(false);
 
   const depositPayment = order.payments?.find((p) => p.payment_type === 'deposit');
   const depositPaid = depositPayment?.status === 'completed';
@@ -163,8 +166,66 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
     window.print();
   }
 
+  async function handleSaveModifications(modifications: any) {
+    try {
+      const response = await fetch(`/api/orders/${order.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(modifications),
+      });
+
+      if (!response.ok) throw new Error('Failed to save modifications');
+
+      setShowModificationModal(false);
+      onRefresh();
+    } catch (error) {
+      console.error('Error saving modifications:', error);
+      throw error;
+    }
+  }
+
+  async function handleReorder() {
+    if (!window.confirm('Ønsker du å bestille samme okseboks på nytt?')) {
+      return;
+    }
+
+    setReordering(true);
+    try {
+      const response = await fetch('/api/orders/reorder', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId: order.id }),
+      });
+
+      if (!response.ok) throw new Error('Failed to reorder');
+
+      const data = await response.json();
+      alert(`Ny ordre opprettet! Ordrenummer: ${data.orderNumber}`);
+      onRefresh();
+    } catch (error) {
+      console.error('Error reordering:', error);
+      alert('Kunne ikke opprette ny ordre. Prøv igjen.');
+    } finally {
+      setReordering(false);
+    }
+  }
+
   function toggleSection(section: string) {
     setExpandedSection(expandedSection === section ? null : section);
+  }
+
+  function getEstimatedDeliveryDate() {
+    // Estimate based on status
+    if (order.marked_delivered_at) {
+      return new Date(order.marked_delivered_at).toLocaleDateString('nb-NO');
+    }
+
+    if (order.status === 'ready_for_pickup') {
+      return 'Klar nå!';
+    }
+
+    // Default: Week 47-48 of 2026
+    return 'Uke 47-48, 2026';
   }
 
   return (
@@ -437,16 +498,39 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
             </div>
           </div>
 
-          {/* Modification Status */}
+          {/* Estimated Delivery Date */}
+          {!order.marked_delivered_at && (
+            <div className={cn('p-4 rounded-xl border bg-purple-50 border-purple-200')}>
+              <div className="flex items-center gap-2 text-purple-900 mb-1">
+                <Calendar className="w-5 h-5" />
+                <p className="font-medium">Estimert leveringsdato</p>
+              </div>
+              <p className="text-lg font-bold text-purple-900">{getEstimatedDeliveryDate()}</p>
+              <p className="text-sm text-purple-700 mt-1">
+                Vi sender varsel når ordren er klar for henting
+              </p>
+            </div>
+          )}
+
+          {/* Modification Status & Actions */}
           {!order.locked_at && canEdit && (
             <div className={cn('p-4 rounded-xl border bg-green-50 border-green-200')}>
-              <div className="flex items-center gap-2 text-green-900">
-                <Edit3 className="w-5 h-5" />
-                <p className="font-medium">Du kan fortsatt endre bestillingen din</p>
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2 text-green-900">
+                  <Edit3 className="w-5 h-5" />
+                  <p className="font-medium">Du kan fortsatt endre bestillingen din</p>
+                </div>
               </div>
-              <p className="text-sm text-green-700 mt-1">
+              <p className="text-sm text-green-700 mb-3">
                 Endringer må gjøres før låsetidspunktet
               </p>
+              <Button
+                onClick={() => setShowModificationModal(true)}
+                className="w-full bg-green-600 hover:bg-green-700"
+              >
+                <Edit3 className="w-4 h-4 mr-2" />
+                Endre bestilling
+              </Button>
             </div>
           )}
 
@@ -458,6 +542,24 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
               </div>
               <p className="text-sm text-gray-700 mt-1">
                 Låst {new Date(order.locked_at).toLocaleDateString('nb-NO')} - ingen flere endringer mulig
+              </p>
+            </div>
+          )}
+
+          {/* Reorder Button for Completed Orders */}
+          {order.status === 'completed' && (
+            <div className={cn('p-4 rounded-xl border bg-blue-50 border-blue-200')}>
+              <p className="font-medium text-blue-900 mb-3">Fornøyd med ordren?</p>
+              <Button
+                onClick={handleReorder}
+                disabled={reordering}
+                className="w-full bg-blue-600 hover:bg-blue-700"
+              >
+                <ShoppingCart className="w-4 h-4 mr-2" />
+                {reordering ? 'Oppretter ordre...' : 'Bestill igjen'}
+              </Button>
+              <p className="text-xs text-blue-700 mt-2">
+                Opprett en ny ordre med samme innhold
               </p>
             </div>
           )}
@@ -474,6 +576,16 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
         }
         loading={addingExtras}
       />
+
+      {/* Order Modification Modal */}
+      {showModificationModal && (
+        <OrderModificationModal
+          order={order}
+          isOpen={showModificationModal}
+          onClose={() => setShowModificationModal(false)}
+          onSave={handleSaveModifications}
+        />
+      )}
     </>
   );
 }
