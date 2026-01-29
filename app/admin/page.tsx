@@ -36,8 +36,9 @@ import { CommunicationCenter } from '@/components/admin/CommunicationCenter';
 import { InventoryManagement } from '@/components/admin/InventoryManagement';
 import { ConfigurationManagement } from '@/components/admin/ConfigurationManagement';
 import { DeliveryCalendar } from '@/components/admin/DeliveryCalendar';
+import { BoxConfiguration } from '@/components/admin/BoxConfiguration';
 
-type TabType = 'dashboard' | 'orders' | 'customers' | 'analytics' | 'production' | 'communication' | 'health' | 'inventory' | 'settings';
+type TabType = 'dashboard' | 'orders' | 'customers' | 'analytics' | 'production' | 'communication' | 'health' | 'inventory' | 'boxes' | 'settings';
 
 interface Order {
   id: string;
@@ -361,7 +362,7 @@ export default function AdminPage() {
     return matchesSearch && matchesStatus && matchesDelivery;
   });
 
-  const tabs = [
+  const tabs: Array<{ id: TabType; label: string; icon: any }> = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'orders', label: 'Bestillinger', icon: ShoppingCart },
     { id: 'customers', label: 'Kunder', icon: Users },
@@ -369,6 +370,7 @@ export default function AdminPage() {
     { id: 'communication', label: 'Kommunikasjon', icon: MessageSquare },
     { id: 'production', label: 'Hentekalender', icon: Calendar },
     { id: 'inventory', label: 'Lager', icon: Warehouse },
+    { id: 'boxes', label: 'Boksinnhold', icon: Package },
     { id: 'health', label: 'Systemhelse', icon: Activity },
     { id: 'settings', label: 'Innstillinger', icon: Settings },
   ];
@@ -762,6 +764,9 @@ export default function AdminPage() {
 
         {/* COMMUNICATION TAB */}
         {activeTab === 'communication' && <CommunicationCenter />}
+
+        {/* BOX CONFIGURATION TAB */}
+        {activeTab === 'boxes' && <BoxConfiguration />}
 
         {/* SYSTEM HEALTH TAB */}
         {activeTab === 'health' && <SystemHealth />}
