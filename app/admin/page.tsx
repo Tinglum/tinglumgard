@@ -108,13 +108,27 @@ export default function AdminPage() {
     }
   }, [isAuthenticated, activeTab]);
 
-  function handlePasswordSubmit(e: React.FormEvent) {
+  async function handlePasswordSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (password === 'Pnei2792') {
-      setIsAuthenticated(true);
-      setPasswordError(false);
-    } else {
+    setLoading(true);
+    try {
+      const response = await fetch('/api/admin/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password }),
+      });
+
+      if (response.ok) {
+        setIsAuthenticated(true);
+        setPasswordError(false);
+      } else {
+        setPasswordError(true);
+      }
+    } catch (error) {
+      console.error('Login error:', error);
       setPasswordError(true);
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -122,6 +136,13 @@ export default function AdminPage() {
     setDashboardLoading(true);
     try {
       const response = await fetch('/api/admin/dashboard');
+      if (!response.ok) {
+        if (response.status === 403) {
+          setIsAuthenticated(false);
+          return;
+        }
+        throw new Error('Failed to load dashboard');
+      }
       const data = await response.json();
       setDashboardMetrics(data);
     } catch (error) {
@@ -432,7 +453,10 @@ export default function AdminPage() {
         <div className="max-w-[1800px] mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <h1 className="text-2xl font-bold text-gray-900">Tinglumgård - Admin</h1>
-            <Button variant="outline" onClick={() => setIsAuthenticated(false)}>
+            <Button variant="outline" onClick={async () => {
+              await fetch('/api/admin/logout', { method: 'POST' });
+              setIsAuthenticated(false);
+            }}>
               Logg ut
             </Button>
           </div>
