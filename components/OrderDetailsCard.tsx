@@ -237,6 +237,19 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
                       ? 'completed'
                       : 'depositPaid'
                   }
+                  label={
+                    order.status === 'draft'
+                      ? 'Betaling gjenstår'
+                      : order.status === 'deposit_paid'
+                      ? 'Betaling gjenstår'
+                      : order.status === 'paid'
+                      ? 'Betalt'
+                      : order.status === 'ready_for_pickup'
+                      ? 'Levert'
+                      : order.status === 'completed'
+                      ? 'Fullført'
+                      : 'Venter på depositum'
+                  }
                 />
                 {order.locked_at && (
                   <div className="flex items-center gap-1 px-3 py-1 rounded-full bg-gray-100 text-gray-700">
