@@ -123,17 +123,27 @@ class VippsClient {
       body: JSON.stringify(sessionData),
     });
 
+    const responseText = await response.text();
+    console.log('Vipps API Response Status:', response.status, response.statusText);
+    console.log('Vipps API Response Body:', responseText);
+
     if (!response.ok) {
-      const error = await response.text();
       console.error('Vipps Checkout session creation failed:', {
         status: response.status,
         statusText: response.statusText,
-        error,
+        error: responseText,
       });
-      throw new Error(`Failed to create checkout session: ${response.status} ${error}`);
+      throw new Error(`Failed to create checkout session: ${response.status} ${responseText}`);
     }
 
-    const result = await response.json();
+    const result = JSON.parse(responseText);
+    console.log('Vipps Checkout session FULL RESPONSE:', JSON.stringify(result, null, 2));
+
+    if (!result.sessionId) {
+      console.error('ERROR: Vipps returned 200 OK but no sessionId!');
+      throw new Error('Vipps API returned success but missing sessionId');
+    }
+
     console.log('Vipps Checkout session created successfully:', {
       sessionId: result.sessionId,
       checkoutFrontendUrl: result.checkoutFrontendUrl,
