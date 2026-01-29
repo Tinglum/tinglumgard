@@ -35,7 +35,7 @@ export function ExtrasUpsellModal({
   loading = false,
 }: ExtrasUpsellModalProps) {
   const { getThemeClasses } = useTheme();
-  const { language } = useLanguage();
+  const { lang } = useLanguage();
   const theme = getThemeClasses();
 
   const [extras, setExtras] = useState<Extra[]>([]);
@@ -138,8 +138,8 @@ export function ExtrasUpsellModal({
             <div className="grid gap-4">
               {extras.map((extra) => {
                 const quantity = selectedQuantities[extra.slug] || 0;
-                const name = language === 'en' ? extra.name_en : extra.name_no;
-                const description = language === 'en' ? extra.description_en : extra.description_no;
+                const name = lang === 'en' ? extra.name_en : extra.name_no;
+                const description = lang === 'en' ? extra.description_en : extra.description_no;
                 const priceLabel =
                   extra.pricing_type === 'per_kg' ? `kr ${extra.price_nok}/kg` : `kr ${extra.price_nok}`;
                 const isOutOfStock = extra.stock_quantity !== null && extra.stock_quantity <= 0;
