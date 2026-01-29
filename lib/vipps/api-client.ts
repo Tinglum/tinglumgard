@@ -104,22 +104,14 @@ class VippsClient {
   async createCheckoutSession(sessionData: any) {
     const accessToken = await this.getAccessToken();
 
-    console.log('Vipps Checkout - Creating session');
-    console.log('Vipps Config Check:', {
-      hasClientId: !!vippsConfig.clientId,
-      hasClientSecret: !!vippsConfig.clientSecret,
-      hasMerchantSerial: !!vippsConfig.merchantSerialNumber,
-      hasSubscriptionKey: !!vippsConfig.subscriptionKey,
-      isTest: vippsConfig.isTest,
-      apiBaseUrl: vippsConfig.apiBaseUrl,
-    });
-    console.log('Session Data:', JSON.stringify(sessionData, null, 2));
+    console.log('Vipps Checkout - Creating session with credentials in headers');
 
     const response = await fetch(`${vippsConfig.apiBaseUrl}/checkout/v3/session`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${accessToken}`,
+        'client_id': vippsConfig.clientId,
+        'client_secret': vippsConfig.clientSecret,
         'Ocp-Apim-Subscription-Key': vippsConfig.subscriptionKey,
         'Merchant-Serial-Number': vippsConfig.merchantSerialNumber,
         'Vipps-System-Name': 'tinglumgard',
@@ -155,11 +147,10 @@ class VippsClient {
   }
 
   async getPaymentStatus(reference: string) {
-    const accessToken = await this.getAccessToken();
-
     const response = await fetch(`${vippsConfig.apiBaseUrl}/checkout/v3/session/${reference}`, {
       headers: {
-        'Authorization': `Bearer ${accessToken}`,
+        'client_id': vippsConfig.clientId,
+        'client_secret': vippsConfig.clientSecret,
         'Ocp-Apim-Subscription-Key': vippsConfig.subscriptionKey,
         'Merchant-Serial-Number': vippsConfig.merchantSerialNumber,
       },
@@ -173,11 +164,10 @@ class VippsClient {
   }
 
   async getCheckoutSession(sessionId: string) {
-    const accessToken = await this.getAccessToken();
-
     const response = await fetch(`${vippsConfig.apiBaseUrl}/checkout/v3/session/${sessionId}`, {
       headers: {
-        'Authorization': `Bearer ${accessToken}`,
+        'client_id': vippsConfig.clientId,
+        'client_secret': vippsConfig.clientSecret,
         'Ocp-Apim-Subscription-Key': vippsConfig.subscriptionKey,
         'Merchant-Serial-Number': vippsConfig.merchantSerialNumber,
       },
