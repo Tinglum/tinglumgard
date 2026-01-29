@@ -30,8 +30,10 @@ export async function POST(
       );
     }
 
-    // If there's a pending deposit payment, return its redirect URL
+    // If there's a pending deposit payment, check if it's still valid
     if (existingDepositPayment && existingDepositPayment.status === 'pending') {
+      console.log('Found existing pending deposit payment:', existingDepositPayment.id);
+
       // Try to get the session info from Vipps
       try {
         const sessionId = existingDepositPayment.vipps_session_id || existingDepositPayment.vipps_order_id;
@@ -39,34 +41,33 @@ export async function POST(
         if (existingDepositPayment.vipps_session_id) {
           // Use Checkout API v3
           const checkoutSession = await vippsClient.getCheckoutSession(sessionId);
+          console.log('Existing session state:', checkoutSession.sessionState);
 
           if (checkoutSession.sessionState === 'SessionCreated' || checkoutSession.sessionState === 'PaymentInitiated') {
-            const checkoutBaseUrl = process.env.VIPPS_ENV === 'test'
-              ? 'https://checkout.test.vipps.no'
-              : 'https://checkout.vipps.no';
-
+            console.log('Reusing existing valid session');
             return NextResponse.json({
               success: true,
-              redirectUrl: `${checkoutBaseUrl}/${sessionId}`,
+              redirectUrl: checkoutSession.checkoutFrontendUrl || `https://checkout${process.env.VIPPS_ENV === 'test' ? '.test' : ''}.vipps.no/${sessionId}`,
               paymentId: existingDepositPayment.id,
               amount: existingDepositPayment.amount_nok,
             });
-          }
-        } else {
-          // Fallback to legacy ePayment API
-          const vippsPayment = await vippsClient.getPayment(sessionId);
-
-          if (vippsPayment.state === 'CREATED') {
-            return NextResponse.json({
-              success: true,
-              redirectUrl: `https://api${process.env.VIPPS_ENV === 'test' ? 'test' : ''}.vipps.no/checkout/v2/session/${sessionId}`,
-              paymentId: existingDepositPayment.id,
-              amount: existingDepositPayment.amount_nok,
-            });
+          } else {
+            console.log('Existing session invalid, will create new one');
+            // Session expired or terminated, delete the old payment record and create new
+            await supabaseAdmin
+              .from('payments')
+              .delete()
+              .eq('id', existingDepositPayment.id);
           }
         }
       } catch (error) {
         console.error('Error fetching existing Vipps payment:', error);
+        // If we can't fetch the session (404, expired, etc), delete and create new
+        console.log('Deleting failed/expired payment record');
+        await supabaseAdmin
+          .from('payments')
+          .delete()
+          .eq('id', existingDepositPayment.id);
       }
     }
 
@@ -109,8 +110,6 @@ export async function POST(
       },
       configuration: {
         userFlow: 'WEB_REDIRECT',
-        // Add explicit session lifetime (in seconds, max 7200 = 2 hours)
-        sessionLifetime: 3600, // 1 hour
       },
     };
 
@@ -123,7 +122,7 @@ export async function POST(
       reference: shortReference,
       amount: depositAmount,
       hasCustomerInfo: Object.keys(customerInfo).length > 0,
-      sessionLifetime: 3600,
+      orderId: order.id,
     });
 
     const vippsResult = await vippsClient.createCheckoutSession(sessionData);

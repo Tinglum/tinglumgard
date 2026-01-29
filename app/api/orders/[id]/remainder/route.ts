@@ -112,7 +112,6 @@ export async function POST(
       },
       configuration: {
         userFlow: 'WEB_REDIRECT',
-        sessionLifetime: 3600, // 1 hour
       },
     };
 
