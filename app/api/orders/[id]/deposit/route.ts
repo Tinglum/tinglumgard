@@ -82,8 +82,17 @@ export async function POST(
     const { randomBytes } = await import('crypto');
     const callbackToken = randomBytes(16).toString('hex');
 
-    // Create Vipps Checkout v3 session
-    const vippsResult = await vippsClient.createCheckoutSession({
+    // Prepare customer info if available
+    const customerInfo: any = {};
+    if (order.customer_email && order.customer_email !== 'pending@vipps.no') {
+      customerInfo.email = order.customer_email;
+    }
+    if (order.customer_phone) {
+      customerInfo.phoneNumber = order.customer_phone;
+    }
+
+    // Create Vipps Checkout v3 session with extended configuration
+    const sessionData: any = {
       merchantInfo: {
         callbackUrl: `${appUrl}/api/webhooks/vipps`,
         returnUrl: `${appUrl}/bestill/bekreftelse?orderId=${order.id}`,
@@ -100,8 +109,24 @@ export async function POST(
       },
       configuration: {
         userFlow: 'WEB_REDIRECT',
+        // Add explicit session lifetime (in seconds, max 7200 = 2 hours)
+        sessionLifetime: 3600, // 1 hour
       },
+    };
+
+    // Add customer info if we have it
+    if (Object.keys(customerInfo).length > 0) {
+      sessionData.prefillCustomer = customerInfo;
+    }
+
+    console.log('Creating Vipps Checkout session with config:', {
+      reference: shortReference,
+      amount: depositAmount,
+      hasCustomerInfo: Object.keys(customerInfo).length > 0,
+      sessionLifetime: 3600,
     });
+
+    const vippsResult = await vippsClient.createCheckoutSession(sessionData);
 
     // Store payment record in database
     const { data: payment, error: paymentError } = await supabaseAdmin

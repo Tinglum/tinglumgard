@@ -85,7 +85,17 @@ export async function POST(
     const { randomBytes } = await import('crypto');
     const callbackToken = randomBytes(16).toString('hex');
 
-    const vippsResult = await vippsClient.createCheckoutSession({
+    // Prepare customer info if available
+    const customerInfo: any = {};
+    if (order.customer_email && order.customer_email !== 'pending@vipps.no') {
+      customerInfo.email = order.customer_email;
+    }
+    if (order.customer_phone) {
+      customerInfo.phoneNumber = order.customer_phone;
+    }
+
+    // Create session data with extended configuration
+    const sessionData: any = {
       merchantInfo: {
         callbackUrl: `${appUrl}/api/webhooks/vipps`,
         returnUrl: `${appUrl}/min-side`,
@@ -102,8 +112,22 @@ export async function POST(
       },
       configuration: {
         userFlow: 'WEB_REDIRECT',
+        sessionLifetime: 3600, // 1 hour
       },
+    };
+
+    // Add customer info if we have it
+    if (Object.keys(customerInfo).length > 0) {
+      sessionData.prefillCustomer = customerInfo;
+    }
+
+    console.log('Creating remainder payment session:', {
+      reference: shortReference,
+      amount: remainderAmount,
+      hasCustomerInfo: Object.keys(customerInfo).length > 0,
     });
+
+    const vippsResult = await vippsClient.createCheckoutSession(sessionData);
 
     const { data: payment, error: paymentError } = await supabaseAdmin
       .from('payments')
@@ -135,7 +159,7 @@ export async function POST(
 
     return NextResponse.json({
       success: true,
-      redirectUrl: vippsResult.checkoutUrl,
+      redirectUrl: vippsResult.checkoutFrontendUrl,
       paymentId: payment.id,
       amount: remainderAmount,
     });

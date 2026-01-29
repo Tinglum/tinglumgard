@@ -105,6 +105,7 @@ class VippsClient {
     const accessToken = await this.getAccessToken();
 
     console.log('Vipps Checkout - Creating session with credentials in headers');
+    console.log('Session data:', JSON.stringify(sessionData, null, 2));
 
     const response = await fetch(`${vippsConfig.apiBaseUrl}/checkout/v3/session`, {
       method: 'POST',
@@ -124,10 +125,21 @@ class VippsClient {
 
     if (!response.ok) {
       const error = await response.text();
-      throw new Error(`Failed to create checkout session: ${error}`);
+      console.error('Vipps Checkout session creation failed:', {
+        status: response.status,
+        statusText: response.statusText,
+        error,
+      });
+      throw new Error(`Failed to create checkout session: ${response.status} ${error}`);
     }
 
-    return response.json();
+    const result = await response.json();
+    console.log('Vipps Checkout session created successfully:', {
+      sessionId: result.sessionId,
+      checkoutFrontendUrl: result.checkoutFrontendUrl,
+    });
+
+    return result;
   }
 
   async getPayment(orderId: string) {
