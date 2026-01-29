@@ -86,6 +86,7 @@ export function OrderDetailModal({
   };
 
   function handleStatusChange(newStatus: string) {
+    if (!order) return;
     if (window.confirm(`Endre status til "${statusOptions.find((s) => s.value === newStatus)?.label}"?`)) {
       onStatusChange(order.id, newStatus);
       setSelectedStatus('');
@@ -93,11 +94,13 @@ export function OrderDetailModal({
   }
 
   function handleSaveNotes() {
+    if (!order) return;
     onSaveNotes(order.id, adminNotes);
     setEditingNotes(false);
   }
 
   function startEditingNotes() {
+    if (!order) return;
     setAdminNotes(order.admin_notes || '');
     setEditingNotes(true);
   }

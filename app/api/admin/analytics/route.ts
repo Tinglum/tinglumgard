@@ -82,7 +82,7 @@ function calculateAnalytics(orders: any[]) {
     return acc;
   }, {} as Record<string, number>);
 
-  const repeatCustomerCount = Object.values(repeatCustomers).filter((count) => count > 1).length;
+  const repeatCustomerCount = (Object.values(repeatCustomers) as number[]).filter((count) => count > 1).length;
 
   // Conversion analysis (from draft to completed)
   const conversionFunnel = {
@@ -136,17 +136,17 @@ function calculateAnalytics(orders: any[]) {
     },
     time_series: {
       orders_by_week: Object.entries(ordersByWeek)
-        .map(([week, data]) => ({ week, ...data }))
+        .map(([week, data]) => ({ week, ...(data as any) }))
         .sort((a, b) => a.week.localeCompare(b.week)),
       orders_by_day_of_week: ordersByDayOfWeek,
     },
     products: {
       combinations: Object.entries(productCombinations)
-        .map(([combo, count]) => ({ combo, count }))
+        .map(([combo, count]) => ({ combo, count: count as number }))
         .sort((a, b) => b.count - a.count)
         .slice(0, 10),
       extras_popularity: Object.entries(extrasPopularity)
-        .map(([name, data]) => ({ name, ...data }))
+        .map(([name, data]) => ({ name, ...(data as any) }))
         .sort((a: any, b: any) => b.revenue - a.revenue),
     },
     geographic: Object.entries(geographic).map(([type, count]) => ({ type, count })),
@@ -154,8 +154,8 @@ function calculateAnalytics(orders: any[]) {
     customer_insights: {
       repeat_rate: customerEmails.size > 0 ? (repeatCustomerCount / customerEmails.size) * 100 : 0,
       top_customers: Object.entries(repeatCustomers)
-        .filter(([email, count]) => count > 1)
-        .map(([email, count]) => ({ email, order_count: count }))
+        .filter(([email, count]) => (count as number) > 1)
+        .map(([email, count]) => ({ email, order_count: count as number }))
         .sort((a, b) => b.order_count - a.order_count)
         .slice(0, 10),
     },

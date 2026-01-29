@@ -1,137 +1,101 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { StatusBadge } from '@/components/StatusBadge';
-import { getActiveInventory } from '@/lib/actions/inventory';
-import { updateInventory } from '@/lib/actions/admin';
-import {
+  LayoutDashboard,
+  ShoppingCart,
+  Users,
+  BarChart3,
+  Package,
+  Settings,
   Search,
+  Filter,
   Download,
-  AlertTriangle,
-  Edit,
-  Save,
-  X,
-  Plus,
+  Mail,
+  Lock,
+  Eye,
   Trash2,
-  Check,
+  CheckSquare,
+  RefreshCw
 } from 'lucide-react';
+import { DashboardMetrics } from '@/components/admin/DashboardMetrics';
+import { OrderDetailModal } from '@/components/admin/OrderDetailModal';
+
+type TabType = 'dashboard' | 'orders' | 'customers' | 'analytics' | 'production' | 'settings';
 
 interface Order {
   id: string;
   order_number: string;
   customer_name: string;
   customer_email: string;
-  customer_phone: string;
+  customer_phone: string | null;
   box_size: number;
   status: string;
   delivery_type: string;
   fresh_delivery: boolean;
-  total_amount: number;
+  ribbe_choice: string;
+  extra_products: any[];
   notes: string;
   admin_notes: string;
+  total_amount: number;
+  deposit_amount: number;
+  remainder_amount: number;
   created_at: string;
-  marked_delivered_at: string | null;
   locked_at: string | null;
+  marked_delivered_at: string | null;
   at_risk: boolean;
-  payments: Array<{
-    payment_type: string;
-    status: string;
-    paid_at: string;
-  }>;
-}
-
-interface Extra {
-  id: string;
-  slug: string;
-  name_no: string;
-  name_en: string;
-  description: string;
-  description_no: string;
-  description_en: string;
-  price_nok: number;
-  pricing_type: 'per_unit' | 'per_kg';
-  consumes_inventory_kg: boolean;
-  kg_per_unit: number;
-  stock_quantity: number | null;
-  display_order: number;
-  active: boolean;
-  created_at: string;
-  updated_at?: string;
-}
-
-interface WaitlistEntry {
-  id: string;
-  email: string;
-  name: string | null;
-  phone: string | null;
-  created_at: string;
+  payments: any[];
 }
 
 export default function AdminPage() {
   const { t } = useLanguage();
+
+  // Authentication
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [password, setPassword] = useState('');
   const [passwordError, setPasswordError] = useState(false);
-  const [activeTab, setActiveTab] = useState('inventory');
   const [loading, setLoading] = useState(true);
 
-  const [kgRemaining, setKgRemaining] = useState('250');
-  const [season, setSeason] = useState('høst_2026');
-  const [inventoryLoading, setInventoryLoading] = useState(false);
+  // UI State
+  const [activeTab, setActiveTab] = useState<TabType>('dashboard');
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [showOrderDetail, setShowOrderDetail] = useState(false);
+  const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set());
 
+  // Data
   const [orders, setOrders] = useState<Order[]>([]);
-  const [ordersLoading, setOrdersLoading] = useState(false);
+  const [dashboardMetrics, setDashboardMetrics] = useState<any>(null);
+  const [analytics, setAnalytics] = useState<any>(null);
+
+  // Filters
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
-  const [editingNotes, setEditingNotes] = useState('');
-  const [atRiskCount, setAtRiskCount] = useState(0);
+  const [deliveryFilter, setDeliveryFilter] = useState('all');
 
-  const [extras, setExtras] = useState<Extra[]>([]);
-  const [extrasLoading, setExtrasLoading] = useState(false);
-  const [editingExtra, setEditingExtra] = useState<Partial<Extra> | null>(null);
-  const [isNewExtra, setIsNewExtra] = useState(false);
-  const [showExtraDialog, setShowExtraDialog] = useState(false);
-
-  const [waitlist, setWaitlist] = useState<WaitlistEntry[]>([]);
-  const [waitlistLoading, setWaitlistLoading] = useState(false);
+  // Loading states
+  const [ordersLoading, setOrdersLoading] = useState(false);
+  const [dashboardLoading, setDashboardLoading] = useState(false);
+  const [bulkActionLoading, setBulkActionLoading] = useState(false);
 
   useEffect(() => {
-    if (isAuthenticated) {
-      loadInitialData();
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    if (isAuthenticated && activeTab === 'dashboard') {
+      loadDashboard();
+    } else if (isAuthenticated && activeTab === 'orders') {
+      loadOrders();
+    } else if (isAuthenticated && activeTab === 'analytics') {
+      loadAnalytics();
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, activeTab]);
 
   function handlePasswordSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -140,85 +104,46 @@ export default function AdminPage() {
       setPasswordError(false);
     } else {
       setPasswordError(true);
-      setPassword('');
     }
   }
 
-  async function loadInitialData() {
+  async function loadDashboard() {
+    setDashboardLoading(true);
     try {
-      const inventory = await getActiveInventory();
-      if (inventory) {
-        setKgRemaining(inventory.kgRemaining.toString());
-        setSeason(inventory.season);
-      }
-      await loadOrders();
-      await loadExtras();
-      await loadWaitlist();
+      const response = await fetch('/api/admin/dashboard');
+      const data = await response.json();
+      setDashboardMetrics(data);
     } catch (error) {
-      console.error('Error loading data:', error);
+      console.error('Failed to load dashboard:', error);
     } finally {
-      setLoading(false);
+      setDashboardLoading(false);
     }
   }
 
   async function loadOrders() {
     setOrdersLoading(true);
     try {
-      const response = await fetch('/api/admin/orders');
+      const params = new URLSearchParams();
+      if (searchTerm) params.append('search', searchTerm);
+      if (statusFilter !== 'all') params.append('status', statusFilter);
+
+      const response = await fetch(`/api/admin/orders?${params}`);
       const data = await response.json();
       setOrders(data.orders || []);
-      calculateAtRiskOrders(data.orders || []);
     } catch (error) {
-      console.error('Error loading orders:', error);
+      console.error('Failed to load orders:', error);
     } finally {
       setOrdersLoading(false);
     }
   }
 
-  function calculateAtRiskOrders(ordersList: Order[]) {
-    const count = ordersList.filter((order) => order.at_risk === true).length;
-    setAtRiskCount(count);
-  }
-
-  async function loadExtras() {
-    setExtrasLoading(true);
+  async function loadAnalytics() {
     try {
-      const response = await fetch('/api/admin/extras');
+      const response = await fetch('/api/admin/analytics');
       const data = await response.json();
-      setExtras(data.extras || []);
+      setAnalytics(data);
     } catch (error) {
-      console.error('Error loading extras:', error);
-    } finally {
-      setExtrasLoading(false);
-    }
-  }
-
-  async function loadWaitlist() {
-    setWaitlistLoading(true);
-    try {
-      const response = await fetch('/api/admin/waitlist');
-      const data = await response.json();
-      setWaitlist(data.waitlist || []);
-    } catch (error) {
-      console.error('Error loading waitlist:', error);
-    } finally {
-      setWaitlistLoading(false);
-    }
-  }
-
-  async function handleUpdateInventory() {
-    setInventoryLoading(true);
-    try {
-      const result = await updateInventory(season, parseInt(kgRemaining));
-      if (result.success) {
-        alert('Beholdning oppdatert');
-      } else {
-        alert('Feil: ' + result.error);
-      }
-    } catch (error) {
-      alert('Kunne ikke oppdatere beholdning');
-    } finally {
-      setInventoryLoading(false);
+      console.error('Failed to load analytics:', error);
     }
   }
 
@@ -232,6 +157,8 @@ export default function AdminPage() {
 
       if (response.ok) {
         await loadOrders();
+        if (activeTab === 'dashboard') await loadDashboard();
+        setShowOrderDetail(false);
       } else {
         alert('Kunne ikke oppdatere status');
       }
@@ -241,18 +168,21 @@ export default function AdminPage() {
     }
   }
 
-  async function handleSaveNotes(orderId: string) {
+  async function handleSaveNotes(orderId: string, notes: string) {
     try {
       const response = await fetch(`/api/admin/orders/${orderId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ adminNotes: editingNotes }),
+        body: JSON.stringify({ adminNotes: notes }),
       });
 
       if (response.ok) {
         await loadOrders();
-        setEditingOrderId(null);
-        setEditingNotes('');
+        // Update the selected order
+        const updatedOrder = orders.find((o) => o.id === orderId);
+        if (updatedOrder) {
+          setSelectedOrder({ ...updatedOrder, admin_notes: notes });
+        }
       } else {
         alert('Kunne ikke lagre notater');
       }
@@ -262,163 +192,200 @@ export default function AdminPage() {
     }
   }
 
-  async function handleMarkDelivered(orderId: string) {
-    if (!confirm('Marker som levert?')) return;
+  function toggleOrderSelection(orderId: string) {
+    const newSelection = new Set(selectedOrders);
+    if (newSelection.has(orderId)) {
+      newSelection.delete(orderId);
+    } else {
+      newSelection.add(orderId);
+    }
+    setSelectedOrders(newSelection);
+  }
 
+  function selectAllOrders() {
+    if (selectedOrders.size === filteredOrders.length) {
+      setSelectedOrders(new Set());
+    } else {
+      setSelectedOrders(new Set(filteredOrders.map((o) => o.id)));
+    }
+  }
+
+  async function handleBulkStatusUpdate(newStatus: string) {
+    if (selectedOrders.size === 0) {
+      alert('Ingen ordrer valgt');
+      return;
+    }
+
+    if (!window.confirm(`Endre status til "${newStatus}" for ${selectedOrders.size} ordrer?`)) {
+      return;
+    }
+
+    setBulkActionLoading(true);
     try {
-      const response = await fetch(`/api/admin/orders/${orderId}`, {
-        method: 'PATCH',
+      const response = await fetch('/api/admin/bulk', {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ markDelivered: true }),
+        body: JSON.stringify({
+          action: 'update_status',
+          orderIds: Array.from(selectedOrders),
+          data: { status: newStatus },
+        }),
       });
 
       if (response.ok) {
         await loadOrders();
+        setSelectedOrders(new Set());
+        alert(`${selectedOrders.size} ordrer oppdatert`);
       } else {
-        alert('Kunne ikke markere som levert');
+        alert('Kunne ikke oppdatere ordrer');
       }
     } catch (error) {
-      console.error('Error marking delivered:', error);
-      alert('Kunne ikke markere som levert');
+      console.error('Bulk update error:', error);
+      alert('Kunne ikke oppdatere ordrer');
+    } finally {
+      setBulkActionLoading(false);
+    }
+  }
+
+  async function handleBulkLock() {
+    if (selectedOrders.size === 0) {
+      alert('Ingen ordrer valgt');
+      return;
+    }
+
+    if (!window.confirm(`Låse ${selectedOrders.size} ordrer? Dette kan ikke angres.`)) {
+      return;
+    }
+
+    setBulkActionLoading(true);
+    try {
+      const response = await fetch('/api/admin/bulk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'lock_orders',
+          orderIds: Array.from(selectedOrders),
+        }),
+      });
+
+      if (response.ok) {
+        await loadOrders();
+        setSelectedOrders(new Set());
+        alert(`${selectedOrders.size} ordrer låst`);
+      } else {
+        alert('Kunne ikke låse ordrer');
+      }
+    } catch (error) {
+      console.error('Bulk lock error:', error);
+      alert('Kunne ikke låse ordrer');
+    } finally {
+      setBulkActionLoading(false);
     }
   }
 
   async function handleExportCSV() {
     try {
-      const params = new URLSearchParams({ format: 'csv' });
-      if (searchTerm) params.set('search', searchTerm);
-      if (statusFilter !== 'all') params.set('status', statusFilter);
+      const params = new URLSearchParams();
+      params.append('format', 'csv');
+      if (statusFilter !== 'all') params.append('status', statusFilter);
 
-      window.location.href = `/api/admin/orders?${params.toString()}`;
+      const response = await fetch(`/api/admin/orders?${params}`);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `orders-${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
     } catch (error) {
-      console.error('Error exporting CSV:', error);
+      console.error('Export error:', error);
       alert('Kunne ikke eksportere CSV');
     }
   }
 
-  function openNewExtraDialog() {
-    setEditingExtra({
-      slug: '',
-      name_no: '',
-      name_en: '',
-      description: '',
-      description_no: '',
-      description_en: '',
-      price_nok: 0,
-      pricing_type: 'per_unit',
-      stock_quantity: null,
-      display_order: 0,
-      consumes_inventory_kg: false,
-      kg_per_unit: 0,
-      active: true,
-    });
-    setIsNewExtra(true);
-    setShowExtraDialog(true);
-  }
-
-  function openEditExtraDialog(extra: Extra) {
-    setEditingExtra(extra);
-    setIsNewExtra(false);
-    setShowExtraDialog(true);
-  }
-
-  async function handleSaveExtra() {
-    if (!editingExtra) return;
+  async function handleExportProduction() {
+    if (selectedOrders.size === 0) {
+      alert('Velg ordrer å eksportere');
+      return;
+    }
 
     try {
-      const url = isNewExtra
-        ? '/api/admin/extras'
-        : `/api/admin/extras/${editingExtra.id}`;
-      const method = isNewExtra ? 'POST' : 'PATCH';
-
-      const response = await fetch(url, {
-        method,
+      const response = await fetch('/api/admin/bulk', {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(editingExtra),
+        body: JSON.stringify({
+          action: 'export_production',
+          orderIds: Array.from(selectedOrders),
+        }),
       });
 
-      if (response.ok) {
-        await loadExtras();
-        setShowExtraDialog(false);
-        setEditingExtra(null);
-      } else {
-        alert('Kunne ikke lagre');
-      }
+      const data = await response.json();
+
+      // Create downloadable JSON
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `production-${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
     } catch (error) {
-      console.error('Error saving extra:', error);
-      alert('Kunne ikke lagre');
-    }
-  }
-
-  async function handleDeleteExtra(id: string) {
-    if (!confirm('Er du sikker?')) return;
-
-    try {
-      const response = await fetch(`/api/admin/extras/${id}`, {
-        method: 'DELETE',
-      });
-
-      if (response.ok) {
-        await loadExtras();
-      } else {
-        alert('Kunne ikke slette');
-      }
-    } catch (error) {
-      console.error('Error deleting extra:', error);
-      alert('Kunne ikke slette');
-    }
-  }
-
-  async function handleDeleteWaitlistEntry(id: string) {
-    if (!confirm('Slett fra venteliste?')) return;
-
-    try {
-      const response = await fetch(`/api/admin/waitlist?id=${id}`, {
-        method: 'DELETE',
-      });
-
-      if (response.ok) {
-        await loadWaitlist();
-      } else {
-        alert('Kunne ikke slette');
-      }
-    } catch (error) {
-      console.error('Error deleting waitlist entry:', error);
-      alert('Kunne ikke slette');
-    }
-  }
-
-  async function handleExportWaitlistCSV() {
-    try {
-      window.location.href = '/api/admin/waitlist?format=csv';
-    } catch (error) {
-      console.error('Error exporting waitlist CSV:', error);
-      alert('Kunne ikke eksportere CSV');
+      console.error('Export error:', error);
+      alert('Kunne ikke eksportere produksjonsplan');
     }
   }
 
   const filteredOrders = orders.filter((order) => {
     const matchesSearch =
-      searchTerm === '' ||
       order.order_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
       order.customer_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       order.customer_email.toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesStatus = statusFilter === 'all' || order.status === statusFilter;
+    const matchesDelivery = deliveryFilter === 'all' || order.delivery_type === deliveryFilter;
 
-    return matchesSearch && matchesStatus;
+    return matchesSearch && matchesStatus && matchesDelivery;
   });
+
+  const tabs = [
+    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { id: 'orders', label: 'Bestillinger', icon: ShoppingCart },
+    { id: 'customers', label: 'Kunder', icon: Users },
+    { id: 'analytics', label: 'Analyse', icon: BarChart3 },
+    { id: 'production', label: 'Produksjon', icon: Package },
+    { id: 'settings', label: 'Innstillinger', icon: Settings },
+  ];
+
+  const statusOptions = [
+    { value: 'all', label: 'Alle statuser' },
+    { value: 'draft', label: 'Utkast' },
+    { value: 'deposit_paid', label: 'Depositum betalt' },
+    { value: 'paid', label: 'Fullstendig betalt' },
+    { value: 'ready_for_pickup', label: 'Klar for henting' },
+    { value: 'completed', label: 'Fullført' },
+    { value: 'cancelled', label: 'Kansellert' },
+  ];
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="w-12 h-12 border-4 border-neutral-200 border-t-neutral-600 rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-ice/20 via-white to-slate/10 px-4">
-        <div className="glass-card-strong rounded-3xl p-12 w-full max-w-md border-2 border-white/80">
-          <h1 className="text-4xl font-bold text-charcoal mb-2 text-center">Admin</h1>
-          <p className="text-slate/70 mb-8 text-center">Skriv inn passord for å fortsette</p>
-
+      <div className="min-h-screen flex items-center justify-center px-6 bg-gradient-to-br from-gray-50 to-gray-100">
+        <Card className="w-full max-w-md p-8">
+          <h1 className="text-3xl font-bold text-gray-900 mb-6">Admin Login</h1>
           <form onSubmit={handlePasswordSubmit} className="space-y-4">
             <div>
-              <Label htmlFor="admin-password" className="text-charcoal font-semibold">
+              <Label htmlFor="admin-password" className="text-gray-700 font-semibold">
                 Passord
               </Label>
               <Input
@@ -434,559 +401,380 @@ export default function AdminPage() {
                 <p className="text-red-600 text-sm mt-2">Feil passord. Prøv igjen.</p>
               )}
             </div>
-            <Button type="submit" className="w-full bg-gradient-to-r from-charcoal to-slate text-white hover:from-slate hover:to-charcoal">
+            <Button type="submit" className="w-full">
               Logg inn
             </Button>
           </form>
-        </div>
-      </div>
-    );
-  }
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="w-12 h-12 border-4 border-neutral-200 border-t-neutral-600 rounded-full animate-spin" />
+        </Card>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen py-16 sm:py-24 bg-neutral-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="mb-8">
-          <h1 className="text-4xl sm:text-5xl font-semibold mb-4">Admin</h1>
-
-          {atRiskCount > 0 && (
-            <Alert className="bg-amber-50 border-amber-200">
-              <AlertTriangle className="h-4 w-4 text-amber-600" />
-              <AlertDescription className="text-amber-900">
-                <strong>{atRiskCount}</strong> bestilling(er) med utestående restbetaling etter
-                frist
-              </AlertDescription>
-            </Alert>
-          )}
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <div className="bg-white border-b sticky top-0 z-40">
+        <div className="max-w-[1800px] mx-auto px-6 py-4">
+          <div className="flex items-center justify-between">
+            <h1 className="text-2xl font-bold text-gray-900">Tinglum Gård - Admin</h1>
+            <Button variant="outline" onClick={() => setIsAuthenticated(false)}>
+              Logg ut
+            </Button>
+          </div>
         </div>
+      </div>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-4 max-w-2xl">
-            <TabsTrigger value="inventory">Beholdning</TabsTrigger>
-            <TabsTrigger value="orders">Bestillinger</TabsTrigger>
-            <TabsTrigger value="extras">Tillegg</TabsTrigger>
-            <TabsTrigger value="waitlist">Venteliste</TabsTrigger>
-          </TabsList>
+      {/* Tabs */}
+      <div className="bg-white border-b">
+        <div className="max-w-[1800px] mx-auto px-6">
+          <div className="flex gap-1 overflow-x-auto">
+            {tabs.map((tab) => {
+              const Icon = tab.icon;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id as TabType)}
+                  className={cn(
+                    'flex items-center gap-2 px-6 py-4 font-medium transition-colors whitespace-nowrap border-b-2',
+                    activeTab === tab.id
+                      ? 'text-gray-900 border-gray-900'
+                      : 'text-gray-600 border-transparent hover:text-gray-900 hover:border-gray-300'
+                  )}
+                >
+                  <Icon className="w-5 h-5" />
+                  {tab.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
 
-          <TabsContent value="inventory" className="mt-6">
-            <Card className="p-6 sm:p-8 bg-white">
-              <h2 className="text-2xl font-semibold mb-6">Lagerbeholdning</h2>
-              <div className="max-w-md space-y-4">
-                <div>
-                  <Label htmlFor="season">Sesong</Label>
-                  <Input
-                    id="season"
-                    value={season}
-                    onChange={(e) => setSeason(e.target.value)}
-                    className="mt-2"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="kg-remaining">Kilogram igjen</Label>
-                  <Input
-                    id="kg-remaining"
-                    type="number"
-                    value={kgRemaining}
-                    onChange={(e) => setKgRemaining(e.target.value)}
-                    className="mt-2"
-                  />
-                </div>
-                <Button onClick={handleUpdateInventory} disabled={inventoryLoading}>
-                  {inventoryLoading ? 'Lagrer...' : 'Oppdater beholdning'}
-                </Button>
+      {/* Content */}
+      <div className="max-w-[1800px] mx-auto px-6 py-8">
+        {/* DASHBOARD TAB */}
+        {activeTab === 'dashboard' && (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <h2 className="text-3xl font-bold text-gray-900">Dashboard</h2>
+              <Button onClick={loadDashboard} variant="outline">
+                <RefreshCw className="w-4 h-4 mr-2" />
+                Oppdater
+              </Button>
+            </div>
+
+            {dashboardLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="w-12 h-12 border-4 border-neutral-200 border-t-neutral-600 rounded-full animate-spin" />
               </div>
-            </Card>
-          </TabsContent>
+            ) : dashboardMetrics ? (
+              <DashboardMetrics metrics={dashboardMetrics} />
+            ) : (
+              <Card className="p-12 text-center">
+                <p className="text-gray-600">Ingen data tilgjengelig</p>
+              </Card>
+            )}
+          </div>
+        )}
 
-          <TabsContent value="orders" className="mt-6 space-y-4">
-            <Card className="p-4 bg-white">
-              <div className="flex flex-col sm:flex-row gap-4">
-                <div className="flex-1 relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-neutral-400" />
+        {/* ORDERS TAB */}
+        {activeTab === 'orders' && (
+          <div className="space-y-6">
+            {/* Filters & Search */}
+            <div className="flex flex-col lg:flex-row gap-4">
+              <div className="flex-1">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
                   <Input
+                    type="text"
                     placeholder="Søk etter ordre, navn eller e-post..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="pl-10"
                   />
                 </div>
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-full sm:w-[200px]">
-                    <SelectValue placeholder="Filtrer status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Alle statuser</SelectItem>
-                    <SelectItem value="draft">Utkast</SelectItem>
-                    <SelectItem value="deposit_paid">Depositum betalt</SelectItem>
-                    <SelectItem value="paid">Betalt</SelectItem>
-                    <SelectItem value="ready_for_pickup">Klar for henting</SelectItem>
-                    <SelectItem value="completed">Fullført</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Button onClick={handleExportCSV} variant="outline">
-                  <Download className="w-4 h-4 mr-2" />
-                  Eksporter CSV
-                </Button>
               </div>
-            </Card>
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="px-4 py-2 border border-gray-300 rounded-lg"
+              >
+                {statusOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+              <Button onClick={loadOrders} variant="outline">
+                <Filter className="w-4 h-4 mr-2" />
+                Filtrer
+              </Button>
+              <Button onClick={handleExportCSV} variant="outline">
+                <Download className="w-4 h-4 mr-2" />
+                Eksporter CSV
+              </Button>
+            </div>
 
-            <Card className="p-6 bg-white overflow-x-auto">
-              {ordersLoading ? (
-                <div className="text-center py-8">Laster...</div>
-              ) : filteredOrders.length === 0 ? (
-                <p className="text-neutral-500 text-center py-8">Ingen bestillinger funnet</p>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Ordrenr</TableHead>
-                      <TableHead>Kunde</TableHead>
-                      <TableHead>Boks</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Betalinger</TableHead>
-                      <TableHead>Admin notater</TableHead>
-                      <TableHead>Handlinger</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredOrders.map((order) => {
-                      const depositPaid = order.payments?.some(
-                        (p) => p.payment_type === 'deposit' && p.status === 'completed'
-                      );
-                      const remainderPaid = order.payments?.some(
-                        (p) => p.payment_type === 'remainder' && p.status === 'completed'
-                      );
-                      const isEditing = editingOrderId === order.id;
+            {/* Bulk Actions */}
+            {selectedOrders.size > 0 && (
+              <Card className="p-4 bg-blue-50 border-blue-200">
+                <div className="flex items-center justify-between">
+                  <p className="font-medium text-blue-900">
+                    {selectedOrders.size} ordre(r) valgt
+                  </p>
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleBulkStatusUpdate('ready_for_pickup')}
+                      disabled={bulkActionLoading}
+                    >
+                      Marker klar
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={handleBulkLock}
+                      disabled={bulkActionLoading}
+                    >
+                      <Lock className="w-4 h-4 mr-1" />
+                      Lås
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={handleExportProduction}
+                      disabled={bulkActionLoading}
+                    >
+                      <Download className="w-4 h-4 mr-1" />
+                      Produksjonsplan
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setSelectedOrders(new Set())}
+                    >
+                      Avbryt
+                    </Button>
+                  </div>
+                </div>
+              </Card>
+            )}
 
-                      return (
-                        <TableRow key={order.id}>
-                          <TableCell className="font-medium">{order.order_number}</TableCell>
-                          <TableCell>
-                            <div>
-                              <p className="font-medium">{order.customer_name}</p>
-                              <p className="text-sm text-neutral-500">{order.customer_email}</p>
-                            </div>
-                          </TableCell>
-                          <TableCell>{order.box_size} kg</TableCell>
-                          <TableCell>
-                            <Select
-                              value={order.status}
-                              onValueChange={(value) => handleStatusChange(order.id, value)}
+            {/* Orders Table */}
+            {ordersLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="w-12 h-12 border-4 border-neutral-200 border-t-neutral-600 rounded-full animate-spin" />
+              </div>
+            ) : filteredOrders.length === 0 ? (
+              <Card className="p-12 text-center">
+                <ShoppingCart className="w-16 h-16 mx-auto mb-4 text-gray-400" />
+                <p className="text-xl font-semibold text-gray-900 mb-2">Ingen bestillinger funnet</p>
+                <p className="text-gray-600">Prøv å justere filtrene dine</p>
+              </Card>
+            ) : (
+              <Card className="overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-gray-50 border-b">
+                      <tr>
+                        <th className="px-4 py-3 text-left">
+                          <input
+                            type="checkbox"
+                            checked={selectedOrders.size === filteredOrders.length && filteredOrders.length > 0}
+                            onChange={selectAllOrders}
+                            className="rounded"
+                          />
+                        </th>
+                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Ordrenr</th>
+                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Kunde</th>
+                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Boks</th>
+                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Status</th>
+                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Beløp</th>
+                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Dato</th>
+                        <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">Handlinger</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                      {filteredOrders.map((order) => (
+                        <tr key={order.id} className="hover:bg-gray-50 transition-colors">
+                          <td className="px-4 py-3">
+                            <input
+                              type="checkbox"
+                              checked={selectedOrders.has(order.id)}
+                              onChange={() => toggleOrderSelection(order.id)}
+                              className="rounded"
+                            />
+                          </td>
+                          <td className="px-4 py-3">
+                            <button
+                              onClick={() => {
+                                setSelectedOrder(order);
+                                setShowOrderDetail(true);
+                              }}
+                              className="font-medium text-blue-600 hover:text-blue-800"
                             >
-                              <SelectTrigger className="w-[160px]">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="draft">Utkast</SelectItem>
-                                <SelectItem value="deposit_paid">Depositum</SelectItem>
-                                <SelectItem value="paid">Betalt</SelectItem>
-                                <SelectItem value="ready_for_pickup">Klar</SelectItem>
-                                <SelectItem value="completed">Fullført</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </TableCell>
-                          <TableCell>
-                            <div className="space-y-1 text-sm">
-                              <div className={depositPaid ? 'text-green-600' : 'text-neutral-500'}>
-                                {depositPaid ? '✓' : '○'} Depositum
-                              </div>
-                              <div
-                                className={
-                                  remainderPaid
-                                    ? 'text-green-600'
-                                    : order.at_risk
-                                    ? 'text-red-600'
-                                    : 'text-amber-600'
-                                }
-                              >
-                                {remainderPaid ? '✓' : order.at_risk ? '✕' : '○'} Rest
-                              </div>
+                              {order.order_number}
+                            </button>
+                          </td>
+                          <td className="px-4 py-3">
+                            <div>
+                              <p className="font-medium text-gray-900">{order.customer_name}</p>
+                              <p className="text-sm text-gray-600">{order.customer_email}</p>
                             </div>
-                          </TableCell>
-                          <TableCell>
-                            {isEditing ? (
-                              <div className="space-y-2 min-w-[200px]">
-                                <Textarea
-                                  value={editingNotes}
-                                  onChange={(e) => setEditingNotes(e.target.value)}
-                                  rows={2}
-                                  className="text-sm"
-                                />
-                                <div className="flex gap-2">
-                                  <Button
-                                    size="sm"
-                                    onClick={() => handleSaveNotes(order.id)}
-                                  >
-                                    <Save className="w-3 h-3 mr-1" />
-                                    Lagre
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => {
-                                      setEditingOrderId(null);
-                                      setEditingNotes('');
-                                    }}
-                                  >
-                                    <X className="w-3 h-3" />
-                                  </Button>
-                                </div>
-                              </div>
-                            ) : (
-                              <div className="min-w-[200px]">
-                                <p className="text-sm text-neutral-600">
-                                  {order.admin_notes || 'Ingen notater'}
-                                </p>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  onClick={() => {
-                                    setEditingOrderId(order.id);
-                                    setEditingNotes(order.admin_notes || '');
-                                  }}
-                                  className="mt-1"
-                                >
-                                  <Edit className="w-3 h-3 mr-1" />
-                                  Rediger
-                                </Button>
-                              </div>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            {order.marked_delivered_at ? (
-                              <div className="text-sm text-green-600">
-                                <Check className="w-4 h-4 inline mr-1" />
-                                Levert
-                              </div>
-                            ) : (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handleMarkDelivered(order.id)}
-                              >
-                                Marker levert
-                              </Button>
-                            )}
-                          </TableCell>
-                        </TableRow>
+                          </td>
+                          <td className="px-4 py-3 text-gray-900">{order.box_size}kg</td>
+                          <td className="px-4 py-3">
+                            <span className={cn(
+                              'px-2 py-1 rounded-full text-xs font-medium',
+                              order.status === 'completed' ? 'bg-green-100 text-green-800' :
+                              order.status === 'ready_for_pickup' ? 'bg-blue-100 text-blue-800' :
+                              order.status === 'paid' ? 'bg-green-100 text-green-800' :
+                              order.status === 'deposit_paid' ? 'bg-amber-100 text-amber-800' :
+                              'bg-gray-100 text-gray-800'
+                            )}>
+                              {statusOptions.find((s) => s.value === order.status)?.label || order.status}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 font-medium text-gray-900">
+                            kr {order.total_amount.toLocaleString('nb-NO')}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-600">
+                            {new Date(order.created_at).toLocaleDateString('nb-NO')}
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                setSelectedOrder(order);
+                                setShowOrderDetail(true);
+                              }}
+                            >
+                              <Eye className="w-4 h-4" />
+                            </Button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </Card>
+            )}
+          </div>
+        )}
+
+        {/* ANALYTICS TAB */}
+        {activeTab === 'analytics' && (
+          <div className="space-y-6">
+            <h2 className="text-3xl font-bold text-gray-900">Analyse & Rapporter</h2>
+            {analytics ? (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <Card className="p-6">
+                  <h3 className="font-semibold text-lg mb-4">Nøkkeltall</h3>
+                  <div className="space-y-3">
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Totale bestillinger</span>
+                      <span className="font-bold text-xl">{analytics.summary.total_orders}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Unike kunder</span>
+                      <span className="font-bold text-xl">{analytics.summary.total_customers}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Gjentakende kunder</span>
+                      <span className="font-bold text-xl">{analytics.summary.repeat_customers}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Gjentakelsesrate</span>
+                      <span className="font-bold text-xl">{analytics.customer_insights.repeat_rate.toFixed(1)}%</span>
+                    </div>
+                  </div>
+                </Card>
+
+                <Card className="p-6">
+                  <h3 className="font-semibold text-lg mb-4">Konverteringstrakt</h3>
+                  <div className="space-y-2">
+                    {Object.entries(analytics.conversion_funnel).map(([status, count]: [string, any]) => {
+                      const percentage = (count / analytics.summary.total_orders) * 100;
+                      return (
+                        <div key={status}>
+                          <div className="flex justify-between text-sm mb-1">
+                            <span className="capitalize text-gray-700">{status.replace('_', ' ')}</span>
+                            <span className="font-semibold">{count} ({percentage.toFixed(0)}%)</span>
+                          </div>
+                          <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-blue-500 transition-all"
+                              style={{ width: `${percentage}%` }}
+                            />
+                          </div>
+                        </div>
                       );
                     })}
-                  </TableBody>
-                </Table>
-              )}
-            </Card>
-          </TabsContent>
+                  </div>
+                </Card>
 
-          <TabsContent value="extras" className="mt-6">
-            <Card className="p-6 bg-white">
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-semibold">Tilleggskatalog</h2>
-                <Button onClick={openNewExtraDialog}>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Nytt tillegg
-                </Button>
-              </div>
-
-              {extrasLoading ? (
-                <div className="text-center py-8">Laster...</div>
-              ) : extras.length === 0 ? (
-                <p className="text-neutral-500 text-center py-8">Ingen tillegg ennå</p>
-              ) : (
-                <div className="space-y-4">
-                  {extras.map((extra) => (
-                    <div
-                      key={extra.id}
-                      className="border border-neutral-200 rounded-lg p-4 flex items-start justify-between"
-                    >
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          <h3 className="font-semibold">{extra.name_no}</h3>
-                          <span className="text-sm text-neutral-500">({extra.name_en})</span>
-                          {!extra.active && (
-                            <span className="text-xs bg-neutral-200 text-neutral-600 px-2 py-1 rounded">
-                              Inaktiv
-                            </span>
-                          )}
+                {analytics.products.combinations.length > 0 && (
+                  <Card className="p-6 lg:col-span-2">
+                    <h3 className="font-semibold text-lg mb-4">Populære produktkombinasjoner</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {analytics.products.combinations.map((combo: any, index: number) => (
+                        <div key={index} className="p-4 rounded-lg bg-gray-50">
+                          <p className="font-medium text-gray-900">{combo.combo}</p>
+                          <p className="text-2xl font-bold text-blue-600">{combo.count}</p>
+                          <p className="text-sm text-gray-600">bestillinger</p>
                         </div>
-                        <p className="text-sm text-neutral-600 mb-2">{extra.description_no || extra.description}</p>
-                        <div className="flex gap-6 text-sm">
-                          <span>
-                            <strong>Pris:</strong> kr {extra.price_nok}/{extra.pricing_type === 'per_kg' ? 'kg' : 'stk'}
-                          </span>
-                          <span>
-                            <strong>Slug:</strong> {extra.slug}
-                          </span>
-                          {extra.stock_quantity && (
-                            <span className="text-blue-600">
-                              <strong>Lager:</strong> {extra.stock_quantity}
-                            </span>
-                          )}
-                          {extra.consumes_inventory_kg && (
-                            <span className="text-amber-600">
-                              <strong>Bruker lager:</strong> {extra.kg_per_unit} kg
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex gap-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => openEditExtraDialog(extra)}
-                        >
-                          <Edit className="w-3 h-3" />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleDeleteExtra(extra.id)}
-                        >
-                          <Trash2 className="w-3 h-3" />
-                        </Button>
-                      </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
-              )}
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="waitlist" className="mt-6">
-            <Card className="p-6 bg-white">
-              <div className="flex justify-between items-center mb-6">
-                <div>
-                  <h2 className="text-2xl font-semibold">Venteliste</h2>
-                  <p className="text-sm text-neutral-600 mt-1">
-                    {waitlist.length} person(er) på venteliste
-                  </p>
-                </div>
-                <Button onClick={handleExportWaitlistCSV} variant="outline">
-                  <Download className="w-4 h-4 mr-2" />
-                  Eksporter CSV
-                </Button>
-              </div>
-
-              {waitlistLoading ? (
-                <div className="text-center py-8">Laster...</div>
-              ) : waitlist.length === 0 ? (
-                <p className="text-neutral-500 text-center py-8">Ingen på venteliste</p>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>E-post</TableHead>
-                      <TableHead>Navn</TableHead>
-                      <TableHead>Telefon</TableHead>
-                      <TableHead>Registrert</TableHead>
-                      <TableHead>Handlinger</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {waitlist.map((entry) => (
-                      <TableRow key={entry.id}>
-                        <TableCell className="font-medium">{entry.email}</TableCell>
-                        <TableCell>{entry.name || '-'}</TableCell>
-                        <TableCell>{entry.phone || '-'}</TableCell>
-                        <TableCell>
-                          {new Date(entry.created_at).toLocaleDateString('nb-NO', {
-                            year: 'numeric',
-                            month: 'short',
-                            day: 'numeric',
-                          })}
-                        </TableCell>
-                        <TableCell>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleDeleteWaitlistEntry(entry.id)}
-                          >
-                            <Trash2 className="w-3 h-3 mr-1" />
-                            Slett
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
-            </Card>
-          </TabsContent>
-        </Tabs>
-
-        <Dialog open={showExtraDialog} onOpenChange={setShowExtraDialog}>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>{isNewExtra ? 'Nytt tillegg' : 'Rediger tillegg'}</DialogTitle>
-            </DialogHeader>
-            {editingExtra && (
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label>Slug (unik ID)</Label>
-                    <Input
-                      value={editingExtra.slug}
-                      onChange={(e) =>
-                        setEditingExtra({ ...editingExtra, slug: e.target.value })
-                      }
-                      placeholder="indrefilet"
-                    />
-                  </div>
-                  <div>
-                    <Label>Pris (NOK)</Label>
-                    <Input
-                      type="number"
-                      value={editingExtra.price_nok}
-                      onChange={(e) =>
-                        setEditingExtra({ ...editingExtra, price_nok: parseInt(e.target.value) })
-                      }
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label>Pristype</Label>
-                    <select
-                      value={editingExtra.pricing_type}
-                      onChange={(e) =>
-                        setEditingExtra({ ...editingExtra, pricing_type: e.target.value as 'per_unit' | 'per_kg' })
-                      }
-                      className="w-full h-10 px-3 py-2 border border-neutral-300 rounded-md"
-                    >
-                      <option value="per_unit">Per stykk</option>
-                      <option value="per_kg">Per kg</option>
-                    </select>
-                  </div>
-                  <div>
-                    <Label>Rekkefølge (visning)</Label>
-                    <Input
-                      type="number"
-                      value={editingExtra.display_order || 0}
-                      onChange={(e) =>
-                        setEditingExtra({ ...editingExtra, display_order: parseInt(e.target.value) })
-                      }
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label>Navn (Norsk)</Label>
-                    <Input
-                      value={editingExtra.name_no}
-                      onChange={(e) =>
-                        setEditingExtra({ ...editingExtra, name_no: e.target.value })
-                      }
-                    />
-                  </div>
-                  <div>
-                    <Label>Name (English)</Label>
-                    <Input
-                      value={editingExtra.name_en}
-                      onChange={(e) =>
-                        setEditingExtra({ ...editingExtra, name_en: e.target.value })
-                      }
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <Label>Beskrivelse (Norsk)</Label>
-                  <Textarea
-                    value={editingExtra.description_no || ''}
-                    onChange={(e) =>
-                      setEditingExtra({ ...editingExtra, description_no: e.target.value })
-                    }
-                    rows={2}
-                    placeholder="Premium mør filet"
-                  />
-                </div>
-
-                <div>
-                  <Label>Description (English)</Label>
-                  <Textarea
-                    value={editingExtra.description_en || ''}
-                    onChange={(e) =>
-                      setEditingExtra({ ...editingExtra, description_en: e.target.value })
-                    }
-                    rows={2}
-                    placeholder="Premium tender fillet"
-                  />
-                </div>
-
-                <div>
-                  <Label>Lagerbeholdning (valgfritt)</Label>
-                  <Input
-                    type="number"
-                    value={editingExtra.stock_quantity || ''}
-                    onChange={(e) =>
-                      setEditingExtra({ ...editingExtra, stock_quantity: e.target.value ? parseInt(e.target.value) : null })
-                    }
-                    placeholder="La stå tom for ubegrenset"
-                  />
-                </div>
-
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="consumes"
-                    checked={editingExtra.consumes_inventory_kg}
-                    onCheckedChange={(checked) =>
-                      setEditingExtra({
-                        ...editingExtra,
-                        consumes_inventory_kg: checked as boolean,
-                      })
-                    }
-                  />
-                  <Label htmlFor="consumes">Bruker lagerbeholdning</Label>
-                </div>
-
-                {editingExtra.consumes_inventory_kg && (
-                  <div>
-                    <Label>Kilogram per enhet</Label>
-                    <Input
-                      type="number"
-                      step="0.1"
-                      value={editingExtra.kg_per_unit}
-                      onChange={(e) =>
-                        setEditingExtra({
-                          ...editingExtra,
-                          kg_per_unit: parseFloat(e.target.value),
-                        })
-                      }
-                    />
-                  </div>
+                  </Card>
                 )}
-
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="active"
-                    checked={editingExtra.active}
-                    onCheckedChange={(checked) =>
-                      setEditingExtra({ ...editingExtra, active: checked as boolean })
-                    }
-                  />
-                  <Label htmlFor="active">Aktiv (tilgjengelig for bestilling)</Label>
-                </div>
-
-                <div className="flex justify-end gap-3 pt-4">
-                  <Button variant="outline" onClick={() => setShowExtraDialog(false)}>
-                    Avbryt
-                  </Button>
-                  <Button onClick={handleSaveExtra}>Lagre</Button>
-                </div>
               </div>
+            ) : (
+              <Card className="p-12 text-center">
+                <p className="text-gray-600">Laster analysedata...</p>
+              </Card>
             )}
-          </DialogContent>
-        </Dialog>
+          </div>
+        )}
+
+        {/* PRODUCTION TAB */}
+        {activeTab === 'production' && (
+          <div className="space-y-6">
+            <h2 className="text-3xl font-bold text-gray-900">Produksjonsplanlegging</h2>
+            <Card className="p-12 text-center">
+              <Package className="w-16 h-16 mx-auto mb-4 text-gray-400" />
+              <p className="text-xl font-semibold text-gray-900 mb-2">Velg ordrer for produksjonsplan</p>
+              <p className="text-gray-600 mb-6">Gå til Bestillinger-fanen, velg ordrer, og eksporter produksjonsplan</p>
+              <Button onClick={() => setActiveTab('orders')}>
+                Gå til bestillinger
+              </Button>
+            </Card>
+          </div>
+        )}
+
+        {/* OTHER TABS - Placeholder */}
+        {(activeTab === 'customers' || activeTab === 'settings') && (
+          <Card className="p-12 text-center">
+            <p className="text-xl font-semibold text-gray-900 mb-2">Kommer snart</p>
+            <p className="text-gray-600">Denne funksjonen er under utvikling</p>
+          </Card>
+        )}
       </div>
+
+      {/* Order Detail Modal */}
+      {showOrderDetail && selectedOrder && (
+        <OrderDetailModal
+          order={selectedOrder}
+          isOpen={showOrderDetail}
+          onClose={() => {
+            setShowOrderDetail(false);
+            setSelectedOrder(null);
+          }}
+          onStatusChange={handleStatusChange}
+          onSaveNotes={handleSaveNotes}
+        />
+      )}
     </div>
   );
 }
