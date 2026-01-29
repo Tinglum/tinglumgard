@@ -372,7 +372,9 @@ export default function CheckoutPage() {
                       <p className={cn("text-5xl font-bold mb-2", theme.textPrimary)}>{size} <span className={cn("text-2xl", theme.textMuted)}>kg</span></p>
                       <p className={cn("text-sm", theme.textMuted)}>{size === '8' ? '2-3 personer' : '4-6 personer'}</p>
                     </div>
-                    <p className={cn("text-2xl font-bold text-center", theme.textPrimary)}>kr {prices[size].total}</p>
+                    <p className={cn("text-2xl font-bold text-center", theme.textPrimary)}>
+                      {prices ? `kr ${prices[size].total}` : 'Laster...'}
+                    </p>
 
                     {boxSize === size && boxContents[size] && (
                       <div className={cn("mt-6 pt-6 border-t animate-in fade-in slide-in-from-top-2 duration-500", theme.borderSecondary)}>
@@ -660,7 +662,7 @@ export default function CheckoutPage() {
                               <p className={cn("text-sm", theme.textMuted)}>Veita Mat AS, Jomfrugata</p>
                             </div>
                           </div>
-                          <span className={cn("text-sm font-bold", theme.textPrimary)}>+{addonPrices.trondheim} kr</span>
+                          <span className={cn("text-sm font-bold", theme.textPrimary)}>+{addonPrices?.trondheim || 200} kr</span>
                         </div>
                       </button>
 
@@ -683,7 +685,7 @@ export default function CheckoutPage() {
                               <p className={cn("text-sm", theme.textMuted)}>Stjørdal-Namsos</p>
                             </div>
                           </div>
-                          <span className={cn("text-sm font-bold", theme.textPrimary)}>+{addonPrices.e6} kr</span>
+                          <span className={cn("text-sm font-bold", theme.textPrimary)}>+{addonPrices?.e6 || 300} kr</span>
                         </div>
                       </button>
                     </div>
@@ -712,7 +714,7 @@ export default function CheckoutPage() {
                               <p className={cn("text-sm", theme.textMuted)}>Motta kassen fersk i stedet for frossen - kun på gården</p>
                             </div>
                           </div>
-                          <span className={cn("text-sm font-bold", theme.textPrimary)}>+{addonPrices.fresh} kr</span>
+                          <span className={cn("text-sm font-bold", theme.textPrimary)}>+{addonPrices?.fresh || 500} kr</span>
                         </div>
                       </button>
                     </div>
@@ -744,13 +746,13 @@ export default function CheckoutPage() {
               <h3 className={cn("text-xl sm:text-2xl font-bold mb-4 sm:mb-6", theme.textPrimary)}>Sammendrag</h3>
 
               <div className="space-y-4 mb-6">
-                {boxSize && (
+                {boxSize && prices && (
                   <div className="flex justify-between text-sm">
                     <span className={theme.textMuted}>{boxSize} kg kasse</span>
                     <span className={cn("font-bold", theme.textPrimary)}>kr {prices[boxSize].total}</span>
                   </div>
                 )}
-                {deliveryType !== 'farm' && (
+                {deliveryType !== 'farm' && addonPrices && (
                   <div className="flex justify-between text-sm">
                     <span className={theme.textMuted}>
                       {deliveryType === 'trondheim' ? 'Henting Trondheim' : 'Levering E6'}
@@ -758,7 +760,7 @@ export default function CheckoutPage() {
                     <span className={cn("font-bold", theme.textPrimary)}>+{deliveryType === 'trondheim' ? addonPrices.trondheim : addonPrices.e6} kr</span>
                   </div>
                 )}
-                {freshDelivery && (
+                {freshDelivery && addonPrices && (
                   <div className="flex justify-between text-sm">
                     <span className={theme.textMuted}>Fersk levering</span>
                     <span className={cn("font-bold", theme.textPrimary)}>+{addonPrices.fresh} kr</span>
