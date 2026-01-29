@@ -121,6 +121,7 @@ export async function POST(
             id: order.delivery_type,
             priority: 0,
             isDefault: true,
+            brand: 'OTHER', // Required field - use OTHER for custom pickup/delivery
             title: order.delivery_type === 'pickup_farm' ? 'Henting på gård' :
                    order.delivery_type === 'pickup_e6' ? 'Henting E6' :
                    'Levering Trondheim',
