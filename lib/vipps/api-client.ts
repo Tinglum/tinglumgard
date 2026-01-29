@@ -116,6 +116,8 @@ class VippsClient {
         'Merchant-Serial-Number': vippsConfig.merchantSerialNumber,
         'Vipps-System-Name': 'tinglumgard',
         'Vipps-System-Version': '1.0.0',
+        'Vipps-System-Plugin-Name': 'tinglumgard-checkout',
+        'Vipps-System-Plugin-Version': '1.0.0',
       },
       body: JSON.stringify(sessionData),
     });
