@@ -12,7 +12,7 @@ export async function GET() {
     if (error) throw error;
 
     return NextResponse.json({
-      cutoff: config?.value || { year: 2024, week: 46 },
+      cutoff: config?.value || { year: 2026, week: 46 },
     });
   } catch (error) {
     console.error('Error fetching config:', error);

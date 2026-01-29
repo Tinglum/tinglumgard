@@ -61,9 +61,15 @@ export default function CustomerPortalPage() {
     try {
       const response = await fetch('/api/auth/session');
       if (response.ok) {
-        setIsAuthenticated(true);
-        loadOrders();
-        loadConfig();
+        const data = await response.json();
+        if (data.authenticated) {
+          setIsAuthenticated(true);
+          loadOrders();
+          loadConfig();
+        } else {
+          setIsAuthenticated(false);
+          setLoading(false);
+        }
       } else {
         setIsAuthenticated(false);
         setLoading(false);

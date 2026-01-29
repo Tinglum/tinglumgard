@@ -6,7 +6,7 @@ export const en = {
     admin: "Admin"
   },
   hero: {
-    season: "Fall 2024 season",
+    season: "Fall 2026 season",
     headline: "Woolly pig from Tinglum Farm",
     subheadline: "Pre-packed, freezer ready.",
     description: "Organic certified pasture-raised pig. Hand-picked cuts, portioned and vacuum-packed. One purchase, entire season covered."

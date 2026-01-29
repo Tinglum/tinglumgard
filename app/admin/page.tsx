@@ -107,7 +107,7 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true);
 
   const [kgRemaining, setKgRemaining] = useState('250');
-  const [season, setSeason] = useState('høst_2024');
+  const [season, setSeason] = useState('høst_2026');
   const [inventoryLoading, setInventoryLoading] = useState(false);
 
   const [orders, setOrders] = useState<Order[]>([]);

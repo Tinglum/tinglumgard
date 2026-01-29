@@ -91,7 +91,7 @@ export function Footer() {
         <div className={cn("pt-8 border-t flex flex-col md:flex-row items-center justify-between gap-4", theme.borderSecondary)}>
           <div className="flex flex-col md:flex-row items-center gap-4">
             <p className={cn("text-sm", theme.textMuted)}>
-              © 2024 {t.footer.farm}. Alle rettigheter reservert.
+              © 2026 {t.footer.farm}. Alle rettigheter reservert.
             </p>
             <a
               href="/vilkar"

@@ -76,7 +76,7 @@ export async function PATCH(
       .eq('key', 'order_modification_cutoff')
       .maybeSingle();
 
-    const cutoffConfig = configData?.value || { year: 2024, week: 46 };
+    const cutoffConfig = configData?.value || { year: 2026, week: 46 };
 
     const mockDate = request.headers.get('x-mock-date');
     const currentDate = mockDate ? new Date(mockDate) : new Date();
