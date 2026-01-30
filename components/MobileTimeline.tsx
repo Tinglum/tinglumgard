@@ -40,8 +40,18 @@ export function MobileTimeline() {
           viewport={{ once: true }}
           className="text-center mb-12"
         >
-          <h2 className="text-3xl font-bold text-white mb-2">Slik fungerer det</h2>
-          <p className="text-white/60">3 enkle steg</p>
+          <h2
+            className="text-3xl font-bold text-white mb-2"
+            style={{ textShadow: '0 2px 15px rgba(0,0,0,0.9)' }}
+          >
+            Slik fungerer det
+          </h2>
+          <p
+            className="text-white font-semibold"
+            style={{ textShadow: '0 2px 10px rgba(0,0,0,0.9)' }}
+          >
+            3 enkle steg
+          </p>
         </motion.div>
 
         {/* Timeline steps */}

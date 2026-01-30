@@ -2,17 +2,19 @@
 
 /* Glassmorphism utilities */
 .glass-mobile {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(0, 0, 0, 0.4);
   backdrop-filter: blur(24px) saturate(180%);
   -webkit-backdrop-filter: blur(24px) saturate(180%);
   border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
 }
 
 .glass-mobile-strong {
-  background: rgba(255, 255, 255, 0.12);
+  background: rgba(0, 0, 0, 0.6);
   backdrop-filter: blur(32px) saturate(200%);
   -webkit-backdrop-filter: blur(32px) saturate(200%);
   border: 1px solid rgba(255, 255, 255, 0.25);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
 }
 
 /* Prismatic gradient effects */
@@ -41,17 +43,19 @@
 .prismatic-text {
   background: linear-gradient(
     135deg,
-    #667eea,
-    #764ba2,
-    #f093fb,
-    #4facfe,
-    #00f2fe
+    #a0b4ff,
+    #c4a4ff,
+    #ffc4fb,
+    #8fd7ff,
+    #6ff9ff
   );
   background-size: 400% 400%;
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
   animation: prismatic-shift 8s ease infinite;
+  filter: drop-shadow(0 0 20px rgba(102, 126, 234, 0.5)) drop-shadow(0 2px 8px rgba(0, 0, 0, 0.8));
+  font-weight: 900;
 }
 
 /* Floating tile animation */

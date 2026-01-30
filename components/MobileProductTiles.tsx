@@ -37,8 +37,18 @@ export function MobileProductTiles() {
         viewport={{ once: true }}
         className="text-center mb-12"
       >
-        <h2 className="text-3xl font-bold text-white mb-2">Velg størrelse</h2>
-        <p className="text-white/60">To pakker • Samme kvalitet</p>
+        <h2
+          className="text-3xl font-bold text-white mb-2"
+          style={{ textShadow: '0 2px 15px rgba(0,0,0,0.9)' }}
+        >
+          Velg størrelse
+        </h2>
+        <p
+          className="text-white font-semibold"
+          style={{ textShadow: '0 2px 10px rgba(0,0,0,0.9)' }}
+        >
+          To pakker • Samme kvalitet
+        </p>
       </motion.div>
 
       {/* Product tiles - stacked on mobile, floating effect */}

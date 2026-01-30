@@ -55,6 +55,7 @@ export function MobileHero({ isSoldOut }: MobileHeroProps) {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.1 }}
           className="text-5xl md:text-6xl font-bold mb-6 leading-tight"
+          style={{ textShadow: '0 2px 20px rgba(0,0,0,0.8), 0 0 40px rgba(0,0,0,0.5)' }}
         >
           <span className="text-white">Ullgris fra</span>
           <br />
@@ -66,7 +67,11 @@ export function MobileHero({ isSoldOut }: MobileHeroProps) {
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.2 }}
-          className="text-lg text-white/70 mb-10 max-w-md mx-auto"
+          className="text-lg font-semibold mb-10 max-w-md mx-auto"
+          style={{
+            color: '#ffffff',
+            textShadow: '0 2px 15px rgba(0,0,0,0.9), 0 0 30px rgba(0,0,0,0.6)'
+          }}
         >
           Lokalt oppvokst • Fersk levering • Desember 2026
         </motion.p>
