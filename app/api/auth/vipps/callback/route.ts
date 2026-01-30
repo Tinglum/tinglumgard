@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
     const tokens = await vippsClient.exchangeCodeForToken(code);
     console.log('Vipps Callback - Got tokens, fetching user info');
     const userInfo = await vippsClient.getUserInfo(tokens.access_token);
-    console.log('Vipps Callback - Got user info:', { sub: userInfo.sub, email: userInfo.email });
+    console.log('Vipps Callback - Got FULL user info:', JSON.stringify(userInfo, null, 2));
 
     let user = await supabaseAdmin
       .from('vipps_users')
