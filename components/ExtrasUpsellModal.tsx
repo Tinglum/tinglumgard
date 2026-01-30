@@ -59,7 +59,11 @@ export function ExtrasUpsellModal({
     try {
       const response = await fetch('/api/extras');
       const data = await response.json();
-      setExtras(data.extras || []);
+      // Filter out delivery options - they are handled elsewhere
+      const filteredExtras = (data.extras || []).filter(
+        (extra: Extra) => !['delivery_trondheim', 'pickup_e6', 'fresh_delivery'].includes(extra.slug)
+      );
+      setExtras(filteredExtras);
     } catch (error) {
       console.error('Failed to load extras:', error);
     } finally {
@@ -70,11 +74,14 @@ export function ExtrasUpsellModal({
   function updateQuantity(slug: string, delta: number, pricingType: 'per_unit' | 'per_kg') {
     setSelectedQuantities((prev) => {
       const current = prev[slug] || 0;
-      // For kg items, increment by 0.5kg, for units increment by 1
+      // For kg items, increment/decrement by 0.5kg, for units by 1
       const step = pricingType === 'per_kg' ? 0.5 : 1;
-      const newQuantity = Math.max(0, current + (delta * step));
-      // Round to 1 decimal place for kg items
-      const rounded = pricingType === 'per_kg' ? Math.round(newQuantity * 10) / 10 : newQuantity;
+      // Calculate new quantity based on direction
+      let newQuantity = current + (delta * step);
+      // Ensure non-negative
+      newQuantity = Math.max(0, newQuantity);
+      // Round to 1 decimal place for kg items to avoid floating point issues
+      const rounded = pricingType === 'per_kg' ? Math.round(newQuantity * 10) / 10 : Math.round(newQuantity);
       return { ...prev, [slug]: rounded };
     });
   }
@@ -202,11 +209,26 @@ export function ExtrasUpsellModal({
                           type="number"
                           min={minValue}
                           step={stepValue}
-                          value={quantity}
+                          value={quantity || ''}
                           onChange={(e) => {
+                            const inputValue = e.target.value;
+                            if (inputValue === '' || inputValue === '0') {
+                              setDirectQuantity(extra.slug, 0);
+                            } else {
+                              const value = parseFloat(inputValue);
+                              if (!isNaN(value) && value >= 0) {
+                                setDirectQuantity(extra.slug, value);
+                              }
+                            }
+                          }}
+                          onBlur={(e) => {
+                            // Round on blur for cleaner display
                             const value = parseFloat(e.target.value);
-                            if (!isNaN(value) && value >= 0) {
-                              setDirectQuantity(extra.slug, value);
+                            if (!isNaN(value)) {
+                              const rounded = extra.pricing_type === 'per_kg'
+                                ? Math.round(value * 10) / 10
+                                : Math.round(value);
+                              setDirectQuantity(extra.slug, rounded);
                             }
                           }}
                           disabled={isOutOfStock}
