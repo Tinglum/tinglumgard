@@ -114,14 +114,19 @@ export default function ConfirmationPage() {
       <div className="max-w-4xl mx-auto px-6 py-12">
         {/* Success Icon */}
         <div className="text-center mb-8">
-          <div className={cn("inline-flex items-center justify-center w-20 h-20 rounded-full mb-4", paymentStatus === 'completed' ? "bg-green-100" : theme.bgSecondary)}>
-            <CheckCircle className={cn("w-12 h-12", paymentStatus === 'completed' ? "text-green-600" : theme.textPrimary)} />
+          <div className={cn("inline-flex items-center justify-center w-20 h-20 rounded-full mb-4",
+            paymentStatus === 'completed' ? "bg-green-100" :
+            paymentStatus === 'failed' ? "bg-red-100" :
+            "bg-yellow-100")}>
+            <CheckCircle className={cn("w-12 h-12",
+              paymentStatus === 'completed' ? "text-green-600" :
+              paymentStatus === 'failed' ? "text-red-600" :
+              "text-yellow-600")} />
           </div>
           <h1 className={cn("text-4xl font-bold mb-2", theme.textPrimary)}>
-            {order.status === 'deposit_paid' || order.status === 'paid' ? 'Betaling mottatt!' :
-             order.status === 'ready_for_pickup' ? 'Ordre klar!' :
-             order.status === 'completed' ? 'Ordre fullført!' :
-             'Ordre opprettet!'}
+            {paymentStatus === 'completed' ? 'Betaling mottatt!' :
+             paymentStatus === 'failed' ? 'Betaling feilet' :
+             'Venter på betalingsbekreftelse...'}
           </h1>
           <p className={cn("text-lg", theme.textMuted)}>
             Ordrenummer: <span className={cn("font-mono font-semibold", theme.textPrimary)}>{order.order_number}</span>
@@ -172,12 +177,42 @@ export default function ConfirmationPage() {
           <h2 className={cn("text-2xl font-bold mb-6", theme.textPrimary)}>Neste steg</h2>
 
           <div className="space-y-4">
-            {order.status === 'draft' && (
+            {paymentStatus === 'pending' && (
               <div className={cn("p-4 rounded-xl border-2 border-yellow-500 bg-yellow-50")}>
-                <p className="text-yellow-900 font-semibold">Betaling ikke fullført</p>
+                <p className="text-yellow-900 font-semibold mb-2">⏳ Venter på betalingsbekreftelse</p>
                 <p className="text-sm text-yellow-800 mt-1">
-                  Depositumbetalingen på {depositAmount.toLocaleString('nb-NO')} kr er ikke fullført ennå.
-                  Sjekk Vipps-appen din eller kontakt oss hvis du trenger hjelp.
+                  Vi har ikke mottatt bekreftelse på at depositumbetalingen på {depositAmount.toLocaleString('nb-NO')} kr er fullført.
+                </p>
+                <p className="text-sm text-yellow-800 mt-2">
+                  <strong>Dette kan bety:</strong>
+                </p>
+                <ul className="text-sm text-yellow-800 mt-1 ml-4 list-disc">
+                  <li>Betalingen er under behandling (vanligvis tar dette noen sekunder)</li>
+                  <li>Du avbrøt betalingen i Vipps</li>
+                  <li>Banken din blokkerte transaksjonen</li>
+                </ul>
+                <p className="text-sm text-yellow-800 mt-2">
+                  Siden oppdateres automatisk når vi mottar bekreftelse. Hvis betalingen ikke går gjennom innen få minutter,
+                  vennligst sjekk Vipps-appen din eller kontakt oss.
+                </p>
+              </div>
+            )}
+            {paymentStatus === 'failed' && (
+              <div className={cn("p-4 rounded-xl border-2 border-red-500 bg-red-50")}>
+                <p className="text-red-900 font-semibold mb-2">❌ Betaling feilet</p>
+                <p className="text-sm text-red-800 mt-1">
+                  Depositumbetalingen på {depositAmount.toLocaleString('nb-NO')} kr kunne ikke gjennomføres.
+                </p>
+                <p className="text-sm text-red-800 mt-2">
+                  Vennligst prøv igjen eller kontakt oss for hjelp.
+                </p>
+              </div>
+            )}
+            {order.status === 'draft' && paymentStatus === 'completed' && (
+              <div className={cn("p-4 rounded-xl border-2 border-blue-500 bg-blue-50")}>
+                <p className="text-blue-900 font-semibold">ℹ️ Oppdaterer ordrestatus...</p>
+                <p className="text-sm text-blue-800 mt-1">
+                  Betalingen er mottatt, oppdaterer ordredetaljene...
                 </p>
               </div>
             )}
