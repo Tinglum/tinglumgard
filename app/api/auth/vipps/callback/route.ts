@@ -11,10 +11,11 @@ export async function GET(request: NextRequest) {
 
   console.log('Vipps Callback - Received params:', { code: code?.substring(0, 10) + '...', state: state?.substring(0, 20) + '...' });
 
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   const savedState = cookieStore.get('vipps_state')?.value;
 
   console.log('Vipps Callback - Saved state:', savedState?.substring(0, 20) + '...');
+  console.log('Vipps Callback - All cookies:', cookieStore.getAll().map(c => c.name));
 
   if (!code) {
     console.error('Vipps Callback - No code received');
@@ -81,7 +82,8 @@ export async function GET(request: NextRequest) {
 
     setSessionCookie(sessionToken);
 
-    cookieStore.delete('vipps_state');
+    const cookieStoreForDelete = await cookies();
+    cookieStoreForDelete.delete('vipps_state');
 
     const stateData = JSON.parse(Buffer.from(state, 'base64').toString());
 

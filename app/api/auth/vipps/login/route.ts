@@ -18,13 +18,16 @@ export async function GET(request: NextRequest) {
     const state = Buffer.from(JSON.stringify(stateData)).toString('base64');
 
     // Store state in a cookie for CSRF protection
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     cookieStore.set('vipps_state', state, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       maxAge: 600, // 10 minutes
+      path: '/',
     });
+
+    console.log('Vipps Login (GET) - Set cookie with state:', state.substring(0, 20) + '...');
 
     // Get the Vipps authorization URL with the state
     const authUrl = vippsClient.getAuthorizationUrl(state);
@@ -59,13 +62,16 @@ export async function POST(request: NextRequest) {
     const state = Buffer.from(JSON.stringify(stateData)).toString('base64');
 
     // Store state in a cookie for CSRF protection
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     cookieStore.set('vipps_state', state, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       maxAge: 600, // 10 minutes
+      path: '/',
     });
+
+    console.log('Vipps Login (POST) - Set cookie with state:', state.substring(0, 20) + '...');
 
     // Get the Vipps authorization URL with the state
     const authUrl = vippsClient.getAuthorizationUrl(state);
