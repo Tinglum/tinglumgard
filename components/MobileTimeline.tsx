@@ -79,12 +79,25 @@ export function MobileTimeline() {
                 {/* Content card */}
                 <div className="flex-1 glass-mobile rounded-2xl p-4 fade-in-up">
                   <div className="flex items-center justify-between mb-1">
-                    <h3 className="text-lg font-bold text-white">{step.title}</h3>
-                    <span className="text-xs font-semibold text-white/60 uppercase tracking-wider">
+                    <h3
+                      className="text-lg font-bold text-white"
+                      style={{ textShadow: '0 2px 10px rgba(0,0,0,0.9)' }}
+                    >
+                      {step.title}
+                    </h3>
+                    <span
+                      className="text-xs font-bold text-white uppercase tracking-wider"
+                      style={{ textShadow: '0 2px 8px rgba(0,0,0,0.9)' }}
+                    >
                       {step.date}
                     </span>
                   </div>
-                  <p className="text-sm text-white/70">{step.desc}</p>
+                  <p
+                    className="text-sm font-semibold text-white"
+                    style={{ textShadow: '0 2px 8px rgba(0,0,0,0.9)' }}
+                  >
+                    {step.desc}
+                  </p>
                 </div>
               </motion.div>
             ))}
@@ -107,7 +120,12 @@ export function MobileTimeline() {
                 clipRule="evenodd"
               />
             </svg>
-            <span className="text-sm text-white/80">Kun én sesong per år</span>
+            <span
+              className="text-sm font-semibold text-white"
+              style={{ textShadow: '0 2px 8px rgba(0,0,0,0.9)' }}
+            >
+              Kun én sesong per år
+            </span>
           </div>
         </motion.div>
       </div>

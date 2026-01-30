@@ -60,7 +60,7 @@ export function MobileProductTiles() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.6, delay: index * 0.1 }}
-            className="relative tile-float"
+            className="relative"
           >
             {/* Popular badge */}
             {pkg.popular && (
@@ -82,19 +82,39 @@ export function MobileProductTiles() {
               {/* Size badge */}
               <div className="flex items-baseline justify-between mb-6">
                 <div>
-                  <span className="text-6xl font-bold text-white">{pkg.weight}</span>
-                  <p className="text-white/60 text-sm mt-1">{pkg.people}</p>
+                  <span
+                    className="text-6xl font-bold text-white"
+                    style={{ textShadow: '0 2px 15px rgba(0,0,0,0.9)' }}
+                  >
+                    {pkg.weight}
+                  </span>
+                  <p
+                    className="text-white font-semibold text-sm mt-1"
+                    style={{ textShadow: '0 2px 10px rgba(0,0,0,0.9)' }}
+                  >
+                    {pkg.people}
+                  </p>
                 </div>
                 <div className="text-right">
-                  <div className="text-white/60 text-xs uppercase tracking-wide mb-1">Totalt</div>
-                  <div className="text-white font-bold text-2xl">{pkg.price} kr</div>
+                  <div
+                    className="text-white text-xs uppercase tracking-wide mb-1 font-bold"
+                    style={{ textShadow: '0 2px 8px rgba(0,0,0,0.9)' }}
+                  >
+                    Totalt
+                  </div>
+                  <div
+                    className="text-white font-bold text-2xl"
+                    style={{ textShadow: '0 2px 12px rgba(0,0,0,0.9)' }}
+                  >
+                    {pkg.price} kr
+                  </div>
                 </div>
               </div>
 
               {/* Quick items list - ultra minimal */}
               <div className="space-y-2 mb-6">
                 {pkg.items.map((item, i) => (
-                  <div key={i} className="flex items-center gap-2 text-white/80 text-sm">
+                  <div key={i} className="flex items-center gap-2 text-white font-semibold text-sm">
                     <svg className="w-4 h-4 flex-shrink-0 text-green-400" fill="currentColor" viewBox="0 0 20 20">
                       <path
                         fillRule="evenodd"
@@ -102,10 +122,15 @@ export function MobileProductTiles() {
                         clipRule="evenodd"
                       />
                     </svg>
-                    <span>{item}</span>
+                    <span style={{ textShadow: '0 2px 8px rgba(0,0,0,0.9)' }}>{item}</span>
                   </div>
                 ))}
-                <div className="text-white/50 text-xs pt-2">+ slakterens valg</div>
+                <div
+                  className="text-white font-semibold text-xs pt-2"
+                  style={{ textShadow: '0 2px 8px rgba(0,0,0,0.9)' }}
+                >
+                  + slakterens valg
+                </div>
               </div>
 
               {/* CTA button */}
@@ -135,7 +160,8 @@ export function MobileProductTiles() {
       >
         <Link
           href="/produkt"
-          className="inline-flex items-center gap-2 text-white/70 hover:text-white text-sm font-medium transition-colors tap-target"
+          className="inline-flex items-center gap-2 text-white hover:text-white text-sm font-semibold transition-colors tap-target"
+          style={{ textShadow: '0 2px 10px rgba(0,0,0,0.9)' }}
         >
           <span>Se full innholdsliste</span>
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
