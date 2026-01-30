@@ -80,14 +80,13 @@ export async function GET(request: NextRequest) {
       isAdmin: user.data.is_admin || false,
     });
 
-    console.log('Vipps Callback - Setting session cookie');
-    await setSessionCookie(sessionToken);
-    console.log('Vipps Callback - Session cookie set successfully');
-
-    const cookieStoreForDelete = await cookies();
-    cookieStoreForDelete.delete('vipps_state');
+    console.log('Vipps Callback - Creating session token');
 
     const stateData = JSON.parse(Buffer.from(state, 'base64').toString());
+
+    // Delete the CSRF state cookie
+    const cookieStoreForDelete = await cookies();
+    cookieStoreForDelete.delete('vipps_state');
 
     // If there's a pending order, create it with customer details and redirect to payment
     if (stateData.pendingOrder) {
@@ -110,7 +109,15 @@ export async function GET(request: NextRequest) {
 
       if (!createOrderResponse.ok) {
         console.error('Failed to create order:', await createOrderResponse.text());
-        return NextResponse.redirect(new URL('/bestill?error=order_creation_failed', request.url));
+        const errorRedirect = NextResponse.redirect(new URL('/bestill?error=order_creation_failed', request.url));
+        errorRedirect.cookies.set('tinglum_session', sessionToken, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'lax',
+          maxAge: 60 * 60 * 24 * 7,
+          path: '/',
+        });
+        return errorRedirect;
       }
 
       const orderResult = await createOrderResponse.json();
@@ -122,17 +129,46 @@ export async function GET(request: NextRequest) {
 
       if (!depositResponse.ok) {
         console.error('Failed to create deposit payment:', await depositResponse.text());
-        return NextResponse.redirect(new URL(`/bestill?error=payment_failed&orderId=${orderResult.orderId}`, request.url));
+        const errorRedirect = NextResponse.redirect(new URL(`/bestill?error=payment_failed&orderId=${orderResult.orderId}`, request.url));
+        errorRedirect.cookies.set('tinglum_session', sessionToken, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'lax',
+          maxAge: 60 * 60 * 24 * 7,
+          path: '/',
+        });
+        return errorRedirect;
       }
 
       const depositResult = await depositResponse.json();
 
-      // Redirect user to Vipps payment
-      return NextResponse.redirect(depositResult.redirectUrl);
+      // Redirect user to Vipps payment - also set session cookie
+      const paymentRedirect = NextResponse.redirect(depositResult.redirectUrl);
+      paymentRedirect.cookies.set('tinglum_session', sessionToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 60 * 60 * 24 * 7,
+        path: '/',
+      });
+      return paymentRedirect;
     }
 
     const returnTo = stateData.returnTo || '/bestill';
-    return NextResponse.redirect(new URL(returnTo, request.url));
+    const redirectResponse = NextResponse.redirect(new URL(returnTo, request.url));
+
+    // Set the session cookie in the response headers
+    redirectResponse.cookies.set('tinglum_session', sessionToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 60 * 60 * 24 * 7, // 7 days
+      path: '/',
+    });
+
+    console.log('Vipps Callback - Set session cookie in redirect response');
+
+    return redirectResponse;
   } catch (error) {
     console.error('Vipps callback error:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
