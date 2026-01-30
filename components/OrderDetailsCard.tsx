@@ -400,7 +400,9 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
                 <span className={theme.textSecondary}>Depositum ({order.box_size}kg boks)</span>
                 <div className="flex items-center gap-2">
                   <span className={cn('font-semibold', theme.textPrimary)}>
-                    kr {order.deposit_amount.toLocaleString('nb-NO')}
+                    kr {depositPaid && depositPayment
+                      ? depositPayment.amount_nok.toLocaleString('nb-NO')
+                      : order.deposit_amount.toLocaleString('nb-NO')}
                   </span>
                   {depositPaid && <CheckCircle2 className="w-4 h-4 text-green-600" />}
                 </div>
@@ -409,7 +411,9 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
                 <span className={theme.textSecondary}>Restbeløp</span>
                 <div className="flex items-center gap-2">
                   <span className={cn('font-semibold', theme.textPrimary)}>
-                    kr {order.remainder_amount.toLocaleString('nb-NO')}
+                    kr {remainderPaid && remainderPayment
+                      ? remainderPayment.amount_nok.toLocaleString('nb-NO')
+                      : order.remainder_amount.toLocaleString('nb-NO')}
                   </span>
                   {remainderPaid && <CheckCircle2 className="w-4 h-4 text-green-600" />}
                 </div>
