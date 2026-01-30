@@ -20,7 +20,6 @@ export async function POST(request: NextRequest) {
     // Call the validation function in the database
     const { data, error } = await supabaseAdmin.rpc('validate_referral_code', {
       p_code: code.toUpperCase().trim(),
-      p_user_id: session.userId,
       p_phone: session.phoneNumber || '',
       p_email: session.email || '',
     });

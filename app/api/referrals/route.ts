@@ -15,7 +15,7 @@ export async function GET() {
     const { data: referralCode, error: codeError } = await supabaseAdmin
       .from('referral_codes')
       .select('*')
-      .eq('user_id', session.userId)
+      .eq('owner_phone', session.phoneNumber)
       .eq('is_active', true)
       .maybeSingle();
 
@@ -35,7 +35,7 @@ export async function GET() {
     const { data: referrals, error: referralsError } = await supabaseAdmin
       .from('referrals')
       .select('*')
-      .eq('referrer_user_id', session.userId)
+      .eq('referrer_phone', session.phoneNumber)
       .order('created_at', { ascending: false });
 
     if (referralsError) throw referralsError;
@@ -101,7 +101,7 @@ export async function POST(request: NextRequest) {
       const { data: existing } = await supabaseAdmin
         .from('referral_codes')
         .select('id')
-        .eq('user_id', session.userId)
+        .eq('owner_phone', session.phoneNumber)
         .maybeSingle();
 
       if (existing) {
@@ -112,7 +112,7 @@ export async function POST(request: NextRequest) {
       const { data: userOrder } = await supabaseAdmin
         .from('orders')
         .select('id')
-        .eq('user_id', session.userId)
+        .eq('customer_phone', session.phoneNumber)
         .order('created_at', { ascending: true })
         .limit(1)
         .maybeSingle();
@@ -122,7 +122,9 @@ export async function POST(request: NextRequest) {
         .from('referral_codes')
         .insert({
           code: codeUpper,
-          user_id: session.userId,
+          owner_phone: session.phoneNumber,
+          owner_name: session.name,
+          owner_email: session.email,
           order_id: userOrder?.id || null,
           max_uses: 5,
           is_active: true,
@@ -155,7 +157,7 @@ export async function POST(request: NextRequest) {
         .from('orders')
         .select('id')
         .eq('id', orderId)
-        .eq('user_id', session.userId)
+        .eq('customer_phone', session.phoneNumber)
         .maybeSingle();
 
       if (!order) {
@@ -168,7 +170,7 @@ export async function POST(request: NextRequest) {
         .update({
           max_uses: supabaseAdmin.raw('max_uses + 5'),
         })
-        .eq('user_id', session.userId);
+        .eq('owner_phone', session.phoneNumber);
 
       if (updateError) throw updateError;
 
