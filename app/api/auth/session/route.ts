@@ -8,8 +8,6 @@ export async function GET() {
     return NextResponse.json({ authenticated: false });
   }
 
-  console.log('Session data:', session);
-
   return NextResponse.json({
     authenticated: true,
     user: {

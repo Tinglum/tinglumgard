@@ -77,6 +77,7 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
   const [addingExtras, setAddingExtras] = useState(false);
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
   const [reordering, setReordering] = useState(false);
+  const [isPaymentFlow, setIsPaymentFlow] = useState(false);
 
   const depositPayment = order.payments?.find((p) => p.payment_type === 'deposit');
   const depositPaid = depositPayment?.status === 'completed';
@@ -131,19 +132,33 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
     butchers_choice: 'Slakterens valg',
   };
 
-  async function handleAddExtras(selectedExtras: { slug: string; quantity: number }[]) {
+  async function handleAddExtras(selectedExtras: { slug: string; quantity: number }[], proceedToPayment = false) {
     setAddingExtras(true);
     try {
-      const response = await fetch(`/api/orders/${order.id}/add-extras`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ extras: selectedExtras }),
-      });
+      // Only add extras if there are new ones selected
+      if (selectedExtras.length > 0) {
+        const response = await fetch(`/api/orders/${order.id}/add-extras`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ extras: selectedExtras }),
+        });
 
-      if (!response.ok) throw new Error('Failed to add extras');
+        if (!response.ok) throw new Error('Failed to add extras');
+      }
 
       setShowExtrasModal(false);
-      onRefresh();
+
+      // If this was called from remainder payment flow, proceed to payment
+      if (proceedToPayment) {
+        // Refresh to get updated amounts, then proceed to payment
+        await onRefresh();
+        // Small delay to ensure state is updated
+        setTimeout(() => {
+          onPayRemainder(order.id);
+        }, 500);
+      } else {
+        onRefresh();
+      }
     } catch (error) {
       console.error('Error adding extras:', error);
       alert('Kunne ikke legge til ekstra produkter. Prøv igjen.');
@@ -153,12 +168,23 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
   }
 
   function handleRemainderPayment() {
-    if (!canEdit && !order.locked_at) {
+    if (canEdit && !order.locked_at) {
       // Show extras modal before payment if still within edit period
+      setIsPaymentFlow(true);
       setShowExtrasModal(true);
     } else {
       onPayRemainder(order.id);
     }
+  }
+
+  function handleExtrasModalClose() {
+    setShowExtrasModal(false);
+    setIsPaymentFlow(false);
+  }
+
+  function handleExtrasConfirm(selectedExtras: { slug: string; quantity: number }[]) {
+    handleAddExtras(selectedExtras, isPaymentFlow);
+    setIsPaymentFlow(false);
   }
 
   function handleDownloadReceipt() {
@@ -569,8 +595,8 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
       {/* Extras Upsell Modal */}
       <ExtrasUpsellModal
         isOpen={showExtrasModal}
-        onClose={() => setShowExtrasModal(false)}
-        onConfirm={handleAddExtras}
+        onClose={handleExtrasModalClose}
+        onConfirm={handleExtrasConfirm}
         currentExtras={
           order.extra_products?.map((e: any) => ({ slug: e.slug, quantity: e.quantity })) || []
         }

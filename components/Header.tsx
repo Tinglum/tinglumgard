@@ -34,7 +34,6 @@ export function Header() {
   };
 
   const getLastFourDigits = (phoneNumber?: string) => {
-    console.log('Phone number from user:', phoneNumber, 'User object:', user);
     if (!phoneNumber) return '****';
     return phoneNumber.slice(-4);
   };
