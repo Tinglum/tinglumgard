@@ -110,8 +110,8 @@ export async function POST(request: NextRequest) {
     // It does NOT include delivery fees or extras (those are paid with deposit)
     const remainderAmount = basePrice - baseDepositAmount;
 
-    // Total amount includes everything
-    const totalAmount = basePrice + deliveryFee + freshFee + extrasTotal;
+    // Total amount includes everything MINUS the discount
+    const totalAmount = (basePrice + deliveryFee + freshFee + extrasTotal) - totalDiscountAmount;
 
     // Generate order number (max 7 characters: TL + 5 random alphanumerics)
     // Using base36 (0-9, A-Z) for compact representation
