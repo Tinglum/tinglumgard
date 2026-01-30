@@ -188,8 +188,8 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
     setIsPaymentFlow(false);
   }
 
-  function handleExtrasConfirm(selectedExtras: { slug: string; quantity: number }[]) {
-    handleAddExtras(selectedExtras, isPaymentFlow);
+  function handleExtrasConfirm(selectedExtras: { slug: string; quantity: number }[], proceedToPayment = false) {
+    handleAddExtras(selectedExtras, proceedToPayment);
     setIsPaymentFlow(false);
   }
 
@@ -640,6 +640,7 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
           order.extra_products?.map((e: any) => ({ slug: e.slug, quantity: e.quantity })) || []
         }
         loading={addingExtras}
+        isPaymentFlow={isPaymentFlow}
       />
 
       {/* Order Modification Modal */}

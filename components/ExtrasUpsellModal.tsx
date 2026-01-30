@@ -23,9 +23,10 @@ interface Extra {
 interface ExtrasUpsellModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onConfirm: (selectedExtras: { slug: string; quantity: number }[]) => void;
+  onConfirm: (selectedExtras: { slug: string; quantity: number }[], proceedToPayment?: boolean) => void;
   currentExtras?: { slug: string; quantity: number }[];
   loading?: boolean;
+  isPaymentFlow?: boolean; // Are we in the remainder payment flow?
 }
 
 export function ExtrasUpsellModal({
@@ -34,6 +35,7 @@ export function ExtrasUpsellModal({
   onConfirm,
   currentExtras = [],
   loading = false,
+  isPaymentFlow = false,
 }: ExtrasUpsellModalProps) {
   const { getThemeClasses } = useTheme();
   const { lang } = useLanguage();
@@ -93,12 +95,41 @@ export function ExtrasUpsellModal({
     }));
   }
 
-  function handleConfirm() {
+  function handleConfirm(proceedToPayment = false) {
     const selectedExtras = Object.entries(selectedQuantities)
       .filter(([_, quantity]) => quantity > 0)
       .map(([slug, quantity]) => ({ slug, quantity }));
 
-    onConfirm(selectedExtras);
+    // Check if user is removing items
+    const removedItems = currentExtras.filter(
+      current => {
+        const newQty = selectedQuantities[current.slug] || 0;
+        return newQty < current.quantity;
+      }
+    );
+
+    // Check if we're past the cutoff date (week 46, 2026)
+    const now = new Date();
+    const cutoffDate = new Date('2026-11-16'); // Week 46 of 2026
+    const isPastCutoff = now > cutoffDate;
+
+    // Show warning if removing items and past cutoff
+    if (removedItems.length > 0 && isPastCutoff) {
+      const itemNames = removedItems.map(item => {
+        const extra = extras.find(e => e.slug === item.slug);
+        return extra ? (lang === 'en' ? extra.name_en : extra.name_no) : item.slug;
+      }).join(', ');
+
+      const confirmMessage = lang === 'en'
+        ? `You are removing: ${itemNames}.\n\nProduction is tight after the cutoff date. You will NOT be able to add these items back. Are you sure?`
+        : `Du fjerner: ${itemNames}.\n\nProduksjonen er stram etter fristdato. Du vil IKKE kunne legge disse tilbake. Er du sikker?`;
+
+      if (!window.confirm(confirmMessage)) {
+        return; // User cancelled
+      }
+    }
+
+    onConfirm(selectedExtras, proceedToPayment);
   }
 
   function calculateTotal() {
@@ -162,6 +193,7 @@ export function ExtrasUpsellModal({
                 const unit = extra.pricing_type === 'per_kg' ? 'kg' : 'stk';
                 const priceLabel = `kr ${extra.price_nok}/${unit}`;
                 const isOutOfStock = extra.stock_quantity !== null && extra.stock_quantity <= 0;
+                const isLowStock = extra.stock_quantity !== null && extra.stock_quantity > 0 && extra.stock_quantity <= 5;
                 const minValue = extra.pricing_type === 'per_kg' ? 0.1 : 1;
                 const stepValue = extra.pricing_type === 'per_kg' ? 0.1 : 1;
 
@@ -184,8 +216,11 @@ export function ExtrasUpsellModal({
                       <p className={cn('text-sm mb-2', theme.textSecondary)}>{description}</p>
                       <p className={cn('text-lg font-bold', theme.textPrimary)}>{priceLabel}</p>
                       {extra.stock_quantity !== null && !isOutOfStock && (
-                        <p className={cn('text-xs mt-1', theme.textMuted)}>
-                          {extra.stock_quantity} på lager
+                        <p className={cn(
+                          'text-xs mt-1 font-medium',
+                          isLowStock ? 'text-amber-600' : theme.textMuted
+                        )}>
+                          {isLowStock && '⚠️ '}{extra.stock_quantity} på lager
                         </p>
                       )}
                     </div>
@@ -284,20 +319,57 @@ export function ExtrasUpsellModal({
               <Button variant="outline" onClick={onClose} disabled={loading} className="px-8">
                 Avbryt
               </Button>
-              <Button
-                onClick={handleConfirm}
-                disabled={loading}
-                className="px-8 bg-green-600 hover:bg-green-700 text-white"
-              >
-                {loading ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
-                    Oppdaterer...
-                  </>
-                ) : (
-                  'Bekreft og fortsett til betaling'
-                )}
-              </Button>
+
+              {isPaymentFlow ? (
+                // Payment flow: Show both Save and Continue to Payment
+                <>
+                  <Button
+                    onClick={() => handleConfirm(false)}
+                    disabled={loading}
+                    variant="outline"
+                    className="px-8"
+                  >
+                    {loading ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-neutral-600 border-t-transparent rounded-full animate-spin mr-2" />
+                        Lagrer...
+                      </>
+                    ) : (
+                      'Lagre uten å betale nå'
+                    )}
+                  </Button>
+                  <Button
+                    onClick={() => handleConfirm(true)}
+                    disabled={loading}
+                    className="px-8 bg-green-600 hover:bg-green-700 text-white"
+                  >
+                    {loading ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                        Oppdaterer...
+                      </>
+                    ) : (
+                      'Bekreft og betal restbeløp'
+                    )}
+                  </Button>
+                </>
+              ) : (
+                // Normal flow: Just save
+                <Button
+                  onClick={() => handleConfirm(false)}
+                  disabled={loading}
+                  className="px-8 bg-green-600 hover:bg-green-700 text-white"
+                >
+                  {loading ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                      Lagrer...
+                    </>
+                  ) : (
+                    'Lagre endringer'
+                  )}
+                </Button>
+              )}
             </div>
           </div>
         </div>
