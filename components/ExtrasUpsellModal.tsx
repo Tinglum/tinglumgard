@@ -6,6 +6,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { cn } from '@/lib/utils';
 import { X, Plus, Minus, ShoppingCart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 
 interface Extra {
   id: string;
@@ -66,12 +67,23 @@ export function ExtrasUpsellModal({
     }
   }
 
-  function updateQuantity(slug: string, delta: number) {
+  function updateQuantity(slug: string, delta: number, pricingType: 'per_unit' | 'per_kg') {
     setSelectedQuantities((prev) => {
       const current = prev[slug] || 0;
-      const newQuantity = Math.max(0, current + delta);
-      return { ...prev, [slug]: newQuantity };
+      // For kg items, increment by 0.5kg, for units increment by 1
+      const step = pricingType === 'per_kg' ? 0.5 : 1;
+      const newQuantity = Math.max(0, current + (delta * step));
+      // Round to 1 decimal place for kg items
+      const rounded = pricingType === 'per_kg' ? Math.round(newQuantity * 10) / 10 : newQuantity;
+      return { ...prev, [slug]: rounded };
     });
+  }
+
+  function setDirectQuantity(slug: string, value: number) {
+    setSelectedQuantities((prev) => ({
+      ...prev,
+      [slug]: Math.max(0, value)
+    }));
   }
 
   function handleConfirm() {
@@ -140,9 +152,11 @@ export function ExtrasUpsellModal({
                 const quantity = selectedQuantities[extra.slug] || 0;
                 const name = lang === 'en' ? extra.name_en : extra.name_no;
                 const description = lang === 'en' ? extra.description_en : extra.description_no;
-                const priceLabel =
-                  extra.pricing_type === 'per_kg' ? `kr ${extra.price_nok}/kg` : `kr ${extra.price_nok}`;
+                const unit = extra.pricing_type === 'per_kg' ? 'kg' : 'stk';
+                const priceLabel = `kr ${extra.price_nok}/${unit}`;
                 const isOutOfStock = extra.stock_quantity !== null && extra.stock_quantity <= 0;
+                const minValue = extra.pricing_type === 'per_kg' ? 0.1 : 1;
+                const stepValue = extra.pricing_type === 'per_kg' ? 0.1 : 1;
 
                 return (
                   <div
@@ -171,7 +185,7 @@ export function ExtrasUpsellModal({
 
                     <div className="flex items-center gap-3">
                       <button
-                        onClick={() => updateQuantity(extra.slug, -1)}
+                        onClick={() => updateQuantity(extra.slug, -1, extra.pricing_type)}
                         disabled={quantity === 0 || isOutOfStock}
                         className={cn(
                           'p-3 rounded-xl transition-all border-2',
@@ -183,12 +197,32 @@ export function ExtrasUpsellModal({
                         <Minus className="w-5 h-5" />
                       </button>
 
-                      <div className={cn('w-16 text-center text-2xl font-bold', theme.textPrimary)}>
-                        {quantity}
+                      <div className="flex items-center gap-2">
+                        <Input
+                          type="number"
+                          min={minValue}
+                          step={stepValue}
+                          value={quantity}
+                          onChange={(e) => {
+                            const value = parseFloat(e.target.value);
+                            if (!isNaN(value) && value >= 0) {
+                              setDirectQuantity(extra.slug, value);
+                            }
+                          }}
+                          disabled={isOutOfStock}
+                          className={cn(
+                            'w-20 text-center font-bold text-lg border-2',
+                            quantity > 0 ? 'border-green-500' : 'border-neutral-300',
+                            isOutOfStock && 'opacity-50 cursor-not-allowed'
+                          )}
+                        />
+                        <span className={cn('text-sm font-medium min-w-[2rem]', theme.textPrimary)}>
+                          {unit}
+                        </span>
                       </div>
 
                       <button
-                        onClick={() => updateQuantity(extra.slug, 1)}
+                        onClick={() => updateQuantity(extra.slug, 1, extra.pricing_type)}
                         disabled={
                           isOutOfStock ||
                           (extra.stock_quantity !== null && quantity >= extra.stock_quantity)
