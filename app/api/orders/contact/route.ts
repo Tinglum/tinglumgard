@@ -72,50 +72,52 @@ export async function POST(request: NextRequest) {
       html: emailHtml,
     });
 
-    // Also send confirmation to customer
-    const customerEmailHtml = `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <style>
-            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-            .header { background-color: #2C1810; color: white; padding: 20px; border-radius: 8px 8px 0 0; }
-            .content { background-color: #f9f9f9; padding: 20px; border: 1px solid #ddd; border-top: none; }
-            .message-box { background-color: white; padding: 15px; border-radius: 5px; margin: 15px 0; }
-          </style>
-        </head>
-        <body>
-          <div class="container">
-            <div class="header">
-              <h1 style="margin: 0;">Melding mottatt</h1>
-            </div>
-            <div class="content">
-              <p>Hei ${session.name},</p>
-              <p>Vi har mottatt din henvendelse angående ordre <strong>${orderNumber}</strong>.</p>
-
-              <div class="message-box">
-                <h3>Din melding:</h3>
-                <p style="white-space: pre-wrap;">${message}</p>
+    // Also send confirmation to customer if email is available
+    if (session.email) {
+      const customerEmailHtml = `
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <style>
+              body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+              .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+              .header { background-color: #2C1810; color: white; padding: 20px; border-radius: 8px 8px 0 0; }
+              .content { background-color: #f9f9f9; padding: 20px; border: 1px solid #ddd; border-top: none; }
+              .message-box { background-color: white; padding: 15px; border-radius: 5px; margin: 15px 0; }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <div class="header">
+                <h1 style="margin: 0;">Melding mottatt</h1>
               </div>
+              <div class="content">
+                <p>Hei ${session.name},</p>
+                <p>Vi har mottatt din henvendelse angående ordre <strong>${orderNumber}</strong>.</p>
 
-              <p>Vi kontakter deg snart på ${session.email} eller ${session.phoneNumber}.</p>
+                <div class="message-box">
+                  <h3>Din melding:</h3>
+                  <p style="white-space: pre-wrap;">${message}</p>
+                </div>
 
-              <p style="margin-top: 30px;">
-                Med vennlig hilsen,<br>
-                <strong>Tinglum Gård</strong>
-              </p>
+                <p>Vi kontakter deg snart på ${session.email} eller ${session.phoneNumber}.</p>
+
+                <p style="margin-top: 30px;">
+                  Med vennlig hilsen,<br>
+                  <strong>Tinglum Gård</strong>
+                </p>
+              </div>
             </div>
-          </div>
-        </body>
-      </html>
-    `;
+          </body>
+        </html>
+      `;
 
-    await sendEmail({
-      to: session.email,
-      subject: `Bekreftelse: Din henvendelse om ordre ${orderNumber}`,
-      html: customerEmailHtml,
-    });
+      await sendEmail({
+        to: session.email,
+        subject: `Bekreftelse: Din henvendelse om ordre ${orderNumber}`,
+        html: customerEmailHtml,
+      });
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {
