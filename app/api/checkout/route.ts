@@ -23,6 +23,8 @@ interface CheckoutRequest {
   referralCode?: string;
   referralDiscount?: number;
   referredByPhone?: string;
+  rebateCode?: string;
+  rebateDiscount?: number;
 }
 
 export async function POST(request: NextRequest) {
@@ -30,7 +32,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body: CheckoutRequest = await request.json();
-    const { boxSize, ribbeChoice, extraProducts, deliveryType, freshDelivery, notes, customerName, customerEmail, customerPhone, referralCode, referralDiscount, referredByPhone } = body;
+    const { boxSize, ribbeChoice, extraProducts, deliveryType, freshDelivery, notes, customerName, customerEmail, customerPhone, referralCode, referralDiscount, referredByPhone, rebateCode, rebateDiscount } = body;
 
     // Validation
     if (boxSize !== 8 && boxSize !== 12) {
@@ -96,9 +98,13 @@ export async function POST(request: NextRequest) {
     const totalAmount = basePrice + deliveryFee + freshFee + extrasTotal;
     const depositPercentage = boxSize === 8 ? pricing.box_8kg_deposit_percentage : pricing.box_12kg_deposit_percentage;
     const baseDepositAmount = Math.floor(basePrice * (depositPercentage / 100));
-    // Apply referral discount (20% off deposit)
+
+    // Apply discount (referral OR rebate - cannot stack)
     const referralDiscountAmount = referralDiscount || 0;
-    const depositAmount = baseDepositAmount - referralDiscountAmount;
+    const rebateDiscountAmount = rebateDiscount || 0;
+    const totalDiscountAmount = referralDiscountAmount || rebateDiscountAmount;
+
+    const depositAmount = baseDepositAmount - totalDiscountAmount;
     const remainderAmount = totalAmount - depositAmount;
 
     // Generate order number (max 7 characters: TL + 5 random alphanumerics)
@@ -128,6 +134,8 @@ export async function POST(request: NextRequest) {
         referral_code_used: referralCode || null,
         referral_discount_amount: referralDiscountAmount,
         referred_by_phone: referredByPhone || null,
+        rebate_code_used: rebateCode || null,
+        rebate_discount_amount: rebateDiscountAmount,
       })
       .select()
       .single();
@@ -171,6 +179,38 @@ export async function POST(request: NextRequest) {
       } catch (referralError) {
         console.error('Referral tracking error:', referralError);
         // Don't fail the order if referral tracking fails
+      }
+    }
+
+    // Create rebate usage tracking record if rebate code was used
+    if (rebateCode && customerPhone) {
+      try {
+        // Get the rebate code record
+        const { data: rebateCodeRecord } = await supabaseAdmin
+          .from('rebate_codes')
+          .select('*')
+          .eq('code', rebateCode)
+          .single();
+
+        if (rebateCodeRecord) {
+          // Create rebate usage tracking
+          await supabaseAdmin
+            .from('rebate_usage')
+            .insert({
+              rebate_code_id: rebateCodeRecord.id,
+              order_id: order.id,
+              order_number: order.order_number,
+              customer_phone: customerPhone,
+              customer_email: customerEmail,
+              customer_name: customerName || 'Vipps kunde',
+              discount_amount_nok: rebateDiscountAmount,
+              original_deposit: baseDepositAmount,
+              final_deposit: depositAmount,
+            });
+        }
+      } catch (rebateError) {
+        console.error('Rebate tracking error:', rebateError);
+        // Don't fail the order if rebate tracking fails
       }
     }
 

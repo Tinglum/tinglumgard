@@ -26,7 +26,8 @@ import {
   Activity,
   MessageSquare,
   Warehouse,
-  Calendar
+  Calendar,
+  Tag
 } from 'lucide-react';
 import { DashboardMetrics } from '@/components/admin/DashboardMetrics';
 import { OrderDetailModal } from '@/components/admin/OrderDetailModal';
@@ -38,8 +39,9 @@ import { InventoryManagement } from '@/components/admin/InventoryManagement';
 import { ConfigurationManagement } from '@/components/admin/ConfigurationManagement';
 import { DeliveryCalendar } from '@/components/admin/DeliveryCalendar';
 import { BoxConfiguration } from '@/components/admin/BoxConfiguration';
+import { RebateCodesManager } from '@/components/admin/RebateCodesManager';
 
-type TabType = 'dashboard' | 'orders' | 'customers' | 'analytics' | 'production' | 'communication' | 'health' | 'inventory' | 'boxes' | 'settings';
+type TabType = 'dashboard' | 'orders' | 'customers' | 'analytics' | 'production' | 'communication' | 'health' | 'inventory' | 'boxes' | 'rebates' | 'settings';
 
 interface Order {
   id: string;
@@ -393,6 +395,7 @@ export default function AdminPage() {
     { id: 'production', label: 'Hentekalender', icon: Calendar },
     { id: 'inventory', label: 'Lager', icon: Warehouse },
     { id: 'boxes', label: 'Boksinnhold', icon: Package },
+    { id: 'rebates', label: 'Rabattkoder', icon: Tag },
     { id: 'health', label: 'Systemhelse', icon: Activity },
     { id: 'settings', label: 'Innstillinger', icon: Settings },
   ];
@@ -821,6 +824,9 @@ export default function AdminPage() {
 
         {/* SYSTEM HEALTH TAB */}
         {activeTab === 'health' && <SystemHealth />}
+
+        {/* REBATE CODES TAB */}
+        {activeTab === 'rebates' && <RebateCodesManager />}
 
         {/* SETTINGS TAB */}
         {activeTab === 'settings' && <ConfigurationManagement />}

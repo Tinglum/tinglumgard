@@ -14,6 +14,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { Check, ChevronRight } from 'lucide-react';
 import { ReferralCodeInput } from '@/components/ReferralCodeInput';
+import { RebateCodeInput } from '@/components/RebateCodeInput';
 
 export default function CheckoutPage() {
   const { t } = useLanguage();
@@ -39,6 +40,11 @@ export default function CheckoutPage() {
     discountPercentage: number;
     discountAmount: number;
     referrerPhone: string;
+  } | null>(null);
+  const [rebateData, setRebateData] = useState<{
+    code: string;
+    discountAmount: number;
+    description: string;
   } | null>(null);
 
   // URL parameter handling
@@ -110,6 +116,11 @@ export default function CheckoutPage() {
           referralCode: referralData.code,
           referralDiscount: referralData.discountAmount,
           referredByPhone: referralData.referrerPhone,
+        }),
+        // Include rebate data if present
+        ...(rebateData && {
+          rebateCode: rebateData.code,
+          rebateDiscount: rebateData.discountAmount,
         }),
       };
 
@@ -194,9 +205,13 @@ export default function CheckoutPage() {
 
   // Deposit is ONLY 50% of box price - no extras included
   const baseDepositTotal = selectedPrice ? selectedPrice.deposit : 0;
-  // Apply referral discount (20% off deposit)
+
+  // Apply discount (referral OR rebate - cannot stack)
   const referralDiscount = referralData?.discountAmount || 0;
-  const depositTotal = baseDepositTotal - referralDiscount;
+  const rebateDiscount = rebateData?.discountAmount || 0;
+  const totalDiscount = referralDiscount || rebateDiscount; // Only one applies
+
+  const depositTotal = baseDepositTotal - totalDiscount;
   // Remainder includes the other 50% of box price PLUS all extras
   const remainderTotal = selectedPrice ? selectedPrice.remainder + addonTotal : 0;
   const totalPrice = depositTotal + remainderTotal;
@@ -817,6 +832,12 @@ export default function CheckoutPage() {
                     <span className="font-bold">-kr {referralDiscount.toLocaleString('nb-NO')}</span>
                   </div>
                 )}
+                {rebateData && (
+                  <div className="flex justify-between text-sm mb-2 text-blue-600">
+                    <span>Rabattkode ({rebateData.code})</span>
+                    <span className="font-bold">-kr {rebateDiscount.toLocaleString('nb-NO')}</span>
+                  </div>
+                )}
                 <div className="flex justify-between text-sm mb-4">
                   <span className={theme.textMuted}>Rest før levering</span>
                   <span className={cn("font-bold", theme.textPrimary)}>kr {remainderTotal.toLocaleString('nb-NO')}</span>
@@ -829,18 +850,46 @@ export default function CheckoutPage() {
 
               {step === 4 && boxSize && (
                 <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2">
-                  {/* Referral Code Input */}
-                  <ReferralCodeInput
-                    depositAmount={baseDepositTotal}
-                    onCodeApplied={(data) => setReferralData({
-                      code: data.code,
-                      discountPercentage: data.discountPercentage,
-                      discountAmount: data.discountAmount,
-                      referrerPhone: data.referrerUserId, // This will be referrer_phone from validation
-                    })}
-                    onCodeRemoved={() => setReferralData(null)}
-                    className="mb-4"
-                  />
+                  {/* Discount Codes - Only one can be used */}
+                  {!rebateData && (
+                    <ReferralCodeInput
+                      depositAmount={baseDepositTotal}
+                      onCodeApplied={(data) => {
+                        setReferralData({
+                          code: data.code,
+                          discountPercentage: data.discountPercentage,
+                          discountAmount: data.discountAmount,
+                          referrerPhone: data.referrerUserId,
+                        });
+                        setRebateData(null); // Clear rebate if exists
+                      }}
+                      onCodeRemoved={() => setReferralData(null)}
+                      className="mb-4"
+                    />
+                  )}
+
+                  {!referralData && (
+                    <RebateCodeInput
+                      depositAmount={baseDepositTotal}
+                      boxSize={parseInt(boxSize)}
+                      onCodeApplied={(data) => {
+                        setRebateData({
+                          code: data.code,
+                          discountAmount: data.discountAmount,
+                          description: data.description,
+                        });
+                        setReferralData(null); // Clear referral if exists
+                      }}
+                      onCodeRemoved={() => setRebateData(null)}
+                      className="mb-4"
+                    />
+                  )}
+
+                  {(referralData || rebateData) && (
+                    <p className="text-xs text-gray-500 text-center">
+                      Kun én rabattkode kan brukes per bestilling
+                    </p>
+                  )}
 
                   <div className="p-5 bg-gradient-to-br from-amber-50 to-orange-50 border-2 border-amber-300 rounded-xl shadow-sm">
                     <Label htmlFor="deposit-policy" className="flex items-start gap-3 cursor-pointer">
