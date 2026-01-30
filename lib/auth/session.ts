@@ -33,7 +33,7 @@ export async function verifySession(token: string): Promise<SessionData | null> 
 }
 
 export async function getSession(): Promise<SessionData | null> {
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   const token = cookieStore.get('tinglum_session')?.value;
 
   if (!token) return null;
@@ -41,8 +41,8 @@ export async function getSession(): Promise<SessionData | null> {
   return verifySession(token);
 }
 
-export function setSessionCookie(token: string) {
-  const cookieStore = cookies();
+export async function setSessionCookie(token: string) {
+  const cookieStore = await cookies();
   cookieStore.set('tinglum_session', token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
@@ -50,9 +50,11 @@ export function setSessionCookie(token: string) {
     maxAge: 60 * 60 * 24 * 7, // 7 days
     path: '/',
   });
+
+  console.log('Session cookie set with token:', token.substring(0, 20) + '...');
 }
 
-export function clearSessionCookie() {
-  const cookieStore = cookies();
+export async function clearSessionCookie() {
+  const cookieStore = await cookies();
   cookieStore.delete('tinglum_session');
 }

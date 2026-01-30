@@ -80,7 +80,9 @@ export async function GET(request: NextRequest) {
       isAdmin: user.data.is_admin || false,
     });
 
-    setSessionCookie(sessionToken);
+    console.log('Vipps Callback - Setting session cookie');
+    await setSessionCookie(sessionToken);
+    console.log('Vipps Callback - Session cookie set successfully');
 
     const cookieStoreForDelete = await cookies();
     cookieStoreForDelete.delete('vipps_state');
