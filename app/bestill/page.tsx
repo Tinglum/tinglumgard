@@ -256,9 +256,9 @@ export default function CheckoutPage() {
   }
 
   return (
-    <div className="min-h-screen relative">
+    <div className="min-h-screen relative overflow-x-hidden">
       {/* Animated background */}
-      <div className="fixed inset-0 -z-10 overflow-hidden">
+      <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
         <div className={cn("absolute inset-0", theme.bgGradientHero)} />
         <div className={cn("absolute top-0 right-0 w-[600px] h-[600px] rounded-full blur-3xl animate-pulse bg-gradient-to-bl", theme.bgGradientOrbs[0], "to-transparent")} />
         <div className={cn("absolute bottom-0 left-0 w-[500px] h-[500px] rounded-full blur-3xl animate-pulse bg-gradient-to-tr", theme.bgGradientOrbs[1], "to-transparent")} style={{ animationDelay: '1s' }} />
@@ -329,7 +329,7 @@ export default function CheckoutPage() {
           </div>
         </div>
 
-        <div className="md:flex md:gap-8 md:items-start">
+        <div className="relative md:flex md:gap-8 md:items-start pb-20">
           {/* Main Content */}
           <div className="md:flex-1 md:w-2/3 space-y-6 mb-8 md:mb-0">
 
@@ -727,9 +727,9 @@ export default function CheckoutPage() {
           </div>
 
           {/* Sidebar Summary - Sticky */}
-          <div className="md:w-1/3 md:flex-shrink-0">
-            <div className="sticky top-4 md:top-24 lg:top-28 z-20">
-              <div className={cn("rounded-3xl p-6 sm:p-8 border-2 shadow-2xl backdrop-blur-xl", theme.bgCard, theme.glassBorder)}>
+          <div className="w-full md:w-1/3 md:flex-shrink-0 md:self-start">
+            <div className="sticky top-6 z-30 max-h-[calc(100vh-3rem)]">
+              <div className={cn("rounded-3xl p-6 sm:p-8 border-2 shadow-2xl", theme.bgCard, theme.glassBorder)}>
               {/* Vipps Logo */}
               <div className="flex items-center justify-center mb-6 pb-6 border-b-2 border-gray-200">
                 <div className="relative w-40 h-14">
