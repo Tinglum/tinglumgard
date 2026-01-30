@@ -9,11 +9,26 @@ export async function GET(request: NextRequest) {
   const code = searchParams.get('code');
   const state = searchParams.get('state');
 
+  console.log('Vipps Callback - Received params:', { code: code?.substring(0, 10) + '...', state: state?.substring(0, 20) + '...' });
+
   const cookieStore = cookies();
   const savedState = cookieStore.get('vipps_state')?.value;
 
-  if (!code || !state || state !== savedState) {
-    return NextResponse.redirect(new URL('/?error=auth_failed', request.url));
+  console.log('Vipps Callback - Saved state:', savedState?.substring(0, 20) + '...');
+
+  if (!code) {
+    console.error('Vipps Callback - No code received');
+    return NextResponse.redirect(new URL('/?error=no_code', request.url));
+  }
+
+  if (!state) {
+    console.error('Vipps Callback - No state received');
+    return NextResponse.redirect(new URL('/?error=no_state', request.url));
+  }
+
+  if (state !== savedState) {
+    console.error('Vipps Callback - State mismatch', { received: state?.substring(0, 20), saved: savedState?.substring(0, 20) });
+    return NextResponse.redirect(new URL('/?error=state_mismatch', request.url));
   }
 
   try {
