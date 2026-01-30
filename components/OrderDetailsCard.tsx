@@ -27,6 +27,9 @@ import { StatusBadge } from '@/components/StatusBadge';
 import { OrderStatusTimeline } from '@/components/OrderStatusTimeline';
 import { ExtrasUpsellModal } from '@/components/ExtrasUpsellModal';
 import { OrderModificationModal } from '@/components/OrderModificationModal';
+import { PaymentHistoryModal } from '@/components/PaymentHistoryModal';
+import { ContactAdminModal } from '@/components/ContactAdminModal';
+import { OrderTimelineModal } from '@/components/OrderTimelineModal';
 
 interface Payment {
   id: string;
@@ -74,6 +77,9 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
 
   const [showExtrasModal, setShowExtrasModal] = useState(false);
   const [showModificationModal, setShowModificationModal] = useState(false);
+  const [showPaymentHistoryModal, setShowPaymentHistoryModal] = useState(false);
+  const [showContactModal, setShowContactModal] = useState(false);
+  const [showTimelineModal, setShowTimelineModal] = useState(false);
   const [addingExtras, setAddingExtras] = useState(false);
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
   const [reordering, setReordering] = useState(false);
@@ -503,28 +509,57 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
             </div>
           </div>
 
-          {/* Customer Support */}
+          {/* Order Actions */}
           <div className={cn('p-4 rounded-xl border bg-gradient-to-r from-blue-50 to-indigo-50', theme.borderSecondary)}>
-            <h4 className={cn('font-semibold mb-3 flex items-center gap-2 text-blue-900')}>
+            <h4 className={cn('font-semibold mb-4 flex items-center gap-2 text-blue-900')}>
               <MessageSquare className="w-5 h-5" />
-              Trenger du hjelp?
+              Ordre-handlinger
             </h4>
-            <div className="space-y-2">
-              <a
-                href={`mailto:post@tinglum.no?subject=Spørsmål om ordre ${order.order_number}`}
-                className="flex items-center gap-2 text-blue-700 hover:text-blue-900 transition-colors"
+            <div className="grid grid-cols-2 gap-3">
+              <Button
+                onClick={() => setShowPaymentHistoryModal(true)}
+                variant="outline"
+                className="w-full justify-start"
               >
+                <CreditCard className="w-4 h-4 mr-2" />
+                Betalingshistorikk
+              </Button>
+              <Button
+                onClick={() => setShowTimelineModal(true)}
+                variant="outline"
+                className="w-full justify-start"
+              >
+                <Clock className="w-4 h-4 mr-2" />
+                Ordrehistorikk
+              </Button>
+              <Button
+                onClick={() => setShowContactModal(true)}
+                variant="outline"
+                className="w-full justify-start"
+              >
+                <MessageSquare className="w-4 h-4 mr-2" />
+                Kontakt oss
+              </Button>
+              <Button
+                onClick={() => {
+                  window.print();
+                }}
+                variant="outline"
+                className="w-full justify-start"
+              >
+                <Printer className="w-4 h-4 mr-2" />
+                Skriv ut
+              </Button>
+            </div>
+            <div className="mt-4 pt-4 border-t border-blue-200 space-y-2">
+              <div className="flex items-center gap-2 text-blue-700 text-sm">
                 <Mail className="w-4 h-4" />
                 <span>post@tinglum.no</span>
-              </a>
-              <a
-                href="tel:+4712345678"
-                className="flex items-center gap-2 text-blue-700 hover:text-blue-900 transition-colors"
-              >
+              </div>
+              <div className="flex items-center gap-2 text-blue-700 text-sm">
                 <Phone className="w-4 h-4" />
                 <span>+47 123 45 678</span>
-              </a>
-              <p className="text-xs text-blue-600 mt-2">Vi svarer vanligvis innen 24 timer</p>
+              </div>
             </div>
           </div>
 
@@ -616,6 +651,33 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
           onSave={handleSaveModifications}
         />
       )}
+
+      {/* Payment History Modal */}
+      <PaymentHistoryModal
+        isOpen={showPaymentHistoryModal}
+        onClose={() => setShowPaymentHistoryModal(false)}
+        payments={order.payments || []}
+        orderNumber={order.order_number}
+      />
+
+      {/* Contact Admin Modal */}
+      <ContactAdminModal
+        isOpen={showContactModal}
+        onClose={() => setShowContactModal(false)}
+        orderNumber={order.order_number}
+        orderDetails={`Boksstørrelse: ${order.box_size}kg
+Ribbevalg: ${order.ribbe_choice}
+Leveringstype: ${order.delivery_type}
+Status: ${order.status}
+Totalbeløp: kr ${order.total_amount.toLocaleString('nb-NO')}`}
+      />
+
+      {/* Order Timeline Modal */}
+      <OrderTimelineModal
+        isOpen={showTimelineModal}
+        onClose={() => setShowTimelineModal(false)}
+        order={order}
+      />
     </>
   );
 }
