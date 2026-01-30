@@ -179,8 +179,11 @@ export default function CheckoutPage() {
 
   const addonTotal = deliveryPrice + freshPrice + extrasTotal;
 
-  const depositTotal = selectedPrice ? selectedPrice.deposit + addonTotal : 0;
-  const totalPrice = selectedPrice ? selectedPrice.deposit + selectedPrice.remainder + addonTotal : 0;
+  // Deposit is ONLY 50% of box price - no extras included
+  const depositTotal = selectedPrice ? selectedPrice.deposit : 0;
+  // Remainder includes the other 50% of box price PLUS all extras
+  const remainderTotal = selectedPrice ? selectedPrice.remainder + addonTotal : 0;
+  const totalPrice = depositTotal + remainderTotal;
 
   const canProceedToStep2 = boxSize !== '';
   const canProceedToStep3 = ribbeChoice !== '';
@@ -789,16 +792,16 @@ export default function CheckoutPage() {
 
               <div className={cn("border-t pt-4 mb-6", theme.borderSecondary)}>
                 <div className="flex justify-between text-sm mb-2">
-                  <span className={theme.textMuted}>Forskudd (1%)</span>
-                  <span className={cn("font-bold", theme.textPrimary)}>kr {depositTotal}</span>
+                  <span className={theme.textMuted}>Forskudd (50%)</span>
+                  <span className={cn("font-bold", theme.textPrimary)}>kr {depositTotal.toLocaleString('nb-NO')}</span>
                 </div>
                 <div className="flex justify-between text-sm mb-4">
                   <span className={theme.textMuted}>Rest ved levering</span>
-                  <span className={cn("font-bold", theme.textPrimary)}>kr {selectedPrice?.remainder || 0}</span>
+                  <span className={cn("font-bold", theme.textPrimary)}>kr {remainderTotal.toLocaleString('nb-NO')}</span>
                 </div>
                 <div className="flex justify-between text-lg sm:text-xl font-bold">
                   <span className={theme.textPrimary}>Totalt</span>
-                  <span className={theme.textPrimary}>kr {totalPrice}</span>
+                  <span className={theme.textPrimary)}>kr {totalPrice.toLocaleString('nb-NO')}</span>
                 </div>
               </div>
 
