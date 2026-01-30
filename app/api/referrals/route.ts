@@ -164,15 +164,24 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Order not found' }, { status: 404 });
       }
 
-      // Update referral code max uses
-      const { error: updateError } = await supabaseAdmin
+      // Get current referral code
+      const { data: currentCode } = await supabaseAdmin
         .from('referral_codes')
-        .update({
-          max_uses: supabaseAdmin.raw('max_uses + 5'),
-        })
-        .eq('owner_phone', session.phoneNumber);
+        .select('max_uses')
+        .eq('owner_phone', session.phoneNumber)
+        .single();
 
-      if (updateError) throw updateError;
+      if (currentCode) {
+        // Update referral code max uses
+        const { error: updateError } = await supabaseAdmin
+          .from('referral_codes')
+          .update({
+            max_uses: currentCode.max_uses + 5,
+          })
+          .eq('owner_phone', session.phoneNumber);
+
+        if (updateError) throw updateError;
+      }
 
       return NextResponse.json({ success: true });
     }
