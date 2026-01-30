@@ -95,17 +95,23 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const totalAmount = basePrice + deliveryFee + freshFee + extrasTotal;
+    // Calculate base amounts
     const depositPercentage = boxSize === 8 ? pricing.box_8kg_deposit_percentage : pricing.box_12kg_deposit_percentage;
     const baseDepositAmount = Math.floor(basePrice * (depositPercentage / 100));
 
-    // Apply discount (referral OR rebate - cannot stack)
+    // Apply discount to deposit only (referral OR rebate - cannot stack)
     const referralDiscountAmount = referralDiscount || 0;
     const rebateDiscountAmount = rebateDiscount || 0;
     const totalDiscountAmount = referralDiscountAmount || rebateDiscountAmount;
 
     const depositAmount = baseDepositAmount - totalDiscountAmount;
-    const remainderAmount = totalAmount - depositAmount;
+
+    // Remainder is ONLY the box price minus the base deposit (before discount)
+    // It does NOT include delivery fees or extras (those are paid with deposit)
+    const remainderAmount = basePrice - baseDepositAmount;
+
+    // Total amount includes everything
+    const totalAmount = basePrice + deliveryFee + freshFee + extrasTotal;
 
     // Generate order number (max 7 characters: TL + 5 random alphanumerics)
     // Using base36 (0-9, A-Z) for compact representation
