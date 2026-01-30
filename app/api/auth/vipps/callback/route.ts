@@ -155,10 +155,35 @@ export async function GET(request: NextRequest) {
     }
 
     const returnTo = stateData.returnTo || '/bestill';
-    const redirectResponse = NextResponse.redirect(new URL(returnTo, request.url));
 
-    // Set the session cookie in the response headers
-    redirectResponse.cookies.set('tinglum_session', sessionToken, {
+    // Create an HTML response that sets the cookie and redirects
+    // This is a workaround for Netlify Functions cookie issues
+    const html = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <title>Logging in...</title>
+        </head>
+        <body>
+          <p>Logging in, please wait...</p>
+          <script>
+            // Force redirect to ensure cookie is set
+            window.location.href = '${returnTo}';
+          </script>
+        </body>
+      </html>
+    `;
+
+    const response = new NextResponse(html, {
+      status: 200,
+      headers: {
+        'Content-Type': 'text/html',
+      },
+    });
+
+    // Set the session cookie
+    response.cookies.set('tinglum_session', sessionToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
@@ -166,9 +191,9 @@ export async function GET(request: NextRequest) {
       path: '/',
     });
 
-    console.log('Vipps Callback - Set session cookie in redirect response');
+    console.log('Vipps Callback - Set session cookie in HTML response');
 
-    return redirectResponse;
+    return response;
   } catch (error) {
     console.error('Vipps callback error:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
