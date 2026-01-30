@@ -10,43 +10,58 @@ export async function GET() {
   }
 
   try {
-    // Fetch orders that either belong to the user OR are anonymous (user_id is null)
-    // This allows us to show and link anonymous orders after user logs in
-    const { data: orders, error } = await supabaseAdmin
+    // Fetch orders that belong to the user by user_id
+    const { data: userOrders, error: userOrdersError } = await supabaseAdmin
       .from('orders')
       .select(`
         *,
         payments (*)
       `)
-      .or(`user_id.eq.${session.userId},user_id.is.null`)
+      .eq('user_id', session.userId)
       .order('created_at', { ascending: false });
 
-    if (error) throw error;
+    if (userOrdersError) throw userOrdersError;
 
-    // Link any anonymous orders to the current user
-    if (orders && orders.length > 0) {
-      const anonymousOrders = orders.filter(o => !o.user_id);
+    // Also fetch anonymous orders that match the user's phone number or email
+    // This allows us to link orders made before they logged in
+    const { data: anonymousOrders, error: anonymousError } = await supabaseAdmin
+      .from('orders')
+      .select(`
+        *,
+        payments (*)
+      `)
+      .is('user_id', null)
+      .or(`customer_phone.eq.${session.phoneNumber},customer_email.eq.${session.email}`)
+      .order('created_at', { ascending: false });
 
-      if (anonymousOrders.length > 0) {
-        console.log(`Linking ${anonymousOrders.length} anonymous orders to user ${session.userId}`);
+    if (anonymousError) throw anonymousError;
 
-        const { error: updateError } = await supabaseAdmin
-          .from('orders')
-          .update({ user_id: session.userId })
-          .in('id', anonymousOrders.map(o => o.id));
+    // Link matching anonymous orders to the current user
+    if (anonymousOrders && anonymousOrders.length > 0) {
+      console.log(`Linking ${anonymousOrders.length} anonymous orders to user ${session.userId} by phone/email match`);
 
-        if (updateError) {
-          console.error('Error linking anonymous orders:', updateError);
-        } else {
-          // Update the orders in memory to reflect the change
-          anonymousOrders.forEach(order => {
-            order.user_id = session.userId;
-          });
-        }
+      const { error: updateError } = await supabaseAdmin
+        .from('orders')
+        .update({ user_id: session.userId })
+        .in('id', anonymousOrders.map(o => o.id));
+
+      if (updateError) {
+        console.error('Error linking anonymous orders:', updateError);
+      } else {
+        // Update the orders in memory to reflect the change
+        anonymousOrders.forEach(order => {
+          order.user_id = session.userId;
+        });
       }
     }
 
-    return NextResponse.json({ orders: orders || [] });
+    // Combine both sets of orders
+    const allOrders = [...(userOrders || []), ...(anonymousOrders || [])];
+
+    // Sort by created_at descending
+    allOrders.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+    return NextResponse.json({ orders: allOrders });
   } catch (error) {
     console.error('Error fetching orders:', error);
     return NextResponse.json(
