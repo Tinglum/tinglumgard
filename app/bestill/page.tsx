@@ -801,7 +801,7 @@ export default function CheckoutPage() {
                 </div>
                 <div className="flex justify-between text-lg sm:text-xl font-bold">
                   <span className={theme.textPrimary}>Totalt</span>
-                  <span className={theme.textPrimary)}>kr {totalPrice.toLocaleString('nb-NO')}</span>
+                  <span className={theme.textPrimary}>kr {totalPrice.toLocaleString('nb-NO')}</span>
                 </div>
               </div>
 
