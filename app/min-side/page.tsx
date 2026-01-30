@@ -7,9 +7,10 @@ import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Package } from 'lucide-react';
+import { Package, Gift } from 'lucide-react';
 import Link from 'next/link';
 import { OrderDetailsCard } from '@/components/OrderDetailsCard';
+import { ReferralDashboard } from '@/components/ReferralDashboard';
 
 interface Payment {
   id: string;
@@ -55,6 +56,7 @@ export default function CustomerPortalPage() {
   const [cutoffWeek, setCutoffWeek] = useState(46);
   const [cutoffYear, setCutoffYear] = useState(2026);
   const [canEdit, setCanEdit] = useState(false);
+  const [activeTab, setActiveTab] = useState<'orders' | 'referrals'>('orders');
 
   useEffect(() => {
     if (!authLoading && isAuthenticated) {
@@ -162,18 +164,50 @@ export default function CustomerPortalPage() {
     <div className={cn("min-h-screen py-16 sm:py-24", theme.bgGradientHero)}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
-        <div className="mb-12">
-          <h1 className={cn("text-4xl sm:text-5xl font-bold mb-4", theme.textPrimary)}>
-            Mine bestillinger
+        <div className="mb-8">
+          <h1 className={cn("text-4xl sm:text-5xl font-bold mb-6", theme.textPrimary)}>
+            Min side
           </h1>
-          <p className={cn("text-lg", theme.textSecondary)}>
-            {canEdit
-              ? `Du kan endre bestillingen din frem til uke ${cutoffWeek}, ${cutoffYear}`
-              : `Endringsperioden er utløpt (uke ${cutoffWeek}, ${cutoffYear})`}
-          </p>
+
+          {/* Tab Navigation */}
+          <div className="flex gap-2 border-b border-gray-200 mb-8">
+            <button
+              onClick={() => setActiveTab('orders')}
+              className={cn(
+                "flex items-center gap-2 px-6 py-3 font-semibold transition-all",
+                activeTab === 'orders'
+                  ? "border-b-2 border-green-600 text-green-600"
+                  : "text-gray-500 hover:text-gray-700"
+              )}
+            >
+              <Package className="w-5 h-5" />
+              Mine bestillinger
+            </button>
+            <button
+              onClick={() => setActiveTab('referrals')}
+              className={cn(
+                "flex items-center gap-2 px-6 py-3 font-semibold transition-all",
+                activeTab === 'referrals'
+                  ? "border-b-2 border-green-600 text-green-600"
+                  : "text-gray-500 hover:text-gray-700"
+              )}
+            >
+              <Gift className="w-5 h-5" />
+              Vennerabatt
+            </button>
+          </div>
+
+          {activeTab === 'orders' && (
+            <p className={cn("text-lg", theme.textSecondary)}>
+              {canEdit
+                ? `Du kan endre bestillingen din frem til uke ${cutoffWeek}, ${cutoffYear}`
+                : `Endringsperioden er utløpt (uke ${cutoffWeek}, ${cutoffYear})`}
+            </p>
+          )}
         </div>
 
-        {orders.length === 0 ? (
+        {/* Orders Tab Content */}
+        {activeTab === 'orders' && (orders.length === 0 ? (
           <Card className={cn("p-12 text-center", theme.bgCard)}>
             <Package className={cn("w-16 h-16 mx-auto mb-4", theme.iconColor)} />
             <h2 className={cn("text-xl font-semibold mb-2", theme.textPrimary)}>Ingen bestillinger</h2>
@@ -204,6 +238,11 @@ export default function CustomerPortalPage() {
               </Link>
             </div>
           </div>
+        ))}
+
+        {/* Referrals Tab Content */}
+        {activeTab === 'referrals' && (
+          <ReferralDashboard />
         )}
       </div>
     </div>

@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/input';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Check, ChevronRight } from 'lucide-react';
+import { ReferralCodeInput } from '@/components/ReferralCodeInput';
 
 export default function CheckoutPage() {
   const { t } = useLanguage();
@@ -33,6 +34,12 @@ export default function CheckoutPage() {
   const [orderConfirmed, setOrderConfirmed] = useState(false);
   const [orderId, setOrderId] = useState<string | null>(null);
   const [pricing, setPricing] = useState<any>(null);
+  const [referralData, setReferralData] = useState<{
+    code: string;
+    discountPercentage: number;
+    discountAmount: number;
+    referrerPhone: string;
+  } | null>(null);
 
   // URL parameter handling
   useEffect(() => {
@@ -180,7 +187,10 @@ export default function CheckoutPage() {
   const addonTotal = deliveryPrice + freshPrice + extrasTotal;
 
   // Deposit is ONLY 50% of box price - no extras included
-  const depositTotal = selectedPrice ? selectedPrice.deposit : 0;
+  const baseDepositTotal = selectedPrice ? selectedPrice.deposit : 0;
+  // Apply referral discount (20% off deposit)
+  const referralDiscount = referralData?.discountAmount || 0;
+  const depositTotal = baseDepositTotal - referralDiscount;
   // Remainder includes the other 50% of box price PLUS all extras
   const remainderTotal = selectedPrice ? selectedPrice.remainder + addonTotal : 0;
   const totalPrice = depositTotal + remainderTotal;
@@ -793,8 +803,14 @@ export default function CheckoutPage() {
               <div className={cn("border-t pt-4 mb-6", theme.borderSecondary)}>
                 <div className="flex justify-between text-sm mb-2">
                   <span className={theme.textMuted}>Forskudd (50%)</span>
-                  <span className={cn("font-bold", theme.textPrimary)}>kr {depositTotal.toLocaleString('nb-NO')}</span>
+                  <span className={cn("font-bold", theme.textPrimary)}>kr {baseDepositTotal.toLocaleString('nb-NO')}</span>
                 </div>
+                {referralData && (
+                  <div className="flex justify-between text-sm mb-2 text-green-600">
+                    <span>Vennerabatt (-20%)</span>
+                    <span className="font-bold">-kr {referralDiscount.toLocaleString('nb-NO')}</span>
+                  </div>
+                )}
                 <div className="flex justify-between text-sm mb-4">
                   <span className={theme.textMuted}>Rest før levering</span>
                   <span className={cn("font-bold", theme.textPrimary)}>kr {remainderTotal.toLocaleString('nb-NO')}</span>
@@ -807,6 +823,19 @@ export default function CheckoutPage() {
 
               {step === 4 && boxSize && (
                 <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2">
+                  {/* Referral Code Input */}
+                  <ReferralCodeInput
+                    depositAmount={baseDepositTotal}
+                    onCodeApplied={(data) => setReferralData({
+                      code: data.code,
+                      discountPercentage: data.discountPercentage,
+                      discountAmount: data.discountAmount,
+                      referrerPhone: data.referrerUserId, // This will be referrer_phone from validation
+                    })}
+                    onCodeRemoved={() => setReferralData(null)}
+                    className="mb-4"
+                  />
+
                   <div className="p-5 bg-gradient-to-br from-amber-50 to-orange-50 border-2 border-amber-300 rounded-xl shadow-sm">
                     <Label htmlFor="deposit-policy" className="flex items-start gap-3 cursor-pointer">
                       <Checkbox
