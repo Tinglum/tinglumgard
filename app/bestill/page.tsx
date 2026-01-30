@@ -796,7 +796,7 @@ export default function CheckoutPage() {
                   <span className={cn("font-bold", theme.textPrimary)}>kr {depositTotal.toLocaleString('nb-NO')}</span>
                 </div>
                 <div className="flex justify-between text-sm mb-4">
-                  <span className={theme.textMuted}>Rest ved levering</span>
+                  <span className={theme.textMuted}>Rest før levering</span>
                   <span className={cn("font-bold", theme.textPrimary)}>kr {remainderTotal.toLocaleString('nb-NO')}</span>
                 </div>
                 <div className="flex justify-between text-lg sm:text-xl font-bold">
