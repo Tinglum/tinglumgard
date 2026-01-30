@@ -105,6 +105,12 @@ export default function CheckoutPage() {
         deliveryType: apiDeliveryType,
         freshDelivery,
         notes: '',
+        // Include referral data if present
+        ...(referralData && {
+          referralCode: referralData.code,
+          referralDiscount: referralData.discountAmount,
+          referredByPhone: referralData.referrerPhone,
+        }),
       };
 
       // POST to Vipps login with order details

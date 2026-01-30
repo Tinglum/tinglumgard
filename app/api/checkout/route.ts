@@ -20,6 +20,9 @@ interface CheckoutRequest {
   customerName?: string;
   customerEmail?: string;
   customerPhone?: string;
+  referralCode?: string;
+  referralDiscount?: number;
+  referredByPhone?: string;
 }
 
 export async function POST(request: NextRequest) {
@@ -27,7 +30,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body: CheckoutRequest = await request.json();
-    const { boxSize, ribbeChoice, extraProducts, deliveryType, freshDelivery, notes, customerName, customerEmail, customerPhone } = body;
+    const { boxSize, ribbeChoice, extraProducts, deliveryType, freshDelivery, notes, customerName, customerEmail, customerPhone, referralCode, referralDiscount, referredByPhone } = body;
 
     // Validation
     if (boxSize !== 8 && boxSize !== 12) {
@@ -92,7 +95,10 @@ export async function POST(request: NextRequest) {
 
     const totalAmount = basePrice + deliveryFee + freshFee + extrasTotal;
     const depositPercentage = boxSize === 8 ? pricing.box_8kg_deposit_percentage : pricing.box_12kg_deposit_percentage;
-    const depositAmount = Math.floor(basePrice * (depositPercentage / 100));
+    const baseDepositAmount = Math.floor(basePrice * (depositPercentage / 100));
+    // Apply referral discount (20% off deposit)
+    const referralDiscountAmount = referralDiscount || 0;
+    const depositAmount = baseDepositAmount - referralDiscountAmount;
     const remainderAmount = totalAmount - depositAmount;
 
     // Generate order number (max 7 characters: TL + 5 random alphanumerics)
@@ -119,6 +125,9 @@ export async function POST(request: NextRequest) {
         notes: notes || '',
         ribbe_choice: ribbeChoice,
         extra_products: extraProductsData,
+        referral_code_used: referralCode || null,
+        referral_discount_amount: referralDiscountAmount,
+        referred_by_phone: referredByPhone || null,
       })
       .select()
       .single();
@@ -126,6 +135,43 @@ export async function POST(request: NextRequest) {
     if (orderError || !order) {
       console.error('Order creation error:', orderError);
       throw new Error('Failed to create order');
+    }
+
+    // Create referral tracking record if referral code was used
+    if (referralCode && referredByPhone && customerPhone) {
+      try {
+        // Get the referral code record
+        const { data: codeRecord } = await supabaseAdmin
+          .from('referral_codes')
+          .select('*')
+          .eq('code', referralCode)
+          .single();
+
+        if (codeRecord) {
+          // Calculate credit for referrer (10% of original deposit before discount)
+          const creditAmount = Math.round(baseDepositAmount * 0.10);
+
+          // Create referral tracking
+          await supabaseAdmin
+            .from('referrals')
+            .insert({
+              referral_code_id: codeRecord.id,
+              referrer_phone: referredByPhone,
+              referee_phone: customerPhone,
+              order_id: order.id,
+              order_number: order.order_number,
+              discount_percentage: 20.00,
+              discount_amount_nok: referralDiscountAmount,
+              credit_percentage: 10.00,
+              credit_amount_nok: creditAmount,
+              referee_name: customerName || 'Vipps kunde',
+              referee_email: customerEmail,
+            });
+        }
+      } catch (referralError) {
+        console.error('Referral tracking error:', referralError);
+        // Don't fail the order if referral tracking fails
+      }
     }
 
     // Update inventory
