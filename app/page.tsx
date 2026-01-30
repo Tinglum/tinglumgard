@@ -6,6 +6,10 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { InstagramFeed } from "@/components/InstagramFeed";
 import { getHeroStyles, getBannerStyles, getInventoryStyles } from "@/lib/theme-utils";
+import { useIsMobile } from "@/hooks/useMediaQuery";
+import { MobileHero } from "@/components/MobileHero";
+import { MobileProductTiles } from "@/components/MobileProductTiles";
+import { MobileTimeline } from "@/components/MobileTimeline";
 
 interface InventoryData {
   season: string;
@@ -53,7 +57,98 @@ export default function Page() {
   const boxesLeft = inventory?.boxesRemaining ?? 0;
   const isSoldOut = inventory?.isSoldOut ?? false;
   const isLowStock = inventory?.isLowStock ?? false;
+  const isMobile = useIsMobile();
 
+  // Mobile version - ultra-minimal prismatic design
+  if (isMobile) {
+    return (
+      <>
+        <MobileHero isSoldOut={isSoldOut} />
+        <MobileProductTiles />
+        <MobileTimeline />
+
+        {/* Mobile Inventory Counter */}
+        <section className="relative py-16 px-4 bg-gradient-to-b from-[#FAF8F5] to-white">
+          <div className="max-w-md mx-auto text-center">
+            <div className="glass-mobile-strong rounded-3xl p-8 glow-pulse">
+              <div className="text-sm uppercase tracking-wider text-[#6B5843] font-bold mb-4">
+                Tilgjengelighet
+              </div>
+              <div className="text-6xl font-bold text-[#2C1810] mb-2">
+                {loading ? "—" : boxesLeft}
+              </div>
+              <div className="text-lg text-[#6B5843] mb-6">
+                Kasser tilgjengelig
+              </div>
+              {!loading && (
+                <div className="h-2 bg-white/50 rounded-full overflow-hidden">
+                  <div
+                    className="h-full prismatic rounded-full"
+                    style={{ width: `${Math.min((boxesLeft / 50) * 100, 100)}%` }}
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+        </section>
+
+        {/* Mobile FAQ - Minimal */}
+        <section className="relative py-16 px-4 bg-white">
+          <div className="max-w-md mx-auto">
+            <h2 className="text-3xl font-bold text-[#2C1810] mb-8 text-center">
+              Vanlige spørsmål
+            </h2>
+            <div className="space-y-3">
+              {[
+                { q: t.faq.q1, a: t.faq.a1 },
+                { q: t.faq.q2, a: t.faq.a2 },
+                { q: t.faq.q3, a: t.faq.a3 },
+                { q: t.faq.q4, a: t.faq.a4 },
+              ].map((faq, i) => (
+                <details
+                  key={i}
+                  className="glass-mobile rounded-2xl overflow-hidden touch-feedback"
+                >
+                  <summary className="cursor-pointer py-4 px-5 flex items-center justify-between list-none font-semibold text-[#2C1810]">
+                    <span className="text-base">{faq.q}</span>
+                    <svg className="w-5 h-5 text-[#6B5843]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </summary>
+                  <div className="px-5 pb-4 text-sm text-[#6B5843] leading-relaxed">
+                    {faq.a}
+                  </div>
+                </details>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* Mobile CTA Banner */}
+        <section className="relative py-20 px-4 prismatic overflow-hidden">
+          <div className="absolute inset-0 bg-black/10" />
+          <div className="relative z-10 max-w-md mx-auto text-center">
+            <h2 className="text-4xl font-bold text-white mb-4 drop-shadow-lg">
+              Kun én sesong i året
+            </h2>
+            <p className="text-lg text-white/90 mb-8 drop-shadow">
+              Reserver din pakke før det er for sent
+            </p>
+            <Link
+              href="/bestill"
+              className="inline-block px-8 py-4 bg-white text-[#2C1810] rounded-2xl font-bold text-lg shadow-2xl touch-feedback"
+            >
+              Reserver nå
+            </Link>
+          </div>
+        </section>
+
+        <InstagramFeed />
+      </>
+    );
+  }
+
+  // Desktop version - existing full design
   return (
     <>
       {/* HERO - Floating glassmorphic card with parallax background */}
