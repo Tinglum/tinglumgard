@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import { Inter, Playfair_Display } from 'next/font/google';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
+import { AuthProvider } from '@/contexts/AuthContext';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
 import { BackgroundLayer } from '@/components/BackgroundLayer';
@@ -34,14 +35,16 @@ export default function RootLayout({
       <body className="antialiased text-neutral-900">
         <ThemeProvider>
           <LanguageProvider>
-            <BackgroundLayer />
-            <Header />
+            <AuthProvider>
+              <BackgroundLayer />
+              <Header />
 
-            <main className="relative min-h-screen pt-20">
-              {children}
-            </main>
+              <main className="relative min-h-screen pt-20">
+                {children}
+              </main>
 
-            <Footer />
+              <Footer />
+            </AuthProvider>
           </LanguageProvider>
         </ThemeProvider>
       </body>

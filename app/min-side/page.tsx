@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -46,6 +47,7 @@ interface Order {
 export default function CustomerPortalPage() {
   const { t } = useLanguage();
   const { getThemeClasses } = useTheme();
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
   const theme = getThemeClasses();
 
   const [orders, setOrders] = useState<Order[]>([]);
@@ -53,35 +55,15 @@ export default function CustomerPortalPage() {
   const [cutoffWeek, setCutoffWeek] = useState(46);
   const [cutoffYear, setCutoffYear] = useState(2026);
   const [canEdit, setCanEdit] = useState(false);
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
 
   useEffect(() => {
-    checkAuth();
-  }, []);
-
-  async function checkAuth() {
-    try {
-      const response = await fetch('/api/auth/session');
-      if (response.ok) {
-        const data = await response.json();
-        if (data.authenticated) {
-          setIsAuthenticated(true);
-          loadOrders();
-          loadConfig();
-        } else {
-          setIsAuthenticated(false);
-          setLoading(false);
-        }
-      } else {
-        setIsAuthenticated(false);
-        setLoading(false);
-      }
-    } catch (error) {
-      console.error('Auth check failed:', error);
-      setIsAuthenticated(false);
+    if (!authLoading && isAuthenticated) {
+      loadOrders();
+      loadConfig();
+    } else if (!authLoading && !isAuthenticated) {
       setLoading(false);
     }
-  }
+  }, [authLoading, isAuthenticated]);
 
   async function handleVippsLogin() {
     window.location.href = '/api/auth/vipps/login?returnTo=/min-side';
@@ -148,7 +130,7 @@ export default function CustomerPortalPage() {
     }
   }
 
-  if (loading) {
+  if (loading || authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="w-12 h-12 border-4 border-neutral-200 border-t-neutral-600 rounded-full animate-spin" />
@@ -157,7 +139,7 @@ export default function CustomerPortalPage() {
   }
 
   // Show login wall if not authenticated
-  if (isAuthenticated === false) {
+  if (!isAuthenticated) {
     return (
       <div className={cn("min-h-screen flex items-center justify-center px-6", theme.bgGradientHero)}>
         <div className={cn("text-center max-w-md rounded-3xl p-8 border shadow-2xl", theme.bgCard, theme.glassBorder)}>
@@ -165,7 +147,7 @@ export default function CustomerPortalPage() {
           <h1 className={cn("text-2xl font-bold mb-4", theme.textPrimary)}>Logg inn for å se dine bestillinger</h1>
           <p className={cn("mb-6", theme.textMuted)}>Du må logge inn med Vipps for å se og administrere dine bestillinger.</p>
           <button
-            onClick={handleVippsLogin}
+            onClick={() => window.location.href = '/api/auth/vipps/login?returnTo=/min-side'}
             className="w-full bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-bold py-4 px-8 rounded-2xl shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-300 flex items-center justify-center gap-3"
             style={{ backgroundColor: '#FF5B24' }}
           >

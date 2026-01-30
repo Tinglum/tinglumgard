@@ -39,7 +39,10 @@
       "Bash(git commit:*)",
       "Bash(git push:*)",
       "Bash(grep:*)",
-      "Bash(tail:*)"
+      "Bash(tail:*)",
+      "Bash(git ls-tree:*)",
+      "Bash(git rm:*)",
+      "Bash(git restore:*)"
     ]
   }
 }

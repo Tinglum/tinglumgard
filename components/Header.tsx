@@ -1,14 +1,26 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useTheme, type ThemeMode } from "@/contexts/ThemeContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 
 export function Header() {
   const { t, lang, setLang } = useLanguage();
   const { theme, setTheme, getThemeClasses } = useTheme();
+  const { user, isAuthenticated, logout } = useAuth();
   const themeClasses = getThemeClasses();
+  const [showDropdown, setShowDropdown] = useState(false);
+
+  const handleVippsLogin = () => {
+    window.location.href = '/api/auth/vipps/login?returnTo=/min-side';
+  };
+
+  const getLastFourDigits = (phoneNumber: string) => {
+    return phoneNumber.slice(-4);
+  };
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50">
@@ -103,6 +115,62 @@ export function Header() {
               >
                 {lang === "no" ? "EN" : "NO"}
               </button>
+
+              {/* User Profile / Login */}
+              {isAuthenticated && user ? (
+                <div className="relative">
+                  <button
+                    onClick={() => setShowDropdown(!showDropdown)}
+                    className={cn(
+                      "flex items-center gap-2 px-3 py-2 rounded-lg transition-all",
+                      themeClasses.buttonSecondaryHover,
+                      themeClasses.textPrimary
+                    )}
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                    <span className="text-sm font-semibold">***{getLastFourDigits(user.phoneNumber)}</span>
+                  </button>
+
+                  {showDropdown && (
+                    <div className={cn("absolute right-0 mt-2 w-48 rounded-xl shadow-lg border z-50", themeClasses.bgCard, themeClasses.glassBorder)}>
+                      <div className="py-2">
+                        <Link
+                          href="/min-side"
+                          onClick={() => setShowDropdown(false)}
+                          className={cn("block px-4 py-2 text-sm transition-colors", themeClasses.textPrimary, themeClasses.buttonSecondaryHover)}
+                        >
+                          Mine bestillinger
+                        </Link>
+                        <button
+                          onClick={() => {
+                            setShowDropdown(false);
+                            logout();
+                          }}
+                          className={cn("w-full text-left px-4 py-2 text-sm transition-colors", themeClasses.textPrimary, themeClasses.buttonSecondaryHover)}
+                        >
+                          Logg ut
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <button
+                  onClick={handleVippsLogin}
+                  className={cn(
+                    "flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold transition-all",
+                    themeClasses.buttonSecondaryHover,
+                    themeClasses.textPrimary
+                  )}
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
+                  </svg>
+                  <span className="hidden sm:inline">Logg inn</span>
+                </button>
+              )}
 
               {/* CTA - glassmorphic */}
               <Link
