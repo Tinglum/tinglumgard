@@ -40,8 +40,9 @@ import { ConfigurationManagement } from '@/components/admin/ConfigurationManagem
 import { DeliveryCalendar } from '@/components/admin/DeliveryCalendar';
 import { BoxConfiguration } from '@/components/admin/BoxConfiguration';
 import { RebateCodesManager } from '@/components/admin/RebateCodesManager';
+import { ExtrasCatalogManager } from '@/components/admin/ExtrasCatalogManager';
 
-type TabType = 'dashboard' | 'orders' | 'customers' | 'analytics' | 'production' | 'communication' | 'health' | 'inventory' | 'boxes' | 'rebates' | 'settings';
+type TabType = 'dashboard' | 'orders' | 'customers' | 'analytics' | 'production' | 'communication' | 'health' | 'inventory' | 'boxes' | 'rebates' | 'extras' | 'settings';
 
 interface Order {
   id: string;
@@ -396,6 +397,7 @@ export default function AdminPage() {
     { id: 'inventory', label: 'Lager', icon: Warehouse },
     { id: 'boxes', label: 'Boksinnhold', icon: Package },
     { id: 'rebates', label: 'Rabattkoder', icon: Tag },
+    { id: 'extras', label: 'Ekstraprodukter', icon: ShoppingCart },
     { id: 'health', label: 'Systemhelse', icon: Activity },
     { id: 'settings', label: 'Innstillinger', icon: Settings },
   ];
@@ -827,6 +829,9 @@ export default function AdminPage() {
 
         {/* REBATE CODES TAB */}
         {activeTab === 'rebates' && <RebateCodesManager />}
+
+        {/* EXTRAS TAB */}
+        {activeTab === 'extras' && <ExtrasCatalogManager />}
 
         {/* SETTINGS TAB */}
         {activeTab === 'settings' && <ConfigurationManagement />}
