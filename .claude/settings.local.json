@@ -45,7 +45,8 @@
       "Bash(git restore:*)",
       "Bash(node debug-orders.js:*)",
       "Bash(node debug-config.js:*)",
-      "Bash(node:*)"
+      "Bash(node:*)",
+      "Bash(git checkout:*)"
     ]
   }
 }
