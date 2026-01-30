@@ -4,7 +4,11 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 
-export function MobileHero() {
+interface MobileHeroProps {
+  isSoldOut: boolean;
+}
+
+export function MobileHero({ isSoldOut }: MobileHeroProps) {
   const [scrollY, setScrollY] = useState(0);
 
   useEffect(() => {
@@ -74,11 +78,11 @@ export function MobileHero() {
           transition={{ duration: 0.6, delay: 0.3 }}
         >
           <Link
-            href="/bestill"
+            href={isSoldOut ? "#waitlist" : "/bestill"}
             className="group relative inline-flex items-center gap-3 glass-mobile-strong hover:glass-mobile px-8 py-5 rounded-2xl font-bold text-white shadow-2xl hover:shadow-purple-500/20 transition-all duration-300 touch-feedback tap-target"
           >
             <span className="absolute inset-0 rounded-2xl bg-gradient-to-r from-purple-500/20 to-blue-500/20 opacity-0 group-hover:opacity-100 transition-opacity" />
-            <span className="relative z-10">Reserver nå</span>
+            <span className="relative z-10">{isSoldOut ? "Bli med på venteliste" : "Reserver nå"}</span>
             <svg
               className="relative z-10 w-5 h-5 group-hover:translate-x-1 transition-transform"
               fill="none"
