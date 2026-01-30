@@ -42,7 +42,10 @@
       "Bash(tail:*)",
       "Bash(git ls-tree:*)",
       "Bash(git rm:*)",
-      "Bash(git restore:*)"
+      "Bash(git restore:*)",
+      "Bash(node debug-orders.js:*)",
+      "Bash(node debug-config.js:*)",
+      "Bash(node:*)"
     ]
   }
 }
