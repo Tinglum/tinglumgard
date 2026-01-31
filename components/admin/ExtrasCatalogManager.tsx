@@ -17,6 +17,7 @@ interface Extra {
   price_nok: number;
   pricing_type: 'per_unit' | 'per_kg';
   stock_quantity: number | null;
+  default_quantity: number;
   active: boolean;
   created_at: string;
 }
@@ -38,6 +39,7 @@ export function ExtrasCatalogManager() {
     price_nok: 0,
     pricing_type: 'per_unit',
     stock_quantity: null,
+    default_quantity: 1,
     active: true,
   });
 
@@ -67,6 +69,7 @@ export function ExtrasCatalogManager() {
       price_nok: 0,
       pricing_type: 'per_unit',
       stock_quantity: null,
+      default_quantity: 1,
       active: true,
     });
     setIsCreating(true);
@@ -91,6 +94,7 @@ export function ExtrasCatalogManager() {
       price_nok: 0,
       pricing_type: 'per_unit',
       stock_quantity: null,
+      default_quantity: 1,
       active: true,
     });
   }
@@ -273,6 +277,19 @@ export function ExtrasCatalogManager() {
                 value={formData.price_nok}
                 onChange={(e) => setFormData({ ...formData, price_nok: parseFloat(e.target.value) })}
                 placeholder="0"
+              />
+            </div>
+
+            <div>
+              <label className={cn('text-sm font-medium mb-1 block', theme.textPrimary)}>
+                Standardverdi (mengde kunden ser)
+              </label>
+              <Input
+                type="number"
+                min="1"
+                value={formData.default_quantity ?? 1}
+                onChange={(e) => setFormData({ ...formData, default_quantity: parseInt(e.target.value) || 1 })}
+                placeholder="1"
               />
             </div>
 
