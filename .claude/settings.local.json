@@ -46,7 +46,8 @@
       "Bash(node debug-orders.js:*)",
       "Bash(node debug-config.js:*)",
       "Bash(node:*)",
-      "Bash(git checkout:*)"
+      "Bash(git checkout:*)",
+      "Bash(psql:*)"
     ]
   }
 }

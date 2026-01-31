@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useIsMobile } from '@/hooks/useMediaQuery';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -15,12 +16,14 @@ import Image from 'next/image';
 import { Check, ChevronRight } from 'lucide-react';
 import { ReferralCodeInput } from '@/components/ReferralCodeInput';
 import { RebateCodeInput } from '@/components/RebateCodeInput';
+import { MobileCheckout } from '@/components/MobileCheckout';
 
 export default function CheckoutPage() {
   const { t } = useLanguage();
   const { getThemeClasses } = useTheme();
   const theme = getThemeClasses();
   const searchParams = useSearchParams();
+  const isMobile = useIsMobile();
   const [step, setStep] = useState(1);
   const [boxSize, setBoxSize] = useState<'8' | '12' | ''>('');
   const [ribbeChoice, setRibbeChoice] = useState<'tynnribbe' | 'familieribbe' | 'porchetta' | 'butchers_choice' | ''>('butchers_choice');
@@ -289,6 +292,84 @@ export default function CheckoutPage() {
     );
   }
 
+  // Mobile version
+  if (isMobile) {
+    return (
+      <div className="min-h-screen relative">
+        {/* Animated prismatic background */}
+        <div className="fixed inset-0 -z-10 bg-gradient-to-br from-purple-900 via-blue-900 to-teal-900 animate-gradient">
+          <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-20" />
+          <div className="absolute top-0 right-0 w-96 h-96 bg-pink-500 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob" />
+          <div className="absolute bottom-0 left-0 w-96 h-96 bg-cyan-500 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob animation-delay-2000" />
+          <div className="absolute top-1/2 left-1/2 w-96 h-96 bg-purple-500 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob animation-delay-4000" />
+        </div>
+
+        <div className="max-w-2xl mx-auto px-4 py-8">
+          <Link
+            href="/"
+            className="inline-flex items-center gap-2 text-white font-semibold mb-6"
+            style={{ textShadow: '0 2px 8px rgba(0,0,0,0.9)' }}
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+            Tilbake
+          </Link>
+
+          <h1
+            className="text-5xl font-bold text-white mb-2"
+            style={{ textShadow: '0 2px 20px rgba(0,0,0,0.9)' }}
+          >
+            Bestill
+          </h1>
+          <p
+            className="text-sm font-semibold text-white mb-8"
+            style={{ textShadow: '0 2px 8px rgba(0,0,0,0.9)' }}
+          >
+            Reserver din kasse med Vipps
+          </p>
+
+          <MobileCheckout
+            step={step}
+            setStep={setStep}
+            boxSize={boxSize}
+            setBoxSize={setBoxSize}
+            ribbeChoice={ribbeChoice}
+            setRibbeChoice={setRibbeChoice}
+            extraProducts={extraProducts}
+            setExtraProducts={setExtraProducts}
+            extraQuantities={extraQuantities}
+            setExtraQuantities={setExtraQuantities}
+            availableExtras={availableExtras}
+            deliveryType={deliveryType}
+            setDeliveryType={setDeliveryType}
+            freshDelivery={freshDelivery}
+            setFreshDelivery={setFreshDelivery}
+            agreedToTerms={agreedToTerms}
+            setAgreedToTerms={setAgreedToTerms}
+            agreedToDepositPolicy={agreedToDepositPolicy}
+            setAgreedToDepositPolicy={setAgreedToDepositPolicy}
+            isProcessing={isProcessing}
+            handleCheckout={handleCheckout}
+            prices={prices}
+            addonPrices={addonPrices}
+            depositTotal={depositTotal}
+            remainderTotal={remainderTotal}
+            totalPrice={totalPrice}
+            baseDepositTotal={baseDepositTotal}
+            referralData={referralData}
+            setReferralData={setReferralData}
+            rebateData={rebateData}
+            setRebateData={setRebateData}
+            referralDiscount={referralDiscount}
+            rebateDiscount={rebateDiscount}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  // Desktop version
   return (
     <div className="min-h-screen relative">
       {/* Animated background */}

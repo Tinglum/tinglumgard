@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { useIsMobile } from '@/hooks/useMediaQuery';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -11,6 +12,7 @@ import { Package, Gift } from 'lucide-react';
 import Link from 'next/link';
 import { OrderDetailsCard } from '@/components/OrderDetailsCard';
 import { ReferralDashboard } from '@/components/ReferralDashboard';
+import { MobileMinSide } from '@/components/MobileMinSide';
 
 interface Payment {
   id: string;
@@ -50,6 +52,7 @@ export default function CustomerPortalPage() {
   const { getThemeClasses } = useTheme();
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const theme = getThemeClasses();
+  const isMobile = useIsMobile();
 
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
@@ -160,6 +163,51 @@ export default function CustomerPortalPage() {
     );
   }
 
+  // Mobile version
+  if (isMobile) {
+    return (
+      <div className="min-h-screen relative">
+        {/* Animated prismatic background */}
+        <div className="fixed inset-0 -z-10 bg-gradient-to-br from-purple-900 via-blue-900 to-teal-900 animate-gradient">
+          <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-20" />
+          <div className="absolute top-0 right-0 w-96 h-96 bg-pink-500 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob" />
+          <div className="absolute bottom-0 left-0 w-96 h-96 bg-cyan-500 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob animation-delay-2000" />
+          <div className="absolute top-1/2 left-1/2 w-96 h-96 bg-purple-500 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob animation-delay-4000" />
+        </div>
+
+        <div className="max-w-2xl mx-auto px-4 py-8">
+          <Link
+            href="/"
+            className="inline-flex items-center gap-2 text-white font-semibold mb-6"
+            style={{ textShadow: '0 2px 8px rgba(0,0,0,0.9)' }}
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+            Tilbake
+          </Link>
+
+          <MobileMinSide
+            orders={orders}
+            activeTab={activeTab}
+            setActiveTab={setActiveTab}
+            canEdit={canEdit}
+            cutoffWeek={cutoffWeek}
+            cutoffYear={cutoffYear}
+            onPayRemainder={handlePayRemainder}
+          />
+
+          {activeTab === 'referrals' && (
+            <div className="mt-6">
+              <ReferralDashboard />
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // Desktop version
   return (
     <div className={cn("min-h-screen py-16 sm:py-24", theme.bgGradientHero)}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
