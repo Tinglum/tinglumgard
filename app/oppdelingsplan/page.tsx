@@ -29,64 +29,64 @@ export default function OppdelingsplanPage() {
       id: 3,
       name: t.oppdelingsplan.nakke,
       description: t.oppdelingsplan.nakkeDesc,
-      inBox: [t.oppdelingsplan.nakkeInBox],
-      extraOrder: [t.oppdelingsplan.nakkeExtra1, t.oppdelingsplan.nakkeExtra2]
+      inBox: ["Nakkekoteletter ca. 1.0 kg (12 kg kasse) / ca. 0.75 kg (8 kg kasse)"],
+      extraOrder: ["Ekstra nakkekoteletter", "Nakkestek/gryte"]
     },
     {
       id: 4,
       name: t.oppdelingsplan.indrefilet,
       description: t.oppdelingsplan.indrefiletDesc,
       inBox: [],
-      extraOrder: [t.oppdelingsplan.indrefiletExtra]
+      extraOrder: ["Indrefilet"]
     },
     {
       id: 5,
       name: t.oppdelingsplan.kotelettkam,
       description: t.oppdelingsplan.kotelettkamDesc,
-      inBox: [t.oppdelingsplan.kotelettkamInBox],
-      extraOrder: [t.oppdelingsplan.kotelettkamExtra]
+      inBox: ["Inkludert i Familieribbe-valget"],
+      extraOrder: ["Svinekoteletter"]
     },
     {
       id: 7,
       name: t.oppdelingsplan.ribbeside,
       description: t.oppdelingsplan.ribbesideDesc,
-      inBox: [t.oppdelingsplan.ribbesideInBox],
-      extraOrder: [t.oppdelingsplan.ribbesideExtra1, t.oppdelingsplan.ribbesideExtra2, t.oppdelingsplan.ribbesideExtra3]
+      inBox: ["ca. 3.0 kg ribbe (12 kg kasse) / ca. 2.0 kg ribbe (8 kg kasse) - velg type ved bestilling"],
+      extraOrder: ["Ekstra ribbe", "Bacon", "Sideflesk"]
     },
     {
       id: 8,
       name: t.oppdelingsplan.svinebog,
       description: t.oppdelingsplan.svinebogDesc,
-      inBox: [t.oppdelingsplan.svinebogInBox],
-      extraOrder: [t.oppdelingsplan.svinebogExtra1, t.oppdelingsplan.svinebogExtra2]
+      inBox: ["Inkludert i Slakterens valg"],
+      extraOrder: ["Bogsteik/gryte", "Steik til pulled-pork"]
     },
     {
       id: 9,
       name: t.oppdelingsplan.skinke,
       description: t.oppdelingsplan.skinkeDesc,
-      inBox: [t.oppdelingsplan.skinkeInBox1, t.oppdelingsplan.skinkeInBox2],
-      extraOrder: [t.oppdelingsplan.skinkeExtra1, t.oppdelingsplan.skinkeExtra2]
+      inBox: ["Svinesteik ca. 1.0 kg", "Også inkludert i Slakterens valg"],
+      extraOrder: ["Ekstra skinkesteik", "Spekeskinke"]
     },
     {
       id: 10,
       name: t.oppdelingsplan.knoke,
       description: t.oppdelingsplan.knokeDesc,
-      inBox: [t.oppdelingsplan.knokeInBox],
-      extraOrder: [t.oppdelingsplan.knokeExtra]
+      inBox: ["1 stk knoke (ca. 0.5-1.0 kg)"],
+      extraOrder: ["Ekstra knoker"]
     },
     {
       id: 11,
       name: t.oppdelingsplan.labb,
       description: t.oppdelingsplan.labbDesc,
       inBox: [],
-      extraOrder: [t.oppdelingsplan.labbExtra]
+      extraOrder: ["Svinelabb"]
     },
     {
       id: 12,
-      name: t.oppdelingsplan.pølserFarse,
-      description: t.oppdelingsplan.pølserFarseDesc,
-      inBox: [t.oppdelingsplan.pølserFarseInBox1, t.oppdelingsplan.pølserFarseInBox2],
-      extraOrder: [t.oppdelingsplan.pølserFarseExtra1, t.oppdelingsplan.pølserFarseExtra2]
+      name: t.oppdelingsplan.polserFarse,
+      description: t.oppdelingsplan.polserFarseDesc,
+      inBox: ["Medisterfarse: ca. 1.5 kg (12 kg kasse) / ca. 1.0 kg (8 kg kasse)", "Julepølse: ca. 1.0 kg (12 kg kasse) / ca. 0.5 kg (8 kg kasse)"],
+      extraOrder: ["Ekstra medisterfarse", "Ekstra julepølse"]
     }
   ];
 
@@ -174,9 +174,9 @@ export default function OppdelingsplanPage() {
                 <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                 </svg>
-                {t.oppdelingsplan.extraOrder}
+                {t.oppdelingsplan.canOrder}
               </h3>
-              <p className={cn("text-sm mb-4", theme.textMuted)}>{t.oppdelingsplan.extraOrderDesc}:</p>
+              <p className={cn("text-sm mb-4", theme.textMuted)}>{t.oppdelingsplan.canOrderDesc}:</p>
               <div className="space-y-2">
                 {["Indrefilet", "Ytrefilet/Ryggfilet", "Svinekoteletter", "Ekstra ribbe", "Bacon/Sideflesk", "Spekeskinke", "Bogsteik (pulled pork)", "Svinelabb", "Innmat (lever, hjerte)", "Kraftbein"].map((product) => (
                   <div key={product} className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
@@ -343,7 +343,7 @@ export default function OppdelingsplanPage() {
                         <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                         </svg>
-                        {t.oppdelingsplan.extraOrder}
+                        {t.oppdelingsplan.canOrder}
                       </h3>
                       {selectedCutInfo.extraOrder.length > 0 ? (
                         <div className="flex flex-wrap gap-2">
@@ -364,7 +364,7 @@ export default function OppdelingsplanPage() {
                     <div className={cn("mt-8 pt-8 border-t", theme.borderSecondary)}>
                       <div className="text-center mb-6">
                         <h3 className={cn("text-2xl font-bold mb-2", theme.textPrimary)}>{t.oppdelingsplan.chooseRibbeType}</h3>
-                        <p className={cn("text-sm", theme.textMuted)}>{t.oppdelingsplan.ribbeTypeDesc}</p>
+                        <p className={cn("text-sm", theme.textMuted)}>Alle tre varianter bruker forskjellige deler av ribbeside og mage</p>
                       </div>
 
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
@@ -406,7 +406,7 @@ export default function OppdelingsplanPage() {
                       </div>
 
                       <div className={cn("rounded-lg p-4 text-sm", theme.bgSecondary, theme.textSecondary)}>
-                        <strong className={theme.textPrimary}>{t.oppdelingsplan.butchersChoiceTitle}:</strong> {t.oppdelingsplan.butchersChoiceText}
+                        {t.oppdelingsplan.butchersChoiceFull}
                       </div>
                     </div>
                   )}
@@ -418,7 +418,7 @@ export default function OppdelingsplanPage() {
               <svg className={cn("w-16 h-16 mx-auto mb-4", theme.iconColor)} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" />
               </svg>
-              <p className={cn("text-lg font-medium", theme.textMuted)}>{t.oppdelingsplan.clickToPart}</p>
+              <p className={cn("text-lg font-medium", theme.textMuted)}>{t.oppdelingsplan.clickForInfo}</p>
             </div>
           )}
         </div>
