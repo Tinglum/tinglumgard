@@ -131,6 +131,7 @@ export const no = {
     step4Title: "Fersk levering (tilvalg)",
     step4Desc: "Mot et lite tillegg kan du velge fersk levering i uke 50-51. Perfekt hvis du ønsker kjøttet helt ferskt!",
     step4Time: "Uke 50-51",
+    optional: "Valgfritt",
     week44: "Uke 45: Betaling fullføres",
     week46: "Uke 47: Siste frist for endringer",
     week48: "Uke 49: Levering og utlevering",

@@ -131,6 +131,7 @@ export const en = {
     step4Title: "Fresh delivery (optional)",
     step4Desc: "For a small extra fee you can choose fresh delivery in week 50-51. Perfect if you want the meat completely fresh!",
     step4Time: "Week 50-51",
+    optional: "Optional",
     week44: "Week 45: Payment completed",
     week46: "Week 47: Final deadline for changes",
     week48: "Week 49: Delivery and pickup",
