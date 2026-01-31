@@ -117,6 +117,8 @@ export const no = {
     subtitle: "Fra bestilling til levering",
     tagline: "Grisene vokser gjennom 2026 • Fersk levering i desember",
     reserveNow: "Reserver din pakke nå",
+    howItWorks: "Slik fungerer det",
+    fromOrderToDelivery: "Fra bestilling til levering",
     step1Title: "Reserver din pakke nå",
     step1Desc: "Betal forskudd (50%) med Vipps. Din plass er sikret når betalingen er gjennomført.",
     step2Title: "Restsum betales",

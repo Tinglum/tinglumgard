@@ -117,6 +117,8 @@ export const en = {
     subtitle: "From order to delivery",
     tagline: "The pigs grow throughout 2026 • Fresh delivery in December",
     reserveNow: "Reserve your box now",
+    howItWorks: "How it works",
+    fromOrderToDelivery: "From order to delivery",
     step1Title: "Reserve your box now",
     step1Desc: "Pay deposit (50%) with Vipps. Your spot is secured when payment is completed.",
     step2Title: "Balance payment",
