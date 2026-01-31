@@ -149,8 +149,8 @@ export default function CustomerPortalPage() {
       <div className={cn("min-h-screen flex items-center justify-center px-6", theme.bgGradientHero)}>
         <div className={cn("text-center max-w-md rounded-3xl p-8 border shadow-2xl", theme.bgCard, theme.glassBorder)}>
           <Package className={cn("w-16 h-16 mx-auto mb-4", theme.textPrimary)} />
-          <h1 className={cn("text-2xl font-bold mb-4", theme.textPrimary)}>{t.minSide.loginToSeeOrders}</h1>
-          <p className={cn("mb-6", theme.textMuted)}>{t.minSide.loginRequired}</p>
+          <h1 className={cn("text-2xl font-bold mb-4", theme.textPrimary)}>{t.minSide.loginRequired}</h1>
+          <p className={cn("mb-6", theme.textMuted)}>{t.minSide.loginDesc}</p>
           <button
             onClick={() => window.location.href = '/api/auth/vipps/login?returnTo=/min-side'}
             className="w-full bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-bold py-4 px-8 rounded-2xl shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-300 flex items-center justify-center gap-3"
@@ -241,7 +241,7 @@ export default function CustomerPortalPage() {
               )}
             >
               <Gift className="w-5 h-5" />
-              {t.minSide.friendDiscount}
+              {t.minSide.referrals}
             </button>
           </div>
 
@@ -259,7 +259,7 @@ export default function CustomerPortalPage() {
           <Card className={cn("p-12 text-center", theme.bgCard)}>
             <Package className={cn("w-16 h-16 mx-auto mb-4", theme.iconColor)} />
             <h2 className={cn("text-xl font-semibold mb-2", theme.textPrimary)}>{t.minSide.noOrders}</h2>
-            <p className={cn("mb-6", theme.textSecondary)}>{t.minSide.noOrdersYet}</p>
+            <p className={cn("mb-6", theme.textSecondary)}>{t.minSide.noOrdersDesc}</p>
             <Link href="/bestill">
               <Button size="lg">{t.minSide.goToOrder}</Button>
             </Link>
@@ -282,7 +282,7 @@ export default function CustomerPortalPage() {
                 className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-green-600 hover:bg-green-700 text-white font-semibold transition-colors"
               >
                 <Package className="w-5 h-5" />
-                {t.minSide.placeNewOrder}
+                {t.minSide.newOrder}
               </Link>
             </div>
           </div>
