@@ -40,6 +40,7 @@ export const no = {
   // Hero section
   hero: {
     season: "Sesong 2026",
+    seasonOnce: "Bare en gang i året",
     headline: "Ullgris fra",
     farmName: "Tinglum Gård",
     subtitle: "Gris fra Tinglum Gård i Namdalseid. Grisene vokser opp på gården gjennom 2026, slaktes lokalt i desember, og leveres fersk til døren din.",
@@ -48,6 +49,7 @@ export const no = {
     joinWaitlist: "Bli med på venteliste",
     qualityHeadline: "Norsk kvalitet",
     tagline: "Vakuumpakket, fryseklart, levert uke 48.",
+    reserveBeforeLate: "Reserver kassen din før det blir for sent.",
     description: "Oppvokst ute på beite. Råvarer fra økologisk produksjon i fôringen. Kuttene er valgt for ribbe, bacon, pølser og gode hverdagsmiddager. Reserver kasse i dag.",
   },
 

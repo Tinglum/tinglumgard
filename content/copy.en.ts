@@ -40,6 +40,7 @@ export const en = {
   // Hero section
   hero: {
     season: "Season 2026",
+    seasonOnce: "Only once a year",
     headline: "Woolly Pig from",
     farmName: "Tinglum Gård",
     subtitle: "Pork from Tinglum Gård in Namdalseid. The pigs grow up on the farm throughout 2026, are slaughtered locally in December, and delivered fresh to your door.",
@@ -48,6 +49,7 @@ export const en = {
     joinWaitlist: "Join waiting list",
     qualityHeadline: "Norwegian quality",
     tagline: "Vacuum packed, freezer-ready, delivered week 48.",
+    reserveBeforeLate: "Reserve your box before it's too late.",
     description: "Raised outdoors on pasture. Feed containing ingredients from organic production. Cuts selected for ribs, bacon, sausages, and great everyday meals. Reserve your box today.",
   },
 
