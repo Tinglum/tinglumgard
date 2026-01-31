@@ -45,6 +45,7 @@ export const en = {
     farmName: "Tinglum Gård",
     subtitle: "Pork from Tinglum Gård in Namdalseid. The pigs grow up on the farm throughout 2026, are slaughtered locally in December, and delivered fresh to your door.",
     cta: "Reserve now",
+    reserveNow: "Reserve now",
     learnMore: "Learn more about the product",
     joinWaitlist: "Join waiting list",
     qualityHeadline: "Norwegian quality",

@@ -45,6 +45,7 @@ export const no = {
     farmName: "Tinglum Gård",
     subtitle: "Gris fra Tinglum Gård i Namdalseid. Grisene vokser opp på gården gjennom 2026, slaktes lokalt i desember, og leveres fersk til døren din.",
     cta: "Reserver nå",
+    reserveNow: "Reserver nå",
     learnMore: "Les mer om produktet",
     joinWaitlist: "Bli med på venteliste",
     qualityHeadline: "Norsk kvalitet",
