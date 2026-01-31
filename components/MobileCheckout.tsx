@@ -238,10 +238,10 @@ export function MobileCheckout(props: MobileCheckoutProps) {
           </h2>
 
           {[
-            { id: 'tynnribbe', name: 'Tynnribbe', desc: 'Klassisk ribbe med ribbein' },
-            { id: 'familieribbe', name: 'Familieribbe', desc: 'Inkluderer kotelettkam - mer kjøtt' },
-            { id: 'porchetta', name: 'Porchetta', desc: 'Beinfri nedre mage - italiensk stil' },
-            { id: 'butchers_choice', name: 'Slakterens valg', desc: 'Vi velger basert på tilgjengelighet', tag: 'Anbefalt' },
+            { id: 'tynnribbe' as const, name: 'Tynnribbe', desc: 'Klassisk ribbe med ribbein' },
+            { id: 'familieribbe' as const, name: 'Familieribbe', desc: 'Inkluderer kotelettkam - mer kjøtt' },
+            { id: 'porchetta' as const, name: 'Porchetta', desc: 'Beinfri nedre mage - italiensk stil' },
+            { id: 'butchers_choice' as const, name: 'Slakterens valg', desc: 'Vi velger basert på tilgjengelighet', tag: 'Anbefalt' },
           ].map((option) => (
             <motion.button
               key={option.id}
