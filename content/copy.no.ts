@@ -1,142 +1,497 @@
 export const no = {
+  // Navigation & Common
   nav: {
     products: "Kasser",
     cuts: "Kutt",
     myOrders: "Min side",
-    admin: "Admin"
+    admin: "Admin",
+    oppdelingsplan: "Oppdelingsplan",
+    minebestillinger: "Mine bestillinger",
+    logout: "Logg ut",
+    login: "Logg inn",
+    order: "Bestill",
+    back: "Tilbake",
+    backToHome: "Tilbake til forsiden",
   },
-  hero: {
-    season: "Sesongslipp 2026",
-    headline: "Norsk kvalitet",
-    subheadline: "Vakuumpakket, fryseklart, levert uke 48.",
-    description:
-      "Oppvokst ute på beite. Råvarer fra økologisk produksjon i fôringen. Kuttene er valgt for ribbe, bacon, pølser og gode hverdagsmiddager. Reserver kasse i dag."
-  },
-  product: {
-    box8: "Ullgris-kasse",
-    box12: "Ullgris-kasse",
-    kg: "kg",
-    boxesLeft: "bokser igjen",
-    lowStock: "Få igjen, reserver nå",
-    soldOut: "Utsolgt",
-    priceDeposit: "Betales nå",
-    priceRemainder: "Rest før levering",
-    seeDetails: "Se innhold",
-    orderNow: "Reserver nå",
-    joinWaitlist: "Få varsel ved neste slipp"
-  },
-  timeline: {
-    title: "Slik fungerer det",
-    week44: "Uke 45: Betaling fullføres",
-    week46: "Uke 47: Siste frist for endringer",
-    week48: "Uke 49: Levering og utlevering",
-    week44Desc: "Du får beskjed og fullfører betaling før levering.",
-    week46Desc: "Endre størrelse og tillegg frem til fristen, etterpå låses bestillingen.",
-    week48Desc: "Henting eller levering etter valgt alternativ."
-  },
-  faq: {
-    title: "Spørsmål og svar",
-    q1: "Hva får jeg i kassen?",
-    a1:
-      "Fast struktur, små variasjoner er normalt. Du får ribbe, bacon, pølser, nakkekoteletter og kokkekutt. Alt er porsjonert, merket og vakuumpakket.",
-    q2: "Når får jeg leveringen?",
-    a2:
-      "Frossen kasse leveres i uke 48. Fersk kasse kan velges mot tillegg og leveres i slutten av uke 50 eller starten av uke 51.",
-    q3: "Kan jeg endre bestillingen?",
-    a3:
-      "Ja, frem til uke 46. Etter fristen låses bestillingen slik at vi kan planlegge produksjon og pakking.",
-    q4: "Hvordan henter jeg eller får levert?",
-    a4:
-      "Du kan velge levering langs E6 mellom Levanger og Namsos, eller Trondheim. Pris vises i kassen før du bekrefter."
-  },
-  productDetail: {
-    title: "Innhold i kassen",
-    variation:
-      "Kassene følger samme struktur hver gang. Små variasjoner kan forekomme på grunn av naturlig variasjon i slaktet, vi sikrer alltid en god balanse.",
-    categories: {
-      ribbe: "Ribbe",
-      sausages: "Pølser",
-      bacon: "Bacon",
-      chops: "Nakkekoteletter",
-      stew: "Kokkekutt"
-    },
-    addons: {
-      title: "Tilvalg",
-      delivery: "Trondheim, utlevering eller levering",
-      highway: "Levering langs E6 Levanger–Namsos",
-      fresh: "Fersk kasse (ikke fryst)",
-      disabled: "Du velger tilvalg i kassen"
-    }
-  },
-  checkout: {
-    title: "Reserver kasse",
-    selectBox: "Velg størrelse",
-    addons: "Tilvalg",
-    deliveryTrondheim: "Trondheim",
-    pickupE6: "Levering langs E6",
-    freshDelivery: "Fersk kasse",
-    summary: "Oppsummering",
-    deposit: "Betales nå",
-    remainder: "Rest før levering",
-    total: "Totalt",
-    agreement:
-      "Jeg forstår at betalingen ved bestilling er bindende og ikke refunderes, fordi den reserverer plass i et begrenset sesongslipp. Hvis Tinglum Gård ikke kan levere, refunderes beløpet.",
-    pay: "Gå til Vipps",
-    vippsOnly: "Sikker betaling med Vipps."
-  },
-  customer: {
-    title: "Mine bestillinger",
-    orderNumber: "Bestilling",
-    status: "Status",
-    payRemainder: "Fullfør betaling",
-    edit: "Endre valg",
-    editUntil: "Du kan endre størrelse og tilvalg frem til uke 46.",
-    cannotEdit: "Bestillingen er låst etter uke 46.",
-    statuses: {
-      depositPaid: "Reservert",
-      remainderDue: "Betaling gjenstår",
-      paid: "Betalt",
-      locked: "Låst",
-      delivered: "Levert",
-      completed: "Fullført",
-      atRisk: "Krever oppfølging"
-    }
-  },
-  admin: {
-    title: "Admin",
-    inventory: "Sesonglager",
-    kgRemaining: "Kg igjen i sesongslippet",
-    updateInventory: "Oppdater",
-    orders: "Bestillinger",
-    orderNumber: "Nr.",
-    customer: "Kunde",
-    box: "Kasse",
-    status: "Status",
-    actions: "Handlinger",
-    changeStatus: "Endre status"
-  },
-  cuts: {
-    title: "Kutt og oversikt",
-    inBox: "I kassen",
-    extraOrder: "Kan velges som ekstra",
-    shoulder: "Bog",
-    loin: "Rygg",
-    belly: "Buk",
-    leg: "Lår",
-    hover: "Hold musepekeren over kuttet, trykk på mobil"
-  },
-  footer: {
-    farm: "Tinglum Gård",
-    location: "Namdalseid, Trøndelag",
-    organic: "Ullgris, ute på beite, råvarer fra økologisk produksjon i fôringen",
-    contact: "Kontakt",
-    legal: "Vilkår og personvern"
-  },
+
+  // Common words/actions
   common: {
     close: "Lukk",
     save: "Lagre",
     cancel: "Avbryt",
     loading: "Laster...",
-    error: "Noe gikk galt"
-  }
+    error: "Noe gikk galt",
+    confirm: "Bekreft",
+    edit: "Endre",
+    delete: "Slett",
+    add: "Legg til",
+    remove: "Fjern",
+    continue: "Fortsett",
+    processing: "Behandler...",
+    free: "Gratis",
+    total: "Totalt",
+    kr: "kr",
+    kg: "kg",
+    stk: "stk",
+    week: "uke",
+    year: "år",
+  },
+
+  // Hero section
+  hero: {
+    season: "Sesong 2026",
+    headline: "Ullgris fra",
+    farmName: "Tinglum Gård",
+    subtitle: "Gris fra Tinglum Gård i Namdalseid. Grisene vokser opp på gården gjennom 2026, slaktes lokalt i desember, og leveres fersk til døren din.",
+    cta: "Reserver nå",
+    learnMore: "Les mer om produktet",
+    joinWaitlist: "Bli med på venteliste",
+    qualityHeadline: "Norsk kvalitet",
+    tagline: "Vakuumpakket, fryseklart, levert uke 48.",
+    description: "Oppvokst ute på beite. Råvarer fra økologisk produksjon i fôringen. Kuttene er valgt for ribbe, bacon, pølser og gode hverdagsmiddager. Reserver kasse i dag.",
+  },
+
+  // Product/Box selection
+  product: {
+    chooseYourBox: "Velg din pakke",
+    twoSizes: "To størrelser å velge mellom",
+    sameQuality: "Samme høye kvalitet uansett størrelse. Velg pakken som passer best for din husholdning.",
+    smallBox: "Mindre pakke",
+    largeBox: "Større pakke",
+    mostPopular: "Mest populær",
+    betterPricePerKg: "Bedre pris per kg",
+    perfectFor2to3: "Perfekt for 2-3 personer eller mindre forbruk",
+    idealFor4to6: "Ideell for 4-6 personer eller større forbruk",
+    inEach8kgBox: "I hver 8 kg kasse:",
+    inEach12kgBox: "I hver 12 kg kasse:",
+    reserve8kg: "Reserver 8 kg pakke",
+    reserve12kg: "Reserver 12 kg pakke",
+    boxesLeft: "bokser igjen",
+    lowStock: "Få igjen",
+    soldOut: "Utsolgt",
+    priceDeposit: "Betales nå",
+    priceRemainder: "Rest ved levering",
+    deposit50: "Forskudd (50%)",
+    remainderAtDelivery: "Rest ved levering",
+    totalPrice: "Totalpris",
+    seeDetails: "Se innhold",
+    orderNow: "Reserver nå",
+    box8: "8 kg kasse",
+    box12: "12 kg kasse",
+  },
+
+  // Availability section
+  availability: {
+    title: "Tilgjengelighet",
+    boxesAvailable: "Kasser tilgjengelig",
+    remainingBoxes: "Få igjen",
+    soldOutComplete: "Utsolgt",
+    reserveBeforeTooLate: "Reserver før det er for sent",
+    seasonProductionComplete: "Sesongproduksjon fullført",
+  },
+
+  // Timeline/How it works
+  timeline: {
+    title: "Slik fungerer det",
+    subtitle: "Fra bestilling til levering",
+    tagline: "Grisene vokser gjennom 2026 • Fersk levering i desember",
+    reserveNow: "Reserver din pakke nå",
+    step1Title: "Reserver din pakke nå",
+    step1Desc: "Betal forskudd (50%) med Vipps. Din plass er sikret når betalingen er gjennomført.",
+    step2Title: "Restsum betales",
+    step2Desc: "Innen uke 46 betaler du resterende 50% av totalbeløpet. Du får betalingsinformasjon på e-post.",
+    step3Title: "Slakting og frossen levering",
+    step3Desc: "Grisene slaktes profesjonelt og pakkes fersk. Deretter fryses alt ned for optimal holdbarhet og leveres i uke 48-49.",
+    step4Title: "Fersk levering (tilvalg)",
+    step4Desc: "Mot et lite tillegg kan du velge fersk levering i uke 50-51. Perfekt hvis du ønsker kjøttet helt ferskt!",
+    week44: "Uke 45: Betaling fullføres",
+    week46: "Uke 47: Siste frist for endringer",
+    week48: "Uke 49: Levering og utlevering",
+    week44Desc: "Du får beskjed og fullfører betaling før levering.",
+    week46Desc: "Endre størrelse og tillegg frem til fristen, etterpå låses bestillingen.",
+    week48Desc: "Henting eller levering etter valgt alternativ.",
+  },
+
+  // FAQ
+  faq: {
+    title: "Spørsmål og svar",
+    commonQuestions: "Vanlige spørsmål",
+    q1: "Hva får jeg i kassen?",
+    a1: "Fast struktur, små variasjoner er normalt. Du får ribbe, bacon, pølser, nakkekoteletter og kokkekutt. Alt er porsjonert, merket og vakuumpakket.",
+    q2: "Når får jeg leveringen?",
+    a2: "Frossen kasse leveres i uke 48. Fersk kasse kan velges mot tillegg og leveres i slutten av uke 50 eller starten av uke 51.",
+    q3: "Kan jeg endre bestillingen?",
+    a3: "Ja, frem til uke 46. Etter fristen låses bestillingen slik at vi kan planlegge produksjon og pakking.",
+    q4: "Hvordan henter jeg eller får levert?",
+    a4: "Du kan velge levering langs E6 mellom Levanger og Namsos, eller Trondheim. Pris vises i kassen før du bekrefter.",
+  },
+
+  // Checkout/Order page
+  checkout: {
+    title: "Bestill",
+    pageTitle: "Reserver din kasse",
+    subtitle: "Reserver din kasse med Vipps",
+    selectSize: "Velg størrelse, ribbe-type og ekstra tillegg. Vi sender deg Vipps-betalingsforespørsel etter bestilling.",
+
+    // Steps
+    stepSize: "Størrelse",
+    stepRibbe: "Ribbe",
+    stepExtras: "Ekstra",
+    stepDelivery: "Levering",
+
+    step1Title: "1. Velg kassestørrelse",
+    step2Title: "2. Velg ribbe-type",
+    step3Title: "3. Ekstra kjøttprodukter (valgfritt)",
+    step4Title: "4. Levering og tillegg",
+
+    // Size selection
+    persons2to3: "2-3 personer",
+    persons4to6: "4-6 personer",
+    inBox: "I kassen:",
+    moreItems: "mer",
+
+    // Ribbe selection
+    selectRibbeType: "Velg ribbe-type",
+    boxContains: "Din kasse inneholder ca. {size} kg ribbe. Velg hvilken type:",
+    tynnribbe: "Tynnribbe",
+    tynnribbeDesc: "Klassisk ribbe med ribbein - perfekt sprøstekt svor",
+    familieribbe: "Familieribbe",
+    familieribbeDesc: "Inkluderer kotelettkammen med ytrefileten - mer kjøtt, magrere kjøtt",
+    porchetta: "Porchetta",
+    porchettaDesc: "Beinfri nedre mage - italiensk stil",
+    butchersChoice: "Slakterens valg",
+    butchersChoiceDesc: "Vi velger en god ribbe til deg basert på tilgjengelighet",
+    preSelected: "Forhåndsvalgt",
+    recommended: "Anbefalt",
+
+    // Extras
+    extrasTitle: "Ekstra kjøttprodukter (valgfritt)",
+    extrasWarning: "Obs: Ekstra produkter er avhengig av tilgjengelighet og grisestørrelse ved slakt. Vi gjør vårt beste for å oppfylle ønskene dine.",
+    quantity: "Mengde:",
+
+    // Delivery
+    deliveryOptions: "Leveringsalternativ",
+    extraOptions: "Ekstra tilvalg",
+    pickupFarm: "Henting på gården",
+    pickupFarmAddress: "Tinglemsvegen 91, Namdalseid",
+    pickupTrondheim: "Henting i Trondheim",
+    pickupTrondheimAddress: "Veita Mat AS, Jomfrugata",
+    deliveryE6: "Levering langs E6",
+    deliveryE6Address: "Stjørdal-Namsos",
+    freshDelivery: "Fersk levering (uke 50/51)",
+    freshDeliveryDesc: "Motta kassen fersk i stedet for frossen - kun på gården",
+
+    // Summary
+    summary: "Sammendrag",
+    deposit50Percent: "Forskudd (50%)",
+    friendDiscount: "Vennerabatt (-20%)",
+    discountCode: "Rabattkode",
+    remainderBeforeDelivery: "Rest før levering",
+    extraProducts: "Ekstra produkter",
+    onlyOneDiscount: "Kun én rabattkode kan brukes per bestilling",
+
+    // Terms
+    depositNotRefundable: "Jeg forstår at depositumet ikke refunderes.",
+    triggersProd: "Dette utløser produksjonsplanlegging.",
+    agreeToTerms: "Jeg godtar",
+    termsLink: "vilkårene for kjøpet",
+
+    // Payment
+    payWith: "Betal med",
+    securePayment: "Sikker betaling med Vipps",
+    contactInfoFromVipps: "Dine kontaktopplysninger hentes automatisk fra Vipps",
+
+    // Navigation
+    goToRibbeChoice: "Gå videre til ribbe-valg",
+    goToExtras: "Gå videre til ekstra tillegg",
+    goToDelivery: "Gå videre til levering",
+
+    // Confirmation
+    orderReceived: "Bestilling mottatt!",
+    thankYou: "Takk for din bestilling. Vi har mottatt din reservasjon og vil sende deg en Vipps-betalingsforespørsel for forskuddet på 50%.",
+    orderNumber: "Bestillingsnummer",
+    nextSteps: "Neste steg:",
+    step1: "Du vil motta en Vipps-betalingsforespørsel for forskuddet (50% av totalbeløpet)",
+    step2: "Du får en bekreftelse på e-post når forskuddet er mottatt",
+    step3: "Resterende beløp betales ved levering",
+    seeMyOrders: "Se mine bestillinger",
+
+    // Errors
+    somethingWentWrong: "Noe gikk galt. Vennligst prøv igjen.",
+  },
+
+  // My Orders / Customer Portal
+  minSide: {
+    title: "Min side",
+    myOrders: "Mine bestillinger",
+    orders: "Bestillinger",
+    referrals: "Vennerabatt",
+    loginRequired: "Logg inn for å se dine bestillinger",
+    loginDesc: "Du må logge inn med Vipps for å se og administrere dine bestillinger.",
+    loginWithVipps: "Logg inn med Vipps",
+    canEditUntil: "Du kan endre bestillingen din frem til uke {week}, {year}",
+    editPeriodExpired: "Endringsperioden er utløpt (uke {week}, {year})",
+    noOrders: "Ingen bestillinger",
+    noOrdersDesc: "Du har ikke lagt inn noen bestillinger ennå.",
+    goToOrder: "Gå til bestilling",
+    newOrder: "Legg inn ny bestilling",
+
+    // Order status
+    completed: "Fullført",
+    depositPaid: "Forskudd betalt",
+    waitingForPayment: "Venter på betaling",
+    payRemainder: "Betal restbeløp",
+    seeDetails: "Se detaljer",
+
+    // Order details
+    order: "BESTILLING",
+    orderNo: "Ordre",
+    box: "Kasse",
+    ribbe: "Ribbe",
+    delivery: "Levering",
+    freshDeliveryIncluded: "Fersk levering",
+    extraProductsTitle: "EKSTRA PRODUKTER",
+    deposit: "Forskudd",
+    remainder: "Restbeløp",
+  },
+
+  // Oppdelingsplan (Butcher diagram)
+  oppdelingsplan: {
+    title: "Oppdelingsplan",
+    subtitle: "Trykk på hver del for å se hva som er i kassen og hva du kan bestille ekstra",
+    titleFull: "Oppdelingsplan - Gris",
+    clickInfo: "Klikk på de forskjellige delene for å se hvilke produkter som er inkludert i kassen og hva som kan bestilles ekstra",
+    ourProducts: "Våre produkter",
+    inBox: "I kassen",
+    inBoxDesc: "Disse produktene er inkludert i standardkassen:",
+    canOrder: "Kan bestilles ekstra",
+    canOrderDesc: "Disse produktene kan legges til bestillingen (begrenset tilgjengelighet):",
+    clickForInfo: "Klikk på en del av grisen for å se produktinformasjon",
+    allCuts: "Alle kutt - Oversikt",
+    inBoxShort: "I kassen:",
+    extraShort: "Ekstra:",
+    noProductsInBox: "Ingen produkter fra denne delen i standardkassen",
+    noExtraProducts: "Ingen ekstra produkter tilgjengelig fra denne delen",
+    chooseRibbeType: "Velg din ribbe-type",
+    ribbeTypeInfo: "Alle tre varianter bruker forskjellige deler av ribbeside og mage",
+    butchersChoiceFull: "Slakterens valg: Ikke sikker? Velg 'Slakterens valg' ved bestilling, så velger vi basert på tilgjengelighet.",
+    quickSummary: "Rask oversikt",
+    seeDetailsBelow: "Se detaljert informasjon om hver del nedenfor",
+
+    // Cut names and descriptions
+    nakke: "Nakke",
+    nakkeDesc: "Nakken er marmorert med fett og gir saftige koteletter og steik.",
+    indrefilet: "Indrefilet",
+    indrefiletDesc: "Indrefileten er det aller møreste kjøttet fra grisen.",
+    kotelettkam: "Kotelettkam",
+    kotelettkamDesc: "Kotelettkammen er fra ryggen og gir møre koteletter. Dette området brukes også i Familieribbe.",
+    ribbeside: "Ribbeside",
+    ribbesideDesc: "Ribbeside og mage gir ulike typer ribbe. Velg mellom Tynnribbe (med ribbein), Familieribbe (inkl. kotelettkam), eller Porchetta (beinfri nedre mage).",
+    svinebog: "Svinebog",
+    svinebogDesc: "Bogen passer perfekt til pulled pork, gryter og steik. Dette er et av de mest allsidige stykkene.",
+    skinke: "Skinke/Lår",
+    skinkeDesc: "Skinken/låret kan brukes fersk som steik, gryte, eller spekkes. Dette er en stor, mager muskelgruppe.",
+    knoke: "Knoke",
+    knokeDesc: "Knoken passer til kraft og gryter, eller til steik. Hver kasse inneholder 1 knoke.",
+    labb: "Labb",
+    labbDesc: "Labben brukes ofte til sylte og kraftsuppe.",
+    polserFarse: "Pølser & Farse",
+    polserFarseDesc: "Laget av trim og mindre stykker. Perfekt til hverdagsmiddag og julemat.",
+  },
+
+  // Referrals
+  referrals: {
+    createCode: "Opprett vennerabattkode",
+    getCredit: "Få 10% kreditt for hver venn som bruker din kode",
+    howItWorks: "Slik fungerer det:",
+    step1: "Du oppretter en personlig rabattkode",
+    step2: "Venner får 20% rabatt på forskuddet når de bruker din kode",
+    step3: "Du får 10% kreditt av deres kjøp som kan brukes på ditt restbeløp",
+    step4: "Maks 5 venner per bestilling kan gi deg kreditt",
+    chooseCode: "Velg din unike kode (4-20 tegn, kun bokstaver og tall)",
+    exampleCode: "f.eks. KENNETH2026",
+    creating: "Oppretter...",
+    createButton: "Opprett kode",
+    yourCode: "Din vennerabattkode",
+    shareCode: "Del denne koden med venner og familie",
+    code: "Din kode:",
+    copied: "Kopiert!",
+    copyCode: "Kopier kode",
+    shareButton: "Del kode",
+    friendsGet20: "Venner får 20% rabatt på forskuddet • Du får 10% kreditt per henvisning",
+    totalReferrals: "Totale henvisninger",
+    availableCredit: "Tilgjengelig kreditt",
+    creditRemaining: "Kredittering igjen",
+    of: "av",
+    unusedBonuses: "Du har {count} ubrukte bonuser!",
+    moreReferrals: "Du har henvist flere venner enn du kan få kreditt for med din nåværende bestilling...",
+    orderNew: "Bestill ny kasse",
+    yourReferrals: "Dine henvisninger",
+    used: "Brukt",
+    available: "Tilgjengelig",
+
+    // Input
+    haveCode: "Har du en vennerabattkode?",
+    enterCode: "Skriv inn kode",
+    checking: "Sjekker...",
+    useCode: "Bruk kode",
+    newCustomersGet20: "Nye kunder får 20% rabatt på forskuddet ved bruk av vennerabattkode",
+    codeActivated: "Kode aktivert: {code}",
+    youGet20Off: "Du får 20% rabatt på forskuddet ({amount} kr)",
+    remove: "Fjern",
+    invalidCode: "Ugyldig kode",
+    pleaseEnterCode: "Vennligst skriv inn en kode",
+    couldNotValidate: "Kunne ikke validere koden",
+    couldNotCreate: "Kunne ikke opprette kode",
+
+    // Share message
+    shareMessage: "Bestill ullgris fra Tinglum Gård og få 20% rabatt på forskuddet med min vennerabattkode: {code}",
+  },
+
+  // Admin
+  admin: {
+    title: "Tinglumgård - Admin",
+    login: "Admin Login",
+    password: "Passord",
+    wrongPassword: "Feil passord. Prøv igjen.",
+    loginButton: "Logg inn",
+    logout: "Logg ut",
+    dashboard: "Dashboard",
+    refresh: "Oppdater",
+    noData: "Ingen data tilgjengelig",
+
+    // Tabs
+    overview: "Oversikt",
+    orders: "Bestillinger",
+    boxConfig: "Boksinnhold",
+    rebateCodes: "Rabattkoder",
+    extras: "Ekstraprodukter",
+    notifications: "Varsler",
+    analytics: "Analyse",
+    emails: "E-poster",
+
+    // Order management
+    searchOrders: "Søk etter ordre, navn eller e-post...",
+    filter: "Filtrer",
+    exportCSV: "Eksporter CSV",
+    ordersSelected: "{count} ordre(r) valgt",
+    markReady: "Marker klar",
+    lock: "Lås",
+    productionPlan: "Produksjonsplan",
+    noOrdersFound: "Ingen bestillinger funnet",
+    adjustFilters: "Prøv å justere filtrene dine",
+
+    // Table headers
+    select: "Velg",
+    orderNo: "Ordre",
+    customer: "Kunde",
+    box: "Boks",
+    status: "Status",
+    payment: "Betaling",
+    actions: "Handlinger",
+
+    // Status options
+    pending: "Venter",
+    depositPaid: "Depositum betalt",
+    paid: "Betalt",
+    locked: "Låst",
+    ready: "Klar",
+    delivered: "Levert",
+
+    // Actions
+    changeStatusTo: "Endre status til '{status}' for {count} ordrer?",
+    lockOrders: "Låse {count} ordrer? Dette kan ikke angres.",
+    ordersUpdated: "{count} ordrer oppdatert",
+    ordersLocked: "{count} ordrer låst",
+    couldNotUpdate: "Kunne ikke oppdatere ordrer",
+    couldNotLock: "Kunne ikke låse ordrer",
+    couldNotExport: "Kunne ikke eksportere CSV",
+    selectOrders: "Velg ordrer å eksportere",
+    couldNotExportPlan: "Kunne ikke eksportere produksjonsplan",
+    couldNotUpdateStatus: "Kunne ikke oppdatere status",
+    couldNotSaveNotes: "Kunne ikke lagre notater",
+    noOrdersSelected: "Ingen ordrer valgt",
+
+    // Analytics
+    analytics: "Analyse & Rapporter",
+    keyMetrics: "Nøkkeltall",
+    totalOrders: "Totale bestillinger",
+    uniqueCustomers: "Unike kunder",
+    repeatCustomers: "Gjentakende kunder",
+    repeatRate: "Gjentakelsesrate",
+    conversionFunnel: "Konverteringstrakt",
+    popularCombos: "Populære produktkombinasjoner",
+    orders: "bestillinger",
+    loadingAnalytics: "Laster analysedata...",
+
+    // Email
+    sendEmail: "Send e-post",
+    history: "Historikk",
+  },
+
+  // Footer
+  footer: {
+    farm: "Tinglum Gård",
+    location: "Namdalseid, Trøndelag",
+    quality: "Kvalitet fra Namdalseid",
+    description: "Vi leverer norsk griskjøtt av høyeste kvalitet, oppvokst på gården og behandlet med omtanke fra start til slutt.",
+    localRaised: "Lokalt oppvokst",
+    seasonBased: "Sesongbasert",
+    organic: "Ullgris, ute på beite, råvarer fra økologisk produksjon i fôringen",
+    links: "Lenker",
+    productInfo: "Produktinformasjon",
+    myOrders: "Min side",
+    admin: "Admin",
+    contact: "Kontakt",
+    legal: "Vilkår og personvern",
+    allRightsReserved: "Alle rettigheter reservert.",
+    norwegianQuality: "Norsk kvalitet",
+    season2026: "Sesong 2026",
+  },
+
+  // Contact
+  contact: {
+    contactUs: "Kontakt oss",
+    regardingOrder: "Angående ordre {orderNumber}",
+    otherWays: "Andre måter å kontakte oss på:",
+    email: "E-post: post@tinglum.no",
+    phone: "Telefon: +47 123 45 678",
+    yourMessage: "Din melding",
+    messagePlaceholder: "f.eks:\n- Spørsmål om leveringstidspunkt\n- Endre leveringsadresse\n- Spørsmål om produktene",
+    responseTime: "Vi svarer vanligvis innen 24 timer",
+    orderDetails: "Ordredetaljer:",
+    sending: "Sender...",
+    sendMessage: "Send melding",
+    messageSent: "Meldingen din er sendt! Vi kontakter deg snart.",
+    couldNotSend: "Kunne ikke sende melding. Prøv igjen senere.",
+    pleaseWriteMessage: "Vennligst skriv en melding",
+  },
+
+  // Box contents (fixed items in every box)
+  boxContents: {
+    ribbe8kg: "ca. 2.0 kg ribbe",
+    ribbe12kg: "ca. 3.0 kg ribbe",
+    nakkekoteletter8kg: "ca. 0.75 kg nakkekoteletter",
+    nakkekoteletter12kg: "ca. 1.0 kg nakkekoteletter",
+    julepølse8kg: "ca. 0.5 kg julepølse",
+    julepølse12kg: "ca. 1.0 kg julepølse",
+    svinesteik8kg: "ca. 1.0 kg svinesteik",
+    svinesteik12kg: "ca. 1.0 kg svinesteik",
+    medisterfarse8kg: "ca. 1.0 kg medisterfarse",
+    medisterfarse12kg: "ca. 1.5 kg medisterfarse",
+    knoke: "1 knoke",
+    butchersChoice8kg: "+ Slakterens valg (ca. 2-3 kg)",
+    butchersChoice12kg: "+ Slakterens valg (ca. 3.5-4.5 kg)",
+  },
+
+  // Product list items (shown in boxes)
+  products: {
+    ribbe: "Ribbe",
+    nakkekoteletter: "Nakkekoteletter",
+    julepølse: "Julepølse",
+    svinesteik: "Svinesteik",
+    medisterfarse: "Medisterfarse",
+    knoke: "Knoke",
+    butchersChoice: "Slakterens valg",
+  },
 };
