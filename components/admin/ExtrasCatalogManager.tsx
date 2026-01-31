@@ -286,10 +286,14 @@ export function ExtrasCatalogManager() {
               </label>
               <Input
                 type="number"
-                min="1"
-                value={formData.default_quantity ?? 1}
-                onChange={(e) => setFormData({ ...formData, default_quantity: parseInt(e.target.value) || 1 })}
-                placeholder="1"
+                step={formData.pricing_type === 'per_kg' ? '0.1' : '1'}
+                min={formData.pricing_type === 'per_kg' ? '0.1' : '1'}
+                value={formData.default_quantity ?? (formData.pricing_type === 'per_kg' ? 0.5 : 1)}
+                onChange={(e) => setFormData({
+                  ...formData,
+                  default_quantity: formData.pricing_type === 'per_kg' ? parseFloat(e.target.value) || 0.1 : parseInt(e.target.value) || 1,
+                })}
+                placeholder={formData.pricing_type === 'per_kg' ? '0.5' : '1'}
               />
             </div>
 
