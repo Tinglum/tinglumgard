@@ -842,12 +842,10 @@ export default function CheckoutPage() {
                     ) : (
                       <>
                         <span>Betal med</span>
-                        <Image
+                        <img
                           src="/vipps-logo.svg"
                           alt="Vipps"
-                          width={60}
-                          height={24}
-                          className="object-contain brightness-0 invert"
+                          className="h-6 object-contain brightness-0 invert"
                         />
                       </>
                     )}
