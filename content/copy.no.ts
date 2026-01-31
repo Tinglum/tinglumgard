@@ -243,6 +243,7 @@ export const no = {
     remainderBeforeDelivery: "Rest før levering",
     extraProducts: "Ekstra produkter",
     onlyOneDiscount: "Kun én rabattkode kan brukes per bestilling",
+    hasDiscountCode: "Rabattkode?",
 
     // Terms
     depositNotRefundable: "Jeg forstår at depositumet ikke refunderes.",

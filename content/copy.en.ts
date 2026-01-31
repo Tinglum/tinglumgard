@@ -243,6 +243,7 @@ export const en = {
     remainderBeforeDelivery: "Balance before delivery",
     extraProducts: "Extra products",
     onlyOneDiscount: "Only one discount code can be used per order",
+    hasDiscountCode: "Discount code?",
 
     // Terms
     depositNotRefundable: "I understand that the deposit is non-refundable.",

@@ -49,6 +49,7 @@ export default function CheckoutPage() {
     discountAmount: number;
     description: string;
   } | null>(null);
+  const [showDiscountCodes, setShowDiscountCodes] = useState(false);
 
   // URL parameter handling
   useEffect(() => {
@@ -931,40 +932,54 @@ export default function CheckoutPage() {
 
               {step === 4 && boxSize && (
                 <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2">
-                  {/* Discount Codes - Only one can be used */}
-                  {!rebateData && (
-                    <ReferralCodeInput
-                      depositAmount={baseDepositTotal}
-                      onCodeApplied={(data) => {
-                        setReferralData({
-                          code: data.code,
-                          discountPercentage: data.discountPercentage,
-                          discountAmount: data.discountAmount,
-                          referrerPhone: data.referrerUserId,
-                        });
-                        setRebateData(null); // Clear rebate if exists
-                      }}
-                      onCodeRemoved={() => setReferralData(null)}
-                      className="mb-4"
-                    />
-                  )}
+                  {/* Discount Codes - Collapsible */}
+                  <div className="border-t border-neutral-200 pt-4">
+                    <button
+                      type="button"
+                      onClick={() => setShowDiscountCodes(!showDiscountCodes)}
+                      className="text-sm text-neutral-600 hover:text-neutral-900 underline transition-colors"
+                    >
+                      {t.checkout.hasDiscountCode}
+                    </button>
 
-                  {!referralData && (
-                    <RebateCodeInput
-                      depositAmount={baseDepositTotal}
-                      boxSize={parseInt(boxSize)}
-                      onCodeApplied={(data) => {
-                        setRebateData({
-                          code: data.code,
-                          discountAmount: data.discountAmount,
-                          description: data.description,
-                        });
-                        setReferralData(null); // Clear referral if exists
-                      }}
-                      onCodeRemoved={() => setRebateData(null)}
-                      className="mb-4"
-                    />
-                  )}
+                    {showDiscountCodes && (
+                      <div className="mt-4 space-y-4 animate-in fade-in slide-in-from-top-2">
+                        {!rebateData && (
+                          <ReferralCodeInput
+                            depositAmount={baseDepositTotal}
+                            onCodeApplied={(data) => {
+                              setReferralData({
+                                code: data.code,
+                                discountPercentage: data.discountPercentage,
+                                discountAmount: data.discountAmount,
+                                referrerPhone: data.referrerUserId,
+                              });
+                              setRebateData(null); // Clear rebate if exists
+                            }}
+                            onCodeRemoved={() => setReferralData(null)}
+                            className="mb-4"
+                          />
+                        )}
+
+                        {!referralData && (
+                          <RebateCodeInput
+                            depositAmount={baseDepositTotal}
+                            boxSize={parseInt(boxSize)}
+                            onCodeApplied={(data) => {
+                              setRebateData({
+                                code: data.code,
+                                discountAmount: data.discountAmount,
+                                description: data.description,
+                              });
+                              setReferralData(null); // Clear referral if exists
+                            }}
+                            onCodeRemoved={() => setRebateData(null)}
+                            className="mb-4"
+                          />
+                        )}
+                      </div>
+                    )}
+                  </div>
 
                   {(referralData || rebateData) && (
                     <p className="text-xs text-gray-500 text-center">
