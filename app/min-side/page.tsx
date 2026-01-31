@@ -127,11 +127,11 @@ export default function CustomerPortalPage() {
       if (response.ok && data.redirectUrl) {
         window.location.href = data.redirectUrl;
       } else {
-        alert(data.error || 'Kunne ikke opprette betaling');
+        alert(data.error || t.checkout.somethingWentWrong);
       }
     } catch (error) {
       console.error('Failed to create remainder payment:', error);
-      alert('Kunne ikke opprette betaling');
+      alert(t.checkout.somethingWentWrong);
     }
   }
 
@@ -149,14 +149,14 @@ export default function CustomerPortalPage() {
       <div className={cn("min-h-screen flex items-center justify-center px-6", theme.bgGradientHero)}>
         <div className={cn("text-center max-w-md rounded-3xl p-8 border shadow-2xl", theme.bgCard, theme.glassBorder)}>
           <Package className={cn("w-16 h-16 mx-auto mb-4", theme.textPrimary)} />
-          <h1 className={cn("text-2xl font-bold mb-4", theme.textPrimary)}>Logg inn for å se dine bestillinger</h1>
-          <p className={cn("mb-6", theme.textMuted)}>Du må logge inn med Vipps for å se og administrere dine bestillinger.</p>
+          <h1 className={cn("text-2xl font-bold mb-4", theme.textPrimary)}>{t.minSide.loginToSeeOrders}</h1>
+          <p className={cn("mb-6", theme.textMuted)}>{t.minSide.loginRequired}</p>
           <button
             onClick={() => window.location.href = '/api/auth/vipps/login?returnTo=/min-side'}
             className="w-full bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-bold py-4 px-8 rounded-2xl shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-300 flex items-center justify-center gap-3"
             style={{ backgroundColor: '#FF5B24' }}
           >
-            <span>Logg inn med Vipps</span>
+            <span>{t.minSide.loginWithVipps}</span>
           </button>
         </div>
       </div>
@@ -184,7 +184,7 @@ export default function CustomerPortalPage() {
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
-            Tilbake
+            {t.nav.back}
           </Link>
 
           <MobileMinSide
@@ -214,7 +214,7 @@ export default function CustomerPortalPage() {
         {/* Header */}
         <div className="mb-8">
           <h1 className={cn("text-4xl sm:text-5xl font-bold mb-6", theme.textPrimary)}>
-            Min side
+            {t.minSide.title}
           </h1>
 
           {/* Tab Navigation */}
@@ -229,7 +229,7 @@ export default function CustomerPortalPage() {
               )}
             >
               <Package className="w-5 h-5" />
-              Mine bestillinger
+              {t.minSide.myOrders}
             </button>
             <button
               onClick={() => setActiveTab('referrals')}
@@ -241,15 +241,15 @@ export default function CustomerPortalPage() {
               )}
             >
               <Gift className="w-5 h-5" />
-              Vennerabatt
+              {t.minSide.friendDiscount}
             </button>
           </div>
 
           {activeTab === 'orders' && (
             <p className={cn("text-lg", theme.textSecondary)}>
               {canEdit
-                ? `Du kan endre bestillingen din frem til uke ${cutoffWeek}, ${cutoffYear}`
-                : `Endringsperioden er utløpt (uke ${cutoffWeek}, ${cutoffYear})`}
+                ? t.minSide.canEditUntil.replace('{week}', cutoffWeek.toString()).replace('{year}', cutoffYear.toString())
+                : t.minSide.editPeriodExpired.replace('{week}', cutoffWeek.toString()).replace('{year}', cutoffYear.toString())}
             </p>
           )}
         </div>
@@ -258,10 +258,10 @@ export default function CustomerPortalPage() {
         {activeTab === 'orders' && (orders.length === 0 ? (
           <Card className={cn("p-12 text-center", theme.bgCard)}>
             <Package className={cn("w-16 h-16 mx-auto mb-4", theme.iconColor)} />
-            <h2 className={cn("text-xl font-semibold mb-2", theme.textPrimary)}>Ingen bestillinger</h2>
-            <p className={cn("mb-6", theme.textSecondary)}>Du har ikke lagt inn noen bestillinger ennå.</p>
+            <h2 className={cn("text-xl font-semibold mb-2", theme.textPrimary)}>{t.minSide.noOrders}</h2>
+            <p className={cn("mb-6", theme.textSecondary)}>{t.minSide.noOrdersYet}</p>
             <Link href="/bestill">
-              <Button size="lg">Gå til bestilling</Button>
+              <Button size="lg">{t.minSide.goToOrder}</Button>
             </Link>
           </Card>
         ) : (
@@ -282,7 +282,7 @@ export default function CustomerPortalPage() {
                 className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-green-600 hover:bg-green-700 text-white font-semibold transition-colors"
               >
                 <Package className="w-5 h-5" />
-                Legg inn ny bestilling
+                {t.minSide.placeNewOrder}
               </Link>
             </div>
           </div>

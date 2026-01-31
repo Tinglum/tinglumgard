@@ -1,135 +1,497 @@
 export const en = {
+  // Navigation & Common
   nav: {
-    products: "Products",
+    products: "Boxes",
     cuts: "Cuts",
-    myOrders: "My Orders",
-    admin: "Admin"
+    myOrders: "My page",
+    admin: "Admin",
+    oppdelingsplan: "Butcher diagram",
+    minebestillinger: "My orders",
+    logout: "Log out",
+    login: "Log in",
+    order: "Order",
+    back: "Back",
+    backToHome: "Back to home",
   },
-  hero: {
-    season: "Fall 2026 season",
-    headline: "Woolly pig from Tinglum Farm",
-    subheadline: "Pre-packed, freezer ready.",
-    description: "Organic certified pasture-raised pig. Hand-picked cuts, portioned and vacuum-packed. One purchase, entire season covered."
-  },
-  product: {
-    box8: "Small box",
-    box12: "Large box",
-    kg: "kg",
-    boxesLeft: "boxes left",
-    lowStock: "Low stock",
-    soldOut: "Sold out",
-    priceDeposit: "Deposit",
-    priceRemainder: "Balance on delivery",
-    seeDetails: "See details",
-    orderNow: "Order now",
-    joinWaitlist: "Join waitlist"
-  },
-  timeline: {
-    title: "Timeline",
-    week44: "Week 44: Balance payment",
-    week46: "Week 46: Edit deadline",
-    week48: "Week 48: Delivery",
-    week44Desc: "You pay the remaining amount via Vipps.",
-    week46Desc: "Last day to change size or add-ons.",
-    week48Desc: "Pick up at the farm or delivery in Trondheim."
-  },
-  faq: {
-    title: "Common questions",
-    q1: "What's in the box?",
-    a1: "You get ribs, sausages, bacon, pork chops, and stew meat. Everything vacuum-packed and freezer ready.",
-    q2: "Can I change my order?",
-    a2: "Yes, until week 46. After that the order is locked.",
-    q3: "How do I pick up?",
-    a3: "You can pick up at the farm in Melhus, or we deliver in Trondheim center (add kr 150).",
-    q4: "What if I can't pick up in week 48?",
-    a4: "Contact us, we'll find a solution. Note that the deposit is non-refundable."
-  },
-  productDetail: {
-    title: "Box contents",
-    variation: "Contents vary slightly based on slaughter. We always pack with care and balance.",
-    categories: {
-      ribbe: "Ribs",
-      sausages: "Sausages",
-      bacon: "Bacon",
-      chops: "Pork chops",
-      stew: "Stew meat"
-    },
-    addons: {
-      title: "Add-ons",
-      delivery: "Trondheim center delivery",
-      highway: "E6 Melhus pickup",
-      fresh: "Fresh delivery (not frozen)",
-      disabled: "Add-ons can be added at checkout"
-    }
-  },
-  checkout: {
-    title: "Complete order",
-    selectBox: "Select box",
-    addons: "Add-ons",
-    deliveryTrondheim: "Trondheim delivery",
-    pickupE6: "E6 pickup",
-    freshDelivery: "Fresh delivery",
-    summary: "Summary",
-    deposit: "Deposit (pay now)",
-    remainder: "Balance (pay week 44)",
-    total: "Total",
-    agreement: "I understand that the deposit is non-refundable.",
-    pay: "Pay with Vipps",
-    vippsOnly: "We only use Vipps for secure payment."
-  },
-  customer: {
-    title: "My orders",
-    orderNumber: "Order",
-    status: "Status",
-    payRemainder: "Pay balance",
-    edit: "Edit",
-    editUntil: "You can edit your order until week 46.",
-    cannotEdit: "Order is locked.",
-    statuses: {
-      depositPaid: "Reserved",
-      remainderDue: "Payment due",
-      paid: "Paid",
-      locked: "Locked",
-      delivered: "Delivered",
-      completed: "Completed",
-      atRisk: "Requires follow-up"
-    }
-  },
-  admin: {
-    title: "Admin overview",
-    inventory: "Inventory",
-    kgRemaining: "Kg remaining",
-    updateInventory: "Update inventory",
-    orders: "Orders",
-    orderNumber: "No.",
-    customer: "Customer",
-    box: "Box",
-    status: "Status",
-    actions: "Actions",
-    changeStatus: "Change status"
-  },
-  cuts: {
-    title: "Cuts and parts",
-    inBox: "Included in box",
-    extraOrder: "Can be ordered extra",
-    shoulder: "Shoulder",
-    loin: "Loin",
-    belly: "Belly",
-    leg: "Leg",
-    hover: "Hover over the diagram"
-  },
-  footer: {
-    farm: "Tinglum Farm",
-    location: "Melhus, Norway",
-    organic: "Organic certified pasture-raised pig",
-    contact: "Contact",
-    legal: "Terms and privacy"
-  },
+
+  // Common words/actions
   common: {
     close: "Close",
     save: "Save",
     cancel: "Cancel",
     loading: "Loading...",
-    error: "Something went wrong"
-  }
+    error: "Something went wrong",
+    confirm: "Confirm",
+    edit: "Edit",
+    delete: "Delete",
+    add: "Add",
+    remove: "Remove",
+    continue: "Continue",
+    processing: "Processing...",
+    free: "Free",
+    total: "Total",
+    kr: "NOK",
+    kg: "kg",
+    stk: "pcs",
+    week: "week",
+    year: "year",
+  },
+
+  // Hero section
+  hero: {
+    season: "Season 2026",
+    headline: "Woolly Pig from",
+    farmName: "Tinglum Gård",
+    subtitle: "Pork from Tinglum Gård in Namdalseid. The pigs grow up on the farm throughout 2026, are slaughtered locally in December, and delivered fresh to your door.",
+    cta: "Reserve now",
+    learnMore: "Learn more about the product",
+    joinWaitlist: "Join waiting list",
+    qualityHeadline: "Norwegian quality",
+    tagline: "Vacuum packed, freezer-ready, delivered week 48.",
+    description: "Raised outdoors on pasture. Feed containing ingredients from organic production. Cuts selected for ribs, bacon, sausages, and great everyday meals. Reserve your box today.",
+  },
+
+  // Product/Box selection
+  product: {
+    chooseYourBox: "Choose your box",
+    twoSizes: "Two sizes to choose from",
+    sameQuality: "Same high quality regardless of size. Choose the box that best fits your household.",
+    smallBox: "Smaller box",
+    largeBox: "Larger box",
+    mostPopular: "Most popular",
+    betterPricePerKg: "Better price per kg",
+    perfectFor2to3: "Perfect for 2-3 people or smaller consumption",
+    idealFor4to6: "Ideal for 4-6 people or larger consumption",
+    inEach8kgBox: "In each 8 kg box:",
+    inEach12kgBox: "In each 12 kg box:",
+    reserve8kg: "Reserve 8 kg box",
+    reserve12kg: "Reserve 12 kg box",
+    boxesLeft: "boxes left",
+    lowStock: "Low stock",
+    soldOut: "Sold out",
+    priceDeposit: "Pay now",
+    priceRemainder: "Balance at delivery",
+    deposit50: "Deposit (50%)",
+    remainderAtDelivery: "Balance at delivery",
+    totalPrice: "Total price",
+    seeDetails: "See contents",
+    orderNow: "Reserve now",
+    box8: "8 kg box",
+    box12: "12 kg box",
+  },
+
+  // Availability section
+  availability: {
+    title: "Availability",
+    boxesAvailable: "Boxes available",
+    remainingBoxes: "Few remaining",
+    soldOutComplete: "Sold out",
+    reserveBeforeTooLate: "Reserve before it's too late",
+    seasonProductionComplete: "Season production complete",
+  },
+
+  // Timeline/How it works
+  timeline: {
+    title: "How it works",
+    subtitle: "From order to delivery",
+    tagline: "The pigs grow throughout 2026 • Fresh delivery in December",
+    reserveNow: "Reserve your box now",
+    step1Title: "Reserve your box now",
+    step1Desc: "Pay deposit (50%) with Vipps. Your spot is secured when payment is completed.",
+    step2Title: "Balance payment",
+    step2Desc: "By week 46 you pay the remaining 50% of the total amount. You'll receive payment information by email.",
+    step3Title: "Slaughter and frozen delivery",
+    step3Desc: "The pigs are professionally slaughtered and packed fresh. Then everything is frozen for optimal shelf life and delivered in week 48-49.",
+    step4Title: "Fresh delivery (optional)",
+    step4Desc: "For a small extra fee you can choose fresh delivery in week 50-51. Perfect if you want the meat completely fresh!",
+    week44: "Week 45: Payment completed",
+    week46: "Week 47: Final deadline for changes",
+    week48: "Week 49: Delivery and pickup",
+    week44Desc: "You'll be notified and complete payment before delivery.",
+    week46Desc: "Change size and extras until the deadline, after which the order is locked.",
+    week48Desc: "Pickup or delivery according to chosen option.",
+  },
+
+  // FAQ
+  faq: {
+    title: "Questions and answers",
+    commonQuestions: "Common questions",
+    q1: "What do I get in the box?",
+    a1: "Fixed structure, small variations are normal. You get ribs, bacon, sausages, pork chops and cooking cuts. Everything is portioned, labeled and vacuum packed.",
+    q2: "When will I receive delivery?",
+    a2: "Frozen box is delivered in week 48. Fresh box can be chosen for an extra fee and is delivered at the end of week 50 or beginning of week 51.",
+    q3: "Can I change my order?",
+    a3: "Yes, until week 46. After the deadline the order is locked so we can plan production and packing.",
+    q4: "How do I pick up or get delivery?",
+    a4: "You can choose delivery along E6 between Levanger and Namsos, or Trondheim. Price is shown in checkout before you confirm.",
+  },
+
+  // Checkout/Order page
+  checkout: {
+    title: "Order",
+    pageTitle: "Reserve your box",
+    subtitle: "Reserve your box with Vipps",
+    selectSize: "Choose size, rib type and extra items. We'll send you a Vipps payment request after ordering.",
+
+    // Steps
+    stepSize: "Size",
+    stepRibbe: "Ribs",
+    stepExtras: "Extras",
+    stepDelivery: "Delivery",
+
+    step1Title: "1. Choose box size",
+    step2Title: "2. Choose rib type",
+    step3Title: "3. Extra meat products (optional)",
+    step4Title: "4. Delivery and extras",
+
+    // Size selection
+    persons2to3: "2-3 people",
+    persons4to6: "4-6 people",
+    inBox: "In the box:",
+    moreItems: "more",
+
+    // Ribbe selection
+    selectRibbeType: "Choose rib type",
+    boxContains: "Your box contains approx. {size} kg of ribs. Choose which type:",
+    tynnribbe: "Thin ribs",
+    tynnribbeDesc: "Classic ribs with rib bones - perfectly crispy rind",
+    familieribbe: "Family ribs",
+    familieribbeDesc: "Includes the loin with tenderloin - more meat, leaner meat",
+    porchetta: "Porchetta",
+    porchettaDesc: "Boneless lower belly - Italian style",
+    butchersChoice: "Butcher's choice",
+    butchersChoiceDesc: "We'll choose a good rib for you based on availability",
+    preSelected: "Pre-selected",
+    recommended: "Recommended",
+
+    // Extras
+    extrasTitle: "Extra meat products (optional)",
+    extrasWarning: "Note: Extra products depend on availability and pig size at slaughter. We'll do our best to fulfill your wishes.",
+    quantity: "Quantity:",
+
+    // Delivery
+    deliveryOptions: "Delivery options",
+    extraOptions: "Extra options",
+    pickupFarm: "Pickup at farm",
+    pickupFarmAddress: "Tinglemsvegen 91, Namdalseid",
+    pickupTrondheim: "Pickup in Trondheim",
+    pickupTrondheimAddress: "Veita Mat AS, Jomfrugata",
+    deliveryE6: "Delivery along E6",
+    deliveryE6Address: "Stjørdal-Namsos",
+    freshDelivery: "Fresh delivery (week 50/51)",
+    freshDeliveryDesc: "Receive the box fresh instead of frozen - only at the farm",
+
+    // Summary
+    summary: "Summary",
+    deposit50Percent: "Deposit (50%)",
+    friendDiscount: "Friend discount (-20%)",
+    discountCode: "Discount code",
+    remainderBeforeDelivery: "Balance before delivery",
+    extraProducts: "Extra products",
+    onlyOneDiscount: "Only one discount code can be used per order",
+
+    // Terms
+    depositNotRefundable: "I understand that the deposit is non-refundable.",
+    triggersProd: "This triggers production planning.",
+    agreeToTerms: "I agree to the",
+    termsLink: "terms of purchase",
+
+    // Payment
+    payWith: "Pay with",
+    securePayment: "Secure payment with Vipps",
+    contactInfoFromVipps: "Your contact information is automatically retrieved from Vipps",
+
+    // Navigation
+    goToRibbeChoice: "Continue to rib selection",
+    goToExtras: "Continue to extras",
+    goToDelivery: "Continue to delivery",
+
+    // Confirmation
+    orderReceived: "Order received!",
+    thankYou: "Thank you for your order. We have received your reservation and will send you a Vipps payment request for the 50% deposit.",
+    orderNumber: "Order number",
+    nextSteps: "Next steps:",
+    step1: "You will receive a Vipps payment request for the deposit (50% of total amount)",
+    step2: "You'll get a confirmation email when the deposit is received",
+    step3: "Remaining amount is paid at delivery",
+    seeMyOrders: "See my orders",
+
+    // Errors
+    somethingWentWrong: "Something went wrong. Please try again.",
+  },
+
+  // My Orders / Customer Portal
+  minSide: {
+    title: "My page",
+    myOrders: "My orders",
+    orders: "Orders",
+    referrals: "Friend discount",
+    loginRequired: "Log in to see your orders",
+    loginDesc: "You must log in with Vipps to view and manage your orders.",
+    loginWithVipps: "Log in with Vipps",
+    canEditUntil: "You can edit your order until week {week}, {year}",
+    editPeriodExpired: "Edit period has expired (week {week}, {year})",
+    noOrders: "No orders",
+    noOrdersDesc: "You haven't placed any orders yet.",
+    goToOrder: "Go to order",
+    newOrder: "Place new order",
+
+    // Order status
+    completed: "Completed",
+    depositPaid: "Deposit paid",
+    waitingForPayment: "Waiting for payment",
+    payRemainder: "Pay balance",
+    seeDetails: "See details",
+
+    // Order details
+    order: "ORDER",
+    orderNo: "Order",
+    box: "Box",
+    ribbe: "Ribs",
+    delivery: "Delivery",
+    freshDeliveryIncluded: "Fresh delivery",
+    extraProductsTitle: "EXTRA PRODUCTS",
+    deposit: "Deposit",
+    remainder: "Balance",
+  },
+
+  // Oppdelingsplan (Butcher diagram)
+  oppdelingsplan: {
+    title: "Butcher diagram",
+    subtitle: "Click on each part to see what's in the box and what you can order extra",
+    titleFull: "Butcher diagram - Pig",
+    clickInfo: "Click on the different parts to see which products are included in the box and what can be ordered extra",
+    ourProducts: "Our products",
+    inBox: "In the box",
+    inBoxDesc: "These products are included in the standard box:",
+    canOrder: "Can be ordered extra",
+    canOrderDesc: "These products can be added to the order (limited availability):",
+    clickForInfo: "Click on a part of the pig to see product information",
+    allCuts: "All cuts - Overview",
+    inBoxShort: "In the box:",
+    extraShort: "Extra:",
+    noProductsInBox: "No products from this part in the standard box",
+    noExtraProducts: "No extra products available from this part",
+    chooseRibbeType: "Choose your rib type",
+    ribbeTypeInfo: "All three variants use different parts of the rib side and belly",
+    butchersChoiceFull: "Butcher's choice: Not sure? Choose 'Butcher's choice' when ordering, and we'll select based on availability.",
+    quickSummary: "Quick summary",
+    seeDetailsBelow: "See detailed information about each part below",
+
+    // Cut names and descriptions
+    nakke: "Neck",
+    nakkeDesc: "The neck is marbled with fat and produces juicy chops and roasts.",
+    indrefilet: "Tenderloin",
+    indrefiletDesc: "The tenderloin is the most tender meat from the pig.",
+    kotelettkam: "Loin",
+    kotelettkamDesc: "The loin is from the back and produces tender chops. This area is also used in Family ribs.",
+    ribbeside: "Rib side",
+    ribbesideDesc: "Rib side and belly produce different types of ribs. Choose between Thin ribs (with rib bones), Family ribs (incl. loin), or Porchetta (boneless lower belly).",
+    svinebog: "Shoulder",
+    svinebogDesc: "The shoulder is perfect for pulled pork, stews and roasts. This is one of the most versatile cuts.",
+    skinke: "Ham/Leg",
+    skinkeDesc: "The ham/leg can be used fresh for roasts, stews, or cured. This is a large, lean muscle group.",
+    knoke: "Hock",
+    knokeDesc: "The hock is suitable for stock and stews, or for roasting. Each box contains 1 hock.",
+    labb: "Trotter",
+    labbDesc: "The trotter is often used for head cheese and stock soup.",
+    polserFarse: "Sausages & Ground meat",
+    polserFarseDesc: "Made from trim and smaller pieces. Perfect for everyday meals and holiday food.",
+  },
+
+  // Referrals
+  referrals: {
+    createCode: "Create friend discount code",
+    getCredit: "Get 10% credit for each friend who uses your code",
+    howItWorks: "How it works:",
+    step1: "You create a personal discount code",
+    step2: "Friends get 20% off the deposit when they use your code",
+    step3: "You get 10% credit of their purchase that can be used on your balance",
+    step4: "Maximum 5 friends per order can give you credit",
+    chooseCode: "Choose your unique code (4-20 characters, letters and numbers only)",
+    exampleCode: "e.g. KENNETH2026",
+    creating: "Creating...",
+    createButton: "Create code",
+    yourCode: "Your friend discount code",
+    shareCode: "Share this code with friends and family",
+    code: "Your code:",
+    copied: "Copied!",
+    copyCode: "Copy code",
+    shareButton: "Share code",
+    friendsGet20: "Friends get 20% off the deposit • You get 10% credit per referral",
+    totalReferrals: "Total referrals",
+    availableCredit: "Available credit",
+    creditRemaining: "Credit remaining",
+    of: "of",
+    unusedBonuses: "You have {count} unused bonuses!",
+    moreReferrals: "You have referred more friends than you can get credit for with your current order...",
+    orderNew: "Order new box",
+    yourReferrals: "Your referrals",
+    used: "Used",
+    available: "Available",
+
+    // Input
+    haveCode: "Do you have a friend discount code?",
+    enterCode: "Enter code",
+    checking: "Checking...",
+    useCode: "Use code",
+    newCustomersGet20: "New customers get 20% off the deposit when using a friend discount code",
+    codeActivated: "Code activated: {code}",
+    youGet20Off: "You get 20% off the deposit ({amount} NOK)",
+    remove: "Remove",
+    invalidCode: "Invalid code",
+    pleaseEnterCode: "Please enter a code",
+    couldNotValidate: "Could not validate the code",
+    couldNotCreate: "Could not create code",
+
+    // Share message
+    shareMessage: "Order Woolly Pig from Tinglum Gård and get 20% off the deposit with my friend discount code: {code}",
+  },
+
+  // Admin
+  admin: {
+    title: "Tinglumgård - Admin",
+    login: "Admin Login",
+    password: "Password",
+    wrongPassword: "Wrong password. Try again.",
+    loginButton: "Log in",
+    logout: "Log out",
+    dashboard: "Dashboard",
+    refresh: "Refresh",
+    noData: "No data available",
+
+    // Tabs
+    overview: "Overview",
+    orders: "Orders",
+    boxConfig: "Box contents",
+    rebateCodes: "Discount codes",
+    extras: "Extra products",
+    notifications: "Notifications",
+    analytics: "Analytics",
+    emails: "Emails",
+
+    // Order management
+    searchOrders: "Search for order, name or email...",
+    filter: "Filter",
+    exportCSV: "Export CSV",
+    ordersSelected: "{count} order(s) selected",
+    markReady: "Mark ready",
+    lock: "Lock",
+    productionPlan: "Production plan",
+    noOrdersFound: "No orders found",
+    adjustFilters: "Try adjusting your filters",
+
+    // Table headers
+    select: "Select",
+    orderNo: "Order",
+    customer: "Customer",
+    box: "Box",
+    status: "Status",
+    payment: "Payment",
+    actions: "Actions",
+
+    // Status options
+    pending: "Pending",
+    depositPaid: "Deposit paid",
+    paid: "Paid",
+    locked: "Locked",
+    ready: "Ready",
+    delivered: "Delivered",
+
+    // Actions
+    changeStatusTo: "Change status to '{status}' for {count} orders?",
+    lockOrders: "Lock {count} orders? This cannot be undone.",
+    ordersUpdated: "{count} orders updated",
+    ordersLocked: "{count} orders locked",
+    couldNotUpdate: "Could not update orders",
+    couldNotLock: "Could not lock orders",
+    couldNotExport: "Could not export CSV",
+    selectOrders: "Select orders to export",
+    couldNotExportPlan: "Could not export production plan",
+    couldNotUpdateStatus: "Could not update status",
+    couldNotSaveNotes: "Could not save notes",
+    noOrdersSelected: "No orders selected",
+
+    // Analytics
+    analytics: "Analytics & Reports",
+    keyMetrics: "Key metrics",
+    totalOrders: "Total orders",
+    uniqueCustomers: "Unique customers",
+    repeatCustomers: "Repeat customers",
+    repeatRate: "Repeat rate",
+    conversionFunnel: "Conversion funnel",
+    popularCombos: "Popular product combinations",
+    orders: "orders",
+    loadingAnalytics: "Loading analytics data...",
+
+    // Email
+    sendEmail: "Send email",
+    history: "History",
+  },
+
+  // Footer
+  footer: {
+    farm: "Tinglum Gård",
+    location: "Namdalseid, Trøndelag",
+    quality: "Quality from Namdalseid",
+    description: "We deliver Norwegian pork of the highest quality, raised on the farm and treated with care from start to finish.",
+    localRaised: "Locally raised",
+    seasonBased: "Season-based",
+    organic: "Woolly Pig, outdoors on pasture, feed containing ingredients from organic production",
+    links: "Links",
+    productInfo: "Product information",
+    myOrders: "My page",
+    admin: "Admin",
+    contact: "Contact",
+    legal: "Terms and privacy",
+    allRightsReserved: "All rights reserved.",
+    norwegianQuality: "Norwegian quality",
+    season2026: "Season 2026",
+  },
+
+  // Contact
+  contact: {
+    contactUs: "Contact us",
+    regardingOrder: "Regarding order {orderNumber}",
+    otherWays: "Other ways to contact us:",
+    email: "Email: post@tinglum.no",
+    phone: "Phone: +47 123 45 678",
+    yourMessage: "Your message",
+    messagePlaceholder: "e.g.:\n- Questions about delivery time\n- Change delivery address\n- Questions about products",
+    responseTime: "We typically respond within 24 hours",
+    orderDetails: "Order details:",
+    sending: "Sending...",
+    sendMessage: "Send message",
+    messageSent: "Your message has been sent! We'll contact you soon.",
+    couldNotSend: "Could not send message. Try again later.",
+    pleaseWriteMessage: "Please write a message",
+  },
+
+  // Box contents (fixed items in every box)
+  boxContents: {
+    ribbe8kg: "approx. 2.0 kg ribs",
+    ribbe12kg: "approx. 3.0 kg ribs",
+    nakkekoteletter8kg: "approx. 0.75 kg pork chops",
+    nakkekoteletter12kg: "approx. 1.0 kg pork chops",
+    julepølse8kg: "approx. 0.5 kg Christmas sausage",
+    julepølse12kg: "approx. 1.0 kg Christmas sausage",
+    svinesteik8kg: "approx. 1.0 kg pork roast",
+    svinesteik12kg: "approx. 1.0 kg pork roast",
+    medisterfarse8kg: "approx. 1.0 kg pork sausage meat",
+    medisterfarse12kg: "approx. 1.5 kg pork sausage meat",
+    knoke: "1 hock",
+    butchersChoice8kg: "+ Butcher's choice (approx. 2-3 kg)",
+    butchersChoice12kg: "+ Butcher's choice (approx. 3.5-4.5 kg)",
+  },
+
+  // Product list items (shown in boxes)
+  products: {
+    ribbe: "Ribs",
+    nakkekoteletter: "Pork chops",
+    julepølse: "Christmas sausage",
+    svinesteik: "Pork roast",
+    medisterfarse: "Pork sausage meat",
+    knoke: "Hock",
+    butchersChoice: "Butcher's choice",
+  },
 };

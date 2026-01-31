@@ -29,18 +29,18 @@ export function Footer() {
               </div>
               <div>
                 <h3 className={cn("text-xl font-bold", theme.textPrimary)}>{t.footer.farm}</h3>
-                <p className={cn("text-sm", theme.textMuted)}>Kvalitet fra Namdalseid</p>
+                <p className={cn("text-sm", theme.textMuted)}>{t.footer.quality}</p>
               </div>
             </div>
             <p className={cn("text-sm leading-relaxed max-w-md", theme.textMuted)}>
-              {t.footer.location}. Vi leverer norsk griskjøtt av høyeste kvalitet, oppvokst på gården og behandlet med omtanke fra start til slutt.
+              {t.footer.description}
             </p>
             <div className="flex items-center gap-2">
               <div className={cn("px-3 py-1 rounded-full text-xs font-semibold", theme.accentSecondary, theme.textSecondary)}>
-                Lokalt oppvokst
+                {t.footer.localRaised}
               </div>
               <div className={cn("px-3 py-1 rounded-full text-xs font-semibold", theme.accentSecondary, theme.textSecondary)}>
-                Sesongbasert
+                {t.footer.seasonBased}
               </div>
             </div>
           </div>
@@ -67,20 +67,20 @@ export function Footer() {
           {/* Links column */}
           <div className="space-y-4">
             <h3 className={cn("text-sm font-bold uppercase tracking-wider", theme.textPrimary)}>
-              Lenker
+              {t.footer.links}
             </h3>
             <div className="space-y-3">
               <a href="/produkt" className={cn("block text-sm transition-colors", theme.textMuted, `hover:${theme.textPrimary}`)}>
-                Produktinformasjon
+                {t.footer.productInfo}
               </a>
               <a href="/oppdelingsplan" className={cn("block text-sm transition-colors", theme.textMuted, `hover:${theme.textPrimary}`)}>
-                Oppdelingsplan
+                {t.nav.oppdelingsplan}
               </a>
               <a href="/min-side" className={cn("block text-sm transition-colors", theme.textMuted, `hover:${theme.textPrimary}`)}>
-                Min side
+                {t.footer.myPage}
               </a>
               <a href="/admin" className={cn("block text-sm transition-colors", theme.textMuted, `hover:${theme.textPrimary}`)}>
-                Admin
+                {t.footer.admin}
               </a>
             </div>
           </div>
@@ -91,7 +91,7 @@ export function Footer() {
         <div className={cn("pt-8 border-t flex flex-col md:flex-row items-center justify-between gap-4", theme.borderSecondary)}>
           <div className="flex flex-col md:flex-row items-center gap-4">
             <p className={cn("text-sm", theme.textMuted)}>
-              © 2026 {t.footer.farm}. Alle rettigheter reservert.
+              © 2026 {t.footer.farm}. {t.footer.rights}
             </p>
             <a
               href="/vilkar"
@@ -101,9 +101,9 @@ export function Footer() {
             </a>
           </div>
           <div className={cn("flex items-center gap-6 text-xs", theme.textMuted)}>
-            <span>🇳🇴 Norsk kvalitet</span>
+            <span>🇳🇴 {t.footer.norwegianQuality}</span>
             <span>•</span>
-            <span>Sesong 2026</span>
+            <span>{t.footer.season}</span>
           </div>
         </div>
       </div>

@@ -146,7 +146,7 @@ export default function CheckoutPage() {
       window.location.href = result.authUrl;
     } catch (error) {
       console.error('Checkout failed:', error);
-      alert('Noe gikk galt. Vennligst prøv igjen.');
+      alert(t.checkout.somethingWentWrong);
       setIsProcessing(false);
     }
   }
@@ -173,22 +173,22 @@ export default function CheckoutPage() {
 
   const boxContents = {
     '8': [
-      { name: 'ca. 2.0 kg ribbe', highlight: true },
-      { name: 'ca. 0.75 kg nakkekoteletter' },
-      { name: 'ca. 0.5 kg julepølse' },
-      { name: 'ca. 1.0 kg svinesteik' },
-      { name: 'ca. 1.0 kg medisterfarse' },
-      { name: '1 knoke' },
-      { name: '+ Slakterens valg (ca. 2-3 kg)' },
+      { name: t.boxContents.ribbe8kg, highlight: true },
+      { name: t.boxContents.nakkekoteletter8kg },
+      { name: t.boxContents.julepølse8kg },
+      { name: t.boxContents.svinesteik8kg },
+      { name: t.boxContents.medisterfarse8kg },
+      { name: t.boxContents.knoke },
+      { name: t.boxContents.butchersChoice8kg },
     ],
     '12': [
-      { name: 'ca. 3.0 kg ribbe', highlight: true },
-      { name: 'ca. 1.0 kg nakkekoteletter' },
-      { name: 'ca. 1.0 kg julepølse' },
-      { name: 'ca. 1.0 kg svinesteik' },
-      { name: 'ca. 1.5 kg medisterfarse' },
-      { name: '1 knoke' },
-      { name: '+ Slakterens valg (ca. 3.5-4.5 kg)' },
+      { name: t.boxContents.ribbe12kg, highlight: true },
+      { name: t.boxContents.nakkekoteletter12kg },
+      { name: t.boxContents.julepølse12kg },
+      { name: t.boxContents.svinesteik12kg },
+      { name: t.boxContents.medisterfarse12kg },
+      { name: t.boxContents.knoke },
+      { name: t.boxContents.butchersChoice12kg },
     ],
   };
 
@@ -240,34 +240,34 @@ export default function CheckoutPage() {
             </div>
 
             <h1 className={cn("text-4xl md:text-5xl font-bold mb-4", theme.textPrimary)}>
-              Bestilling mottatt!
+              {t.checkout.orderReceived}
             </h1>
 
             <p className={cn("text-lg mb-8", theme.textMuted)}>
-              Takk for din bestilling. Vi har mottatt din reservasjon og vil sende deg en Vipps-betalingsforespørsel for forskuddet på 50%.
+              {t.checkout.thankYou}
             </p>
 
             {orderId && (
               <div className={cn("rounded-2xl p-6 mb-8", theme.bgSecondary)}>
-                <p className={cn("text-sm mb-2", theme.textMuted)}>Bestillingsnummer</p>
+                <p className={cn("text-sm mb-2", theme.textMuted)}>{t.checkout.orderNumber}</p>
                 <p className={cn("text-2xl font-bold font-mono", theme.textPrimary)}>{orderId}</p>
               </div>
             )}
 
             <div className={cn("space-y-4 text-left rounded-2xl p-6 mb-8", theme.bgSecondary)}>
-              <h3 className={cn("font-bold text-lg mb-4", theme.textPrimary)}>Neste steg:</h3>
+              <h3 className={cn("font-bold text-lg mb-4", theme.textPrimary)}>{t.checkout.nextSteps}</h3>
               <div className="space-y-3">
                 <div className="flex items-start gap-3">
                   <div className={cn("w-6 h-6 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 mt-0.5", theme.bgDark, theme.textOnDark)}>1</div>
-                  <p className={cn("text-sm", theme.textSecondary)}>Du vil motta en Vipps-betalingsforespørsel for forskuddet (50% av totalbeløpet)</p>
+                  <p className={cn("text-sm", theme.textSecondary)}>{t.checkout.step1}</p>
                 </div>
                 <div className="flex items-start gap-3">
-                  <div className={cn("w-6 h-6 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 mt-0.5", theme.bgDark, theme.textOnDark)}>1</div>
-                  <p className={cn("text-sm", theme.textSecondary)}>Du får en bekreftelse på e-post når forskuddet er mottatt</p>
+                  <div className={cn("w-6 h-6 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 mt-0.5", theme.bgDark, theme.textOnDark)}>2</div>
+                  <p className={cn("text-sm", theme.textSecondary)}>{t.checkout.step2}</p>
                 </div>
                 <div className="flex items-start gap-3">
                   <div className={cn("w-6 h-6 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 mt-0.5", theme.bgDark, theme.textOnDark)}>3</div>
-                  <p className={cn("text-sm", theme.textSecondary)}>Resterende beløp betales ved levering</p>
+                  <p className={cn("text-sm", theme.textSecondary)}>{t.checkout.step3}</p>
                 </div>
               </div>
             </div>
@@ -277,13 +277,13 @@ export default function CheckoutPage() {
                 href="/"
                 className={cn("px-8 py-4 rounded-2xl font-bold hover:shadow-2xl hover:scale-105 transition-all duration-300", theme.buttonPrimary, theme.buttonPrimaryHover, theme.textOnDark)}
               >
-                Tilbake til forsiden
+                {t.nav.backToHome}
               </Link>
               <Link
                 href="/min-side"
                 className={cn("px-8 py-4 rounded-2xl font-bold border hover:shadow-2xl hover:scale-105 transition-all duration-300", theme.buttonSecondary, theme.buttonSecondaryHover, theme.textPrimary, theme.glassBorder, theme.glassCard)}
               >
-                Se mine bestillinger
+                {t.checkout.seeMyOrders}
               </Link>
             </div>
           </div>
@@ -313,20 +313,20 @@ export default function CheckoutPage() {
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
-            Tilbake
+            {t.nav.back}
           </Link>
 
           <h1
             className="text-5xl font-bold text-white mb-2"
             style={{ textShadow: '0 2px 20px rgba(0,0,0,0.9)' }}
           >
-            Bestill
+            {t.checkout.title}
           </h1>
           <p
             className="text-sm font-semibold text-white mb-8"
             style={{ textShadow: '0 2px 8px rgba(0,0,0,0.9)' }}
           >
-            Reserver din kasse med Vipps
+            {t.checkout.subtitle}
           </p>
 
           <MobileCheckout
@@ -389,17 +389,17 @@ export default function CheckoutPage() {
             <svg className="w-5 h-5 group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
-            Tilbake
+            {t.nav.back}
           </Link>
         </div>
 
         {/* Hero */}
         <div className="text-center mb-16 animate-in fade-in duration-700">
           <h1 className={cn("text-5xl md:text-6xl font-bold mb-4", theme.textPrimary)}>
-            Reserver din kasse
+            {t.checkout.pageTitle}
           </h1>
           <p className={cn("text-lg max-w-2xl mx-auto", theme.textMuted)}>
-            Velg størrelse, ribbe-type og ekstra tillegg. Vi sender deg Vipps-betalingsforespørsel etter bestilling.
+            {t.checkout.selectSize}
           </p>
         </div>
 
@@ -427,19 +427,19 @@ export default function CheckoutPage() {
           </div>
           <div className="flex items-center justify-center gap-4 mt-4">
             <div className="text-center w-12 md:w-24">
-              <p className={cn("text-xs font-semibold", theme.textPrimary)}>Størrelse</p>
+              <p className={cn("text-xs font-semibold", theme.textPrimary)}>{t.checkout.stepSize}</p>
             </div>
             <div className="w-12 md:w-24" />
             <div className="text-center w-12 md:w-24">
-              <p className={cn("text-xs font-semibold", theme.textPrimary)}>Ribbe</p>
+              <p className={cn("text-xs font-semibold", theme.textPrimary)}>{t.checkout.stepRibbe}</p>
             </div>
             <div className="w-12 md:w-24" />
             <div className="text-center w-12 md:w-24">
-              <p className={cn("text-xs font-semibold", theme.textPrimary)}>Ekstra</p>
+              <p className={cn("text-xs font-semibold", theme.textPrimary)}>{t.checkout.stepExtras}</p>
             </div>
             <div className="w-12 md:w-24" />
             <div className="text-center w-12 md:w-24">
-              <p className={cn("text-xs font-semibold", theme.textPrimary)}>Levering</p>
+              <p className={cn("text-xs font-semibold", theme.textPrimary)}>{t.checkout.stepDelivery}</p>
             </div>
           </div>
         </div>
@@ -457,13 +457,13 @@ export default function CheckoutPage() {
               step === 1 ? cn("ring-2", theme.borderPrimary) : step > 1 ? "opacity-60" : ""
             )}>
               <div className="flex items-center justify-between mb-6">
-                <h2 className={cn("text-2xl font-bold", theme.textPrimary)}>1. Velg kassestørrelse</h2>
+                <h2 className={cn("text-2xl font-bold", theme.textPrimary)}>{t.checkout.step1Title}</h2>
                 {boxSize && step > 1 && (
                   <button
                     onClick={() => setStep(1)}
                     className={cn("text-sm underline", theme.textSecondary, `hover:${theme.textPrimary}`)}
                   >
-                    Endre
+                    {t.common.edit}
                   </button>
                 )}
               </div>
@@ -484,16 +484,16 @@ export default function CheckoutPage() {
                     )}
                   >
                     <div className="text-center mb-4">
-                      <p className={cn("text-5xl font-bold mb-2", theme.textPrimary)}>{size} <span className={cn("text-2xl", theme.textMuted)}>kg</span></p>
-                      <p className={cn("text-sm", theme.textMuted)}>{size === '8' ? '2-3 personer' : '4-6 personer'}</p>
+                      <p className={cn("text-5xl font-bold mb-2", theme.textPrimary)}>{size} <span className={cn("text-2xl", theme.textMuted)}>{t.common.kg}</span></p>
+                      <p className={cn("text-sm", theme.textMuted)}>{size === '8' ? t.checkout.persons2to3 : t.checkout.persons4to6}</p>
                     </div>
                     <p className={cn("text-2xl font-bold text-center", theme.textPrimary)}>
-                      {prices ? `kr ${prices[size].total}` : 'Laster...'}
+                      {prices ? `${t.common.kr} ${prices[size].total}` : t.common.loading}
                     </p>
 
                     {boxSize === size && boxContents[size] && (
                       <div className={cn("mt-6 pt-6 border-t animate-in fade-in slide-in-from-top-2 duration-500", theme.borderSecondary)}>
-                        <p className={cn("text-xs font-bold uppercase tracking-wider mb-3", theme.textPrimary)}>I kassen:</p>
+                        <p className={cn("text-xs font-bold uppercase tracking-wider mb-3", theme.textPrimary)}>{t.checkout.inBox}</p>
                         <ul className="space-y-2">
                           {boxContents[size].map((item, idx) => (
                             <li key={idx} className={cn("flex items-start gap-2 text-sm", item.highlight ? cn("font-medium", theme.textPrimary) : theme.textMuted)}>
@@ -513,7 +513,7 @@ export default function CheckoutPage() {
                   onClick={() => setStep(2)}
                   className={cn("mt-6 w-full px-8 py-4 rounded-2xl font-bold uppercase tracking-wider hover:shadow-2xl hover:scale-105 transition-all duration-300 flex items-center justify-center gap-2", theme.buttonPrimary, theme.buttonPrimaryHover, theme.textOnDark)}
                 >
-                  Gå videre til ribbe-valg
+                  {t.checkout.goToRibbeChoice}
                   <ChevronRight className="w-5 h-5" />
                 </button>
               )}
@@ -529,27 +529,27 @@ export default function CheckoutPage() {
                 step === 2 ? cn("ring-2", theme.borderPrimary) : step > 2 ? "opacity-60" : step < 2 ? "opacity-40 pointer-events-none" : ""
               )}>
                 <div className="flex items-center justify-between mb-6">
-                  <h2 className={cn("text-2xl font-bold", theme.textPrimary)}>2. Velg ribbe-type</h2>
+                  <h2 className={cn("text-2xl font-bold", theme.textPrimary)}>{t.checkout.step2Title}</h2>
                   {ribbeChoice && step > 2 && (
                     <button
                       onClick={() => setStep(2)}
                       className={cn("text-sm underline", theme.textSecondary, `hover:${theme.textPrimary}`)}
                     >
-                      Endre
+                      {t.common.edit}
                     </button>
                   )}
                 </div>
 
                 <p className={cn("text-sm mb-6", theme.textMuted)}>
-                  Din kasse inneholder ca. {boxSize === '8' ? '2.0' : '3.0'} kg ribbe. Velg hvilken type:
+                  {t.checkout.boxContains.replace('{size}', boxSize === '8' ? '2.0' : '3.0')}
                 </p>
 
                 <div className="grid gap-4">
                   {[
-                    { id: 'tynnribbe', name: 'Tynnribbe', desc: 'Klassisk ribbe med ribbein - perfekt sprøstekt svor', tag: null },
-                    { id: 'familieribbe', name: 'Familieribbe', desc: 'Inkluderer kotelettkammen med ytrefileten - mer kjøtt, magrere kjøtt', tag: null },
-                    { id: 'porchetta', name: 'Porchetta', desc: 'Beinfri nedre mage - italiensk stil', tag: null },
-                    { id: 'butchers_choice', name: 'Slakterens valg', desc: 'Vi velger en god ribbe til deg basert på tilgjengelighet', tag: 'Forhåndsvalgt' },
+                    { id: 'tynnribbe', name: t.checkout.tynnribbe, desc: t.checkout.tynnribbeDesc, tag: null },
+                    { id: 'familieribbe', name: t.checkout.familieribbe, desc: t.checkout.familieribbeDesc, tag: null },
+                    { id: 'porchetta', name: t.checkout.porchetta, desc: t.checkout.porchettaDesc, tag: null },
+                    { id: 'butchers_choice', name: t.checkout.butchersChoice, desc: t.checkout.butchersChoiceDesc, tag: t.checkout.preSelected },
                   ].map((option) => (
                     <button
                       key={option.id}
@@ -580,7 +580,7 @@ export default function CheckoutPage() {
                     onClick={() => setStep(3)}
                     className={cn("mt-6 w-full px-8 py-4 rounded-2xl font-bold uppercase tracking-wider hover:shadow-2xl hover:scale-105 transition-all duration-300 flex items-center justify-center gap-2", theme.buttonPrimary, theme.buttonPrimaryHover, theme.textOnDark)}
                   >
-                    Gå videre til ekstra tillegg
+                    {t.checkout.goToExtras}
                     <ChevronRight className="w-5 h-5" />
                   </button>
                 )}
@@ -597,20 +597,20 @@ export default function CheckoutPage() {
                 step === 3 ? cn("ring-2", theme.borderPrimary) : step > 3 ? "opacity-60" : step < 3 ? "opacity-40 pointer-events-none" : ""
               )}>
                 <div className="flex items-center justify-between mb-6">
-                  <h2 className={cn("text-2xl font-bold", theme.textPrimary)}>3. Ekstra kjøttprodukter (valgfritt)</h2>
+                  <h2 className={cn("text-2xl font-bold", theme.textPrimary)}>{t.checkout.step3Title}</h2>
                   {step > 3 && (
                     <button
                       onClick={() => setStep(3)}
                       className={cn("text-sm underline", theme.textSecondary, `hover:${theme.textPrimary}`)}
                     >
-                      Endre
+                      {t.common.edit}
                     </button>
                   )}
                 </div>
 
                 <div className="mb-8 p-5 bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-300 rounded-2xl shadow-sm">
                   <p className="text-sm text-amber-900 leading-relaxed">
-                    <strong className="font-bold">Obs:</strong> Ekstra produkter er avhengig av tilgjengelighet og grisestørrelse ved slakt. Vi gjør vårt beste for å oppfylle ønskene dine.
+                    {t.checkout.extrasWarning}
                   </p>
                 </div>
 
@@ -666,10 +666,10 @@ export default function CheckoutPage() {
                           {/* Price */}
                           <div className="flex items-baseline gap-2 mb-4">
                             <span className={cn("text-2xl font-bold", isSelected ? "text-amber-600" : theme.textPrimary)}>
-                              {extra.price_nok} kr
+                              {extra.price_nok} {t.common.kr}
                             </span>
                             <span className={cn("text-sm", theme.textMuted)}>
-                              /{extra.pricing_type === 'per_kg' ? 'kg' : 'stk'}
+                              /{extra.pricing_type === 'per_kg' ? t.common.kg : t.common.stk}
                             </span>
                           </div>
 
@@ -679,7 +679,7 @@ export default function CheckoutPage() {
                               className="flex items-center gap-3 pt-4 border-t border-amber-200 animate-in fade-in slide-in-from-top-2 duration-300"
                               onClick={(e) => e.stopPropagation()}
                             >
-                              <label className={cn("text-sm font-semibold", theme.textPrimary)}>Mengde:</label>
+                              <label className={cn("text-sm font-semibold", theme.textPrimary)}>{t.checkout.quantity}</label>
                               <Input
                                 type="number"
                                 min={extra.pricing_type === 'per_kg' ? '0.1' : '1'}
@@ -697,7 +697,7 @@ export default function CheckoutPage() {
                                 className={cn("w-24 text-center font-bold text-lg border-2 border-amber-300 focus:border-amber-500", theme.textPrimary)}
                               />
                               <span className={cn("text-sm font-medium", theme.textPrimary)}>
-                                {extra.pricing_type === 'per_kg' ? 'kg' : 'stk'}
+                                {extra.pricing_type === 'per_kg' ? t.common.kg : t.common.stk}
                               </span>
                             </div>
                           )}
@@ -712,7 +712,7 @@ export default function CheckoutPage() {
                     onClick={() => setStep(4)}
                     className={cn("mt-6 w-full px-8 py-4 rounded-2xl font-bold uppercase tracking-wider hover:shadow-2xl hover:scale-105 transition-all duration-300 flex items-center justify-center gap-2", theme.buttonPrimary, theme.buttonPrimaryHover, theme.textOnDark)}
                   >
-                    Gå videre til levering
+                    {t.checkout.goToDelivery}
                     <ChevronRight className="w-5 h-5" />
                   </button>
                 )}
@@ -728,12 +728,12 @@ export default function CheckoutPage() {
                 theme.glassBorder,
                 step === 4 ? cn("ring-2", theme.borderPrimary) : ""
               )}>
-                <h2 className={cn("text-2xl font-bold mb-6", theme.textPrimary)}>4. Levering og tillegg</h2>
+                <h2 className={cn("text-2xl font-bold mb-6", theme.textPrimary)}>{t.checkout.step4Title}</h2>
 
                 <div className="space-y-6">
                   {/* Delivery Type Selection */}
                   <div>
-                    <h3 className={cn("text-sm font-bold uppercase tracking-wider mb-3", theme.textPrimary)}>Leveringsalternativ</h3>
+                    <h3 className={cn("text-sm font-bold uppercase tracking-wider mb-3", theme.textPrimary)}>{t.checkout.deliveryOptions}</h3>
                     <div className="space-y-3">
                       <button
                         onClick={() => setDeliveryType('farm')}
@@ -750,11 +750,11 @@ export default function CheckoutPage() {
                               {deliveryType === 'farm' && <div className={cn("w-2.5 h-2.5 rounded-full", theme.textOnDark)} />}
                             </div>
                             <div>
-                              <p className={cn("font-semibold", theme.textPrimary)}>Henting på gården</p>
-                              <p className={cn("text-sm", theme.textMuted)}>Tinglemsvegen 91, Namdalseid</p>
+                              <p className={cn("font-semibold", theme.textPrimary)}>{t.checkout.pickupFarm}</p>
+                              <p className={cn("text-sm", theme.textMuted)}>{t.checkout.pickupFarmAddress}</p>
                             </div>
                           </div>
-                          <span className="text-sm font-bold text-green-600">Gratis</span>
+                          <span className="text-sm font-bold text-green-600">{t.common.free}</span>
                         </div>
                       </button>
 
@@ -773,11 +773,11 @@ export default function CheckoutPage() {
                               {deliveryType === 'trondheim' && <div className={cn("w-2.5 h-2.5 rounded-full", theme.textOnDark)} />}
                             </div>
                             <div>
-                              <p className={cn("font-semibold", theme.textPrimary)}>Henting i Trondheim</p>
-                              <p className={cn("text-sm", theme.textMuted)}>Veita Mat AS, Jomfrugata</p>
+                              <p className={cn("font-semibold", theme.textPrimary)}>{t.checkout.pickupTrondheim}</p>
+                              <p className={cn("text-sm", theme.textMuted)}>{t.checkout.pickupTrondheimAddress}</p>
                             </div>
                           </div>
-                          <span className={cn("text-sm font-bold", theme.textPrimary)}>+{addonPrices?.trondheim || 200} kr</span>
+                          <span className={cn("text-sm font-bold", theme.textPrimary)}>+{addonPrices?.trondheim || 200} {t.common.kr}</span>
                         </div>
                       </button>
 
@@ -796,11 +796,11 @@ export default function CheckoutPage() {
                               {deliveryType === 'e6' && <div className={cn("w-2.5 h-2.5 rounded-full", theme.textOnDark)} />}
                             </div>
                             <div>
-                              <p className={cn("font-semibold", theme.textPrimary)}>Levering langs E6</p>
-                              <p className={cn("text-sm", theme.textMuted)}>Stjørdal-Namsos</p>
+                              <p className={cn("font-semibold", theme.textPrimary)}>{t.checkout.deliveryE6}</p>
+                              <p className={cn("text-sm", theme.textMuted)}>{t.checkout.deliveryE6Address}</p>
                             </div>
                           </div>
-                          <span className={cn("text-sm font-bold", theme.textPrimary)}>+{addonPrices?.e6 || 300} kr</span>
+                          <span className={cn("text-sm font-bold", theme.textPrimary)}>+{addonPrices?.e6 || 300} {t.common.kr}</span>
                         </div>
                       </button>
                     </div>
@@ -809,7 +809,7 @@ export default function CheckoutPage() {
                   {/* Fresh Delivery Option - Only available with farm pickup */}
                   {deliveryType === 'farm' && (
                     <div>
-                      <h3 className={cn("text-sm font-bold uppercase tracking-wider mb-3", theme.textPrimary)}>Ekstra tilvalg</h3>
+                      <h3 className={cn("text-sm font-bold uppercase tracking-wider mb-3", theme.textPrimary)}>{t.checkout.extraOptions}</h3>
                       <button
                         onClick={() => setFreshDelivery(!freshDelivery)}
                         className={cn(
@@ -825,11 +825,11 @@ export default function CheckoutPage() {
                               {freshDelivery && <Check className={cn("w-3 h-3", theme.textOnDark)} />}
                             </div>
                             <div>
-                              <p className={cn("font-semibold", theme.textPrimary)}>Fersk levering (uke 50/51)</p>
-                              <p className={cn("text-sm", theme.textMuted)}>Motta kassen fersk i stedet for frossen - kun på gården</p>
+                              <p className={cn("font-semibold", theme.textPrimary)}>{t.checkout.freshDelivery}</p>
+                              <p className={cn("text-sm", theme.textMuted)}>{t.checkout.freshDeliveryDesc}</p>
                             </div>
                           </div>
-                          <span className={cn("text-sm font-bold", theme.textPrimary)}>+{addonPrices?.fresh || 500} kr</span>
+                          <span className={cn("text-sm font-bold", theme.textPrimary)}>+{addonPrices?.fresh || 500} {t.common.kr}</span>
                         </div>
                       </button>
                     </div>
@@ -858,32 +858,32 @@ export default function CheckoutPage() {
                 </div>
               </div>
 
-              <h3 className={cn("text-xl sm:text-2xl font-bold mb-4 sm:mb-6", theme.textPrimary)}>Sammendrag</h3>
+              <h3 className={cn("text-xl sm:text-2xl font-bold mb-4 sm:mb-6", theme.textPrimary)}>{t.checkout.summary}</h3>
 
               <div className="space-y-4 mb-6">
                 {boxSize && prices && (
                   <div className="flex justify-between text-sm">
-                    <span className={theme.textMuted}>{boxSize} kg kasse</span>
-                    <span className={cn("font-bold", theme.textPrimary)}>kr {prices[boxSize].total}</span>
+                    <span className={theme.textMuted}>{boxSize} {t.common.kg} {boxSize === '8' ? t.product.box8 : t.product.box12}</span>
+                    <span className={cn("font-bold", theme.textPrimary)}>{t.common.kr} {prices[boxSize].total}</span>
                   </div>
                 )}
                 {deliveryType !== 'farm' && addonPrices && (
                   <div className="flex justify-between text-sm">
                     <span className={theme.textMuted}>
-                      {deliveryType === 'trondheim' ? 'Henting Trondheim' : 'Levering E6'}
+                      {deliveryType === 'trondheim' ? t.checkout.pickupTrondheim : t.checkout.deliveryE6}
                     </span>
-                    <span className={cn("font-bold", theme.textPrimary)}>+{deliveryType === 'trondheim' ? addonPrices.trondheim : addonPrices.e6} kr</span>
+                    <span className={cn("font-bold", theme.textPrimary)}>+{deliveryType === 'trondheim' ? addonPrices.trondheim : addonPrices.e6} {t.common.kr}</span>
                   </div>
                 )}
                 {freshDelivery && addonPrices && (
                   <div className="flex justify-between text-sm">
-                    <span className={theme.textMuted}>Fersk levering</span>
-                    <span className={cn("font-bold", theme.textPrimary)}>+{addonPrices.fresh} kr</span>
+                    <span className={theme.textMuted}>{t.checkout.freshDelivery}</span>
+                    <span className={cn("font-bold", theme.textPrimary)}>+{addonPrices.fresh} {t.common.kr}</span>
                   </div>
                 )}
                 {extraProducts.length > 0 && (
                   <div className="space-y-2 mt-4">
-                    <p className={cn("text-xs uppercase tracking-wider font-semibold", theme.textMuted)}>Ekstra produkter</p>
+                    <p className={cn("text-xs uppercase tracking-wider font-semibold", theme.textMuted)}>{t.checkout.extraProducts}</p>
                     {extraProducts.map(slug => {
                       const extra = availableExtras.find(e => e.slug === slug);
                       if (!extra) return null;
@@ -892,9 +892,9 @@ export default function CheckoutPage() {
                       return (
                         <div key={slug} className="flex justify-between text-sm">
                           <span className={theme.textMuted}>
-                            {extra.name_no} ({quantity} {extra.pricing_type === 'per_kg' ? 'kg' : 'stk'})
+                            {extra.name_no} ({quantity} {extra.pricing_type === 'per_kg' ? t.common.kg : t.common.stk})
                           </span>
-                          <span className={cn("font-bold", theme.textPrimary)}>+{itemTotal} kr</span>
+                          <span className={cn("font-bold", theme.textPrimary)}>+{itemTotal} {t.common.kr}</span>
                         </div>
                       );
                     })}
@@ -904,28 +904,28 @@ export default function CheckoutPage() {
 
               <div className={cn("border-t pt-4 mb-6", theme.borderSecondary)}>
                 <div className="flex justify-between text-sm mb-2">
-                  <span className={theme.textMuted}>Forskudd (50%)</span>
-                  <span className={cn("font-bold", theme.textPrimary)}>kr {baseDepositTotal.toLocaleString('nb-NO')}</span>
+                  <span className={theme.textMuted}>{t.checkout.deposit50Percent}</span>
+                  <span className={cn("font-bold", theme.textPrimary)}>{t.common.kr} {baseDepositTotal.toLocaleString('nb-NO')}</span>
                 </div>
                 {referralData && (
                   <div className="flex justify-between text-sm mb-2 text-green-600">
-                    <span>Vennerabatt (-20%)</span>
-                    <span className="font-bold">-kr {referralDiscount.toLocaleString('nb-NO')}</span>
+                    <span>{t.checkout.friendDiscount}</span>
+                    <span className="font-bold">-{t.common.kr} {referralDiscount.toLocaleString('nb-NO')}</span>
                   </div>
                 )}
                 {rebateData && (
                   <div className="flex justify-between text-sm mb-2 text-blue-600">
-                    <span>Rabattkode ({rebateData.code})</span>
-                    <span className="font-bold">-kr {rebateDiscount.toLocaleString('nb-NO')}</span>
+                    <span>{t.checkout.discountCode} ({rebateData.code})</span>
+                    <span className="font-bold">-{t.common.kr} {rebateDiscount.toLocaleString('nb-NO')}</span>
                   </div>
                 )}
                 <div className="flex justify-between text-sm mb-4">
-                  <span className={theme.textMuted}>Rest før levering</span>
-                  <span className={cn("font-bold", theme.textPrimary)}>kr {remainderTotal.toLocaleString('nb-NO')}</span>
+                  <span className={theme.textMuted}>{t.checkout.remainderBeforeDelivery}</span>
+                  <span className={cn("font-bold", theme.textPrimary)}>{t.common.kr} {remainderTotal.toLocaleString('nb-NO')}</span>
                 </div>
                 <div className="flex justify-between text-lg sm:text-xl font-bold">
-                  <span className={theme.textPrimary}>Totalt</span>
-                  <span className={theme.textPrimary}>kr {totalPrice.toLocaleString('nb-NO')}</span>
+                  <span className={theme.textPrimary}>{t.common.total}</span>
+                  <span className={theme.textPrimary}>{t.common.kr} {totalPrice.toLocaleString('nb-NO')}</span>
                 </div>
               </div>
 
@@ -968,7 +968,7 @@ export default function CheckoutPage() {
 
                   {(referralData || rebateData) && (
                     <p className="text-xs text-gray-500 text-center">
-                      Kun én rabattkode kan brukes per bestilling
+                      {t.checkout.onlyOneDiscount}
                     </p>
                   )}
 
@@ -981,7 +981,7 @@ export default function CheckoutPage() {
                         className="mt-0.5 rounded"
                       />
                       <span className="text-sm leading-relaxed text-amber-900">
-                        <strong className="font-bold">Jeg forstår at depositumet ikke refunderes.</strong> Dette utløser produksjonsplanlegging.
+                        <strong className="font-bold">{t.checkout.depositNotRefundable}</strong> {t.checkout.triggersProd}
                       </span>
                     </Label>
                   </div>
@@ -995,7 +995,7 @@ export default function CheckoutPage() {
                         className="mt-0.5 rounded"
                       />
                       <span className="text-sm leading-relaxed text-slate-800">
-                        Jeg godtar <a href="/vilkar" target="_blank" rel="noopener noreferrer" className="underline font-semibold hover:text-amber-600">vilkårene for kjøpet</a>
+                        {t.checkout.agreeToTerms} <a href="/vilkar" target="_blank" rel="noopener noreferrer" className="underline font-semibold hover:text-amber-600">{t.checkout.termsLink}</a>
                       </span>
                     </Label>
                   </div>
@@ -1007,10 +1007,10 @@ export default function CheckoutPage() {
                     style={{ backgroundColor: isProcessing ? undefined : '#FF5B24' }}
                   >
                     {isProcessing ? (
-                      'Behandler...'
+                      t.common.processing
                     ) : (
                       <>
-                        <span>Betal med</span>
+                        <span>{t.checkout.payWith}</span>
                         <div className="relative w-20 h-8">
                           <Image
                             src="/vipps-logo.svg"
@@ -1027,10 +1027,10 @@ export default function CheckoutPage() {
                   <div className="pt-4 border-t-2 border-gray-200">
                     <div className="flex items-center justify-center gap-2 text-sm text-gray-600 mb-2">
                       <img src="/vipps-logo.svg" alt="Vipps" className="w-6 h-6" />
-                      <span className="font-medium">Sikker betaling med Vipps</span>
+                      <span className="font-medium">{t.checkout.securePayment}</span>
                     </div>
                     <p className="text-xs text-center text-gray-500">
-                      Dine kontaktopplysninger hentes automatisk fra Vipps
+                      {t.checkout.contactInfoFromVipps}
                     </p>
                   </div>
                 </div>

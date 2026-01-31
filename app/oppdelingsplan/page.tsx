@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useIsMobile } from '@/hooks/useMediaQuery';
 import { cn } from '@/lib/utils';
@@ -16,6 +17,7 @@ interface CutInfo {
 }
 
 export default function OppdelingsplanPage() {
+  const { t } = useLanguage();
   const { getThemeClasses } = useTheme();
   const theme = getThemeClasses();
   const isMobile = useIsMobile();
@@ -25,66 +27,66 @@ export default function OppdelingsplanPage() {
   const cuts: CutInfo[] = [
     {
       id: 3,
-      name: "Nakke",
-      description: "Nakken er marmorert med fett og gir saftige koteletter og steik.",
-      inBox: ["Nakkekoteletter ca. 1.0 kg (12 kg kasse) / ca. 0.75 kg (8 kg kasse)"],
-      extraOrder: ["Ekstra nakkekoteletter", "Nakkestek/gryte"]
+      name: t.oppdelingsplan.nakke,
+      description: t.oppdelingsplan.nakkeDesc,
+      inBox: [t.oppdelingsplan.nakkeInBox],
+      extraOrder: [t.oppdelingsplan.nakkeExtra1, t.oppdelingsplan.nakkeExtra2]
     },
     {
       id: 4,
-      name: "Indrefilet",
-      description: "Indrefileten er det aller møreste kjøttet fra grisen.",
+      name: t.oppdelingsplan.indrefilet,
+      description: t.oppdelingsplan.indrefiletDesc,
       inBox: [],
-      extraOrder: ["Indrefilet"]
+      extraOrder: [t.oppdelingsplan.indrefiletExtra]
     },
     {
       id: 5,
-      name: "Kotelettkam",
-      description: "Kotelettkammen er fra ryggen og gir møre koteletter. Dette området brukes også i Familieribbe.",
-      inBox: ["Inkludert i Familieribbe-valget"],
-      extraOrder: ["Svinekoteletter"]
+      name: t.oppdelingsplan.kotelettkam,
+      description: t.oppdelingsplan.kotelettkamDesc,
+      inBox: [t.oppdelingsplan.kotelettkamInBox],
+      extraOrder: [t.oppdelingsplan.kotelettkamExtra]
     },
     {
       id: 7,
-      name: "Ribbeside",
-      description: "Ribbeside og mage gir ulike typer ribbe. Velg mellom Tynnribbe (med ribbein), Familieribbe (inkl. kotelettkam), eller Porchetta (beinfri nedre mage).",
-      inBox: ["ca. 3.0 kg ribbe (12 kg kasse) / ca. 2.0 kg ribbe (8 kg kasse) - velg type ved bestilling"],
-      extraOrder: ["Ekstra ribbe", "Bacon", "Sideflesk"]
+      name: t.oppdelingsplan.ribbeside,
+      description: t.oppdelingsplan.ribbesideDesc,
+      inBox: [t.oppdelingsplan.ribbesideInBox],
+      extraOrder: [t.oppdelingsplan.ribbesideExtra1, t.oppdelingsplan.ribbesideExtra2, t.oppdelingsplan.ribbesideExtra3]
     },
     {
       id: 8,
-      name: "Svinebog",
-      description: "Bogen passer perfekt til pulled pork, gryter og steik. Dette er et av de mest allsidige stykkene.",
-      inBox: ["Inkludert i Slakterens valg"],
-      extraOrder: ["Bogsteik/gryte", "Steik til pulled-pork"]
+      name: t.oppdelingsplan.svinebog,
+      description: t.oppdelingsplan.svinebogDesc,
+      inBox: [t.oppdelingsplan.svinebogInBox],
+      extraOrder: [t.oppdelingsplan.svinebogExtra1, t.oppdelingsplan.svinebogExtra2]
     },
     {
       id: 9,
-      name: "Skinke/Lår",
-      description: "Skinken/låret kan brukes fersk som steik, gryte, eller spekkes. Dette er en stor, mager muskelgruppe.",
-      inBox: ["Svinesteik ca. 1.0 kg", "Også inkludert i Slakterens valg"],
-      extraOrder: ["Ekstra skinkesteik", "Spekeskinke"]
+      name: t.oppdelingsplan.skinke,
+      description: t.oppdelingsplan.skinkeDesc,
+      inBox: [t.oppdelingsplan.skinkeInBox1, t.oppdelingsplan.skinkeInBox2],
+      extraOrder: [t.oppdelingsplan.skinkeExtra1, t.oppdelingsplan.skinkeExtra2]
     },
     {
       id: 10,
-      name: "Knoke",
-      description: "Knoken passer til kraft og gryter, eller til steik. Hver kasse inneholder 1 knoke.",
-      inBox: ["1 stk knoke (ca. 0.5-1.0 kg)"],
-      extraOrder: ["Ekstra knoker"]
+      name: t.oppdelingsplan.knoke,
+      description: t.oppdelingsplan.knokeDesc,
+      inBox: [t.oppdelingsplan.knokeInBox],
+      extraOrder: [t.oppdelingsplan.knokeExtra]
     },
     {
       id: 11,
-      name: "Labb",
-      description: "Labben brukes ofte til sylte og kraftsuppe.",
+      name: t.oppdelingsplan.labb,
+      description: t.oppdelingsplan.labbDesc,
       inBox: [],
-      extraOrder: ["Svinelabb"]
+      extraOrder: [t.oppdelingsplan.labbExtra]
     },
     {
       id: 12,
-      name: "Pølser & Farse",
-      description: "Laget av trim og mindre stykker. Perfekt til hverdagsmiddag og julemat.",
-      inBox: ["Medisterfarse: ca. 1.5 kg (12 kg kasse) / ca. 1.0 kg (8 kg kasse)", "Julepølse: ca. 1.0 kg (12 kg kasse) / ca. 0.5 kg (8 kg kasse)"],
-      extraOrder: ["Ekstra medisterfarse", "Ekstra julepølse"]
+      name: t.oppdelingsplan.pølserFarse,
+      description: t.oppdelingsplan.pølserFarseDesc,
+      inBox: [t.oppdelingsplan.pølserFarseInBox1, t.oppdelingsplan.pølserFarseInBox2],
+      extraOrder: [t.oppdelingsplan.pølserFarseExtra1, t.oppdelingsplan.pølserFarseExtra2]
     }
   ];
 
@@ -112,7 +114,7 @@ export default function OppdelingsplanPage() {
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
-            Tilbake
+            {t.nav.back}
           </Link>
 
           <MobileOppdelingsplan />
@@ -130,19 +132,19 @@ export default function OppdelingsplanPage() {
           <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
-          Tilbake til forsiden
+          {t.nav.backToHome}
         </Link>
 
         <div className="text-center mb-12">
-          <h1 className={cn("text-4xl md:text-5xl font-bold mb-4", theme.textPrimary)}>Oppdelingsplan - Gris</h1>
+          <h1 className={cn("text-4xl md:text-5xl font-bold mb-4", theme.textPrimary)}>{t.oppdelingsplan.title}</h1>
           <p className={cn("text-lg max-w-3xl mx-auto", theme.textMuted)}>
-            Klikk på de forskjellige delene for å se hvilke produkter som er inkludert i kassen og hva som kan bestilles ekstra
+            {t.oppdelingsplan.subtitle}
           </p>
         </div>
 
         {/* Product Summary */}
         <div className={cn("rounded-2xl shadow-xl border p-8 mb-8", theme.bgCard, theme.borderSecondary)}>
-          <h2 className={cn("text-2xl font-bold mb-6 text-center", theme.textPrimary)}>Våre produkter</h2>
+          <h2 className={cn("text-2xl font-bold mb-6 text-center", theme.textPrimary)}>{t.oppdelingsplan.ourProducts}</h2>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             {/* In Box Products */}
@@ -151,9 +153,9 @@ export default function OppdelingsplanPage() {
                 <svg className="w-6 h-6 text-green-600" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/>
                 </svg>
-                I kassen
+                {t.oppdelingsplan.inBox}
               </h3>
-              <p className={cn("text-sm mb-4", theme.textMuted)}>Disse produktene er inkludert i standardkassen:</p>
+              <p className={cn("text-sm mb-4", theme.textMuted)}>{t.oppdelingsplan.inBoxDesc}:</p>
               <div className="space-y-2">
                 {["Knoke (1 stk)", "Medisterfarse", "Julepølse", "Nakkekoteletter", "Svinesteik", "Ribbe (velg type)", "Slakterens valg (varierer)"].map((product) => (
                   <div key={product} className="flex items-center gap-3 p-3 bg-green-50 rounded-lg border border-green-200">
@@ -172,9 +174,9 @@ export default function OppdelingsplanPage() {
                 <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                 </svg>
-                Kan bestilles ekstra
+                {t.oppdelingsplan.extraOrder}
               </h3>
-              <p className={cn("text-sm mb-4", theme.textMuted)}>Disse produktene kan legges til bestillingen (begrenset tilgjengelighet):</p>
+              <p className={cn("text-sm mb-4", theme.textMuted)}>{t.oppdelingsplan.extraOrderDesc}:</p>
               <div className="space-y-2">
                 {["Indrefilet", "Ytrefilet/Ryggfilet", "Svinekoteletter", "Ekstra ribbe", "Bacon/Sideflesk", "Spekeskinke", "Bogsteik (pulled pork)", "Svinelabb", "Innmat (lever, hjerte)", "Kraftbein"].map((product) => (
                   <div key={product} className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
@@ -320,7 +322,7 @@ export default function OppdelingsplanPage() {
                         <svg className="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
                           <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/>
                         </svg>
-                        I kassen
+                        {t.oppdelingsplan.inBox}
                       </h3>
                       {selectedCutInfo.inBox.length > 0 ? (
                         <div className="flex flex-wrap gap-2">
@@ -331,7 +333,7 @@ export default function OppdelingsplanPage() {
                           ))}
                         </div>
                       ) : (
-                        <p className={cn("text-sm italic", theme.textMuted)}>Ingen produkter fra denne delen i standardkassen</p>
+                        <p className={cn("text-sm italic", theme.textMuted)}>{t.oppdelingsplan.noProductsInBox}</p>
                       )}
                     </div>
 
@@ -341,7 +343,7 @@ export default function OppdelingsplanPage() {
                         <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                         </svg>
-                        Kan bestilles ekstra
+                        {t.oppdelingsplan.extraOrder}
                       </h3>
                       {selectedCutInfo.extraOrder.length > 0 ? (
                         <div className="flex flex-wrap gap-2">
@@ -352,7 +354,7 @@ export default function OppdelingsplanPage() {
                           ))}
                         </div>
                       ) : (
-                        <p className={cn("text-sm italic", theme.textMuted)}>Ingen ekstra produkter tilgjengelig fra denne delen</p>
+                        <p className={cn("text-sm italic", theme.textMuted)}>{t.oppdelingsplan.noExtraProducts}</p>
                       )}
                     </div>
                   </div>
@@ -361,8 +363,8 @@ export default function OppdelingsplanPage() {
                   {selectedCutInfo.id === 7 && (
                     <div className={cn("mt-8 pt-8 border-t", theme.borderSecondary)}>
                       <div className="text-center mb-6">
-                        <h3 className={cn("text-2xl font-bold mb-2", theme.textPrimary)}>Velg din ribbe-type</h3>
-                        <p className={cn("text-sm", theme.textMuted)}>Alle tre varianter bruker forskjellige deler av ribbeside og mage</p>
+                        <h3 className={cn("text-2xl font-bold mb-2", theme.textPrimary)}>{t.oppdelingsplan.chooseRibbeType}</h3>
+                        <p className={cn("text-sm", theme.textMuted)}>{t.oppdelingsplan.ribbeTypeDesc}</p>
                       </div>
 
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
@@ -404,7 +406,7 @@ export default function OppdelingsplanPage() {
                       </div>
 
                       <div className={cn("rounded-lg p-4 text-sm", theme.bgSecondary, theme.textSecondary)}>
-                        <strong className={theme.textPrimary}>Slakterens valg:</strong> Ikke sikker? Velg "Slakterens valg" ved bestilling, så velger vi basert på tilgjengelighet.
+                        <strong className={theme.textPrimary}>{t.oppdelingsplan.butchersChoiceTitle}:</strong> {t.oppdelingsplan.butchersChoiceText}
                       </div>
                     </div>
                   )}
@@ -416,7 +418,7 @@ export default function OppdelingsplanPage() {
               <svg className={cn("w-16 h-16 mx-auto mb-4", theme.iconColor)} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" />
               </svg>
-              <p className={cn("text-lg font-medium", theme.textMuted)}>Klikk på en del av grisen for å se produktinformasjon</p>
+              <p className={cn("text-lg font-medium", theme.textMuted)}>{t.oppdelingsplan.clickToPart}</p>
             </div>
           )}
         </div>

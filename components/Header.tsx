@@ -72,7 +72,7 @@ export function Header() {
                 href="/oppdelingsplan"
                 className={cn("px-5 py-2.5 text-sm font-semibold rounded-xl transition-all", themeClasses.textSecondary, themeClasses.buttonSecondaryHover)}
               >
-                Oppdelingsplan
+                {t.nav.oppdelingsplan}
               </Link>
               <Link
                 href="/min-side"
@@ -157,7 +157,7 @@ export function Header() {
                           onClick={() => setShowDropdown(false)}
                           className={cn("block px-4 py-2 text-sm transition-colors", themeClasses.textPrimary, themeClasses.buttonSecondaryHover)}
                         >
-                          Mine bestillinger
+                          {t.nav.myOrders}
                         </Link>
                         <button
                           onClick={() => {
@@ -166,7 +166,7 @@ export function Header() {
                           }}
                           className={cn("w-full text-left px-4 py-2 text-sm transition-colors", themeClasses.textPrimary, themeClasses.buttonSecondaryHover)}
                         >
-                          Logg ut
+                          {t.nav.logout}
                         </button>
                       </div>
                     </div>
@@ -184,7 +184,7 @@ export function Header() {
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
                   </svg>
-                  <span className="hidden sm:inline">Logg inn</span>
+                  <span className="hidden sm:inline">{t.nav.login}</span>
                 </button>
               )}
 
@@ -203,7 +203,7 @@ export function Header() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
                 </svg>
                 <span className="hidden xs:inline">{t.product.orderNow}</span>
-                <span className="xs:hidden">Bestill</span>
+                <span className="xs:hidden">{t.nav.order}</span>
               </Link>
             </div>
 
