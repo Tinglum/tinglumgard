@@ -237,7 +237,6 @@ export const no = {
     freshDeliveryDesc: "Motta kassen fersk i stedet for frossen - kun på gården",
 
     // Summary
-    summary: "Sammendrag",
     deposit50Percent: "Forskudd (50%)",
     friendDiscount: "Vennerabatt (-20%)",
     discountCode: "Rabattkode",

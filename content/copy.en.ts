@@ -237,7 +237,6 @@ export const en = {
     freshDeliveryDesc: "Receive the box fresh instead of frozen - only at the farm",
 
     // Summary
-    summary: "Summary",
     deposit50Percent: "Deposit (50%)",
     friendDiscount: "Friend discount (-20%)",
     discountCode: "Discount code",
