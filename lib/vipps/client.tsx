@@ -50,6 +50,12 @@ export default function CheckoutPage() {
         const data = await response.json();
         if (data.extras) {
           setAvailableExtras(data.extras);
+          // Initialize extraQuantities with default values from extras
+          const defaultQuantities: Record<string, number> = {};
+          data.extras.forEach((extra: any) => {
+            defaultQuantities[extra.slug] = extra.default_quantity || 1;
+          });
+          setExtraQuantities(defaultQuantities);
         }
       } catch (error) {
         console.error('Failed to fetch extras:', error);
@@ -503,7 +509,7 @@ export default function CheckoutPage() {
                     .filter(extra => !['delivery_trondheim', 'pickup_e6', 'fresh_delivery'].includes(extra.slug))
                     .map((extra) => {
                     const isSelected = extraProducts.includes(extra.slug);
-                    const quantity = extraQuantities[extra.slug] || (extra.pricing_type === 'per_kg' ? 0.5 : 1);
+                    const quantity = extraQuantities[extra.slug] !== undefined ? extraQuantities[extra.slug] : (extra.default_quantity || 1);
 
                     return (
                       <div
