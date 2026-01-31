@@ -97,6 +97,26 @@ export const no = {
     box12: "12 kg kasse",
   },
 
+  // Product detail page
+  productDetail: {
+    title: "Ullgris Kjøttpakke",
+    variation: "Innholdet varierer litt, men dette er ca. hva du får:",
+    categories: {
+      ribbe: "Ribbe",
+      sausages: "Pølser",
+      bacon: "Bacon",
+      chops: "Koteletter",
+      stew: "Kokkekutt",
+    },
+    addons: {
+      title: "Tillegg",
+      disabled: "Tillegg kan velges i bestillingsprosessen",
+      delivery: "Levering Trondheim",
+      highway: "Henting langs E6",
+      fresh: "Fersk levering (uke 50-51)",
+    },
+  },
+
   // Availability section
   availability: {
     title: "Tilgjengelighet",

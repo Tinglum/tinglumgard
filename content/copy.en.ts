@@ -97,6 +97,26 @@ export const en = {
     box12: "12 kg box",
   },
 
+  // Product detail page
+  productDetail: {
+    title: "Woolly Pig Meat Package",
+    variation: "Contents vary slightly, but this is approximately what you get:",
+    categories: {
+      ribbe: "Pork Ribs",
+      sausages: "Sausages",
+      bacon: "Bacon",
+      chops: "Chops",
+      stew: "Stew Meat",
+    },
+    addons: {
+      title: "Add-ons",
+      disabled: "Add-ons can be selected during checkout",
+      delivery: "Delivery Trondheim",
+      highway: "Pickup along E6",
+      fresh: "Fresh delivery (week 50-51)",
+    },
+  },
+
   // Availability section
   availability: {
     title: "Availability",
