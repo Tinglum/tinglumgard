@@ -463,7 +463,6 @@ export const en = {
     noOrdersSelected: "No orders selected",
 
     // Analytics
-    analytics: "Analytics & Reports",
     keyMetrics: "Key metrics",
     totalOrders: "Total orders",
     uniqueCustomers: "Unique customers",
@@ -471,7 +470,6 @@ export const en = {
     repeatRate: "Repeat rate",
     conversionFunnel: "Conversion funnel",
     popularCombos: "Popular product combinations",
-    orders: "orders",
     loadingAnalytics: "Loading analytics data...",
 
     // Email

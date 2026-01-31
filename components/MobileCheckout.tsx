@@ -325,16 +325,16 @@ export function MobileCheckout(props: MobileCheckoutProps) {
                     isSelected ? 'ring-2 ring-amber-400' : ''
                   }`}
                   onClick={() => {
-                    setExtraProducts((prev: string[]) =>
-                      prev.includes(extra.slug)
-                        ? prev.filter(p => p !== extra.slug)
-                        : [...prev, extra.slug]
+                    setExtraProducts(
+                      extraProducts.includes(extra.slug)
+                        ? extraProducts.filter(p => p !== extra.slug)
+                        : [...extraProducts, extra.slug]
                     );
                     if (!isSelected && !extraQuantities[extra.slug]) {
-                      setExtraQuantities((prev: Record<string, number>) => ({
-                        ...prev,
+                      setExtraQuantities({
+                        ...extraQuantities,
                         [extra.slug]: extra.pricing_type === 'per_kg' ? 0.5 : 1
-                      }));
+                      });
                     }
                   }}
                 >
@@ -392,10 +392,10 @@ export function MobileCheckout(props: MobileCheckoutProps) {
                         onChange={(e) => {
                           const value = parseFloat(e.target.value);
                           if (!isNaN(value) && value > 0) {
-                            setExtraQuantities((prev: Record<string, number>) => ({
-                              ...prev,
+                            setExtraQuantities({
+                              ...extraQuantities,
                               [extra.slug]: value
-                            }));
+                            });
                           }
                         }}
                         className="w-24 text-center font-bold bg-white/20 border-2 border-white/40 text-white"

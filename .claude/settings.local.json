@@ -47,7 +47,9 @@
       "Bash(node debug-config.js:*)",
       "Bash(node:*)",
       "Bash(git checkout:*)",
-      "Bash(psql:*)"
+      "Bash(psql:*)",
+      "Bash(tee:*)",
+      "Bash(npx next build:*)"
     ]
   }
 }

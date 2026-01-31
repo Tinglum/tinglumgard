@@ -463,7 +463,6 @@ export const no = {
     noOrdersSelected: "Ingen ordrer valgt",
 
     // Analytics
-    analytics: "Analyse & Rapporter",
     keyMetrics: "Nøkkeltall",
     totalOrders: "Totale bestillinger",
     uniqueCustomers: "Unike kunder",
@@ -471,7 +470,6 @@ export const no = {
     repeatRate: "Gjentakelsesrate",
     conversionFunnel: "Konverteringstrakt",
     popularCombos: "Populære produktkombinasjoner",
-    orders: "bestillinger",
     loadingAnalytics: "Laster analysedata...",
 
     // Email
