@@ -494,4 +494,16 @@ export const en = {
     knoke: "Hock",
     butchersChoice: "Butcher's choice",
   },
+
+  // Cuts page
+  cuts: {
+    title: "Butcher diagram",
+    hover: "Hover over a cut for info",
+    inBox: "In box",
+    extraOrder: "Extra",
+    shoulder: "Shoulder",
+    loin: "Loin",
+    belly: "Belly/Ribs",
+    leg: "Leg",
+  },
 };

@@ -494,4 +494,16 @@ export const no = {
     knoke: "Knoke",
     butchersChoice: "Slakterens valg",
   },
+
+  // Cuts page
+  cuts: {
+    title: "Oppdelingsplan",
+    hover: "Hold over et kutt for info",
+    inBox: "I kassen",
+    extraOrder: "Ekstra",
+    shoulder: "Bog",
+    loin: "Kam",
+    belly: "Mage/Ribbe",
+    leg: "Lår",
+  },
 };
