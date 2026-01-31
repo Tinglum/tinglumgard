@@ -199,6 +199,11 @@ export const no = {
     persons4to6: "4-6 personer",
     inBox: "I kassen:",
     moreItems: "mer",
+    
+    payNow: "Betal nå",
+    payLater: "Betal senere",
+    totalLabel: "Totalt",
+    summary: "Sammendrag",
 
     // Ribbe selection
     selectRibbeType: "Velg ribbe-type",

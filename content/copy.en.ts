@@ -199,6 +199,11 @@ export const en = {
     persons4to6: "4-6 people",
     inBox: "In the box:",
     moreItems: "more",
+    
+    payNow: "Pay now",
+    payLater: "Pay later",
+    totalLabel: "Total",
+    summary: "Summary",
 
     // Ribbe selection
     selectRibbeType: "Choose rib type",

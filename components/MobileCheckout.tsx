@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { useState } from 'react';
 import { Check, ChevronRight, Package } from 'lucide-react';
 import Image from 'next/image';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -103,6 +104,8 @@ export function MobileCheckout(props: MobileCheckoutProps) {
       '+ Slakterens valg (ca. 3.5-4.5 kg)',
     ],
   };
+
+  const { t } = useLanguage();
 
   return (
     <div className="min-h-screen pb-32">
@@ -521,11 +524,11 @@ export function MobileCheckout(props: MobileCheckoutProps) {
               className="text-xl font-bold text-white mb-4"
               style={{ textShadow: '0 2px 10px rgba(0,0,0,0.9)' }}
             >
-              Sammendrag
+              {t.checkout.summary}
             </h3>
 
             <div className="flex justify-between text-white">
-              <span className="font-semibold" style={{ textShadow: '0 2px 8px rgba(0,0,0,0.9)' }}>Forskudd (50%)</span>
+              <span className="font-semibold" style={{ textShadow: '0 2px 8px rgba(0,0,0,0.9)' }}>{t.checkout.payNow}</span>
               <span className="font-bold" style={{ textShadow: '0 2px 8px rgba(0,0,0,0.9)' }}>kr {baseDepositTotal.toLocaleString('nb-NO')}</span>
             </div>
 
@@ -537,12 +540,12 @@ export function MobileCheckout(props: MobileCheckoutProps) {
             )}
 
             <div className="flex justify-between text-white">
-              <span className="font-semibold" style={{ textShadow: '0 2px 8px rgba(0,0,0,0.9)' }}>Restbeløp</span>
+              <span className="font-semibold" style={{ textShadow: '0 2px 8px rgba(0,0,0,0.9)' }}>{t.checkout.payLater}</span>
               <span className="font-bold" style={{ textShadow: '0 2px 8px rgba(0,0,0,0.9)' }}>kr {remainderTotal.toLocaleString('nb-NO')}</span>
             </div>
 
             <div className="border-t border-white/20 pt-3 flex justify-between">
-              <span className="text-2xl font-bold text-white" style={{ textShadow: '0 2px 10px rgba(0,0,0,0.9)' }}>Totalt</span>
+              <span className="text-2xl font-bold text-white" style={{ textShadow: '0 2px 10px rgba(0,0,0,0.9)' }}>{t.checkout.totalLabel}</span>
               <span className="text-2xl font-bold text-white" style={{ textShadow: '0 2px 10px rgba(0,0,0,0.9)' }}>kr {totalPrice.toLocaleString('nb-NO')}</span>
             </div>
           </div>

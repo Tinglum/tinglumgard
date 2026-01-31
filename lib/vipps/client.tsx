@@ -742,7 +742,7 @@ export default function CheckoutPage() {
                 </div>
               </div>
 
-              <h3 className={cn("text-xl sm:text-2xl font-bold mb-4 sm:mb-6", theme.textPrimary)}>Sammendrag</h3>
+              <h3 className={cn("text-xl sm:text-2xl font-bold mb-4 sm:mb-6", theme.textPrimary)}>{t.checkout.summary}</h3>
 
               <div className="space-y-4 mb-6">
                 {boxSize && (
@@ -788,15 +788,15 @@ export default function CheckoutPage() {
 
               <div className={cn("border-t pt-4 mb-6", theme.borderSecondary)}>
                 <div className="flex justify-between text-sm mb-2">
-                  <span className={theme.textMuted}>Forskudd (50%)</span>
+                  <span className={theme.textMuted}>{t.checkout.payNow}</span>
                   <span className={cn("font-bold", theme.textPrimary)}>kr {depositTotal}</span>
                 </div>
                 <div className="flex justify-between text-sm mb-4">
-                  <span className={theme.textMuted}>Rest ved levering</span>
+                  <span className={theme.textMuted}>{t.checkout.payLater}</span>
                   <span className={cn("font-bold", theme.textPrimary)}>kr {selectedPrice?.remainder || 0}</span>
                 </div>
                 <div className="flex justify-between text-lg sm:text-xl font-bold">
-                  <span className={theme.textPrimary}>Totalt</span>
+                  <span className={theme.textPrimary}>{t.checkout.totalLabel}</span>
                   <span className={theme.textPrimary}>kr {totalPrice}</span>
                 </div>
               </div>
