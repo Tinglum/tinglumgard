@@ -325,13 +325,13 @@ export function MobileCheckout(props: MobileCheckoutProps) {
                     isSelected ? 'ring-2 ring-amber-400' : ''
                   }`}
                   onClick={() => {
-                    setExtraProducts(prev =>
+                    setExtraProducts((prev: string[]) =>
                       prev.includes(extra.slug)
                         ? prev.filter(p => p !== extra.slug)
                         : [...prev, extra.slug]
                     );
                     if (!isSelected && !extraQuantities[extra.slug]) {
-                      setExtraQuantities(prev => ({
+                      setExtraQuantities((prev: Record<string, number>) => ({
                         ...prev,
                         [extra.slug]: extra.pricing_type === 'per_kg' ? 0.5 : 1
                       }));
@@ -392,7 +392,7 @@ export function MobileCheckout(props: MobileCheckoutProps) {
                         onChange={(e) => {
                           const value = parseFloat(e.target.value);
                           if (!isNaN(value) && value > 0) {
-                            setExtraQuantities(prev => ({
+                            setExtraQuantities((prev: Record<string, number>) => ({
                               ...prev,
                               [extra.slug]: value
                             }));
