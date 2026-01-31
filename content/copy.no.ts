@@ -143,6 +143,7 @@ export const no = {
   // FAQ
   faq: {
     title: "Spørsmål og svar",
+    badge: "OSS",
     commonQuestions: "Vanlige spørsmål",
     q1: "Hva får jeg i kassen?",
     a1: "Fast struktur, små variasjoner er normalt. Du får ribbe, bacon, pølser, nakkekoteletter og kokkekutt. Alt er porsjonert, merket og vakuumpakket.",

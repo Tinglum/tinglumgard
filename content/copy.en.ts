@@ -143,6 +143,7 @@ export const en = {
   // FAQ
   faq: {
     title: "Questions and answers",
+    badge: "FAQ",
     commonQuestions: "Common questions",
     q1: "What do I get in the box?",
     a1: "Fixed structure, small variations are normal. You get ribs, bacon, sausages, pork chops and cooking cuts. Everything is portioned, labeled and vacuum packed.",
