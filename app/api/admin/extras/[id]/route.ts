@@ -24,6 +24,7 @@ export async function PATCH(
       price_nok,
       pricing_type,
       stock_quantity,
+        default_quantity,
       display_order,
       consumes_inventory_kg,
       kg_per_unit,
@@ -41,6 +42,7 @@ export async function PATCH(
     if (price_nok !== undefined) updateData.price_nok = parseInt(price_nok);
     if (pricing_type !== undefined) updateData.pricing_type = pricing_type;
     if (stock_quantity !== undefined) updateData.stock_quantity = stock_quantity ? parseInt(stock_quantity) : null;
+    if (default_quantity !== undefined) updateData.default_quantity = parseFloat(default_quantity);
     if (display_order !== undefined) updateData.display_order = parseInt(display_order);
     if (consumes_inventory_kg !== undefined) updateData.consumes_inventory_kg = consumes_inventory_kg;
     if (kg_per_unit !== undefined) updateData.kg_per_unit = parseFloat(kg_per_unit);
