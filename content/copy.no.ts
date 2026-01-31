@@ -93,6 +93,7 @@ export const no = {
     seeDetails: "Se innhold",
     kg: "kg",
     orderNow: "Reserver nå",
+    joinWaitlist: "Bli med på venteliste",
     box8: "8 kg kasse",
     box12: "12 kg kasse",
   },
@@ -490,12 +491,15 @@ export const no = {
     links: "Lenker",
     productInfo: "Produktinformasjon",
     myOrders: "Min side",
+    myPage: "Min side",
     admin: "Admin",
     contact: "Kontakt",
     legal: "Vilkår og personvern",
     allRightsReserved: "Alle rettigheter reservert.",
+    rights: "Alle rettigheter reservert",
     norwegianQuality: "Norsk kvalitet",
     season2026: "Sesong 2026",
+    season: "Sesong 2026",
   },
 
   // Contact

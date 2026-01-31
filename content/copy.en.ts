@@ -93,6 +93,7 @@ export const en = {
     seeDetails: "See contents",
     kg: "kg",
     orderNow: "Reserve now",
+    joinWaitlist: "Join waitlist",
     box8: "8 kg box",
     box12: "12 kg box",
   },
@@ -490,12 +491,15 @@ export const en = {
     links: "Links",
     productInfo: "Product information",
     myOrders: "My page",
+    myPage: "My page",
     admin: "Admin",
     contact: "Contact",
     legal: "Terms and privacy",
     allRightsReserved: "All rights reserved.",
+    rights: "All rights reserved",
     norwegianQuality: "Norwegian quality",
     season2026: "Season 2026",
+    season: "Season 2026",
   },
 
   // Contact
