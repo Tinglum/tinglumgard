@@ -10,13 +10,32 @@ export async function GET() {
       .eq('key', 'order_modification_cutoff')
       .maybeSingle();
 
+    // Try to fetch optional box_contents stored in app_config as JSON
+    const { data: boxCfg } = await supabaseAdmin
+      .from('app_config')
+      .select('value')
+      .eq('key', 'box_contents')
+      .maybeSingle();
+
     if (error) throw error;
 
     // Fetch pricing configuration
     const pricing = await getPricingConfig();
 
+    // parse optional box_contents value (stored as jsonb in app_config)
+    let box_contents = null;
+    try {
+      if (boxCfg && boxCfg.value) {
+        box_contents = typeof boxCfg.value === 'string' ? JSON.parse(boxCfg.value) : boxCfg.value;
+      }
+    } catch (err) {
+      console.warn('Failed to parse box_contents config', err);
+      box_contents = null;
+    }
+
     return NextResponse.json({
       cutoff: config?.value || { year: 2026, week: 46 },
+      box_contents,
       pricing: {
         box_8kg_price: pricing.box_8kg_price,
         box_12kg_price: pricing.box_12kg_price,

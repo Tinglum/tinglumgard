@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -23,6 +23,8 @@ export default function OppdelingsplanPage() {
   const isMobile = useIsMobile();
   const [selectedCut, setSelectedCut] = useState<number | null>(null);
   const [hoveredCut, setHoveredCut] = useState<number | null>(null);
+  const [extras, setExtras] = useState<any[]>([]);
+  const [boxContents, setBoxContents] = useState<any | null>(null);
 
   const cuts: CutInfo[] = [
     {
@@ -90,8 +92,37 @@ export default function OppdelingsplanPage() {
     }
   ];
 
+  // Derived lists from admin/config
+  const inBoxSummary: string[] = boxContents?.inBox ?? ["Knoke (1 stk)", "Medisterfarse", "Julepølse", "Nakkekoteletter", "Svinesteik", "Ribbe (velg type)", "Slakterens valg (varierer)"];
+  const canOrderSummary: string[] = extras.length > 0 ? extras.map(e => e.name_no) : ["Indrefilet", "Ytrefilet/Ryggfilet", "Svinekoteletter", "Ekstra ribbe", "Bacon/Sideflesk", "Spekeskinke", "Bogsteik (pulled pork)", "Svinelabb", "Innmat (lever, hjerte)", "Kraftbein"];
+
   const selectedCutInfo = cuts.find(c => c.id === selectedCut);
   const hoveredCutInfo = cuts.find(c => c.id === hoveredCut);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const [extrasRes, cfgRes] = await Promise.all([
+          fetch('/api/extras'),
+          fetch('/api/config'),
+        ]);
+        const extrasJson = await extrasRes.json();
+        const cfgJson = await cfgRes.json();
+
+        if (!mounted) return;
+
+        // Filter out delivery/pickup config entries which are in extras table
+        const filtered = (extrasJson.extras || []).filter((x: any) => !["delivery_trondheim", "pickup_e6", "fresh_delivery"].includes(x.slug));
+        setExtras(filtered);
+
+        if (cfgJson.box_contents) setBoxContents(cfgJson.box_contents);
+      } catch (err) {
+        console.error('Failed to load extras or config for oppdelingsplan:', err);
+      }
+    })();
+    return () => { mounted = false; };
+  }, []);
 
   // Mobile version
   if (isMobile) {
@@ -157,7 +188,7 @@ export default function OppdelingsplanPage() {
               </h3>
               <p className={cn("text-sm mb-4", theme.textMuted)}>{t.oppdelingsplan.inBoxDesc}:</p>
               <div className="space-y-2">
-                {["Knoke (1 stk)", "Medisterfarse", "Julepølse", "Nakkekoteletter", "Svinesteik", "Ribbe (velg type)", "Slakterens valg (varierer)"].map((product) => (
+                {inBoxSummary.map((product) => (
                   <div key={product} className="flex items-center gap-3 p-3 bg-green-50 rounded-lg border border-green-200">
                     <svg className="w-5 h-5 text-green-600 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
@@ -178,7 +209,7 @@ export default function OppdelingsplanPage() {
               </h3>
               <p className={cn("text-sm mb-4", theme.textMuted)}>{t.oppdelingsplan.canOrderDesc}:</p>
               <div className="space-y-2">
-                {["Indrefilet", "Ytrefilet/Ryggfilet", "Svinekoteletter", "Ekstra ribbe", "Bacon/Sideflesk", "Spekeskinke", "Bogsteik (pulled pork)", "Svinelabb", "Innmat (lever, hjerte)", "Kraftbein"].map((product) => (
+                {canOrderSummary.map((product) => (
                   <div key={product} className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
                     <svg className="w-5 h-5 text-blue-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />

@@ -1,7 +1,7 @@
 "use client";
 
+import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useState } from 'react';
 import { ChevronDown, Check, Plus } from 'lucide-react';
 
 interface CutInfo {
@@ -14,6 +14,8 @@ interface CutInfo {
 
 export function MobileOppdelingsplan() {
   const [expandedCut, setExpandedCut] = useState<number | null>(null);
+  const [extras, setExtras] = useState<any[]>([]);
+  const [boxContents, setBoxContents] = useState<any | null>(null);
 
   const cuts: CutInfo[] = [
     {
@@ -85,6 +87,35 @@ export function MobileOppdelingsplan() {
     setExpandedCut(expandedCut === id ? null : id);
   };
 
+  // Derived lists from admin/config
+  const inBoxSummary: string[] = boxContents?.inBox ?? ['Ribbe', 'Nakkekoteletter', 'Svinesteik', 'Medisterfarse', 'Julepølse', 'Knoke', 'Slakterens valg'];
+  const canOrderSummary: string[] = extras.length > 0 ? extras.map(e => e.name_no) : ['Indrefilet', 'Svinekoteletter', 'Bacon', 'Spekeskinke', 'Bogsteik', 'Svinelabb'];
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const [extrasRes, cfgRes] = await Promise.all([
+          fetch('/api/extras'),
+          fetch('/api/config'),
+        ]);
+        const extrasJson = await extrasRes.json();
+        const cfgJson = await cfgRes.json();
+
+        if (!mounted) return;
+
+        // Filter out delivery/pickup config entries which are in extras table
+        const filtered = (extrasJson.extras || []).filter((x: any) => !["delivery_trondheim", "pickup_e6", "fresh_delivery"].includes(x.slug));
+        setExtras(filtered);
+
+        if (cfgJson.box_contents) setBoxContents(cfgJson.box_contents);
+      } catch (err) {
+        console.error('Failed to load extras or config for MobileOppdelingsplan:', err);
+      }
+    })();
+    return () => { mounted = false; };
+  }, []);
+
   return (
     <div className="min-h-screen pb-20">
       {/* Header */}
@@ -139,7 +170,7 @@ export function MobileOppdelingsplan() {
           Rask oversikt
         </h2>
 
-        <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-4">
           <div className="bg-green-500/20 rounded-2xl p-4 border-2 border-green-400/30">
             <Check className="w-6 h-6 text-green-400 mb-2" />
             <p
@@ -149,7 +180,7 @@ export function MobileOppdelingsplan() {
               I KASSEN
             </p>
             <ul className="space-y-1">
-              {['Ribbe', 'Nakkekoteletter', 'Svinesteik', 'Medisterfarse', 'Julepølse', 'Knoke', 'Slakterens valg'].map(item => (
+              {inBoxSummary.map(item => (
                 <li
                   key={item}
                   className="text-xs font-semibold text-white"
@@ -170,7 +201,7 @@ export function MobileOppdelingsplan() {
               KAN BESTILLES
             </p>
             <ul className="space-y-1">
-              {['Indrefilet', 'Svinekoteletter', 'Bacon', 'Spekeskinke', 'Bogsteik', 'Svinelabb'].map(item => (
+              {canOrderSummary.map(item => (
                 <li
                   key={item}
                   className="text-xs font-semibold text-white"
