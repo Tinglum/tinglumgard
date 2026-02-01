@@ -42,6 +42,20 @@ export function AdminMessagingPanel() {
   const [broadcastLoading, setBroadcastLoading] = useState(false);
   const [broadcastError, setBroadcastError] = useState<string | null>(null);
   const [broadcastSuccess, setBroadcastSuccess] = useState(false);
+  const [recipientMode, setRecipientMode] = useState<'all' | 'manual' | 'filters'>('all');
+  const [clients, setClients] = useState<Array<{ phone: string; name?: string; email?: string }>>([]);
+  const [extras, setExtras] = useState<Array<{ id: string; name: string }>>([]);
+  const [selectedRecipients, setSelectedRecipients] = useState<Array<{ phone: string; name?: string; email?: string }>>([]);
+  const [recipientSearch, setRecipientSearch] = useState('');
+  const [selectedClientPhone, setSelectedClientPhone] = useState('');
+  const [filterAwaitingFinalPayment, setFilterAwaitingFinalPayment] = useState(false);
+  const [filterBoxSize, setFilterBoxSize] = useState<'all' | '8' | '12'>('all');
+  const [filterHasExtras, setFilterHasExtras] = useState(false);
+  const [filterExtraIds, setFilterExtraIds] = useState<string[]>([]);
+  const [previewRecipients, setPreviewRecipients] = useState<Array<{ phone: string; name?: string; email?: string }>>([]);
+  const [previewCount, setPreviewCount] = useState(0);
+  const [excludedPhones, setExcludedPhones] = useState<string[]>([]);
+  const [previewLoading, setPreviewLoading] = useState(false);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [priorityFilter, setPriorityFilter] = useState<PriorityFilter>('all');
   const [stats, setStats] = useState({ total: 0, open: 0, in_progress: 0, resolved: 0 });
@@ -72,6 +86,21 @@ export function AdminMessagingPanel() {
   useEffect(() => {
     loadMessages();
   }, [statusFilter, priorityFilter]);
+
+  useEffect(() => {
+    const loadRecipients = async () => {
+      try {
+        const response = await fetch('/api/admin/messages/recipients?include=clients,extras');
+        const data = await response.json();
+        setClients(data.clients || []);
+        setExtras(data.extras || []);
+      } catch (error) {
+        console.error('Failed to load recipients:', error);
+      }
+    };
+
+    loadRecipients();
+  }, []);
 
   useEffect(() => {
     if (messagesEndRef.current) {
@@ -140,6 +169,15 @@ export function AdminMessagingPanel() {
           subject: broadcastSubject.trim(),
           message: broadcastMessage.trim(),
           message_type: broadcastType,
+          mode: recipientMode,
+          recipients: selectedRecipients.map((r) => r.phone),
+          excludedPhones,
+          filters: {
+            awaitingFinalPayment: filterAwaitingFinalPayment,
+            boxSize: filterBoxSize !== 'all' ? Number(filterBoxSize) : null,
+            hasExtras: filterHasExtras,
+            extraIds: filterExtraIds,
+          },
         }),
       });
 
@@ -157,6 +195,28 @@ export function AdminMessagingPanel() {
       setBroadcastError(error instanceof Error ? error.message : 'Failed to send broadcast');
     } finally {
       setBroadcastLoading(false);
+    }
+  };
+
+  const handlePreviewRecipients = async () => {
+    try {
+      setPreviewLoading(true);
+      const params = new URLSearchParams();
+      params.set('include', 'preview');
+      if (filterAwaitingFinalPayment) params.set('awaitingFinalPayment', 'true');
+      if (filterBoxSize !== 'all') params.set('boxSize', filterBoxSize);
+      if (filterHasExtras) params.set('hasExtras', 'true');
+      if (filterExtraIds.length > 0) params.set('extraIds', filterExtraIds.join(','));
+      if (excludedPhones.length > 0) params.set('excludePhones', excludedPhones.join(','));
+
+      const response = await fetch(`/api/admin/messages/recipients?${params.toString()}`);
+      const data = await response.json();
+      setPreviewRecipients(data.recipients || []);
+      setPreviewCount(data.count || 0);
+    } catch (error) {
+      console.error('Failed to preview recipients:', error);
+    } finally {
+      setPreviewLoading(false);
     }
   };
 
@@ -222,6 +282,19 @@ export function AdminMessagingPanel() {
     return statusMatch && priorityMatch;
   });
 
+  const selectedPhones = new Set(selectedRecipients.map((r) => r.phone));
+  const filteredClientOptions = clients
+    .filter((c) => !selectedPhones.has(c.phone))
+    .filter((c) => {
+      const term = recipientSearch.trim().toLowerCase();
+      if (!term) return true;
+      return (
+        c.phone.toLowerCase().includes(term) ||
+        (c.name || '').toLowerCase().includes(term) ||
+        (c.email || '').toLowerCase().includes(term)
+      );
+    });
+
   if (!selectedMessage) {
     return (
       <div className="space-y-6">
@@ -229,10 +302,32 @@ export function AdminMessagingPanel() {
         <Card className="p-6 border border-gray-200">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h3 className="text-lg font-semibold text-gray-900">Send message to all clients</h3>
-              <p className="text-sm text-gray-600">This posts a message to every customer inbox.</p>
+              <h3 className="text-lg font-semibold text-gray-900">Send message</h3>
+              <p className="text-sm text-gray-600">Choose recipients and send a message to their inbox.</p>
             </div>
           </div>
+
+          <div className="flex flex-wrap gap-2 mb-4">
+            <Button
+              variant={recipientMode === 'all' ? 'default' : 'outline'}
+              onClick={() => setRecipientMode('all')}
+            >
+              All clients
+            </Button>
+            <Button
+              variant={recipientMode === 'manual' ? 'default' : 'outline'}
+              onClick={() => setRecipientMode('manual')}
+            >
+              Select clients
+            </Button>
+            <Button
+              variant={recipientMode === 'filters' ? 'default' : 'outline'}
+              onClick={() => setRecipientMode('filters')}
+            >
+              Filters
+            </Button>
+          </div>
+
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Subject</label>
@@ -267,6 +362,190 @@ export function AdminMessagingPanel() {
                 placeholder="Write your announcement..."
               />
             </div>
+
+            {recipientMode === 'all' && (
+              <div className="text-sm text-gray-600">
+                This will send to all clients ({clients.length}).
+              </div>
+            )}
+
+            {recipientMode === 'manual' && (
+              <div className="space-y-3">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+                  <input
+                    value={recipientSearch}
+                    onChange={(e) => setRecipientSearch(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                    placeholder="Search by name, phone, or email"
+                  />
+                  <select
+                    value={selectedClientPhone}
+                    onChange={(e) => setSelectedClientPhone(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                  >
+                    <option value="">Select client</option>
+                    {filteredClientOptions.map((client) => (
+                      <option key={client.phone} value={client.phone}>
+                        {client.name || client.phone} {client.email ? `(${client.email})` : ''}
+                      </option>
+                    ))}
+                  </select>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      const client = clients.find((c) => c.phone === selectedClientPhone);
+                      if (!client || selectedPhones.has(client.phone)) return;
+                      setSelectedRecipients((prev) => [...prev, client]);
+                      setSelectedClientPhone('');
+                    }}
+                    disabled={!selectedClientPhone}
+                  >
+                    Add recipient
+                  </Button>
+                </div>
+
+                {selectedRecipients.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {selectedRecipients.map((client) => (
+                      <span key={client.phone} className="inline-flex items-center gap-2 px-2 py-1 rounded-full bg-gray-100 text-sm">
+                        {client.name || client.phone}
+                        <button
+                          className="text-gray-500 hover:text-gray-900"
+                          onClick={() => setSelectedRecipients((prev) => prev.filter((c) => c.phone !== client.phone))}
+                        >
+                          ×
+                        </button>
+                      </span>
+                    ))}
+                    <Button
+                      variant="outline"
+                      onClick={() => setSelectedRecipients([])}
+                    >
+                      Clear
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {recipientMode === 'filters' && (
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={filterAwaitingFinalPayment}
+                      onChange={(e) => setFilterAwaitingFinalPayment(e.target.checked)}
+                    />
+                    Waiting for final payment
+                  </label>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Box size</label>
+                    <select
+                      value={filterBoxSize}
+                      onChange={(e) => setFilterBoxSize(e.target.value as 'all' | '8' | '12')}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                    >
+                      <option value="all">All</option>
+                      <option value="8">8kg</option>
+                      <option value="12">12kg</option>
+                    </select>
+                  </div>
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={filterHasExtras}
+                      onChange={(e) => setFilterHasExtras(e.target.checked)}
+                    />
+                    Has extras
+                  </label>
+                </div>
+
+                {extras.length > 0 && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Extras filter</label>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-48 overflow-y-auto border border-gray-200 rounded-lg p-3">
+                      {extras.map((extra) => (
+                        <label key={extra.id} className="flex items-center gap-2 text-sm">
+                          <input
+                            type="checkbox"
+                            checked={filterExtraIds.includes(extra.id)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setFilterExtraIds((prev) => [...prev, extra.id]);
+                              } else {
+                                setFilterExtraIds((prev) => prev.filter((id) => id !== extra.id));
+                              }
+                            }}
+                          />
+                          {extra.name}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex items-center gap-3">
+                  <Button variant="outline" onClick={handlePreviewRecipients}>
+                    {previewLoading ? 'Loading...' : 'Preview recipients'}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setFilterAwaitingFinalPayment(false);
+                      setFilterBoxSize('all');
+                      setFilterHasExtras(false);
+                      setFilterExtraIds([]);
+                      setPreviewRecipients([]);
+                      setPreviewCount(0);
+                      setExcludedPhones([]);
+                    }}
+                  >
+                    Reset filters
+                  </Button>
+                  <span className="text-sm text-gray-600">Matched: {previewCount}</span>
+                </div>
+
+                {excludedPhones.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {excludedPhones.map((phone) => (
+                      <span key={phone} className="inline-flex items-center gap-2 px-2 py-1 rounded-full bg-red-50 text-sm text-red-700">
+                        {phone}
+                        <button
+                          className="text-red-600 hover:text-red-900"
+                          onClick={() => setExcludedPhones((prev) => prev.filter((p) => p !== phone))}
+                        >
+                          ×
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                {previewRecipients.length > 0 && (
+                  <div className="border border-gray-200 rounded-lg p-3 max-h-56 overflow-y-auto">
+                    <p className="text-sm text-gray-600 mb-2">Preview (first {previewRecipients.length})</p>
+                    <div className="space-y-2">
+                      {previewRecipients.map((client) => (
+                        <div key={client.phone} className="flex items-center justify-between text-sm">
+                          <span>{client.name || client.phone} {client.email ? `(${client.email})` : ''}</span>
+                          <Button
+                            variant="outline"
+                            onClick={() => {
+                              if (excludedPhones.includes(client.phone)) return;
+                              setExcludedPhones((prev) => [...prev, client.phone]);
+                            }}
+                          >
+                            Exclude
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             {broadcastError && (
               <p className="text-sm text-red-600">{broadcastError}</p>
             )}
@@ -276,11 +555,11 @@ export function AdminMessagingPanel() {
             <div className="flex justify-end">
               <Button
                 onClick={handleBroadcast}
-                disabled={!broadcastSubject.trim() || !broadcastMessage.trim() || broadcastLoading}
+                disabled={!broadcastSubject.trim() || !broadcastMessage.trim() || broadcastLoading || (recipientMode === 'manual' && selectedRecipients.length === 0)}
                 className="bg-blue-600 hover:bg-blue-700 text-white"
               >
                 <Send className="w-4 h-4 mr-2" />
-                {broadcastLoading ? 'Sending...' : 'Send to all'}
+                {broadcastLoading ? 'Sending...' : 'Send'}
               </Button>
             </div>
           </div>
