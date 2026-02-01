@@ -41,13 +41,13 @@ export async function GET(request: NextRequest) {
 
 // POST /api/messages - Create new message
 export async function POST(request: NextRequest) {
-  const session = await getSession();
-
-  if (!session?.phoneNumber) {
-    return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
-  }
-
   try {
+    const session = await getSession();
+
+    if (!session?.phoneNumber) {
+      logError('messages-post-no-session', { session });
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
     const {
       subject,
       message,
@@ -56,6 +56,7 @@ export async function POST(request: NextRequest) {
     } = await request.json();
 
     if (!subject || !message || !message_type) {
+      logError('messages-post-missing-fields', { subject: !!subject, message: !!message, message_type: !!message_type });
       return NextResponse.json(
         { error: 'Subject, message, and message_type are required' },
         { status: 400 }
@@ -79,7 +80,7 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (error) {
-      logError('messages-post', error);
+      logError('messages-post-db-error', { error, phone: session.phoneNumber });
       return NextResponse.json({ error: 'Failed to create message' }, { status: 500 });
     }
 
@@ -87,7 +88,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ message: newMessage }, { status: 201 });
   } catch (error) {
-    logError('messages-post-main', error);
+    logError('messages-post-catch', { error: error instanceof Error ? error.message : 'Unknown error' });
     return NextResponse.json({ error: 'Server error' }, { status: 500 });
   }
 }
