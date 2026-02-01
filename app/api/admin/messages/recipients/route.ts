@@ -23,14 +23,75 @@ async function getRecipientsFromOrders(filters: Filters, excludePhones: string[]
 
   let orderIds: string[] | null = null;
   if (filters.hasExtras || (filters.extraIds && filters.extraIds.length > 0)) {
-    let extrasQuery = supabaseAdmin.from('order_extras').select('order_id');
+    // Get all extras_catalog entries first to map IDs to slugs
+    let extrasQuery = supabaseAdmin
+      .from('extras_catalog')
+      .select('id, slug');
+    
+    const { data: extrasMap, error: mapError } = await extrasQuery;
+    if (mapError) throw mapError;
+    
+    // Build a map of ID -> slug
+    const idToSlug = new Map<string, string>();
+    extrasMap?.forEach((e: any) => {
+      idToSlug.set(e.id, e.slug);
+    });
+
+    // Convert extra IDs to slugs
+    let targetSlugs: string[] = [];
     if (filters.extraIds && filters.extraIds.length > 0) {
-      extrasQuery = extrasQuery.in('extra_id', filters.extraIds);
+      targetSlugs = filters.extraIds
+        .map((id: string) => idToSlug.get(id))
+        .filter((slug: string | undefined) => slug !== undefined) as string[];
+      console.log('Filtering by extra slugs:', targetSlugs);
     }
-    const { data: extrasData, error: extrasError } = await extrasQuery;
-    if (extrasError) throw extrasError;
-    orderIds = Array.from(new Set((extrasData || []).map((r) => r.order_id)));
-    if (orderIds.length === 0) return [];
+
+    // Query orders where extra_products JSON contains any of these slugs
+    // Using Supabase's contains operator on JSONB
+    let ordersQuery = supabaseAdmin
+      .from('orders')
+      .select('id');
+
+    if (targetSlugs.length > 0) {
+      // Filter by orders that have any of the selected extras in their extra_products JSON
+      // We need to use raw SQL-like filtering via Supabase
+      const { data: matchedOrders, error: ordersError } = await supabaseAdmin
+        .from('orders')
+        .select('id, extra_products')
+        .not('extra_products', 'is', null);
+
+      if (ordersError) throw ordersError;
+
+      orderIds = (matchedOrders || [])
+        .filter((order: any) => {
+          if (!Array.isArray(order.extra_products)) return false;
+          return order.extra_products.some((extra: any) =>
+            targetSlugs.includes(extra.slug)
+          );
+        })
+        .map((order: any) => order.id);
+
+      console.log('Found orders with matching extras:', orderIds.length);
+      if (orderIds.length === 0) return [];
+    } else if (filters.hasExtras) {
+      // Just filter for any orders with extras (non-empty extra_products)
+      const { data: matchedOrders, error: ordersError } = await supabaseAdmin
+        .from('orders')
+        .select('id')
+        .not('extra_products', 'is', null);
+
+      if (ordersError) throw ordersError;
+
+      // Filter for non-empty arrays
+      orderIds = (matchedOrders || [])
+        .filter((order: any) =>
+          Array.isArray(order.extra_products) && order.extra_products.length > 0
+        )
+        .map((order: any) => order.id);
+
+      console.log('Found orders with any extras:', orderIds.length);
+      if (orderIds.length === 0) return [];
+    }
   }
 
   let ordersQuery = supabaseAdmin
