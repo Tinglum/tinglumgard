@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth/session';
 import { supabaseAdmin } from '@/lib/supabase/server';
+import { logError } from '@/lib/logger';
 
 // GET /api/admin/rebate-codes - Get all rebate codes
 export async function GET() {
@@ -20,7 +21,7 @@ export async function GET() {
 
     return NextResponse.json({ codes });
   } catch (error) {
-    console.error('Error fetching rebate codes:', error);
+    logError('admin-rebate-codes-get', error);
     return NextResponse.json({ error: 'Failed to fetch rebate codes' }, { status: 500 });
   }
 }

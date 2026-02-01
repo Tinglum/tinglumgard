@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth/session';
 import { supabaseAdmin } from '@/lib/supabase/server';
+import { logError } from '@/lib/logger';
 
 export async function GET() {
   const session = await getSession();
@@ -19,7 +20,7 @@ export async function GET() {
 
     return NextResponse.json({ extras: extras || [] });
   } catch (error) {
-    console.error('Error fetching extras:', error);
+    logError('admin-extras-get', error);
     return NextResponse.json(
       { error: 'Failed to fetch extras' },
       { status: 500 }
@@ -78,7 +79,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ extra });
   } catch (error) {
-    console.error('Error creating extra:', error);
+    logError('admin-extras-post', error);
     return NextResponse.json(
       { error: 'Failed to create extra' },
       { status: 500 }

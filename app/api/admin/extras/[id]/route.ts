@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth/session';
 import { supabaseAdmin } from '@/lib/supabase/server';
+import { logError } from '@/lib/logger';
 
 export async function PATCH(
   request: NextRequest,
@@ -59,7 +60,7 @@ export async function PATCH(
 
     return NextResponse.json({ extra });
   } catch (error) {
-    console.error('Error updating extra:', error);
+    logError('admin-extras-patch', error);
     return NextResponse.json(
       { error: 'Failed to update extra' },
       { status: 500 }
@@ -87,7 +88,7 @@ export async function DELETE(
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Error deleting extra:', error);
+    logError('admin-extras-delete', error);
     return NextResponse.json(
       { error: 'Failed to delete extra' },
       { status: 500 }

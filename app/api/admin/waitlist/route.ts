@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth/session';
 import { supabaseAdmin } from '@/lib/supabase/server';
+import { logError } from '@/lib/logger';
 
 export async function GET(request: NextRequest) {
   const session = await getSession();
@@ -32,7 +33,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ waitlist: waitlist || [] });
   } catch (error) {
-    console.error('Error fetching waitlist:', error);
+    logError('admin-waitlist-get', error);
     return NextResponse.json(
       { error: 'Failed to fetch waitlist' },
       { status: 500 }
@@ -64,7 +65,7 @@ export async function DELETE(request: NextRequest) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Error deleting waitlist entry:', error);
+    logError('admin-waitlist-delete', error);
     return NextResponse.json(
       { error: 'Failed to delete waitlist entry' },
       { status: 500 }
