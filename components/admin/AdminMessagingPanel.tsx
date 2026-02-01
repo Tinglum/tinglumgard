@@ -19,16 +19,16 @@ interface CustomerMessage {
   customer_phone: string;
   customer_name?: string;
   subject: string;
-  message_text: string;
+  message: string;
   message_type: string;
   status: 'open' | 'in_progress' | 'resolved' | 'closed';
-  priority: 'low' | 'medium' | 'high' | 'urgent';
+  priority: 'low' | 'normal' | 'high' | 'urgent';
   created_at: string;
   message_replies?: MessageReply[];
 }
 
 type StatusFilter = 'all' | 'open' | 'in_progress' | 'resolved' | 'closed';
-type PriorityFilter = 'all' | 'low' | 'medium' | 'high' | 'urgent';
+type PriorityFilter = 'all' | 'low' | 'normal' | 'high' | 'urgent';
 
 export function AdminMessagingPanel() {
   const [messages, setMessages] = useState<CustomerMessage[]>([]);
@@ -36,6 +36,12 @@ export function AdminMessagingPanel() {
   const [loading, setLoading] = useState(true);
   const [replyText, setReplyText] = useState('');
   const [replyLoading, setReplyLoading] = useState(false);
+  const [broadcastSubject, setBroadcastSubject] = useState('');
+  const [broadcastMessage, setBroadcastMessage] = useState('');
+  const [broadcastType, setBroadcastType] = useState('support');
+  const [broadcastLoading, setBroadcastLoading] = useState(false);
+  const [broadcastError, setBroadcastError] = useState<string | null>(null);
+  const [broadcastSuccess, setBroadcastSuccess] = useState(false);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [priorityFilter, setPriorityFilter] = useState<PriorityFilter>('all');
   const [stats, setStats] = useState({ total: 0, open: 0, in_progress: 0, resolved: 0 });
@@ -99,6 +105,61 @@ export function AdminMessagingPanel() {
     }
   };
 
+  const handleUpdateStatus = async (status: CustomerMessage['status']) => {
+    if (!selectedMessage) return;
+
+    try {
+      const response = await fetch(`/api/admin/messages/${selectedMessage.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+      });
+
+      if (response.ok) {
+        const updatedMessages = await loadMessages();
+        const updated = updatedMessages.find((m: CustomerMessage) => m.id === selectedMessage.id);
+        if (updated) setSelectedMessage(updated);
+      }
+    } catch (error) {
+      console.error('Failed to update status:', error);
+    }
+  };
+
+  const handleBroadcast = async () => {
+    if (!broadcastSubject.trim() || !broadcastMessage.trim()) return;
+
+    try {
+      setBroadcastLoading(true);
+      setBroadcastError(null);
+      setBroadcastSuccess(false);
+
+      const response = await fetch('/api/admin/messages/broadcast', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          subject: broadcastSubject.trim(),
+          message: broadcastMessage.trim(),
+          message_type: broadcastType,
+        }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data?.error || 'Failed to send broadcast');
+      }
+
+      setBroadcastSubject('');
+      setBroadcastMessage('');
+      setBroadcastSuccess(true);
+      setTimeout(() => setBroadcastSuccess(false), 3000);
+      await loadMessages();
+    } catch (error) {
+      setBroadcastError(error instanceof Error ? error.message : 'Failed to send broadcast');
+    } finally {
+      setBroadcastLoading(false);
+    }
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'open':
@@ -135,7 +196,7 @@ export function AdminMessagingPanel() {
         return 'bg-red-50 border-l-4 border-red-600';
       case 'high':
         return 'bg-orange-50 border-l-4 border-orange-600';
-      case 'medium':
+      case 'normal':
         return 'bg-blue-50 border-l-4 border-blue-600';
       case 'low':
         return 'bg-gray-50 border-l-4 border-gray-600';
@@ -164,6 +225,67 @@ export function AdminMessagingPanel() {
   if (!selectedMessage) {
     return (
       <div className="space-y-6">
+        {/* Broadcast */}
+        <Card className="p-6 border border-gray-200">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900">Send message to all clients</h3>
+              <p className="text-sm text-gray-600">This posts a message to every customer inbox.</p>
+            </div>
+          </div>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Subject</label>
+              <input
+                value={broadcastSubject}
+                onChange={(e) => setBroadcastSubject(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="Subject"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
+              <select
+                value={broadcastType}
+                onChange={(e) => setBroadcastType(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="support">Support</option>
+                <option value="inquiry">Inquiry</option>
+                <option value="complaint">Complaint</option>
+                <option value="feedback">Feedback</option>
+                <option value="referral_question">Referral</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Message</label>
+              <textarea
+                value={broadcastMessage}
+                onChange={(e) => setBroadcastMessage(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                rows={4}
+                placeholder="Write your announcement..."
+              />
+            </div>
+            {broadcastError && (
+              <p className="text-sm text-red-600">{broadcastError}</p>
+            )}
+            {broadcastSuccess && (
+              <p className="text-sm text-green-600">Broadcast sent</p>
+            )}
+            <div className="flex justify-end">
+              <Button
+                onClick={handleBroadcast}
+                disabled={!broadcastSubject.trim() || !broadcastMessage.trim() || broadcastLoading}
+                className="bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                <Send className="w-4 h-4 mr-2" />
+                {broadcastLoading ? 'Sending...' : 'Send to all'}
+              </Button>
+            </div>
+          </div>
+        </Card>
+
         {/* Stats */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           <Card className="p-4 bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
@@ -214,7 +336,7 @@ export function AdminMessagingPanel() {
               >
                 <option value="all">All Priorities</option>
                 <option value="low">Low</option>
-                <option value="medium">Medium</option>
+                <option value="normal">Normal</option>
                 <option value="high">High</option>
                 <option value="urgent">Urgent</option>
               </select>
@@ -256,7 +378,7 @@ export function AdminMessagingPanel() {
                     </span>
                   </div>
                 </div>
-                <p className="text-sm text-gray-700 line-clamp-2 mb-2">{msg.message_text}</p>
+                <p className="text-sm text-gray-700 line-clamp-2 mb-2">{msg.message}</p>
                 <div className="flex items-center justify-between text-xs text-gray-500">
                   <span className="bg-gray-200 px-2 py-1 rounded">{msg.message_type}</span>
                   <span>{formatDate(msg.created_at)}</span>
@@ -293,6 +415,13 @@ export function AdminMessagingPanel() {
                 {getStatusIcon(selectedMessage.status)}
                 {selectedMessage.status.replace('_', ' ')}
               </span>
+              <Button
+                variant="outline"
+                onClick={() => handleUpdateStatus('resolved')}
+                disabled={selectedMessage.status === 'resolved'}
+              >
+                Mark resolved
+              </Button>
             </div>
           </div>
 
@@ -312,7 +441,7 @@ export function AdminMessagingPanel() {
           </div>
 
           <div className="bg-white p-4 rounded-lg border border-gray-200">
-            <p className="text-gray-800 whitespace-pre-wrap">{selectedMessage.message_text}</p>
+            <p className="text-gray-800 whitespace-pre-wrap">{selectedMessage.message}</p>
           </div>
         </div>
       </Card>
@@ -329,7 +458,7 @@ export function AdminMessagingPanel() {
             <div className="flex-1">
               <div className="bg-gray-100 p-3 rounded-lg">
                 <p className="text-xs font-semibold text-gray-600 mb-1">{selectedMessage.customer_name || 'Customer'}</p>
-                <p className="text-gray-800">{selectedMessage.message_text}</p>
+                <p className="text-gray-800">{selectedMessage.message}</p>
               </div>
               <p className="text-xs text-gray-500 mt-1">{formatDate(selectedMessage.created_at)}</p>
             </div>
