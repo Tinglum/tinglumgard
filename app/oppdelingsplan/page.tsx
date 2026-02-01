@@ -94,9 +94,9 @@ export default function OppdelingsplanPage() {
     }
   ];
 
-  // Derived lists from admin/config
-  const inBoxSummary: string[] = boxContents?.inBox ?? ["Knoke (1 stk)", "Medisterfarse", "Julepølse", "Nakkekoteletter", "Svinesteik", "Ribbe (velg type)", "Slakterens valg (varierer)"];
-  const canOrderSummary: string[] = extras.length > 0 ? extras.map(e => e.name_no) : ["Indrefilet", "Ytrefilet/Ryggfilet", "Svinekoteletter", "Ekstra ribbe", "Bacon/Sideflesk", "Spekeskinke", "Bogsteik (pulled pork)", "Svinelabb", "Innmat (lever, hjerte)", "Kraftbein"];
+  // Derived lists from admin/config - empty by default, populated on fetch
+  const inBoxSummary: string[] = boxContents?.inBox ?? [];
+  const canOrderSummary: string[] = extras.length > 0 ? extras.map(e => e.name_no) : [];
 
   const selectedCutInfo = cuts.find(c => c.id === selectedCut);
   const hoveredCutInfo = cuts.find(c => c.id === hoveredCut);

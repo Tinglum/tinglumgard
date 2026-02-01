@@ -89,8 +89,8 @@ export function MobileOppdelingsplan() {
   };
 
   // Derived lists from admin/config
-  const inBoxSummary: string[] = boxContents?.inBox ?? ['Ribbe', 'Nakkekoteletter', 'Svinesteik', 'Medisterfarse', 'Julepølse', 'Knoke', 'Slakterens valg'];
-  const canOrderSummary: string[] = extras.length > 0 ? extras.map(e => e.name_no) : ['Indrefilet', 'Svinekoteletter', 'Bacon', 'Spekeskinke', 'Bogsteik', 'Svinelabb'];
+  const inBoxSummary: string[] = boxContents?.inBox ?? [];
+  const canOrderSummary: string[] = extras.length > 0 ? extras.map(e => e.name_no) : [];
 
   useEffect(() => {
     let mounted = true;
