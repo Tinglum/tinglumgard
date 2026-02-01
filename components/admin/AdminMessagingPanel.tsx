@@ -748,20 +748,39 @@ export function AdminMessagingPanel() {
           {/* Replies */}
           {selectedMessage.message_replies && selectedMessage.message_replies.length > 0 && (
             <>
-              {selectedMessage.message_replies.map((reply) => (
-                <div key={reply.id} className="flex gap-3">
-                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">
-                    <span className="text-xs font-bold text-green-600">A</span>
-                  </div>
-                  <div className="flex-1">
-                    <div className="bg-green-50 p-3 rounded-lg border border-green-200">
-                      <p className="text-xs font-semibold text-green-600 mb-1">{reply.admin_name}</p>
-                      <p className="text-gray-800">{reply.reply_text}</p>
+              {selectedMessage.message_replies.map((reply) => {
+                const isFromCustomer = (reply as any).is_from_customer;
+                return (
+                  <div key={reply.id} className="flex gap-3">
+                    <div className={cn(
+                      "flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center",
+                      isFromCustomer ? "bg-blue-100" : "bg-green-100"
+                    )}>
+                      <span className={cn(
+                        "text-xs font-bold",
+                        isFromCustomer ? "text-blue-600" : "text-green-600"
+                      )}>
+                        {isFromCustomer ? 'C' : 'A'}
+                      </span>
                     </div>
-                    <p className="text-xs text-gray-500 mt-1">{formatDate(reply.created_at)}</p>
+                    <div className="flex-1">
+                      <div className={cn(
+                        "p-3 rounded-lg border",
+                        isFromCustomer ? "bg-blue-50 border-blue-200" : "bg-green-50 border-green-200"
+                      )}>
+                        <p className={cn(
+                          "text-xs font-semibold mb-1",
+                          isFromCustomer ? "text-blue-600" : "text-green-600"
+                        )}>
+                          {isFromCustomer ? (reply.admin_name || 'Customer') : reply.admin_name}
+                        </p>
+                        <p className="text-gray-800">{reply.reply_text}</p>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">{formatDate(reply.created_at)}</p>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </>
           )}
           <div ref={messagesEndRef} />

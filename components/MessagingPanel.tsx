@@ -23,6 +23,8 @@ export function MessagingPanel({ className, variant = 'light' }: MessagingPanelP
   const [messageType, setMessageType] = useState<'support' | 'inquiry' | 'complaint' | 'feedback' | 'referral_question'>('support');
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [replyTexts, setReplyTexts] = useState<Record<string, string>>({});
+  const [replyingTo, setReplyingTo] = useState<string | null>(null);
 
   // Fetch messages on mount
   useEffect(() => {
@@ -58,6 +60,41 @@ export function MessagingPanel({ className, variant = 'light' }: MessagingPanelP
       });
     } catch (error) {
       console.error('Failed to mark messages as viewed:', error);
+    }
+  }
+
+  async function handleReply(messageId: string) {
+    const replyText = replyTexts[messageId];
+    if (!replyText?.trim()) {
+      setError('Svar kan ikke være tomt');
+      return;
+    }
+
+    try {
+      setReplyingTo(messageId);
+      setError(null);
+
+      const res = await fetch(`/api/messages/${messageId}/reply`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reply_text: replyText.trim() }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error);
+      }
+
+      // Clear the reply text for this message
+      setReplyTexts((prev) => ({ ...prev, [messageId]: '' }));
+
+      // Reload messages to show the new reply
+      await loadMessages();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Kunne ikke sende svar');
+    } finally {
+      setReplyingTo(null);
     }
   }
 
@@ -295,31 +332,74 @@ export function MessagingPanel({ className, variant = 'light' }: MessagingPanelP
 
               {msg.message_replies && msg.message_replies.length > 0 && (
                 <div className="mt-3 space-y-2">
-                  {msg.message_replies.map((reply) => (
-                    <div
-                      key={reply.id}
+                  {msg.message_replies
+                    .filter((reply) => !reply.is_internal)
+                    .map((reply) => {
+                      const isFromCustomer = (reply as any).is_from_customer;
+                      return (
+                        <div
+                          key={reply.id}
+                          className={cn(
+                            'rounded-lg border p-3',
+                            isFromCustomer
+                              ? (isDark ? 'bg-blue-900/30 border-blue-500/30 text-white ml-4' : 'bg-blue-50 border-blue-200 ml-4')
+                              : (isDark ? 'bg-white/10 border-white/20 text-white mr-4' : 'bg-white border-gray-200 mr-4')
+                          )}
+                        >
+                          <div className="flex items-center justify-between mb-1">
+                            <p className={cn('text-xs font-semibold', isDark ? 'text-white/80' : 'text-gray-700')}>
+                              {isFromCustomer ? 'Du' : 'Svar fra Tinglum Gård'}
+                            </p>
+                            <span className="text-xs text-gray-500">
+                              {new Date(reply.created_at).toLocaleDateString('nb-NO', {
+                                day: '2-digit',
+                                month: '2-digit',
+                                year: 'numeric',
+                              })}
+                            </span>
+                          </div>
+                          <p className={cn('text-sm whitespace-pre-wrap', isDark ? 'text-white/90' : 'text-gray-700')}>
+                            {reply.reply_text}
+                          </p>
+                        </div>
+                      );
+                    })}
+                </div>
+              )}
+
+              {/* Reply Input - Only show for non-closed messages */}
+              {msg.status !== 'closed' && (
+                <div className="mt-4 space-y-2">
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Skriv et svar..."
+                      value={replyTexts[msg.id] || ''}
+                      onChange={(e) => setReplyTexts((prev) => ({ ...prev, [msg.id]: e.target.value }))}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault();
+                          handleReply(msg.id);
+                        }
+                      }}
+                      disabled={replyingTo === msg.id}
                       className={cn(
-                        'rounded-lg border p-3',
-                        isDark ? 'bg-white/10 border-white/20 text-white' : 'bg-white border-gray-200'
+                        'flex-1',
+                        isDark ? 'bg-white/10 border-white/20 text-white placeholder:text-white/50' : ''
                       )}
+                    />
+                    <Button
+                      onClick={() => handleReply(msg.id)}
+                      disabled={replyingTo === msg.id || !replyTexts[msg.id]?.trim()}
+                      size="sm"
+                      className="bg-blue-500 hover:bg-blue-600"
                     >
-                      <div className="flex items-center justify-between mb-1">
-                        <p className={cn('text-xs font-semibold', isDark ? 'text-white/80' : 'text-gray-700')}>
-                          Svar fra Tinglum Gård
-                        </p>
-                        <span className="text-xs text-gray-500">
-                          {new Date(reply.created_at).toLocaleDateString('nb-NO', {
-                            day: '2-digit',
-                            month: '2-digit',
-                            year: 'numeric',
-                          })}
-                        </span>
-                      </div>
-                      <p className={cn('text-sm whitespace-pre-wrap', isDark ? 'text-white/90' : 'text-gray-700')}>
-                        {reply.reply_text}
-                      </p>
-                    </div>
-                  ))}
+                      {replyingTo === msg.id ? (
+                        <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <Send className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </div>
                 </div>
               )}
 
