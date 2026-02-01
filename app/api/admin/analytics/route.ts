@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth/session';
 import { supabaseAdmin } from '@/lib/supabase/server';
+import { logError } from '@/lib/logger';
 
 export async function GET(request: NextRequest) {
   const session = await getSession();
@@ -32,14 +33,26 @@ export async function GET(request: NextRequest) {
 
     const { data: orders, error } = await query;
 
-    if (error) throw error;
+    if (error) {
+      logError('admin-analytics-orders', error);
+      throw error;
+    }
+
+    // Fetch customer insights for additional metrics
+    const { data: insights, error: insightsError } = await supabaseAdmin
+      .from('customer_insights')
+      .select('*');
+
+    if (insightsError) {
+      logError('admin-analytics-insights', insightsError);
+    }
 
     // Calculate analytics
-    const analytics = calculateAnalytics(orders || []);
+    const analytics = calculateAnalytics(orders || [], insights || []);
 
     return NextResponse.json(analytics);
   } catch (error) {
-    console.error('Error fetching analytics:', error);
+    logError('admin-analytics-main', error);
     return NextResponse.json(
       { error: 'Failed to fetch analytics' },
       { status: 500 }
@@ -47,7 +60,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-function calculateAnalytics(orders: any[]) {
+function calculateAnalytics(orders: any[], insights: any[]) {
   // Time series data (orders per week)
   const ordersByWeek = orders.reduce((acc, order) => {
     const date = new Date(order.created_at);
@@ -158,6 +171,10 @@ function calculateAnalytics(orders: any[]) {
         .map(([email, count]) => ({ email, order_count: count as number }))
         .sort((a, b) => b.order_count - a.order_count)
         .slice(0, 10),
+      total_customers: insights.length,
+      new_customers: insights.filter((i: any) => i.is_new_customer).length,
+      loyal_customers: insights.filter((i: any) => i.is_loyal).length,
+      at_risk_customers: insights.filter((i: any) => i.is_at_risk).length,
     },
   };
 }
