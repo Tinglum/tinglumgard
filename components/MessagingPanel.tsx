@@ -5,14 +5,17 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Send, MessageSquare, AlertCircle, CheckCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { CustomerMessage } from '@/lib/types';
+import type { CustomerMessage, MessageReply } from '@/lib/types';
 
 interface MessagingPanelProps {
   className?: string;
+  variant?: 'light' | 'dark';
 }
 
-export function MessagingPanel({ className }: MessagingPanelProps) {
-  const [messages, setMessages] = useState<CustomerMessage[]>([]);
+type CustomerMessageWithReplies = CustomerMessage & { message_replies?: MessageReply[] };
+
+export function MessagingPanel({ className, variant = 'light' }: MessagingPanelProps) {
+  const [messages, setMessages] = useState<CustomerMessageWithReplies[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [subject, setSubject] = useState('');
@@ -34,7 +37,7 @@ export function MessagingPanel({ className }: MessagingPanelProps) {
       if (!res.ok) throw new Error(data.error);
       setMessages(data.messages || []);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load messages');
+      setError(err instanceof Error ? err.message : 'Kunne ikke laste meldinger');
     } finally {
       setIsLoading(false);
     }
@@ -44,7 +47,7 @@ export function MessagingPanel({ className }: MessagingPanelProps) {
     e.preventDefault();
 
     if (!subject.trim() || !messageText.trim()) {
-      setError('Subject and message are required');
+      setError('Emne og melding må fylles ut');
       return;
     }
 
@@ -68,16 +71,31 @@ export function MessagingPanel({ className }: MessagingPanelProps) {
       setSuccess(true);
       setSubject('');
       setMessageText('');
-      setMessages([data.message, ...messages]);
+      setMessages((prev) => [data.message, ...prev]);
 
       // Clear success message after 3 seconds
       setTimeout(() => setSuccess(false), 3000);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to send message');
+      setError(err instanceof Error ? err.message : 'Kunne ikke sende melding');
     } finally {
       setIsSubmitting(false);
     }
   }
+
+  const typeLabels = {
+    support: 'Support',
+    inquiry: 'Spørsmål',
+    complaint: 'Klage',
+    feedback: 'Tilbakemelding',
+    referral_question: 'Vennerabatt',
+  };
+
+  const statusLabels = {
+    open: 'Åpen',
+    in_progress: 'Under behandling',
+    resolved: 'Løst',
+    closed: 'Lukket',
+  };
 
   const statusColors = {
     open: 'bg-yellow-50 border-yellow-200',
@@ -93,66 +111,109 @@ export function MessagingPanel({ className }: MessagingPanelProps) {
     closed: <CheckCircle className="h-4 w-4 text-gray-600" />,
   };
 
+  const isDark = variant === 'dark';
+
   return (
     <div className={cn('space-y-6', className)}>
       {/* New Message Form */}
-      <div className="glass-mobile rounded-2xl p-6 border border-white/20">
-        <h3 className="text-xl font-semibold text-white mb-4">Send us a message</h3>
+      <div
+        className={cn(
+          'rounded-2xl p-6 border',
+          isDark ? 'glass-mobile border-white/20' : 'bg-white border-gray-200'
+        )}
+      >
+        <h3 className={cn('text-xl font-semibold mb-4', isDark ? 'text-white' : 'text-gray-900')}>
+          Send oss en melding
+        </h3>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Message Type */}
           <div>
-            <label className="block text-sm font-medium text-white/80 mb-2">Type</label>
+            <label className={cn('block text-sm font-medium mb-2', isDark ? 'text-white/80' : 'text-gray-700')}>
+              Kategori
+            </label>
             <select
               value={messageType}
               onChange={(e) => setMessageType(e.target.value as any)}
-              className="w-full px-4 py-2 rounded-lg bg-white/10 border border-white/20 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-blue-400"
+              className={cn(
+                'w-full px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400',
+                isDark
+                  ? 'bg-white/10 border border-white/20 text-white placeholder-white/40'
+                  : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'
+              )}
             >
               <option value="support">Support</option>
-              <option value="inquiry">Inquiry</option>
-              <option value="complaint">Complaint</option>
-              <option value="feedback">Feedback</option>
-              <option value="referral_question">Referral Question</option>
+              <option value="inquiry">Spørsmål</option>
+              <option value="complaint">Klage</option>
+              <option value="feedback">Tilbakemelding</option>
+              <option value="referral_question">Vennerabatt</option>
             </select>
           </div>
 
           {/* Subject */}
           <div>
-            <label className="block text-sm font-medium text-white/80 mb-2">Subject</label>
+            <label className={cn('block text-sm font-medium mb-2', isDark ? 'text-white/80' : 'text-gray-700')}>
+              Emne
+            </label>
             <Input
               type="text"
               value={subject}
               onChange={(e) => setSubject(e.target.value)}
-              placeholder="e.g., Question about order #12345"
-              className="bg-white/10 border-white/20 text-white placeholder-white/40"
+              placeholder="f.eks. Spørsmål om ordre #12345"
+              className={cn(
+                isDark
+                  ? 'bg-white/10 border-white/20 text-white placeholder-white/40'
+                  : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'
+              )}
               disabled={isSubmitting}
             />
           </div>
 
           {/* Message */}
           <div>
-            <label className="block text-sm font-medium text-white/80 mb-2">Message</label>
+            <label className={cn('block text-sm font-medium mb-2', isDark ? 'text-white/80' : 'text-gray-700')}>
+              Melding
+            </label>
             <textarea
               value={messageText}
               onChange={(e) => setMessageText(e.target.value)}
-              placeholder="Tell us what's on your mind..."
-              className="w-full h-32 px-4 py-2 rounded-lg bg-white/10 border border-white/20 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none"
+              placeholder="Hva kan vi hjelpe deg med?"
+              className={cn(
+                'w-full h-32 px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none',
+                isDark
+                  ? 'bg-white/10 border border-white/20 text-white placeholder-white/40'
+                  : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'
+              )}
               disabled={isSubmitting}
             />
           </div>
 
           {/* Error/Success Messages */}
           {error && (
-            <div className="p-3 bg-red-500/20 border border-red-400/50 rounded-lg flex items-center gap-2 text-red-200">
+            <div
+              className={cn(
+                'p-3 rounded-lg flex items-center gap-2',
+                isDark
+                  ? 'bg-red-500/20 border border-red-400/50 text-red-200'
+                  : 'bg-red-50 border border-red-200 text-red-700'
+              )}
+            >
               <AlertCircle className="h-4 w-4" />
               <span className="text-sm">{error}</span>
             </div>
           )}
 
           {success && (
-            <div className="p-3 bg-green-500/20 border border-green-400/50 rounded-lg flex items-center gap-2 text-green-200">
+            <div
+              className={cn(
+                'p-3 rounded-lg flex items-center gap-2',
+                isDark
+                  ? 'bg-green-500/20 border border-green-400/50 text-green-200'
+                  : 'bg-green-50 border border-green-200 text-green-700'
+              )}
+            >
               <CheckCircle className="h-4 w-4" />
-              <span className="text-sm">Message sent successfully!</span>
+              <span className="text-sm">Meldingen er sendt!</span>
             </div>
           )}
 
@@ -163,19 +224,25 @@ export function MessagingPanel({ className }: MessagingPanelProps) {
             className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700"
           >
             <Send className="mr-2 h-4 w-4" />
-            {isSubmitting ? 'Sending...' : 'Send Message'}
+            {isSubmitting ? 'Sender...' : 'Send melding'}
           </Button>
         </form>
       </div>
 
       {/* Messages List */}
       <div className="space-y-4">
-        <h3 className="text-xl font-semibold text-white">Your Messages</h3>
+        <h3 className={cn('text-xl font-semibold', isDark ? 'text-white' : 'text-gray-900')}>
+          Dine meldinger
+        </h3>
 
         {isLoading ? (
-          <div className="text-center py-8 text-white/60">Loading messages...</div>
+          <div className={cn('text-center py-8', isDark ? 'text-white/60' : 'text-gray-500')}>
+            Laster meldinger...
+          </div>
         ) : messages.length === 0 ? (
-          <div className="text-center py-8 text-white/60">No messages yet</div>
+          <div className={cn('text-center py-8', isDark ? 'text-white/60' : 'text-gray-500')}>
+            Ingen meldinger ennå
+          </div>
         ) : (
           messages.map((msg) => (
             <div
@@ -187,7 +254,7 @@ export function MessagingPanel({ className }: MessagingPanelProps) {
                   {statusIcons[msg.status as keyof typeof statusIcons]}
                   <div>
                     <h4 className="font-semibold text-gray-900">{msg.subject}</h4>
-                    <p className="text-sm text-gray-600 capitalize">{msg.message_type}</p>
+                    <p className="text-sm text-gray-600">{typeLabels[msg.message_type]}</p>
                   </div>
                 </div>
                 <span className="text-xs text-gray-500">
@@ -197,6 +264,36 @@ export function MessagingPanel({ className }: MessagingPanelProps) {
 
               <p className="text-gray-700 text-sm mb-3">{msg.message}</p>
 
+              {msg.message_replies && msg.message_replies.length > 0 && (
+                <div className="mt-3 space-y-2">
+                  {msg.message_replies.map((reply) => (
+                    <div
+                      key={reply.id}
+                      className={cn(
+                        'rounded-lg border p-3',
+                        isDark ? 'bg-white/10 border-white/20 text-white' : 'bg-white border-gray-200'
+                      )}
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <p className={cn('text-xs font-semibold', isDark ? 'text-white/80' : 'text-gray-700')}>
+                          Svar fra Tinglum Gård
+                        </p>
+                        <span className="text-xs text-gray-500">
+                          {new Date(reply.created_at).toLocaleDateString('nb-NO', {
+                            day: '2-digit',
+                            month: '2-digit',
+                            year: 'numeric',
+                          })}
+                        </span>
+                      </div>
+                      <p className={cn('text-sm whitespace-pre-wrap', isDark ? 'text-white/90' : 'text-gray-700')}>
+                        {reply.reply_text}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+
               {/* Status Badge */}
               <span className={cn(
                 'inline-block px-3 py-1 rounded-full text-xs font-medium capitalize',
@@ -205,7 +302,7 @@ export function MessagingPanel({ className }: MessagingPanelProps) {
                 msg.status === 'resolved' && 'bg-green-100 text-green-800',
                 msg.status === 'closed' && 'bg-gray-100 text-gray-800',
               )}>
-                {msg.status}
+                {statusLabels[msg.status]}
               </span>
             </div>
           ))

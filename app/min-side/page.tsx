@@ -254,7 +254,7 @@ export default function CustomerPortalPage() {
               )}
             >
               <MessageSquare className="w-5 h-5" />
-              Messages
+              Meldinger
             </button>
           </div>
 

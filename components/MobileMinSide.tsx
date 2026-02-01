@@ -435,7 +435,7 @@ export function MobileMinSide(props: MobileMinSideProps) {
           animate={{ opacity: 1 }}
           className="glass-mobile rounded-3xl p-6"
         >
-          <MessagingPanel />
+          <MessagingPanel variant="dark" />
         </motion.div>
       )}
     </div>
