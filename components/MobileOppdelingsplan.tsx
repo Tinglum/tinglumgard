@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown, Check, Plus } from 'lucide-react';
 import { Extra, BoxContents, ExtrasResponse, ConfigResponse } from '@/lib/types';
+import { useOppdelingsplanData } from '@/hooks/useOppdelingsplanData';
 
 interface CutInfo {
   id: number;
@@ -15,9 +16,7 @@ interface CutInfo {
 
 export function MobileOppdelingsplan() {
   const [expandedCut, setExpandedCut] = useState<number | null>(null);
-  const [extras, setExtras] = useState<Extra[]>([]);
-  const [boxContents, setBoxContents] = useState<BoxContents | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const { extras, boxContents, isLoading } = useOppdelingsplanData();
 
   const cuts: CutInfo[] = [
     {
@@ -92,33 +91,6 @@ export function MobileOppdelingsplan() {
   // Derived lists from admin/config
   const inBoxSummary: string[] = boxContents?.inBox ?? [];
   const canOrderSummary: string[] = extras.length > 0 ? extras.map(e => e.name_no) : [];
-
-  useEffect(() => {
-    let mounted = true;
-    (async () => {
-      try {
-        const [extrasRes, cfgRes] = await Promise.all([
-          fetch('/api/extras'),
-          fetch('/api/config'),
-        ]);
-        const extrasJson: ExtrasResponse = await extrasRes.json();
-        const cfgJson: ConfigResponse = await cfgRes.json();
-
-        if (!mounted) return;
-
-        // Filter out delivery/pickup config entries which are in extras table
-        const filtered = (extrasJson.extras || []).filter((x: Extra) => !["delivery_trondheim", "pickup_e6", "fresh_delivery"].includes(x.slug));
-        setExtras(filtered);
-
-        if (cfgJson.box_contents) setBoxContents(cfgJson.box_contents);
-      } catch (err) {
-        console.error('Failed to load extras or config for MobileOppdelingsplan:', err);
-      } finally {
-        setIsLoading(false);
-      }
-    })();
-    return () => { mounted = false; };
-  }, []);
 
   return (
     <div className="min-h-screen pb-20">

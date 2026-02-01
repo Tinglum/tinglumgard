@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils';
 import { MobileOppdelingsplan } from '@/components/MobileOppdelingsplan';
 import { Extra, BoxContents, ExtrasResponse, ConfigResponse } from '@/lib/types';
 import { PIG_CUT_POLYGONS } from '@/lib/constants/pig-diagram';
+import { useOppdelingsplanData } from '@/hooks/useOppdelingsplanData';
 
 interface CutInfo {
   id: number;
@@ -25,9 +26,7 @@ export default function OppdelingsplanPage() {
   const isMobile = useIsMobile();
   const [selectedCut, setSelectedCut] = useState<number | null>(null);
   const [hoveredCut, setHoveredCut] = useState<number | null>(null);
-  const [extras, setExtras] = useState<Extra[]>([]);
-  const [boxContents, setBoxContents] = useState<BoxContents | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const { extras, boxContents, isLoading } = useOppdelingsplanData();
 
   const cuts: CutInfo[] = [
     {
@@ -101,33 +100,6 @@ export default function OppdelingsplanPage() {
 
   const selectedCutInfo = cuts.find(c => c.id === selectedCut);
   const hoveredCutInfo = cuts.find(c => c.id === hoveredCut);
-
-  useEffect(() => {
-    let mounted = true;
-    (async () => {
-      try {
-        const [extrasRes, cfgRes] = await Promise.all([
-          fetch('/api/extras'),
-          fetch('/api/config'),
-        ]);
-        const extrasJson: ExtrasResponse = await extrasRes.json();
-        const cfgJson: ConfigResponse = await cfgRes.json();
-
-        if (!mounted) return;
-
-        // Filter out delivery/pickup config entries which are in extras table
-        const filtered = (extrasJson.extras || []).filter((x: Extra) => !["delivery_trondheim", "pickup_e6", "fresh_delivery"].includes(x.slug));
-        setExtras(filtered);
-
-        if (cfgJson.box_contents) setBoxContents(cfgJson.box_contents);
-      } catch (err) {
-        console.error('Failed to load extras or config for oppdelingsplan:', err);
-      } finally {
-        setIsLoading(false);
-      }
-    })();
-    return () => { mounted = false; };
-  }, []);
 
   // Mobile version
   if (isMobile) {
