@@ -257,6 +257,19 @@ export default function ConfirmationPage() {
                 2
               </div>
               <div>
+                <p className={cn("font-semibold", theme.textPrimary)}>Del vennerabatt</p>
+                <p className={cn("text-sm", theme.textMuted)}>
+                  Gi 20% rabatt til venner og få 10% kreditt selv. Finn din kode på{' '}
+                  <Link href="/min-side" className="underline font-medium">Min side</Link>.
+                </p>
+              </div>
+            </div>
+
+            <div className={cn("flex gap-4 p-4 rounded-xl", theme.bgSecondary)}>
+              <div className={cn("flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center font-bold", theme.bgDark, theme.textOnDark)}>
+                3
+              </div>
+              <div>
                 <p className={cn("font-semibold", theme.textPrimary)}>Grisene vokser opp</p>
                 <p className={cn("text-sm", theme.textMuted)}>
                   Grisene lever på gården gjennom 2026 og blir slaktet lokalt i desember.
@@ -266,7 +279,7 @@ export default function ConfirmationPage() {
 
             <div className={cn("flex gap-4 p-4 rounded-xl", theme.bgSecondary)}>
               <div className={cn("flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center font-bold", theme.bgDark, theme.textOnDark)}>
-                3
+                4
               </div>
               <div>
                 <p className={cn("font-semibold", theme.textPrimary)}>Betaling av rest og levering</p>
