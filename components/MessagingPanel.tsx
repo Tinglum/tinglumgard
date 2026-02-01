@@ -55,17 +55,24 @@ export function MessagingPanel({ className, variant = 'light' }: MessagingPanelP
       setIsSubmitting(true);
       setError(null);
 
+      const payload = {
+        subject: subject.trim(),
+        message: messageText.trim(),
+        message_type: messageType,
+      };
+
+      console.log('Sending message:', payload);
+
       const res = await fetch('/api/messages', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          subject: subject.trim(),
-          message: messageText.trim(),
-          message_type: messageType,
-        }),
+        body: JSON.stringify(payload),
       });
 
+      console.log('Response status:', res.status);
       const data = await res.json();
+      console.log('Response data:', data);
+
       if (!res.ok) throw new Error(data.error);
 
       setSuccess(true);
@@ -76,6 +83,7 @@ export function MessagingPanel({ className, variant = 'light' }: MessagingPanelP
       // Clear success message after 3 seconds
       setTimeout(() => setSuccess(false), 3000);
     } catch (err) {
+      console.error('Error:', err);
       setError(err instanceof Error ? err.message : 'Kunne ikke sende melding');
     } finally {
       setIsSubmitting(false);
