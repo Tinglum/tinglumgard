@@ -8,6 +8,7 @@ import { useIsMobile } from '@/hooks/useMediaQuery';
 import { cn } from '@/lib/utils';
 import { MobileOppdelingsplan } from '@/components/MobileOppdelingsplan';
 import { Extra, BoxContents, ExtrasResponse, ConfigResponse } from '@/lib/types';
+import { PIG_CUT_POLYGONS } from '@/lib/constants/pig-diagram';
 
 interface CutInfo {
   id: number;
@@ -237,96 +238,20 @@ export default function OppdelingsplanPage() {
 
               {/* Clickable overlays using precise polygon coordinates */}
               <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 100 100" preserveAspectRatio="none">
-                {/* Nakke - neck */}
-                <polygon
-                  points="33,26 46,26 39,44 34,44"
-                  fill="transparent"
-                  stroke="transparent"
-                  strokeWidth="0.5"
-                  className="pointer-events-auto cursor-pointer hover:fill-white/20 hover:stroke-white/50 transition-all duration-200"
-                  onClick={() => setSelectedCut(3)}
-                  onMouseEnter={() => setHoveredCut(3)}
-                  onMouseLeave={() => setHoveredCut(null)}
-                  aria-label="Nakke"
-                />
-
-                {/* Svinebog - shoulder */}
-                <polygon
-                  points="39,44 47,35 51,58 42,58"
-                  fill="transparent"
-                  stroke="transparent"
-                  strokeWidth="0.5"
-                  className="pointer-events-auto cursor-pointer hover:fill-white/20 hover:stroke-white/50 transition-all duration-200"
-                  onClick={() => setSelectedCut(8)}
-                  onMouseEnter={() => setHoveredCut(8)}
-                  onMouseLeave={() => setHoveredCut(null)}
-                  aria-label="Bog"
-                />
-
-                {/* Kotelettkam - loin/back */}
-                <polygon
-                  points="45,21 70,21 68,35 47,35"
-                  fill="transparent"
-                  stroke="transparent"
-                  strokeWidth="0.5"
-                  className="pointer-events-auto cursor-pointer hover:fill-white/20 hover:stroke-white/50 transition-all duration-200"
-                  onClick={() => setSelectedCut(5)}
-                  onMouseEnter={() => setHoveredCut(5)}
-                  onMouseLeave={() => setHoveredCut(null)}
-                  aria-label="Kam"
-                />
-
-                {/* Ribbeside - belly/ribs */}
-                <polygon
-                  points="48,37 68,36 68,53 51,58"
-                  fill="transparent"
-                  stroke="transparent"
-                  strokeWidth="0.5"
-                  className="pointer-events-auto cursor-pointer hover:fill-white/20 hover:stroke-white/50 transition-all duration-200"
-                  onClick={() => setSelectedCut(7)}
-                  onMouseEnter={() => setHoveredCut(7)}
-                  onMouseLeave={() => setHoveredCut(null)}
-                  aria-label="Side/Bacon"
-                />
-
-                {/* Skinke - ham */}
-                <polygon
-                  points="72,23 82,34 84,50 70,56"
-                  fill="transparent"
-                  stroke="transparent"
-                  strokeWidth="0.5"
-                  className="pointer-events-auto cursor-pointer hover:fill-white/20 hover:stroke-white/50 transition-all duration-200"
-                  onClick={() => setSelectedCut(9)}
-                  onMouseEnter={() => setHoveredCut(9)}
-                  onMouseLeave={() => setHoveredCut(null)}
-                  aria-label="Skinke"
-                />
-
-                {/* Knoke - front leg */}
-                <polygon
-                  points="42,58 51,58 50,70 42,74"
-                  fill="transparent"
-                  stroke="transparent"
-                  strokeWidth="0.5"
-                  className="pointer-events-auto cursor-pointer hover:fill-white/20 hover:stroke-white/50 transition-all duration-200"
-                  onClick={() => setSelectedCut(10)}
-                  onMouseEnter={() => setHoveredCut(10)}
-                  onMouseLeave={() => setHoveredCut(null)}
-                  aria-label="Knoke"
-                />
-
-                {/* Knoke - back leg */}
-                <polygon
-                  points="70,56 80,56 82,74 72,76"
-                  fill="transparent"
-                  stroke="transparent"
-                  strokeWidth="0.5"
-                  className="pointer-events-auto cursor-pointer hover:fill-white/20 hover:stroke-white/50 transition-all duration-200"
-                  onClick={() => setSelectedCut(10)}
-                  onMouseEnter={() => setHoveredCut(10)}
-                  onMouseLeave={() => setHoveredCut(null)}
-                  aria-label="Knoke"
-                />
+                {PIG_CUT_POLYGONS.map((polygon) => (
+                  <polygon
+                    key={`${polygon.id}-${polygon.points}`}
+                    points={polygon.points}
+                    fill="transparent"
+                    stroke="transparent"
+                    strokeWidth="0.5"
+                    className="pointer-events-auto cursor-pointer hover:fill-white/20 hover:stroke-white/50 transition-all duration-200"
+                    onClick={() => setSelectedCut(polygon.id)}
+                    onMouseEnter={() => setHoveredCut(polygon.id)}
+                    onMouseLeave={() => setHoveredCut(null)}
+                    aria-label={polygon.ariaLabel}
+                  />
+                ))}
               </svg>
 
               {/* Hover tooltip */}
