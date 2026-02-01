@@ -17,7 +17,7 @@ export interface PricingConfig {
 export async function getPricingConfig(): Promise<PricingConfig> {
   try {
     const { data: configs, error } = await supabaseAdmin
-      .from('config')
+      .from('app_config')
       .select('key, value')
       .in('key', [
         'box_8kg_price',

@@ -15,6 +15,12 @@ export async function GET() {
       delivery_fee_pickup_e6: pricing.delivery_fee_pickup_e6,
       delivery_fee_trondheim: pricing.delivery_fee_trondheim,
       fresh_delivery_fee: pricing.fresh_delivery_fee,
+    }, {
+      headers: {
+        'Cache-Control': 'no-store, must-revalidate, max-age=0',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+      }
     });
   } catch (error) {
     logError('config-pricing-route', error);
