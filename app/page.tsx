@@ -30,6 +30,7 @@ export default function Page() {
   const [inventory, setInventory] = useState<InventoryData | null>(null);
   const [loading, setLoading] = useState(true);
   const [scrollY, setScrollY] = useState(0);
+  const [pricing, setPricing] = useState<any>(null);
 
   useEffect(() => {
     async function fetchInventory() {
@@ -46,6 +47,21 @@ export default function Page() {
       }
     }
     fetchInventory();
+  }, []);
+
+  useEffect(() => {
+    async function fetchPricing() {
+      try {
+        const res = await fetch('/api/config/pricing');
+        if (res.ok) {
+          const data = await res.json();
+          setPricing(data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch pricing:', error);
+      }
+    }
+    fetchPricing();
   }, []);
 
   useEffect(() => {
@@ -339,15 +355,22 @@ export default function Page() {
                 <div className={`space-y-4 pt-6 border-t ${theme.borderSecondary}`}>
                   <div className="flex items-baseline justify-between">
                     <span className={`text-sm uppercase tracking-wide ${theme.textMuted} font-bold`}>{t.product.totalPrice}</span>
-                    <span className={`text-4xl font-bold ${theme.textPrimary}`}>3 500<span className={`text-xl ${theme.textMuted} ml-1`}>{t.common.currency}</span></span>
+                    <span className={`text-4xl font-bold ${theme.textPrimary}`}>
+                      {pricing ? (pricing.box_8kg_price || 3500).toLocaleString('nb-NO') : '3 500'}
+                      <span className={`text-xl ${theme.textMuted} ml-1`}>{t.common.currency}</span>
+                    </span>
                   </div>
                   <div className="flex items-baseline justify-between text-sm">
                     <span className={`${theme.textMuted} font-medium`}>{t.product.deposit50}</span>
-                    <span className={`${theme.textPrimary} font-bold`}>1 750 {t.common.currency}</span>
+                    <span className={`${theme.textPrimary} font-bold`}>
+                      {pricing ? Math.floor((pricing.box_8kg_price || 3500) * (pricing.deposit_percentage || 50) / 100).toLocaleString('nb-NO') : '1 750'} {t.common.currency}
+                    </span>
                   </div>
                   <div className="flex items-baseline justify-between text-sm">
                     <span className={`${theme.textMuted} font-medium`}>{t.product.balanceOnDelivery}</span>
-                    <span className={`${theme.textPrimary} font-bold`}>1 750 {t.common.currency}</span>
+                    <span className={`${theme.textPrimary} font-bold`}>
+                      {pricing ? Math.floor((pricing.box_8kg_price || 3500) * (100 - (pricing.deposit_percentage || 50)) / 100).toLocaleString('nb-NO') : '1 750'} {t.common.currency}
+                    </span>
                   </div>
                 </div>
 
@@ -462,15 +485,22 @@ export default function Page() {
                 <div className={`space-y-4 pt-6 border-t ${theme.borderSecondary}`}>
                   <div className="flex items-baseline justify-between">
                     <span className={`text-sm uppercase tracking-wide ${theme.textMuted} font-bold`}>{t.product.totalPrice}</span>
-                    <span className={`text-4xl font-bold ${theme.textPrimary}`}>4 800<span className={`text-xl ${theme.textMuted} ml-1`}>{t.common.currency}</span></span>
+                    <span className={`text-4xl font-bold ${theme.textPrimary}`}>
+                      {pricing ? (pricing.box_12kg_price || 4800).toLocaleString('nb-NO') : '4 800'}
+                      <span className={`text-xl ${theme.textMuted} ml-1`}>{t.common.currency}</span>
+                    </span>
                   </div>
                   <div className="flex items-baseline justify-between text-sm">
                     <span className={`${theme.textMuted} font-medium`}>{t.product.deposit50}</span>
-                    <span className={`${theme.textPrimary} font-bold`}>2 400 {t.common.currency}</span>
+                    <span className={`${theme.textPrimary} font-bold`}>
+                      {pricing ? Math.floor((pricing.box_12kg_price || 4800) * (pricing.deposit_percentage || 50) / 100).toLocaleString('nb-NO') : '2 400'} {t.common.currency}
+                    </span>
                   </div>
                   <div className="flex items-baseline justify-between text-sm">
                     <span className={`${theme.textMuted} font-medium`}>{t.product.balanceOnDelivery}</span>
-                    <span className={`${theme.textPrimary} font-bold`}>2 400 {t.common.currency}</span>
+                    <span className={`${theme.textPrimary} font-bold`}>
+                      {pricing ? Math.floor((pricing.box_12kg_price || 4800) * (100 - (pricing.deposit_percentage || 50)) / 100).toLocaleString('nb-NO') : '2 400'} {t.common.currency}
+                    </span>
                   </div>
                 </div>
 

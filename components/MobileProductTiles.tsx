@@ -2,12 +2,12 @@
 
 import { motion } from 'framer-motion';
 import Link from 'next/link';
+import { useState, useEffect } from 'react';
 
-const packages = [
+const packageData = [
   {
     size: 8,
     weight: '8 kg',
-    price: '3 500',
     people: '2-3 personer',
     items: ['2kg ribbe', '1kg steik', '1kg farse', '0.5kg pølse'],
     popular: false,
@@ -15,7 +15,6 @@ const packages = [
   {
     size: 12,
     weight: '12 kg',
-    price: '4 800',
     people: '4-6 personer',
     items: ['3kg ribbe', '1kg steik', '1.5kg farse', '1kg pølse'],
     popular: true,
@@ -23,6 +22,29 @@ const packages = [
 ];
 
 export function MobileProductTiles() {
+  const [pricing, setPricing] = useState<any>(null);
+
+  useEffect(() => {
+    async function fetchPricing() {
+      try {
+        const res = await fetch('/api/config/pricing');
+        if (res.ok) {
+          const data = await res.json();
+          setPricing(data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch pricing:', error);
+      }
+    }
+    fetchPricing();
+  }, []);
+
+  const packages = packageData.map(pkg => ({
+    ...pkg,
+    price: pkg.size === 8 
+      ? (pricing ? (pricing.box_8kg_price || 3500).toLocaleString('nb-NO') : '3 500')
+      : (pricing ? (pricing.box_12kg_price || 4800).toLocaleString('nb-NO') : '4 800')
+  }));
   return (
     <section className="relative py-16 px-4">
       {/* Subtle background glow */}
