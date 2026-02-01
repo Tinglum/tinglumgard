@@ -83,14 +83,42 @@ Deno.serve(async (req: Request) => {
         continue;
       }
 
-      const basePrice = order.box_size === 8 ? 3500 : 4800;
-      const depositAmount = Math.floor(basePrice / 2);
+      // Fetch current pricing from app_config
+      const { data: configData } = await supabaseClient
+        .from('app_config')
+        .select('value')
+        .eq('key', 'pricing')
+        .single();
+
+      let basePrice = order.box_size === 8 ? 3500 : 4800;
+      let depositPercentage = 50;
+
+      if (configData?.value) {
+        const pricing = configData.value;
+        basePrice = order.box_size === 8 ? pricing.box_8kg_price : pricing.box_12kg_price;
+        depositPercentage = pricing.deposit_percentage || 50;
+      }
+
+      const depositAmount = Math.floor(basePrice * depositPercentage / 100);
       let remainderAmount = basePrice - depositAmount;
 
+      // Fetch add-on prices from app_config
+      const { data: addonsConfigData } = await supabaseClient
+        .from('app_config')
+        .select('value')
+        .eq('key', 'addons_pricing')
+        .single();
+
+      const addonsPricing = addonsConfigData?.value || {
+        organ_pakke: 200,
+        grunn_pakke: 100,
+        krydder_pakke: 150,
+      };
+
       const addOnsJson = order.add_ons_json || {};
-      if (addOnsJson.organPakke) remainderAmount += 200;
-      if (addOnsJson.grunnPakke) remainderAmount += 100;
-      if (addOnsJson.krydderpakke) remainderAmount += 150;
+      if (addOnsJson.organPakke) remainderAmount += (addonsPricing.organ_pakke || 200);
+      if (addOnsJson.grunnPakke) remainderAmount += (addonsPricing.grunn_pakke || 100);
+      if (addOnsJson.krydderpakke) remainderAmount += (addonsPricing.krydder_pakke || 150);
 
       if (order.order_extras && order.order_extras.length > 0) {
         order.order_extras.forEach((extra: any) => {
@@ -99,7 +127,7 @@ Deno.serve(async (req: Request) => {
       }
 
       if (order.fresh_delivery) {
-        remainderAmount += 200;
+        remainderAmount += (pricing.fresh_delivery_fee || 200);
       }
 
       const paymentUrl = `${Deno.env.get('NEXT_PUBLIC_APP_URL') || 'https://tinglum.no'}/min-side`;

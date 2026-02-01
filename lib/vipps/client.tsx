@@ -32,6 +32,7 @@ export default function CheckoutPage() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [orderConfirmed, setOrderConfirmed] = useState(false);
   const [orderId, setOrderId] = useState<string | null>(null);
+  const [pricing, setPricing] = useState<any>(null);
 
   // URL parameter handling
   useEffect(() => {
@@ -41,6 +42,29 @@ export default function CheckoutPage() {
       setStep(2);
     }
   }, [searchParams]);
+
+  // Fetch pricing configuration from app_config
+  useEffect(() => {
+    async function fetchPricing() {
+      try {
+        const response = await fetch('/api/config/pricing');
+        const data = await response.json();
+        setPricing(data);
+      } catch (error) {
+        console.error('Failed to fetch pricing:', error);
+        // Fallback to defaults if fetch fails
+        setPricing({
+          box_8kg_price: 3500,
+          box_12kg_price: 4800,
+          deposit_percentage: 50,
+          delivery_fee_farm: 0,
+          delivery_fee_trondheim: 150,
+          delivery_fee_e6: 200,
+        });
+      }
+    }
+    fetchPricing();
+  }, []);
 
   // Fetch available extras
   useEffect(() => {
@@ -140,14 +164,25 @@ export default function CheckoutPage() {
     }
   }
 
-  const prices = {
+  const prices = pricing ? {
+    '8': { 
+      deposit: Math.floor(pricing.box_8kg_price * (pricing.deposit_percentage || 50) / 100),
+      remainder: Math.floor(pricing.box_8kg_price * (100 - (pricing.deposit_percentage || 50)) / 100),
+      total: pricing.box_8kg_price 
+    },
+    '12': { 
+      deposit: Math.floor(pricing.box_12kg_price * (pricing.deposit_percentage || 50) / 100),
+      remainder: Math.floor(pricing.box_12kg_price * (100 - (pricing.deposit_percentage || 50)) / 100),
+      total: pricing.box_12kg_price 
+    },
+  } : {
     '8': { deposit: 1750, remainder: 1750, total: 3500 },
     '12': { deposit: 2400, remainder: 2400, total: 4800 },
   };
 
   const addonPrices = {
-    trondheim: 200,
-    e6: 300,
+    trondheim: pricing?.delivery_fee_trondheim || 200,
+    e6: pricing?.delivery_fee_e6 || 300,
     fresh: 500,
   };
 
