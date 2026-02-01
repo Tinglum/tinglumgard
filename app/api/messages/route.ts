@@ -63,12 +63,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    console.log('Creating message with phone:', session.phoneNumber);
+    
     const { data: newMessage, error } = await supabaseAdmin
       .from('customer_messages')
       .insert({
         customer_phone: session.phoneNumber,
-        customer_name: session.name,
-        customer_email: session.email,
+        customer_name: session.name || null,
+        customer_email: session.email || null,
         subject,
         message,
         message_type,
@@ -80,8 +82,20 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (error) {
-      logError('messages-post-db-error', { error, phone: session.phoneNumber });
-      return NextResponse.json({ error: 'Failed to create message' }, { status: 500 });
+      console.error('Database error details:', {
+        error: error,
+        message: error?.message,
+        details: error?.details,
+        hint: error?.hint,
+        phone: session.phoneNumber
+      });
+      logError('messages-post-db-error', { 
+        error: error?.message, 
+        details: error?.details,
+        hint: error?.hint,
+        phone: session.phoneNumber 
+      });
+      return NextResponse.json({ error: 'Failed to create message', details: error?.message }, { status: 500 });
     }
 
     // TODO: Send notification to admin that new message received
