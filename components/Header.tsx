@@ -13,7 +13,30 @@ export function Header() {
   const { user, isAuthenticated, logout } = useAuth();
   const themeClasses = getThemeClasses();
   const [showDropdown, setShowDropdown] = useState(false);
+  const [unreadMessageCount, setUnreadMessageCount] = useState(0);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Fetch unread message count when authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchUnreadCount();
+      // Poll every 30 seconds for new messages
+      const interval = setInterval(fetchUnreadCount, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [isAuthenticated]);
+
+  async function fetchUnreadCount() {
+    try {
+      const response = await fetch('/api/messages/unread-count');
+      if (response.ok) {
+        const data = await response.json();
+        setUnreadMessageCount(data.unreadCount || 0);
+      }
+    } catch (error) {
+      console.error('Failed to fetch unread message count:', error);
+    }
+  }
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -76,9 +99,14 @@ export function Header() {
               </Link>
               <Link
                 href="/min-side"
-                className={cn("px-5 py-2.5 text-sm font-semibold rounded-xl transition-all", themeClasses.textSecondary, themeClasses.buttonSecondaryHover)}
+                className={cn("relative px-5 py-2.5 text-sm font-semibold rounded-xl transition-all", themeClasses.textSecondary, themeClasses.buttonSecondaryHover)}
               >
                 {t.nav.myOrders}
+                {unreadMessageCount > 0 && (
+                  <span className="absolute -top-1 -right-1 flex items-center justify-center w-5 h-5 text-[10px] font-bold text-white bg-red-500 rounded-full border-2 border-white">
+                    {unreadMessageCount}
+                  </span>
+                )}
               </Link>
             </nav>
 
@@ -155,9 +183,14 @@ export function Header() {
                         <Link
                           href="/min-side"
                           onClick={() => setShowDropdown(false)}
-                          className={cn("block px-4 py-2 text-sm transition-colors", themeClasses.textPrimary, themeClasses.buttonSecondaryHover)}
+                          className={cn("relative flex items-center justify-between px-4 py-2 text-sm transition-colors", themeClasses.textPrimary, themeClasses.buttonSecondaryHover)}
                         >
-                          {t.nav.myOrders}
+                          <span>{t.nav.myOrders}</span>
+                          {unreadMessageCount > 0 && (
+                            <span className="flex items-center justify-center w-5 h-5 text-[10px] font-bold text-white bg-red-500 rounded-full">
+                              {unreadMessageCount}
+                            </span>
+                          )}
                         </Link>
                         <button
                           onClick={() => {

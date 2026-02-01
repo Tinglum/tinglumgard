@@ -35,11 +35,29 @@ export function MessagingPanel({ className, variant = 'light' }: MessagingPanelP
       const res = await fetch('/api/messages');
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      setMessages(data.messages || []);
+      const loadedMessages = data.messages || [];
+      setMessages(loadedMessages);
+
+      // Mark all messages as viewed
+      if (loadedMessages.length > 0) {
+        markMessagesAsViewed(loadedMessages.map((m: CustomerMessageWithReplies) => m.id));
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Kunne ikke laste meldinger');
     } finally {
       setIsLoading(false);
+    }
+  }
+
+  async function markMessagesAsViewed(messageIds: string[]) {
+    try {
+      await fetch('/api/messages/unread-count', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messageIds }),
+      });
+    } catch (error) {
+      console.error('Failed to mark messages as viewed:', error);
     }
   }
 
