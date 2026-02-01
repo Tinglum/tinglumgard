@@ -27,45 +27,52 @@ export async function GET(request: NextRequest) {
       .eq('customer_phone', session.phoneNumber);
 
     if (error) {
+      console.error('Supabase error:', error);
       logError('messages-unread-count', error);
-      return NextResponse.json({ error: 'Failed to fetch messages' }, { status: 500 });
+      // Return 0 instead of 500 if there's an error - graceful degradation
+      return NextResponse.json({ unreadCount: 0 });
     }
 
     // Count messages that have new replies (replies created after last_viewed_at)
     let unreadCount = 0;
 
-    for (const message of messages || []) {
-      if (!message.message_replies || message.message_replies.length === 0) {
-        continue;
-      }
+    if (messages && Array.isArray(messages)) {
+      for (const message of messages) {
+        if (!message.message_replies || !Array.isArray(message.message_replies) || message.message_replies.length === 0) {
+          continue;
+        }
 
-      // Filter out internal replies (admin notes)
-      const publicReplies = message.message_replies.filter((r: any) => !r.is_internal);
-      
-      if (publicReplies.length === 0) {
-        continue;
-      }
+        // Filter out internal replies (admin notes)
+        const publicReplies = message.message_replies.filter((r: any) => r && !r.is_internal);
+        
+        if (publicReplies.length === 0) {
+          continue;
+        }
 
-      // If never viewed, or has replies after last viewed time, it's unread
-      if (!message.last_viewed_at) {
-        unreadCount++;
-      } else {
-        const lastViewed = new Date(message.last_viewed_at).getTime();
-        const hasNewReplies = publicReplies.some((reply: any) => {
-          const replyTime = new Date(reply.created_at).getTime();
-          return replyTime > lastViewed;
-        });
-
-        if (hasNewReplies) {
+        // If never viewed, or has replies after last viewed time, it's unread
+        if (!message.last_viewed_at) {
           unreadCount++;
+        } else {
+          const lastViewed = new Date(message.last_viewed_at).getTime();
+          const hasNewReplies = publicReplies.some((reply: any) => {
+            if (!reply || !reply.created_at) return false;
+            const replyTime = new Date(reply.created_at).getTime();
+            return replyTime > lastViewed;
+          });
+
+          if (hasNewReplies) {
+            unreadCount++;
+          }
         }
       }
     }
 
     return NextResponse.json({ unreadCount });
   } catch (error) {
+    console.error('Unread count error:', error);
     logError('messages-unread-count-main', error);
-    return NextResponse.json({ error: 'Server error' }, { status: 500 });
+    // Return 0 as fallback - user experience is better than showing error
+    return NextResponse.json({ unreadCount: 0 });
   }
 }
 

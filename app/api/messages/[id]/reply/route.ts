@@ -42,11 +42,9 @@ export async function POST(
       .from('message_replies')
       .insert({
         message_id: params.id,
-        admin_name: session.name || session.phoneNumber, // Store customer name/phone
+        admin_name: session.name || session.phoneNumber,
         reply_text: reply_text.trim(),
-        is_from_customer: true,
         is_internal: false,
-        created_at: new Date().toISOString(),
       })
       .select()
       .single();
