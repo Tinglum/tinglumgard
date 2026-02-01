@@ -7,6 +7,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { useIsMobile } from '@/hooks/useMediaQuery';
 import { cn } from '@/lib/utils';
 import { MobileOppdelingsplan } from '@/components/MobileOppdelingsplan';
+import { Extra, BoxContents, ExtrasResponse, ConfigResponse } from '@/lib/types';
 
 interface CutInfo {
   id: number;
@@ -23,8 +24,8 @@ export default function OppdelingsplanPage() {
   const isMobile = useIsMobile();
   const [selectedCut, setSelectedCut] = useState<number | null>(null);
   const [hoveredCut, setHoveredCut] = useState<number | null>(null);
-  const [extras, setExtras] = useState<any[]>([]);
-  const [boxContents, setBoxContents] = useState<any | null>(null);
+  const [extras, setExtras] = useState<Extra[]>([]);
+  const [boxContents, setBoxContents] = useState<BoxContents | null>(null);
 
   const cuts: CutInfo[] = [
     {
@@ -107,13 +108,13 @@ export default function OppdelingsplanPage() {
           fetch('/api/extras'),
           fetch('/api/config'),
         ]);
-        const extrasJson = await extrasRes.json();
-        const cfgJson = await cfgRes.json();
+        const extrasJson: ExtrasResponse = await extrasRes.json();
+        const cfgJson: ConfigResponse = await cfgRes.json();
 
         if (!mounted) return;
 
         // Filter out delivery/pickup config entries which are in extras table
-        const filtered = (extrasJson.extras || []).filter((x: any) => !["delivery_trondheim", "pickup_e6", "fresh_delivery"].includes(x.slug));
+        const filtered = (extrasJson.extras || []).filter((x: Extra) => !["delivery_trondheim", "pickup_e6", "fresh_delivery"].includes(x.slug));
         setExtras(filtered);
 
         if (cfgJson.box_contents) setBoxContents(cfgJson.box_contents);
