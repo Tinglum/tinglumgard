@@ -17,6 +17,7 @@ export function MobileOppdelingsplan() {
   const [expandedCut, setExpandedCut] = useState<number | null>(null);
   const [extras, setExtras] = useState<Extra[]>([]);
   const [boxContents, setBoxContents] = useState<BoxContents | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   const cuts: CutInfo[] = [
     {
@@ -112,6 +113,8 @@ export function MobileOppdelingsplan() {
         if (cfgJson.box_contents) setBoxContents(cfgJson.box_contents);
       } catch (err) {
         console.error('Failed to load extras or config for MobileOppdelingsplan:', err);
+      } finally {
+        setIsLoading(false);
       }
     })();
     return () => { mounted = false; };

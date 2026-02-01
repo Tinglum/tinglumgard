@@ -27,6 +27,7 @@ export default function OppdelingsplanPage() {
   const [hoveredCut, setHoveredCut] = useState<number | null>(null);
   const [extras, setExtras] = useState<Extra[]>([]);
   const [boxContents, setBoxContents] = useState<BoxContents | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   const cuts: CutInfo[] = [
     {
@@ -121,6 +122,8 @@ export default function OppdelingsplanPage() {
         if (cfgJson.box_contents) setBoxContents(cfgJson.box_contents);
       } catch (err) {
         console.error('Failed to load extras or config for oppdelingsplan:', err);
+      } finally {
+        setIsLoading(false);
       }
     })();
     return () => { mounted = false; };
