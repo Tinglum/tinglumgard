@@ -64,9 +64,9 @@ export default function CheckoutPage() {
   useEffect(() => {
     async function fetchConfig() {
       try {
-        const response = await fetch('/api/config');
+        const response = await fetch('/api/config/pricing');
         const data = await response.json();
-        setPricing(data.pricing);
+        setPricing(data);
       } catch (error) {
         console.error('Failed to fetch pricing config:', error);
       }
