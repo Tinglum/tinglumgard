@@ -61,7 +61,7 @@ export function MessagingPanel({ className, variant = 'light' }: MessagingPanelP
         message_type: messageType,
       };
 
-      console.log('Sending message:', payload);
+      console.log('Sending message:', JSON.stringify(payload, null, 2));
 
       const res = await fetch('/api/messages', {
         method: 'POST',
@@ -71,9 +71,12 @@ export function MessagingPanel({ className, variant = 'light' }: MessagingPanelP
 
       console.log('Response status:', res.status);
       const data = await res.json();
-      console.log('Response data:', data);
+      console.log('Response data:', JSON.stringify(data, null, 2));
 
-      if (!res.ok) throw new Error(data.error);
+      if (!res.ok) {
+        console.error('API Error:', data.error, data.details);
+        throw new Error(data.details || data.error);
+      }
 
       setSuccess(true);
       setSubject('');
@@ -83,7 +86,7 @@ export function MessagingPanel({ className, variant = 'light' }: MessagingPanelP
       // Clear success message after 3 seconds
       setTimeout(() => setSuccess(false), 3000);
     } catch (err) {
-      console.error('Error:', err);
+      console.error('Full error:', err);
       setError(err instanceof Error ? err.message : 'Kunne ikke sende melding');
     } finally {
       setIsSubmitting(false);
