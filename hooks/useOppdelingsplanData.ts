@@ -21,7 +21,7 @@ export function useOppdelingsplanData() {
         const cfgJson: ConfigResponse = await cfgRes.json();
         if (cfgJson.box_contents) setBoxContents(cfgJson.box_contents);
       } catch (err) {
-        console.error('Failed to load oppdelingsplan data:', err);
+        // Error during fetch - state remains empty, graceful fallback
       } finally {
         if (mounted) setIsLoading(false);
       }

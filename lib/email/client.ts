@@ -8,7 +8,6 @@ export async function sendEmail({ to, subject, html }: SendEmailParams) {
   const apiKey = process.env.RESEND_API_KEY;
 
   if (!apiKey) {
-    console.error('RESEND_API_KEY not configured');
     return { success: false, error: 'Email service not configured' };
   }
 
@@ -30,13 +29,11 @@ export async function sendEmail({ to, subject, html }: SendEmailParams) {
     const data = await response.json();
 
     if (!response.ok) {
-      console.error('Email send failed:', data);
       return { success: false, error: data.message || 'Failed to send email' };
     }
 
     return { success: true, id: data.id };
   } catch (error) {
-    console.error('Email send error:', error);
     return { success: false, error: 'Failed to send email' };
   }
 }

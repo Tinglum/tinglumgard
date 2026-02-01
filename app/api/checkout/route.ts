@@ -4,6 +4,7 @@ import { randomBytes } from 'crypto';
 import { sendEmail } from '@/lib/email/client';
 import { getOrderConfirmationTemplate } from '@/lib/email/templates';
 import { getPricingConfig } from '@/lib/config/pricing';
+import { logError } from '@/lib/logger';
 
 interface ExtraProduct {
   slug: string;
@@ -147,7 +148,7 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (orderError || !order) {
-      console.error('Order creation error:', orderError);
+      logError('checkout-order-creation', orderError);
       throw new Error('Failed to create order');
     }
 
@@ -183,7 +184,7 @@ export async function POST(request: NextRequest) {
             });
         }
       } catch (referralError) {
-        console.error('Referral tracking error:', referralError);
+        logError('checkout-referral-tracking', referralError);
         // Don't fail the order if referral tracking fails
       }
     }
@@ -215,7 +216,7 @@ export async function POST(request: NextRequest) {
             });
         }
       } catch (rebateError) {
-        console.error('Rebate tracking error:', rebateError);
+        logError('checkout-rebate-tracking', rebateError);
         // Don't fail the order if rebate tracking fails
       }
     }
@@ -227,7 +228,7 @@ export async function POST(request: NextRequest) {
       .eq('id', inventory.data.id);
 
     if (inventoryError) {
-      console.error('Inventory update error:', inventoryError);
+      logError('checkout-inventory-update', inventoryError);
       // Don't fail the order, but log the error
     }
 
@@ -253,7 +254,7 @@ export async function POST(request: NextRequest) {
           html: emailTemplate.html,
         });
       } catch (emailError) {
-        console.error('Email send error:', emailError);
+        logError('checkout-confirmation-email', emailError);
         // Don't fail the order if email fails
       }
     }
@@ -264,7 +265,7 @@ export async function POST(request: NextRequest) {
       orderNumber: order.order_number,
     });
   } catch (error) {
-    console.error('Checkout error:', error);
+    logError('checkout-main', error);
     const errorMessage = error instanceof Error ? error.message : 'Failed to process checkout';
     return NextResponse.json(
       { error: 'Failed to process checkout', details: errorMessage },
