@@ -8,10 +8,11 @@ import { useIsMobile } from '@/hooks/useMediaQuery';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Package, Gift } from 'lucide-react';
+import { Package, Gift, MessageSquare } from 'lucide-react';
 import Link from 'next/link';
 import { OrderDetailsCard } from '@/components/OrderDetailsCard';
 import { ReferralDashboard } from '@/components/ReferralDashboard';
+import { MessagingPanel } from '@/components/MessagingPanel';
 import { MobileMinSide } from '@/components/MobileMinSide';
 
 interface Payment {
@@ -59,7 +60,7 @@ export default function CustomerPortalPage() {
   const [cutoffWeek, setCutoffWeek] = useState(46);
   const [cutoffYear, setCutoffYear] = useState(2026);
   const [canEdit, setCanEdit] = useState(false);
-  const [activeTab, setActiveTab] = useState<'orders' | 'referrals'>('orders');
+  const [activeTab, setActiveTab] = useState<'orders' | 'referrals' | 'messages'>('orders');
 
   useEffect(() => {
     if (!authLoading && isAuthenticated) {
@@ -243,6 +244,18 @@ export default function CustomerPortalPage() {
               <Gift className="w-5 h-5" />
               {t.minSide.referrals}
             </button>
+            <button
+              onClick={() => setActiveTab('messages')}
+              className={cn(
+                "flex items-center gap-2 px-6 py-3 font-semibold transition-all",
+                activeTab === 'messages'
+                  ? "border-b-2 border-green-600 text-green-600"
+                  : "text-gray-500 hover:text-gray-700"
+              )}
+            >
+              <MessageSquare className="w-5 h-5" />
+              Messages
+            </button>
           </div>
 
           {activeTab === 'orders' && (
@@ -291,6 +304,11 @@ export default function CustomerPortalPage() {
         {/* Referrals Tab Content */}
         {activeTab === 'referrals' && (
           <ReferralDashboard />
+        )}
+
+        {/* Messages Tab Content */}
+        {activeTab === 'messages' && (
+          <MessagingPanel />
         )}
       </div>
     </div>

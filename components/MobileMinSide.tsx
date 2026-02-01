@@ -1,8 +1,9 @@
 "use client";
 
 import { motion } from 'framer-motion';
-import { Package, Gift, ChevronRight, Check, Clock } from 'lucide-react';
+import { Package, Gift, MessageSquare, ChevronRight, Check, Clock } from 'lucide-react';
 import Link from 'next/link';
+import { MessagingPanel } from '@/components/MessagingPanel';
 
 interface Payment {
   id: string;
@@ -31,8 +32,8 @@ interface Order {
 
 interface MobileMinSideProps {
   orders: Order[];
-  activeTab: 'orders' | 'referrals';
-  setActiveTab: (tab: 'orders' | 'referrals') => void;
+  activeTab: 'orders' | 'referrals' | 'messages';
+  setActiveTab: (tab: 'orders' | 'referrals' | 'messages') => void;
   canEdit: boolean;
   cutoffWeek: number;
   cutoffYear: number;
@@ -110,6 +111,18 @@ export function MobileMinSide(props: MobileMinSideProps) {
           >
             <Gift className="w-5 h-5" />
             Vennerabatt
+          </button>
+          <button
+            onClick={() => setActiveTab('messages')}
+            className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl font-bold transition-all ${
+              activeTab === 'messages'
+                ? 'bg-gradient-to-r from-green-500 to-green-600 text-white shadow-lg'
+                : 'text-white/70'
+            }`}
+            style={activeTab === 'messages' ? { textShadow: '0 2px 8px rgba(0,0,0,0.9)' } : {}}
+          >
+            <MessageSquare className="w-5 h-5" />
+            Meldinger
           </button>
         </div>
       </motion.div>
@@ -412,6 +425,17 @@ export function MobileMinSide(props: MobileMinSideProps) {
             Gi 20% rabatt til venner og få 10% kreditt selv!
           </p>
           {/* ReferralDashboard component will be rendered here in the parent */}
+        </motion.div>
+      )}
+
+      {/* Messages Tab */}
+      {activeTab === 'messages' && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="glass-mobile rounded-3xl p-6"
+        >
+          <MessagingPanel />
         </motion.div>
       )}
     </div>
