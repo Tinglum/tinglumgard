@@ -304,8 +304,8 @@ export function AdminMessagingPanel() {
         <Card className="p-6 border border-gray-200">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h3 className="text-lg font-semibold text-gray-900">{t('messaging.sendMessage')}</h3>
-              <p className="text-sm text-gray-600">{t('messaging.chooseRecipients')}</p>
+              <h3 className="text-lg font-semibold text-gray-900">{t.messaging.sendMessage}</h3>
+              <p className="text-sm text-gray-600">{t.messaging.chooseRecipients}</p>
             </div>
           </div>
 
@@ -314,54 +314,54 @@ export function AdminMessagingPanel() {
               variant={recipientMode === 'all' ? 'default' : 'outline'}
               onClick={() => setRecipientMode('all')}
             >
-              {t('messaging.allClients')}
+              {t.messaging.allClients}
             </Button>
             <Button
               variant={recipientMode === 'manual' ? 'default' : 'outline'}
               onClick={() => setRecipientMode('manual')}
             >
-              {t('messaging.selectClients')}
+              {t.messaging.selectClients}
             </Button>
             <Button
               variant={recipientMode === 'filters' ? 'default' : 'outline'}
               onClick={() => setRecipientMode('filters')}
             >
-              {t('messaging.filters')}
+              {t.messaging.filters}
             </Button>
           </div>
 
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">{t('messaging.subject')}</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">{t.messaging.subject}</label>
               <input
                 value={broadcastSubject}
                 onChange={(e) => setBroadcastSubject(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder={t('messaging.subject')}
+                placeholder={t.messaging.subject}
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">{t('messaging.category')}</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">{t.messaging.category}</label>
               <select
                 value={broadcastType}
                 onChange={(e) => setBroadcastType(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
-                <option value="support">{t('messaging.support')}</option>
-                <option value="inquiry">{t('messaging.inquiry')}</option>
-                <option value="complaint">{t('messaging.complaint')}</option>
+                <option value="support">{t.messaging.support}</option>
+                <option value="inquiry">{t.messaging.inquiry}</option>
+                <option value="complaint">{t.messaging.complaint}</option>
                 <option value="feedback">Feedback</option>
                 <option value="referral_question">Referral</option>
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">{t('messaging.message')}</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">{t.messaging.message}</label>
               <textarea
                 value={broadcastMessage}
                 onChange={(e) => setBroadcastMessage(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
                 rows={4}
-                placeholder={t('messaging.writeAnnouncement')}
+                placeholder={t.messaging.writeAnnouncement}
               />
             </div>
 
@@ -439,16 +439,16 @@ export function AdminMessagingPanel() {
                       checked={filterAwaitingFinalPayment}
                       onChange={(e) => setFilterAwaitingFinalPayment(e.target.checked)}
                     />
-                    {t('messaging.awaitingFinalPayment')}
+                    {t.messaging.awaitingFinalPayment}
                   </label>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">{t('messaging.boxSize')}</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">{t.messaging.boxSize}</label>
                     <select
                       value={filterBoxSize}
                       onChange={(e) => setFilterBoxSize(e.target.value as 'all' | '8' | '12')}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                     >
-                      <option value="all">{t('messaging.all')}</option>
+                      <option value="all">{t.messaging.all}</option>
                       <option value="8">8kg</option>
                       <option value="12">12kg</option>
                     </select>
@@ -459,13 +459,13 @@ export function AdminMessagingPanel() {
                       checked={filterHasExtras}
                       onChange={(e) => setFilterHasExtras(e.target.checked)}
                     />
-                    {t('messaging.hasExtras')}
+                    {t.messaging.hasExtras}
                   </label>
                 </div>
 
                 {extras.length > 0 && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">{t('messaging.extrasFilter')}</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">{t.messaging.extrasFilter}</label>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-48 overflow-y-auto border border-gray-200 rounded-lg p-3">
                       {extras.map((extra) => (
                         <label key={extra.id} className="flex items-center gap-2 text-sm">
@@ -489,7 +489,7 @@ export function AdminMessagingPanel() {
 
                 <div className="flex items-center gap-3">
                   <Button variant="outline" onClick={handlePreviewRecipients}>
-                    {previewLoading ? 'Loading...' : t('messaging.previewRecipients')}
+                    {previewLoading ? 'Loading...' : t.messaging.previewRecipients}
                   </Button>
                   <Button
                     variant="outline"
@@ -503,7 +503,7 @@ export function AdminMessagingPanel() {
                       setExcludedPhones([]);
                     }}
                   >
-                    {t('messaging.clearAll')}
+                    {t.messaging.clearAll}
                   </Button>
                   <span className="text-sm text-gray-600">Matched: {previewCount}</span>
                 </div>
@@ -538,7 +538,7 @@ export function AdminMessagingPanel() {
                               setExcludedPhones((prev) => [...prev, client.phone]);
                             }}
                           >
-                            {t('messaging.exclude')}
+                            {t.messaging.exclude}
                           </Button>
                         </div>
                       ))}
@@ -552,7 +552,7 @@ export function AdminMessagingPanel() {
               <p className="text-sm text-red-600">{broadcastError}</p>
             )}
             {broadcastSuccess && (
-              <p className="text-sm text-green-600">{t('messaging.broadcastSent')}</p>
+              <p className="text-sm text-green-600">{t.messaging.broadcastSent}</p>
             )}
             <div className="flex justify-end">
               <Button
@@ -561,7 +561,7 @@ export function AdminMessagingPanel() {
                 className="bg-blue-600 hover:bg-blue-700 text-white"
               >
                 <Send className="w-4 h-4 mr-2" />
-                {broadcastLoading ? t('messaging.sendingBroadcast') : t('messaging.send')}
+                {broadcastLoading ? t.messaging.sendingBroadcast : t.messaging.send}
               </Button>
             </div>
           </div>
@@ -694,7 +694,7 @@ export function AdminMessagingPanel() {
             <div className="flex items-center gap-2">
               <span className={cn('px-3 py-1 rounded-full text-sm font-medium flex items-center gap-2', getStatusColor(selectedMessage.status))}>
                 {getStatusIcon(selectedMessage.status)}
-                {t(`messaging.${selectedMessage.status}`)}
+                {t.messaging[selectedMessage.status as keyof typeof t.messaging]}
               </span>
               <Button
                 variant="outline"
@@ -770,12 +770,12 @@ export function AdminMessagingPanel() {
 
       {/* Reply Form */}
       <Card className="p-6">
-        <h3 className="font-semibold text-gray-900 mb-4">{t('messaging.sendReply')}</h3>
+        <h3 className="font-semibold text-gray-900 mb-4">{t.messaging.sendReply}</h3>
         <div className="space-y-4">
           <textarea
             value={replyText}
             onChange={(e) => setReplyText(e.target.value)}
-            placeholder={t('messaging.replyPlaceholder')}
+            placeholder={t.messaging.replyPlaceholder}
             className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
             rows={4}
           />
@@ -792,7 +792,7 @@ export function AdminMessagingPanel() {
               className="bg-blue-600 hover:bg-blue-700 text-white"
             >
               <Send className="w-4 h-4 mr-2" />
-              {replyLoading ? t('messaging.sendingBroadcast') : t('messaging.sendReply')}
+              {replyLoading ? t.messaging.sendingBroadcast : t.messaging.sendReply}
             </Button>
           </div>
         </div>
