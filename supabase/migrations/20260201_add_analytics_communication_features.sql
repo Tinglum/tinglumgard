@@ -32,7 +32,7 @@ CREATE TABLE IF NOT EXISTS notifications (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   expires_at TIMESTAMPTZ, -- Auto-expire old notifications
   
-  CONSTRAINT notifications_customer_fk FOREIGN KEY (customer_phone) REFERENCES users(phone_number) ON DELETE CASCADE
+  CONSTRAINT notifications_customer_fk FOREIGN KEY (customer_phone) REFERENCES vipps_users(phone_number) ON DELETE CASCADE
 );
 
 CREATE INDEX idx_notifications_phone ON notifications(customer_phone);
@@ -55,7 +55,7 @@ CREATE TABLE IF NOT EXISTS notification_preferences (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   
-  CONSTRAINT pref_customer_fk FOREIGN KEY (customer_phone) REFERENCES users(phone_number) ON DELETE CASCADE
+  CONSTRAINT pref_customer_fk FOREIGN KEY (customer_phone) REFERENCES vipps_users(phone_number) ON DELETE CASCADE
 );
 
 CREATE INDEX idx_notification_preferences_phone ON notification_preferences(customer_phone);
@@ -79,7 +79,7 @@ CREATE TABLE IF NOT EXISTS customer_messages (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   resolved_at TIMESTAMPTZ,
   
-  CONSTRAINT msg_customer_fk FOREIGN KEY (customer_phone) REFERENCES users(phone_number) ON DELETE CASCADE
+  CONSTRAINT msg_customer_fk FOREIGN KEY (customer_phone) REFERENCES vipps_users(phone_number) ON DELETE CASCADE
 );
 
 CREATE INDEX idx_customer_messages_phone ON customer_messages(customer_phone);
@@ -165,7 +165,7 @@ CREATE TABLE IF NOT EXISTS customer_insights (
   
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   
-  CONSTRAINT insights_customer_fk FOREIGN KEY (customer_phone) REFERENCES users(phone_number) ON DELETE CASCADE
+  CONSTRAINT insights_customer_fk FOREIGN KEY (customer_phone) REFERENCES vipps_users(phone_number) ON DELETE CASCADE
 );
 
 CREATE INDEX idx_customer_insights_phone ON customer_insights(customer_phone);
