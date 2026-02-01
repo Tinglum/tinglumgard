@@ -467,12 +467,7 @@ export default function OppdelingsplanPage() {
                   selectedCut === cut.id ? cn(theme.borderPrimary, theme.bgSecondary, "shadow-md") : cn(theme.borderSecondary, "hover:opacity-80")
                 )}
               >
-                <div className="flex items-center gap-4 mb-3">
-                  <div className={cn("w-12 h-12 rounded-full flex items-center justify-center text-xl font-bold flex-shrink-0", theme.bgDark, theme.textOnDark)}>
-                    {cut.id}
-                  </div>
-                  <h3 className={cn("text-xl font-bold", theme.textPrimary)}>{cut.name}</h3>
-                </div>
+                <h3 className={cn("text-xl font-bold mb-3", theme.textPrimary)}>{cut.name}</h3>
                 <p className={cn("text-sm mb-3", theme.textMuted)}>{cut.description}</p>
                 <div className="space-y-2">
                   {cut.inBox.length > 0 && (

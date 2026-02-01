@@ -6,7 +6,7 @@ VALUES (
   'box_contents',
   '{
     "inBox": ["Knoke (1 stk)", "Medisterfarse", "Julepølse", "Nakkekoteletter", "Svinesteik", "Ribbe (velg type)", "Slakterens valg (varierer)"],
-    "canOrder": []
+    "canOrder": ["Indrefilet", "Ytrefilet/Ryggfilet", "Svinekoteletter", "Ekstra ribbe", "Bacon/Sideflesk", "Spekeskinke", "Bogsteik (pulled pork)", "Svinelabb", "Innmat (lever, hjerte)", "Kraftbein"]
   }'::jsonb,
   'Products included in standard box and available extras - synced to oppdelingsplan from admin'
 )
