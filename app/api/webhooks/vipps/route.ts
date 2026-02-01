@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import crypto from "node:crypto";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import { sendEmail } from "@/lib/email/client";
+import { logError } from "@/lib/logger";
 
 /**
  * Vipps Webhooks API uses HMAC verification.
@@ -76,7 +77,7 @@ export async function POST(request: NextRequest) {
       (payload.reference as string | undefined);
 
     if (!vippsId) {
-      console.error('Missing vipps identifier in webhook');
+      logError('vipps-webhook-missing-identifier', new Error('Missing vipps identifier in webhook'));
       return NextResponse.json(
         { error: "Missing vipps identifier" },
         { status: 400 }
@@ -93,7 +94,7 @@ export async function POST(request: NextRequest) {
       .maybeSingle();
 
     if (paymentError || !payment) {
-      console.error('Payment not found:', paymentError);
+      logError('vipps-webhook-payment-not-found', paymentError);
       return NextResponse.json(
         { error: "Payment not found" },
         { status: 404 }
@@ -109,7 +110,7 @@ export async function POST(request: NextRequest) {
       .eq("id", payment.id);
 
     if (updErr) {
-      console.error('Failed to update payment:', updErr);
+      logError('vipps-webhook-payment-update-failed', updErr);
       throw updErr;
     }
 
@@ -123,7 +124,7 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (orderFetchErr || !order) {
-      console.error('Failed to fetch order for email:', orderFetchErr);
+      logError('vipps-webhook-fetch-order', orderFetchErr);
     }
 
     // If deposit completed, update order status and send confirmation email
@@ -135,7 +136,7 @@ export async function POST(request: NextRequest) {
         .eq("id", payment.order_id);
 
       if (orderErr) {
-        console.error('Failed to update order:', orderErr);
+        logError('vipps-webhook-order-update-failed', orderErr);
         throw orderErr;
       }
 
@@ -189,7 +190,7 @@ export async function POST(request: NextRequest) {
 
           console.log('Deposit confirmation email sent to:', order.customer_email);
         } catch (emailError) {
-          console.error('Failed to send deposit confirmation email:', emailError);
+          logError('vipps-webhook-deposit-email', emailError);
           // Don't fail the webhook if email fails
         }
       }
@@ -204,7 +205,7 @@ export async function POST(request: NextRequest) {
         .eq("id", payment.order_id);
 
       if (orderErr) {
-        console.error('Failed to update order:', orderErr);
+        logError('vipps-webhook-order-update-failed', orderErr);
         throw orderErr;
       }
 
@@ -264,7 +265,7 @@ export async function POST(request: NextRequest) {
 
           console.log('Remainder confirmation email sent to:', order.customer_email);
         } catch (emailError) {
-          console.error('Failed to send remainder confirmation email:', emailError);
+          logError('vipps-webhook-remainder-email', emailError);
           // Don't fail the webhook if email fails
         }
       }
@@ -272,7 +273,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ received: true });
   } catch (error) {
-    console.error("Vipps webhook error:", error);
+    logError('vipps-webhook-main', error);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }

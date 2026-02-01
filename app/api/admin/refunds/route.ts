@@ -3,6 +3,7 @@ import { getSession } from '@/lib/auth/session';
 import { supabaseAdmin } from '@/lib/supabase/server';
 import { sendEmail } from '@/lib/email/client';
 import { initiateVippsRefund } from '@/lib/vipps/refund';
+import { logError } from '@/lib/logger';
 
 export async function POST(request: NextRequest) {
   const session = await getSession();
@@ -32,7 +33,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
     }
   } catch (error) {
-    console.error('Refund operation error:', error);
+    logError('admin-refunds-main', error);
     return NextResponse.json(
       { error: 'Refund operation failed' },
       { status: 500 }
@@ -129,7 +130,7 @@ async function cancelOrder(orderId: string, reason: string, restoreInventory: bo
         `,
       });
     } catch (emailError) {
-      console.error('Failed to send cancellation email:', emailError);
+      logError('admin-refunds-cancellation-email', emailError);
     }
   }
 
@@ -169,7 +170,7 @@ async function deleteOrder(orderId: string, processVippsRefund: boolean) {
 
         if (!refundResult.success) {
           // Log but don't fail - admin can process manually
-          console.error(`Vipps refund failed for payment ${payment.id}:`, refundResult.error);
+          logError('admin-refunds-vipps-refund', new Error(`Vipps refund failed for payment ${payment.id}: ${refundResult.error}`));
         }
       }
     }
@@ -295,7 +296,7 @@ async function issueRefund(orderId: string, amount: number, type: 'full' | 'part
         `,
       });
     } catch (emailError) {
-      console.error('Failed to send refund email:', emailError);
+      logError('admin-refunds-refund-email', emailError);
     }
   }
 
@@ -314,7 +315,7 @@ async function getRefundHistory(orderId: string) {
     .order('requested_at', { ascending: false });
 
   if (error) {
-    console.error('Error fetching refund history:', error);
+    logError('admin-refunds-history', error);
     return NextResponse.json({ refunds: [] });
   }
 
