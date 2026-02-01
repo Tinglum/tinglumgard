@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/server';
 import { getPricingConfig } from '@/lib/config/pricing';
+import { logError } from '@/lib/logger';
 
 export async function GET() {
   try {
@@ -47,7 +48,7 @@ export async function GET() {
       },
     });
   } catch (error) {
-    console.error('Error fetching config:', error);
+    logError('config-route', error);
     return NextResponse.json(
       { error: 'Failed to fetch configuration' },
       { status: 500 }
