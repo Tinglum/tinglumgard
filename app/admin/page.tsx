@@ -36,6 +36,7 @@ import { SystemHealth } from '@/components/admin/SystemHealth';
 import { CommunicationCenter } from '@/components/admin/CommunicationCenter';
 import { CommunicationHistory } from '@/components/admin/CommunicationHistory';
 import { InventoryManagement } from '@/components/admin/InventoryManagement';
+import { AdminMessagingPanel } from '@/components/admin/AdminMessagingPanel';
 import { ConfigurationManagement } from '@/components/admin/ConfigurationManagement';
 import { DeliveryCalendar } from '@/components/admin/DeliveryCalendar';
 import { BoxConfiguration } from '@/components/admin/BoxConfiguration';
@@ -43,7 +44,7 @@ import { RebateCodesManager } from '@/components/admin/RebateCodesManager';
 import { ExtrasCatalogManager } from '@/components/admin/ExtrasCatalogManager';
 import { NotificationSettings } from '@/components/admin/NotificationSettings';
 
-type TabType = 'dashboard' | 'orders' | 'customers' | 'analytics' | 'production' | 'communication' | 'health' | 'inventory' | 'boxes' | 'rebates' | 'extras' | 'settings' | 'notifications';
+type TabType = 'dashboard' | 'orders' | 'customers' | 'analytics' | 'production' | 'communication' | 'messages' | 'health' | 'inventory' | 'boxes' | 'rebates' | 'extras' | 'settings' | 'notifications';
 
 interface Order {
   id: string;
@@ -825,6 +826,9 @@ export default function AdminPage() {
 
         {/* BOX CONFIGURATION TAB */}
         {activeTab === 'boxes' && <BoxConfiguration />}
+
+  {/* MESSAGES TAB */}
+  {activeTab === 'messages' && <AdminMessagingPanel />}
 
         {/* SYSTEM HEALTH TAB */}
         {activeTab === 'health' && <SystemHealth />}
