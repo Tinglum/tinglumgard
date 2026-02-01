@@ -89,6 +89,7 @@ export default function AdminPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [dashboardMetrics, setDashboardMetrics] = useState<any>(null);
   const [analytics, setAnalytics] = useState<any>(null);
+  const [messageStats, setMessageStats] = useState({ total: 0, open: 0, in_progress: 0, resolved: 0 });
 
   // Filters
   const [searchTerm, setSearchTerm] = useState('');
@@ -113,6 +114,17 @@ export default function AdminPage() {
       loadAnalytics();
     }
   }, [isAuthenticated, activeTab]);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    loadMessageStats();
+    const interval = setInterval(() => {
+      loadMessageStats();
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, [isAuthenticated]);
 
   async function handlePasswordSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -182,6 +194,24 @@ export default function AdminPage() {
       setAnalytics(data);
     } catch (error) {
       console.error('Failed to load analytics:', error);
+    }
+  }
+
+  async function loadMessageStats() {
+    try {
+      const response = await fetch('/api/admin/messages');
+      if (!response.ok) {
+        if (response.status === 401) {
+          setIsAuthenticated(false);
+        }
+        return;
+      }
+      const data = await response.json();
+      if (data?.stats) {
+        setMessageStats(data.stats);
+      }
+    } catch (error) {
+      console.error('Failed to load message stats:', error);
     }
   }
 
@@ -395,6 +425,7 @@ export default function AdminPage() {
     { id: 'customers', label: 'Kunder', icon: Users },
     { id: 'analytics', label: 'Analyse', icon: BarChart3 },
     { id: 'communication', label: 'Kommunikasjon', icon: MessageSquare },
+    { id: 'messages', label: 'Kundemeldinger', icon: MessageSquare },
     { id: 'production', label: 'Hentekalender', icon: Calendar },
     { id: 'inventory', label: 'Lager', icon: Warehouse },
     { id: 'boxes', label: 'Boksinnhold', icon: Package },
@@ -478,6 +509,7 @@ export default function AdminPage() {
           <div className="flex gap-1 overflow-x-auto">
             {tabs.map((tab) => {
               const Icon = tab.icon;
+              const unresolvedCount = messageStats.open + messageStats.in_progress;
               return (
                 <button
                   key={tab.id}
@@ -491,6 +523,11 @@ export default function AdminPage() {
                 >
                   <Icon className="w-5 h-5" />
                   {tab.label}
+                  {tab.id === 'messages' && unresolvedCount > 0 && (
+                    <span className="ml-1 inline-flex items-center justify-center text-xs font-semibold bg-red-600 text-white rounded-full px-2 py-0.5">
+                      {unresolvedCount}
+                    </span>
+                  )}
                 </button>
               );
             })}
@@ -510,6 +547,23 @@ export default function AdminPage() {
                 Oppdater
               </Button>
             </div>
+
+            <Card className="p-6 border border-gray-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">Ubehandlede meldinger</h3>
+                  <p className="text-sm text-gray-600">Åpne og under behandling</p>
+                </div>
+                <div className="flex items-center gap-4">
+                  <div className="text-3xl font-bold text-gray-900">
+                    {messageStats.open + messageStats.in_progress}
+                  </div>
+                  <Button onClick={() => setActiveTab('messages')} variant="outline">
+                    Gå til meldinger
+                  </Button>
+                </div>
+              </div>
+            </Card>
 
             {dashboardLoading ? (
               <div className="flex items-center justify-center py-12">
