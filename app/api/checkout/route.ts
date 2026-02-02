@@ -148,8 +148,14 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (orderError || !order) {
+      console.error('Order creation failed:', {
+        error: orderError,
+        code: orderError?.code,
+        message: orderError?.message,
+        details: orderError?.details,
+      });
       logError('checkout-order-creation', orderError);
-      throw new Error('Failed to create order');
+      throw new Error(`Failed to create order: ${orderError?.message || 'Unknown error'}`);
     }
 
     // Create referral tracking record if referral code was used
