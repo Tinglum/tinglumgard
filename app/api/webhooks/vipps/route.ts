@@ -158,6 +158,15 @@ export async function POST(request: NextRequest) {
             extrasHtml += '</ul>';
           }
 
+          const discountAmount = order.referral_discount_amount || order.rebate_discount_amount || 0;
+          const discountLabel = order.referral_discount_amount ? 'Vennerabatt' : 'Rabattkode';
+          const discountHtml = discountAmount > 0
+            ? `
+      <div class="discount-box">
+        <strong>${discountLabel}:</strong> -kr ${discountAmount.toLocaleString('nb-NO')}
+      </div>`
+            : '';
+
           const orderConfirmationHtml = `
 <!DOCTYPE html>
 <html>
@@ -171,6 +180,7 @@ export async function POST(request: NextRequest) {
     .success { color: #28a745; font-size: 24px; font-weight: bold; margin: 20px 0; }
     .order-details { background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0; }
     .amount { font-size: 20px; font-weight: 700; color: #2C1810; margin: 10px 0; }
+    .discount-box { background: #fff4e5; border-left: 4px solid #f5a623; padding: 12px 16px; margin: 16px 0; border-radius: 6px; }
     .button { display: inline-block; background: #2C1810; color: white; padding: 14px 32px; text-decoration: none; border-radius: 6px; margin: 20px 0; }
     ul { margin: 10px 0; }
   </style>
@@ -193,6 +203,7 @@ export async function POST(request: NextRequest) {
         ${extrasHtml}
       </div>
 
+      ${discountHtml}
       <div class="amount">Totalt: kr ${order.total_amount.toLocaleString('nb-NO')}</div>
       <div class="amount" style="font-size: 16px;">Forskudd betalt: kr ${payment.amount_nok.toLocaleString('nb-NO')}</div>
       <div class="amount" style="font-size: 16px;">Restbetaling: kr ${order.remainder_amount.toLocaleString('nb-NO')}</div>
