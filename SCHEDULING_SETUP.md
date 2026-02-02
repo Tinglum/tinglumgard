@@ -11,9 +11,11 @@ This implementation adds automated scheduling for remainder payment reminders, o
 Add the following to your `.env` file:
 
 ```bash
-# Email Service (Resend)
-RESEND_API_KEY=re_...
-EMAIL_FROM=noreply@tinglum.no
+# Email Service (Mailgun)
+MAILGUN_API_KEY=key-...
+MAILGUN_DOMAIN=tinglum.com
+MAILGUN_REGION=eu
+EMAIL_FROM=post@tinglum.com
 
 # App URL (for email links and payment returns)
 NEXT_PUBLIC_APP_URL=https://tinglum.no
@@ -307,10 +309,10 @@ curl -X POST https://YOUR_PROJECT.supabase.co/functions/v1/send-remainder-remind
 
 ### Emails Not Sending
 
-1. Check Resend API key is set correctly
-2. Verify `EMAIL_FROM` domain is verified in Resend
+1. Check Mailgun API key is set correctly
+2. Verify `EMAIL_FROM` domain is verified in Mailgun
 3. Check edge function logs in Supabase dashboard
-4. Test Resend directly: https://resend.com/docs/send-with-curl
+4. Test Mailgun directly: https://documentation.mailgun.com/en/latest/api-sending.html
 
 ### Remainder Payment Not Working
 
@@ -339,7 +341,7 @@ curl -X POST https://YOUR_PROJECT.supabase.co/functions/v1/send-remainder-remind
 ## Production Deployment
 
 1. **Set environment variables** in production
-2. **Verify email domain** in Resend
+2. **Verify email domain** in Mailgun
 3. **Update week configs** to correct production values
 4. **Set up cron jobs** using preferred method
 5. **Test all functions** in production environment
@@ -352,7 +354,7 @@ curl -X POST https://YOUR_PROJECT.supabase.co/functions/v1/send-remainder-remind
 
 ### Check Email Delivery
 
-Resend Dashboard: https://resend.com/emails
+Mailgun Dashboard: https://app.mailgun.com
 
 ### Check Edge Function Logs
 

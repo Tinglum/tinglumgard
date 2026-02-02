@@ -158,24 +158,26 @@ The system uses the following order statuses:
 
 ### Current Status
 
-The email system is configured but **requires a valid Resend API key** to function.
+The email system is configured but **requires valid Mailgun credentials** to function.
 
 **Current configuration in `.env.local`:**
 ```
-RESEND_API_KEY=your-resend-api-key  ← NEEDS TO BE REPLACED
-EMAIL_FROM=noreply@yourdomain.com   ← NEEDS TO BE REPLACED
+MAILGUN_API_KEY=your-mailgun-api-key  ← NEEDS TO BE REPLACED
+MAILGUN_DOMAIN=yourdomain.com        ← NEEDS TO BE REPLACED
+EMAIL_FROM=noreply@yourdomain.com    ← NEEDS TO BE REPLACED
 ```
 
 ### How to Fix Email Sending
 
-1. **Get a Resend API key:**
-   - Sign up at https://resend.com
+1. **Get a Mailgun API key:**
+   - Sign up at https://app.mailgun.com
    - Create a new API key
    - Verify your sending domain (e.g., `tinglum.no`)
 
 2. **Update `.env.local`:**
    ```bash
-   RESEND_API_KEY=re_your_actual_api_key_here
+   MAILGUN_API_KEY=key_your_actual_api_key_here
+   MAILGUN_DOMAIN=tinglum.no
    EMAIL_FROM=noreply@tinglum.no  # or your verified domain
    ```
 
@@ -249,7 +251,7 @@ The confirmation page includes payment status polling to handle delayed webhooks
 ## TODO: Improvements Needed
 
 ### High Priority
-- [ ] Configure Resend API key in production environment
+- [ ] Configure Mailgun credentials in production environment
 - [ ] Test complete email flow end-to-end
 - [ ] Add pickup ready notification email
 - [ ] Add delivery confirmation email
@@ -303,7 +305,7 @@ The confirmation page includes payment status polling to handle delayed webhooks
 ## Support Information
 
 If customers report issues with:
-- **Not receiving emails:** Check Resend API key configuration and email logs
+- **Not receiving emails:** Check Mailgun API key configuration and email logs
 - **Cannot find order:** Ensure they're logged in with Vipps, check user_id linkage
 - **Payment not updating:** Check webhook logs, verify Vipps credentials
 - **Cannot edit order:** Verify cutoff date configuration, check locked_at status

@@ -13,7 +13,7 @@ ON customer_messages(email_thread_id);
 ALTER TABLE message_replies 
 ADD COLUMN IF NOT EXISTS source TEXT DEFAULT 'panel' CHECK (source IN ('panel', 'email'));
 
--- Add email_message_id for tracking original email IDs from Resend
+-- Add email_message_id for tracking original email IDs from provider
 ALTER TABLE message_replies 
 ADD COLUMN IF NOT EXISTS email_message_id TEXT;
 
@@ -47,4 +47,4 @@ WHERE email_thread_id IS NULL;
 -- Add comment for documentation
 COMMENT ON COLUMN customer_messages.email_thread_id IS 'Unique thread ID for email conversations, format: msg_{id}';
 COMMENT ON COLUMN message_replies.source IS 'Source of the reply: panel (from admin panel) or email (from email reply)';
-COMMENT ON COLUMN message_replies.email_message_id IS 'Original message ID from email provider (Resend) for tracking';
+COMMENT ON COLUMN message_replies.email_message_id IS 'Original message ID from email provider for tracking';

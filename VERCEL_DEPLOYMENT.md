@@ -139,9 +139,13 @@ git push -u origin main
    # JWT Secret (generate new one)
    JWT_SECRET=your-generated-secret-here
 
-   # Email (Resend)
-   RESEND_API_KEY=your-resend-key
+   # Email (Mailgun)
+   MAILGUN_API_KEY=your-mailgun-key
+   MAILGUN_DOMAIN=yourdomain.com
+   MAILGUN_REGION=eu
+   MAILGUN_WEBHOOK_SIGNING_KEY=your-signing-key
    EMAIL_FROM=noreply@yourdomain.com
+   EMAIL_REPLY_TO=messages@yourdomain.com
 
    # App URL (update after first deploy)
    NEXT_PUBLIC_APP_URL=https://your-project.vercel.app
@@ -192,23 +196,22 @@ Update your Vipps merchant portal with Vercel URLs:
 2. **Callback URL**: `https://your-project.vercel.app/api/auth/vipps/callback`
 3. **Webhook URL**: `https://your-project.vercel.app/api/webhooks/vipps`
 
-### 2. Setup Email Service (Resend)
+### 2. Setup Email Service (Mailgun)
 
-1. Go to https://resend.com/
+1. Go to https://app.mailgun.com
 2. Sign up and verify your email
-3. **Add Domain** (optional but recommended):
+3. **Add Domain**:
    - Go to **Domains**
    - Add your custom domain
-   - Add DNS records (TXT, MX, CNAME)
+   - Add DNS records (SPF, DKIM, MX, CNAME)
 
 4. **Get API Key**:
-   - Go to **API Keys**
-   - Create new key
-   - Copy and add to Vercel environment variables
+   - Go to **Settings** → **API Keys**
+   - Copy the private API key
+   - Add to Vercel environment variables
 
 5. **Update EMAIL_FROM**:
-   - If using custom domain: `noreply@yourdomain.com`
-   - If using Resend domain: `onboarding@resend.dev` (testing only)
+   - Use your verified domain: `noreply@yourdomain.com`
 
 ### 3. Generate JWT Secret
 
@@ -424,7 +427,7 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 - **Vercel Dashboard**: https://vercel.com/dashboard
 - **Supabase Dashboard**: https://supabase.com/dashboard
 - **Vipps Portal**: https://portal.vippsmobilepay.com/
-- **Resend Dashboard**: https://resend.com/dashboard
+- **Mailgun Dashboard**: https://app.mailgun.com
 
 ---
 

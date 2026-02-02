@@ -282,21 +282,23 @@ grep -n "Betal restbeløp" app/min-side/page.tsx
 
 ### Email Sending Function (lines 7-42)
 - [x] Accepts `to`, `subject`, and `html` parameters
-- [x] Uses Resend API (`https://api.resend.com/emails`)
-- [x] Reads `RESEND_API_KEY` from environment
-- [x] Reads `EMAIL_FROM` from environment (default: `noreply@tinglum.no`)
+- [x] Uses Mailgun API (`https://api.mailgun.net/v3/{domain}/messages`)
+- [x] Reads `MAILGUN_API_KEY` from environment
+- [x] Reads `MAILGUN_DOMAIN` from environment
+- [x] Reads `EMAIL_FROM` from environment (default: `post@tinglum.com`)
 - [x] Returns success/error status
 - [x] Comprehensive error logging
 
 ### Current Configuration Status
 **File:** `.env.local`
 ```
-RESEND_API_KEY=your-resend-api-key  ← ⚠️ PLACEHOLDER - NEEDS REAL KEY
-EMAIL_FROM=noreply@yourdomain.com   ← ⚠️ NEEDS YOUR DOMAIN
+MAILGUN_API_KEY=your-mailgun-api-key  ← ⚠️ PLACEHOLDER - NEEDS REAL KEY
+MAILGUN_DOMAIN=yourdomain.com        ← ⚠️ NEEDS YOUR DOMAIN
+EMAIL_FROM=noreply@yourdomain.com    ← ⚠️ NEEDS YOUR DOMAIN
 ```
 
 ### ⚠️ Action Required
-1. Sign up at https://resend.com
+1. Sign up at https://app.mailgun.com
 2. Create API key
 3. Verify domain (e.g., `tinglum.no` or `xn--tinglumgrd-85a.no`)
 4. Update `.env.local` with real values
@@ -304,7 +306,7 @@ EMAIL_FROM=noreply@yourdomain.com   ← ⚠️ NEEDS YOUR DOMAIN
 
 **Verification Commands:**
 ```bash
-grep -n "RESEND_API_KEY\|EMAIL_FROM" .env.local
+grep -n "MAILGUN_API_KEY\|MAILGUN_DOMAIN\|EMAIL_FROM" .env.local
 grep -n "sendEmail" lib/email/client.ts
 ```
 
@@ -451,7 +453,7 @@ WHERE user_id IS NULL; -- Should show anonymous orders
 ## 📝 Known Issues and TODOs
 
 ### High Priority
-- [ ] Configure Resend API key in production (`.env.local`)
+- [ ] Configure Mailgun API key in production (`.env.local`)
 - [ ] Test email delivery end-to-end
 - [ ] Verify webhook receives callbacks from Vipps production
 
@@ -485,7 +487,7 @@ WHERE user_id IS NULL; -- Should show anonymous orders
 
 **Overall Status: ✅ ALL CORE FEATURES IMPLEMENTED**
 
-**Action Required:** Configure `RESEND_API_KEY` in production environment to enable email notifications.
+**Action Required:** Configure `MAILGUN_API_KEY` and `MAILGUN_DOMAIN` in production environment to enable email notifications.
 
 ---
 

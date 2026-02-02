@@ -5,25 +5,33 @@ interface SendEmailParams {
 }
 
 export async function sendEmail({ to, subject, html }: SendEmailParams) {
-  const apiKey = process.env.RESEND_API_KEY;
+  const apiKey = process.env.MAILGUN_API_KEY;
+  const domain = process.env.MAILGUN_DOMAIN;
+  const region = process.env.MAILGUN_REGION || 'eu';
+  const apiBase = region === 'eu' ? 'https://api.eu.mailgun.net' : 'https://api.mailgun.net';
 
-  if (!apiKey) {
+  if (!apiKey || !domain) {
     return { success: false, error: 'Email service not configured' };
   }
 
+  const fromAddress = process.env.EMAIL_FROM || 'post@tinglum.com';
+  const replyTo = process.env.EMAIL_REPLY_TO || fromAddress;
+
   try {
-    const response = await fetch('https://api.resend.com/emails', {
+    const formData = new URLSearchParams();
+    formData.append('from', fromAddress);
+    formData.append('to', to);
+    formData.append('subject', subject);
+    formData.append('html', html);
+    formData.append('h:Reply-To', replyTo);
+
+    const response = await fetch(`${apiBase}/v3/${domain}/messages`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
+        Authorization: `Basic ${Buffer.from(`api:${apiKey}`).toString('base64')}`,
+        'Content-Type': 'application/x-www-form-urlencoded',
       },
-      body: JSON.stringify({
-        from: process.env.EMAIL_FROM || 'noreply@tinglum.no',
-        to,
-        subject,
-        html,
-      }),
+      body: formData.toString(),
     });
 
     const data = await response.json();
@@ -32,7 +40,7 @@ export async function sendEmail({ to, subject, html }: SendEmailParams) {
       return { success: false, error: data.message || 'Failed to send email' };
     }
 
-    return { success: true, id: data.id };
+    return { success: true, id: data.id || data.message };
   } catch (error) {
     return { success: false, error: 'Failed to send email' };
   }

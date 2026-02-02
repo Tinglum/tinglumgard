@@ -70,44 +70,33 @@ Or via Supabase dashboard:
 2. Paste contents of `20260202_email_thread_tracking.sql`
 3. Run query
 
-### 2. Configure Resend for Inbound Emails
+### 2. Configure Mailgun for Inbound Emails
 
 #### A. Set up Inbound Email Domain
-1. Go to https://resend.com/domains
-2. Click on `tinglum.com`
-3. Navigate to "Inbound" tab
-4. Enable inbound emails
+1. Go to https://app.mailgun.com
+2. Open Domains → tinglum.com
+3. Verify DNS records (SPF, DKIM, MX)
+4. Enable Receiving for the domain
 
-#### B. Configure Webhook
-1. Go to https://resend.com/webhooks
-2. Click "Add Webhook"
-3. Set URL: `https://tinglumgard.no/api/webhooks/email-reply`
-4. Select events:
-   - `email.received`
-5. Save webhook
-
-#### C. Set up Email Forwarding
-Configure these email addresses to forward to the webhook:
-- `messages@tinglum.com` → Webhook endpoint
-- `post@tinglum.com` → Webhook endpoint (for admin replies)
+#### B. Configure Route
+1. Go to Routes
+2. Create a route to forward inbound emails to:
+   `https://tinglumgard.no/api/webhooks/email-reply`
+3. Match recipient: `messages@tinglum.com` and `post@tinglum.com`
 
 ### 3. Environment Variables
 
 Ensure these are set in your production environment (Netlify):
 
-```bash
-# Resend API Key
-RESEND_API_KEY=re_YourAPIKey
+MAILGUN_API_KEY=key-YourKey
+MAILGUN_DOMAIN=tinglum.com
+MAILGUN_REGION=eu
+MAILGUN_WEBHOOK_SIGNING_KEY=your-signing-key
 
-# From email address (also used as admin email)
-EMAIL_FROM=post@tinglum.com
-
-# Or with sender name
 EMAIL_FROM=Tinglumgård <post@tinglum.com>
+EMAIL_REPLY_TO=messages@tinglum.com
 
-# App URL for email links
 NEXT_PUBLIC_APP_URL=https://tinglumgard.no
-```
 
 ### 4. Test the Integration
 
@@ -224,14 +213,14 @@ Thread IDs are:
 ## Troubleshooting
 
 ### Emails not being received
-- Check Resend dashboard for delivery status
+- Check Mailgun dashboard for delivery status
 - Verify DNS records are correct
 - Check spam folder
 - Verify EMAIL_FROM is set correctly
 
 ### Webhook not triggering
 - Test webhook URL: `https://tinglumgard.no/api/webhooks/email-reply`
-- Check Resend webhook logs
+- Check Mailgun route/webhook logs
 - Verify webhook secret (if using)
 - Check server logs for errors
 
@@ -247,7 +236,7 @@ Thread IDs are:
 
 ## Security Considerations
 
-1. **Webhook Verification:** Currently accepts all webhooks from Resend. For production, implement signature verification.
+1. **Webhook Verification:** Mailgun webhook signatures are verified with MAILGUN_WEBHOOK_SIGNING_KEY.
 
 2. **Email Validation:** Webhook validates sender email matches customer or admin domain.
 
@@ -260,7 +249,7 @@ Thread IDs are:
 ## Monitoring
 
 Track these metrics:
-- Email delivery rate (Resend dashboard)
+- Email delivery rate (Mailgun dashboard)
 - Webhook success rate
 - Reply source distribution (panel vs email)
 - Average response time
@@ -278,7 +267,7 @@ Track these metrics:
 ## Support
 
 For issues or questions:
-- Check Resend logs: https://resend.com/logs
+- Check Mailgun logs: https://app.mailgun.com/app/logs
 - Check application logs in Netlify
 - Review database for message entries
 - Test webhook endpoint directly

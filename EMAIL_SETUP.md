@@ -1,56 +1,48 @@
 # Email Setup Guide - Tinglumgård
 
-## Configure tinglum.com Domain with Resend
+## Configure tinglum.com Domain with Mailgun
 
-### 1. Create Resend Account
-1. Go to https://resend.com
+### 1. Create Mailgun Account
+1. Go to https://www.mailgun.com
 2. Sign up for an account
-3. Navigate to API Keys section
-4. Create a new API key
+3. Navigate to Domains
+4. Add domain: tinglum.com
 
-### 2. Add Domain to Resend
-1. In Resend dashboard, go to "Domains"
-2. Click "Add Domain"
-3. Enter your domain: `tinglum.com`
-4. Resend will provide DNS records to add
-
-### 3. Configure DNS Records
+### 2. Configure DNS Records
 Add these DNS records to your tinglum.com domain (at your domain registrar):
 
-```
-Type: TXT
-Name: @
-Value: [Resend will provide this value]
+**Sending records (SPF + DKIM):**
+- TXT @ : v=spf1 include:mailgun.org ~all
+- TXT email._domainkey : (Mailgun provides the DKIM value)
 
-Type: CNAME
-Name: resend._domainkey
-Value: [Resend will provide this value]
+**Tracking record (optional but recommended):**
+- CNAME email : eu.mailgun.org
 
-Type: MX
-Name: @
-Priority: 10
-Value: feedback-smtp.us-east-1.amazonses.com
-```
+**Receiving records (for inbound replies):**
+- MX @ : mxa.eu.mailgun.org (Priority 10)
+- MX @ : mxb.eu.mailgun.org (Priority 10)
 
-### 4. Update Environment Variables
+### 3. Update Environment Variables
 In your `.env.local` file (or production environment):
 
-```bash
-# Resend API Key (from step 1)
-RESEND_API_KEY=re_123abc456def
+MAILGUN_API_KEY=key-xxxxxxxxxxxxxxxxxxxx
+MAILGUN_DOMAIN=tinglum.com
+MAILGUN_REGION=eu
 
-# From email address - use your verified domain
-EMAIL_FROM=post@tinglum.com
-
-# Or use a specific sender name:
 EMAIL_FROM=Tinglumgård <post@tinglum.com>
-```
+EMAIL_REPLY_TO=messages@tinglum.com
+
+### 4. Enable Inbound Routes
+In Mailgun Dashboard:
+1. Go to Domains → tinglum.com
+2. Open Routes / Receiving
+3. Add route to forward inbound email to:
+   https://tinglumgard.no/api/webhooks/email-reply
 
 ### 5. Verify Domain
-1. After adding DNS records, return to Resend dashboard
+1. After adding DNS records, return to Mailgun dashboard
 2. Click "Verify" on your domain
-3. Verification can take a few minutes to 48 hours
-4. Once verified, you can send emails from `@tinglum.com`
+3. Once verified, you can send from `@tinglum.com`
 
 ## Email Features Now Available
 
@@ -59,7 +51,7 @@ EMAIL_FROM=Tinglumgård <post@tinglum.com>
 **Send Individual Emails:**
 - Select email template
 - Customize subject and message
-- Variables: `{CUSTOMER_NAME}`, `{ORDER_NUMBER}`
+- Variables: {CUSTOMER_NAME}, {ORDER_NUMBER}
 
 **Send to All Customers:**
 - Click "Send til alle kunder" button
@@ -79,26 +71,6 @@ EMAIL_FROM=Tinglumgård <post@tinglum.com>
 - Links to original order
 - Last 100 emails displayed
 
-## Order Deletion with Vipps Refunds
-
-In the admin panel, you can now:
-
-1. **Delete Orders:**
-   - Navigate to order detail
-   - Select "Delete Order" action
-   - Choose whether to process Vipps refund
-   - System automatically:
-     - Refunds all completed Vipps payments
-     - Restores inventory
-     - Deletes all related records
-
-2. **Vipps Refund Process:**
-   - Attempts refund for each completed payment
-   - Uses original Vipps order ID
-   - Refund description: "Refund for deleted order [ORDER_NUMBER]"
-   - Logs success/failure
-   - Admin can process manually if automatic fails
-
 ## Testing Emails
 
 Before going live:
@@ -112,47 +84,16 @@ Before going live:
    - First emails may land in spam
    - Mark as "Not Spam" to improve deliverability
 
-3. **Monitor Resend Dashboard:**
+3. **Monitor Mailgun Dashboard:**
    - View delivery status
    - Check bounce/complaint rates
    - Monitor sending limits
 
-## Sending Limits
-
-Resend free tier:
-- 100 emails/day
-- 3,000 emails/month
-
-For higher volume, upgrade to paid plan:
-- Pro: 50,000 emails/month
-- Scale: Custom volumes
-
-## Best Practices
-
-1. **Test Before Bulk Send:**
-   - Always send test to yourself first
-   - Verify all variables work correctly
-
-2. **Subject Line:**
-   - Keep under 50 characters
-   - Make it clear and actionable
-   - Use customer's order number for context
-
-3. **Email Content:**
-   - Be concise and clear
-   - Include clear call-to-action
-   - Always include contact information
-
-4. **Timing:**
-   - Avoid sending late at night
-   - Business hours typically better
-   - Space out bulk sends (system adds 100ms delay)
-
 ## Troubleshooting
 
 **Emails not sending:**
-- Check RESEND_API_KEY is set correctly
-- Verify domain in Resend dashboard
+- Check MAILGUN_API_KEY is set correctly
+- Verify domain in Mailgun dashboard
 - Check DNS records are propagated
 - Look at server logs for errors
 
@@ -163,13 +104,12 @@ For higher volume, upgrade to paid plan:
 - Avoid spam trigger words
 
 **Variables not replaced:**
-- Ensure using exact format: `{CUSTOMER_NAME}`
+- Ensure using exact format: {CUSTOMER_NAME}
 - Check template has variables defined
 - Verify order has customer data
 
 ## Support
 
-For Resend support:
-- Documentation: https://resend.com/docs
-- Email: support@resend.com
-- Dashboard: https://resend.com/dashboard
+For Mailgun support:
+- Documentation: https://documentation.mailgun.com
+- Dashboard: https://app.mailgun.com

@@ -1,44 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server';
+import crypto from 'node:crypto';
 import { supabaseAdmin } from '@/lib/supabase/server';
 import { sendEmail } from '@/lib/email/client';
 import { getAdminReplyNotificationTemplate } from '@/lib/email/templates';
 import { logError } from '@/lib/logger';
 
 /**
- * Webhook endpoint for handling inbound email replies from Resend
- * 
- * Resend webhook payload format:
- * {
- *   type: 'email.received',
- *   created_at: '2024-01-01T00:00:00.000Z',
- *   data: {
- *     from: 'customer@example.com',
- *     to: ['messages@tinglum.com'],
- *     subject: '[msg_12345] Re: Subject',
- *     html: '<p>Email body</p>',
- *     text: 'Email body',
- *     headers: { ... },
- *     message_id: 'resend-msg-id'
- *   }
- * }
+ * Webhook endpoint for handling inbound email replies from Mailgun
+ * Mailgun inbound webhook is sent as form-data.
  */
 
-interface ResendEmailWebhookPayload {
-  type: string;
-  created_at: string;
-  data: {
-    from: string;
-    to: string[];
-    subject: string;
-    html?: string;
-    text?: string;
-    headers?: Record<string, string>;
-    message_id?: string;
-  };
+function verifyMailgunSignature(timestamp: string, token: string, signature: string): boolean {
+  const signingKey = process.env.MAILGUN_WEBHOOK_SIGNING_KEY;
+  if (!signingKey) return false;
+
+  const hmac = crypto
+    .createHmac('sha256', signingKey)
+    .update(`${timestamp}${token}`)
+    .digest('hex');
+
+  return hmac === signature;
 }
 
 // Extract thread ID from email subject
-// Expected format: "[msg_12345] Re: Original Subject" or "[msg_12345] Original Subject"
 function extractThreadId(subject: string): string | null {
   const match = subject.match(/\[msg_([^\]]+)\]/);
   if (match) {
@@ -53,11 +37,9 @@ function extractEmail(emailString: string): string {
   return match ? match[1] : emailString;
 }
 
-// Strip HTML and get plain text
-function getPlainText(html: string | undefined, text: string | undefined): string {
+function getPlainText(html: string | null, text: string | null): string {
   if (text) return text;
   if (html) {
-    // Simple HTML stripping - for production, use a proper library
     return html
       .replace(/<[^>]*>/g, '')
       .replace(/&nbsp;/g, ' ')
@@ -71,28 +53,31 @@ function getPlainText(html: string | undefined, text: string | undefined): strin
 
 export async function POST(request: NextRequest) {
   try {
-    const payload: ResendEmailWebhookPayload = await request.json();
+    const formData = await request.formData();
 
-    console.log('Email webhook received:', {
-      type: payload.type,
-      from: payload.data.from,
-      subject: payload.data.subject,
-    });
+    const timestamp = formData.get('timestamp')?.toString() || '';
+    const token = formData.get('token')?.toString() || '';
+    const signature = formData.get('signature')?.toString() || '';
 
-    // Only process email.received events
-    if (payload.type !== 'email.received') {
-      return NextResponse.json({ success: true, message: 'Event type ignored' });
+    if (!verifyMailgunSignature(timestamp, token, signature)) {
+      logError('mailgun-webhook-invalid-signature', { timestamp, token, signature });
+      return NextResponse.json({ error: 'Invalid signature' }, { status: 403 });
     }
 
-    const { from, subject, html, text, message_id } = payload.data;
-    const threadId = extractThreadId(subject);
+    const from = formData.get('from')?.toString() || '';
+    const sender = formData.get('sender')?.toString() || from;
+    const subject = formData.get('subject')?.toString() || '';
+    const html = formData.get('stripped-html')?.toString() || null;
+    const text = formData.get('stripped-text')?.toString() || null;
+    const messageId = formData.get('Message-Id')?.toString() || formData.get('message-id')?.toString() || null;
 
+    console.log('Mailgun webhook received:', { sender, subject });
+
+    const threadId = extractThreadId(subject);
     if (!threadId) {
-      console.log('No thread ID found in subject:', subject);
       return NextResponse.json({ success: true, message: 'No thread ID found' });
     }
 
-    // Find the message by thread ID
     const { data: message, error: messageError } = await supabaseAdmin
       .from('customer_messages')
       .select('*, orders(order_number)')
@@ -100,24 +85,22 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (messageError || !message) {
-      logError('email-webhook-message-not-found', { threadId, error: messageError });
+      logError('mailgun-webhook-message-not-found', { threadId, error: messageError });
       return NextResponse.json({ error: 'Message not found' }, { status: 404 });
     }
 
-    const senderEmail = extractEmail(from);
+    const senderEmail = extractEmail(sender);
     const replyText = getPlainText(html, text);
 
     if (!replyText.trim()) {
       return NextResponse.json({ error: 'Empty reply' }, { status: 400 });
     }
 
-    // Determine if this is from admin or customer
     const adminEmail = process.env.EMAIL_FROM || 'post@tinglum.com';
     const adminDomain = adminEmail.split('@')[1];
     const senderDomain = senderEmail.split('@')[1];
     const isFromAdmin = senderDomain === adminDomain;
 
-    // Create the reply
     const { data: reply, error: replyError } = await supabaseAdmin
       .from('message_replies')
       .insert({
@@ -126,29 +109,23 @@ export async function POST(request: NextRequest) {
         reply_text: replyText,
         is_internal: false,
         source: 'email',
-        email_message_id: message_id,
+        email_message_id: messageId,
       })
       .select()
       .single();
 
     if (replyError) {
-      logError('email-webhook-reply-create', replyError);
+      logError('mailgun-webhook-reply-create', replyError);
       return NextResponse.json({ error: 'Failed to create reply' }, { status: 500 });
     }
 
-    // Update message status
     const newStatus = isFromAdmin ? 'in_progress' : 'open';
     await supabaseAdmin
       .from('customer_messages')
-      .update({ 
-        status: newStatus,
-        updated_at: new Date().toISOString()
-      })
+      .update({ status: newStatus, updated_at: new Date().toISOString() })
       .eq('id', message.id);
 
-    // Send notification to the other party
     if (isFromAdmin && message.customer_email) {
-      // Admin replied via email - notify customer
       try {
         const emailTemplate = getAdminReplyNotificationTemplate({
           customerName: message.customer_name || 'Kunde',
@@ -163,13 +140,10 @@ export async function POST(request: NextRequest) {
           subject: emailTemplate.subject,
           html: emailTemplate.html,
         });
-
-        console.log('Customer notification sent for admin email reply');
       } catch (emailError) {
-        logError('email-webhook-customer-notification', emailError);
+        logError('mailgun-webhook-customer-notification', emailError);
       }
     } else if (!isFromAdmin && adminEmail) {
-      // Customer replied via email - notify admin
       try {
         const orderNumber = message.orders?.order_number || null;
         const adminNotificationHtml = `
@@ -215,34 +189,27 @@ export async function POST(request: NextRequest) {
           subject: `[${threadId}] Svar fra ${message.customer_name}: ${message.subject}`,
           html: adminNotificationHtml,
         });
-
-        console.log('Admin notification sent for customer email reply');
       } catch (emailError) {
-        logError('email-webhook-admin-notification', emailError);
+        logError('mailgun-webhook-admin-notification', emailError);
       }
     }
 
-    return NextResponse.json({ 
-      success: true, 
+    return NextResponse.json({
+      success: true,
       reply_id: reply.id,
       thread_id: threadId,
-      source: 'email'
+      source: 'email',
     });
-
   } catch (error) {
-    logError('email-webhook-main', error);
-    return NextResponse.json(
-      { error: 'Server error processing email' }, 
-      { status: 500 }
-    );
+    logError('mailgun-webhook-main', error);
+    return NextResponse.json({ error: 'Server error processing email' }, { status: 500 });
   }
 }
 
-// GET endpoint for testing/verification
 export async function GET() {
-  return NextResponse.json({ 
+  return NextResponse.json({
     status: 'active',
     endpoint: 'email-reply-webhook',
-    description: 'Handles inbound email replies from Resend'
+    description: 'Handles inbound email replies from Mailgun',
   });
 }

@@ -14,8 +14,11 @@ Deno.serve(async (req: Request) => {
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const resendApiKey = Deno.env.get('RESEND_API_KEY')!;
-    const emailFrom = Deno.env.get('EMAIL_FROM') || 'noreply@tinglum.no';
+    const mailgunApiKey = Deno.env.get('MAILGUN_API_KEY')!;
+    const mailgunDomain = Deno.env.get('MAILGUN_DOMAIN')!;
+    const mailgunRegion = Deno.env.get('MAILGUN_REGION') || 'eu';
+    const emailFrom = Deno.env.get('EMAIL_FROM') || 'post@tinglum.com';
+    const apiBase = mailgunRegion === 'eu' ? 'https://api.eu.mailgun.net' : 'https://api.mailgun.net';
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
@@ -69,18 +72,19 @@ Deno.serve(async (req: Request) => {
         language: 'no',
       });
 
-      const emailResponse = await fetch('https://api.resend.com/emails', {
+      const formData = new URLSearchParams();
+      formData.append('from', emailFrom);
+      formData.append('to', order.customer_email);
+      formData.append('subject', `Ordre ${order.order_number} låst - Ferdigstilt`);
+      formData.append('html', emailHtml);
+
+      const emailResponse = await fetch(`${apiBase}/v3/${mailgunDomain}/messages`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${resendApiKey}`,
+          Authorization: `Basic ${btoa(`api:${mailgunApiKey}`)}`,
+          'Content-Type': 'application/x-www-form-urlencoded',
         },
-        body: JSON.stringify({
-          from: emailFrom,
-          to: order.customer_email,
-          subject: `Ordre ${order.order_number} låst - Ferdigstilt`,
-          html: emailHtml,
-        }),
+        body: formData.toString(),
       });
 
       if (emailResponse.ok) {
