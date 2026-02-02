@@ -44,6 +44,7 @@ export async function POST(
         message_id: params.id,
         admin_name: session.name || session.phoneNumber,
         reply_text: reply_text.trim(),
+        is_from_customer: true,
         is_internal: false,
       })
       .select()
