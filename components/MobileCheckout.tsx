@@ -185,12 +185,21 @@ export function MobileCheckout(props: MobileCheckoutProps) {
                     {size === '8' ? '2-3 personer' : '4-6 personer'}
                   </p>
                 </div>
-                <p
+                {prices && prices[size].total > 0 ? (
+                  <p
                     className="text-3xl font-bold text-white"
                     style={{ textShadow: '0 2px 15px rgba(0,0,0,0.9)' }}
                   >
-                  {prices ? `kr ${prices[size].total}` : '...'}
-                </p>
+                    kr {prices[size].total.toLocaleString('nb-NO')}
+                  </p>
+                ) : (
+                  <p
+                    className="text-xl text-white/70 animate-pulse"
+                    style={{ textShadow: '0 2px 8px rgba(0,0,0,0.9)' }}
+                  >
+                    Laster...
+                  </p>
+                )}
               </div>
 
               {boxContents[size] && (

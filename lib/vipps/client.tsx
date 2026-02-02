@@ -407,7 +407,11 @@ export default function CheckoutPage() {
                       <p className={cn("text-5xl font-bold mb-2", theme.textPrimary)}>{size} <span className={cn("text-2xl", theme.textMuted)}>kg</span></p>
                       <p className={cn("text-sm", theme.textMuted)}>{size === '8' ? '2-3 personer' : '4-6 personer'}</p>
                     </div>
-                    <p className={cn("text-2xl font-bold text-center", theme.textPrimary)}>kr {prices[size].total}</p>
+                    {pricing && prices[size].total > 0 ? (
+                      <p className={cn("text-2xl font-bold text-center", theme.textPrimary)}>kr {prices[size].total.toLocaleString('nb-NO')}</p>
+                    ) : (
+                      <p className={cn("text-xl text-center animate-pulse", theme.textMuted)}>Laster priser...</p>
+                    )}
 
                     {boxSize === size && boxContents[size] && (
                       <div className={cn("mt-6 pt-6 border-t animate-in fade-in slide-in-from-top-2 duration-500", theme.borderSecondary)}>
