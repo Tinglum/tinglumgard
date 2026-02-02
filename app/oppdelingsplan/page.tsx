@@ -201,7 +201,7 @@ export default function OppdelingsplanPage() {
 
         {/* Image-based diagram */}
         <div className={cn("rounded-2xl shadow-xl border overflow-hidden mb-12", theme.bgCard, theme.borderSecondary)}>
-          <div className={cn("relative p-8 md:p-16", theme.bgDark)}>
+          <div className={cn("relative px-8 py-4 md:px-16 md:py-6", theme.bgDark)}>
 
             {/* Pig butcher diagram */}
             <div className="relative w-full aspect-[16/9] max-w-5xl mx-auto">
@@ -246,7 +246,7 @@ export default function OppdelingsplanPage() {
                   <h2 className={cn("text-3xl font-bold mb-3", theme.textPrimary)}>{selectedCutInfo.name}</h2>
                   <p className={cn("text-lg mb-6", theme.textMuted)}>{selectedCutInfo.description}</p>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 items-start">
 
                     {/* In Box Products */}
                     <div>
@@ -270,7 +270,7 @@ export default function OppdelingsplanPage() {
                     </div>
 
                     {/* Extra Order Products */}
-                    <div>
+                    <div className="max-h-96 overflow-y-auto">
                       <h3 className={cn("text-sm font-bold uppercase tracking-wider mb-3 flex items-center gap-2", theme.textPrimary)}>
                         <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
