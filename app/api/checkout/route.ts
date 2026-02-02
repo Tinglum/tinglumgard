@@ -98,21 +98,21 @@ export async function POST(request: NextRequest) {
 
     // Calculate base amounts
     const depositPercentage = boxSize === 8 ? pricing.box_8kg_deposit_percentage : pricing.box_12kg_deposit_percentage;
-    const baseDepositAmount = Math.floor(basePrice * (depositPercentage / 100));
+    const baseDepositAmount = Math.round(basePrice * (depositPercentage / 100));
 
     // Apply discount to deposit only (referral OR rebate - cannot stack)
-    const referralDiscountAmount = referralDiscount || 0;
-    const rebateDiscountAmount = rebateDiscount || 0;
+    const referralDiscountAmount = Math.round(referralDiscount || 0);
+    const rebateDiscountAmount = Math.round(rebateDiscount || 0);
     const totalDiscountAmount = referralDiscountAmount || rebateDiscountAmount;
 
-    const depositAmount = baseDepositAmount - totalDiscountAmount;
+    const depositAmount = Math.round(baseDepositAmount - totalDiscountAmount);
 
     // Remainder is ONLY the box price minus the base deposit (before discount)
     // It does NOT include delivery fees or extras (those are paid with deposit)
-    const remainderAmount = basePrice - baseDepositAmount;
+    const remainderAmount = Math.round(basePrice - baseDepositAmount);
 
     // Total amount includes everything MINUS the discount
-    const totalAmount = (basePrice + deliveryFee + freshFee + extrasTotal) - totalDiscountAmount;
+    const totalAmount = Math.round((basePrice + deliveryFee + freshFee + extrasTotal) - totalDiscountAmount);
 
     // Generate order number (max 7 characters: TL + 5 random alphanumerics)
     // Using base36 (0-9, A-Z) for compact representation
