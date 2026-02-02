@@ -52,15 +52,8 @@ export default function CheckoutPage() {
         setPricing(data);
       } catch (error) {
         console.error('Failed to fetch pricing:', error);
-        // Fallback to defaults if fetch fails
-        setPricing({
-          box_8kg_price: 3500,
-          box_12kg_price: 4800,
-          deposit_percentage: 50,
-          delivery_fee_farm: 0,
-          delivery_fee_trondheim: 150,
-          delivery_fee_e6: 200,
-        });
+        // Do not set fallback - let UI show loading state
+        // This ensures we never show incorrect hardcoded prices
       }
     }
     fetchPricing();
@@ -176,8 +169,8 @@ export default function CheckoutPage() {
       total: pricing.box_12kg_price 
     },
   } : {
-    '8': { deposit: 1750, remainder: 1750, total: 3500 },
-    '12': { deposit: 2400, remainder: 2400, total: 4800 },
+    '8': { deposit: 0, remainder: 0, total: 0 },
+    '12': { deposit: 0, remainder: 0, total: 0 },
   };
 
   const addonPrices = {

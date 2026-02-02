@@ -22,8 +22,8 @@ export async function GET(request: NextRequest) {
 
     const config = {
       pricing: {
-        box_8kg: parseInt(configMap['box_8kg_price'] || '3500'),
-        box_12kg: parseInt(configMap['box_12kg_price'] || '4800'),
+        box_8kg: parseInt(configMap['box_8kg_price'] || '0'),
+        box_12kg: parseInt(configMap['box_12kg_price'] || '0'),
         box_8kg_deposit_percentage: parseInt(configMap['box_8kg_deposit_percentage'] || '50'),
         box_12kg_deposit_percentage: parseInt(configMap['box_12kg_deposit_percentage'] || '50'),
         delivery_fee_pickup_e6: parseInt(configMap['delivery_fee_pickup_e6'] || '300'),

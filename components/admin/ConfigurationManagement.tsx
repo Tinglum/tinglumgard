@@ -35,8 +35,8 @@ export function ConfigurationManagement() {
   const [saving, setSaving] = useState(false);
 
   // Pricing state
-  const [box8kgPrice, setBox8kgPrice] = useState(3500);
-  const [box12kgPrice, setBox12kgPrice] = useState(4800);
+  const [box8kgPrice, setBox8kgPrice] = useState(0);
+  const [box12kgPrice, setBox12kgPrice] = useState(0);
   const [box8kgDepositPercentage, setBox8kgDepositPercentage] = useState(50);
   const [box12kgDepositPercentage, setBox12kgDepositPercentage] = useState(50);
   const [deliveryFeeE6, setDeliveryFeeE6] = useState(300);

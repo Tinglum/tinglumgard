@@ -39,9 +39,13 @@ export async function getPricingConfig(): Promise<PricingConfig> {
       configMap.set(c.key, c.value);
     });
 
+    if (!configMap.get('box_8kg_price') || !configMap.get('box_12kg_price')) {
+      throw new Error('Critical pricing configuration missing from database');
+    }
+
     return {
-      box_8kg_price: parseInt(configMap.get('box_8kg_price') || '3500'),
-      box_12kg_price: parseInt(configMap.get('box_12kg_price') || '4800'),
+      box_8kg_price: parseInt(configMap.get('box_8kg_price')!),
+      box_12kg_price: parseInt(configMap.get('box_12kg_price')!),
       box_8kg_deposit_percentage: parseInt(configMap.get('box_8kg_deposit_percentage') || '50'),
       box_12kg_deposit_percentage: parseInt(configMap.get('box_12kg_deposit_percentage') || '50'),
       delivery_fee_pickup_e6: parseInt(configMap.get('delivery_fee_pickup_e6') || '300'),
@@ -50,14 +54,8 @@ export async function getPricingConfig(): Promise<PricingConfig> {
     };
   } catch (error) {
     console.error('Failed to fetch pricing config:', error);
-    // Return defaults only if database is unavailable
-    return {
-      box_8kg_price: 3500,
-      box_12kg_price: 4800,
-      box_8kg_deposit_percentage: 50,
-      box_12kg_deposit_percentage: 50,
-      delivery_fee_pickup_e6: 300,
-      delivery_fee_trondheim: 200,
+    // Re-throw error - do not hide database issues with fallback values
+    throw new Error('Unable to fetch pricing configuration from database');
       fresh_delivery_fee: 500,
     };
   }

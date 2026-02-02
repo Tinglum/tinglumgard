@@ -87,13 +87,26 @@ Deno.serve(async (req: Request) => {
       }
 
       // Fetch current pricing from app_config
-      const { data: configData } = await supabaseClient
+      const { data: configData, error: configError } = await supabaseClient
         .from('app_config')
-        .select('value')
-        .eq('key', 'pricing')
-        .single();
+        .select('key, value')
+        .in('key', ['box_8kg_price', 'box_12kg_price'])
 
-      let basePrice = order.box_size === 8 ? 3500 : 4800;
+      if (configError || !configData) {
+        console.error('Failed to fetch pricing config:', configError);
+        continue; // Skip this order if we cannot get pricing
+      }
+
+      const priceConfig = new Map(configData.map(c => [c.key, parseInt(c.value)]));
+      let basePrice = order.box_size === 8 
+        ? (priceConfig.get('box_8kg_price') || 0)
+        : (priceConfig.get('box_12kg_price') || 0);
+      
+      if (basePrice === 0) {
+        console.error('Invalid price configuration for order:', order.id);
+        continue; // Skip orders with invalid pricing
+      }
+
       let depositPercentage = 50;
 
       if (configData?.value) {
