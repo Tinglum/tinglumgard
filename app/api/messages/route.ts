@@ -23,6 +23,7 @@ export async function GET(request: NextRequest) {
           admin_name,
           reply_text,
           is_internal,
+          is_from_customer,
           created_at
         )
       `)
