@@ -122,13 +122,17 @@ export async function POST(request: NextRequest) {
           orderNumber,
         });
 
-        await sendEmail({
+        const emailResult = await sendEmail({
           to: session.email,
           subject: emailTemplate.subject,
           html: emailTemplate.html,
         });
 
-        console.log('Customer message confirmation email sent to:', session.email);
+        if (emailResult.success) {
+          console.log('Customer message confirmation email sent to:', session.email, 'ID:', emailResult.id);
+        } else {
+          console.error('Failed to send customer confirmation email:', emailResult.error);
+        }
       } catch (emailError) {
         logError('messages-customer-confirmation-email', emailError);
         // Don't fail the message creation if email fails
@@ -187,13 +191,17 @@ export async function POST(request: NextRequest) {
 </html>
         `;
 
-        await sendEmail({
+        const adminEmailResult = await sendEmail({
           to: adminEmail,
           subject: `Ny melding fra ${session.name || session.phoneNumber}: ${subject}`,
           html: adminNotificationHtml,
         });
 
-        console.log('Admin notification email sent to:', adminEmail);
+        if (adminEmailResult.success) {
+          console.log('Admin notification email sent to:', adminEmail, 'ID:', adminEmailResult.id);
+        } else {
+          console.error('Failed to send admin notification email:', adminEmailResult.error);
+        }
       } catch (emailError) {
         logError('messages-admin-notification-email', emailError);
         // Don't fail the message creation if email fails

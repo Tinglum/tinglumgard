@@ -69,13 +69,17 @@ export async function POST(
           adminName,
         });
 
-        await sendEmail({
+        const emailResult = await sendEmail({
           to: message.customer_email,
           subject: emailTemplate.subject,
           html: emailTemplate.html,
         });
 
-        console.log('Admin reply notification sent to:', message.customer_email);
+        if (emailResult.success) {
+          console.log('Admin reply notification sent to:', message.customer_email, 'ID:', emailResult.id);
+        } else {
+          console.error('Failed to send admin reply notification:', emailResult.error);
+        }
       }
     } catch (emailError) {
       logError('admin-message-reply-email', emailError);

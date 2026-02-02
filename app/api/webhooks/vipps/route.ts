@@ -183,13 +183,17 @@ export async function POST(request: NextRequest) {
 </html>
           `;
 
-          await sendEmail({
+          const depositEmailResult = await sendEmail({
             to: order.customer_email,
             subject: `Depositum bekreftet - ${order.order_number}`,
             html: depositConfirmationHtml,
           });
 
-          console.log('Deposit confirmation email sent to:', order.customer_email);
+          if (depositEmailResult.success) {
+            console.log('Deposit confirmation email sent to:', order.customer_email, 'ID:', depositEmailResult.id);
+          } else {
+            console.error('Failed to send deposit confirmation email:', depositEmailResult.error);
+          }
         } catch (emailError) {
           logError('vipps-webhook-deposit-email', emailError);
           // Don't fail the webhook if email fails
@@ -217,13 +221,17 @@ export async function POST(request: NextRequest) {
             rebateDiscount: order.rebate_discount_amount || 0,
           });
 
-          await sendEmail({
+          const emailResult = await sendEmail({
             to: adminEmail,
             subject: adminNotification.subject,
             html: adminNotification.html,
           });
 
-          console.log('Admin notification email sent to:', adminEmail);
+          if (emailResult.success) {
+            console.log('Admin notification email sent to:', adminEmail, 'ID:', emailResult.id);
+          } else {
+            console.error('Failed to send admin notification email:', emailResult.error);
+          }
         } catch (emailError) {
           logError('vipps-webhook-admin-notification', emailError);
           // Don't fail the webhook if email fails

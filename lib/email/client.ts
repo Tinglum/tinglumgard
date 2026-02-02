@@ -37,8 +37,22 @@ export async function sendEmail({ to, subject, html }: SendEmailParams) {
     const data = await response.json();
 
     if (!response.ok) {
+      console.error('Mailgun API error:', {
+        status: response.status,
+        statusText: response.statusText,
+        data,
+        to,
+        subject,
+      });
       return { success: false, error: data.message || 'Failed to send email' };
     }
+
+    console.log('Mailgun API success:', {
+      id: data.id,
+      message: data.message,
+      to,
+      subject,
+    });
 
     return { success: true, id: data.id || data.message };
   } catch (error) {
