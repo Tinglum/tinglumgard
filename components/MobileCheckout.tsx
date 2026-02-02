@@ -229,66 +229,74 @@ export function MobileCheckout(props: MobileCheckoutProps) {
         <motion.div
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
-          className="space-y-4"
+          className="space-y-4 px-4 py-8"
         >
-          <button
-            onClick={() => setStep(1)}
-            className="text-white font-semibold text-sm mb-4"
-            style={{ textShadow: '0 2px 8px rgba(0,0,0,0.9)' }}
-          >
-            ← Tilbake
-          </button>
-          <h2
-            className="text-3xl font-bold text-white mb-6"
-            style={{ textShadow: '0 2px 15px rgba(0,0,0,0.9)' }}
-          >
-            Velg ribbe-type
-          </h2>
-
-          {[
-            { id: 'tynnribbe' as const, name: 'Tynnribbe', desc: 'Klassisk ribbe med ribbein' },
-            { id: 'familieribbe' as const, name: 'Familieribbe', desc: 'Inkluderer kotelettkam - mer kjøtt' },
-            { id: 'porchetta' as const, name: 'Porchetta', desc: 'Beinfri nedre mage - italiensk stil' },
-            { id: 'butchers_choice' as const, name: 'Slakterens valg', desc: 'Vi velger basert på tilgjengelighet', tag: 'Anbefalt' },
-          ].map((option) => (
-            <motion.button
-              key={option.id}
-              onClick={() => {
-                setRibbeChoice(option.id);
-                setStep(3);
-              }}
-              whileTap={{ scale: 0.98 }}
-              className={`w-full glass-mobile rounded-2xl p-5 text-left relative ${
-                ribbeChoice === option.id ? 'ring-2 ring-green-400' : ''
-              }`}
+          <div className="flex items-center gap-3 mb-6">
+            <button
+              onClick={() => setStep(1)}
+              className="text-sm font-medium"
+              style={{ color: 'var(--farm-moss)' }}
             >
-              {option.tag && (
-                <span className="absolute top-3 right-3 bg-green-500 text-white text-xs font-bold px-3 py-1 rounded-full">
-                  {option.tag}
-                </span>
-              )}
-              <p
-                className="font-bold text-lg text-white mb-1"
-                style={{ textShadow: '0 2px 10px rgba(0,0,0,0.9)' }}
-              >
-                {option.name}
-              </p>
-              <p
-                className="text-sm font-semibold text-white"
-                style={{ textShadow: '0 2px 8px rgba(0,0,0,0.9)' }}
-              >
-                {option.desc}
-              </p>
-            </motion.button>
-          ))}
+              ← Endre størrelse
+            </button>
+          </div>
 
-          <button
-            onClick={() => setStep(3)}
-            disabled={!ribbeChoice}
-            className="w-full bg-gradient-to-r from-green-500 to-green-600 text-white font-bold py-4 rounded-2xl shadow-xl flex items-center justify-center gap-2 disabled:opacity-50"
-          >
-            Fortsett <ChevronRight className="w-5 h-5" />
-          </button>
+          <h2 className="text-2xl font-bold mb-2" style={{ color: 'var(--farm-earth)' }}>
+            Velg ribbetype
+          </h2>
+          <p className="text-base mb-6" style={{ color: 'var(--farm-bark)' }}>
+            Vi anbefaler slakterens valg for beste kvalitet
+          </p>
+
+          <div className="space-y-3">
+            {[
+              { id: 'tynnribbe' as const, name: 'Tynnribbe', desc: 'Klassisk ribbe med ribbein' },
+              { id: 'familieribbe' as const, name: 'Familieribbe', desc: 'Inkluderer kotelettkam - mer kjøtt' },
+              { id: 'porchetta' as const, name: 'Porchetta', desc: 'Beinfri nedre mage - italiensk stil' },
+              { id: 'butchers_choice' as const, name: 'Slakterens valg', desc: 'Vi velger basert på tilgjengelighet', recommended: true },
+            ].map((option) => (
+              <motion.button
+                key={option.id}
+                onClick={() => {
+                  setRibbeChoice(option.id);
+                  setStep(3);
+                }}
+                whileTap={{ scale: 0.98 }}
+                className={`w-full card-mobile p-5 text-left transition-all ${
+                  ribbeChoice === option.id ? 'ring-2' : ''
+                }`}
+                style={{
+                  borderColor: ribbeChoice === option.id ? 'var(--farm-moss)' : 'transparent',
+                }}
+              >
+                <div className="flex items-start gap-4">
+                  <input
+                    type="radio"
+                    checked={ribbeChoice === option.id}
+                    onChange={() => {}}
+                    className="mt-1 w-5 h-5 flex-shrink-0"
+                    style={{ accentColor: 'var(--farm-moss)' }}
+                  />
+                  <div className="flex-1">
+                    <div className="font-semibold mb-1" style={{ color: 'var(--farm-earth)' }}>
+                      {option.name}
+                      {option.recommended && (
+                        <span
+                          className="ml-2 text-xs px-2 py-0.5 rounded"
+                          style={{ backgroundColor: 'var(--accent-gold)', color: 'white' }}
+                        >
+                          Anbefalt
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-sm" style={{ color: 'var(--farm-bark)' }}>
+                      {option.desc}
+                    </div>
+                  </div>
+                </div>
+              </motion.button>
+            ))}
+          </div>
         </motion.div>
       )}
 
@@ -297,28 +305,52 @@ export function MobileCheckout(props: MobileCheckoutProps) {
         <motion.div
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
-          className="space-y-4"
+          className="space-y-6 px-4 py-8"
         >
           <button
             onClick={() => setStep(2)}
-            className="text-white font-semibold text-sm mb-4"
-            style={{ textShadow: '0 2px 8px rgba(0,0,0,0.9)' }}
+            className="text-sm font-medium mb-4"
+            style={{ color: 'var(--farm-moss)' }}
           >
             ← Tilbake
           </button>
-          <h2
-            className="text-3xl font-bold text-white mb-2"
-            style={{ textShadow: '0 2px 15px rgba(0,0,0,0.9)' }}
-          >
-            Ekstra produkter
-          </h2>
-          <p
-            className="text-sm font-semibold text-white mb-6"
-            style={{ textShadow: '0 2px 8px rgba(0,0,0,0.9)' }}
-          >
-            Valgfritt - trykk for å legge til
-          </p>
+          <div>
+            <h2 className="text-2xl font-bold mb-2" style={{ color: 'var(--farm-earth)' }}>
+              Levering
+            </h2>
+            <div className="space-y-2 mb-6">
+              {[
+                { id: 'farm' as const, name: 'Henting på gården', desc: 'Gratis henting', price: 0 },
+                { id: 'trondheim' as const, name: 'Levering Trondheim', desc: 'Vi leverer til deg', price: addonPrices.trondheim },
+                { id: 'e6' as const, name: 'Henting E6', desc: 'Møtepunkt langs E6', price: addonPrices.e6 },
+              ].map((option) => (
+                <button
+                  key={option.id}
+                  onClick={() => setDeliveryType(option.id)}
+                  className={`w-full card-mobile p-4 text-left flex justify-between items-center transition-all ${
+                    deliveryType === option.id ? 'ring-2' : ''
+                  }`}
+                  style={{
+                    borderColor: deliveryType === option.id ? 'var(--farm-moss)' : 'transparent',
+                  }}
+                >
+                  <div>
+                    <div className="font-semibold" style={{ color: 'var(--farm-earth)' }}>{option.name}</div>
+                    <div className="text-sm" style={{ color: 'var(--farm-bark)' }}>{option.desc}</div>
+                  </div>
+                  <div className="text-lg font-bold" style={{ color: 'var(--farm-earth)' }}>
+                    {option.price > 0 ? `${option.price} kr` : 'Gratis'}
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
 
+          <div>
+            <h3 className="text-xl font-bold mb-3" style={{ color: 'var(--farm-earth)' }}>
+              Ekstra produkter <span className="text-base font-normal" style={{ color: 'var(--farm-bark)' }}>(valgfritt)</span>
+            </h3>
+            <div className="space-y-3">
           {availableExtras
             .filter(extra => !['delivery_trondheim', 'pickup_e6', 'fresh_delivery'].includes(extra.slug))
             .map((extra) => {
@@ -329,67 +361,54 @@ export function MobileCheckout(props: MobileCheckoutProps) {
                 <motion.div
                   key={extra.slug}
                   whileTap={{ scale: 0.98 }}
-                  className={`glass-mobile rounded-2xl p-5 ${
-                    isSelected ? 'ring-2 ring-amber-400' : ''
+                  className={`card-mobile p-5 transition-all ${
+                    isSelected ? 'ring-2' : ''
                   }`}
-                  onClick={() => {
-                    setExtraProducts(
-                      extraProducts.includes(extra.slug)
-                        ? extraProducts.filter(p => p !== extra.slug)
-                        : [...extraProducts, extra.slug]
-                    );
-                    if (!isSelected && !extraQuantities[extra.slug]) {
-                      setExtraQuantities({
-                        ...extraQuantities,
-                        [extra.slug]: extra.pricing_type === 'per_kg' ? 0.5 : 1
-                      });
-                    }
+                  style={{
+                    borderColor: isSelected ? 'var(--farm-moss)' : 'transparent',
                   }}
                 >
-                  <div className="flex items-start justify-between">
+                  <label className="flex gap-4 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => {
+                        setExtraProducts(
+                          extraProducts.includes(extra.slug)
+                            ? extraProducts.filter(p => p !== extra.slug)
+                            : [...extraProducts, extra.slug]
+                        );
+                        if (!isSelected && !extraQuantities[extra.slug]) {
+                          setExtraQuantities({
+                            ...extraQuantities,
+                            [extra.slug]: extra.pricing_type === 'per_kg' ? 0.5 : 1
+                          });
+                        }
+                      }}
+                      className="w-5 h-5 mt-1 rounded"
+                      style={{ accentColor: 'var(--farm-moss)' }}
+                    />
                     <div className="flex-1">
-                      <p
-                        className="font-bold text-lg text-white mb-1"
-                        style={{ textShadow: '0 2px 10px rgba(0,0,0,0.9)' }}
-                      >
+                      <div className="font-semibold mb-1" style={{ color: 'var(--farm-earth)' }}>
                         {extra.name_no}
-                      </p>
+                      </div>
                       {extra.description_no && (
-                        <p
-                          className="text-sm font-semibold text-white mb-3"
-                          style={{ textShadow: '0 2px 8px rgba(0,0,0,0.9)' }}
-                        >
+                        <div className="text-sm mb-2" style={{ color: 'var(--farm-bark)' }}>
                           {extra.description_no}
-                        </p>
+                        </div>
                       )}
-                      <p
-                        className="text-2xl font-bold text-white"
-                        style={{ textShadow: '0 2px 10px rgba(0,0,0,0.9)' }}
-                      >
+                      <div className="text-lg font-bold" style={{ color: 'var(--farm-earth)' }}>
                         {extra.price_nok} kr
-                        <span className="text-sm ml-1">
+                        <span className="text-sm ml-1" style={{ color: 'var(--farm-bark)' }}>
                           /{extra.pricing_type === 'per_kg' ? 'kg' : 'stk'}
                         </span>
-                      </p>
+                      </div>
                     </div>
-                    <div
-                      className={`w-7 h-7 rounded-full border-2 flex items-center justify-center ${
-                        isSelected ? 'bg-amber-500 border-amber-500' : 'border-white/40 bg-white/10'
-                      }`}
-                    >
-                      {isSelected && <Check className="w-4 h-4 text-white" />}
-                    </div>
-                  </div>
+                  </label>
 
                   {isSelected && (
-                    <div
-                      className="mt-4 pt-4 border-t border-white/20 flex items-center gap-3"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <label
-                        className="text-sm font-bold text-white"
-                        style={{ textShadow: '0 2px 8px rgba(0,0,0,0.9)' }}
-                      >
+                    <div className="mt-4 pt-4 border-t flex items-center gap-3" style={{ borderColor: 'var(--farm-snow)' }}>
+                      <label className="text-sm font-semibold" style={{ color: 'var(--farm-bark)' }}>
                         Mengde:
                       </label>
                       <Input
@@ -406,12 +425,9 @@ export function MobileCheckout(props: MobileCheckoutProps) {
                             });
                           }
                         }}
-                        className="w-24 text-center font-bold bg-white/20 border-2 border-white/40 text-white"
+                        className="w-24 text-center font-bold"
                       />
-                      <span
-                        className="text-sm font-bold text-white"
-                        style={{ textShadow: '0 2px 8px rgba(0,0,0,0.9)' }}
-                      >
+                      <span className="text-sm font-semibold" style={{ color: 'var(--farm-bark)' }}>
                         {extra.pricing_type === 'per_kg' ? 'kg' : 'stk'}
                       </span>
                     </div>
