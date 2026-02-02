@@ -118,7 +118,7 @@ export function MobileOppdelingsplan() {
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="glass-mobile-strong rounded-3xl px-6 py-3 mb-6"
+        className="glass-mobile-strong rounded-3xl px-3 py-1.5 mb-6">
       >
         <img
           src="/pig-diagram3.png"
@@ -146,8 +146,8 @@ export function MobileOppdelingsplan() {
           Rask oversikt
         </h2>
 
-          <div className="grid grid-cols-2 gap-4 items-start">
-          <div className="bg-green-500/20 rounded-2xl p-4 border-2 border-green-400/30">
+          <div className="flex gap-3 items-start">
+          <div className="flex-1 bg-green-500/20 rounded-2xl p-3 border-2 border-green-400/30">
             <Check className="w-6 h-6 text-green-400 mb-2" />
             <p
               className="text-xs font-bold text-white mb-1"
@@ -168,7 +168,7 @@ export function MobileOppdelingsplan() {
             </ul>
           </div>
 
-          <div className="bg-blue-500/20 rounded-2xl p-4 border-2 border-blue-400/30 max-h-96 overflow-y-auto">
+          <div className="flex-1 bg-blue-500/20 rounded-2xl p-3 border-2 border-blue-400/30 max-h-[300px] overflow-y-auto">
             <Plus className="w-6 h-6 text-blue-400 mb-2" />
             <p
               className="text-xs font-bold text-white mb-1"

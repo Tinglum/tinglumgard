@@ -201,7 +201,7 @@ export default function OppdelingsplanPage() {
 
         {/* Image-based diagram */}
         <div className={cn("rounded-2xl shadow-xl border overflow-hidden mb-12", theme.bgCard, theme.borderSecondary)}>
-          <div className={cn("relative px-8 py-4 md:px-16 md:py-6", theme.bgDark)}>
+          <div className={cn("relative px-4 py-2 md:px-8 md:py-3", theme.bgDark)}>
 
             {/* Pig butcher diagram */}
             <div className="relative w-full aspect-[16/9] max-w-5xl mx-auto">
@@ -240,16 +240,16 @@ export default function OppdelingsplanPage() {
           </div>
 
           {selectedCutInfo ? (
-            <div className={cn("border-t-4 p-8 md:p-12 animate-fade-in", theme.borderSecondary, theme.bgGradientHero)}>
+            <div className={cn("border-t-4 p-4 md:p-6 animate-fade-in", theme.borderSecondary, theme.bgGradientHero)}>
               <div className="max-w-4xl mx-auto">
                 <div className="flex-1">
                   <h2 className={cn("text-3xl font-bold mb-3", theme.textPrimary)}>{selectedCutInfo.name}</h2>
                   <p className={cn("text-lg mb-6", theme.textMuted)}>{selectedCutInfo.description}</p>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 items-start">
+                  <div className="flex flex-col md:flex-row gap-4 mb-6">
 
                     {/* In Box Products */}
-                    <div>
+                    <div className="flex-1">
                       <h3 className={cn("text-sm font-bold uppercase tracking-wider mb-3 flex items-center gap-2", theme.textPrimary)}>
                         <svg className="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
                           <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/>
@@ -257,9 +257,9 @@ export default function OppdelingsplanPage() {
                         {t.oppdelingsplan.inBox}
                       </h3>
                       {selectedCutInfo.inBox.length > 0 ? (
-                        <div className="flex flex-wrap gap-2">
+                        <div className="flex flex-wrap gap-1.5">
                           {selectedCutInfo.inBox.map((product, idx) => (
-                            <span key={idx} className="px-4 py-2 bg-green-50 border-2 border-green-200 rounded-full text-sm font-medium text-green-800">
+                            <span key={idx} className="px-3 py-1.5 bg-green-50 border-2 border-green-200 rounded-full text-sm font-medium text-green-800">
                               {product}
                             </span>
                           ))}
@@ -270,17 +270,17 @@ export default function OppdelingsplanPage() {
                     </div>
 
                     {/* Extra Order Products */}
-                    <div className="max-h-96 overflow-y-auto">
-                      <h3 className={cn("text-sm font-bold uppercase tracking-wider mb-3 flex items-center gap-2", theme.textPrimary)}>
+                    <div className="flex-1 md:max-h-[400px] overflow-y-auto">
+                      <h3 className={cn("text-sm font-bold uppercase tracking-wider mb-2 flex items-center gap-2", theme.textPrimary)}>
                         <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                         </svg>
                         {t.oppdelingsplan.canOrder}
                       </h3>
                       {selectedCutInfo.extraOrder.length > 0 ? (
-                        <div className="flex flex-wrap gap-2">
+                        <div className="flex flex-wrap gap-1.5">
                           {selectedCutInfo.extraOrder.map((product, idx) => (
-                            <span key={idx} className="px-4 py-2 bg-blue-50 border-2 border-blue-200 rounded-full text-sm font-medium text-blue-800">
+                            <span key={idx} className="px-3 py-1.5 bg-blue-50 border-2 border-blue-200 rounded-full text-sm font-medium text-blue-800">
                               {product}
                             </span>
                           ))}
