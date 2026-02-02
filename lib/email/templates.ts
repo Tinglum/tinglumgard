@@ -305,3 +305,206 @@ export function getOrderLockedTemplate({
     `,
   };
 }
+
+// Admin notification when new order deposit is paid
+interface AdminOrderNotificationParams {
+  orderNumber: string;
+  customerName: string;
+  customerEmail: string;
+  customerPhone: string;
+  boxSize: 8 | 12;
+  deliveryType: string;
+  freshDelivery: boolean;
+  ribbeChoice: string;
+  extraProducts: any[];
+  depositAmount: number;
+  remainderAmount: number;
+  totalAmount: number;
+  referralDiscount?: number;
+  rebateDiscount?: number;
+}
+
+export function getAdminOrderNotificationTemplate(params: AdminOrderNotificationParams): { subject: string; html: string } {
+  const discountInfo = params.referralDiscount || params.rebateDiscount 
+    ? `<p><strong>Rabatt:</strong> kr ${(params.referralDiscount || params.rebateDiscount || 0).toLocaleString('nb-NO')}</p>`
+    : '';
+
+  const extrasList = params.extraProducts?.length > 0
+    ? `<ul>${params.extraProducts.map(p => `<li>${p.name} (${p.quantity}x kr ${p.price})</li>`).join('')}</ul>`
+    : '<p>Ingen</p>';
+
+  return {
+    subject: `Ny ordre mottatt - ${params.orderNumber}`,
+    html: `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { font-family: -apple-system, sans-serif; line-height: 1.6; color: #333; }
+    .container { max-width: 600px; margin: 0 auto; padding: 20px; background: #f5f5f5; }
+    .header { background: #2C1810; color: white; padding: 20px; text-align: center; }
+    .content { background: #ffffff; padding: 30px; margin: 20px 0; border-radius: 8px; }
+    .section { margin: 20px 0; padding: 15px; background: #f9f9f9; border-left: 4px solid #2C1810; }
+    .amount { font-size: 18px; font-weight: 700; color: #2C1810; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>Ny ordre registrert</h1>
+    </div>
+    <div class="content">
+      <h2>Ordre ${params.orderNumber}</h2>
+      <p><strong>Status:</strong> Depositum betalt ✓</p>
+      
+      <div class="section">
+        <h3>Kundeinformasjon</h3>
+        <p><strong>Navn:</strong> ${params.customerName}</p>
+        <p><strong>E-post:</strong> ${params.customerEmail}</p>
+        <p><strong>Telefon:</strong> ${params.customerPhone}</p>
+      </div>
+
+      <div class="section">
+        <h3>Ordredetaljer</h3>
+        <p><strong>Kassestørrelse:</strong> ${params.boxSize}kg</p>
+        <p><strong>Ribbe valg:</strong> ${params.ribbeChoice}</p>
+        <p><strong>Leveringstype:</strong> ${params.deliveryType}</p>
+        <p><strong>Fersk levering:</strong> ${params.freshDelivery ? 'Ja (+200 kr)' : 'Nei'}</p>
+        <p><strong>Ekstra produkter:</strong></p>
+        ${extrasList}
+      </div>
+
+      <div class="section">
+        <h3>Betalingsoversikt</h3>
+        ${discountInfo}
+        <p class="amount">Depositum betalt: kr ${params.depositAmount.toLocaleString('nb-NO')}</p>
+        <p class="amount">Restbeløp: kr ${params.remainderAmount.toLocaleString('nb-NO')}</p>
+        <p class="amount">Totalt: kr ${params.totalAmount.toLocaleString('nb-NO')}</p>
+      </div>
+
+      <p style="margin-top: 30px; padding: 15px; background: #e8f5e9; border-radius: 4px;">
+        <strong>Neste steg:</strong> Kunden vil motta påminnelse om restbetaling 2 uker før henting.
+      </p>
+    </div>
+  </div>
+</body>
+</html>
+    `,
+  };
+}
+
+// Customer message confirmation email
+interface CustomerMessageConfirmationParams {
+  customerName: string;
+  messageId: string;
+  subject: string;
+  message: string;
+  orderNumber?: string;
+}
+
+export function getCustomerMessageConfirmationTemplate(params: CustomerMessageConfirmationParams): { subject: string; html: string } {
+  const threadId = `msg_${params.messageId}`;
+  
+  return {
+    subject: `[${threadId}] Melding mottatt - ${params.subject}`,
+    html: `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { font-family: -apple-system, sans-serif; line-height: 1.6; color: #333; }
+    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+    .header { background: #2C1810; color: white; padding: 30px 20px; text-align: center; }
+    .content { background: #ffffff; padding: 30px 20px; }
+    .message-box { background: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0; }
+    .ticket { background: #e3f2fd; padding: 10px; border-radius: 4px; font-family: monospace; display: inline-block; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>Tinglum Gård</h1>
+    </div>
+    <div class="content">
+      <h2>Melding mottatt</h2>
+      <p>Hei ${params.customerName},</p>
+      <p>Vi har mottatt din melding og vil svare deg så snart som mulig.</p>
+      
+      <p><strong>Referansenummer:</strong> <span class="ticket">${threadId}</span></p>
+      ${params.orderNumber ? `<p><strong>Ordre:</strong> ${params.orderNumber}</p>` : ''}
+      
+      <div class="message-box">
+        <p><strong>Din melding:</strong></p>
+        <p style="white-space: pre-wrap;">${params.message}</p>
+      </div>
+
+      <p><strong>Du kan svare på denne e-posten direkte</strong>, og svaret vil automatisk legges til i samtalen.</p>
+      
+      <p>Du kan også følge med på meldingen din på <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://tinglumgard.no'}/min-side">Min Side</a>.</p>
+      
+      <p style="margin-top: 30px; font-size: 14px; color: #666;">
+        Forventet svartid: Innen 24 timer på hverdager
+      </p>
+
+      <p>Vennlig hilsen,<br>Tinglum Gård</p>
+    </div>
+  </div>
+</body>
+</html>
+    `,
+  };
+}
+
+// Admin reply notification to customer
+interface AdminReplyNotificationParams {
+  customerName: string;
+  messageId: string;
+  subject: string;
+  replyText: string;
+  adminName: string;
+}
+
+export function getAdminReplyNotificationTemplate(params: AdminReplyNotificationParams): { subject: string; html: string } {
+  const threadId = `msg_${params.messageId}`;
+  
+  return {
+    subject: `[${threadId}] Svar på: ${params.subject}`,
+    html: `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { font-family: -apple-system, sans-serif; line-height: 1.6; color: #333; }
+    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+    .header { background: #2C1810; color: white; padding: 30px 20px; text-align: center; }
+    .content { background: #ffffff; padding: 30px 20px; }
+    .reply-box { background: #e8f5e9; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #4caf50; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>Tinglum Gård</h1>
+    </div>
+    <div class="content">
+      <h2>Svar fra ${params.adminName}</h2>
+      <p>Hei ${params.customerName},</p>
+      <p>Du har fått et svar på din melding:</p>
+      
+      <div class="reply-box">
+        <p style="white-space: pre-wrap;">${params.replyText}</p>
+      </div>
+
+      <p><strong>Du kan svare direkte på denne e-posten</strong>, eller gå til <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://tinglumgard.no'}/min-side">Min Side</a> for å se hele samtalen.</p>
+      
+      <p>Vennlig hilsen,<br>${params.adminName}<br>Tinglum Gård</p>
+    </div>
+  </div>
+</body>
+</html>
+    `,
+  };
+}

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth/session';
 import { supabaseAdmin } from '@/lib/supabase/server';
 import { logError } from '@/lib/logger';
+import { sendEmail } from '@/lib/email/client';
+import { getAdminReplyNotificationTemplate } from '@/lib/email/templates';
 
 // POST /api/admin/messages/[id]/replies - Add reply to a message
 export async function POST(
@@ -47,6 +49,37 @@ export async function POST(
 
     if (updateError) {
       logError('admin-message-reply-update-status', updateError);
+    }
+
+    // Send email notification to customer
+    try {
+      // Get message details with customer email
+      const { data: message } = await supabaseAdmin
+        .from('customer_messages')
+        .select('customer_email, customer_name, subject, email_thread_id, id')
+        .eq('id', params.id)
+        .single();
+
+      if (message && message.customer_email) {
+        const emailTemplate = getAdminReplyNotificationTemplate({
+          customerName: message.customer_name || 'Kunde',
+          messageId: message.id,
+          subject: message.subject,
+          replyText: reply_text.trim(),
+          adminName,
+        });
+
+        await sendEmail({
+          to: message.customer_email,
+          subject: emailTemplate.subject,
+          html: emailTemplate.html,
+        });
+
+        console.log('Admin reply notification sent to:', message.customer_email);
+      }
+    } catch (emailError) {
+      logError('admin-message-reply-email', emailError);
+      // Don't fail the reply if email fails
     }
 
     return NextResponse.json({ reply, success: true });

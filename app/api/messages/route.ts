@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth/session';
 import { supabaseAdmin } from '@/lib/supabase/server';
 import { logError } from '@/lib/logger';
+import { sendEmail } from '@/lib/email/client';
+import { getCustomerMessageConfirmationTemplate } from '@/lib/email/templates';
 
 // GET /api/messages - Fetch customer's messages
 export async function GET(request: NextRequest) {
@@ -98,7 +100,105 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to create message', details: error?.message }, { status: 500 });
     }
 
-    // TODO: Send notification to admin that new message received
+    // Send confirmation email to customer
+    if (session.email) {
+      try {
+        // Get order number if order_id provided
+        let orderNumber = null;
+        if (order_id) {
+          const { data: orderData } = await supabaseAdmin
+            .from('orders')
+            .select('order_number')
+            .eq('id', order_id)
+            .single();
+          orderNumber = orderData?.order_number || null;
+        }
+
+        const emailTemplate = getCustomerMessageConfirmationTemplate({
+          customerName: session.name || 'Kunde',
+          messageId: newMessage.id,
+          subject,
+          message,
+          orderNumber,
+        });
+
+        await sendEmail({
+          to: session.email,
+          subject: emailTemplate.subject,
+          html: emailTemplate.html,
+        });
+
+        console.log('Customer message confirmation email sent to:', session.email);
+      } catch (emailError) {
+        logError('messages-customer-confirmation-email', emailError);
+        // Don't fail the message creation if email fails
+      }
+    }
+
+    // Send notification email to admin
+    const adminEmail = process.env.EMAIL_FROM || 'post@tinglum.com';
+    if (adminEmail) {
+      try {
+        let orderNumber = null;
+        if (order_id) {
+          const { data: orderData } = await supabaseAdmin
+            .from('orders')
+            .select('order_number')
+            .eq('id', order_id)
+            .single();
+          orderNumber = orderData?.order_number || null;
+        }
+
+        const adminNotificationHtml = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { font-family: -apple-system, sans-serif; line-height: 1.6; color: #333; }
+    .container { max-width: 600px; margin: 0 auto; padding: 20px; background: #f5f5f5; }
+    .header { background: #2C1810; color: white; padding: 20px; text-align: center; }
+    .content { background: #ffffff; padding: 30px; margin: 20px 0; border-radius: 8px; }
+    .message-box { background: #fff9e6; padding: 20px; border-radius: 8px; border-left: 4px solid #ff9800; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>Ny kundemelding</h1>
+    </div>
+    <div class="content">
+      <p><strong>Fra:</strong> ${session.name || 'Ukjent'} (${session.phoneNumber})</p>
+      <p><strong>E-post:</strong> ${session.email || 'Ikke oppgitt'}</p>
+      ${orderNumber ? `<p><strong>Ordre:</strong> ${orderNumber}</p>` : ''}
+      <p><strong>Type:</strong> ${message_type}</p>
+      <p><strong>Emne:</strong> ${subject}</p>
+      
+      <div class="message-box">
+        <p style="white-space: pre-wrap;">${message}</p>
+      </div>
+
+      <p style="margin-top: 20px;">
+        <strong>Svar på denne e-posten direkte for å svare kunden.</strong>
+      </p>
+    </div>
+  </div>
+</body>
+</html>
+        `;
+
+        await sendEmail({
+          to: adminEmail,
+          subject: `Ny melding fra ${session.name || session.phoneNumber}: ${subject}`,
+          html: adminNotificationHtml,
+        });
+
+        console.log('Admin notification email sent to:', adminEmail);
+      } catch (emailError) {
+        logError('messages-admin-notification-email', emailError);
+        // Don't fail the message creation if email fails
+      }
+    }
 
     return NextResponse.json({ message: newMessage }, { status: 201 });
   } catch (error) {
