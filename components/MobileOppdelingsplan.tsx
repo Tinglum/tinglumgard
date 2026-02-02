@@ -118,7 +118,7 @@ export function MobileOppdelingsplan() {
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="glass-mobile-strong rounded-3xl px-3 py-1.5 mb-6">
+        className="glass-mobile-strong rounded-3xl px-3 py-1.5 mb-6"
       >
         <img
           src="/pig-diagram3.png"
