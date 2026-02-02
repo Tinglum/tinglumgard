@@ -51,8 +51,14 @@ export async function POST(
       .single();
 
     if (replyError) {
+      console.error('Customer reply create failed:', {
+        code: replyError.code,
+        message: replyError.message,
+        details: replyError.details,
+        hint: replyError.hint,
+      });
       logError('customer-message-reply-create', replyError);
-      return NextResponse.json({ error: 'Failed to create reply' }, { status: 500 });
+      return NextResponse.json({ error: 'Failed to create reply', details: replyError.message }, { status: 500 });
     }
 
     // Update message status to 'in_progress' if it was resolved/closed
