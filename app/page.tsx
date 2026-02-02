@@ -356,20 +356,20 @@ export default function Page() {
                   <div className="flex items-baseline justify-between">
                     <span className={`text-sm uppercase tracking-wide ${theme.textMuted} font-bold`}>{t.product.totalPrice}</span>
                     <span className={`text-4xl font-bold ${theme.textPrimary}`}>
-                      {pricing ? (pricing.box_8kg_price || 3500).toLocaleString('nb-NO') : '3 500'}
+                      {pricing ? pricing.box_8kg_price.toLocaleString('nb-NO') : '...'}
                       <span className={`text-xl ${theme.textMuted} ml-1`}>{t.common.currency}</span>
                     </span>
                   </div>
                   <div className="flex items-baseline justify-between text-sm">
                     <span className={`${theme.textMuted} font-medium`}>{t.product.deposit50}</span>
                     <span className={`${theme.textPrimary} font-bold`}>
-                      {pricing ? Math.floor((pricing.box_8kg_price || 3500) * (pricing.deposit_percentage || 50) / 100).toLocaleString('nb-NO') : '1 750'} {t.common.currency}
+                      {pricing ? Math.floor(pricing.box_8kg_price * pricing.box_8kg_deposit_percentage / 100).toLocaleString('nb-NO') : '...'} {t.common.currency}
                     </span>
                   </div>
                   <div className="flex items-baseline justify-between text-sm">
                     <span className={`${theme.textMuted} font-medium`}>{t.product.balanceOnDelivery}</span>
                     <span className={`${theme.textPrimary} font-bold`}>
-                      {pricing ? Math.floor((pricing.box_8kg_price || 3500) * (100 - (pricing.deposit_percentage || 50)) / 100).toLocaleString('nb-NO') : '1 750'} {t.common.currency}
+                      {pricing ? (pricing.box_8kg_price - Math.floor(pricing.box_8kg_price * pricing.box_8kg_deposit_percentage / 100)).toLocaleString('nb-NO') : '...'} {t.common.currency}
                     </span>
                   </div>
                 </div>
@@ -486,20 +486,20 @@ export default function Page() {
                   <div className="flex items-baseline justify-between">
                     <span className={`text-sm uppercase tracking-wide ${theme.textMuted} font-bold`}>{t.product.totalPrice}</span>
                     <span className={`text-4xl font-bold ${theme.textPrimary}`}>
-                      {pricing ? (pricing.box_12kg_price || 4800).toLocaleString('nb-NO') : '4 800'}
+                      {pricing ? pricing.box_12kg_price.toLocaleString('nb-NO') : '...'}
                       <span className={`text-xl ${theme.textMuted} ml-1`}>{t.common.currency}</span>
                     </span>
                   </div>
                   <div className="flex items-baseline justify-between text-sm">
                     <span className={`${theme.textMuted} font-medium`}>{t.product.deposit50}</span>
                     <span className={`${theme.textPrimary} font-bold`}>
-                      {pricing ? Math.floor((pricing.box_12kg_price || 4800) * (pricing.deposit_percentage || 50) / 100).toLocaleString('nb-NO') : '2 400'} {t.common.currency}
+                      {pricing ? Math.floor(pricing.box_12kg_price * pricing.box_12kg_deposit_percentage / 100).toLocaleString('nb-NO') : '...'} {t.common.currency}
                     </span>
                   </div>
                   <div className="flex items-baseline justify-between text-sm">
                     <span className={`${theme.textMuted} font-medium`}>{t.product.balanceOnDelivery}</span>
                     <span className={`${theme.textPrimary} font-bold`}>
-                      {pricing ? Math.floor((pricing.box_12kg_price || 4800) * (100 - (pricing.deposit_percentage || 50)) / 100).toLocaleString('nb-NO') : '2 400'} {t.common.currency}
+                      {pricing ? (pricing.box_12kg_price - Math.floor(pricing.box_12kg_price * pricing.box_12kg_deposit_percentage / 100)).toLocaleString('nb-NO') : '...'} {t.common.currency}
                     </span>
                   </div>
                 </div>
