@@ -17,6 +17,7 @@ export async function GET(request: NextRequest) {
       .from('customer_messages')
       .select(`
         id,
+        status,
         last_viewed_at,
         message_replies (
           id,
@@ -33,36 +34,35 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ unreadCount: 0 });
     }
 
-    // Count messages that have new replies (replies created after last_viewed_at)
+    // Count messages with new admin replies OR open messages without replies yet
     let unreadCount = 0;
 
     if (messages && Array.isArray(messages)) {
       for (const message of messages) {
-        if (!message.message_replies || !Array.isArray(message.message_replies) || message.message_replies.length === 0) {
-          continue;
-        }
-
-        // Filter out internal replies (admin notes)
-        const publicReplies = message.message_replies.filter((r: any) => r && !r.is_internal);
+        const replies = message.message_replies || [];
+        const publicReplies = Array.isArray(replies) ? replies.filter((r: any) => r && !r.is_internal) : [];
         
-        if (publicReplies.length === 0) {
-          continue;
-        }
-
-        // If never viewed, or has replies after last viewed time, it's unread
-        if (!message.last_viewed_at) {
-          unreadCount++;
-        } else {
-          const lastViewed = new Date(message.last_viewed_at).getTime();
-          const hasNewReplies = publicReplies.some((reply: any) => {
-            if (!reply || !reply.created_at) return false;
-            const replyTime = new Date(reply.created_at).getTime();
-            return replyTime > lastViewed;
-          });
-
-          if (hasNewReplies) {
+        // Case 1: Message has admin replies
+        if (publicReplies.length > 0) {
+          // If never viewed, or has replies after last viewed time, it's unread
+          if (!message.last_viewed_at) {
             unreadCount++;
+          } else {
+            const lastViewed = new Date(message.last_viewed_at).getTime();
+            const hasNewReplies = publicReplies.some((reply: any) => {
+              if (!reply || !reply.created_at) return false;
+              const replyTime = new Date(reply.created_at).getTime();
+              return replyTime > lastViewed;
+            });
+
+            if (hasNewReplies) {
+              unreadCount++;
+            }
           }
+        } 
+        // Case 2: Open message without admin reply yet - count as unread
+        else if ((message as any).status === 'open' || (message as any).status === 'in_progress') {
+          unreadCount++;
         }
       }
     }
