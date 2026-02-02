@@ -56,7 +56,5 @@ export async function getPricingConfig(): Promise<PricingConfig> {
     console.error('Failed to fetch pricing config:', error);
     // Re-throw error - do not hide database issues with fallback values
     throw new Error('Unable to fetch pricing configuration from database');
-      fresh_delivery_fee: 500,
-    };
   }
 }
