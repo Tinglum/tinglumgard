@@ -445,135 +445,109 @@ export function MobileCheckout(props: MobileCheckoutProps) {
         </motion.div>
       )}
 
-      {/* Step 4: Delivery & Payment */}
+      {/* Step 4: Summary & Payment */}
       {step === 4 && (
         <motion.div
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
-          className="space-y-4"
+          className="space-y-6 px-4 py-8 pb-32"
         >
           <button
             onClick={() => setStep(3)}
-            className="text-white font-semibold text-sm mb-4"
-            style={{ textShadow: '0 2px 8px rgba(0,0,0,0.9)' }}
+            className="text-sm font-medium mb-4"
+            style={{ color: 'var(--farm-moss)' }}
           >
             ← Tilbake
           </button>
-          <h2
-            className="text-3xl font-bold text-white mb-6"
-            style={{ textShadow: '0 2px 15px rgba(0,0,0,0.9)' }}
-          >
-            Levering
+
+          <h2 className="text-2xl font-bold mb-2" style={{ color: 'var(--farm-earth)' }}>
+            Oppsummering
           </h2>
 
-          {/* Delivery Options */}
-          <div className="space-y-3">
-            {[
-              { type: 'farm' as const, name: 'Henting på gården', location: 'Tinglemsvegen 91, Namdalseid', price: 0 },
-              { type: 'trondheim' as const, name: 'Henting i Trondheim', location: 'Veita Mat AS, Jomfrugata', price: addonPrices?.trondheim || 200 },
-              { type: 'e6' as const, name: 'Levering langs E6', location: 'Stjørdal-Namsos', price: addonPrices?.e6 || 300 },
-            ].map((option) => (
-              <button
-                key={option.type}
-                onClick={() => setDeliveryType(option.type)}
-                className={`w-full glass-mobile rounded-2xl p-5 text-left ${
-                  deliveryType === option.type ? 'ring-2 ring-green-400' : ''
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex-1">
-                    <p
-                      className="font-bold text-lg text-white mb-1"
-                      style={{ textShadow: '0 2px 10px rgba(0,0,0,0.9)' }}
-                    >
-                      {option.name}
-                    </p>
-                    <p
-                      className="text-sm font-semibold text-white"
-                      style={{ textShadow: '0 2px 8px rgba(0,0,0,0.9)' }}
-                    >
-                      {option.location}
-                    </p>
-                  </div>
-                  <p
-                    className={`text-xl font-bold ${option.price === 0 ? 'text-green-400' : 'text-white'}`}
-                    style={{ textShadow: '0 2px 10px rgba(0,0,0,0.9)' }}
-                  >
-                    {option.price === 0 ? 'Gratis' : `+${option.price} kr`}
-                  </p>
-                </div>
-              </button>
-            ))}
-          </div>
-
-          {/* Fresh Delivery Option */}
-          {deliveryType === 'farm' && (
-            <button
-              onClick={() => setFreshDelivery(!freshDelivery)}
-              className={`w-full glass-mobile rounded-2xl p-5 text-left ${
-                freshDelivery ? 'ring-2 ring-green-400' : ''
-              }`}
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex-1">
-                  <p
-                    className="font-bold text-lg text-white mb-1"
-                    style={{ textShadow: '0 2px 10px rgba(0,0,0,0.9)' }}
-                  >
-                    Fersk levering (uke 50/51)
-                  </p>
-                  <p
-                    className="text-sm font-semibold text-white"
-                    style={{ textShadow: '0 2px 8px rgba(0,0,0,0.9)' }}
-                  >
-                    Motta kassen fersk (ikke frossen)
-                  </p>
-                </div>
-                <p
-                  className="text-xl font-bold text-white"
-                  style={{ textShadow: '0 2px 10px rgba(0,0,0,0.9)' }}
-                >
-                  +{addonPrices?.fresh || 500} kr
-                </p>
-              </div>
-            </button>
-          )}
-
-          {/* Price Summary */}
-          <div className="glass-mobile-strong rounded-3xl p-6 space-y-3">
-            <h3
-              className="text-xl font-bold text-white mb-4"
-              style={{ textShadow: '0 2px 10px rgba(0,0,0,0.9)' }}
-            >
-              {t.checkout.summary}
-            </h3>
-
-            <div className="flex justify-between text-white">
-              <span className="font-semibold" style={{ textShadow: '0 2px 8px rgba(0,0,0,0.9)' }}>{t.checkout.payNow}</span>
-              <span className="font-bold" style={{ textShadow: '0 2px 8px rgba(0,0,0,0.9)' }}>kr {baseDepositTotal.toLocaleString('nb-NO')}</span>
+          {/* Order Summary Card */}
+          <div className="card-mobile-dark p-6 space-y-4">
+            <div className="flex justify-between items-center">
+              <span style={{ color: 'var(--farm-snow)' }}>
+                {boxSize}kg kasse
+              </span>
+              <span className="font-semibold" style={{ color: 'var(--farm-snow)' }}>
+                {prices && prices[boxSize] ? `${prices[boxSize].total.toLocaleString('nb-NO')} kr` : '...'}
+              </span>
             </div>
 
-            {(referralDiscount > 0 || rebateDiscount > 0) && (
-              <div className="flex justify-between text-green-400">
-                <span className="font-semibold" style={{ textShadow: '0 2px 8px rgba(0,0,0,0.9)' }}>Rabatt</span>
-                <span className="font-bold" style={{ textShadow: '0 2px 8px rgba(0,0,0,0.9)' }}>-kr {(referralDiscount || rebateDiscount).toLocaleString('nb-NO')}</span>
+            <div className="flex justify-between items-center" style={{ color: 'rgba(244, 241, 232, 0.7)' }}>
+              <span>
+                {ribbeChoice === 'tynnribbe' && 'Tynnribbe'}
+                {ribbeChoice === 'familieribbe' && 'Familieribbe'}
+                {ribbeChoice === 'porchetta' && 'Porchetta'}
+                {ribbeChoice === 'butchers_choice' && 'Slakterens valg'}
+              </span>
+              <span>Inkludert</span>
+            </div>
+
+            {deliveryType !== 'farm' && (
+              <div className="flex justify-between items-center" style={{ color: 'rgba(244, 241, 232, 0.7)' }}>
+                <span>
+                  {deliveryType === 'trondheim' && 'Levering Trondheim'}
+                  {deliveryType === 'e6' && 'Henting E6'}
+                </span>
+                <span>
+                  {deliveryType === 'trondheim' && `${addonPrices?.trondheim || 200} kr`}
+                  {deliveryType === 'e6' && `${addonPrices?.e6 || 300} kr`}
+                </span>
               </div>
             )}
 
-            <div className="flex justify-between text-white">
-              <span className="font-semibold" style={{ textShadow: '0 2px 8px rgba(0,0,0,0.9)' }}>{t.checkout.payLater}</span>
-              <span className="font-bold" style={{ textShadow: '0 2px 8px rgba(0,0,0,0.9)' }}>kr {remainderTotal.toLocaleString('nb-NO')}</span>
-            </div>
+            {freshDelivery && (
+              <div className="flex justify-between items-center" style={{ color: 'rgba(244, 241, 232, 0.7)' }}>
+                <span>Fersk levering</span>
+                <span>{addonPrices?.fresh || 500} kr</span>
+              </div>
+            )}
 
-            <div className="border-t border-white/20 pt-3 flex justify-between">
-              <span className="text-2xl font-bold text-white" style={{ textShadow: '0 2px 10px rgba(0,0,0,0.9)' }}>{t.checkout.totalLabel}</span>
-              <span className="text-2xl font-bold text-white" style={{ textShadow: '0 2px 10px rgba(0,0,0,0.9)' }}>kr {totalPrice.toLocaleString('nb-NO')}</span>
+            {extraProducts.length > 0 && extraProducts.map(slug => {
+              const extra = availableExtras.find(e => e.slug === slug);
+              const quantity = extraQuantities[slug] || 1;
+              if (!extra) return null;
+              return (
+                <div key={slug} className="flex justify-between items-center" style={{ color: 'rgba(244, 241, 232, 0.7)' }}>
+                  <span>{extra.name_no} ({quantity}{extra.pricing_type === 'per_kg' ? 'kg' : 'stk'})</span>
+                  <span>{(extra.price_nok * quantity).toLocaleString('nb-NO')} kr</span>
+                </div>
+              );
+            })}
+
+            {/* Divider */}
+            <div className="border-t pt-4" style={{ borderColor: 'rgba(255, 255, 255, 0.2)' }}>
+              {(referralDiscount > 0 || rebateDiscount > 0) && (
+                <div className="flex justify-between mb-2" style={{ color: 'var(--status-success)' }}>
+                  <span>Rabatt</span>
+                  <span className="font-semibold">-{(referralDiscount || rebateDiscount).toLocaleString('nb-NO')} kr</span>
+                </div>
+              )}
+              
+              <div className="flex justify-between text-lg mb-2">
+                <span className="font-semibold" style={{ color: 'var(--farm-snow)' }}>Totalpris</span>
+                <span className="font-bold" style={{ color: 'var(--accent-gold)' }}>
+                  {totalPrice.toLocaleString('nb-NO')} kr
+                </span>
+              </div>
+              
+              <div className="flex justify-between text-sm">
+                <span style={{ color: 'rgba(244, 241, 232, 0.7)' }}>Forskudd (50%)</span>
+                <span style={{ color: 'var(--farm-snow)' }}>{depositTotal.toLocaleString('nb-NO')} kr</span>
+              </div>
+              
+              <div className="flex justify-between text-sm">
+                <span style={{ color: 'rgba(244, 241, 232, 0.7)' }}>Rest ved levering</span>
+                <span style={{ color: 'var(--farm-snow)' }}>{remainderTotal.toLocaleString('nb-NO')} kr</span>
+              </div>
             </div>
           </div>
 
           {/* Discount Codes */}
           {!rebateData && (
-            <div className="glass-mobile rounded-2xl p-4">
+            <div className="card-mobile p-4">
               <ReferralCodeInput
                 depositAmount={baseDepositTotal}
                 onCodeApplied={(data) => {
@@ -591,7 +565,7 @@ export function MobileCheckout(props: MobileCheckoutProps) {
           )}
 
           {!referralData && (
-            <div className="glass-mobile rounded-2xl p-4">
+            <div className="card-mobile p-4">
               <RebateCodeInput
                 depositAmount={baseDepositTotal}
                 boxSize={parseInt(boxSize)}
@@ -609,66 +583,58 @@ export function MobileCheckout(props: MobileCheckoutProps) {
           )}
 
           {/* Terms & Conditions */}
-          <div className="glass-mobile rounded-2xl p-5">
-            <Label className="flex items-start gap-3 cursor-pointer">
+          <div className="space-y-3">
+            <label className="flex items-start gap-3 cursor-pointer">
               <Checkbox
                 checked={agreedToDepositPolicy}
                 onCheckedChange={(checked) => setAgreedToDepositPolicy(checked as boolean)}
-                className="mt-1 bg-white/20 border-white/40"
+                className="mt-1"
+                style={{ accentColor: 'var(--farm-moss)' }}
               />
-              <span
-                className="text-sm font-semibold text-white leading-relaxed"
-                style={{ textShadow: '0 2px 8px rgba(0,0,0,0.9)' }}
-              >
-                <strong>Jeg forstår at depositumet ikke refunderes.</strong> Dette utløser produksjonsplanlegging.
+              <span className="text-sm leading-relaxed" style={{ color: 'var(--farm-bark)' }}>
+                <strong style={{ color: 'var(--farm-earth)' }}>Jeg forstår at forskuddet ikke refunderes.</strong> Dette utløser produksjonsplanlegging.
               </span>
-            </Label>
-          </div>
+            </label>
 
-          <div className="glass-mobile rounded-2xl p-5">
-            <Label className="flex items-start gap-3 cursor-pointer">
+            <label className="flex items-start gap-3 cursor-pointer">
               <Checkbox
                 checked={agreedToTerms}
                 onCheckedChange={(checked) => setAgreedToTerms(checked as boolean)}
-                className="mt-1 bg-white/20 border-white/40"
+                className="mt-1"
+                style={{ accentColor: 'var(--farm-moss)' }}
               />
-              <span
-                className="text-sm font-semibold text-white leading-relaxed"
-                style={{ textShadow: '0 2px 8px rgba(0,0,0,0.9)' }}
-              >
-                Jeg godtar <a href="/vilkar" className="underline">vilkårene</a>
+              <span className="text-sm leading-relaxed" style={{ color: 'var(--farm-bark)' }}>
+                Jeg godtar <a href="/vilkar" className="underline" style={{ color: 'var(--farm-moss)' }}>vilkårene</a>
               </span>
-            </Label>
+            </label>
           </div>
+        </motion.div>
+      )}
 
-          {/* Payment Button */}
+      {/* Sticky Footer with Payment Button */}
+      {step === 4 && (
+        <div className="fixed bottom-0 left-0 right-0 border-t p-4" style={{ backgroundColor: 'white', borderColor: 'var(--farm-snow)' }}>
           <button
             disabled={!agreedToTerms || !agreedToDepositPolicy || isProcessing}
             onClick={handleCheckout}
-            className="w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white font-bold text-lg py-5 rounded-2xl shadow-2xl flex items-center justify-center gap-3 disabled:opacity-50 disabled:bg-gray-500"
-            style={{ backgroundColor: isProcessing ? undefined : '#FF5B24' }}
+            className="w-full py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-3 disabled:opacity-50 touch-feedback"
+            style={{ 
+              backgroundColor: (!agreedToTerms || !agreedToDepositPolicy || isProcessing) ? 'var(--farm-bark)' : 'var(--farm-earth)',
+              color: 'var(--farm-snow)'
+            }}
           >
             {isProcessing ? (
               'Behandler...'
             ) : (
               <>
-                <span>Betal med</span>
-                <img
-                  src="/vipps-logo.svg"
-                  alt="Vipps"
-                  className="h-6 object-contain brightness-0 invert"
-                />
+                <span>Betal forskudd {depositTotal.toLocaleString('nb-NO')} kr</span>
               </>
             )}
           </button>
-
-          <p
-            className="text-xs text-center text-white"
-            style={{ textShadow: '0 2px 8px rgba(0,0,0,0.9)' }}
-          >
+          <div className="text-xs text-center mt-2" style={{ color: 'var(--farm-bark)' }}>
             Sikker betaling med Vipps
-          </p>
-        </motion.div>
+          </div>
+        </div>
       )}
     </div>
   );
