@@ -238,32 +238,8 @@ export async function POST(request: NextRequest) {
       // Don't fail the order, but log the error
     }
 
-    // Send order confirmation email (only if customer email is provided)
-    if (customerEmail && customerEmail !== 'pending@vipps.no') {
-      try {
-        const emailTemplate = getOrderConfirmationTemplate({
-          customerName: customerName || 'Kunde',
-        orderNumber: order.order_number,
-        boxSize,
-        ribbeChoice,
-        deliveryType,
-        freshDelivery,
-        extraProducts: extraProductsData.map(e => e.name),
-        depositAmount,
-        totalAmount,
-        language: 'no',
-      });
-
-        await sendEmail({
-          to: customerEmail,
-          subject: emailTemplate.subject,
-          html: emailTemplate.html,
-        });
-      } catch (emailError) {
-        logError('checkout-confirmation-email', emailError);
-        // Don't fail the order if email fails
-      }
-    }
+    // Note: Order confirmation email is sent AFTER payment completes in the Vipps webhook
+    // Not sending email here because the customer hasn't paid yet
 
     return NextResponse.json({
       success: true,

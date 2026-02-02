@@ -143,11 +143,22 @@ export async function POST(request: NextRequest) {
 
       console.log('Order status updated successfully');
 
-      // Send deposit confirmation email
+      // Send order confirmation email (after payment is complete)
       if (order && order.customer_email && order.customer_email !== 'pending@vipps.no') {
         try {
           const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://tinglum.no';
-          const depositConfirmationHtml = `
+          
+          // Build extras list
+          let extrasHtml = '';
+          if (order.extra_products && order.extra_products.length > 0) {
+            extrasHtml = '<p><strong>Tilleggsprodukter:</strong></p><ul>';
+            for (const extra of order.extra_products) {
+              extrasHtml += `<li>${extra.name} (${extra.quantity} ${extra.unit_type})</li>`;
+            }
+            extrasHtml += '</ul>';
+          }
+
+          const orderConfirmationHtml = `
 <!DOCTYPE html>
 <html>
 <head>
@@ -157,26 +168,45 @@ export async function POST(request: NextRequest) {
     .container { max-width: 600px; margin: 0 auto; padding: 20px; }
     .header { background: #2C1810; color: white; padding: 30px 20px; text-align: center; }
     .content { background: #ffffff; padding: 30px 20px; }
-    .amount { font-size: 24px; font-weight: 700; color: #2C1810; margin: 20px 0; }
+    .success { color: #28a745; font-size: 24px; font-weight: bold; margin: 20px 0; }
+    .order-details { background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0; }
+    .amount { font-size: 20px; font-weight: 700; color: #2C1810; margin: 10px 0; }
     .button { display: inline-block; background: #2C1810; color: white; padding: 14px 32px; text-decoration: none; border-radius: 6px; margin: 20px 0; }
+    ul { margin: 10px 0; }
   </style>
 </head>
 <body>
   <div class="container">
     <div class="header"><h1>Tinglum Gård</h1></div>
     <div class="content">
-      <h2>Depositum bekreftet! ✓</h2>
+      <div class="success">✓ Bestilling bekreftet!</div>
+      
       <p>Hei ${order.customer_name},</p>
-      <p>Vi har mottatt depositum for din bestilling <strong>${order.order_number}</strong>.</p>
-      <div class="amount">Depositum betalt: kr ${payment.amount_nok.toLocaleString('nb-NO')}</div>
-      <p>Din ${order.box_size}kg griskasse er nå reservert!</p>
+      
+      <p>Takk for din bestilling! Betalingen er mottatt og din griskasse er nå reservert.</p>
+      
+      <div class="order-details">
+        <p><strong>Bestillingsnummer:</strong> ${order.order_number}</p>
+        <p><strong>Griskasse:</strong> ${order.box_size}kg</p>
+        <p><strong>Ribbe:</strong> ${order.ribbe_choice}</p>
+        <p><strong>Leveringsmåte:</strong> ${order.delivery_type === 'pickup_farm' ? 'Henting på gård' : order.delivery_type === 'pickup_e6' ? 'Henting ved E6' : 'Levering Trondheim'}</p>
+        ${extrasHtml}
+      </div>
+
+      <div class="amount">Totalt: kr ${order.total_amount.toLocaleString('nb-NO')}</div>
+      <div class="amount" style="font-size: 16px;">Forskudd betalt: kr ${payment.amount_nok.toLocaleString('nb-NO')}</div>
+      <div class="amount" style="font-size: 16px;">Restbetaling: kr ${order.remainder_amount.toLocaleString('nb-NO')}</div>
+
       <p><strong>Hva skjer videre?</strong></p>
       <ul>
-        <li>Du vil motta en påminnelse om restbetaling (kr ${order.remainder_amount.toLocaleString('nb-NO')}) ca. 2 uker før henting</li>
-        <li>Du kan se og administrere din bestilling på <a href="${appUrl}/min-side">Min Side</a></li>
-        <li>Vi sender beskjed når bestillingen din er klar for henting</li>
+        <li>Du får påminnelse om restbetaling ca. 2 uker før henting</li>
+        <li>Vi sender beskjed når griskassen er klar for henting</li>
+        <li>Du kan se din bestilling på <a href="${appUrl}/min-side">Min Side</a></li>
       </ul>
-      <p>Vennlig hilsen,<br>Tinglum Gård</p>
+
+      <p>Har du spørsmål? Send oss en melding på <a href="${appUrl}/min-side">Min Side</a> eller svar på denne e-posten.</p>
+
+      <p>Vennlig hilsen,<br><strong>Tinglum Gård</strong></p>
     </div>
   </div>
 </body>
@@ -185,14 +215,14 @@ export async function POST(request: NextRequest) {
 
           const depositEmailResult = await sendEmail({
             to: order.customer_email,
-            subject: `Depositum bekreftet - ${order.order_number}`,
-            html: depositConfirmationHtml,
+            subject: `Bestilling bekreftet - ${order.order_number}`,
+            html: orderConfirmationHtml,
           });
 
           if (depositEmailResult.success) {
-            console.log('Deposit confirmation email sent to:', order.customer_email, 'ID:', depositEmailResult.id);
+            console.log('Order confirmation email sent to:', order.customer_email, 'ID:', depositEmailResult.id);
           } else {
-            console.error('Failed to send deposit confirmation email:', depositEmailResult.error);
+            console.error('Failed to send order confirmation email:', depositEmailResult.error);
           }
         } catch (emailError) {
           logError('vipps-webhook-deposit-email', emailError);

@@ -356,7 +356,7 @@ export function getAdminOrderNotificationTemplate(params: AdminOrderNotification
     </div>
     <div class="content">
       <h2>Ordre ${params.orderNumber}</h2>
-      <p><strong>Status:</strong> Depositum betalt ✓</p>
+      <p><strong>Status:</strong> Forskudd betalt ✓</p>
       
       <div class="section">
         <h3>Kundeinformasjon</h3>
@@ -378,13 +378,13 @@ export function getAdminOrderNotificationTemplate(params: AdminOrderNotification
       <div class="section">
         <h3>Betalingsoversikt</h3>
         ${discountInfo}
-        <p class="amount">Depositum betalt: kr ${params.depositAmount.toLocaleString('nb-NO')}</p>
-        <p class="amount">Restbeløp: kr ${params.remainderAmount.toLocaleString('nb-NO')}</p>
+        <p class="amount">Forskudd betalt: kr ${params.depositAmount.toLocaleString('nb-NO')}</p>
+        <p class="amount">Restbetaling: kr ${params.remainderAmount.toLocaleString('nb-NO')}</p>
         <p class="amount">Totalt: kr ${params.totalAmount.toLocaleString('nb-NO')}</p>
       </div>
 
       <p style="margin-top: 30px; padding: 15px; background: #e8f5e9; border-radius: 4px;">
-        <strong>Neste steg:</strong> Kunden vil motta påminnelse om restbetaling 2 uker før henting.
+        <strong>Neste steg:</strong> Kunden får påminnelse om restbetaling 2 uker før henting.
       </p>
     </div>
   </div>
