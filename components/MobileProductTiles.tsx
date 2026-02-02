@@ -42,8 +42,8 @@ export function MobileProductTiles() {
   const packages = packageData.map(pkg => ({
     ...pkg,
     price: pkg.size === 8 
-      ? (pricing ? (pricing.box_8kg_price || 3500).toLocaleString('nb-NO') : '3 500')
-      : (pricing ? (pricing.box_12kg_price || 4800).toLocaleString('nb-NO') : '4 800')
+      ? (pricing ? pricing.box_8kg_price.toLocaleString('nb-NO') : '...')
+      : (pricing ? pricing.box_12kg_price.toLocaleString('nb-NO') : '...')
   }));
   return (
     <section className="relative py-16 px-4">
