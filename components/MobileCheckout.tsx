@@ -148,14 +148,14 @@ export function MobileCheckout(props: MobileCheckoutProps) {
         <motion.div
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
-          className="space-y-4"
+          className="space-y-4 px-4 py-8"
         >
-          <h2
-            className="text-3xl font-bold text-white mb-6"
-            style={{ textShadow: '0 2px 15px rgba(0,0,0,0.9)' }}
-          >
+          <h2 className="text-2xl font-bold mb-2" style={{ color: 'var(--farm-earth)' }}>
             Velg kassestørrelse
           </h2>
+          <p className="text-base mb-6" style={{ color: 'var(--farm-bark)' }}>
+            Velg den størrelsen som passer for husstanden din
+          </p>
 
           {(['8', '12'] as const).map((size) => (
             <motion.button
@@ -165,62 +165,58 @@ export function MobileCheckout(props: MobileCheckoutProps) {
                 setStep(2);
               }}
               whileTap={{ scale: 0.98 }}
-              className={`w-full glass-mobile rounded-3xl p-6 text-left ${
-                boxSize === size ? 'ring-2 ring-green-400' : ''
+              className={`w-full card-mobile p-6 text-left transition-all ${
+                boxSize === size ? 'ring-2' : ''
               }`}
+              style={{
+                borderColor: boxSize === size ? 'var(--farm-moss)' : 'transparent',
+              }}
             >
               <div className="flex items-start justify-between mb-4">
                 <div>
-                  <p
-                    className="text-6xl font-bold text-white"
-                    style={{ textShadow: '0 2px 15px rgba(0,0,0,0.9)' }}
-                  >
-                    {size}
-                    <span className="text-2xl ml-2">kg</span>
-                  </p>
-                  <p
-                    className="text-sm font-semibold text-white mt-2"
-                    style={{ textShadow: '0 2px 8px rgba(0,0,0,0.9)' }}
-                  >
+                  <div className="text-4xl font-bold mb-1" style={{ color: 'var(--farm-earth)' }}>
+                    {size} <span className="text-xl" style={{ color: 'var(--farm-bark)' }}>kg</span>
+                  </div>
+                  <div className="text-sm" style={{ color: 'var(--farm-bark)' }}>
                     {size === '8' ? '2-3 personer' : '4-6 personer'}
-                  </p>
+                  </div>
                 </div>
                 {prices && prices[size].total > 0 ? (
-                  <p
-                    className="text-3xl font-bold text-white"
-                    style={{ textShadow: '0 2px 15px rgba(0,0,0,0.9)' }}
-                  >
-                    kr {prices[size].total.toLocaleString('nb-NO')}
-                  </p>
+                  <div className="text-right">
+                    <div className="text-2xl font-bold" style={{ color: 'var(--farm-earth)' }}>
+                      {prices[size].total.toLocaleString('nb-NO')} kr
+                    </div>
+                    <div className="text-xs mt-1" style={{ color: 'var(--farm-bark)' }}>
+                      Forskudd: {Math.floor(prices[size].total * 0.5).toLocaleString('nb-NO')} kr
+                    </div>
+                  </div>
                 ) : (
-                  <p
-                    className="text-xl text-white/70 animate-pulse"
-                    style={{ textShadow: '0 2px 8px rgba(0,0,0,0.9)' }}
-                  >
+                  <div className="text-lg pulse-loading" style={{ color: 'var(--farm-bark)' }}>
                     Laster...
+                  </div>
+                )}
                   </p>
                 )}
               </div>
 
-              {boxContents[size] && (
-                <div className="space-y-2">
-                  {boxContents[size].slice(0, 4).map((item, i) => (
-                    <div key={i} className="flex items-center gap-2">
-                      <Check className="w-4 h-4 text-green-400 flex-shrink-0" />
-                      <span
-                        className="text-sm font-semibold text-white"
-                        style={{ textShadow: '0 2px 8px rgba(0,0,0,0.9)' }}
-                      >
+              {boxSize === size && boxContents[size] && (
+                <div className="pt-4 border-t space-y-2" style={{ borderColor: 'var(--farm-snow)' }}>
+                  <div className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: 'var(--farm-bark)' }}>
+                    I kassen:
+                  </div>
+                  {boxContents[size].slice(0, 6).map((item, i) => (
+                    <div key={i} className="flex items-start gap-2">
+                      <Check className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: 'var(--status-success)' }} />
+                      <span className="text-sm" style={{ color: 'var(--farm-bark)' }}>
                         {item}
                       </span>
                     </div>
                   ))}
-                  <p
-                    className="text-xs font-semibold text-white/80 ml-6"
-                    style={{ textShadow: '0 2px 8px rgba(0,0,0,0.9)' }}
-                  >
-                    + {boxContents[size].length - 4} mer
-                  </p>
+                  {boxContents[size].length > 6 && (
+                    <p className="text-xs ml-6" style={{ color: 'var(--farm-bark)' }}>
+                      + {boxContents[size].length - 6} mer
+                    </p>
+                  )}
                 </div>
               )}
             </motion.button>
