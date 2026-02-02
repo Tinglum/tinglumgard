@@ -195,8 +195,6 @@ export function MobileCheckout(props: MobileCheckoutProps) {
                     Laster...
                   </div>
                 )}
-                  </p>
-                )}
               </div>
 
               {boxSize === size && boxContents[size] && (
@@ -442,6 +440,8 @@ export function MobileCheckout(props: MobileCheckoutProps) {
           >
             Fortsett <ChevronRight className="w-5 h-5" />
           </button>
+            </div>
+          </div>
         </motion.div>
       )}
 
@@ -608,33 +608,31 @@ export function MobileCheckout(props: MobileCheckoutProps) {
               </span>
             </label>
           </div>
-        </motion.div>
-      )}
 
-      {/* Sticky Footer with Payment Button */}
-      {step === 4 && (
-        <div className="fixed bottom-0 left-0 right-0 border-t p-4" style={{ backgroundColor: 'white', borderColor: 'var(--farm-snow)' }}>
-          <button
-            disabled={!agreedToTerms || !agreedToDepositPolicy || isProcessing}
-            onClick={handleCheckout}
-            className="w-full py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-3 disabled:opacity-50 touch-feedback"
-            style={{ 
-              backgroundColor: (!agreedToTerms || !agreedToDepositPolicy || isProcessing) ? 'var(--farm-bark)' : 'var(--farm-earth)',
-              color: 'var(--farm-snow)'
-            }}
-          >
-            {isProcessing ? (
-              'Behandler...'
-            ) : (
-              <>
-                <span>Betal forskudd {depositTotal.toLocaleString('nb-NO')} kr</span>
-              </>
-            )}
-          </button>
-          <div className="text-xs text-center mt-2" style={{ color: 'var(--farm-bark)' }}>
-            Sikker betaling med Vipps
+          {/* Sticky Footer with Payment Button */}
+          <div className="fixed bottom-0 left-0 right-0 border-t p-4" style={{ backgroundColor: 'white', borderColor: 'var(--farm-snow)' }}>
+            <button
+              disabled={!agreedToTerms || !agreedToDepositPolicy || isProcessing}
+              onClick={handleCheckout}
+              className="w-full py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-3 disabled:opacity-50 touch-feedback"
+              style={{ 
+                backgroundColor: (!agreedToTerms || !agreedToDepositPolicy || isProcessing) ? 'var(--farm-bark)' : 'var(--farm-earth)',
+                color: 'var(--farm-snow)'
+              }}
+            >
+              {isProcessing ? (
+                'Behandler...'
+              ) : (
+                <>
+                  <span>Betal forskudd {depositTotal.toLocaleString('nb-NO')} kr</span>
+                </>
+              )}
+            </button>
+            <div className="text-xs text-center mt-2" style={{ color: 'var(--farm-bark)' }}>
+              Sikker betaling med Vipps
+            </div>
           </div>
-        </div>
+        </motion.div>
       )}
     </div>
   );
