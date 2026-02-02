@@ -772,7 +772,7 @@ export function AdminMessagingPanel() {
                           "text-xs font-semibold mb-1",
                           isFromCustomer ? "text-blue-600" : "text-green-600"
                         )}>
-                          {isFromCustomer ? reply.admin_name : (reply.admin_name || 'Tinglum Gård')}
+                          {isFromCustomer ? reply.admin_name : 'Tinglum Gård'}
                         </p>
                         <p className="text-gray-800">{reply.reply_text}</p>
                       </div>
