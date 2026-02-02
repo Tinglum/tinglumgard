@@ -118,7 +118,7 @@ export function MobileOppdelingsplan() {
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="glass-mobile-strong rounded-3xl p-6 mb-6"
+        className="glass-mobile-strong rounded-3xl px-6 py-3 mb-6"
       >
         <img
           src="/pig-diagram3.png"
@@ -126,7 +126,7 @@ export function MobileOppdelingsplan() {
           className="w-full h-auto"
         />
         <p
-          className="text-xs text-center text-white mt-4"
+          className="text-xs text-center text-white mt-2"
           style={{ textShadow: '0 2px 8px rgba(0,0,0,0.9)' }}
         >
           Se detaljert informasjon om hver del nedenfor
@@ -146,7 +146,7 @@ export function MobileOppdelingsplan() {
           Rask oversikt
         </h2>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-4 items-start">
           <div className="bg-green-500/20 rounded-2xl p-4 border-2 border-green-400/30">
             <Check className="w-6 h-6 text-green-400 mb-2" />
             <p
@@ -168,7 +168,7 @@ export function MobileOppdelingsplan() {
             </ul>
           </div>
 
-          <div className="bg-blue-500/20 rounded-2xl p-4 border-2 border-blue-400/30">
+          <div className="bg-blue-500/20 rounded-2xl p-4 border-2 border-blue-400/30 max-h-96 overflow-y-auto">
             <Plus className="w-6 h-6 text-blue-400 mb-2" />
             <p
               className="text-xs font-bold text-white mb-1"
