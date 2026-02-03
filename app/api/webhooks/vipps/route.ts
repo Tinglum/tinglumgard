@@ -129,10 +129,13 @@ export async function POST(request: NextRequest) {
 
     console.log('Found payment:', payment.id, 'type:', payment.payment_type);
 
-    // Mark payment as completed
+    // Mark payment as completed with timestamp
     const { error: updErr } = await supabaseAdmin
       .from("payments")
-      .update({ status: "completed" })
+      .update({ 
+        status: "completed",
+        paid_at: new Date().toISOString()
+      })
       .eq("id", payment.id);
 
     if (updErr) {
@@ -140,7 +143,7 @@ export async function POST(request: NextRequest) {
       throw updErr;
     }
 
-    console.log('Payment marked as completed');
+    console.log('Payment marked as completed with timestamp');
 
     // Fetch the order details for email notification
     const { data: order, error: orderFetchErr } = await supabaseAdmin
