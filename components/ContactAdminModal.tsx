@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { X, MessageSquare, Send, Mail, Phone } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 interface ContactAdminModalProps {
   isOpen: boolean;
@@ -17,12 +18,17 @@ interface ContactAdminModalProps {
 export function ContactAdminModal({ isOpen, onClose, orderNumber, orderDetails }: ContactAdminModalProps) {
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
+  const { toast } = useToast();
 
   if (!isOpen) return null;
 
   async function handleSend() {
     if (!message.trim()) {
-      alert('Vennligst skriv en melding');
+      toast({
+        title: 'Tom melding',
+        description: 'Vennligst skriv en melding',
+        variant: 'destructive'
+      });
       return;
     }
 
@@ -39,15 +45,26 @@ export function ContactAdminModal({ isOpen, onClose, orderNumber, orderDetails }
       });
 
       if (response.ok) {
-        alert('Meldingen din er sendt! Vi kontakter deg snart.');
+        toast({
+          title: 'Melding sendt',
+          description: 'Vi kontakter deg snart.'
+        });
         setMessage('');
         onClose();
       } else {
-        alert('Kunne ikke sende melding. Prøv igjen senere.');
+        toast({
+          title: 'Feil',
+          description: 'Kunne ikke sende melding. Prøv igjen senere.',
+          variant: 'destructive'
+        });
       }
     } catch (error) {
       console.error('Error sending message:', error);
-      alert('Kunne ikke sende melding. Prøv igjen senere.');
+      toast({
+        title: 'Feil',
+        description: 'Kunne ikke sende melding. Prøv igjen senere.',
+        variant: 'destructive'
+      });
     } finally {
       setSending(false);
     }

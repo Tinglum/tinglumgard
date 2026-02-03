@@ -50,7 +50,9 @@
       "Bash(psql:*)",
       "Bash(tee:*)",
       "Bash(npx next build:*)",
-      "Bash(git pull:*)"
+      "Bash(git pull:*)",
+      "Bash(git clone:*)",
+      "Bash(git sparse-checkout:*)"
     ]
   }
 }

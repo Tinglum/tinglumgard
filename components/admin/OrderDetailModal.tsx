@@ -6,6 +6,7 @@ import { X, Package, User, Mail, Phone, MapPin, CreditCard, Calendar, FileText, 
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { useToast } from '@/hooks/use-toast';
 
 interface Payment {
   id: string;
@@ -54,6 +55,7 @@ export function OrderDetailModal({
   onStatusChange,
   onSaveNotes,
 }: OrderDetailModalProps) {
+  const { toast } = useToast();
   const [editingNotes, setEditingNotes] = useState(false);
   const [adminNotes, setAdminNotes] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('');
@@ -123,14 +125,24 @@ export function OrderDetailModal({
       const result = await response.json();
 
       if (response.ok && result.synced) {
-        alert('Beløp synkronisert! Oppdater siden for å se endringene.');
+        toast({
+          title: 'Beløp synkronisert',
+          description: 'Oppdater siden for å se endringene.'
+        });
         window.location.reload();
       } else {
-        alert(result.message || 'Ingen endringer nødvendig');
+        toast({
+          title: 'Info',
+          description: result.message || 'Ingen endringer nødvendig'
+        });
       }
     } catch (error) {
       console.error('Error syncing amounts:', error);
-      alert('Kunne ikke synkronisere beløp');
+      toast({
+        title: 'Feil',
+        description: 'Kunne ikke synkronisere beløp',
+        variant: 'destructive'
+      });
     } finally {
       setSyncing(false);
     }

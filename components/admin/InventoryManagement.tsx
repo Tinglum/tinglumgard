@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Package, AlertTriangle, TrendingDown, TrendingUp, Save, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
 
 interface InventoryData {
   max_kg: number;
@@ -19,6 +20,7 @@ interface InventoryData {
 }
 
 export function InventoryManagement() {
+  const { toast } = useToast();
   const [inventory, setInventory] = useState<InventoryData | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -44,7 +46,11 @@ export function InventoryManagement() {
 
   async function updateMaxKg() {
     if (!maxKg || maxKg < 0) {
-      alert('Vennligst oppgi en gyldig mengde');
+      toast({
+        title: 'Ugyldig verdi',
+        description: 'Vennligst oppgi en gyldig mengde',
+        variant: 'destructive'
+      });
       return;
     }
 
@@ -58,13 +64,24 @@ export function InventoryManagement() {
 
       if (response.ok) {
         await loadInventory();
-        alert('Maksimal mengde oppdatert!');
+        toast({
+          title: 'Oppdatert',
+          description: 'Maksimal mengde ble oppdatert'
+        });
       } else {
-        alert('Kunne ikke oppdatere mengde');
+        toast({
+          title: 'Feil',
+          description: 'Kunne ikke oppdatere mengde',
+          variant: 'destructive'
+        });
       }
     } catch (error) {
       console.error('Error updating max kg:', error);
-      alert('Kunne ikke oppdatere mengde');
+      toast({
+        title: 'Feil',
+        description: 'Kunne ikke oppdatere mengde',
+        variant: 'destructive'
+      });
     } finally {
       setSaving(false);
     }

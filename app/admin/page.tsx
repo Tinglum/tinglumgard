@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useToast } from '@/hooks/use-toast';
 import {
   LayoutDashboard,
   ShoppingCart,
@@ -72,6 +73,7 @@ interface Order {
 
 export default function AdminPage() {
   const { t } = useLanguage();
+  const { toast } = useToast();
 
   // Authentication
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -228,11 +230,19 @@ export default function AdminPage() {
         if (activeTab === 'dashboard') await loadDashboard();
         setShowOrderDetail(false);
       } else {
-        alert('Kunne ikke oppdatere status');
+        toast({
+          title: 'Feil',
+          description: 'Kunne ikke oppdatere status',
+          variant: 'destructive'
+        });
       }
     } catch (error) {
       console.error('Error updating status:', error);
-      alert('Kunne ikke oppdatere status');
+      toast({
+        title: 'Feil',
+        description: 'Kunne ikke oppdatere status',
+        variant: 'destructive'
+      });
     }
   }
 
@@ -252,11 +262,19 @@ export default function AdminPage() {
           setSelectedOrder({ ...updatedOrder, admin_notes: notes });
         }
       } else {
-        alert('Kunne ikke lagre notater');
+        toast({
+          title: 'Feil',
+          description: 'Kunne ikke lagre notater',
+          variant: 'destructive'
+        });
       }
     } catch (error) {
       console.error('Error saving notes:', error);
-      alert('Kunne ikke lagre notater');
+      toast({
+        title: 'Feil',
+        description: 'Kunne ikke lagre notater',
+        variant: 'destructive'
+      });
     }
   }
 
@@ -280,7 +298,11 @@ export default function AdminPage() {
 
   async function handleBulkStatusUpdate(newStatus: string) {
     if (selectedOrders.size === 0) {
-      alert('Ingen ordrer valgt');
+      toast({
+        title: 'Ingen ordrer valgt',
+        description: 'Velg minst én ordre for å fortsette',
+        variant: 'destructive'
+      });
       return;
     }
 
@@ -303,13 +325,24 @@ export default function AdminPage() {
       if (response.ok) {
         await loadOrders();
         setSelectedOrders(new Set());
-        alert(`${selectedOrders.size} ordrer oppdatert`);
+        toast({
+          title: 'Ordrer oppdatert',
+          description: `${selectedOrders.size} ordrer ble oppdatert`
+        });
       } else {
-        alert('Kunne ikke oppdatere ordrer');
+        toast({
+          title: 'Feil',
+          description: 'Kunne ikke oppdatere ordrer',
+          variant: 'destructive'
+        });
       }
     } catch (error) {
       console.error('Bulk update error:', error);
-      alert('Kunne ikke oppdatere ordrer');
+      toast({
+        title: 'Feil',
+        description: 'Kunne ikke oppdatere ordrer',
+        variant: 'destructive'
+      });
     } finally {
       setBulkActionLoading(false);
     }
@@ -317,7 +350,11 @@ export default function AdminPage() {
 
   async function handleBulkLock() {
     if (selectedOrders.size === 0) {
-      alert('Ingen ordrer valgt');
+      toast({
+        title: 'Ingen ordrer valgt',
+        description: 'Velg minst én ordre for å låse',
+        variant: 'destructive'
+      });
       return;
     }
 
@@ -339,13 +376,24 @@ export default function AdminPage() {
       if (response.ok) {
         await loadOrders();
         setSelectedOrders(new Set());
-        alert(`${selectedOrders.size} ordrer låst`);
+        toast({
+          title: 'Ordrer låst',
+          description: `${selectedOrders.size} ordrer ble låst`
+        });
       } else {
-        alert('Kunne ikke låse ordrer');
+        toast({
+          title: 'Feil',
+          description: 'Kunne ikke låse ordrer',
+          variant: 'destructive'
+        });
       }
     } catch (error) {
       console.error('Bulk lock error:', error);
-      alert('Kunne ikke låse ordrer');
+      toast({
+        title: 'Feil',
+        description: 'Kunne ikke låse ordrer',
+        variant: 'destructive'
+      });
     } finally {
       setBulkActionLoading(false);
     }
@@ -369,13 +417,21 @@ export default function AdminPage() {
       document.body.removeChild(a);
     } catch (error) {
       console.error('Export error:', error);
-      alert('Kunne ikke eksportere CSV');
+      toast({
+        title: 'Feil',
+        description: 'Kunne ikke eksportere CSV',
+        variant: 'destructive'
+      });
     }
   }
 
   async function handleExportProduction() {
     if (selectedOrders.size === 0) {
-      alert('Velg ordrer å eksportere');
+      toast({
+        title: 'Ingen ordrer valgt',
+        description: 'Velg ordrer å eksportere',
+        variant: 'destructive'
+      });
       return;
     }
 
@@ -403,7 +459,11 @@ export default function AdminPage() {
       document.body.removeChild(a);
     } catch (error) {
       console.error('Export error:', error);
-      alert('Kunne ikke eksportere produksjonsplan');
+      toast({
+        title: 'Feil',
+        description: 'Kunne ikke eksportere produksjonsplan',
+        variant: 'destructive'
+      });
     }
   }
 

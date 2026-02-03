@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Mail, Send, FileText, History } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 interface EmailTemplate {
   id: string;
@@ -16,6 +17,7 @@ interface EmailTemplate {
 }
 
 export function CommunicationCenter() {
+  const { toast } = useToast();
   const [templates, setTemplates] = useState<EmailTemplate[]>([]);
   const [selectedTemplate, setSelectedTemplate] = useState<EmailTemplate | null>(null);
   const [subject, setSubject] = useState('');
@@ -74,14 +76,25 @@ export function CommunicationCenter() {
       const result = await response.json();
 
       if (response.ok) {
-        alert(`E-post sendt til ${result.sent} av ${result.total_customers} kunder!\n${result.failed > 0 ? `${result.failed} feilet.` : ''}`);
+        toast({
+          title: 'E-post sendt',
+          description: `Sendt til ${result.sent} av ${result.total_customers} kunder${result.failed > 0 ? `. ${result.failed} feilet.` : ''}`
+        });
         clearForm();
       } else {
-        alert(`Feil ved sending: ${result.error || 'Ukjent feil'}`);
+        toast({
+          title: 'Feil ved sending',
+          description: result.error || 'Ukjent feil',
+          variant: 'destructive'
+        });
       }
     } catch (error) {
       console.error('Error sending emails:', error);
-      alert('Kunne ikke sende e-poster. Se konsollen for detaljer.');
+      toast({
+        title: 'Feil',
+        description: 'Kunne ikke sende e-poster',
+        variant: 'destructive'
+      });
     } finally {
       setSending(false);
     }

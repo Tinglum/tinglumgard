@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { GlassCard } from './GlassCard';
+import { useToast } from '@/hooks/use-toast';
 
 interface ProductCardProps {
   title: string;
@@ -23,6 +24,7 @@ interface ProductCardProps {
 
 export function ProductCard({ title, price, depositLabel, remainderLabel, boxesLeft, isLowStock, isSoldOut, href }: ProductCardProps) {
   const { t } = useLanguage();
+  const { toast } = useToast();
   const [showWaitlistDialog, setShowWaitlistDialog] = useState(false);
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
@@ -50,11 +52,19 @@ export function ProductCard({ title, price, depositLabel, remainderLabel, boxesL
         }, 2000);
       } else {
         const data = await response.json();
-        alert(data.error || 'Noe gikk galt');
+        toast({
+          title: 'Feil',
+          description: data.error || 'Noe gikk galt',
+          variant: 'destructive'
+        });
       }
     } catch (error) {
       console.error('Waitlist error:', error);
-      alert('Noe gikk galt. Vennligst prøv igjen.');
+      toast({
+        title: 'Feil',
+        description: 'Noe gikk galt. Vennligst prøv igjen.',
+        variant: 'destructive'
+      });
     } finally {
       setIsSubmitting(false);
     }

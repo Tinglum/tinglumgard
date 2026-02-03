@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { X, Package, Truck, Snowflake, Save } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
 
 interface OrderModificationModalProps {
   order: any;
@@ -15,6 +16,7 @@ interface OrderModificationModalProps {
 }
 
 export function OrderModificationModal({ order, isOpen, onClose, onSave }: OrderModificationModalProps) {
+  const { toast } = useToast();
   const [boxSize, setBoxSize] = useState(order.box_size);
   const [ribbeChoice, setRibbeChoice] = useState(order.ribbe_choice);
   const [deliveryType, setDeliveryType] = useState(order.delivery_type);
@@ -44,7 +46,11 @@ export function OrderModificationModal({ order, isOpen, onClose, onSave }: Order
       onClose();
     } catch (error) {
       console.error('Failed to save modifications:', error);
-      alert('Kunne ikke lagre endringer. Prøv igjen.');
+      toast({
+        title: 'Feil',
+        description: 'Kunne ikke lagre endringer. Prøv igjen.',
+        variant: 'destructive'
+      });
     } finally {
       setSaving(false);
     }

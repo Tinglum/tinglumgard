@@ -13,12 +13,14 @@ import { Input } from '@/components/ui/input';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Check, ChevronRight } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 export default function CheckoutPage() {
   const { t } = useLanguage();
   const { getThemeClasses } = useTheme();
   const theme = getThemeClasses();
   const searchParams = useSearchParams();
+  const { toast } = useToast();
   const [step, setStep] = useState(1);
   const [boxSize, setBoxSize] = useState<'8' | '12' | ''>('');
   const [ribbeChoice, setRibbeChoice] = useState<'tynnribbe' | 'familieribbe' | 'porchetta' | 'butchers_choice' | ''>('butchers_choice');
@@ -137,22 +139,38 @@ export default function CheckoutPage() {
             console.error('Failed to create payment:', paymentData.error);
             setOrderConfirmed(true);
             setOrderId(orderId);
-            alert('Ordre opprettet, men betaling kunne ikke startes. Vennligst kontakt oss.');
+            toast({
+              title: 'Ordre opprettet',
+              description: 'Betaling kunne ikke startes automatisk. Vennligst kontakt oss.',
+              variant: 'destructive'
+            });
           }
         } catch (paymentError) {
           console.error('Payment creation failed:', paymentError);
           // Fallback: show order confirmation even if payment fails
           setOrderConfirmed(true);
           setOrderId(orderId);
-          alert('Ordre opprettet, men betaling kunne ikke startes. Vennligst kontakt oss.');
+          toast({
+            title: 'Ordre opprettet',
+            description: 'Betaling kunne ikke startes automatisk. Vennligst kontakt oss.',
+            variant: 'destructive'
+          });
         }
       } else {
-        alert('Noe gikk galt. Vennligst prøv igjen.');
+        toast({
+          title: 'Noe gikk galt',
+          description: 'Kunne ikke fullføre bestillingen. Vennligst prøv igjen.',
+          variant: 'destructive'
+        });
         setIsProcessing(false);
       }
     } catch (error) {
       console.error('Checkout failed:', error);
-      alert('Noe gikk galt. Vennligst prøv igjen.');
+      toast({
+        title: 'Noe gikk galt',
+        description: 'Kunne ikke fullføre bestillingen. Vennligst prøv igjen.',
+        variant: 'destructive'
+      });
       setIsProcessing(false);
     }
   }

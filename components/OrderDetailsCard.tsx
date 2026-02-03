@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useToast } from '@/hooks/use-toast';
 import {
   Package,
   Calendar,
@@ -74,6 +75,7 @@ interface OrderDetailsCardProps {
 export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: OrderDetailsCardProps) {
   const { getThemeClasses } = useTheme();
   const theme = getThemeClasses();
+  const { toast } = useToast();
 
   const [showExtrasModal, setShowExtrasModal] = useState(false);
   const [showModificationModal, setShowModificationModal] = useState(false);
@@ -167,7 +169,11 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
       }
     } catch (error) {
       console.error('Error adding extras:', error);
-      alert('Kunne ikke legge til ekstra produkter. Prøv igjen.');
+      toast({
+        title: 'Feil',
+        description: 'Kunne ikke legge til ekstra produkter. Prøv igjen.',
+        variant: 'destructive'
+      });
     } finally {
       setAddingExtras(false);
     }
@@ -232,11 +238,18 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
       if (!response.ok) throw new Error('Failed to reorder');
 
       const data = await response.json();
-      alert(`Ny ordre opprettet! Ordrenummer: ${data.orderNumber}`);
+      toast({
+        title: 'Ny ordre opprettet',
+        description: `Ordrenummer: ${data.orderNumber}`
+      });
       onRefresh();
     } catch (error) {
       console.error('Error reordering:', error);
-      alert('Kunne ikke opprette ny ordre. Prøv igjen.');
+      toast({
+        title: 'Feil',
+        description: 'Kunne ikke opprette ny ordre. Prøv igjen.',
+        variant: 'destructive'
+      });
     } finally {
       setReordering(false);
     }

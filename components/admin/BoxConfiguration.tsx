@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Package, Plus, Trash2, Save, Edit3, Check, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
 
 interface BoxItem {
   id: string;
@@ -25,6 +26,7 @@ interface BoxConfig {
 }
 
 export function BoxConfiguration() {
+  const { toast } = useToast();
   const [boxes, setBoxes] = useState<BoxConfig[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -74,13 +76,24 @@ export function BoxConfiguration() {
       if (response.ok) {
         await loadBoxConfigs();
         setEditingBox(null);
-        alert('Bokskonfigurasjon lagret!');
+        toast({
+          title: 'Lagret',
+          description: 'Bokskonfigurasjon ble lagret'
+        });
       } else {
-        alert('Kunne ikke lagre bokskonfigurasjon');
+        toast({
+          title: 'Feil',
+          description: 'Kunne ikke lagre bokskonfigurasjon',
+          variant: 'destructive'
+        });
       }
     } catch (error) {
       console.error('Error saving box config:', error);
-      alert('Kunne ikke lagre bokskonfigurasjon');
+      toast({
+        title: 'Feil',
+        description: 'Kunne ikke lagre bokskonfigurasjon',
+        variant: 'destructive'
+      });
     } finally {
       setSaving(false);
     }
@@ -100,7 +113,11 @@ export function BoxConfiguration() {
 
   function addItemToBox(boxSize: number) {
     if (!newItemName || !newItemQuantity) {
-      alert('Vennligst fyll ut navn og mengde');
+      toast({
+        title: 'Manglende informasjon',
+        description: 'Vennligst fyll ut navn og mengde',
+        variant: 'destructive'
+      });
       return;
     }
 

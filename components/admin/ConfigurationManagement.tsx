@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Settings, DollarSign, Calendar, Package, Mail, Save, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
 
 interface ConfigData {
   pricing: {
@@ -30,6 +31,7 @@ interface ConfigData {
 }
 
 export function ConfigurationManagement() {
+  const { toast } = useToast();
   const [config, setConfig] = useState<ConfigData | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -115,13 +117,24 @@ export function ConfigurationManagement() {
 
       if (response.ok) {
         await loadConfig();
-        alert('Konfigurasjon lagret!');
+        toast({
+          title: 'Lagret',
+          description: 'Konfigurasjon ble lagret'
+        });
       } else {
-        alert('Kunne ikke lagre konfigurasjon');
+        toast({
+          title: 'Feil',
+          description: 'Kunne ikke lagre konfigurasjon',
+          variant: 'destructive'
+        });
       }
     } catch (error) {
       console.error('Error saving config:', error);
-      alert('Kunne ikke lagre konfigurasjon');
+      toast({
+        title: 'Feil',
+        description: 'Kunne ikke lagre konfigurasjon',
+        variant: 'destructive'
+      });
     } finally {
       setSaving(false);
     }

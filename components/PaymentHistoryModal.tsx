@@ -4,6 +4,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { X, CreditCard, CheckCircle2, Clock, XCircle, Download } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
 
 interface Payment {
   id: string;
@@ -23,6 +24,8 @@ interface PaymentHistoryModalProps {
 }
 
 export function PaymentHistoryModal({ isOpen, onClose, payments, orderNumber }: PaymentHistoryModalProps) {
+  const { toast } = useToast();
+  
   if (!isOpen) return null;
 
   const getPaymentTypeLabel = (type: string) => {
@@ -178,7 +181,10 @@ export function PaymentHistoryModal({ isOpen, onClose, payments, orderNumber }: 
             <Button
               onClick={() => {
                 // Download receipt functionality - to be implemented
-                alert('Kvittering vil bli sendt til din e-post');
+                toast({
+                  title: 'Kvittering',
+                  description: 'Kvittering vil bli sendt til din e-post'
+                });
               }}
               className="flex-1 bg-[#2C1810] hover:bg-[#2C1810]/90"
             >
