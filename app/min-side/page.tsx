@@ -14,6 +14,7 @@ import { OrderDetailsCard } from '@/components/OrderDetailsCard';
 import { ReferralDashboard } from '@/components/ReferralDashboard';
 import { MessagingPanel } from '@/components/MessagingPanel';
 import { MobileMinSide } from '@/components/MobileMinSide';
+import { useToast } from '@/hooks/use-toast';
 
 interface Payment {
   id: string;
@@ -54,6 +55,7 @@ export default function CustomerPortalPage() {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const theme = getThemeClasses();
   const isMobile = useIsMobile();
+  const { toast } = useToast();
 
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
@@ -128,11 +130,19 @@ export default function CustomerPortalPage() {
       if (response.ok && data.redirectUrl) {
         window.location.href = data.redirectUrl;
       } else {
-        alert(data.error || t.checkout.somethingWentWrong);
+        toast({
+          title: 'Feil',
+          description: data.error || t.checkout.somethingWentWrong,
+          variant: 'destructive'
+        });
       }
     } catch (error) {
       console.error('Failed to create remainder payment:', error);
-      alert(t.checkout.somethingWentWrong);
+      toast({
+        title: 'Feil',
+        description: t.checkout.somethingWentWrong,
+        variant: 'destructive'
+      });
     }
   }
 

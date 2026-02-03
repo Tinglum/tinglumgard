@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils';
 import { Package, Plus, Edit, Trash2, Save, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { useToast } from '@/hooks/use-toast';
 
 interface Extra {
   id: string;
@@ -25,6 +26,7 @@ interface Extra {
 export function ExtrasCatalogManager() {
   const { getThemeClasses } = useTheme();
   const theme = getThemeClasses();
+  const { toast } = useToast();
 
   const [extras, setExtras] = useState<Extra[]>([]);
   const [loading, setLoading] = useState(true);
@@ -122,7 +124,11 @@ export function ExtrasCatalogManager() {
       cancelEdit();
     } catch (error) {
       console.error('Error saving extra:', error);
-      alert(error instanceof Error ? error.message : 'Kunne ikke lagre produkt');
+      toast({
+        title: 'Feil',
+        description: error instanceof Error ? error.message : 'Kunne ikke lagre produkt',
+        variant: 'destructive'
+      });
     }
   }
 
@@ -141,7 +147,11 @@ export function ExtrasCatalogManager() {
       await loadExtras();
     } catch (error) {
       console.error('Error deleting extra:', error);
-      alert('Kunne ikke slette produkt');
+      toast({
+        title: 'Feil',
+        description: 'Kunne ikke slette produkt',
+        variant: 'destructive'
+      });
     }
   }
 
@@ -158,7 +168,11 @@ export function ExtrasCatalogManager() {
       await loadExtras();
     } catch (error) {
       console.error('Error updating availability:', error);
-      alert('Kunne ikke oppdatere tilgjengelighet');
+      toast({
+        title: 'Feil',
+        description: 'Kunne ikke oppdatere tilgjengelighet',
+        variant: 'destructive'
+      });
     }
   }
 

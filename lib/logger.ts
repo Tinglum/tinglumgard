@@ -57,8 +57,22 @@ function createEntry(
   return entry;
 }
 
-export function logError(message: string, error?: Error, context?: LogContext): void {
-  const entry = createEntry('error', message, context, error);
+export function logError(message: string, errorOrContext?: unknown, context?: LogContext): void {
+  // Handle different parameter types
+  let error: Error | undefined;
+  let ctx: LogContext | undefined = context;
+  
+  if (errorOrContext instanceof Error) {
+    error = errorOrContext;
+  } else if (errorOrContext && typeof errorOrContext === 'object' && !context) {
+    // If it's an object but not an Error and no context provided, treat as context
+    ctx = errorOrContext as LogContext;
+  } else if (errorOrContext) {
+    // If it's unknown type (from catch blocks), create an Error
+    error = new Error(String(errorOrContext));
+  }
+  
+  const entry = createEntry('error', message, ctx, error);
   console.error(formatLog(entry));
 }
 

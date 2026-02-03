@@ -147,7 +147,11 @@ export default function CheckoutPage() {
       window.location.href = result.authUrl;
     } catch (error) {
       console.error('Checkout failed:', error);
-      alert(t.checkout.somethingWentWrong);
+      toast({
+        title: 'Feil',
+        description: t.checkout.somethingWentWrong,
+        variant: 'destructive'
+      });
       setIsProcessing(false);
     }
   }

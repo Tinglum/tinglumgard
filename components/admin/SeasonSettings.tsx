@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils';
 import { Calendar, Save, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { useToast } from '@/hooks/use-toast';
 
 interface SeasonConfig {
   cutoff_year: number;
@@ -20,6 +21,7 @@ interface SeasonConfig {
 export function SeasonSettings() {
   const { getThemeClasses } = useTheme();
   const theme = getThemeClasses();
+  const { toast } = useToast();
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -79,10 +81,17 @@ export function SeasonSettings() {
 
       if (!response.ok) throw new Error('Failed to save');
 
-      alert('Sesonginnstillinger lagret!');
+      toast({
+        title: 'Lagret',
+        description: 'Sesonginnstillinger ble lagret'
+      });
     } catch (error) {
       console.error('Error saving config:', error);
-      alert('Kunne ikke lagre innstillinger');
+      toast({
+        title: 'Feil',
+        description: 'Kunne ikke lagre innstillinger',
+        variant: 'destructive'
+      });
     } finally {
       setSaving(false);
     }
