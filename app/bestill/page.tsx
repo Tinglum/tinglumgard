@@ -17,6 +17,7 @@ import { Check, ChevronRight } from 'lucide-react';
 import { ReferralCodeInput } from '@/components/ReferralCodeInput';
 import { RebateCodeInput } from '@/components/RebateCodeInput';
 import { MobileCheckout } from '@/components/MobileCheckout';
+import { useToast } from '@/hooks/use-toast';
 
 export default function CheckoutPage() {
   const { t } = useLanguage();
@@ -24,6 +25,7 @@ export default function CheckoutPage() {
   const theme = getThemeClasses();
   const searchParams = useSearchParams();
   const isMobile = useIsMobile();
+  const { toast } = useToast();
   const [step, setStep] = useState(1);
   const [boxSize, setBoxSize] = useState<'8' | '12' | ''>('');
   const [ribbeChoice, setRibbeChoice] = useState<'tynnribbe' | 'familieribbe' | 'porchetta' | 'butchers_choice' | ''>('butchers_choice');

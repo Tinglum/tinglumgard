@@ -22,6 +22,7 @@ export function OrderModificationModal({ order, isOpen, onClose, onSave }: Order
   const [deliveryType, setDeliveryType] = useState(order.delivery_type);
   const [freshDelivery, setFreshDelivery] = useState(order.fresh_delivery);
   const [saving, setSaving] = useState(false);
+  const [showConfirmation, setShowConfirmation] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -32,37 +33,11 @@ export function OrderModificationModal({ order, isOpen, onClose, onSave }: Order
     }
   }, [isOpen, order]);
 
-  if (!isOpen) return null;
-
-  async function handleSave() {
-    setSaving(true);
-    try {
-      await onSave({
-        box_size: boxSize,
-        ribbe_choice: ribbeChoice,
-        delivery_type: deliveryType,
-        fresh_delivery: freshDelivery,
-      });
-      onClose();
-    } catch (error) {
-      console.error('Failed to save modifications:', error);
-      toast({
-        title: 'Feil',
-        description: 'Kunne ikke lagre endringer. Prøv igjen.',
-        variant: 'destructive'
-      });
-    } finally {
-      setSaving(false);
-    }
-  }
-
   const hasChanges =
     boxSize !== order.box_size ||
     ribbeChoice !== order.ribbe_choice ||
     deliveryType !== order.delivery_type ||
     freshDelivery !== order.fresh_delivery;
-
-  const [showConfirmation, setShowConfirmation] = useState(false);
 
   function handleSaveClick() {
     if (hasChanges) {
@@ -96,6 +71,10 @@ export function OrderModificationModal({ order, isOpen, onClose, onSave }: Order
       setSaving(false);
     }
   }
+
+  if (!isOpen) return null;
+
+  return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
       <Card className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6">
         {/* Header */}
@@ -291,6 +270,5 @@ export function OrderModificationModal({ order, isOpen, onClose, onSave }: Order
         </div>
       )}
     </div>
-    </>
   );
 }
