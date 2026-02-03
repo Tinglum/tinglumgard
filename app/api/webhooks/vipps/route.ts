@@ -67,10 +67,35 @@ export async function POST(request: NextRequest) {
       sessionId?: string;
       merchantSerialNumber?: string;
       eventType?: string;
+      sessionState?: string;
+      paymentDetails?: {
+        state?: string;
+        type?: string;
+        amount?: { value: number; currency: string };
+      };
       [k: string]: unknown;
     };
 
     console.log('Webhook payload:', payload);
+
+    // CRITICAL: Check if payment was actually successful
+    const sessionState = payload.sessionState as string | undefined;
+    const paymentState = payload.paymentDetails?.state as string | undefined;
+
+    console.log('Payment states:', { sessionState, paymentState });
+
+    // Only process successful payments
+    if (sessionState !== 'PaymentSuccessful' || paymentState !== 'AUTHORIZED') {
+      console.log('Payment not successful, ignoring webhook', { sessionState, paymentState });
+      return NextResponse.json(
+        { 
+          message: "Payment not successful, no action taken",
+          sessionState,
+          paymentState
+        },
+        { status: 200 }
+      );
+    }
 
     // Try to find payment by session ID or reference
     const vippsId =
