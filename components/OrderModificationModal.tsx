@@ -62,7 +62,40 @@ export function OrderModificationModal({ order, isOpen, onClose, onSave }: Order
     deliveryType !== order.delivery_type ||
     freshDelivery !== order.fresh_delivery;
 
-  return (
+  const [showConfirmation, setShowConfirmation] = useState(false);
+
+  function handleSaveClick() {
+    if (hasChanges) {
+      setShowConfirmation(true);
+    }
+  }
+
+  async function confirmSave() {
+    setShowConfirmation(false);
+    setSaving(true);
+    try {
+      await onSave({
+        box_size: boxSize,
+        ribbe_choice: ribbeChoice,
+        delivery_type: deliveryType,
+        fresh_delivery: freshDelivery,
+      });
+      toast({
+        title: 'Endringer lagret',
+        description: 'Ordren din har blitt oppdatert'
+      });
+      onClose();
+    } catch (error) {
+      console.error('Failed to save modifications:', error);
+      toast({
+        title: 'Feil',
+        description: 'Kunne ikke lagre endringer. Prøv igjen.',
+        variant: 'destructive'
+      });
+    } finally {
+      setSaving(false);
+    }
+  }
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
       <Card className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6">
         {/* Header */}
@@ -216,7 +249,7 @@ export function OrderModificationModal({ order, isOpen, onClose, onSave }: Order
               Avbryt
             </Button>
             <Button
-              onClick={handleSave}
+              onClick={handleSaveClick}
               disabled={!hasChanges || saving}
               className="flex-1 bg-[#2C1810] hover:bg-[#2C1810]/90"
             >
@@ -230,6 +263,34 @@ export function OrderModificationModal({ order, isOpen, onClose, onSave }: Order
           )}
         </div>
       </Card>
+
+      {/* Confirmation Dialog */}
+      {showConfirmation && (
+        <div className="absolute inset-0 flex items-center justify-center bg-black/30 rounded-lg">
+          <Card className="p-6 max-w-md mx-4">
+            <h3 className="text-lg font-semibold mb-2">Bekreft endringer</h3>
+            <p className="text-gray-600 mb-4">
+              Er du sikker på at du vil endre ordren? Dette kan påvirke prisen.
+            </p>
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                onClick={() => setShowConfirmation(false)}
+                className="flex-1"
+              >
+                Avbryt
+              </Button>
+              <Button
+                onClick={confirmSave}
+                className="flex-1 bg-[#2C1810] hover:bg-[#2C1810]/90"
+              >
+                Bekreft
+              </Button>
+            </div>
+          </Card>
+        </div>
+      )}
     </div>
+    </>
   );
 }

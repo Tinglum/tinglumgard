@@ -99,6 +99,85 @@
   animation: pulse-subtle 2s ease-in-out infinite;
 }
 
+/* Improved touch targets for mobile */
+.touch-target {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+.touch-target-large {
+  min-height: 56px;
+  min-width: 56px;
+}
+
+/* Better form inputs on mobile */
+.input-mobile {
+  font-size: 16px; /* Prevents zoom on iOS */
+  padding: var(--space-3) var(--space-4);
+  border-radius: 12px;
+  border: 2px solid rgba(45, 36, 22, 0.15);
+  transition: border-color 0.2s ease;
+}
+
+.input-mobile:focus {
+  outline: none;
+  border-color: var(--accent-gold);
+  box-shadow: 0 0 0 3px rgba(201, 169, 98, 0.1);
+}
+
+/* Improved button spacing */
+.button-mobile {
+  padding: var(--space-4) var(--space-6);
+  font-size: 16px;
+  font-weight: 600;
+  border-radius: 12px;
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+}
+
+/* Skeleton loaders */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(0, 0, 0, 0.06) 0%,
+    rgba(0, 0, 0, 0.08) 50%,
+    rgba(0, 0, 0, 0.06) 100%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-loading 1.5s ease-in-out infinite;
+  border-radius: 8px;
+}
+
+@keyframes skeleton-loading {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* Safe area insets for iOS */
+@supports (padding: max(0px)) {
+  .safe-top {
+    padding-top: max(var(--space-4), env(safe-area-inset-top));
+  }
+  
+  .safe-bottom {
+    padding-bottom: max(var(--space-4), env(safe-area-inset-bottom));
+  }
+}
+
+/* Smooth scroll behavior */
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
 /* Mobile-optimized tap targets (minimum 48x48px) */
 .tap-target {
   min-height: 48px;

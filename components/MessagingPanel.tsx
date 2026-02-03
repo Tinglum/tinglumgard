@@ -3,8 +3,10 @@
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Send, MessageSquare, AlertCircle, CheckCircle } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
+import { Send, MessageSquare, AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
 import type { CustomerMessage, MessageReply } from '@/lib/types';
 
 interface MessagingPanelProps {
@@ -15,6 +17,7 @@ interface MessagingPanelProps {
 type CustomerMessageWithReplies = CustomerMessage & { message_replies?: MessageReply[] };
 
 export function MessagingPanel({ className, variant = 'light' }: MessagingPanelProps) {
+  const { toast } = useToast();
   const [messages, setMessages] = useState<CustomerMessageWithReplies[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -66,13 +69,16 @@ export function MessagingPanel({ className, variant = 'light' }: MessagingPanelP
   async function handleReply(messageId: string) {
     const replyText = replyTexts[messageId];
     if (!replyText?.trim()) {
-      setError('Svar kan ikke være tomt');
+      toast({
+        title: 'Tom melding',
+        description: 'Svar kan ikke være tomt',
+        variant: 'destructive'
+      });
       return;
     }
 
     try {
       setReplyingTo(messageId);
-      setError(null);
 
       const res = await fetch(`/api/messages/${messageId}/reply`, {
         method: 'POST',
@@ -86,13 +92,22 @@ export function MessagingPanel({ className, variant = 'light' }: MessagingPanelP
         throw new Error(data.error);
       }
 
+      toast({
+        title: 'Svar sendt',
+        description: 'Svaret ditt har blitt sendt'
+      });
+
       // Clear the reply text for this message
       setReplyTexts((prev) => ({ ...prev, [messageId]: '' }));
 
       // Reload messages to show the new reply
       await loadMessages();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Kunne ikke sende svar');
+      toast({
+        title: 'Feil',
+        description: err instanceof Error ? err.message : 'Kunne ikke sende svar',
+        variant: 'destructive'
+      });
     } finally {
       setReplyingTo(null);
     }
@@ -102,47 +117,47 @@ export function MessagingPanel({ className, variant = 'light' }: MessagingPanelP
     e.preventDefault();
 
     if (!subject.trim() || !messageText.trim()) {
-      setError('Emne og melding må fylles ut');
+      toast({
+        title: 'Manglende informasjon',
+        description: 'Emne og melding må fylles ut',
+        variant: 'destructive'
+      });
       return;
     }
 
     try {
       setIsSubmitting(true);
-      setError(null);
-
-      const payload = {
-        subject: subject.trim(),
-        message: messageText.trim(),
-        message_type: messageType,
-      };
-
-      console.log('Sending message:', JSON.stringify(payload, null, 2));
 
       const res = await fetch('/api/messages', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          subject: subject.trim(),
+          message: messageText.trim(),
+          message_type: messageType,
+        }),
       });
 
-      console.log('Response status:', res.status);
       const data = await res.json();
-      console.log('Response data:', JSON.stringify(data, null, 2));
 
       if (!res.ok) {
-        console.error('API Error:', data.error, data.details);
         throw new Error(data.details || data.error);
       }
 
-      setSuccess(true);
+      toast({
+        title: 'Melding sendt',
+        description: 'Din melding har blitt sendt til administratoren'
+      });
+      
       setSubject('');
       setMessageText('');
       setMessages((prev) => [data.message, ...prev]);
-
-      // Clear success message after 3 seconds
-      setTimeout(() => setSuccess(false), 3000);
     } catch (err) {
-      console.error('Full error:', err);
-      setError(err instanceof Error ? err.message : 'Kunne ikke sende melding');
+      toast({
+        title: 'Feil ved sending',
+        description: err instanceof Error ? err.message : 'Kunne ikke sende melding',
+        variant: 'destructive'
+      });
     } finally {
       setIsSubmitting(false);
     }

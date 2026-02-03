@@ -99,13 +99,16 @@ export function ReferralCodeInput({
   }
 
   return (
-    <div className={cn('space-y-3', className)}>
+    <div className={cn('space-y-3 rounded-lg border-2 border-amber-200 bg-amber-50 p-4', className)}>
       <div className="flex items-center gap-2">
-        <Tag className="h-4 w-4 text-gray-500" />
-        <label className="text-sm font-medium text-gray-700">
-          Har du en vennerabattkode?
+        <Tag className="h-5 w-5 text-amber-600" />
+        <label className="text-base font-semibold text-amber-900">
+          Har du en vennerabattkode? Få 20% rabatt!
         </label>
       </div>
+      <p className="text-sm text-amber-700">
+        Spar {Math.round(depositAmount * 0.20)} kr på forskuddet ditt
+      </p>
 
       <div className="flex gap-2">
         <Input
