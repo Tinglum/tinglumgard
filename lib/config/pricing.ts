@@ -12,16 +12,34 @@ export interface PricingConfig {
 
 /**
  * Fetch all pricing configuration from database
- * Falls back to defaults only if database is completely unavailable
+ * Box prices come from box_configurations table (set in Admin Panel)
+ * Other config comes from app_config table
  */
 export async function getPricingConfig(): Promise<PricingConfig> {
   try {
-    const { data: configs, error } = await supabaseAdmin
+    // Fetch box prices from box_configurations table (set in Admin -> Boksinnhold)
+    const { data: boxConfigs, error: boxError } = await supabaseAdmin
+      .from('box_configurations')
+      .select('box_size, price')
+      .in('box_size', [8, 12]);
+
+    if (boxError) {
+      console.error('Error fetching box configurations:', boxError);
+      throw boxError;
+    }
+
+    const box8kg = boxConfigs?.find(b => b.box_size === 8);
+    const box12kg = boxConfigs?.find(b => b.box_size === 12);
+
+    if (!box8kg || !box12kg) {
+      throw new Error('Critical pricing configuration missing: box prices not found in box_configurations table');
+    }
+
+    // Fetch other config from app_config
+    const { data: appConfigs, error: configError } = await supabaseAdmin
       .from('app_config')
       .select('key, value')
       .in('key', [
-        'box_8kg_price',
-        'box_12kg_price',
         'box_8kg_deposit_percentage',
         'box_12kg_deposit_percentage',
         'delivery_fee_pickup_e6',
@@ -29,23 +47,16 @@ export async function getPricingConfig(): Promise<PricingConfig> {
         'fresh_delivery_fee',
       ]);
 
-    if (error) {
-      console.error('Error fetching pricing config:', error);
-      throw error;
+    if (configError) {
+      console.error('Error fetching app config:', configError);
+      throw configError;
     }
 
-    const configMap = new Map<string, string>();
-    configs?.forEach((c) => {
-      configMap.set(c.key, c.value);
-    });
-
-    if (!configMap.get('box_8kg_price') || !configMap.get('box_12kg_price')) {
-      throw new Error('Critical pricing configuration missing from database');
-    }
+    const configMap = new Map(appConfigs?.map(c => [c.key, c.value]) || []);
 
     return {
-      box_8kg_price: parseInt(configMap.get('box_8kg_price')!),
-      box_12kg_price: parseInt(configMap.get('box_12kg_price')!),
+      box_8kg_price: box8kg.price,
+      box_12kg_price: box12kg.price,
       box_8kg_deposit_percentage: parseInt(configMap.get('box_8kg_deposit_percentage') || '50'),
       box_12kg_deposit_percentage: parseInt(configMap.get('box_12kg_deposit_percentage') || '50'),
       delivery_fee_pickup_e6: parseInt(configMap.get('delivery_fee_pickup_e6') || '300'),
