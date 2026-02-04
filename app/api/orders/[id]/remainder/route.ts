@@ -35,8 +35,22 @@ export async function POST(
       order = fallback.data as any;
     }
 
-    if (order.user_id !== session.userId && !session.isAdmin) {
+    // Check authorization: order must belong to user OR be anonymous (will be linked)
+    const isOwner = order.user_id === session.userId;
+    const isAnonymous = !order.user_id;
+
+    if (!isOwner && !isAnonymous && !session.isAdmin) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
+    }
+
+    // Link anonymous order to logged-in user
+    if (isAnonymous && session.userId) {
+      await supabaseAdmin
+        .from('orders')
+        .update({ user_id: session.userId })
+        .eq('id', order.id);
+
+      order.user_id = session.userId;
     }
 
     const depositPayment = order.payments?.find(

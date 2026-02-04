@@ -1,89 +1,118 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface MobileHeroProps {
   isSoldOut: boolean;
+  minPrice?: number | null;
+  minDeposit?: number | null;
 }
 
-export function MobileHero({ isSoldOut }: MobileHeroProps) {
+export function MobileHero({ isSoldOut, minPrice, minDeposit }: MobileHeroProps) {
+  const { t } = useLanguage();
+  const subtitle = t.hero.subtitle || t.hero.description;
+
   return (
-    <section className="relative min-h-screen flex items-center justify-center px-4 py-20" style={{ backgroundColor: 'var(--farm-earth)' }}>
-      <div className="w-full max-w-lg mx-auto text-center">
-        {/* Badge */}
+    <section className="relative overflow-hidden px-5 pt-10 pb-12 bg-[#F7F1EA] text-[#1F1A14]">
+      <div className="absolute inset-0">
+        <div className="absolute -top-24 -right-20 h-64 w-64 rounded-full bg-[#F1D6C0]/70 blur-3xl" />
+        <div className="absolute bottom-0 -left-10 h-56 w-56 rounded-full bg-[#DDE6CF]/70 blur-3xl" />
+      </div>
+
+      <div className="relative z-10 mx-auto max-w-md">
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="inline-flex items-center gap-2 rounded-full border border-[#E6D8C8] bg-[#FFF9F2] px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#6C5A4A]"
+        >
+          <span className="h-2 w-2 rounded-full bg-[#2F5D3A]" />
+          {t.hero.season}
+        </motion.div>
+
+        <motion.h1
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.05 }}
+          className="mt-6 text-4xl font-bold leading-[1.05]"
+        >
+          {t.hero.porkFrom}
+          <span className="mt-2 block text-[#C05621]">{t.hero.farmName}</span>
+        </motion.h1>
+
+        <motion.p
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.1 }}
+          className="mt-4 text-sm font-medium text-[#5A4A3D]"
+        >
+          {subtitle}
+        </motion.p>
+
+        {(minPrice || minDeposit) && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.15 }}
+            className="mt-5 flex flex-wrap items-center gap-2 text-xs font-semibold text-[#6C5A4A]"
+          >
+            {minPrice && (
+              <span className="rounded-full border border-[#E6D8C8] bg-white px-3 py-1">
+                Fra {minPrice.toLocaleString('nb-NO')} {t.common.currency}
+              </span>
+            )}
+            {minDeposit && (
+              <span className="rounded-full border border-[#E6D8C8] bg-white px-3 py-1">
+                Forskudd fra {minDeposit.toLocaleString('nb-NO')} {t.common.currency}
+              </span>
+            )}
+          </motion.div>
+        )}
+
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-          className="inline-flex items-center gap-2 px-6 py-3 rounded-full mb-8 card-mobile"
-        >
-          <span className="relative flex h-3 w-3">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" style={{ backgroundColor: 'var(--status-success)' }}></span>
-            <span className="relative inline-flex rounded-full h-3 w-3" style={{ backgroundColor: 'var(--status-success)' }}></span>
-          </span>
-          <span className="text-sm font-semibold" style={{ color: 'var(--farm-earth)' }}>Sesong 2026</span>
-        </motion.div>
-
-        {/* Headline */}
-        <motion.h1
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.1 }}
-          className="text-5xl md:text-6xl font-bold mb-6 leading-tight"
-          style={{ color: 'var(--farm-snow)' }}
-        >
-          Ullgris fra
-          <br />
-          <span style={{ color: 'var(--accent-gold)' }}>Tinglum Gård</span>
-        </motion.h1>
-
-        {/* Description */}
-        <motion.p
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.2 }}
-          className="text-lg font-semibold mb-10 max-w-md mx-auto"
-          style={{ color: 'var(--farm-snow)' }}
-        >
-          Lokalt oppvokst • Fersk levering • Desember 2026
-        </motion.p>
-
-        {/* CTA Button */}
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.3 }}
+          transition={{ duration: 0.6, delay: 0.2 }}
+          className="mt-8 flex flex-wrap items-center gap-3"
         >
           {!isSoldOut ? (
             <Link
               href="/bestill"
-              className="inline-block px-8 py-4 rounded-xl font-bold text-lg touch-feedback"
-              style={{ backgroundColor: 'var(--accent-gold)', color: 'var(--farm-earth)' }}
+              className="inline-flex items-center justify-center rounded-xl bg-[#1F1A14] px-6 py-3 text-sm font-bold uppercase tracking-[0.2em] text-[#F7F1EA]"
             >
-              Bestill nå →
+              {t.hero.reserveNow}
             </Link>
           ) : (
-            <div
-              className="inline-block px-8 py-4 rounded-xl font-bold text-lg opacity-60"
-              style={{ backgroundColor: 'var(--farm-bark)', color: 'var(--farm-snow)' }}
-            >
-              Utsolgt for 2026
+            <div className="inline-flex items-center justify-center rounded-xl bg-[#CFC2B3] px-6 py-3 text-sm font-bold uppercase tracking-[0.2em] text-[#6C5A4A]">
+              {t.availability.soldOut}
             </div>
           )}
+          <Link
+            href="/produkt"
+            className="text-sm font-semibold text-[#6C5A4A] underline underline-offset-4"
+          >
+            {t.hero.learnMore}
+          </Link>
         </motion.div>
 
-        {/* Info text */}
-        <motion.p
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.8, delay: 0.4 }}
-          className="text-sm mt-6"
-          style={{ color: 'var(--farm-sky)' }}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.25 }}
+          className="mt-8 flex flex-wrap gap-2 text-xs font-semibold"
         >
-          Begrenset antall • Levering i desember
-        </motion.p>
+          <span className="rounded-full border border-[#E6D8C8] bg-white px-3 py-1 text-[#6C5A4A]">
+            {t.hero.localRaised}
+          </span>
+          <span className="rounded-full border border-[#E6D8C8] bg-white px-3 py-1 text-[#6C5A4A]">
+            Levering uke 46�48
+          </span>
+          <span className="rounded-full border border-[#E6D8C8] bg-white px-3 py-1 text-[#6C5A4A]">
+            Betal med Vipps
+          </span>
+        </motion.div>
       </div>
     </section>
   );
