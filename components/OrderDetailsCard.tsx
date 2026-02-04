@@ -148,22 +148,19 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
   async function handleAddExtras(selectedExtras: { slug: string; quantity: number }[], proceedToPayment = false) {
     setAddingExtras(true);
     try {
-      // Only add extras if there are new ones selected
-      if (selectedExtras.length > 0) {
-        const response = await fetch(`/api/orders/${order.id}/add-extras`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ extras: selectedExtras }),
-        });
+      const response = await fetch(`/api/orders/${order.id}/add-extras`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ extras: selectedExtras }),
+      });
 
-        const data = await response.json().catch(() => null);
-        if (!response.ok) {
-          const message = data?.error || 'Failed to add extras';
-          throw new Error(message);
-        }
-        const addedCount = data?.extrasAdded ?? (selectedExtras.length);
-        toast({ title: 'Oppdatert', description: `La til ${addedCount} ekstra produkter.` });
+      const data = await response.json().catch(() => null);
+      if (!response.ok) {
+        const message = data?.error || 'Failed to update extras';
+        throw new Error(message);
       }
+      const addedCount = data?.extrasAdded ?? (selectedExtras.length);
+      toast({ title: 'Oppdatert', description: `Oppdatert ekstra produkter (${addedCount}).` });
 
       setShowExtrasModal(false);
 
