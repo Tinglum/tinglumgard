@@ -171,7 +171,7 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
       if (proceedToPayment) {
         // Refresh to get updated amounts, then proceed to payment
         await onRefresh();
-        onPayRemainder(order.id);
+        window.location.href = `/min-side/ordre/${order.id}/betaling`;
       } else {
         onRefresh();
       }

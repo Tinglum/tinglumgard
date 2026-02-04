@@ -151,7 +151,7 @@ export function ExtrasUpsellModal({
       }
     }
 
-    if (selectedExtras.length === 0) {
+    if (selectedExtras.length === 0 && !proceedToPayment) {
       // No items selected - prevent accidental submit
       if (lang === 'en') {
         window.alert('Please select at least one extra to add.');
@@ -185,6 +185,17 @@ export function ExtrasUpsellModal({
       if (!catalogItem) return total;
       return total + catalogItem.price_nok * extra.quantity;
     }, 0);
+  }
+
+  function calculateDeltaAmount() {
+    return calculateTotal() - calculateCurrentExtrasTotal();
+  }
+
+  function formatDeltaLabel() {
+    const delta = calculateDeltaAmount();
+    const formatted = Math.abs(delta).toLocaleString('nb-NO');
+    if (delta === 0) return 'Ingen endringer';
+    return `${delta > 0 ? '+' : '-'}kr ${formatted}`;
   }
 
   if (!isOpen) return null;
@@ -369,6 +380,9 @@ export function ExtrasUpsellModal({
                 {calculateSelectedCount()} stk • kr {calculateTotal().toLocaleString('nb-NO')}
               </p>
               <p className={cn('text-xs mt-1', theme.textMuted)}>
+                Endring: {formatDeltaLabel()}
+              </p>
+              <p className={cn('text-xs mt-1', theme.textMuted)}>
                 Dette beløpet legges til restbeløpet ditt
               </p>
             </div>
@@ -381,7 +395,7 @@ export function ExtrasUpsellModal({
                 <>
                   <Button
                     onClick={() => handleConfirm(false)}
-                    disabled={loading}
+                    disabled={loading || calculateDeltaAmount() === 0}
                     variant="outline"
                     className="px-8"
                   >
@@ -391,14 +405,14 @@ export function ExtrasUpsellModal({
                         Lagrer...
                       </>
                     ) : (
-                      `Lagre uten å betale nå`
+                      `Oppdater ekstra bestilling (${formatDeltaLabel()})`
                     )}
                   </Button>
                   <Button
                     onClick={() => handleConfirm(true)}
                     disabled={loading}
                     className="px-8 bg-green-600 hover:bg-green-700 text-white"
-                    aria-disabled={loading || calculateSelectedCount() === 0}
+                    aria-disabled={loading}
                   >
                     {loading ? (
                       <>
@@ -406,7 +420,7 @@ export function ExtrasUpsellModal({
                         Oppdaterer...
                       </>
                     ) : (
-                      `Bekreft og betal restbeløp (kr ${(baseRemainderAmount + (calculateTotal() - calculateCurrentExtrasTotal())).toLocaleString('nb-NO')})`
+                      `Gå til oppsummering`
                     )}
                   </Button>
                 </>
@@ -414,9 +428,9 @@ export function ExtrasUpsellModal({
                 // Normal flow: Just save
                 <Button
                   onClick={() => handleConfirm(false)}
-                  disabled={loading || calculateSelectedCount() === 0}
+                  disabled={loading || calculateDeltaAmount() === 0}
                   className="px-8 bg-green-600 hover:bg-green-700 text-white"
-                  aria-disabled={loading || calculateSelectedCount() === 0}
+                  aria-disabled={loading || calculateDeltaAmount() === 0}
                 >
                   {loading ? (
                     <>
@@ -424,7 +438,7 @@ export function ExtrasUpsellModal({
                       Lagrer...
                     </>
                   ) : (
-                      `Legg til (${calculateSelectedCount()}) — kr ${calculateTotal().toLocaleString('nb-NO')}`
+                      `Oppdater ekstra bestilling (${formatDeltaLabel()})`
                   )}
                 </Button>
               )}
