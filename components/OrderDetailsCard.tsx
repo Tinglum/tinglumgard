@@ -426,8 +426,9 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
                 (sum: number, e: any) => sum + (e.total_price || 0),
                 0
               ) || 0;
-              // Base remainder is remainder minus extras
-              const baseRemainder = order.remainder_amount - extrasTotal;
+              // The remainder_amount is the BOX remainder only
+              // Extras are ADDED ON TOP of that
+              const totalRemainder = order.remainder_amount + extrasTotal;
               
               return (
                 <div className="space-y-2">
@@ -446,7 +447,7 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
                     <span className={theme.textSecondary}>Restbeløp kasse</span>
                     <div className="flex items-center gap-2">
                       <span className={cn('font-semibold', theme.textPrimary)}>
-                        kr {baseRemainder.toLocaleString('nb-NO')}
+                        kr {order.remainder_amount.toLocaleString('nb-NO')}
                       </span>
                     </div>
                   </div>
@@ -466,7 +467,7 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
                       <span className={cn('font-semibold', theme.textPrimary)}>
                         kr {remainderPaid && remainderPayment
                           ? remainderPayment.amount_nok.toLocaleString('nb-NO')
-                          : order.remainder_amount.toLocaleString('nb-NO')}
+                          : totalRemainder.toLocaleString('nb-NO')}
                       </span>
                       {remainderPaid && <CheckCircle2 className="w-4 h-4 text-green-600" />}
                     </div>
