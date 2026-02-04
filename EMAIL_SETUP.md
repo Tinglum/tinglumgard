@@ -60,7 +60,7 @@ In Mailgun Dashboard:
 - Success/failure tracking
 
 **Email Templates Available:**
-1. Depositum påminnelse
+1. Forskudd påminnelse
 2. Restbeløp påminnelse
 3. Klar for henting
 4. Tilpasset melding

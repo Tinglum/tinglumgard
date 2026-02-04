@@ -38,7 +38,7 @@ The system uses the following order statuses:
 
 **UI Messages:**
 - Confirmation page shows: "Ordre opprettet!"
-- Status: "Venter på depositum"
+- Status: "Venter på forskudd"
 - Warning banner: "Betaling ikke fullført"
 
 ---
@@ -54,7 +54,7 @@ The system uses the following order statuses:
 
 **Email Sent:**
 ✓ Deposit confirmation email
-- Subject: "Depositum bekreftet - [ORDER_NUMBER]"
+- Subject: "Forskudd bekreftet - [ORDER_NUMBER]"
 - Content: Deposit amount confirmed, remainder amount, next steps, link to My Orders
 - Sent from: `app/api/webhooks/vipps/route.ts` (after payment verification)
 
@@ -64,9 +64,9 @@ The system uses the following order statuses:
 
 **UI Messages:**
 - Confirmation page shows: "Betaling mottatt!"
-- Status: "Depositum betalt - venter på rest"
-- Success banner: "Depositum bekreftet! ✓"
-- Step 1: "Depositum betalt ✓"
+- Status: "Forskudd betalt - venter på rest"
+- Success banner: "Forskudd bekreftet! ✓"
+- Step 1: "Forskudd betalt ✓"
 
 ---
 

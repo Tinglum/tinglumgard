@@ -143,7 +143,7 @@ This should be implemented to prevent fake webhook calls.
 **Completed Payment (after webhook):**
 - `orders.status` = `'deposit_paid'`
 - `payments.status` = `'completed'`
-- Admin sees: "Depositum betalt"
+- Admin sees: "Forskudd betalt"
 - User sees: "✅ Betaling mottatt!"
 
 ## Impact

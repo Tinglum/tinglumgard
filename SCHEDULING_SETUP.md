@@ -184,7 +184,7 @@ WHERE key = 'lock_week';
 2. **Check customer portal**:
    - Go to `/min-side`
    - Should see "Betal restbeløp" button
-   - Should show "✓ Depositum betalt"
+  - Should show "✓ Forskudd betalt"
 
 3. **Click "Betal restbeløp"**:
    - Creates Vipps payment for remainder

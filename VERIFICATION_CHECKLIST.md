@@ -16,7 +16,7 @@ This document verifies that all order lifecycle components are in place and work
 - [x] Import `sendEmail` from email client (line 5)
 - [x] Fetch order details for email (lines 118-126)
 - [x] Deposit confirmation email sent when payment type is "deposit" (lines 143-194)
-  - Subject: "Depositum bekreftet - [ORDER_NUMBER]"
+  - Subject: "Forskudd bekreftet - [ORDER_NUMBER]"
   - Content: Includes deposit amount, remainder amount, next steps
   - Link to My Orders page
 - [x] Remainder confirmation email sent when payment type is "remainder" (lines 212-269)
@@ -28,7 +28,7 @@ This document verifies that all order lifecycle components are in place and work
 **Verification Commands:**
 ```bash
 grep -n "sendEmail" app/api/webhooks/vipps/route.ts
-grep -n "Depositum bekreftet" app/api/webhooks/vipps/route.ts
+grep -n "Forskudd bekreftet" app/api/webhooks/vipps/route.ts
 grep -n "Betaling fullført" app/api/webhooks/vipps/route.ts
 ```
 
@@ -72,8 +72,8 @@ grep -n "status.*paid" app/api/webhooks/vipps/route.ts
 - [x] `draft` → "Ordre opprettet!"
 
 ### Status Indicator (lines 153-161)
-- [x] `draft` → "Venter på depositum"
-- [x] `deposit_paid` → "Depositum betalt - venter på rest"
+- [x] `draft` → "Venter på forskudd"
+- [x] `deposit_paid` → "Forskudd betalt - venter på rest"
 - [x] `paid` → "Fullstendig betalt"
 - [x] `ready_for_pickup` → "Klar for henting"
 - [x] `completed` → "Fullført"
@@ -112,7 +112,7 @@ grep -n "Betaling mottatt" app/bestill/bekreftelse/page.tsx
 - [x] `cancelled` → 'atRisk' (red badge, shown with warning styling)
 
 ### Payment Indicators (lines 387-408)
-- [x] "✓ Depositum betalt" shown when deposit payment completed
+- [x] "✓ Forskudd betalt" shown when advance payment completed
 - [x] "✓ Restbetaling betalt" shown when remainder payment completed
 - [x] "⚠ Venter på restbetaling" shown for at-risk orders
 - [x] Lock icon shown when order is locked
