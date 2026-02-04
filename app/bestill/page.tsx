@@ -696,8 +696,8 @@ export default function CheckoutPage() {
                                 onClick={() => {
                                   let newQty: number;
                                   if (extra.pricing_type === 'per_kg') {
-                                    // For per_kg: snap to nearest lower 0.5 increment
-                                    newQty = Math.floor(quantity / 0.5) * 0.5 - 0.5;
+                                    // For per_kg: snap DOWN to nearest 0.5 increment (magnetic)
+                                    newQty = Math.floor(quantity / 0.5) * 0.5;
                                   } else {
                                     // For per_unit: just subtract 1
                                     newQty = quantity - 1;
@@ -746,8 +746,9 @@ export default function CheckoutPage() {
                                 onClick={() => {
                                   let newQty: number;
                                   if (extra.pricing_type === 'per_kg') {
-                                    // For per_kg: snap to nearest higher 0.5 increment
-                                    newQty = Math.ceil(quantity / 0.5) * 0.5 + 0.5;
+                                    // For per_kg: snap UP to nearest 0.5 increment (magnetic)
+                                    // Add 0.1 first to ensure we move to the next increment
+                                    newQty = Math.ceil((quantity + 0.1) / 0.5) * 0.5;
                                   } else {
                                     // For per_unit: just add 1
                                     newQty = quantity + 1;
