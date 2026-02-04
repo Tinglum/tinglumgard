@@ -46,7 +46,10 @@ export async function GET() {
         .in('id', anonymousOrders.map(o => o.id));
 
       if (updateError) {
-        console.error('Error linking anonymous orders:', updateError);
+        // If foreign key constraint fails, the user doesn't exist in auth.users yet
+        // This can happen with Vipps login where the session exists but user record doesn't
+        // Just log and continue - orders will still be shown via phone/email match
+        console.warn('Could not link anonymous orders (user may not exist in auth.users yet):', updateError.message);
       } else {
         // Update the orders in memory to reflect the change
         anonymousOrders.forEach(order => {

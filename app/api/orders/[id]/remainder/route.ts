@@ -64,12 +64,18 @@ export async function POST(
 
     // Link anonymous order to logged-in user
     if (isAnonymous && session.userId) {
-      await supabaseAdmin
+      const { error: linkError } = await supabaseAdmin
         .from('orders')
         .update({ user_id: session.userId })
         .eq('id', order.id);
 
-      order.user_id = session.userId;
+      if (linkError) {
+        // User might not exist in auth.users yet (Vipps login creates session before user record)
+        // This is OK - authorization still works via phone/email match
+        console.warn('Could not link order to user (may not exist in auth.users yet):', linkError.message);
+      } else {
+        order.user_id = session.userId;
+      }
     }
 
     const depositPayment = order.payments?.find(
@@ -84,27 +90,29 @@ export async function POST(
     }
 
     const remainderPayment = order.payments?.find(
-      (p: any) => p.payment_type === 'remainder' && p.status === 'completed'
+      (p: any) => p.payment_type === 'remainder'
     );
 
-    if (remainderPayment) {
-      // Update the payment status and set paid_at timestamp
-      const { error: updateError } = await supabaseAdmin
-        .from('payments')
-        .update({
-          status: 'completed',
-          paid_at: new Date().toISOString(),
-        })
-        .eq('id', remainderPayment.id);
-
-      if (updateError) {
-        return NextResponse.json({ error: 'Failed to update payment' }, { status: 500 });
-      }
-
+    // If payment exists and is completed, return error
+    if (remainderPayment?.status === 'completed') {
       return NextResponse.json(
         { error: 'Remainder already paid' },
         { status: 400 }
       );
+    }
+
+    // If payment exists but is pending, return existing session
+    if (remainderPayment?.status === 'pending' && remainderPayment.vipps_session_id) {
+      // Check if we have a valid Vipps session we can reuse
+      const sessionId = remainderPayment.vipps_session_id;
+      const checkoutUrl = `https://checkout.vipps.no/?token=${sessionId}`;
+
+      return NextResponse.json({
+        success: true,
+        redirectUrl: checkoutUrl,
+        paymentId: remainderPayment.id,
+        amount: remainderAmount,
+      });
     }
 
     if (order.locked_at) {
@@ -166,7 +174,9 @@ export async function POST(
 
     const vippsResult = await vippsClient.createCheckoutSession(sessionData);
 
-    const { data: payment, error: paymentError } = await supabaseAdmin
+    // Try to insert, or update if it already exists
+    let payment;
+    const { data: insertedPayment, error: paymentError } = await supabaseAdmin
       .from('payments')
       .insert({
         order_id: order.id,
@@ -180,11 +190,36 @@ export async function POST(
       .single();
 
     if (paymentError) {
-      console.error('Failed to create payment record:', paymentError);
-      return NextResponse.json(
-        { error: 'Failed to create payment record' },
-        { status: 500 }
-      );
+      // If duplicate key, update the existing payment
+      if (paymentError.code === '23505') {
+        const { data: updatedPayment, error: updateError } = await supabaseAdmin
+          .from('payments')
+          .update({
+            vipps_session_id: vippsResult.sessionId,
+            amount_nok: remainderAmount,
+            status: 'pending',
+          })
+          .eq('idempotency_key', shortReference)
+          .select()
+          .single();
+
+        if (updateError) {
+          console.error('Failed to update payment record:', updateError);
+          return NextResponse.json(
+            { error: 'Failed to update payment record' },
+            { status: 500 }
+          );
+        }
+        payment = updatedPayment;
+      } else {
+        console.error('Failed to create payment record:', paymentError);
+        return NextResponse.json(
+          { error: 'Failed to create payment record' },
+          { status: 500 }
+        );
+      }
+    } else {
+      payment = insertedPayment;
     }
 
     await supabaseAdmin
