@@ -106,7 +106,7 @@ export function OrderModificationModal({ order, isOpen, onClose, onSave }: Order
                 )}
               >
                 <p className="text-2xl font-bold text-gray-900">8 kg</p>
-                <p className="text-sm text-gray-700">Kr 6490</p>
+                <p className="text-sm text-gray-700">Pris fra admin-innstillinger</p>
               </button>
               <button
                 onClick={() => setBoxSize(12)}
@@ -118,7 +118,7 @@ export function OrderModificationModal({ order, isOpen, onClose, onSave }: Order
                 )}
               >
                 <p className="text-2xl font-bold text-gray-900">12 kg</p>
-                <p className="text-sm text-gray-700">Kr 8990</p>
+                <p className="text-sm text-gray-700">Pris fra admin-innstillinger</p>
               </button>
             </div>
           </div>
@@ -153,32 +153,44 @@ export function OrderModificationModal({ order, isOpen, onClose, onSave }: Order
           <div>
             <Label className="text-lg font-semibold mb-3 flex items-center gap-2 text-gray-900">
               <Truck className="w-5 h-5" />
-              Leveringsmåte
+              Hentemåte
             </Label>
             <div className="grid grid-cols-2 gap-4">
               <button
-                onClick={() => setDeliveryType('pickup')}
+                onClick={() => setDeliveryType('pickup_farm')}
                 className={cn(
                   'p-4 rounded-xl border-2 transition-all text-left',
-                  deliveryType === 'pickup'
+                  deliveryType === 'pickup_farm'
                     ? 'border-[#2C1810] bg-[#2C1810]/10 text-gray-900'
                     : 'border-gray-300 hover:border-gray-400 text-gray-900'
                 )}
               >
                 <p className="font-semibold text-gray-900">Henting på gården</p>
-                <p className="text-sm text-gray-700">Gratis</p>
+                <p className="text-sm text-gray-700">Ingen ekstra kostnad</p>
               </button>
               <button
-                onClick={() => setDeliveryType('delivery')}
+                onClick={() => setDeliveryType('pickup_e6')}
                 className={cn(
                   'p-4 rounded-xl border-2 transition-all text-left',
-                  deliveryType === 'delivery'
+                  deliveryType === 'pickup_e6'
                     ? 'border-[#2C1810] bg-[#2C1810]/10 text-gray-900'
                     : 'border-gray-300 hover:border-gray-400 text-gray-900'
                 )}
               >
-                <p className="font-semibold text-gray-900">Levering</p>
-                <p className="text-sm text-gray-700">Kr 500</p>
+                <p className="font-semibold text-gray-900">Henting langs E6</p>
+                <p className="text-sm text-gray-700">Hentedag avtales</p>
+              </button>
+              <button
+                onClick={() => setDeliveryType('delivery_trondheim')}
+                className={cn(
+                  'p-4 rounded-xl border-2 transition-all text-left',
+                  deliveryType === 'delivery_trondheim'
+                    ? 'border-[#2C1810] bg-[#2C1810]/10 text-gray-900'
+                    : 'border-gray-300 hover:border-gray-400 text-gray-900'
+                )}
+              >
+                <p className="font-semibold text-gray-900">Henting i Trondheim</p>
+                <p className="text-sm text-gray-700">Hentedag den uken</p>
               </button>
             </div>
           </div>
@@ -199,8 +211,8 @@ export function OrderModificationModal({ order, isOpen, onClose, onSave }: Order
                     : 'border-gray-300 hover:border-gray-400 text-gray-900'
                 )}
               >
-                <p className="font-semibold text-gray-900">Frossen levering</p>
-                <p className="text-sm text-gray-700">Standard</p>
+                <p className="font-semibold text-gray-900">Frossen henting</p>
+                <p className="text-sm text-gray-700">Standard henting</p>
               </button>
               <button
                 onClick={() => setFreshDelivery(true)}
@@ -211,8 +223,8 @@ export function OrderModificationModal({ order, isOpen, onClose, onSave }: Order
                     : 'border-gray-300 hover:border-gray-400 text-gray-900'
                 )}
               >
-                <p className="font-semibold text-gray-900">Fersk levering</p>
-                <p className="text-sm text-gray-700">Kr 200 ekstra</p>
+                <p className="font-semibold text-gray-900">Fersk henting</p>
+                <p className="text-sm text-gray-700">Henting på gården uke 50/51</p>
               </button>
             </div>
           </div>

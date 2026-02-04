@@ -128,7 +128,7 @@ export function OrderTimelineModal({ isOpen, onClose, order }: OrderTimelineModa
     events.push({
       id: 'ready',
       type: 'ready',
-      title: order.delivery_type.includes('pickup') ? 'Klar for henting' : 'Klar for levering',
+      title: 'Klar for henting',
       description: 'Bestillingen er klar',
       timestamp: order.created_at, // TODO: Add ready_at field
       icon: Truck,

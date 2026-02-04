@@ -135,7 +135,7 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
   const deliveryTypeLabels: Record<string, string> = {
     pickup_farm: 'Henting på gård',
     pickup_e6: 'Henting ved E6',
-    delivery_trondheim: 'Levering i Trondheim',
+    delivery_trondheim: 'Henting i Trondheim',
   };
 
   const ribbeChoiceLabels: Record<string, string> = {
