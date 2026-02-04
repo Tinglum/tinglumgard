@@ -23,6 +23,7 @@ export function OrderModificationModal({ order, isOpen, onClose, onSave }: Order
   const [freshDelivery, setFreshDelivery] = useState(order.fresh_delivery);
   const [saving, setSaving] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
+  const [pricing, setPricing] = useState<any>(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -32,6 +33,32 @@ export function OrderModificationModal({ order, isOpen, onClose, onSave }: Order
       setFreshDelivery(order.fresh_delivery);
     }
   }, [isOpen, order]);
+
+  useEffect(() => {
+    if (deliveryType !== 'pickup_farm' && freshDelivery) {
+      setFreshDelivery(false);
+    }
+  }, [deliveryType, freshDelivery]);
+
+  useEffect(() => {
+    async function fetchPricing() {
+      try {
+        const response = await fetch('/api/config/pricing');
+        const data = await response.json();
+        setPricing(data || null);
+      } catch (error) {
+        console.error('Failed to fetch pricing:', error);
+      }
+    }
+    fetchPricing();
+  }, []);
+
+  const isFreshAllowed = deliveryType === 'pickup_farm';
+  const freshFee = pricing?.fresh_delivery_fee;
+  const boxPrice8 = pricing?.box_8kg_price;
+  const boxPrice12 = pricing?.box_12kg_price;
+  const pickupE6Fee = pricing?.delivery_fee_pickup_e6 ?? pricing?.delivery_fee_e6;
+  const trondheimFee = pricing?.delivery_fee_trondheim;
 
   const hasChanges =
     boxSize !== order.box_size ||
@@ -106,7 +133,9 @@ export function OrderModificationModal({ order, isOpen, onClose, onSave }: Order
                 )}
               >
                 <p className="text-2xl font-bold text-gray-900">8 kg</p>
-                <p className="text-sm text-gray-700">Pris fra admin-innstillinger</p>
+                <p className="text-sm text-gray-700">
+                  {boxPrice8 ? `kr ${boxPrice8.toLocaleString('nb-NO')}` : 'Pris fra admin-innstillinger'}
+                </p>
               </button>
               <button
                 onClick={() => setBoxSize(12)}
@@ -118,7 +147,9 @@ export function OrderModificationModal({ order, isOpen, onClose, onSave }: Order
                 )}
               >
                 <p className="text-2xl font-bold text-gray-900">12 kg</p>
-                <p className="text-sm text-gray-700">Pris fra admin-innstillinger</p>
+                <p className="text-sm text-gray-700">
+                  {boxPrice12 ? `kr ${boxPrice12.toLocaleString('nb-NO')}` : 'Pris fra admin-innstillinger'}
+                </p>
               </button>
             </div>
           </div>
@@ -178,7 +209,9 @@ export function OrderModificationModal({ order, isOpen, onClose, onSave }: Order
                 )}
               >
                 <p className="font-semibold text-gray-900">Henting langs E6</p>
-                <p className="text-sm text-gray-700">Hentedag avtales</p>
+                <p className="text-sm text-gray-700">
+                  {pickupE6Fee ? `kr ${pickupE6Fee.toLocaleString('nb-NO')} · Hentedag avtales` : 'Hentedag avtales'}
+                </p>
               </button>
               <button
                 onClick={() => setDeliveryType('delivery_trondheim')}
@@ -190,7 +223,9 @@ export function OrderModificationModal({ order, isOpen, onClose, onSave }: Order
                 )}
               >
                 <p className="font-semibold text-gray-900">Henting i Trondheim</p>
-                <p className="text-sm text-gray-700">Hentedag den uken</p>
+                <p className="text-sm text-gray-700">
+                  {trondheimFee ? `kr ${trondheimFee.toLocaleString('nb-NO')} · Hentedag den uken` : 'Hentedag den uken'}
+                </p>
               </button>
             </div>
           </div>
@@ -215,16 +250,27 @@ export function OrderModificationModal({ order, isOpen, onClose, onSave }: Order
                 <p className="text-sm text-gray-700">Standard henting</p>
               </button>
               <button
-                onClick={() => setFreshDelivery(true)}
+                onClick={() => {
+                  if (isFreshAllowed) {
+                    setFreshDelivery(true);
+                  }
+                }}
+                disabled={!isFreshAllowed}
                 className={cn(
                   'p-4 rounded-xl border-2 transition-all text-left',
                   freshDelivery
                     ? 'border-[#2C1810] bg-[#2C1810]/10 text-gray-900'
-                    : 'border-gray-300 hover:border-gray-400 text-gray-900'
+                    : 'border-gray-300 hover:border-gray-400 text-gray-900',
+                  !isFreshAllowed && 'opacity-50 cursor-not-allowed'
                 )}
               >
                 <p className="font-semibold text-gray-900">Fersk henting</p>
-                <p className="text-sm text-gray-700">Henting på gården uke 50/51</p>
+                <p className="text-sm text-gray-700">
+                  {freshFee ? `kr ${freshFee.toLocaleString('nb-NO')} · Henting på gården uke 50/51` : 'Henting på gården uke 50/51'}
+                </p>
+                {!isFreshAllowed && (
+                  <p className="text-xs text-gray-600 mt-1">Kun tilgjengelig ved henting på gården</p>
+                )}
               </button>
             </div>
           </div>
