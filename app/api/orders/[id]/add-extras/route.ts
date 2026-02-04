@@ -25,12 +25,20 @@ export async function POST(
       return NextResponse.json({ error: 'Invalid extras data' }, { status: 400 });
     }
 
-    // Verify order belongs to user
+    // Verify order belongs to user (or is an anonymous order matching phone/email)
+    const orConditions = [`user_id.eq.${session.userId}`];
+    if (session.phoneNumber) {
+      orConditions.push(`and(user_id.is.null,customer_phone.eq.${session.phoneNumber})`);
+    }
+    if (session.email) {
+      orConditions.push(`and(user_id.is.null,customer_email.eq.${session.email})`);
+    }
+
     const { data: order, error: orderError } = await supabaseAdmin
       .from('orders')
       .select('*')
       .eq('id', params.id)
-      .eq('user_id', session.userId)
+      .or(orConditions.join(','))
       .single();
 
     if (orderError || !order) {

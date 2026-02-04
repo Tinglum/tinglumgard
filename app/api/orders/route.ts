@@ -40,18 +40,32 @@ export async function GET() {
     if (anonymousOrders && anonymousOrders.length > 0) {
       console.log(`Linking ${anonymousOrders.length} anonymous orders to user ${session.userId} by phone/email match`);
 
-      const { error: updateError } = await supabaseAdmin
-        .from('orders')
-        .update({ user_id: session.userId })
-        .in('id', anonymousOrders.map(o => o.id));
+      const { data: userProfile, error: userProfileError } = await supabaseAdmin
+        .from('users')
+        .select('id')
+        .eq('id', session.userId)
+        .maybeSingle();
 
-      if (updateError) {
-        console.error('Error linking anonymous orders:', updateError);
+      if (userProfileError) {
+        console.error('Error checking user profile:', userProfileError);
+      }
+
+      if (!userProfile) {
+        console.warn('Skipping anonymous order linking: user profile missing');
       } else {
-        // Update the orders in memory to reflect the change
-        anonymousOrders.forEach(order => {
-          order.user_id = session.userId;
-        });
+        const { error: updateError } = await supabaseAdmin
+          .from('orders')
+          .update({ user_id: session.userId })
+          .in('id', anonymousOrders.map(o => o.id));
+
+        if (updateError) {
+          console.error('Error linking anonymous orders:', updateError);
+        } else {
+          // Update the orders in memory to reflect the change
+          anonymousOrders.forEach(order => {
+            order.user_id = session.userId;
+          });
+        }
       }
     }
 

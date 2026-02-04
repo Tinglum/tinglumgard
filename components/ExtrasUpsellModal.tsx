@@ -27,6 +27,7 @@ interface ExtrasUpsellModalProps {
   currentExtras?: { slug: string; quantity: number }[];
   loading?: boolean;
   isPaymentFlow?: boolean; // Are we in the remainder payment flow?
+  baseRemainderAmount?: number;
 }
 
 export function ExtrasUpsellModal({
@@ -36,6 +37,7 @@ export function ExtrasUpsellModal({
   currentExtras = [],
   loading = false,
   isPaymentFlow = false,
+  baseRemainderAmount = 0,
 }: ExtrasUpsellModalProps) {
   const { getThemeClasses } = useTheme();
   const { lang } = useLanguage();
@@ -364,7 +366,7 @@ export function ExtrasUpsellModal({
                         Oppdaterer...
                       </>
                     ) : (
-                      `Bekreft og betal restbeløp (kr ${calculateTotal().toLocaleString('nb-NO')})`
+                      `Bekreft og betal restbeløp (kr ${(baseRemainderAmount + calculateTotal()).toLocaleString('nb-NO')})`
                     )}
                   </Button>
                 </>
