@@ -178,19 +178,6 @@ export async function POST(
       })
       .eq('id', order.id);
 
-    // Update the payment status and set paid_at timestamp
-    const { error: updateError } = await supabaseAdmin
-      .from('payments')
-      .update({
-        status: 'completed',
-        paid_at: new Date().toISOString(),
-      })
-      .eq('id', existingDepositPayment.id);
-
-    if (updateError) {
-      return NextResponse.json({ error: 'Failed to update payment' }, { status: 500 });
-    }
-
     return NextResponse.json({
       success: true,
       redirectUrl: vippsResult.checkoutFrontendUrl,
