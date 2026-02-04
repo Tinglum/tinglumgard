@@ -17,18 +17,24 @@ export default function ConfirmationPage() {
   const [loading, setLoading] = useState(true);
   const [paymentStatus, setPaymentStatus] = useState<'pending' | 'completed' | 'failed'>('pending');
   const [pollCount, setPollCount] = useState(0);
+  const [config, setConfig] = useState<any>(null);
 
   useEffect(() => {
-    async function fetchOrder() {
+    async function fetchData() {
       if (!orderId) {
         setLoading(false);
         return;
       }
 
       try {
-        const response = await fetch(`/api/orders/${orderId}`);
-        if (response.ok) {
-          const data = await response.json();
+        // Fetch both order and config in parallel
+        const [orderResponse, configResponse] = await Promise.all([
+          fetch(`/api/orders/${orderId}`),
+          fetch('/api/config')
+        ]);
+
+        if (orderResponse.ok) {
+          const data = await orderResponse.json();
           setOrder(data);
 
           // Check payment status
@@ -40,14 +46,19 @@ export default function ConfirmationPage() {
             setPaymentStatus(depositPayment.status);
           }
         }
+
+        if (configResponse.ok) {
+          const configData = await configResponse.json();
+          setConfig(configData);
+        }
       } catch (error) {
-        console.error('Error fetching order:', error);
+        console.error('Error fetching data:', error);
       } finally {
         setLoading(false);
       }
     }
 
-    fetchOrder();
+    fetchData();
   }, [orderId]);
 
   // Poll for payment status updates (webhooks can be delayed)
@@ -109,6 +120,18 @@ export default function ConfirmationPage() {
   // Use actual deposit amount from order (may be customized)
   const depositAmount = order.deposit_amount;
 
+  // Get deposit percentage based on box size
+  const depositPercentage = order.box_size === 8
+    ? config?.pricing?.box_8kg_deposit_percentage || 50
+    : config?.pricing?.box_12kg_deposit_percentage || 50;
+
+  // Get cutoff year for delivery date
+  const deliveryYear = config?.cutoff?.year || 2026;
+
+  // Referral percentages (could be added to config later)
+  const referralGivePercentage = 20;
+  const referralEarnPercentage = 10;
+
   return (
     <div className={cn("min-h-screen", theme.bgGradientHero)}>
       <div className="max-w-4xl mx-auto px-6 py-12">
@@ -149,7 +172,7 @@ export default function ConfirmationPage() {
             <div className="flex items-start gap-4">
               <CreditCard className={cn("w-5 h-5 mt-1", theme.iconColor)} />
               <div>
-                <p className={cn("font-semibold", theme.textPrimary)}>Forskudd (50%)</p>
+                <p className={cn("font-semibold", theme.textPrimary)}>Forskudd ({depositPercentage}%)</p>
                 <p className={cn(theme.textMuted)}>{depositAmount.toLocaleString('nb-NO')} kr</p>
               </div>
             </div>
@@ -259,7 +282,7 @@ export default function ConfirmationPage() {
               <div>
                 <p className={cn("font-semibold", theme.textPrimary)}>Del vennerabatt</p>
                 <p className={cn("text-sm", theme.textMuted)}>
-                  Gi 20% rabatt til venner og få 10% kreditt selv. Finn din kode på{' '}
+                  Gi {referralGivePercentage}% rabatt til venner og få {referralEarnPercentage}% kreditt selv. Finn din kode på{' '}
                   <Link href="/min-side" className="underline font-medium">Min side</Link>.
                 </p>
               </div>
@@ -272,7 +295,7 @@ export default function ConfirmationPage() {
               <div>
                 <p className={cn("font-semibold", theme.textPrimary)}>Grisene vokser opp</p>
                 <p className={cn("text-sm", theme.textMuted)}>
-                  Grisene lever på gården gjennom 2026 og blir slaktet lokalt i desember.
+                  Grisene lever på gården gjennom {deliveryYear} og blir slaktet lokalt i desember.
                 </p>
               </div>
             </div>
@@ -284,7 +307,7 @@ export default function ConfirmationPage() {
               <div>
                 <p className={cn("font-semibold", theme.textPrimary)}>Betaling av rest og levering</p>
                 <p className={cn("text-sm", theme.textMuted)}>
-                  Restbeløpet betales ved levering i desember 2026.
+                  Restbeløpet betales ved levering i desember {deliveryYear}.
                 </p>
               </div>
             </div>
