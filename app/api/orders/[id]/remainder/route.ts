@@ -128,7 +128,7 @@ export async function POST(
       customerInfo.phoneNumber = order.customer_phone;
     }
 
-    // Create session data with extended configuration
+    // Create session data - remainder payment is payment-only, no shipping needed
     const sessionData: any = {
       merchantInfo: {
         callbackUrl: `${appUrl}/api/webhooks/vipps`,
@@ -146,14 +146,11 @@ export async function POST(
       },
       configuration: {
         userFlow: 'WEB_REDIRECT',
-        requireUserInfo: false,
       },
     };
 
-    // Add customer info if we have it
-    if (Object.keys(customerInfo).length > 0) {
-      sessionData.prefillCustomer = customerInfo;
-    }
+    // Don't add prefillCustomer or requireUserInfo for remainder payments
+    // This ensures Vipps skips the information collection step entirely
 
     console.log('Creating remainder payment session:', {
       reference: shortReference,
