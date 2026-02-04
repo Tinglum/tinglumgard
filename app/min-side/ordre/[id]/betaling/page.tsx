@@ -5,13 +5,14 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useToast } from '@/hooks/use-toast';
 import { useAsyncAction } from '@/hooks/useAsyncAction';
 import { Spinner } from '@/components/ui/spinner';
 import { ExtraProductCard } from '@/components/ExtraProductCard';
-import { ShoppingCart } from 'lucide-react';
+import { ShoppingCart, Check } from 'lucide-react';
 
 interface OrderData {
   id: string;
@@ -261,22 +262,102 @@ export default function RemainderPaymentSummaryPage() {
               Legg til ekstra produkter før du betaler. Prisen legges til restbeløpet.
             </p>
 
-            <div className="space-y-4">
-              {availableExtras.map((extra) => (
-                <ExtraProductCard
-                  key={extra.slug}
-                  extra={extra}
-                  quantity={selectedQuantities[extra.slug] || 0}
-                  onChange={(qty) => handleQuantityChange(extra.slug, qty)}
-                  disabled={isPaying}
-                />
-              ))}
+            <div className="grid md:grid-cols-2 gap-6">
+              {availableExtras.map((extra) => {
+                const quantity = selectedQuantities[extra.slug] || 0;
+                const isSelected = quantity > 0;
+
+                return (
+                  <div
+                    key={extra.slug}
+                    className={cn(
+                      "group relative p-6 rounded-2xl border-2 transition-all duration-300 cursor-pointer",
+                      isSelected
+                        ? "border-amber-500 bg-gradient-to-br from-amber-50 to-orange-50 shadow-xl scale-105"
+                        : cn(theme.borderSecondary, theme.bgCard, "hover:shadow-lg hover:scale-102 hover:border-amber-300")
+                    )}
+                    onClick={() => {
+                      if (!isPaying) {
+                        if (isSelected) {
+                          handleQuantityChange(extra.slug, 0);
+                        } else {
+                          handleQuantityChange(extra.slug, extra.pricing_type === 'per_kg' ? 0.5 : 1);
+                        }
+                      }
+                    }}
+                  >
+                    {/* Selection Indicator */}
+                    <div className="absolute top-4 right-4">
+                      <div className={cn(
+                        "w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all",
+                        isSelected
+                          ? "bg-amber-500 border-amber-500 shadow-md"
+                          : "border-gray-300 bg-white group-hover:border-amber-400"
+                      )}>
+                        {isSelected && <Check className="w-4 h-4 text-white" />}
+                      </div>
+                    </div>
+
+                    {/* Product Info */}
+                    <div className="pr-8">
+                      <h4 className={cn("text-lg font-bold mb-2", theme.textPrimary)}>{extra.name_no}</h4>
+                      {extra.description_no && (
+                        <p className={cn("text-sm mb-3 leading-relaxed", theme.textMuted)}>{extra.description_no}</p>
+                      )}
+
+                      {/* Price */}
+                      <div className="flex items-baseline gap-2 mb-4">
+                        <span className={cn("text-2xl font-bold", isSelected ? "text-amber-600" : theme.textPrimary)}>
+                          {extra.price_nok} kr
+                        </span>
+                        <span className={cn("text-sm", theme.textMuted)}>
+                          /{extra.pricing_type === 'per_kg' ? 'kg' : 'stk'}
+                        </span>
+                      </div>
+
+                      {/* Stock Warning */}
+                      {extra.stock_quantity !== null && extra.stock_quantity < 10 && (
+                        <p className="text-xs text-amber-600 mb-3">
+                          {extra.stock_quantity > 0 ? `Bare ${extra.stock_quantity} igjen` : 'Utsolgt'}
+                        </p>
+                      )}
+
+                      {/* Quantity Selector */}
+                      {isSelected && (
+                        <div
+                          className="flex items-center gap-3 pt-4 border-t border-amber-200 animate-in fade-in slide-in-from-top-2 duration-300"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <label className={cn("text-sm font-semibold", theme.textPrimary)}>Antall</label>
+                          <Input
+                            type="number"
+                            min={extra.pricing_type === 'per_kg' ? '0.1' : '1'}
+                            step={extra.pricing_type === 'per_kg' ? '0.1' : '1'}
+                            value={quantity}
+                            onChange={(e) => {
+                              const value = parseFloat(e.target.value);
+                              if (!isNaN(value) && value > 0) {
+                                handleQuantityChange(extra.slug, value);
+                              }
+                            }}
+                            disabled={isPaying}
+                            className={cn("w-24 text-center font-bold text-lg border-2 border-amber-300 focus:border-amber-500", theme.textPrimary)}
+                          />
+                          <span className={cn("text-sm font-medium", theme.textPrimary)}>
+                            {extra.pricing_type === 'per_kg' ? 'kg' : 'stk'}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
 
             {newExtrasTotal > 0 && (
               <div className={cn('mt-6 pt-4 border-t flex justify-between items-center', theme.borderSecondary)}>
                 <span className={cn('font-semibold', theme.textPrimary)}>Totalt ekstra produkter</span>
-                <span className={cn('text-xl font-bold text-green-600')}>
+                <span className={cn('text-xl font-bold text-amber-600')}>
                   kr {newExtrasTotal.toLocaleString('nb-NO')}
                 </span>
               </div>
