@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useIsMobile } from '@/hooks/useMediaQuery';
@@ -205,10 +206,13 @@ export default function OppdelingsplanPage() {
 
             {/* Pig butcher diagram */}
             <div className="relative w-full aspect-[16/9] max-w-5xl mx-auto">
-              <img
+              <Image
                 src="/pig-diagram3.png"
                 alt="Pig butcher diagram"
-                className="w-full h-full object-contain"
+                fill
+                sizes="(min-width: 1024px) 800px, 100vw"
+                className="object-contain"
+                priority
               />
 
               {/* Clickable overlays using precise polygon coordinates */}
