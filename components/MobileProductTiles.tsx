@@ -2,7 +2,6 @@
 
 import { motion } from 'framer-motion';
 import Link from 'next/link';
-import { useState, useEffect } from 'react';
 import { Check } from 'lucide-react';
 
 const packageData = [
@@ -22,23 +21,11 @@ const packageData = [
   },
 ];
 
-export function MobileProductTiles() {
-  const [pricing, setPricing] = useState<any>(null);
+interface MobileProductTilesProps {
+  pricing: any;
+}
 
-  useEffect(() => {
-    async function fetchPricing() {
-      try {
-        const res = await fetch('/api/config/pricing');
-        if (res.ok) {
-          const data = await res.json();
-          setPricing(data);
-        }
-      } catch (error) {
-        console.error('Failed to fetch pricing:', error);
-      }
-    }
-    fetchPricing();
-  }, []);
+export function MobileProductTiles({ pricing }: MobileProductTilesProps) {
 
   const packages = packageData.map(pkg => ({
     ...pkg,

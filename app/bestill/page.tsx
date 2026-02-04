@@ -305,39 +305,23 @@ export default function CheckoutPage() {
   // Mobile version
   if (isMobile) {
     return (
-      <div className="min-h-screen relative">
-        {/* Animated prismatic background */}
-        <div className="fixed inset-0 -z-10 bg-gradient-to-br from-purple-900 via-blue-900 to-teal-900 animate-gradient">
-          <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-20" />
-          <div className="absolute top-0 right-0 w-96 h-96 bg-pink-500 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob" />
-          <div className="absolute bottom-0 left-0 w-96 h-96 bg-cyan-500 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob animation-delay-2000" />
-          <div className="absolute top-1/2 left-1/2 w-96 h-96 bg-purple-500 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob animation-delay-4000" />
-        </div>
-
-        <div className="max-w-2xl mx-auto px-4 py-8">
+      <div className="min-h-screen bg-[#F7F1EA] text-[#1F1A14]">
+        <div className="mx-auto max-w-md px-5 pb-28 pt-6">
           <Link
             href="/"
-            className="inline-flex items-center gap-2 text-white font-semibold mb-6"
-            style={{ textShadow: '0 2px 8px rgba(0,0,0,0.9)' }}
+            className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.25em] text-[#6C5A4A]"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
             {t.nav.back}
           </Link>
 
-          <h1
-            className="text-5xl font-bold text-white mb-2"
-            style={{ textShadow: '0 2px 20px rgba(0,0,0,0.9)' }}
-          >
-            {t.checkout.title}
-          </h1>
-          <p
-            className="text-sm font-semibold text-white mb-8"
-            style={{ textShadow: '0 2px 8px rgba(0,0,0,0.9)' }}
-          >
-            {t.checkout.subtitle}
-          </p>
+          <div className="mt-6 mb-8">
+            <p className="text-xs font-semibold uppercase tracking-[0.25em] text-[#6C5A4A]">{t.checkout.title}</p>
+            <h1 className="mt-2 text-4xl font-bold text-[#1F1A14]">{t.checkout.pageTitle}</h1>
+            <p className="mt-3 text-sm text-[#6C5A4A]">{t.checkout.selectSize}</p>
+          </div>
 
           <MobileCheckout
             step={step}
