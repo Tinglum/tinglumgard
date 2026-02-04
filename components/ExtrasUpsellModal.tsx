@@ -69,10 +69,13 @@ export function ExtrasUpsellModal({
 
   useEffect(() => {
     if (!isOpen) return;
-    const previousOverflow = document.body.style.overflow;
+    const previousBodyOverflow = document.body.style.overflow;
+    const previousHtmlOverflow = document.documentElement.style.overflow;
     document.body.style.overflow = 'hidden';
+    document.documentElement.style.overflow = 'hidden';
     return () => {
-      document.body.style.overflow = previousOverflow;
+      document.body.style.overflow = previousBodyOverflow;
+      document.documentElement.style.overflow = previousHtmlOverflow;
     };
   }, [isOpen]);
 
@@ -168,6 +171,14 @@ export function ExtrasUpsellModal({
     }, 0);
   }
 
+  function calculateSelectedCount() {
+    return extras.reduce((count, extra) => {
+      const quantity = selectedQuantities[extra.slug] || 0;
+      if (quantity <= 0) return count;
+      return count + (extra.pricing_type === 'per_kg' ? 1 : quantity);
+    }, 0);
+  }
+
   function calculateCurrentExtrasTotal() {
     return currentExtras.reduce((total, extra) => {
       const catalogItem = extras.find((e) => e.slug === extra.slug);
@@ -179,7 +190,11 @@ export function ExtrasUpsellModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200"
+      onWheel={(event) => event.stopPropagation()}
+      onTouchMove={(event) => event.stopPropagation()}
+    >
       <div
         className={cn(
           'relative w-full max-w-4xl max-h-[90vh] overflow-hidden rounded-3xl shadow-2xl animate-in zoom-in-95 duration-200',
@@ -351,7 +366,7 @@ export function ExtrasUpsellModal({
             <div>
               <p className={cn('text-sm mb-1', theme.textMuted)}>Ekstra produkter valgt:</p>
               <p className={cn('text-2xl font-bold', theme.textPrimary)}>
-                {Object.values(selectedQuantities).filter(q => q > 0).reduce((s, q) => s + q, 0)} stk • kr {calculateTotal().toLocaleString('nb-NO')}
+                {calculateSelectedCount()} stk • kr {calculateTotal().toLocaleString('nb-NO')}
               </p>
               <p className={cn('text-xs mt-1', theme.textMuted)}>
                 Dette beløpet legges til restbeløpet ditt
@@ -383,7 +398,7 @@ export function ExtrasUpsellModal({
                     onClick={() => handleConfirm(true)}
                     disabled={loading}
                     className="px-8 bg-green-600 hover:bg-green-700 text-white"
-                    aria-disabled={loading || Object.values(selectedQuantities).filter(q => q > 0).length === 0}
+                    aria-disabled={loading || calculateSelectedCount() === 0}
                   >
                     {loading ? (
                       <>
@@ -399,9 +414,9 @@ export function ExtrasUpsellModal({
                 // Normal flow: Just save
                 <Button
                   onClick={() => handleConfirm(false)}
-                  disabled={loading || Object.values(selectedQuantities).filter(q => q > 0).length === 0}
+                  disabled={loading || calculateSelectedCount() === 0}
                   className="px-8 bg-green-600 hover:bg-green-700 text-white"
-                  aria-disabled={loading || Object.values(selectedQuantities).filter(q => q > 0).length === 0}
+                  aria-disabled={loading || calculateSelectedCount() === 0}
                 >
                   {loading ? (
                     <>
@@ -409,7 +424,7 @@ export function ExtrasUpsellModal({
                       Lagrer...
                     </>
                   ) : (
-                      `Legg til (${Object.values(selectedQuantities).filter(q => q > 0).reduce((s, q) => s + q, 0)}) — kr ${calculateTotal().toLocaleString('nb-NO')}`
+                      `Legg til (${calculateSelectedCount()}) — kr ${calculateTotal().toLocaleString('nb-NO')}`
                   )}
                 </Button>
               )}

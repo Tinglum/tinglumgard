@@ -171,10 +171,7 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
       if (proceedToPayment) {
         // Refresh to get updated amounts, then proceed to payment
         await onRefresh();
-        // Small delay to ensure state is updated
-        setTimeout(() => {
-          onPayRemainder(order.id);
-        }, 500);
+        onPayRemainder(order.id);
       } else {
         onRefresh();
       }
