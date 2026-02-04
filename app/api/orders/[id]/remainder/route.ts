@@ -149,6 +149,7 @@ export async function POST(
       },
       configuration: {
         userFlow: 'WEB_REDIRECT',
+        requireUserInfo: false,
       },
     };
 
