@@ -168,6 +168,27 @@ export default function RemainderPaymentSummaryPage() {
     async () => {
       if (!orderId) throw new Error('Mangler ordre-ID');
 
+      // Step 1: Save extras if they've changed
+      if (hasExtrasChanges) {
+        const extrasResponse = await fetch(`/api/orders/${orderId}/add-extras`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ extras: getSelectedExtras() }),
+        });
+
+        if (!extrasResponse.ok) {
+          const extrasData = await extrasResponse.json().catch(() => null);
+          throw new Error(extrasData?.error || 'Kunne ikke oppdatere ekstra produkter');
+        }
+
+        // Briefly show success
+        toast({
+          title: 'Ekstra produkter oppdatert',
+          description: 'Starter betaling...',
+        });
+      }
+
+      // Step 2: Create payment
       const response = await fetch(`/api/orders/${orderId}/remainder`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -215,9 +236,10 @@ export default function RemainderPaymentSummaryPage() {
 
   return (
     <div className={cn('min-h-screen px-4 py-10', theme.bgGradientHero)}>
-      <div className="max-w-3xl mx-auto">
+      <div className="max-w-3xl mx-auto space-y-6">
+        {/* Header Card */}
         <Card className={cn('p-6 md:p-8', theme.bgCard, theme.borderSecondary)}>
-          <div className="flex items-start justify-between mb-6">
+          <div className="flex items-start justify-between">
             <div>
               <h1 className={cn('text-2xl font-bold', theme.textPrimary)}>Betal restbeløp</h1>
               <p className={cn('text-sm', theme.textMuted)}>Ordre {order.order_number}</p>
@@ -226,67 +248,104 @@ export default function RemainderPaymentSummaryPage() {
               Tilbake
             </Link>
           </div>
+        </Card>
 
-          <div className={cn('p-4 rounded-xl border', theme.borderSecondary)}>
-            <h2 className={cn('font-semibold mb-3', theme.textPrimary)}>Oppsummering</h2>
-            <div className="space-y-2">
+        {/* Extras Selection Card */}
+        {!extrasLoading && availableExtras.length > 0 && (
+          <Card className={cn('p-6 md:p-8', theme.bgCard, theme.borderSecondary)}>
+            <div className="flex items-center gap-2 mb-4">
+              <ShoppingCart className="w-5 h-5" />
+              <h2 className={cn('text-xl font-bold', theme.textPrimary)}>Ekstra produkter (valgfritt)</h2>
+            </div>
+            <p className={cn('text-sm mb-6', theme.textMuted)}>
+              Legg til ekstra produkter før du betaler. Prisen legges til restbeløpet.
+            </p>
+
+            <div className="space-y-4">
+              {availableExtras.map((extra) => (
+                <ExtraProductCard
+                  key={extra.slug}
+                  extra={extra}
+                  quantity={selectedQuantities[extra.slug] || 0}
+                  onChange={(qty) => handleQuantityChange(extra.slug, qty)}
+                  disabled={isPaying}
+                />
+              ))}
+            </div>
+
+            {newExtrasTotal > 0 && (
+              <div className={cn('mt-6 pt-4 border-t flex justify-between items-center', theme.borderSecondary)}>
+                <span className={cn('font-semibold', theme.textPrimary)}>Totalt ekstra produkter</span>
+                <span className={cn('text-xl font-bold text-green-600')}>
+                  kr {newExtrasTotal.toLocaleString('nb-NO')}
+                </span>
+              </div>
+            )}
+
+            {hasExtrasChanges && (
+              <div className={cn('mt-4 p-3 rounded-lg bg-amber-50 border border-amber-200')}>
+                <p className="text-sm text-amber-800">
+                  ⚠️ Du har endringer som ikke er lagret. De vil bli lagret når du klikker &quot;Betal med Vipps&quot;.
+                </p>
+              </div>
+            )}
+          </Card>
+        )}
+
+        {/* Payment Summary Card */}
+        <Card className={cn('p-6 md:p-8', theme.bgCard, theme.borderSecondary)}>
+
+          <h2 className={cn('text-xl font-bold mb-4', theme.textPrimary)}>Betalingsoversikt</h2>
+
+          <div className="space-y-3">
+            <div className="flex justify-between">
+              <span className={theme.textSecondary}>Forskudd (betalt)</span>
+              <span className={cn('font-semibold', theme.textPrimary)}>
+                kr {order.deposit_amount.toLocaleString('nb-NO')}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className={theme.textSecondary}>Restbeløp kasse</span>
+              <span className={cn('font-semibold', theme.textPrimary)}>
+                kr {baseRemainder.toLocaleString('nb-NO')}
+              </span>
+            </div>
+            {newExtrasTotal > 0 && (
               <div className="flex justify-between">
-                <span className={theme.textSecondary}>Forskudd</span>
-                <span className={cn('font-semibold', theme.textPrimary)}>
-                  kr {order.deposit_amount.toLocaleString('nb-NO')}
+                <span className={theme.textSecondary}>Ekstra produkter</span>
+                <span className={cn('font-semibold text-green-600')}>
+                  kr {newExtrasTotal.toLocaleString('nb-NO')}
                 </span>
               </div>
-              <div className="flex justify-between">
-                <span className={theme.textSecondary}>Restbeløp kasse</span>
-                <span className={cn('font-semibold', theme.textPrimary)}>
-                  kr {baseRemainder.toLocaleString('nb-NO')}
-                </span>
-              </div>
-              {extrasTotal > 0 && (
-                <div className="flex justify-between">
-                  <span className={theme.textSecondary}>Ekstra produkter</span>
-                  <span className={cn('font-semibold', theme.textPrimary)}>
-                    kr {extrasTotal.toLocaleString('nb-NO')}
-                  </span>
-                </div>
-              )}
-              <div className={cn('pt-2 border-t flex justify-between', theme.borderSecondary)}>
-                <span className={cn('font-semibold', theme.textPrimary)}>Restbetaling totalt</span>
-                <span className={cn('font-bold', theme.textPrimary)}>
-                  kr {order.remainder_amount.toLocaleString('nb-NO')}
-                </span>
-              </div>
+            )}
+            <div className={cn('pt-3 mt-3 border-t flex justify-between items-center', theme.borderSecondary)}>
+              <span className={cn('text-lg font-bold', theme.textPrimary)}>Å betale nå</span>
+              <span className={cn('text-2xl font-bold text-green-600')}>
+                kr {finalTotal.toLocaleString('nb-NO')}
+              </span>
             </div>
           </div>
 
-          {order.extra_products && order.extra_products.length > 0 && (
-            <div className={cn('mt-6 p-4 rounded-xl border', theme.borderSecondary)}>
-              <h3 className={cn('font-semibold mb-3', theme.textPrimary)}>Ekstra produkter</h3>
-              <div className="space-y-2">
-                {order.extra_products.map((extra, idx) => (
-                  <div key={`${extra.slug}-${idx}`} className="flex justify-between text-sm">
-                    <span className={theme.textPrimary}>
-                      {extra.quantity}x {extra.name}
-                    </span>
-                    <span className={theme.textSecondary}>
-                      kr {extra.total_price?.toLocaleString('nb-NO')}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          <div className="mt-6 flex flex-col sm:flex-row gap-3">
+          <div className="mt-8 flex flex-col gap-3">
             <Button
               onClick={executePayment}
-              className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+              className="w-full py-6 text-lg bg-green-600 hover:bg-green-700 text-white"
               disabled={isPaying}
+              size="lg"
             >
-              {isPaying ? 'Starter betaling...' : 'Betal restbeløp med Vipps'}
+              {isPaying ? (
+                <>
+                  <Spinner size="sm" className="mr-2" />
+                  {hasExtrasChanges ? 'Lagrer ekstra produkter...' : 'Starter betaling...'}
+                </>
+              ) : (
+                `Betal kr ${finalTotal.toLocaleString('nb-NO')} med Vipps`
+              )}
             </Button>
-            <Link href="/min-side" className="flex-1">
-              <Button variant="outline" className="w-full">Tilbake til Min side</Button>
+            <Link href="/min-side" className="w-full">
+              <Button variant="outline" className="w-full" disabled={isPaying}>
+                Tilbake til Min side
+              </Button>
             </Link>
           </div>
         </Card>

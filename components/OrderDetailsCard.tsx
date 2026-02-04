@@ -185,23 +185,17 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
   }
 
   function handleRemainderPayment() {
-    if (canEdit && !order.locked_at) {
-      // Show extras modal before payment if still within edit period
-      setIsPaymentFlow(true);
-      setShowExtrasModal(true);
-    } else {
-      onPayRemainder(order.id);
-    }
+    // Navigate directly to payment page where user can select extras inline
+    window.location.href = `/min-side/ordre/${order.id}/betaling`;
   }
 
   function handleExtrasModalClose() {
     setShowExtrasModal(false);
-    setIsPaymentFlow(false);
   }
 
-  function handleExtrasConfirm(selectedExtras: { slug: string; quantity: number }[], proceedToPayment = false) {
-    handleAddExtras(selectedExtras, proceedToPayment);
-    setIsPaymentFlow(false);
+  function handleExtrasConfirm(selectedExtras: { slug: string; quantity: number }[]) {
+    // For standalone extras button (not payment flow)
+    handleAddExtras(selectedExtras, false);
   }
 
   function handleDownloadReceipt() {
