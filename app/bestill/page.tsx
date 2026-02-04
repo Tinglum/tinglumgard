@@ -697,7 +697,8 @@ export default function CheckoutPage() {
                                   let newQty: number;
                                   if (extra.pricing_type === 'per_kg') {
                                     // For per_kg: snap DOWN to nearest 0.5 increment (magnetic)
-                                    newQty = Math.floor(quantity / 0.5) * 0.5;
+                                    // Subtract 0.1 first to ensure we move to the previous increment
+                                    newQty = Math.floor((quantity - 0.1) / 0.5) * 0.5;
                                   } else {
                                     // For per_unit: just subtract 1
                                     newQty = quantity - 1;

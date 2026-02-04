@@ -435,7 +435,8 @@ export default function RemainderPaymentSummaryPage() {
                             onClick={() => {
                               if (extra.pricing_type === 'per_kg') {
                                 // For per_kg: snap DOWN to nearest 0.5 increment (magnetic)
-                                const newQty = Math.floor(quantity / 0.5) * 0.5;
+                                // Subtract 0.1 first to ensure we move to the previous increment
+                                const newQty = Math.floor((quantity - 0.1) / 0.5) * 0.5;
                                 handleQuantityChange(extra.slug, newQty);
                               } else {
                                 // For per_unit: just subtract 1
