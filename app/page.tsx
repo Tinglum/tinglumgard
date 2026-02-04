@@ -86,89 +86,128 @@ export default function Page() {
   // Mobile version - ultra-minimal prismatic design
   if (isMobile) {
     return (
-      <>
-        <MobileHero isSoldOut={isSoldOut} />
-        <MobileProductTiles />
-        <MobileTimeline />
+      <div className="min-h-screen bg-[#F7F1EA] text-[#1F1A14] pb-28">
+        <MobileHero isSoldOut={isSoldOut} minPrice={minPrice} minDeposit={minDeposit} />
+        <MobileProductTiles pricing={pricing} />
 
-        {/* Mobile Inventory Counter */}
-        <section className="relative py-16 px-4 bg-gradient-to-b from-[#FAF8F5] to-white">
-          <div className="max-w-md mx-auto text-center">
-            <div className="glass-mobile-strong rounded-3xl p-8 glow-pulse">
-              <div className="text-sm uppercase tracking-wider text-[#6B5843] font-bold mb-4">
-                {t.availability.title}
+        {/* Availability */}
+        <section className="bg-[#F7F1EA] px-5 py-10">
+          <div className="rounded-2xl border border-[#E6D8C8] bg-[#FFF9F2] p-6 shadow-[0_12px_30px_rgba(50,36,24,0.08)]">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.25em] text-[#6C5A4A]">
+                  {t.availability.title}
+                </p>
+                <p className="mt-3 text-5xl font-bold text-[#1F1A14]">
+                  {loading ? "—" : boxesLeft}
+                </p>
+                <p className="text-sm text-[#6C5A4A]">{t.availability.boxesAvailable}</p>
               </div>
-              <div className="text-6xl font-bold text-[#2C1810] mb-2">
-                {loading ? "—" : boxesLeft}
+              <div className="text-right">
+                {isSoldOut && (
+                  <span className="rounded-full bg-[#C05621] px-3 py-1 text-xs font-bold uppercase tracking-[0.2em] text-white">
+                    {t.availability.soldOut}
+                  </span>
+                )}
+                {!isSoldOut && isLowStock && (
+                  <span className="rounded-full bg-[#1F1A14] px-3 py-1 text-xs font-bold uppercase tracking-[0.2em] text-[#F7F1EA]">
+                    {t.availability.fewLeft}
+                  </span>
+                )}
               </div>
-              <div className="text-lg text-[#6B5843] mb-6">
-                {t.availability.boxesAvailable}
-              </div>
-              {!loading && (
-                <div className="h-2 bg-white/50 rounded-full overflow-hidden">
+            </div>
+            {!loading && (
+              <div className="mt-4">
+                <div className="h-2 w-full rounded-full bg-[#EADBC8]">
                   <div
-                    className="h-full prismatic rounded-full"
+                    className="h-2 rounded-full bg-[#C05621]"
                     style={{ width: `${Math.min((boxesLeft / 50) * 100, 100)}%` }}
                   />
                 </div>
-              )}
-            </div>
+                <p className="mt-2 text-xs text-[#6C5A4A]">Oppdatert i dag</p>
+              </div>
+            )}
           </div>
         </section>
 
-        {/* Mobile FAQ - Minimal */}
-        <section className="relative py-16 px-4 bg-white">
-          <div className="max-w-md mx-auto">
-            <h2 className="text-3xl font-bold text-[#2C1810] mb-8 text-center">
-              {t.faq.title}
-            </h2>
-            <div className="space-y-3">
+        <MobileTimeline />
+
+        {/* FAQ */}
+        <section className="bg-[#F7F1EA] px-5 py-10">
+          <div className="rounded-2xl border border-[#E6D8C8] bg-white/80 p-6">
+            <h2 className="text-2xl font-bold text-[#1F1A14]">{t.faq.title}</h2>
+            <div className="mt-6 space-y-3">
               {[
                 { q: t.faq.q1, a: t.faq.a1 },
                 { q: t.faq.q2, a: t.faq.a2 },
                 { q: t.faq.q3, a: t.faq.a3 },
-                { q: t.faq.q4, a: t.faq.a4 },
-              ].map((faq, i) => (
-                <details
-                  key={i}
-                  className="glass-mobile rounded-2xl overflow-hidden touch-feedback"
-                >
-                  <summary className="cursor-pointer py-4 px-5 flex items-center justify-between list-none font-semibold text-[#2C1810]">
-                    <span className="text-base">{faq.q}</span>
-                    <svg className="w-5 h-5 text-[#6B5843]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
+              ].map((faq) => (
+                <details key={faq.q} className="rounded-xl border border-[#E6D8C8] bg-white px-4 py-3">
+                  <summary className="cursor-pointer list-none text-sm font-semibold text-[#1F1A14]">
+                    {faq.q}
                   </summary>
-                  <div className="px-5 pb-4 text-sm text-[#6B5843] leading-relaxed">
-                    {faq.a}
-                  </div>
+                  <p className="mt-2 text-sm text-[#6C5A4A]">{faq.a}</p>
                 </details>
               ))}
             </div>
           </div>
         </section>
 
-        {/* Mobile CTA Banner */}
-        <section className="relative py-20 px-4 prismatic overflow-hidden">
-          <div className="absolute inset-0 bg-black/10" />
-          <div className="relative z-10 max-w-md mx-auto text-center">
-            <h2 className="text-4xl font-bold text-white mb-4 drop-shadow-lg">
-              {t.hero.seasonOnce}
-            </h2>
-            <p className="text-lg text-white/90 mb-8 drop-shadow">
-              {t.hero.reserveBeforeLate}
+        {/* CTA */}
+        <section className="bg-[#1F1A14] px-5 py-12 text-[#F7F1EA]">
+          <div className="mx-auto max-w-md space-y-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[#F7F1EA]/70">
+              {t.hero.limitedOffer}
             </p>
+            <h2 className="text-3xl font-bold">{t.hero.seasonOnce}</h2>
+            <p className="text-sm text-[#F7F1EA]/70">{t.hero.limitedProduction}</p>
             <Link
               href="/bestill"
-              className="inline-block px-8 py-4 bg-white text-[#2C1810] rounded-2xl font-bold text-lg shadow-2xl touch-feedback"
+              className="inline-flex items-center justify-center rounded-xl bg-[#F7F1EA] px-6 py-3 text-sm font-bold uppercase tracking-[0.2em] text-[#1F1A14]"
             >
-              {t.hero.reserveNow}
+              {t.hero.reservePackageNow}
             </Link>
           </div>
         </section>
 
-        <InstagramFeed />
-      </>
+        {/* Instagram callout */}
+        <section className="bg-[#F7F1EA] px-5 py-10">
+          <div className="rounded-2xl border border-[#E6D8C8] bg-[#FFF9F2] p-6">
+            <h3 className="text-xl font-bold text-[#1F1A14]">Følg oss på Instagram</h3>
+            <p className="mt-2 text-sm text-[#6C5A4A]">
+              Se hverdagen på gården og oppdateringer gjennom sesongen.
+            </p>
+            <a
+              href="https://www.instagram.com/tinglum.farm"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-4 inline-flex items-center justify-center rounded-xl border border-[#E6D8C8] px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#1F1A14]"
+            >
+              @tinglum.farm
+            </a>
+          </div>
+        </section>
+
+        {/* Sticky CTA bar */}
+        <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-[#E6D8C8] bg-[#FFF9F2]/95 backdrop-blur">
+          <div className="mx-auto flex max-w-md items-center justify-between gap-4 px-5 py-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#6C5A4A]">Reserver kasse</p>
+              {minPrice && (
+                <p className="text-sm font-bold text-[#1F1A14]">
+                  Fra {minPrice.toLocaleString('nb-NO')} {t.common.currency}
+                </p>
+              )}
+            </div>
+            <Link
+              href="/bestill"
+              className="rounded-xl bg-[#1F1A14] px-4 py-2 text-xs font-bold uppercase tracking-[0.2em] text-[#F7F1EA]"
+            >
+              {t.hero.reserveNow}
+            </Link>
+          </div>
+        </div>
+      </div>
     );
   }
 

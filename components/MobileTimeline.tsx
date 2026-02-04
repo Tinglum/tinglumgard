@@ -1,133 +1,59 @@
 'use client';
 
-import { motion } from 'framer-motion';
-
-const steps = [
-  {
-    icon: '🛒',
-    date: 'Jan',
-    title: 'Reserver',
-    desc: 'Betal 50% nå',
-  },
-  {
-    icon: '💰',
-    date: 'Nov',
-    title: 'Betal rest',
-    desc: 'Uke 46',
-  },
-  {
-    icon: '📦',
-    date: 'Des',
-    title: 'Motta pakken',
-    desc: 'Frossen eller fersk',
-  },
-];
+import { useLanguage } from '@/contexts/LanguageContext';
 
 export function MobileTimeline() {
+  const { t } = useLanguage();
+
+  const steps = [
+    {
+      title: t.timeline.step1Title,
+      time: t.timeline.step1Time,
+      desc: t.timeline.step1Desc,
+    },
+    {
+      title: t.timeline.step2Title,
+      time: t.timeline.step2Time,
+      desc: t.timeline.step2Desc,
+    },
+    {
+      title: t.timeline.step3Title,
+      time: t.timeline.step3Time,
+      desc: t.timeline.step3Desc,
+    },
+  ];
+
   return (
-    <section className="relative py-16 px-4 overflow-hidden">
-      {/* Background elements */}
-      <div className="absolute inset-0 -z-10">
-        <div className="absolute top-1/4 right-0 w-64 h-64 rounded-full bg-blue-500/10 blur-3xl" />
-        <div className="absolute bottom-1/4 left-0 w-64 h-64 rounded-full bg-purple-500/10 blur-3xl" />
-      </div>
-
-      <div className="max-w-md mx-auto">
-        {/* Section title */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          className="text-center mb-12"
-        >
-          <h2
-            className="text-3xl font-bold text-white mb-2"
-            style={{ textShadow: '0 2px 15px rgba(0,0,0,0.9)' }}
-          >
-            Slik fungerer det
-          </h2>
-          <p
-            className="text-white font-semibold"
-            style={{ textShadow: '0 2px 10px rgba(0,0,0,0.9)' }}
-          >
-            3 enkle steg
-          </p>
-        </motion.div>
-
-        {/* Timeline steps */}
-        <div className="relative">
-          {/* Connecting line */}
-          <div className="absolute left-[30px] top-12 bottom-12 w-0.5 bg-gradient-to-b from-purple-500/50 via-blue-500/50 to-purple-500/50" />
-
-          <div className="space-y-8">
-            {steps.map((step, index) => (
-              <motion.div
-                key={index}
-                initial={{ opacity: 0, x: -20 }}
-                whileInView={{ opacity: 1, x: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: index * 0.15 }}
-                className="relative flex items-center gap-4"
-              >
-                {/* Icon circle */}
-                <div className="relative flex-shrink-0 z-10">
-                  <div className="w-16 h-16 rounded-2xl glass-mobile-strong flex items-center justify-center text-2xl shadow-lg">
-                    {step.icon}
-                  </div>
-                </div>
-
-                {/* Content card */}
-                <div className="flex-1 glass-mobile rounded-2xl p-4 fade-in-up">
-                  <div className="flex items-center justify-between mb-1">
-                    <h3
-                      className="text-lg font-bold text-white"
-                      style={{ textShadow: '0 2px 10px rgba(0,0,0,0.9)' }}
-                    >
-                      {step.title}
-                    </h3>
-                    <span
-                      className="text-xs font-bold text-white uppercase tracking-wider"
-                      style={{ textShadow: '0 2px 8px rgba(0,0,0,0.9)' }}
-                    >
-                      {step.date}
-                    </span>
-                  </div>
-                  <p
-                    className="text-sm font-semibold text-white"
-                    style={{ textShadow: '0 2px 8px rgba(0,0,0,0.9)' }}
-                  >
-                    {step.desc}
-                  </p>
-                </div>
-              </motion.div>
-            ))}
-          </div>
+    <section className="bg-[#F7F1EA] px-5 py-12">
+      <div className="rounded-2xl border border-[#E6D8C8] bg-white/80 p-6 shadow-[0_12px_30px_rgba(50,36,24,0.08)]">
+        <div className="mb-6">
+          <p className="text-xs font-semibold uppercase tracking-[0.25em] text-[#6C5A4A]">{t.timeline.howItWorks}</p>
+          <h2 className="mt-2 text-2xl font-bold text-[#1F1A14]">{t.timeline.fromOrderToDelivery}</h2>
+          <p className="mt-2 text-sm text-[#6C5A4A]">{t.timeline.subtitle}</p>
         </div>
 
-        {/* Bottom note */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          whileInView={{ opacity: 1 }}
-          viewport={{ once: true }}
-          transition={{ delay: 0.6 }}
-          className="mt-12 text-center"
-        >
-          <div className="inline-flex items-center gap-2 glass-mobile px-6 py-3 rounded-full">
-            <svg className="w-5 h-5 text-green-400" fill="currentColor" viewBox="0 0 20 20">
-              <path
-                fillRule="evenodd"
-                d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                clipRule="evenodd"
-              />
-            </svg>
-            <span
-              className="text-sm font-semibold text-white"
-              style={{ textShadow: '0 2px 8px rgba(0,0,0,0.9)' }}
-            >
-              Kun én sesong per år
-            </span>
-          </div>
-        </motion.div>
+        <div className="space-y-4">
+          {steps.map((step, index) => (
+            <div key={step.title} className="flex gap-4">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#1F1A14] text-sm font-bold text-[#F7F1EA]">
+                {index + 1}
+              </div>
+              <div className="flex-1 rounded-xl border border-[#EFE2D4] bg-[#FFF9F2] p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <h3 className="text-base font-semibold text-[#1F1A14]">{step.title}</h3>
+                  <span className="text-xs font-semibold uppercase tracking-[0.2em] text-[#C05621]">
+                    {step.time}
+                  </span>
+                </div>
+                <p className="mt-2 text-sm text-[#6C5A4A]">{step.desc}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-6 rounded-xl border border-[#E6D8C8] bg-[#1F1A14] px-4 py-3 text-xs font-semibold uppercase tracking-[0.2em] text-[#F7F1EA]">
+          {t.hero.seasonOnce}
+        </div>
       </div>
     </section>
   );

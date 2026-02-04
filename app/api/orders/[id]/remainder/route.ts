@@ -36,10 +36,29 @@ export async function POST(
     }
 
     // Check authorization: order must belong to user OR be anonymous (will be linked)
+    console.log('Authorization check:', {
+      orderUserId: order.user_id,
+      sessionUserId: session.userId,
+      orderPhone: order.customer_phone,
+      sessionPhone: session.phoneNumber,
+      orderEmail: order.customer_email,
+      sessionEmail: session.email,
+    });
+
     const isOwner = order.user_id === session.userId;
     const isAnonymous = !order.user_id;
+    const matchesPhone = session.phoneNumber && order.customer_phone === session.phoneNumber;
+    const matchesEmail = session.email && order.customer_email === session.email;
+    const isAuthorized = isOwner || isAnonymous || matchesPhone || matchesEmail || session.isAdmin;
 
-    if (!isOwner && !isAnonymous && !session.isAdmin) {
+    if (!isAuthorized) {
+      console.error('Authorization failed:', {
+        isOwner,
+        isAnonymous,
+        matchesPhone,
+        matchesEmail,
+        isAdmin: session.isAdmin
+      });
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
     }
 

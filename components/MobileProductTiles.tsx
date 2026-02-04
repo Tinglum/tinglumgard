@@ -1,127 +1,130 @@
 'use client';
 
-import { motion } from 'framer-motion';
 import Link from 'next/link';
-import { useState, useEffect } from 'react';
-import { Check } from 'lucide-react';
+import { useLanguage } from '@/contexts/LanguageContext';
 
-const packageData = [
-  {
-    size: 8,
-    weight: '8 kg',
-    people: '2-3 personer',
-    items: ['2kg ribbe', '1kg steik', '1kg farse', '0.5kg p√∏lse'],
-    popular: false,
-  },
-  {
-    size: 12,
-    weight: '12 kg',
-    people: '4-6 personer',
-    items: ['3kg ribbe', '1kg steik', '1.5kg farse', '1kg p√∏lse'],
-    popular: true,
-  },
-];
+interface MobileProductTilesProps {
+  pricing?: any | null;
+}
 
-export function MobileProductTiles() {
-  const [pricing, setPricing] = useState<any>(null);
+export function MobileProductTiles({ pricing }: MobileProductTilesProps) {
+  const { t } = useLanguage();
 
-  useEffect(() => {
-    async function fetchPricing() {
-      try {
-        const res = await fetch('/api/config/pricing');
-        if (res.ok) {
-          const data = await res.json();
-          setPricing(data);
-        }
-      } catch (error) {
-        console.error('Failed to fetch pricing:', error);
-      }
-    }
-    fetchPricing();
-  }, []);
+  const packages = [
+    {
+      size: '8',
+      label: t.product.box8,
+      people: t.product.perfectFor2to3,
+      highlight: false,
+      items: [
+        t.boxContents.ribbe8kg,
+        t.boxContents.nakkekoteletter8kg,
+        t.boxContents.julep¯lse8kg,
+        t.boxContents.svinesteik8kg,
+      ],
+      price: pricing ? pricing.box_8kg_price : null,
+      deposit: pricing
+        ? Math.floor(pricing.box_8kg_price * pricing.box_8kg_deposit_percentage / 100)
+        : null,
+    },
+    {
+      size: '12',
+      label: t.product.box12,
+      people: t.product.idealFor4to6,
+      highlight: true,
+      items: [
+        t.boxContents.ribbe12kg,
+        t.boxContents.nakkekoteletter12kg,
+        t.boxContents.julep¯lse12kg,
+        t.boxContents.svinesteik12kg,
+      ],
+      price: pricing ? pricing.box_12kg_price : null,
+      deposit: pricing
+        ? Math.floor(pricing.box_12kg_price * pricing.box_12kg_deposit_percentage / 100)
+        : null,
+    },
+  ];
 
-  const packages = packageData.map(pkg => ({
-    ...pkg,
-    price: pkg.size === 8 
-      ? (pricing ? pricing.box_8kg_price : null)
-      : (pricing ? pricing.box_12kg_price : null)
-  }));
-  
   return (
-    <section className="relative py-16 px-4" style={{ backgroundColor: 'var(--farm-snow)' }}>
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true }}
-        className="text-center mb-12"
-      >
-        <h2 className="text-3xl font-bold mb-2" style={{ color: 'var(--farm-earth)' }}>
-          Velg st√∏rrelse
-        </h2>
-        <p className="font-semibold" style={{ color: 'var(--farm-bark)' }}>
-          To pakker ‚Ä¢ Samme kvalitet
-        </p>
-      </motion.div>
+    <section className="bg-[#F7F1EA] px-5 py-10">
+      <div className="flex items-end justify-between gap-4">
+        <div>
+          <h2 className="text-2xl font-bold text-[#1F1A14]">{t.product.choosePackage}</h2>
+          <p className="text-sm font-medium text-[#6C5A4A]">{t.product.sameQuality}</p>
+        </div>
+        <Link
+          href="/produkt"
+          className="text-xs font-semibold uppercase tracking-[0.2em] text-[#6C5A4A]"
+        >
+          {t.product.seeDetails}
+        </Link>
+      </div>
 
-      <div className="max-w-md mx-auto space-y-6">
-        {packages.map((pkg, index) => (
-          <motion.div
+      <div className="mt-6 flex gap-4 overflow-x-auto pb-2 snap-x snap-mandatory">
+        {packages.map((pkg) => (
+          <div
             key={pkg.size}
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: index * 0.1 }}
-            className="card-mobile-elevated p-6"
+            className="snap-start min-w-[85%] rounded-2xl border border-[#E6D8C8] bg-[#FFF9F2] p-5 shadow-[0_10px_30px_rgba(50,36,24,0.08)]"
           >
-            {pkg.popular && (
-              <div className="inline-block px-3 py-1 rounded-full text-xs font-bold mb-3"
-                style={{ backgroundColor: 'var(--accent-gold)', color: 'white' }}>
-                MEST POPUL√ÜR
-              </div>
-            )}
-            
-            <div className="flex justify-between items-start mb-4">
+            <div className="flex items-start justify-between">
               <div>
-                <div className="text-4xl font-bold" style={{ color: 'var(--farm-earth)' }}>
-                  {pkg.size} <span className="text-xl" style={{ color: 'var(--farm-bark)' }}>kg</span>
-                </div>
-                <div className="text-sm mt-1" style={{ color: 'var(--farm-bark)' }}>
-                  {pkg.people}
-                </div>
+                <p className="text-xs uppercase tracking-[0.25em] text-[#6C5A4A]">{pkg.label}</p>
+                <p className="mt-2 text-4xl font-bold text-[#1F1A14]">
+                  {pkg.size}
+                  <span className="ml-1 text-lg font-semibold text-[#6C5A4A]">kg</span>
+                </p>
+                <p className="mt-2 text-sm text-[#6C5A4A]">{pkg.people}</p>
               </div>
-              {pkg.price ? (
-                <div className="text-right">
-                  <div className="text-2xl font-bold" style={{ color: 'var(--farm-earth)' }}>
-                    {pkg.price.toLocaleString('nb-NO')} kr
-                  </div>
-                  <div className="text-xs mt-1" style={{ color: 'var(--farm-bark)' }}>
-                    Forskudd: {Math.floor(pkg.price * 0.5).toLocaleString('nb-NO')} kr
-                  </div>
-                </div>
-              ) : (
-                <div className="text-lg pulse-loading" style={{ color: 'var(--farm-bark)' }}>
-                  Laster...
-                </div>
+              {pkg.highlight && (
+                <span className="rounded-full bg-[#C05621] px-3 py-1 text-xs font-bold uppercase tracking-[0.2em] text-white">
+                  {t.product.mostPopular}
+                </span>
               )}
             </div>
 
-            <div className="space-y-2 mb-6">
-              {pkg.items.map((item, i) => (
-                <div key={i} className="flex items-center gap-2">
-                  <Check className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--status-success)' }} />
-                  <span className="text-sm" style={{ color: 'var(--farm-bark)' }}>{item}</span>
+            <div className="mt-4 flex items-center justify-between">
+              {pkg.price ? (
+                <div>
+                  <p className="text-xl font-bold text-[#1F1A14]">
+                    {pkg.price.toLocaleString('nb-NO')} {t.common.currency}
+                  </p>
+                  <p className="text-xs text-[#6C5A4A]">
+                    {t.product.deposit50}: {pkg.deposit?.toLocaleString('nb-NO')} {t.common.currency}
+                  </p>
                 </div>
-              ))}
+              ) : (
+                <p className="text-sm text-[#6C5A4A]">{t.common.loading}</p>
+              )}
             </div>
 
-            <Link 
+            <div className="mt-5 rounded-xl border border-[#E9DDCE] bg-white/70 p-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#6C5A4A]">I kassen</p>
+              <ul className="mt-3 space-y-2 text-sm text-[#4A3B2E]">
+                {pkg.items.map((item) => (
+                  <li key={item} className="flex items-start gap-2">
+                    <span className="mt-1 h-1.5 w-1.5 rounded-full bg-[#C05621]" />
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <div className="mt-5 flex items-center gap-2 text-xs font-semibold text-[#6C5A4A]">
+              <span className="rounded-full border border-[#E6D8C8] bg-white px-3 py-1">
+                {pkg.size === '8' ? '12ñ16 mÂltider' : '20ñ28 mÂltider'}
+              </span>
+              <span className="rounded-full border border-[#E6D8C8] bg-white px-3 py-1">
+                {pkg.size === '8' ? 'Lite fryserom' : 'Mer fryserom'}
+              </span>
+            </div>
+
+            <Link
               href={`/bestill?size=${pkg.size}`}
-              className="block w-full py-3 rounded-xl text-center font-bold touch-feedback"
-              style={{ backgroundColor: 'var(--farm-earth)', color: 'var(--farm-snow)' }}
+              className="mt-6 block w-full rounded-xl bg-[#1F1A14] px-4 py-3 text-center text-sm font-bold uppercase tracking-[0.2em] text-[#F7F1EA]"
             >
-              Velg {pkg.size}kg kasse
+              {t.product.orderNow}
             </Link>
-          </motion.div>
+          </div>
         ))}
       </div>
     </section>
