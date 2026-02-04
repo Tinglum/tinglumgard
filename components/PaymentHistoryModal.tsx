@@ -2,7 +2,7 @@
 
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { X, CreditCard, CheckCircle2, Clock, XCircle, Download } from 'lucide-react';
+import { X, CreditCard, CheckCircle2, Clock, XCircle, Download, ShoppingBag } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 
@@ -16,14 +16,22 @@ interface Payment {
   vipps_session_id?: string;
 }
 
+interface ExtraProduct {
+  slug: string;
+  name: string;
+  quantity: number;
+  total_price: number;
+}
+
 interface PaymentHistoryModalProps {
   isOpen: boolean;
   onClose: () => void;
   payments: Payment[];
   orderNumber: string;
+  extraProducts?: ExtraProduct[];
 }
 
-export function PaymentHistoryModal({ isOpen, onClose, payments, orderNumber }: PaymentHistoryModalProps) {
+export function PaymentHistoryModal({ isOpen, onClose, payments, orderNumber, extraProducts }: PaymentHistoryModalProps) {
   const { toast } = useToast();
   
   if (!isOpen) return null;
@@ -111,6 +119,34 @@ export function PaymentHistoryModal({ isOpen, onClose, payments, orderNumber }: 
             <CreditCard className="w-12 h-12 text-green-600" />
           </div>
         </div>
+
+        {/* Extras Summary (if any) */}
+        {extraProducts && extraProducts.length > 0 && (
+          <div className="mb-6 p-4 rounded-lg bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200">
+            <div className="flex items-center gap-2 mb-3">
+              <ShoppingBag className="w-5 h-5 text-amber-700" />
+              <p className="font-semibold text-amber-900">Ekstra produkter (inkludert i restbeløp)</p>
+            </div>
+            <div className="space-y-2">
+              {extraProducts.map((extra, index) => (
+                <div key={index} className="flex justify-between text-sm">
+                  <span className="text-amber-800">
+                    {extra.quantity}x {extra.name}
+                  </span>
+                  <span className="font-medium text-amber-900">
+                    kr {extra.total_price?.toLocaleString('nb-NO')}
+                  </span>
+                </div>
+              ))}
+              <div className="pt-2 border-t border-amber-200 flex justify-between">
+                <span className="font-semibold text-amber-900">Totalt ekstra</span>
+                <span className="font-bold text-amber-900">
+                  kr {extraProducts.reduce((sum, e) => sum + (e.total_price || 0), 0).toLocaleString('nb-NO')}
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Payment List */}
         <div className="space-y-4">

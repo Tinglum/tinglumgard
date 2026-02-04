@@ -420,36 +420,66 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
               <CreditCard className="w-5 h-5" />
               Betalingsoversikt
             </h4>
-            <div className="space-y-2">
-              <div className="flex justify-between">
-                <span className={theme.textSecondary}>Depositum ({order.box_size}kg boks)</span>
-                <div className="flex items-center gap-2">
-                  <span className={cn('font-semibold', theme.textPrimary)}>
-                    kr {depositPaid && depositPayment
-                      ? depositPayment.amount_nok.toLocaleString('nb-NO')
-                      : order.deposit_amount.toLocaleString('nb-NO')}
-                  </span>
-                  {depositPaid && <CheckCircle2 className="w-4 h-4 text-green-600" />}
+            {(() => {
+              // Calculate extras total
+              const extrasTotal = order.extra_products?.reduce(
+                (sum: number, e: any) => sum + (e.total_price || 0),
+                0
+              ) || 0;
+              // Base remainder is remainder minus extras
+              const baseRemainder = order.remainder_amount - extrasTotal;
+              
+              return (
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span className={theme.textSecondary}>Depositum ({order.box_size}kg boks)</span>
+                    <div className="flex items-center gap-2">
+                      <span className={cn('font-semibold', theme.textPrimary)}>
+                        kr {depositPaid && depositPayment
+                          ? depositPayment.amount_nok.toLocaleString('nb-NO')
+                          : order.deposit_amount.toLocaleString('nb-NO')}
+                      </span>
+                      {depositPaid && <CheckCircle2 className="w-4 h-4 text-green-600" />}
+                    </div>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className={theme.textSecondary}>Restbeløp kasse</span>
+                    <div className="flex items-center gap-2">
+                      <span className={cn('font-semibold', theme.textPrimary)}>
+                        kr {baseRemainder.toLocaleString('nb-NO')}
+                      </span>
+                    </div>
+                  </div>
+                  {extrasTotal > 0 && (
+                    <div className="flex justify-between">
+                      <span className={theme.textSecondary}>Ekstra produkter</span>
+                      <div className="flex items-center gap-2">
+                        <span className={cn('font-semibold', theme.textPrimary)}>
+                          kr {extrasTotal.toLocaleString('nb-NO')}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                  <div className={cn('pt-2 border-t flex justify-between', theme.borderSecondary)}>
+                    <span className={theme.textSecondary}>Restbetaling totalt</span>
+                    <div className="flex items-center gap-2">
+                      <span className={cn('font-semibold', theme.textPrimary)}>
+                        kr {remainderPaid && remainderPayment
+                          ? remainderPayment.amount_nok.toLocaleString('nb-NO')
+                          : order.remainder_amount.toLocaleString('nb-NO')}
+                      </span>
+                      {remainderPaid && <CheckCircle2 className="w-4 h-4 text-green-600" />}
+                    </div>
+                  </div>
+                  <div className={cn('pt-2 border-t flex justify-between', theme.borderSecondary)}>
+                    <span className={cn('font-bold', theme.textPrimary)}>Totalt</span>
+                    <span className={cn('font-bold text-xl', theme.textPrimary)}>
+                      kr {order.total_amount.toLocaleString('nb-NO')}
+                    </span>
+                  </div>
                 </div>
-              </div>
-              <div className="flex justify-between">
-                <span className={theme.textSecondary}>Restbeløp</span>
-                <div className="flex items-center gap-2">
-                  <span className={cn('font-semibold', theme.textPrimary)}>
-                    kr {remainderPaid && remainderPayment
-                      ? remainderPayment.amount_nok.toLocaleString('nb-NO')
-                      : order.remainder_amount.toLocaleString('nb-NO')}
-                  </span>
-                  {remainderPaid && <CheckCircle2 className="w-4 h-4 text-green-600" />}
-                </div>
-              </div>
-              <div className={cn('pt-2 border-t flex justify-between', theme.borderSecondary)}>
-                <span className={cn('font-bold', theme.textPrimary)}>Totalt</span>
-                <span className={cn('font-bold text-xl', theme.textPrimary)}>
-                  kr {order.total_amount.toLocaleString('nb-NO')}
-                </span>
-              </div>
-            </div>
+              );
+            })()}
           </div>
 
           {/* Order Contents */}
@@ -678,6 +708,7 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
         onClose={() => setShowPaymentHistoryModal(false)}
         payments={order.payments || []}
         orderNumber={order.order_number}
+        extraProducts={order.extra_products}
       />
 
       {/* Contact Admin Modal */}
