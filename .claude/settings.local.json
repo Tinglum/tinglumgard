@@ -53,7 +53,8 @@
       "Bash(git pull:*)",
       "Bash(git clone:*)",
       "Bash(git sparse-checkout:*)",
-      "Bash(claude mcp:*)"
+      "Bash(claude mcp:*)",
+      "Bash(curl:*)"
     ]
   }
 }

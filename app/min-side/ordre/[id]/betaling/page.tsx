@@ -153,13 +153,13 @@ export default function RemainderPaymentSummaryPage() {
     return order?.extra_products?.reduce((sum, e) => sum + (e.total_price || 0), 0) || 0;
   }, [order]);
 
-  // The baseRemainder should just be the order's remainder_amount
-  // This represents what the user owes for the box (50% of box price)
-  // Extras are NOT included in remainder_amount from the API
+  // The baseRemainder should be the remainder WITHOUT any extras
+  // remainder_amount from DB = total_amount - deposit_amount (includes extras)
+  // So we need to subtract the saved extras to get just the box remainder
   const baseRemainder = useMemo(() => {
     if (!order) return 0;
-    return order.remainder_amount;
-  }, [order]);
+    return order.remainder_amount - savedExtrasTotal;
+  }, [order, savedExtrasTotal]);
 
   // Calculate the delta between new extras and saved extras
   const extrasDelta = useMemo(() => {
