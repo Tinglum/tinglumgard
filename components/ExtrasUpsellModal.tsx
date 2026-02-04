@@ -151,16 +151,6 @@ export function ExtrasUpsellModal({
       }
     }
 
-    if (selectedExtras.length === 0 && !proceedToPayment) {
-      // No items selected - prevent accidental submit
-      if (lang === 'en') {
-        window.alert('Please select at least one extra to add.');
-      } else {
-        window.alert('Velg minst ett ekstra produkt for å legge til.');
-      }
-      return;
-    }
-
     onConfirm(selectedExtras, proceedToPayment);
   }
 
@@ -235,7 +225,7 @@ export function ExtrasUpsellModal({
         </div>
 
         {/* Content */}
-        <div className="px-8 py-6 overflow-y-auto overscroll-contain max-h-[calc(90vh-220px)]">
+        <div className="px-8 py-6 pb-28 overflow-y-auto overscroll-contain max-h-[calc(90vh-220px)]">
           {loadingExtras ? (
             <div className="flex items-center justify-center py-12">
               <div className="w-12 h-12 border-4 border-neutral-200 border-t-neutral-600 rounded-full animate-spin" />
@@ -391,39 +381,22 @@ export function ExtrasUpsellModal({
                 Avbryt
               </Button>
               {isPaymentFlow ? (
-                // Payment flow: Show both Save and Continue to Payment
-                <>
-                  <Button
-                    onClick={() => handleConfirm(false)}
-                    disabled={loading || calculateDeltaAmount() === 0}
-                    variant="outline"
-                    className="px-8"
-                  >
-                    {loading ? (
-                      <>
-                        <div className="w-4 h-4 border-2 border-neutral-600 border-t-transparent rounded-full animate-spin mr-2" />
-                        Lagrer...
-                      </>
-                    ) : (
-                      `Oppdater ekstra bestilling (${formatDeltaLabel()})`
-                    )}
-                  </Button>
-                  <Button
-                    onClick={() => handleConfirm(true)}
-                    disabled={loading}
-                    className="px-8 bg-green-600 hover:bg-green-700 text-white"
-                    aria-disabled={loading}
-                  >
-                    {loading ? (
-                      <>
-                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
-                        Oppdaterer...
-                      </>
-                    ) : (
-                      `Gå til oppsummering`
-                    )}
-                  </Button>
-                </>
+                // Payment flow: Update extras and go to summary
+                <Button
+                  onClick={() => handleConfirm(true)}
+                  disabled={loading}
+                  className="px-8 bg-green-600 hover:bg-green-700 text-white"
+                  aria-disabled={loading}
+                >
+                  {loading ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                      Oppdaterer...
+                    </>
+                  ) : (
+                    `Oppdater ekstra bestilling (${formatDeltaLabel()}) og gå til oppsummering`
+                  )}
+                </Button>
               ) : (
                 // Normal flow: Just save
                 <Button

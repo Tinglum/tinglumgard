@@ -83,15 +83,9 @@ export async function POST(
       }
     }
 
-    // Merge with existing extras
+    // Replace existing extras with the new selection (allows removal)
     const existingExtras = (order.extra_products as any[]) || [];
-    const existingSlugs = existingExtras.map((e: any) => e.slug);
-
-    // Remove duplicates and add new ones
-    const finalExtras = [
-      ...existingExtras.filter((e: any) => !extras.find((ne) => ne.slug === e.slug)),
-      ...extraProductsData,
-    ];
+    const finalExtras = extraProductsData;
 
     // Calculate existing extras total
     const existingExtrasTotal = existingExtras.reduce((sum: number, e: any) => sum + (e.total_price || 0), 0);
