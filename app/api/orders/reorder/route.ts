@@ -15,7 +15,8 @@ export async function POST(request: NextRequest) {
     const { orderId } = await request.json();
 
     // Fetch the original order
-    const { data: originalOrder, error: fetchError } = await supabaseAdmin
+    // Try the full select, fallback if DB schema lacks some columns
+    let { data: originalOrder, error: fetchError } = await supabaseAdmin
       .from('orders')
       .select(`
         *,
@@ -28,7 +29,28 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (fetchError || !originalOrder) {
-      return NextResponse.json({ error: 'Order not found' }, { status: 404 });
+      const fallback = await supabaseAdmin
+        .from('orders')
+        .select(`
+          *,
+          order_extras (
+            id,
+            extra_id,
+            quantity,
+            price_nok,
+            unit_price,
+            unit_type,
+            extras_catalog (*)
+          )
+        `)
+        .eq('id', orderId)
+        .single();
+
+      if (fallback.error || !fallback.data) {
+        return NextResponse.json({ error: 'Order not found' }, { status: 404 });
+      }
+
+      originalOrder = fallback.data as any;
     }
 
     if (originalOrder.user_id !== session.userId) {

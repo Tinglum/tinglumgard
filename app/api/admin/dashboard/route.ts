@@ -101,7 +101,8 @@ function calculateDashboardMetrics(orders: any[]) {
           };
         }
         acc[extra.slug].total_quantity += extra.quantity;
-        acc[extra.slug].total_revenue += extra.total_price || 0;
+        const extraRev = extra.total_price ?? (extra.price_nok ? extra.price_nok * (extra.quantity ?? 1) : 0);
+        acc[extra.slug].total_revenue += extraRev;
       });
     }
     return acc;

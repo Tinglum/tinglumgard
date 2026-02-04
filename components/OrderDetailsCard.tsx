@@ -151,7 +151,13 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
           body: JSON.stringify({ extras: selectedExtras }),
         });
 
-        if (!response.ok) throw new Error('Failed to add extras');
+        const data = await response.json().catch(() => null);
+        if (!response.ok) {
+          const message = data?.error || 'Failed to add extras';
+          throw new Error(message);
+        }
+        const addedCount = data?.extrasAdded ?? (selectedExtras.length);
+        toast({ title: 'Oppdatert', description: `La til ${addedCount} ekstra produkter.` });
       }
 
       setShowExtrasModal(false);
@@ -167,11 +173,11 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
       } else {
         onRefresh();
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error adding extras:', error);
       toast({
         title: 'Feil',
-        description: 'Kunne ikke legge til ekstra produkter. Prøv igjen.',
+        description: error?.message || 'Kunne ikke legge til ekstra produkter. Prøv igjen.',
         variant: 'destructive'
       });
     } finally {

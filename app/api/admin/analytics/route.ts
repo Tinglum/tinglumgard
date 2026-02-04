@@ -133,7 +133,8 @@ function calculateAnalytics(orders: any[], insights: any[]) {
         }
         acc[extra.name].orders++;
         acc[extra.name].total_quantity += extra.quantity;
-        acc[extra.name].revenue += extra.total_price || 0;
+          const extraRevenue = extra.total_price ?? (extra.price_nok ? (extra.price_nok * (extra.quantity ?? 1)) : 0);
+          acc[extra.name].revenue += extraRevenue;
       });
     }
     return acc;

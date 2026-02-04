@@ -120,7 +120,8 @@ async function getCustomerList() {
 
 async function getCustomerProfile(email: string) {
   // Fetch all orders for this customer
-  const { data: orders, error } = await supabaseAdmin
+  // Try the full select; fall back to a safer projection if the DB schema is missing columns
+  let { data: orders, error } = await supabaseAdmin
     .from('orders')
     .select(`
       *,
@@ -133,7 +134,29 @@ async function getCustomerProfile(email: string) {
     .eq('customer_email', email)
     .order('created_at', { ascending: false });
 
-  if (error) throw error;
+  if (error) {
+    // fallback: avoid selecting potential missing columns like total_price
+    const fallback = await supabaseAdmin
+      .from('orders')
+      .select(`
+        *,
+        payments (*),
+        order_extras (
+          id,
+          extra_id,
+          quantity,
+          price_nok,
+          unit_price,
+          unit_type,
+          extras_catalog (*)
+        )
+      `)
+      .eq('customer_email', email)
+      .order('created_at', { ascending: false });
+
+    orders = fallback.data as any;
+    if (fallback.error) throw fallback.error;
+  }
 
   if (!orders || orders.length === 0) {
     return NextResponse.json({ error: 'Customer not found' }, { status: 404 });
@@ -165,7 +188,8 @@ async function getCustomerProfile(email: string) {
           acc[name] = { count: 0, total_spent: 0 };
         }
         acc[name].count++;
-        acc[name].total_spent += extra.total_price || 0;
+        const extraTotal = extra.total_price ?? (extra.price_nok ? extra.price_nok * (extra.quantity ?? 1) : 0);
+        acc[name].total_spent += extraTotal;
       });
     }
     return acc;

@@ -63,13 +63,23 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const { data: orders, error: ordersError } = await supabase
+    // Try full select; fall back if the DB schema is missing columns like total_price
+    let { data: orders, error: ordersError } = await supabase
       .from('orders')
       .select('*, payments(*), order_extras(*, extras_catalog(*))')
       .is('reminder_sent_at', null)
       .eq('status', 'deposit_paid');
 
-    if (ordersError) throw ordersError;
+    if (ordersError) {
+      const fallback = await supabase
+        .from('orders')
+        .select(`*, payments(*), order_extras(id, extra_id, quantity, price_nok, unit_price, unit_type, extras_catalog(*))`)
+        .is('reminder_sent_at', null)
+        .eq('status', 'deposit_paid');
+
+      if (fallback.error) throw fallback.error;
+      orders = fallback.data as any;
+    }
 
     let sentCount = 0;
     const results = [];

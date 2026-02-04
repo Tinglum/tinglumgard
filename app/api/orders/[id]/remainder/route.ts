@@ -14,14 +14,25 @@ export async function POST(
   }
 
   try {
-    const { data: order, error: orderError } = await supabaseAdmin
+    // Try full select; fallback if the DB schema doesn't include some columns
+    let { data: order, error: orderError } = await supabaseAdmin
       .from('orders')
       .select('*, payments(*), order_extras(*, extras_catalog(*))')
       .eq('id', params.id)
       .single();
 
     if (orderError || !order) {
-      return NextResponse.json({ error: 'Order not found' }, { status: 404 });
+      const fallback = await supabaseAdmin
+        .from('orders')
+        .select(`*, payments(*), order_extras(id, extra_id, quantity, price_nok, unit_price, unit_type, extras_catalog(*))`)
+        .eq('id', params.id)
+        .single();
+
+      if (fallback.error || !fallback.data) {
+        return NextResponse.json({ error: 'Order not found' }, { status: 404 });
+      }
+
+      order = fallback.data as any;
     }
 
     if (order.user_id !== session.userId && !session.isAdmin) {
@@ -44,6 +55,19 @@ export async function POST(
     );
 
     if (remainderPayment) {
+      // Update the payment status and set paid_at timestamp
+      const { error: updateError } = await supabaseAdmin
+        .from('payments')
+        .update({
+          status: 'completed',
+          paid_at: new Date().toISOString(),
+        })
+        .eq('id', remainderPayment.id);
+
+      if (updateError) {
+        return NextResponse.json({ error: 'Failed to update payment' }, { status: 500 });
+      }
+
       return NextResponse.json(
         { error: 'Remainder already paid' },
         { status: 400 }

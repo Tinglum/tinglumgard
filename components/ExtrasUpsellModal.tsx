@@ -129,6 +129,16 @@ export function ExtrasUpsellModal({
       }
     }
 
+    if (selectedExtras.length === 0) {
+      // No items selected - prevent accidental submit
+      if (lang === 'en') {
+        window.alert('Please select at least one extra to add.');
+      } else {
+        window.alert('Velg minst ett ekstra produkt for å legge til.');
+      }
+      return;
+    }
+
     onConfirm(selectedExtras, proceedToPayment);
   }
 
@@ -186,7 +196,7 @@ export function ExtrasUpsellModal({
             </div>
           ) : (
             <div className="grid gap-4">
-              {extras.map((extra) => {
+              {extras.map((extra, idx) => {
                 const quantity = selectedQuantities[extra.slug] || 0;
                 const name = lang === 'en' ? extra.name_en : extra.name_no;
                 const description = lang === 'en' ? extra.description_en : extra.description_no;
@@ -196,7 +206,6 @@ export function ExtrasUpsellModal({
                 const isLowStock = extra.stock_quantity !== null && extra.stock_quantity > 0 && extra.stock_quantity <= 5;
                 const minValue = extra.pricing_type === 'per_kg' ? 0.1 : 1;
                 const stepValue = extra.pricing_type === 'per_kg' ? 0.1 : 1;
-
                 return (
                   <div
                     key={extra.id}
@@ -206,9 +215,16 @@ export function ExtrasUpsellModal({
                       isOutOfStock && 'opacity-50'
                     )}
                   >
+                    <div className="w-20 h-20 flex-shrink-0 flex items-center justify-center rounded-lg bg-white/5 text-2xl">
+                      🥩
+                    </div>
+
                     <div className="flex-1">
                       <h3 className={cn('text-lg font-semibold mb-1', theme.textPrimary)}>
                         {name}
+                        {idx < 3 && (
+                          <span className="ml-2 inline-block bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full text-xs font-medium">Anbefalt</span>
+                        )}
                         {isOutOfStock && (
                           <span className="ml-2 text-sm font-normal text-red-600">(Utsolgt)</span>
                         )}
@@ -304,22 +320,20 @@ export function ExtrasUpsellModal({
 
         {/* Footer */}
         <div className={cn('sticky bottom-0 px-8 py-6 border-t', theme.bgCard, theme.borderSecondary)}>
-          <div className="flex items-center justify-between gap-6">
+            <div className="flex items-center justify-between gap-6">
             <div>
-              <p className={cn('text-sm mb-1', theme.textMuted)}>Ekstra produkter totalt:</p>
-              <p className={cn('text-3xl font-bold', theme.textPrimary)}>
-                kr {calculateTotal().toLocaleString('nb-NO')}
+              <p className={cn('text-sm mb-1', theme.textMuted)}>Ekstra produkter valgt:</p>
+              <p className={cn('text-2xl font-bold', theme.textPrimary)}>
+                {Object.values(selectedQuantities).filter(q => q > 0).reduce((s, q) => s + q, 0)} stk • kr {calculateTotal().toLocaleString('nb-NO')}
               </p>
               <p className={cn('text-xs mt-1', theme.textMuted)}>
                 Dette beløpet legges til restbeløpet ditt
               </p>
             </div>
-
             <div className="flex gap-4">
               <Button variant="outline" onClick={onClose} disabled={loading} className="px-8">
                 Avbryt
               </Button>
-
               {isPaymentFlow ? (
                 // Payment flow: Show both Save and Continue to Payment
                 <>
@@ -335,13 +349,14 @@ export function ExtrasUpsellModal({
                         Lagrer...
                       </>
                     ) : (
-                      'Lagre uten å betale nå'
+                      `Lagre uten å betale nå`
                     )}
                   </Button>
                   <Button
                     onClick={() => handleConfirm(true)}
                     disabled={loading}
                     className="px-8 bg-green-600 hover:bg-green-700 text-white"
+                    aria-disabled={loading || Object.values(selectedQuantities).filter(q => q > 0).length === 0}
                   >
                     {loading ? (
                       <>
@@ -349,7 +364,7 @@ export function ExtrasUpsellModal({
                         Oppdaterer...
                       </>
                     ) : (
-                      'Bekreft og betal restbeløp'
+                      `Bekreft og betal restbeløp (kr ${calculateTotal().toLocaleString('nb-NO')})`
                     )}
                   </Button>
                 </>
@@ -357,8 +372,9 @@ export function ExtrasUpsellModal({
                 // Normal flow: Just save
                 <Button
                   onClick={() => handleConfirm(false)}
-                  disabled={loading}
+                  disabled={loading || Object.values(selectedQuantities).filter(q => q > 0).length === 0}
                   className="px-8 bg-green-600 hover:bg-green-700 text-white"
+                  aria-disabled={loading || Object.values(selectedQuantities).filter(q => q > 0).length === 0}
                 >
                   {loading ? (
                     <>
@@ -366,7 +382,7 @@ export function ExtrasUpsellModal({
                       Lagrer...
                     </>
                   ) : (
-                    'Lagre endringer'
+                      `Legg til (${Object.values(selectedQuantities).filter(q => q > 0).reduce((s, q) => s + q, 0)}) — kr ${calculateTotal().toLocaleString('nb-NO')}`
                   )}
                 </Button>
               )}
