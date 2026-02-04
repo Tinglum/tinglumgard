@@ -89,6 +89,9 @@ export async function POST(
       );
     }
 
+    // Use the remainder amount from the order (already calculated and may be customized)
+    const remainderAmount = order.remainder_amount;
+
     const remainderPayment = order.payments?.find(
       (p: any) => p.payment_type === 'remainder'
     );
@@ -118,9 +121,6 @@ export async function POST(
     if (order.locked_at) {
       return NextResponse.json({ error: 'Order is locked' }, { status: 400 });
     }
-
-    // Use the remainder amount from the order (already calculated and may be customized)
-    const remainderAmount = order.remainder_amount;
 
     // Create shorter reference (max 50 chars) using order number
     const shortReference = `REM-${order.order_number}`;
