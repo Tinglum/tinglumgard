@@ -56,11 +56,11 @@ export default function VilkarPage() {
                 <div className="text-slate/80 leading-relaxed space-y-3">
                   <p>Betaling skjer via Vipps.</p>
                   <ul className="list-disc ml-6 space-y-2">
-                    <li>Ved bestilling betales et depositum på 50 % av totalbeløpet.</li>
+                    <li>Ved bestilling betales et forskudd på 50 % av totalbeløpet.</li>
                     <li>Resterende beløp betales før levering, i henhold til informasjon gitt ved bestilling.</li>
                   </ul>
                   <p className="mt-4">
-                    Depositumet fungerer som en reservasjon av en begrenset produksjonsbatch og er bindende.
+                    Forskuddet fungerer som en reservasjon av en begrenset produksjonsbatch og er bindende.
                   </p>
                 </div>
               </section>

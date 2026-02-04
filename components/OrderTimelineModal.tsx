@@ -57,7 +57,7 @@ export function OrderTimelineModal({ isOpen, onClose, order }: OrderTimelineModa
     events.push({
       id: 'deposit',
       type: 'deposit_paid',
-      title: depositPayment.status === 'completed' ? 'Depositum betalt' : 'Depositum venter',
+      title: depositPayment.status === 'completed' ? 'Forskudd betalt' : 'Forskudd venter',
       description: `kr ${depositPayment.amount_nok.toLocaleString('nb-NO')}`,
       timestamp: depositPayment.paid_at || depositPayment.created_at,
       icon: CreditCard,

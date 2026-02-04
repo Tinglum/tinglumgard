@@ -7,6 +7,9 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useToast } from '@/hooks/use-toast';
+import { useAsyncAction } from '@/hooks/useAsyncAction';
+import { Spinner } from '@/components/ui/spinner';
 
 interface OrderData {
   id: string;
@@ -23,11 +26,11 @@ export default function RemainderPaymentSummaryPage() {
   const orderId = params?.id;
   const { getThemeClasses } = useTheme();
   const theme = getThemeClasses();
+  const { toast } = useToast();
 
   const [order, setOrder] = useState<OrderData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [paying, setPaying] = useState(false);
 
   useEffect(() => {
     if (!orderId) return;
@@ -65,31 +68,37 @@ export default function RemainderPaymentSummaryPage() {
     return Math.max(0, order.remainder_amount - extrasTotal);
   }, [order, extrasTotal]);
 
-  async function handlePayRemainder() {
-    if (!orderId) return;
-    setPaying(true);
-    try {
+  const [isPaying, executePayment] = useAsyncAction(
+    async () => {
+      if (!orderId) throw new Error('Mangler ordre-ID');
+
       const response = await fetch(`/api/orders/${orderId}/remainder`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
       });
       const data = await response.json();
+
       if (response.ok && data.redirectUrl) {
         window.location.href = data.redirectUrl;
       } else {
         throw new Error(data?.error || `Kunne ikke starte betaling (status ${response.status})`);
       }
-    } catch (err) {
-      console.error('Failed to create remainder payment:', err);
-      setPaying(false);
-      alert(err instanceof Error ? err.message : 'Kunne ikke starte betaling. Prøv igjen.');
+    },
+    {
+      onError: (err) => {
+        toast({
+          variant: 'destructive',
+          title: 'Betalingsfeil',
+          description: err.message || 'Kunne ikke starte betaling. Prøv igjen.',
+        });
+      },
     }
-  }
+  );
 
   if (loading) {
     return (
       <div className={cn('min-h-screen flex items-center justify-center', theme.bgGradientHero)}>
-        <div className="w-12 h-12 border-4 border-neutral-200 border-t-neutral-600 rounded-full animate-spin" />
+        <Spinner size="lg" />
       </div>
     );
   }
@@ -126,7 +135,7 @@ export default function RemainderPaymentSummaryPage() {
             <h2 className={cn('font-semibold mb-3', theme.textPrimary)}>Oppsummering</h2>
             <div className="space-y-2">
               <div className="flex justify-between">
-                <span className={theme.textSecondary}>Depositum</span>
+                <span className={theme.textSecondary}>Forskudd</span>
                 <span className={cn('font-semibold', theme.textPrimary)}>
                   kr {order.deposit_amount.toLocaleString('nb-NO')}
                 </span>
@@ -174,11 +183,11 @@ export default function RemainderPaymentSummaryPage() {
 
           <div className="mt-6 flex flex-col sm:flex-row gap-3">
             <Button
-              onClick={handlePayRemainder}
+              onClick={executePayment}
               className="flex-1 bg-green-600 hover:bg-green-700 text-white"
-              disabled={paying}
+              disabled={isPaying}
             >
-              {paying ? 'Starter betaling...' : 'Betal restbeløp med Vipps'}
+              {isPaying ? 'Starter betaling...' : 'Betal restbeløp med Vipps'}
             </Button>
             <Link href="/min-side" className="flex-1">
               <Button variant="outline" className="w-full">Tilbake til Min side</Button>

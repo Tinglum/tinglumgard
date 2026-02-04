@@ -1,4 +1,5 @@
 import './globals.css';
+import '@/styles/mobile-prismatic.css';
 import type { Metadata } from 'next';
 import { Inter, Playfair_Display } from 'next/font/google';
 import { LanguageProvider } from '@/contexts/LanguageContext';
@@ -7,6 +8,7 @@ import { AuthProvider } from '@/contexts/AuthContext';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
 import { BackgroundLayer } from '@/components/BackgroundLayer';
+import { Toaster } from '@/components/ui/toaster';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -44,6 +46,7 @@ export default function RootLayout({
               </main>
 
               <Footer />
+              <Toaster />
             </AuthProvider>
           </LanguageProvider>
         </ThemeProvider>

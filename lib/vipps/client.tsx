@@ -868,7 +868,7 @@ export default function CheckoutPage() {
                         className="mt-0.5 rounded"
                       />
                       <span className="text-sm leading-relaxed text-amber-900">
-                        <strong className="font-bold">Jeg forstår at depositumet ikke refunderes.</strong> Dette utløser produksjonsplanlegging.
+                        <strong className="font-bold">Jeg forstår at forskuddet ikke refunderes.</strong> Dette utløser produksjonsplanlegging.
                       </span>
                     </Label>
                   </div>

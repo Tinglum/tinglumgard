@@ -149,7 +149,7 @@ export default function ConfirmationPage() {
             <div className="flex items-start gap-4">
               <CreditCard className={cn("w-5 h-5 mt-1", theme.iconColor)} />
               <div>
-                <p className={cn("font-semibold", theme.textPrimary)}>Depositum (50%)</p>
+                <p className={cn("font-semibold", theme.textPrimary)}>Forskudd (50%)</p>
                 <p className={cn(theme.textMuted)}>{depositAmount.toLocaleString('nb-NO')} kr</p>
               </div>
             </div>
@@ -159,8 +159,8 @@ export default function ConfirmationPage() {
               <div>
                 <p className={cn("font-semibold", theme.textPrimary)}>Status</p>
                 <p className={cn(theme.textMuted)}>
-                  {order.status === 'draft' && 'Venter på depositum' ||
-                   order.status === 'deposit_paid' && 'Depositum betalt - venter på rest' ||
+                  {order.status === 'draft' && 'Venter på forskudd' ||
+                   order.status === 'deposit_paid' && 'Forskudd betalt - venter på rest' ||
                    order.status === 'paid' && 'Fullstendig betalt' ||
                    order.status === 'ready_for_pickup' && 'Klar for henting' ||
                    order.status === 'completed' && 'Fullført' ||
@@ -181,7 +181,7 @@ export default function ConfirmationPage() {
               <div className={cn("p-4 rounded-xl border-2 border-yellow-500 bg-yellow-50")}>
                 <p className="text-yellow-900 font-semibold mb-2">⏳ Venter på betalingsbekreftelse</p>
                 <p className="text-sm text-yellow-800 mt-1">
-                  Vi har ikke mottatt bekreftelse på at depositumbetalingen på {depositAmount.toLocaleString('nb-NO')} kr er fullført.
+                  Vi har ikke mottatt bekreftelse på at forskuddsbetalingen på {depositAmount.toLocaleString('nb-NO')} kr er fullført.
                 </p>
                 <p className="text-sm text-yellow-800 mt-2">
                   <strong>Dette kan bety:</strong>
@@ -201,7 +201,7 @@ export default function ConfirmationPage() {
               <div className={cn("p-4 rounded-xl border-2 border-red-500 bg-red-50")}>
                 <p className="text-red-900 font-semibold mb-2">❌ Betaling feilet</p>
                 <p className="text-sm text-red-800 mt-1">
-                  Depositumbetalingen på {depositAmount.toLocaleString('nb-NO')} kr kunne ikke gjennomføres.
+                  Forskuddsbetalingen på {depositAmount.toLocaleString('nb-NO')} kr kunne ikke gjennomføres.
                 </p>
                 <p className="text-sm text-red-800 mt-2">
                   Vennligst prøv igjen eller kontakt oss for hjelp.
@@ -219,9 +219,9 @@ export default function ConfirmationPage() {
 
             {order.status === 'deposit_paid' && (
               <div className={cn("p-4 rounded-xl border-2 border-green-500 bg-green-50")}>
-                <p className="text-green-900 font-semibold">Depositum bekreftet! ✓</p>
+                <p className="text-green-900 font-semibold">Forskudd bekreftet! ✓</p>
                 <p className="text-sm text-green-800 mt-1">
-                  Vi har mottatt depositum. Du vil motta en påminnelse om restbetaling ca. 2 uker før henting.
+                  Vi har mottatt forskudd. Du vil motta en påminnelse om restbetaling ca. 2 uker før henting.
                 </p>
               </div>
             )}
@@ -241,11 +241,11 @@ export default function ConfirmationPage() {
               </div>
               <div>
                 <p className={cn("font-semibold", theme.textPrimary)}>
-                  {order.status !== 'draft' ? 'Depositum betalt ✓' : 'Betal depositum'}
+                  {order.status !== 'draft' ? 'Forskudd betalt ✓' : 'Betal forskudd'}
                 </p>
                 <p className={cn("text-sm", theme.textMuted)}>
                   {order.status !== 'draft'
-                    ? 'Depositum mottatt. Du har mottatt en e-postbekreftelse.'
+                    ? 'Forskudd mottatt. Du har mottatt en e-postbekreftelse.'
                     : `Betal depositum på ${order.deposit_amount.toLocaleString('nb-NO')} kr via Vipps.`
                   }
                 </p>

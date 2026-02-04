@@ -39,7 +39,7 @@ export function PaymentHistoryModal({ isOpen, onClose, payments, orderNumber, ex
   const getPaymentTypeLabel = (type: string) => {
     switch (type) {
       case 'deposit':
-        return 'Depositum';
+        return 'Forskudd';
       case 'remainder':
         return 'Restbeløp';
       default:

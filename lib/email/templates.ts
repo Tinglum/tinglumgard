@@ -187,7 +187,7 @@ export function getRemainderReminderTemplate({
     </div>
     <div class="content">
       <h2>Hei ${customerName},</h2>
-      <p>Takk for depositum for ordre <strong>${orderNumber}</strong>.</p>
+      <p>Takk for forskudd for ordre <strong>${orderNumber}</strong>.</p>
       <p>Restbetalingen for din okseboks forfaller nå.</p>
 
       <div class="info-box">

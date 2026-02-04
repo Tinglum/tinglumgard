@@ -1,4 +1,5 @@
 import { supabaseAdmin } from '@/lib/supabase/server';
+import { getCachedPricing } from './cache';
 
 export interface PricingConfig {
   box_8kg_price: number;
@@ -11,11 +12,11 @@ export interface PricingConfig {
 }
 
 /**
- * Fetch all pricing configuration from database
+ * Fetch all pricing configuration from database (internal, uncached)
  * Box prices come from box_configurations table (set in Admin Panel)
  * Other config comes from app_config table
  */
-export async function getPricingConfig(): Promise<PricingConfig> {
+async function fetchPricingConfigFromDB(): Promise<PricingConfig> {
   try {
     // Fetch box prices from box_configurations table (set in Admin -> Boksinnhold)
     const { data: boxConfigs, error: boxError } = await supabaseAdmin
@@ -54,18 +55,40 @@ export async function getPricingConfig(): Promise<PricingConfig> {
 
     const configMap = new Map(appConfigs?.map(c => [c.key, c.value]) || []);
 
+    // Validate all required config exists
+    const requiredKeys = [
+      'box_8kg_deposit_percentage',
+      'box_12kg_deposit_percentage',
+      'delivery_fee_pickup_e6',
+      'delivery_fee_trondheim',
+      'fresh_delivery_fee',
+    ];
+
+    const missingKeys = requiredKeys.filter(key => !configMap.has(key));
+    if (missingKeys.length > 0) {
+      throw new Error(`Missing required config keys in app_config: ${missingKeys.join(', ')}`);
+    }
+
     return {
       box_8kg_price: box8kg.price,
       box_12kg_price: box12kg.price,
-      box_8kg_deposit_percentage: parseInt(configMap.get('box_8kg_deposit_percentage') || '50'),
-      box_12kg_deposit_percentage: parseInt(configMap.get('box_12kg_deposit_percentage') || '50'),
-      delivery_fee_pickup_e6: parseInt(configMap.get('delivery_fee_pickup_e6') || '300'),
-      delivery_fee_trondheim: parseInt(configMap.get('delivery_fee_trondheim') || '200'),
-      fresh_delivery_fee: parseInt(configMap.get('fresh_delivery_fee') || '500'),
+      box_8kg_deposit_percentage: parseInt(configMap.get('box_8kg_deposit_percentage')!),
+      box_12kg_deposit_percentage: parseInt(configMap.get('box_12kg_deposit_percentage')!),
+      delivery_fee_pickup_e6: parseInt(configMap.get('delivery_fee_pickup_e6')!),
+      delivery_fee_trondheim: parseInt(configMap.get('delivery_fee_trondheim')!),
+      fresh_delivery_fee: parseInt(configMap.get('fresh_delivery_fee')!),
     };
   } catch (error) {
     console.error('Failed to fetch pricing config:', error);
     // Re-throw error - do not hide database issues with fallback values
     throw new Error('Unable to fetch pricing configuration from database');
   }
+}
+
+/**
+ * Get pricing configuration with caching (10 minute TTL)
+ * Use this function in API routes for better performance
+ */
+export async function getPricingConfig(): Promise<PricingConfig> {
+  return getCachedPricing(fetchPricingConfigFromDB);
 }

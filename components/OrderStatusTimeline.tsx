@@ -31,7 +31,7 @@ export function OrderStatusTimeline({
     },
     {
       key: 'deposit',
-      label: 'Depositum betalt',
+      label: 'Forskudd betalt',
       icon: CreditCard,
       completed: depositPaid || status !== 'draft',
     },

@@ -499,7 +499,7 @@ export default function AdminPage() {
   const statusOptions = [
     { value: 'all', label: 'Alle statuser' },
     { value: 'draft', label: 'Utkast' },
-    { value: 'deposit_paid', label: 'Depositum betalt' },
+    { value: 'deposit_paid', label: 'Forskudd betalt' },
     { value: 'paid', label: 'Fullstendig betalt' },
     { value: 'ready_for_pickup', label: 'Klar for henting' },
     { value: 'completed', label: 'Fullført' },

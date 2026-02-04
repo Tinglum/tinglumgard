@@ -105,7 +105,7 @@ export async function POST(
           value: depositAmount * 100, // Convert to øre
         },
         reference: shortReference,
-        paymentDescription: `Depositum ordre ${order.order_number}`,
+        paymentDescription: `Forskudd ordre ${order.order_number}`,
       },
       configuration: {
         userFlow: 'WEB_REDIRECT',

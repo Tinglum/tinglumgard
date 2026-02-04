@@ -123,7 +123,7 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
     if (!depositPaid) {
       return {
         type: 'deposit',
-        message: 'Venter på depositumbetaling',
+        message: 'Venter på forskuddsbetaling',
         color: 'amber',
       };
     }
@@ -359,7 +359,7 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
                       ? 'Levert'
                       : order.status === 'completed'
                       ? 'Fullført'
-                      : 'Venter på depositum'
+                      : 'Venter på forskudd'
                   }
                 />
                 {order.locked_at && (
@@ -421,7 +421,7 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
             </h4>
             <div className="space-y-2">
               <div className="flex justify-between">
-                <span className={theme.textSecondary}>Depositum ({order.box_size}kg boks)</span>
+                <span className={theme.textSecondary}>Forskudd ({order.box_size}kg boks)</span>
                 <div className="flex items-center gap-2">
                   <span className={cn('font-semibold', theme.textPrimary)}>
                     kr {depositPaid && depositPayment

@@ -7,6 +7,7 @@ import { Package, Plus, Edit, Trash2, Save, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 
 interface Extra {
   id: string;
@@ -32,6 +33,8 @@ export function ExtrasCatalogManager() {
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [productToDelete, setProductToDelete] = useState<string | null>(null);
   const [formData, setFormData] = useState<Partial<Extra>>({
     slug: '',
     name_no: '',
@@ -132,19 +135,26 @@ export function ExtrasCatalogManager() {
     }
   }
 
-  async function handleDelete(id: string) {
-    if (!window.confirm('Er du sikker på at du vil slette dette produktet?')) {
-      return;
-    }
+  function initiateDelete(id: string) {
+    setProductToDelete(id);
+    setDeleteConfirmOpen(true);
+  }
+
+  async function confirmDelete() {
+    if (!productToDelete) return;
 
     try {
-      const response = await fetch(`/api/admin/extras/${id}`, {
+      const response = await fetch(`/api/admin/extras/${productToDelete}`, {
         method: 'DELETE',
       });
 
       if (!response.ok) throw new Error('Failed to delete');
 
       await loadExtras();
+      toast({
+        title: 'Suksess',
+        description: 'Produkt slettet',
+      });
     } catch (error) {
       console.error('Error deleting extra:', error);
       toast({
@@ -152,6 +162,9 @@ export function ExtrasCatalogManager() {
         description: 'Kunne ikke slette produkt',
         variant: 'destructive'
       });
+    } finally {
+      setDeleteConfirmOpen(false);
+      setProductToDelete(null);
     }
   }
 
@@ -406,7 +419,7 @@ export function ExtrasCatalogManager() {
                     <Edit className="w-4 h-4" />
                   </Button>
                   <Button
-                    onClick={() => handleDelete(extra.id)}
+                    onClick={() => initiateDelete(extra.id)}
                     variant="outline"
                     size="sm"
                     className="text-red-600 hover:bg-red-50"
@@ -419,6 +432,17 @@ export function ExtrasCatalogManager() {
           ))
         )}
       </div>
+
+      <ConfirmDialog
+        open={deleteConfirmOpen}
+        onOpenChange={setDeleteConfirmOpen}
+        title="Slett produkt"
+        description="Er du sikker på at du vil slette dette produktet? Denne handlingen kan ikke angres."
+        confirmText="Slett"
+        cancelText="Avbryt"
+        onConfirm={confirmDelete}
+        variant="destructive"
+      />
     </div>
   );
 }

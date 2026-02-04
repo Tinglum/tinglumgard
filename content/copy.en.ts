@@ -86,7 +86,7 @@ export const en = {
     soldOut: "Sold out",
     priceDeposit: "Pay now",
     priceRemainder: "Balance at delivery",
-    deposit50: "Deposit (50%)",
+    deposit50: "Advance payment (50%)",
     remainderAtDelivery: "Balance at delivery",
     balanceOnDelivery: "Balance at delivery",
     totalPrice: "Total price",
@@ -141,7 +141,7 @@ export const en = {
     howItWorks: "How it works",
     fromOrderToDelivery: "From order to delivery",
     step1Title: "Reserve your box now",
-    step1Desc: "Pay deposit (50%) with Vipps. Your spot is secured when payment is completed.",
+    step1Desc: "Pay advance payment (50%) with Vipps. Your spot is secured when payment is completed.",
     step1Time: "Week 45",
     step2Title: "Balance payment",
     step2Desc: "By week 46 you pay the remaining 50% of the total amount. You'll receive payment information by email.",
@@ -237,7 +237,7 @@ export const en = {
     freshDeliveryDesc: "Receive the box fresh instead of frozen - only at the farm",
 
     // Summary
-    deposit50Percent: "Deposit (50%)",
+    deposit50Percent: "Advance payment (50%)",
     friendDiscount: "Friend discount (-20%)",
     discountCode: "Discount code",
     remainderBeforeDelivery: "Balance before delivery",
@@ -246,7 +246,7 @@ export const en = {
     hasDiscountCode: "Discount code?",
 
     // Terms
-    depositNotRefundable: "I understand that the deposit is non-refundable.",
+    depositNotRefundable: "I understand that the advance payment is non-refundable.",
     triggersProd: "This triggers production planning.",
     agreeToTerms: "I agree to the",
     termsLink: "terms of purchase",
@@ -263,11 +263,11 @@ export const en = {
 
     // Confirmation
     orderReceived: "Order received!",
-    thankYou: "Thank you for your order. We have received your reservation and will send you a Vipps payment request for the 50% deposit.",
+    thankYou: "Thank you for your order. We have received your reservation and will send you a Vipps payment request for the 50% advance payment.",
     orderNumber: "Order number",
     nextSteps: "Next steps:",
-    step1: "You will receive a Vipps payment request for the deposit (50% of total amount)",
-    step2: "You'll get a confirmation email when the deposit is received",
+    step1: "You will receive a Vipps payment request for the advance payment (50% of total amount)",
+    step2: "You'll get a confirmation email when the advance payment is received",
     step3: "Remaining amount is paid at delivery",
     seeMyOrders: "See my orders",
 

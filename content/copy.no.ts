@@ -181,7 +181,7 @@ export const no = {
     title: "Bestill",
     pageTitle: "Reserver din kasse",
     subtitle: "Reserver din kasse med Vipps",
-    selectSize: "Velg størrelse, ribbe-type og ekstra tillegg. Du betaler med VIPPS. Depositumet nå og tillegg og restbeløpet i innen uke 46.",
+    selectSize: "Velg størrelse, ribbe-type og ekstra tillegg. Du betaler med VIPPS. Forskuddet nå og tillegg og restbeløpet innen uke 46.",
 
     // Steps
     stepSize: "Størrelse",
@@ -246,7 +246,7 @@ export const no = {
     hasDiscountCode: "Rabattkode?",
 
     // Terms
-    depositNotRefundable: "Jeg forstår at depositumet ikke refunderes.",
+    depositNotRefundable: "Jeg forstår at forskuddet ikke refunderes.",
     triggersProd: "Vi jobber med levende dyr, og bestilling av en kasse starter produksjonsplanlegging.",
     agreeToTerms: "Jeg godtar",
     termsLink: "vilkårene for kjøpet",
@@ -447,7 +447,7 @@ export const no = {
 
     // Status options
     pending: "Venter",
-    depositPaid: "Depositum betalt",
+    depositPaid: "Forskudd betalt",
     paid: "Betalt",
     locked: "Låst",
     ready: "Klar",
