@@ -27,8 +27,8 @@ export function NotificationSettings() {
     },
     {
       id: 'deposit_paid',
-      name: 'Depositum betalt',
-      description: 'Send e-post når depositum er betalt',
+      name: 'Forskudd betalt',
+      description: 'Send e-post når forskudd er betalt',
       enabled: true,
       category: 'payment',
     },

@@ -204,7 +204,7 @@ export function SystemHealth() {
               {check.key === 'payments' && (
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
-                    <span>Manglende depositum:</span>
+                    <span>Manglende forskudd:</span>
                     <span className="font-semibold">{data.pending_deposits}</span>
                   </div>
                   <div className="flex justify-between">

@@ -74,7 +74,7 @@ export function OrderDetailModal({
 
   const statusOptions = [
     { value: 'draft', label: 'Utkast' },
-    { value: 'deposit_paid', label: 'Depositum betalt' },
+    { value: 'deposit_paid', label: 'Forskudd betalt' },
     { value: 'paid', label: 'Fullstendig betalt' },
     { value: 'ready_for_pickup', label: 'Klar for henting' },
     { value: 'completed', label: 'Fullført' },
@@ -110,7 +110,7 @@ export function OrderDetailModal({
 
   async function handleSyncAmounts() {
     if (!order) return;
-    if (!confirm('Synkroniser ordrebeløp med faktiske betalingsbeløp? Dette vil oppdatere depositum og restbeløp i ordren.')) {
+    if (!confirm('Synkroniser ordrebeløp med faktiske betalingsbeløp? Dette vil oppdatere forskudd og restbeløp i ordren.')) {
       return;
     }
 
@@ -226,7 +226,7 @@ export function OrderDetailModal({
               </h3>
               <div className="space-y-3">
                 <div className="flex justify-between items-center">
-                  <span className="text-gray-600">Depositum</span>
+                  <span className="text-gray-600">Forskudd</span>
                   <div className="flex items-center gap-2">
                     <span className="font-semibold">kr {actualDepositAmount.toLocaleString('nb-NO')}</span>
                     {depositMismatch && (
@@ -263,7 +263,7 @@ export function OrderDetailModal({
                 </div>
                 {depositPayment && (
                   <div className="text-xs text-gray-600">
-                    Depositum betalt: {depositPayment.paid_at ? new Date(depositPayment.paid_at).toLocaleString('nb-NO') : 'Venter'}
+                    Forskudd betalt: {depositPayment.paid_at ? new Date(depositPayment.paid_at).toLocaleString('nb-NO') : 'Venter'}
                   </div>
                 )}
                 {remainderPayment && remainderPayment.status === 'completed' && (
@@ -278,10 +278,10 @@ export function OrderDetailModal({
                         <strong>Bemerkning:</strong> Betalingsbeløp avviker fra ordrebeløp. Dette kan skylde manuell tilpasning.
                       </p>
                       <p className="text-xs text-amber-700">
-                        Ordre: Depositum kr {order.deposit_amount.toLocaleString('nb-NO')}, Restbeløp kr {order.remainder_amount.toLocaleString('nb-NO')}
+                        Ordre: Forskudd kr {order.deposit_amount.toLocaleString('nb-NO')}, Restbeløp kr {order.remainder_amount.toLocaleString('nb-NO')}
                       </p>
                       <p className="text-xs text-amber-700">
-                        Faktisk: Depositum kr {actualDepositAmount.toLocaleString('nb-NO')}, Restbeløp kr {actualRemainderAmount.toLocaleString('nb-NO')}
+                        Faktisk: Forskudd kr {actualDepositAmount.toLocaleString('nb-NO')}, Restbeløp kr {actualRemainderAmount.toLocaleString('nb-NO')}
                       </p>
                     </div>
                     <Button

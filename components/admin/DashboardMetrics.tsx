@@ -71,7 +71,7 @@ export function DashboardMetrics({ metrics }: DashboardMetricsProps) {
 
   const outstandingCards = [
     {
-      title: 'Manglende depositum',
+      title: 'Manglende forskudd',
       count: summary.outstanding_deposits_count,
       value: summary.outstanding_deposits_value,
       icon: AlertCircle,
@@ -153,7 +153,7 @@ export function DashboardMetrics({ metrics }: DashboardMetricsProps) {
             {Object.entries(status_breakdown).map(([status, count]) => {
               const statusLabels: Record<string, string> = {
                 draft: 'Utkast',
-                deposit_paid: 'Depositum betalt',
+                deposit_paid: 'Forskudd betalt',
                 paid: 'Fullstendig betalt',
                 ready_for_pickup: 'Klar for henting',
                 completed: 'Fullført',
@@ -209,7 +209,7 @@ export function DashboardMetrics({ metrics }: DashboardMetricsProps) {
               <p className="text-sm text-gray-600 mb-2">Betalingsgrad</p>
               <div className="space-y-2">
                 <div className="flex items-center justify-between p-3 rounded-lg bg-green-50">
-                  <span className="text-sm text-gray-700">Depositum fullført</span>
+                  <span className="text-sm text-gray-700">Forskudd fullført</span>
                   <span className="font-bold text-green-900">{completion_rates.deposit}%</span>
                 </div>
                 <div className="flex items-center justify-between p-3 rounded-lg bg-blue-50">

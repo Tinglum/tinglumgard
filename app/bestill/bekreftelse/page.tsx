@@ -246,7 +246,7 @@ export default function ConfirmationPage() {
                 <p className={cn("text-sm", theme.textMuted)}>
                   {order.status !== 'draft'
                     ? 'Forskudd mottatt. Du har mottatt en e-postbekreftelse.'
-                    : `Betal depositum på ${order.deposit_amount.toLocaleString('nb-NO')} kr via Vipps.`
+                    : `Betal forskudd på ${order.deposit_amount.toLocaleString('nb-NO')} kr via Vipps.`
                   }
                 </p>
               </div>

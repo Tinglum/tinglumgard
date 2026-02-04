@@ -128,10 +128,10 @@ function getEmailTemplates() {
   const templates = [
     {
       id: 'deposit_reminder',
-      name: 'Påminnelse om depositum',
-      subject: 'Påminnelse: Depositum for ordre {ORDER_NUMBER}',
+      name: 'Påminnelse om forskudd',
+      subject: 'Påminnelse: Forskudd for ordre {ORDER_NUMBER}',
       message: `<p>Hei {CUSTOMER_NAME},</p>
-<p>Dette er en vennlig påminnelse om at depositum for din ordre <strong>{ORDER_NUMBER}</strong> ikke er betalt ennå.</p>
+<p>Dette er en vennlig påminnelse om at forskudd for din ordre <strong>{ORDER_NUMBER}</strong> ikke er betalt ennå.</p>
 <p>Vennligst fullfør betalingen for å sikre din bestilling.</p>`,
     },
     {

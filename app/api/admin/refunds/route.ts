@@ -120,7 +120,7 @@ async function cancelOrder(orderId: string, reason: string, restoreInventory: bo
       <p>Hei ${order.customer_name},</p>
       <p>Din ordre <strong>${order.order_number}</strong> har blitt kansellert.</p>
       ${reason ? `<p><strong>Årsak:</strong> ${reason}</p>` : ''}
-      <p>Dersom du har betalt depositum eller restbeløp, vil refundering bli behandlet innen 5-7 virkedager.</p>
+      <p>Dersom du har betalt forskudd eller restbeløp, vil refundering bli behandlet innen 5-7 virkedager.</p>
       <p>Ta kontakt med oss hvis du har spørsmål.</p>
       <p>Vennlig hilsen,<br>Tinglum Gård</p>
     </div>
@@ -286,7 +286,7 @@ async function issueRefund(orderId: string, amount: number, type: 'full' | 'part
       <p>Hei ${order.customer_name},</p>
       <p>Vi har mottatt din refunderingsforespørsel for ordre <strong>${order.order_number}</strong>.</p>
       <p><strong>Beløp:</strong> kr ${refundAmount.toLocaleString('nb-NO')}</p>
-      <p><strong>Type:</strong> ${type === 'full' ? 'Full refundering' : type === 'deposit' ? 'Depositum' : type === 'remainder' ? 'Restbeløp' : 'Delvis refundering'}</p>
+      <p><strong>Type:</strong> ${type === 'full' ? 'Full refundering' : type === 'deposit' ? 'Forskudd' : type === 'remainder' ? 'Restbeløp' : 'Delvis refundering'}</p>
       <p>Refunderingen vil bli behandlet innen 5-7 virkedager og vil bli kreditert til samme betalingsmetode som ble brukt ved kjøp.</p>
       <p>Vennlig hilsen,<br>Tinglum Gård</p>
     </div>

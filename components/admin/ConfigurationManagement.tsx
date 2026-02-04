@@ -201,7 +201,7 @@ export function ConfigurationManagement() {
           </div>
 
           <div>
-            <Label>8 kg depositum (%)</Label>
+            <Label>8 kg forskudd (%)</Label>
             <Input
               type="number"
               value={box8kgDepositPercentage}
@@ -215,7 +215,7 @@ export function ConfigurationManagement() {
           </div>
 
           <div>
-            <Label>12 kg depositum (%)</Label>
+            <Label>12 kg forskudd (%)</Label>
             <Input
               type="number"
               value={box12kgDepositPercentage}
@@ -271,9 +271,9 @@ export function ConfigurationManagement() {
         <div className="mt-6 p-4 rounded-lg bg-blue-50 border border-blue-200">
           <p className="text-sm text-blue-900 font-medium mb-2">Priseksempel:</p>
           <div className="grid grid-cols-2 gap-2 text-sm text-blue-800">
-            <div>8 kg depositum ({box8kgDepositPercentage}%):</div>
+            <div>8 kg forskudd ({box8kgDepositPercentage}%):</div>
             <div className="font-bold">kr {Math.floor(box8kgPrice * (box8kgDepositPercentage / 100)).toLocaleString('nb-NO')}</div>
-            <div>12 kg depositum ({box12kgDepositPercentage}%):</div>
+            <div>12 kg forskudd ({box12kgDepositPercentage}%):</div>
             <div className="font-bold">kr {Math.floor(box12kgPrice * (box12kgDepositPercentage / 100)).toLocaleString('nb-NO')}</div>
             <div>8 kg total + E6 + fersk:</div>
             <div className="font-bold">kr {(box8kgPrice + deliveryFeeE6 + freshFee).toLocaleString('nb-NO')}</div>
