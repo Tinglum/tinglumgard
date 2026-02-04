@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { cn } from '@/lib/utils';
@@ -46,18 +46,35 @@ export function ExtrasUpsellModal({
   const [extras, setExtras] = useState<Extra[]>([]);
   const [selectedQuantities, setSelectedQuantities] = useState<Record<string, number>>({});
   const [loadingExtras, setLoadingExtras] = useState(true);
+  const initializedRef = useRef(false);
 
   useEffect(() => {
     if (isOpen) {
+      setLoadingExtras(true);
       loadExtras();
-      // Initialize with current extras
-      const initialQuantities: Record<string, number> = {};
-      currentExtras.forEach((extra) => {
-        initialQuantities[extra.slug] = extra.quantity;
-      });
-      setSelectedQuantities(initialQuantities);
+      if (!initializedRef.current) {
+        // Initialize with current extras only once per open
+        const initialQuantities: Record<string, number> = {};
+        currentExtras.forEach((extra) => {
+          initialQuantities[extra.slug] = extra.quantity;
+        });
+        setSelectedQuantities(initialQuantities);
+        initializedRef.current = true;
+      }
+    } else {
+      initializedRef.current = false;
+      setSelectedQuantities({});
     }
-  }, [isOpen, currentExtras]);
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [isOpen]);
 
   async function loadExtras() {
     try {
@@ -192,7 +209,7 @@ export function ExtrasUpsellModal({
         </div>
 
         {/* Content */}
-        <div className="px-8 py-6 overflow-y-auto max-h-[calc(90vh-220px)]">
+        <div className="px-8 py-6 overflow-y-auto overscroll-contain max-h-[calc(90vh-220px)]">
           {loadingExtras ? (
             <div className="flex items-center justify-center py-12">
               <div className="w-12 h-12 border-4 border-neutral-200 border-t-neutral-600 rounded-full animate-spin" />
@@ -214,8 +231,8 @@ export function ExtrasUpsellModal({
                 const priceLabel = `kr ${extra.price_nok}/${unit}`;
                 const isOutOfStock = extra.stock_quantity !== null && extra.stock_quantity <= 0;
                 const isLowStock = extra.stock_quantity !== null && extra.stock_quantity > 0 && extra.stock_quantity <= 5;
-                const minValue = extra.pricing_type === 'per_kg' ? 0.1 : 1;
-                const stepValue = extra.pricing_type === 'per_kg' ? 0.1 : 1;
+                const minValue = 0;
+                const stepValue = extra.pricing_type === 'per_kg' ? 0.5 : 1;
                 return (
                   <div
                     key={extra.id}
