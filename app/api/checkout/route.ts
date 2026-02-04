@@ -107,12 +107,12 @@ export async function POST(request: NextRequest) {
 
     const depositAmount = Math.round(baseDepositAmount - totalDiscountAmount);
 
-    // Remainder is ONLY the box price minus the base deposit (before discount)
-    // It does NOT include delivery fees or extras (those are paid with deposit)
-    const remainderAmount = Math.round(basePrice - baseDepositAmount);
-
     // Total amount includes everything MINUS the discount
     const totalAmount = Math.round((basePrice + deliveryFee + freshFee + extrasTotal) - totalDiscountAmount);
+
+    // Remainder is the rest of the total after the (discounted) deposit.
+    // Delivery fees and extras are paid with the remainder.
+    const remainderAmount = Math.round(totalAmount - depositAmount);
 
     // Generate order number (max 7 characters: TL + 5 random alphanumerics)
     // Using base36 (0-9, A-Z) for compact representation
