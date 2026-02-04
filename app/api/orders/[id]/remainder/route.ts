@@ -35,12 +35,7 @@ export async function POST(
       order = fallback.data as any;
     }
 
-    const matchesAnonymous =
-      !order.user_id &&
-      ((session.phoneNumber && order.customer_phone === session.phoneNumber) ||
-        (session.email && order.customer_email === session.email));
-
-    if (order.user_id !== session.userId && !session.isAdmin && !matchesAnonymous) {
+    if (order.user_id !== session.userId && !session.isAdmin) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
     }
 

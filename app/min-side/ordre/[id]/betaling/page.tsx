@@ -77,12 +77,12 @@ export default function RemainderPaymentSummaryPage() {
       if (response.ok && data.redirectUrl) {
         window.location.href = data.redirectUrl;
       } else {
-        throw new Error(data?.error || 'Noe gikk galt');
+        throw new Error(data?.error || `Kunne ikke starte betaling (status ${response.status})`);
       }
     } catch (err) {
       console.error('Failed to create remainder payment:', err);
       setPaying(false);
-      alert('Kunne ikke starte betaling. Prøv igjen.');
+      alert(err instanceof Error ? err.message : 'Kunne ikke starte betaling. Prøv igjen.');
     }
   }
 
