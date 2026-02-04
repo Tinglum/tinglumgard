@@ -1,10 +1,9 @@
 "use client";
 
-import { ChevronDown, Check, ChevronRight } from 'lucide-react';
+import { Check, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
 import { ReferralCodeInput } from '@/components/ReferralCodeInput';
 import { RebateCodeInput } from '@/components/RebateCodeInput';
 
@@ -83,8 +82,23 @@ export function MobileCheckout(props: MobileCheckoutProps) {
 
   const { t } = useLanguage();
 
-  const sectionCard = "rounded-2xl border border-[#E6D8C8] bg-[#FFF9F2] p-5 shadow-[0_12px_30px_rgba(50,36,24,0.08)]";
-  const labelText = "text-xs font-semibold uppercase tracking-[0.25em] text-[#6C5A4A]";
+  const stepLabels = [
+    t.checkout.stepSize || 'Størrelse',
+    t.checkout.stepRibbe || 'Ribbe',
+    t.checkout.stepDelivery || 'Levering',
+    'Betaling',
+  ];
+
+  const stepTitle = step === 1
+    ? t.checkout.step1Title
+    : step === 2
+      ? t.checkout.step2Title || t.checkout.selectRibbeType
+      : step === 3
+        ? t.checkout.deliveryOptions
+        : t.checkout.summary;
+
+  const sectionCard = "rounded-[28px] border border-[#E4DED5] bg-white p-5 shadow-[0_18px_40px_rgba(30,27,22,0.12)]";
+  const labelText = "text-[11px] font-semibold uppercase tracking-[0.3em] text-[#6A6258]";
 
   const boxContents = {
     '8': [
@@ -122,82 +136,91 @@ export function MobileCheckout(props: MobileCheckoutProps) {
 
   const ribbeSummary = ribbeOptions.find((opt) => opt.id === ribbeChoice)?.name || t.checkout.selectRibbeType;
   const deliverySummary = deliveryOptions.find((opt) => opt.id === deliveryType)?.name || t.checkout.deliveryOptions;
-
   const extraCount = extraProducts.length;
 
+  const canContinue = step === 1 ? boxSize !== '' : step === 2 ? ribbeChoice !== '' : true;
+
   return (
-    <div className="space-y-6 pb-28">
-      <div className="sticky top-0 z-10 rounded-2xl border border-[#E6D8C8] bg-white/90 p-4 backdrop-blur">
-        <div className="flex items-center justify-between text-[10px] font-semibold uppercase tracking-[0.25em] text-[#6C5A4A]">
-          <span>Kasse</span>
-          <span>Levering</span>
-          <span>Tilpasning</span>
-          <span>Betaling</span>
+    <div className="space-y-6 pb-32 text-[#1E1B16] font-[family:var(--font-manrope)]">
+      <div className={sectionCard}>
+        <div className="flex items-center justify-between text-[11px] font-semibold uppercase tracking-[0.3em] text-[#6A6258]">
+          <span>Steg {step}/4</span>
+          {step > 1 && (
+            <button
+              type="button"
+              onClick={() => setStep(step - 1)}
+              className="inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.3em] text-[#0F6C6F]"
+            >
+              <ChevronLeft className="h-4 w-4" />
+              {t.nav.back}
+            </button>
+          )}
         </div>
-        <div className="mt-3 h-1.5 rounded-full bg-[#EADBC8]">
-          <div className="h-1.5 rounded-full bg-[#1F1A14]" style={{ width: `${(step / 4) * 100}%` }} />
+        <h2 className="mt-3 text-2xl font-semibold text-[#1E1B16] font-[family:var(--font-playfair)]">
+          {stepTitle}
+        </h2>
+        <div className="mt-4 h-1.5 w-full rounded-full bg-[#E9E1D6]">
+          <div className="h-1.5 rounded-full bg-[#0F6C6F]" style={{ width: `${(step / 4) * 100}%` }} />
+        </div>
+        <div className="mt-3 grid grid-cols-4 gap-2 text-[10px] uppercase tracking-[0.25em]">
+          {stepLabels.map((label, index) => (
+            <span
+              key={label}
+              className={`${step >= index + 1 ? 'text-[#0F6C6F] font-semibold' : 'text-[#B0A79C]'}`}
+            >
+              {label}
+            </span>
+          ))}
         </div>
       </div>
 
-      {/* Step 1: Box Size */}
-      <div className={sectionCard}>
-        <button
-          type="button"
-          onClick={() => setStep(1)}
-          className="flex w-full items-center justify-between text-left"
-        >
-          <div>
-            <p className={labelText}>1. Velg kasse</p>
-            <p className="mt-2 text-lg font-semibold text-[#1F1A14]">
-              {boxSize ? `${boxSize} kg` : t.checkout.step1Title}
-            </p>
-          </div>
-          <ChevronDown className={`h-5 w-5 text-[#6C5A4A] transition-transform ${step === 1 ? 'rotate-180' : ''}`} />
-        </button>
-
-        {step === 1 && (
-          <div className="mt-4 space-y-3">
+      {step === 1 && (
+        <div className={sectionCard}>
+          <p className={labelText}>Velg kasse</p>
+          <div className="mt-4 space-y-4">
             {(['8', '12'] as const).map((size) => (
               <button
                 key={size}
-                onClick={() => {
-                  setBoxSize(size);
-                  setStep(2);
-                }}
-                className={`w-full rounded-xl border px-4 py-4 text-left transition-all ${
+                onClick={() => setBoxSize(size)}
+                className={`w-full rounded-3xl border px-5 py-5 text-left transition-all ${
                   boxSize === size
-                    ? 'border-[#1F1A14] bg-[#1F1A14] text-[#F7F1EA]'
-                    : 'border-[#E6D8C8] bg-white text-[#1F1A14]'
+                    ? 'border-[#0F6C6F] bg-[#0F6C6F] text-white'
+                    : 'border-[#E4DED5] bg-[#FBFAF7] text-[#1E1B16]'
                 }`}
               >
-                <div className="flex items-start justify-between">
+                <div className="flex items-start justify-between gap-4">
                   <div>
-                    <p className="text-2xl font-bold">
-                      {size} <span className="text-sm font-semibold">kg</span>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.3em]">
+                      {size} kg
                     </p>
-                    <p className={`text-sm ${boxSize === size ? 'text-[#F7F1EA]/70' : 'text-[#6C5A4A]'}`}>
+                    <p className="mt-2 text-3xl font-semibold font-[family:var(--font-playfair)]">
+                      {size} <span className="text-base font-semibold">kg</span>
+                    </p>
+                    <p className={`mt-2 text-sm ${boxSize === size ? 'text-white/70' : 'text-[#5E5A50]'}`}>
                       {size === '8' ? t.product.perfectFor2to3 : t.product.idealFor4to6}
                     </p>
                   </div>
                   {prices && prices[size]?.total ? (
                     <div className="text-right">
-                      <p className="text-lg font-bold">{prices[size].total.toLocaleString('nb-NO')} {t.common.currency}</p>
-                      <p className={`text-xs ${boxSize === size ? 'text-[#F7F1EA]/70' : 'text-[#6C5A4A]'}`}>
+                      <p className="text-xl font-semibold">
+                        {prices[size].total.toLocaleString('nb-NO')} {t.common.currency}
+                      </p>
+                      <p className={`text-xs ${boxSize === size ? 'text-white/70' : 'text-[#5E5A50]'}`}>
                         {t.product.deposit50}: {prices[size].deposit.toLocaleString('nb-NO')} {t.common.currency}
                       </p>
                     </div>
                   ) : (
-                    <p className="text-sm text-[#6C5A4A]">{t.common.loading}</p>
+                    <p className="text-sm text-[#5E5A50]">{t.common.loading}</p>
                   )}
                 </div>
 
                 {boxSize === size && (
                   <div className="mt-4 border-t border-white/20 pt-3 text-xs">
-                    <p className="uppercase tracking-[0.25em] text-[#F7F1EA]/70">I kassen</p>
-                    <ul className="mt-2 space-y-1 text-[#F7F1EA]/80">
+                    <p className="uppercase tracking-[0.25em] text-white/70">{t.checkout.inBox}</p>
+                    <ul className="mt-2 space-y-1 text-white/80">
                       {boxContents[size].slice(0, 4).map((item) => (
                         <li key={item} className="flex items-start gap-2">
-                          <span className="mt-1 h-1.5 w-1.5 rounded-full bg-[#F7F1EA]" />
+                          <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-white" />
                           <span>{item}</span>
                         </li>
                       ))}
@@ -207,310 +230,267 @@ export function MobileCheckout(props: MobileCheckoutProps) {
               </button>
             ))}
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
-      {/* Step 2: Delivery */}
-      <div className={sectionCard}>
-        <button
-          type="button"
-          onClick={() => setStep(2)}
-          className="flex w-full items-center justify-between text-left"
-        >
-          <div>
-            <p className={labelText}>2. Levering</p>
-            <p className="mt-2 text-lg font-semibold text-[#1F1A14]">{deliverySummary}</p>
+      {step === 2 && (
+        <div className={sectionCard}>
+          <div className="flex items-center justify-between">
+            <p className={labelText}>Ribbe</p>
+            <span className="text-xs text-[#5E5A50]">{boxSize ? `${boxSize} kg` : ''}</span>
           </div>
-          <ChevronDown className={`h-5 w-5 text-[#6C5A4A] transition-transform ${step === 2 ? 'rotate-180' : ''}`} />
-        </button>
-
-        {step === 2 && (
           <div className="mt-4 space-y-3">
-            {deliveryOptions.map((option) => (
+            {ribbeOptions.map((option) => (
               <button
                 key={option.id}
-                onClick={() => setDeliveryType(option.id as typeof deliveryType)}
-                className={`w-full rounded-xl border px-4 py-4 text-left transition-all ${
-                  deliveryType === option.id
-                    ? 'border-[#1F1A14] bg-[#1F1A14] text-[#F7F1EA]'
-                    : 'border-[#E6D8C8] bg-white text-[#1F1A14]'
+                onClick={() => setRibbeChoice(option.id as typeof ribbeChoice)}
+                className={`w-full rounded-2xl border px-4 py-4 text-left transition-all ${
+                  ribbeChoice === option.id
+                    ? 'border-[#1E1B16] bg-[#1E1B16] text-white'
+                    : 'border-[#E4DED5] bg-[#FBFAF7] text-[#1E1B16]'
                 }`}
               >
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <p className="font-semibold">{option.name}</p>
-                    <p className={`text-xs ${deliveryType === option.id ? 'text-[#F7F1EA]/70' : 'text-[#6C5A4A]'}`}>
+                    <p className="font-semibold">
+                      {option.name}
+                      {option.recommended && (
+                        <span className="ml-2 rounded-full bg-[#B35A2A] px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.2em] text-white">
+                          {t.checkout.recommended}
+                        </span>
+                      )}
+                    </p>
+                    <p className={`text-xs ${ribbeChoice === option.id ? 'text-white/70' : 'text-[#5E5A50]'}`}>
                       {option.desc}
                     </p>
                   </div>
-                  <p className="text-sm font-bold">{option.price > 0 ? `${option.price} ${t.common.currency}` : t.common.free}</p>
+                  {ribbeChoice === option.id && <Check className="h-5 w-5 text-white" />}
                 </div>
               </button>
             ))}
+          </div>
+        </div>
+      )}
 
-            {deliveryType === 'farm' && (
-              <button
-                onClick={() => setFreshDelivery(!freshDelivery)}
-                className={`w-full rounded-xl border px-4 py-4 text-left transition-all ${
-                  freshDelivery
-                    ? 'border-[#1F1A14] bg-[#1F1A14] text-[#F7F1EA]'
-                    : 'border-[#E6D8C8] bg-white text-[#1F1A14]'
-                }`}
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="font-semibold">{t.checkout.freshDelivery}</p>
-                    <p className={`text-xs ${freshDelivery ? 'text-[#F7F1EA]/70' : 'text-[#6C5A4A]'}`}>
-                      {t.checkout.freshDeliveryDesc}
+      {step === 3 && (
+        <div className="space-y-6">
+          <div className={sectionCard}>
+            <div className="flex items-center justify-between">
+              <p className={labelText}>{t.checkout.deliveryOptions}</p>
+              <span className="text-xs text-[#5E5A50]">{deliverySummary}</span>
+            </div>
+            <div className="mt-4 space-y-3">
+              {deliveryOptions.map((option) => (
+                <button
+                  key={option.id}
+                  onClick={() => setDeliveryType(option.id as typeof deliveryType)}
+                  className={`w-full rounded-2xl border px-4 py-4 text-left transition-all ${
+                    deliveryType === option.id
+                      ? 'border-[#0F6C6F] bg-[#0F6C6F] text-white'
+                      : 'border-[#E4DED5] bg-[#FBFAF7] text-[#1E1B16]'
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="font-semibold">{option.name}</p>
+                      <p className={`text-xs ${deliveryType === option.id ? 'text-white/70' : 'text-[#5E5A50]'}`}>
+                        {option.desc}
+                      </p>
+                    </div>
+                    <p className="text-sm font-semibold">
+                      {option.price > 0 ? `${option.price} ${t.common.currency}` : t.common.free}
                     </p>
                   </div>
-                  <p className="text-sm font-bold">+{addonPrices?.fresh || 500} {t.common.currency}</p>
-                </div>
-              </button>
-            )}
+                </button>
+              ))}
 
-            <button
-              onClick={() => setStep(3)}
-              className="w-full rounded-xl bg-[#1F1A14] px-4 py-3 text-sm font-bold uppercase tracking-[0.2em] text-[#F7F1EA]"
-            >
-              Fortsett
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* Step 3: Customization */}
-      <div className={sectionCard}>
-        <button
-          type="button"
-          onClick={() => setStep(3)}
-          className="flex w-full items-center justify-between text-left"
-        >
-          <div>
-            <p className={labelText}>3. Tilpasning</p>
-            <p className="mt-2 text-lg font-semibold text-[#1F1A14]">
-              {ribbeChoice ? ribbeSummary : t.checkout.selectRibbeType}
-              {extraCount > 0 && ` · ${extraCount} tillegg`}
-            </p>
-          </div>
-          <ChevronDown className={`h-5 w-5 text-[#6C5A4A] transition-transform ${step === 3 ? 'rotate-180' : ''}`} />
-        </button>
-
-        {step === 3 && (
-          <div className="mt-4 space-y-4">
-            <div>
-              <p className="text-sm font-semibold text-[#1F1A14]">{t.checkout.selectRibbeType}</p>
-              <div className="mt-3 space-y-2">
-                {ribbeOptions.map((option) => (
-                  <button
-                    key={option.id}
-                    onClick={() => setRibbeChoice(option.id as typeof ribbeChoice)}
-                    className={`w-full rounded-xl border px-4 py-3 text-left transition-all ${
-                      ribbeChoice === option.id
-                        ? 'border-[#1F1A14] bg-[#1F1A14] text-[#F7F1EA]'
-                        : 'border-[#E6D8C8] bg-white text-[#1F1A14]'
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <p className="font-semibold">
-                          {option.name}
-                          {option.recommended && (
-                            <span className="ml-2 rounded-full bg-[#C05621] px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.2em] text-white">
-                              {t.checkout.recommended}
-                            </span>
-                          )}
-                        </p>
-                        <p className={`text-xs ${ribbeChoice === option.id ? 'text-[#F7F1EA]/70' : 'text-[#6C5A4A]'}`}>
-                          {option.desc}
-                        </p>
-                      </div>
-                      {ribbeChoice === option.id && <Check className="h-5 w-5 text-[#F7F1EA]" />}
+              {deliveryType === 'farm' && (
+                <button
+                  onClick={() => setFreshDelivery(!freshDelivery)}
+                  className={`w-full rounded-2xl border px-4 py-4 text-left transition-all ${
+                    freshDelivery
+                      ? 'border-[#1E1B16] bg-[#1E1B16] text-white'
+                      : 'border-[#E4DED5] bg-[#FBFAF7] text-[#1E1B16]'
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="font-semibold">{t.checkout.freshDelivery}</p>
+                      <p className={`text-xs ${freshDelivery ? 'text-white/70' : 'text-[#5E5A50]'}`}>
+                        {t.checkout.freshDeliveryDesc}
+                      </p>
                     </div>
-                  </button>
-                ))}
-              </div>
+                    <p className="text-sm font-semibold">+{addonPrices?.fresh || 500} {t.common.currency}</p>
+                  </div>
+                </button>
+              )}
             </div>
+          </div>
 
-            <div>
-              <p className="text-sm font-semibold text-[#1F1A14]">{t.checkout.extrasTitle}</p>
-              <p className="mt-1 text-xs text-[#6C5A4A]">{t.checkout.extrasWarning}</p>
-              <div className="mt-3 space-y-3">
-                {availableExtras
-                  .filter(extra => !['delivery_trondheim', 'pickup_e6', 'fresh_delivery'].includes(extra.slug))
-                  .map((extra) => {
-                    const isSelected = extraProducts.includes(extra.slug);
-                    const quantity = extraQuantities[extra.slug] !== undefined ? extraQuantities[extra.slug] : (extra.default_quantity || 1);
+          <div className={sectionCard}>
+            <div className="flex items-center justify-between">
+              <p className={labelText}>{t.checkout.extrasTitle}</p>
+              <span className="text-xs text-[#5E5A50]">{extraCount > 0 ? `${extraCount} valgt` : 'Valgfritt'}</span>
+            </div>
+            <p className="mt-2 text-xs text-[#5E5A50]">{t.checkout.extrasWarning}</p>
+            <div className="mt-4 space-y-3">
+              {availableExtras
+                .filter(extra => !['delivery_trondheim', 'pickup_e6', 'fresh_delivery'].includes(extra.slug))
+                .map((extra) => {
+                  const isSelected = extraProducts.includes(extra.slug);
+                  const quantity = extraQuantities[extra.slug] !== undefined ? extraQuantities[extra.slug] : (extra.default_quantity || 1);
 
-                    return (
-                      <div
-                        key={extra.slug}
-                        className={`rounded-xl border px-4 py-4 transition-all ${
-                          isSelected ? 'border-[#1F1A14] bg-[#1F1A14] text-[#F7F1EA]' : 'border-[#E6D8C8] bg-white text-[#1F1A14]'
-                        }`}
-                      >
-                        <label className="flex cursor-pointer items-start gap-3">
-                          <input
-                            type="checkbox"
-                            checked={isSelected}
-                            onChange={() => {
-                              setExtraProducts(
-                                extraProducts.includes(extra.slug)
-                                  ? extraProducts.filter(p => p !== extra.slug)
-                                  : [...extraProducts, extra.slug]
-                              );
-                              if (!isSelected && !extraQuantities[extra.slug]) {
-                                const defaultQty = extra.default_quantity || (extra.pricing_type === 'per_kg' ? 0.5 : 1);
-                                setExtraQuantities({
-                                  ...extraQuantities,
-                                  [extra.slug]: defaultQty
-                                });
-                              }
-                            }}
-                            className="mt-1 h-4 w-4 rounded"
-                            style={{ accentColor: '#1F1A14' }}
-                          />
-                          <div className="flex-1">
-                            <p className="font-semibold">{extra.name_no}</p>
-                            {extra.description_no && (
-                              <p className={`text-xs ${isSelected ? 'text-[#F7F1EA]/70' : 'text-[#6C5A4A]'}`}>
-                                {extra.description_no}
-                              </p>
-                            )}
-                            <p className="mt-2 text-sm font-bold">
-                              {extra.price_nok} {t.common.currency}
-                              <span className={`ml-1 text-xs ${isSelected ? 'text-[#F7F1EA]/70' : 'text-[#6C5A4A]'}`}>
-                                /{extra.pricing_type === 'per_kg' ? t.common.kg : t.common.stk}
-                              </span>
+                  return (
+                    <div
+                      key={extra.slug}
+                      className={`rounded-2xl border px-4 py-4 transition-all ${
+                        isSelected ? 'border-[#1E1B16] bg-[#1E1B16] text-white' : 'border-[#E4DED5] bg-[#FBFAF7] text-[#1E1B16]'
+                      }`}
+                    >
+                      <label className="flex cursor-pointer items-start gap-3">
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => {
+                            setExtraProducts(
+                              extraProducts.includes(extra.slug)
+                                ? extraProducts.filter(p => p !== extra.slug)
+                                : [...extraProducts, extra.slug]
+                            );
+                            if (!isSelected && !extraQuantities[extra.slug]) {
+                              const defaultQty = extra.default_quantity || (extra.pricing_type === 'per_kg' ? 0.5 : 1);
+                              setExtraQuantities({
+                                ...extraQuantities,
+                                [extra.slug]: defaultQty
+                              });
+                            }
+                          }}
+                          className="mt-1 h-4 w-4 rounded"
+                          style={{ accentColor: isSelected ? '#F6F4EF' : '#1E1B16' }}
+                        />
+                        <div className="flex-1">
+                          <p className="font-semibold">{extra.name_no}</p>
+                          {extra.description_no && (
+                            <p className={`text-xs ${isSelected ? 'text-white/70' : 'text-[#5E5A50]'}`}>
+                              {extra.description_no}
                             </p>
-                          </div>
-                        </label>
+                          )}
+                          <p className="mt-2 text-sm font-semibold">
+                            {extra.price_nok} {t.common.currency}
+                            <span className={`ml-1 text-xs ${isSelected ? 'text-white/70' : 'text-[#5E5A50]'}`}>
+                              /{extra.pricing_type === 'per_kg' ? t.common.kg : t.common.stk}
+                            </span>
+                          </p>
+                        </div>
+                      </label>
 
-                        {isSelected && (
-                          <div className="mt-4 flex items-center gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => {
-                                let newQty: number;
-                                if (extra.pricing_type === 'per_kg') {
-                                  newQty = Math.floor((quantity - 0.1) / 0.5) * 0.5;
-                                } else {
-                                  newQty = quantity - 1;
-                                }
+                      {isSelected && (
+                        <div className="mt-4 flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              let newQty: number;
+                              if (extra.pricing_type === 'per_kg') {
+                                newQty = Math.floor((quantity - 0.1) / 0.5) * 0.5;
+                              } else {
+                                newQty = quantity - 1;
+                              }
 
-                                if (newQty <= 0) {
-                                  setExtraProducts(extraProducts.filter(p => p !== extra.slug));
-                                  const newQuantities = { ...extraQuantities };
-                                  delete newQuantities[extra.slug];
-                                  setExtraQuantities(newQuantities);
-                                } else {
-                                  setExtraQuantities({
-                                    ...extraQuantities,
-                                    [extra.slug]: newQty
-                                  });
-                                }
-                              }}
-                              className="h-9 w-9 p-0"
-                            >
-                              -
-                            </Button>
-
-                            <Input
-                              type="number"
-                              min={extra.pricing_type === 'per_kg' ? '0.1' : '1'}
-                              step={extra.pricing_type === 'per_kg' ? '0.1' : '1'}
-                              value={quantity}
-                              onChange={(e) => {
-                                const value = parseFloat(e.target.value);
-                                if (!isNaN(value) && value > 0) {
-                                  setExtraQuantities({
-                                    ...extraQuantities,
-                                    [extra.slug]: value
-                                  });
-                                }
-                              }}
-                              className="w-20 text-center"
-                            />
-
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => {
-                                let newQty: number;
-                                if (extra.pricing_type === 'per_kg') {
-                                  newQty = Math.ceil((quantity + 0.1) / 0.5) * 0.5;
-                                } else {
-                                  newQty = quantity + 1;
-                                }
+                              if (newQty <= 0) {
+                                setExtraProducts(extraProducts.filter(p => p !== extra.slug));
+                                const newQuantities = { ...extraQuantities };
+                                delete newQuantities[extra.slug];
+                                setExtraQuantities(newQuantities);
+                              } else {
                                 setExtraQuantities({
                                   ...extraQuantities,
                                   [extra.slug]: newQty
                                 });
-                              }}
-                              className="h-9 w-9 p-0"
-                            >
-                              +
-                            </Button>
-                            <span className={`text-xs ${isSelected ? 'text-[#F7F1EA]/70' : 'text-[#6C5A4A]'}`}>
-                              {extra.pricing_type === 'per_kg' ? t.common.kg : t.common.stk}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-              </div>
+                              }
+                            }}
+                            className="h-9 w-9 rounded-full border border-white/40 text-sm font-semibold text-white"
+                          >
+                            -
+                          </button>
+
+                          <Input
+                            type="number"
+                            min={extra.pricing_type === 'per_kg' ? '0.1' : '1'}
+                            step={extra.pricing_type === 'per_kg' ? '0.1' : '1'}
+                            value={quantity}
+                            onChange={(e) => {
+                              const value = parseFloat(e.target.value);
+                              if (!isNaN(value) && value > 0) {
+                                setExtraQuantities({
+                                  ...extraQuantities,
+                                  [extra.slug]: value
+                                });
+                              }
+                            }}
+                            className="w-20 text-center"
+                          />
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              let newQty: number;
+                              if (extra.pricing_type === 'per_kg') {
+                                newQty = Math.ceil((quantity + 0.1) / 0.5) * 0.5;
+                              } else {
+                                newQty = quantity + 1;
+                              }
+                              setExtraQuantities({
+                                ...extraQuantities,
+                                [extra.slug]: newQty
+                              });
+                            }}
+                            className="h-9 w-9 rounded-full border border-white/40 text-sm font-semibold text-white"
+                          >
+                            +
+                          </button>
+                          <span className={`text-xs ${isSelected ? 'text-white/70' : 'text-[#5E5A50]'}`}>
+                            {extra.pricing_type === 'per_kg' ? t.common.kg : t.common.stk}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {step === 4 && (
+        <div className="space-y-6">
+          <div className={sectionCard}>
+            <div className="flex items-center justify-between">
+              <p className={labelText}>Oppsummering</p>
+              <span className="text-xs text-[#5E5A50]">{boxSize} kg</span>
             </div>
 
-            <button
-              onClick={() => setStep(4)}
-              className="w-full rounded-xl bg-[#1F1A14] px-4 py-3 text-sm font-bold uppercase tracking-[0.2em] text-[#F7F1EA]"
-            >
-              Fortsett til betaling
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* Step 4: Summary & Payment */}
-      <div className={sectionCard}>
-        <button
-          type="button"
-          onClick={() => setStep(4)}
-          className="flex w-full items-center justify-between text-left"
-        >
-          <div>
-            <p className={labelText}>4. Betaling</p>
-            <p className="mt-2 text-lg font-semibold text-[#1F1A14]">Oppsummering</p>
-          </div>
-          <ChevronDown className={`h-5 w-5 text-[#6C5A4A] transition-transform ${step === 4 ? 'rotate-180' : ''}`} />
-        </button>
-
-        {step === 4 && (
-          <div className="mt-4 space-y-4">
-            <div className="rounded-xl border border-[#E6D8C8] bg-white p-4 text-sm">
+            <div className="mt-4 rounded-2xl border border-[#E4DED5] bg-[#FBFAF7] p-4 text-sm">
               <div className="flex items-center justify-between">
-                <span>{boxSize} kg {boxSize === '12' ? t.product.box12 : t.product.box8}</span>
+                <span>{boxSize === '12' ? t.product.box12 : t.product.box8}</span>
                 <span className="font-semibold">
                   {prices && prices[boxSize] ? `${prices[boxSize].total.toLocaleString('nb-NO')} ${t.common.currency}` : '...'}
                 </span>
               </div>
 
-              <div className="mt-2 flex items-center justify-between text-xs text-[#6C5A4A]">
+              <div className="mt-2 flex items-center justify-between text-xs text-[#5E5A50]">
                 <span>{ribbeSummary}</span>
                 <span>Inkludert</span>
               </div>
 
               {deliveryType !== 'farm' && (
-                <div className="mt-2 flex items-center justify-between text-xs text-[#6C5A4A]">
+                <div className="mt-2 flex items-center justify-between text-xs text-[#5E5A50]">
                   <span>{deliverySummary}</span>
                   <span>{deliveryType === 'trondheim' ? addonPrices?.trondheim || 200 : addonPrices?.e6 || 300} {t.common.currency}</span>
                 </div>
               )}
 
               {freshDelivery && (
-                <div className="mt-2 flex items-center justify-between text-xs text-[#6C5A4A]">
+                <div className="mt-2 flex items-center justify-between text-xs text-[#5E5A50]">
                   <span>{t.checkout.freshDelivery}</span>
                   <span>{addonPrices?.fresh || 500} {t.common.currency}</span>
                 </div>
@@ -521,16 +501,16 @@ export function MobileCheckout(props: MobileCheckoutProps) {
                 const quantity = extraQuantities[slug] || 1;
                 if (!extra) return null;
                 return (
-                  <div key={slug} className="mt-2 flex items-center justify-between text-xs text-[#6C5A4A]">
+                  <div key={slug} className="mt-2 flex items-center justify-between text-xs text-[#5E5A50]">
                     <span>{extra.name_no} ({quantity}{extra.pricing_type === 'per_kg' ? t.common.kg : t.common.stk})</span>
                     <span>{(extra.price_nok * quantity).toLocaleString('nb-NO')} {t.common.currency}</span>
                   </div>
                 );
               })}
 
-              <div className="mt-4 border-t border-[#E6D8C8] pt-3">
+              <div className="mt-4 border-t border-[#E4DED5] pt-3">
                 {(referralDiscount > 0 || rebateDiscount > 0) && (
-                  <div className="flex items-center justify-between text-xs text-[#2F5D3A]">
+                  <div className="flex items-center justify-between text-xs text-[#0F6C6F]">
                     <span>Rabatt</span>
                     <span className="font-semibold">-{(referralDiscount || rebateDiscount).toLocaleString('nb-NO')} {t.common.currency}</span>
                   </div>
@@ -539,98 +519,109 @@ export function MobileCheckout(props: MobileCheckoutProps) {
                   <span>{t.common.total}</span>
                   <span>{totalPrice.toLocaleString('nb-NO')} {t.common.currency}</span>
                 </div>
-                <div className="mt-2 flex items-center justify-between text-xs text-[#6C5A4A]">
+                <div className="mt-2 flex items-center justify-between text-xs text-[#5E5A50]">
                   <span>{t.checkout.deposit50Percent}</span>
                   <span>{depositTotal.toLocaleString('nb-NO')} {t.common.currency}</span>
                 </div>
-                <div className="mt-1 flex items-center justify-between text-xs text-[#6C5A4A]">
+                <div className="mt-1 flex items-center justify-between text-xs text-[#5E5A50]">
                   <span>{t.checkout.remainderBeforeDelivery}</span>
                   <span>{remainderTotal.toLocaleString('nb-NO')} {t.common.currency}</span>
                 </div>
               </div>
             </div>
-
-            {!rebateData && (
-              <div className="rounded-xl border border-[#E6D8C8] bg-white p-4">
-                <ReferralCodeInput
-                  depositAmount={baseDepositTotal}
-                  onCodeApplied={(data) => {
-                    setReferralData({
-                      code: data.code,
-                      discountPercentage: data.discountPercentage,
-                      discountAmount: data.discountAmount,
-                      referrerPhone: data.referrerUserId,
-                    });
-                    setRebateData(null);
-                  }}
-                  onCodeRemoved={() => setReferralData(null)}
-                />
-              </div>
-            )}
-
-            {!referralData && (
-              <div className="rounded-xl border border-[#E6D8C8] bg-white p-4">
-                <RebateCodeInput
-                  depositAmount={baseDepositTotal}
-                  boxSize={boxSize ? parseInt(boxSize) : 0}
-                  onCodeApplied={(data) => {
-                    setRebateData({
-                      code: data.code,
-                      discountAmount: data.discountAmount,
-                      description: data.description,
-                    });
-                    setReferralData(null);
-                  }}
-                  onCodeRemoved={() => setRebateData(null)}
-                />
-              </div>
-            )}
-
-            <div className="space-y-3 text-xs text-[#6C5A4A]">
-              <label className="flex items-start gap-3">
-                <Checkbox
-                  checked={agreedToDepositPolicy}
-                  onCheckedChange={(checked) => setAgreedToDepositPolicy(checked as boolean)}
-                  className="mt-1"
-                />
-                <span>
-                  <strong className="text-[#1F1A14]">{t.checkout.depositNotRefundable}</strong> {t.checkout.triggersProd}
-                </span>
-              </label>
-              <label className="flex items-start gap-3">
-                <Checkbox
-                  checked={agreedToTerms}
-                  onCheckedChange={(checked) => setAgreedToTerms(checked as boolean)}
-                  className="mt-1"
-                />
-                <span>
-                  {t.checkout.agreeToTerms} <a href="/vilkar" className="underline">{t.checkout.termsLink}</a>
-                </span>
-              </label>
-            </div>
           </div>
-        )}
-      </div>
 
-      {step === 4 && (
-        <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-[#E6D8C8] bg-white/95 p-4 backdrop-blur">
-          <button
-            disabled={!agreedToTerms || !agreedToDepositPolicy || isProcessing}
-            onClick={handleCheckout}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#1F1A14] px-4 py-4 text-sm font-bold uppercase tracking-[0.2em] text-[#F7F1EA] disabled:opacity-50"
-          >
-            {isProcessing ? (
-              t.common.processing
-            ) : (
-              <>
-                Betal forskudd {depositTotal.toLocaleString('nb-NO')} {t.common.currency}
-                <ChevronRight className="h-4 w-4" />
-              </>
-            )}
-          </button>
-          <p className="mt-2 text-center text-xs text-[#6C5A4A]">{t.checkout.securePayment}</p>
+          {!rebateData && (
+            <div className={sectionCard}>
+              <ReferralCodeInput
+                depositAmount={baseDepositTotal}
+                onCodeApplied={(data) => {
+                  setReferralData({
+                    code: data.code,
+                    discountPercentage: data.discountPercentage,
+                    discountAmount: data.discountAmount,
+                    referrerPhone: data.referrerUserId,
+                  });
+                  setRebateData(null);
+                }}
+                onCodeRemoved={() => setReferralData(null)}
+              />
+            </div>
+          )}
+
+          {!referralData && (
+            <div className={sectionCard}>
+              <RebateCodeInput
+                depositAmount={baseDepositTotal}
+                boxSize={boxSize ? parseInt(boxSize) : 0}
+                onCodeApplied={(data) => {
+                  setRebateData({
+                    code: data.code,
+                    discountAmount: data.discountAmount,
+                    description: data.description,
+                  });
+                  setReferralData(null);
+                }}
+                onCodeRemoved={() => setRebateData(null)}
+              />
+            </div>
+          )}
+
+          <div className={`${sectionCard} space-y-3 text-xs text-[#5E5A50]`}>
+            <label className="flex items-start gap-3">
+              <Checkbox
+                checked={agreedToDepositPolicy}
+                onCheckedChange={(checked) => setAgreedToDepositPolicy(checked as boolean)}
+                className="mt-1"
+              />
+              <span>
+                <strong className="text-[#1E1B16]">{t.checkout.depositNotRefundable}</strong> {t.checkout.triggersProd}
+              </span>
+            </label>
+            <label className="flex items-start gap-3">
+              <Checkbox
+                checked={agreedToTerms}
+                onCheckedChange={(checked) => setAgreedToTerms(checked as boolean)}
+                className="mt-1"
+              />
+              <span>
+                {t.checkout.agreeToTerms} <a href="/vilkar" className="underline">{t.checkout.termsLink}</a>
+              </span>
+            </label>
+          </div>
         </div>
       )}
+
+      <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-[#E4DED5] bg-[#F6F4EF]/95 p-4 backdrop-blur">
+        <div className="mx-auto flex max-w-md flex-col gap-2">
+          {step < 4 ? (
+            <button
+              disabled={!canContinue}
+              onClick={() => setStep(step + 1)}
+              className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[#1E1B16] px-4 py-4 text-sm font-bold uppercase tracking-[0.2em] text-[#F6F4EF] disabled:opacity-50"
+            >
+              {t.common.continue}
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          ) : (
+            <button
+              disabled={!agreedToTerms || !agreedToDepositPolicy || isProcessing}
+              onClick={handleCheckout}
+              className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[#1E1B16] px-4 py-4 text-sm font-bold uppercase tracking-[0.2em] text-[#F6F4EF] disabled:opacity-50"
+            >
+              {isProcessing ? (
+                t.common.processing
+              ) : (
+                <>
+                  Betal forskudd {depositTotal.toLocaleString('nb-NO')} {t.common.currency}
+                  <ChevronRight className="h-4 w-4" />
+                </>
+              )}
+            </button>
+          )}
+          <p className="text-center text-xs text-[#5E5A50]">{t.checkout.securePayment}</p>
+        </div>
+      </div>
     </div>
   );
 }

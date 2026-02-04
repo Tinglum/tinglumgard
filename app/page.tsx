@@ -83,34 +83,39 @@ export default function Page() {
       )
     : null;
 
-  // Mobile version - ultra-minimal prismatic design
+  // Mobile version - full redesign
   if (isMobile) {
     return (
-      <div className="min-h-screen bg-[#F7F1EA] text-[#1F1A14] pb-28">
-        <MobileHero isSoldOut={isSoldOut} minPrice={minPrice} minDeposit={minDeposit} />
-        <MobileProductTiles pricing={pricing} />
+      <div className="relative min-h-screen bg-[#F6F4EF] text-[#1E1B16] pb-28 font-[family:var(--font-manrope)]">
+        <div className="pointer-events-none fixed inset-0 -z-10">
+          <div className="absolute -top-24 right-0 h-72 w-72 rounded-full bg-[#E4F1F0] blur-3xl" />
+          <div className="absolute top-40 -left-24 h-72 w-72 rounded-full bg-[#F4D7C1] blur-3xl" />
+          <div className="absolute bottom-0 right-1/3 h-64 w-64 rounded-full bg-[#D9E6D6] blur-3xl" />
+        </div>
 
-        {/* Availability */}
-        <section className="bg-[#F7F1EA] px-5 py-10">
-          <div className="rounded-2xl border border-[#E6D8C8] bg-[#FFF9F2] p-6 shadow-[0_12px_30px_rgba(50,36,24,0.08)]">
+        <MobileHero isSoldOut={isSoldOut} minPrice={minPrice} minDeposit={minDeposit} />
+
+        {/* Live availability */}
+        <section className="px-5 py-10">
+          <div className="mx-auto max-w-md rounded-[28px] border border-[#E4DED5] bg-white p-6 shadow-[0_20px_45px_rgba(30,27,22,0.12)]">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.25em] text-[#6C5A4A]">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-[#6A6258]">
                   {t.availability.title}
                 </p>
-                <p className="mt-3 text-5xl font-bold text-[#1F1A14]">
+                <p className="mt-3 text-5xl font-semibold text-[#1E1B16] font-[family:var(--font-playfair)]">
                   {loading ? "—" : boxesLeft}
                 </p>
-                <p className="text-sm text-[#6C5A4A]">{t.availability.boxesAvailable}</p>
+                <p className="text-sm text-[#5E5A50]">{t.availability.boxesAvailable}</p>
               </div>
               <div className="text-right">
                 {isSoldOut && (
-                  <span className="rounded-full bg-[#C05621] px-3 py-1 text-xs font-bold uppercase tracking-[0.2em] text-white">
+                  <span className="rounded-full bg-[#B35A2A] px-3 py-1 text-xs font-bold uppercase tracking-[0.2em] text-white">
                     {t.availability.soldOut}
                   </span>
                 )}
                 {!isSoldOut && isLowStock && (
-                  <span className="rounded-full bg-[#1F1A14] px-3 py-1 text-xs font-bold uppercase tracking-[0.2em] text-[#F7F1EA]">
+                  <span className="rounded-full bg-[#1E1B16] px-3 py-1 text-xs font-bold uppercase tracking-[0.2em] text-[#F6F4EF]">
                     {t.availability.fewLeft}
                   </span>
                 )}
@@ -118,35 +123,56 @@ export default function Page() {
             </div>
             {!loading && (
               <div className="mt-4">
-                <div className="h-2 w-full rounded-full bg-[#EADBC8]">
+                <div className="h-2 w-full rounded-full bg-[#E9E1D6]">
                   <div
-                    className="h-2 rounded-full bg-[#C05621]"
+                    className="h-2 rounded-full bg-[#0F6C6F]"
                     style={{ width: `${Math.min((boxesLeft / 50) * 100, 100)}%` }}
                   />
                 </div>
-                <p className="mt-2 text-xs text-[#6C5A4A]">Oppdatert i dag</p>
+                <p className="mt-2 text-xs text-[#5E5A50]">Oppdatert i dag</p>
               </div>
             )}
+          </div>
+        </section>
+
+        <MobileProductTiles pricing={pricing} />
+
+        {/* Quality notes */}
+        <section className="px-5 py-8">
+          <div className="mx-auto max-w-md grid gap-4">
+            {[t.hero.localRaised, t.hero.qualityGuarantee, t.hero.tagline].map((item) => (
+              <div
+                key={item}
+                className="rounded-[24px] border border-[#E4DED5] bg-white px-5 py-4 text-sm text-[#5E5A50] shadow-[0_12px_30px_rgba(30,27,22,0.08)]"
+              >
+                {item}
+              </div>
+            ))}
           </div>
         </section>
 
         <MobileTimeline />
 
         {/* FAQ */}
-        <section className="bg-[#F7F1EA] px-5 py-10">
-          <div className="rounded-2xl border border-[#E6D8C8] bg-white/80 p-6">
-            <h2 className="text-2xl font-bold text-[#1F1A14]">{t.faq.title}</h2>
+        <section className="px-5 py-10">
+          <div className="mx-auto max-w-md rounded-[28px] border border-[#E4DED5] bg-white p-6 shadow-[0_20px_45px_rgba(30,27,22,0.12)]">
+            <div className="flex items-center justify-between">
+              <h2 className="text-2xl font-semibold text-[#1E1B16] font-[family:var(--font-playfair)]">{t.faq.title}</h2>
+              <span className="rounded-full bg-[#E9E1D6] px-3 py-1 text-[10px] font-bold uppercase tracking-[0.25em] text-[#6A6258]">
+                {t.faq.badge}
+              </span>
+            </div>
             <div className="mt-6 space-y-3">
               {[
                 { q: t.faq.q1, a: t.faq.a1 },
                 { q: t.faq.q2, a: t.faq.a2 },
                 { q: t.faq.q3, a: t.faq.a3 },
               ].map((faq) => (
-                <details key={faq.q} className="rounded-xl border border-[#E6D8C8] bg-white px-4 py-3">
-                  <summary className="cursor-pointer list-none text-sm font-semibold text-[#1F1A14]">
+                <details key={faq.q} className="rounded-2xl border border-[#E9E1D6] bg-[#FBFAF7] px-4 py-3">
+                  <summary className="cursor-pointer list-none text-sm font-semibold text-[#1E1B16]">
                     {faq.q}
                   </summary>
-                  <p className="mt-2 text-sm text-[#6C5A4A]">{faq.a}</p>
+                  <p className="mt-2 text-sm text-[#5E5A50]">{faq.a}</p>
                 </details>
               ))}
             </div>
@@ -154,16 +180,16 @@ export default function Page() {
         </section>
 
         {/* CTA */}
-        <section className="bg-[#1F1A14] px-5 py-12 text-[#F7F1EA]">
-          <div className="mx-auto max-w-md space-y-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[#F7F1EA]/70">
+        <section className="px-5 py-12">
+          <div className="mx-auto max-w-md rounded-[32px] border border-[#1E1B16] bg-[#1E1B16] px-6 py-8 text-[#F6F4EF] shadow-[0_24px_50px_rgba(30,27,22,0.3)]">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-[#F6F4EF]/70">
               {t.hero.limitedOffer}
             </p>
-            <h2 className="text-3xl font-bold">{t.hero.seasonOnce}</h2>
-            <p className="text-sm text-[#F7F1EA]/70">{t.hero.limitedProduction}</p>
+            <h2 className="mt-4 text-3xl font-semibold font-[family:var(--font-playfair)]">{t.hero.seasonOnce}</h2>
+            <p className="mt-3 text-sm text-[#F6F4EF]/70">{t.hero.limitedProduction}</p>
             <Link
               href="/bestill"
-              className="inline-flex items-center justify-center rounded-xl bg-[#F7F1EA] px-6 py-3 text-sm font-bold uppercase tracking-[0.2em] text-[#1F1A14]"
+              className="mt-6 inline-flex w-full items-center justify-center rounded-2xl bg-[#F6F4EF] px-6 py-4 text-sm font-bold uppercase tracking-[0.2em] text-[#1E1B16]"
             >
               {t.hero.reservePackageNow}
             </Link>
@@ -171,17 +197,18 @@ export default function Page() {
         </section>
 
         {/* Instagram callout */}
-        <section className="bg-[#F7F1EA] px-5 py-10">
-          <div className="rounded-2xl border border-[#E6D8C8] bg-[#FFF9F2] p-6">
-            <h3 className="text-xl font-bold text-[#1F1A14]">Følg oss på Instagram</h3>
-            <p className="mt-2 text-sm text-[#6C5A4A]">
+        <section className="px-5 py-10">
+          <div className="mx-auto max-w-md rounded-[28px] border border-[#E4DED5] bg-white p-6 shadow-[0_18px_40px_rgba(30,27,22,0.12)]">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-[#6A6258]">Instagram</p>
+            <h3 className="mt-2 text-xl font-semibold text-[#1E1B16] font-[family:var(--font-playfair)]">Følg oss på Instagram</h3>
+            <p className="mt-2 text-sm text-[#5E5A50]">
               Se hverdagen på gården og oppdateringer gjennom sesongen.
             </p>
             <a
               href="https://www.instagram.com/tinglum.farm"
               target="_blank"
               rel="noopener noreferrer"
-              className="mt-4 inline-flex items-center justify-center rounded-xl border border-[#E6D8C8] px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#1F1A14]"
+              className="mt-4 inline-flex items-center justify-center rounded-2xl border border-[#1E1B16] px-4 py-3 text-xs font-semibold uppercase tracking-[0.2em] text-[#1E1B16]"
             >
               @tinglum.farm
             </a>
@@ -189,19 +216,19 @@ export default function Page() {
         </section>
 
         {/* Sticky CTA bar */}
-        <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-[#E6D8C8] bg-[#FFF9F2]/95 backdrop-blur">
+        <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-[#E4DED5] bg-[#F6F4EF]/95 backdrop-blur">
           <div className="mx-auto flex max-w-md items-center justify-between gap-4 px-5 py-3">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#6C5A4A]">Reserver kasse</p>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-[#6A6258]">Reserver kasse</p>
               {minPrice && (
-                <p className="text-sm font-bold text-[#1F1A14]">
+                <p className="text-sm font-semibold text-[#1E1B16]">
                   Fra {minPrice.toLocaleString('nb-NO')} {t.common.currency}
                 </p>
               )}
             </div>
             <Link
               href="/bestill"
-              className="rounded-xl bg-[#1F1A14] px-4 py-2 text-xs font-bold uppercase tracking-[0.2em] text-[#F7F1EA]"
+              className="rounded-2xl bg-[#1E1B16] px-4 py-2 text-xs font-bold uppercase tracking-[0.2em] text-[#F6F4EF]"
             >
               {t.hero.reserveNow}
             </Link>

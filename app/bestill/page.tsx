@@ -305,11 +305,16 @@ export default function CheckoutPage() {
   // Mobile version
   if (isMobile) {
     return (
-      <div className="min-h-screen bg-[#F7F1EA] text-[#1F1A14]">
-        <div className="mx-auto max-w-md px-5 pb-28 pt-6">
+      <div className="relative min-h-screen bg-[#F6F4EF] text-[#1E1B16]">
+        <div className="pointer-events-none fixed inset-0 -z-10">
+          <div className="absolute -top-24 right-0 h-72 w-72 rounded-full bg-[#E4F1F0] blur-3xl" />
+          <div className="absolute top-40 -left-24 h-72 w-72 rounded-full bg-[#F4D7C1] blur-3xl" />
+          <div className="absolute bottom-0 right-1/3 h-64 w-64 rounded-full bg-[#D9E6D6] blur-3xl" />
+        </div>
+        <div className="mx-auto max-w-md px-5 pb-32 pt-6 font-[family:var(--font-manrope)]">
           <Link
             href="/"
-            className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.25em] text-[#6C5A4A]"
+            className="inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.3em] text-[#6A6258]"
           >
             <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -317,10 +322,10 @@ export default function CheckoutPage() {
             {t.nav.back}
           </Link>
 
-          <div className="mt-6 mb-8">
-            <p className="text-xs font-semibold uppercase tracking-[0.25em] text-[#6C5A4A]">{t.checkout.title}</p>
-            <h1 className="mt-2 text-4xl font-bold text-[#1F1A14]">{t.checkout.pageTitle}</h1>
-            <p className="mt-3 text-sm text-[#6C5A4A]">{t.checkout.selectSize}</p>
+          <div className="mt-6 mb-8 rounded-[28px] border border-[#E4DED5] bg-white p-6 shadow-[0_18px_40px_rgba(30,27,22,0.12)]">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-[#6A6258]">{t.checkout.title}</p>
+            <h1 className="mt-2 text-3xl font-semibold text-[#1E1B16] font-[family:var(--font-playfair)]">{t.checkout.pageTitle}</h1>
+            <p className="mt-3 text-sm text-[#5E5A50]">{t.checkout.selectSize}</p>
           </div>
 
           <MobileCheckout

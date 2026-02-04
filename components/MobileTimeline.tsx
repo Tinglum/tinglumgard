@@ -24,34 +24,44 @@ export function MobileTimeline() {
   ];
 
   return (
-    <section className="bg-[#F7F1EA] px-5 py-12">
-      <div className="rounded-2xl border border-[#E6D8C8] bg-white/80 p-6 shadow-[0_12px_30px_rgba(50,36,24,0.08)]">
-        <div className="mb-6">
-          <p className="text-xs font-semibold uppercase tracking-[0.25em] text-[#6C5A4A]">{t.timeline.howItWorks}</p>
-          <h2 className="mt-2 text-2xl font-bold text-[#1F1A14]">{t.timeline.fromOrderToDelivery}</h2>
-          <p className="mt-2 text-sm text-[#6C5A4A]">{t.timeline.subtitle}</p>
+    <section className="px-5 py-12 text-[#1E1B16]">
+      <div className="mx-auto max-w-md rounded-[28px] border border-[#E4DED5] bg-white p-6 shadow-[0_20px_45px_rgba(30,27,22,0.12)] font-[family:var(--font-manrope)]">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-[#6A6258]">
+              {t.timeline.howItWorks}
+            </p>
+            <h2 className="mt-2 text-2xl font-semibold text-[#1E1B16] font-[family:var(--font-playfair)]">
+              {t.timeline.fromOrderToDelivery}
+            </h2>
+            <p className="mt-2 text-sm text-[#5E5A50]">{t.timeline.subtitle}</p>
+          </div>
+          <span className="rounded-full bg-[#0F6C6F] px-3 py-1 text-[10px] font-bold uppercase tracking-[0.25em] text-white">
+            1–3
+          </span>
         </div>
 
-        <div className="space-y-4">
+        <div className="relative mt-6 space-y-5">
+          <div className="absolute left-3 top-1 bottom-1 w-px bg-[#E4DED5]" />
           {steps.map((step, index) => (
-            <div key={step.title} className="flex gap-4">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#1F1A14] text-sm font-bold text-[#F7F1EA]">
+            <div key={step.title} className="relative pl-10">
+              <div className="absolute left-0 top-0 flex h-6 w-6 items-center justify-center rounded-full border border-[#0F6C6F] bg-white text-xs font-semibold text-[#0F6C6F]">
                 {index + 1}
               </div>
-              <div className="flex-1 rounded-xl border border-[#EFE2D4] bg-[#FFF9F2] p-4">
+              <div className="rounded-2xl border border-[#E9E1D6] bg-[#FBFAF7] p-4">
                 <div className="flex items-start justify-between gap-3">
-                  <h3 className="text-base font-semibold text-[#1F1A14]">{step.title}</h3>
-                  <span className="text-xs font-semibold uppercase tracking-[0.2em] text-[#C05621]">
+                  <h3 className="text-base font-semibold text-[#1E1B16]">{step.title}</h3>
+                  <span className="text-[10px] font-semibold uppercase tracking-[0.25em] text-[#B35A2A]">
                     {step.time}
                   </span>
                 </div>
-                <p className="mt-2 text-sm text-[#6C5A4A]">{step.desc}</p>
+                <p className="mt-2 text-sm text-[#5E5A50]">{step.desc}</p>
               </div>
             </div>
           ))}
         </div>
 
-        <div className="mt-6 rounded-xl border border-[#E6D8C8] bg-[#1F1A14] px-4 py-3 text-xs font-semibold uppercase tracking-[0.2em] text-[#F7F1EA]">
+        <div className="mt-6 rounded-2xl border border-[#0F6C6F] bg-[#0F6C6F] px-4 py-3 text-center text-[11px] font-semibold uppercase tracking-[0.25em] text-white">
           {t.hero.seasonOnce}
         </div>
       </div>

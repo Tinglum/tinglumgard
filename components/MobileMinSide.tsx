@@ -48,9 +48,9 @@ export function MobileMinSide(props: MobileMinSideProps) {
     const depositPaid = order.payments.some(p => p.payment_type === 'deposit' && p.status === 'completed');
     const remainderPaid = order.payments.some(p => p.payment_type === 'remainder' && p.status === 'completed');
 
-    if (depositPaid && remainderPaid) return { label: t.minSide.completed, color: 'bg-[#1F1A14] text-white' };
-    if (depositPaid) return { label: t.minSide.depositPaid, color: 'bg-[#C05621] text-white' };
-    return { label: t.minSide.waitingForPayment, color: 'bg-[#E6D8C8] text-[#1F1A14]' };
+    if (depositPaid && remainderPaid) return { label: t.minSide.completed, color: 'bg-[#0F6C6F] text-white' };
+    if (depositPaid) return { label: t.minSide.depositPaid, color: 'bg-[#B35A2A] text-white' };
+    return { label: t.minSide.waitingForPayment, color: 'bg-[#E9E1D6] text-[#1E1B16]' };
   };
 
   const getRibbeLabel = (choice: string) => {
@@ -73,14 +73,16 @@ export function MobileMinSide(props: MobileMinSideProps) {
   };
 
   return (
-    <div className="space-y-6 pb-24">
-      <header className="rounded-2xl border border-[#E6D8C8] bg-[#FFF9F2] p-6 shadow-[0_12px_30px_rgba(50,36,24,0.08)]">
-        <p className="text-xs font-semibold uppercase tracking-[0.25em] text-[#6C5A4A]">{t.minSide.title}</p>
-        <h1 className="mt-2 text-3xl font-bold text-[#1F1A14]">{t.minSide.title}</h1>
-        <p className="mt-2 text-sm text-[#6C5A4A]">{t.minSide.myOrders}</p>
+    <div className="space-y-6 pb-24 text-[#1E1B16] font-[family:var(--font-manrope)]">
+      <header className="rounded-[28px] border border-[#E4DED5] bg-white p-6 shadow-[0_18px_40px_rgba(30,27,22,0.12)]">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-[#6A6258]">{t.minSide.title}</p>
+        <h1 className="mt-2 text-3xl font-semibold text-[#1E1B16] font-[family:var(--font-playfair)]">
+          {t.minSide.title}
+        </h1>
+        <p className="mt-2 text-sm text-[#5E5A50]">{t.minSide.myOrders}</p>
       </header>
 
-      <div className="flex gap-2 overflow-x-auto">
+      <div className="grid grid-cols-3 gap-2">
         {[
           { id: 'orders', label: t.minSide.orders, icon: Package },
           { id: 'referrals', label: t.minSide.referrals, icon: Gift },
@@ -92,10 +94,10 @@ export function MobileMinSide(props: MobileMinSideProps) {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as typeof activeTab)}
-              className={`flex items-center gap-2 rounded-full border px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] ${
+              className={`flex items-center justify-center gap-2 rounded-2xl border px-3 py-3 text-[11px] font-semibold uppercase tracking-[0.2em] ${
                 isActive
-                  ? 'border-[#1F1A14] bg-[#1F1A14] text-[#F7F1EA]'
-                  : 'border-[#E6D8C8] bg-white text-[#6C5A4A]'
+                  ? 'border-[#1E1B16] bg-[#1E1B16] text-[#F6F4EF]'
+                  : 'border-[#E4DED5] bg-white text-[#6A6258]'
               }`}
             >
               <Icon className="h-4 w-4" />
@@ -107,20 +109,20 @@ export function MobileMinSide(props: MobileMinSideProps) {
 
       {activeTab === 'orders' && (
         <div className="space-y-4">
-          <div className="rounded-xl border border-[#E6D8C8] bg-white px-4 py-3 text-xs text-[#6C5A4A]">
+          <div className="rounded-2xl border border-[#E4DED5] bg-[#FBFAF7] px-4 py-3 text-xs text-[#5E5A50]">
             {canEdit
               ? t.minSide.canEditUntil.replace('{week}', String(cutoffWeek)).replace('{year}', String(cutoffYear))
               : t.minSide.editPeriodExpired.replace('{week}', String(cutoffWeek)).replace('{year}', String(cutoffYear))}
           </div>
 
           {orders.length === 0 ? (
-            <div className="rounded-2xl border border-[#E6D8C8] bg-white p-6 text-center">
-              <Package className="mx-auto h-10 w-10 text-[#C05621]" />
-              <h3 className="mt-4 text-lg font-semibold text-[#1F1A14]">{t.minSide.noOrders}</h3>
-              <p className="mt-2 text-sm text-[#6C5A4A]">{t.minSide.noOrdersDesc}</p>
+            <div className="rounded-[28px] border border-[#E4DED5] bg-white p-6 text-center">
+              <Package className="mx-auto h-10 w-10 text-[#0F6C6F]" />
+              <h3 className="mt-4 text-lg font-semibold text-[#1E1B16]">{t.minSide.noOrders}</h3>
+              <p className="mt-2 text-sm text-[#5E5A50]">{t.minSide.noOrdersDesc}</p>
               <Link
                 href="/bestill"
-                className="mt-4 inline-flex items-center justify-center rounded-xl bg-[#1F1A14] px-5 py-3 text-xs font-bold uppercase tracking-[0.2em] text-[#F7F1EA]"
+                className="mt-4 inline-flex items-center justify-center rounded-2xl bg-[#1E1B16] px-5 py-3 text-xs font-bold uppercase tracking-[0.2em] text-[#F6F4EF]"
               >
                 {t.minSide.goToOrder}
               </Link>
@@ -132,45 +134,45 @@ export function MobileMinSide(props: MobileMinSideProps) {
               const remainderPaid = order.payments.some(p => p.payment_type === 'remainder' && p.status === 'completed');
 
               return (
-                <div key={order.id} className="rounded-2xl border border-[#E6D8C8] bg-white p-5 shadow-[0_12px_30px_rgba(50,36,24,0.08)]">
+                <div key={order.id} className="rounded-[28px] border border-[#E4DED5] bg-white p-5 shadow-[0_18px_40px_rgba(30,27,22,0.12)]">
                   <div className="flex items-start justify-between">
                     <div>
-                      <p className="text-xs font-semibold uppercase tracking-[0.25em] text-[#6C5A4A]">{t.minSide.order}</p>
-                      <p className="mt-2 text-lg font-bold text-[#1F1A14]">#{order.order_number}</p>
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-[#6A6258]">{t.minSide.order}</p>
+                      <p className="mt-2 text-lg font-semibold text-[#1E1B16]">#{order.order_number}</p>
                     </div>
                     <span className={`rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] ${paymentStatus.color}`}>
                       {paymentStatus.label}
                     </span>
                   </div>
 
-                  <div className="mt-4 space-y-2 text-sm text-[#6C5A4A]">
+                  <div className="mt-4 space-y-2 text-sm text-[#5E5A50]">
                     <div className="flex items-center justify-between">
                       <span>{t.minSide.box}</span>
-                      <span className="font-semibold text-[#1F1A14]">{order.box_size} kg</span>
+                      <span className="font-semibold text-[#1E1B16]">{order.box_size} kg</span>
                     </div>
                     <div className="flex items-center justify-between">
                       <span>{t.minSide.ribbe}</span>
-                      <span className="font-semibold text-[#1F1A14]">{getRibbeLabel(order.ribbe_choice)}</span>
+                      <span className="font-semibold text-[#1E1B16]">{getRibbeLabel(order.ribbe_choice)}</span>
                     </div>
                     <div className="flex items-center justify-between">
                       <span>{t.minSide.delivery}</span>
-                      <span className="font-semibold text-[#1F1A14]">{getDeliveryLabel(order.delivery_type)}</span>
+                      <span className="font-semibold text-[#1E1B16]">{getDeliveryLabel(order.delivery_type)}</span>
                     </div>
                   </div>
 
-                  <div className="mt-4 border-t border-[#E6D8C8] pt-3 text-sm">
+                  <div className="mt-4 border-t border-[#E4DED5] pt-3 text-sm">
                     <div className="flex items-center justify-between">
-                      <span className="text-[#6C5A4A]">{t.minSide.deposit}</span>
-                      <span className="flex items-center gap-2 font-semibold text-[#1F1A14]">
+                      <span className="text-[#5E5A50]">{t.minSide.deposit}</span>
+                      <span className="flex items-center gap-2 font-semibold text-[#1E1B16]">
                         {order.deposit_amount.toLocaleString('nb-NO')} {t.common.currency}
-                        {depositPaid && <Check className="h-4 w-4 text-[#2F5D3A]" />}
+                        {depositPaid && <Check className="h-4 w-4 text-[#0F6C6F]" />}
                       </span>
                     </div>
                     <div className="mt-2 flex items-center justify-between">
-                      <span className="text-[#6C5A4A]">{t.minSide.remainder}</span>
-                      <span className="flex items-center gap-2 font-semibold text-[#1F1A14]">
+                      <span className="text-[#5E5A50]">{t.minSide.remainder}</span>
+                      <span className="flex items-center gap-2 font-semibold text-[#1E1B16]">
                         {order.remainder_amount.toLocaleString('nb-NO')} {t.common.currency}
-                        {remainderPaid ? <Check className="h-4 w-4 text-[#2F5D3A]" /> : <Clock className="h-4 w-4 text-[#C05621]" />}
+                        {remainderPaid ? <Check className="h-4 w-4 text-[#0F6C6F]" /> : <Clock className="h-4 w-4 text-[#B35A2A]" />}
                       </span>
                     </div>
                     <div className="mt-3 flex items-center justify-between text-base font-semibold">
@@ -183,7 +185,7 @@ export function MobileMinSide(props: MobileMinSideProps) {
                     {depositPaid && !remainderPaid && (
                       <button
                         onClick={() => onPayRemainder(order.id)}
-                        className="w-full rounded-xl bg-[#1F1A14] px-4 py-3 text-xs font-bold uppercase tracking-[0.2em] text-[#F7F1EA]"
+                        className="w-full rounded-2xl bg-[#1E1B16] px-4 py-3 text-xs font-bold uppercase tracking-[0.2em] text-[#F6F4EF]"
                       >
                         {t.minSide.payRemainder}
                         <ChevronRight className="ml-2 inline h-4 w-4" />
@@ -193,7 +195,7 @@ export function MobileMinSide(props: MobileMinSideProps) {
                     {canEdit && (
                       <Link
                         href={`/min-side/ordre/${order.id}`}
-                        className="block w-full rounded-xl border border-[#E6D8C8] px-4 py-3 text-center text-xs font-semibold uppercase tracking-[0.2em] text-[#6C5A4A]"
+                        className="block w-full rounded-2xl border border-[#E4DED5] px-4 py-3 text-center text-xs font-semibold uppercase tracking-[0.2em] text-[#6A6258]"
                       >
                         {t.minSide.seeDetails}
                       </Link>
@@ -207,14 +209,14 @@ export function MobileMinSide(props: MobileMinSideProps) {
       )}
 
       {activeTab === 'referrals' && (
-        <div className="rounded-2xl border border-[#E6D8C8] bg-white p-6">
-          <h3 className="text-lg font-semibold text-[#1F1A14]">{t.referrals.getCredit}</h3>
-          <p className="mt-2 text-sm text-[#6C5A4A]">{t.referrals.friendsGet20}</p>
+        <div className="rounded-[28px] border border-[#E4DED5] bg-white p-6">
+          <h3 className="text-lg font-semibold text-[#1E1B16]">{t.referrals.getCredit}</h3>
+          <p className="mt-2 text-sm text-[#5E5A50]">{t.referrals.friendsGet20}</p>
         </div>
       )}
 
       {activeTab === 'messages' && (
-        <div className="rounded-2xl border border-[#E6D8C8] bg-white p-4">
+        <div className="rounded-[28px] border border-[#E4DED5] bg-white p-4">
           <MessagingPanel variant="light" />
         </div>
       )}

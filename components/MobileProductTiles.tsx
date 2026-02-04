@@ -22,6 +22,8 @@ export function MobileProductTiles({ pricing }: MobileProductTilesProps) {
         t.boxContents.julepølse8kg,
         t.boxContents.svinesteik8kg,
       ],
+      meals: '12–16 måltider',
+      freezer: 'Lite fryserom',
       price: pricing ? pricing.box_8kg_price : null,
       deposit: pricing
         ? Math.floor(pricing.box_8kg_price * pricing.box_8kg_deposit_percentage / 100)
@@ -38,6 +40,8 @@ export function MobileProductTiles({ pricing }: MobileProductTilesProps) {
         t.boxContents.julepølse12kg,
         t.boxContents.svinesteik12kg,
       ],
+      meals: '20–28 måltider',
+      freezer: 'Mer fryserom',
       price: pricing ? pricing.box_12kg_price : null,
       deposit: pricing
         ? Math.floor(pricing.box_12kg_price * pricing.box_12kg_deposit_percentage / 100)
@@ -46,86 +50,93 @@ export function MobileProductTiles({ pricing }: MobileProductTilesProps) {
   ];
 
   return (
-    <section className="bg-[#F7F1EA] px-5 py-10">
-      <div className="flex items-end justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-bold text-[#1F1A14]">{t.product.choosePackage}</h2>
-          <p className="text-sm font-medium text-[#6C5A4A]">{t.product.sameQuality}</p>
-        </div>
-        <Link
-          href="/produkt"
-          className="text-xs font-semibold uppercase tracking-[0.2em] text-[#6C5A4A]"
-        >
-          {t.product.seeDetails}
-        </Link>
-      </div>
-
-      <div className="mt-6 flex gap-4 overflow-x-auto pb-2 snap-x snap-mandatory">
-        {packages.map((pkg) => (
-          <div
-            key={pkg.size}
-            className="snap-start min-w-[85%] rounded-2xl border border-[#E6D8C8] bg-[#FFF9F2] p-5 shadow-[0_10px_30px_rgba(50,36,24,0.08)]"
-          >
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-xs uppercase tracking-[0.25em] text-[#6C5A4A]">{pkg.label}</p>
-                <p className="mt-2 text-4xl font-bold text-[#1F1A14]">
-                  {pkg.size}
-                  <span className="ml-1 text-lg font-semibold text-[#6C5A4A]">kg</span>
-                </p>
-                <p className="mt-2 text-sm text-[#6C5A4A]">{pkg.people}</p>
-              </div>
-              {pkg.highlight && (
-                <span className="rounded-full bg-[#C05621] px-3 py-1 text-xs font-bold uppercase tracking-[0.2em] text-white">
-                  {t.product.mostPopular}
-                </span>
-              )}
-            </div>
-
-            <div className="mt-4 flex items-center justify-between">
-              {pkg.price ? (
-                <div>
-                  <p className="text-xl font-bold text-[#1F1A14]">
-                    {pkg.price.toLocaleString('nb-NO')} {t.common.currency}
-                  </p>
-                  <p className="text-xs text-[#6C5A4A]">
-                    {t.product.deposit50}: {pkg.deposit?.toLocaleString('nb-NO')} {t.common.currency}
-                  </p>
-                </div>
-              ) : (
-                <p className="text-sm text-[#6C5A4A]">{t.common.loading}</p>
-              )}
-            </div>
-
-            <div className="mt-5 rounded-xl border border-[#E9DDCE] bg-white/70 p-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#6C5A4A]">I kassen</p>
-              <ul className="mt-3 space-y-2 text-sm text-[#4A3B2E]">
-                {pkg.items.map((item) => (
-                  <li key={item} className="flex items-start gap-2">
-                    <span className="mt-1 h-1.5 w-1.5 rounded-full bg-[#C05621]" />
-                    <span>{item}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            <div className="mt-5 flex items-center gap-2 text-xs font-semibold text-[#6C5A4A]">
-              <span className="rounded-full border border-[#E6D8C8] bg-white px-3 py-1">
-                {pkg.size === '8' ? '12–16 måltider' : '20–28 måltider'}
-              </span>
-              <span className="rounded-full border border-[#E6D8C8] bg-white px-3 py-1">
-                {pkg.size === '8' ? 'Lite fryserom' : 'Mer fryserom'}
-              </span>
-            </div>
-
-            <Link
-              href={`/bestill?size=${pkg.size}`}
-              className="mt-6 block w-full rounded-xl bg-[#1F1A14] px-4 py-3 text-center text-sm font-bold uppercase tracking-[0.2em] text-[#F7F1EA]"
-            >
-              {t.product.orderNow}
-            </Link>
+    <section className="px-5 py-12 text-[#1E1B16]">
+      <div className="mx-auto max-w-md font-[family:var(--font-manrope)]">
+        <div className="flex items-end justify-between gap-4">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-[#6A6258]">Kasser</p>
+            <h2 className="mt-2 text-2xl font-semibold text-[#1E1B16] font-[family:var(--font-playfair)]">
+              {t.product.choosePackage}
+            </h2>
+            <p className="mt-2 text-sm text-[#5E5A50]">{t.product.sameQuality}</p>
           </div>
-        ))}
+          <Link
+            href="/produkt"
+            className="text-xs font-semibold uppercase tracking-[0.2em] text-[#0F6C6F]"
+          >
+            {t.product.seeDetails}
+          </Link>
+        </div>
+
+        <div className="mt-8 space-y-6">
+          {packages.map((pkg) => (
+            <div
+              key={pkg.size}
+              className={`relative overflow-hidden rounded-[28px] border border-[#E4DED5] bg-white p-6 shadow-[0_20px_45px_rgba(30,27,22,0.12)] ${
+                pkg.highlight ? 'ring-2 ring-[#0F6C6F]' : ''
+              }`}
+            >
+              {pkg.highlight && (
+                <div className="absolute right-6 top-6 rounded-full bg-[#0F6C6F] px-3 py-1 text-[10px] font-bold uppercase tracking-[0.25em] text-white">
+                  {t.product.mostPopular}
+                </div>
+              )}
+
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-[#6A6258]">{pkg.label}</p>
+                  <p className="mt-2 text-4xl font-semibold text-[#1E1B16] font-[family:var(--font-playfair)]">
+                    {pkg.size}
+                    <span className="ml-2 text-base font-semibold text-[#6A6258]">kg</span>
+                  </p>
+                  <p className="mt-2 text-sm text-[#5E5A50]">{pkg.people}</p>
+                </div>
+                <div className="text-right">
+                  {pkg.price ? (
+                    <>
+                      <p className="text-xl font-semibold text-[#1E1B16]">
+                        {pkg.price.toLocaleString('nb-NO')} {t.common.currency}
+                      </p>
+                      <p className="text-xs text-[#5E5A50]">
+                        {t.product.deposit50}: {pkg.deposit?.toLocaleString('nb-NO')} {t.common.currency}
+                      </p>
+                    </>
+                  ) : (
+                    <p className="text-sm text-[#5E5A50]">{t.common.loading}</p>
+                  )}
+                </div>
+              </div>
+
+              <div className="mt-5 rounded-2xl border border-[#E9E1D6] bg-[#FBFAF7] p-4">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-[#6A6258]">I kassen</p>
+                <ul className="mt-3 grid grid-cols-2 gap-2 text-sm text-[#4F4A42]">
+                  {pkg.items.map((item) => (
+                    <li key={item} className="flex items-start gap-2">
+                      <span className="mt-2 h-1.5 w-1.5 rounded-full bg-[#B35A2A]" />
+                      <span>{item}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              <div className="mt-5 flex flex-wrap gap-2 text-xs font-semibold text-[#5E5A50]">
+                <span className="rounded-full border border-[#E4DED5] bg-white px-3 py-1">
+                  {pkg.meals}
+                </span>
+                <span className="rounded-full border border-[#E4DED5] bg-white px-3 py-1">
+                  {pkg.freezer}
+                </span>
+              </div>
+
+              <Link
+                href={`/bestill?size=${pkg.size}`}
+                className="mt-6 inline-flex w-full items-center justify-center rounded-2xl bg-[#1E1B16] px-4 py-4 text-sm font-bold uppercase tracking-[0.2em] text-[#F6F4EF]"
+              >
+                {t.product.orderNow}
+              </Link>
+            </div>
+          ))}
+        </div>
       </div>
     </section>
   );
