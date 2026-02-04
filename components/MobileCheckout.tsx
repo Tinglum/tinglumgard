@@ -377,9 +377,10 @@ export function MobileCheckout(props: MobileCheckoutProps) {
                             : [...extraProducts, extra.slug]
                         );
                         if (!isSelected && !extraQuantities[extra.slug]) {
+                          const defaultQty = extra.default_quantity || (extra.pricing_type === 'per_kg' ? 0.5 : 1);
                           setExtraQuantities({
                             ...extraQuantities,
-                            [extra.slug]: extra.pricing_type === 'per_kg' ? 0.5 : 1
+                            [extra.slug]: defaultQty
                           });
                         }
                       }}

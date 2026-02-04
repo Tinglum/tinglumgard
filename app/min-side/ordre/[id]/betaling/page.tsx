@@ -34,6 +34,7 @@ interface ExtrasCatalogItem {
   description_en: string;
   price_nok: number;
   pricing_type: 'per_unit' | 'per_kg';
+  default_quantity?: number | null;
   stock_quantity: number | null;
   active: boolean;
 }
@@ -283,7 +284,8 @@ export default function RemainderPaymentSummaryPage() {
                         if (isSelected) {
                           handleQuantityChange(extra.slug, 0);
                         } else {
-                          handleQuantityChange(extra.slug, extra.pricing_type === 'per_kg' ? 0.5 : 1);
+                          const defaultQty = extra.default_quantity || (extra.pricing_type === 'per_kg' ? 0.5 : 1);
+                          handleQuantityChange(extra.slug, defaultQty);
                         }
                       }
                     }}

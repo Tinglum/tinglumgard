@@ -626,7 +626,8 @@ export default function CheckoutPage() {
                     .filter(extra => !['delivery_trondheim', 'pickup_e6', 'fresh_delivery'].includes(extra.slug))
                     .map((extra) => {
                     const isSelected = extraProducts.includes(extra.slug);
-                    const quantity = extraQuantities[extra.slug] || (extra.pricing_type === 'per_kg' ? 0.5 : 1);
+                    const defaultQty = extra.default_quantity || (extra.pricing_type === 'per_kg' ? 0.5 : 1);
+                    const quantity = extraQuantities[extra.slug] || defaultQty;
 
                     return (
                       <div
@@ -644,9 +645,10 @@ export default function CheckoutPage() {
                               : [...prev, extra.slug]
                           );
                           if (!isSelected && !extraQuantities[extra.slug]) {
+                            const defaultQty = extra.default_quantity || (extra.pricing_type === 'per_kg' ? 0.5 : 1);
                             setExtraQuantities(prev => ({
                               ...prev,
-                              [extra.slug]: extra.pricing_type === 'per_kg' ? 0.5 : 1
+                              [extra.slug]: defaultQty
                             }));
                           }
                         }}
