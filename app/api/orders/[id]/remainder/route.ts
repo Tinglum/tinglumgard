@@ -104,19 +104,8 @@ export async function POST(
       );
     }
 
-    // If payment exists but is pending, return existing session
-    if (remainderPayment?.status === 'pending' && remainderPayment.vipps_session_id) {
-      // Check if we have a valid Vipps session we can reuse
-      const sessionId = remainderPayment.vipps_session_id;
-      const checkoutUrl = `https://checkout.vipps.no/?token=${sessionId}`;
-
-      return NextResponse.json({
-        success: true,
-        redirectUrl: checkoutUrl,
-        paymentId: remainderPayment.id,
-        amount: remainderAmount,
-      });
-    }
+    // Note: We don't reuse pending sessions because Vipps tokens expire
+    // Always create a new session for better UX
 
     if (order.locked_at) {
       return NextResponse.json({ error: 'Order is locked' }, { status: 400 });
