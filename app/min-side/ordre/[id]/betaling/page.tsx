@@ -128,10 +128,18 @@ export default function RemainderPaymentSummaryPage() {
     return order?.extra_products?.reduce((sum, e) => sum + (e.total_price || 0), 0) || 0;
   }, [order]);
 
+  // The baseRemainder should just be the order's remainder_amount
+  // This represents what the user owes for the box (50% of box price)
+  // Extras are NOT included in remainder_amount from the API
   const baseRemainder = useMemo(() => {
     if (!order) return 0;
-    return Math.max(0, order.remainder_amount - savedExtrasTotal);
-  }, [order, savedExtrasTotal]);
+    return order.remainder_amount;
+  }, [order]);
+
+  // Calculate the delta between new extras and saved extras
+  const extrasDelta = useMemo(() => {
+    return newExtrasTotal - savedExtrasTotal;
+  }, [newExtrasTotal, savedExtrasTotal]);
 
   // Total to pay = base remainder + NEW extras selection
   const finalTotal = useMemo(() => {
@@ -333,6 +341,22 @@ export default function RemainderPaymentSummaryPage() {
                           onClick={(e) => e.stopPropagation()}
                         >
                           <label className={cn("text-sm font-semibold", theme.textPrimary)}>Antall</label>
+
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              const step = extra.pricing_type === 'per_kg' ? 0.5 : 1;
+                              const min = extra.pricing_type === 'per_kg' ? 0.5 : 1;
+                              const newQty = Math.max(min, quantity - step);
+                              handleQuantityChange(extra.slug, newQty);
+                            }}
+                            disabled={isPaying}
+                            className="h-10 w-10 p-0 font-bold text-lg"
+                          >
+                            -
+                          </Button>
+
                           <Input
                             type="number"
                             min={extra.pricing_type === 'per_kg' ? '0.1' : '1'}
@@ -345,8 +369,23 @@ export default function RemainderPaymentSummaryPage() {
                               }
                             }}
                             disabled={isPaying}
-                            className={cn("w-24 text-center font-bold text-lg border-2 border-amber-300 focus:border-amber-500", theme.textPrimary)}
+                            className={cn("w-20 text-center font-bold text-lg border-2 border-amber-300 focus:border-amber-500", theme.textPrimary)}
                           />
+
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              const step = extra.pricing_type === 'per_kg' ? 0.5 : 1;
+                              const newQty = quantity + step;
+                              handleQuantityChange(extra.slug, newQty);
+                            }}
+                            disabled={isPaying}
+                            className="h-10 w-10 p-0 font-bold text-lg"
+                          >
+                            +
+                          </Button>
+
                           <span className={cn("text-sm font-medium", theme.textPrimary)}>
                             {extra.pricing_type === 'per_kg' ? 'kg' : 'stk'}
                           </span>
@@ -364,6 +403,22 @@ export default function RemainderPaymentSummaryPage() {
                 <span className={cn('text-xl font-bold text-amber-600')}>
                   kr {newExtrasTotal.toLocaleString('nb-NO')}
                 </span>
+              </div>
+            )}
+
+            {extrasDelta !== 0 && (
+              <div className={cn('mt-4 p-3 rounded-lg',
+                extrasDelta > 0 ? 'bg-green-50 border border-green-200' : 'bg-orange-50 border border-orange-200'
+              )}>
+                {extrasDelta > 0 ? (
+                  <p className="text-sm text-green-800">
+                    ⬆ Du legger til kr {extrasDelta.toLocaleString('nb-NO')} til den opprinnelige bestillingen
+                  </p>
+                ) : (
+                  <p className="text-sm text-orange-800">
+                    ⬇ Du reduserer bestillingen med kr {Math.abs(extrasDelta).toLocaleString('nb-NO')}
+                  </p>
+                )}
               </div>
             )}
 

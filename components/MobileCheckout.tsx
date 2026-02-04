@@ -8,6 +8,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import { ReferralCodeInput } from '@/components/ReferralCodeInput';
 import { RebateCodeInput } from '@/components/RebateCodeInput';
 
@@ -410,6 +411,24 @@ export function MobileCheckout(props: MobileCheckoutProps) {
                       <label className="text-sm font-semibold" style={{ color: 'var(--farm-bark)' }}>
                         Mengde:
                       </label>
+
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const step = extra.pricing_type === 'per_kg' ? 0.5 : 1;
+                          const min = extra.pricing_type === 'per_kg' ? 0.5 : 1;
+                          const newQty = Math.max(min, quantity - step);
+                          setExtraQuantities({
+                            ...extraQuantities,
+                            [extra.slug]: newQty
+                          });
+                        }}
+                        className="h-10 w-10 p-0 font-bold text-lg"
+                      >
+                        -
+                      </Button>
+
                       <Input
                         type="number"
                         min={extra.pricing_type === 'per_kg' ? '0.1' : '1'}
@@ -424,8 +443,25 @@ export function MobileCheckout(props: MobileCheckoutProps) {
                             });
                           }
                         }}
-                        className="w-24 text-center font-bold"
+                        className="w-20 text-center font-bold"
                       />
+
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const step = extra.pricing_type === 'per_kg' ? 0.5 : 1;
+                          const newQty = quantity + step;
+                          setExtraQuantities({
+                            ...extraQuantities,
+                            [extra.slug]: newQty
+                          });
+                        }}
+                        className="h-10 w-10 p-0 font-bold text-lg"
+                      >
+                        +
+                      </Button>
+
                       <span className="text-sm font-semibold" style={{ color: 'var(--farm-bark)' }}>
                         {extra.pricing_type === 'per_kg' ? 'kg' : 'stk'}
                       </span>

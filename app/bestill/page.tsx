@@ -689,6 +689,24 @@ export default function CheckoutPage() {
                               onClick={(e) => e.stopPropagation()}
                             >
                               <label className={cn("text-sm font-semibold", theme.textPrimary)}>{t.checkout.quantity}</label>
+
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  const step = extra.pricing_type === 'per_kg' ? 0.5 : 1;
+                                  const min = extra.pricing_type === 'per_kg' ? 0.5 : 1;
+                                  const newQty = Math.max(min, quantity - step);
+                                  setExtraQuantities(prev => ({
+                                    ...prev,
+                                    [extra.slug]: newQty
+                                  }));
+                                }}
+                                className="h-10 w-10 p-0 font-bold text-lg"
+                              >
+                                -
+                              </Button>
+
                               <Input
                                 type="number"
                                 min={extra.pricing_type === 'per_kg' ? '0.1' : '1'}
@@ -703,8 +721,25 @@ export default function CheckoutPage() {
                                     }));
                                   }
                                 }}
-                                className={cn("w-24 text-center font-bold text-lg border-2 border-amber-300 focus:border-amber-500", theme.textPrimary)}
+                                className={cn("w-20 text-center font-bold text-lg border-2 border-amber-300 focus:border-amber-500", theme.textPrimary)}
                               />
+
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  const step = extra.pricing_type === 'per_kg' ? 0.5 : 1;
+                                  const newQty = quantity + step;
+                                  setExtraQuantities(prev => ({
+                                    ...prev,
+                                    [extra.slug]: newQty
+                                  }));
+                                }}
+                                className="h-10 w-10 p-0 font-bold text-lg"
+                              >
+                                +
+                              </Button>
+
                               <span className={cn("text-sm font-medium", theme.textPrimary)}>
                                 {extra.pricing_type === 'per_kg' ? t.common.kg : t.common.stk}
                               </span>
