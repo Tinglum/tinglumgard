@@ -96,7 +96,7 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
     (sum: number, e: any) => sum + (e.total_price || 0),
     0
   ) || 0;
-  const totalRemainder = order.remainder_amount + extrasTotal;
+  const baseRemainder = Math.max(0, order.remainder_amount - extrasTotal);
 
   // Determine next action
   function getNextAction() {
@@ -109,7 +109,7 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
     if (needsRemainderPayment) {
       return {
         type: 'payment',
-        message: `Restbetaling på kr ${totalRemainder.toLocaleString('nb-NO')} må betales`,
+        message: `Restbetaling på kr ${order.remainder_amount.toLocaleString('nb-NO')} må betales`,
         color: 'amber',
       };
     }
@@ -441,7 +441,7 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
                 <span className={theme.textSecondary}>Restbeløp kasse</span>
                 <div className="flex items-center gap-2">
                   <span className={cn('font-semibold', theme.textPrimary)}>
-                    kr {order.remainder_amount.toLocaleString('nb-NO')}
+                    kr {baseRemainder.toLocaleString('nb-NO')}
                   </span>
                 </div>
               </div>
@@ -461,7 +461,7 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
                   <span className={cn('font-semibold', theme.textPrimary)}>
                     kr {remainderPaid && remainderPayment
                       ? remainderPayment.amount_nok.toLocaleString('nb-NO')
-                      : totalRemainder.toLocaleString('nb-NO')}
+                      : order.remainder_amount.toLocaleString('nb-NO')}
                   </span>
                   {remainderPaid && <CheckCircle2 className="w-4 h-4 text-green-600" />}
                 </div>

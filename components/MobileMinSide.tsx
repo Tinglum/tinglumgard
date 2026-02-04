@@ -179,11 +179,6 @@ export function MobileMinSide(props: MobileMinSideProps) {
                 const paymentStatus = getPaymentStatus(order);
                 const depositPaid = order.payments.some(p => p.payment_type === 'deposit' && p.status === 'completed');
                 const remainderPaid = order.payments.some(p => p.payment_type === 'remainder' && p.status === 'completed');
-                const extrasTotal = order.extra_products?.reduce(
-                  (sum: number, e: any) => sum + (e.total_price || 0),
-                  0
-                ) || 0;
-                const totalRemainder = order.remainder_amount + extrasTotal;
 
                 return (
                   <motion.div
@@ -341,7 +336,7 @@ export function MobileMinSide(props: MobileMinSideProps) {
                             className="text-sm font-bold text-white"
                             style={{ textShadow: '0 2px 8px rgba(0,0,0,0.9)' }}
                           >
-                            kr {totalRemainder.toLocaleString('nb-NO')}
+                            kr {order.remainder_amount.toLocaleString('nb-NO')}
                           </span>
                           {remainderPaid ? (
                             <Check className="w-5 h-5 text-green-400" />

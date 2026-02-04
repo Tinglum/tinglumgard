@@ -151,6 +151,14 @@ export function ExtrasUpsellModal({
     }, 0);
   }
 
+  function calculateCurrentExtrasTotal() {
+    return currentExtras.reduce((total, extra) => {
+      const catalogItem = extras.find((e) => e.slug === extra.slug);
+      if (!catalogItem) return total;
+      return total + catalogItem.price_nok * extra.quantity;
+    }, 0);
+  }
+
   if (!isOpen) return null;
 
   return (
@@ -366,7 +374,7 @@ export function ExtrasUpsellModal({
                         Oppdaterer...
                       </>
                     ) : (
-                      `Bekreft og betal restbeløp (kr ${(baseRemainderAmount + calculateTotal()).toLocaleString('nb-NO')})`
+                      `Bekreft og betal restbeløp (kr ${(baseRemainderAmount + (calculateTotal() - calculateCurrentExtrasTotal())).toLocaleString('nb-NO')})`
                     )}
                   </Button>
                 </>
