@@ -1,7 +1,7 @@
 import './globals.css';
 import '@/styles/mobile-prismatic.css';
 import type { Metadata } from 'next';
-import { Inter, Playfair_Display } from 'next/font/google';
+import { Inter, Playfair_Display, Manrope } from 'next/font/google';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { AuthProvider } from '@/contexts/AuthContext';
@@ -22,6 +22,12 @@ const playfair = Playfair_Display({
   display: 'swap',
 });
 
+const manrope = Manrope({
+  subsets: ['latin'],
+  variable: '--font-manrope',
+  display: 'swap',
+});
+
 export const metadata: Metadata = {
   title: 'Tinglum Gård',
   description: 'Ullgris fra Tinglum Gård. Ferdig pakket. Klar for fryseren.',
@@ -33,7 +39,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="no" className={`${inter.variable} ${playfair.variable}`}>
+    <html lang="no" className={`${inter.variable} ${playfair.variable} ${manrope.variable}`}>
       <body className="antialiased text-neutral-900">
         <ThemeProvider>
           <LanguageProvider>
