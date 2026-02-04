@@ -90,9 +90,9 @@ export async function POST(
     // Calculate existing extras total
     const existingExtrasTotal = existingExtras.reduce((sum: number, e: any) => sum + (e.total_price || 0), 0);
 
-    // Calculate new total and remainder
-    const newTotalAmount = order.total_amount - existingExtrasTotal + extrasTotal;
-    const newRemainderAmount = newTotalAmount - order.deposit_amount;
+    // Calculate new total and remainder (round to integers for database)
+    const newTotalAmount = Math.round(order.total_amount - existingExtrasTotal + extrasTotal);
+    const newRemainderAmount = Math.round(newTotalAmount - order.deposit_amount);
 
     // Update order
     const { data: updatedOrder, error: updateError } = await supabaseAdmin

@@ -497,6 +497,9 @@ export default function CheckoutPage() {
                     <p className={cn("text-2xl font-bold text-center", theme.textPrimary)}>
                       {prices ? `${t.common.kr} ${prices[size].total}` : t.common.loading}
                     </p>
+                    <p className={cn("text-xs text-center mt-2", theme.textMuted)}>
+                      {t.checkout.payNow}: {prices ? `${t.common.kr} ${prices[size].deposit}` : t.common.loading}
+                    </p>
 
                     {boxSize === size && boxContents[size] && (
                       <div className={cn("mt-6 pt-6 border-t animate-in fade-in slide-in-from-top-2 duration-500", theme.borderSecondary)}>
@@ -997,6 +1000,17 @@ export default function CheckoutPage() {
                 </div>
               </div>
 
+              <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50/70 p-4">
+                <p className="text-xs font-bold uppercase tracking-wider text-amber-900 mb-3">
+                  Hva skjer etter bestilling
+                </p>
+                <ul className="space-y-2 text-xs text-amber-900">
+                  <li>1. Vipps-forespørsel for forskudd (50%)</li>
+                  <li>2. Slakting og pakking i uke 46–47</li>
+                  <li>3. Levering eller henting i uke 48–49</li>
+                </ul>
+              </div>
+
               {step === 4 && boxSize && (
                 <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2">
                   {/* Discount Codes - Collapsible */}
@@ -1066,6 +1080,9 @@ export default function CheckoutPage() {
                         <strong className="font-bold">{t.checkout.depositNotRefundable}</strong> {t.checkout.triggersProd}
                       </span>
                     </Label>
+                    <p className="mt-2 text-xs text-amber-800">
+                      Avbestilling etter betalt forskudd er ikke mulig.
+                    </p>
                   </div>
 
                   <div className="p-5 bg-slate-50 border-2 border-slate-300 rounded-xl">
@@ -1108,7 +1125,7 @@ export default function CheckoutPage() {
                   {/* Info text */}
                   <div className="pt-4 border-t-2 border-gray-200">
                     <div className="flex items-center justify-center gap-2 text-sm text-gray-600 mb-2">
-                      <img src="/vipps-logo.svg" alt="Vipps" className="w-6 h-6" />
+                      <Image src="/vipps-logo.svg" alt="Vipps" width={24} height={24} />
                       <span className="font-medium">{t.checkout.securePayment}</span>
                     </div>
                     <p className="text-xs text-center text-gray-500">

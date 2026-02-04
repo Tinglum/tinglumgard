@@ -74,6 +74,14 @@ export default function Page() {
   const isSoldOut = inventory?.isSoldOut ?? false;
   const isLowStock = inventory?.isLowStock ?? false;
   const isMobile = useIsMobile();
+  const minPrice = pricing ? Math.min(pricing.box_8kg_price, pricing.box_12kg_price) : null;
+  const minDeposit = pricing
+    ? Math.floor(
+        (pricing.box_8kg_price <= pricing.box_12kg_price
+          ? pricing.box_8kg_price * pricing.box_8kg_deposit_percentage
+          : pricing.box_12kg_price * pricing.box_12kg_deposit_percentage) / 100
+      )
+    : null;
 
   // Mobile version - ultra-minimal prismatic design
   if (isMobile) {
@@ -208,31 +216,41 @@ export default function Page() {
               </p>
             </div>
 
-            {/* CTA Buttons - glassmorphic */}
-            <div className="flex flex-wrap items-center gap-4 mb-10">
-              <Link
-                href={isSoldOut ? "#waitlist" : "/bestill"}
-                className={heroStyles.buttonPrimary}
-              >
-                <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                <span className="relative z-10 flex items-center gap-2">
-                  {isSoldOut ? t.hero.joinWaitlist : t.hero.reserveNow}
-                  <svg className="w-4 h-4 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                  </svg>
-                </span>
-              </Link>
+            {/* Price anchor + CTA */}
+            <div className="flex flex-col gap-4 mb-10">
+              {minPrice && minDeposit && (
+                <div className={`inline-flex flex-wrap items-center gap-4 text-sm ${theme.textMuted} font-semibold`}>
+                  <span>{`Fra ${minPrice.toLocaleString('nb-NO')} ${t.common.currency}`}</span>
+                  <span className={`px-3 py-1 rounded-full ${theme.bgCard} ${theme.textSecondary} border ${theme.borderSecondary}`}>
+                    {`Forskudd fra ${minDeposit.toLocaleString('nb-NO')} ${t.common.currency}`}
+                  </span>
+                </div>
+              )}
+              <div className="flex flex-wrap items-center gap-4">
+                <Link
+                  href={isSoldOut ? "#waitlist" : "/bestill"}
+                  className={heroStyles.buttonPrimary}
+                >
+                  <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <span className="relative z-10 flex items-center gap-2">
+                    {isSoldOut ? t.hero.joinWaitlist : t.hero.reserveNow}
+                    <svg className="w-4 h-4 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                    </svg>
+                  </span>
+                </Link>
 
-              <Link
-                href="/produkt"
-                className={heroStyles.buttonSecondary}
-              >
-                {t.hero.learnMore}
-              </Link>
+                <Link
+                  href="/produkt"
+                  className={`text-sm font-semibold underline underline-offset-4 ${theme.textPrimary} hover:opacity-80`}
+                >
+                  {t.hero.learnMore}
+                </Link>
+              </div>
             </div>
 
-            {/* Trust indicators */}
-            <div className="flex flex-wrap items-center gap-4 sm:gap-6 md:gap-8 pt-4">
+            {/* Trust + flow indicators */}
+            <div className="flex flex-wrap items-center gap-4 sm:gap-6 md:gap-8 pt-2">
               <div className="flex items-center gap-2">
                 <svg className={`w-5 h-5 ${heroStyles.trustIcon}`} fill="currentColor" viewBox="0 0 20 20">
                   <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z"/>
@@ -245,6 +263,19 @@ export default function Page() {
                   <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/>
                 </svg>
                 <span className={heroStyles.trustText}>{t.hero.qualityGuarantee}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <svg className={`w-5 h-5 ${heroStyles.trustIcon}`} fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M6 2a1 1 0 000 2h8a1 1 0 100-2H6z"/>
+                  <path fillRule="evenodd" d="M4 5a2 2 0 012-2h8a2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h6a1 1 0 100-2H7zm0 4a1 1 0 000 2h4a1 1 0 100-2H7z" clipRule="evenodd"/>
+                </svg>
+                <span className={heroStyles.trustText}>Levering uke 46–48</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <svg className={`w-5 h-5 ${heroStyles.trustIcon}`} fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M12 1a7 7 0 00-7 7v3.586L3.293 13.293a1 1 0 000 1.414l1 1A1 1 0 005 16h10a1 1 0 00.707-.293l1-1a1 1 0 000-1.414L15 11.586V8a7 7 0 00-3-5.708V1z"/>
+                </svg>
+                <span className={heroStyles.trustText}>Betal med Vipps</span>
               </div>
             </div>
 
@@ -291,6 +322,11 @@ export default function Page() {
                   <p className={`text-sm ${theme.textMuted}`}>
                     {t.product.perfectFor2to3}
                   </p>
+                  <div className={`grid grid-cols-3 gap-2 text-xs ${theme.textMuted} font-semibold`}>
+                    <span>2–3 pers</span>
+                    <span>12–16 måltider</span>
+                    <span>Lite fryserom</span>
+                  </div>
                 </div>
 
                 {/* Features */}
@@ -422,6 +458,11 @@ export default function Page() {
                   <p className={`text-sm ${theme.textMuted}`}>
                     {t.product.idealFor4to6}
                   </p>
+                  <div className={`grid grid-cols-3 gap-2 text-xs ${theme.textMuted} font-semibold`}>
+                    <span>4–6 pers</span>
+                    <span>20–28 måltider</span>
+                    <span>Mer fryserom</span>
+                  </div>
                 </div>
 
                 {/* Features */}
@@ -525,6 +566,95 @@ export default function Page() {
         </div>
       </section>
 
+      {/* INVENTORY COUNTER - Floating glassmorphic card */}
+      <section className={`relative py-24 px-6 bg-gradient-to-b ${theme.bgPrimary} ${theme.bgSecondary}`}>
+        <div className="max-w-2xl mx-auto">
+          <div className="relative animate-in fade-in duration-1000">
+            {/* Glow effect */}
+            <div className={`absolute inset-0 bg-gradient-to-br ${theme.bgGradientOrbs[0]} ${theme.bgGradientOrbs[1]} rounded-3xl blur-2xl opacity-50`} />
+
+            <div className={`relative glass-card-strong rounded-3xl p-10 border-2 ${theme.borderPrimary}`}>
+              {/* Animated gradient overlay */}
+              <div className={`absolute inset-0 bg-gradient-to-br ${theme.bgGradientOrbs[0]} via-transparent ${theme.bgGradientOrbs[1]} rounded-3xl pointer-events-none`} />
+
+              {/* Shimmer effect */}
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full animate-shimmer rounded-3xl pointer-events-none" />
+
+              <div className="relative z-10 space-y-8">
+
+                {/* Status badge */}
+                <div className="flex items-center justify-between">
+                  <span className={`text-xs uppercase tracking-wider ${theme.textMuted} font-bold`}>
+                    {t.availability.title}
+                  </span>
+                  {isLowStock && !isSoldOut && (
+                    <span className={inventoryStyles.badge}>
+                      {t.availability.fewLeft}
+                    </span>
+                  )}
+                  {isSoldOut && (
+                    <span className={`px-4 py-1.5 ${theme.accentSecondary} backdrop-blur-sm ${theme.textSecondary} rounded-full text-xs font-bold border ${theme.borderSecondary}`}>
+                      {t.availability.soldOut}
+                    </span>
+                  )}
+                </div>
+                <p className={`text-xs ${theme.textMuted}`}>Oppdatert i dag</p>
+
+                {/* Big number display */}
+                <div className="text-center py-8 relative flex items-center justify-center">
+
+                  {/* Box/Crate background with warm glow */}
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className={`w-56 h-56 bg-gradient-to-br ${theme.bgGradientOrbs[0]} ${theme.accentSecondary} ${theme.bgGradientOrbs[1]} rounded-3xl blur-3xl animate-pulse`} />
+                  </div>
+
+                  {/* Simple card with number */}
+                  <div className="relative">
+                    <div className={`relative bg-gradient-to-br ${theme.bgGradientOrbs[0]} ${theme.bgGradientOrbs[1]} backdrop-blur-sm rounded-2xl border-2 ${theme.borderSecondary} shadow-2xl p-8 min-w-[240px]`}>
+
+                      {/* Top edge highlight */}
+                      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-white/40 to-transparent rounded-t-2xl" />
+
+                      {/* Number */}
+                      <div className={inventoryStyles.number}>
+                        {loading ? "—" : boxesLeft}
+                      </div>
+
+                      {/* Label */}
+                      <div className={inventoryStyles.label}>
+                        {t.availability.boxesAvailable}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Progress bar */}
+                {!loading && (
+                  <div className="space-y-3">
+                    <div className={inventoryStyles.progressBg}>
+                      <div
+                        className={inventoryStyles.progressFill}
+                        style={{ width: `${Math.min((boxesLeft / 50) * 100, 100)}%` }}
+                      >
+                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-pulse" />
+                      </div>
+                    </div>
+                    <p className={`text-xs text-center ${theme.textMuted} font-semibold`}>
+                      {isSoldOut ? t.availability.seasonComplete : t.availability.reserveBeforeLate}
+                    </p>
+                  </div>
+                )}
+
+              </div>
+            </div>
+
+            {/* Floating accent elements */}
+            <div className={`absolute -top-8 -right-8 w-40 h-40 bg-gradient-to-br ${theme.bgGradientOrbs[0]} to-transparent rounded-full blur-3xl animate-pulse`} />
+            <div className={`absolute -bottom-8 -left-8 w-48 h-48 bg-gradient-to-tl ${theme.bgGradientOrbs[1]} to-transparent rounded-full blur-3xl animate-pulse`} style={{ animationDelay: '1s' }} />
+          </div>
+        </div>
+      </section>
+
       {/* CTA BANNER - Warm contrast solid background */}
       <section className={`relative py-24 px-6 overflow-hidden ${bannerStyles.background}`}>
 
@@ -581,91 +711,43 @@ export default function Page() {
         </div>
       </section>
 
-      {/* INVENTORY COUNTER - Floating glassmorphic card */}
-      <section className={`relative py-24 px-6 bg-gradient-to-b ${theme.bgPrimary} ${theme.bgSecondary}`}>
-        <div className="max-w-2xl mx-auto">
-          <div className="relative animate-in fade-in duration-1000">
-            {/* Glow effect */}
-            <div className={`absolute inset-0 bg-gradient-to-br ${theme.bgGradientOrbs[0]} ${theme.bgGradientOrbs[1]} rounded-3xl blur-2xl opacity-50`} />
+      {/* FAQ - Accordion style */}
+      <section className={`py-24 px-6 bg-gradient-to-b ${theme.bgSecondary} ${theme.bgPrimary}`}>
+        <div className="max-w-3xl mx-auto">
 
-            <div className={`relative glass-card-strong rounded-3xl p-10 border-2 ${theme.borderPrimary}`}>
-              {/* Animated gradient overlay */}
-              <div className={`absolute inset-0 bg-gradient-to-br ${theme.bgGradientOrbs[0]} via-transparent ${theme.bgGradientOrbs[1]} rounded-3xl pointer-events-none`} />
-
-              {/* Shimmer effect */}
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full animate-shimmer rounded-3xl pointer-events-none" />
-
-              <div className="relative z-10 space-y-8">
-
-                {/* Status badge */}
-                <div className="flex items-center justify-between">
-                  <span className={`text-xs uppercase tracking-wider ${theme.textMuted} font-bold`}>
-                    {t.availability.title}
-                  </span>
-                  {isLowStock && !isSoldOut && (
-                    <span className={inventoryStyles.badge}>
-                      {t.availability.fewLeft}
-                    </span>
-                  )}
-                  {isSoldOut && (
-                    <span className={`px-4 py-1.5 ${theme.accentSecondary} backdrop-blur-sm ${theme.textSecondary} rounded-full text-xs font-bold border ${theme.borderSecondary}`}>
-                      {t.availability.soldOut}
-                    </span>
-                  )}
-                </div>
-
-                {/* Big number display */}
-                <div className="text-center py-8 relative flex items-center justify-center">
-
-                  {/* Box/Crate background with warm glow */}
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className={`w-56 h-56 bg-gradient-to-br ${theme.bgGradientOrbs[0]} ${theme.accentSecondary} ${theme.bgGradientOrbs[1]} rounded-3xl blur-3xl animate-pulse`} />
-                  </div>
-
-                  {/* Simple card with number */}
-                  <div className="relative">
-                    <div className={`relative bg-gradient-to-br ${theme.bgGradientOrbs[0]} ${theme.bgGradientOrbs[1]} backdrop-blur-sm rounded-2xl border-2 ${theme.borderSecondary} shadow-2xl p-8 min-w-[240px]`}>
-
-                      {/* Top edge highlight */}
-                      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-white/40 to-transparent rounded-t-2xl" />
-
-                      {/* Number */}
-                      <div className={inventoryStyles.number}>
-                        {loading ? "—" : boxesLeft}
-                      </div>
-
-                      {/* Label */}
-                      <div className={inventoryStyles.label}>
-                        {t.availability.boxesAvailable}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Progress bar */}
-                {!loading && (
-                  <div className="space-y-3">
-                    <div className={inventoryStyles.progressBg}>
-                      <div
-                        className={inventoryStyles.progressFill}
-                        style={{ width: `${Math.min((boxesLeft / 50) * 100, 100)}%` }}
-                      >
-                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-pulse" />
-                      </div>
-                    </div>
-                    <p className={`text-xs text-center ${theme.textMuted} font-semibold`}>
-                      {isSoldOut ? t.availability.seasonComplete : t.availability.reserveBeforeLate}
-                    </p>
-                  </div>
-                )}
-
-              </div>
-            </div>
-
-            {/* Floating accent elements */}
-            <div className={`absolute -top-8 -right-8 w-40 h-40 bg-gradient-to-br ${theme.bgGradientOrbs[0]} to-transparent rounded-full blur-3xl animate-pulse`} />
-            <div className={`absolute -bottom-8 -left-8 w-48 h-48 bg-gradient-to-tl ${theme.bgGradientOrbs[1]} to-transparent rounded-full blur-3xl animate-pulse`} style={{ animationDelay: '1s' }} />
+          <div className="text-center mb-16">
+            <span className={`inline-block px-4 py-2 ${theme.accentSecondary} rounded-full text-xs uppercase tracking-wider ${theme.textSecondary} font-semibold mb-4`}>
+              {t.faq.badge}
+            </span>
+            <h2 className={`text-4xl md:text-5xl font-bold ${theme.textPrimary}`}>
+              {t.faq.title}
+            </h2>
           </div>
+
+          <div className="space-y-4">
+            {[
+              { q: t.faq.q1, a: t.faq.a1 },
+              { q: t.faq.q2, a: t.faq.a2 },
+              { q: t.faq.q3, a: t.faq.a3 },
+              { q: t.faq.q4, a: t.faq.a4 },
+            ].map((faq, i) => (
+              <details
+                key={i}
+                className={`group ${theme.bgCard} backdrop-blur-sm rounded-2xl border ${theme.borderSecondary} overflow-hidden hover:shadow-lg transition-all duration-300`}
+              >
+                <summary className={`cursor-pointer py-6 px-8 flex items-center justify-between list-none font-semibold ${theme.textPrimary} hover:opacity-90 transition-colors`}>
+                  <span className="text-lg">{faq.q}</span>
+                  <svg className={`w-6 h-6 ${theme.textSecondary} transform group-open:rotate-180 transition-transform duration-300`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </summary>
+                <div className={`px-8 pb-6 ${theme.textMuted} leading-relaxed`}>
+                  {faq.a}
+                </div>
+              </details>
+            ))}
+          </div>
+
         </div>
       </section>
 
@@ -832,46 +914,6 @@ export default function Page() {
             </div>
 
           </div>
-        </div>
-      </section>
-
-      {/* FAQ - Accordion style */}
-      <section className={`py-24 px-6 bg-gradient-to-b ${theme.bgSecondary} ${theme.bgPrimary}`}>
-        <div className="max-w-3xl mx-auto">
-
-          <div className="text-center mb-16">
-            <span className={`inline-block px-4 py-2 ${theme.accentSecondary} rounded-full text-xs uppercase tracking-wider ${theme.textSecondary} font-semibold mb-4`}>
-              {t.faq.badge}
-            </span>
-            <h2 className={`text-4xl md:text-5xl font-bold ${theme.textPrimary}`}>
-              {t.faq.title}
-            </h2>
-          </div>
-
-          <div className="space-y-4">
-            {[
-              { q: t.faq.q1, a: t.faq.a1 },
-              { q: t.faq.q2, a: t.faq.a2 },
-              { q: t.faq.q3, a: t.faq.a3 },
-              { q: t.faq.q4, a: t.faq.a4 },
-            ].map((faq, i) => (
-              <details
-                key={i}
-                className={`group ${theme.bgCard} backdrop-blur-sm rounded-2xl border ${theme.borderSecondary} overflow-hidden hover:shadow-lg transition-all duration-300`}
-              >
-                <summary className={`cursor-pointer py-6 px-8 flex items-center justify-between list-none font-semibold ${theme.textPrimary} hover:opacity-90 transition-colors`}>
-                  <span className="text-lg">{faq.q}</span>
-                  <svg className={`w-6 h-6 ${theme.textSecondary} transform group-open:rotate-180 transition-transform duration-300`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
-                </summary>
-                <div className={`px-8 pb-6 ${theme.textMuted} leading-relaxed`}>
-                  {faq.a}
-                </div>
-              </details>
-            ))}
-          </div>
-
         </div>
       </section>
 

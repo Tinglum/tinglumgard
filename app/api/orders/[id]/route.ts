@@ -175,8 +175,8 @@ export async function PATCH(
           // Apply delivery fee delta to total_amount
           const deliveryFeeDelta = newDeliveryFee - oldDeliveryFee;
           const newTotalAmount = currentOrder.total_amount + deliveryFeeDelta;
-          updateData.total_amount = newTotalAmount;
-          updateData.remainder_amount = newTotalAmount - currentOrder.deposit_amount;
+          updateData.total_amount = Math.round(newTotalAmount);
+          updateData.remainder_amount = Math.round(newTotalAmount - currentOrder.deposit_amount);
         }
       }
     }
@@ -207,8 +207,8 @@ export async function PATCH(
           // Apply fresh delivery fee delta to total_amount
           const currentTotalAmount = typeof updateData.total_amount === 'number' ? updateData.total_amount : currentOrder.total_amount;
           const newTotalAmount = currentTotalAmount + freshFeeDelta;
-          updateData.total_amount = newTotalAmount;
-          updateData.remainder_amount = newTotalAmount - currentOrder.deposit_amount;
+          updateData.total_amount = Math.round(newTotalAmount);
+          updateData.remainder_amount = Math.round(newTotalAmount - currentOrder.deposit_amount);
         }
       }
     }
