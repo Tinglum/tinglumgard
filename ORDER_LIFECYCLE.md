@@ -8,8 +8,8 @@ The system uses the following order statuses:
 
 | Status | Description | When Set |
 |--------|-------------|----------|
-| `draft` | Order created, awaiting deposit payment | When order is first created in checkout |
-| `deposit_paid` | Deposit (50%) has been paid | When Vipps deposit webhook confirms payment |
+| `draft` | Order created, awaiting forskudd payment | When order is first created in checkout |
+| `deposit_paid` | Forskudd (50%) has been paid | When Vipps forskudd webhook confirms payment |
 | `paid` | Full payment completed | When Vipps remainder webhook confirms payment |
 | `ready_for_pickup` | Order is ready for pickup/delivery | Manually set by admin |
 | `completed` | Order has been picked up/delivered | Manually set by admin |
@@ -24,12 +24,12 @@ The system uses the following order statuses:
 - Order is created with `user_id: null` (anonymous order)
 - Inventory is deducted
 - Order status set to `draft`
-- User redirected to Vipps Checkout for deposit payment
+- User redirected to Vipps Checkout for forskudd payment
 
 **Email Sent:**
 ✓ Order confirmation email (ONLY if customer email was provided in checkout form)
 - Subject: "Bestilling mottatt - [ORDER_NUMBER]"
-- Content: Order details, deposit amount, next steps
+- Content: Order details, forskudd amount, next steps
 - Sent from: `app/api/checkout/route.ts:136-160`
 
 **Where to Find Order:**
@@ -43,7 +43,7 @@ The system uses the following order statuses:
 
 ---
 
-### 2. Deposit Payment (Status: `draft` → `deposit_paid`)
+### 2. Forskudd Payment (Status: `draft` → `deposit_paid`)
 
 **What Happens:**
 - User completes payment in Vipps Checkout
@@ -53,9 +53,9 @@ The system uses the following order statuses:
 - If user is logged in (via Vipps OAuth), order is linked to their user_id
 
 **Email Sent:**
-✓ Deposit confirmation email
+✓ Forskudd confirmation email
 - Subject: "Forskudd bekreftet - [ORDER_NUMBER]"
-- Content: Deposit amount confirmed, remainder amount, next steps, link to My Orders
+- Content: Forskudd amount confirmed, remainder amount, next steps, link to My Orders
 - Sent from: `app/api/webhooks/vipps/route.ts` (after payment verification)
 
 **Where to Find Order:**
@@ -190,7 +190,7 @@ All email templates are defined in `lib/email/templates.ts`:
 - `getRemainderReminderTemplate()` - Reminder to pay remainder (sent via scheduled job)
 - `getOrderLockedTemplate()` - Order has been locked notification
 
-Deposit and remainder confirmation emails are defined inline in the webhook handler at `app/api/webhooks/vipps/route.ts`.
+Forskudd and remainder confirmation emails are defined inline in the webhook handler at `app/api/webhooks/vipps/route.ts`.
 
 ---
 
@@ -236,7 +236,7 @@ The confirmation page includes payment status polling to handle delayed webhooks
 3. Find payment record by `vipps_session_id`
 4. Update payment status to `completed`
 5. Update order status based on payment type:
-   - Deposit → `deposit_paid`
+    - Forskudd → `deposit_paid`
    - Remainder → `paid`
 6. Send confirmation email to customer
 7. Return 200 OK to Vipps
@@ -278,10 +278,10 @@ The confirmation page includes payment status polling to handle delayed webhooks
    - Complete checkout
    - Verify order confirmation email received
 
-2. **Pay Deposit:**
+2. **Pay Forskudd:**
    - Complete Vipps payment (test mode)
    - Wait for webhook (check Netlify function logs)
-   - Verify deposit confirmation email received
+   - Verify forskudd confirmation email received
    - Check confirmation page updates status
 
 3. **Login with Vipps:**

@@ -14,7 +14,7 @@ This document identifies all locations where **admin panel changes must propagat
 **Solution**: 
 - Added `pricing` state and useEffect to fetch from `/api/config/pricing`
 - Changed hardcoded object to dynamic calculation using fetched prices
-- Deposit percentage now also dynamic: `Math.floor(price * (percentage / 100))`
+- Forskudd percentage now also dynamic: `Math.floor(price * (percentage / 100))`
 **Result**: Price changes now reflect within 30 seconds of page reload
 
 ### 2. ✅ Remainder Reminder Calculations (supabase/functions/send-remainder-reminders/index.ts)
@@ -22,7 +22,7 @@ This document identifies all locations where **admin panel changes must propagat
 **Solution**:
 - Added query to fetch pricing from app_config table
 - Fallback to defaults if config unavailable
-- Deposit percentage now dynamically applied
+- Forskudd percentage now dynamically applied
 **Result**: Reminder amounts match current admin-configured prices
 
 ### 3. ✅ Add-on Prices in Reminder Calculation
@@ -42,7 +42,7 @@ This document identifies all locations where **admin panel changes must propagat
 |------|----------|--------------|-----------------|--------|
 | Box 8kg price | `/admin` config | `/api/config/pricing` | Checkout page | ✅ FIXED |
 | Box 12kg price | `/admin` config | `/api/config/pricing` | Checkout page | ✅ FIXED |
-| Deposit % | `/admin` config | `/api/config/pricing` | Order details | ✅ FIXED |
+| Forskudd % | `/admin` config | `/api/config/pricing` | Order details | ✅ FIXED |
 | Delivery fee (E6) | `/admin` config | `/api/config/pricing` | Checkout calc | ✅ VERIFIED |
 | Delivery fee (Trondheim) | `/admin` config | `/api/config/pricing` | Checkout calc | ✅ VERIFIED |
 | Fresh delivery fee | `/admin` config | `/api/config/pricing` | Checkout calc | ✅ VERIFIED |
@@ -55,7 +55,7 @@ This document identifies all locations where **admin panel changes must propagat
 |------|--------|-------|-------------------|--------|
 | Order status | Database | Timeline/badges | Real-time query | ✅ VERIFIED |
 | Order amounts | Database | Display | Real-time query from orders table | ✅ VERIFIED |
-| Deposit paid status | Payments table | UI flags | Real-time query | ✅ VERIFIED |
+| Forskudd betalt-status | Payments table | UI flags | Real-time query | ✅ VERIFIED |
 | Remainder paid status | Payments table | UI flags | Real-time query | ✅ VERIFIED |
 | Box size | Database | Display | Real-time query | ✅ VERIFIED |
 | Extras selected | order_extras table | Display | Real-time query | ✅ VERIFIED |
@@ -190,7 +190,7 @@ All identified issues have been addressed.
 
 # 2. Check checkout page picks up new price
 # Navigate to /bestill?size=8
-# Deposit should now be 1800, not 1750
+# Forskudd should now be 1800, not 1750
 
 # 3. Check order creation uses new price
 # Create an order with the new pricing

@@ -24,8 +24,8 @@ const { data: configs, error } = await supabaseAdmin
 
 ### Impact
 - All orders use HARDCODED default prices:
-  - 8kg box: 3500 kr with 50% deposit (1750 kr)
-  - 12kg box: 4800 kr with 50% deposit (2400 kr)
+  - 8kg box: 3500 kr with 50% forskudd (1750 kr)
+  - 12kg box: 4800 kr with 50% forskudd (2400 kr)
 - **Admin panel pricing changes have NO EFFECT**
 - You cannot control prices from the admin interface
 
@@ -51,12 +51,12 @@ CREATE TABLE config (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- For TESTING (1% deposit = 35 kr matches Vipps Test minimum):
+-- For TESTING (1% forskudd = 35 kr matches Vipps Test minimum):
 INSERT INTO config (key, value, description) VALUES
   ('box_8kg_price', '3500', '8kg box base price in NOK'),
   ('box_12kg_price', '4800', '12kg box base price in NOK'),
-  ('box_8kg_deposit_percentage', '1', 'Deposit % for 8kg (1% = 35kr for test)'),
-  ('box_12kg_deposit_percentage', '1', 'Deposit % for 12kg'),
+  ('box_8kg_deposit_percentage', '1', 'Forskudd % for 8kg (1% = 35kr for test)'),
+  ('box_12kg_deposit_percentage', '1', 'Forskudd % for 12kg'),
   ('delivery_fee_pickup_e6', '300', 'Pickup E6 fee'),
   ('delivery_fee_trondheim', '200', 'Delivery Trondheim fee'),
   ('fresh_delivery_fee', '500', 'Fresh delivery fee');
@@ -136,7 +136,7 @@ But credentials are test credentials → Actually using TEST API
 ### Why Amounts Mismatch
 
 **Scenario A - Old orders (1750 kr expected, 35 kr paid):**
-1. Code calculated: 8kg box × 50% = 1750 kr deposit
+1. Code calculated: 8kg box × 50% = 1750 kr forskudd
 2. Sent to Vipps: "Charge 1750 kr"
 3. Vipps Test replied: "I only charged 35 kr" (test minimum)
 4. Order stored: `deposit_amount: 1750`

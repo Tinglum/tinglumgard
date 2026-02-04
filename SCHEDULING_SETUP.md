@@ -34,7 +34,7 @@ Three edge functions have been deployed to Supabase:
 
 **What it does**:
 - Checks if current week matches configured reminder week
-- Finds orders with deposit paid but no remainder payment
+- Finds orders with forskudd betalt but no remainder payment
 - Calculates remainder amount including all add-ons and extras
 - Sends email with payment link to customer
 - Marks order with `reminder_sent_at` timestamp
@@ -74,7 +74,7 @@ curl -X POST https://YOUR_PROJECT.supabase.co/functions/v1/lock-orders \
 
 **What it does**:
 - Checks if current week is past configured deadline
-- Finds orders with deposit paid but no remainder payment
+- Finds orders with forskudd betalt but no remainder payment
 - Sets `at_risk = true` on these orders
 - Admin sees count in alert banner
 
@@ -178,8 +178,8 @@ WHERE key = 'lock_week';
 
 1. **Create test order**:
    - Go to `/bestill`
-   - Complete order with deposit payment via Vipps
-   - Verify deposit payment is completed
+  - Complete order with forskudd payment via Vipps
+  - Verify forskudd payment is completed
 
 2. **Check customer portal**:
    - Go to `/min-side`
@@ -266,7 +266,7 @@ curl -X POST https://YOUR_PROJECT.supabase.co/functions/v1/send-remainder-remind
 - [ ] All emails display properly on mobile
 
 ### Remainder Payment
-- [ ] "Betal restbeløp" button appears when deposit paid
+- [ ] "Betal restbeløp" button appears when forskudd betalt
 - [ ] Button hidden when remainder already paid
 - [ ] Button hidden when order is locked
 - [ ] Clicking button creates Vipps payment
@@ -284,7 +284,7 @@ curl -X POST https://YOUR_PROJECT.supabase.co/functions/v1/send-remainder-remind
 
 ### Edge Functions
 - [ ] `send-remainder-reminders` only runs in correct week
-- [ ] Reminder emails only sent to orders with deposit paid, no remainder
+- [ ] Reminder emails only sent to orders with forskudd betalt, no remainder
 - [ ] `reminder_sent_at` timestamp is set after sending
 - [ ] `lock-orders` only runs in correct week
 - [ ] Locked orders have `locked_at` timestamp
@@ -319,7 +319,7 @@ curl -X POST https://YOUR_PROJECT.supabase.co/functions/v1/send-remainder-remind
 1. Check Vipps credentials in `.env`
 2. Verify `NEXT_PUBLIC_APP_URL` is set correctly
 3. Check browser console for errors
-4. Verify order has deposit payment completed
+4. Verify order has forskudd payment completed
 5. Check database: `SELECT * FROM payments WHERE order_id = 'ORDER_ID';`
 
 ### Cron Jobs Not Running

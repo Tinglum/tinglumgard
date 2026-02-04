@@ -10,6 +10,8 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { useToast } from '@/hooks/use-toast';
 import { useAsyncAction } from '@/hooks/useAsyncAction';
 import { Spinner } from '@/components/ui/spinner';
+import { ExtraProductCard } from '@/components/ExtraProductCard';
+import { ShoppingCart } from 'lucide-react';
 
 interface OrderData {
   id: string;
@@ -19,6 +21,18 @@ interface OrderData {
   remainder_amount: number;
   total_amount: number;
   extra_products?: Array<{ slug: string; name: string; quantity: number; total_price: number }>;
+}
+
+interface ExtrasCatalogItem {
+  slug: string;
+  name_no: string;
+  name_en: string;
+  description_no: string;
+  description_en: string;
+  price_nok: number;
+  pricing_type: 'per_unit' | 'per_kg';
+  stock_quantity: number | null;
+  active: boolean;
 }
 
 export default function RemainderPaymentSummaryPage() {
@@ -32,6 +46,12 @@ export default function RemainderPaymentSummaryPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Extras management
+  const [availableExtras, setAvailableExtras] = useState<ExtrasCatalogItem[]>([]);
+  const [extrasLoading, setExtrasLoading] = useState(true);
+  const [selectedQuantities, setSelectedQuantities] = useState<Record<string, number>>({});
+
+  // Load order data
   useEffect(() => {
     if (!orderId) return;
     let isMounted = true;
@@ -46,6 +66,15 @@ export default function RemainderPaymentSummaryPage() {
         if (isMounted) {
           setOrder(data);
           setError(null);
+
+          // Initialize selected quantities from existing extras
+          if (data.extra_products) {
+            const quantities: Record<string, number> = {};
+            data.extra_products.forEach((ep: any) => {
+              quantities[ep.slug] = ep.quantity;
+            });
+            setSelectedQuantities(quantities);
+          }
         }
       } catch (err: any) {
         if (isMounted) setError(err?.message || 'Kunne ikke hente ordre');
@@ -59,14 +88,81 @@ export default function RemainderPaymentSummaryPage() {
     };
   }, [orderId]);
 
-  const extrasTotal = useMemo(() => {
+  // Load available extras catalog
+  useEffect(() => {
+    let isMounted = true;
+    async function loadExtras() {
+      setExtrasLoading(true);
+      try {
+        const response = await fetch('/api/extras');
+        const data = await response.json();
+        if (response.ok && isMounted) {
+          setAvailableExtras(data.extras || []);
+        }
+      } catch (err) {
+        console.error('Failed to load extras:', err);
+      } finally {
+        if (isMounted) setExtrasLoading(false);
+      }
+    }
+    loadExtras();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // Calculate totals based on CURRENT selections (not saved extras)
+  const newExtrasTotal = useMemo(() => {
+    return Object.entries(selectedQuantities).reduce((sum, [slug, qty]) => {
+      if (qty === 0) return sum;
+      const extra = availableExtras.find(e => e.slug === slug);
+      return sum + (extra ? extra.price_nok * qty : 0);
+    }, 0);
+  }, [selectedQuantities, availableExtras]);
+
+  const savedExtrasTotal = useMemo(() => {
     return order?.extra_products?.reduce((sum, e) => sum + (e.total_price || 0), 0) || 0;
   }, [order]);
 
   const baseRemainder = useMemo(() => {
     if (!order) return 0;
-    return Math.max(0, order.remainder_amount - extrasTotal);
-  }, [order, extrasTotal]);
+    return Math.max(0, order.remainder_amount - savedExtrasTotal);
+  }, [order, savedExtrasTotal]);
+
+  // Total to pay = base remainder + NEW extras selection
+  const finalTotal = useMemo(() => {
+    return baseRemainder + newExtrasTotal;
+  }, [baseRemainder, newExtrasTotal]);
+
+  // Check if extras have changed from saved state
+  const hasExtrasChanges = useMemo(() => {
+    const savedExtras = order?.extra_products || [];
+    const selectedEntries = Object.entries(selectedQuantities).filter(([_, qty]) => qty > 0);
+
+    // Different count?
+    if (savedExtras.length !== selectedEntries.length) return true;
+
+    // Different items or quantities?
+    for (const [slug, qty] of selectedEntries) {
+      const saved = savedExtras.find(e => e.slug === slug);
+      if (!saved || saved.quantity !== qty) return true;
+    }
+
+    return false;
+  }, [selectedQuantities, order]);
+
+  function handleQuantityChange(slug: string, quantity: number) {
+    setSelectedQuantities(prev => ({
+      ...prev,
+      [slug]: quantity
+    }));
+  }
+
+  function getSelectedExtras() {
+    return Object.entries(selectedQuantities)
+      .filter(([_, qty]) => qty > 0)
+      .map(([slug, quantity]) => ({ slug, quantity }));
+  }
 
   const [isPaying, executePayment] = useAsyncAction(
     async () => {

@@ -15,9 +15,9 @@ This document verifies that all order lifecycle components are in place and work
 
 - [x] Import `sendEmail` from email client (line 5)
 - [x] Fetch order details for email (lines 118-126)
-- [x] Deposit confirmation email sent when payment type is "deposit" (lines 143-194)
+- [x] Forskudd confirmation email sent when payment type is "deposit" (forskudd) (lines 143-194)
   - Subject: "Forskudd bekreftet - [ORDER_NUMBER]"
-  - Content: Includes deposit amount, remainder amount, next steps
+  - Content: Includes forskudd amount, remainder amount, next steps
   - Link to My Orders page
 - [x] Remainder confirmation email sent when payment type is "remainder" (lines 212-269)
   - Subject: "Betaling fullført - [ORDER_NUMBER]"
@@ -40,7 +40,7 @@ grep -n "Betaling fullført" app/api/webhooks/vipps/route.ts
 
 **Implementation Status:** ✅ COMPLETE
 
-- [x] `draft` → `deposit_paid` when deposit webhook received (lines 131-134)
+- [x] `draft` → `deposit_paid` when forskudd webhook received (lines 131-134)
 - [x] `deposit_paid` → `paid` when remainder webhook received (lines 200-203)
 - [x] Comprehensive logging at each stage
 - [x] Error handling for status update failures
@@ -85,9 +85,9 @@ grep -n "status.*paid" app/api/webhooks/vipps/route.ts
 - [x] Green success banner when status is `paid`
 
 ### Payment Progress (lines 177-217)
-- [x] Step 1: Shows ✓ when deposit is completed
+- [x] Step 1: Shows ✓ when forskudd is completed
 - [x] Uses `order.status` instead of just payment status
-- [x] Displays correct deposit amount from `order.deposit_amount`
+- [x] Displays correct forskudd amount from `order.deposit_amount`
 
 **Verification Commands:**
 ```bash
@@ -249,7 +249,7 @@ const needsRemainderPayment = depositPaid && !remainderPaid && !order.locked_at;
 ```
 
 Shows "Betal restbeløp" button when:
-- [x] Deposit payment is completed
+- [x] Forskudd payment is completed
 - [x] Remainder payment is NOT completed
 - [x] Order is NOT locked
 
@@ -324,7 +324,7 @@ grep -n "sendEmail" lib/email/client.ts
 - [x] `getOrderLockedTemplate()` - Order locked notification (lines 225-307)
 
 ### Inline Templates (in webhook handler)
-- [x] Deposit confirmation email (lines 147-181 in webhook handler)
+- [x] Forskudd confirmation email (lines 147-181 in webhook handler)
 - [x] Remainder confirmation email (lines 216-256 in webhook handler)
 
 ### Template Features
@@ -354,8 +354,8 @@ grep -n "getOrderConfirmationTemplate\|getRemainderReminderTemplate" lib/email/t
 - [x] Construct checkout URL with token parameter
 - [x] Return normalized response with sessionId
 
-### Deposit Payment (lines 10-196 in `app/api/orders/[id]/deposit/route.ts`)
-- [x] Calculate 1% deposit amount
+### Forskudd Payment (lines 10-196 in `app/api/orders/[id]/deposit/route.ts`)
+- [x] Calculate 1% forskudd amount
 - [x] Create Vipps Checkout session
 - [x] Store payment record with `vipps_session_id`
 - [x] Handle existing pending sessions
@@ -381,8 +381,8 @@ grep -n "tokenPayload" lib/vipps/api-client.ts
 
 #### Test 1: Complete Order Flow
 - [ ] Go to `/bestill` and fill out order form
-- [ ] Complete Vipps deposit payment (test mode)
-- [ ] Verify deposit confirmation email received
+- [ ] Complete Vipps forskudd payment (test mode)
+- [ ] Verify forskudd confirmation email received
 - [ ] Check confirmation page shows "Betaling mottatt!"
 - [ ] Verify order status is `deposit_paid`
 
@@ -473,7 +473,7 @@ WHERE user_id IS NULL; -- Should show anonymous orders
 
 | Component | Status | Location | Notes |
 |-----------|--------|----------|-------|
-| Webhook emails | ✅ | `app/api/webhooks/vipps/route.ts:143-269` | Deposit & remainder confirmations |
+| Webhook emails | ✅ | `app/api/webhooks/vipps/route.ts:143-269` | Forskudd & remainder confirmations |
 | Status transitions | ✅ | `app/api/webhooks/vipps/route.ts:131-211` | draft → deposit_paid → paid |
 | Confirmation page UI | ✅ | `app/bestill/bekreftelse/page.tsx:120-217` | Status-based messaging |
 | My Orders status display | ✅ | `app/min-side/page.tsx:191-381` | Correct badge mapping |

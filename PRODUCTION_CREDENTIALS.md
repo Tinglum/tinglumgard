@@ -1,7 +1,7 @@
 # Production Environment Variables for Netlify
 
 ## Status
-✅ Deposit changed to 1% (committed and pushed)
+✅ Forskudd changed to 1% (committed and pushed)
 ✅ Local `.env.local` updated with production credentials
 
 ## Netlify Environment Variables to Update
@@ -47,13 +47,13 @@ Once the deployment completes:
 2. Configure an order (12 kg box)
 3. Click "Betal med Vipps"
 4. Complete Vipps Login with your **real** Vipps account
-5. Pay the 1% deposit (48 NOK for 12 kg box)
+5. Pay the 1% forskudd (48 NOK for 12 kg box)
 6. Complete the payment
 7. Verify order appears in Supabase with your details
 
 ## Important Notes
 
-- The deposit is now 1% (35 NOK for 8kg, 48 NOK for 12kg)
+- The forskudd is now 1% (35 NOK for 8kg, 48 NOK for 12kg)
 - You'll use your real Vipps app on your phone
 - The redirect URI is already registered in production: `https://xn--tinglumgrd-85a.no/api/auth/vipps/callback`
 - All production credentials are from Merchant Serial Number: **1060279**

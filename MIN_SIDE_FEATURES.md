@@ -12,8 +12,8 @@ The "Min side" page now has comprehensive functionality for customers to manage 
 
 - **Box Size**: Change between 8kg and 12kg
 - **Ribbe Choice**: Select Tynnribbe, Familieribbe, Porchetta, or Butcher's Choice
-- **Delivery Type**: Switch between farm pickup, E6 pickup, or Trondheim delivery
-- **Fresh Delivery**: Toggle between frozen and fresh delivery
+- **Hentemåte**: Switch between farm pickup, E6 pickup, or Trondheim pickup
+- **Fersk henting**: Toggle between frozen and fresh pickup
 
 **Restrictions:**
 - Only available before order is locked
@@ -46,7 +46,7 @@ The "Min side" page now has comprehensive functionality for customers to manage 
 **Features:**
 - Modal showing all payments for the order
 - Payment details:
-  - Type (Deposit / Remainder)
+  - Type (Forskudd / Restbeløp)
   - Amount paid
   - Status (Completed / Pending / Failed)
   - Payment date and time
@@ -105,7 +105,7 @@ Currently clicking "Last ned kvittering" in payment history sends the receipt vi
 - Estimated delivery date displayed
 - Status labels:
   - Draft → Betaling gjenstår
-  - Deposit Paid → Betaling gjenstår
+  - Forskudd betalt → Betaling gjenstår
   - Paid → Betalt
   - Ready for Pickup → Levert
   - Completed → Fullført
@@ -121,12 +121,12 @@ Currently clicking "Last ned kvittering" in payment history sends the receipt vi
 - Visual timeline with icons
 - Events tracked:
   - Order created
-  - Deposit paid
+  - Forskudd betalt
   - Order modified
   - Order locked
   - Remainder paid
   - In production
-  - Ready for pickup/delivery
+  - Ready for pickup
   - Delivered
   - At risk (payment overdue)
 - Each event shows:
@@ -170,12 +170,12 @@ Currently clicking "Last ned kvittering" in payment history sends the receipt vi
 ### **Cancel Order**
 **Status:** Intentionally not included
 
-**Reason:** Deposit is non-refundable as per your business policy
+**Reason:** Forskudd is non-refundable as per your business policy
 
 **What happens instead:**
 - Customers can contact admin via the contact modal to discuss issues
 - Admin can manually cancel orders if needed from admin panel
-- No self-service cancellation to prevent deposit refund requests
+- No self-service cancellation to prevent forskudd refund requests
 
 ---
 

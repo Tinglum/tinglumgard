@@ -50,7 +50,7 @@ const [referralData, setReferralData] = useState<{
 } | null>(null);
 ```
 
-3. Calculate adjusted deposit:
+3. Calculate adjusted forskudd:
 ```tsx
 const depositAmount = calculateDeposit(boxSize, pricing);
 const referralDiscount = referralData?.discountAmount || 0;
@@ -125,7 +125,7 @@ if (referralCode && referredByUserId) {
     .eq('code', referralCode)
     .single();
 
-  // Calculate credit for referrer (10% of original deposit)
+  // Calculate credit for referrer (10% of original forskudd)
   const creditAmount = Math.round(depositAmount * 0.10);
 
   // Create referral tracking
@@ -242,7 +242,7 @@ Or copy/paste the contents of the migration file.
 ## Key Business Rules
 
 1. **New customers only** - Validated by checking orders table
-2. **20% discount on deposit** - Applied at checkout
+2. **20% discount on forskudd** - Applied at checkout
 3. **10% credit to referrer** - Stored for later use
 4. **5 credits per box** - max_uses increases with each box ordered
 5. **No self-referral** - Database constraint prevents this

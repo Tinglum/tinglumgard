@@ -1,7 +1,7 @@
 # Setup Config Table - Step by Step Guide
 
 ## Problem
-Your admin panel has controls for deposit percentages, but the `config` table doesn't exist in the database, so changes aren't saved.
+Your admin panel has controls for forskudd percentages, but the `config` table doesn't exist in the database, so changes aren't saved.
 
 ## Solution
 Create the `config` table in Supabase and populate it with initial values.
@@ -27,14 +27,14 @@ CREATE TABLE IF NOT EXISTS config (
 
 **Option A: For TESTING (with Vipps Test API)**
 
-Use 1% deposit (35 kr) which matches Vipps Test minimum:
+Use 1% forskudd (35 kr) which matches Vipps Test minimum:
 
 ```sql
 INSERT INTO config (key, value, description) VALUES
   ('box_8kg_price', '3500', '8kg box base price in NOK'),
   ('box_12kg_price', '4800', '12kg box base price in NOK'),
-  ('box_8kg_deposit_percentage', '1', 'Deposit percentage for 8kg box (1% = 35kr)'),
-  ('box_12kg_deposit_percentage', '1', 'Deposit percentage for 12kg box'),
+  ('box_8kg_deposit_percentage', '1', 'Forskudd percentage for 8kg box (1% = 35kr)'),
+  ('box_12kg_deposit_percentage', '1', 'Forskudd percentage for 12kg box'),
   ('delivery_fee_pickup_e6', '300', 'Pickup fee at E6 location'),
   ('delivery_fee_trondheim', '200', 'Delivery fee in Trondheim'),
   ('fresh_delivery_fee', '500', 'Fresh delivery upgrade fee'),
@@ -49,14 +49,14 @@ ON CONFLICT (key) DO UPDATE SET
 
 **Option B: For PRODUCTION (with real Vipps)**
 
-Use 50% deposit (standard):
+Use 50% forskudd (standard):
 
 ```sql
 INSERT INTO config (key, value, description) VALUES
   ('box_8kg_price', '3500', '8kg box base price in NOK'),
   ('box_12kg_price', '4800', '12kg box base price in NOK'),
-  ('box_8kg_deposit_percentage', '50', 'Deposit percentage for 8kg box (50% = 1750kr)'),
-  ('box_12kg_deposit_percentage', '50', 'Deposit percentage for 12kg box'),
+  ('box_8kg_deposit_percentage', '50', 'Forskudd percentage for 8kg box (50% = 1750kr)'),
+  ('box_12kg_deposit_percentage', '50', 'Forskudd percentage for 12kg box'),
   ('delivery_fee_pickup_e6', '300', 'Pickup fee at E6 location'),
   ('delivery_fee_trondheim', '200', 'Delivery fee in Trondheim'),
   ('fresh_delivery_fee', '500', 'Fresh delivery upgrade fee'),
@@ -89,21 +89,21 @@ You should see 11 rows with all the configuration values.
 2. Go to the Admin panel
 3. Click on "Konfigurasjon" section
 4. You should now see all the pricing values populated from the database
-5. Try changing the deposit percentage
+5. Try changing the forskudd percentage
 6. Click "Lagre konfigurasjon"
 7. Refresh the page - the values should persist
 
 ---
 
-## Calculated Deposit Amounts
+## Calculated Forskudd Amounts
 
 With these values, the deposits will be:
 
-### Testing (1% deposit):
+### Testing (1% forskudd):
 - **8kg box**: 3500 kr × 1% = **35 kr** ✅ Matches Vipps Test
 - **12kg box**: 4800 kr × 1% = **48 kr**
 
-### Production (50% deposit):
+### Production (50% forskudd):
 - **8kg box**: 3500 kr × 50% = **1750 kr**
 - **12kg box**: 4800 kr × 50% = **2400 kr**
 
@@ -119,9 +119,9 @@ When you're ready to go live:
    VIPPS_CLIENT_SECRET=<production-secret>
    ```
 
-2. Update deposit percentage in admin panel:
-   - 8kg deposit: Change from 1% to 50%
-   - 12kg deposit: Change from 1% to 50%
+2. Update forskudd percentage in admin panel:
+  - 8kg forskudd: Change from 1% to 50%
+  - 12kg forskudd: Change from 1% to 50%
    - Click "Lagre konfigurasjon"
 
 3. Or update directly in SQL:
@@ -143,7 +143,7 @@ node setup-config-table.js
 
 This will:
 1. Check if table exists
-2. Populate initial values with 1% deposit (for testing)
+2. Populate initial values with 1% forskudd (for testing)
 3. Display current configuration
 
 **Note**: You still need to create the table manually first (Step 1 above).
@@ -173,9 +173,9 @@ This will:
 
 ## What This Fixes
 
-✅ Admin panel deposit percentage controls now work
+✅ Admin panel forskudd percentage controls now work
 ✅ Pricing is controlled from database, not hardcoded
-✅ Orders created with correct deposit amounts
-✅ Easy to switch between test (1%) and production (50%) deposits
+✅ Orders created with correct forskudd amounts
+✅ Easy to switch between test (1%) and production (50%) forskudd
 ✅ All pricing configurable without code changes
 

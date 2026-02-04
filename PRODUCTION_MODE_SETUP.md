@@ -2,10 +2,10 @@
 
 ## Changes Made
 
-### 1. Deposit Amount
-✅ **COMPLETED** - Updated deposit from 50% to 1% in `app/api/orders/[id]/deposit/route.ts`
-- 8 kg box: 35 NOK deposit (was 1750 NOK)
-- 12 kg box: 48 NOK deposit (was 2400 NOK)
+### 1. Forskudd Amount
+✅ **COMPLETED** - Updated forskudd from 50% to 1% in `app/api/orders/[id]/deposit/route.ts`
+- 8 kg box: 35 NOK forskudd (was 1750 NOK)
+- 12 kg box: 48 NOK forskudd (was 2400 NOK)
 - Committed and pushed to GitHub
 
 ### 2. Vipps Environment Variable
@@ -49,12 +49,12 @@ After switching to production:
 2. Configure an order (12 kg box with extras)
 3. Click "Betal med Vipps"
 4. Complete Vipps Login with your real Vipps account
-5. You'll be redirected to Vipps Checkout to pay the 1% deposit
+5. You'll be redirected to Vipps Checkout to pay the 1% forskudd
 6. Complete the payment
 7. Verify order is created in Supabase with your Vipps user details
 
 ## Important Notes
 
-- The 1% deposit is just for testing - you can change this back to 50% later
+- The 1% forskudd is just for testing - you can change this back to 50% later
 - All Vipps API credentials remain the same (they work for both test and production)
 - Your redirect URIs are already registered for production: `https://xn--tinglumgrd-85a.no/api/auth/vipps/callback`

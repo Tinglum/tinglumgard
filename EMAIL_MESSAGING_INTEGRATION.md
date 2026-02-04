@@ -11,7 +11,7 @@ Complete bidirectional email and messaging system allowing:
 ## Features Implemented
 
 ### 1. Admin Order Notifications ✅
-When deposit payment is received:
+When forskudd payment is received:
 - Admin receives email at `post@tinglum.com` (or EMAIL_FROM)
 - Includes full order details, customer info, payment breakdown
 - Template: `getAdminOrderNotificationTemplate()`
@@ -142,7 +142,7 @@ NEXT_PUBLIC_APP_URL=https://tinglumgard.no
 3. Verify:
    - ✅ Admin receives order notification email
    - ✅ Email contains all order details
-   - ✅ Customer receives deposit confirmation
+   - ✅ Customer receives forskudd confirmation
 
 ## Email Templates
 

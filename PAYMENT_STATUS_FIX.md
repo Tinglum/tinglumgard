@@ -13,7 +13,7 @@ When a user's Vipps payment fails or is cancelled, they are still redirected to 
 ### What Happens
 
 **Failed Payment Flow:**
-1. User initiates deposit payment
+1. User initiates forskudd payment
 2. Payment record created with `status: 'pending'`
 3. User goes to Vipps, payment fails (bank rejection, user cancels, etc.)
 4. Vipps redirects to `/bestill/bekreftelse?orderId=xxx` anyway
