@@ -223,10 +223,19 @@ export default function RemainderPaymentSummaryPage() {
   }, [deliveryType, freshDelivery, order]);
 
   function handleQuantityChange(slug: string, quantity: number) {
-    setSelectedQuantities(prev => ({
-      ...prev,
-      [slug]: quantity
-    }));
+    setSelectedQuantities(prev => {
+      // If quantity is 0 or less, remove the item entirely (deselect)
+      if (quantity <= 0) {
+        const newQuantities = { ...prev };
+        delete newQuantities[slug];
+        return newQuantities;
+      }
+
+      return {
+        ...prev,
+        [slug]: quantity
+      };
+    });
   }
 
   function getSelectedExtras() {
@@ -425,8 +434,7 @@ export default function RemainderPaymentSummaryPage() {
                             size="sm"
                             onClick={() => {
                               const step = extra.pricing_type === 'per_kg' ? 0.5 : 1;
-                              const min = extra.pricing_type === 'per_kg' ? 0.5 : 1;
-                              const newQty = Math.max(min, quantity - step);
+                              const newQty = quantity - step;
                               handleQuantityChange(extra.slug, newQty);
                             }}
                             disabled={isPaying}

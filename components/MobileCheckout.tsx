@@ -417,12 +417,20 @@ export function MobileCheckout(props: MobileCheckoutProps) {
                         size="sm"
                         onClick={() => {
                           const step = extra.pricing_type === 'per_kg' ? 0.5 : 1;
-                          const min = extra.pricing_type === 'per_kg' ? 0.5 : 1;
-                          const newQty = Math.max(min, quantity - step);
-                          setExtraQuantities({
-                            ...extraQuantities,
-                            [extra.slug]: newQty
-                          });
+                          const newQty = quantity - step;
+
+                          // If going to 0 or below, deselect the item
+                          if (newQty <= 0) {
+                            setExtraProducts(extraProducts.filter(p => p !== extra.slug));
+                            const newQuantities = { ...extraQuantities };
+                            delete newQuantities[extra.slug];
+                            setExtraQuantities(newQuantities);
+                          } else {
+                            setExtraQuantities({
+                              ...extraQuantities,
+                              [extra.slug]: newQty
+                            });
+                          }
                         }}
                         className="h-10 w-10 p-0 font-bold text-lg"
                       >

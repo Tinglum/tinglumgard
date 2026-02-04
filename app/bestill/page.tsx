@@ -695,12 +695,22 @@ export default function CheckoutPage() {
                                 size="sm"
                                 onClick={() => {
                                   const step = extra.pricing_type === 'per_kg' ? 0.5 : 1;
-                                  const min = extra.pricing_type === 'per_kg' ? 0.5 : 1;
-                                  const newQty = Math.max(min, quantity - step);
-                                  setExtraQuantities(prev => ({
-                                    ...prev,
-                                    [extra.slug]: newQty
-                                  }));
+                                  const newQty = quantity - step;
+
+                                  // If going to 0 or below, deselect the item
+                                  if (newQty <= 0) {
+                                    setExtraProducts(prev => prev.filter(p => p !== extra.slug));
+                                    setExtraQuantities(prev => {
+                                      const newQuantities = { ...prev };
+                                      delete newQuantities[extra.slug];
+                                      return newQuantities;
+                                    });
+                                  } else {
+                                    setExtraQuantities(prev => ({
+                                      ...prev,
+                                      [extra.slug]: newQty
+                                    }));
+                                  }
                                 }}
                                 className="h-10 w-10 p-0 font-bold text-lg"
                               >
