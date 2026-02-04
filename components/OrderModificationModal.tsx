@@ -75,14 +75,14 @@ export function OrderModificationModal({ order, isOpen, onClose, onSave }: Order
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-      <Card className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+      <Card className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6 bg-white text-gray-900 border border-gray-200 shadow-2xl">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold">Endre bestilling</h2>
+          <h2 className="text-2xl font-bold text-gray-900">Endre bestilling</h2>
           <button
             onClick={onClose}
-            className="p-2 rounded-full hover:bg-gray-100 transition-colors"
+            className="p-2 rounded-full hover:bg-gray-100 transition-colors text-gray-700"
           >
             <X className="w-6 h-6" />
           </button>
@@ -91,7 +91,7 @@ export function OrderModificationModal({ order, isOpen, onClose, onSave }: Order
         <div className="space-y-6">
           {/* Box Size */}
           <div>
-            <Label className="text-lg font-semibold mb-3 flex items-center gap-2">
+            <Label className="text-lg font-semibold mb-3 flex items-center gap-2 text-gray-900">
               <Package className="w-5 h-5" />
               Boksstørrelse
             </Label>
@@ -99,33 +99,33 @@ export function OrderModificationModal({ order, isOpen, onClose, onSave }: Order
               <button
                 onClick={() => setBoxSize(8)}
                 className={cn(
-                  'p-4 rounded-xl border-2 transition-all',
+                  'p-4 rounded-xl border-2 transition-all text-left',
                   boxSize === 8
-                    ? 'border-[#2C1810] bg-[#2C1810]/5'
-                    : 'border-gray-200 hover:border-gray-300'
+                    ? 'border-[#2C1810] bg-[#2C1810]/10 text-gray-900'
+                    : 'border-gray-300 hover:border-gray-400 text-gray-900'
                 )}
               >
-                <p className="text-2xl font-bold">8 kg</p>
-                <p className="text-sm text-gray-600">Kr 6490</p>
+                <p className="text-2xl font-bold text-gray-900">8 kg</p>
+                <p className="text-sm text-gray-700">Kr 6490</p>
               </button>
               <button
                 onClick={() => setBoxSize(12)}
                 className={cn(
-                  'p-4 rounded-xl border-2 transition-all',
+                  'p-4 rounded-xl border-2 transition-all text-left',
                   boxSize === 12
-                    ? 'border-[#2C1810] bg-[#2C1810]/5'
-                    : 'border-gray-200 hover:border-gray-300'
+                    ? 'border-[#2C1810] bg-[#2C1810]/10 text-gray-900'
+                    : 'border-gray-300 hover:border-gray-400 text-gray-900'
                 )}
               >
-                <p className="text-2xl font-bold">12 kg</p>
-                <p className="text-sm text-gray-600">Kr 8990</p>
+                <p className="text-2xl font-bold text-gray-900">12 kg</p>
+                <p className="text-sm text-gray-700">Kr 8990</p>
               </button>
             </div>
           </div>
 
           {/* Ribbe Choice */}
           <div>
-            <Label className="text-lg font-semibold mb-3">Ribbevalg</Label>
+            <Label className="text-lg font-semibold mb-3 text-gray-900">Ribbevalg</Label>
             <div className="grid grid-cols-2 gap-4">
               {[
                 { value: 'tynnribbe', label: 'Tynnribbe' },
@@ -139,11 +139,11 @@ export function OrderModificationModal({ order, isOpen, onClose, onSave }: Order
                   className={cn(
                     'p-4 rounded-xl border-2 transition-all text-left',
                     ribbeChoice === option.value
-                      ? 'border-[#2C1810] bg-[#2C1810]/5'
-                      : 'border-gray-200 hover:border-gray-300'
+                      ? 'border-[#2C1810] bg-[#2C1810]/10 text-gray-900'
+                      : 'border-gray-300 hover:border-gray-400 text-gray-900'
                   )}
                 >
-                  <p className="font-semibold">{option.label}</p>
+                  <p className="font-semibold text-gray-900">{option.label}</p>
                 </button>
               ))}
             </div>
@@ -151,7 +151,7 @@ export function OrderModificationModal({ order, isOpen, onClose, onSave }: Order
 
           {/* Delivery Type */}
           <div>
-            <Label className="text-lg font-semibold mb-3 flex items-center gap-2">
+            <Label className="text-lg font-semibold mb-3 flex items-center gap-2 text-gray-900">
               <Truck className="w-5 h-5" />
               Leveringsmåte
             </Label>
@@ -161,31 +161,31 @@ export function OrderModificationModal({ order, isOpen, onClose, onSave }: Order
                 className={cn(
                   'p-4 rounded-xl border-2 transition-all text-left',
                   deliveryType === 'pickup'
-                    ? 'border-[#2C1810] bg-[#2C1810]/5'
-                    : 'border-gray-200 hover:border-gray-300'
+                    ? 'border-[#2C1810] bg-[#2C1810]/10 text-gray-900'
+                    : 'border-gray-300 hover:border-gray-400 text-gray-900'
                 )}
               >
-                <p className="font-semibold">Henting på gården</p>
-                <p className="text-sm text-gray-600">Gratis</p>
+                <p className="font-semibold text-gray-900">Henting på gården</p>
+                <p className="text-sm text-gray-700">Gratis</p>
               </button>
               <button
                 onClick={() => setDeliveryType('delivery')}
                 className={cn(
                   'p-4 rounded-xl border-2 transition-all text-left',
                   deliveryType === 'delivery'
-                    ? 'border-[#2C1810] bg-[#2C1810]/5'
-                    : 'border-gray-200 hover:border-gray-300'
+                    ? 'border-[#2C1810] bg-[#2C1810]/10 text-gray-900'
+                    : 'border-gray-300 hover:border-gray-400 text-gray-900'
                 )}
               >
-                <p className="font-semibold">Levering</p>
-                <p className="text-sm text-gray-600">Kr 500</p>
+                <p className="font-semibold text-gray-900">Levering</p>
+                <p className="text-sm text-gray-700">Kr 500</p>
               </button>
             </div>
           </div>
 
           {/* Fresh Delivery */}
           <div>
-            <Label className="text-lg font-semibold mb-3 flex items-center gap-2">
+            <Label className="text-lg font-semibold mb-3 flex items-center gap-2 text-gray-900">
               <Snowflake className="w-5 h-5" />
               Type levering
             </Label>
@@ -195,24 +195,24 @@ export function OrderModificationModal({ order, isOpen, onClose, onSave }: Order
                 className={cn(
                   'p-4 rounded-xl border-2 transition-all text-left',
                   !freshDelivery
-                    ? 'border-[#2C1810] bg-[#2C1810]/5'
-                    : 'border-gray-200 hover:border-gray-300'
+                    ? 'border-[#2C1810] bg-[#2C1810]/10 text-gray-900'
+                    : 'border-gray-300 hover:border-gray-400 text-gray-900'
                 )}
               >
-                <p className="font-semibold">Frossen levering</p>
-                <p className="text-sm text-gray-600">Standard</p>
+                <p className="font-semibold text-gray-900">Frossen levering</p>
+                <p className="text-sm text-gray-700">Standard</p>
               </button>
               <button
                 onClick={() => setFreshDelivery(true)}
                 className={cn(
                   'p-4 rounded-xl border-2 transition-all text-left',
                   freshDelivery
-                    ? 'border-[#2C1810] bg-[#2C1810]/5'
-                    : 'border-gray-200 hover:border-gray-300'
+                    ? 'border-[#2C1810] bg-[#2C1810]/10 text-gray-900'
+                    : 'border-gray-300 hover:border-gray-400 text-gray-900'
                 )}
               >
-                <p className="font-semibold">Fersk levering</p>
-                <p className="text-sm text-gray-600">Kr 200 ekstra</p>
+                <p className="font-semibold text-gray-900">Fersk levering</p>
+                <p className="text-sm text-gray-700">Kr 200 ekstra</p>
               </button>
             </div>
           </div>
@@ -238,7 +238,7 @@ export function OrderModificationModal({ order, isOpen, onClose, onSave }: Order
           </div>
 
           {!hasChanges && (
-            <p className="text-sm text-gray-500 text-center">Ingen endringer gjort</p>
+            <p className="text-sm text-gray-600 text-center">Ingen endringer gjort</p>
           )}
         </div>
       </Card>
