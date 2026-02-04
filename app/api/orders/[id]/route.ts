@@ -136,16 +136,81 @@ export async function PATCH(
       updateData.ribbe_choice = ribbe_choice;
     }
 
-    if (delivery_type !== undefined) {
-      updateData.delivery_type = delivery_type;
+    // Handle delivery_type changes with fee recalculation
+    if (delivery_type !== undefined || deliveryType !== undefined) {
+      const newDeliveryType = delivery_type || deliveryType;
+      updateData.delivery_type = newDeliveryType;
+
+      // Only recalculate if not already handled by box_size change
+      if (box_size === undefined) {
+        // Get current order to calculate delivery fee delta
+        const { data: currentOrder } = await supabaseAdmin
+          .from('orders')
+          .select('delivery_type, fresh_delivery, total_amount, deposit_amount')
+          .eq('id', params.id)
+          .single();
+
+        if (currentOrder) {
+          // Get pricing config
+          const pricing = await getPricingConfig();
+          const pickupE6Fee = pricing.delivery_fee_pickup_e6 || 300;
+          const trondheimFee = pricing.delivery_fee_trondheim || 200;
+
+          // Calculate old delivery fee
+          let oldDeliveryFee = 0;
+          if (currentOrder.delivery_type === 'pickup_e6') {
+            oldDeliveryFee = pickupE6Fee;
+          } else if (currentOrder.delivery_type === 'delivery_trondheim') {
+            oldDeliveryFee = trondheimFee;
+          }
+
+          // Calculate new delivery fee
+          let newDeliveryFee = 0;
+          if (newDeliveryType === 'pickup_e6') {
+            newDeliveryFee = pickupE6Fee;
+          } else if (newDeliveryType === 'delivery_trondheim') {
+            newDeliveryFee = trondheimFee;
+          }
+
+          // Apply delivery fee delta to total_amount
+          const deliveryFeeDelta = newDeliveryFee - oldDeliveryFee;
+          const newTotalAmount = currentOrder.total_amount + deliveryFeeDelta;
+          updateData.total_amount = newTotalAmount;
+          updateData.remainder_amount = newTotalAmount - currentOrder.deposit_amount;
+        }
+      }
     }
 
-    if (deliveryType !== undefined) {
-      updateData.delivery_type = deliveryType;
-    }
-
+    // Handle fresh_delivery changes with fee recalculation
     if (freshDelivery !== undefined) {
       updateData.fresh_delivery = freshDelivery;
+
+      // Only recalculate if not already handled by box_size change
+      if (box_size === undefined) {
+        // Get current order
+        const { data: currentOrder } = await supabaseAdmin
+          .from('orders')
+          .select('fresh_delivery, total_amount, deposit_amount')
+          .eq('id', params.id)
+          .single();
+
+        if (currentOrder) {
+          // Get pricing config
+          const pricing = await getPricingConfig();
+          const freshFee = pricing.fresh_delivery_fee || 500;
+
+          // Calculate fresh delivery fee delta
+          const oldFreshFee = currentOrder.fresh_delivery ? freshFee : 0;
+          const newFreshFee = freshDelivery ? freshFee : 0;
+          const freshFeeDelta = newFreshFee - oldFreshFee;
+
+          // Apply fresh delivery fee delta to total_amount
+          const currentTotalAmount = typeof updateData.total_amount === 'number' ? updateData.total_amount : currentOrder.total_amount;
+          const newTotalAmount = currentTotalAmount + freshFeeDelta;
+          updateData.total_amount = newTotalAmount;
+          updateData.remainder_amount = newTotalAmount - currentOrder.deposit_amount;
+        }
+      }
     }
 
     if (addOns !== undefined) {

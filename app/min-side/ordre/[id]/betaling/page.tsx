@@ -55,6 +55,11 @@ export default function RemainderPaymentSummaryPage() {
   const [extrasLoading, setExtrasLoading] = useState(true);
   const [selectedQuantities, setSelectedQuantities] = useState<Record<string, number>>({});
 
+  // Delivery management
+  const [deliveryType, setDeliveryType] = useState<'pickup_farm' | 'pickup_e6' | 'delivery_trondheim'>('pickup_farm');
+  const [freshDelivery, setFreshDelivery] = useState<boolean>(false);
+  const [pricingConfig, setPricingConfig] = useState<any>(null);
+
   // Load order data
   useEffect(() => {
     if (!orderId) return;
@@ -70,6 +75,10 @@ export default function RemainderPaymentSummaryPage() {
         if (isMounted) {
           setOrder(data);
           setError(null);
+
+          // Initialize delivery type and fresh delivery from order
+          setDeliveryType(data.delivery_type || 'pickup_farm');
+          setFreshDelivery(data.fresh_delivery || false);
 
           // Initialize selected quantities from existing extras
           if (data.extra_products) {
@@ -115,6 +124,22 @@ export default function RemainderPaymentSummaryPage() {
     };
   }, []);
 
+  // Load pricing config
+  useEffect(() => {
+    async function loadPricing() {
+      try {
+        const response = await fetch('/api/config/pricing');
+        const data = await response.json();
+        if (response.ok) {
+          setPricingConfig(data);
+        }
+      } catch (err) {
+        console.error('Failed to load pricing:', err);
+      }
+    }
+    loadPricing();
+  }, []);
+
   // Calculate totals based on CURRENT selections (not saved extras)
   const newExtrasTotal = useMemo(() => {
     return Object.entries(selectedQuantities).reduce((sum, [slug, qty]) => {
@@ -141,10 +166,38 @@ export default function RemainderPaymentSummaryPage() {
     return newExtrasTotal - savedExtrasTotal;
   }, [newExtrasTotal, savedExtrasTotal]);
 
-  // Total to pay = base remainder + NEW extras selection
+  // Calculate delivery fee delta
+  const deliveryFeeDelta = useMemo(() => {
+    if (!order || !pricingConfig) return 0;
+
+    const originalFee = order.delivery_type === 'pickup_e6'
+      ? pricingConfig.delivery_fee_pickup_e6
+      : order.delivery_type === 'delivery_trondheim'
+      ? pricingConfig.delivery_fee_trondheim
+      : 0;
+
+    const newFee = deliveryType === 'pickup_e6'
+      ? pricingConfig.delivery_fee_pickup_e6
+      : deliveryType === 'delivery_trondheim'
+      ? pricingConfig.delivery_fee_trondheim
+      : 0;
+
+    return newFee - originalFee;
+  }, [order, deliveryType, pricingConfig]);
+
+  const freshDeliveryFeeDelta = useMemo(() => {
+    if (!pricingConfig) return 0;
+    const originalFee = order?.fresh_delivery ? pricingConfig.fresh_delivery_fee : 0;
+    const newFee = freshDelivery ? pricingConfig.fresh_delivery_fee : 0;
+    return newFee - originalFee;
+  }, [order, freshDelivery, pricingConfig]);
+
+  const totalDeliveryDelta = deliveryFeeDelta + freshDeliveryFeeDelta;
+
+  // Total to pay = base remainder + NEW extras selection + delivery delta
   const finalTotal = useMemo(() => {
-    return baseRemainder + newExtrasTotal;
-  }, [baseRemainder, newExtrasTotal]);
+    return baseRemainder + newExtrasTotal + totalDeliveryDelta;
+  }, [baseRemainder, newExtrasTotal, totalDeliveryDelta]);
 
   // Check if extras have changed from saved state
   const hasExtrasChanges = useMemo(() => {
@@ -162,6 +215,12 @@ export default function RemainderPaymentSummaryPage() {
 
     return false;
   }, [selectedQuantities, order]);
+
+  // Check if delivery has changed from saved state
+  const hasDeliveryChanges = useMemo(() => {
+    if (!order) return false;
+    return deliveryType !== order.delivery_type || freshDelivery !== order.fresh_delivery;
+  }, [deliveryType, freshDelivery, order]);
 
   function handleQuantityChange(slug: string, quantity: number) {
     setSelectedQuantities(prev => ({
@@ -192,15 +251,34 @@ export default function RemainderPaymentSummaryPage() {
           const extrasData = await extrasResponse.json().catch(() => null);
           throw new Error(extrasData?.error || 'Kunne ikke oppdatere ekstra produkter');
         }
+      }
 
-        // Briefly show success
+      // Step 2: Save delivery changes if they've changed
+      if (hasDeliveryChanges) {
+        const deliveryResponse = await fetch(`/api/orders/${orderId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            delivery_type: deliveryType,
+            fresh_delivery: freshDelivery,
+          }),
+        });
+
+        if (!deliveryResponse.ok) {
+          const deliveryData = await deliveryResponse.json().catch(() => null);
+          throw new Error(deliveryData?.error || 'Kunne ikke oppdatere leveringsdetaljer');
+        }
+      }
+
+      // Show brief success if any changes were made
+      if (hasExtrasChanges || hasDeliveryChanges) {
         toast({
-          title: 'Ekstra produkter oppdatert',
+          title: 'Endringer lagret',
           description: 'Starter betaling...',
         });
       }
 
-      // Step 2: Create payment
+      // Step 3: Create payment
       const response = await fetch(`/api/orders/${orderId}/remainder`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -432,52 +510,146 @@ export default function RemainderPaymentSummaryPage() {
           </Card>
         )}
 
-        {/* Pickup/Delivery Details Card */}
+        {/* Pickup/Delivery Details Card - Interactive */}
         <Card className={cn('p-6 md:p-8', theme.bgCard, theme.borderSecondary)}>
           <h2 className={cn('text-xl font-bold mb-4', theme.textPrimary)}>Henting og levering</h2>
 
           <div className="space-y-4">
-            {/* Delivery Type */}
+            {/* Delivery Type Selection */}
             <div>
-              <p className={cn('text-sm font-semibold mb-2', theme.textPrimary)}>Leveringsmetode</p>
-              <div className={cn('p-4 rounded-lg border-2', theme.bgSecondary, theme.borderSecondary)}>
-                <p className={cn('font-semibold', theme.textPrimary)}>
-                  {order.delivery_type === 'pickup_farm' && 'Henting på gården'}
-                  {order.delivery_type === 'pickup_e6' && 'Henting ved E6'}
-                  {order.delivery_type === 'delivery_trondheim' && 'Levering i Trondheim'}
-                </p>
-                <p className={cn('text-sm mt-1', theme.textMuted)}>
-                  {order.delivery_type === 'pickup_farm' && 'Tinglum Gård, Sjøfossen'}
-                  {order.delivery_type === 'pickup_e6' && 'Hentested ved E6'}
-                  {order.delivery_type === 'delivery_trondheim' && 'Levering til din adresse i Trondheim'}
-                </p>
+              <p className={cn('text-sm font-semibold mb-3', theme.textPrimary)}>Leveringsmetode</p>
+              <div className="space-y-3">
+                {/* Farm Pickup - FREE */}
+                <button
+                  onClick={() => setDeliveryType('pickup_farm')}
+                  disabled={isPaying}
+                  className={cn(
+                    "w-full p-4 rounded-lg border-2 transition-all text-left",
+                    deliveryType === 'pickup_farm'
+                      ? "border-amber-500 bg-gradient-to-br from-amber-50 to-orange-50 shadow-lg"
+                      : cn(theme.borderSecondary, theme.bgCard, "hover:border-amber-300")
+                  )}
+                >
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <p className={cn("font-semibold", theme.textPrimary)}>Henting på gården</p>
+                      <p className={cn("text-sm", theme.textMuted)}>Tinglum Gård, Sjøfossen</p>
+                    </div>
+                    <span className="text-sm font-bold text-green-600">Gratis</span>
+                  </div>
+                </button>
+
+                {/* E6 Pickup - Fee */}
+                <button
+                  onClick={() => {
+                    setDeliveryType('pickup_e6');
+                    setFreshDelivery(false); // Can't have fresh delivery with E6
+                  }}
+                  disabled={isPaying}
+                  className={cn(
+                    "w-full p-4 rounded-lg border-2 transition-all text-left",
+                    deliveryType === 'pickup_e6'
+                      ? "border-amber-500 bg-gradient-to-br from-amber-50 to-orange-50 shadow-lg"
+                      : cn(theme.borderSecondary, theme.bgCard, "hover:border-amber-300")
+                  )}
+                >
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <p className={cn("font-semibold", theme.textPrimary)}>Henting ved E6</p>
+                      <p className={cn("text-sm", theme.textMuted)}>Hentested ved E6</p>
+                    </div>
+                    <span className={cn("text-sm font-semibold", theme.textPrimary)}>
+                      +{pricingConfig?.delivery_fee_pickup_e6 || 300} kr
+                    </span>
+                  </div>
+                </button>
+
+                {/* Trondheim Delivery - Fee */}
+                <button
+                  onClick={() => {
+                    setDeliveryType('delivery_trondheim');
+                    setFreshDelivery(false); // Can't have fresh delivery with Trondheim
+                  }}
+                  disabled={isPaying}
+                  className={cn(
+                    "w-full p-4 rounded-lg border-2 transition-all text-left",
+                    deliveryType === 'delivery_trondheim'
+                      ? "border-amber-500 bg-gradient-to-br from-amber-50 to-orange-50 shadow-lg"
+                      : cn(theme.borderSecondary, theme.bgCard, "hover:border-amber-300")
+                  )}
+                >
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <p className={cn("font-semibold", theme.textPrimary)}>Levering i Trondheim</p>
+                      <p className={cn("text-sm", theme.textMuted)}>Levering til din adresse</p>
+                    </div>
+                    <span className={cn("text-sm font-semibold", theme.textPrimary)}>
+                      +{pricingConfig?.delivery_fee_trondheim || 200} kr
+                    </span>
+                  </div>
+                </button>
               </div>
             </div>
 
-            {/* Fresh Delivery Option */}
-            {order.fresh_delivery && (
+            {/* Fresh Delivery Option - Only with Farm Pickup */}
+            {deliveryType === 'pickup_farm' && (
               <div>
-                <p className={cn('text-sm font-semibold mb-2', theme.textPrimary)}>Ekstra alternativ</p>
-                <div className={cn('p-4 rounded-lg border-2', 'bg-green-50', 'border-green-200')}>
-                  <div className="flex items-center gap-2">
-                    <Check className="w-5 h-5 text-green-600" />
-                    <p className={cn('font-semibold text-green-800')}>
-                      Fersk levering
-                    </p>
+                <p className={cn('text-sm font-semibold mb-3', theme.textPrimary)}>Ekstra alternativ</p>
+                <button
+                  onClick={() => setFreshDelivery(!freshDelivery)}
+                  disabled={isPaying}
+                  className={cn(
+                    "w-full p-4 rounded-lg border-2 transition-all text-left",
+                    freshDelivery
+                      ? "border-green-500 bg-green-50 shadow-lg"
+                      : cn(theme.borderSecondary, theme.bgCard, "hover:border-green-300")
+                  )}
+                >
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-2">
+                      {freshDelivery && <Check className="w-5 h-5 text-green-600" />}
+                      <div>
+                        <p className={cn("font-semibold", freshDelivery ? "text-green-800" : theme.textPrimary)}>
+                          Fersk levering
+                        </p>
+                        <p className={cn("text-sm", freshDelivery ? "text-green-700" : theme.textMuted)}>
+                          Produktene leveres ferske (ikke frosset)
+                        </p>
+                      </div>
+                    </div>
+                    <span className={cn("text-sm font-semibold", freshDelivery ? "text-green-800" : theme.textPrimary)}>
+                      +{pricingConfig?.fresh_delivery_fee || 500} kr
+                    </span>
                   </div>
-                  <p className="text-sm mt-1 text-green-700">
-                    Dine produkter leveres ferske (ikke frosset)
-                  </p>
-                </div>
+                </button>
               </div>
             )}
 
-            {/* Info Message */}
-            <div className={cn('p-4 rounded-lg', 'bg-blue-50', 'border-2 border-blue-200')}>
-              <p className="text-sm text-blue-800">
-                ℹ️ Disse detaljene ble valgt ved bestilling. Trenger du å endre? Kontakt oss før du betaler.
-              </p>
-            </div>
+            {/* Delta Display */}
+            {totalDeliveryDelta !== 0 && (
+              <div className={cn('p-3 rounded-lg',
+                totalDeliveryDelta > 0 ? 'bg-green-50 border border-green-200' : 'bg-orange-50 border border-orange-200'
+              )}>
+                {totalDeliveryDelta > 0 ? (
+                  <p className="text-sm text-green-800">
+                    ⬆ Du legger til kr {totalDeliveryDelta.toLocaleString('nb-NO')} for leveringsendring
+                  </p>
+                ) : (
+                  <p className="text-sm text-orange-800">
+                    ⬇ Du sparer kr {Math.abs(totalDeliveryDelta).toLocaleString('nb-NO')} på leveringsendring
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Changes Warning */}
+            {hasDeliveryChanges && (
+              <div className={cn('p-3 rounded-lg bg-amber-50 border border-amber-200')}>
+                <p className="text-sm text-amber-800">
+                  ⚠️ Du har endret leveringsdetaljene. De vil bli lagret når du klikker &quot;Betal med Vipps&quot;.
+                </p>
+              </div>
+            )}
           </div>
         </Card>
 
@@ -504,6 +676,14 @@ export default function RemainderPaymentSummaryPage() {
                 <span className={theme.textSecondary}>Ekstra produkter</span>
                 <span className={cn('font-semibold text-green-600')}>
                   kr {newExtrasTotal.toLocaleString('nb-NO')}
+                </span>
+              </div>
+            )}
+            {totalDeliveryDelta !== 0 && (
+              <div className="flex justify-between">
+                <span className={theme.textSecondary}>Leveringsendring</span>
+                <span className={cn('font-semibold', totalDeliveryDelta > 0 ? 'text-green-600' : 'text-orange-600')}>
+                  {totalDeliveryDelta > 0 ? '+' : ''}kr {totalDeliveryDelta.toLocaleString('nb-NO')}
                 </span>
               </div>
             )}
