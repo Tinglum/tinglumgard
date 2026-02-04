@@ -85,7 +85,6 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
   const [addingExtras, setAddingExtras] = useState(false);
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
   const [reordering, setReordering] = useState(false);
-  const [isPaymentFlow, setIsPaymentFlow] = useState(false);
 
   const depositPayment = order.payments?.find((p) => p.payment_type === 'deposit');
   const depositPaid = depositPayment?.status === 'completed';
@@ -665,12 +664,12 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
       <ExtrasUpsellModal
         isOpen={showExtrasModal}
         onClose={handleExtrasModalClose}
-        onConfirm={handleExtrasConfirm}
+        onConfirm={(extras) => handleExtrasConfirm(extras)}
         currentExtras={
           order.extra_products?.map((e: any) => ({ slug: e.slug, quantity: e.quantity })) || []
         }
         loading={addingExtras}
-        isPaymentFlow={isPaymentFlow}
+        isPaymentFlow={false}
         baseRemainderAmount={order.remainder_amount}
       />
 
