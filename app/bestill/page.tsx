@@ -253,6 +253,9 @@ export default function CheckoutPage() {
             <p className={cn("text-lg mb-8", theme.textMuted)}>
               {t.checkout.thankYou}
             </p>
+            <p className={cn("text-sm mb-8", theme.textSecondary)}>
+              Forventet levering: uke 48–49.
+            </p>
 
             {orderId && (
               <div className={cn("rounded-2xl p-6 mb-8", theme.bgSecondary)}>

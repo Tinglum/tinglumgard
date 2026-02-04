@@ -670,6 +670,26 @@ export default function Page() {
           }} />
         </div>
 
+        {/* Sticky decision CTA */}
+        <div className="sticky bottom-6 mt-10 z-20">
+          <div className={`mx-auto max-w-3xl rounded-2xl border ${theme.borderSecondary} ${theme.bgCard} backdrop-blur-xl px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-xl`}>
+            <div className="text-sm font-semibold">
+              <span className={theme.textPrimary}>Klar til å reservere?</span>
+              {minPrice && (
+                <span className={`ml-2 ${theme.textMuted}`}>
+                  Fra {minPrice.toLocaleString('nb-NO')} {t.common.currency}
+                </span>
+              )}
+            </div>
+            <Link
+              href="/bestill"
+              className={`px-6 py-3 rounded-xl font-bold uppercase tracking-wider ${theme.buttonPrimary} ${theme.buttonPrimaryHover} ${theme.textOnDark}`}
+            >
+              {t.hero.reserveNow}
+            </Link>
+          </div>
+        </div>
+
         {/* Floating orbs - warm glows */}
         <div className={`absolute top-0 left-1/4 w-[500px] h-[500px] ${theme.bannerOrbs[0]} rounded-full blur-3xl animate-pulse`} />
         <div className={`absolute bottom-0 right-1/4 w-[400px] h-[400px] ${theme.bannerOrbs[1]} rounded-full blur-3xl animate-pulse`} style={{ animationDelay: '1.5s' }} />

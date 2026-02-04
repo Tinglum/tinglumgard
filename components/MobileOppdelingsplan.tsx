@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import Image from 'next/image';
 import { ChevronDown, Check, Plus } from 'lucide-react';
-import { Extra, BoxContents, ExtrasResponse, ConfigResponse } from '@/lib/types';
 import { useOppdelingsplanData } from '@/hooks/useOppdelingsplanData';
 
 interface CutInfo {
@@ -120,10 +120,13 @@ export function MobileOppdelingsplan() {
         animate={{ opacity: 1, scale: 1 }}
         className="glass-mobile-strong rounded-3xl px-3 py-1.5 mb-6"
       >
-        <img
+        <Image
           src="/pig-diagram3.png"
           alt="Oppdelingsplan gris"
+          width={1200}
+          height={675}
           className="w-full h-auto"
+          priority
         />
         <p
           className="text-xs text-center text-white mt-2"
