@@ -119,16 +119,7 @@ export async function POST(
     const { randomBytes } = await import('crypto');
     const callbackToken = randomBytes(16).toString('hex');
 
-    // Prepare customer info if available
-    const customerInfo: any = {};
-    if (order.customer_email && order.customer_email !== 'pending@vipps.no') {
-      customerInfo.email = order.customer_email;
-    }
-    if (order.customer_phone) {
-      customerInfo.phoneNumber = order.customer_phone;
-    }
-
-    // Create session data - remainder payment is payment-only, no shipping needed
+    // Create session data - remainder payment is payment-only with NO customer info collection
     const sessionData: any = {
       merchantInfo: {
         callbackUrl: `${appUrl}/api/webhooks/vipps`,
@@ -146,16 +137,14 @@ export async function POST(
       },
       configuration: {
         userFlow: 'WEB_REDIRECT',
+        // Skip all customer information collection - payment only
+        elements: 'PaymentOnly',
       },
     };
 
-    // Don't add prefillCustomer or requireUserInfo for remainder payments
-    // This ensures Vipps skips the information collection step entirely
-
-    console.log('Creating remainder payment session:', {
+    console.log('Creating remainder payment session (payment only, no customer info):', {
       reference: shortReference,
       amount: remainderAmount,
-      hasCustomerInfo: Object.keys(customerInfo).length > 0,
     });
 
     const vippsResult = await vippsClient.createCheckoutSession(sessionData);
