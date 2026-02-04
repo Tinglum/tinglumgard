@@ -6,9 +6,11 @@ import { motion } from 'framer-motion';
 
 interface MobileHeroProps {
   isSoldOut: boolean;
+  minPrice: number | null;
+  minDeposit: number | null;
 }
 
-export function MobileHero({ isSoldOut }: MobileHeroProps) {
+export function MobileHero({ isSoldOut, minPrice, minDeposit }: MobileHeroProps) {
   return (
     <section className="relative min-h-screen flex items-center justify-center px-4 py-20" style={{ backgroundColor: 'var(--farm-earth)' }}>
       <div className="w-full max-w-lg mx-auto text-center">
