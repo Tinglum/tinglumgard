@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useIsMobile } from '@/hooks/useMediaQuery';
@@ -69,7 +68,7 @@ export default function OppdelingsplanPage() {
       id: 9,
       name: t.oppdelingsplan.skinke,
       description: t.oppdelingsplan.skinkeDesc,
-      inBox: ["Svinesteik ca. 1.0 kg", "Ogs� inkludert i Slakterens valg"],
+      inBox: ["Svinesteik ca. 1.0 kg", "Også inkludert i Slakterens valg"],
       extraOrder: ["Ekstra skinkesteik", "Spekeskinke"]
     },
     {
@@ -90,8 +89,8 @@ export default function OppdelingsplanPage() {
       id: 12,
       name: t.oppdelingsplan.polserFarse,
       description: t.oppdelingsplan.polserFarseDesc,
-      inBox: ["Medisterfarse: ca. 1.5 kg (12 kg kasse) / ca. 1.0 kg (8 kg kasse)", "Julep�lse: ca. 1.0 kg (12 kg kasse) / ca. 0.5 kg (8 kg kasse)"],
-      extraOrder: ["Ekstra medisterfarse", "Ekstra julep�lse"]
+      inBox: ["Medisterfarse: ca. 1.5 kg (12 kg kasse) / ca. 1.0 kg (8 kg kasse)", "Julepølse: ca. 1.0 kg (12 kg kasse) / ca. 0.5 kg (8 kg kasse)"],
+      extraOrder: ["Ekstra medisterfarse", "Ekstra julepølse"]
     }
   ];
 
@@ -206,13 +205,10 @@ export default function OppdelingsplanPage() {
 
             {/* Pig butcher diagram */}
             <div className="relative w-full aspect-[16/9] max-w-5xl mx-auto">
-              <Image
+              <img
                 src="/pig-diagram3.png"
                 alt="Pig butcher diagram"
-                fill
-                sizes="(min-width: 1024px) 800px, 100vw"
-                className="object-contain"
-                priority
+                className="w-full h-full object-contain"
               />
 
               {/* Clickable overlays using precise polygon coordinates */}
@@ -309,9 +305,9 @@ export default function OppdelingsplanPage() {
                           <h4 className={cn("font-bold mb-1", theme.textPrimary)}>Tynnribbe</h4>
                           <p className={cn("text-xs mb-2", theme.textMuted)}>Klassisk ribbe med ribbein</p>
                           <ul className={cn("space-y-1 text-xs", theme.textMuted)}>
-                            <li>• Kun ribbein-omr�det</li>
-                            <li>• Perfekt spr�stekt svor</li>
-                            <li>• God balanse kj�tt/fett</li>
+                            <li>• Kun ribbein-området</li>
+                            <li>• Perfekt sprøstekt svor</li>
+                            <li>• God balanse kjøtt/fett</li>
                           </ul>
                         </div>
 
@@ -324,7 +320,7 @@ export default function OppdelingsplanPage() {
                           <p className={cn("text-xs mb-2", theme.textMuted)}>Inkluderer kotelettkam</p>
                           <ul className={cn("space-y-1 text-xs", theme.textMuted)}>
                             <li>• Ribbe + kotelettkam</li>
-                            <li>• Mer magert kj�tt</li>
+                            <li>• Mer magert kjøtt</li>
                             <li>• Best for store familier</li>
                           </ul>
                         </div>
@@ -335,7 +331,7 @@ export default function OppdelingsplanPage() {
                           <p className={cn("text-xs mb-2", theme.textMuted)}>Beinfri nedre mage</p>
                           <ul className={cn("space-y-1 text-xs", theme.textMuted)}>
                             <li>• 100% beinfri</li>
-                            <li>• Enkel � skj�re</li>
+                            <li>• Enkel å skjære</li>
                             <li>• Saftig og smakfull</li>
                           </ul>
                         </div>
@@ -415,7 +411,3 @@ export default function OppdelingsplanPage() {
     </div>
   );
 }
-
-
-
-
