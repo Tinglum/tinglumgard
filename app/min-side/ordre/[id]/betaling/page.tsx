@@ -21,6 +21,8 @@ interface OrderData {
   deposit_amount: number;
   remainder_amount: number;
   total_amount: number;
+  delivery_type: 'pickup_farm' | 'pickup_e6' | 'delivery_trondheim';
+  fresh_delivery: boolean;
   extra_products?: Array<{ slug: string; name: string; quantity: number; total_price: number }>;
 }
 
@@ -372,6 +374,55 @@ export default function RemainderPaymentSummaryPage() {
             )}
           </Card>
         )}
+
+        {/* Pickup/Delivery Details Card */}
+        <Card className={cn('p-6 md:p-8', theme.bgCard, theme.borderSecondary)}>
+          <h2 className={cn('text-xl font-bold mb-4', theme.textPrimary)}>Henting og levering</h2>
+
+          <div className="space-y-4">
+            {/* Delivery Type */}
+            <div>
+              <p className={cn('text-sm font-semibold mb-2', theme.textPrimary)}>Leveringsmetode</p>
+              <div className={cn('p-4 rounded-lg border-2', theme.bgSecondary, theme.borderSecondary)}>
+                <p className={cn('font-semibold', theme.textPrimary)}>
+                  {order.delivery_type === 'pickup_farm' && 'Henting på gården'}
+                  {order.delivery_type === 'pickup_e6' && 'Henting ved E6'}
+                  {order.delivery_type === 'delivery_trondheim' && 'Levering i Trondheim'}
+                </p>
+                <p className={cn('text-sm mt-1', theme.textMuted)}>
+                  {order.delivery_type === 'pickup_farm' && 'Tinglum Gård, Sjøfossen'}
+                  {order.delivery_type === 'pickup_e6' && 'Hentested ved E6'}
+                  {order.delivery_type === 'delivery_trondheim' && 'Levering til din adresse i Trondheim'}
+                </p>
+              </div>
+            </div>
+
+            {/* Fresh Delivery Option */}
+            {order.fresh_delivery && (
+              <div>
+                <p className={cn('text-sm font-semibold mb-2', theme.textPrimary)}>Ekstra alternativ</p>
+                <div className={cn('p-4 rounded-lg border-2', 'bg-green-50', 'border-green-200')}>
+                  <div className="flex items-center gap-2">
+                    <Check className="w-5 h-5 text-green-600" />
+                    <p className={cn('font-semibold text-green-800')}>
+                      Fersk levering
+                    </p>
+                  </div>
+                  <p className="text-sm mt-1 text-green-700">
+                    Dine produkter leveres ferske (ikke frosset)
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Info Message */}
+            <div className={cn('p-4 rounded-lg', 'bg-blue-50', 'border-2 border-blue-200')}>
+              <p className="text-sm text-blue-800">
+                ℹ️ Disse detaljene ble valgt ved bestilling. Trenger du å endre? Kontakt oss før du betaler.
+              </p>
+            </div>
+          </div>
+        </Card>
 
         {/* Payment Summary Card */}
         <Card className={cn('p-6 md:p-8', theme.bgCard, theme.borderSecondary)}>
