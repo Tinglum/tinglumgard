@@ -694,8 +694,14 @@ export default function CheckoutPage() {
                                 variant="outline"
                                 size="sm"
                                 onClick={() => {
-                                  const step = extra.pricing_type === 'per_kg' ? 0.5 : 1;
-                                  const newQty = quantity - step;
+                                  let newQty: number;
+                                  if (extra.pricing_type === 'per_kg') {
+                                    // For per_kg: snap to nearest lower 0.5 increment
+                                    newQty = Math.floor(quantity / 0.5) * 0.5 - 0.5;
+                                  } else {
+                                    // For per_unit: just subtract 1
+                                    newQty = quantity - 1;
+                                  }
 
                                   // If going to 0 or below, deselect the item
                                   if (newQty <= 0) {
@@ -738,8 +744,14 @@ export default function CheckoutPage() {
                                 variant="outline"
                                 size="sm"
                                 onClick={() => {
-                                  const step = extra.pricing_type === 'per_kg' ? 0.5 : 1;
-                                  const newQty = quantity + step;
+                                  let newQty: number;
+                                  if (extra.pricing_type === 'per_kg') {
+                                    // For per_kg: snap to nearest higher 0.5 increment
+                                    newQty = Math.ceil(quantity / 0.5) * 0.5 + 0.5;
+                                  } else {
+                                    // For per_unit: just add 1
+                                    newQty = quantity + 1;
+                                  }
                                   setExtraQuantities(prev => ({
                                     ...prev,
                                     [extra.slug]: newQty

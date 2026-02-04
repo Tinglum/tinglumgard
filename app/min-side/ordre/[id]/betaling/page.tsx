@@ -433,9 +433,15 @@ export default function RemainderPaymentSummaryPage() {
                             variant="outline"
                             size="sm"
                             onClick={() => {
-                              const step = extra.pricing_type === 'per_kg' ? 0.5 : 1;
-                              const newQty = quantity - step;
-                              handleQuantityChange(extra.slug, newQty);
+                              if (extra.pricing_type === 'per_kg') {
+                                // For per_kg: snap to nearest lower 0.5 increment
+                                const newQty = Math.floor(quantity / 0.5) * 0.5 - 0.5;
+                                handleQuantityChange(extra.slug, newQty);
+                              } else {
+                                // For per_unit: just subtract 1
+                                const newQty = quantity - 1;
+                                handleQuantityChange(extra.slug, newQty);
+                              }
                             }}
                             disabled={isPaying}
                             className="h-10 w-10 p-0 font-bold text-lg"
@@ -462,9 +468,15 @@ export default function RemainderPaymentSummaryPage() {
                             variant="outline"
                             size="sm"
                             onClick={() => {
-                              const step = extra.pricing_type === 'per_kg' ? 0.5 : 1;
-                              const newQty = quantity + step;
-                              handleQuantityChange(extra.slug, newQty);
+                              if (extra.pricing_type === 'per_kg') {
+                                // For per_kg: snap to nearest higher 0.5 increment
+                                const newQty = Math.ceil(quantity / 0.5) * 0.5 + 0.5;
+                                handleQuantityChange(extra.slug, newQty);
+                              } else {
+                                // For per_unit: just add 1
+                                const newQty = quantity + 1;
+                                handleQuantityChange(extra.slug, newQty);
+                              }
                             }}
                             disabled={isPaying}
                             className="h-10 w-10 p-0 font-bold text-lg"
