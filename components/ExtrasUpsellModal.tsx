@@ -4,9 +4,9 @@ import { useState, useEffect, useRef } from 'react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { cn } from '@/lib/utils';
-import { X, Plus, Minus, ShoppingCart } from 'lucide-react';
+import { X, ShoppingCart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { ExtraProductsSelector } from '@/components/ExtraProductsSelector';
 
 interface Extra {
   id: string;
@@ -18,6 +18,8 @@ interface Extra {
   price_nok: number;
   pricing_type: 'per_unit' | 'per_kg';
   stock_quantity: number | null;
+  default_quantity?: number | null;
+  active: boolean;
 }
 
 interface ExtrasUpsellModalProps {
@@ -95,26 +97,20 @@ export function ExtrasUpsellModal({
     }
   }
 
-  function updateQuantity(slug: string, delta: number, pricingType: 'per_unit' | 'per_kg') {
-    setSelectedQuantities((prev) => {
-      const current = prev[slug] || 0;
-      // For kg items, increment/decrement by 0.5kg, for units by 1
-      const step = pricingType === 'per_kg' ? 0.5 : 1;
-      // Calculate new quantity based on direction
-      let newQuantity = current + (delta * step);
-      // Ensure non-negative
-      newQuantity = Math.max(0, newQuantity);
-      // Round to 1 decimal place for kg items to avoid floating point issues
-      const rounded = pricingType === 'per_kg' ? Math.round(newQuantity * 10) / 10 : Math.round(newQuantity);
-      return { ...prev, [slug]: rounded };
-    });
-  }
+  function handleQuantityChange(slug: string, quantity: number) {
+    setSelectedQuantities(prev => {
+      // If quantity is 0 or less, remove the item entirely (deselect)
+      if (quantity <= 0) {
+        const newQuantities = { ...prev };
+        delete newQuantities[slug];
+        return newQuantities;
+      }
 
-  function setDirectQuantity(slug: string, value: number) {
-    setSelectedQuantities((prev) => ({
-      ...prev,
-      [slug]: Math.max(0, value)
-    }));
+      return {
+        ...prev,
+        [slug]: quantity
+      };
+    });
   }
 
   function handleConfirm(proceedToPayment = false) {
@@ -162,11 +158,7 @@ export function ExtrasUpsellModal({
   }
 
   function calculateSelectedCount() {
-    return extras.reduce((count, extra) => {
-      const quantity = selectedQuantities[extra.slug] || 0;
-      if (quantity <= 0) return count;
-      return count + (extra.pricing_type === 'per_kg' ? 1 : quantity);
-    }, 0);
+    return Object.values(selectedQuantities).filter(qty => qty > 0).length;
   }
 
   function calculateCurrentExtrasTotal() {
@@ -238,126 +230,18 @@ export function ExtrasUpsellModal({
               </p>
             </div>
           ) : (
-            <div className="grid gap-4">
-              {extras.map((extra, idx) => {
-                const quantity = selectedQuantities[extra.slug] || 0;
-                const name = lang === 'en' ? extra.name_en : extra.name_no;
-                const description = lang === 'en' ? extra.description_en : extra.description_no;
-                const unit = extra.pricing_type === 'per_kg' ? 'kg' : 'stk';
-                const priceLabel = `kr ${extra.price_nok}/${unit}`;
-                const isOutOfStock = extra.stock_quantity !== null && extra.stock_quantity <= 0;
-                const isLowStock = extra.stock_quantity !== null && extra.stock_quantity > 0 && extra.stock_quantity <= 5;
-                const minValue = 0;
-                const stepValue = extra.pricing_type === 'per_kg' ? 0.5 : 1;
-                return (
-                  <div
-                    key={extra.id}
-                    className={cn(
-                      'flex items-center gap-6 p-6 rounded-2xl border transition-all',
-                      quantity > 0 ? 'border-green-500 bg-green-50/50' : theme.borderSecondary,
-                      isOutOfStock && 'opacity-50'
-                    )}
-                  >
-                    <div className="w-20 h-20 flex-shrink-0 flex items-center justify-center rounded-lg bg-white/5 text-2xl">
-                      🥩
-                    </div>
-
-                    <div className="flex-1">
-                      <h3 className={cn('text-lg font-semibold mb-1', theme.textPrimary)}>
-                        {name}
-                        {idx < 3 && (
-                          <span className="ml-2 inline-block bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full text-xs font-medium">Anbefalt</span>
-                        )}
-                        {isOutOfStock && (
-                          <span className="ml-2 text-sm font-normal text-red-600">(Utsolgt)</span>
-                        )}
-                      </h3>
-                      <p className={cn('text-sm mb-2', theme.textSecondary)}>{description}</p>
-                      <p className={cn('text-lg font-bold', theme.textPrimary)}>{priceLabel}</p>
-                      {extra.stock_quantity !== null && !isOutOfStock && (
-                        <p className={cn(
-                          'text-xs mt-1 font-medium',
-                          isLowStock ? 'text-amber-600' : theme.textMuted
-                        )}>
-                          {isLowStock && '⚠️ '}{extra.stock_quantity} på lager
-                        </p>
-                      )}
-                    </div>
-
-                    <div className="flex items-center gap-3">
-                      <button
-                        onClick={() => updateQuantity(extra.slug, -1, extra.pricing_type)}
-                        disabled={quantity === 0 || isOutOfStock}
-                        className={cn(
-                          'p-3 rounded-xl transition-all border-2',
-                          quantity === 0 || isOutOfStock
-                            ? 'opacity-30 cursor-not-allowed'
-                            : 'hover:scale-110 hover:bg-black/5 border-neutral-300'
-                        )}
-                      >
-                        <Minus className="w-5 h-5" />
-                      </button>
-
-                      <div className="flex items-center gap-2">
-                        <Input
-                          type="number"
-                          min={minValue}
-                          step={stepValue}
-                          value={quantity || ''}
-                          onChange={(e) => {
-                            const inputValue = e.target.value;
-                            if (inputValue === '' || inputValue === '0') {
-                              setDirectQuantity(extra.slug, 0);
-                            } else {
-                              const value = parseFloat(inputValue);
-                              if (!isNaN(value) && value >= 0) {
-                                setDirectQuantity(extra.slug, value);
-                              }
-                            }
-                          }}
-                          onBlur={(e) => {
-                            // Round on blur for cleaner display
-                            const value = parseFloat(e.target.value);
-                            if (!isNaN(value)) {
-                              const rounded = extra.pricing_type === 'per_kg'
-                                ? Math.round(value * 10) / 10
-                                : Math.round(value);
-                              setDirectQuantity(extra.slug, rounded);
-                            }
-                          }}
-                          disabled={isOutOfStock}
-                          className={cn(
-                            'w-20 text-center font-bold text-lg border-2',
-                            quantity > 0 ? 'border-green-500' : 'border-neutral-300',
-                            isOutOfStock && 'opacity-50 cursor-not-allowed'
-                          )}
-                        />
-                        <span className={cn('text-sm font-medium min-w-[2rem]', theme.textPrimary)}>
-                          {unit}
-                        </span>
-                      </div>
-
-                      <button
-                        onClick={() => updateQuantity(extra.slug, 1, extra.pricing_type)}
-                        disabled={
-                          isOutOfStock ||
-                          (extra.stock_quantity !== null && quantity >= extra.stock_quantity)
-                        }
-                        className={cn(
-                          'p-3 rounded-xl transition-all border-2',
-                          isOutOfStock ||
-                            (extra.stock_quantity !== null && quantity >= extra.stock_quantity)
-                            ? 'opacity-30 cursor-not-allowed'
-                            : 'hover:scale-110 hover:bg-green-500 hover:text-white hover:border-green-500 border-green-500 text-green-600'
-                        )}
-                      >
-                        <Plus className="w-5 h-5" />
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+            <ExtraProductsSelector
+              availableExtras={extras}
+              selectedQuantities={selectedQuantities}
+              onQuantityChange={handleQuantityChange}
+              disabled={loading}
+              theme={theme}
+              translations={{
+                quantity: 'Antall',
+                kg: 'kg',
+                stk: 'stk'
+              }}
+            />
           )}
         </div>
 
@@ -394,7 +278,7 @@ export function ExtrasUpsellModal({
                       Oppdaterer...
                     </>
                   ) : (
-                    `Oppdater ekstra bestilling (${formatDeltaLabel()}) og gå til oppsummering`
+                    `Oppdater ekstra bestilling (${formatDeltaLabel()})`
                   )}
                 </Button>
               ) : (
