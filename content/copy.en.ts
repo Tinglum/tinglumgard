@@ -221,7 +221,7 @@ export const en = {
 
     // Extras
     extrasTitle: "Extra meat products (optional)",
-    extrasWarning: "Note: Extra products depend on availability and pig size at slaughter. We'll do our best to fulfill your wishes.",
+    extrasWarning: "Extra products cannot be guaranteed, and availability is very limited. By paying the remaining balance/completing the order, you secure your place in the queue. We fulfill orders based on when the remaining balance/extra orders are paid.",
     quantity: "Quantity:",
 
     // Delivery

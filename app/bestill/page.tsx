@@ -13,7 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Check, ChevronRight } from 'lucide-react';
+import { Check, ChevronRight, AlertCircle } from 'lucide-react';
 import { ReferralCodeInput } from '@/components/ReferralCodeInput';
 import { RebateCodeInput } from '@/components/RebateCodeInput';
 import { MobileCheckout } from '@/components/MobileCheckout';
@@ -610,10 +610,18 @@ export default function CheckoutPage() {
                   )}
                 </div>
 
-                <div className="mb-8 p-5 bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-300 rounded-2xl shadow-sm">
-                  <p className="text-sm text-amber-900 leading-relaxed">
-                    {t.checkout.extrasWarning}
-                  </p>
+                <div className="mb-8 p-4 bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-300 rounded-2xl shadow-sm">
+                  <div className="flex items-start gap-3">
+                    <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-sm font-semibold text-amber-900 mb-1">
+                        Viktig informasjon om ekstra produkter
+                      </p>
+                      <p className="text-sm text-amber-800 leading-relaxed">
+                        {t.checkout.extrasWarning}
+                      </p>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="grid md:grid-cols-2 gap-6">

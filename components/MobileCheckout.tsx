@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Check, ChevronLeft, ChevronRight, AlertCircle } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
@@ -332,7 +332,19 @@ export function MobileCheckout(props: MobileCheckoutProps) {
               <p className={labelText}>{t.checkout.extrasTitle}</p>
               <span className="text-xs text-[#5E5A50]">{extraCount > 0 ? `${extraCount} valgt` : 'Valgfritt'}</span>
             </div>
-            <p className="mt-2 text-xs text-[#5E5A50]">{t.checkout.extrasWarning}</p>
+            <div className="mt-3 p-3 bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-300 rounded-xl">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-xs font-semibold text-amber-900 mb-0.5">
+                    Viktig informasjon
+                  </p>
+                  <p className="text-xs text-amber-800 leading-relaxed">
+                    {t.checkout.extrasWarning}
+                  </p>
+                </div>
+              </div>
+            </div>
             <div className="mt-4 space-y-3">
               {availableExtras
                 .filter(extra => !['delivery_trondheim', 'pickup_e6', 'fresh_delivery'].includes(extra.slug))

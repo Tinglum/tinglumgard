@@ -221,7 +221,7 @@ export const no = {
 
     // Extras
     extrasTitle: "Ekstra kjøttprodukter (valgfritt)",
-    extrasWarning: "Obs: Ekstra produkter er avhengig av tilgjengelighet og grisestørrelse ved slakt. Vi gjør vårt beste for å oppfylle ønskene dine.",
+    extrasWarning: "Ekstra produkter kan ikke garanteres, og tilgangen er meget begrenset. Ved å betale restbeløpet/ferdigstille ordren sikrer du din plass i køen. Vi oppfyller bestillingene etter når restordre/ekstra bestillinger blir betalt.",
     quantity: "Mengde:",
 
     // Delivery

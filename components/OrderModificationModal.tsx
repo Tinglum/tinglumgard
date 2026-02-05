@@ -1,12 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { X, Package, Truck, Snowflake, Save } from 'lucide-react';
+import { X, Package, Truck, Snowflake, Save, ShoppingCart } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+import { ExtraProductsSelector } from '@/components/ExtraProductsSelector';
 
 interface OrderModificationModalProps {
   order: any;
@@ -25,12 +26,28 @@ export function OrderModificationModal({ order, isOpen, onClose, onSave }: Order
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [pricing, setPricing] = useState<any>(null);
 
+  // Extras management
+  const [availableExtras, setAvailableExtras] = useState<any[]>([]);
+  const [extrasLoading, setExtrasLoading] = useState(true);
+  const [selectedQuantities, setSelectedQuantities] = useState<Record<string, number>>({});
+
   useEffect(() => {
     if (isOpen) {
       setBoxSize(order.box_size);
       setRibbeChoice(order.ribbe_choice);
       setDeliveryType(order.delivery_type);
       setFreshDelivery(order.fresh_delivery);
+
+      // Initialize selected quantities from existing extras
+      if (order.extra_products) {
+        const quantities: Record<string, number> = {};
+        order.extra_products.forEach((ep: any) => {
+          quantities[ep.slug] = ep.quantity;
+        });
+        setSelectedQuantities(quantities);
+      } else {
+        setSelectedQuantities({});
+      }
     }
   }, [isOpen, order]);
 
@@ -41,7 +58,7 @@ export function OrderModificationModal({ order, isOpen, onClose, onSave }: Order
   }, [deliveryType, freshDelivery]);
 
   useEffect(() => {
-    async function fetchPricing() {
+    const fetchPricing = async () => {
       try {
         const response = await fetch('/api/config/pricing');
         const data = await response.json();
@@ -49,9 +66,30 @@ export function OrderModificationModal({ order, isOpen, onClose, onSave }: Order
       } catch (error) {
         console.error('Failed to fetch pricing:', error);
       }
-    }
+    };
     fetchPricing();
   }, []);
+
+  // Load available extras catalog
+  useEffect(() => {
+    if (isOpen) {
+      const loadExtras = async () => {
+        setExtrasLoading(true);
+        try {
+          const response = await fetch('/api/extras');
+          const data = await response.json();
+          if (response.ok) {
+            setAvailableExtras(data.extras || []);
+          }
+        } catch (err) {
+          console.error('Failed to load extras:', err);
+        } finally {
+          setExtrasLoading(false);
+        }
+      };
+      loadExtras();
+    }
+  }, [isOpen]);
 
   const isFreshAllowed = deliveryType === 'pickup_farm';
   const freshFee = pricing?.fresh_delivery_fee;
@@ -60,11 +98,51 @@ export function OrderModificationModal({ order, isOpen, onClose, onSave }: Order
   const pickupE6Fee = pricing?.delivery_fee_pickup_e6 ?? pricing?.delivery_fee_e6;
   const trondheimFee = pricing?.delivery_fee_trondheim;
 
+  // Check if extras have changed from saved state
+  const hasExtrasChanges = useMemo(() => {
+    const savedExtras = order?.extra_products || [];
+    const selectedEntries = Object.entries(selectedQuantities).filter(([_, qty]) => qty > 0);
+
+    // Different count?
+    if (savedExtras.length !== selectedEntries.length) return true;
+
+    // Different items or quantities?
+    for (const [slug, qty] of selectedEntries) {
+      const saved = savedExtras.find((e: any) => e.slug === slug);
+      if (!saved || saved.quantity !== qty) return true;
+    }
+
+    return false;
+  }, [selectedQuantities, order]);
+
   const hasChanges =
     boxSize !== order.box_size ||
     ribbeChoice !== order.ribbe_choice ||
     deliveryType !== order.delivery_type ||
-    freshDelivery !== order.fresh_delivery;
+    freshDelivery !== order.fresh_delivery ||
+    hasExtrasChanges;
+
+  function handleQuantityChange(slug: string, quantity: number) {
+    setSelectedQuantities(prev => {
+      // If quantity is 0 or less, remove the item entirely (deselect)
+      if (quantity <= 0) {
+        const newQuantities = { ...prev };
+        delete newQuantities[slug];
+        return newQuantities;
+      }
+
+      return {
+        ...prev,
+        [slug]: quantity
+      };
+    });
+  }
+
+  function getSelectedExtras() {
+    return Object.entries(selectedQuantities)
+      .filter(([_, qty]) => qty > 0)
+      .map(([slug, quantity]) => ({ slug, quantity }));
+  }
 
   function handleSaveClick() {
     if (hasChanges) {
@@ -76,22 +154,38 @@ export function OrderModificationModal({ order, isOpen, onClose, onSave }: Order
     setShowConfirmation(false);
     setSaving(true);
     try {
+      // Save order modifications
       await onSave({
         box_size: boxSize,
         ribbe_choice: ribbeChoice,
         delivery_type: deliveryType,
         fresh_delivery: freshDelivery,
       });
+
+      // Save extras if they've changed
+      if (hasExtrasChanges) {
+        const extrasResponse = await fetch(`/api/orders/${order.id}/add-extras`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ extras: getSelectedExtras() }),
+        });
+
+        if (!extrasResponse.ok) {
+          const extrasData = await extrasResponse.json().catch(() => null);
+          throw new Error(extrasData?.error || 'Kunne ikke oppdatere ekstra produkter');
+        }
+      }
+
       toast({
         title: 'Endringer lagret',
         description: 'Ordren din har blitt oppdatert'
       });
       onClose();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to save modifications:', error);
       toast({
         title: 'Feil',
-        description: 'Kunne ikke lagre endringer. Prøv igjen.',
+        description: error.message || 'Kunne ikke lagre endringer. Prøv igjen.',
         variant: 'destructive'
       });
     } finally {
@@ -103,7 +197,7 @@ export function OrderModificationModal({ order, isOpen, onClose, onSave }: Order
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-      <Card className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6 bg-white text-gray-900 border border-gray-200 shadow-2xl">
+      <Card className="relative w-full max-w-4xl max-h-[90vh] overflow-y-auto p-6 bg-white text-gray-900 border border-gray-200 shadow-2xl">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-bold text-gray-900">Endre bestilling</h2>
@@ -274,6 +368,36 @@ export function OrderModificationModal({ order, isOpen, onClose, onSave }: Order
               </button>
             </div>
           </div>
+
+          {/* Extras Section */}
+          {!extrasLoading && availableExtras.length > 0 && (
+            <div>
+              <Label className="text-lg font-semibold mb-4 flex items-center gap-2 text-gray-900">
+                <ShoppingCart className="w-5 h-5" />
+                Legg til ekstra produkter (valgfritt)
+              </Label>
+
+              <ExtraProductsSelector
+                availableExtras={availableExtras}
+                selectedQuantities={selectedQuantities}
+                onQuantityChange={handleQuantityChange}
+                disabled={saving}
+                translations={{
+                  quantity: 'Antall',
+                  kg: 'kg',
+                  stk: 'stk'
+                }}
+              />
+
+              {hasExtrasChanges && (
+                <div className="mt-4 p-3 rounded-lg bg-amber-50 border border-amber-200">
+                  <p className="text-sm text-amber-800">
+                    ⚠️ Du har endret ekstra produkter. Endringene vil bli lagret når du klikker &quot;Lagre endringer&quot;.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Actions */}
           <div className="flex gap-3 pt-4 border-t">
