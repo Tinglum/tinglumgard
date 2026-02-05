@@ -14,7 +14,6 @@ import { OrderDetailsCard } from '@/components/OrderDetailsCard';
 import { ReferralDashboard } from '@/components/ReferralDashboard';
 import { MessagingPanel } from '@/components/MessagingPanel';
 import { MobileMinSide } from '@/components/MobileMinSide';
-import { useToast } from '@/hooks/use-toast';
 
 interface Payment {
   id: string;
@@ -55,7 +54,6 @@ export default function CustomerPortalPage() {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const theme = getThemeClasses();
   const isMobile = useIsMobile();
-  const { toast } = useToast();
 
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
@@ -119,31 +117,7 @@ export default function CustomerPortalPage() {
   }
 
   async function handlePayRemainder(orderId: string) {
-    try {
-      const response = await fetch(`/api/orders/${orderId}/remainder`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-      });
-
-      const data = await response.json();
-
-      if (response.ok && data.redirectUrl) {
-        window.location.href = data.redirectUrl;
-      } else {
-        toast({
-          title: 'Feil',
-          description: data.error || t.checkout.somethingWentWrong,
-          variant: 'destructive'
-        });
-      }
-    } catch (error) {
-      console.error('Failed to create remainder payment:', error);
-      toast({
-        title: 'Feil',
-        description: t.checkout.somethingWentWrong,
-        variant: 'destructive'
-      });
-    }
+    window.location.href = `/min-side/ordre/${orderId}/betaling`;
   }
 
   if (loading || authLoading) {
