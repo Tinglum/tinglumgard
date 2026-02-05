@@ -82,6 +82,7 @@ export function MobileCheckout(props: MobileCheckoutProps) {
 
   const { t } = useLanguage();
   const [expandedBox, setExpandedBox] = useState<'8' | '12' | null>(null);
+  const [showDiscountCodes, setShowDiscountCodes] = useState(false);
   const stepRef = useRef<HTMLDivElement>(null);
 
   const stepLabels = [
@@ -141,8 +142,6 @@ export function MobileCheckout(props: MobileCheckoutProps) {
 
   const ribbeSummary = ribbeOptions.find((opt) => opt.id === ribbeChoice)?.name || t.checkout.selectRibbeType;
   const deliverySummary = deliveryOptions.find((opt) => opt.id === deliveryType)?.name || t.checkout.deliveryOptions;
-  const extraCount = extraProducts.length;
-
   const canContinue = step === 1 ? boxSize !== '' : step === 2 ? ribbeChoice !== '' : true;
   const filteredExtras = availableExtras.filter(
     (extra) => !['delivery_trondheim', 'pickup_e6', 'fresh_delivery'].includes(extra.slug)
@@ -152,6 +151,12 @@ export function MobileCheckout(props: MobileCheckoutProps) {
     if (!stepRef.current) return;
     stepRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, [step]);
+
+  useEffect(() => {
+    if (referralData || rebateData) {
+      setShowDiscountCodes(true);
+    }
+  }, [referralData, rebateData]);
 
   return (
     <div className="space-y-8 pb-36 text-[#1E1B16] font-[family:var(--font-manrope)]">
@@ -175,14 +180,12 @@ export function MobileCheckout(props: MobileCheckoutProps) {
         <div className="mt-4 h-1.5 w-full rounded-full bg-[#E9E1D6]">
           <div className="h-1.5 rounded-full bg-[#0F6C6F]" style={{ width: `${(step / 5) * 100}%` }} />
         </div>
-        <div className="mt-3 grid grid-cols-5 gap-1 text-[8px] uppercase tracking-[0.12em]">
-          {stepLabels.map((label, index) => (
+        <div className="mt-3 flex items-center justify-between px-3">
+          {stepLabels.map((_, index) => (
             <span
-              key={label}
-              className={`min-w-0 text-center leading-[1.2] ${step >= index + 1 ? 'text-[#0F6C6F] font-semibold' : 'text-[#B0A79C]'}`}
-            >
-              {label}
-            </span>
+              key={index}
+              className={`h-2 w-2 rounded-full ${step >= index + 1 ? 'bg-[#0F6C6F]' : 'bg-[#D8D0C4]'}`}
+            />
           ))}
         </div>
       </div>
@@ -307,7 +310,6 @@ export function MobileCheckout(props: MobileCheckoutProps) {
           <div className={sectionCard}>
             <div className="flex items-center justify-between">
               <p className={labelText}>{t.checkout.extrasTitle}</p>
-              <span className="text-xs text-[#5E5A50]">{extraCount > 0 ? `${extraCount} valgt` : 'Valgfritt'}</span>
             </div>
             <div className="mt-3 p-3 bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-300 rounded-xl">
               <div className="flex items-start gap-2">
@@ -563,41 +565,57 @@ export function MobileCheckout(props: MobileCheckoutProps) {
             </div>
           </div>
 
-          {!rebateData && (
-            <div className={sectionCard}>
-              <ReferralCodeInput
-                depositAmount={baseDepositTotal}
-                onCodeApplied={(data) => {
-                  setReferralData({
-                    code: data.code,
-                    discountPercentage: data.discountPercentage,
-                    discountAmount: data.discountAmount,
-                    referrerPhone: data.referrerUserId,
-                  });
-                  setRebateData(null);
-                }}
-                onCodeRemoved={() => setReferralData(null)}
-              />
-            </div>
-          )}
+          <div className={sectionCard}>
+            <button
+              type="button"
+              onClick={() => setShowDiscountCodes(!showDiscountCodes)}
+              className="text-sm text-[#5E5A50] underline"
+            >
+              {t.checkout.hasDiscountCode}
+            </button>
 
-          {!referralData && (
-            <div className={sectionCard}>
-              <RebateCodeInput
-                depositAmount={baseDepositTotal}
-                boxSize={boxSize ? parseInt(boxSize) : 0}
-                onCodeApplied={(data) => {
-                  setRebateData({
-                    code: data.code,
-                    discountAmount: data.discountAmount,
-                    description: data.description,
-                  });
-                  setReferralData(null);
-                }}
-                onCodeRemoved={() => setRebateData(null)}
-              />
-            </div>
-          )}
+            {showDiscountCodes && (
+              <div className="mt-4 space-y-4">
+                {!rebateData && (
+                  <ReferralCodeInput
+                    depositAmount={baseDepositTotal}
+                    onCodeApplied={(data) => {
+                      setReferralData({
+                        code: data.code,
+                        discountPercentage: data.discountPercentage,
+                        discountAmount: data.discountAmount,
+                        referrerPhone: data.referrerUserId,
+                      });
+                      setRebateData(null);
+                    }}
+                    onCodeRemoved={() => setReferralData(null)}
+                  />
+                )}
+
+                {!referralData && (
+                  <RebateCodeInput
+                    depositAmount={baseDepositTotal}
+                    boxSize={boxSize ? parseInt(boxSize) : 0}
+                    onCodeApplied={(data) => {
+                      setRebateData({
+                        code: data.code,
+                        discountAmount: data.discountAmount,
+                        description: data.description,
+                      });
+                      setReferralData(null);
+                    }}
+                    onCodeRemoved={() => setRebateData(null)}
+                  />
+                )}
+
+                {(referralData || rebateData) && (
+                  <p className="text-xs text-center text-[#5E5A50]">
+                    {t.checkout.onlyOneDiscount}
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
 
           <div className={`${sectionCard} space-y-4 text-xs text-[#5E5A50]`}>
             <label className="flex items-start gap-3">
