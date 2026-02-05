@@ -180,13 +180,30 @@ export function MobileCheckout(props: MobileCheckoutProps) {
         <div className="mt-4 h-1.5 w-full rounded-full bg-[#E9E1D6]">
           <div className="h-1.5 rounded-full bg-[#0F6C6F]" style={{ width: `${(step / 5) * 100}%` }} />
         </div>
-        <div className="mt-3 flex items-center justify-between px-3">
-          {stepLabels.map((_, index) => (
-            <span
-              key={index}
-              className={`h-2 w-2 rounded-full ${step >= index + 1 ? 'bg-[#0F6C6F]' : 'bg-[#D8D0C4]'}`}
-            />
-          ))}
+        <div className="mt-3 grid grid-cols-5 gap-2 text-[10px] font-semibold">
+          {stepLabels.map((label, index) => {
+            const isActive = step === index + 1;
+            const isComplete = step > index + 1;
+
+            return (
+              <div key={label} className="flex flex-col items-center gap-1">
+                <div
+                  className={`flex h-6 w-6 items-center justify-center rounded-full border ${
+                    isComplete || isActive
+                      ? 'border-[#0F6C6F] bg-[#0F6C6F] text-white'
+                      : 'border-[#D8D0C4] text-[#B0A79C]'
+                  }`}
+                >
+                  {index + 1}
+                </div>
+                {isActive && (
+                  <span className="text-[8px] uppercase tracking-[0.1em] text-[#0F6C6F]">
+                    {label}
+                  </span>
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
 
