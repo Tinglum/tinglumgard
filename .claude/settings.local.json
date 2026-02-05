@@ -55,7 +55,9 @@
       "Bash(git sparse-checkout:*)",
       "Bash(claude mcp:*)",
       "Bash(curl:*)",
-      "Bash(before its declaration\"\n\nCo-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>\nEOF\n\\)\")"
+      "Bash(before its declaration\"\n\nCo-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(begrenset. Ved å betale restbeløpet/ferdigstille ordren sikrer)",
+      "Bash(restordre/ekstra bestillinger blir betalt.\"\n\nFeatures:\n- Consistent UI/UX across all three locations\n- AlertCircle icon with prominent disclaimer banner\n- Same functionality \\(magnetic snapping, auto-deselect\\)\n- Responsive design for mobile and desktop\n- Theme-aware styling\n\nCo-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>\nEOF\n\\)\")"
     ]
   }
 }

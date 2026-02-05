@@ -62,6 +62,12 @@ export default function CheckoutPage() {
     }
   }, [searchParams]);
 
+  useEffect(() => {
+    if (!isMobile && step > 4) {
+      setStep(4);
+    }
+  }, [isMobile, step]);
+
   // Fetch pricing configuration
   useEffect(() => {
     async function fetchConfig() {
