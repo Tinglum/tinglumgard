@@ -175,11 +175,11 @@ export function MobileCheckout(props: MobileCheckoutProps) {
         <div className="mt-4 h-1.5 w-full rounded-full bg-[#E9E1D6]">
           <div className="h-1.5 rounded-full bg-[#0F6C6F]" style={{ width: `${(step / 5) * 100}%` }} />
         </div>
-        <div className="mt-3 grid grid-cols-5 gap-2 text-[9px] uppercase tracking-[0.18em]">
+        <div className="mt-3 grid grid-cols-5 gap-1 text-[8px] uppercase tracking-[0.12em]">
           {stepLabels.map((label, index) => (
             <span
               key={label}
-              className={`text-center leading-3 ${step >= index + 1 ? 'text-[#0F6C6F] font-semibold' : 'text-[#B0A79C]'}`}
+              className={`min-w-0 text-center leading-[1.2] ${step >= index + 1 ? 'text-[#0F6C6F] font-semibold' : 'text-[#B0A79C]'}`}
             >
               {label}
             </span>
@@ -366,15 +366,10 @@ export function MobileCheckout(props: MobileCheckoutProps) {
                   >
                     <div>
                       <div className="flex items-start justify-between gap-2">
-                        <p className="text-sm font-semibold leading-snug">{extra.name_no}</p>
-                        <span className={`rounded-full px-2 py-1 text-[9px] font-semibold uppercase tracking-[0.2em] ${
-                          isSelected ? 'bg-white/20 text-white' : 'bg-[#EAE3DA] text-[#5E5A50]'
-                        }`}>
-                          {isSelected ? 'Valgt' : 'Legg til'}
-                        </span>
+                        <p className="text-sm font-semibold leading-snug break-words pr-1">{extra.name_no}</p>
                       </div>
                       {extra.description_no && (
-                        <p className={`mt-2 text-[11px] leading-relaxed ${isSelected ? 'text-white/70' : 'text-[#5E5A50]'}`}>
+                        <p className={`mt-2 text-[11px] leading-relaxed break-words ${isSelected ? 'text-white/70' : 'text-[#5E5A50]'}`}>
                           {extra.description_no}
                         </p>
                       )}
