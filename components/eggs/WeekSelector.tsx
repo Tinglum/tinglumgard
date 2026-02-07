@@ -91,54 +91,61 @@ export function WeekSelector({ inventory, accentColor, onSelectWeek }: WeekSelec
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-7 gap-1 text-[9px] text-neutral-400 mb-1">
-                      {getDayLabels(language).map((label) => (
+                    <div className="grid grid-cols-8 gap-1 text-[9px] text-neutral-400 mb-1">
+                      {[...getDayLabels(language), language === 'no' ? 'Egg' : 'Eggs'].map((label) => (
                         <div key={label} className="text-center">
                           {label}
                         </div>
                       ))}
                     </div>
 
-                    <div className="grid grid-cols-7 gap-1">
-                      {cells.map((cell) => {
-                        const tone = statusTone(cell.week?.status || null)
+                    <div className="space-y-1">
+                      {chunk(cells, 7).map((row, rowIndex) => {
+                        const monday = row[0]
                         return (
-                          <div
-                            key={cell.key}
-                            className={`rounded-md border px-1.5 py-1.5 min-h-[36px] ${
-                              cell.isEmpty ? 'border-transparent bg-transparent' : 'border-neutral-100 bg-white/70'
-                            } ${cell.isMonday ? 'border-neutral-200 bg-white' : ''}`}
-                          >
-                            {cell.isEmpty ? null : (
-                              <div className={`flex h-full flex-col justify-between ${cell.isMonday ? 'group relative' : ''}`}>
-                                <div className="flex items-center justify-between text-[10px] text-neutral-500">
-                                  <span>{cell.day}</span>
-                                  {cell.isMonday && cell.weekNumber !== null && (
-                                    <span className="text-[9px] uppercase tracking-[0.16em] text-neutral-400">
-                                      {language === 'no' ? 'Uke' : 'Week'} {cell.weekNumber}
-                                    </span>
-                                  )}
-                                </div>
-                                {cell.isMonday && (
-                                  <div className="mt-1 flex items-end gap-1">
-                                    <span className={`text-[11px] font-semibold ${tone.text}`}>
-                                      {cell.week?.eggsAvailable ?? 0}
-                                    </span>
-                                    <span className="text-[9px] text-neutral-400">
-                                      {language === 'no' ? 'egg' : 'eggs'}
-                                    </span>
+                          <div key={`row-${month.key}-${rowIndex}`} className="grid grid-cols-8 gap-1">
+                            {row.map((cell) => (
+                              <div
+                                key={cell.key}
+                                className={`rounded-md border px-1 py-1 min-h-[28px] ${
+                                  cell.isEmpty ? 'border-transparent bg-transparent' : 'border-neutral-100 bg-white/70'
+                                } ${cell.isMonday ? 'border-neutral-200 bg-white' : ''}`}
+                              >
+                                {cell.isEmpty ? null : (
+                                  <div className={`flex h-full flex-col justify-between ${cell.isMonday ? 'group relative' : ''}`}>
+                                    <div className="flex items-center justify-between text-[9px] text-neutral-500">
+                                      <span>{cell.day}</span>
+                                      {cell.isMonday && cell.weekNumber !== null && (
+                                        <span className="text-[8px] uppercase tracking-[0.18em] text-neutral-400">
+                                          {language === 'no' ? 'Uke' : 'Week'} {cell.weekNumber}
+                                        </span>
+                                      )}
+                                    </div>
+                                    {cell.isMonday && (
+                                      <WeekTooltip
+                                        week={cell.week}
+                                        weekNumber={cell.weekNumber}
+                                        monday={cell.date}
+                                        language={language}
+                                      />
+                                    )}
                                   </div>
                                 )}
-                                {cell.isMonday && (
-                                  <WeekTooltip
-                                    week={cell.week}
-                                    weekNumber={cell.weekNumber}
-                                    monday={cell.date}
-                                    language={language}
-                                  />
-                                )}
                               </div>
-                            )}
+                            ))}
+                            <div className="rounded-md border px-1 py-1 min-h-[28px] border-neutral-100 bg-white/70">
+                              <div className="flex h-full items-center justify-center">
+                                <span
+                                  className={`inline-flex items-center rounded-full px-2 py-0.5 text-[9px] font-semibold ${
+                                    monday && monday.week
+                                      ? statusPill(monday.week.status)
+                                      : 'bg-neutral-100 text-neutral-400'
+                                  }`}
+                                >
+                                  {monday?.week?.eggsAvailable ?? 0} {language === 'no' ? 'egg' : 'eggs'}
+                                </span>
+                              </div>
+                            </div>
                           </div>
                         )
                       })}
@@ -282,19 +289,6 @@ function WeekTooltip({
 
 function isWeekAvailable(week: WeekInventory): boolean {
   return week.status === 'available' || week.status === 'low_stock'
-}
-
-function statusTone(status: WeekInventory['status'] | null) {
-  switch (status) {
-    case 'low_stock':
-      return { text: 'text-amber-700' }
-    case 'sold_out':
-    case 'closed':
-    case 'locked':
-      return { text: 'text-neutral-400' }
-    default:
-      return { text: 'text-emerald-700' }
-  }
 }
 
 function statusPill(status: WeekInventory['status']) {
