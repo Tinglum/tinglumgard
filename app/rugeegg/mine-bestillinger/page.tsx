@@ -87,7 +87,7 @@ export default function EggOrdersPage() {
           <GlassCard className="p-6 text-center">
             <p className="text-sm text-neutral-600 mb-4">
               {language === 'no'
-                ? 'Logg inn med Vipps for Ã¥ se bestillingene dine.'
+                ? 'Logg inn med Vipps for å se bestillingene dine.'
                 : 'Log in with Vipps to view your orders.'}
             </p>
             <Link
@@ -103,15 +103,15 @@ export default function EggOrdersPage() {
 
         {isLoading && (
           <div className="text-sm text-neutral-500">
-            {language === 'no' ? 'Laster bestillingerâ€¦' : 'Loading ordersâ€¦'}
+            {language === 'no' ? 'Laster bestillinger...' : 'Loading orders...'}
           </div>
         )}
 
-        {!isLoading && !isUnauthorized && orders.length === 0 && (
+        {!isLoading && !isUnauthorized && !error && orders.length === 0 && (
           <GlassCard className="p-8 text-center">
             <p className="text-sm text-neutral-600">
               {language === 'no'
-                ? 'Ingen bestillinger funnet ennÃ¥.'
+                ? 'Ingen bestillinger funnet ennå.'
                 : 'No orders found yet.'}
             </p>
           </GlassCard>
@@ -143,7 +143,7 @@ export default function EggOrdersPage() {
                       {order.egg_breeds?.name || (language === 'no' ? 'Rugeegg' : 'Eggs')}
                     </div>
                     <div className="text-sm text-neutral-600">
-                      {language === 'no' ? 'Uke' : 'Week'} {order.week_number} Â·{' '}
+                      {language === 'no' ? 'Uke' : 'Week'} {order.week_number} -{' '}
                       {formatDate(new Date(order.delivery_monday), language)}
                     </div>
                   </div>

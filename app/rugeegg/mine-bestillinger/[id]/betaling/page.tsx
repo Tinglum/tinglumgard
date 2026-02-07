@@ -283,7 +283,7 @@ export default function EggRemainderPage() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-4xl font-display font-semibold text-neutral-900 mb-2">
-              {language === 'no' ? 'Betal restbelÃ¸p' : 'Pay remainder'}
+              {language === 'no' ? 'Betal restbeløp' : 'Pay remainder'}
             </h1>
             <p className="text-neutral-600">
               {language === 'no' ? `Bestilling ${order.order_number}` : `Order ${order.order_number}`}
@@ -304,7 +304,7 @@ export default function EggRemainderPage() {
                 {order.egg_breeds?.name || (language === 'no' ? 'Rugeegg' : 'Eggs')}
               </p>
               <p className="text-sm text-neutral-600">
-                {language === 'no' ? 'Uke' : 'Week'} {order.week_number} Â·{' '}
+                {language === 'no' ? 'Uke' : 'Week'} {order.week_number} -{' '}
                 {formatDate(new Date(order.delivery_monday), language)}
               </p>
             </div>
@@ -337,7 +337,7 @@ export default function EggRemainderPage() {
           {!canAdd && (
             <p className="text-xs text-amber-600">
               {language === 'no'
-                ? 'Tillegg er stengt etter dagen fÃ¸r levering.'
+                ? 'Tillegg er stengt etter dagen før levering.'
                 : 'Additions are closed after the day before delivery.'}
             </p>
           )}
@@ -363,7 +363,7 @@ export default function EggRemainderPage() {
                   <div>
                     <p className="font-semibold text-neutral-900">{item.egg_breeds?.name}</p>
                     <p className="text-xs text-neutral-500">
-                      {remaining} {language === 'no' ? 'egg igjen' : 'eggs left'} Â·{' '}
+                      {remaining} {language === 'no' ? 'egg igjen' : 'eggs left'} -{' '}
                       {formatPrice(item.egg_breeds?.price_per_egg || 0, language)} / {language === 'no' ? 'egg' : 'egg'}
                     </p>
                   </div>
@@ -398,7 +398,7 @@ export default function EggRemainderPage() {
           </h2>
           <div className="space-y-2 text-sm">
             <div className="flex justify-between text-neutral-600">
-              <span>{language === 'no' ? 'RestbelÃ¸p' : 'Remainder'}</span>
+              <span>{language === 'no' ? 'Restbeløp' : 'Remainder'}</span>
               <span className="font-semibold text-neutral-900">{formatPrice(baseRemainder, language)}</span>
             </div>
             {additionsTotal > 0 && (
@@ -414,7 +414,7 @@ export default function EggRemainderPage() {
               </div>
             )}
             <div className="flex justify-between text-neutral-900 text-base pt-2 border-t border-neutral-200">
-              <span className="font-semibold">{language === 'no' ? 'Ã… betale nÃ¥' : 'Due now'}</span>
+              <span className="font-semibold">{language === 'no' ? 'Å betale nå' : 'Due now'}</span>
               <span className="font-semibold">{formatPrice(amountDue, language)}</span>
             </div>
           </div>

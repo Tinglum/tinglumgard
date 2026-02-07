@@ -10,28 +10,57 @@ export async function GET() {
   }
 
   try {
-    const filters = [
-      session.userId ? `user_id.eq.${session.userId}` : null,
-      session.email ? `customer_email.eq.${session.email}` : null,
-      session.phoneNumber ? `customer_phone.eq.${session.phoneNumber}` : null,
-    ].filter(Boolean) as string[]
+    const queries = []
+    if (session.userId) {
+      queries.push(
+        supabaseAdmin
+          .from('egg_orders')
+          .select('*, egg_breeds(*), egg_payments(*)')
+          .eq('user_id', session.userId)
+      )
+    }
+    if (session.email) {
+      queries.push(
+        supabaseAdmin
+          .from('egg_orders')
+          .select('*, egg_breeds(*), egg_payments(*)')
+          .eq('customer_email', session.email)
+      )
+    }
+    if (session.phoneNumber) {
+      queries.push(
+        supabaseAdmin
+          .from('egg_orders')
+          .select('*, egg_breeds(*), egg_payments(*)')
+          .eq('customer_phone', session.phoneNumber)
+      )
+    }
 
-    if (filters.length === 0) {
+    if (queries.length === 0) {
       return NextResponse.json([])
     }
 
-    const { data, error } = await supabaseAdmin
-      .from('egg_orders')
-      .select('*, egg_breeds(*), egg_payments(*)')
-      .or(filters.join(','))
-      .order('created_at', { ascending: false })
-
-    if (error) {
-      console.error('Error fetching egg orders:', error)
-      return NextResponse.json({ error: error.message }, { status: 500 })
+    const results = await Promise.all(queries)
+    for (const result of results) {
+      if (result.error) {
+        console.error('Error fetching egg orders:', result.error)
+        return NextResponse.json({ error: result.error.message }, { status: 500 })
+      }
     }
 
-    return NextResponse.json(data || [])
+    const combined = new Map<string, any>()
+    for (const result of results) {
+      for (const order of result.data || []) {
+        combined.set(order.id, order)
+      }
+    }
+
+    const data = Array.from(combined.values()).sort((a, b) => {
+      if (!a.created_at || !b.created_at) return 0
+      return b.created_at.localeCompare(a.created_at)
+    })
+
+    return NextResponse.json(data)
   } catch (error: any) {
     console.error('Unexpected error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
