@@ -1,0 +1,14 @@
+{
+  "node": {
+    "7a779ec5933735c1bea2bb279373f122abaf65aa": {
+      "workers": {
+        "app/admin/dashboard/page": "(action-browser)/./node_modules/next/dist/build/webpack/loaders/next-flight-action-entry-loader.js?actions=%5B%5B%22C%3A%5C%5CUsers%5C%5Ckenne%5C%5CDownloads%5C%5Ctinglumgard-main%5C%5Ctinglumgard-main%5C%5Cegg3%5C%5Capp%5C%5Cadmin%5C%5Cactions.ts%22%2C%5B%22setAdminMode%22%5D%5D%5D&__client_imported__=true!"
+      },
+      "layer": {
+        "app/admin/dashboard/page": "action-browser"
+      }
+    }
+  },
+  "edge": {},
+  "encryptionKey": "StaoBWl35kukK/uVnjwOea8M9H0gStUAn/SrWcVBJqw="
+}

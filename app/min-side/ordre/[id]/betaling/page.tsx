@@ -7,7 +7,6 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
-import { useTheme } from '@/contexts/ThemeContext';
 import { useToast } from '@/hooks/use-toast';
 import { useAsyncAction } from '@/hooks/useAsyncAction';
 import { Spinner } from '@/components/ui/spinner';
@@ -43,8 +42,6 @@ interface ExtrasCatalogItem {
 export default function RemainderPaymentSummaryPage() {
   const params = useParams<{ id: string }>();
   const orderId = params?.id;
-  const { getThemeClasses } = useTheme();
-  const theme = getThemeClasses();
   const { toast } = useToast();
 
   const [order, setOrder] = useState<OrderData | null>(null);
@@ -314,50 +311,61 @@ export default function RemainderPaymentSummaryPage() {
 
   if (loading) {
     return (
-      <div className={cn('min-h-screen flex items-center justify-center', theme.bgGradientHero)}>
-        <Spinner size="lg" />
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="w-12 h-12 border-4 border-neutral-200 border-t-neutral-600 rounded-full animate-spin" />
       </div>
     );
   }
 
   if (error || !order) {
     return (
-      <div className={cn('min-h-screen flex items-center justify-center px-6', theme.bgGradientHero)}>
-        <Card className={cn('p-8 max-w-md w-full', theme.bgCard, theme.borderSecondary)}>
-          <h1 className={cn('text-xl font-bold mb-2', theme.textPrimary)}>Kunne ikke hente ordre</h1>
-          <p className={cn('text-sm mb-4', theme.textMuted)}>{error || 'Ukjent feil'}</p>
-          <Link href="/min-side" className={cn('text-sm underline', theme.textPrimary)}>
+      <div className="min-h-screen bg-white flex items-center justify-center px-6">
+        <div className="bg-white border border-neutral-200 rounded-xl p-8 max-w-md w-full shadow-[0_20px_60px_-15px_rgba(0,0,0,0.1)]">
+          <h1 className="text-2xl font-light tracking-tight text-neutral-900 mb-3">Kunne ikke hente ordre</h1>
+          <p className="text-sm font-light text-neutral-600 mb-6">{error || 'Ukjent feil'}</p>
+          <Link href="/min-side" className="text-sm font-light text-neutral-900 underline hover:text-neutral-600 transition-colors">
             Tilbake til Min side
           </Link>
-        </Card>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className={cn('min-h-screen px-4 py-10', theme.bgGradientHero)}>
-      <div className="max-w-3xl mx-auto space-y-6">
+    <div className="min-h-screen bg-white py-20">
+      {/* Subtle parallax background */}
+      <div className="fixed inset-0 pointer-events-none -z-10">
+        <div
+          className="absolute bottom-1/4 right-1/3 w-[800px] h-[800px] rounded-full blur-3xl opacity-20 bg-neutral-100"
+          style={{
+            transform: `translateY(${typeof window !== 'undefined' ? window.scrollY * 0.1 : 0}px)`,
+            transition: 'transform 0.05s linear'
+          }}
+        />
+      </div>
+
+      <div className="max-w-3xl mx-auto px-6 space-y-6">
         {/* Header Card */}
-        <Card className={cn('p-6 md:p-8', theme.bgCard, theme.borderSecondary)}>
+        <div className="bg-white border border-neutral-200 rounded-xl p-8 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.08)] transition-all duration-500 hover:shadow-[0_30px_80px_-20px_rgba(0,0,0,0.12)]">
           <div className="flex items-start justify-between">
             <div>
-              <h1 className={cn('text-2xl font-bold', theme.textPrimary)}>Betal restbeløp</h1>
-              <p className={cn('text-sm', theme.textMuted)}>Ordre {order.order_number}</p>
+              <h1 className="text-3xl font-light tracking-tight text-neutral-900">Betal restbeløp</h1>
+              <p className="text-sm font-light text-neutral-600 mt-2">Ordre {order.order_number}</p>
             </div>
-            <Link href="/min-side" className={cn('text-sm underline', theme.textPrimary)}>
+            <Link href="/min-side" className="text-sm font-light text-neutral-600 underline hover:text-neutral-900 transition-colors">
               Tilbake
             </Link>
           </div>
-        </Card>
+        </div>
 
         {/* Extras Selection Card */}
         {!extrasLoading && availableExtras.length > 0 && (
-          <Card className={cn('p-6 md:p-8', theme.bgCard, theme.borderSecondary)}>
-            <div className="flex items-center gap-2 mb-4">
-              <ShoppingCart className="w-5 h-5" />
-              <h2 className={cn('text-xl font-bold', theme.textPrimary)}>Ekstra produkter (valgfritt)</h2>
+          <div className="bg-white border border-neutral-200 rounded-xl p-8 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.08)] transition-all duration-500 hover:shadow-[0_30px_80px_-20px_rgba(0,0,0,0.12)]">
+            <div className="flex items-center gap-3 mb-6">
+              <ShoppingCart className="w-6 h-6 text-neutral-500" />
+              <h2 className="text-2xl font-light tracking-tight text-neutral-900">Ekstra produkter (valgfritt)</h2>
             </div>
-            <p className={cn('text-sm mb-6', theme.textMuted)}>
+            <p className="text-sm font-light text-neutral-600 mb-8 leading-relaxed">
               Legg til ekstra produkter før du betaler. Prisen legges til restbeløpet.
             </p>
 
@@ -366,7 +374,13 @@ export default function RemainderPaymentSummaryPage() {
               selectedQuantities={selectedQuantities}
               onQuantityChange={handleQuantityChange}
               disabled={isPaying}
-              theme={theme}
+              theme={{
+                textPrimary: 'text-neutral-900',
+                textSecondary: 'text-neutral-600',
+                textMuted: 'text-neutral-500',
+                bgCard: 'bg-white',
+                borderSecondary: 'border-neutral-200'
+              }}
               translations={{
                 quantity: 'Antall',
                 kg: 'kg',
@@ -391,41 +405,41 @@ export default function RemainderPaymentSummaryPage() {
             )}
 
             {hasExtrasChanges && (
-              <div className={cn('mt-4 p-3 rounded-lg bg-amber-50 border border-amber-200')}>
-                <p className="text-sm text-amber-800">
+              <div className="mt-4 p-4 rounded-lg bg-amber-50 border border-amber-200">
+                <p className="text-sm font-light text-amber-800 leading-relaxed">
                   ⚠️ Du har endringer som ikke er lagret. De vil bli lagret når du klikker &quot;Betal med Vipps&quot;.
                 </p>
               </div>
             )}
-          </Card>
+          </div>
         )}
 
         {/* Pickup/Delivery Details Card - Interactive */}
-        <Card className={cn('p-6 md:p-8', theme.bgCard, theme.borderSecondary)}>
-          <h2 className={cn('text-xl font-bold mb-4', theme.textPrimary)}>Henting og levering</h2>
+        <div className="bg-white border border-neutral-200 rounded-xl p-8 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.08)] transition-all duration-500 hover:shadow-[0_30px_80px_-20px_rgba(0,0,0,0.12)]">
+          <h2 className="text-2xl font-light tracking-tight text-neutral-900 mb-6">Henting og levering</h2>
 
-          <div className="space-y-4">
+          <div className="space-y-6">
             {/* Delivery Type Selection */}
             <div>
-              <p className={cn('text-sm font-semibold mb-3', theme.textPrimary)}>Leveringsmetode</p>
+              <p className="text-sm font-light text-neutral-900 mb-4 uppercase tracking-wide">Leveringsmetode</p>
               <div className="space-y-3">
                 {/* Farm Pickup - FREE */}
                 <button
                   onClick={() => setDeliveryType('pickup_farm')}
                   disabled={isPaying}
                   className={cn(
-                    "w-full p-4 rounded-lg border-2 transition-all text-left",
+                    "w-full p-6 rounded-xl border-2 transition-all duration-300 text-left",
                     deliveryType === 'pickup_farm'
-                      ? "border-amber-500 bg-gradient-to-br from-amber-50 to-orange-50 shadow-lg"
-                      : cn(theme.borderSecondary, theme.bgCard, "hover:border-amber-300")
+                      ? "border-neutral-900 bg-neutral-50 shadow-[0_15px_40px_-12px_rgba(0,0,0,0.15)]"
+                      : "border-neutral-200 hover:border-neutral-300 hover:shadow-[0_10px_30px_-10px_rgba(0,0,0,0.1)] hover:-translate-y-0.5"
                   )}
                 >
                   <div className="flex justify-between items-center">
                     <div>
-                      <p className={cn("font-semibold", theme.textPrimary)}>Henting på gården</p>
-                      <p className={cn("text-sm", theme.textMuted)}>Tinglum Gård, Sjøfossen</p>
+                      <p className="font-light text-neutral-900">Henting på gården</p>
+                      <p className="text-sm font-light text-neutral-600 mt-1">Tinglum Gård, Sjøfossen</p>
                     </div>
-                    <span className="text-sm font-bold text-green-600">Gratis</span>
+                    <span className="text-sm font-normal text-green-600">Gratis</span>
                   </div>
                 </button>
 
@@ -437,18 +451,18 @@ export default function RemainderPaymentSummaryPage() {
                   }}
                   disabled={isPaying}
                   className={cn(
-                    "w-full p-4 rounded-lg border-2 transition-all text-left",
+                    "w-full p-6 rounded-xl border-2 transition-all duration-300 text-left",
                     deliveryType === 'pickup_e6'
-                      ? "border-amber-500 bg-gradient-to-br from-amber-50 to-orange-50 shadow-lg"
-                      : cn(theme.borderSecondary, theme.bgCard, "hover:border-amber-300")
+                      ? "border-neutral-900 bg-neutral-50 shadow-[0_15px_40px_-12px_rgba(0,0,0,0.15)]"
+                      : "border-neutral-200 hover:border-neutral-300 hover:shadow-[0_10px_30px_-10px_rgba(0,0,0,0.1)] hover:-translate-y-0.5"
                   )}
                 >
                   <div className="flex justify-between items-center">
                     <div>
-                      <p className={cn("font-semibold", theme.textPrimary)}>Henting ved E6</p>
-                      <p className={cn("text-sm", theme.textMuted)}>Hentested ved E6</p>
+                      <p className="font-light text-neutral-900">Henting ved E6</p>
+                      <p className="text-sm font-light text-neutral-600 mt-1">Hentested ved E6</p>
                     </div>
-                    <span className={cn("text-sm font-semibold", theme.textPrimary)}>
+                    <span className="text-sm font-light text-neutral-900">
                       +{pricingConfig?.delivery_fee_pickup_e6 || 300} kr
                     </span>
                   </div>
@@ -462,18 +476,18 @@ export default function RemainderPaymentSummaryPage() {
                   }}
                   disabled={isPaying}
                   className={cn(
-                    "w-full p-4 rounded-lg border-2 transition-all text-left",
+                    "w-full p-6 rounded-xl border-2 transition-all duration-300 text-left",
                     deliveryType === 'delivery_trondheim'
-                      ? "border-amber-500 bg-gradient-to-br from-amber-50 to-orange-50 shadow-lg"
-                      : cn(theme.borderSecondary, theme.bgCard, "hover:border-amber-300")
+                      ? "border-neutral-900 bg-neutral-50 shadow-[0_15px_40px_-12px_rgba(0,0,0,0.15)]"
+                      : "border-neutral-200 hover:border-neutral-300 hover:shadow-[0_10px_30px_-10px_rgba(0,0,0,0.1)] hover:-translate-y-0.5"
                   )}
                 >
                   <div className="flex justify-between items-center">
                     <div>
-                      <p className={cn("font-semibold", theme.textPrimary)}>Levering i Trondheim</p>
-                      <p className={cn("text-sm", theme.textMuted)}>Levering til din adresse</p>
+                      <p className="font-light text-neutral-900">Levering i Trondheim</p>
+                      <p className="text-sm font-light text-neutral-600 mt-1">Levering til din adresse</p>
                     </div>
-                    <span className={cn("text-sm font-semibold", theme.textPrimary)}>
+                    <span className="text-sm font-light text-neutral-900">
                       +{pricingConfig?.delivery_fee_trondheim || 200} kr
                     </span>
                   </div>
@@ -484,30 +498,30 @@ export default function RemainderPaymentSummaryPage() {
             {/* Fresh Delivery Option - Only with Farm Pickup */}
             {deliveryType === 'pickup_farm' && (
               <div>
-                <p className={cn('text-sm font-semibold mb-3', theme.textPrimary)}>Ekstra alternativ</p>
+                <p className="text-sm font-light text-neutral-900 mb-4 uppercase tracking-wide">Ekstra alternativ</p>
                 <button
                   onClick={() => setFreshDelivery(!freshDelivery)}
                   disabled={isPaying}
                   className={cn(
-                    "w-full p-4 rounded-lg border-2 transition-all text-left",
+                    "w-full p-6 rounded-xl border-2 transition-all duration-300 text-left",
                     freshDelivery
-                      ? "border-green-500 bg-green-50 shadow-lg"
-                      : cn(theme.borderSecondary, theme.bgCard, "hover:border-green-300")
+                      ? "border-green-600 bg-green-50 shadow-[0_15px_40px_-12px_rgba(34,197,94,0.2)]"
+                      : "border-neutral-200 hover:border-green-300 hover:shadow-[0_10px_30px_-10px_rgba(0,0,0,0.1)] hover:-translate-y-0.5"
                   )}
                 >
                   <div className="flex justify-between items-center">
-                    <div className="flex items-center gap-2">
-                      {freshDelivery && <Check className="w-5 h-5 text-green-600" />}
+                    <div className="flex items-center gap-3">
+                      {freshDelivery && <Check className="w-6 h-6 text-green-600" />}
                       <div>
-                        <p className={cn("font-semibold", freshDelivery ? "text-green-800" : theme.textPrimary)}>
+                        <p className={cn("font-light", freshDelivery ? "text-green-800" : "text-neutral-900")}>
                           Fersk levering
                         </p>
-                        <p className={cn("text-sm", freshDelivery ? "text-green-700" : theme.textMuted)}>
+                        <p className={cn("text-sm font-light mt-1", freshDelivery ? "text-green-700" : "text-neutral-600")}>
                           Produktene leveres ferske (ikke frosset)
                         </p>
                       </div>
                     </div>
-                    <span className={cn("text-sm font-semibold", freshDelivery ? "text-green-800" : theme.textPrimary)}>
+                    <span className={cn("text-sm font-light", freshDelivery ? "text-green-800" : "text-neutral-900")}>
                       +{pricingConfig?.fresh_delivery_fee || 500} kr
                     </span>
                   </div>
@@ -534,80 +548,82 @@ export default function RemainderPaymentSummaryPage() {
 
             {/* Changes Warning */}
             {hasDeliveryChanges && (
-              <div className={cn('p-3 rounded-lg bg-amber-50 border border-amber-200')}>
-                <p className="text-sm text-amber-800">
+              <div className="p-4 rounded-lg bg-amber-50 border border-amber-200">
+                <p className="text-sm font-light text-amber-800 leading-relaxed">
                   ⚠️ Du har endret leveringsdetaljene. De vil bli lagret når du klikker &quot;Betal med Vipps&quot;.
                 </p>
               </div>
             )}
           </div>
-        </Card>
+        </div>
 
         {/* Payment Summary Card */}
-        <Card className={cn('p-6 md:p-8', theme.bgCard, theme.borderSecondary)}>
+        <div className="bg-white border border-neutral-200 rounded-xl p-8 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.08)] transition-all duration-500 hover:shadow-[0_30px_80px_-20px_rgba(0,0,0,0.12)]">
 
-          <h2 className={cn('text-xl font-bold mb-4', theme.textPrimary)}>Betalingsoversikt</h2>
+          <h2 className="text-2xl font-light tracking-tight text-neutral-900 mb-6">Betalingsoversikt</h2>
 
-          <div className="space-y-3">
+          <div className="space-y-4">
             <div className="flex justify-between">
-              <span className={theme.textSecondary}>Forskudd (betalt)</span>
-              <span className={cn('font-semibold', theme.textPrimary)}>
+              <span className="font-light text-neutral-600">Forskudd (betalt)</span>
+              <span className="font-light text-neutral-900">
                 kr {order.deposit_amount.toLocaleString('nb-NO')}
               </span>
             </div>
             <div className="flex justify-between">
-              <span className={theme.textSecondary}>Restbeløp kasse</span>
-              <span className={cn('font-semibold', theme.textPrimary)}>
+              <span className="font-light text-neutral-600">Restbeløp kasse</span>
+              <span className="font-light text-neutral-900">
                 kr {baseRemainder.toLocaleString('nb-NO')}
               </span>
             </div>
             {newExtrasTotal > 0 && (
               <div className="flex justify-between">
-                <span className={theme.textSecondary}>Ekstra produkter</span>
-                <span className={cn('font-semibold text-green-600')}>
+                <span className="font-light text-neutral-600">Ekstra produkter</span>
+                <span className="font-light text-green-600">
                   kr {newExtrasTotal.toLocaleString('nb-NO')}
                 </span>
               </div>
             )}
             {totalDeliveryDelta !== 0 && (
               <div className="flex justify-between">
-                <span className={theme.textSecondary}>Leveringsendring</span>
-                <span className={cn('font-semibold', totalDeliveryDelta > 0 ? 'text-green-600' : 'text-orange-600')}>
+                <span className="font-light text-neutral-600">Leveringsendring</span>
+                <span className={cn('font-light', totalDeliveryDelta > 0 ? 'text-green-600' : 'text-orange-600')}>
                   {totalDeliveryDelta > 0 ? '+' : ''}kr {totalDeliveryDelta.toLocaleString('nb-NO')}
                 </span>
               </div>
             )}
-            <div className={cn('pt-3 mt-3 border-t flex justify-between items-center', theme.borderSecondary)}>
-              <span className={cn('text-lg font-bold', theme.textPrimary)}>Å betale nå</span>
-              <span className={cn('text-2xl font-bold text-green-600')}>
+            <div className="pt-4 mt-4 border-t border-neutral-200 flex justify-between items-center">
+              <span className="text-xl font-light text-neutral-900">Å betale nå</span>
+              <span className="text-3xl font-light text-green-600">
                 kr {finalTotal.toLocaleString('nb-NO')}
               </span>
             </div>
           </div>
 
-          <div className="mt-8 flex flex-col gap-3">
-            <Button
+          <div className="mt-8 flex flex-col gap-4">
+            <button
               onClick={executePayment}
-              className="w-full py-6 text-lg bg-green-600 hover:bg-green-700 text-white"
               disabled={isPaying}
-              size="lg"
+              className="w-full py-5 bg-green-600 hover:bg-green-700 text-white rounded-xl text-base font-light uppercase tracking-wide shadow-[0_20px_60px_-15px_rgba(34,197,94,0.4)] hover:shadow-[0_30px_80px_-20px_rgba(34,197,94,0.5)] hover:-translate-y-1 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0"
             >
               {isPaying ? (
-                <>
-                  <Spinner size="sm" className="mr-2" />
+                <span className="flex items-center justify-center gap-3">
+                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                   {hasExtrasChanges ? 'Lagrer ekstra produkter...' : 'Starter betaling...'}
-                </>
+                </span>
               ) : (
                 `Betal kr ${finalTotal.toLocaleString('nb-NO')} med Vipps`
               )}
-            </Button>
+            </button>
             <Link href="/min-side" className="w-full">
-              <Button variant="outline" className="w-full" disabled={isPaying}>
+              <button
+                disabled={isPaying}
+                className="w-full py-5 bg-neutral-50 hover:bg-neutral-100 text-neutral-900 border border-neutral-200 rounded-xl text-base font-light uppercase tracking-wide hover:shadow-[0_10px_30px_-10px_rgba(0,0,0,0.15)] hover:-translate-y-0.5 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0"
+              >
                 Tilbake til Min side
-              </Button>
+              </button>
             </Link>
           </div>
-        </Card>
+        </div>
       </div>
     </div>
   );

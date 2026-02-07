@@ -50,9 +50,7 @@ interface Order {
 
 export default function CustomerPortalPage() {
   const { t } = useLanguage();
-  const { getThemeClasses } = useTheme();
   const { isAuthenticated, isLoading: authLoading } = useAuth();
-  const theme = getThemeClasses();
   const isMobile = useIsMobile();
 
   const [orders, setOrders] = useState<Order[]>([]);
@@ -131,15 +129,14 @@ export default function CustomerPortalPage() {
   // Show login wall if not authenticated
   if (!isAuthenticated) {
     return (
-      <div className={cn("min-h-screen flex items-center justify-center px-6", theme.bgGradientHero)}>
-        <div className={cn("text-center max-w-md rounded-3xl p-8 border shadow-2xl", theme.bgCard, theme.glassBorder)}>
-          <Package className={cn("w-16 h-16 mx-auto mb-4", theme.textPrimary)} />
-          <h1 className={cn("text-2xl font-bold mb-4", theme.textPrimary)}>{t.minSide.loginRequired}</h1>
-          <p className={cn("mb-6", theme.textMuted)}>{t.minSide.loginDesc}</p>
+      <div className="min-h-screen bg-white flex items-center justify-center px-6">
+        <div className="text-center max-w-md bg-white border border-neutral-200 rounded-xl p-12 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.1)]">
+          <Package className="w-20 h-20 mx-auto mb-6 text-neutral-400" />
+          <h1 className="text-4xl font-light tracking-tight text-neutral-900 mb-4">{t.minSide.loginRequired}</h1>
+          <p className="font-light text-neutral-600 mb-8">{t.minSide.loginDesc}</p>
           <button
             onClick={() => window.location.href = '/api/auth/vipps/login?returnTo=/min-side'}
-            className="w-full bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-bold py-4 px-8 rounded-2xl shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-300 flex items-center justify-center gap-3"
-            style={{ backgroundColor: '#FF5B24' }}
+            className="w-full bg-neutral-900 hover:bg-neutral-800 text-white font-light py-4 px-8 rounded-xl shadow-[0_20px_60px_-15px_rgba(0,0,0,0.3)] hover:shadow-[0_30px_80px_-20px_rgba(0,0,0,0.4)] hover:-translate-y-1 transition-all duration-300 flex items-center justify-center gap-3 uppercase tracking-wide text-sm"
           >
             <span>{t.minSide.loginWithVipps}</span>
           </button>
@@ -188,58 +185,88 @@ export default function CustomerPortalPage() {
     );
   }
 
-  // Desktop version
+  // Desktop version - Nordic Minimal Design with Movement
   return (
-    <div className={cn("min-h-screen py-16 sm:py-24", theme.bgGradientHero)}>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-white py-20">
+      {/* Subtle parallax background layer */}
+      <div className="fixed inset-0 pointer-events-none -z-10">
+        <div
+          className="absolute top-1/4 left-1/4 w-[800px] h-[800px] rounded-full blur-3xl opacity-20 bg-neutral-100"
+          style={{
+            transform: `translateY(${typeof window !== 'undefined' ? window.scrollY * 0.15 : 0}px)`,
+            transition: 'transform 0.05s linear'
+          }}
+        />
+      </div>
+
+      <div className="max-w-7xl mx-auto px-6 lg:px-8">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className={cn("text-4xl sm:text-5xl font-bold mb-6", theme.textPrimary)}>
+        <div className="mb-16">
+          <Link
+            href="/"
+            className="group inline-flex items-center gap-2 text-sm font-light text-neutral-600 hover:text-neutral-900 transition-all duration-300 mb-8"
+          >
+            <svg className="w-4 h-4 group-hover:-translate-x-1 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+            {t.nav.back}
+          </Link>
+
+          <h1 className="text-5xl font-light tracking-tight text-neutral-900 mb-8">
             {t.minSide.title}
           </h1>
 
           {/* Tab Navigation */}
-          <div className="flex gap-2 border-b border-gray-200 mb-8">
+          <div className="flex gap-4 border-b border-neutral-200 mb-8">
             <button
               onClick={() => setActiveTab('orders')}
               className={cn(
-                "flex items-center gap-2 px-6 py-3 font-semibold transition-all",
+                "flex items-center gap-3 px-6 py-4 font-light transition-all duration-300 relative",
                 activeTab === 'orders'
-                  ? "border-b-2 border-green-600 text-green-600"
-                  : "text-gray-500 hover:text-gray-700"
+                  ? "text-neutral-900"
+                  : "text-neutral-500 hover:text-neutral-900 hover:-translate-y-0.5"
               )}
             >
               <Package className="w-5 h-5" />
               {t.minSide.myOrders}
+              {activeTab === 'orders' && (
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-neutral-900 shadow-[0_2px_10px_-2px_rgba(0,0,0,0.3)]" />
+              )}
             </button>
             <button
               onClick={() => setActiveTab('referrals')}
               className={cn(
-                "flex items-center gap-2 px-6 py-3 font-semibold transition-all",
+                "flex items-center gap-3 px-6 py-4 font-light transition-all duration-300 relative",
                 activeTab === 'referrals'
-                  ? "border-b-2 border-green-600 text-green-600"
-                  : "text-gray-500 hover:text-gray-700"
+                  ? "text-neutral-900"
+                  : "text-neutral-500 hover:text-neutral-900 hover:-translate-y-0.5"
               )}
             >
               <Gift className="w-5 h-5" />
               {t.minSide.referrals}
+              {activeTab === 'referrals' && (
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-neutral-900 shadow-[0_2px_10px_-2px_rgba(0,0,0,0.3)]" />
+              )}
             </button>
             <button
               onClick={() => setActiveTab('messages')}
               className={cn(
-                "flex items-center gap-2 px-6 py-3 font-semibold transition-all",
+                "flex items-center gap-3 px-6 py-4 font-light transition-all duration-300 relative",
                 activeTab === 'messages'
-                  ? "border-b-2 border-green-600 text-green-600"
-                  : "text-gray-500 hover:text-gray-700"
+                  ? "text-neutral-900"
+                  : "text-neutral-500 hover:text-neutral-900 hover:-translate-y-0.5"
               )}
             >
               <MessageSquare className="w-5 h-5" />
               Meldinger
+              {activeTab === 'messages' && (
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-neutral-900 shadow-[0_2px_10px_-2px_rgba(0,0,0,0.3)]" />
+              )}
             </button>
           </div>
 
           {activeTab === 'orders' && (
-            <p className={cn("text-lg", theme.textSecondary)}>
+            <p className="text-base font-light text-neutral-600 bg-neutral-50 border border-neutral-200 rounded-xl px-6 py-4 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.05)]">
               {canEdit
                 ? t.minSide.canEditUntil.replace('{week}', cutoffWeek.toString()).replace('{year}', cutoffYear.toString())
                 : t.minSide.editPeriodExpired.replace('{week}', cutoffWeek.toString()).replace('{year}', cutoffYear.toString())}
@@ -249,16 +276,18 @@ export default function CustomerPortalPage() {
 
         {/* Orders Tab Content */}
         {activeTab === 'orders' && (orders.length === 0 ? (
-          <Card className={cn("p-12 text-center", theme.bgCard)}>
-            <Package className={cn("w-16 h-16 mx-auto mb-4", theme.iconColor)} />
-            <h2 className={cn("text-xl font-semibold mb-2", theme.textPrimary)}>{t.minSide.noOrders}</h2>
-            <p className={cn("mb-6", theme.textSecondary)}>{t.minSide.noOrdersDesc}</p>
+          <div className="bg-white border border-neutral-200 rounded-xl p-16 text-center shadow-[0_20px_60px_-15px_rgba(0,0,0,0.08)] transition-all duration-500 hover:shadow-[0_30px_80px_-20px_rgba(0,0,0,0.12)]">
+            <Package className="w-20 h-20 mx-auto mb-6 text-neutral-400" />
+            <h2 className="text-3xl font-light mb-4 text-neutral-900">{t.minSide.noOrders}</h2>
+            <p className="mb-8 font-light text-neutral-600 max-w-md mx-auto">{t.minSide.noOrdersDesc}</p>
             <Link href="/bestill">
-              <Button size="lg">{t.minSide.goToOrder}</Button>
+              <button className="px-8 py-4 bg-neutral-900 text-white rounded-xl text-sm font-light uppercase tracking-wide shadow-[0_20px_60px_-15px_rgba(0,0,0,0.3)] hover:shadow-[0_30px_80px_-20px_rgba(0,0,0,0.4)] hover:-translate-y-1 transition-all duration-300">
+                {t.minSide.goToOrder}
+              </button>
             </Link>
-          </Card>
+          </div>
         ) : (
-          <div className="space-y-8">
+          <div className="space-y-6">
             {orders.map((order) => (
               <OrderDetailsCard
                 key={order.id}
@@ -272,7 +301,7 @@ export default function CustomerPortalPage() {
             <div className="text-center pt-8">
               <Link
                 href="/bestill"
-                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-green-600 hover:bg-green-700 text-white font-semibold transition-colors"
+                className="inline-flex items-center gap-3 px-8 py-4 rounded-xl bg-neutral-900 hover:bg-neutral-800 text-white font-light uppercase tracking-wide shadow-[0_20px_60px_-15px_rgba(0,0,0,0.3)] hover:shadow-[0_30px_80px_-20px_rgba(0,0,0,0.4)] hover:-translate-y-1 transition-all duration-300"
               >
                 <Package className="w-5 h-5" />
                 {t.minSide.newOrder}

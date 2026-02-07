@@ -2,10 +2,57 @@
 
 import { useLanguage } from '@/contexts/LanguageContext';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { Checkbox } from '@/components/ui/checkbox';
 import Link from 'next/link';
-import { Package } from 'lucide-react';
+
+// Reusable Meta Label Component
+function MetaLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="text-xs uppercase tracking-wide text-neutral-500 font-medium">
+      {children}
+    </div>
+  );
+}
+
+// Content Card Component - Refined Nordic Design
+function ContentCard({
+  category,
+  items
+}: {
+  category: string;
+  items: string[]
+}) {
+  return (
+    <div className="group bg-white border border-neutral-200 rounded-xl p-8 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.08)] transition-all duration-500 hover:shadow-[0_30px_80px_-20px_rgba(0,0,0,0.12)] hover:-translate-y-1">
+      <MetaLabel>{category}</MetaLabel>
+      <ul className="mt-6 space-y-4">
+        {items.map((detail, i) => (
+          <li key={i} className="text-base font-light leading-relaxed text-neutral-700 flex items-start gap-3">
+            <span className="w-1.5 h-1.5 rounded-full bg-neutral-400 mt-2.5 flex-shrink-0" />
+            <span>{detail}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+// Disabled Addon Row - Visually Recessive
+function DisabledAddonRow({
+  label,
+  price
+}: {
+  label: string;
+  price: number
+}) {
+  return (
+    <div className="flex items-center justify-between py-5 border-b border-neutral-100 last:border-b-0">
+      <span className="text-sm font-light text-neutral-400 leading-relaxed">{label}</span>
+      <span className="text-sm font-light text-neutral-400 tabular-nums">
+        {price > 0 ? `kr ${price}` : 'Gratis'}
+      </span>
+    </div>
+  );
+}
 
 export default function ProductPage() {
   const { t } = useLanguage();
@@ -25,69 +72,96 @@ export default function ProductPage() {
   ];
 
   return (
-    <div className="min-h-screen py-16 sm:py-24">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-white py-20">
+      {/* Subtle parallax background */}
+      <div className="fixed inset-0 pointer-events-none -z-10">
+        <div
+          className="absolute top-1/3 right-1/4 w-[800px] h-[800px] rounded-full blur-3xl opacity-20 bg-neutral-100"
+          style={{
+            transform: `translateY(${typeof window !== 'undefined' ? window.scrollY * 0.1 : 0}px)`,
+            transition: 'transform 0.05s linear'
+          }}
+        />
+      </div>
+
+      <div className="max-w-4xl mx-auto px-6 lg:px-8">
+
+        {/* Subtle Back Navigation */}
         <div className="mb-12">
           <Link
             href="/"
-            className="text-sm text-neutral-600 hover:text-neutral-900 transition-colors"
+            className="group inline-flex items-center gap-2 text-sm font-light text-neutral-600 hover:text-neutral-900 transition-all duration-300"
           >
-            ← {t.nav.products}
+            <svg className="w-4 h-4 group-hover:-translate-x-1 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+            {t.nav.products}
           </Link>
         </div>
 
         <div className="space-y-16">
-          <div className="space-y-6">
-            <div className="flex items-center gap-3">
-              <Package className="w-8 h-8" strokeWidth={1.5} />
-              <h1 className="text-4xl sm:text-5xl font-semibold">{t.productDetail.title}</h1>
-            </div>
-            <p className="text-lg text-neutral-600 max-w-2xl">{t.productDetail.variation}</p>
-          </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {contents.map((item, index) => (
-              <Card key={index} className="p-6 border-neutral-200">
-                <h3 className="font-semibold text-lg mb-3">{item.category}</h3>
-                <ul className="space-y-2">
-                  {item.items.map((detail, i) => (
-                    <li key={i} className="text-sm text-neutral-600 flex items-start gap-2">
-                      <span className="text-neutral-400 mt-1">•</span>
-                      <span>{detail}</span>
-                    </li>
-                  ))}
-                </ul>
-              </Card>
-            ))}
-          </div>
+          {/* Page Title Section - Clean, Refined Typography */}
+          <header className="space-y-4 border-b border-neutral-200 pb-12">
+            <MetaLabel>Produkt</MetaLabel>
+            <h1 className="text-5xl font-light tracking-tight text-neutral-900">
+              {t.productDetail.title}
+            </h1>
+            <p className="text-base font-light leading-relaxed text-neutral-600 max-w-2xl">
+              {t.productDetail.variation}
+            </p>
+          </header>
 
-          <div className="border-t border-neutral-200 pt-16">
-            <h2 className="text-3xl font-semibold mb-8">{t.productDetail.addons.title}</h2>
-            <p className="text-sm text-neutral-500 mb-6">{t.productDetail.addons.disabled}</p>
-
-            <div className="space-y-4">
-              {addons.map((addon) => (
-                <div
-                  key={addon.id}
-                  className="flex items-center justify-between p-4 border border-neutral-200 bg-neutral-50"
-                >
-                  <div className="flex items-center gap-3">
-                    <Checkbox disabled />
-                    <label className="text-sm text-neutral-400">{addon.label}</label>
-                  </div>
-                  <span className="text-sm text-neutral-400">
-                    {addon.price > 0 ? `kr ${addon.price}` : 'Gratis'}
-                  </span>
-                </div>
+          {/* Content Grid - Calm, Operational */}
+          <section className="space-y-8">
+            <h2 className="text-3xl font-light text-neutral-900">
+              Innhold i pakken
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {contents.map((item, index) => (
+                <ContentCard
+                  key={index}
+                  category={item.category}
+                  items={item.items}
+                />
               ))}
             </div>
+          </section>
+
+          {/* Addons Section - Visually Recessive When Disabled */}
+          <section className="space-y-8 border-t border-neutral-200 pt-16">
+            <div className="space-y-3">
+              <h2 className="text-3xl font-light text-neutral-900">
+                {t.productDetail.addons.title}
+              </h2>
+              <p className="text-sm font-light text-neutral-500 leading-relaxed">
+                {t.productDetail.addons.disabled}
+              </p>
+            </div>
+
+            <div className="bg-neutral-50 border border-neutral-200 rounded-xl p-8 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.05)]">
+              <div className="divide-y divide-neutral-100">
+                {addons.map((addon) => (
+                  <DisabledAddonRow
+                    key={addon.id}
+                    label={addon.label}
+                    price={addon.price}
+                  />
+                ))}
+              </div>
+            </div>
+          </section>
+
+          {/* Primary CTA - Clear Hierarchy */}
+          <div className="flex justify-center pt-16 border-t border-neutral-200">
+            <Link
+              href="/bestill"
+              className="px-12 py-4 bg-neutral-900 text-white rounded-xl text-sm font-light uppercase tracking-wide shadow-[0_20px_60px_-15px_rgba(0,0,0,0.3)] hover:shadow-[0_30px_80px_-20px_rgba(0,0,0,0.4)] hover:-translate-y-1 transition-all duration-300"
+            >
+              {t.product.orderNow}
+            </Link>
           </div>
 
-          <div className="flex justify-center pt-8">
-            <Button asChild size="lg" className="min-w-[200px]">
-              <Link href="/bestill">{t.product.orderNow}</Link>
-            </Button>
-          </div>
         </div>
       </div>
     </div>

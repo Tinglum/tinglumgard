@@ -3,26 +3,30 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { useTheme } from '@/contexts/ThemeContext';
 import { useIsMobile } from '@/hooks/useMediaQuery';
 import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Check, ChevronRight, AlertCircle } from 'lucide-react';
+import { Check } from 'lucide-react';
 import { ReferralCodeInput } from '@/components/ReferralCodeInput';
 import { RebateCodeInput } from '@/components/RebateCodeInput';
 import { MobileCheckout } from '@/components/MobileCheckout';
 import { useToast } from '@/hooks/use-toast';
 
+// Reusable Components for Nordic Minimal Design
+function MetaLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="text-xs uppercase tracking-wide text-neutral-500 font-medium">
+      {children}
+    </div>
+  );
+}
+
 export default function CheckoutPage() {
   const { t } = useLanguage();
-  const { getThemeClasses } = useTheme();
-  const theme = getThemeClasses();
   const searchParams = useSearchParams();
   const isMobile = useIsMobile();
   const { toast } = useToast();
@@ -238,66 +242,73 @@ export default function CheckoutPage() {
   // Show order confirmation if order is confirmed
   if (orderConfirmed) {
     return (
-      <div className="min-h-screen relative overflow-x-hidden">
-        {/* Animated background */}
-        <div className="fixed inset-0 -z-10">
-          <div className={cn("absolute inset-0", theme.bgGradientHero)} />
-          <div className={cn("absolute top-0 right-0 w-[600px] h-[600px] rounded-full blur-3xl animate-pulse bg-gradient-to-bl", theme.bgGradientOrbs[0], "to-transparent")} />
-          <div className={cn("absolute bottom-0 left-0 w-[500px] h-[500px] rounded-full blur-3xl animate-pulse bg-gradient-to-tr", theme.bgGradientOrbs[1], "to-transparent")} style={{ animationDelay: '1s' }} />
-        </div>
-
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-          <div className={cn("rounded-3xl p-12 text-center border-2 animate-in fade-in slide-in-from-bottom-4 duration-700", theme.glassCard, theme.bgCard, theme.glassBorder)}>
-            <div className="w-20 h-20 bg-gradient-to-br from-green-500 to-green-600 rounded-full flex items-center justify-center mx-auto mb-6">
-              <Check className={cn("w-10 h-10", theme.textOnDark)} />
+      <div className="min-h-screen bg-white py-20">
+        <div className="max-w-2xl mx-auto px-6">
+          <div className="bg-white border border-neutral-200 rounded-xl p-16 text-center shadow-[0_20px_60px_-15px_rgba(0,0,0,0.1)]">
+            {/* Success icon */}
+            <div className="w-20 h-20 bg-green-600 rounded-full flex items-center justify-center mx-auto mb-8 shadow-[0_15px_40px_-12px_rgba(34,197,94,0.4)]">
+              <Check className="w-10 h-10 text-white" />
             </div>
 
-            <h1 className={cn("text-4xl md:text-5xl font-bold mb-4", theme.textPrimary)}>
+            {/* Title */}
+            <h1 className="text-5xl font-light tracking-tight text-neutral-900 mb-4">
               {t.checkout.orderReceived}
             </h1>
 
-            <p className={cn("text-lg mb-8", theme.textMuted)}>
+            {/* Message */}
+            <p className="text-base font-light leading-relaxed text-neutral-600 mb-4">
               {t.checkout.thankYou}
             </p>
-            <p className={cn("text-sm mb-8", theme.textSecondary)}>
+            <p className="text-sm font-light text-neutral-500 mb-10">
               Forventet levering: uke 48–49.
             </p>
 
+            {/* Order number */}
             {orderId && (
-              <div className={cn("rounded-2xl p-6 mb-8", theme.bgSecondary)}>
-                <p className={cn("text-sm mb-2", theme.textMuted)}>{t.checkout.orderNumber}</p>
-                <p className={cn("text-2xl font-bold font-mono", theme.textPrimary)}>{orderId}</p>
+              <div className="bg-neutral-50 border border-neutral-200 rounded-xl p-8 mb-10 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.05)]">
+                <MetaLabel>{t.checkout.orderNumber}</MetaLabel>
+                <p className="text-3xl font-light text-neutral-900 font-mono tabular-nums mt-3">
+                  {orderId}
+                </p>
               </div>
             )}
 
-            <div className={cn("space-y-4 text-left rounded-2xl p-6 mb-8", theme.bgSecondary)}>
-              <h3 className={cn("font-bold text-lg mb-4", theme.textPrimary)}>{t.checkout.nextSteps}</h3>
-              <div className="space-y-3">
-                <div className="flex items-start gap-3">
-                  <div className={cn("w-6 h-6 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 mt-0.5", theme.bgDark, theme.textOnDark)}>1</div>
-                  <p className={cn("text-sm", theme.textSecondary)}>{t.checkout.step1}</p>
-                </div>
-                <div className="flex items-start gap-3">
-                  <div className={cn("w-6 h-6 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 mt-0.5", theme.bgDark, theme.textOnDark)}>2</div>
-                  <p className={cn("text-sm", theme.textSecondary)}>{t.checkout.step2}</p>
-                </div>
-                <div className="flex items-start gap-3">
-                  <div className={cn("w-6 h-6 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 mt-0.5", theme.bgDark, theme.textOnDark)}>3</div>
-                  <p className={cn("text-sm", theme.textSecondary)}>{t.checkout.step3}</p>
-                </div>
-              </div>
+            {/* Next steps */}
+            <div className="space-y-5 text-left bg-neutral-50 border border-neutral-200 rounded-xl p-8 mb-10 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.05)]">
+              <h3 className="font-normal text-neutral-900 text-lg">{t.checkout.nextSteps}</h3>
+              <ol className="space-y-4">
+                <li className="flex gap-4">
+                  <span className="flex-shrink-0 w-8 h-8 bg-neutral-900 text-white rounded-full flex items-center justify-center text-sm font-light shadow-[0_5px_15px_-5px_rgba(0,0,0,0.3)]">
+                    1
+                  </span>
+                  <span className="text-sm font-light text-neutral-600 pt-1">{t.checkout.step1}</span>
+                </li>
+                <li className="flex gap-4">
+                  <span className="flex-shrink-0 w-8 h-8 bg-neutral-900 text-white rounded-full flex items-center justify-center text-sm font-light shadow-[0_5px_15px_-5px_rgba(0,0,0,0.3)]">
+                    2
+                  </span>
+                  <span className="text-sm font-light text-neutral-600 pt-1">{t.checkout.step2}</span>
+                </li>
+                <li className="flex gap-4">
+                  <span className="flex-shrink-0 w-8 h-8 bg-neutral-900 text-white rounded-full flex items-center justify-center text-sm font-light shadow-[0_5px_15px_-5px_rgba(0,0,0,0.3)]">
+                    3
+                  </span>
+                  <span className="text-sm font-light text-neutral-600 pt-1">{t.checkout.step3}</span>
+                </li>
+              </ol>
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            {/* Actions */}
+            <div className="flex gap-4 justify-center">
               <Link
                 href="/"
-                className={cn("px-8 py-4 rounded-2xl font-bold hover:shadow-2xl hover:scale-105 transition-all duration-300", theme.buttonPrimary, theme.buttonPrimaryHover, theme.textOnDark)}
+                className="px-8 py-4 bg-neutral-900 text-white rounded-xl text-sm font-light uppercase tracking-wide shadow-[0_20px_60px_-15px_rgba(0,0,0,0.3)] hover:shadow-[0_30px_80px_-20px_rgba(0,0,0,0.4)] hover:-translate-y-1 transition-all duration-300"
               >
                 {t.nav.backToHome}
               </Link>
               <Link
                 href="/min-side"
-                className={cn("px-8 py-4 rounded-2xl font-bold border hover:shadow-2xl hover:scale-105 transition-all duration-300", theme.buttonSecondary, theme.buttonSecondaryHover, theme.textPrimary, theme.glassBorder, theme.glassCard)}
+                className="px-8 py-4 border-2 border-neutral-200 rounded-xl text-sm font-light text-neutral-900 hover:bg-neutral-50 hover:border-neutral-300 hover:-translate-y-1 hover:shadow-[0_10px_30px_-10px_rgba(0,0,0,0.1)] transition-all duration-300"
               >
                 {t.checkout.seeMyOrders}
               </Link>
@@ -308,7 +319,7 @@ export default function CheckoutPage() {
     );
   }
 
-  // Mobile version
+  // Mobile version - Keep existing design unchanged
   if (isMobile) {
     return (
       <div className="relative min-h-screen bg-[#F6F4EF] text-[#1E1B16]">
@@ -374,24 +385,28 @@ export default function CheckoutPage() {
     );
   }
 
-  // Desktop version
+  // Desktop version - Nordic Minimal Design with Movement
   return (
-    <div className="min-h-screen relative">
-      {/* Animated background */}
-      <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
-        <div className={cn("absolute inset-0", theme.bgGradientHero)} />
-        <div className={cn("absolute top-0 right-0 w-[600px] h-[600px] rounded-full blur-3xl animate-pulse bg-gradient-to-bl", theme.bgGradientOrbs[0], "to-transparent")} />
-        <div className={cn("absolute bottom-0 left-0 w-[500px] h-[500px] rounded-full blur-3xl animate-pulse bg-gradient-to-tr", theme.bgGradientOrbs[1], "to-transparent")} style={{ animationDelay: '1s' }} />
+    <div className="min-h-screen bg-white">
+      {/* Subtle parallax background layer */}
+      <div className="fixed inset-0 pointer-events-none -z-10">
+        <div
+          className="absolute bottom-0 right-1/4 w-[800px] h-[800px] rounded-full blur-3xl opacity-20 bg-neutral-100"
+          style={{
+            transform: `translateY(${typeof window !== 'undefined' ? window.scrollY * 0.1 : 0}px)`,
+            transition: 'transform 0.05s linear'
+          }}
+        />
       </div>
 
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+      <div className="max-w-6xl mx-auto px-6 lg:px-8 py-20">
         {/* Header */}
-        <div className="mb-12 flex items-center justify-between">
+        <div className="mb-12">
           <Link
             href="/"
-            className={cn("group flex items-center gap-2 transition-colors", theme.textSecondary, `hover:${theme.textPrimary}`)}
+            className="group inline-flex items-center gap-2 text-sm font-light text-neutral-600 hover:text-neutral-900 transition-all duration-300"
           >
-            <svg className="w-5 h-5 group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4 group-hover:-translate-x-1 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
             {t.nav.back}
@@ -399,81 +414,76 @@ export default function CheckoutPage() {
         </div>
 
         {/* Hero */}
-        <div className="text-center mb-16 animate-in fade-in duration-700">
-          <h1 className={cn("text-5xl md:text-6xl font-bold mb-4", theme.textPrimary)}>
+        <div className="mb-16">
+          <MetaLabel>{t.checkout.title}</MetaLabel>
+          <h1 className="text-5xl font-light tracking-tight text-neutral-900 mt-3 mb-4">
             {t.checkout.pageTitle}
           </h1>
-          <p className={cn("text-lg max-w-2xl mx-auto", theme.textMuted)}>
+          <p className="text-base leading-relaxed text-neutral-600 max-w-2xl font-light">
             {t.checkout.selectSize}
           </p>
         </div>
 
-        {/* Progress Steps */}
-        <div className="mb-12">
-          <div className="flex items-center justify-center gap-4">
+        {/* Progress Steps - Enhanced with shadow and animation */}
+        <div className="mb-16">
+          <div className="flex items-center justify-center gap-2">
             {[1, 2, 3, 4].map((s) => (
-              <div key={s} className="flex items-center gap-4">
+              <div key={s} className="flex items-center gap-2">
                 <div className={cn(
-                  "relative flex items-center justify-center w-12 h-12 rounded-full font-bold transition-all duration-500",
-                  step >= s
-                    ? cn(theme.buttonPrimary, theme.textOnDark, "shadow-xl scale-110")
-                    : cn(theme.buttonSecondary, theme.textMuted, "border", theme.borderSecondary, theme.glassCard)
+                  "w-12 h-12 rounded-full border-2 flex items-center justify-center font-light transition-all duration-500",
+                  step > s && "bg-neutral-900 border-neutral-900 text-white shadow-[0_10px_30px_-10px_rgba(0,0,0,0.3)]",
+                  step === s && "border-neutral-900 text-neutral-900 shadow-[0_15px_40px_-12px_rgba(0,0,0,0.2)] scale-110",
+                  step < s && "border-neutral-200 text-neutral-400"
                 )}>
                   {step > s ? <Check className="w-5 h-5" /> : s}
                 </div>
                 {s < 4 && (
                   <div className={cn(
-                    "w-12 md:w-24 h-1 rounded-full transition-all duration-500",
-                    step > s ? theme.buttonPrimary : theme.borderSecondary
+                    "w-16 h-1 rounded-full transition-all duration-500",
+                    step > s ? "bg-neutral-900" : "bg-neutral-200"
                   )} />
                 )}
               </div>
             ))}
           </div>
-          <div className="flex items-center justify-center gap-4 mt-4">
-            <div className="text-center w-12 md:w-24">
-              <p className={cn("text-xs font-semibold", theme.textPrimary)}>{t.checkout.stepSize}</p>
+          <div className="flex items-center justify-center gap-2 mt-6">
+            <div className="text-center w-12">
+              <p className="text-xs font-light text-neutral-500">{t.checkout.stepSize}</p>
             </div>
-            <div className="w-12 md:w-24" />
-            <div className="text-center w-12 md:w-24">
-              <p className={cn("text-xs font-semibold", theme.textPrimary)}>{t.checkout.stepRibbe}</p>
+            <div className="w-16" />
+            <div className="text-center w-12">
+              <p className="text-xs font-light text-neutral-500">{t.checkout.stepRibbe}</p>
             </div>
-            <div className="w-12 md:w-24" />
-            <div className="text-center w-12 md:w-24">
-              <p className={cn("text-xs font-semibold", theme.textPrimary)}>{t.checkout.stepExtras}</p>
+            <div className="w-16" />
+            <div className="text-center w-12">
+              <p className="text-xs font-light text-neutral-500">{t.checkout.stepExtras}</p>
             </div>
-            <div className="w-12 md:w-24" />
-            <div className="text-center w-12 md:w-24">
-              <p className={cn("text-xs font-semibold", theme.textPrimary)}>{t.checkout.stepDelivery}</p>
+            <div className="w-16" />
+            <div className="text-center w-12">
+              <p className="text-xs font-light text-neutral-500">{t.checkout.stepDelivery}</p>
             </div>
           </div>
         </div>
 
-        <div className="relative md:flex md:gap-8 md:items-start pb-20">
+        <div className="md:flex md:gap-8 md:items-start">
           {/* Main Content */}
-          <div className="md:flex-1 md:w-2/3 space-y-6 mb-8 md:mb-0">
+          <div className="md:flex-1 md:w-2/3 space-y-8 mb-8 md:mb-0">
 
             {/* Step 1: Box Size */}
-            <div className={cn(
-              "relative rounded-3xl p-8 border shadow-2xl transition-all duration-500",
-              theme.bgCard,
-              theme.glassCard,
-              theme.glassBorder,
-              step === 1 ? cn("ring-2", theme.borderPrimary) : step > 1 ? "opacity-60" : ""
-            )}>
+            <div className="bg-white border border-neutral-200 rounded-xl p-8 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.08)] transition-all duration-500 hover:shadow-[0_30px_80px_-20px_rgba(0,0,0,0.12)]">
               <div className="flex items-center justify-between mb-6">
-                <h2 className={cn("text-2xl font-bold", theme.textPrimary)}>{t.checkout.step1Title}</h2>
+                <h2 className="text-2xl font-light text-neutral-900">{t.checkout.step1Title}</h2>
                 {boxSize && step > 1 && (
                   <button
                     onClick={() => setStep(1)}
-                    className={cn("text-sm underline", theme.textSecondary, `hover:${theme.textPrimary}`)}
+                    className="text-sm font-light text-neutral-600 hover:text-neutral-900 underline transition-all duration-300 hover:-translate-y-0.5"
                   >
                     {t.common.edit}
                   </button>
                 )}
               </div>
 
-              <div className="grid md:grid-cols-2 gap-4">
+              <div className="grid md:grid-cols-2 gap-6">
                 {(['8', '12'] as const).map((size) => (
                   <button
                     key={size}
@@ -482,31 +492,40 @@ export default function CheckoutPage() {
                       if (step === 1) setStep(2);
                     }}
                     className={cn(
-                      "group relative p-6 rounded-2xl border-2 transition-all duration-300",
+                      "p-8 border-2 rounded-xl transition-all duration-500 text-center group",
                       boxSize === size
-                        ? cn(theme.borderPrimary, theme.bgSecondary, "shadow-xl scale-105")
-                        : cn(theme.borderSecondary, `hover:${theme.borderSecondary} hover:shadow-lg`)
+                        ? "border-neutral-900 bg-neutral-50 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.15)]"
+                        : "border-neutral-200 hover:border-neutral-300 hover:shadow-[0_15px_40px_-12px_rgba(0,0,0,0.1)] hover:-translate-y-1"
                     )}
                   >
-                    <div className="text-center mb-4">
-                      <p className={cn("text-5xl font-bold mb-2", theme.textPrimary)}>{size} <span className={cn("text-2xl", theme.textMuted)}>{t.common.kg}</span></p>
-                      <p className={cn("text-sm", theme.textMuted)}>{size === '8' ? t.checkout.persons2to3 : t.checkout.persons4to6}</p>
+                    <div className="space-y-4">
+                      <h3 className="text-6xl font-light text-neutral-900 tabular-nums transition-transform duration-300 group-hover:scale-105">
+                        {size} <span className="text-2xl text-neutral-500 font-light">{t.common.kg}</span>
+                      </h3>
+                      <p className="text-sm font-light text-neutral-600">
+                        {size === '8' ? t.checkout.persons2to3 : t.checkout.persons4to6}
+                      </p>
+                      <div className="text-3xl font-light text-neutral-900 tabular-nums">
+                        {prices ? `${prices[size].total} kr` : t.common.loading}
+                      </div>
+                      <p className="text-xs font-light text-neutral-500">
+                        {t.checkout.payNow}: {prices ? `${prices[size].deposit} kr` : t.common.loading}
+                      </p>
                     </div>
-                    <p className={cn("text-2xl font-bold text-center", theme.textPrimary)}>
-                      {prices ? `${t.common.kr} ${prices[size].total}` : t.common.loading}
-                    </p>
-                    <p className={cn("text-xs text-center mt-2", theme.textMuted)}>
-                      {t.checkout.payNow}: {prices ? `${t.common.kr} ${prices[size].deposit}` : t.common.loading}
-                    </p>
 
                     {boxSize === size && boxContents[size] && (
-                      <div className={cn("mt-6 pt-6 border-t animate-in fade-in slide-in-from-top-2 duration-500", theme.borderSecondary)}>
-                        <p className={cn("text-xs font-bold uppercase tracking-wider mb-3", theme.textPrimary)}>{t.checkout.inBox}</p>
-                        <ul className="space-y-2">
+                      <div className="mt-8 pt-6 border-t border-neutral-200">
+                        <MetaLabel>{t.checkout.inBox}</MetaLabel>
+                        <ul className="space-y-3 mt-4">
                           {boxContents[size].map((item, idx) => (
-                            <li key={idx} className={cn("flex items-start gap-2 text-sm", item.highlight ? cn("font-medium", theme.textPrimary) : theme.textMuted)}>
-                              <Check className="w-4 h-4 flex-shrink-0 mt-0.5 text-green-600" />
-                              <span>{item.name}</span>
+                            <li key={idx} className="flex items-start gap-3 text-sm text-left">
+                              <span className="w-1.5 h-1.5 rounded-full bg-neutral-400 mt-2 flex-shrink-0" />
+                              <span className={cn(
+                                "font-light",
+                                item.highlight ? "text-neutral-900 font-normal" : "text-neutral-600"
+                              )}>
+                                {item.name}
+                              </span>
                             </li>
                           ))}
                         </ul>
@@ -519,10 +538,9 @@ export default function CheckoutPage() {
               {canProceedToStep2 && step === 1 && (
                 <button
                   onClick={() => setStep(2)}
-                  className={cn("mt-6 w-full px-8 py-4 rounded-2xl font-bold uppercase tracking-wider hover:shadow-2xl hover:scale-105 transition-all duration-300 flex items-center justify-center gap-2", theme.buttonPrimary, theme.buttonPrimaryHover, theme.textOnDark)}
+                  className="mt-8 w-full px-6 py-4 bg-neutral-900 text-white rounded-xl text-sm font-light uppercase tracking-wide shadow-[0_20px_60px_-15px_rgba(0,0,0,0.3)] hover:shadow-[0_30px_80px_-20px_rgba(0,0,0,0.4)] hover:-translate-y-1 transition-all duration-300"
                 >
                   {t.checkout.goToRibbeChoice}
-                  <ChevronRight className="w-5 h-5" />
                 </button>
               )}
             </div>
@@ -530,34 +548,32 @@ export default function CheckoutPage() {
             {/* Step 2: Ribbe Choice */}
             {boxSize && (
               <div className={cn(
-                "relative rounded-3xl p-8 border shadow-2xl transition-all duration-500 animate-in slide-in-from-bottom-4",
-                theme.bgCard,
-                theme.glassCard,
-                theme.glassBorder,
-                step === 2 ? cn("ring-2", theme.borderPrimary) : step > 2 ? "opacity-60" : step < 2 ? "opacity-40 pointer-events-none" : ""
+                "bg-white border border-neutral-200 rounded-xl p-8 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.08)] transition-all duration-500",
+                step < 2 && "opacity-40 pointer-events-none",
+                step >= 2 && "hover:shadow-[0_30px_80px_-20px_rgba(0,0,0,0.12)]"
               )}>
                 <div className="flex items-center justify-between mb-6">
-                  <h2 className={cn("text-2xl font-bold", theme.textPrimary)}>{t.checkout.step2Title}</h2>
+                  <h2 className="text-2xl font-light text-neutral-900">{t.checkout.step2Title}</h2>
                   {ribbeChoice && step > 2 && (
                     <button
                       onClick={() => setStep(2)}
-                      className={cn("text-sm underline", theme.textSecondary, `hover:${theme.textPrimary}`)}
+                      className="text-sm font-light text-neutral-600 hover:text-neutral-900 underline transition-all duration-300 hover:-translate-y-0.5"
                     >
                       {t.common.edit}
                     </button>
                   )}
                 </div>
 
-                <p className={cn("text-sm mb-6", theme.textMuted)}>
+                <p className="text-sm font-light text-neutral-600 mb-6">
                   {t.checkout.boxContains.replace('{size}', boxSize === '8' ? '2.0' : '3.0')}
                 </p>
 
-                <div className="grid gap-4">
+                <div className="space-y-4">
                   {[
-                    { id: 'tynnribbe', name: t.checkout.tynnribbe, desc: t.checkout.tynnribbeDesc, tag: null },
-                    { id: 'familieribbe', name: t.checkout.familieribbe, desc: t.checkout.familieribbeDesc, tag: null },
-                    { id: 'porchetta', name: t.checkout.porchetta, desc: t.checkout.porchettaDesc, tag: null },
-                    { id: 'butchers_choice', name: t.checkout.butchersChoice, desc: t.checkout.butchersChoiceDesc, tag: t.checkout.preSelected },
+                    { id: 'tynnribbe', name: t.checkout.tynnribbe, desc: t.checkout.tynnribbeDesc },
+                    { id: 'familieribbe', name: t.checkout.familieribbe, desc: t.checkout.familieribbeDesc },
+                    { id: 'porchetta', name: t.checkout.porchetta, desc: t.checkout.porchettaDesc },
+                    { id: 'butchers_choice', name: t.checkout.butchersChoice, desc: t.checkout.butchersChoiceDesc },
                   ].map((option) => (
                     <button
                       key={option.id}
@@ -566,19 +582,19 @@ export default function CheckoutPage() {
                         if (step === 2) setStep(3);
                       }}
                       className={cn(
-                        "relative text-left p-5 rounded-xl border-2 transition-all duration-300",
+                        "w-full text-left p-6 border-2 rounded-xl transition-all duration-300 group",
                         ribbeChoice === option.id
-                          ? cn(theme.borderPrimary, theme.bgSecondary, "shadow-xl")
-                          : cn(theme.borderSecondary, "hover:shadow-lg")
+                          ? "border-neutral-900 bg-neutral-50 shadow-[0_15px_40px_-12px_rgba(0,0,0,0.15)]"
+                          : "border-neutral-200 hover:border-neutral-300 hover:shadow-[0_10px_30px_-10px_rgba(0,0,0,0.1)] hover:-translate-y-0.5"
                       )}
                     >
-                      {option.tag && (
-                        <span className={cn("absolute top-3 right-3 px-3 py-1 text-xs font-bold rounded-full", theme.bgDark, theme.textOnDark)}>
-                          {option.tag}
-                        </span>
-                      )}
-                      <p className={cn("font-bold mb-1", theme.textPrimary)}>{option.name}</p>
-                      <p className={cn("text-sm", theme.textMuted)}>{option.desc}</p>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="font-normal text-neutral-900">{option.name}</p>
+                          <p className="text-sm font-light text-neutral-600 mt-2">{option.desc}</p>
+                        </div>
+                        {ribbeChoice === option.id && <Check className="w-5 h-5 text-neutral-900 flex-shrink-0 ml-4" />}
+                      </div>
                     </button>
                   ))}
                 </div>
@@ -586,10 +602,9 @@ export default function CheckoutPage() {
                 {canProceedToStep3 && step === 2 && (
                   <button
                     onClick={() => setStep(3)}
-                    className={cn("mt-6 w-full px-8 py-4 rounded-2xl font-bold uppercase tracking-wider hover:shadow-2xl hover:scale-105 transition-all duration-300 flex items-center justify-center gap-2", theme.buttonPrimary, theme.buttonPrimaryHover, theme.textOnDark)}
+                    className="mt-8 w-full px-6 py-4 bg-neutral-900 text-white rounded-xl text-sm font-light uppercase tracking-wide shadow-[0_20px_60px_-15px_rgba(0,0,0,0.3)] hover:shadow-[0_30px_80px_-20px_rgba(0,0,0,0.4)] hover:-translate-y-1 transition-all duration-300"
                   >
                     {t.checkout.goToExtras}
-                    <ChevronRight className="w-5 h-5" />
                   </button>
                 )}
               </div>
@@ -598,36 +613,26 @@ export default function CheckoutPage() {
             {/* Step 3: Extra Products */}
             {ribbeChoice && (
               <div className={cn(
-                "relative rounded-3xl p-8 border shadow-2xl transition-all duration-500 animate-in slide-in-from-bottom-4",
-                theme.bgCard,
-                theme.glassCard,
-                theme.glassBorder,
-                step === 3 ? cn("ring-2", theme.borderPrimary) : step > 3 ? "opacity-60" : step < 3 ? "opacity-40 pointer-events-none" : ""
+                "bg-white border border-neutral-200 rounded-xl p-8 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.08)] transition-all duration-500",
+                step < 3 && "opacity-40 pointer-events-none",
+                step >= 3 && "hover:shadow-[0_30px_80px_-20px_rgba(0,0,0,0.12)]"
               )}>
                 <div className="flex items-center justify-between mb-6">
-                  <h2 className={cn("text-2xl font-bold", theme.textPrimary)}>{t.checkout.step3Title}</h2>
+                  <h2 className="text-2xl font-light text-neutral-900">{t.checkout.step3Title}</h2>
                   {step > 3 && (
                     <button
                       onClick={() => setStep(3)}
-                      className={cn("text-sm underline", theme.textSecondary, `hover:${theme.textPrimary}`)}
+                      className="text-sm font-light text-neutral-600 hover:text-neutral-900 underline transition-all duration-300 hover:-translate-y-0.5"
                     >
                       {t.common.edit}
                     </button>
                   )}
                 </div>
 
-                <div className="mb-8 p-4 bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-300 rounded-2xl shadow-sm">
-                  <div className="flex items-start gap-3">
-                    <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
-                    <div>
-                      <p className="text-sm font-semibold text-amber-900 mb-1">
-                        Viktig informasjon om ekstra produkter
-                      </p>
-                      <p className="text-sm text-amber-800 leading-relaxed">
-                        {t.checkout.extrasWarning}
-                      </p>
-                    </div>
-                  </div>
+                <div className="mb-8 p-5 bg-neutral-50 border border-neutral-200 rounded-xl">
+                  <p className="text-sm font-light text-neutral-700 leading-relaxed">
+                    {t.checkout.extrasWarning}
+                  </p>
                 </div>
 
                 <div className="grid md:grid-cols-2 gap-6">
@@ -642,10 +647,10 @@ export default function CheckoutPage() {
                       <div
                         key={extra.slug}
                         className={cn(
-                          "group relative p-6 rounded-2xl border-2 transition-all duration-300 cursor-pointer",
+                          "p-6 border-2 rounded-xl transition-all duration-300 cursor-pointer group",
                           isSelected
-                            ? cn("border-amber-500 bg-gradient-to-br from-amber-50 to-orange-50 shadow-xl scale-105")
-                            : cn(theme.borderSecondary, theme.bgCard, "hover:shadow-lg hover:scale-102 hover:border-amber-300")
+                            ? "border-neutral-900 bg-neutral-50 shadow-[0_15px_40px_-12px_rgba(0,0,0,0.15)]"
+                            : "border-neutral-200 hover:border-neutral-300 hover:shadow-[0_10px_30px_-10px_rgba(0,0,0,0.1)] hover:-translate-y-1"
                         )}
                         onClick={() => {
                           setExtraProducts(prev =>
@@ -662,123 +667,93 @@ export default function CheckoutPage() {
                           }
                         }}
                       >
-                        {/* Selection Indicator */}
-                        <div className="absolute top-4 right-4">
+                        <div className="flex items-center justify-between mb-4">
+                          <h4 className="font-normal text-neutral-900">{extra.name_no}</h4>
                           <div className={cn(
-                            "w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all",
-                            isSelected
-                              ? "bg-amber-500 border-amber-500 shadow-md"
-                              : "border-gray-300 bg-white group-hover:border-amber-400"
+                            "w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all duration-300",
+                            isSelected ? "border-neutral-900 bg-neutral-900 shadow-[0_5px_15px_-5px_rgba(0,0,0,0.3)]" : "border-neutral-200 group-hover:border-neutral-300"
                           )}>
-                            {isSelected && <Check className="w-4 h-4 text-white" />}
+                            {isSelected && <Check className="w-3.5 h-3.5 text-white" />}
                           </div>
                         </div>
 
-                        {/* Product Info */}
-                        <div className="pr-8">
-                          <h4 className={cn("text-lg font-bold mb-2", theme.textPrimary)}>{extra.name_no}</h4>
-                          {extra.description_no && (
-                            <p className={cn("text-sm mb-3 leading-relaxed", theme.textMuted)}>{extra.description_no}</p>
-                          )}
+                        {extra.description_no && (
+                          <p className="text-sm font-light text-neutral-600 mb-4">{extra.description_no}</p>
+                        )}
 
-                          {/* Price */}
-                          <div className="flex items-baseline gap-2 mb-4">
-                            <span className={cn("text-2xl font-bold", isSelected ? "text-amber-600" : theme.textPrimary)}>
-                              {extra.price_nok} {t.common.kr}
-                            </span>
-                            <span className={cn("text-sm", theme.textMuted)}>
-                              /{extra.pricing_type === 'per_kg' ? t.common.kg : t.common.stk}
-                            </span>
-                          </div>
+                        <div className="text-2xl font-light text-neutral-900 tabular-nums">
+                          {extra.price_nok} kr <span className="text-sm font-light text-neutral-500">/ {extra.pricing_type === 'per_kg' ? t.common.kg : t.common.stk}</span>
+                        </div>
 
-                          {/* Quantity Selector */}
-                          {isSelected && (
-                            <div
-                              className="flex items-center gap-3 pt-4 border-t border-amber-200 animate-in fade-in slide-in-from-top-2 duration-300"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <label className={cn("text-sm font-semibold", theme.textPrimary)}>{t.checkout.quantity}</label>
+                        {isSelected && (
+                          <div
+                            className="flex items-center gap-2 pt-4 border-t border-neutral-200 mt-4"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <button
+                              onClick={() => {
+                                let newQty: number;
+                                if (extra.pricing_type === 'per_kg') {
+                                  newQty = Math.floor((quantity - 0.1) / 0.5) * 0.5;
+                                } else {
+                                  newQty = quantity - 1;
+                                }
 
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => {
-                                  let newQty: number;
-                                  if (extra.pricing_type === 'per_kg') {
-                                    // For per_kg: snap DOWN to nearest 0.5 increment (magnetic)
-                                    // Subtract 0.1 first to ensure we move to the previous increment
-                                    newQty = Math.floor((quantity - 0.1) / 0.5) * 0.5;
-                                  } else {
-                                    // For per_unit: just subtract 1
-                                    newQty = quantity - 1;
-                                  }
-
-                                  // If going to 0 or below, deselect the item
-                                  if (newQty <= 0) {
-                                    setExtraProducts(prev => prev.filter(p => p !== extra.slug));
-                                    setExtraQuantities(prev => {
-                                      const newQuantities = { ...prev };
-                                      delete newQuantities[extra.slug];
-                                      return newQuantities;
-                                    });
-                                  } else {
-                                    setExtraQuantities(prev => ({
-                                      ...prev,
-                                      [extra.slug]: newQty
-                                    }));
-                                  }
-                                }}
-                                className="h-10 w-10 p-0 font-bold text-lg"
-                              >
-                                -
-                              </Button>
-
-                              <Input
-                                type="number"
-                                min={extra.pricing_type === 'per_kg' ? '0.1' : '1'}
-                                step={extra.pricing_type === 'per_kg' ? '0.1' : '1'}
-                                value={quantity}
-                                onChange={(e) => {
-                                  const value = parseFloat(e.target.value);
-                                  if (!isNaN(value) && value > 0) {
-                                    setExtraQuantities(prev => ({
-                                      ...prev,
-                                      [extra.slug]: value
-                                    }));
-                                  }
-                                }}
-                                className={cn("w-20 text-center font-bold text-lg border-2 border-amber-300 focus:border-amber-500", theme.textPrimary)}
-                              />
-
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => {
-                                  let newQty: number;
-                                  if (extra.pricing_type === 'per_kg') {
-                                    // For per_kg: snap UP to nearest 0.5 increment (magnetic)
-                                    // Add 0.1 first to ensure we move to the next increment
-                                    newQty = Math.ceil((quantity + 0.1) / 0.5) * 0.5;
-                                  } else {
-                                    // For per_unit: just add 1
-                                    newQty = quantity + 1;
-                                  }
+                                if (newQty <= 0) {
+                                  setExtraProducts(prev => prev.filter(p => p !== extra.slug));
+                                  setExtraQuantities(prev => {
+                                    const newQuantities = { ...prev };
+                                    delete newQuantities[extra.slug];
+                                    return newQuantities;
+                                  });
+                                } else {
                                   setExtraQuantities(prev => ({
                                     ...prev,
                                     [extra.slug]: newQty
                                   }));
-                                }}
-                                className="h-10 w-10 p-0 font-bold text-lg"
-                              >
-                                +
-                              </Button>
+                                }
+                              }}
+                              className="w-8 h-8 border border-neutral-200 rounded flex items-center justify-center hover:bg-neutral-100"
+                            >
+                              -
+                            </button>
 
-                              <span className={cn("text-sm font-medium", theme.textPrimary)}>
-                                {extra.pricing_type === 'per_kg' ? t.common.kg : t.common.stk}
-                              </span>
-                            </div>
-                          )}
-                        </div>
+                            <Input
+                              type="number"
+                              min={extra.pricing_type === 'per_kg' ? '0.1' : '1'}
+                              step={extra.pricing_type === 'per_kg' ? '0.1' : '1'}
+                              value={quantity}
+                              onChange={(e) => {
+                                const value = parseFloat(e.target.value);
+                                if (!isNaN(value) && value > 0) {
+                                  setExtraQuantities(prev => ({
+                                    ...prev,
+                                    [extra.slug]: value
+                                  }));
+                                }
+                              }}
+                              className="w-16 text-center border border-neutral-200 rounded px-2 py-1 tabular-nums"
+                            />
+
+                            <button
+                              onClick={() => {
+                                let newQty: number;
+                                if (extra.pricing_type === 'per_kg') {
+                                  newQty = Math.ceil((quantity + 0.1) / 0.5) * 0.5;
+                                } else {
+                                  newQty = quantity + 1;
+                                }
+                                setExtraQuantities(prev => ({
+                                  ...prev,
+                                  [extra.slug]: newQty
+                                }));
+                              }}
+                              className="w-8 h-8 border border-neutral-200 rounded flex items-center justify-center hover:bg-neutral-100"
+                            >
+                              +
+                            </button>
+                          </div>
+                        )}
                       </div>
                     );
                   })}
@@ -787,10 +762,9 @@ export default function CheckoutPage() {
                 {step === 3 && (
                   <button
                     onClick={() => setStep(4)}
-                    className={cn("mt-6 w-full px-8 py-4 rounded-2xl font-bold uppercase tracking-wider hover:shadow-2xl hover:scale-105 transition-all duration-300 flex items-center justify-center gap-2", theme.buttonPrimary, theme.buttonPrimaryHover, theme.textOnDark)}
+                    className="mt-8 w-full px-6 py-4 bg-neutral-900 text-white rounded-xl text-sm font-light uppercase tracking-wide shadow-[0_20px_60px_-15px_rgba(0,0,0,0.3)] hover:shadow-[0_30px_80px_-20px_rgba(0,0,0,0.4)] hover:-translate-y-1 transition-all duration-300"
                   >
                     {t.checkout.goToDelivery}
-                    <ChevronRight className="w-5 h-5" />
                   </button>
                 )}
               </div>
@@ -798,348 +772,314 @@ export default function CheckoutPage() {
 
             {/* Step 4: Delivery */}
             {step >= 4 && (
-              <div className={cn(
-                "relative rounded-3xl p-8 border shadow-2xl transition-all duration-500 animate-in slide-in-from-bottom-4",
-                theme.bgCard,
-                theme.glassCard,
-                theme.glassBorder,
-                step === 4 ? cn("ring-2", theme.borderPrimary) : ""
-              )}>
-                <h2 className={cn("text-2xl font-bold mb-6", theme.textPrimary)}>{t.checkout.step4Title}</h2>
+              <div className="bg-white border border-neutral-200 rounded-xl p-8 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.08)] transition-all duration-500 hover:shadow-[0_30px_80px_-20px_rgba(0,0,0,0.12)]">
+                <h2 className="text-2xl font-light text-neutral-900 mb-6">{t.checkout.step4Title}</h2>
 
                 <div className="space-y-6">
-                  {/* Delivery Type Selection */}
                   <div>
-                    <h3 className={cn("text-sm font-bold uppercase tracking-wider mb-3", theme.textPrimary)}>{t.checkout.deliveryOptions}</h3>
-                    <div className="space-y-3">
+                    <MetaLabel>{t.checkout.deliveryOptions}</MetaLabel>
+                    <div className="space-y-4 mt-4">
                       <button
                         onClick={() => setDeliveryType('farm')}
                         className={cn(
-                          "w-full p-5 rounded-xl border-2 transition-all duration-300 text-left hover:shadow-lg",
-                          deliveryType === 'farm' ? cn(theme.borderPrimary, theme.bgSecondary, "shadow-xl") : theme.borderSecondary
-                        )}>
+                          "w-full p-6 text-left border-2 rounded-xl transition-all duration-300 group",
+                          deliveryType === 'farm'
+                            ? "border-neutral-900 bg-neutral-50 shadow-[0_15px_40px_-12px_rgba(0,0,0,0.15)]"
+                            : "border-neutral-200 hover:border-neutral-300 hover:shadow-[0_10px_30px_-10px_rgba(0,0,0,0.1)] hover:-translate-y-0.5"
+                        )}
+                      >
                         <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
+                          <div className="flex items-center gap-4">
                             <div className={cn(
-                              "w-5 h-5 rounded-full border-2 flex items-center justify-center",
-                              deliveryType === 'farm' ? cn(theme.buttonPrimary, theme.borderPrimary) : theme.borderSecondary
+                              "w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all duration-300",
+                              deliveryType === 'farm' ? "border-neutral-900 bg-neutral-900 shadow-[0_5px_15px_-5px_rgba(0,0,0,0.3)]" : "border-neutral-200"
                             )}>
-                              {deliveryType === 'farm' && <div className={cn("w-2.5 h-2.5 rounded-full", theme.textOnDark)} />}
+                              {deliveryType === 'farm' && <div className="w-2 h-2 rounded-full bg-white" />}
                             </div>
                             <div>
-                              <p className={cn("font-semibold", theme.textPrimary)}>{t.checkout.pickupFarm}</p>
-                              <p className={cn("text-sm", theme.textMuted)}>{t.checkout.pickupFarmAddress}</p>
+                              <p className="font-normal text-neutral-900">{t.checkout.pickupFarm}</p>
+                              <p className="text-sm font-light text-neutral-600 mt-1">{t.checkout.pickupFarmAddress}</p>
                             </div>
                           </div>
-                          <span className="text-sm font-bold text-green-600">{t.common.free}</span>
+                          <span className="text-sm font-light text-neutral-900">{t.common.free}</span>
                         </div>
                       </button>
 
                       <button
                         onClick={() => setDeliveryType('trondheim')}
                         className={cn(
-                          "w-full p-5 rounded-xl border-2 transition-all duration-300 text-left hover:shadow-lg",
-                          deliveryType === 'trondheim' ? cn(theme.borderPrimary, theme.bgSecondary, "shadow-xl") : theme.borderSecondary
-                        )}>
+                          "w-full p-6 text-left border-2 rounded-xl transition-all duration-300 group",
+                          deliveryType === 'trondheim'
+                            ? "border-neutral-900 bg-neutral-50 shadow-[0_15px_40px_-12px_rgba(0,0,0,0.15)]"
+                            : "border-neutral-200 hover:border-neutral-300 hover:shadow-[0_10px_30px_-10px_rgba(0,0,0,0.1)] hover:-translate-y-0.5"
+                        )}
+                      >
                         <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
+                          <div className="flex items-center gap-4">
                             <div className={cn(
-                              "w-5 h-5 rounded-full border-2 flex items-center justify-center",
-                              deliveryType === 'trondheim' ? cn(theme.buttonPrimary, theme.borderPrimary) : theme.borderSecondary
+                              "w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all duration-300",
+                              deliveryType === 'trondheim' ? "border-neutral-900 bg-neutral-900 shadow-[0_5px_15px_-5px_rgba(0,0,0,0.3)]" : "border-neutral-200"
                             )}>
-                              {deliveryType === 'trondheim' && <div className={cn("w-2.5 h-2.5 rounded-full", theme.textOnDark)} />}
+                              {deliveryType === 'trondheim' && <div className="w-2 h-2 rounded-full bg-white" />}
                             </div>
                             <div>
-                              <p className={cn("font-semibold", theme.textPrimary)}>{t.checkout.pickupTrondheim}</p>
-                              <p className={cn("text-sm", theme.textMuted)}>{t.checkout.pickupTrondheimAddress}</p>
+                              <p className="font-normal text-neutral-900">{t.checkout.pickupTrondheim}</p>
+                              <p className="text-sm font-light text-neutral-600 mt-1">{t.checkout.pickupTrondheimAddress}</p>
                             </div>
                           </div>
-                          <span className={cn("text-sm font-bold", theme.textPrimary)}>+{addonPrices?.trondheim || 200} {t.common.kr}</span>
+                          <span className="text-sm font-light text-neutral-900 tabular-nums">
+                            +{addonPrices?.trondheim || 200} kr
+                          </span>
                         </div>
                       </button>
 
                       <button
                         onClick={() => setDeliveryType('e6')}
                         className={cn(
-                          "w-full p-5 rounded-xl border-2 transition-all duration-300 text-left hover:shadow-lg",
-                          deliveryType === 'e6' ? cn(theme.borderPrimary, theme.bgSecondary, "shadow-xl") : theme.borderSecondary
-                        )}>
+                          "w-full p-6 text-left border-2 rounded-xl transition-all duration-300 group",
+                          deliveryType === 'e6'
+                            ? "border-neutral-900 bg-neutral-50 shadow-[0_15px_40px_-12px_rgba(0,0,0,0.15)]"
+                            : "border-neutral-200 hover:border-neutral-300 hover:shadow-[0_10px_30px_-10px_rgba(0,0,0,0.1)] hover:-translate-y-0.5"
+                        )}
+                      >
                         <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
+                          <div className="flex items-center gap-4">
                             <div className={cn(
-                              "w-5 h-5 rounded-full border-2 flex items-center justify-center",
-                              deliveryType === 'e6' ? cn(theme.buttonPrimary, theme.borderPrimary) : theme.borderSecondary
+                              "w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all duration-300",
+                              deliveryType === 'e6' ? "border-neutral-900 bg-neutral-900 shadow-[0_5px_15px_-5px_rgba(0,0,0,0.3)]" : "border-neutral-200"
                             )}>
-                              {deliveryType === 'e6' && <div className={cn("w-2.5 h-2.5 rounded-full", theme.textOnDark)} />}
+                              {deliveryType === 'e6' && <div className="w-2 h-2 rounded-full bg-white" />}
                             </div>
                             <div>
-                              <p className={cn("font-semibold", theme.textPrimary)}>{t.checkout.deliveryE6}</p>
-                              <p className={cn("text-sm", theme.textMuted)}>{t.checkout.deliveryE6Address}</p>
+                              <p className="font-normal text-neutral-900">{t.checkout.deliveryE6}</p>
+                              <p className="text-sm font-light text-neutral-600 mt-1">{t.checkout.deliveryE6Address}</p>
                             </div>
                           </div>
-                          <span className={cn("text-sm font-bold", theme.textPrimary)}>+{addonPrices?.e6 || 300} {t.common.kr}</span>
+                          <span className="text-sm font-light text-neutral-900 tabular-nums">
+                            +{addonPrices?.e6 || 300} kr
+                          </span>
                         </div>
                       </button>
                     </div>
                   </div>
 
-                  {/* Fresh Delivery Option - Only available with farm pickup */}
                   {deliveryType === 'farm' && (
                     <div>
-                      <h3 className={cn("text-sm font-bold uppercase tracking-wider mb-3", theme.textPrimary)}>{t.checkout.extraOptions}</h3>
+                      <MetaLabel>{t.checkout.extraOptions}</MetaLabel>
                       <button
                         onClick={() => setFreshDelivery(!freshDelivery)}
                         className={cn(
-                          "w-full p-5 rounded-xl border-2 transition-all duration-300 text-left hover:shadow-lg",
-                          freshDelivery ? cn(theme.borderPrimary, theme.bgSecondary, "shadow-xl") : theme.borderSecondary
-                        )}>
+                          "w-full p-6 text-left border-2 rounded-xl transition-all duration-300 mt-4 group",
+                          freshDelivery
+                            ? "border-neutral-900 bg-neutral-50 shadow-[0_15px_40px_-12px_rgba(0,0,0,0.15)]"
+                            : "border-neutral-200 hover:border-neutral-300 hover:shadow-[0_10px_30px_-10px_rgba(0,0,0,0.1)] hover:-translate-y-0.5"
+                        )}
+                      >
                         <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
+                          <div className="flex items-center gap-4">
                             <div className={cn(
-                              "w-5 h-5 rounded border-2 flex items-center justify-center",
-                              freshDelivery ? cn(theme.buttonPrimary, theme.borderPrimary) : theme.borderSecondary
+                              "w-5 h-5 rounded border-2 flex items-center justify-center transition-all duration-300",
+                              freshDelivery ? "border-neutral-900 bg-neutral-900 shadow-[0_5px_15px_-5px_rgba(0,0,0,0.3)]" : "border-neutral-200"
                             )}>
-                              {freshDelivery && <Check className={cn("w-3 h-3", theme.textOnDark)} />}
+                              {freshDelivery && <Check className="w-3 h-3 text-white" />}
                             </div>
                             <div>
-                              <p className={cn("font-semibold", theme.textPrimary)}>{t.checkout.freshDelivery}</p>
-                              <p className={cn("text-sm", theme.textMuted)}>{t.checkout.freshDeliveryDesc}</p>
+                              <p className="font-normal text-neutral-900">{t.checkout.freshDelivery}</p>
+                              <p className="text-sm font-light text-neutral-600 mt-1">{t.checkout.freshDeliveryDesc}</p>
                             </div>
                           </div>
-                          <span className={cn("text-sm font-bold", theme.textPrimary)}>+{addonPrices?.fresh || 500} {t.common.kr}</span>
+                          <span className="text-sm font-light text-neutral-900 tabular-nums">
+                            +{addonPrices?.fresh || 500} kr
+                          </span>
                         </div>
                       </button>
                     </div>
                   )}
                 </div>
-
               </div>
             )}
-
           </div>
 
-          {/* Sidebar Summary - Sticky */}
+          {/* Sidebar Summary */}
           <div className="w-full md:w-1/3 md:flex-shrink-0">
-            <div className="md:sticky md:top-24 z-30" style={{ position: '-webkit-sticky' } as any}>
-              <div className={cn("rounded-3xl p-6 sm:p-8 border-2 shadow-2xl will-change-transform", theme.bgCard, theme.glassBorder)}>
-              {/* Vipps Logo */}
-              <div className="flex items-center justify-center mb-6 pb-6 border-b-2 border-gray-200">
-                <div className="relative w-40 h-14">
-                  <Image
-                    src="/vipps-logo.svg"
-                    alt="Vipps"
-                    fill
-                    className="object-contain"
-                    priority
-                  />
+            <div className="md:sticky md:top-24">
+              <div className="bg-white border border-neutral-200 rounded-xl p-8 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.1)] transition-all duration-500 hover:shadow-[0_30px_80px_-20px_rgba(0,0,0,0.15)]">
+                <h3 className="text-2xl font-light text-neutral-900 mb-6">
+                  {t.checkout.summary}
+                </h3>
+
+                {/* Line items */}
+                <div className="space-y-4 pb-6 border-b border-neutral-200">
+                  {boxSize && prices && (
+                    <div className="flex justify-between text-sm">
+                      <span className="font-light text-neutral-600">{boxSize} kg {boxSize === '8' ? t.product.box8 : t.product.box12}</span>
+                      <span className="font-light text-neutral-900 tabular-nums">{prices[boxSize].total} kr</span>
+                    </div>
+                  )}
+                  {deliveryType !== 'farm' && addonPrices && (
+                    <div className="flex justify-between text-sm">
+                      <span className="font-light text-neutral-600">
+                        {deliveryType === 'trondheim' ? t.checkout.pickupTrondheim : t.checkout.deliveryE6}
+                      </span>
+                      <span className="font-light text-neutral-900 tabular-nums">
+                        +{deliveryType === 'trondheim' ? addonPrices.trondheim : addonPrices.e6} kr
+                      </span>
+                    </div>
+                  )}
+                  {freshDelivery && addonPrices && (
+                    <div className="flex justify-between text-sm">
+                      <span className="font-light text-neutral-600">{t.checkout.freshDelivery}</span>
+                      <span className="font-light text-neutral-900 tabular-nums">+{addonPrices.fresh} kr</span>
+                    </div>
+                  )}
+                  {extraProducts.length > 0 && extraProducts.map(slug => {
+                    const extra = availableExtras.find(e => e.slug === slug);
+                    if (!extra) return null;
+                    const quantity = extraQuantities[slug] || 1;
+                    const itemTotal = extra.price_nok * quantity;
+                    return (
+                      <div key={slug} className="flex justify-between text-sm">
+                        <span className="font-light text-neutral-600">
+                          {extra.name_no} ({quantity} {extra.pricing_type === 'per_kg' ? t.common.kg : t.common.stk})
+                        </span>
+                        <span className="font-light text-neutral-900 tabular-nums">+{itemTotal} kr</span>
+                      </div>
+                    );
+                  })}
                 </div>
-              </div>
 
-              <h3 className={cn("text-xl sm:text-2xl font-bold mb-4 sm:mb-6", theme.textPrimary)}>{t.checkout.summary}</h3>
+                {/* Total */}
+                <div className="space-y-4">
+                  <div className="flex justify-between text-sm">
+                    <span className="font-light text-neutral-600">{t.checkout.deposit50Percent}</span>
+                    <span className="font-light text-neutral-900 tabular-nums">{baseDepositTotal.toLocaleString('nb-NO')} kr</span>
+                  </div>
+                  {referralData && (
+                    <div className="flex justify-between text-sm text-green-700">
+                      <span className="font-light">{t.checkout.friendDiscount}</span>
+                      <span className="font-light tabular-nums">-{referralDiscount.toLocaleString('nb-NO')} kr</span>
+                    </div>
+                  )}
+                  {rebateData && (
+                    <div className="flex justify-between text-sm text-blue-700">
+                      <span className="font-light">{t.checkout.discountCode}</span>
+                      <span className="font-light tabular-nums">-{rebateDiscount.toLocaleString('nb-NO')} kr</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between text-sm pb-4 border-b border-neutral-200">
+                    <span className="font-light text-neutral-600">{t.checkout.remainderBeforeDelivery}</span>
+                    <span className="font-light text-neutral-900 tabular-nums">{remainderTotal.toLocaleString('nb-NO')} kr</span>
+                  </div>
+                  <div className="flex justify-between text-2xl">
+                    <span className="font-light text-neutral-900">{t.common.total}</span>
+                    <span className="font-light text-neutral-900 tabular-nums">{totalPrice.toLocaleString('nb-NO')} kr</span>
+                  </div>
+                </div>
 
-              <div className="space-y-4 mb-6">
-                {boxSize && prices && (
-                  <div className="flex justify-between text-sm">
-                    <span className={theme.textMuted}>{boxSize} {t.common.kg} {boxSize === '8' ? t.product.box8 : t.product.box12}</span>
-                    <span className={cn("font-bold", theme.textPrimary)}>{t.common.kr} {prices[boxSize].total}</span>
-                  </div>
-                )}
-                {deliveryType !== 'farm' && addonPrices && (
-                  <div className="flex justify-between text-sm">
-                    <span className={theme.textMuted}>
-                      {deliveryType === 'trondheim' ? t.checkout.pickupTrondheim : t.checkout.deliveryE6}
-                    </span>
-                    <span className={cn("font-bold", theme.textPrimary)}>+{deliveryType === 'trondheim' ? addonPrices.trondheim : addonPrices.e6} {t.common.kr}</span>
-                  </div>
-                )}
-                {freshDelivery && addonPrices && (
-                  <div className="flex justify-between text-sm">
-                    <span className={theme.textMuted}>{t.checkout.freshDelivery}</span>
-                    <span className={cn("font-bold", theme.textPrimary)}>+{addonPrices.fresh} {t.common.kr}</span>
-                  </div>
-                )}
-                {extraProducts.length > 0 && (
-                  <div className="space-y-2 mt-4">
-                    <p className={cn("text-xs uppercase tracking-wider font-semibold", theme.textMuted)}>{t.checkout.extraProducts}</p>
-                    {extraProducts.map(slug => {
-                      const extra = availableExtras.find(e => e.slug === slug);
-                      if (!extra) return null;
-                      const quantity = extraQuantities[slug] || 1;
-                      const itemTotal = extra.price_nok * quantity;
-                      return (
-                        <div key={slug} className="flex justify-between text-sm">
-                          <span className={theme.textMuted}>
-                            {extra.name_no} ({quantity} {extra.pricing_type === 'per_kg' ? t.common.kg : t.common.stk})
-                          </span>
-                          <span className={cn("font-bold", theme.textPrimary)}>+{itemTotal} {t.common.kr}</span>
+                {step === 4 && boxSize && (
+                  <div className="space-y-6 mt-6">
+                    {/* Discount codes */}
+                    <div className="pt-6 border-t border-neutral-200">
+                      <button
+                        type="button"
+                        onClick={() => setShowDiscountCodes(!showDiscountCodes)}
+                        className="text-sm font-light text-neutral-600 hover:text-neutral-900 underline transition-colors duration-300"
+                      >
+                        {t.checkout.hasDiscountCode}
+                      </button>
+
+                      {showDiscountCodes && (
+                        <div className="mt-4 space-y-4">
+                          {!rebateData && (
+                            <ReferralCodeInput
+                              depositAmount={baseDepositTotal}
+                              onCodeApplied={(data) => {
+                                setReferralData({
+                                  code: data.code,
+                                  discountPercentage: data.discountPercentage,
+                                  discountAmount: data.discountAmount,
+                                  referrerPhone: data.referrerUserId,
+                                });
+                                setRebateData(null);
+                              }}
+                              onCodeRemoved={() => setReferralData(null)}
+                            />
+                          )}
+
+                          {!referralData && (
+                            <RebateCodeInput
+                              depositAmount={baseDepositTotal}
+                              boxSize={parseInt(boxSize)}
+                              onCodeApplied={(data) => {
+                                setRebateData({
+                                  code: data.code,
+                                  discountAmount: data.discountAmount,
+                                  description: data.description,
+                                });
+                                setReferralData(null);
+                              }}
+                              onCodeRemoved={() => setRebateData(null)}
+                            />
+                          )}
                         </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
+                      )}
+                    </div>
 
-              <div className={cn("border-t pt-4 mb-6", theme.borderSecondary)}>
-                <div className="flex justify-between text-sm mb-2">
-                  <span className={theme.textMuted}>{t.checkout.deposit50Percent}</span>
-                  <span className={cn("font-bold", theme.textPrimary)}>{t.common.kr} {baseDepositTotal.toLocaleString('nb-NO')}</span>
-                </div>
-                {referralData && (
-                  <div className="flex justify-between text-sm mb-2 text-green-600">
-                    <span>{t.checkout.friendDiscount}</span>
-                    <span className="font-bold">-{t.common.kr} {referralDiscount.toLocaleString('nb-NO')}</span>
-                  </div>
-                )}
-                {rebateData && (
-                  <div className="flex justify-between text-sm mb-2 text-blue-600">
-                    <span>{t.checkout.discountCode} ({rebateData.code})</span>
-                    <span className="font-bold">-{t.common.kr} {rebateDiscount.toLocaleString('nb-NO')}</span>
-                  </div>
-                )}
-                <div className="flex justify-between text-sm mb-4">
-                  <span className={theme.textMuted}>{t.checkout.remainderBeforeDelivery}</span>
-                  <span className={cn("font-bold", theme.textPrimary)}>{t.common.kr} {remainderTotal.toLocaleString('nb-NO')}</span>
-                </div>
-                <div className="flex justify-between text-lg sm:text-xl font-bold">
-                  <span className={theme.textPrimary}>{t.common.total}</span>
-                  <span className={theme.textPrimary}>{t.common.kr} {totalPrice.toLocaleString('nb-NO')}</span>
-                </div>
-              </div>
+                    {/* Agreement checkboxes */}
+                    <div className="space-y-5 pt-6 border-t border-neutral-200">
+                      <Label htmlFor="deposit-policy" className="flex items-start gap-4 cursor-pointer group">
+                        <Checkbox
+                          id="deposit-policy"
+                          checked={agreedToDepositPolicy}
+                          onCheckedChange={(checked) => setAgreedToDepositPolicy(checked as boolean)}
+                          className="mt-0.5"
+                        />
+                        <span className="text-sm font-light leading-relaxed text-neutral-700 group-hover:text-neutral-900 transition-colors duration-300">
+                          <strong className="font-normal text-neutral-900">{t.checkout.depositNotRefundable}</strong> {t.checkout.triggersProd}
+                        </span>
+                      </Label>
 
-              <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50/70 p-4">
-                <p className="text-xs font-bold uppercase tracking-wider text-amber-900 mb-3">
-                  Hva skjer etter bestilling
-                </p>
-                <ul className="space-y-2 text-xs text-amber-900">
-                  <li>1. Vipps-forespørsel for forskudd (50%)</li>
-                  <li>2. Slakting og pakking i uke 46–47</li>
-                  <li>3. Levering eller henting i uke 48–49</li>
-                </ul>
-              </div>
+                      <Label htmlFor="terms" className="flex items-start gap-4 cursor-pointer group">
+                        <Checkbox
+                          id="terms"
+                          checked={agreedToTerms}
+                          onCheckedChange={(checked) => setAgreedToTerms(checked as boolean)}
+                          className="mt-0.5"
+                        />
+                        <span className="text-sm font-light leading-relaxed text-neutral-700 group-hover:text-neutral-900 transition-colors duration-300">
+                          {t.checkout.agreeToTerms} <a href="/vilkar" target="_blank" rel="noopener noreferrer" className="underline font-normal hover:text-neutral-900 transition-colors duration-300">{t.checkout.termsLink}</a>
+                        </span>
+                      </Label>
+                    </div>
 
-              {step === 4 && boxSize && (
-                <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2">
-                  {/* Discount Codes - Collapsible */}
-                  <div className="border-t border-neutral-200 pt-4">
+                    {/* CTA */}
                     <button
-                      type="button"
-                      onClick={() => setShowDiscountCodes(!showDiscountCodes)}
-                      className="text-sm text-neutral-600 hover:text-neutral-900 underline transition-colors"
+                      disabled={!agreedToTerms || !agreedToDepositPolicy || isProcessing}
+                      onClick={handleCheckout}
+                      className="w-full px-6 py-4 bg-neutral-900 text-white rounded-xl text-sm font-light uppercase tracking-wide shadow-[0_20px_60px_-15px_rgba(0,0,0,0.3)] hover:shadow-[0_30px_80px_-20px_rgba(0,0,0,0.4)] hover:-translate-y-1 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-[0_20px_60px_-15px_rgba(0,0,0,0.3)] flex items-center justify-center gap-2"
                     >
-                      {t.checkout.hasDiscountCode}
+                      {isProcessing ? (
+                        t.common.processing
+                      ) : (
+                        <>
+                          <span>{t.checkout.payWith}</span>
+                          <div className="relative w-16 h-6">
+                            <Image
+                              src="/vipps-logo.svg"
+                              alt="Vipps"
+                              fill
+                              className="object-contain brightness-0 invert"
+                            />
+                          </div>
+                        </>
+                      )}
                     </button>
 
-                    {showDiscountCodes && (
-                      <div className="mt-4 space-y-4 animate-in fade-in slide-in-from-top-2">
-                        {!rebateData && (
-                          <ReferralCodeInput
-                            depositAmount={baseDepositTotal}
-                            onCodeApplied={(data) => {
-                              setReferralData({
-                                code: data.code,
-                                discountPercentage: data.discountPercentage,
-                                discountAmount: data.discountAmount,
-                                referrerPhone: data.referrerUserId,
-                              });
-                              setRebateData(null); // Clear rebate if exists
-                            }}
-                            onCodeRemoved={() => setReferralData(null)}
-                            className="mb-4"
-                          />
-                        )}
-
-                        {!referralData && (
-                          <RebateCodeInput
-                            depositAmount={baseDepositTotal}
-                            boxSize={parseInt(boxSize)}
-                            onCodeApplied={(data) => {
-                              setRebateData({
-                                code: data.code,
-                                discountAmount: data.discountAmount,
-                                description: data.description,
-                              });
-                              setReferralData(null); // Clear referral if exists
-                            }}
-                            onCodeRemoved={() => setRebateData(null)}
-                            className="mb-4"
-                          />
-                        )}
-                      </div>
-                    )}
-                  </div>
-
-                  {(referralData || rebateData) && (
-                    <p className="text-xs text-gray-500 text-center">
-                      {t.checkout.onlyOneDiscount}
-                    </p>
-                  )}
-
-                  <div className="p-5 bg-gradient-to-br from-amber-50 to-orange-50 border-2 border-amber-300 rounded-xl shadow-sm">
-                    <Label htmlFor="deposit-policy" className="flex items-start gap-3 cursor-pointer">
-                      <Checkbox
-                        id="deposit-policy"
-                        checked={agreedToDepositPolicy}
-                        onCheckedChange={(checked) => setAgreedToDepositPolicy(checked as boolean)}
-                        className="mt-0.5 rounded"
-                      />
-                      <span className="text-sm leading-relaxed text-amber-900">
-                        <strong className="font-bold">{t.checkout.depositNotRefundable}</strong> {t.checkout.triggersProd}
-                      </span>
-                    </Label>
-                    <p className="mt-2 text-xs text-amber-800">
-                      Avbestilling etter betalt forskudd er ikke mulig.
-                    </p>
-                  </div>
-
-                  <div className="p-5 bg-slate-50 border-2 border-slate-300 rounded-xl">
-                    <Label htmlFor="terms" className="flex items-start gap-3 cursor-pointer">
-                      <Checkbox
-                        id="terms"
-                        checked={agreedToTerms}
-                        onCheckedChange={(checked) => setAgreedToTerms(checked as boolean)}
-                        className="mt-0.5 rounded"
-                      />
-                      <span className="text-sm leading-relaxed text-slate-800">
-                        {t.checkout.agreeToTerms} <a href="/vilkar" target="_blank" rel="noopener noreferrer" className="underline font-semibold hover:text-amber-600">{t.checkout.termsLink}</a>
-                      </span>
-                    </Label>
-                  </div>
-
-                  <button
-                    disabled={!agreedToTerms || !agreedToDepositPolicy || isProcessing}
-                    onClick={handleCheckout}
-                    className="w-full bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-bold text-lg py-5 px-8 rounded-2xl shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-300 flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:from-gray-400 disabled:to-gray-500"
-                    style={{ backgroundColor: isProcessing ? undefined : '#FF5B24' }}
-                  >
-                    {isProcessing ? (
-                      t.common.processing
-                    ) : (
-                      <>
-                        <span>{t.checkout.payWith}</span>
-                        <div className="relative w-20 h-8">
-                          <Image
-                            src="/vipps-logo.svg"
-                            alt="Vipps"
-                            fill
-                            className="object-contain brightness-0 invert"
-                          />
-                        </div>
-                      </>
-                    )}
-                  </button>
-
-                  {/* Info text */}
-                  <div className="pt-4 border-t-2 border-gray-200">
-                    <div className="flex items-center justify-center gap-2 text-sm text-gray-600 mb-2">
-                      <Image src="/vipps-logo.svg" alt="Vipps" width={24} height={24} />
-                      <span className="font-medium">{t.checkout.securePayment}</span>
-                    </div>
-                    <p className="text-xs text-center text-gray-500">
+                    <div className="text-xs text-center font-light text-neutral-500">
                       {t.checkout.contactInfoFromVipps}
-                    </p>
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
               </div>
             </div>
           </div>

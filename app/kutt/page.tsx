@@ -3,81 +3,107 @@
 import Link from "next/link";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { CutDiagram } from "@/components/CutDiagram";
-import { GlassCard } from "@/components/GlassCard";
 
 export default function CutsPage() {
   const { t } = useLanguage();
 
   return (
-    <div className="min-h-screen bg-bg text-textPrimary">
-      <div className="max-w-7xl mx-auto px-6 pt-10 pb-20 sm:pt-16">
-        <div className="flex items-center justify-between gap-4">
+    <div className="min-h-screen bg-white py-20">
+      {/* Subtle parallax background */}
+      <div className="fixed inset-0 pointer-events-none -z-10">
+        <div
+          className="absolute top-1/3 left-1/4 w-[800px] h-[800px] rounded-full blur-3xl opacity-20 bg-neutral-100"
+          style={{
+            transform: `translateY(${typeof window !== 'undefined' ? window.scrollY * 0.1 : 0}px)`,
+            transition: 'transform 0.05s linear'
+          }}
+        />
+      </div>
+
+      <div className="max-w-7xl mx-auto px-6 lg:px-8">
+        <div className="flex items-center justify-between gap-4 mb-12">
           <Link
             href="/"
-            className="text-sm text-textSecondary hover:text-textPrimary transition"
+            className="group inline-flex items-center gap-2 text-sm font-light text-neutral-600 hover:text-neutral-900 transition-all duration-300"
           >
-            ← {t.nav.products}
+            <svg className="w-4 h-4 group-hover:-translate-x-1 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+            {t.nav.products}
           </Link>
 
-          <div className="text-xs text-textSecondary">
+          <div className="text-xs font-light text-neutral-500 uppercase tracking-wide">
             {t.cuts.hover}
           </div>
         </div>
 
-        <div className="mt-10 grid grid-cols-1 lg:grid-cols-[1.2fr_0.8fr] gap-6 lg:gap-10 items-start">
-          <GlassCard className="p-6 sm:p-8">
+        <div className="grid grid-cols-1 lg:grid-cols-[1.2fr_0.8fr] gap-6 lg:gap-10 items-start">
+          {/* Main diagram card */}
+          <div className="bg-white border border-neutral-200 rounded-xl p-8 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.08)] transition-all duration-500 hover:shadow-[0_30px_80px_-20px_rgba(0,0,0,0.12)]">
             <div className="flex items-end justify-between gap-6">
               <div>
-                <h1 className="text-xl sm:text-2xl font-medium tracking-tight">
+                <h1 className="text-3xl font-light tracking-tight text-neutral-900">
                   {t.cuts.title}
                 </h1>
-                <p className="mt-2 text-sm text-textSecondary max-w-2xl">
+                <p className="mt-3 text-base font-light leading-relaxed text-neutral-600 max-w-2xl">
                   Se hvor kuttene sitter, og hva som normalt ligger i kassen versus hva som kan bestilles ekstra.
                 </p>
               </div>
 
-              <div className="hidden sm:flex gap-2 text-xs text-textSecondary">
-                <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">{t.cuts.inBox}</span>
-                <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">{t.cuts.extraOrder}</span>
+              <div className="hidden sm:flex gap-2 text-xs font-light">
+                <span className="rounded-full border border-neutral-200 bg-neutral-50 px-4 py-1.5 text-neutral-600">{t.cuts.inBox}</span>
+                <span className="rounded-full border border-neutral-200 bg-neutral-50 px-4 py-1.5 text-neutral-600">{t.cuts.extraOrder}</span>
               </div>
             </div>
 
-            <div className="mt-8">
+            <div className="mt-10">
               <CutDiagram />
             </div>
-          </GlassCard>
+          </div>
 
+          {/* Sidebar cards */}
           <div className="space-y-6">
-            <GlassCard className="p-6 sm:p-8">
-              <div className="text-sm font-medium">Hvordan bruke dette</div>
-              <ul className="mt-3 space-y-2 text-sm text-textSecondary leading-relaxed">
-                <li>Trykk på et område for å se navn og bruksområde.</li>
-                <li>Bytt mellom “I kassen” og “Ekstra” i diagrammet dersom støttet av komponenten.</li>
-                <li>Se produkt-siden for innhold og struktur.</li>
+            {/* How to use card */}
+            <div className="bg-white border border-neutral-200 rounded-xl p-8 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.08)] transition-all duration-500 hover:shadow-[0_30px_80px_-20px_rgba(0,0,0,0.12)] hover:-translate-y-1">
+              <div className="text-xs uppercase tracking-wide text-neutral-500 font-medium mb-4">Hvordan bruke dette</div>
+              <ul className="space-y-3 text-sm font-light text-neutral-600 leading-relaxed">
+                <li className="flex items-start gap-3">
+                  <span className="w-1.5 h-1.5 rounded-full bg-neutral-400 mt-2 flex-shrink-0" />
+                  <span>Trykk på et område for å se navn og bruksområde.</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <span className="w-1.5 h-1.5 rounded-full bg-neutral-400 mt-2 flex-shrink-0" />
+                  <span>Bytt mellom "I kassen" og "Ekstra" i diagrammet dersom støttet av komponenten.</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <span className="w-1.5 h-1.5 rounded-full bg-neutral-400 mt-2 flex-shrink-0" />
+                  <span>Se produkt-siden for innhold og struktur.</span>
+                </li>
               </ul>
 
               <div className="mt-6 flex flex-col gap-3">
                 <Link
                   href="/produkt"
-                  className="inline-flex items-center justify-center rounded-2xl px-5 py-3 text-sm font-medium bg-white text-black hover:bg-white/90 transition"
+                  className="inline-flex items-center justify-center rounded-xl px-6 py-3 text-sm font-light uppercase tracking-wide bg-neutral-50 text-neutral-900 border border-neutral-200 hover:bg-neutral-100 hover:shadow-[0_10px_30px_-10px_rgba(0,0,0,0.15)] hover:-translate-y-0.5 transition-all duration-300"
                 >
                   {t.product.seeDetails}
                 </Link>
                 <Link
                   href="/bestill"
-                  className="inline-flex items-center justify-center rounded-2xl px-5 py-3 text-sm font-medium bg-white/5 border border-white/10 backdrop-blur-xl hover:bg-white/8 transition"
+                  className="inline-flex items-center justify-center rounded-xl px-6 py-3 text-sm font-light uppercase tracking-wide bg-neutral-900 text-white hover:bg-neutral-800 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.3)] hover:shadow-[0_30px_80px_-20px_rgba(0,0,0,0.4)] hover:-translate-y-1 transition-all duration-300"
                 >
                   {t.product.orderNow}
                 </Link>
               </div>
-            </GlassCard>
+            </div>
 
-            <GlassCard className="p-6 sm:p-8">
-              <div className="text-sm font-medium">Terminologi</div>
-              <div className="mt-2 text-sm text-textSecondary leading-relaxed">
+            {/* Terminology card */}
+            <div className="bg-white border border-neutral-200 rounded-xl p-8 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.08)] transition-all duration-500 hover:shadow-[0_30px_80px_-20px_rgba(0,0,0,0.12)] hover:-translate-y-1">
+              <div className="text-xs uppercase tracking-wide text-neutral-500 font-medium mb-3">Terminologi</div>
+              <div className="text-sm font-light text-neutral-600 leading-relaxed">
                 {t.cuts.shoulder}, {t.cuts.loin}, {t.cuts.belly}, {t.cuts.leg}
               </div>
-            </GlassCard>
+            </div>
           </div>
         </div>
       </div>

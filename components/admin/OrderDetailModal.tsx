@@ -20,15 +20,29 @@ interface Payment {
 interface Order {
   id: string;
   order_number: string;
+  product_type?: 'pig_box' | 'eggs';
   customer_name: string;
   customer_email: string;
   customer_phone: string | null;
-  box_size: number;
+
+  // Pig-specific fields
+  box_size?: number;
+  fresh_delivery?: boolean;
+  ribbe_choice?: string;
+  extra_products?: any[];
+
+  // Egg-specific fields
+  breed_id?: string;
+  breed_name?: string;
+  quantity?: number;
+  week_number?: number;
+  year?: number;
+  delivery_monday?: string;
+  price_per_egg?: number;
+
+  // Common fields
   status: string;
   delivery_type: string;
-  fresh_delivery: boolean;
-  ribbe_choice: string;
-  extra_products: any[];
   notes: string;
   admin_notes: string;
   total_amount: number;
@@ -305,31 +319,80 @@ export function OrderDetailModal({
                 Bestillingsinnhold
               </h3>
               <div className="space-y-3">
-                <div>
-                  <p className="text-sm text-gray-600">Boks</p>
-                  <p className="font-medium text-gray-900">{order.box_size}kg Griskasse</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600">Ribbe</p>
-                  <p className="font-medium text-gray-900">{ribbeChoiceLabels[order.ribbe_choice] || order.ribbe_choice}</p>
-                </div>
-                {order.fresh_delivery && (
-                  <div className="px-3 py-1 rounded-full bg-blue-50 text-blue-700 text-sm inline-block">
-                    Fersk levering
-                  </div>
-                )}
-                {order.extra_products && order.extra_products.length > 0 && (
-                  <div className="mt-3 pt-3 border-t">
-                    <p className="text-sm font-medium text-gray-600 mb-2">Ekstra produkter:</p>
-                    <div className="space-y-1">
-                      {order.extra_products.map((extra: any, index: number) => (
-                        <div key={index} className="flex justify-between text-sm">
-                          <span>{extra.quantity}x {extra.name}</span>
-                          <span className="text-gray-600">kr {extra.total_price?.toLocaleString('nb-NO')}</span>
-                        </div>
-                      ))}
+                {/* Pig Box Order */}
+                {(!order.product_type || order.product_type === 'pig_box') && (
+                  <>
+                    <div>
+                      <p className="text-sm text-gray-600">Boks</p>
+                      <p className="font-medium text-gray-900">{order.box_size}kg Griskasse</p>
                     </div>
-                  </div>
+                    <div>
+                      <p className="text-sm text-gray-600">Ribbe</p>
+                      <p className="font-medium text-gray-900">{ribbeChoiceLabels[order.ribbe_choice || ''] || order.ribbe_choice}</p>
+                    </div>
+                    {order.fresh_delivery && (
+                      <div className="px-3 py-1 rounded-full bg-blue-50 text-blue-700 text-sm inline-block">
+                        Fersk levering
+                      </div>
+                    )}
+                    {order.extra_products && order.extra_products.length > 0 && (
+                      <div className="mt-3 pt-3 border-t">
+                        <p className="text-sm font-medium text-gray-600 mb-2">Ekstra produkter:</p>
+                        <div className="space-y-1">
+                          {order.extra_products.map((extra: any, index: number) => (
+                            <div key={index} className="flex justify-between text-sm">
+                              <span>{extra.quantity}x {extra.name}</span>
+                              <span className="text-gray-600">kr {extra.total_price?.toLocaleString('nb-NO')}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {/* Egg Order */}
+                {order.product_type === 'eggs' && (
+                  <>
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-2xl">🥚</span>
+                      <h4 className="text-lg font-semibold text-gray-900">Rugeegg</h4>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-600">Rase</p>
+                      <p className="font-medium text-gray-900">{order.breed_name}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-600">Antall egg</p>
+                      <p className="font-medium text-gray-900">{order.quantity} stk</p>
+                    </div>
+                    {order.price_per_egg && (
+                      <div>
+                        <p className="text-sm text-gray-600">Pris per egg</p>
+                        <p className="font-medium text-gray-900">
+                          {((order.price_per_egg || 0) / 100).toFixed(2)} kr
+                        </p>
+                      </div>
+                    )}
+                    <div>
+                      <p className="text-sm text-gray-600">Leveringsuke</p>
+                      <p className="font-medium text-gray-900">
+                        Uke {order.week_number}, {order.year}
+                      </p>
+                    </div>
+                    {order.delivery_monday && (
+                      <div>
+                        <p className="text-sm text-gray-600">Leveringsdato (mandag)</p>
+                        <p className="font-medium text-gray-900">
+                          {new Date(order.delivery_monday).toLocaleDateString('nb-NO', {
+                            day: 'numeric',
+                            month: 'long',
+                            year: 'numeric'
+                          })}
+                        </p>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             </div>

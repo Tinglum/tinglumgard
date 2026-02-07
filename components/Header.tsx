@@ -14,7 +14,18 @@ export function Header() {
   const themeClasses = getThemeClasses();
   const [showDropdown, setShowDropdown] = useState(false);
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
+  const [scrolled, setScrolled] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Detect scroll for header transformation
+  useEffect(() => {
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 20);
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   // Fetch unread message count when authenticated
   useEffect(() => {
@@ -64,21 +75,34 @@ export function Header() {
   return (
     <header className="fixed top-0 left-0 right-0 z-50">
       <div className="relative">
-        {/* Premium glassmorphic background with enhanced depth */}
-        <div className={cn("absolute inset-0 glass-card-strong border-b", themeClasses.borderSecondary)} />
+        {/* Minimalist glassmorphic background with dramatic shadow */}
+        <div
+          className={cn(
+            "absolute inset-0 transition-all duration-500",
+            scrolled ? "backdrop-blur-2xl bg-white/95" : "backdrop-blur-xl bg-white/80"
+          )}
+          style={{
+            borderBottom: scrolled ? '1px solid rgba(0, 0, 0, 0.06)' : '1px solid rgba(0, 0, 0, 0.04)',
+            boxShadow: scrolled
+              ? '0 20px 60px -15px rgba(0, 0, 0, 0.15)'
+              : '0 10px 30px -10px rgba(0, 0, 0, 0.08)'
+          }}
+        />
 
         <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="flex h-16 sm:h-20 md:h-24 items-center justify-between">
+          <div className="flex h-20 items-center justify-between">
 
-            {/* Brand */}
+            {/* Brand - Clean minimalist */}
             <Link
               href="/"
-              className={cn("group flex items-center gap-2 sm:gap-3 transition-colors", themeClasses.textPrimary, `hover:${themeClasses.textSecondary}`)}
+              className="group flex items-center gap-3 transition-all duration-300 hover:-translate-y-0.5"
             >
-              <div className={cn("w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center text-white font-bold text-xs sm:text-sm shadow-md group-hover:shadow-lg transition-all", themeClasses.buttonPrimary)}>
+              <div
+                className="w-10 h-10 rounded-xl flex items-center justify-center bg-neutral-900 text-white font-bold text-sm transition-all duration-300 group-hover:shadow-[0_10px_30px_-10px_rgba(0,0,0,0.3)]"
+              >
                 TG
               </div>
-              <span className="text-base sm:text-lg font-bold tracking-tight truncate">
+              <span className="text-lg font-light tracking-tight text-neutral-900 transition-colors">
                 Tinglum Gård
               </span>
             </Link>
@@ -87,23 +111,23 @@ export function Header() {
             <nav className="hidden md:flex items-center gap-1">
               <Link
                 href="/"
-                className={cn("px-5 py-2.5 text-sm font-semibold rounded-xl transition-all", themeClasses.textSecondary, themeClasses.buttonSecondaryHover)}
+                className="px-5 py-2.5 text-sm font-light rounded-xl transition-all duration-300 text-neutral-600 hover:text-neutral-900 hover:bg-neutral-50 hover:-translate-y-0.5"
               >
                 {t.nav.products}
               </Link>
               <Link
                 href="/oppdelingsplan"
-                className={cn("px-5 py-2.5 text-sm font-semibold rounded-xl transition-all", themeClasses.textSecondary, themeClasses.buttonSecondaryHover)}
+                className="px-5 py-2.5 text-sm font-light rounded-xl transition-all duration-300 text-neutral-600 hover:text-neutral-900 hover:bg-neutral-50 hover:-translate-y-0.5"
               >
                 {t.nav.oppdelingsplan}
               </Link>
               <Link
                 href="/min-side"
-                className={cn("relative px-5 py-2.5 text-sm font-semibold rounded-xl transition-all", themeClasses.textSecondary, themeClasses.buttonSecondaryHover)}
+                className="relative px-5 py-2.5 text-sm font-light rounded-xl transition-all duration-300 text-neutral-600 hover:text-neutral-900 hover:bg-neutral-50 hover:-translate-y-0.5"
               >
                 {t.nav.myOrders}
                 {unreadMessageCount > 0 && (
-                  <span className="absolute -top-1 -right-1 flex items-center justify-center w-5 h-5 text-[10px] font-bold text-white bg-red-500 rounded-full border-2 border-white">
+                  <span className="absolute -top-1 -right-1 flex items-center justify-center w-5 h-5 text-[10px] font-bold text-white rounded-full bg-neutral-900 shadow-[0_4px_12px_rgba(0,0,0,0.3)]">
                     {unreadMessageCount}
                   </span>
                 )}
@@ -111,83 +135,39 @@ export function Header() {
             </nav>
 
             {/* Actions */}
-            <div className="flex items-center gap-2 sm:gap-3">
-              {/* Theme toggle */}
-              <div className="hidden sm:flex items-center gap-1 px-2 py-1 bg-white/30 backdrop-blur-sm rounded-lg">
-                <button
-                  onClick={() => setTheme('warm')}
-                  className={cn(
-                    "p-2 rounded-md transition-all",
-                    theme === 'warm' ? "bg-amber-100 text-amber-900" : "text-slate/60 hover:text-charcoal hover:bg-white/50"
-                  )}
-                  title="Warm Brown"
-                >
-                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                    <circle cx="12" cy="12" r="5"/>
-                  </svg>
-                </button>
-                <button
-                  onClick={() => setTheme('monochrome')}
-                  className={cn(
-                    "p-2 rounded-md transition-all",
-                    theme === 'monochrome' ? "bg-gray-200 text-black" : "text-slate/60 hover:text-charcoal hover:bg-white/50"
-                  )}
-                  title="Black & White"
-                >
-                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18V4c4.41 0 8 3.59 8 8s-3.59 8-8 8z"/>
-                  </svg>
-                </button>
-                <button
-                  onClick={() => setTheme('nordic')}
-                  className={cn(
-                    "p-2 rounded-md transition-all",
-                    theme === 'nordic' ? "bg-blue-100 text-blue-900" : "text-slate/60 hover:text-charcoal hover:bg-white/50"
-                  )}
-                  title="Nordic Arctic"
-                >
-                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M12 2L2 19.5h20L12 2zm0 3.5l7 12.5H5l7-12.5z"/>
-                  </svg>
-                </button>
-              </div>
-
-              {/* Language toggle */}
+            <div className="flex items-center gap-3">
+              {/* Language toggle - Minimalist */}
               <button
                 onClick={() => setLang(lang === "no" ? "en" : "no")}
-                className={cn("px-3 py-1.5 sm:px-4 sm:py-2 text-xs font-bold uppercase tracking-wider rounded-lg transition-all", themeClasses.textMuted, themeClasses.buttonSecondaryHover)}
+                className="px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-lg transition-all duration-300 text-neutral-600 hover:text-neutral-900 bg-neutral-50 hover:bg-white border border-neutral-200 hover:shadow-[0_4px_12px_rgba(0,0,0,0.08)] hover:-translate-y-0.5"
               >
                 {lang === "no" ? "EN" : "NO"}
               </button>
 
-              {/* User Profile / Login */}
+              {/* User Profile / Login - Minimalist */}
               {isAuthenticated && user ? (
                 <div className="relative" ref={dropdownRef}>
                   <button
                     onClick={() => setShowDropdown(!showDropdown)}
-                    className={cn(
-                      "flex items-center gap-2 px-3 py-2 rounded-lg transition-all",
-                      themeClasses.buttonSecondaryHover,
-                      themeClasses.textPrimary
-                    )}
+                    className="flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-300 text-neutral-900 bg-neutral-50 hover:bg-white border border-neutral-200 hover:shadow-[0_4px_12px_rgba(0,0,0,0.08)] hover:-translate-y-0.5"
                   >
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                     </svg>
-                    <span className="text-sm font-semibold">***{getLastFourDigits(user?.phoneNumber)}</span>
+                    <span className="text-sm font-light">***{getLastFourDigits(user?.phoneNumber)}</span>
                   </button>
 
                   {showDropdown && (
-                    <div className={cn("absolute right-0 mt-2 w-48 rounded-xl shadow-lg border z-50", themeClasses.bgCard, themeClasses.glassBorder)}>
+                    <div className="absolute right-0 mt-2 w-48 rounded-xl shadow-[0_20px_60px_-15px_rgba(0,0,0,0.2)] z-50 overflow-hidden backdrop-blur-xl bg-white border border-neutral-200">
                       <div className="py-2">
                         <Link
                           href="/min-side"
                           onClick={() => setShowDropdown(false)}
-                          className={cn("relative flex items-center justify-between px-4 py-2 text-sm transition-colors", themeClasses.textPrimary, themeClasses.buttonSecondaryHover)}
+                          className="relative flex items-center justify-between px-4 py-3 text-sm font-light transition-all duration-200 text-neutral-900 hover:bg-neutral-50"
                         >
                           <span>{t.nav.myOrders}</span>
                           {unreadMessageCount > 0 && (
-                            <span className="flex items-center justify-center w-5 h-5 text-[10px] font-bold text-white bg-red-500 rounded-full">
+                            <span className="flex items-center justify-center w-5 h-5 text-[10px] font-bold text-white rounded-full bg-neutral-900">
                               {unreadMessageCount}
                             </span>
                           )}
@@ -197,7 +177,7 @@ export function Header() {
                             setShowDropdown(false);
                             logout();
                           }}
-                          className={cn("w-full text-left px-4 py-2 text-sm transition-colors", themeClasses.textPrimary, themeClasses.buttonSecondaryHover)}
+                          className="w-full text-left px-4 py-3 text-sm font-light transition-all duration-200 text-neutral-900 hover:bg-neutral-50"
                         >
                           {t.nav.logout}
                         </button>
@@ -208,11 +188,7 @@ export function Header() {
               ) : (
                 <button
                   onClick={handleVippsLogin}
-                  className={cn(
-                    "flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold transition-all",
-                    themeClasses.buttonSecondaryHover,
-                    themeClasses.textPrimary
-                  )}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-light transition-all duration-300 text-neutral-900 bg-neutral-50 hover:bg-white border border-neutral-200 hover:shadow-[0_4px_12px_rgba(0,0,0,0.08)] hover:-translate-y-0.5"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
@@ -221,22 +197,16 @@ export function Header() {
                 </button>
               )}
 
-              {/* CTA - glassmorphic */}
+              {/* CTA - Minimalist with dramatic shadow */}
               <Link
                 href="/bestill"
-                className={cn(
-                  "flex items-center gap-2 group",
-                  "px-4 py-2 sm:px-6 sm:py-3 rounded-xl font-bold text-xs sm:text-sm uppercase tracking-wider backdrop-blur-xl text-white border border-white/20",
-                  themeClasses.buttonPrimary,
-                  themeClasses.buttonPrimaryHover,
-                  "hover:scale-105 hover:shadow-2xl transition-all duration-300"
-                )}
+                className="group flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-sm uppercase tracking-wider text-white bg-neutral-900 transition-all duration-300 hover:shadow-[0_20px_60px_-15px_rgba(0,0,0,0.3)] hover:-translate-y-1"
               >
-                <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-4 h-4 transition-transform group-hover:scale-110" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
                 </svg>
-                <span className="hidden xs:inline">{t.product.orderNow}</span>
-                <span className="xs:hidden">{t.nav.order}</span>
+                <span className="hidden sm:inline">{t.product.orderNow}</span>
+                <span className="sm:hidden">{t.nav.order}</span>
               </Link>
             </div>
 

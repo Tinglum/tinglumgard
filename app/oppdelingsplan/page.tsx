@@ -22,8 +22,6 @@ interface CutInfo {
 
 export default function OppdelingsplanPage() {
   const { t } = useLanguage();
-  const { getThemeClasses } = useTheme();
-  const theme = getThemeClasses();
   const isMobile = useIsMobile();
   const [selectedCut, setSelectedCut] = useState<number | null>(null);
   const [hoveredCut, setHoveredCut] = useState<number | null>(null);
@@ -128,46 +126,57 @@ export default function OppdelingsplanPage() {
     );
   }
 
-  // Desktop version
+  // Desktop version - Nordic Minimal Design with Movement
   return (
-    <div className={cn("min-h-screen", theme.bgGradientHero)}>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+    <div className="min-h-screen bg-white">
+      {/* Subtle parallax background layer */}
+      <div className="fixed inset-0 pointer-events-none -z-10">
+        <div
+          className="absolute top-1/3 right-1/3 w-[800px] h-[800px] rounded-full blur-3xl opacity-20 bg-neutral-100"
+          style={{
+            transform: `translateY(${typeof window !== 'undefined' ? window.scrollY * 0.12 : 0}px)`,
+            transition: 'transform 0.05s linear'
+          }}
+        />
+      </div>
 
-        <Link href="/" className={cn("inline-flex items-center transition-colors mb-8", theme.textSecondary, `hover:${theme.textPrimary}`)}>
-          <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <div className="max-w-7xl mx-auto px-6 lg:px-8 py-20">
+
+        <Link href="/" className="group inline-flex items-center gap-2 text-sm font-light text-neutral-600 hover:text-neutral-900 transition-all duration-300 mb-12">
+          <svg className="w-4 h-4 group-hover:-translate-x-1 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
           {t.nav.backToHome}
         </Link>
 
-        <div className="text-center mb-12">
-          <h1 className={cn("text-4xl md:text-5xl font-bold mb-4", theme.textPrimary)}>{t.oppdelingsplan.title}</h1>
-          <p className={cn("text-lg max-w-3xl mx-auto", theme.textMuted)}>
+        <div className="text-center mb-16">
+          <h1 className="text-5xl font-light tracking-tight text-neutral-900 mb-4">{t.oppdelingsplan.title}</h1>
+          <p className="text-base font-light text-neutral-600 max-w-3xl mx-auto">
             {t.oppdelingsplan.subtitle}
           </p>
         </div>
 
         {/* Product Summary */}
-        <div className={cn("rounded-2xl shadow-xl border p-8 mb-8", theme.bgCard, theme.borderSecondary)}>
-          <h2 className={cn("text-2xl font-bold mb-6 text-center", theme.textPrimary)}>{t.oppdelingsplan.ourProducts}</h2>
+        <div className="bg-white border border-neutral-200 rounded-xl p-10 mb-12 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.08)] transition-all duration-500 hover:shadow-[0_30px_80px_-20px_rgba(0,0,0,0.12)]">
+          <h2 className="text-3xl font-light text-neutral-900 mb-10 text-center">{t.oppdelingsplan.ourProducts}</h2>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
             {/* In Box Products */}
             <div>
-              <h3 className={cn("text-lg font-bold mb-4 flex items-center gap-2", theme.textPrimary)}>
-                <svg className="w-6 h-6 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+              <h3 className="text-xl font-normal mb-6 flex items-center gap-3 text-neutral-900">
+                <svg className="w-6 h-6 text-neutral-600" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/>
                 </svg>
                 {t.oppdelingsplan.inBox}
               </h3>
-              <p className={cn("text-sm mb-4", theme.textMuted)}>{t.oppdelingsplan.inBoxDesc}:</p>
-              <div className="space-y-2">
+              <p className="text-sm font-light text-neutral-600 mb-6">{t.oppdelingsplan.inBoxDesc}:</p>
+              <div className="space-y-3">
                 {inBoxSummary.map((product) => (
-                  <div key={product} className="flex items-center gap-3 p-3 bg-green-50 rounded-lg border border-green-200">
-                    <svg className="w-5 h-5 text-green-600 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                  <div key={product} className="flex items-center gap-4 p-4 bg-neutral-50 rounded-xl border border-neutral-200 hover:border-neutral-300 hover:shadow-[0_10px_30px_-10px_rgba(0,0,0,0.1)] hover:-translate-y-0.5 transition-all duration-300">
+                    <svg className="w-5 h-5 text-neutral-600 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                     </svg>
-                    <span className="font-medium text-green-900">{product}</span>
+                    <span className="font-light text-neutral-900">{product}</span>
                   </div>
                 ))}
               </div>
@@ -175,20 +184,20 @@ export default function OppdelingsplanPage() {
 
             {/* Extra Order Products */}
             <div>
-              <h3 className={cn("text-lg font-bold mb-4 flex items-center gap-2", theme.textPrimary)}>
-                <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <h3 className="text-xl font-normal mb-6 flex items-center gap-3 text-neutral-900">
+                <svg className="w-6 h-6 text-neutral-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                 </svg>
                 {t.oppdelingsplan.canOrder}
               </h3>
-              <p className={cn("text-sm mb-4", theme.textMuted)}>{t.oppdelingsplan.canOrderDesc}:</p>
-              <div className="space-y-2">
+              <p className="text-sm font-light text-neutral-600 mb-6">{t.oppdelingsplan.canOrderDesc}:</p>
+              <div className="space-y-3">
                 {canOrderSummary.map((product) => (
-                  <div key={product} className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
-                    <svg className="w-5 h-5 text-blue-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div key={product} className="flex items-center gap-4 p-4 bg-neutral-50 rounded-xl border border-neutral-200 hover:border-neutral-300 hover:shadow-[0_10px_30px_-10px_rgba(0,0,0,0.1)] hover:-translate-y-0.5 transition-all duration-300">
+                    <svg className="w-5 h-5 text-neutral-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                     </svg>
-                    <span className="font-medium text-blue-900">{product}</span>
+                    <span className="font-light text-neutral-900">{product}</span>
                   </div>
                 ))}
               </div>
@@ -197,8 +206,8 @@ export default function OppdelingsplanPage() {
         </div>
 
         {/* Image-based diagram */}
-        <div className={cn("rounded-2xl shadow-xl border overflow-hidden mb-12", theme.bgCard, theme.borderSecondary)}>
-          <div className={cn("relative px-4 py-2 md:px-8 md:py-3", theme.bgDark)}>
+        <div className="bg-white border border-neutral-200 rounded-xl overflow-hidden mb-12 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.08)] transition-all duration-500 hover:shadow-[0_30px_80px_-20px_rgba(0,0,0,0.12)]">
+          <div className="relative px-8 py-6 bg-neutral-900">
 
             {/* Pig butcher diagram */}
             <div className="relative w-full aspect-[16/9] max-w-5xl mx-auto">
@@ -231,8 +240,8 @@ export default function OppdelingsplanPage() {
 
               {/* Hover tooltip */}
               {hoveredCut && hoveredCutInfo && !selectedCut && (
-                <div className={cn("absolute bottom-4 left-1/2 transform -translate-x-1/2 rounded-lg shadow-xl px-4 py-2 pointer-events-none z-10", theme.bgPrimary)}>
-                  <p className={cn("text-sm font-bold", theme.textPrimary)}>{hoveredCutInfo.name}</p>
+                <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 rounded-xl shadow-[0_15px_40px_-12px_rgba(0,0,0,0.3)] px-6 py-3 pointer-events-none z-10 bg-white border border-neutral-200">
+                  <p className="text-sm font-light text-neutral-900">{hoveredCutInfo.name}</p>
                 </div>
               )}
             </div>
@@ -240,71 +249,71 @@ export default function OppdelingsplanPage() {
           </div>
 
           {selectedCutInfo ? (
-            <div className={cn("border-t-4 p-4 md:p-6 animate-fade-in", theme.borderSecondary, theme.bgGradientHero)}>
+            <div className="border-t-2 border-neutral-200 p-10 animate-fade-in bg-white">
               <div className="max-w-4xl mx-auto">
                 <div className="flex-1">
-                  <h2 className={cn("text-3xl font-bold mb-3", theme.textPrimary)}>{selectedCutInfo.name}</h2>
-                  <p className={cn("text-lg mb-6", theme.textMuted)}>{selectedCutInfo.description}</p>
+                  <h2 className="text-4xl font-light mb-4 text-neutral-900">{selectedCutInfo.name}</h2>
+                  <p className="text-base font-light text-neutral-600 mb-8">{selectedCutInfo.description}</p>
 
-                  <div className="flex flex-col md:flex-row gap-4 mb-6">
+                  <div className="flex flex-col md:flex-row gap-8 mb-8">
 
                     {/* In Box Products */}
                     <div className="flex-1">
-                      <h3 className={cn("text-sm font-bold uppercase tracking-wider mb-3 flex items-center gap-2", theme.textPrimary)}>
-                        <svg className="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                      <h3 className="text-xs font-light uppercase tracking-wider mb-4 flex items-center gap-2 text-neutral-600">
+                        <svg className="w-5 h-5 text-neutral-600" fill="currentColor" viewBox="0 0 20 20">
                           <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/>
                         </svg>
                         {t.oppdelingsplan.inBox}
                       </h3>
                       {selectedCutInfo.inBox.length > 0 ? (
-                        <div className="flex flex-wrap gap-1.5">
+                        <div className="flex flex-wrap gap-2">
                           {selectedCutInfo.inBox.map((product, idx) => (
-                            <span key={idx} className="px-3 py-1.5 bg-green-50 border-2 border-green-200 rounded-full text-sm font-medium text-green-800">
+                            <span key={idx} className="px-4 py-2 bg-neutral-50 border border-neutral-200 rounded-xl text-sm font-light text-neutral-900 hover:border-neutral-300 hover:shadow-[0_5px_15px_-5px_rgba(0,0,0,0.1)] hover:-translate-y-0.5 transition-all duration-300">
                               {product}
                             </span>
                           ))}
                         </div>
                       ) : (
-                        <p className={cn("text-sm italic", theme.textMuted)}>{t.oppdelingsplan.noProductsInBox}</p>
+                        <p className="text-sm font-light italic text-neutral-500">{t.oppdelingsplan.noProductsInBox}</p>
                       )}
                     </div>
 
                     {/* Extra Order Products */}
                     <div className="flex-1 md:max-h-[400px] overflow-y-auto">
-                      <h3 className={cn("text-sm font-bold uppercase tracking-wider mb-2 flex items-center gap-2", theme.textPrimary)}>
-                        <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <h3 className="text-xs font-light uppercase tracking-wider mb-4 flex items-center gap-2 text-neutral-600">
+                        <svg className="w-5 h-5 text-neutral-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                         </svg>
                         {t.oppdelingsplan.canOrder}
                       </h3>
                       {selectedCutInfo.extraOrder.length > 0 ? (
-                        <div className="flex flex-wrap gap-1.5">
+                        <div className="flex flex-wrap gap-2">
                           {selectedCutInfo.extraOrder.map((product, idx) => (
-                            <span key={idx} className="px-3 py-1.5 bg-blue-50 border-2 border-blue-200 rounded-full text-sm font-medium text-blue-800">
+                            <span key={idx} className="px-4 py-2 bg-neutral-50 border border-neutral-200 rounded-xl text-sm font-light text-neutral-900 hover:border-neutral-300 hover:shadow-[0_5px_15px_-5px_rgba(0,0,0,0.1)] hover:-translate-y-0.5 transition-all duration-300">
                               {product}
                             </span>
                           ))}
                         </div>
                       ) : (
-                        <p className={cn("text-sm italic", theme.textMuted)}>{t.oppdelingsplan.noExtraProducts}</p>
+                        <p className="text-sm font-light italic text-neutral-500">{t.oppdelingsplan.noExtraProducts}</p>
                       )}
                     </div>
                   </div>
 
                   {/* Show ribbe choices when Ribbeside is selected */}
                   {selectedCutInfo.id === 7 && (
-                    <div className={cn("mt-8 pt-8 border-t", theme.borderSecondary)}>
+                    <div className="mt-8 pt-8 border-t border-neutral-200">
                       <div className="text-center mb-6">
-                        <h3 className={cn("text-2xl font-bold mb-2", theme.textPrimary)}>{t.oppdelingsplan.chooseRibbeType}</h3>
-                        <p className={cn("text-sm", theme.textMuted)}>Alle tre varianter bruker forskjellige deler av ribbeside og mage</p>
+                        <h3 className="text-2xl font-light mb-2 text-neutral-900">{t.oppdelingsplan.chooseRibbeType}</h3>
+                        <p className="text-sm font-light text-neutral-500">Alle tre varianter bruker forskjellige deler av ribbeside og mage</p>
                       </div>
 
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                         {/* Tynnribbe */}
-                        <div className={cn("rounded-lg p-4 shadow border", theme.bgPrimary, theme.borderSecondary)}>
-                          <h4 className={cn("font-bold mb-1", theme.textPrimary)}>Tynnribbe</h4>
-                          <p className={cn("text-xs mb-2", theme.textMuted)}>Klassisk ribbe med ribbein</p>
-                          <ul className={cn("space-y-1 text-xs", theme.textMuted)}>
+                        <div className="rounded-xl p-4 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.08)] border border-neutral-200 bg-white">
+                          <h4 className="font-normal mb-1 text-neutral-900">Tynnribbe</h4>
+                          <p className="text-xs mb-2 font-light text-neutral-500">Klassisk ribbe med ribbein</p>
+                          <ul className="space-y-1 text-xs font-light text-neutral-600">
                             <li>• Kun ribbein-området</li>
                             <li>• Perfekt sprøstekt svor</li>
                             <li>• God balanse kjøtt/fett</li>
@@ -312,13 +321,13 @@ export default function OppdelingsplanPage() {
                         </div>
 
                         {/* Familieribbe */}
-                        <div className={cn("rounded-lg p-4 shadow border-2", theme.bgPrimary, theme.borderPrimary)}>
+                        <div className="rounded-xl p-4 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.08)] border-2 border-neutral-900 bg-white">
                           <div className="flex items-center justify-between mb-1">
-                            <h4 className={cn("font-bold", theme.textPrimary)}>Familieribbe</h4>
-                            <span className={cn("text-xs px-2 py-0.5 rounded", theme.bgDark, theme.textOnDark)}>Premium</span>
+                            <h4 className="font-normal text-neutral-900">Familieribbe</h4>
+                            <span className="text-xs px-2 py-0.5 rounded bg-neutral-900 text-white">Premium</span>
                           </div>
-                          <p className={cn("text-xs mb-2", theme.textMuted)}>Inkluderer kotelettkam</p>
-                          <ul className={cn("space-y-1 text-xs", theme.textMuted)}>
+                          <p className="text-xs mb-2 font-light text-neutral-500">Inkluderer kotelettkam</p>
+                          <ul className="space-y-1 text-xs font-light text-neutral-600">
                             <li>• Ribbe + kotelettkam</li>
                             <li>• Mer magert kjøtt</li>
                             <li>• Best for store familier</li>
@@ -326,10 +335,10 @@ export default function OppdelingsplanPage() {
                         </div>
 
                         {/* Porchetta */}
-                        <div className={cn("rounded-lg p-4 shadow border", theme.bgPrimary, theme.borderSecondary)}>
-                          <h4 className={cn("font-bold mb-1", theme.textPrimary)}>Porchetta</h4>
-                          <p className={cn("text-xs mb-2", theme.textMuted)}>Beinfri nedre mage</p>
-                          <ul className={cn("space-y-1 text-xs", theme.textMuted)}>
+                        <div className="rounded-xl p-4 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.08)] border border-neutral-200 bg-white">
+                          <h4 className="font-normal mb-1 text-neutral-900">Porchetta</h4>
+                          <p className="text-xs mb-2 font-light text-neutral-500">Beinfri nedre mage</p>
+                          <ul className="space-y-1 text-xs font-light text-neutral-600">
                             <li>• 100% beinfri</li>
                             <li>• Enkel å skjære</li>
                             <li>• Saftig og smakfull</li>
@@ -337,7 +346,7 @@ export default function OppdelingsplanPage() {
                         </div>
                       </div>
 
-                      <div className={cn("rounded-lg p-4 text-sm", theme.bgSecondary, theme.textSecondary)}>
+                      <div className="rounded-xl p-4 text-sm font-light bg-neutral-50 text-neutral-600 border border-neutral-200">
                         {t.oppdelingsplan.butchersChoiceFull}
                       </div>
                     </div>
@@ -346,47 +355,49 @@ export default function OppdelingsplanPage() {
               </div>
             </div>
           ) : (
-            <div className={cn("border-t-4 p-12 text-center", theme.borderSecondary, theme.bgGradientHero)}>
-              <svg className={cn("w-16 h-16 mx-auto mb-4", theme.iconColor)} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="border-t-2 border-neutral-200 p-16 text-center bg-white">
+              <svg className="w-20 h-20 mx-auto mb-6 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" />
               </svg>
-              <p className={cn("text-lg font-medium", theme.textMuted)}>{t.oppdelingsplan.clickForInfo}</p>
+              <p className="text-lg font-light text-neutral-600">{t.oppdelingsplan.clickForInfo}</p>
             </div>
           )}
         </div>
 
         {/* All Cuts Overview */}
-        <div className={cn("rounded-2xl shadow-xl border p-8", theme.bgCard, theme.borderSecondary)}>
-          <h2 className={cn("text-2xl font-bold mb-6 text-center", theme.textPrimary)}>Alle kutt - Oversikt</h2>
+        <div className="bg-white border border-neutral-200 rounded-xl p-10 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.08)] transition-all duration-500 hover:shadow-[0_30px_80px_-20px_rgba(0,0,0,0.12)]">
+          <h2 className="text-3xl font-light text-neutral-900 mb-10 text-center">Alle kutt - Oversikt</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {cuts.map((cut) => (
               <button
                 key={cut.id}
                 onClick={() => setSelectedCut(cut.id)}
                 className={cn(
-                  "p-6 rounded-xl border-2 text-left transition-all hover:shadow-lg",
-                  selectedCut === cut.id ? cn(theme.borderPrimary, theme.bgSecondary, "shadow-md") : cn(theme.borderSecondary, "hover:opacity-80")
+                  "p-6 rounded-xl border-2 text-left transition-all duration-300",
+                  selectedCut === cut.id
+                    ? "border-neutral-900 bg-neutral-50 shadow-[0_15px_40px_-12px_rgba(0,0,0,0.15)]"
+                    : "border-neutral-200 hover:border-neutral-300 hover:shadow-[0_10px_30px_-10px_rgba(0,0,0,0.1)] hover:-translate-y-1"
                 )}
               >
-                <h3 className={cn("text-xl font-bold mb-3", theme.textPrimary)}>{cut.name}</h3>
-                <p className={cn("text-sm mb-3", theme.textMuted)}>{cut.description}</p>
-                <div className="space-y-2">
+                <h3 className="text-xl font-normal text-neutral-900 mb-3">{cut.name}</h3>
+                <p className="text-sm font-light text-neutral-600 mb-4">{cut.description}</p>
+                <div className="space-y-3">
                   {cut.inBox.length > 0 && (
                     <div>
-                      <p className="text-xs text-green-700 font-semibold mb-1">I kassen:</p>
-                      <div className="flex flex-wrap gap-1">
+                      <p className="text-xs font-light uppercase tracking-wider text-neutral-600 mb-2">I kassen:</p>
+                      <div className="flex flex-wrap gap-1.5">
                         {cut.inBox.map((p, i) => (
-                          <span key={i} className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded border border-green-200">{p}</span>
+                          <span key={i} className="text-xs bg-neutral-50 text-neutral-800 px-2 py-1 rounded-lg border border-neutral-200 font-light">{p}</span>
                         ))}
                       </div>
                     </div>
                   )}
                   {cut.extraOrder.length > 0 && (
                     <div>
-                      <p className="text-xs text-blue-700 font-semibold mb-1">Ekstra:</p>
-                      <div className="flex flex-wrap gap-1">
+                      <p className="text-xs font-light uppercase tracking-wider text-neutral-600 mb-2">Ekstra:</p>
+                      <div className="flex flex-wrap gap-1.5">
                         {cut.extraOrder.map((p, i) => (
-                          <span key={i} className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded border border-blue-200">{p}</span>
+                          <span key={i} className="text-xs bg-neutral-50 text-neutral-800 px-2 py-1 rounded-lg border border-neutral-200 font-light">{p}</span>
                         ))}
                       </div>
                     </div>

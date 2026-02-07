@@ -31,12 +31,16 @@ import {
   Tag
 } from 'lucide-react';
 import { DashboardMetrics } from '@/components/admin/DashboardMetrics';
+import { EggMetrics } from '@/components/admin/EggMetrics';
 import { OrderDetailModal } from '@/components/admin/OrderDetailModal';
 import { CustomerDatabase } from '@/components/admin/CustomerDatabase';
 import { SystemHealth } from '@/components/admin/SystemHealth';
 import { CommunicationCenter } from '@/components/admin/CommunicationCenter';
 import { CommunicationHistory } from '@/components/admin/CommunicationHistory';
 import { InventoryManagement } from '@/components/admin/InventoryManagement';
+import { EggInventoryManagement } from '@/components/admin/EggInventoryManagement';
+import { BreedManagement } from '@/components/admin/BreedManagement';
+import { EggAnalytics } from '@/components/admin/EggAnalytics';
 import { AdminMessagingPanel } from '@/components/admin/AdminMessagingPanel';
 import { ConfigurationManagement } from '@/components/admin/ConfigurationManagement';
 import { DeliveryCalendar } from '@/components/admin/DeliveryCalendar';
@@ -45,20 +49,34 @@ import { RebateCodesManager } from '@/components/admin/RebateCodesManager';
 import { ExtrasCatalogManager } from '@/components/admin/ExtrasCatalogManager';
 import { NotificationSettings } from '@/components/admin/NotificationSettings';
 
-type TabType = 'dashboard' | 'orders' | 'customers' | 'analytics' | 'production' | 'communication' | 'messages' | 'health' | 'inventory' | 'boxes' | 'rebates' | 'extras' | 'settings' | 'notifications';
+type TabType = 'dashboard' | 'orders' | 'customers' | 'analytics' | 'production' | 'communication' | 'messages' | 'health' | 'inventory' | 'breeds' | 'boxes' | 'rebates' | 'extras' | 'settings' | 'notifications';
 
 interface Order {
   id: string;
   order_number: string;
+  product_type: 'pig_box' | 'eggs';
   customer_name: string;
   customer_email: string;
   customer_phone: string | null;
-  box_size: number;
+
+  // Pig-specific fields (optional)
+  box_size?: number;
+  fresh_delivery?: boolean;
+  ribbe_choice?: string;
+  extra_products?: any[];
+
+  // Egg-specific fields (optional)
+  breed_id?: string;
+  breed_name?: string;
+  quantity?: number;
+  week_number?: number;
+  year?: number;
+  delivery_monday?: string;
+  price_per_egg?: number;
+
+  // Common fields
   status: string;
   delivery_type: string;
-  fresh_delivery: boolean;
-  ribbe_choice: string;
-  extra_products: any[];
   notes: string;
   admin_notes: string;
   total_amount: number;
@@ -86,6 +104,9 @@ export default function AdminPage() {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [showOrderDetail, setShowOrderDetail] = useState(false);
   const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set());
+
+  // Product Mode Filter
+  const [productMode, setProductMode] = useState<'pigs' | 'eggs' | 'combined'>('combined');
 
   // Data
   const [orders, setOrders] = useState<Order[]>([]);
@@ -155,16 +176,32 @@ export default function AdminPage() {
   async function loadDashboard() {
     setDashboardLoading(true);
     try {
-      const response = await fetch('/api/admin/dashboard');
-      if (!response.ok) {
-        if (response.status === 403) {
+      // Fetch pig metrics
+      const pigResponse = await fetch('/api/admin/dashboard');
+      if (!pigResponse.ok) {
+        if (pigResponse.status === 403) {
           setIsAuthenticated(false);
           return;
         }
-        throw new Error('Failed to load dashboard');
+        throw new Error('Failed to load pig dashboard');
       }
-      const data = await response.json();
-      setDashboardMetrics(data);
+      const pigData = await pigResponse.json();
+
+      // Fetch egg metrics
+      let eggData = null;
+      try {
+        const eggResponse = await fetch('/api/admin/eggs/dashboard');
+        if (eggResponse.ok) {
+          eggData = await eggResponse.json();
+        }
+      } catch (err) {
+        console.log('Egg dashboard not available yet');
+      }
+
+      setDashboardMetrics({
+        pigs: pigData,
+        eggs: eggData,
+      });
     } catch (error) {
       console.error('Failed to load dashboard:', error);
     } finally {
@@ -179,9 +216,31 @@ export default function AdminPage() {
       if (searchTerm) params.append('search', searchTerm);
       if (statusFilter !== 'all') params.append('status', statusFilter);
 
-      const response = await fetch(`/api/admin/orders?${params}`);
-      const data = await response.json();
-      setOrders(data.orders || []);
+      // Fetch pig orders
+      const pigResponse = await fetch(`/api/admin/orders?${params}`);
+      const pigData = await pigResponse.json();
+      const pigOrders = (pigData.orders || []).map((o: any) => ({
+        ...o,
+        product_type: 'pig_box' as const,
+      }));
+
+      // Fetch egg orders
+      const eggResponse = await fetch(`/api/eggs/orders`);
+      const eggData = await eggResponse.json();
+      const eggOrders = (eggData || []).map((o: any) => ({
+        ...o,
+        product_type: 'eggs' as const,
+        breed_name: o.egg_breeds?.name,
+        delivery_type: o.delivery_method,
+      }));
+
+      // Combine orders
+      const allOrders = [...pigOrders, ...eggOrders];
+
+      // Sort by created_at
+      allOrders.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+      setOrders(allOrders);
     } catch (error) {
       console.error('Failed to load orders:', error);
     } finally {
@@ -468,6 +527,12 @@ export default function AdminPage() {
   }
 
   const filteredOrders = orders.filter((order) => {
+    // Filter by product mode
+    const matchesProductMode =
+      productMode === 'combined' ||
+      (productMode === 'pigs' && order.product_type === 'pig_box') ||
+      (productMode === 'eggs' && order.product_type === 'eggs');
+
     const matchesSearch =
       order.order_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
       order.customer_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -476,7 +541,7 @@ export default function AdminPage() {
     const matchesStatus = statusFilter === 'all' || order.status === statusFilter;
     const matchesDelivery = deliveryFilter === 'all' || order.delivery_type === deliveryFilter;
 
-    return matchesSearch && matchesStatus && matchesDelivery;
+    return matchesProductMode && matchesSearch && matchesStatus && matchesDelivery;
   });
 
   const tabs: Array<{ id: TabType; label: string; icon: any }> = [
@@ -488,6 +553,7 @@ export default function AdminPage() {
     { id: 'messages', label: 'Kundemeldinger', icon: MessageSquare },
     { id: 'production', label: 'Hentekalender', icon: Calendar },
     { id: 'inventory', label: 'Lager', icon: Warehouse },
+    { id: 'breeds', label: 'Eggraser', icon: Tag },
     { id: 'boxes', label: 'Boksinnhold', icon: Package },
     { id: 'rebates', label: 'Rabattkoder', icon: Tag },
     { id: 'extras', label: 'Ekstraprodukter', icon: ShoppingCart },
@@ -516,12 +582,15 @@ export default function AdminPage() {
 
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen flex items-center justify-center px-6 bg-gradient-to-br from-gray-50 to-gray-100">
-        <Card className="w-full max-w-md p-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-6">Admin Login</h1>
-          <form onSubmit={handlePasswordSubmit} className="space-y-4">
+      <div className="min-h-screen flex items-center justify-center px-6 bg-white">
+        <div className="w-full max-w-md bg-white border border-neutral-200 rounded-xl p-12 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.1)]">
+          <div className="flex items-center justify-center mb-8">
+            <Lock className="w-16 h-16 text-neutral-400" />
+          </div>
+          <h1 className="text-4xl font-light tracking-tight text-neutral-900 mb-8 text-center">Admin Login</h1>
+          <form onSubmit={handlePasswordSubmit} className="space-y-6">
             <div>
-              <Label htmlFor="admin-password" className="text-gray-700 font-semibold">
+              <Label htmlFor="admin-password" className="text-sm font-light text-neutral-600">
                 Passord
               </Label>
               <Input
@@ -529,44 +598,94 @@ export default function AdminPage() {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="mt-2"
+                className="mt-2 border-neutral-200 rounded-xl font-light"
                 autoFocus
                 placeholder="••••••••"
               />
               {passwordError && (
-                <p className="text-red-600 text-sm mt-2">Feil passord. Prøv igjen.</p>
+                <p className="text-red-600 text-sm font-light mt-2">Feil passord. Prøv igjen.</p>
               )}
             </div>
-            <Button type="submit" className="w-full">
+            <button
+              type="submit"
+              className="w-full px-6 py-4 bg-neutral-900 text-white rounded-xl text-sm font-light uppercase tracking-wide shadow-[0_20px_60px_-15px_rgba(0,0,0,0.3)] hover:shadow-[0_30px_80px_-20px_rgba(0,0,0,0.4)] hover:-translate-y-1 transition-all duration-300"
+            >
               Logg inn
-            </Button>
+            </button>
           </form>
-        </Card>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-white">
       {/* Header */}
-      <div className="bg-white border-b sticky top-0 z-40">
-        <div className="max-w-[1800px] mx-auto px-6 py-4">
+      <div className="bg-white border-b border-neutral-200 sticky top-0 z-40 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.08)]">
+        <div className="max-w-[1800px] mx-auto px-6 py-6">
           <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-bold text-gray-900">Tinglumgård - Admin</h1>
-            <Button variant="outline" onClick={async () => {
-              await fetch('/api/admin/logout', { method: 'POST' });
-              setIsAuthenticated(false);
-            }}>
+            <h1 className="text-3xl font-light tracking-tight text-neutral-900">Tinglumgård Admin</h1>
+            <button
+              onClick={async () => {
+                await fetch('/api/admin/logout', { method: 'POST' });
+                setIsAuthenticated(false);
+              }}
+              className="px-6 py-3 border-2 border-neutral-200 text-neutral-900 rounded-xl text-sm font-light hover:bg-neutral-50 hover:border-neutral-300 hover:-translate-y-0.5 hover:shadow-[0_10px_30px_-10px_rgba(0,0,0,0.1)] transition-all duration-300"
+            >
               Logg ut
-            </Button>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Product Mode Toggle */}
+      <div className="bg-neutral-50 border-b border-neutral-200">
+        <div className="max-w-[1800px] mx-auto px-6 py-5">
+          <div className="flex items-center gap-4">
+            <span className="text-sm font-light text-neutral-600">Product View:</span>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setProductMode('pigs')}
+                className={cn(
+                  'px-5 py-2.5 rounded-xl text-sm font-light transition-all duration-300',
+                  productMode === 'pigs'
+                    ? 'bg-neutral-900 text-white shadow-[0_10px_30px_-10px_rgba(0,0,0,0.3)]'
+                    : 'bg-white text-neutral-700 hover:bg-neutral-50 border border-neutral-200 hover:border-neutral-300 hover:-translate-y-0.5'
+                )}
+              >
+                🐷 Pigs
+              </button>
+              <button
+                onClick={() => setProductMode('eggs')}
+                className={cn(
+                  'px-5 py-2.5 rounded-xl text-sm font-light transition-all duration-300',
+                  productMode === 'eggs'
+                    ? 'bg-neutral-900 text-white shadow-[0_10px_30px_-10px_rgba(0,0,0,0.3)]'
+                    : 'bg-white text-neutral-700 hover:bg-neutral-50 border border-neutral-200 hover:border-neutral-300 hover:-translate-y-0.5'
+                )}
+              >
+                🥚 Eggs
+              </button>
+              <button
+                onClick={() => setProductMode('combined')}
+                className={cn(
+                  'px-5 py-2.5 rounded-xl text-sm font-light transition-all duration-300',
+                  productMode === 'combined'
+                    ? 'bg-neutral-900 text-white shadow-[0_10px_30px_-10px_rgba(0,0,0,0.3)]'
+                    : 'bg-white text-neutral-700 hover:bg-neutral-50 border border-neutral-200 hover:border-neutral-300 hover:-translate-y-0.5'
+                )}
+              >
+                📊 Combined
+              </button>
+            </div>
           </div>
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="bg-white border-b">
+      <div className="bg-white border-b border-neutral-200">
         <div className="max-w-[1800px] mx-auto px-6">
-          <div className="flex gap-1 overflow-x-auto">
+          <div className="flex gap-2 overflow-x-auto">
             {tabs.map((tab) => {
               const Icon = tab.icon;
               const unresolvedCount = messageStats.open + messageStats.in_progress;
@@ -575,18 +694,21 @@ export default function AdminPage() {
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id as TabType)}
                   className={cn(
-                    'flex items-center gap-2 px-6 py-4 font-medium transition-colors whitespace-nowrap border-b-2',
+                    'flex items-center gap-3 px-6 py-4 font-light transition-all duration-300 whitespace-nowrap relative',
                     activeTab === tab.id
-                      ? 'text-gray-900 border-gray-900'
-                      : 'text-gray-600 border-transparent hover:text-gray-900 hover:border-gray-300'
+                      ? 'text-neutral-900'
+                      : 'text-neutral-500 hover:text-neutral-900 hover:-translate-y-0.5'
                   )}
                 >
                   <Icon className="w-5 h-5" />
                   {tab.label}
                   {tab.id === 'messages' && unresolvedCount > 0 && (
-                    <span className="ml-1 inline-flex items-center justify-center text-xs font-semibold bg-red-600 text-white rounded-full px-2 py-0.5">
+                    <span className="ml-1 inline-flex items-center justify-center text-xs font-light bg-red-600 text-white rounded-full px-2 py-0.5 shadow-[0_5px_15px_-5px_rgba(220,38,38,0.4)]">
                       {unresolvedCount}
                     </span>
+                  )}
+                  {activeTab === tab.id && (
+                    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-neutral-900 shadow-[0_2px_10px_-2px_rgba(0,0,0,0.3)]" />
                   )}
                 </button>
               );
@@ -596,26 +718,29 @@ export default function AdminPage() {
       </div>
 
       {/* Content */}
-      <div className="max-w-[1800px] mx-auto px-6 py-8">
+      <div className="max-w-[1800px] mx-auto px-6 py-10">
         {/* DASHBOARD TAB */}
         {activeTab === 'dashboard' && (
-          <div className="space-y-6">
+          <div className="space-y-8">
             <div className="flex items-center justify-between">
-              <h2 className="text-3xl font-bold text-gray-900">Dashboard</h2>
-              <Button onClick={loadDashboard} variant="outline">
-                <RefreshCw className="w-4 h-4 mr-2" />
+              <h2 className="text-4xl font-light tracking-tight text-neutral-900">Dashboard</h2>
+              <button
+                onClick={loadDashboard}
+                className="px-6 py-3 border-2 border-neutral-200 text-neutral-900 rounded-xl text-sm font-light flex items-center gap-2 hover:bg-neutral-50 hover:border-neutral-300 hover:-translate-y-0.5 hover:shadow-[0_10px_30px_-10px_rgba(0,0,0,0.1)] transition-all duration-300"
+              >
+                <RefreshCw className="w-4 h-4" />
                 Oppdater
-              </Button>
+              </button>
             </div>
 
-            <Card className="p-6 border border-gray-200">
+            <div className="bg-white border border-neutral-200 rounded-xl p-8 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.08)] transition-all duration-500 hover:shadow-[0_30px_80px_-20px_rgba(0,0,0,0.12)]">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900">Ubehandlede meldinger</h3>
-                  <p className="text-sm text-gray-600">Åpne og under behandling</p>
+                  <h3 className="text-2xl font-light text-neutral-900">Ubehandlede meldinger</h3>
+                  <p className="text-sm font-light text-neutral-600 mt-1">Åpne og under behandling</p>
                 </div>
                 <div className="flex items-center gap-4">
-                  <div className="text-3xl font-bold text-gray-900">
+                  <div className="text-5xl font-light text-neutral-900 tabular-nums">
                     {messageStats.open + messageStats.in_progress}
                   </div>
                   <Button onClick={() => setActiveTab('messages')} variant="outline">
@@ -630,7 +755,19 @@ export default function AdminPage() {
                 <div className="w-12 h-12 border-4 border-neutral-200 border-t-neutral-600 rounded-full animate-spin" />
               </div>
             ) : dashboardMetrics ? (
-              <DashboardMetrics metrics={dashboardMetrics} />
+              <div className="space-y-8">
+                {(productMode === 'pigs' || productMode === 'combined') && dashboardMetrics.pigs && (
+                  <div>
+                    <DashboardMetrics metrics={dashboardMetrics.pigs} />
+                  </div>
+                )}
+
+                {(productMode === 'eggs' || productMode === 'combined') && (
+                  <div>
+                    <EggMetrics metrics={dashboardMetrics.eggs} />
+                  </div>
+                )}
+              </div>
             ) : (
               <Card className="p-12 text-center">
                 <p className="text-gray-600">Ingen data tilgjengelig</p>
@@ -731,7 +868,7 @@ export default function AdminPage() {
             ) : filteredOrders.length === 0 ? (
               <Card className="p-12 text-center">
                 <ShoppingCart className="w-16 h-16 mx-auto mb-4 text-gray-400" />
-                <p className="text-xl font-semibold text-gray-900 mb-2">Ingen bestillinger funnet</p>
+                <p className="text-xl font-normal text-gray-900 mb-2">Ingen bestillinger funnet</p>
                 <p className="text-gray-600">Prøv å justere filtrene dine</p>
               </Card>
             ) : (
@@ -748,13 +885,14 @@ export default function AdminPage() {
                             className="rounded"
                           />
                         </th>
-                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Ordrenr</th>
-                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Kunde</th>
-                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Boks</th>
-                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Status</th>
-                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Beløp</th>
-                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Dato</th>
-                        <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">Handlinger</th>
+                        <th className="px-4 py-3 text-left text-sm font-normal text-gray-700">Ordrenr</th>
+                        <th className="px-4 py-3 text-left text-sm font-normal text-gray-700">Kunde</th>
+                        <th className="px-4 py-3 text-left text-sm font-normal text-gray-700">Produkt</th>
+                        <th className="px-4 py-3 text-left text-sm font-normal text-gray-700">Status</th>
+                        <th className="px-4 py-3 text-left text-sm font-normal text-gray-700">Levering</th>
+                        <th className="px-4 py-3 text-left text-sm font-normal text-gray-700">Beløp</th>
+                        <th className="px-4 py-3 text-left text-sm font-normal text-gray-700">Dato</th>
+                        <th className="px-4 py-3 text-right text-sm font-normal text-gray-700">Handlinger</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y">
@@ -769,15 +907,27 @@ export default function AdminPage() {
                             />
                           </td>
                           <td className="px-4 py-3">
-                            <button
-                              onClick={() => {
-                                setSelectedOrder(order);
-                                setShowOrderDetail(true);
-                              }}
-                              className="font-medium text-blue-600 hover:text-blue-800"
-                            >
-                              {order.order_number}
-                            </button>
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => {
+                                  setSelectedOrder(order);
+                                  setShowOrderDetail(true);
+                                }}
+                                className="font-medium text-blue-600 hover:text-blue-800"
+                              >
+                                {order.order_number}
+                              </button>
+                              {order.product_type === 'eggs' && (
+                                <span className="px-2 py-0.5 bg-yellow-100 text-yellow-800 text-xs rounded-full font-medium">
+                                  🥚
+                                </span>
+                              )}
+                              {order.product_type === 'pig_box' && (
+                                <span className="px-2 py-0.5 bg-pink-100 text-pink-800 text-xs rounded-full font-medium">
+                                  🐷
+                                </span>
+                              )}
+                            </div>
                           </td>
                           <td className="px-4 py-3">
                             <div>
@@ -785,21 +935,38 @@ export default function AdminPage() {
                               <p className="text-sm text-gray-600">{order.customer_email}</p>
                             </div>
                           </td>
-                          <td className="px-4 py-3 text-gray-900">{order.box_size}kg</td>
+                          <td className="px-4 py-3">
+                            {order.product_type === 'pig_box' && (
+                              <span className="text-gray-900">{order.box_size}kg gris</span>
+                            )}
+                            {order.product_type === 'eggs' && (
+                              <div>
+                                <p className="font-medium text-gray-900">{order.breed_name}</p>
+                                <p className="text-sm text-gray-600">{order.quantity} egg</p>
+                              </div>
+                            )}
+                          </td>
                           <td className="px-4 py-3">
                             <span className={cn(
                               'px-2 py-1 rounded-full text-xs font-medium',
                               order.status === 'completed' ? 'bg-green-100 text-green-800' :
                               order.status === 'ready_for_pickup' ? 'bg-blue-100 text-blue-800' :
                               order.status === 'paid' ? 'bg-green-100 text-green-800' :
+                              order.status === 'fully_paid' ? 'bg-green-100 text-green-800' :
                               order.status === 'deposit_paid' ? 'bg-amber-100 text-amber-800' :
                               'bg-gray-100 text-gray-800'
                             )}>
                               {statusOptions.find((s) => s.value === order.status)?.label || order.status}
                             </span>
                           </td>
+                          <td className="px-4 py-3 text-sm text-gray-600">
+                            {order.product_type === 'eggs' && order.week_number && (
+                              <div>Uke {order.week_number}</div>
+                            )}
+                            <div>{order.delivery_type}</div>
+                          </td>
                           <td className="px-4 py-3 font-medium text-gray-900">
-                            kr {order.total_amount.toLocaleString('nb-NO')}
+                            kr {(order.total_amount / 100).toLocaleString('nb-NO')}
                           </td>
                           <td className="px-4 py-3 text-sm text-gray-600">
                             {new Date(order.created_at).toLocaleDateString('nb-NO')}
@@ -828,12 +995,17 @@ export default function AdminPage() {
 
         {/* ANALYTICS TAB */}
         {activeTab === 'analytics' && (
-          <div className="space-y-6">
+          <div className="space-y-8">
             <h2 className="text-3xl font-bold text-gray-900">Analyse & Rapporter</h2>
+
+            {/* Pig Analytics */}
+            {(productMode === 'pigs' || productMode === 'combined') && analytics && (
+              <div>
+                <h3 className="text-xl font-bold text-gray-900 mb-4">🐷 Grisanalyse</h3>
             {analytics ? (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <Card className="p-6">
-                  <h3 className="font-semibold text-lg mb-4">Nøkkeltall</h3>
+                  <h3 className="font-normal text-lg mb-4">Nøkkeltall</h3>
                   <div className="space-y-3">
                     <div className="flex justify-between">
                       <span className="text-gray-600">Totale bestillinger</span>
@@ -855,7 +1027,7 @@ export default function AdminPage() {
                 </Card>
 
                 <Card className="p-6">
-                  <h3 className="font-semibold text-lg mb-4">Konverteringstrakt</h3>
+                  <h3 className="font-normal text-lg mb-4">Konverteringstrakt</h3>
                   <div className="space-y-2">
                     {Object.entries(analytics.conversion_funnel).map(([status, count]: [string, any]) => {
                       const percentage = (count / analytics.summary.total_orders) * 100;
@@ -863,7 +1035,7 @@ export default function AdminPage() {
                         <div key={status}>
                           <div className="flex justify-between text-sm mb-1">
                             <span className="capitalize text-gray-700">{status.replace('_', ' ')}</span>
-                            <span className="font-semibold">{count} ({percentage.toFixed(0)}%)</span>
+                            <span className="font-normal">{count} ({percentage.toFixed(0)}%)</span>
                           </div>
                           <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
                             <div
@@ -879,7 +1051,7 @@ export default function AdminPage() {
 
                 {analytics.products.combinations.length > 0 && (
                   <Card className="p-6 lg:col-span-2">
-                    <h3 className="font-semibold text-lg mb-4">Populære produktkombinasjoner</h3>
+                    <h3 className="font-normal text-lg mb-4">Populære produktkombinasjoner</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                       {analytics.products.combinations.map((combo: any, index: number) => (
                         <div key={index} className="p-4 rounded-lg bg-gray-50">
@@ -897,6 +1069,16 @@ export default function AdminPage() {
                 <p className="text-gray-600">Laster analysedata...</p>
               </Card>
             )}
+              </div>
+            )}
+
+            {/* Egg Analytics */}
+            {(productMode === 'eggs' || productMode === 'combined') && (
+              <div>
+                <h3 className="text-xl font-bold text-gray-900 mb-4">🥚 Egganalyse</h3>
+                <EggAnalytics />
+              </div>
+            )}
           </div>
         )}
 
@@ -904,7 +1086,23 @@ export default function AdminPage() {
         {activeTab === 'production' && <DeliveryCalendar />}
 
         {/* INVENTORY TAB */}
-        {activeTab === 'inventory' && <InventoryManagement />}
+        {activeTab === 'inventory' && (
+          <div className="space-y-8">
+            {(productMode === 'pigs' || productMode === 'combined') && (
+              <div>
+                <h3 className="text-xl font-bold text-gray-900 mb-4">🐷 Grislager</h3>
+                <InventoryManagement />
+              </div>
+            )}
+
+            {(productMode === 'eggs' || productMode === 'combined') && (
+              <div>
+                <h3 className="text-xl font-bold text-gray-900 mb-4">🥚 Egglager</h3>
+                <EggInventoryManagement />
+              </div>
+            )}
+          </div>
+        )}
 
         {/* CUSTOMERS TAB */}
         {activeTab === 'customers' && <CustomerDatabase />}
@@ -937,6 +1135,9 @@ export default function AdminPage() {
             </div>
           </div>
         )}
+
+        {/* BREEDS TAB */}
+        {activeTab === 'breeds' && <BreedManagement />}
 
         {/* BOX CONFIGURATION TAB */}
         {activeTab === 'boxes' && <BoxConfiguration />}

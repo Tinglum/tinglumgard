@@ -2,6 +2,7 @@
 
 # dependencies
 /node_modules
+egg3/node_modules
 /.pnp
 .pnp.js
 
@@ -34,3 +35,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Windows reserved filename
+nul

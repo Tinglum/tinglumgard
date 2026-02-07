@@ -3,13 +3,10 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useTheme } from "@/contexts/ThemeContext";
 import { cn } from "@/lib/utils";
 import { CheckCircle, Package, Clock, CreditCard } from "lucide-react";
 
 export default function ConfirmationPage() {
-  const { getThemeClasses } = useTheme();
-  const theme = getThemeClasses();
   const searchParams = useSearchParams();
   const orderId = searchParams.get('orderId');
 
@@ -94,21 +91,21 @@ export default function ConfirmationPage() {
 
   if (loading) {
     return (
-      <div className={cn("min-h-screen flex items-center justify-center", theme.bgGradientHero)}>
-        <div className={cn("text-lg", theme.textPrimary)}>Laster...</div>
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="w-12 h-12 border-4 border-neutral-200 border-t-neutral-600 rounded-full animate-spin" />
       </div>
     );
   }
 
   if (!orderId || !order) {
     return (
-      <div className={cn("min-h-screen flex items-center justify-center px-6", theme.bgGradientHero)}>
-        <div className={cn("text-center max-w-md rounded-3xl p-8 border shadow-2xl", theme.bgCard, theme.glassBorder)}>
-          <h1 className={cn("text-2xl font-bold mb-4", theme.textPrimary)}>Ordre ikke funnet</h1>
-          <p className={cn("mb-6", theme.textMuted)}>Vi kunne ikke finne ordren din.</p>
+      <div className="min-h-screen bg-white flex items-center justify-center px-6">
+        <div className="text-center max-w-md bg-white border border-neutral-200 rounded-xl p-12 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.1)]">
+          <h1 className="text-3xl font-light tracking-tight text-neutral-900 mb-4">Ordre ikke funnet</h1>
+          <p className="font-light text-neutral-600 mb-8">Vi kunne ikke finne ordren din.</p>
           <Link
             href="/"
-            className={cn("inline-block px-6 py-3 rounded-xl font-semibold transition-all duration-300", theme.buttonPrimary, theme.textOnDark)}
+            className="inline-block px-8 py-4 bg-neutral-900 text-white rounded-xl text-sm font-light uppercase tracking-wide shadow-[0_20px_60px_-15px_rgba(0,0,0,0.3)] hover:shadow-[0_30px_80px_-20px_rgba(0,0,0,0.4)] hover:-translate-y-1 transition-all duration-300"
           >
             Tilbake til forsiden
           </Link>
@@ -133,55 +130,66 @@ export default function ConfirmationPage() {
   const referralEarnPercentage = 10;
 
   return (
-    <div className={cn("min-h-screen", theme.bgGradientHero)}>
-      <div className="max-w-4xl mx-auto px-6 py-12">
+    <div className="min-h-screen bg-white py-20">
+      {/* Subtle parallax background */}
+      <div className="fixed inset-0 pointer-events-none -z-10">
+        <div
+          className="absolute top-1/4 right-1/4 w-[800px] h-[800px] rounded-full blur-3xl opacity-20 bg-neutral-100"
+          style={{
+            transform: `translateY(${typeof window !== 'undefined' ? window.scrollY * 0.1 : 0}px)`,
+            transition: 'transform 0.05s linear'
+          }}
+        />
+      </div>
+
+      <div className="max-w-4xl mx-auto px-6">
         {/* Success Icon */}
-        <div className="text-center mb-8">
-          <div className={cn("inline-flex items-center justify-center w-20 h-20 rounded-full mb-4",
-            paymentStatus === 'completed' ? "bg-green-100" :
-            paymentStatus === 'failed' ? "bg-red-100" :
-            "bg-yellow-100")}>
-            <CheckCircle className={cn("w-12 h-12",
+        <div className="text-center mb-12">
+          <div className={cn("inline-flex items-center justify-center w-24 h-24 rounded-full mb-6 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.15)]",
+            paymentStatus === 'completed' ? "bg-green-50 border-2 border-green-200" :
+            paymentStatus === 'failed' ? "bg-red-50 border-2 border-red-200" :
+            "bg-yellow-50 border-2 border-yellow-200")}>
+            <CheckCircle className={cn("w-14 h-14",
               paymentStatus === 'completed' ? "text-green-600" :
               paymentStatus === 'failed' ? "text-red-600" :
               "text-yellow-600")} />
           </div>
-          <h1 className={cn("text-4xl font-bold mb-2", theme.textPrimary)}>
+          <h1 className="text-5xl font-light tracking-tight text-neutral-900 mb-3">
             {paymentStatus === 'completed' ? 'Betaling mottatt!' :
              paymentStatus === 'failed' ? 'Betaling feilet' :
              'Venter på betalingsbekreftelse...'}
           </h1>
-          <p className={cn("text-lg", theme.textMuted)}>
-            Ordrenummer: <span className={cn("font-mono font-semibold", theme.textPrimary)}>{order.order_number}</span>
+          <p className="text-base font-light text-neutral-600">
+            Ordrenummer: <span className="font-mono font-normal text-neutral-900">{order.order_number}</span>
           </p>
         </div>
 
         {/* Order Details Card */}
-        <div className={cn("rounded-3xl p-8 border shadow-2xl mb-6", theme.bgCard, theme.glassBorder)}>
-          <h2 className={cn("text-2xl font-bold mb-6", theme.textPrimary)}>Ordredetaljer</h2>
+        <div className="bg-white border border-neutral-200 rounded-xl p-8 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.08)] mb-6 transition-all duration-500 hover:shadow-[0_30px_80px_-20px_rgba(0,0,0,0.12)]">
+          <h2 className="text-3xl font-light tracking-tight text-neutral-900 mb-8">Ordredetaljer</h2>
 
-          <div className="space-y-4">
+          <div className="space-y-6">
             <div className="flex items-start gap-4">
-              <Package className={cn("w-5 h-5 mt-1", theme.iconColor)} />
+              <Package className="w-6 h-6 mt-1 text-neutral-500" />
               <div>
-                <p className={cn("font-semibold", theme.textPrimary)}>Kassestørrelse</p>
-                <p className={cn(theme.textMuted)}>{order.box_size} kg</p>
+                <p className="font-light text-neutral-900 mb-1">Kassestørrelse</p>
+                <p className="text-base font-light text-neutral-600">{order.box_size} kg</p>
               </div>
             </div>
 
             <div className="flex items-start gap-4">
-              <CreditCard className={cn("w-5 h-5 mt-1", theme.iconColor)} />
+              <CreditCard className="w-6 h-6 mt-1 text-neutral-500" />
               <div>
-                <p className={cn("font-semibold", theme.textPrimary)}>Forskudd ({depositPercentage}%)</p>
-                <p className={cn(theme.textMuted)}>{depositAmount.toLocaleString('nb-NO')} kr</p>
+                <p className="font-light text-neutral-900 mb-1">Forskudd ({depositPercentage}%)</p>
+                <p className="text-base font-light text-neutral-600">{depositAmount.toLocaleString('nb-NO')} kr</p>
               </div>
             </div>
 
             <div className="flex items-start gap-4">
-              <Clock className={cn("w-5 h-5 mt-1", theme.iconColor)} />
+              <Clock className="w-6 h-6 mt-1 text-neutral-500" />
               <div>
-                <p className={cn("font-semibold", theme.textPrimary)}>Status</p>
-                <p className={cn(theme.textMuted)}>
+                <p className="font-light text-neutral-900 mb-1">Status</p>
+                <p className="text-base font-light text-neutral-600">
                   {order.status === 'draft' && 'Venter på forskudd' ||
                    order.status === 'deposit_paid' && 'Forskudd betalt - venter på rest' ||
                    order.status === 'paid' && 'Fullstendig betalt' ||
@@ -196,8 +204,8 @@ export default function ConfirmationPage() {
         </div>
 
         {/* Next Steps Card */}
-        <div className={cn("rounded-3xl p-8 border shadow-2xl mb-6", theme.bgCard, theme.glassBorder)}>
-          <h2 className={cn("text-2xl font-bold mb-6", theme.textPrimary)}>Neste steg</h2>
+        <div className="bg-white border border-neutral-200 rounded-xl p-8 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.08)] mb-6 transition-all duration-500 hover:shadow-[0_30px_80px_-20px_rgba(0,0,0,0.12)]">
+          <h2 className="text-3xl font-light tracking-tight text-neutral-900 mb-8">Neste steg</h2>
 
           <div className="space-y-4">
             {paymentStatus === 'pending' && (
@@ -258,15 +266,15 @@ export default function ConfirmationPage() {
               </div>
             )}
 
-            <div className={cn("flex gap-4 p-4 rounded-xl", theme.bgSecondary)}>
-              <div className={cn("flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center font-bold", theme.bgDark, theme.textOnDark)}>
+            <div className="flex gap-4 p-6 rounded-xl bg-neutral-50 border border-neutral-200">
+              <div className="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center font-light text-lg bg-neutral-900 text-white shadow-[0_10px_30px_-10px_rgba(0,0,0,0.3)]">
                 1
               </div>
               <div>
-                <p className={cn("font-semibold", theme.textPrimary)}>
+                <p className="font-light text-neutral-900 mb-1">
                   {order.status !== 'draft' ? 'Forskudd betalt ✓' : 'Betal forskudd'}
                 </p>
-                <p className={cn("text-sm", theme.textMuted)}>
+                <p className="text-sm font-light text-neutral-600 leading-relaxed">
                   {order.status !== 'draft'
                     ? 'Forskudd mottatt. Du har mottatt en e-postbekreftelse.'
                     : `Betal forskudd på ${order.deposit_amount.toLocaleString('nb-NO')} kr via Vipps.`
@@ -275,38 +283,38 @@ export default function ConfirmationPage() {
               </div>
             </div>
 
-            <div className={cn("flex gap-4 p-4 rounded-xl", theme.bgSecondary)}>
-              <div className={cn("flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center font-bold", theme.bgDark, theme.textOnDark)}>
+            <div className="flex gap-4 p-6 rounded-xl bg-neutral-50 border border-neutral-200">
+              <div className="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center font-light text-lg bg-neutral-900 text-white shadow-[0_10px_30px_-10px_rgba(0,0,0,0.3)]">
                 2
               </div>
               <div>
-                <p className={cn("font-semibold", theme.textPrimary)}>Del vennerabatt</p>
-                <p className={cn("text-sm", theme.textMuted)}>
+                <p className="font-light text-neutral-900 mb-1">Del vennerabatt</p>
+                <p className="text-sm font-light text-neutral-600 leading-relaxed">
                   Gi {referralGivePercentage}% rabatt til venner og få {referralEarnPercentage}% kreditt selv. Finn din kode på{' '}
-                  <Link href="/min-side" className="underline font-medium">Min side</Link>.
+                  <Link href="/min-side" className="underline font-normal hover:text-neutral-900 transition-colors">Min side</Link>.
                 </p>
               </div>
             </div>
 
-            <div className={cn("flex gap-4 p-4 rounded-xl", theme.bgSecondary)}>
-              <div className={cn("flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center font-bold", theme.bgDark, theme.textOnDark)}>
+            <div className="flex gap-4 p-6 rounded-xl bg-neutral-50 border border-neutral-200">
+              <div className="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center font-light text-lg bg-neutral-900 text-white shadow-[0_10px_30px_-10px_rgba(0,0,0,0.3)]">
                 3
               </div>
               <div>
-                <p className={cn("font-semibold", theme.textPrimary)}>Grisene vokser opp</p>
-                <p className={cn("text-sm", theme.textMuted)}>
+                <p className="font-light text-neutral-900 mb-1">Grisene vokser opp</p>
+                <p className="text-sm font-light text-neutral-600 leading-relaxed">
                   Grisene lever på gården gjennom {deliveryYear} og blir slaktet lokalt i desember.
                 </p>
               </div>
             </div>
 
-            <div className={cn("flex gap-4 p-4 rounded-xl", theme.bgSecondary)}>
-              <div className={cn("flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center font-bold", theme.bgDark, theme.textOnDark)}>
+            <div className="flex gap-4 p-6 rounded-xl bg-neutral-50 border border-neutral-200">
+              <div className="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center font-light text-lg bg-neutral-900 text-white shadow-[0_10px_30px_-10px_rgba(0,0,0,0.3)]">
                 4
               </div>
               <div>
-                <p className={cn("font-semibold", theme.textPrimary)}>Betaling av rest og levering</p>
-                <p className={cn("text-sm", theme.textMuted)}>
+                <p className="font-light text-neutral-900 mb-1">Betaling av rest og levering</p>
+                <p className="text-sm font-light text-neutral-600 leading-relaxed">
                   Restbeløpet betales ved levering i desember {deliveryYear}.
                 </p>
               </div>
@@ -315,16 +323,16 @@ export default function ConfirmationPage() {
         </div>
 
         {/* Action Buttons */}
-        <div className="flex flex-col sm:flex-row gap-4 justify-center">
+        <div className="flex flex-col sm:flex-row gap-4 justify-center pt-8">
           <Link
             href="/"
-            className={cn("px-8 py-4 rounded-2xl font-semibold text-center transition-all duration-300", theme.buttonSecondary, theme.textPrimary, theme.buttonSecondaryHover)}
+            className="px-10 py-4 bg-neutral-50 text-neutral-900 border border-neutral-200 rounded-xl text-sm font-light uppercase tracking-wide text-center hover:bg-neutral-100 hover:shadow-[0_10px_30px_-10px_rgba(0,0,0,0.15)] hover:-translate-y-0.5 transition-all duration-300"
           >
             Tilbake til forsiden
           </Link>
           <Link
             href="/min-side"
-            className={cn("px-8 py-4 rounded-2xl font-semibold text-center transition-all duration-300", theme.buttonPrimary, theme.textOnDark, theme.buttonPrimaryHover)}
+            className="px-10 py-4 bg-neutral-900 text-white rounded-xl text-sm font-light uppercase tracking-wide text-center shadow-[0_20px_60px_-15px_rgba(0,0,0,0.3)] hover:shadow-[0_30px_80px_-20px_rgba(0,0,0,0.4)] hover:-translate-y-1 transition-all duration-300"
           >
             Se mine ordrer
           </Link>
