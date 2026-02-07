@@ -178,11 +178,36 @@ export async function POST(request: NextRequest) {
     console.log('Payment marked as completed with timestamp');
 
     // Fetch the order details for email notification
-    const { data: order, error: orderFetchErr } = await supabaseAdmin
-      .from(isEggPayment ? "egg_orders" : "orders")
-      .select(isEggPayment ? "*, egg_breeds(*)" : "*")
-      .eq("id", isEggPayment ? resolvedPayment.egg_order_id : resolvedPayment.order_id)
-      .single();
+    let order: any = null;
+    let orderFetchErr: any = null;
+    let eggBreedName: string | null = null;
+
+    if (isEggPayment) {
+      const result = await supabaseAdmin
+        .from("egg_orders")
+        .select("*")
+        .eq("id", resolvedPayment.egg_order_id)
+        .single();
+      order = result.data;
+      orderFetchErr = result.error;
+
+      if (order?.breed_id) {
+        const { data: breed } = await supabaseAdmin
+          .from("egg_breeds")
+          .select("name")
+          .eq("id", order.breed_id)
+          .maybeSingle();
+        eggBreedName = breed?.name || null;
+      }
+    } else {
+      const result = await supabaseAdmin
+        .from("orders")
+        .select("*")
+        .eq("id", resolvedPayment.order_id)
+        .single();
+      order = result.data;
+      orderFetchErr = result.error;
+    }
 
     if (orderFetchErr || !order) {
       logError('vipps-webhook-fetch-order', orderFetchErr);
@@ -206,7 +231,7 @@ export async function POST(request: NextRequest) {
       if (isEggPayment && order && order.customer_email && order.customer_email !== 'pending@vipps.no') {
         try {
           const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://tinglum.no';
-          const breedName = order.egg_breeds?.name || order.breed_name || 'Rugeegg';
+          const breedName = eggBreedName || order.breed_name || 'Rugeegg';
           const totalNok = Math.round(order.total_amount / 100).toLocaleString('nb-NO');
           const depositNok = Math.round(order.deposit_amount / 100).toLocaleString('nb-NO');
           const remainderNok = Math.round(order.remainder_amount / 100).toLocaleString('nb-NO');
