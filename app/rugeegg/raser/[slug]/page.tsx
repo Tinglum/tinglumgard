@@ -2,18 +2,18 @@
 
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { useLanguage } from '@/contexts/LanguageContext'
 import { useOrder } from '@/contexts/eggs/EggOrderContext'
 import { useCart } from '@/contexts/eggs/EggCartContext'
-import { getBreedBySlug, getBreedInventory } from '@/lib/eggs/mock-data'
 import { formatPrice } from '@/lib/eggs/utils'
 import { GlassCard } from '@/components/eggs/GlassCard'
 import { WeekSelector } from '@/components/eggs/WeekSelector'
 import { QuantitySelector } from '@/components/eggs/QuantitySelector'
 import { ArrowLeft, Info } from 'lucide-react'
-import { WeekInventory } from '@/lib/eggs/types'
+import { Breed, WeekInventory } from '@/lib/eggs/types'
+import { fetchBreedBySlug, fetchInventory } from '@/lib/eggs/api'
 
 export default function BreedDetailPage() {
   const params = useParams()
@@ -23,16 +23,55 @@ export default function BreedDetailPage() {
   const { startOrder } = useOrder()
   const { addToCart } = useCart()
 
-  const breed = getBreedBySlug(slug)
+  const [breed, setBreed] = useState<Breed | null>(null)
+  const [inventory, setInventory] = useState<WeekInventory[]>([])
   const [selectedWeek, setSelectedWeek] = useState<WeekInventory | null>(null)
   const [showQuantityModal, setShowQuantityModal] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  if (!breed) {
+  useEffect(() => {
+    let isActive = true
+    async function loadData() {
+      try {
+        setIsLoading(true)
+        const breedData = await fetchBreedBySlug(slug)
+        const inventoryData = await fetchInventory({ breedId: breedData.id })
+        if (!isActive) return
+        setBreed(breedData)
+        setInventory(inventoryData)
+      } catch (err) {
+        if (!isActive) return
+        console.error('Failed to load breed', err)
+        setError(language === 'no' ? 'Kunne ikke laste rase.' : 'Failed to load breed.')
+      } finally {
+        if (isActive) setIsLoading(false)
+      }
+    }
+    if (slug) {
+      loadData()
+    }
+    return () => {
+      isActive = false
+    }
+  }, [slug, language])
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen py-12 flex items-center justify-center">
+        <div className="text-sm text-neutral-500">
+          {language === 'no' ? 'Laster rase…' : 'Loading breed…'}
+        </div>
+      </div>
+    )
+  }
+
+  if (error || !breed) {
     return (
       <div className="min-h-screen py-12 flex items-center justify-center">
         <div className="text-center">
           <h1 className="text-2xl font-display font-semibold text-neutral-900 mb-2">
-            {language === 'no' ? 'Rase ikke funnet' : 'Breed not found'}
+            {error || (language === 'no' ? 'Rase ikke funnet' : 'Breed not found')}
           </h1>
           <Link href="/rugeegg/raser" className="text-neutral-600 hover:text-neutral-900">
             {language === 'no' ? 'Tilbake til raser' : 'Back to breeds'}
@@ -41,8 +80,6 @@ export default function BreedDetailPage() {
       </div>
     )
   }
-
-  const inventory = getBreedInventory(breed.id)
 
   const handleWeekSelect = (week: WeekInventory) => {
     setSelectedWeek(week)

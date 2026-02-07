@@ -91,10 +91,13 @@ export async function GET(request: NextRequest) {
     // If there's a pending order, create it with customer details and redirect to payment
     if (stateData.pendingOrder) {
       const orderData = stateData.pendingOrder;
+      const isEggOrder = orderData.productType === 'eggs';
 
       // Create the order with customer details from Vipps
       const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-      const createOrderResponse = await fetch(`${appUrl}/api/checkout`, {
+      const createOrderResponse = await fetch(
+        `${appUrl}${isEggOrder ? '/api/eggs/checkout' : '/api/checkout'}`,
+        {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -109,7 +112,9 @@ export async function GET(request: NextRequest) {
 
       if (!createOrderResponse.ok) {
         console.error('Failed to create order:', await createOrderResponse.text());
-        const errorRedirect = NextResponse.redirect(new URL('/bestill?error=order_creation_failed', request.url));
+        const errorRedirect = NextResponse.redirect(
+          new URL(isEggOrder ? '/rugeegg/bestill?error=order_creation_failed' : '/bestill?error=order_creation_failed', request.url)
+        );
         errorRedirect.cookies.set('tinglum_session', sessionToken, {
           httpOnly: true,
           secure: process.env.NODE_ENV === 'production',
@@ -123,13 +128,22 @@ export async function GET(request: NextRequest) {
       const orderResult = await createOrderResponse.json();
 
       // Immediately redirect to deposit payment
-      const depositResponse = await fetch(`${appUrl}/api/orders/${orderResult.orderId}/deposit`, {
+      const depositResponse = await fetch(
+        `${appUrl}${isEggOrder ? '/api/eggs/orders' : '/api/orders'}/${orderResult.orderId}/deposit`,
+        {
         method: 'POST',
       });
 
       if (!depositResponse.ok) {
         console.error('Failed to create deposit payment:', await depositResponse.text());
-        const errorRedirect = NextResponse.redirect(new URL(`/bestill?error=payment_failed&orderId=${orderResult.orderId}`, request.url));
+        const errorRedirect = NextResponse.redirect(
+          new URL(
+            isEggOrder
+              ? `/rugeegg/bestill?error=payment_failed&orderId=${orderResult.orderId}`
+              : `/bestill?error=payment_failed&orderId=${orderResult.orderId}`,
+            request.url
+          )
+        );
         errorRedirect.cookies.set('tinglum_session', sessionToken, {
           httpOnly: true,
           secure: process.env.NODE_ENV === 'production',

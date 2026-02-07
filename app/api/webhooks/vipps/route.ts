@@ -119,7 +119,39 @@ export async function POST(request: NextRequest) {
       .eq("vipps_session_id", vippsId)
       .maybeSingle();
 
-    if (paymentError || !payment) {
+    let isEggPayment = false;
+    let resolvedPayment: any = payment;
+
+    if (!resolvedPayment) {
+      let eggPayment = null;
+      const { data: eggPaymentBySession, error: eggPaymentError } = await supabaseAdmin
+        .from("egg_payments")
+        .select("*")
+        .eq("vipps_order_id", vippsId)
+        .maybeSingle();
+
+      if (eggPaymentError) {
+        logError('vipps-webhook-egg-payment-not-found', eggPaymentError);
+      }
+
+      eggPayment = eggPaymentBySession;
+
+      if (!eggPayment) {
+        const { data: eggPaymentByRef } = await supabaseAdmin
+          .from("egg_payments")
+          .select("*")
+          .eq("idempotency_key", vippsId)
+          .maybeSingle();
+        eggPayment = eggPaymentByRef;
+      }
+
+      if (eggPayment) {
+        resolvedPayment = eggPayment;
+        isEggPayment = true;
+      }
+    }
+
+    if (!resolvedPayment) {
       logError('vipps-webhook-payment-not-found', paymentError);
       return NextResponse.json(
         { error: "Payment not found" },
@@ -127,16 +159,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('Found payment:', payment.id, 'type:', payment.payment_type);
+    console.log('Found payment:', resolvedPayment.id, 'type:', resolvedPayment.payment_type, 'egg:', isEggPayment);
 
     // Mark payment as completed with timestamp
     const { error: updErr } = await supabaseAdmin
-      .from("payments")
+      .from(isEggPayment ? "egg_payments" : "payments")
       .update({ 
         status: "completed",
         paid_at: new Date().toISOString()
       })
-      .eq("id", payment.id);
+      .eq("id", resolvedPayment.id);
 
     if (updErr) {
       logError('vipps-webhook-payment-update-failed', updErr);
@@ -147,9 +179,9 @@ export async function POST(request: NextRequest) {
 
     // Fetch the order details for email notification
     const { data: order, error: orderFetchErr } = await supabaseAdmin
-      .from("orders")
-      .select("*")
-      .eq("id", payment.order_id)
+      .from(isEggPayment ? "egg_orders" : "orders")
+      .select(isEggPayment ? "*, egg_breeds(*)" : "*")
+      .eq("id", isEggPayment ? resolvedPayment.egg_order_id : resolvedPayment.order_id)
       .single();
 
     if (orderFetchErr || !order) {
@@ -157,12 +189,12 @@ export async function POST(request: NextRequest) {
     }
 
     // If deposit completed, update order status and send confirmation email
-    if (payment.payment_type === "deposit") {
+    if (resolvedPayment.payment_type === "deposit") {
       console.log('Updating order status to deposit_paid');
       const { error: orderErr } = await supabaseAdmin
-        .from("orders")
+        .from(isEggPayment ? "egg_orders" : "orders")
         .update({ status: "deposit_paid" })
-        .eq("id", payment.order_id);
+        .eq("id", isEggPayment ? resolvedPayment.egg_order_id : resolvedPayment.order_id);
 
       if (orderErr) {
         logError('vipps-webhook-order-update-failed', orderErr);
@@ -171,8 +203,64 @@ export async function POST(request: NextRequest) {
 
       console.log('Order status updated successfully');
 
+      if (isEggPayment && order && order.customer_email && order.customer_email !== 'pending@vipps.no') {
+        try {
+          const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://tinglum.no';
+          const breedName = order.egg_breeds?.name || order.breed_name || 'Rugeegg';
+          const totalNok = Math.round(order.total_amount / 100).toLocaleString('nb-NO');
+          const depositNok = Math.round(order.deposit_amount / 100).toLocaleString('nb-NO');
+          const remainderNok = Math.round(order.remainder_amount / 100).toLocaleString('nb-NO');
+
+          const eggConfirmationHtml = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { font-family: -apple-system, sans-serif; line-height: 1.6; color: #333; }
+    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+    .header { background: #1f2937; color: white; padding: 30px 20px; text-align: center; }
+    .content { background: #ffffff; padding: 30px 20px; }
+    .success { color: #16a34a; font-size: 22px; font-weight: bold; margin: 20px 0; }
+    .order-details { background: #f8fafc; padding: 18px; border-radius: 8px; margin: 20px 0; }
+    .amount { font-size: 18px; font-weight: 700; color: #111827; margin: 8px 0; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header"><h1>Tinglum Gård</h1></div>
+    <div class="content">
+      <div class="success">Bestilling bekreftet!</div>
+      <p>Hei ${order.customer_name},</p>
+      <p>Takk for din bestilling. Betalingen er mottatt og rugeeggene er reservert.</p>
+      <div class="order-details">
+        <p><strong>Bestillingsnummer:</strong> ${order.order_number}</p>
+        <p><strong>Rase:</strong> ${breedName}</p>
+        <p><strong>Uke:</strong> ${order.week_number}</p>
+        <p><strong>Antall:</strong> ${order.quantity} egg</p>
+      </div>
+      <div class="amount">Totalt: kr ${totalNok}</div>
+      <div class="amount" style="font-size: 15px;">Forskudd betalt: kr ${depositNok}</div>
+      <div class="amount" style="font-size: 15px;">Restbetaling: kr ${remainderNok}</div>
+      <p>Du kan se bestillingen din på <a href="${appUrl}/rugeegg/mine-bestillinger">Min side</a>.</p>
+      <p>Vennlig hilsen,<br><strong>Tinglum Gård</strong></p>
+    </div>
+  </div>
+</body>
+</html>`;
+
+          await sendEmail({
+            to: order.customer_email,
+            subject: `Bestilling bekreftet - ${order.order_number}`,
+            html: eggConfirmationHtml,
+          });
+        } catch (emailError) {
+          logError('vipps-webhook-egg-deposit-email', emailError);
+        }
+      }
+
       // Send order confirmation email (after payment is complete)
-      if (order && order.customer_email && order.customer_email !== 'pending@vipps.no') {
+      if (!isEggPayment && order && order.customer_email && order.customer_email !== 'pending@vipps.no') {
         try {
           const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://tinglum.no';
           
@@ -233,7 +321,7 @@ export async function POST(request: NextRequest) {
 
       ${discountHtml}
       <div class="amount">Totalt: kr ${order.total_amount.toLocaleString('nb-NO')}</div>
-      <div class="amount" style="font-size: 16px;">Forskudd betalt: kr ${payment.amount_nok.toLocaleString('nb-NO')}</div>
+      <div class="amount" style="font-size: 16px;">Forskudd betalt: kr ${resolvedPayment.amount_nok.toLocaleString('nb-NO')}</div>
       <div class="amount" style="font-size: 16px;">Restbetaling: kr ${order.remainder_amount.toLocaleString('nb-NO')}</div>
 
       <p><strong>Hva skjer videre?</strong></p>
@@ -309,12 +397,12 @@ export async function POST(request: NextRequest) {
     }
 
     // If remainder completed, update order status and send confirmation email
-    if (payment.payment_type === "remainder") {
+    if (resolvedPayment.payment_type === "remainder") {
       console.log('Updating order status to paid');
       const { error: orderErr } = await supabaseAdmin
-        .from("orders")
-        .update({ status: "paid" })
-        .eq("id", payment.order_id);
+        .from(isEggPayment ? "egg_orders" : "orders")
+        .update({ status: isEggPayment ? "fully_paid" : "paid" })
+        .eq("id", isEggPayment ? resolvedPayment.egg_order_id : resolvedPayment.order_id);
 
       if (orderErr) {
         logError('vipps-webhook-order-update-failed', orderErr);
@@ -323,8 +411,53 @@ export async function POST(request: NextRequest) {
 
       console.log('Order status updated to paid');
 
+      if (isEggPayment && order && order.customer_email && order.customer_email !== 'pending@vipps.no') {
+        try {
+          const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://tinglum.no';
+          const totalNok = Math.round(order.total_amount / 100).toLocaleString('nb-NO');
+          const remainderNok = Math.round(order.remainder_amount / 100).toLocaleString('nb-NO');
+
+          const eggRemainderHtml = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { font-family: -apple-system, sans-serif; line-height: 1.6; color: #333; }
+    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+    .header { background: #1f2937; color: white; padding: 30px 20px; text-align: center; }
+    .content { background: #ffffff; padding: 30px 20px; }
+    .amount { font-size: 18px; font-weight: 700; color: #111827; margin: 10px 0; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header"><h1>Tinglum Gård</h1></div>
+    <div class="content">
+      <h2>Betaling fullført!</h2>
+      <p>Hei ${order.customer_name},</p>
+      <p>Vi har mottatt restbetalingen for bestilling <strong>${order.order_number}</strong>.</p>
+      <div class="amount">Totalt betalt: kr ${totalNok}</div>
+      <div class="amount" style="font-size: 15px;">Restbetaling: kr ${remainderNok}</div>
+      <p>Du kan se bestillingen din på <a href="${appUrl}/rugeegg/mine-bestillinger">Min side</a>.</p>
+      <p>Vennlig hilsen,<br>Tinglum Gård</p>
+    </div>
+  </div>
+</body>
+</html>`;
+
+          await sendEmail({
+            to: order.customer_email,
+            subject: `Betaling fullført - ${order.order_number}`,
+            html: eggRemainderHtml,
+          });
+        } catch (emailError) {
+          logError('vipps-webhook-egg-remainder-email', emailError);
+        }
+      }
+
       // Send remainder confirmation email
-      if (order && order.customer_email && order.customer_email !== 'pending@vipps.no') {
+      if (!isEggPayment && order && order.customer_email && order.customer_email !== 'pending@vipps.no') {
         try {
           const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://tinglum.no';
           const remainderConfirmationHtml = `

@@ -30,6 +30,7 @@ export interface WeekInventory {
   breedId: string
   breedName: string
   breedSlug: string
+  breedAccentColor?: string
   year: number
   weekNumber: number
   deliveryMonday: Date

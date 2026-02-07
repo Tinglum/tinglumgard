@@ -2,14 +2,41 @@
 
 import Link from 'next/link'
 import { motion } from 'framer-motion'
+import { useEffect, useState } from 'react'
 import { useLanguage } from '@/contexts/LanguageContext'
-import { breeds } from '@/lib/eggs/mock-data'
 import { formatPrice } from '@/lib/eggs/utils'
 import { GlassCard } from '@/components/eggs/GlassCard'
 import { ArrowRight } from 'lucide-react'
+import { fetchBreeds } from '@/lib/eggs/api'
+import type { Breed } from '@/lib/eggs/types'
 
 export default function BreedsPage() {
   const { lang: language, t } = useLanguage()
+  const [breeds, setBreeds] = useState<Breed[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let isActive = true
+    async function loadBreeds() {
+      try {
+        setIsLoading(true)
+        const data = await fetchBreeds()
+        if (!isActive) return
+        setBreeds(data)
+      } catch (err) {
+        if (!isActive) return
+        console.error('Failed to load breeds', err)
+        setError(language === 'no' ? 'Kunne ikke laste raser.' : 'Failed to load breeds.')
+      } finally {
+        if (isActive) setIsLoading(false)
+      }
+    }
+    loadBreeds()
+    return () => {
+      isActive = false
+    }
+  }, [language])
 
   return (
     <div className="min-h-screen py-12">
@@ -28,7 +55,14 @@ export default function BreedsPage() {
               : 'Four unique breeds with distinctive characteristics. All our chickens are free-range and fed organic feed.'}
           </p>
 
+          {error && <div className="text-sm text-red-600 mb-6">{error}</div>}
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {isLoading && (
+              <div className="col-span-full text-sm text-neutral-500">
+                {language === 'no' ? 'Laster raser…' : 'Loading breeds…'}
+              </div>
+            )}
             {breeds.map((breed, index) => (
               <motion.div
                 key={breed.id}

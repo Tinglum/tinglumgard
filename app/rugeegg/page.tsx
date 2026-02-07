@@ -1,19 +1,46 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { useLanguage } from '@/contexts/LanguageContext'
-import { breeds, generateWeekAvailability } from '@/lib/eggs/mock-data'
 import { BrowseMode } from '@/lib/eggs/types'
 import { formatPrice, formatDate } from '@/lib/eggs/utils'
 import { GlassCard } from '@/components/eggs/GlassCard'
 import { ArrowRight } from 'lucide-react'
+import { buildWeekAvailability, fetchBreeds, fetchInventory } from '@/lib/eggs/api'
+import type { Breed, WeekAvailability } from '@/lib/eggs/types'
 
 export default function HomePage() {
   const { lang: language, t } = useLanguage()
   const [browseMode, setBrowseMode] = useState<BrowseMode>('breed')
-  const weekAvailability = generateWeekAvailability()
+  const [breeds, setBreeds] = useState<Breed[]>([])
+  const [weekAvailability, setWeekAvailability] = useState<WeekAvailability[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let isActive = true
+    async function loadData() {
+      try {
+        setIsLoading(true)
+        const [breedsData, inventory] = await Promise.all([fetchBreeds(), fetchInventory()])
+        if (!isActive) return
+        setBreeds(breedsData)
+        setWeekAvailability(buildWeekAvailability(inventory))
+      } catch (err) {
+        if (!isActive) return
+        console.error('Failed to load egg data', err)
+        setError(language === 'no' ? 'Kunne ikke laste eggdata.' : 'Failed to load egg data.')
+      } finally {
+        if (isActive) setIsLoading(false)
+      }
+    }
+    loadData()
+    return () => {
+      isActive = false
+    }
+  }, [language])
 
   return (
     <div className="min-h-screen">
@@ -58,6 +85,10 @@ export default function HomePage() {
             </button>
           </div>
 
+          {error && (
+            <div className="max-w-xl mx-auto mb-10 text-sm text-red-600">{error}</div>
+          )}
+
           {/* Browse by Breed view */}
           {browseMode === 'breed' && (
             <motion.div
@@ -67,6 +98,11 @@ export default function HomePage() {
               transition={{ duration: 0.3 }}
               className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-5xl mx-auto"
             >
+              {isLoading && (
+                <div className="col-span-full text-sm text-neutral-500">
+                  {language === 'no' ? 'Laster raser…' : 'Loading breeds…'}
+                </div>
+              )}
               {breeds.map((breed, index) => (
                 <motion.div
                   key={breed.id}
@@ -134,6 +170,11 @@ export default function HomePage() {
               transition={{ duration: 0.3 }}
               className="space-y-4 max-w-3xl mx-auto"
             >
+              {isLoading && (
+                <div className="text-sm text-neutral-500">
+                  {language === 'no' ? 'Laster uker…' : 'Loading weeks…'}
+                </div>
+              )}
               {weekAvailability.slice(0, 12).map((week, index) => (
                 <motion.div
                   key={`${week.year}-${week.weekNumber}`}
