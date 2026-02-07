@@ -117,7 +117,10 @@ export async function POST(
       }
     }
 
-    for (const [inventoryId, inventory] of inventoryMap.entries()) {
+    for (const inventoryId of inventoryMap.keys()) {
+      const inventory = inventoryMap.get(inventoryId)
+      if (!inventory) continue
+
       const existingQty = existingMap.get(inventoryId)?.quantity || 0
       const nextQty = additions.find((item) => item.inventoryId === inventoryId)?.quantity || 0
       const delta = nextQty - existingQty
