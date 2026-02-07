@@ -347,6 +347,8 @@ export default function Page() {
 
         <MobileHero isSoldOut={isSoldOut} minPrice={minPrice} minDeposit={minDeposit} />
 
+        <MobileProductTiles pricing={pricing} />
+
         <section className="px-5 py-10">
           <div className="mx-auto max-w-md rounded-[28px] border border-[#E4DED5] bg-white p-6 shadow-[0_20px_45px_rgba(30,27,22,0.12)]">
             <div className="flex items-center justify-between">
@@ -398,22 +400,23 @@ export default function Page() {
           </div>
         </section>
 
-        <MobileProductTiles pricing={pricing} />
+        <MobileTimeline />
 
-        <section className="px-5 py-8">
-          <div className="mx-auto max-w-md grid gap-4">
-            {[t.hero.localRaised, t.hero.qualityGuarantee, t.hero.tagline].map((item) => (
-              <div
-                key={item}
-                className="rounded-[24px] border border-[#E4DED5] bg-white px-5 py-4 text-sm text-[#5E5A50] shadow-[0_12px_30px_rgba(30,27,22,0.08)]"
-              >
-                {item}
-              </div>
-            ))}
+        <section className="px-5 py-12">
+          <div className="mx-auto max-w-md rounded-[32px] border border-[#1E1B16] bg-[#1E1B16] px-6 py-8 text-[#F6F4EF] shadow-[0_24px_50px_rgba(30,27,22,0.3)]">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-[#F6F4EF]/70">
+              {t.hero.limitedOffer}
+            </p>
+            <h2 className="mt-4 text-3xl font-semibold font-[family:var(--font-playfair)]">{t.hero.seasonOnce}</h2>
+            <p className="mt-3 text-sm text-[#F6F4EF]/70">{t.hero.limitedProduction}</p>
+            <Link
+              href="/bestill"
+              className="mt-6 inline-flex w-full items-center justify-center rounded-2xl bg-[#F6F4EF] px-6 py-4 text-sm font-bold uppercase tracking-[0.2em] text-[#1E1B16]"
+            >
+              {t.hero.reservePackageNow}
+            </Link>
           </div>
         </section>
-
-        <MobileTimeline />
 
         <section className="px-5 py-10">
           <div className="mx-auto max-w-md rounded-[28px] border border-[#E4DED5] bg-white p-6 shadow-[0_20px_45px_rgba(30,27,22,0.12)]">
@@ -437,22 +440,6 @@ export default function Page() {
                 </details>
               ))}
             </div>
-          </div>
-        </section>
-
-        <section className="px-5 py-12">
-          <div className="mx-auto max-w-md rounded-[32px] border border-[#1E1B16] bg-[#1E1B16] px-6 py-8 text-[#F6F4EF] shadow-[0_24px_50px_rgba(30,27,22,0.3)]">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-[#F6F4EF]/70">
-              {t.hero.limitedOffer}
-            </p>
-            <h2 className="mt-4 text-3xl font-semibold font-[family:var(--font-playfair)]">{t.hero.seasonOnce}</h2>
-            <p className="mt-3 text-sm text-[#F6F4EF]/70">{t.hero.limitedProduction}</p>
-            <Link
-              href="/bestill"
-              className="mt-6 inline-flex w-full items-center justify-center rounded-2xl bg-[#F6F4EF] px-6 py-4 text-sm font-bold uppercase tracking-[0.2em] text-[#1E1B16]"
-            >
-              {t.hero.reservePackageNow}
-            </Link>
           </div>
         </section>
 
@@ -574,58 +561,6 @@ export default function Page() {
         </div>
       </section>
 
-      {/* INVENTORY SECTION - Floating with parallax */}
-      <section className="py-20 px-6 lg:px-8 bg-neutral-50">
-        <div className="max-w-6xl mx-auto">
-          <ParallaxLayer speed={0.1}>
-            <div className="max-w-lg mx-auto bg-white border border-neutral-200 rounded-lg p-10 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.15)] transition-all duration-500 hover:shadow-[0_30px_80px_-20px_rgba(0,0,0,0.2)] hover:-translate-y-2">
-
-              <div className="flex items-center justify-between">
-                <MetaLabel>{t.availability.title}</MetaLabel>
-                {isLowStock && !isSoldOut && (
-                  <span className="px-4 py-1.5 bg-neutral-900 text-white text-xs uppercase tracking-wider font-bold rounded-full">
-                    {t.availability.fewLeft}
-                  </span>
-                )}
-                {isSoldOut && (
-                  <span className="px-4 py-1.5 bg-neutral-400 text-white text-xs uppercase tracking-wider font-bold rounded-full">
-                    {t.availability.soldOut}
-                  </span>
-                )}
-              </div>
-
-              <div className="mt-10 grid grid-cols-[auto,1fr] items-end gap-10">
-                <div>
-                  <div className="text-7xl font-light tracking-tight text-neutral-900 tabular-nums">
-                    {loading ? "—" : boxesLeft}
-                  </div>
-                  <p className="mt-2 text-xs uppercase tracking-wider text-neutral-500 font-semibold">
-                    {t.availability.boxesAvailable}
-                  </p>
-                </div>
-
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between text-xs uppercase tracking-wider text-neutral-500 font-semibold">
-                    <span>{t.availability.boxesAvailable}</span>
-                    <span>{loading ? "—" : `${availabilityPercent}%`}</span>
-                  </div>
-                  <div className="grid grid-cols-10 gap-1">
-                    {Array.from({ length: availabilitySegments }).map((_, index) => (
-                      <span
-                        key={index}
-                        className={`h-2 rounded-full ${index < availabilityFilled ? desktopFillClass : desktopEmptyClass}`}
-                      />
-                    ))}
-                  </div>
-                  <p className="text-sm text-neutral-500">Oppdatert i dag</p>
-                </div>
-              </div>
-
-            </div>
-          </ParallaxLayer>
-        </div>
-      </section>
-
       {/* PRODUCT SHOWCASE - Staggered reveal on scroll */}
       <section className="py-20 px-6 lg:px-8">
         <div className="max-w-6xl mx-auto">
@@ -696,6 +631,54 @@ export default function Page() {
         </div>
       </section>
 
+      {/* INVENTORY SECTION - Availability (no parallax) */}
+      <section className="py-20 px-6 lg:px-8 bg-neutral-50">
+        <div className="max-w-6xl mx-auto">
+          <div className="max-w-4xl mx-auto bg-white border border-neutral-200 rounded-2xl p-10 shadow-[0_20px_60px_-20px_rgba(0,0,0,0.12)]">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <MetaLabel>{t.availability.title}</MetaLabel>
+              {isLowStock && !isSoldOut && (
+                <span className="px-4 py-1.5 bg-neutral-900 text-white text-xs uppercase tracking-wider font-bold rounded-full">
+                  {t.availability.fewLeft}
+                </span>
+              )}
+              {isSoldOut && (
+                <span className="px-4 py-1.5 bg-neutral-400 text-white text-xs uppercase tracking-wider font-bold rounded-full">
+                  {t.availability.soldOut}
+                </span>
+              )}
+            </div>
+
+            <div className="mt-10 grid grid-cols-1 md:grid-cols-[auto,1fr] items-center gap-10">
+              <div className="text-center md:text-left">
+                <div className="text-7xl font-light tracking-tight text-neutral-900 tabular-nums">
+                  {loading ? "—" : boxesLeft}
+                </div>
+                <p className="mt-2 text-xs uppercase tracking-wider text-neutral-500 font-semibold">
+                  {t.availability.boxesAvailable}
+                </p>
+              </div>
+
+              <div className="space-y-4">
+                <div className="flex items-center justify-between text-xs uppercase tracking-wider text-neutral-500 font-semibold">
+                  <span>{t.availability.boxesAvailable}</span>
+                  <span>{loading ? "—" : `${availabilityPercent}%`}</span>
+                </div>
+                <div className="grid grid-cols-10 gap-1">
+                  {Array.from({ length: availabilitySegments }).map((_, index) => (
+                    <span
+                      key={index}
+                      className={`h-2 rounded-full ${index < availabilityFilled ? desktopFillClass : desktopEmptyClass}`}
+                    />
+                  ))}
+                </div>
+                <p className="text-sm text-neutral-500">Oppdatert i dag</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* TIMELINE SECTION - Scroll cascade */}
       <section className="py-20 px-6 lg:px-8 bg-neutral-50">
         <div className="max-w-5xl mx-auto">
@@ -744,6 +727,43 @@ export default function Page() {
         </div>
       </section>
 
+      {/* CTA SECTION */}
+      <section className="py-24 px-6 lg:px-8 bg-neutral-900 text-white">
+        <div className="max-w-4xl mx-auto text-center space-y-10">
+
+          <div className="space-y-6">
+            <MetaLabel>
+              <span className="text-neutral-400">{t.hero.limitedOffer}</span>
+            </MetaLabel>
+            <h2 className="text-7xl font-light tracking-tight">
+              {t.hero.seasonOnce}
+            </h2>
+            <p className="text-xl leading-relaxed text-neutral-300 max-w-2xl mx-auto">
+              {t.hero.limitedProduction}
+            </p>
+          </div>
+
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-5 pt-6">
+            <Link
+              href="/bestill"
+              className="inline-flex items-center gap-3 px-10 py-5 bg-white text-neutral-900 rounded-lg text-sm font-bold uppercase tracking-wider hover:bg-neutral-100 transition-all duration-300 hover:shadow-[0_20px_50px_-15px_rgba(255,255,255,0.3)] hover:-translate-y-1"
+            >
+              {t.hero.reservePackageNow}
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+              </svg>
+            </Link>
+            <Link
+              href="/produkt"
+              className="text-base font-semibold text-white underline underline-offset-4 hover:text-neutral-300 transition-colors"
+            >
+              {t.hero.learnMore}
+            </Link>
+          </div>
+
+        </div>
+      </section>
+
       {/* FAQ SECTION */}
       <section className="py-20 px-6 lg:px-8">
         <div className="max-w-4xl mx-auto">
@@ -782,43 +802,6 @@ export default function Page() {
                 </div>
               </details>
             ))}
-          </div>
-
-        </div>
-      </section>
-
-      {/* CTA SECTION */}
-      <section className="py-24 px-6 lg:px-8 bg-neutral-900 text-white">
-        <div className="max-w-4xl mx-auto text-center space-y-10">
-
-          <div className="space-y-6">
-            <MetaLabel>
-              <span className="text-neutral-400">{t.hero.limitedOffer}</span>
-            </MetaLabel>
-            <h2 className="text-7xl font-light tracking-tight">
-              {t.hero.seasonOnce}
-            </h2>
-            <p className="text-xl leading-relaxed text-neutral-300 max-w-2xl mx-auto">
-              {t.hero.limitedProduction}
-            </p>
-          </div>
-
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-5 pt-6">
-            <Link
-              href="/bestill"
-              className="inline-flex items-center gap-3 px-10 py-5 bg-white text-neutral-900 rounded-lg text-sm font-bold uppercase tracking-wider hover:bg-neutral-100 transition-all duration-300 hover:shadow-[0_20px_50px_-15px_rgba(255,255,255,0.3)] hover:-translate-y-1"
-            >
-              {t.hero.reservePackageNow}
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-              </svg>
-            </Link>
-            <Link
-              href="/produkt"
-              className="text-base font-semibold text-white underline underline-offset-4 hover:text-neutral-300 transition-colors"
-            >
-              {t.hero.learnMore}
-            </Link>
           </div>
 
         </div>
