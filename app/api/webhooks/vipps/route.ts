@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import crypto from "node:crypto";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import { sendEmail } from "@/lib/email/client";
-import { getAdminOrderNotificationTemplate } from "@/lib/email/templates";
+import { getAdminEggOrderNotificationTemplate, getAdminOrderNotificationTemplate } from "@/lib/email/templates";
 import { logError } from "@/lib/logger";
 
 /**
@@ -386,22 +386,38 @@ export async function POST(request: NextRequest) {
       const adminEmail = process.env.EMAIL_FROM || 'post@tinglum.com';
       if (order && adminEmail) {
         try {
-          const adminNotification = getAdminOrderNotificationTemplate({
-            orderNumber: order.order_number,
-            customerName: order.customer_name,
-            customerEmail: order.customer_email,
-            customerPhone: order.customer_phone || 'Ikke oppgitt',
-            boxSize: order.box_size,
-            deliveryType: order.delivery_type,
-            freshDelivery: order.fresh_delivery,
-            ribbeChoice: order.ribbe_choice,
-            extraProducts: order.extra_products || [],
-            depositAmount: order.deposit_amount,
-            remainderAmount: order.remainder_amount,
-            totalAmount: order.total_amount,
-            referralDiscount: order.referral_discount_amount || 0,
-            rebateDiscount: order.rebate_discount_amount || 0,
-          });
+          const adminNotification = isEggPayment
+            ? getAdminEggOrderNotificationTemplate({
+                orderNumber: order.order_number,
+                customerName: order.customer_name,
+                customerEmail: order.customer_email,
+                customerPhone: order.customer_phone || 'Ikke oppgitt',
+                breedName: eggBreedName || order.breed_name || 'Rugeegg',
+                weekNumber: order.week_number,
+                deliveryMonday: order.delivery_monday,
+                quantity: order.quantity,
+                pricePerEgg: order.price_per_egg,
+                deliveryMethod: order.delivery_method,
+                depositAmount: order.deposit_amount,
+                remainderAmount: order.remainder_amount,
+                totalAmount: order.total_amount,
+              })
+            : getAdminOrderNotificationTemplate({
+                orderNumber: order.order_number,
+                customerName: order.customer_name,
+                customerEmail: order.customer_email,
+                customerPhone: order.customer_phone || 'Ikke oppgitt',
+                boxSize: order.box_size,
+                deliveryType: order.delivery_type,
+                freshDelivery: order.fresh_delivery,
+                ribbeChoice: order.ribbe_choice,
+                extraProducts: order.extra_products || [],
+                depositAmount: order.deposit_amount,
+                remainderAmount: order.remainder_amount,
+                totalAmount: order.total_amount,
+                referralDiscount: order.referral_discount_amount || 0,
+                rebateDiscount: order.rebate_discount_amount || 0,
+              });
 
           const emailResult = await sendEmail({
             to: adminEmail,

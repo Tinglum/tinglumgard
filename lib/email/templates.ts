@@ -394,6 +394,98 @@ export function getAdminOrderNotificationTemplate(params: AdminOrderNotification
   };
 }
 
+// Admin notification for egg orders
+interface AdminEggOrderNotificationParams {
+  orderNumber: string;
+  customerName: string;
+  customerEmail: string;
+  customerPhone: string;
+  breedName: string;
+  weekNumber: number;
+  deliveryMonday: string;
+  quantity: number;
+  pricePerEgg: number;
+  deliveryMethod: string;
+  depositAmount: number;
+  remainderAmount: number;
+  totalAmount: number;
+}
+
+export function getAdminEggOrderNotificationTemplate(
+  params: AdminEggOrderNotificationParams
+): { subject: string; html: string } {
+  const formatNok = (amountOre: number) =>
+    Math.round(amountOre / 100).toLocaleString('nb-NO');
+
+  const deliveryLabel =
+    params.deliveryMethod === 'posten'
+      ? 'Posten levering'
+      : params.deliveryMethod === 'e6_pickup'
+      ? 'E6 møtepunkt'
+      : 'Henting på gården';
+
+  const deliveryDate = new Date(params.deliveryMonday).toLocaleDateString('nb-NO', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
+
+  return {
+    subject: `Ny rugeegg-ordre mottatt - ${params.orderNumber}`,
+    html: `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { font-family: -apple-system, sans-serif; line-height: 1.6; color: #333; }
+    .container { max-width: 600px; margin: 0 auto; padding: 20px; background: #f5f5f5; }
+    .header { background: #1f2937; color: white; padding: 20px; text-align: center; }
+    .content { background: #ffffff; padding: 30px; margin: 20px 0; border-radius: 8px; }
+    .section { margin: 20px 0; padding: 15px; background: #f9f9f9; border-left: 4px solid #1f2937; }
+    .amount { font-size: 18px; font-weight: 700; color: #111827; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>Ny rugeegg-ordre</h1>
+    </div>
+    <div class="content">
+      <h2>Ordre ${params.orderNumber}</h2>
+      <p><strong>Status:</strong> Forskudd betalt ✓</p>
+
+      <div class="section">
+        <h3>Kundeinformasjon</h3>
+        <p><strong>Navn:</strong> ${params.customerName}</p>
+        <p><strong>E-post:</strong> ${params.customerEmail}</p>
+        <p><strong>Telefon:</strong> ${params.customerPhone}</p>
+      </div>
+
+      <div class="section">
+        <h3>Ordredetaljer</h3>
+        <p><strong>Rase:</strong> ${params.breedName}</p>
+        <p><strong>Uke:</strong> ${params.weekNumber}</p>
+        <p><strong>Levering:</strong> ${deliveryDate}</p>
+        <p><strong>Antall:</strong> ${params.quantity} egg</p>
+        <p><strong>Pris per egg:</strong> kr ${formatNok(params.pricePerEgg)}</p>
+        <p><strong>Leveringsmåte:</strong> ${deliveryLabel}</p>
+      </div>
+
+      <div class="section">
+        <h3>Betalingsoversikt</h3>
+        <p class="amount">Forskudd betalt: kr ${formatNok(params.depositAmount)}</p>
+        <p class="amount">Restbetaling: kr ${formatNok(params.remainderAmount)}</p>
+        <p class="amount">Totalt: kr ${formatNok(params.totalAmount)}</p>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
+    `,
+  };
+}
+
 // Customer message confirmation email
 interface CustomerMessageConfirmationParams {
   customerName: string;
