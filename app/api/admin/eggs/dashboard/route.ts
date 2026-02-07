@@ -15,8 +15,9 @@ export async function GET() {
       .from('egg_orders')
       .select('total_amount, quantity');
 
-    const totalRevenue = orders?.reduce((sum, o) => sum + o.total_amount, 0) / 100 || 0;
-    const eggsSold = orders?.reduce((sum, o) => sum + o.quantity, 0) || 0;
+    const safeOrders = orders ?? [];
+    const totalRevenue = safeOrders.reduce((sum, o) => sum + (o.total_amount ?? 0), 0) / 100 || 0;
+    const eggsSold = safeOrders.reduce((sum, o) => sum + (o.quantity ?? 0), 0) || 0;
 
     // Get pending deposits
     const { count: pendingDeposits } = await supabaseAdmin
