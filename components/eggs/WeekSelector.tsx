@@ -98,52 +98,40 @@ export function WeekSelector({ inventory, accentColor, onSelectWeek }: WeekSelec
                   </div>
 
                   <div className="grid grid-cols-7 gap-1">
-                    {chunk(buildCalendarCells(month.year, month.month, inventoryByDate), 7).map((row, rowIndex) => {
-                      const mondayCell = row[0]
-                      return (
-                        <div key={`row-${month.key}-${rowIndex}`} className="grid grid-cols-7 gap-1">
-                          {row.map((cell) => (
-                            <div
-                              key={cell.key}
-                              className={`rounded-md border border-transparent px-1 py-1 min-h-[30px] ${
-                                cell.isEmpty ? '' : 'bg-white/70'
-                              } ${cell.isMonday ? 'border-neutral-200 bg-white' : ''}`}
-                            >
-                              {cell.isEmpty ? null : (
-                                <div className={`flex h-full flex-col justify-between ${cell.isMonday ? 'group relative' : ''}`}>
-                                  <span className="text-[9px] text-neutral-400">{cell.day}</span>
-                                  {cell.isMonday && cell.weekNumber !== null && (
-                                    <span
-                                      className={`mt-1 inline-flex w-fit items-center rounded-full px-2 py-0.5 text-[9px] font-semibold ${
-                                        cell.week
-                                          ? statusPill(cell.week.status)
-                                          : 'bg-neutral-100 text-neutral-400'
-                                      }`}
-                                    >
-                                      {language === 'no' ? 'Uke' : 'Week'} {cell.weekNumber} ·{' '}
-                                      {cell.week?.eggsAvailable ?? 0} {language === 'no' ? 'egg' : 'eggs'}
-                                    </span>
-                                  )}
-                                  {cell.isMonday && (
-                                    <WeekTooltip
-                                      week={cell.week}
-                                      weekNumber={cell.weekNumber}
-                                      monday={cell.date}
-                                      language={language}
-                                    />
-                                  )}
-                                </div>
-                              )}
-                            </div>
-                          ))}
-                          {!mondayCell.isEmpty && !mondayCell.week && (
-                            <div className="sr-only">
-                              {language === 'no' ? 'Ingen egg denne uken' : 'No eggs this week'}
-                            </div>
-                          )}
-                        </div>
-                      )
-                    })}
+                    {buildCalendarCells(month.year, month.month, inventoryByDate).map((cell) => (
+                      <div
+                        key={cell.key}
+                        className={`rounded-md border border-transparent px-1.5 py-1.5 min-h-[40px] ${
+                          cell.isEmpty ? '' : 'bg-white/70'
+                        } ${cell.isMonday ? 'border-neutral-200 bg-white' : ''}`}
+                      >
+                        {cell.isEmpty ? null : (
+                          <div className={`flex h-full flex-col justify-between ${cell.isMonday ? 'group relative' : ''}`}>
+                            <span className="text-[10px] text-neutral-400">{cell.day}</span>
+                            {cell.isMonday && cell.weekNumber !== null && (
+                              <span
+                                className={`mt-1 inline-flex w-fit items-center rounded-full px-2 py-0.5 text-[9px] font-semibold ${
+                                  cell.week
+                                    ? statusPill(cell.week.status)
+                                    : 'bg-neutral-100 text-neutral-400'
+                                }`}
+                              >
+                                {language === 'no' ? 'Uke' : 'Week'} {cell.weekNumber} ·{' '}
+                                {cell.week?.eggsAvailable ?? 0} {language === 'no' ? 'egg' : 'eggs'}
+                              </span>
+                            )}
+                            {cell.isMonday && (
+                              <WeekTooltip
+                                week={cell.week}
+                                weekNumber={cell.weekNumber}
+                                monday={cell.date}
+                                language={language}
+                              />
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    ))}
                   </div>
                 </GlassCard>
               </button>
