@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useTheme, type ThemeMode } from "@/contexts/ThemeContext";
@@ -12,6 +13,8 @@ export function Header() {
   const { theme, setTheme, getThemeClasses } = useTheme();
   const { user, isAuthenticated, logout } = useAuth();
   const themeClasses = getThemeClasses();
+  const pathname = usePathname();
+  const isEggRoute = pathname?.startsWith('/rugeegg');
   const [showDropdown, setShowDropdown] = useState(false);
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
   const [scrolled, setScrolled] = useState(false);
@@ -64,7 +67,8 @@ export function Header() {
   }, [showDropdown]);
 
   const handleVippsLogin = () => {
-    window.location.href = '/api/auth/vipps/login?returnTo=/min-side';
+    const returnTo = isEggRoute ? '/rugeegg/mine-bestillinger' : '/min-side';
+    window.location.href = `/api/auth/vipps/login?returnTo=${encodeURIComponent(returnTo)}`;
   };
 
   const getLastFourDigits = (phoneNumber?: string) => {
@@ -109,20 +113,39 @@ export function Header() {
 
             {/* Navigation */}
             <nav className="hidden md:flex items-center gap-1">
+              {isEggRoute ? (
+                <>
+                  <Link
+                    href="/rugeegg/raser"
+                    className="px-5 py-2.5 text-sm font-light rounded-xl transition-all duration-300 text-neutral-600 hover:text-neutral-900 hover:bg-neutral-50 hover:-translate-y-0.5"
+                  >
+                    {t.nav.breeds}
+                  </Link>
+                  <Link
+                    href="/rugeegg/rugetips"
+                    className="px-5 py-2.5 text-sm font-light rounded-xl transition-all duration-300 text-neutral-600 hover:text-neutral-900 hover:bg-neutral-50 hover:-translate-y-0.5"
+                  >
+                    {t.nav.hatchingTips}
+                  </Link>
+                </>
+              ) : (
+                <>
+                  <Link
+                    href="/"
+                    className="px-5 py-2.5 text-sm font-light rounded-xl transition-all duration-300 text-neutral-600 hover:text-neutral-900 hover:bg-neutral-50 hover:-translate-y-0.5"
+                  >
+                    {t.nav.products}
+                  </Link>
+                  <Link
+                    href="/oppdelingsplan"
+                    className="px-5 py-2.5 text-sm font-light rounded-xl transition-all duration-300 text-neutral-600 hover:text-neutral-900 hover:bg-neutral-50 hover:-translate-y-0.5"
+                  >
+                    {t.nav.oppdelingsplan}
+                  </Link>
+                </>
+              )}
               <Link
-                href="/"
-                className="px-5 py-2.5 text-sm font-light rounded-xl transition-all duration-300 text-neutral-600 hover:text-neutral-900 hover:bg-neutral-50 hover:-translate-y-0.5"
-              >
-                {t.nav.products}
-              </Link>
-              <Link
-                href="/oppdelingsplan"
-                className="px-5 py-2.5 text-sm font-light rounded-xl transition-all duration-300 text-neutral-600 hover:text-neutral-900 hover:bg-neutral-50 hover:-translate-y-0.5"
-              >
-                {t.nav.oppdelingsplan}
-              </Link>
-              <Link
-                href="/min-side"
+                href={isEggRoute ? "/rugeegg/mine-bestillinger" : "/min-side"}
                 className="relative px-5 py-2.5 text-sm font-light rounded-xl transition-all duration-300 text-neutral-600 hover:text-neutral-900 hover:bg-neutral-50 hover:-translate-y-0.5"
               >
                 {t.nav.myOrders}
@@ -136,6 +159,12 @@ export function Header() {
 
             {/* Actions */}
             <div className="flex items-center gap-3">
+              <Link
+                href={isEggRoute ? "/" : "/rugeegg"}
+                className="hidden md:inline-flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all duration-300 text-neutral-700 bg-white border border-neutral-200 hover:text-neutral-900 hover:shadow-[0_6px_16px_rgba(0,0,0,0.1)] hover:-translate-y-0.5"
+              >
+                {isEggRoute ? t.nav.goToPigs : t.nav.goToEggs}
+              </Link>
               {/* Language toggle - Minimalist */}
               <button
                 onClick={() => setLang(lang === "no" ? "en" : "no")}
@@ -161,7 +190,7 @@ export function Header() {
                     <div className="absolute right-0 mt-2 w-48 rounded-xl shadow-[0_20px_60px_-15px_rgba(0,0,0,0.2)] z-50 overflow-hidden backdrop-blur-xl bg-white border border-neutral-200">
                       <div className="py-2">
                         <Link
-                          href="/min-side"
+                          href={isEggRoute ? "/rugeegg/mine-bestillinger" : "/min-side"}
                           onClick={() => setShowDropdown(false)}
                           className="relative flex items-center justify-between px-4 py-3 text-sm font-light transition-all duration-200 text-neutral-900 hover:bg-neutral-50"
                         >
