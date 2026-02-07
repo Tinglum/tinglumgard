@@ -82,9 +82,9 @@ export function WeekSelector({ inventory, accentColor, onSelectWeek }: WeekSelec
                   key={month.key}
                   type="button"
                   onClick={() => setActiveMonthKey(month.key)}
-                  className="min-w-[85%] snap-start text-left focus-ring rounded-lg sm:min-w-0"
+                  className="group min-w-[85%] snap-start text-left focus-ring rounded-lg sm:min-w-0 transition-transform duration-200 hover:-translate-y-1 will-change-transform"
                 >
-                  <GlassCard className="p-3 shadow-none">
+                  <GlassCard className="p-3 shadow-none transition-all duration-200 group-hover:shadow-[0_18px_40px_-20px_rgba(15,23,42,0.3)] group-hover:border-neutral-200">
                     <div className="flex items-center justify-between mb-2">
                       <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-neutral-500">
                         {formatMonthTitle(month.monthDate, language)}
