@@ -26,13 +26,50 @@ export async function POST(
     }
 
     const remainderAmount = order.remainder_amount
-    const remainderPayment = order.egg_payments?.find((p: any) => p.payment_type === 'remainder')
+    const remainderPayments = (order.egg_payments || []).filter(
+      (p: any) => p.payment_type === 'remainder' && p.status === 'completed'
+    )
+    const remainderPaidOre =
+      remainderPayments.reduce((sum: number, p: any) => sum + (p.amount_nok || 0) * 100, 0) || 0
+    const amountDue = Math.max(0, remainderAmount - remainderPaidOre)
 
-    if (remainderPayment?.status === 'completed') {
+    if (amountDue <= 0) {
       return NextResponse.json({ error: 'Remainder already paid' }, { status: 400 })
     }
 
-    const shortReference = `EGG-REM-${order.order_number}`
+    const pendingRemainder = order.egg_payments?.find(
+      (p: any) => p.payment_type === 'remainder' && p.status === 'pending'
+    )
+    if (pendingRemainder?.vipps_order_id) {
+      const pendingAmountOre = (pendingRemainder.amount_nok || 0) * 100
+      if (pendingAmountOre === amountDue) {
+        try {
+          const checkoutSession = await vippsClient.getCheckoutSession(pendingRemainder.vipps_order_id)
+          if (
+            checkoutSession.sessionState === 'SessionCreated' ||
+            checkoutSession.sessionState === 'PaymentInitiated'
+          ) {
+            return NextResponse.json({
+              success: true,
+              redirectUrl:
+                checkoutSession.checkoutFrontendUrl ||
+                `https://checkout${process.env.VIPPS_ENV === 'test' ? '.test' : ''}.vipps.no/${pendingRemainder.vipps_order_id}`,
+              paymentId: pendingRemainder.id,
+              amount: amountDue,
+            })
+          }
+          if (checkoutSession.sessionState === 'PaymentSuccessful') {
+            return NextResponse.json({ error: 'Remainder already paid' }, { status: 400 })
+          }
+        } catch (error) {
+          await supabaseAdmin.from('egg_payments').delete().eq('id', pendingRemainder.id)
+        }
+      } else {
+        await supabaseAdmin.from('egg_payments').delete().eq('id', pendingRemainder.id)
+      }
+    }
+
+    const shortReference = `EGG-REM-${order.order_number}-${Date.now()}`
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://tinglum.no'
 
     const { randomBytes } = await import('crypto')
@@ -41,14 +78,14 @@ export async function POST(
     const sessionData: any = {
       merchantInfo: {
         callbackUrl: `${appUrl}/api/webhooks/vipps`,
-        returnUrl: `${appUrl}/rugeegg/mine-bestillinger`,
+        returnUrl: `${appUrl}/rugeegg/mine-bestillinger/betaling-bekreftet?orderId=${order.id}`,
         termsAndConditionsUrl: `${appUrl}/vilkar`,
         callbackAuthorizationToken: callbackToken,
       },
       transaction: {
         amount: {
           currency: 'NOK',
-          value: remainderAmount, // egg amounts are in øre
+          value: amountDue, // egg amounts are in øre
         },
         reference: shortReference,
         paymentDescription: `Restbetaling rugeegg ${order.order_number}`,
@@ -67,7 +104,7 @@ export async function POST(
       .insert({
         egg_order_id: order.id,
         payment_type: 'remainder',
-        amount_nok: Math.round(remainderAmount / 100),
+        amount_nok: Math.round(amountDue / 100),
         vipps_order_id: vippsResult.sessionId,
         status: 'pending',
         idempotency_key: shortReference,
@@ -81,7 +118,7 @@ export async function POST(
           .from('egg_payments')
           .update({
             vipps_order_id: vippsResult.sessionId,
-            amount_nok: Math.round(remainderAmount / 100),
+            amount_nok: Math.round(amountDue / 100),
             status: 'pending',
           })
           .eq('idempotency_key', shortReference)
@@ -108,7 +145,7 @@ export async function POST(
       success: true,
       redirectUrl: vippsResult.checkoutFrontendUrl,
       paymentId: payment.id,
-      amount: remainderAmount,
+      amount: amountDue,
     })
   } catch (error) {
     console.error('Error creating remainder payment:', error)

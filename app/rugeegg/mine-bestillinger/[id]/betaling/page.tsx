@@ -15,6 +15,12 @@ interface EggOrderAddition {
   egg_breeds?: { name?: string } | null
 }
 
+interface EggPayment {
+  payment_type: string
+  status: string
+  amount_nok?: number
+}
+
 interface EggOrder {
   id: string
   order_number: string
@@ -30,6 +36,7 @@ interface EggOrder {
   remainder_due_date?: string | null
   egg_breeds?: { name?: string } | null
   egg_order_additions?: EggOrderAddition[]
+  egg_payments?: EggPayment[]
 }
 
 interface WeekInventoryItem {
@@ -121,10 +128,24 @@ export default function EggRemainderPage() {
     return (order?.egg_order_additions || []).reduce((sum, addition) => sum + (addition.subtotal || 0), 0)
   }, [order])
 
+  const remainderPaidOre = useMemo(() => {
+    return (
+      order?.egg_payments?.reduce((sum, payment) => {
+        if (payment.payment_type !== 'remainder' || payment.status !== 'completed') return sum
+        return sum + (payment.amount_nok || 0) * 100
+      }, 0) || 0
+    )
+  }, [order])
+
+  const baseTotal = useMemo(() => {
+    if (!order) return 0
+    return Math.max(0, order.total_amount - savedAdditionsTotal)
+  }, [order, savedAdditionsTotal])
+
   const baseRemainder = useMemo(() => {
     if (!order) return 0
-    return Math.max(0, order.remainder_amount - savedAdditionsTotal)
-  }, [order, savedAdditionsTotal])
+    return Math.max(0, baseTotal - order.deposit_amount)
+  }, [order, baseTotal])
 
   const additionsTotal = useMemo(() => {
     return Object.entries(selectedQuantities).reduce((sum, [inventoryId, qty]) => {
@@ -135,7 +156,22 @@ export default function EggRemainderPage() {
     }, 0)
   }, [selectedQuantities, inventory])
 
-  const totalToPay = baseRemainder + additionsTotal
+  const nextTotal = baseTotal + additionsTotal
+  const nextRemainder = Math.max(0, nextTotal - (order?.deposit_amount || 0))
+  const amountDue = Math.max(0, nextRemainder - remainderPaidOre)
+
+  const cutoffDate = useMemo(() => {
+    if (!order) return null
+    const cutoff = new Date(order.delivery_monday)
+    cutoff.setDate(cutoff.getDate() - 1)
+    return cutoff
+  }, [order])
+
+  const canAdd = useMemo(() => {
+    if (!cutoffDate) return false
+    const today = new Date(new Date().toISOString().split('T')[0])
+    return today <= cutoffDate
+  }, [cutoffDate])
 
   const hasChanges = useMemo(() => {
     const saved = new Map<string, number>()
@@ -150,14 +186,14 @@ export default function EggRemainderPage() {
     return false
   }, [order, selectedQuantities])
 
-  const updateQuantity = (inventoryId: string, nextQty: number, maxQty: number) => {
-    const safeQty = Math.max(0, Math.min(nextQty, maxQty))
+  const updateQuantity = (inventoryId: string, nextQty: number, maxQty: number, minQty = 0) => {
+    const safeQty = Math.max(minQty, Math.min(nextQty, maxQty))
     setSelectedQuantities((prev) => ({ ...prev, [inventoryId]: safeQty }))
   }
 
   const handlePayment = async () => {
     if (!order) return
-    if (order.status !== 'deposit_paid') return
+    if (!['deposit_paid', 'fully_paid'].includes(order.status)) return
 
     setIsPaying(true)
     try {
@@ -178,12 +214,21 @@ export default function EggRemainderPage() {
         }
       }
 
+      if (amountDue <= 0) {
+        window.location.href = `/rugeegg/mine-bestillinger/betaling-bekreftet?orderId=${order.id}`
+        return
+      }
+
       const remainderResponse = await fetch(`/api/eggs/orders/${order.id}/remainder`, {
         method: 'POST',
       })
       const remainderData = await remainderResponse.json()
 
       if (!remainderResponse.ok || !remainderData.redirectUrl) {
+        if (remainderData?.error === 'Remainder already paid') {
+          window.location.href = `/rugeegg/mine-bestillinger/betaling-bekreftet?orderId=${order.id}`
+          return
+        }
         throw new Error(remainderData?.error || 'Kunne ikke starte betaling')
       }
 
@@ -215,7 +260,7 @@ export default function EggRemainderPage() {
     )
   }
 
-  if (order.status !== 'deposit_paid') {
+  if (!['deposit_paid', 'fully_paid'].includes(order.status)) {
     return (
       <div className="min-h-screen flex items-center justify-center px-6">
         <GlassCard className="p-8 text-center max-w-md">
@@ -238,12 +283,10 @@ export default function EggRemainderPage() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-4xl font-display font-semibold text-neutral-900 mb-2">
-              {language === 'no' ? 'Betal restbeløp' : 'Pay remainder'}
+              {language === 'no' ? 'Betal restbelÃ¸p' : 'Pay remainder'}
             </h1>
             <p className="text-neutral-600">
-              {language === 'no'
-                ? `Bestilling ${order.order_number}`
-                : `Order ${order.order_number}`}
+              {language === 'no' ? `Bestilling ${order.order_number}` : `Order ${order.order_number}`}
             </p>
           </div>
           <Link href="/rugeegg/mine-bestillinger" className="text-sm text-neutral-600 hover:text-neutral-900">
@@ -261,7 +304,8 @@ export default function EggRemainderPage() {
                 {order.egg_breeds?.name || (language === 'no' ? 'Rugeegg' : 'Eggs')}
               </p>
               <p className="text-sm text-neutral-600">
-                {language === 'no' ? 'Uke' : 'Week'} {order.week_number} · {formatDate(new Date(order.delivery_monday), language)}
+                {language === 'no' ? 'Uke' : 'Week'} {order.week_number} Â·{' '}
+                {formatDate(new Date(order.delivery_monday), language)}
               </p>
             </div>
             <div className="text-right">
@@ -273,7 +317,8 @@ export default function EggRemainderPage() {
               </p>
               {order.remainder_due_date && (
                 <p className="text-xs text-neutral-500">
-                  {language === 'no' ? 'Forfallsdato' : 'Due date'}: {formatDate(new Date(order.remainder_due_date), language)}
+                  {language === 'no' ? 'Forfallsdato' : 'Due date'}:{' '}
+                  {formatDate(new Date(order.remainder_due_date), language)}
                 </p>
               )}
             </div>
@@ -285,8 +330,17 @@ export default function EggRemainderPage() {
             <h2 className="text-lg font-semibold text-neutral-900">
               {language === 'no' ? 'Legg til flere egg (valgfritt)' : 'Add more eggs (optional)'}
             </h2>
-            <span className="text-xs text-neutral-500">{language === 'no' ? 'Samme leveringsuke' : 'Same delivery week'}</span>
+            <span className="text-xs text-neutral-500">
+              {language === 'no' ? 'Samme leveringsuke' : 'Same delivery week'}
+            </span>
           </div>
+          {!canAdd && (
+            <p className="text-xs text-amber-600">
+              {language === 'no'
+                ? 'Tillegg er stengt etter dagen fÃ¸r levering.'
+                : 'Additions are closed after the day before delivery.'}
+            </p>
+          )}
 
           <div className="space-y-3">
             {inventory.length === 0 && (
@@ -298,22 +352,26 @@ export default function EggRemainderPage() {
             {inventory.map((item) => {
               const remaining = item.eggs_remaining ?? (item.eggs_available - item.eggs_allocated)
               const selected = selectedQuantities[item.id] || 0
+              const existingQty =
+                order?.egg_order_additions?.find((addition) => addition.inventory_id === item.id)?.quantity || 0
+              const minQty = order?.status === 'fully_paid' ? existingQty : 0
               const maxQty = Math.max(0, remaining + selected)
-              const disabled = maxQty === 0
+              const disabled = maxQty === 0 || !canAdd
 
               return (
                 <div key={item.id} className="flex flex-wrap items-center justify-between gap-3 border border-neutral-200 rounded-lg p-4">
                   <div>
                     <p className="font-semibold text-neutral-900">{item.egg_breeds?.name}</p>
                     <p className="text-xs text-neutral-500">
-                      {remaining} {language === 'no' ? 'egg igjen' : 'eggs left'} · {formatPrice(item.egg_breeds?.price_per_egg || 0, language)} / {language === 'no' ? 'egg' : 'egg'}
+                      {remaining} {language === 'no' ? 'egg igjen' : 'eggs left'} Â·{' '}
+                      {formatPrice(item.egg_breeds?.price_per_egg || 0, language)} / {language === 'no' ? 'egg' : 'egg'}
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
-                      disabled={disabled || selected === 0 || isPaying}
-                      onClick={() => updateQuantity(item.id, selected - 1, maxQty)}
+                      disabled={disabled || selected <= minQty || isPaying}
+                      onClick={() => updateQuantity(item.id, selected - 1, maxQty, minQty)}
                       className="w-8 h-8 rounded-full border border-neutral-200 flex items-center justify-center disabled:opacity-40"
                     >
                       <Minus className="w-4 h-4" />
@@ -322,7 +380,7 @@ export default function EggRemainderPage() {
                     <button
                       type="button"
                       disabled={disabled || isPaying}
-                      onClick={() => updateQuantity(item.id, selected + 1, maxQty)}
+                      onClick={() => updateQuantity(item.id, selected + 1, maxQty, minQty)}
                       className="w-8 h-8 rounded-full border border-neutral-200 flex items-center justify-center disabled:opacity-40"
                     >
                       <Plus className="w-4 h-4" />
@@ -340,7 +398,7 @@ export default function EggRemainderPage() {
           </h2>
           <div className="space-y-2 text-sm">
             <div className="flex justify-between text-neutral-600">
-              <span>{language === 'no' ? 'Restbeløp' : 'Remainder'}</span>
+              <span>{language === 'no' ? 'RestbelÃ¸p' : 'Remainder'}</span>
               <span className="font-semibold text-neutral-900">{formatPrice(baseRemainder, language)}</span>
             </div>
             {additionsTotal > 0 && (
@@ -349,16 +407,22 @@ export default function EggRemainderPage() {
                 <span className="font-semibold text-neutral-900">{formatPrice(additionsTotal, language)}</span>
               </div>
             )}
+            {remainderPaidOre > 0 && (
+              <div className="flex justify-between text-neutral-600">
+                <span>{language === 'no' ? 'Allerede betalt' : 'Already paid'}</span>
+                <span className="font-semibold text-neutral-900">{formatPrice(remainderPaidOre, language)}</span>
+              </div>
+            )}
             <div className="flex justify-between text-neutral-900 text-base pt-2 border-t border-neutral-200">
-              <span className="font-semibold">{language === 'no' ? 'Å betale nå' : 'Due now'}</span>
-              <span className="font-semibold">{formatPrice(totalToPay, language)}</span>
+              <span className="font-semibold">{language === 'no' ? 'Ã… betale nÃ¥' : 'Due now'}</span>
+              <span className="font-semibold">{formatPrice(amountDue, language)}</span>
             </div>
           </div>
 
           <button
             type="button"
             onClick={handlePayment}
-            disabled={isPaying}
+            disabled={isPaying || amountDue <= 0}
             className="btn-primary w-full"
           >
             {language === 'no' ? 'Betal med Vipps' : 'Pay with Vipps'}

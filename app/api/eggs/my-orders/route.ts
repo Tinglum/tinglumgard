@@ -22,7 +22,7 @@ export async function GET() {
 
     const { data, error } = await supabaseAdmin
       .from('egg_orders')
-      .select('*, egg_breeds(*)')
+      .select('*, egg_breeds(*), egg_payments(*)')
       .or(filters.join(','))
       .order('created_at', { ascending: false })
 

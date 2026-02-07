@@ -19,7 +19,7 @@ export async function POST(
 
     const { data: order, error: orderError } = await supabaseAdmin
       .from('egg_orders')
-      .select('id, status, order_number, inventory_id, quantity, subtotal, delivery_fee, total_amount, deposit_amount, remainder_amount, year, week_number')
+      .select('id, status, order_number, inventory_id, quantity, subtotal, delivery_fee, total_amount, deposit_amount, remainder_amount, year, week_number, delivery_monday')
       .eq('id', params.id)
       .single()
 
@@ -27,9 +27,26 @@ export async function POST(
       return NextResponse.json({ error: 'Order not found' }, { status: 404 })
     }
 
-    if (!['deposit_paid'].includes(order.status)) {
+    if (!['deposit_paid', 'fully_paid'].includes(order.status)) {
       return NextResponse.json({ error: 'Order is not eligible for additions' }, { status: 400 })
     }
+
+    const cutoffDate = new Date(order.delivery_monday)
+    cutoffDate.setDate(cutoffDate.getDate() - 1)
+    const today = new Date(new Date().toISOString().split('T')[0])
+    if (today > cutoffDate) {
+      return NextResponse.json({ error: 'Additions are closed for this delivery week' }, { status: 400 })
+    }
+
+    const { data: remainderPayments } = await supabaseAdmin
+      .from('egg_payments')
+      .select('amount_nok, status')
+      .eq('egg_order_id', order.id)
+      .eq('payment_type', 'remainder')
+      .eq('status', 'completed')
+
+    const remainderPaidOre =
+      (remainderPayments || []).reduce((sum, p: any) => sum + (p.amount_nok || 0) * 100, 0) || 0
 
     const { data: existingAdditions, error: existingError } = await supabaseAdmin
       .from('egg_order_additions')
@@ -46,6 +63,18 @@ export async function POST(
       existingMap.set(row.inventory_id, { quantity: row.quantity, subtotal: row.subtotal })
     }
 
+    if (order.status === 'fully_paid') {
+      for (const [inventoryId, existing] of existingMap.entries()) {
+        const nextQty = additions.find((item) => item.inventoryId === inventoryId)?.quantity || 0
+        if (nextQty < existing.quantity) {
+          return NextResponse.json(
+            { error: 'Paid orders can only add eggs, not remove them' },
+            { status: 400 }
+          )
+        }
+      }
+    }
+
     const inventoryIds = Array.from(
       new Set([
         ...additions.map((item) => item.inventoryId),
@@ -59,9 +88,10 @@ export async function POST(
       const nextRemainder = Math.max(0, baseTotal - order.deposit_amount)
 
       await supabaseAdmin.from('egg_order_additions').delete().eq('egg_order_id', order.id)
+      const nextStatus = remainderPaidOre >= nextRemainder ? 'fully_paid' : 'deposit_paid'
       await supabaseAdmin
         .from('egg_orders')
-        .update({ total_amount: baseTotal, remainder_amount: nextRemainder })
+        .update({ total_amount: baseTotal, remainder_amount: nextRemainder, status: nextStatus })
         .eq('id', order.id)
 
       return NextResponse.json({ success: true, additions: [] })
@@ -179,9 +209,10 @@ export async function POST(
     const nextTotal = baseTotal + newAdditionsTotal
     const nextRemainder = Math.max(0, nextTotal - order.deposit_amount)
 
+    const nextStatus = remainderPaidOre >= nextRemainder ? 'fully_paid' : 'deposit_paid'
     const { error: orderUpdateError } = await supabaseAdmin
       .from('egg_orders')
-      .update({ total_amount: nextTotal, remainder_amount: nextRemainder })
+      .update({ total_amount: nextTotal, remainder_amount: nextRemainder, status: nextStatus })
       .eq('id', order.id)
 
     if (orderUpdateError) {

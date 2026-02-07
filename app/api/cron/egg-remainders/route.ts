@@ -88,6 +88,43 @@ function buildForfeitHtml(params: {
 </html>`
 }
 
+function buildDayBeforeHtml(params: {
+  customerName: string
+  orderNumber: string
+  breedName: string
+  weekNumber: number
+  appUrl: string
+}) {
+  return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { font-family: -apple-system, sans-serif; line-height: 1.6; color: #111827; }
+    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+    .card { background: #ffffff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 24px; }
+    .title { font-size: 20px; font-weight: 700; margin-bottom: 10px; }
+    .muted { color: #6b7280; font-size: 14px; }
+    .button { display: inline-block; background: #111827; color: #fff; padding: 12px 18px; border-radius: 8px; text-decoration: none; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="card">
+      <div class="title">Levering i morgen</div>
+      <p>Hei ${params.customerName},</p>
+      <p class="muted">Bestilling ${params.orderNumber} Â· ${params.breedName} Â· Uke ${params.weekNumber}</p>
+      <p>Rugeeggene sendes i morgen. Du finner bestillingen pÃ¥ Min side.</p>
+      <p>
+        <a class="button" href="${params.appUrl}/rugeegg/mine-bestillinger">GÃ¥ til Min side</a>
+      </p>
+    </div>
+  </div>
+</body>
+</html>`
+}
+
 function resolveBreedName(relation: any) {
   if (!relation) return 'Rugeegg'
   if (Array.isArray(relation)) {
@@ -150,6 +187,7 @@ export async function GET(request: NextRequest) {
 
     let remindersSent = 0
     let forfeits = 0
+    let dayBeforeSent = 0
 
     for (const order of orders || []) {
       const depositPaid = order.egg_payments?.some(
@@ -240,10 +278,48 @@ export async function GET(request: NextRequest) {
       remindersSent += 1
     }
 
+    const { data: paidOrders, error: paidError } = await supabaseAdmin
+      .from('egg_orders')
+      .select('id, order_number, customer_name, customer_email, status, week_number, delivery_monday, reminder_day_before_sent, egg_breeds(name)')
+      .in('status', ['fully_paid', 'preparing'])
+
+    if (paidError) {
+      logError('egg-day-before-fetch', paidError)
+    } else {
+      for (const order of paidOrders || []) {
+        if (!order.customer_email || order.customer_email === 'pending@vipps.no') continue
+        if (order.reminder_day_before_sent) continue
+
+        const deliveryDate = toDateOnly(order.delivery_monday)
+        const daysUntil = daysBetween(deliveryDate, today)
+        if (daysUntil !== 1) continue
+
+        await sendEmail({
+          to: order.customer_email,
+          subject: `Levering i morgen - ${order.order_number}`,
+          html: buildDayBeforeHtml({
+            customerName: order.customer_name,
+            orderNumber: order.order_number,
+            breedName: resolveBreedName(order.egg_breeds),
+            weekNumber: order.week_number,
+            appUrl,
+          }),
+        })
+
+        await supabaseAdmin
+          .from('egg_orders')
+          .update({ reminder_day_before_sent: true })
+          .eq('id', order.id)
+
+        dayBeforeSent += 1
+      }
+    }
+
     return NextResponse.json({
       success: true,
       remindersSent,
       forfeits,
+      dayBeforeSent,
     })
   } catch (error) {
     logError('egg-reminders-main', error)
