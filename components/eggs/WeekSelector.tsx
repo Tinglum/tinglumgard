@@ -72,6 +72,8 @@ export function WeekSelector({ inventory, accentColor, onSelectWeek }: WeekSelec
           <div className="flex gap-3 overflow-x-auto pb-2 snap-x snap-mandatory sm:grid sm:grid-cols-2 sm:gap-3 sm:overflow-visible">
             {months.map((month) => {
               const cells = buildCalendarCells(month.year, month.month, inventoryByDate)
+              const rows = chunk(cells, 7)
+
               return (
                 <button
                   key={month.key}
@@ -91,23 +93,34 @@ export function WeekSelector({ inventory, accentColor, onSelectWeek }: WeekSelec
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-8 gap-1 text-[9px] text-neutral-400 mb-1">
-                      {[...getDayLabels(language), language === 'no' ? 'Egg' : 'Eggs'].map((label) => (
+                    <div className="grid grid-cols-9 gap-1 text-[9px] text-neutral-400 mb-1">
+                      <div className="text-center">{language === 'no' ? 'Uke' : 'Wk'}</div>
+                      {getDayLabels(language).map((label) => (
                         <div key={label} className="text-center">
                           {label}
                         </div>
                       ))}
+                      <div className="text-center">{language === 'no' ? 'Egg' : 'Eggs'}</div>
                     </div>
 
                     <div className="space-y-1">
-                      {chunk(cells, 7).map((row, rowIndex) => {
-                        const monday = row[0]
+                      {rows.map((row, rowIndex) => {
+                        const rowMonday = getRowMonday(row)
+                        const rowWeekNumber = rowMonday ? getWeekNumber(rowMonday) : null
+                        const rowWeek = rowMonday ? inventoryByDate.get(dateKey(rowMonday)) || null : null
+
                         return (
-                          <div key={`row-${month.key}-${rowIndex}`} className="grid grid-cols-8 gap-1">
+                          <div key={`row-${month.key}-${rowIndex}`} className="grid grid-cols-9 gap-1">
+                            <div className="rounded-md border px-1 py-1 min-h-[26px] border-neutral-100 bg-white/70">
+                              <div className="flex h-full items-center justify-center text-[9px] font-semibold text-neutral-500">
+                                {rowWeekNumber ?? ''}
+                              </div>
+                            </div>
+
                             {row.map((cell) => (
                               <div
                                 key={cell.key}
-                                className={`rounded-md border px-1 py-1 min-h-[28px] ${
+                                className={`rounded-md border px-1 py-1 min-h-[26px] ${
                                   cell.isEmpty ? 'border-transparent bg-transparent' : 'border-neutral-100 bg-white/70'
                                 } ${cell.isMonday ? 'border-neutral-200 bg-white' : ''}`}
                               >
@@ -115,11 +128,6 @@ export function WeekSelector({ inventory, accentColor, onSelectWeek }: WeekSelec
                                   <div className={`flex h-full flex-col justify-between ${cell.isMonday ? 'group relative' : ''}`}>
                                     <div className="flex items-center justify-between text-[9px] text-neutral-500">
                                       <span>{cell.day}</span>
-                                      {cell.isMonday && cell.weekNumber !== null && (
-                                        <span className="text-[8px] uppercase tracking-[0.18em] text-neutral-400">
-                                          {language === 'no' ? 'Uke' : 'Week'} {cell.weekNumber}
-                                        </span>
-                                      )}
                                     </div>
                                     {cell.isMonday && (
                                       <WeekTooltip
@@ -133,16 +141,15 @@ export function WeekSelector({ inventory, accentColor, onSelectWeek }: WeekSelec
                                 )}
                               </div>
                             ))}
-                            <div className="rounded-md border px-1 py-1 min-h-[28px] border-neutral-100 bg-white/70">
+
+                            <div className="rounded-md border px-1 py-1 min-h-[26px] border-neutral-100 bg-white/70">
                               <div className="flex h-full items-center justify-center">
                                 <span
                                   className={`inline-flex items-center rounded-full px-2 py-0.5 text-[9px] font-semibold ${
-                                    monday && monday.week
-                                      ? statusPill(monday.week.status)
-                                      : 'bg-neutral-100 text-neutral-400'
+                                    rowWeek ? statusPill(rowWeek.status) : 'bg-neutral-100 text-neutral-400'
                                   }`}
                                 >
-                                  {monday?.week?.eggsAvailable ?? 0} {language === 'no' ? 'egg' : 'eggs'}
+                                  {rowWeek?.eggsAvailable ?? 0} {language === 'no' ? 'egg' : 'eggs'}
                                 </span>
                               </div>
                             </div>
@@ -311,6 +318,16 @@ function getStatusLabel(status: WeekInventory['status'] | null, language: Langua
   if (status === 'locked') return language === 'no' ? 'Låst' : 'Locked'
   if (status === 'available') return language === 'no' ? 'Tilgjengelig' : 'Available'
   return language === 'no' ? 'Ikke planlagt' : 'Not scheduled'
+}
+
+function getRowMonday(row: CalendarCell[]): Date | null {
+  if (row[0]?.date) return row[0].date
+  const firstCell = row.find((cell) => cell.date)
+  if (!firstCell?.date) return null
+  const offset = row.indexOf(firstCell)
+  const monday = new Date(firstCell.date)
+  monday.setDate(firstCell.date.getDate() - offset)
+  return monday
 }
 
 function dateKey(date: Date): string {
