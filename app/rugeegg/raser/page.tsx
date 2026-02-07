@@ -9,7 +9,7 @@ import { GlassCard } from '@/components/eggs/GlassCard'
 import { ArrowRight } from 'lucide-react'
 
 export default function BreedsPage() {
-  const { language, t } = useLanguage()
+  const { lang: language, t } = useLanguage()
 
   return (
     <div className="min-h-screen py-12">

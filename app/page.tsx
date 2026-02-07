@@ -30,7 +30,15 @@ function MetaLabel({ children }: { children: React.ReactNode }) {
 }
 
 // Parallax scroll layer - KEPT (subtle, high impact)
-function ParallaxLayer({ children, speed = 0.5, className = "" }: { children: React.ReactNode; speed?: number; className?: string }) {
+function ParallaxLayer({
+  children,
+  speed = 0.5,
+  className = ""
+}: {
+  children?: React.ReactNode;
+  speed?: number;
+  className?: string;
+}) {
   const [offset, setOffset] = useState(0);
 
   useEffect(() => {

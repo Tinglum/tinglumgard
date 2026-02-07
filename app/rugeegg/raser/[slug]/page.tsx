@@ -19,7 +19,7 @@ export default function BreedDetailPage() {
   const params = useParams()
   const router = useRouter()
   const slug = params.slug as string
-  const { language, t } = useLanguage()
+  const { lang: language, t } = useLanguage()
   const { startOrder } = useOrder()
   const { addToCart } = useCart()
 

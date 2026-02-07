@@ -5,6 +5,7 @@ export const no = {
     cuts: "Kutt",
     myOrders: "Min side",
     admin: "Admin",
+    breeds: "Raser",
     oppdelingsplan: "Oppdelingsplan",
     minebestillinger: "Mine bestillinger",
     logout: "Logg ut",
@@ -36,6 +37,7 @@ export const no = {
     week: "uke",
     year: "år",
     currency: "kr",
+    backTo: "Tilbake til",
   },
 
   // Hero section
@@ -44,6 +46,7 @@ export const no = {
     seasonOnce: "Kun én sesong i året",
     porkFrom: "Ullgris fra",
     headline: "Ullgris fra",
+    title: "Rugeegg fra Tinglum Gard",
     farmName: "Tinglum Gård",
     subtitle: "Gris fra Tinglum Gård i Namdalseid. Grisene vokser opp på gården gjennom 2026, slaktes lokalt i nov/des, og hentes fersk eller frossen.",
     cta: "Reserver nå",
@@ -59,6 +62,50 @@ export const no = {
     limitedOffer: "Begrenset tilbud",
     limitedProduction: "Vi produserer kun det vi har kapasitet til. Når sesongens kasser er reservert, stenger vi bestillingen til 2027.",
     reservePackageNow: "Reserver din kasse nå",
+  },
+
+  // Eggs browse
+  browse: {
+    byBreed: "Etter rase",
+    byWeek: "Etter uke",
+    week: "Uke",
+    soldOut: "Utsolgt",
+    eggsAvailable: "egg tilgjengelig",
+  },
+
+  // Egg breed detail labels
+  breed: {
+    deliveryFrom: "Levering fra",
+    pricePerEgg: "kr/egg",
+    calculatedAtCheckout: "beregnes i kassen",
+    viewDetails: "Se detaljer",
+    eggColor: "Eggfarge",
+    production: "Produksjon",
+    minOrder: "Minimum",
+    eggs: "egg",
+    characteristics: "Egenskaper",
+    size: "Storrelse",
+    temperament: "Temperament",
+    hatchingInfo: "Klekkinfo",
+    incubation: "Ruging",
+    days: "dager",
+    temperature: "Temperatur",
+    humidity: "Fuktighet",
+    qualityNote: "Ferske egg fra frittgaende honer. Levering og frakt beregnes i kassen.",
+    selectWeek: "Velg uke",
+    available: "Tilgjengelig",
+  },
+
+  // Quantity selector
+  quantity: {
+    available: "tilgjengelig",
+    numberOfEggs: "Antall egg",
+    min: "Min",
+    max: "Maks",
+    eggs: "egg",
+    subtotal: "Subtotal",
+    shippingCalculated: "frakt beregnes i kassen",
+    addToCart: "Legg i handlekurv",
   },
 
   // Product/Box selection

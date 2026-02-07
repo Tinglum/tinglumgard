@@ -21,18 +21,20 @@ export async function GET() {
     // Calculate breed statistics
     const breedMap: Record<string, any> = {};
     orders?.forEach((order) => {
-      const breedName = order.egg_breeds?.name || 'Unknown';
-      if (!breedMap[breedName]) {
-        breedMap[breedName] = {
-          breed_name: breedName,
+      const breedRelation = order.egg_breeds as { name?: string } | { name?: string }[] | null;
+      const breedKey =
+        (Array.isArray(breedRelation) ? breedRelation[0]?.name : breedRelation?.name) ?? 'Unknown';
+      if (!breedMap[breedKey]) {
+        breedMap[breedKey] = {
+          breed_name: breedKey,
           total_orders: 0,
           total_eggs: 0,
           total_revenue: 0,
         };
       }
-      breedMap[breedName].total_orders += 1;
-      breedMap[breedName].total_eggs += order.quantity || 0;
-      breedMap[breedName].total_revenue += order.total_amount || 0;
+      breedMap[breedKey].total_orders += 1;
+      breedMap[breedKey].total_eggs += order.quantity || 0;
+      breedMap[breedKey].total_revenue += order.total_amount || 0;
     });
 
     const breed_stats = Object.values(breedMap).sort(

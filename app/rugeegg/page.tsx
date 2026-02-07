@@ -11,7 +11,7 @@ import { GlassCard } from '@/components/eggs/GlassCard'
 import { ArrowRight } from 'lucide-react'
 
 export default function HomePage() {
-  const { language, t } = useLanguage()
+  const { lang: language, t } = useLanguage()
   const [browseMode, setBrowseMode] = useState<BrowseMode>('breed')
   const weekAvailability = generateWeekAvailability()
 

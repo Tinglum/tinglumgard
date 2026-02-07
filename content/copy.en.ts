@@ -5,6 +5,7 @@ export const en = {
     cuts: "Cuts",
     myOrders: "My page",
     admin: "Admin",
+    breeds: "Breeds",
     oppdelingsplan: "Butcher diagram",
     minebestillinger: "My orders",
     logout: "Log out",
@@ -36,6 +37,7 @@ export const en = {
     week: "week",
     year: "year",
     currency: "NOK",
+    backTo: "Back to",
   },
 
   // Hero section
@@ -44,6 +46,7 @@ export const en = {
     seasonOnce: "Only once a year",
     porkFrom: "Woolly Pig from",
     headline: "Woolly Pig from",
+    title: "Hatching eggs from Tinglum Farm",
     farmName: "Tinglum Gård",
     subtitle: "Pork from Tinglum Gård in Namdalseid. The pigs grow up on the farm throughout 2026, are slaughtered locally in December, and delivered fresh to your door.",
     cta: "Reserve now",
@@ -59,6 +62,50 @@ export const en = {
     limitedOffer: "Limited offer",
     limitedProduction: "We only produce what we have capacity for. When the season's boxes are reserved, we close ordering until 2027.",
     reservePackageNow: "Reserve your box now",
+  },
+
+  // Eggs browse
+  browse: {
+    byBreed: "By breed",
+    byWeek: "By week",
+    week: "Week",
+    soldOut: "Sold out",
+    eggsAvailable: "eggs available",
+  },
+
+  // Egg breed detail labels
+  breed: {
+    deliveryFrom: "Delivery from",
+    pricePerEgg: "per egg",
+    calculatedAtCheckout: "calculated at checkout",
+    viewDetails: "View details",
+    eggColor: "Egg color",
+    production: "Production",
+    minOrder: "Minimum",
+    eggs: "eggs",
+    characteristics: "Characteristics",
+    size: "Size",
+    temperament: "Temperament",
+    hatchingInfo: "Hatching info",
+    incubation: "Incubation",
+    days: "days",
+    temperature: "Temperature",
+    humidity: "Humidity",
+    qualityNote: "Fresh eggs from free-range hens. Delivery and shipping are calculated at checkout.",
+    selectWeek: "Select week",
+    available: "Available",
+  },
+
+  // Quantity selector
+  quantity: {
+    available: "available",
+    numberOfEggs: "Number of eggs",
+    min: "Min",
+    max: "Max",
+    eggs: "eggs",
+    subtotal: "Subtotal",
+    shippingCalculated: "shipping calculated at checkout",
+    addToCart: "Add to cart",
   },
 
   // Product/Box selection

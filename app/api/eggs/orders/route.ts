@@ -48,16 +48,29 @@ export async function POST(request: Request) {
     }
 
     // Update inventory allocation (simple increment for now)
-    const { error: inventoryError } = await supabaseAdmin
+    const { data: inventoryRow, error: inventoryFetchError } = await supabaseAdmin
       .from('egg_inventory')
-      .update({
-        eggs_allocated: supabaseAdmin.sql`eggs_allocated + ${body.quantity}`
-      })
+      .select('eggs_allocated')
       .eq('id', body.inventory_id)
+      .single()
 
-    if (inventoryError) {
-      console.error('Error updating inventory:', inventoryError)
-      // Note: Order was created but inventory not updated - may need manual fix
+    if (inventoryFetchError) {
+      console.error('Error fetching inventory for update:', inventoryFetchError)
+    } else {
+      const currentAllocated = inventoryRow?.eggs_allocated ?? 0
+      const nextAllocated = currentAllocated + Number(body.quantity || 0)
+
+      const { error: inventoryError } = await supabaseAdmin
+        .from('egg_inventory')
+        .update({
+          eggs_allocated: nextAllocated
+        })
+        .eq('id', body.inventory_id)
+
+      if (inventoryError) {
+        console.error('Error updating inventory:', inventoryError)
+        // Note: Order was created but inventory not updated - may need manual fix
+      }
     }
 
     return NextResponse.json(data)

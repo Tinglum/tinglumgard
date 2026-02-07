@@ -32,8 +32,10 @@ export async function GET() {
 
     const breedCounts: Record<string, number> = {};
     breedStats?.forEach(order => {
-      const breedName = order.egg_breeds?.name || 'Unknown';
-      breedCounts[breedName] = (breedCounts[breedName] || 0) + (order.quantity || 0);
+      const breedRelation = order.egg_breeds as { name?: string } | { name?: string }[] | null;
+      const breedKey =
+        (Array.isArray(breedRelation) ? breedRelation[0]?.name : breedRelation?.name) ?? 'Unknown';
+      breedCounts[breedKey] = (breedCounts[breedKey] || 0) + (order.quantity || 0);
     });
 
     const topBreed = Object.entries(breedCounts)

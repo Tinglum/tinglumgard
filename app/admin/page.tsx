@@ -230,7 +230,7 @@ export default function AdminPage() {
       const eggOrders = (eggData || []).map((o: any) => ({
         ...o,
         product_type: 'eggs' as const,
-        breed_name: o.egg_breeds?.name,
+        breed_name: o.egg_breeds?.[0]?.name ?? o.egg_breeds?.name,
         delivery_type: o.delivery_method,
       }));
 
