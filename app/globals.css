@@ -7,6 +7,11 @@
    ============================================ */
 
 :root {
+  /* Font stacks (local/system fallbacks to avoid build-time fetch) */
+  --font-inter: "Inter", system-ui, "Segoe UI", sans-serif;
+  --font-playfair: "Playfair Display", "Times New Roman", serif;
+  --font-manrope: "Manrope", "Inter", system-ui, sans-serif;
+
   /* Warm inviting palette - cozy and feel-good */
   --bg-primary: #FAF8F5;
   --bg-surface: #FFFFFF;

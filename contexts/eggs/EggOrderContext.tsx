@@ -1,8 +1,8 @@
 'use client'
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
-import { Order, Breed, WeekInventory, DeliveryMethod } from './types'
-import { generateOrderNumber } from './utils'
+import { Order, Breed, WeekInventory, DeliveryMethod } from '@/lib/eggs/types'
+import { generateOrderNumber } from '@/lib/eggs/utils'
 
 interface OrderDraft {
   breed: Breed

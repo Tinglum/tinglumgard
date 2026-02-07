@@ -1,7 +1,7 @@
 'use client'
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
-import { Breed, WeekInventory } from './types'
+import { Breed, WeekInventory } from '@/lib/eggs/types'
 
 export interface CartItem {
   breed: Breed
