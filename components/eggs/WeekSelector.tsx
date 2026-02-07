@@ -115,7 +115,7 @@ export function WeekSelector({ inventory, accentColor, onSelectWeek }: WeekSelec
                         return (
                           <div
                             key={`row-${month.key}-${rowIndex}`}
-                            className="grid grid-cols-9 gap-1 rounded-full border border-neutral-200 bg-white/60 p-1 overflow-hidden"
+                            className="grid grid-cols-9 gap-1 rounded-full border border-neutral-200 bg-white/70 p-1"
                           >
                             <div className="rounded-md bg-white/70 px-1 py-1 min-h-[24px]">
                               <div className="flex h-full items-center justify-center text-[9px] font-semibold text-neutral-500">
@@ -128,7 +128,11 @@ export function WeekSelector({ inventory, accentColor, onSelectWeek }: WeekSelec
                                 key={cell.key}
                                 className={`rounded-md px-1 py-1 min-h-[24px] ${
                                   cell.isEmpty ? 'bg-transparent' : 'bg-white/70'
-                                } ${cell.isMonday ? 'bg-emerald-50 text-emerald-900' : ''}`}
+                                } ${
+                                  cell.isMonday
+                                    ? 'bg-emerald-50 text-emerald-900 ring-1 ring-emerald-200'
+                                    : ''
+                                }`}
                               >
                                 {cell.isEmpty ? null : (
                                   <div className={`flex h-full flex-col justify-between ${cell.isMonday ? 'group relative' : ''}`}>
@@ -188,8 +192,12 @@ export function WeekSelector({ inventory, accentColor, onSelectWeek }: WeekSelec
           <h3 className="text-lg font-display font-semibold text-neutral-900">{t.breed.selectWeek}</h3>
 
           <div className="space-y-2">
-            {chunk(buildCalendarCells(activeMonth.year, activeMonth.month, inventoryByDate), 7).map(
-              (row, rowIndex) => {
+            {chunk(buildCalendarCells(activeMonth.year, activeMonth.month, inventoryByDate), 7)
+              .filter((row) => {
+                const monday = getRowMonday(row)
+                return monday ? monday.getMonth() === activeMonth.month : false
+              })
+              .map((row, rowIndex) => {
                 const mondayCell = row[0]
                 const week = mondayCell.week
                 const isSelectable = Boolean(week && isWeekAvailable(week))
@@ -250,8 +258,7 @@ export function WeekSelector({ inventory, accentColor, onSelectWeek }: WeekSelec
                     ))}
                   </button>
                 )
-              }
-            )}
+              })}
           </div>
         </div>
       )}
