@@ -64,7 +64,9 @@ export async function POST(
     }
 
     if (order.status === 'fully_paid') {
-      for (const [inventoryId, existing] of existingMap.entries()) {
+      for (const inventoryId of Array.from(existingMap.keys())) {
+        const existing = existingMap.get(inventoryId)
+        if (!existing) continue
         const nextQty = additions.find((item) => item.inventoryId === inventoryId)?.quantity || 0
         if (nextQty < existing.quantity) {
           return NextResponse.json(
