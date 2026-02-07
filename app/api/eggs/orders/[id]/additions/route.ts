@@ -117,7 +117,7 @@ export async function POST(
       }
     }
 
-    for (const inventoryId of inventoryMap.keys()) {
+    for (const inventoryId of Array.from(inventoryMap.keys())) {
       const inventory = inventoryMap.get(inventoryId)
       if (!inventory) continue
 
