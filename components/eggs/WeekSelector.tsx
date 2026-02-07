@@ -135,18 +135,10 @@ export function WeekSelector({ inventory, accentColor, onSelectWeek }: WeekSelec
                                 }`}
                               >
                                 {cell.isEmpty ? null : (
-                                  <div className={`flex h-full flex-col justify-between ${cell.isMonday ? 'group relative' : ''}`}>
+                                  <div className="flex h-full flex-col justify-between">
                                     <div className="flex items-center justify-between text-[9px] text-neutral-500">
                                       <span>{cell.day}</span>
                                     </div>
-                                    {cell.isMonday && (
-                                      <WeekTooltip
-                                        week={cell.week}
-                                        weekNumber={cell.weekNumber}
-                                        monday={cell.date}
-                                        language={language}
-                                      />
-                                    )}
                                   </div>
                                 )}
                               </div>
