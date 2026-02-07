@@ -748,7 +748,7 @@ export default function AdminPage() {
                   </Button>
                 </div>
               </div>
-            </Card>
+            </div>
 
             {dashboardLoading ? (
               <div className="flex items-center justify-center py-12">
