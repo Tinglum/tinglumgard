@@ -11,6 +11,17 @@ interface WeekSelectorProps {
   onSelectWeek: (week: WeekInventory) => void
 }
 
+type CalendarCell = {
+  key: string
+  day: number | null
+  isEmpty: boolean
+  isMonday: boolean
+  weekNumber: number | null
+  eggsAvailable: number
+  hasWeek: boolean
+  status: WeekInventory['status'] | null
+}
+
 export function WeekSelector({ inventory, accentColor, onSelectWeek }: WeekSelectorProps) {
   const { language, t } = useLanguage()
   const [activeMonthKey, setActiveMonthKey] = useState<string | null>(null)
@@ -89,26 +100,32 @@ export function WeekSelector({ inventory, accentColor, onSelectWeek }: WeekSelec
                     {buildCalendarCells(month.year, month.month, inventoryByDate).map((cell) => (
                       <div
                         key={cell.key}
-                        className={`rounded border border-transparent px-1 py-1 ${
-                          cell.isEmpty ? '' : 'bg-white/60'
-                        }`}
+                        className={`rounded-lg border border-transparent px-1 py-1 min-h-[56px] ${
+                          cell.isEmpty ? '' : 'bg-white/70'
+                        } ${cell.isMonday ? 'border-neutral-200 bg-white' : ''}`}
                       >
                         {cell.isEmpty ? null : (
-                          <div className="flex flex-col gap-1">
-                            <span className="text-[10px] text-neutral-500">{cell.day}</span>
-                            {cell.isMonday && (
-                              <div className="space-y-1">
-                                <span className="text-[10px] font-semibold text-neutral-700">
+                          <div className="flex h-full flex-col justify-between">
+                            <div className="flex items-center justify-between text-[9px] text-neutral-500">
+                              <span>{cell.day}</span>
+                              {cell.isMonday && cell.weekNumber !== null && (
+                                <span className="font-semibold text-neutral-600">
                                   {language === 'no' ? 'Uke' : 'Week'} {cell.weekNumber}
                                 </span>
-                                <span
-                                  className={`text-[10px] font-medium ${
-                                    cell.eggsAvailable === 0 ? 'text-neutral-400' : 'text-neutral-700'
-                                  }`}
-                                >
-                                  {cell.eggsAvailable} {language === 'no' ? 'egg' : 'eggs'}
-                                </span>
-                              </div>
+                              )}
+                            </div>
+                            {cell.isMonday && cell.hasWeek && (
+                              <span
+                                className={`mt-2 inline-flex w-fit items-center rounded-full px-2 py-0.5 text-[9px] font-semibold ${
+                                  cell.status === 'low_stock'
+                                    ? 'bg-amber-50 text-amber-700'
+                                    : cell.status === 'sold_out'
+                                      ? 'bg-neutral-100 text-neutral-400'
+                                      : 'bg-emerald-50 text-emerald-700'
+                                }`}
+                              >
+                                {cell.eggsAvailable} {language === 'no' ? 'egg' : 'eggs'}
+                              </span>
                             )}
                           </div>
                         )}
@@ -118,7 +135,7 @@ export function WeekSelector({ inventory, accentColor, onSelectWeek }: WeekSelec
 
                   <div className="mt-3 text-xs text-neutral-500">
                     {month.availableWeeks}{' '}
-                    {language === 'no' ? 'uker med egg' : 'weeks with eggs'} â€¢ {month.totalEggs}{' '}
+                    {language === 'no' ? 'uker med egg' : 'weeks with eggs'} · {month.totalEggs}{' '}
                     {language === 'no' ? 'egg tilgjengelig' : 'eggs available'}
                   </div>
                 </GlassCard>
@@ -162,14 +179,14 @@ export function WeekSelector({ inventory, accentColor, onSelectWeek }: WeekSelec
                     disabled={!isAvailable}
                     className="w-full text-left"
                   >
-                    <div className="flex items-start justify-between mb-3">
+                    <div className="flex items-start justify-between mb-3 gap-4">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">
                           <Calendar className="w-4 h-4 text-neutral-600" />
                           <span className="text-base font-semibold text-neutral-900">
                             {t.common.week} {weekNumber}
                           </span>
-                          <span className="text-sm text-neutral-600">â€¢</span>
+                          <span className="text-sm text-neutral-600">·</span>
                           <span className="text-sm text-neutral-600">{formatDate(monday, language)}</span>
                         </div>
                         <div className="text-xs text-neutral-500">
@@ -178,11 +195,20 @@ export function WeekSelector({ inventory, accentColor, onSelectWeek }: WeekSelec
                         </div>
                       </div>
 
+                      <div className="text-right">
+                        <div className="text-[10px] uppercase tracking-[0.2em] text-neutral-500">
+                          {language === 'no' ? 'Tilgjengelig' : 'Available'}
+                        </div>
+                        <div className="text-lg font-semibold text-neutral-900">
+                          {week?.eggsAvailable || 0}
+                        </div>
+                      </div>
+
                       {week ? (
                         week.status === 'sold_out' ? (
                           <span className="badge badge-neutral">{language === 'no' ? 'Utsolgt' : 'Sold out'}</span>
                         ) : week.status === 'low_stock' ? (
-                          <span className="badge badge-warning">{language === 'no' ? 'FÃ¥ igjen' : 'Low stock'}</span>
+                          <span className="badge badge-warning">{language === 'no' ? 'Få igjen' : 'Low stock'}</span>
                         ) : (
                           <span className="badge badge-success">{t.breed.available}</span>
                         )
@@ -205,7 +231,7 @@ export function WeekSelector({ inventory, accentColor, onSelectWeek }: WeekSelec
                         className="mt-3 pt-3 border-t border-neutral-200 text-sm font-medium transition-colors"
                         style={{ color: accentColor }}
                       >
-                        {language === 'no' ? 'Velg denne uken â†’' : 'Select this week â†’'}
+                        {language === 'no' ? 'Velg denne uken →' : 'Select this week →'}
                       </div>
                     )}
                   </button>
@@ -248,7 +274,7 @@ function getMondaysInMonth(year: number, month: number): Date[] {
 
 function getDayLabels(language: string): string[] {
   return language === 'no'
-    ? ['Man', 'Tir', 'Ons', 'Tor', 'Fre', 'LÃ¸r', 'SÃ¸n']
+    ? ['Man', 'Tir', 'Ons', 'Tor', 'Fre', 'Lør', 'Søn']
     : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 }
 
@@ -262,14 +288,7 @@ function buildCalendarCells(
   year: number,
   month: number,
   inventoryByDate: Map<string, WeekInventory>
-): Array<{
-  key: string
-  day: number | null
-  isEmpty: boolean
-  isMonday: boolean
-  weekNumber: number | null
-  eggsAvailable: number
-}> {
+): CalendarCell[] {
   const firstOfMonth = new Date(year, month, 1)
   const daysInMonth = new Date(year, month + 1, 0).getDate()
   const startDayIndex = (firstOfMonth.getDay() + 6) % 7
@@ -286,6 +305,8 @@ function buildCalendarCells(
         isMonday: false,
         weekNumber: null,
         eggsAvailable: 0,
+        hasWeek: false,
+        status: null,
       }
     }
 
@@ -300,6 +321,8 @@ function buildCalendarCells(
       isMonday,
       weekNumber: isMonday ? week?.weekNumber || getWeekNumber(date) : null,
       eggsAvailable: isMonday ? week?.eggsAvailable || 0 : 0,
+      hasWeek: Boolean(week),
+      status: week?.status || null,
     }
   })
 }
