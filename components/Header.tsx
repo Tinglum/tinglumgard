@@ -228,7 +228,7 @@ export function Header() {
 
               {/* CTA - Minimalist with dramatic shadow */}
               <Link
-                href="/bestill"
+                href={isEggRoute ? "/rugeegg/handlekurv" : "/bestill"}
                 className="group flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-sm uppercase tracking-wider text-white bg-neutral-900 transition-all duration-300 hover:shadow-[0_20px_60px_-15px_rgba(0,0,0,0.3)] hover:-translate-y-1"
               >
                 <svg className="w-4 h-4 transition-transform group-hover:scale-110" fill="none" stroke="currentColor" viewBox="0 0 24 24">
