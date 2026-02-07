@@ -72,7 +72,10 @@ export function WeekSelector({ inventory, accentColor, onSelectWeek }: WeekSelec
           <div className="flex gap-3 overflow-x-auto pb-2 snap-x snap-mandatory sm:grid sm:grid-cols-2 sm:gap-3 sm:overflow-visible">
             {months.map((month) => {
               const cells = buildCalendarCells(month.year, month.month, inventoryByDate)
-              const rows = chunk(cells, 7)
+              const rows = chunk(cells, 7).filter((row) => {
+                const monday = getRowMonday(row)
+                return monday ? monday.getMonth() === month.month : false
+              })
 
               return (
                 <button
@@ -110,8 +113,11 @@ export function WeekSelector({ inventory, accentColor, onSelectWeek }: WeekSelec
                         const rowWeek = rowMonday ? inventoryByDate.get(dateKey(rowMonday)) || null : null
 
                         return (
-                          <div key={`row-${month.key}-${rowIndex}`} className="grid grid-cols-9 gap-1">
-                            <div className="rounded-md border px-1 py-1 min-h-[26px] border-neutral-100 bg-white/70">
+                          <div
+                            key={`row-${month.key}-${rowIndex}`}
+                            className="grid grid-cols-9 gap-1 rounded-full border border-neutral-200 bg-white/60 p-1 overflow-hidden"
+                          >
+                            <div className="rounded-md bg-white/70 px-1 py-1 min-h-[24px]">
                               <div className="flex h-full items-center justify-center text-[9px] font-semibold text-neutral-500">
                                 {rowWeekNumber ?? ''}
                               </div>
@@ -120,9 +126,9 @@ export function WeekSelector({ inventory, accentColor, onSelectWeek }: WeekSelec
                             {row.map((cell) => (
                               <div
                                 key={cell.key}
-                                className={`rounded-md border px-1 py-1 min-h-[26px] ${
-                                  cell.isEmpty ? 'border-transparent bg-transparent' : 'border-neutral-100 bg-white/70'
-                                } ${cell.isMonday ? 'border-neutral-200 bg-white' : ''}`}
+                                className={`rounded-md px-1 py-1 min-h-[24px] ${
+                                  cell.isEmpty ? 'bg-transparent' : 'bg-white/70'
+                                } ${cell.isMonday ? 'bg-emerald-50 text-emerald-900' : ''}`}
                               >
                                 {cell.isEmpty ? null : (
                                   <div className={`flex h-full flex-col justify-between ${cell.isMonday ? 'group relative' : ''}`}>
@@ -142,7 +148,7 @@ export function WeekSelector({ inventory, accentColor, onSelectWeek }: WeekSelec
                               </div>
                             ))}
 
-                            <div className="rounded-md border px-1 py-1 min-h-[26px] border-neutral-100 bg-white/70">
+                            <div className="rounded-md bg-white/70 px-1 py-1 min-h-[24px]">
                               <div className="flex h-full items-center justify-center">
                                 <span
                                   className={`inline-flex items-center rounded-full px-2 py-0.5 text-[9px] font-semibold ${
