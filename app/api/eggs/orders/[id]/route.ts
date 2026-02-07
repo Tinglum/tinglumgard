@@ -8,7 +8,7 @@ export async function GET(
   try {
     const { data: order, error } = await supabaseAdmin
       .from('egg_orders')
-      .select('*, egg_breeds(*), egg_inventory(*), egg_payments(*)')
+      .select('*, egg_breeds(*), egg_inventory(*), egg_payments(*), egg_order_additions(*, egg_breeds(*), egg_inventory(*))')
       .eq('id', params.id)
       .maybeSingle()
 

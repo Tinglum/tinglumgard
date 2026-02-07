@@ -56,6 +56,7 @@ export type OrderStatus =
   | 'shipped'
   | 'delivered'
   | 'cancelled'
+  | 'forfeited'
 
 export interface Order {
   id: string

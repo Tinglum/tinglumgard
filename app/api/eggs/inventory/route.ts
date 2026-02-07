@@ -7,6 +7,8 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
     const breedId = searchParams.get('breed_id')
+    const yearParam = searchParams.get('year')
+    const weekParam = searchParams.get('week')
 
     let query = supabaseServer
       .from('egg_inventory')
@@ -17,6 +19,12 @@ export async function GET(request: Request) {
 
     if (breedId) {
       query = query.eq('breed_id', breedId)
+    }
+    if (yearParam) {
+      query = query.eq('year', Number(yearParam))
+    }
+    if (weekParam) {
+      query = query.eq('week_number', Number(weekParam))
     }
 
     const { data, error } = await query

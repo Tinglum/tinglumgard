@@ -32,7 +32,7 @@ export async function POST(request: Request) {
       delivery_monday: body.delivery_monday,
       remainder_due_date: body.remainder_due_date,
       notes: body.notes || null,
-      status: 'deposit_paid',
+      status: 'pending',
       policy_version: 'v1-2026',
     }
 

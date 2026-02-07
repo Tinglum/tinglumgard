@@ -26,7 +26,7 @@ const deliveryOptions = [
     titleEn: 'E6 pickup point',
     descriptionNo: 'Avhenting ved avtalt møtepunkt langs E6.',
     descriptionEn: 'Pickup at an agreed E6 meeting point.',
-    fee: 30000,
+    fee: 20000,
   },
   {
     id: 'posten' as const,

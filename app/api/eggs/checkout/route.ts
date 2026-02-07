@@ -62,7 +62,12 @@ export async function POST(request: NextRequest) {
     }
 
     const subtotal = quantity * breed.price_per_egg
-    const deliveryFee = body.deliveryMethod === 'farm_pickup' ? 0 : 30000
+    const deliveryFee =
+      body.deliveryMethod === 'posten'
+        ? 30000
+        : body.deliveryMethod === 'e6_pickup'
+          ? 20000
+          : 0
     const totalAmount = subtotal + deliveryFee
     const depositAmount = Math.round(totalAmount / 2)
     const remainderAmount = totalAmount - depositAmount
@@ -96,7 +101,7 @@ export async function POST(request: NextRequest) {
         delivery_monday: inventory.delivery_monday,
         remainder_due_date: remainderDueDate.toISOString().split('T')[0],
         notes: body.notes || null,
-        status: 'deposit_paid',
+        status: 'pending',
         policy_version: 'v1-2026',
       })
       .select()

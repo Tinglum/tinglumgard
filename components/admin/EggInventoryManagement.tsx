@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import { Plus, Calendar, Edit, RefreshCw } from 'lucide-react';
 
@@ -31,6 +33,16 @@ export function EggInventoryManagement() {
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [selectedBreed, setSelectedBreed] = useState<string>('all');
   const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
+  const [formData, setFormData] = useState({
+    breed_id: '',
+    year: new Date().getFullYear(),
+    week_number: '',
+    delivery_monday: '',
+    eggs_available: 0,
+    status: 'open',
+  });
 
   useEffect(() => {
     loadData();
@@ -63,6 +75,102 @@ export function EggInventoryManagement() {
     ? inventory
     : inventory.filter(item => item.breed_id === selectedBreed);
 
+  function resetForm() {
+    setFormData({
+      breed_id: breeds[0]?.id || '',
+      year: new Date().getFullYear(),
+      week_number: '',
+      delivery_monday: '',
+      eggs_available: 0,
+      status: 'open',
+    });
+    setEditingItem(null);
+    setShowForm(false);
+  }
+
+  function openCreate() {
+    setEditingItem(null);
+    setFormData({
+      breed_id: breeds[0]?.id || '',
+      year: new Date().getFullYear(),
+      week_number: '',
+      delivery_monday: '',
+      eggs_available: 0,
+      status: 'open',
+    });
+    setShowForm(true);
+  }
+
+  function openEdit(item: InventoryItem) {
+    setEditingItem(item);
+    setFormData({
+      breed_id: item.breed_id,
+      year: item.year,
+      week_number: String(item.week_number),
+      delivery_monday: item.delivery_monday?.slice(0, 10) || '',
+      eggs_available: item.eggs_available,
+      status: item.status,
+    });
+    setShowForm(true);
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    try {
+      if (editingItem) {
+        const response = await fetch(`/api/admin/eggs/inventory/${editingItem.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            eggs_available: Number(formData.eggs_available),
+            status: formData.status,
+            delivery_monday: formData.delivery_monday,
+          }),
+        });
+        if (!response.ok) {
+          throw new Error('Failed to update inventory');
+        }
+      } else {
+        const response = await fetch('/api/admin/eggs/inventory', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            breed_id: formData.breed_id,
+            year: Number(formData.year),
+            week_number: Number(formData.week_number),
+            delivery_monday: formData.delivery_monday,
+            eggs_available: Number(formData.eggs_available),
+            status: formData.status,
+          }),
+        });
+        if (!response.ok) {
+          throw new Error('Failed to create inventory');
+        }
+      }
+
+      await loadData();
+      resetForm();
+    } catch (error) {
+      console.error('Failed to save inventory:', error);
+    }
+  }
+
+  async function handleToggleStatus(item: InventoryItem) {
+    const nextStatus = item.status === 'open' ? 'closed' : 'open';
+    try {
+      const response = await fetch(`/api/admin/eggs/inventory/${item.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: nextStatus }),
+      });
+      if (response.ok) {
+        await loadData();
+      }
+    } catch (error) {
+      console.error('Failed to toggle status:', error);
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -84,7 +192,7 @@ export function EggInventoryManagement() {
             <RefreshCw className="w-4 h-4 mr-2" />
             Oppdater
           </Button>
-          <Button size="sm">
+          <Button size="sm" onClick={openCreate}>
             <Plus className="w-4 h-4 mr-2" />
             Legg til uke
           </Button>
@@ -111,6 +219,106 @@ export function EggInventoryManagement() {
         </span>
       </div>
 
+      {showForm && (
+        <Card className="p-6 border border-gray-200 bg-gray-50">
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-gray-900">
+                {editingItem ? 'Rediger uke' : 'Legg til uke'}
+              </h3>
+              <Button type="button" variant="outline" size="sm" onClick={resetForm}>
+                Avbryt
+              </Button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="breed">Rase</Label>
+                <select
+                  id="breed"
+                  value={formData.breed_id}
+                  onChange={(e) => setFormData({ ...formData, breed_id: e.target.value })}
+                  className="mt-1 w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+                  disabled={!!editingItem}
+                >
+                  {breeds.map((breed) => (
+                    <option key={breed.id} value={breed.id}>
+                      {breed.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <Label htmlFor="week_number">Ukenummer</Label>
+                <Input
+                  id="week_number"
+                  type="number"
+                  value={formData.week_number}
+                  onChange={(e) => setFormData({ ...formData, week_number: e.target.value })}
+                  disabled={!!editingItem}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="year">År</Label>
+                <Input
+                  id="year"
+                  type="number"
+                  value={formData.year}
+                  onChange={(e) => setFormData({ ...formData, year: Number(e.target.value) })}
+                  disabled={!!editingItem}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="delivery_monday">Leveringsmandag</Label>
+                <Input
+                  id="delivery_monday"
+                  type="date"
+                  value={formData.delivery_monday}
+                  onChange={(e) => setFormData({ ...formData, delivery_monday: e.target.value })}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="eggs_available">Tilgjengelige egg</Label>
+                <Input
+                  id="eggs_available"
+                  type="number"
+                  value={formData.eggs_available}
+                  onChange={(e) => setFormData({ ...formData, eggs_available: Number(e.target.value) })}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="status">Status</Label>
+                <select
+                  id="status"
+                  value={formData.status}
+                  onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                  className="mt-1 w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+                >
+                  <option value="open">Åpen</option>
+                  <option value="closed">Stengt</option>
+                  <option value="locked">Låst</option>
+                  <option value="sold_out">Utsolgt</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3">
+              <Button type="button" variant="outline" onClick={resetForm}>
+                Avbryt
+              </Button>
+              <Button type="submit">
+                {editingItem ? 'Lagre endringer' : 'Opprett uke'}
+              </Button>
+            </div>
+          </form>
+        </Card>
+      )}
+
       {/* Inventory Grid */}
       {filteredInventory.length === 0 ? (
         <Card className="p-12 text-center">
@@ -130,7 +338,8 @@ export function EggInventoryManagement() {
             <InventoryCard
               key={item.id}
               item={item}
-              onUpdate={loadData}
+              onEdit={() => openEdit(item)}
+              onToggleStatus={() => handleToggleStatus(item)}
             />
           ))}
         </div>
@@ -139,7 +348,15 @@ export function EggInventoryManagement() {
   );
 }
 
-function InventoryCard({ item, onUpdate }: { item: InventoryItem; onUpdate: () => void }) {
+function InventoryCard({
+  item,
+  onEdit,
+  onToggleStatus,
+}: {
+  item: InventoryItem;
+  onEdit: () => void;
+  onToggleStatus: () => void;
+}) {
   const percentage = item.eggs_available > 0
     ? (item.eggs_allocated / item.eggs_available) * 100
     : 0;
@@ -223,10 +440,7 @@ function InventoryCard({ item, onUpdate }: { item: InventoryItem; onUpdate: () =
           variant="outline"
           size="sm"
           className="flex-1"
-          onClick={() => {
-            // TODO: Open edit modal
-            console.log('Edit', item.id);
-          }}
+          onClick={onEdit}
         >
           <Edit className="w-3.5 h-3.5 mr-1.5" />
           Rediger
@@ -235,10 +449,7 @@ function InventoryCard({ item, onUpdate }: { item: InventoryItem; onUpdate: () =
           variant="outline"
           size="sm"
           className="flex-1"
-          onClick={() => {
-            // TODO: Toggle status
-            console.log('Toggle status', item.id);
-          }}
+          onClick={onToggleStatus}
         >
           {item.status === 'open' ? 'Steng' : 'Åpne'}
         </Button>

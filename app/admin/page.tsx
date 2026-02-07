@@ -564,12 +564,14 @@ export default function AdminPage() {
 
   const statusOptions = [
     { value: 'all', label: 'Alle statuser' },
+    { value: 'pending', label: 'Venter på forskudd' },
     { value: 'draft', label: 'Utkast' },
     { value: 'deposit_paid', label: 'Forskudd betalt' },
     { value: 'paid', label: 'Fullstendig betalt' },
     { value: 'ready_for_pickup', label: 'Klar for henting' },
     { value: 'completed', label: 'Fullført' },
     { value: 'cancelled', label: 'Kansellert' },
+    { value: 'forfeited', label: 'Fortapt' },
   ];
 
   if (loading) {

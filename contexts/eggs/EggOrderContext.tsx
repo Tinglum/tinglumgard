@@ -81,8 +81,10 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     if (!currentDraft) return
 
     let deliveryFee = 0
-    if (method === 'posten' || method === 'e6_pickup') {
+    if (method === 'posten') {
       deliveryFee = 30000 // 300 kr in øre
+    } else if (method === 'e6_pickup') {
+      deliveryFee = 20000 // 200 kr in øre
     }
 
     const totalAmount = currentDraft.subtotal + deliveryFee
@@ -128,7 +130,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
       remainderAmount: currentDraft.remainderAmount,
       remainderDueDate,
       deliveryMethod: currentDraft.deliveryMethod,
-      status: 'deposit_paid',
+      status: 'pending',
       policyVersion: 'v1-2026',
       createdAt: new Date(),
     }

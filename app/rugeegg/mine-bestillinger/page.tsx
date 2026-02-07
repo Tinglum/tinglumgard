@@ -13,6 +13,7 @@ type EggOrder = {
   total_amount: number
   deposit_amount: number
   remainder_amount: number
+  remainder_due_date?: string | null
   week_number: number
   delivery_monday: string
   status: string
@@ -134,15 +135,28 @@ export default function EggOrdersPage() {
                   <div className="text-lg font-semibold text-neutral-900">
                     {formatPrice(order.total_amount, language)}
                   </div>
-                  <div className="text-xs text-neutral-500">
-                    {language === 'no' ? 'Forskudd' : 'Deposit'}:{' '}
-                    {formatPrice(order.deposit_amount, language)}
-                  </div>
+                <div className="text-xs text-neutral-500">
+                  {language === 'no' ? 'Forskudd' : 'Deposit'}:{' '}
+                  {formatPrice(order.deposit_amount, language)}
                 </div>
+                {order.status === 'deposit_paid' && order.remainder_due_date && (
+                  <div className="text-xs text-neutral-500">
+                    {language === 'no' ? 'Restbetaling innen' : 'Remainder due'}:{' '}
+                    {formatDate(new Date(order.remainder_due_date), language)}
+                  </div>
+                )}
               </div>
-            </GlassCard>
-          ))}
-        </div>
+            </div>
+            {order.status === 'deposit_paid' && (
+              <div className="mt-4 flex justify-end">
+                <Link href={`/rugeegg/mine-bestillinger/${order.id}/betaling`} className="btn-primary">
+                  {language === 'no' ? 'Betal rest' : 'Pay remainder'}
+                </Link>
+              </div>
+            )}
+          </GlassCard>
+        ))}
+      </div>
       </div>
     </div>
   )
