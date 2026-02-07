@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { WeekInventory } from '@/lib/eggs/types'
+import { type Language, WeekInventory } from '@/lib/eggs/types'
 import { useLanguage } from '@/lib/eggs/language-context'
 import { formatDate, daysUntil, getWeekNumber } from '@/lib/eggs/utils'
 import { GlassCard } from './GlassCard'
@@ -249,7 +249,7 @@ function WeekTooltip({
   week: WeekInventory | null
   weekNumber: number | null
   monday: Date | null
-  language: string
+  language: Language
 }) {
   if (!monday) return null
   const sunday = new Date(monday)
@@ -263,7 +263,7 @@ function WeekTooltip({
         {language === 'no' ? 'Uke' : 'Week'} {weekNumber ?? getWeekNumber(monday)}
       </div>
       <div className="text-neutral-500">
-        {formatDate(monday, language)} â€“ {formatDate(sunday, language)}
+        {formatDate(monday, language)} - {formatDate(sunday, language)}
       </div>
       <div className="mt-1 flex items-center justify-between">
         <span>{language === 'no' ? 'Tilgjengelig' : 'Available'}</span>
@@ -300,7 +300,7 @@ function statusPill(status: WeekInventory['status']) {
   }
 }
 
-function getStatusLabel(status: WeekInventory['status'] | null, language: string): string {
+function getStatusLabel(status: WeekInventory['status'] | null, language: Language): string {
   if (status === 'sold_out') return language === 'no' ? 'Utsolgt' : 'Sold out'
   if (status === 'low_stock') return language === 'no' ? 'Få igjen' : 'Low stock'
   if (status === 'closed') return language === 'no' ? 'Stengt' : 'Closed'
@@ -332,13 +332,13 @@ function getMondaysInMonth(year: number, month: number): Date[] {
   return mondays
 }
 
-function getDayLabels(language: string): string[] {
+function getDayLabels(language: Language): string[] {
   return language === 'no'
     ? ['Man', 'Tir', 'Ons', 'Tor', 'Fre', 'Lør', 'Søn']
     : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 }
 
-function formatMonthTitle(date: Date, language: string): string {
+function formatMonthTitle(date: Date, language: Language): string {
   return new Intl.DateTimeFormat(language === 'no' ? 'nb-NO' : 'en-GB', {
     month: 'long',
   }).format(date)
