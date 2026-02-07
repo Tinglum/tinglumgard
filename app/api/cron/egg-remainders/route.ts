@@ -88,6 +88,14 @@ function buildForfeitHtml(params: {
 </html>`
 }
 
+function resolveBreedName(relation: any) {
+  if (!relation) return 'Rugeegg'
+  if (Array.isArray(relation)) {
+    return relation[0]?.name || 'Rugeegg'
+  }
+  return relation?.name || 'Rugeegg'
+}
+
 async function releaseInventory(inventoryId: string, quantity: number) {
   const { data: inventory, error: inventoryError } = await supabaseAdmin
     .from('egg_inventory')
@@ -184,7 +192,7 @@ export async function GET(request: NextRequest) {
           html: buildForfeitHtml({
             customerName: order.customer_name,
             orderNumber: order.order_number,
-            breedName: order.egg_breeds?.name || 'Rugeegg',
+            breedName: resolveBreedName(order.egg_breeds),
             weekNumber: order.week_number,
           }),
         })
@@ -216,7 +224,7 @@ export async function GET(request: NextRequest) {
         html: buildReminderHtml({
           customerName: order.customer_name,
           orderNumber: order.order_number,
-          breedName: order.egg_breeds?.name || 'Rugeegg',
+          breedName: resolveBreedName(order.egg_breeds),
           weekNumber: order.week_number,
           remainderNok: Math.round(order.remainder_amount / 100).toLocaleString('nb-NO'),
           dueDate: dueDateLabel,
