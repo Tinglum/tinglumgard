@@ -74,7 +74,7 @@ export default function HomePage() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.5, delay: index * 0.1 }}
                 >
-                  <Link href={`/raser/${breed.slug}`}>
+                  <Link href={`/rugeegg/raser/${breed.slug}`}>
                     <GlassCard
                       interactive
                       accentBorder={breed.accentColor}
@@ -151,7 +151,7 @@ export default function HomePage() {
                       {week.breeds.map((breed) => (
                         <Link
                           key={breed.breedId}
-                          href={`/raser/${breed.breedSlug}`}
+                          href={`/rugeegg/raser/${breed.breedSlug}`}
                           className="flex items-center justify-between py-2 px-3 rounded hover:bg-neutral-50 transition-colors group"
                         >
                           <div className="flex items-center gap-3">

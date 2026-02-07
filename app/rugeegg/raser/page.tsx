@@ -36,7 +36,7 @@ export default function BreedsPage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: index * 0.1 }}
               >
-                <Link href={`/raser/${breed.slug}`}>
+                <Link href={`/rugeegg/raser/${breed.slug}`}>
                   <GlassCard interactive accentBorder={breed.accentColor} className="p-6 h-full">
                     <div className="flex items-start gap-4 mb-4">
                       <div

@@ -40,13 +40,13 @@ export function Header() {
           {/* Navigation */}
           <nav className="hidden md:flex items-center gap-8">
             <Link
-              href="/raser"
+              href="/rugeegg/raser"
               className="text-sm font-medium text-neutral-700 hover:text-neutral-900 transition-colors"
             >
               {t.nav.breeds}
             </Link>
             <Link
-              href="/mine-bestillinger"
+              href="/rugeegg/mine-bestillinger"
               className="text-sm font-medium text-neutral-700 hover:text-neutral-900 transition-colors"
             >
               {t.nav.myOrders}
@@ -57,7 +57,7 @@ export function Header() {
           <div className="flex items-center gap-2">
             {/* Cart indicator */}
             <Link
-              href="/handlekurv"
+              href="/rugeegg/handlekurv"
               className="relative p-2 text-neutral-700 hover:text-neutral-900 rounded hover:bg-neutral-100 transition-all focus-ring"
               aria-label={language === 'no' ? 'Handlekurv' : 'Shopping cart'}
             >

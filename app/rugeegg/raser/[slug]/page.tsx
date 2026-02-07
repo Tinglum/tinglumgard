@@ -34,7 +34,7 @@ export default function BreedDetailPage() {
           <h1 className="text-2xl font-display font-semibold text-neutral-900 mb-2">
             {language === 'no' ? 'Rase ikke funnet' : 'Breed not found'}
           </h1>
-          <Link href="/raser" className="text-neutral-600 hover:text-neutral-900">
+          <Link href="/rugeegg/raser" className="text-neutral-600 hover:text-neutral-900">
             {language === 'no' ? 'Tilbake til raser' : 'Back to breeds'}
           </Link>
         </div>
@@ -54,7 +54,7 @@ export default function BreedDetailPage() {
       addToCart(breed, selectedWeek, quantity)
       setShowQuantityModal(false)
       setSelectedWeek(null)
-      router.push('/handlekurv')
+      router.push('/rugeegg/handlekurv')
     }
   }
 
@@ -63,7 +63,7 @@ export default function BreedDetailPage() {
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-screen-xl">
         {/* Back button */}
         <Link
-          href="/raser"
+          href="/rugeegg/raser"
           className="inline-flex items-center gap-2 text-sm font-medium text-neutral-700 hover:text-neutral-900 mb-8 transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />

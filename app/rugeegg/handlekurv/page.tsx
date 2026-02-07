@@ -27,7 +27,7 @@ export default function CartPage() {
     const item = items[0]
     startOrder(item.breed, item.week, item.quantity)
     removeFromCart(item.breed.id, item.week.id)
-    router.push('/bestill/levering')
+    router.push('/rugeegg/bestill/levering')
   }
 
   const getMinimumMessage = () => {
@@ -101,7 +101,7 @@ export default function CartPage() {
               <p className="text-neutral-600 mb-6">
                 {language === 'no' ? 'Legg til egg for å komme i gang' : 'Add eggs to get started'}
               </p>
-              <Link href="/raser" className="btn-primary inline-flex">
+              <Link href="/rugeegg/raser" className="btn-primary inline-flex">
                 {language === 'no' ? 'Se raser' : 'View breeds'}
                 <ArrowRight className="w-5 h-5" />
               </Link>
@@ -261,7 +261,7 @@ export default function CartPage() {
                       <ArrowRight className="w-5 h-5" />
                     </button>
 
-                    <Link href="/raser" className="btn-secondary w-full justify-center">
+                    <Link href="/rugeegg/raser" className="btn-secondary w-full justify-center">
                       {language === 'no' ? 'Fortsett å handle' : 'Continue shopping'}
                     </Link>
                   </GlassCard>
