@@ -317,6 +317,15 @@ export default function Page() {
   const isSoldOut = inventory?.isSoldOut ?? false;
   const isLowStock = inventory?.isLowStock ?? false;
   const isMobile = useIsMobile();
+  const totalBoxes = 50;
+  const availabilityRatio = totalBoxes > 0 ? Math.min(1, boxesLeft / totalBoxes) : 0;
+  const availabilitySegments = 10;
+  const availabilityFilled = loading ? 0 : Math.round(availabilityRatio * availabilitySegments);
+  const availabilityPercent = loading ? 0 : Math.round(availabilityRatio * 100);
+  const desktopFillClass = isSoldOut ? 'bg-neutral-300' : isLowStock ? 'bg-amber-500' : 'bg-neutral-900';
+  const desktopEmptyClass = 'bg-neutral-200';
+  const mobileFillColor = isSoldOut ? '#D7CEC3' : isLowStock ? '#B35A2A' : '#0F6C6F';
+  const mobileEmptyColor = '#E9E1D6';
   const minPrice = pricing ? Math.min(pricing.box_8kg_price, pricing.box_12kg_price) : null;
   const minDeposit = pricing
     ? Math.floor(
@@ -340,16 +349,10 @@ export default function Page() {
 
         <section className="px-5 py-10">
           <div className="mx-auto max-w-md rounded-[28px] border border-[#E4DED5] bg-white p-6 shadow-[0_20px_45px_rgba(30,27,22,0.12)]">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-[#6A6258]">
-                  {t.availability.title}
-                </p>
-                <p className="mt-3 text-5xl font-semibold text-[#1E1B16] font-[family:var(--font-playfair)]">
-                  {loading ? "—" : boxesLeft}
-                </p>
-                <p className="text-sm text-[#5E5A50]">{t.availability.boxesAvailable}</p>
-              </div>
+            <div className="flex items-center justify-between">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-[#6A6258]">
+                {t.availability.title}
+              </p>
               <div className="text-right">
                 {isSoldOut && (
                   <span className="rounded-full bg-[#B35A2A] px-3 py-1 text-xs font-bold uppercase tracking-[0.2em] text-white">
@@ -363,17 +366,35 @@ export default function Page() {
                 )}
               </div>
             </div>
-            {!loading && (
-              <div className="mt-4">
-                <div className="h-2 w-full rounded-full bg-[#E9E1D6]">
-                  <div
-                    className="h-2 rounded-full bg-[#0F6C6F]"
-                    style={{ width: `${Math.min((boxesLeft / 50) * 100, 100)}%` }}
-                  />
-                </div>
-                <p className="mt-2 text-xs text-[#5E5A50]">Oppdatert i dag</p>
+
+            <div className="mt-6 grid grid-cols-[auto,1fr] items-end gap-5">
+              <div>
+                <p className="text-5xl font-semibold text-[#1E1B16] font-[family:var(--font-playfair)]">
+                  {loading ? "—" : boxesLeft}
+                </p>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-[#6A6258]">
+                  {t.availability.boxesAvailable}
+                </p>
               </div>
-            )}
+
+              <div className="space-y-3">
+                <div className="grid grid-cols-10 gap-1">
+                  {Array.from({ length: availabilitySegments }).map((_, index) => (
+                    <span
+                      key={index}
+                      className="h-2 rounded-full"
+                      style={{
+                        backgroundColor: index < availabilityFilled ? mobileFillColor : mobileEmptyColor,
+                      }}
+                    />
+                  ))}
+                </div>
+                <div className="flex items-center justify-between text-[11px] text-[#6A6258]">
+                  <span>{loading ? "—" : `${availabilityPercent}%`}</span>
+                  <span>Oppdatert i dag</span>
+                </div>
+              </div>
+            </div>
           </div>
         </section>
 
@@ -559,7 +580,7 @@ export default function Page() {
           <ParallaxLayer speed={0.1}>
             <div className="max-w-lg mx-auto bg-white border border-neutral-200 rounded-lg p-10 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.15)] transition-all duration-500 hover:shadow-[0_30px_80px_-20px_rgba(0,0,0,0.2)] hover:-translate-y-2">
 
-              <div className="flex items-center justify-between mb-8">
+              <div className="flex items-center justify-between">
                 <MetaLabel>{t.availability.title}</MetaLabel>
                 {isLowStock && !isSoldOut && (
                   <span className="px-4 py-1.5 bg-neutral-900 text-white text-xs uppercase tracking-wider font-bold rounded-full">
@@ -573,25 +594,31 @@ export default function Page() {
                 )}
               </div>
 
-              <div className="space-y-8">
+              <div className="mt-10 grid grid-cols-[auto,1fr] items-end gap-10">
                 <div>
-                  <div className="text-8xl font-light tracking-tight text-neutral-900 tabular-nums mb-3">
+                  <div className="text-7xl font-light tracking-tight text-neutral-900 tabular-nums">
                     {loading ? "—" : boxesLeft}
                   </div>
-                  <p className="text-base text-neutral-600">{t.availability.boxesAvailable}</p>
+                  <p className="mt-2 text-xs uppercase tracking-wider text-neutral-500 font-semibold">
+                    {t.availability.boxesAvailable}
+                  </p>
                 </div>
 
-                {!loading && (
-                  <div className="space-y-3">
-                    <div className="h-2 w-full rounded-full bg-neutral-200 overflow-hidden">
-                      <div
-                        className="h-2 rounded-full bg-neutral-900 transition-all duration-1000"
-                        style={{ width: `${Math.min((boxesLeft / 50) * 100, 100)}%` }}
-                      />
-                    </div>
-                    <p className="text-sm text-neutral-500">Oppdatert i dag</p>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between text-xs uppercase tracking-wider text-neutral-500 font-semibold">
+                    <span>{t.availability.boxesAvailable}</span>
+                    <span>{loading ? "—" : `${availabilityPercent}%`}</span>
                   </div>
-                )}
+                  <div className="grid grid-cols-10 gap-1">
+                    {Array.from({ length: availabilitySegments }).map((_, index) => (
+                      <span
+                        key={index}
+                        className={`h-2 rounded-full ${index < availabilityFilled ? desktopFillClass : desktopEmptyClass}`}
+                      />
+                    ))}
+                  </div>
+                  <p className="text-sm text-neutral-500">Oppdatert i dag</p>
+                </div>
               </div>
 
             </div>

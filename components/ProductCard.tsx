@@ -30,6 +30,16 @@ export function ProductCard({ title, price, depositLabel, remainderLabel, boxesL
   const [name, setName] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const totalBoxes = 50;
+  const availabilityRatio = totalBoxes > 0 ? Math.min(1, boxesLeft / totalBoxes) : 0;
+  const availabilitySegments = 10;
+  const availabilityFilled = Math.round(availabilityRatio * availabilitySegments);
+  const availabilityFillClass = isSoldOut
+    ? 'bg-white/20'
+    : isLowStock
+      ? 'bg-amber-300/80'
+      : 'bg-white/80';
+  const availabilityEmptyClass = 'bg-white/10';
 
   async function handleWaitlistSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -113,9 +123,26 @@ export function ProductCard({ title, price, depositLabel, remainderLabel, boxesL
         </div>
 
         <div className="space-y-4">
-          <p className="text-xs text-[var(--text-secondary)] uppercase tracking-wider">
-            {boxesLeft} bokser igjen
-          </p>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-[11px] uppercase tracking-wider text-[var(--text-secondary)]">
+              <span>{t.availability.title}</span>
+              <span>
+                {isSoldOut ? t.product.soldOut : isLowStock ? t.product.lowStock : t.availability.boxesAvailable}
+              </span>
+            </div>
+            <div className="flex items-baseline justify-between">
+              <span className="text-2xl font-medium text-white tabular-nums">{boxesLeft}</span>
+              <span className="text-xs text-[var(--text-secondary)]">{t.availability.boxesAvailable}</span>
+            </div>
+            <div className="grid grid-cols-10 gap-1">
+              {Array.from({ length: availabilitySegments }).map((_, index) => (
+                <span
+                  key={index}
+                  className={`h-1.5 rounded-full ${index < availabilityFilled ? availabilityFillClass : availabilityEmptyClass}`}
+                />
+              ))}
+            </div>
+          </div>
           {isSoldOut ? (
             <button
               onClick={() => setShowWaitlistDialog(true)}
