@@ -198,8 +198,9 @@ export function WeekSelector({ inventory, accentColor, onSelectWeek }: WeekSelec
                 return monday ? monday.getMonth() === activeMonth.month : false
               })
               .map((row, rowIndex) => {
-                const mondayCell = row[0]
-                const week = mondayCell.week
+                const rowMonday = getRowMonday(row)
+                const week = rowMonday ? inventoryByDate.get(dateKey(rowMonday)) || null : null
+                const weekNumber = rowMonday ? week?.weekNumber || getWeekNumber(rowMonday) : null
                 const isSelectable = Boolean(week && isWeekAvailable(week))
 
                 return (
@@ -208,50 +209,56 @@ export function WeekSelector({ inventory, accentColor, onSelectWeek }: WeekSelec
                     type="button"
                     onClick={() => week && isSelectable && onSelectWeek(week)}
                     disabled={!isSelectable}
-                    className={`group grid w-full grid-cols-7 gap-1 rounded-lg px-1 py-1 text-left transition-all ${
+                    className={`group grid w-full grid-cols-8 gap-1 rounded-lg px-1 py-1 text-left transition-all ${
                       isSelectable
                         ? 'cursor-pointer hover:bg-neutral-50'
                         : 'cursor-not-allowed opacity-50'
                     }`}
                   >
-                    {row.map((cell, cellIndex) => (
+                    <div
+                      className={`relative rounded-md border px-2 py-2 min-h-[54px] ${
+                        week ? 'border-neutral-200 bg-white' : 'border-transparent bg-transparent'
+                      } ${isSelectable ? 'group-hover:bg-neutral-50' : ''}`}
+                    >
+                      {week ? (
+                        <div className="flex h-full flex-col justify-between">
+                          <div className="text-[10px] font-semibold text-neutral-600">
+                            {language === 'no' ? 'Uke' : 'Week'} {weekNumber ?? ''}
+                          </div>
+                          <span
+                            className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                              week ? statusPill(week.status) : 'bg-neutral-100 text-neutral-400'
+                            }`}
+                          >
+                            {week?.eggsAvailable ?? 0} {language === 'no' ? 'egg' : 'eggs'}
+                          </span>
+                          <WeekTooltip
+                            week={week}
+                            weekNumber={weekNumber}
+                            monday={rowMonday}
+                            language={language}
+                          />
+                        </div>
+                      ) : null}
+                    </div>
+                    {row.map((cell) => (
                       <div
                         key={cell.key}
                         className={`rounded-md border px-2 py-2 min-h-[54px] ${
                           cell.isEmpty ? 'border-transparent bg-transparent' : 'border-neutral-100 bg-white'
-                        } ${cell.isMonday ? 'border-neutral-200' : ''} ${
+                        } ${
+                          cell.isMonday
+                            ? 'border-emerald-200 bg-emerald-50 text-emerald-900'
+                            : ''
+                        } ${
                           isSelectable ? 'group-hover:bg-neutral-50' : ''
                         }`}
                       >
                         {cell.isEmpty ? null : (
-                          <div className={`flex h-full flex-col justify-between ${cell.isMonday ? 'relative' : ''}`}>
+                          <div className="flex h-full flex-col justify-between">
                             <div className="flex items-center justify-between text-[10px] text-neutral-500">
                               <span>{cell.day}</span>
-                              {cellIndex === 0 && cell.weekNumber !== null && (
-                                <span className="font-semibold text-neutral-600">
-                                  {language === 'no' ? 'Uke' : 'Week'} {cell.weekNumber}
-                                </span>
-                              )}
                             </div>
-                            {cellIndex === 0 && (
-                              <div className="mt-2 flex items-center gap-2">
-                                <span
-                                  className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-                                    week ? statusPill(week.status) : 'bg-neutral-100 text-neutral-400'
-                                  }`}
-                                >
-                                  {week?.eggsAvailable ?? 0} {language === 'no' ? 'egg' : 'eggs'}
-                                </span>
-                              </div>
-                            )}
-                            {cellIndex === 0 && (
-                              <WeekTooltip
-                                week={week}
-                                weekNumber={cell.weekNumber}
-                                monday={cell.date}
-                                language={language}
-                              />
-                            )}
                           </div>
                         )}
                       </div>
