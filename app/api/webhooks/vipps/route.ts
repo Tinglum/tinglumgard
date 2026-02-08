@@ -116,7 +116,7 @@ export async function POST(request: NextRequest) {
     let paymentState = payload.paymentDetails?.state as string | undefined;
 
     // Only process successful payments
-    const allowedPaymentStates = new Set(['AUTHORIZED', 'CAPTURED'])
+    const allowedPaymentStates = new Set(['AUTHORIZED', 'AUTHORISED', 'CAPTURED'])
     if (sessionState !== 'PaymentSuccessful') {
       return NextResponse.json(
         {
@@ -128,7 +128,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!allowedPaymentStates.has(paymentState || '')) {
+    if (!allowedPaymentStates.has((paymentState || '').toUpperCase())) {
       if (vippsId) {
         try {
           const session = await vippsClient.getCheckoutSession(vippsId);
@@ -146,7 +146,7 @@ export async function POST(request: NextRequest) {
             );
           }
 
-          if (paymentStateFromVipps && !allowedPaymentStates.has(paymentStateFromVipps)) {
+          if (paymentStateFromVipps && !allowedPaymentStates.has(paymentStateFromVipps.toUpperCase())) {
             return NextResponse.json(
               {
                 message: "Payment not successful, no action taken",
@@ -255,7 +255,7 @@ export async function POST(request: NextRequest) {
 
         if (
           sessionStateFromVipps === 'PaymentSuccessful' &&
-          (!paymentStateFromVipps || allowedPaymentStates.has(paymentStateFromVipps))
+          (!paymentStateFromVipps || allowedPaymentStates.has(paymentStateFromVipps.toUpperCase()))
         ) {
           sessionVerified = true;
         }

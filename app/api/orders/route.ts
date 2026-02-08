@@ -3,7 +3,7 @@ import { getSession } from '@/lib/auth/session';
 import { supabaseAdmin } from '@/lib/supabase/server';
 import { vippsClient } from '@/lib/vipps/api-client';
 
-const allowedPaymentStates = new Set(['AUTHORIZED', 'CAPTURED']);
+const allowedPaymentStates = new Set(['AUTHORIZED', 'AUTHORISED', 'CAPTURED']);
 
 function buildShippingUpdate(details: any) {
   if (!details || typeof details !== 'object') return null;
@@ -57,7 +57,7 @@ async function reconcilePigOrder(order: any) {
       return order;
     }
 
-    if (paymentState && !allowedPaymentStates.has(paymentState)) {
+    if (paymentState && !allowedPaymentStates.has(paymentState.toUpperCase())) {
       return order;
     }
 
