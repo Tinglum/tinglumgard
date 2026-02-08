@@ -15,7 +15,7 @@ import { ShoppingBag, Trash2, Plus, Minus, ArrowRight, Calendar, AlertCircle, Ch
 export default function CartPage() {
   const router = useRouter()
   const { lang: language } = useLanguage()
-  const { items, removeFromCart, updateQuantity, getTotalEggs, getTotalPrice, canCheckout, clearCart } = useCart()
+  const { items, addToCart, removeFromCart, updateQuantity, getTotalEggs, getTotalPrice, canCheckout, clearCart } = useCart()
   const { startOrder } = useOrder()
 
   const totalEggs = getTotalEggs()
