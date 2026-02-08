@@ -82,14 +82,6 @@ export async function POST(
     const { randomBytes } = await import('crypto');
     const callbackToken = randomBytes(16).toString('hex');
 
-    // Prepare customer info if available
-    const customerInfo: any = {};
-    if (order.customer_email && order.customer_email !== 'pending@vipps.no') {
-      customerInfo.email = order.customer_email;
-    }
-    if (order.customer_phone) {
-      customerInfo.phoneNumber = order.customer_phone;
-    }
 
     // Create Vipps Checkout v3 session with extended configuration
     const sessionData: any = {
@@ -134,10 +126,6 @@ export async function POST(
       },
     };
 
-    // Add customer info if we have it
-    if (Object.keys(customerInfo).length > 0) {
-      sessionData.prefillCustomer = customerInfo;
-    }
 
     console.log('Creating Vipps Checkout session with config:', {
       reference: shortReference,

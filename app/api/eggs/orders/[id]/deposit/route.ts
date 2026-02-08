@@ -53,13 +53,6 @@ export async function POST(
     const { randomBytes } = await import('crypto')
     const callbackToken = randomBytes(16).toString('hex')
 
-    const customerInfo: any = {}
-    if (order.customer_email && order.customer_email !== 'pending@vipps.no') {
-      customerInfo.email = order.customer_email
-    }
-    if (order.customer_phone) {
-      customerInfo.phoneNumber = order.customer_phone
-    }
 
     const sessionData: any = {
       merchantInfo: {
@@ -82,9 +75,6 @@ export async function POST(
       },
     }
 
-    if (Object.keys(customerInfo).length > 0) {
-      sessionData.prefillCustomer = customerInfo
-    }
 
     const vippsResult = await vippsClient.createCheckoutSession(sessionData)
 
