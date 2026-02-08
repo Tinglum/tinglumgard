@@ -98,6 +98,11 @@ export default function EggConfirmationPage() {
               ? 'Vi har registrert forskuddsbetalingen.'
               : 'We have registered your deposit.'}
           </p>
+          <p className="text-sm text-neutral-500">
+            {language === 'no'
+              ? 'Forskuddet refunderes ikke. Vi jobber med levende dyr, og bestillingen setter i gang produksjonsplanlegging.'
+              : 'The deposit is non-refundable. We work with live animals, and the order starts production planning.'}
+          </p>
         </div>
 
         <GlassCard className="p-6 space-y-4">

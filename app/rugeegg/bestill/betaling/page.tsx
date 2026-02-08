@@ -114,6 +114,11 @@ export default function EggPaymentPage() {
                       ? 'Du betaler 50% av eggene nå, resten før sending.'
                       : 'You pay 50% for the eggs now, the rest before shipment.'}
                   </p>
+                  <p className="text-xs text-neutral-500 mt-2">
+                    {language === 'no'
+                      ? 'Forskuddet refunderes ikke. Vi jobber med levende dyr, og bestillingen setter i gang produksjonsplanlegging.'
+                      : 'The deposit is non-refundable. We work with live animals, and the order starts production planning.'}
+                  </p>
                 </div>
               </div>
 
