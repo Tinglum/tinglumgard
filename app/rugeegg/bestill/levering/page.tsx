@@ -43,7 +43,7 @@ const deliveryOptions = [
 export default function EggDeliveryPage() {
   const router = useRouter()
   const { lang: language } = useLanguage()
-  const { currentDraft, setDeliveryMethod } = useOrder()
+  const { currentDraft, setDeliveryMethod, setShippingDetails } = useOrder()
 
   useEffect(() => {
     if (!currentDraft) {
@@ -59,7 +59,19 @@ export default function EggDeliveryPage() {
     )
   }
 
+  const shippingAddress = currentDraft.shippingAddress || ''
+  const shippingPostalCode = currentDraft.shippingPostalCode || ''
+  const shippingCity = currentDraft.shippingCity || ''
+  const shippingCountry = currentDraft.shippingCountry || ''
+
   const selectedMethod = currentDraft.deliveryMethod
+  const isPosten = selectedMethod === 'posten'
+  const shippingComplete = !isPosten || (
+    shippingAddress.trim() &&
+    shippingPostalCode.trim() &&
+    shippingCity.trim() &&
+    shippingCountry.trim()
+  )
   const totalEggs = currentDraft.items.reduce((sum, item) => sum + item.quantity, 0)
   const itemSummary = currentDraft.items
     .map((item) => `${item.breed.name} (${item.quantity})`)
@@ -168,6 +180,83 @@ export default function EggDeliveryPage() {
                 </button>
               )
             })}
+            {selectedMethod === 'posten' && (
+              <div className="rounded-xl border border-neutral-200 bg-white p-6 space-y-4">
+                <div>
+                  <h3 className="text-lg font-normal text-neutral-900">
+                    {language === 'no' ? 'Leveringsadresse' : 'Shipping address'}
+                  </h3>
+                  <p className="text-sm text-neutral-600">
+                    {language === 'no'
+                      ? 'Vi trenger adresse for Posten-forsendelse.'
+                      : 'We need your address for Posten shipment.'}
+                  </p>
+                </div>
+                <div className="grid grid-cols-1 gap-4">
+                  <div>
+                    <label className="text-sm text-neutral-600">
+                      {language === 'no' ? 'Adresse' : 'Address'}
+                    </label>
+                    <input
+                      type="text"
+                      value={shippingAddress}
+                      onChange={(event) => setShippingDetails({ shippingAddress: event.target.value })}
+                      className="mt-1 w-full rounded-xl border border-neutral-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900/20"
+                      placeholder={language === 'no' ? 'Gateadresse og nummer' : 'Street address'}
+                      required
+                    />
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div>
+                      <label className="text-sm text-neutral-600">
+                        {language === 'no' ? 'Postnummer' : 'Postal code'}
+                      </label>
+                      <input
+                        type="text"
+                        value={shippingPostalCode}
+                        onChange={(event) => setShippingDetails({ shippingPostalCode: event.target.value })}
+                        className="mt-1 w-full rounded-xl border border-neutral-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900/20"
+                        placeholder={language === 'no' ? '0000' : '0000'}
+                        required
+                      />
+                    </div>
+                    <div className="sm:col-span-2">
+                      <label className="text-sm text-neutral-600">
+                        {language === 'no' ? 'Poststed' : 'City'}
+                      </label>
+                      <input
+                        type="text"
+                        value={shippingCity}
+                        onChange={(event) => setShippingDetails({ shippingCity: event.target.value })}
+                        className="mt-1 w-full rounded-xl border border-neutral-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900/20"
+                        placeholder={language === 'no' ? 'Poststed' : 'City'}
+                        required
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-sm text-neutral-600">
+                      {language === 'no' ? 'Land' : 'Country'}
+                    </label>
+                    <input
+                      type="text"
+                      value={shippingCountry}
+                      onChange={(event) => setShippingDetails({ shippingCountry: event.target.value })}
+                      className="mt-1 w-full rounded-xl border border-neutral-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900/20"
+                      placeholder={language === 'no' ? 'Norge' : 'Norway'}
+                      required
+                    />
+                  </div>
+                </div>
+                {!shippingComplete && (
+                  <p className="text-xs text-amber-700">
+                    {language === 'no'
+                      ? 'Fyll ut adresse for a fortsette.'
+                      : 'Complete the address to continue.'}
+                  </p>
+                )}
+              </div>
+            )}
             <div className="rounded-xl border border-neutral-200 bg-neutral-50 px-5 py-4 text-sm text-neutral-700">
               {language === 'no'
                 ? 'Henting på gården og levering langs E6 Namsos–Trondheim er ønskeløsninger som kan avtales etter at forskuddet er betalt. Send en melding etter innbetalt forskudd, så ser vi om det er mulig å ordne.'
@@ -213,7 +302,7 @@ export default function EggDeliveryPage() {
                 <button
                   type="button"
                   onClick={() => router.push('/rugeegg/bestill/betaling')}
-                  disabled={!selectedMethod}
+                  disabled={!selectedMethod || !shippingComplete}
                   className="btn-primary w-full"
                 >
                   {language === 'no' ? 'Fortsett til betaling' : 'Continue to payment'}

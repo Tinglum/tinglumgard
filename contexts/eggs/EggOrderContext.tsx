@@ -14,6 +14,10 @@ interface OrderDraft {
   items: OrderItemDraft[]
   deliveryWeek: WeekInventory
   deliveryMethod?: DeliveryMethod
+  shippingAddress?: string
+  shippingPostalCode?: string
+  shippingCity?: string
+  shippingCountry?: string
   subtotal: number
   deliveryFee: number
   totalAmount: number
@@ -27,6 +31,12 @@ interface OrderContextType {
   completedOrders: Order[]
   startOrder: (items: OrderItemDraft[]) => void
   setDeliveryMethod: (method: DeliveryMethod) => void
+  setShippingDetails: (details: {
+    shippingAddress?: string
+    shippingPostalCode?: string
+    shippingCity?: string
+    shippingCountry?: string
+  }) => void
   completeOrder: () => Order
   clearDraft: () => void
 }
@@ -87,6 +97,10 @@ export function OrderProvider({ children }: { children: ReactNode }) {
       totalAmount,
       depositAmount,
       remainderAmount,
+      shippingAddress: '',
+      shippingPostalCode: '',
+      shippingCity: '',
+      shippingCountry: 'Norge',
       isFullPayment,
     })
   }
@@ -167,6 +181,15 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     return order
   }
 
+  const setShippingDetails = (details: {
+    shippingAddress?: string
+    shippingPostalCode?: string
+    shippingCity?: string
+    shippingCountry?: string
+  }) => {
+    setCurrentDraft((draft) => (draft ? { ...draft, ...details } : draft))
+  }
+
   const clearDraft = () => {
     setCurrentDraft(null)
   }
@@ -178,6 +201,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
         completedOrders,
         startOrder,
         setDeliveryMethod,
+        setShippingDetails,
         completeOrder,
         clearDraft,
       }}

@@ -13,6 +13,10 @@ interface EggCheckoutRequest {
   customerName?: string
   customerEmail?: string
   customerPhone?: string
+  shippingAddress?: string
+  shippingPostalCode?: string
+  shippingCity?: string
+  shippingCountry?: string
 }
 
 export async function POST(request: NextRequest) {
@@ -21,6 +25,12 @@ export async function POST(request: NextRequest) {
 
     if (!body.deliveryMethod) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+    }
+
+    if (body.deliveryMethod === 'posten') {
+      if (!body.shippingAddress || !body.shippingPostalCode || !body.shippingCity || !body.shippingCountry) {
+        return NextResponse.json({ error: 'Missing shipping address' }, { status: 400 })
+      }
     }
 
     const rawItems = Array.isArray(body.items) && body.items.length > 0
@@ -150,6 +160,10 @@ export async function POST(request: NextRequest) {
         notes: body.notes || null,
         status: 'pending',
         policy_version: 'v1-2026',
+        shipping_address: body.shippingAddress || null,
+        shipping_postal_code: body.shippingPostalCode || null,
+        shipping_city: body.shippingCity || null,
+        shipping_country: body.shippingCountry || null,
       })
       .select()
       .single()

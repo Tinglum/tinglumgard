@@ -58,6 +58,10 @@ interface Order {
   customer_name: string;
   customer_email: string;
   customer_phone: string | null;
+  shipping_address?: string | null;
+  shipping_postal_code?: string | null;
+  shipping_city?: string | null;
+  shipping_country?: string | null;
 
   // Pig-specific fields (optional)
   box_size?: number;

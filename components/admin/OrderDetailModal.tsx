@@ -24,6 +24,10 @@ interface Order {
   customer_name: string;
   customer_email: string;
   customer_phone: string | null;
+  shipping_address?: string | null;
+  shipping_postal_code?: string | null;
+  shipping_city?: string | null;
+  shipping_country?: string | null;
 
   // Pig-specific fields
   box_size?: number;
@@ -99,6 +103,9 @@ export function OrderDetailModal({
     pickup_farm: 'Henting på gård',
     pickup_e6: 'Henting ved E6',
     delivery_trondheim: 'Levering i Trondheim',
+    posten: 'Sending med Posten',
+    farm_pickup: 'Henting pa gard',
+    e6_pickup: 'E6 motepunkt',
   };
 
   const ribbeChoiceLabels: Record<string, string> = {
@@ -408,6 +415,23 @@ export function OrderDetailModal({
                   <p className="text-sm text-gray-600">Type</p>
                   <p className="font-medium text-gray-900">{deliveryTypeLabels[order.delivery_type]}</p>
                 </div>
+                {(order.shipping_address || order.shipping_postal_code || order.shipping_city) && (
+                  <div>
+                    <p className="text-sm text-gray-600">Adresse</p>
+                    <p className="font-medium text-gray-900">
+                      {order.shipping_address || ''}
+                      {(order.shipping_postal_code || order.shipping_city) && (
+                        <span>
+                          {order.shipping_address ? ', ' : ''}
+                          {[order.shipping_postal_code, order.shipping_city].filter(Boolean).join(' ')}
+                        </span>
+                      )}
+                    </p>
+                    {order.shipping_country && (
+                      <p className="text-sm text-gray-600">{order.shipping_country}</p>
+                    )}
+                  </div>
+                )}
                 {order.locked_at && (
                   <div className="px-3 py-2 rounded-xl bg-gray-50 text-gray-700 text-sm">
                     🔒 Ordre låst {new Date(order.locked_at).toLocaleDateString('nb-NO')}

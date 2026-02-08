@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { useToast } from '@/hooks/use-toast';
 
 interface User {
   name: string;
@@ -18,10 +19,12 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const SESSION_TIMEOUT = 30 * 60 * 1000; // 30 minutes in milliseconds
+const SESSION_TIMEOUT = 5 * 60 * 1000; // 5 minutes in milliseconds
 const LAST_ACTIVITY_KEY = 'lastActivityTime';
+const SESSION_EXPIRED_KEY = 'tinglum_session_expired';
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const { toast } = useToast();
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [timeoutId, setTimeoutId] = useState<NodeJS.Timeout | null>(null);
@@ -48,8 +51,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const logout = async () => {
+  const logout = async (reason?: 'expired' | 'reload' | 'manual') => {
     try {
+      if (reason && reason !== 'manual') {
+        localStorage.setItem(SESSION_EXPIRED_KEY, '1');
+      }
       await fetch('/api/auth/vipps/logout', { method: 'POST' });
       setUser(null);
       localStorage.removeItem(LAST_ACTIVITY_KEY);
@@ -73,7 +79,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const timeSinceLastActivity = Date.now() - parseInt(lastActivity);
       if (timeSinceLastActivity > SESSION_TIMEOUT) {
         console.log('Session timed out after 30 minutes of inactivity');
-        logout();
+        logout('expired');
         return;
       }
     }
@@ -88,14 +94,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       updateLastActivity();
       const newTimeoutId = setTimeout(() => {
         console.log('Auto-logout triggered');
-        logout();
+        logout('expired');
       }, SESSION_TIMEOUT);
       setTimeoutId(newTimeoutId);
     }
   };
 
+  useEffect(() => {
+    const expiredFlag = localStorage.getItem(SESSION_EXPIRED_KEY);
+    if (!expiredFlag) return;
+    localStorage.removeItem(SESSION_EXPIRED_KEY);
+    toast({
+      title: 'Sesjonen er utlopet',
+      description: 'Logg inn igjen for a fortsette.',
+    });
+  }, [toast]);
+
   // Check auth on mount
   useEffect(() => {
+    const navEntry = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined;
+    if (navEntry?.type === 'reload') {
+      logout('reload');
+      return;
+    }
     checkAuth();
   }, []);
 

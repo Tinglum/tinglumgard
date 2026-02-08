@@ -35,8 +35,28 @@ export default function EggPaymentPage() {
   }
 
   const totalEggs = currentDraft.items.reduce((sum, item) => sum + item.quantity, 0)
+  const shippingAddress = currentDraft.shippingAddress || ''
+  const shippingPostalCode = currentDraft.shippingPostalCode || ''
+  const shippingCity = currentDraft.shippingCity || ''
+  const shippingCountry = currentDraft.shippingCountry || ''
+  const requiresShipping = currentDraft.deliveryMethod === 'posten'
+  const shippingComplete = !requiresShipping || (
+    shippingAddress.trim() &&
+    shippingPostalCode.trim() &&
+    shippingCity.trim() &&
+    shippingCountry.trim()
+  )
 
   const handlePayment = async () => {
+    if (!shippingComplete) {
+      setError(
+        language === 'no'
+          ? 'Leveringsadresse mangler. Gå tilbake og fyll ut adressen.'
+          : 'Shipping address is missing. Go back and complete the address.'
+      )
+      return
+    }
+
     setIsPaying(true)
     setError(null)
     try {
@@ -48,6 +68,10 @@ export default function EggPaymentPage() {
           quantity: item.quantity,
         })),
         deliveryMethod: currentDraft.deliveryMethod,
+        shippingAddress: requiresShipping ? shippingAddress : undefined,
+        shippingPostalCode: requiresShipping ? shippingPostalCode : undefined,
+        shippingCity: requiresShipping ? shippingCity : undefined,
+        shippingCountry: requiresShipping ? shippingCountry : undefined,
         notes: '',
       }
 

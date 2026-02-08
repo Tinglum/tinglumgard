@@ -5,6 +5,8 @@ import { useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { GlassCard } from '@/components/eggs/GlassCard'
 import { useLanguage } from '@/contexts/LanguageContext'
+import { useCart } from '@/contexts/eggs/EggCartContext'
+import { useOrder } from '@/contexts/eggs/EggOrderContext'
 import { formatDate, formatPrice } from '@/lib/eggs/utils'
 import { CheckCircle2, Clock3, XCircle } from 'lucide-react'
 
@@ -32,10 +34,18 @@ export default function EggConfirmationPage() {
   const { lang: language } = useLanguage()
   const searchParams = useSearchParams()
   const orderId = searchParams.get('orderId')
+  const { clearCart } = useCart()
+  const { clearDraft } = useOrder()
   const [order, setOrder] = useState<EggOrder | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [paymentStatus, setPaymentStatus] = useState<EggPaymentStatus>('pending')
   const [pollCount, setPollCount] = useState(0)
+
+  useEffect(() => {
+    if (!orderId) return
+    clearCart()
+    clearDraft()
+  }, [orderId, clearCart, clearDraft])
 
   useEffect(() => {
     let isActive = true
