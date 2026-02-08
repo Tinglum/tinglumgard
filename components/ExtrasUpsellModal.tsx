@@ -51,25 +51,6 @@ export function ExtrasUpsellModal({
   const initializedRef = useRef(false);
 
   useEffect(() => {
-    if (isOpen) {
-      setLoadingExtras(true);
-      loadExtras();
-      if (!initializedRef.current) {
-        // Initialize with current extras only once per open
-        const initialQuantities: Record<string, number> = {};
-        currentExtras.forEach((extra) => {
-          initialQuantities[extra.slug] = extra.quantity;
-        });
-        setSelectedQuantities(initialQuantities);
-        initializedRef.current = true;
-      }
-    } else {
-      initializedRef.current = false;
-      setSelectedQuantities({});
-    }
-  }, [currentExtras, isOpen, loadExtras]);
-
-  useEffect(() => {
     if (!isOpen) return;
     const previousBodyOverflow = document.body.style.overflow;
     const previousHtmlOverflow = document.documentElement.style.overflow;
@@ -96,6 +77,25 @@ export function ExtrasUpsellModal({
       setLoadingExtras(false);
     }
   }, []);
+
+  useEffect(() => {
+    if (isOpen) {
+      setLoadingExtras(true);
+      loadExtras();
+      if (!initializedRef.current) {
+        // Initialize with current extras only once per open
+        const initialQuantities: Record<string, number> = {};
+        currentExtras.forEach((extra) => {
+          initialQuantities[extra.slug] = extra.quantity;
+        });
+        setSelectedQuantities(initialQuantities);
+        initializedRef.current = true;
+      }
+    } else {
+      initializedRef.current = false;
+      setSelectedQuantities({});
+    }
+  }, [currentExtras, isOpen, loadExtras]);
 
   function handleQuantityChange(slug: string, quantity: number) {
     setSelectedQuantities(prev => {
