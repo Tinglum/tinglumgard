@@ -51,7 +51,9 @@ function verifyVippsWebhookHmac(req: NextRequest, bodyText: string): boolean {
 export async function POST(request: NextRequest) {
   try {
     const bodyText = await request.text();
-    const callbackAuthToken = request.headers.get('X-Vipps-Callback-Auth-Token');
+    const callbackAuthToken =
+      request.headers.get('X-Vipps-Callback-Auth-Token') ||
+      request.headers.get('X-Vipps-Callback-Authorization-Token');
 
     // Vipps Checkout v3 uses callbackAuthorizationToken instead of HMAC
     // Require a valid callback token or HMAC verification.
