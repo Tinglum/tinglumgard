@@ -158,6 +158,7 @@ export async function POST(
         payment_type: 'remainder',
         amount_nok: remainderAmount,
         vipps_session_id: vippsResult.sessionId,
+        vipps_callback_token: callbackToken,
         status: 'pending',
         idempotency_key: shortReference,
       })
@@ -172,6 +173,7 @@ export async function POST(
           .update({
             vipps_session_id: vippsResult.sessionId,
             amount_nok: remainderAmount,
+            vipps_callback_token: callbackToken,
             status: 'pending',
           })
           .eq('idempotency_key', shortReference)

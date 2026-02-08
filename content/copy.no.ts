@@ -67,6 +67,13 @@ export const no = {
     reservePackageNow: "Reserver din kasse nå",
   },
 
+  // Eggs hero
+  eggsHero: {
+    title: "Rugeegg fra Tinglum Gard",
+    subtitle:
+      "Rugeegg fra Tinglum Gård i Namdalseid. Ferske, nøye utvalgte egg fra flere raser og vakre eggfarger, levert uke for uke i sesong.",
+  },
+
   // Eggs browse
   browse: {
     byBreed: "Etter rase",
@@ -88,6 +95,7 @@ export const no = {
     eggs: "egg",
     characteristics: "Egenskaper",
     size: "Storrelse",
+    minEggWeight: "Minste eggvekt",
     temperament: "Temperament",
     hatchingInfo: "Klekkinfo",
     incubation: "Ruging",

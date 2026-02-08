@@ -15,6 +15,7 @@ interface Breed {
   description: string;
   image_url: string;
   price_per_egg: number;
+  min_egg_weight_grams?: number | null;
   accent_color: string;
   active: boolean;
   display_order: number;
@@ -32,6 +33,7 @@ export function BreedManagement() {
     description: '',
     image_url: '',
     price_per_egg: 0,
+    min_egg_weight_grams: null,
     accent_color: '#000000',
     active: true,
     display_order: 0,
@@ -63,6 +65,7 @@ export function BreedManagement() {
       description: '',
       image_url: '',
       price_per_egg: 0,
+      min_egg_weight_grams: null,
       accent_color: '#000000',
       active: true,
       display_order: 0,
@@ -238,6 +241,23 @@ export function BreedManagement() {
                 <p className="text-xs text-gray-600 mt-1">
                   {((formData.price_per_egg || 0) / 100).toFixed(2)} kr
                 </p>
+              </div>
+
+              <div>
+                <Label htmlFor="min_egg_weight_grams">Minste eggvekt (g)</Label>
+                <Input
+                  id="min_egg_weight_grams"
+                  type="number"
+                  min={0}
+                  value={formData.min_egg_weight_grams ?? ''}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setFormData({
+                      ...formData,
+                      min_egg_weight_grams: value === '' ? null : parseInt(value, 10),
+                    });
+                  }}
+                />
               </div>
 
               <div>

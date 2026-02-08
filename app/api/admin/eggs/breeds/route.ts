@@ -34,6 +34,8 @@ export async function POST(request: Request) {
           description: body.description || '',
           image_url: body.image_url || '',
           price_per_egg: body.price_per_egg,
+          min_egg_weight_grams:
+            body.min_egg_weight_grams !== undefined ? body.min_egg_weight_grams : null,
           accent_color: body.accent_color || '#000000',
           active: body.active !== undefined ? body.active : true,
           display_order: body.display_order || 0,

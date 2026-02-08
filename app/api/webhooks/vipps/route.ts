@@ -51,15 +51,10 @@ function verifyVippsWebhookHmac(req: NextRequest, bodyText: string): boolean {
 export async function POST(request: NextRequest) {
   try {
     const bodyText = await request.text();
-    console.log('Vipps webhook received:', bodyText);
-    console.log('Webhook headers:', {
-      authorization: request.headers.get('authorization'),
-      callbackAuthToken: request.headers.get('X-Vipps-Callback-Auth-Token'),
-    });
+    const callbackAuthToken = request.headers.get('X-Vipps-Callback-Auth-Token');
 
     // Vipps Checkout v3 uses callbackAuthorizationToken instead of HMAC
-    // For now, we'll accept all webhooks and add proper verification later
-    // TODO: Verify callbackAuthorizationToken matches what we sent
+    // Require a valid callback token or HMAC verification.
 
     const payload = JSON.parse(bodyText) as {
       orderId?: string;
@@ -76,17 +71,13 @@ export async function POST(request: NextRequest) {
       [k: string]: unknown;
     };
 
-    console.log('Webhook payload:', payload);
-
     // CRITICAL: Check if payment was actually successful
     const sessionState = payload.sessionState as string | undefined;
     const paymentState = payload.paymentDetails?.state as string | undefined;
 
-    console.log('Payment states:', { sessionState, paymentState });
-
     // Only process successful payments
-    if (sessionState !== 'PaymentSuccessful' || paymentState !== 'AUTHORIZED') {
-      console.log('Payment not successful, ignoring webhook', { sessionState, paymentState });
+    const allowedPaymentStates = new Set(['AUTHORIZED', 'CAPTURED'])
+    if (sessionState !== 'PaymentSuccessful' || !allowedPaymentStates.has(paymentState || '')) {
       return NextResponse.json(
         { 
           message: "Payment not successful, no action taken",
@@ -109,8 +100,6 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-
-    console.log('Looking for payment with vipps_session_id:', vippsId);
 
     // Find payment row by vipps_session_id (not vipps_payment_id)
     const { data: payment, error: paymentError } = await supabaseAdmin
@@ -159,14 +148,42 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('Found payment:', resolvedPayment.id, 'type:', resolvedPayment.payment_type, 'egg:', isEggPayment);
+    if (resolvedPayment.webhook_processed_at) {
+      return NextResponse.json({ received: true });
+    }
+
+    const hmacVerified = verifyVippsWebhookHmac(request, bodyText);
+    const callbackVerified =
+      !!resolvedPayment.vipps_callback_token &&
+      !!callbackAuthToken &&
+      callbackAuthToken === resolvedPayment.vipps_callback_token;
+
+    if (!callbackVerified && !hmacVerified) {
+      logError('vipps-webhook-unauthorized', new Error('Invalid webhook authorization'));
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const payloadAmount = payload.paymentDetails?.amount?.value;
+    const payloadCurrency = payload.paymentDetails?.amount?.currency;
+    const expectedAmount = Math.round((resolvedPayment.amount_nok || 0) * 100);
+
+    if (payloadCurrency && payloadCurrency !== 'NOK') {
+      logError('vipps-webhook-currency-mismatch', new Error('Unexpected currency'));
+      return NextResponse.json({ error: 'Invalid currency' }, { status: 400 });
+    }
+
+    if (Number.isFinite(payloadAmount) && payloadAmount !== expectedAmount) {
+      logError('vipps-webhook-amount-mismatch', new Error('Amount mismatch'));
+      return NextResponse.json({ error: 'Amount mismatch' }, { status: 400 });
+    }
 
     // Mark payment as completed with timestamp
     const { error: updErr } = await supabaseAdmin
       .from(isEggPayment ? "egg_payments" : "payments")
       .update({ 
         status: "completed",
-        paid_at: new Date().toISOString()
+        paid_at: new Date().toISOString(),
+        webhook_processed_at: new Date().toISOString(),
       })
       .eq("id", resolvedPayment.id);
 

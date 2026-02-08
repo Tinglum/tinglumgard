@@ -53,10 +53,10 @@ export default function HomePage() {
           className="text-center max-w-4xl mx-auto"
         >
           <h1 className="text-5xl md:text-6xl font-normal tracking-tight text-neutral-900 mb-6 leading-tight">
-            {t.hero.title}
+            {t.eggsHero.title}
           </h1>
           <p className="text-lg md:text-xl text-neutral-600 mb-12 leading-relaxed max-w-prose mx-auto">
-            {t.hero.subtitle}
+            {t.eggsHero.subtitle}
           </p>
 
           {/* Browse mode toggle */}

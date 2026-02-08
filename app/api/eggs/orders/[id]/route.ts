@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { getSession } from '@/lib/auth/session'
 import { supabaseAdmin } from '@/lib/supabase/server'
 
 export async function GET(
@@ -6,6 +7,11 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
+    const session = await getSession()
+    if (!session?.isAdmin) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const { data: order, error } = await supabaseAdmin
       .from('egg_orders')
       .select('*, egg_breeds(*), egg_inventory(*), egg_payments(*), egg_order_additions(*, egg_breeds(*), egg_inventory(*))')

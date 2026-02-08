@@ -67,6 +67,13 @@ export const en = {
     reservePackageNow: "Reserve your box now",
   },
 
+  // Eggs hero
+  eggsHero: {
+    title: "Hatching eggs from Tinglum Farm",
+    subtitle:
+      "Hatching eggs from Tinglum Gård in Namdalseid. Fresh, carefully selected eggs from multiple breeds and beautiful egg colors, delivered week by week in season.",
+  },
+
   // Eggs browse
   browse: {
     byBreed: "By breed",
@@ -88,6 +95,7 @@ export const en = {
     eggs: "eggs",
     characteristics: "Characteristics",
     size: "Size",
+    minEggWeight: "Min egg weight",
     temperament: "Temperament",
     hatchingInfo: "Hatching info",
     incubation: "Incubation",

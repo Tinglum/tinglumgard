@@ -17,6 +17,7 @@ export const breeds: Breed[] = [
 
     eggColor: 'Kremhvit (ikke svarte)',
     sizeRange: '2-2.5 kg',
+    minEggWeightGrams: null,
     temperament: 'Rolig, koselig',
     annualProduction: '60-90 egg/år',
 
@@ -36,10 +37,11 @@ export const breeds: Breed[] = [
     pricePerEgg: 4500, // 45 kr
     minOrderQuantity: 10,
     maxOrderQuantity: 24,
-    accentColor: '#475569',
+    accentColor: '#C8A26A',
 
     eggColor: 'Store brune egg',
     sizeRange: '4-5 kg',
+    minEggWeightGrams: 60,
     temperament: 'Rolig, tålmodig',
     annualProduction: '180-220 egg/år',
 
@@ -59,10 +61,11 @@ export const breeds: Breed[] = [
     pricePerEgg: 4500, // 45 kr
     minOrderQuantity: 10,
     maxOrderQuantity: 24,
-    accentColor: '#8B7355',
+    accentColor: '#6B7F3A',
 
     eggColor: 'Grønn til oliven',
     sizeRange: '2.5-3 kg',
+    minEggWeightGrams: 55,
     temperament: 'Robust, produktiv',
     annualProduction: '250 egg/år',
 
@@ -82,10 +85,11 @@ export const breeds: Breed[] = [
     pricePerEgg: 4000, // 40 kr
     minOrderQuantity: 10,
     maxOrderQuantity: 24,
-    accentColor: '#D4A574',
+    accentColor: '#8FD9D6',
 
     eggColor: 'Turkis/lyseblå',
     sizeRange: '2-2.5 kg',
+    minEggWeightGrams: 60,
     temperament: 'Nysgjerrig, aktiv',
     annualProduction: '200 egg/år',
 
@@ -105,10 +109,11 @@ export const breeds: Breed[] = [
     pricePerEgg: 4500, // 45 kr
     minOrderQuantity: 6,
     maxOrderQuantity: 24,
-    accentColor: '#8B4513',
+    accentColor: '#5A2A1D',
 
     eggColor: 'Mørkebrun til rødlig',
     sizeRange: '2.5-3 kg',
+    minEggWeightGrams: 65,
     temperament: 'Rolig, vennlig',
     annualProduction: '180-220 egg/år',
 
@@ -121,16 +126,17 @@ export const breeds: Breed[] = [
 ]
 
 /**
- * Generate mock inventory for next 12 weeks
- * Varies capacity and allocation to show different states
+ * Generate mock inventory for next 16 weeks
+ * Tuned to show urgency and realistic near-term availability
  */
 export function generateMockInventory(): WeekInventory[] {
   const inventory: WeekInventory[] = []
   const currentDate = new Date()
   const currentYear = currentDate.getFullYear()
   const currentWeek = getWeekNumber(currentDate)
+  const weeksToGenerate = 16
 
-  for (let i = 1; i <= 12; i++) {
+  for (let i = 1; i <= weeksToGenerate; i++) {
     const weekNumber = currentWeek + i
     const year = weekNumber > 52 ? currentYear + 1 : currentYear
     const adjustedWeek = weekNumber > 52 ? weekNumber - 52 : weekNumber
@@ -158,25 +164,25 @@ export function generateMockInventory(): WeekInventory[] {
           capacity = 48
       }
 
-      // Vary allocation to show different states
-      let allocated: number
-      if (i <= 3) {
-        // Early weeks: high demand (70-95% allocated)
-        allocated = Math.floor(capacity * (0.7 + Math.random() * 0.25))
-      } else if (i <= 6) {
-        // Mid weeks: medium demand (30-70% allocated)
-        allocated = Math.floor(capacity * (0.3 + Math.random() * 0.4))
+      // Availability targets by horizon:
+      // - Weeks 1-6: ~15 eggs (+/- 4)
+      // - Weeks 7-8: moderate availability
+      // - Weeks 9+: low or no availability to show urgency
+      let available: number
+      if (i <= 6) {
+        available = clamp(randomInt(11, 19), 0, capacity)
+      } else if (i <= 8) {
+        available = clamp(randomInt(6, 14), 0, capacity)
       } else {
-        // Far weeks: low demand (0-30% allocated)
-        allocated = Math.floor(capacity * (Math.random() * 0.3))
+        available = Math.random() < 0.6 ? 0 : clamp(randomInt(1, 6), 0, capacity)
       }
 
-      // Create some sold-out weeks
+      // Create some sold-out weeks for the rare breed
       if (i === 2 && breedIndex === 0) {
-        allocated = capacity // Ayam Cemani week 2 sold out
+        available = 0 // Ayam Cemani week 2 sold out
       }
 
-      const available = capacity - allocated
+      const allocated = capacity - available
       const deliveryMonday = getMondayOfWeek(year, adjustedWeek)
       const orderCutoffDate = new Date(deliveryMonday)
       orderCutoffDate.setDate(orderCutoffDate.getDate() - 6)
@@ -217,6 +223,14 @@ export function generateMockInventory(): WeekInventory[] {
   }
 
   return inventory
+}
+
+function randomInt(min: number, max: number): number {
+  return Math.floor(Math.random() * (max - min + 1)) + min
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(Math.max(value, min), max)
 }
 
 function getWeekNumber(date: Date): number {

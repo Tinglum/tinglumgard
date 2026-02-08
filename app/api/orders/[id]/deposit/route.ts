@@ -156,6 +156,7 @@ export async function POST(
         payment_type: 'deposit',
         amount_nok: depositAmount,
         vipps_session_id: vippsResult.sessionId,
+        vipps_callback_token: callbackToken,
         status: 'pending',
         idempotency_key: shortReference,
       })

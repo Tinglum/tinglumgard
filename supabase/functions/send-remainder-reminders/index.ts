@@ -97,7 +97,7 @@ Deno.serve(async (req: Request) => {
       }
 
       // Fetch current pricing from app_config
-      const { data: configData, error: configError } = await supabaseClient
+      const { data: configData, error: configError } = await supabase
         .from('app_config')
         .select('key, value')
         .in('key', ['box_8kg_price', 'box_12kg_price'])
@@ -129,7 +129,7 @@ Deno.serve(async (req: Request) => {
       let remainderAmount = basePrice - depositAmount;
 
       // Fetch add-on prices from app_config
-      const { data: addonsConfigData } = await supabaseClient
+      const { data: addonsConfigData } = await supabase
         .from('app_config')
         .select('value')
         .eq('key', 'addons_pricing')

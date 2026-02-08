@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { getSession } from '@/lib/auth/session'
 import { supabaseAdmin } from '@/lib/supabase/server'
 
 export const dynamic = 'force-dynamic'
@@ -6,6 +7,11 @@ export const dynamic = 'force-dynamic'
 // Create new egg order
 export async function POST(request: Request) {
   try {
+    const session = await getSession()
+    if (!session?.isAdmin) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const body = await request.json()
 
     // Generate order number
@@ -83,6 +89,11 @@ export async function POST(request: Request) {
 // Get all egg orders (for admin)
 export async function GET() {
   try {
+    const session = await getSession()
+    if (!session?.isAdmin) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const { data, error } = await supabaseAdmin
       .from('egg_orders')
       .select('*, egg_breeds(*), egg_inventory(*)')

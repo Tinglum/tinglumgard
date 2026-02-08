@@ -14,6 +14,7 @@ export interface Breed {
   // Characteristics
   eggColor: string
   sizeRange: string
+  minEggWeightGrams?: number | null
   temperament: string
   annualProduction: string
 

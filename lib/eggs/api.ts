@@ -13,6 +13,7 @@ type EggBreedRow = {
   accent_color: string
   egg_color: string
   size_range: string
+  min_egg_weight_grams?: number | null
   temperament: string
   annual_production: string
   incubation_days: number
@@ -47,6 +48,7 @@ export function mapBreed(row: EggBreedRow): Breed {
     accentColor: row.accent_color,
     eggColor: row.egg_color,
     sizeRange: row.size_range,
+    minEggWeightGrams: row.min_egg_weight_grams ?? null,
     temperament: row.temperament,
     annualProduction: row.annual_production,
     incubationDays: row.incubation_days,

@@ -4,6 +4,7 @@ import { sendEmail } from '@/lib/email/client'
 import { logError } from '@/lib/logger'
 
 const REMINDER_DAYS = [11, 9, 7, 6]
+const PENDING_EXPIRY_HOURS = 6
 
 function toDateOnly(value: string | Date) {
   const date = new Date(value)
@@ -42,13 +43,13 @@ function buildReminderHtml(params: {
 <body>
   <div class="container">
     <div class="card">
-      <div class="title">Påminnelse om restbetaling</div>
+      <div class="title">Pï¿½minnelse om restbetaling</div>
       <p>Hei ${params.customerName},</p>
-      <p class="muted">Bestilling ${params.orderNumber} · ${params.breedName} · Uke ${params.weekNumber}</p>
-      <div class="amount">Restbeløp: kr ${params.remainderNok}</div>
-      <p>Vennligst betal innen ${params.dueDate} for å beholde bestillingen.</p>
+      <p class="muted">Bestilling ${params.orderNumber} ï¿½ ${params.breedName} ï¿½ Uke ${params.weekNumber}</p>
+      <div class="amount">Restbelï¿½p: kr ${params.remainderNok}</div>
+      <p>Vennligst betal innen ${params.dueDate} for ï¿½ beholde bestillingen.</p>
       <p>
-        <a class="button" href="${params.appUrl}/rugeegg/mine-bestillinger">Betal restbeløp</a>
+        <a class="button" href="${params.appUrl}/rugeegg/mine-bestillinger">Betal restbelï¿½p</a>
       </p>
     </div>
   </div>
@@ -80,7 +81,7 @@ function buildForfeitHtml(params: {
     <div class="card">
       <div class="title">Bestilling kansellert</div>
       <p>Hei ${params.customerName},</p>
-      <p class="muted">Bestilling ${params.orderNumber} · ${params.breedName} · Uke ${params.weekNumber}</p>
+      <p class="muted">Bestilling ${params.orderNumber} ï¿½ ${params.breedName} ï¿½ Uke ${params.weekNumber}</p>
       <p>Restbetalingen ble ikke mottatt innen fristen. Bestillingen er derfor kansellert og eggene er frigitt.</p>
     </div>
   </div>
@@ -114,10 +115,10 @@ function buildDayBeforeHtml(params: {
     <div class="card">
       <div class="title">Levering i morgen</div>
       <p>Hei ${params.customerName},</p>
-      <p class="muted">Bestilling ${params.orderNumber} · ${params.breedName} · Uke ${params.weekNumber}</p>
-      <p>Rugeeggene sendes i morgen. Du finner bestillingen på Min side.</p>
+      <p class="muted">Bestilling ${params.orderNumber} ï¿½ ${params.breedName} ï¿½ Uke ${params.weekNumber}</p>
+      <p>Rugeeggene sendes i morgen. Du finner bestillingen pï¿½ Min side.</p>
       <p>
-        <a class="button" href="${params.appUrl}/rugeegg/mine-bestillinger">Gå til Min side</a>
+        <a class="button" href="${params.appUrl}/rugeegg/mine-bestillinger">Gï¿½ til Min side</a>
       </p>
     </div>
   </div>
@@ -174,6 +175,37 @@ export async function GET(request: NextRequest) {
 
     const today = toDateOnly(new Date())
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://tinglum.no'
+
+    const { data: pendingOrders, error: pendingError } = await supabaseAdmin
+      .from('egg_orders')
+      .select('id, order_number, status, created_at, inventory_id, quantity, egg_order_additions(inventory_id, quantity)')
+      .eq('status', 'pending')
+
+    if (pendingError) {
+      logError('egg-pending-fetch', pendingError)
+    } else {
+      const cutoff = new Date()
+      cutoff.setHours(cutoff.getHours() - PENDING_EXPIRY_HOURS)
+
+      for (const order of pendingOrders || []) {
+        if (!order.created_at) continue
+        if (new Date(order.created_at) > cutoff) continue
+
+        await releaseInventory(order.inventory_id, order.quantity)
+        for (const addition of order.egg_order_additions || []) {
+          await releaseInventory(addition.inventory_id, addition.quantity)
+        }
+
+        await supabaseAdmin
+          .from('egg_orders')
+          .update({
+            status: 'cancelled',
+            forfeit_reason: 'Deposit not paid in time',
+            forfeited_at: new Date().toISOString(),
+          })
+          .eq('id', order.id)
+      }
+    }
 
     const { data: orders, error } = await supabaseAdmin
       .from('egg_orders')
@@ -258,7 +290,7 @@ export async function GET(request: NextRequest) {
 
       await sendEmail({
         to: order.customer_email,
-        subject: `Påminnelse om restbetaling - ${order.order_number}`,
+        subject: `Pï¿½minnelse om restbetaling - ${order.order_number}`,
         html: buildReminderHtml({
           customerName: order.customer_name,
           orderNumber: order.order_number,

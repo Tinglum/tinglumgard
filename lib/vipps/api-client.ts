@@ -104,8 +104,7 @@ class VippsClient {
   async createCheckoutSession(sessionData: any) {
     const accessToken = await this.getAccessToken();
 
-    console.log('Vipps Checkout - Creating session with credentials in headers');
-    console.log('Session data:', JSON.stringify(sessionData, null, 2));
+    console.log('Vipps Checkout - Creating session');
 
     const response = await fetch(`${vippsConfig.apiBaseUrl}/checkout/v3/session`, {
       method: 'POST',
@@ -125,7 +124,6 @@ class VippsClient {
 
     const responseText = await response.text();
     console.log('Vipps API Response Status:', response.status, response.statusText);
-    console.log('Vipps API Response Body:', responseText);
 
     if (!response.ok) {
       console.error('Vipps Checkout session creation failed:', {
@@ -137,7 +135,6 @@ class VippsClient {
     }
 
     const result = JSON.parse(responseText);
-    console.log('Vipps Checkout session FULL RESPONSE:', JSON.stringify(result, null, 2));
 
     // Vipps Checkout v3 returns a JWT token instead of sessionId
     // We need to decode the token to get the session info
@@ -151,7 +148,6 @@ class VippsClient {
       Buffer.from(result.token.split('.')[1], 'base64').toString()
     );
 
-    console.log('Decoded token payload:', tokenPayload);
 
     // Extract session ID and URL from the token
     const sessionId = tokenPayload.sid;
@@ -161,11 +157,7 @@ class VippsClient {
     // The frontend expects the token as a parameter
     const checkoutUrlWithToken = `${result.checkoutFrontendUrl}?token=${result.token}`;
 
-    console.log('Vipps Checkout session created successfully:', {
-      sessionId,
-      sessionUrl,
-      checkoutUrlWithToken,
-    });
+    console.log('Vipps Checkout session created successfully:', { sessionId });
 
     // Return a normalized response that matches what the rest of the code expects
     return {

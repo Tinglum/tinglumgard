@@ -18,6 +18,8 @@ export async function PATCH(
     if (body.description !== undefined) updateData.description = body.description;
     if (body.image_url !== undefined) updateData.image_url = body.image_url;
     if (body.price_per_egg !== undefined) updateData.price_per_egg = body.price_per_egg;
+    if (body.min_egg_weight_grams !== undefined)
+      updateData.min_egg_weight_grams = body.min_egg_weight_grams;
     if (body.accent_color !== undefined) updateData.accent_color = body.accent_color;
     if (body.active !== undefined) updateData.active = body.active;
     if (body.display_order !== undefined) updateData.display_order = body.display_order;

@@ -170,6 +170,14 @@ export default function BreedDetailPage() {
                   <div className="text-neutral-600 mb-1">{t.breed.size}</div>
                   <div className="font-normal text-neutral-900">{breed.sizeRange}</div>
                 </div>
+                {breed.minEggWeightGrams ? (
+                  <div>
+                    <div className="text-neutral-600 mb-1">{t.breed.minEggWeight}</div>
+                    <div className="font-normal text-neutral-900">
+                      {breed.minEggWeightGrams} g+
+                    </div>
+                  </div>
+                ) : null}
                 <div>
                   <div className="text-neutral-600 mb-1">{t.breed.temperament}</div>
                   <div className="font-normal text-neutral-900">{breed.temperament}</div>
