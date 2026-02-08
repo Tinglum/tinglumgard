@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "node:crypto";
 import { supabaseAdmin } from "@/lib/supabase/server";
+import { vippsClient } from "@/lib/vipps/api-client";
 import { sendEmail } from "@/lib/email/client";
 import { getAdminEggOrderNotificationTemplate, getAdminOrderNotificationTemplate } from "@/lib/email/templates";
 import { logError } from "@/lib/logger";
@@ -159,10 +160,28 @@ export async function POST(request: NextRequest) {
       !!resolvedPayment.vipps_callback_token &&
       !!callbackAuthToken &&
       callbackAuthToken === resolvedPayment.vipps_callback_token;
+    let sessionVerified = false;
 
     if (!callbackVerified && !hmacVerified) {
-      logError('vipps-webhook-unauthorized', new Error('Invalid webhook authorization'));
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      try {
+        const session = await vippsClient.getCheckoutSession(vippsId);
+        const sessionStateFromVipps = session?.sessionState as string | undefined;
+        const paymentStateFromVipps = session?.paymentDetails?.state as string | undefined;
+
+        if (
+          sessionStateFromVipps === 'PaymentSuccessful' &&
+          allowedPaymentStates.has(paymentStateFromVipps || '')
+        ) {
+          sessionVerified = true;
+        }
+      } catch (error) {
+        logError('vipps-webhook-session-verify-failed', error);
+      }
+
+      if (!sessionVerified) {
+        logError('vipps-webhook-unauthorized', new Error('Invalid webhook authorization'));
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      }
     }
 
     const payloadAmount = payload.paymentDetails?.amount?.value;
