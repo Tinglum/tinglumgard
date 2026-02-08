@@ -197,14 +197,15 @@ class VippsClient {
     });
 
     if (!response.ok) {
-      throw new Error('Failed to get payment status');
+      const errorText = await response.text();
+      throw new Error(`Failed to get payment status (${response.status}): ${errorText}`);
     }
 
     return response.json();
   }
 
-  async getCheckoutSession(sessionId: string) {
-    const response = await fetch(`${vippsConfig.apiBaseUrl}/checkout/v3/session/${sessionId}`, {
+  async getCheckoutSession(sessionIdOrReference: string) {
+    const response = await fetch(`${vippsConfig.apiBaseUrl}/checkout/v3/session/${sessionIdOrReference}`, {
       headers: {
         'client_id': vippsConfig.clientId,
         'client_secret': vippsConfig.clientSecret,
@@ -214,7 +215,8 @@ class VippsClient {
     });
 
     if (!response.ok) {
-      throw new Error('Failed to get checkout session');
+      const errorText = await response.text();
+      throw new Error(`Failed to get checkout session (${response.status}): ${errorText}`);
     }
 
     return response.json();

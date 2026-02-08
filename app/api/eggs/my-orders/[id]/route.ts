@@ -42,6 +42,31 @@ function pickLatestPendingDeposit(payments: any[] = []) {
     })[0]
 }
 
+async function getCheckoutSessionFromPayment(payment: any) {
+  const candidates = [
+    payment?.idempotency_key as string | undefined,
+    payment?.vipps_order_id as string | undefined,
+  ]
+
+  let lastError: unknown
+  const seen = new Set<string>()
+
+  for (const candidate of candidates) {
+    const value = candidate?.trim()
+    if (!value || seen.has(value)) continue
+    seen.add(value)
+
+    try {
+      return await vippsClient.getCheckoutSession(value)
+    } catch (error) {
+      lastError = error
+    }
+  }
+
+  if (lastError) throw lastError
+  return null
+}
+
 async function reconcileEggOrder(order: any) {
   const completedDeposit = (order.egg_payments || []).find(
     (payment: any) => payment.payment_type === 'deposit' && payment.status === 'completed'
@@ -70,13 +95,16 @@ async function reconcileEggOrder(order: any) {
     return order
   }
 
-  const vippsId = depositPayment.vipps_order_id
-  if (!vippsId) {
+  if (!depositPayment.idempotency_key && !depositPayment.vipps_order_id) {
     return order
   }
 
   try {
-    const session = await vippsClient.getCheckoutSession(vippsId)
+    const session = await getCheckoutSessionFromPayment(depositPayment)
+    if (!session) {
+      return order
+    }
+
     const sessionState = session?.sessionState as string | undefined
 
     if (sessionState !== 'PaymentSuccessful') {
