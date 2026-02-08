@@ -101,7 +101,8 @@ export async function POST(
       },
       configuration: {
         userFlow: 'WEB_REDIRECT',
-        // Configure to collect customer information in Vipps
+        // Skip address/contact info collection in Checkout
+        elements: 'PaymentOnly',
         customerInteraction: 'CUSTOMER_PRESENT',
       },
       // Add logistics configuration to handle shipping

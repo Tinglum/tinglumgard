@@ -71,6 +71,7 @@ export async function POST(
       },
       configuration: {
         userFlow: 'WEB_REDIRECT',
+        elements: 'PaymentOnly',
         customerInteraction: 'CUSTOMER_PRESENT',
       },
     }

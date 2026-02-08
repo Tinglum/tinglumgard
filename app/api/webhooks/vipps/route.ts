@@ -94,7 +94,8 @@ export async function POST(request: NextRequest) {
     // Try to find payment by session ID or reference
     const vippsId =
       (payload.sessionId as string | undefined) ||
-      (payload.reference as string | undefined);
+      (payload.reference as string | undefined) ||
+      (payload.orderId as string | undefined);
 
     if (!vippsId) {
       logError('vipps-webhook-missing-identifier', new Error('Missing vipps identifier in webhook'));
