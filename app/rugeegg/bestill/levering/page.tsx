@@ -31,10 +31,10 @@ const deliveryOptions = [
   {
     id: 'posten' as const,
     icon: Truck,
-    titleNo: 'Posten levering',
-    titleEn: 'Posten delivery',
+    titleNo: 'Posten sending',
+    titleEn: 'Posten shipment',
     descriptionNo: 'Sendes trygt med Posten til nærmeste hentested.',
-    descriptionEn: 'Delivered with Posten to your nearest pickup point.',
+    descriptionEn: 'Shipped with Posten to your nearest pickup point.',
     fee: 30000,
   },
 ]
@@ -80,12 +80,12 @@ export default function EggDeliveryPage() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-4xl font-normal text-neutral-900 mb-2">
-              {language === 'no' ? 'Levering' : 'Delivery'}
+              {language === 'no' ? 'Forsendelse' : 'Shipment'}
             </h1>
             <p className="text-neutral-600">
               {language === 'no'
-                ? 'Velg hvordan du vil motta rugeeggene.'
-                : 'Choose how you want the eggs delivered.'}
+                ? 'Velg hvordan rugeeggene skal sendes eller hentes.'
+                : 'Choose how the eggs will be shipped or picked up.'}
             </p>
           </div>
           <Link href="/rugeegg/handlekurv" className="text-sm text-neutral-600 hover:text-neutral-900">
@@ -172,7 +172,7 @@ export default function EggDeliveryPage() {
                     </span>
                   </div>
                   <div className="flex justify-between text-neutral-600">
-                    <span>{language === 'no' ? 'Levering' : 'Delivery'}</span>
+                    <span>{language === 'no' ? 'Forsendelse' : 'Shipment'}</span>
                     <span className="font-normal text-neutral-900">
                       {formatPrice(currentDraft.deliveryFee, language)}
                     </span>

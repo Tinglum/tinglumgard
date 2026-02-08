@@ -208,7 +208,7 @@ export default function CartPage() {
                         </span>
                       </div>
                       <p className="text-xs text-neutral-500">
-                        + {language === 'no' ? 'frakt beregnes i neste steg' : 'shipping calculated in next step'}
+                        + {language === 'no' ? 'forsendelse beregnes i neste steg' : 'shipping calculated in next step'}
                       </p>
                     </div>
 

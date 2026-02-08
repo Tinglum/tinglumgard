@@ -337,6 +337,91 @@ export default function AdminPage() {
     }
   }
 
+  async function handleEggOrderAction(order: Order) {
+    const actionInput = window.prompt(
+      'Handling for egg-ordre: refund, cancel, cancel_refund, move',
+      'refund'
+    )
+
+    if (!actionInput) return
+
+    const actionKey = actionInput.trim().toLowerCase()
+    const actionMap: Record<string, string> = {
+      refund: 'refund_deposit',
+      cancel: 'cancel_order',
+      cancel_refund: 'cancel_and_refund',
+      move: 'move_week',
+    }
+
+    const action = actionMap[actionKey]
+    if (!action) {
+      toast({
+        title: 'Ugyldig handling',
+        description: 'Bruk refund, cancel, cancel_refund eller move',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    const data: any = {}
+    if (action === 'move_week') {
+      const weekInput = window.prompt('Ny uke (1-53)?', order.week_number?.toString() || '')
+      if (!weekInput) return
+      const yearInput = window.prompt('År?', order.year?.toString() || '')
+      if (!yearInput) return
+
+      const weekNumber = Number(weekInput)
+      const year = Number(yearInput)
+      if (!Number.isFinite(weekNumber) || !Number.isFinite(year)) {
+        toast({
+          title: 'Ugyldig uke/år',
+          description: 'Oppgi gyldige tall for uke og år',
+          variant: 'destructive',
+        })
+        return
+      }
+
+      data.weekNumber = weekNumber
+      data.year = year
+    }
+
+    if (action === 'cancel_order' || action === 'cancel_and_refund') {
+      data.releaseInventory = window.confirm('Frigi lager/inventory for denne ordren?')
+    }
+
+    if (!window.confirm('Bekreft handling?')) return
+
+    const reason = window.prompt('Årsak (valgfritt):', '')
+    if (reason) {
+      data.reason = reason
+    }
+
+    try {
+      const response = await fetch(`/api/admin/eggs/orders/${order.id}/actions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, data }),
+      })
+
+      const result = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        throw new Error(result?.error || 'Kunne ikke utføre handling')
+      }
+
+      await loadOrders()
+      toast({
+        title: 'Oppdatert',
+        description: 'Handling utført på egg-ordre',
+      })
+    } catch (error: any) {
+      toast({
+        title: 'Feil',
+        description: error?.message || 'Kunne ikke utføre handling',
+        variant: 'destructive',
+      })
+    }
+  }
+
   function toggleOrderSelection(orderId: string) {
     const newSelection = new Set(selectedOrders);
     if (newSelection.has(orderId)) {
@@ -974,16 +1059,27 @@ export default function AdminPage() {
                             {new Date(order.created_at).toLocaleDateString('nb-NO')}
                           </td>
                           <td className="px-4 py-3 text-right">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => {
-                                setSelectedOrder(order);
-                                setShowOrderDetail(true);
-                              }}
-                            >
-                              <Eye className="w-4 h-4" />
-                            </Button>
+                            <div className="flex items-center justify-end gap-2">
+                              {order.product_type === 'eggs' && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleEggOrderAction(order)}
+                                >
+                                  <Settings className="w-4 h-4" />
+                                </Button>
+                              )}
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  setSelectedOrder(order);
+                                  setShowOrderDetail(true);
+                                }}
+                              >
+                                <Eye className="w-4 h-4" />
+                              </Button>
+                            </div>
                           </td>
                         </tr>
                       ))}

@@ -85,7 +85,7 @@ export const no = {
 
   // Egg breed detail labels
   breed: {
-    deliveryFrom: "Levering fra",
+    deliveryFrom: "Sending fra",
     pricePerEgg: "kr/egg",
     calculatedAtCheckout: "beregnes i kassen",
     viewDetails: "Se detaljer",
@@ -102,7 +102,7 @@ export const no = {
     days: "dager",
     temperature: "Temperatur",
     humidity: "Fuktighet",
-    qualityNote: "Ferske egg fra frittgaende honer. Levering og frakt beregnes i kassen.",
+    qualityNote: "Ferske egg fra frittgaende honer. Sending og frakt beregnes i kassen.",
     selectWeek: "Velg uke",
     available: "Tilgjengelig",
   },

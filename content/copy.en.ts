@@ -85,7 +85,7 @@ export const en = {
 
   // Egg breed detail labels
   breed: {
-    deliveryFrom: "Delivery from",
+    deliveryFrom: "Shipping from",
     pricePerEgg: "per egg",
     calculatedAtCheckout: "calculated at checkout",
     viewDetails: "View details",
@@ -102,7 +102,7 @@ export const en = {
     days: "days",
     temperature: "Temperature",
     humidity: "Humidity",
-    qualityNote: "Fresh eggs from free-range hens. Delivery and shipping are calculated at checkout.",
+    qualityNote: "Fresh eggs from free-range hens. Shipping is calculated at checkout.",
     selectWeek: "Select week",
     available: "Available",
   },

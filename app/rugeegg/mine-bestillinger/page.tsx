@@ -4,8 +4,9 @@ import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useLanguage } from '@/contexts/LanguageContext'
 import { GlassCard } from '@/components/eggs/GlassCard'
+import { MessagingPanel } from '@/components/MessagingPanel'
 import { formatDateFull, formatPrice } from '@/lib/eggs/utils'
-import { ArrowRight, Calendar, CheckCircle2, Loader2, MessageSquare, AlertTriangle } from 'lucide-react'
+import { ArrowRight, Calendar, CheckCircle2, Loader2, AlertTriangle } from 'lucide-react'
 
 interface EggPayment {
   payment_type: string
@@ -37,12 +38,6 @@ interface EggOrder {
   egg_order_additions?: EggOrderAddition[]
 }
 
-type SupportState = {
-  sending: boolean
-  error?: string
-  success?: string
-}
-
 const toDateOnly = (value: string | Date) => {
   const date = new Date(value)
   return new Date(date.toISOString().split('T')[0])
@@ -55,7 +50,7 @@ const daysBetween = (future: Date, today: Date) => {
 
 const formatDeliveryMethod = (method: string, language: string) => {
   if (method === 'posten') {
-    return language === 'no' ? 'Posten levering' : 'Posten delivery'
+    return language === 'no' ? 'Posten sending' : 'Posten shipment'
   }
   if (method === 'e6_pickup') {
     return language === 'no' ? 'E6 møtepunkt' : 'E6 pickup'
@@ -78,12 +73,12 @@ const buildCalendarIcs = (params: {
   const formatDate = (date: Date) => date.toISOString().split('T')[0].replace(/-/g, '')
   const summary =
     params.language === 'no'
-      ? `Rugeegg levering - ${params.breedName}`
-      : `Hatching eggs delivery - ${params.breedName}`
+      ? `Rugeegg sending - ${params.breedName}`
+      : `Hatching eggs shipment - ${params.breedName}`
   const description =
     params.language === 'no'
-      ? `Bestilling ${params.orderNumber} leveres denne uken.`
-      : `Order ${params.orderNumber} delivers this week.`
+      ? `Bestilling ${params.orderNumber} sendes denne uken.`
+      : `Order ${params.orderNumber} ships this week.`
 
   return [
     'BEGIN:VCALENDAR',
@@ -167,9 +162,6 @@ export default function EggOrdersPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [authRequired, setAuthRequired] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [supportDrafts, setSupportDrafts] = useState<Record<string, string>>({})
-  const [supportStatus, setSupportStatus] = useState<Record<string, SupportState>>({})
-
   const today = useMemo(() => toDateOnly(new Date()), [])
 
   const sortedOrders = useMemo(() => {
@@ -220,60 +212,6 @@ export default function EggOrdersPage() {
       isMounted = false
     }
   }, [])
-
-  const handleSupportSend = async (order: EggOrder) => {
-    const message = (supportDrafts[order.id] || '').trim()
-    if (!message) {
-      setSupportStatus((prev) => ({
-        ...prev,
-        [order.id]: {
-          sending: false,
-          error: language === 'no' ? 'Skriv en melding før du sender.' : 'Write a message before sending.',
-        },
-      }))
-      return
-    }
-
-    setSupportStatus((prev) => ({ ...prev, [order.id]: { sending: true } }))
-
-    try {
-      const subject =
-        language === 'no'
-          ? `Rugeegg: ${order.order_number}`
-          : `Hatching eggs: ${order.order_number}`
-      const response = await fetch('/api/messages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          subject,
-          message: `${message}\n\nOrdre: ${order.order_number}`,
-          message_type: 'egg_support',
-        }),
-      })
-
-      if (!response.ok) {
-        const data = await response.json().catch(() => null)
-        throw new Error(data?.error || 'Kunne ikke sende melding')
-      }
-
-      setSupportDrafts((prev) => ({ ...prev, [order.id]: '' }))
-      setSupportStatus((prev) => ({
-        ...prev,
-        [order.id]: {
-          sending: false,
-          success: language === 'no' ? 'Meldingen er sendt.' : 'Message sent.',
-        },
-      }))
-    } catch (err: any) {
-      setSupportStatus((prev) => ({
-        ...prev,
-        [order.id]: {
-          sending: false,
-          error: err?.message || (language === 'no' ? 'Kunne ikke sende melding.' : 'Failed to send message.'),
-        },
-      }))
-    }
-  }
 
   const downloadCalendar = (order: EggOrder, breedName: string) => {
     const ics = buildCalendarIcs({
@@ -476,8 +414,8 @@ export default function EggOrdersPage() {
                         <CheckCircle2 className="w-4 h-4 text-neutral-900" />
                         <span>
                           {language === 'no'
-                            ? `Levering ${formatDateFull(deliveryDate, language)}`
-                            : `Delivery ${formatDateFull(deliveryDate, language)}`}
+                            ? `Forsendelse ${formatDateFull(deliveryDate, language)}`
+                            : `Shipment ${formatDateFull(deliveryDate, language)}`}
                           {daysToDelivery >= 0 &&
                             ` · ${daysToDelivery} ${language === 'no' ? 'dager igjen' : 'days left'}`}
                         </span>
@@ -487,7 +425,7 @@ export default function EggOrdersPage() {
                     <div className="space-y-3">
                       <div className="text-sm text-neutral-600">
                         <p className="text-xs uppercase tracking-[0.2em] text-neutral-500">
-                          {language === 'no' ? 'Levering' : 'Delivery'}
+                          {language === 'no' ? 'Forsendelse' : 'Shipment'}
                         </p>
                         <p className="font-normal text-neutral-900">
                           {formatDeliveryMethod(order.delivery_method, language)}
@@ -528,51 +466,17 @@ export default function EggOrdersPage() {
                     </div>
                   </div>
 
-                  <div className="border-t border-neutral-200 pt-5 space-y-3">
-                    <div className="flex items-center gap-2 text-sm font-medium text-neutral-900">
-                      <MessageSquare className="w-4 h-4" />
-                      {language === 'no' ? 'Trenger du hjelp?' : 'Need help?'}
-                    </div>
-                    <textarea
-                      value={supportDrafts[order.id] || ''}
-                      onChange={(event) =>
-                        setSupportDrafts((prev) => ({ ...prev, [order.id]: event.target.value }))
-                      }
-                      rows={3}
-                      placeholder={
-                        language === 'no'
-                          ? 'Send en melding om bestillingen din...'
-                          : 'Send a message about your order...'
-                      }
-                      className="w-full rounded-xl border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-300"
-                    />
-                    {supportStatus[order.id]?.error && (
-                      <p className="text-xs text-red-600">{supportStatus[order.id]?.error}</p>
-                    )}
-                    {supportStatus[order.id]?.success && (
-                      <p className="text-xs text-neutral-900">{supportStatus[order.id]?.success}</p>
-                    )}
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-neutral-500">
-                        {language === 'no'
-                          ? 'Svar innen 24 timer på hverdager.'
-                          : 'Replies within 24 hours on weekdays.'}
-                      </span>
-                      <button
-                        type="button"
-                        disabled={supportStatus[order.id]?.sending}
-                        onClick={() => handleSupportSend(order)}
-                        className="btn-primary"
-                      >
-                        {supportStatus[order.id]?.sending
-                          ? (language === 'no' ? 'Sender...' : 'Sending...')
-                          : (language === 'no' ? 'Send melding' : 'Send message')}
-                      </button>
-                    </div>
-                  </div>
+                  <div className="border-t border-neutral-200 pt-5" />
                 </GlassCard>
               )
             })}
+
+            <GlassCard className="p-6">
+              <h2 className="text-lg font-normal text-neutral-900 mb-4">
+                {language === 'no' ? 'Meldinger' : 'Messages'}
+              </h2>
+              <MessagingPanel />
+            </GlassCard>
           </div>
         )}
       </div>

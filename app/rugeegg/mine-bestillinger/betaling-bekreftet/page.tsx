@@ -163,7 +163,7 @@ export default function EggRemainderConfirmationPage() {
               <div className="font-normal text-neutral-900">{order.week_number}</div>
             </div>
             <div>
-              <div className="text-neutral-500">{language === 'no' ? 'Leveringsdato' : 'Delivery date'}</div>
+              <div className="text-neutral-500">{language === 'no' ? 'Sendingsdato' : 'Shipping date'}</div>
               <div className="font-normal text-neutral-900">
                 {formatDate(new Date(order.delivery_monday), language)}
               </div>

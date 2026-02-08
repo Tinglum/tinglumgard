@@ -83,12 +83,12 @@ export default function EggPaymentPage() {
             </h1>
             <p className="text-neutral-600">
               {language === 'no'
-                ? 'Betal forskuddet for å bekrefte bestillingen.'
-                : 'Pay the deposit to confirm your order.'}
+                ? 'Betal forskuddet for eggene for å bekrefte bestillingen.'
+                : 'Pay the deposit for the eggs to confirm your order.'}
             </p>
           </div>
           <Link href="/rugeegg/bestill/levering" className="text-sm text-neutral-600 hover:text-neutral-900">
-            {language === 'no' ? 'Tilbake til levering' : 'Back to delivery'}
+            {language === 'no' ? 'Tilbake til forsendelse' : 'Back to shipment'}
           </Link>
         </div>
 
@@ -111,8 +111,8 @@ export default function EggPaymentPage() {
                   </h2>
                   <p className="text-sm text-neutral-600">
                     {language === 'no'
-                      ? 'Du betaler 50% nå, resten før levering.'
-                      : 'You pay 50% now, the rest before delivery.'}
+                      ? 'Du betaler 50% av eggene nå, resten før sending.'
+                      : 'You pay 50% for the eggs now, the rest before shipment.'}
                   </p>
                 </div>
               </div>
@@ -164,7 +164,7 @@ export default function EggPaymentPage() {
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span>{language === 'no' ? 'Levering' : 'Delivery'}</span>
+                    <span>{language === 'no' ? 'Forsendelse' : 'Shipment'}</span>
                     <span className="font-normal text-neutral-900">
                       {formatDate(currentDraft.week.deliveryMonday, language)}
                     </span>
@@ -179,7 +179,7 @@ export default function EggPaymentPage() {
                     </span>
                   </div>
                   <div className="flex justify-between text-neutral-600">
-                    <span>{language === 'no' ? 'Levering' : 'Delivery'}</span>
+                    <span>{language === 'no' ? 'Pakking og forsendelse' : 'Packing and shipment'}</span>
                     <span className="font-normal text-neutral-900">
                       {formatPrice(currentDraft.deliveryFee, language)}
                     </span>

@@ -102,7 +102,6 @@ export async function POST(request: NextRequest) {
     }
 
     // Send confirmation email to customer
-    const isEggMessage = typeof message_type === 'string' && message_type.startsWith('egg');
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://tinglumgard.no';
 
     if (session.email) {
@@ -124,7 +123,7 @@ export async function POST(request: NextRequest) {
           subject,
           message,
           orderNumber,
-          portalUrl: isEggMessage ? `${appUrl}/rugeegg/mine-bestillinger` : `${appUrl}/min-side`,
+          portalUrl: `${appUrl}/min-side`,
           portalLabel: 'Min side',
         });
 

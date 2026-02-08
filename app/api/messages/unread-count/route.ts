@@ -22,7 +22,8 @@ export async function GET(request: NextRequest) {
         message_replies (
           id,
           created_at,
-          is_internal
+          is_internal,
+          is_from_customer
         )
       `)
       .eq('customer_phone', session.phoneNumber);
@@ -34,13 +35,15 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ unreadCount: 0 });
     }
 
-    // Count messages with new admin replies OR open messages without replies yet
+    // Count messages with new admin replies only
     let unreadCount = 0;
 
     if (messages && Array.isArray(messages)) {
       for (const message of messages) {
         const replies = message.message_replies || [];
-        const publicReplies = Array.isArray(replies) ? replies.filter((r: any) => r && !r.is_internal) : [];
+        const publicReplies = Array.isArray(replies)
+          ? replies.filter((r: any) => r && !r.is_internal && !r.is_from_customer)
+          : [];
         
         // Case 1: Message has admin replies
         if (publicReplies.length > 0) {
@@ -59,10 +62,6 @@ export async function GET(request: NextRequest) {
               unreadCount++;
             }
           }
-        } 
-        // Case 2: Open message without admin reply yet - count as unread
-        else if ((message as any).status === 'open' || (message as any).status === 'in_progress') {
-          unreadCount++;
         }
       }
     }
