@@ -130,7 +130,6 @@ export async function POST(
     console.log('Creating Vipps Checkout session with config:', {
       reference: shortReference,
       amount: depositAmount,
-      hasCustomerInfo: Object.keys(customerInfo).length > 0,
       orderId: order.id,
     });
 
