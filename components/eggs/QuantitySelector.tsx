@@ -11,15 +11,32 @@ import { X, Minus, Plus, Calendar, Package, Info } from 'lucide-react'
 interface QuantitySelectorProps {
   breed: Breed
   week: WeekInventory
+  initialQuantity?: number
   onClose: () => void
   onContinue: (quantity: number) => void
 }
 
-export function QuantitySelector({ breed, week, onClose, onContinue }: QuantitySelectorProps) {
+export function QuantitySelector({ breed, week, initialQuantity, onClose, onContinue }: QuantitySelectorProps) {
   const { language, t } = useLanguage()
   const maxQuantity = Math.min(week.eggsAvailable, breed.maxOrderQuantity)
   const minQuantity = 1
-  const [quantity, setQuantity] = useState(Math.min(maxQuantity, breed.minOrderQuantity))
+  const [quantity, setQuantity] = useState(
+    clamp(
+      initialQuantity ?? breed.minOrderQuantity,
+      minQuantity,
+      Math.min(maxQuantity, breed.maxOrderQuantity)
+    )
+  )
+
+  useEffect(() => {
+    setQuantity(
+      clamp(
+        initialQuantity ?? breed.minOrderQuantity,
+        minQuantity,
+        Math.min(maxQuantity, breed.maxOrderQuantity)
+      )
+    )
+  }, [initialQuantity, breed.minOrderQuantity, maxQuantity])
 
   const handleQuantityChange = (newQuantity: number) => {
     setQuantity(clamp(newQuantity, minQuantity, maxQuantity))

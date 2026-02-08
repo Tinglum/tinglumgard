@@ -105,15 +105,21 @@ export async function POST(request: NextRequest) {
       [k: string]: unknown;
     };
 
+    // Try to find payment by session ID or reference
+    const vippsId =
+      (payload.sessionId as string | undefined) ||
+      (payload.reference as string | undefined) ||
+      (payload.orderId as string | undefined);
+
     // CRITICAL: Check if payment was actually successful
     const sessionState = payload.sessionState as string | undefined;
-    const paymentState = payload.paymentDetails?.state as string | undefined;
+    let paymentState = payload.paymentDetails?.state as string | undefined;
 
     // Only process successful payments
     const allowedPaymentStates = new Set(['AUTHORIZED', 'CAPTURED'])
-    if (sessionState !== 'PaymentSuccessful' || !allowedPaymentStates.has(paymentState || '')) {
+    if (sessionState !== 'PaymentSuccessful') {
       return NextResponse.json(
-        { 
+        {
           message: "Payment not successful, no action taken",
           sessionState,
           paymentState
@@ -122,11 +128,58 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Try to find payment by session ID or reference
-    const vippsId =
-      (payload.sessionId as string | undefined) ||
-      (payload.reference as string | undefined) ||
-      (payload.orderId as string | undefined);
+    if (!allowedPaymentStates.has(paymentState || '')) {
+      if (vippsId) {
+        try {
+          const session = await vippsClient.getCheckoutSession(vippsId);
+          const sessionStateFromVipps = session?.sessionState as string | undefined;
+          const paymentStateFromVipps = session?.paymentDetails?.state as string | undefined;
+
+          if (sessionStateFromVipps !== 'PaymentSuccessful') {
+            return NextResponse.json(
+              {
+                message: "Payment not successful, no action taken",
+                sessionState: sessionStateFromVipps,
+                paymentState: paymentStateFromVipps
+              },
+              { status: 200 }
+            );
+          }
+
+          if (paymentStateFromVipps && !allowedPaymentStates.has(paymentStateFromVipps)) {
+            return NextResponse.json(
+              {
+                message: "Payment not successful, no action taken",
+                sessionState: sessionStateFromVipps,
+                paymentState: paymentStateFromVipps
+              },
+              { status: 200 }
+            );
+          }
+
+          paymentState = paymentStateFromVipps || paymentState;
+        } catch (error) {
+          logError('vipps-webhook-session-verify-failed', error);
+          return NextResponse.json(
+            {
+              message: "Payment not successful, no action taken",
+              sessionState,
+              paymentState
+            },
+            { status: 200 }
+          );
+        }
+      } else {
+        return NextResponse.json(
+          {
+            message: "Payment not successful, no action taken",
+            sessionState,
+            paymentState
+          },
+          { status: 200 }
+        );
+      }
+    }
 
     if (!vippsId) {
       logError('vipps-webhook-missing-identifier', new Error('Missing vipps identifier in webhook'));
@@ -202,7 +255,7 @@ export async function POST(request: NextRequest) {
 
         if (
           sessionStateFromVipps === 'PaymentSuccessful' &&
-          allowedPaymentStates.has(paymentStateFromVipps || '')
+          (!paymentStateFromVipps || allowedPaymentStates.has(paymentStateFromVipps))
         ) {
           sessionVerified = true;
         }

@@ -21,7 +21,7 @@ export default function BreedDetailPage() {
   const slug = params.slug as string
   const { lang: language, t } = useLanguage()
   const { startOrder } = useOrder()
-  const { addToCart } = useCart()
+  const { items, addToCart } = useCart()
 
   const [breed, setBreed] = useState<Breed | null>(null)
   const [inventory, setInventory] = useState<WeekInventory[]>([])
@@ -55,6 +55,21 @@ export default function BreedDetailPage() {
       isActive = false
     }
   }, [slug, language])
+
+  useEffect(() => {
+    if (selectedWeek || showQuantityModal || inventory.length === 0) return
+    if (items.length === 0) return
+
+    const firstWeekId = items[0].week.id
+    const sameWeek = items.every((item) => item.week.id === firstWeekId)
+    if (!sameWeek) return
+
+    const matchingWeek = inventory.find((week) => week.id === firstWeekId)
+    if (!matchingWeek) return
+
+    setSelectedWeek(matchingWeek)
+    setShowQuantityModal(true)
+  }, [inventory, items, selectedWeek, showQuantityModal])
 
   if (isLoading) {
     return (
@@ -94,6 +109,10 @@ export default function BreedDetailPage() {
       router.push('/rugeegg/handlekurv')
     }
   }
+
+  const existingItem = selectedWeek
+    ? items.find((item) => item.breed.id === breed.id && item.week.id === selectedWeek.id)
+    : null
 
   return (
     <div className="min-h-screen py-12">
@@ -238,6 +257,7 @@ export default function BreedDetailPage() {
         <QuantitySelector
           breed={breed}
           week={selectedWeek}
+          initialQuantity={existingItem?.quantity}
           onClose={() => {
             setShowQuantityModal(false)
             setSelectedWeek(null)

@@ -53,7 +53,11 @@ async function reconcileEggOrder(order: any) {
     const sessionState = session?.sessionState as string | undefined
     const paymentState = session?.paymentDetails?.state as string | undefined
 
-    if (sessionState !== 'PaymentSuccessful' || !allowedPaymentStates.has(paymentState || '')) {
+    if (sessionState !== 'PaymentSuccessful') {
+      return order
+    }
+
+    if (paymentState && !allowedPaymentStates.has(paymentState)) {
       return order
     }
 

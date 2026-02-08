@@ -246,13 +246,13 @@ export default function CartPage() {
                       </div>
                     )}
 
-                    {items.length > 1 && checkoutStatus.allowed && (
+                    {items.length > 1 && (
                       <div className="p-4 rounded-xl bg-info-50 text-info-700 flex items-start gap-3">
                         <Info className="w-5 h-5 flex-shrink-0 mt-0.5" />
                         <p className="text-sm">
                           {language === 'no'
-                            ? 'Alle eggene samles i én bestilling og én forsendelse.'
-                            : 'All eggs will be combined into one order and one shipment.'}
+                            ? 'Du kan endre antall per rase når som helst. Bestillingen går videre når alle kravene er oppfylt.'
+                            : 'You can adjust quantities anytime. The order proceeds when all requirements are met.'}
                         </p>
                       </div>
                     )}
