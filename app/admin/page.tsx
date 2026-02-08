@@ -623,7 +623,7 @@ export default function AdminPage() {
   return (
     <div className="min-h-screen bg-white">
       {/* Header */}
-      <div className="bg-white border-b border-neutral-200 sticky top-0 z-40 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.08)]">
+      <div className="bg-white border-b border-neutral-200 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.08)]">
         <div className="max-w-[1800px] mx-auto px-6 py-6">
           <div className="flex items-center justify-between">
             <h1 className="text-3xl font-light tracking-tight text-neutral-900">Tinglumgård Admin</h1>
@@ -798,7 +798,7 @@ export default function AdminPage() {
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="px-4 py-2 border border-gray-300 rounded-lg"
+                className="px-4 py-2 border border-gray-300 rounded-xl"
               >
                 {statusOptions.map((option) => (
                   <option key={option.value} value={option.value}>
@@ -951,11 +951,11 @@ export default function AdminPage() {
                           <td className="px-4 py-3">
                             <span className={cn(
                               'px-2 py-1 rounded-full text-xs font-medium',
-                              order.status === 'completed' ? 'bg-green-100 text-green-800' :
+                              order.status === 'completed' ? 'bg-neutral-100 text-neutral-900' :
                               order.status === 'ready_for_pickup' ? 'bg-blue-100 text-blue-800' :
-                              order.status === 'paid' ? 'bg-green-100 text-green-800' :
-                              order.status === 'fully_paid' ? 'bg-green-100 text-green-800' :
-                              order.status === 'deposit_paid' ? 'bg-amber-100 text-amber-800' :
+                              order.status === 'paid' ? 'bg-neutral-100 text-neutral-900' :
+                              order.status === 'fully_paid' ? 'bg-neutral-100 text-neutral-900' :
+                              order.status === 'deposit_paid' ? 'bg-neutral-100 text-neutral-600' :
                               'bg-gray-100 text-gray-800'
                             )}>
                               {statusOptions.find((s) => s.value === order.status)?.label || order.status}
@@ -1056,7 +1056,7 @@ export default function AdminPage() {
                     <h3 className="font-normal text-lg mb-4">Populære produktkombinasjoner</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                       {analytics.products.combinations.map((combo: any, index: number) => (
-                        <div key={index} className="p-4 rounded-lg bg-gray-50">
+                        <div key={index} className="p-4 rounded-xl bg-gray-50">
                           <p className="font-medium text-gray-900">{combo.combo}</p>
                           <p className="text-2xl font-bold text-blue-600">{combo.count}</p>
                           <p className="text-sm text-gray-600">bestillinger</p>

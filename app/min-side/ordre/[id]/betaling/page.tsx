@@ -389,15 +389,13 @@ export default function RemainderPaymentSummaryPage() {
             />
 
             {extrasDelta !== 0 && (
-              <div className={cn('mt-4 p-3 rounded-lg',
-                extrasDelta > 0 ? 'bg-green-50 border border-green-200' : 'bg-orange-50 border border-orange-200'
-              )}>
+              <div className="mt-4 p-3 rounded-xl bg-neutral-50 border border-neutral-200">
                 {extrasDelta > 0 ? (
-                  <p className="text-sm text-green-800">
+                  <p className="text-sm text-neutral-900">
                     ⬆ Du legger til kr {extrasDelta.toLocaleString('nb-NO')} til den opprinnelige bestillingen
                   </p>
                 ) : (
-                  <p className="text-sm text-orange-800">
+                  <p className="text-sm text-neutral-900">
                     ⬇ Du reduserer bestillingen med kr {Math.abs(extrasDelta).toLocaleString('nb-NO')}
                   </p>
                 )}
@@ -405,8 +403,8 @@ export default function RemainderPaymentSummaryPage() {
             )}
 
             {hasExtrasChanges && (
-              <div className="mt-4 p-4 rounded-lg bg-amber-50 border border-amber-200">
-                <p className="text-sm font-light text-amber-800 leading-relaxed">
+              <div className="mt-4 p-4 rounded-xl bg-neutral-50 border border-neutral-200">
+                <p className="text-sm font-light text-neutral-900 leading-relaxed">
                   ⚠️ Du har endringer som ikke er lagret. De vil bli lagret når du klikker &quot;Betal med Vipps&quot;.
                 </p>
               </div>
@@ -439,7 +437,7 @@ export default function RemainderPaymentSummaryPage() {
                       <p className="font-light text-neutral-900">Henting på gården</p>
                       <p className="text-sm font-light text-neutral-600 mt-1">Tinglum Gård, Sjøfossen</p>
                     </div>
-                    <span className="text-sm font-normal text-green-600">Gratis</span>
+                    <span className="text-sm font-normal text-neutral-900">Gratis</span>
                   </div>
                 </button>
 
@@ -505,23 +503,23 @@ export default function RemainderPaymentSummaryPage() {
                   className={cn(
                     "w-full p-6 rounded-xl border-2 transition-all duration-300 text-left",
                     freshDelivery
-                      ? "border-green-600 bg-green-50 shadow-[0_15px_40px_-12px_rgba(34,197,94,0.2)]"
-                      : "border-neutral-200 hover:border-green-300 hover:shadow-[0_10px_30px_-10px_rgba(0,0,0,0.1)] hover:-translate-y-0.5"
+                      ? "border-neutral-900 bg-neutral-50 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.08)]"
+                      : "border-neutral-200 hover:border-neutral-300 hover:shadow-[0_10px_30px_-10px_rgba(0,0,0,0.1)] hover:-translate-y-0.5"
                   )}
                 >
                   <div className="flex justify-between items-center">
                     <div className="flex items-center gap-3">
-                      {freshDelivery && <Check className="w-6 h-6 text-green-600" />}
+                      {freshDelivery && <Check className="w-6 h-6 text-neutral-900" />}
                       <div>
-                        <p className={cn("font-light", freshDelivery ? "text-green-800" : "text-neutral-900")}>
+                        <p className="font-light text-neutral-900">
                           Fersk levering
                         </p>
-                        <p className={cn("text-sm font-light mt-1", freshDelivery ? "text-green-700" : "text-neutral-600")}>
+                        <p className="text-sm font-light mt-1 text-neutral-600">
                           Produktene leveres ferske (ikke frosset)
                         </p>
                       </div>
                     </div>
-                    <span className={cn("text-sm font-light", freshDelivery ? "text-green-800" : "text-neutral-900")}>
+                    <span className="text-sm font-light text-neutral-900">
                       +{pricingConfig?.fresh_delivery_fee || 500} kr
                     </span>
                   </div>
@@ -531,15 +529,13 @@ export default function RemainderPaymentSummaryPage() {
 
             {/* Delta Display */}
             {totalDeliveryDelta !== 0 && (
-              <div className={cn('p-3 rounded-lg',
-                totalDeliveryDelta > 0 ? 'bg-green-50 border border-green-200' : 'bg-orange-50 border border-orange-200'
-              )}>
+              <div className="p-3 rounded-xl bg-neutral-50 border border-neutral-200">
                 {totalDeliveryDelta > 0 ? (
-                  <p className="text-sm text-green-800">
+                  <p className="text-sm text-neutral-900">
                     ⬆ Du legger til kr {totalDeliveryDelta.toLocaleString('nb-NO')} for leveringsendring
                   </p>
                 ) : (
-                  <p className="text-sm text-orange-800">
+                  <p className="text-sm text-neutral-900">
                     ⬇ Du sparer kr {Math.abs(totalDeliveryDelta).toLocaleString('nb-NO')} på leveringsendring
                   </p>
                 )}
@@ -548,8 +544,8 @@ export default function RemainderPaymentSummaryPage() {
 
             {/* Changes Warning */}
             {hasDeliveryChanges && (
-              <div className="p-4 rounded-lg bg-amber-50 border border-amber-200">
-                <p className="text-sm font-light text-amber-800 leading-relaxed">
+              <div className="p-4 rounded-xl bg-neutral-50 border border-neutral-200">
+                <p className="text-sm font-light text-neutral-900 leading-relaxed">
                   ⚠️ Du har endret leveringsdetaljene. De vil bli lagret når du klikker &quot;Betal med Vipps&quot;.
                 </p>
               </div>
@@ -578,7 +574,7 @@ export default function RemainderPaymentSummaryPage() {
             {newExtrasTotal > 0 && (
               <div className="flex justify-between">
                 <span className="font-light text-neutral-600">Ekstra produkter</span>
-                <span className="font-light text-green-600">
+                <span className="font-light text-neutral-900">
                   kr {newExtrasTotal.toLocaleString('nb-NO')}
                 </span>
               </div>
@@ -586,14 +582,14 @@ export default function RemainderPaymentSummaryPage() {
             {totalDeliveryDelta !== 0 && (
               <div className="flex justify-between">
                 <span className="font-light text-neutral-600">Leveringsendring</span>
-                <span className={cn('font-light', totalDeliveryDelta > 0 ? 'text-green-600' : 'text-orange-600')}>
+                <span className={cn('font-light', totalDeliveryDelta > 0 ? 'text-neutral-900' : 'text-neutral-900')}>
                   {totalDeliveryDelta > 0 ? '+' : ''}kr {totalDeliveryDelta.toLocaleString('nb-NO')}
                 </span>
               </div>
             )}
             <div className="pt-4 mt-4 border-t border-neutral-200 flex justify-between items-center">
               <span className="text-xl font-light text-neutral-900">Å betale nå</span>
-              <span className="text-3xl font-light text-green-600">
+              <span className="text-3xl font-light text-neutral-900">
                 kr {finalTotal.toLocaleString('nb-NO')}
               </span>
             </div>
@@ -603,7 +599,7 @@ export default function RemainderPaymentSummaryPage() {
             <button
               onClick={executePayment}
               disabled={isPaying}
-              className="w-full py-5 bg-green-600 hover:bg-green-700 text-white rounded-xl text-base font-light uppercase tracking-wide shadow-[0_20px_60px_-15px_rgba(34,197,94,0.4)] hover:shadow-[0_30px_80px_-20px_rgba(34,197,94,0.5)] hover:-translate-y-1 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0"
+              className="w-full py-5 bg-neutral-900 hover:bg-neutral-800 text-white rounded-xl text-base font-light uppercase tracking-wide shadow-[0_20px_60px_-15px_rgba(0,0,0,0.08)] hover:shadow-[0_30px_80px_-20px_rgba(0,0,0,0.12)] hover:-translate-y-1 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0"
             >
               {isPaying ? (
                 <span className="flex items-center justify-center gap-3">

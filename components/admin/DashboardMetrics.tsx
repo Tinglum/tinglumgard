@@ -194,11 +194,11 @@ export function DashboardMetrics({ metrics }: DashboardMetricsProps) {
             <div>
               <p className="text-sm text-gray-600 mb-2">Boksstørrelser</p>
               <div className="flex gap-4">
-                <div className="flex-1 p-4 rounded-lg bg-blue-50">
+                <div className="flex-1 p-4 rounded-xl bg-blue-50">
                   <p className="text-sm text-blue-700">8kg bokser</p>
                   <p className="text-2xl font-bold text-blue-900">{product_breakdown.box_8kg}</p>
                 </div>
-                <div className="flex-1 p-4 rounded-lg bg-purple-50">
+                <div className="flex-1 p-4 rounded-xl bg-purple-50">
                   <p className="text-sm text-purple-700">12kg bokser</p>
                   <p className="text-2xl font-bold text-purple-900">{product_breakdown.box_12kg}</p>
                 </div>
@@ -208,11 +208,11 @@ export function DashboardMetrics({ metrics }: DashboardMetricsProps) {
             <div>
               <p className="text-sm text-gray-600 mb-2">Betalingsgrad</p>
               <div className="space-y-2">
-                <div className="flex items-center justify-between p-3 rounded-lg bg-green-50">
+                <div className="flex items-center justify-between p-3 rounded-xl bg-green-50">
                   <span className="text-sm text-gray-700">Forskudd fullført</span>
                   <span className="font-bold text-green-900">{completion_rates.deposit}%</span>
                 </div>
-                <div className="flex items-center justify-between p-3 rounded-lg bg-blue-50">
+                <div className="flex items-center justify-between p-3 rounded-xl bg-blue-50">
                   <span className="text-sm text-gray-700">Restbeløp fullført</span>
                   <span className="font-bold text-blue-900">{completion_rates.remainder}%</span>
                 </div>

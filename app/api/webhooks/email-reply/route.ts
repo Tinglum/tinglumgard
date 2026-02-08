@@ -127,12 +127,16 @@ export async function POST(request: NextRequest) {
 
     if (isFromAdmin && message.customer_email) {
       try {
+        const isEggMessage = typeof message.message_type === 'string' && message.message_type.startsWith('egg');
+        const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://tinglumgard.no';
         const emailTemplate = getAdminReplyNotificationTemplate({
           customerName: message.customer_name || 'Kunde',
           messageId: message.id,
           subject: message.subject,
           replyText,
           adminName: 'Tinglum Gård',
+          portalUrl: isEggMessage ? appUrl + '/rugeegg/mine-bestillinger' : appUrl + '/min-side',
+          portalLabel: 'Min side',
         });
 
         await sendEmail({
@@ -213,3 +217,5 @@ export async function GET() {
     description: 'Handles inbound email replies from Mailgun',
   });
 }
+
+

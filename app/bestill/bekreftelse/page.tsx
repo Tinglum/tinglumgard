@@ -145,14 +145,8 @@ export default function ConfirmationPage() {
       <div className="max-w-4xl mx-auto px-6">
         {/* Success Icon */}
         <div className="text-center mb-12">
-          <div className={cn("inline-flex items-center justify-center w-24 h-24 rounded-full mb-6 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.15)]",
-            paymentStatus === 'completed' ? "bg-green-50 border-2 border-green-200" :
-            paymentStatus === 'failed' ? "bg-red-50 border-2 border-red-200" :
-            "bg-yellow-50 border-2 border-yellow-200")}>
-            <CheckCircle className={cn("w-14 h-14",
-              paymentStatus === 'completed' ? "text-green-600" :
-              paymentStatus === 'failed' ? "text-red-600" :
-              "text-yellow-600")} />
+          <div className="inline-flex items-center justify-center w-24 h-24 rounded-full mb-6 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.15)] bg-neutral-50 border-2 border-neutral-900">
+            <CheckCircle className="w-14 h-14 text-neutral-900" />
           </div>
           <h1 className="text-5xl font-light tracking-tight text-neutral-900 mb-3">
             {paymentStatus === 'completed' ? 'Betaling mottatt!' :
@@ -249,18 +243,18 @@ export default function ConfirmationPage() {
             )}
 
             {order.status === 'deposit_paid' && (
-              <div className={cn("p-4 rounded-xl border-2 border-green-500 bg-green-50")}>
-                <p className="text-green-900 font-semibold">Forskudd bekreftet! ✓</p>
-                <p className="text-sm text-green-800 mt-1">
+              <div className={cn("p-4 rounded-xl border-2 border-neutral-900 bg-neutral-50")}>
+                <p className="text-neutral-900 font-semibold">Forskudd bekreftet! ✓</p>
+                <p className="text-sm text-neutral-900 mt-1">
                   Vi har mottatt forskudd. Du vil motta en påminnelse om restbetaling ca. 2 uker før henting.
                 </p>
               </div>
             )}
 
             {order.status === 'paid' && (
-              <div className={cn("p-4 rounded-xl border-2 border-green-500 bg-green-50")}>
-                <p className="text-green-900 font-semibold">Fullstendig betalt! ✓</p>
-                <p className="text-sm text-green-800 mt-1">
+              <div className={cn("p-4 rounded-xl border-2 border-neutral-900 bg-neutral-50")}>
+                <p className="text-neutral-900 font-semibold">Fullstendig betalt! ✓</p>
+                <p className="text-sm text-neutral-900 mt-1">
                   Takk for full betaling. Din bestilling vil bli klargjort for henting.
                 </p>
               </div>

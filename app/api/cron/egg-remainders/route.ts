@@ -42,13 +42,13 @@ function buildReminderHtml(params: {
 <body>
   <div class="container">
     <div class="card">
-      <div class="title">PÃ¥minnelse om restbetaling</div>
+      <div class="title">Påminnelse om restbetaling</div>
       <p>Hei ${params.customerName},</p>
-      <p class="muted">Bestilling ${params.orderNumber} Â· ${params.breedName} Â· Uke ${params.weekNumber}</p>
-      <div class="amount">RestbelÃ¸p: kr ${params.remainderNok}</div>
-      <p>Vennligst betal innen ${params.dueDate} for Ã¥ beholde bestillingen.</p>
+      <p class="muted">Bestilling ${params.orderNumber} · ${params.breedName} · Uke ${params.weekNumber}</p>
+      <div class="amount">Restbeløp: kr ${params.remainderNok}</div>
+      <p>Vennligst betal innen ${params.dueDate} for å beholde bestillingen.</p>
       <p>
-        <a class="button" href="${params.appUrl}/rugeegg/mine-bestillinger">Betal restbelÃ¸p</a>
+        <a class="button" href="${params.appUrl}/rugeegg/mine-bestillinger">Betal restbeløp</a>
       </p>
     </div>
   </div>
@@ -80,7 +80,7 @@ function buildForfeitHtml(params: {
     <div class="card">
       <div class="title">Bestilling kansellert</div>
       <p>Hei ${params.customerName},</p>
-      <p class="muted">Bestilling ${params.orderNumber} Â· ${params.breedName} Â· Uke ${params.weekNumber}</p>
+      <p class="muted">Bestilling ${params.orderNumber} · ${params.breedName} · Uke ${params.weekNumber}</p>
       <p>Restbetalingen ble ikke mottatt innen fristen. Bestillingen er derfor kansellert og eggene er frigitt.</p>
     </div>
   </div>
@@ -114,10 +114,10 @@ function buildDayBeforeHtml(params: {
     <div class="card">
       <div class="title">Levering i morgen</div>
       <p>Hei ${params.customerName},</p>
-      <p class="muted">Bestilling ${params.orderNumber} Ã‚Â· ${params.breedName} Ã‚Â· Uke ${params.weekNumber}</p>
-      <p>Rugeeggene sendes i morgen. Du finner bestillingen pÃƒÂ¥ Min side.</p>
+      <p class="muted">Bestilling ${params.orderNumber} · ${params.breedName} · Uke ${params.weekNumber}</p>
+      <p>Rugeeggene sendes i morgen. Du finner bestillingen på Min side.</p>
       <p>
-        <a class="button" href="${params.appUrl}/rugeegg/mine-bestillinger">GÃƒÂ¥ til Min side</a>
+        <a class="button" href="${params.appUrl}/rugeegg/mine-bestillinger">Gå til Min side</a>
       </p>
     </div>
   </div>
@@ -258,7 +258,7 @@ export async function GET(request: NextRequest) {
 
       await sendEmail({
         to: order.customer_email,
-        subject: `PÃ¥minnelse om restbetaling - ${order.order_number}`,
+        subject: `Påminnelse om restbetaling - ${order.order_number}`,
         html: buildReminderHtml({
           customerName: order.customer_name,
           orderNumber: order.order_number,
@@ -326,3 +326,4 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to run reminders' }, { status: 500 })
   }
 }
+

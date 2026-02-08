@@ -205,7 +205,7 @@ export function EggInventoryManagement() {
         <select
           value={selectedBreed}
           onChange={(e) => setSelectedBreed(e.target.value)}
-          className="border border-gray-300 rounded-md px-3 py-2 text-sm"
+          className="border border-gray-300 rounded-xl px-3 py-2 text-sm"
         >
           <option value="all">Alle raser</option>
           {breeds.map(breed => (
@@ -238,7 +238,7 @@ export function EggInventoryManagement() {
                   id="breed"
                   value={formData.breed_id}
                   onChange={(e) => setFormData({ ...formData, breed_id: e.target.value })}
-                  className="mt-1 w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+                  className="mt-1 w-full border border-gray-300 rounded-xl px-3 py-2 text-sm"
                   disabled={!!editingItem}
                 >
                   {breeds.map((breed) => (
@@ -297,7 +297,7 @@ export function EggInventoryManagement() {
                   id="status"
                   value={formData.status}
                   onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                  className="mt-1 w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+                  className="mt-1 w-full border border-gray-300 rounded-xl px-3 py-2 text-sm"
                 >
                   <option value="open">Åpen</option>
                   <option value="closed">Stengt</option>

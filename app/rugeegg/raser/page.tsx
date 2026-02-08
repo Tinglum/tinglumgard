@@ -46,7 +46,7 @@ export default function BreedsPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
         >
-          <h1 className="text-4xl md:text-5xl font-display font-semibold tracking-tight text-neutral-900 mb-4 leading-tight">
+          <h1 className="text-4xl md:text-5xl font-normal tracking-tight text-neutral-900 mb-4 leading-tight">
             {t.nav.breeds}
           </h1>
           <p className="text-lg text-neutral-600 mb-12 leading-normal max-w-prose">
@@ -74,13 +74,13 @@ export default function BreedsPage() {
                   <GlassCard interactive accentBorder={breed.accentColor} className="p-6 h-full">
                     <div className="flex items-start gap-4 mb-4">
                       <div
-                        className="w-16 h-16 rounded-full flex items-center justify-center text-2xl font-display font-bold text-white flex-shrink-0"
+                        className="w-16 h-16 rounded-full flex items-center justify-center text-2xl font-normal text-white flex-shrink-0"
                         style={{ backgroundColor: breed.accentColor }}
                       >
                         {breed.name.charAt(0)}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <h2 className="text-xl font-display font-semibold text-neutral-900 mb-1 leading-snug">
+                        <h2 className="text-xl font-normal text-neutral-900 mb-1 leading-snug">
                           {breed.name}
                         </h2>
                         <p className="text-sm text-neutral-600 leading-normal">
@@ -102,7 +102,7 @@ export default function BreedsPage() {
 
                     <div className="flex items-end justify-between pt-4 border-t border-neutral-200">
                       <div>
-                        <div className="text-2xl font-display font-semibold text-neutral-900">
+                        <div className="text-2xl font-normal text-neutral-900">
                           {formatPrice(breed.pricePerEgg, language)}
                         </div>
                         <div className="text-xs text-neutral-500">

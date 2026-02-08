@@ -15,7 +15,7 @@ export async function GET() {
       queries.push(
         supabaseAdmin
           .from('egg_orders')
-          .select('*, egg_breeds(*), egg_payments(*)')
+          .select('*, egg_breeds(*), egg_payments(*), egg_order_additions(*)')
           .eq('user_id', session.userId)
       )
     }
@@ -23,7 +23,7 @@ export async function GET() {
       queries.push(
         supabaseAdmin
           .from('egg_orders')
-          .select('*, egg_breeds(*), egg_payments(*)')
+          .select('*, egg_breeds(*), egg_payments(*), egg_order_additions(*)')
           .eq('customer_email', session.email)
       )
     }
@@ -31,7 +31,7 @@ export async function GET() {
       queries.push(
         supabaseAdmin
           .from('egg_orders')
-          .select('*, egg_breeds(*), egg_payments(*)')
+          .select('*, egg_breeds(*), egg_payments(*), egg_order_additions(*)')
           .eq('customer_phone', session.phoneNumber)
       )
     }

@@ -116,7 +116,7 @@ export function NotificationSettings() {
         const Icon = categoryIcons[category];
 
         return (
-          <div key={category} className={cn('p-6 rounded-lg border', theme.borderSecondary, theme.bgCard)}>
+          <div key={category} className={cn('p-6 rounded-xl border', theme.borderSecondary, theme.bgCard)}>
             <h3 className={cn('text-lg font-semibold mb-4 flex items-center gap-2', theme.textPrimary)}>
               <Icon className="w-5 h-5" />
               {categoryLabels[category]}
@@ -127,7 +127,7 @@ export function NotificationSettings() {
                 <div
                   key={notification.id}
                   className={cn(
-                    'flex items-center justify-between p-4 rounded-lg border',
+                    'flex items-center justify-between p-4 rounded-xl border',
                     notification.enabled ? 'border-green-200 bg-green-50/50' : 'border-neutral-200'
                   )}
                 >
@@ -156,7 +156,7 @@ export function NotificationSettings() {
         );
       })}
 
-      <div className={cn('p-4 rounded-lg bg-blue-50 border border-blue-200')}>
+      <div className={cn('p-4 rounded-xl bg-blue-50 border border-blue-200')}>
         <p className="text-sm text-blue-900">
           <strong>Merk:</strong> Disse innstillingene styrer kun hvilke varsler som sendes automatisk.
           E-postmaler kan ikke redigeres via dette grensesnittet ennå.

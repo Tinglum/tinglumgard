@@ -336,7 +336,7 @@ export function AdminMessagingPanel() {
               <input
                 value={broadcastSubject}
                 onChange={(e) => setBroadcastSubject(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder={t.messaging.subject}
               />
             </div>
@@ -345,7 +345,7 @@ export function AdminMessagingPanel() {
               <select
                 value={broadcastType}
                 onChange={(e) => setBroadcastType(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 <option value="support">{t.messaging.support}</option>
                 <option value="inquiry">{t.messaging.inquiry}</option>
@@ -359,7 +359,7 @@ export function AdminMessagingPanel() {
               <textarea
                 value={broadcastMessage}
                 onChange={(e) => setBroadcastMessage(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
                 rows={4}
                 placeholder={t.messaging.writeAnnouncement}
               />
@@ -377,13 +377,13 @@ export function AdminMessagingPanel() {
                   <input
                     value={recipientSearch}
                     onChange={(e) => setRecipientSearch(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-xl"
                     placeholder="Search by name, phone, or email"
                   />
                   <select
                     value={selectedClientPhone}
                     onChange={(e) => setSelectedClientPhone(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-xl"
                   >
                     <option value="">Select client</option>
                     {filteredClientOptions.map((client) => (
@@ -446,7 +446,7 @@ export function AdminMessagingPanel() {
                     <select
                       value={filterBoxSize}
                       onChange={(e) => setFilterBoxSize(e.target.value as 'all' | '8' | '12')}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-xl"
                     >
                       <option value="all">{t.messaging.all}</option>
                       <option value="8">8kg</option>
@@ -466,7 +466,7 @@ export function AdminMessagingPanel() {
                 {extras.length > 0 && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">{t.messaging.extrasFilter}</label>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-48 overflow-y-auto border border-gray-200 rounded-lg p-3">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-48 overflow-y-auto border border-gray-200 rounded-xl p-3">
                       {extras.map((extra) => (
                         <label key={extra.id} className="flex items-center gap-2 text-sm">
                           <input
@@ -525,7 +525,7 @@ export function AdminMessagingPanel() {
                 )}
 
                 {previewRecipients.length > 0 && (
-                  <div className="border border-gray-200 rounded-lg p-3 max-h-56 overflow-y-auto">
+                  <div className="border border-gray-200 rounded-xl p-3 max-h-56 overflow-y-auto">
                     <p className="text-sm text-gray-600 mb-2">Preview (first {previewRecipients.length})</p>
                     <div className="space-y-2">
                       {previewRecipients.map((client) => (
@@ -599,7 +599,7 @@ export function AdminMessagingPanel() {
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 <option value="all">All Status</option>
                 <option value="open">Open</option>
@@ -613,7 +613,7 @@ export function AdminMessagingPanel() {
               <select
                 value={priorityFilter}
                 onChange={(e) => setPriorityFilter(e.target.value as PriorityFilter)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 <option value="all">All Priorities</option>
                 <option value="low">Low</option>
@@ -721,7 +721,7 @@ export function AdminMessagingPanel() {
             </div>
           </div>
 
-          <div className="bg-white p-4 rounded-lg border border-gray-200">
+          <div className="bg-white p-4 rounded-xl border border-gray-200">
             <p className="text-gray-800 whitespace-pre-wrap">{selectedMessage.message}</p>
           </div>
         </div>
@@ -737,7 +737,7 @@ export function AdminMessagingPanel() {
               <span className="text-xs font-bold text-blue-600">C</span>
             </div>
             <div className="flex-1">
-              <div className="bg-gray-100 p-3 rounded-lg">
+              <div className="bg-gray-100 p-3 rounded-xl">
                 <p className="text-xs font-semibold text-gray-600 mb-1">{selectedMessage.customer_name || 'Customer'}</p>
                 <p className="text-gray-800">{selectedMessage.message}</p>
               </div>
@@ -765,7 +765,7 @@ export function AdminMessagingPanel() {
                     </div>
                     <div className="flex-1">
                       <div className={cn(
-                        "p-3 rounded-lg border",
+                        "p-3 rounded-xl border",
                         isFromCustomer ? "bg-blue-50 border-blue-200" : "bg-green-50 border-green-200"
                       )}>
                         <p className={cn(
@@ -795,7 +795,7 @@ export function AdminMessagingPanel() {
             value={replyText}
             onChange={(e) => setReplyText(e.target.value)}
             placeholder={t.messaging.replyPlaceholder}
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
             rows={4}
           />
           <div className="flex gap-2 justify-end">

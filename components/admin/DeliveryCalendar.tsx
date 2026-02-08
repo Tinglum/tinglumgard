@@ -146,7 +146,7 @@ export function DeliveryCalendar() {
                   <div
                     key={order.order_number}
                     className={cn(
-                      'flex items-center justify-between p-4 rounded-lg border',
+                      'flex items-center justify-between p-4 rounded-xl border',
                       order.marked_collected ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-200'
                     )}
                   >

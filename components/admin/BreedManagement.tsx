@@ -291,7 +291,7 @@ export function BreedManagement() {
                   id="description"
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md min-h-[100px]"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-xl min-h-[100px]"
                 />
               </div>
 

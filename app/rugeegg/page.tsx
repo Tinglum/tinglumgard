@@ -52,7 +52,7 @@ export default function HomePage() {
           transition={{ duration: 0.6 }}
           className="text-center max-w-4xl mx-auto"
         >
-          <h1 className="text-5xl md:text-6xl font-display font-semibold tracking-tight text-neutral-900 mb-6 leading-tight">
+          <h1 className="text-5xl md:text-6xl font-normal tracking-tight text-neutral-900 mb-6 leading-tight">
             {t.hero.title}
           </h1>
           <p className="text-lg md:text-xl text-neutral-600 mb-12 leading-relaxed max-w-prose mx-auto">
@@ -60,7 +60,7 @@ export default function HomePage() {
           </p>
 
           {/* Browse mode toggle */}
-          <div className="inline-flex glass-light rounded-lg p-1 mb-16">
+          <div className="inline-flex glass-light rounded-xl p-1 mb-16">
             <button
               onClick={() => setBrowseMode('breed')}
               className={cn(
@@ -118,13 +118,13 @@ export default function HomePage() {
                     >
                       <div className="flex items-start gap-4 mb-4">
                         <div
-                          className="w-16 h-16 rounded-full flex items-center justify-center text-2xl font-display font-bold text-white flex-shrink-0"
+                          className="w-16 h-16 rounded-full flex items-center justify-center text-2xl font-normal text-white flex-shrink-0"
                           style={{ backgroundColor: breed.accentColor }}
                         >
                           {breed.name.charAt(0)}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <h3 className="text-xl font-display font-semibold text-neutral-900 mb-1 leading-snug">
+                          <h3 className="text-xl font-normal text-neutral-900 mb-1 leading-snug">
                             {breed.name}
                           </h3>
                           <p className="text-sm text-neutral-600 leading-normal line-clamp-2">
@@ -142,7 +142,7 @@ export default function HomePage() {
 
                       <div className="flex items-end justify-between">
                         <div>
-                          <div className="text-2xl font-display font-semibold text-neutral-900">
+                          <div className="text-2xl font-normal text-neutral-900">
                             {formatPrice(breed.pricePerEgg, language)}
                           </div>
                           <div className="text-xs text-neutral-500">
@@ -184,7 +184,7 @@ export default function HomePage() {
                 >
                   <GlassCard className="p-6">
                     <div className="mb-4 pb-4 border-b border-neutral-200">
-                      <h3 className="text-lg font-display font-semibold text-neutral-900">
+                      <h3 className="text-lg font-normal text-neutral-900">
                         {t.browse.week} {week.weekNumber} · {formatDate(week.deliveryMonday, language)}
                       </h3>
                     </div>
@@ -197,7 +197,7 @@ export default function HomePage() {
                         >
                           <div className="flex items-center gap-3">
                             <div
-                              className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-display font-bold text-white"
+                              className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-normal text-white"
                               style={{ backgroundColor: breed.accentColor }}
                             >
                               {breed.breedName.charAt(0)}

@@ -186,7 +186,7 @@ export function SystemHealth() {
                     <span className="font-semibold">{data.success_rate}%</span>
                   </div>
                   {data.recent_failures && data.recent_failures.length > 0 && (
-                    <div className="mt-3 p-3 rounded-lg bg-red-50 border border-red-100">
+                    <div className="mt-3 p-3 rounded-xl bg-red-50 border border-red-100">
                       <p className="font-semibold text-red-900 mb-2 text-xs">Nylige feil:</p>
                       <div className="space-y-1">
                         {data.recent_failures.map((failure: any, i: number) => (
@@ -218,7 +218,7 @@ export function SystemHealth() {
                     </span>
                   </div>
                   {data.at_risk_orders && data.at_risk_orders.length > 0 && (
-                    <div className="mt-3 p-3 rounded-lg bg-amber-50 border border-amber-100">
+                    <div className="mt-3 p-3 rounded-xl bg-amber-50 border border-amber-100">
                       <p className="font-semibold text-amber-900 mb-2 text-xs">Ordrer i risiko:</p>
                       <div className="space-y-1">
                         {data.at_risk_orders.slice(0, 3).map((order: any, i: number) => (
@@ -254,7 +254,7 @@ export function SystemHealth() {
                     <span className="font-semibold">{data.utilization_rate}%</span>
                   </div>
                   {data.warning && (
-                    <div className="mt-3 p-3 rounded-lg bg-amber-50 border border-amber-100">
+                    <div className="mt-3 p-3 rounded-xl bg-amber-50 border border-amber-100">
                       <p className="text-xs text-amber-800">{data.warning}</p>
                     </div>
                   )}
@@ -288,7 +288,7 @@ export function SystemHealth() {
                     </span>
                   </div>
                   {data.issues && data.issues.length > 0 && (
-                    <div className="mt-3 p-3 rounded-lg bg-red-50 border border-red-100">
+                    <div className="mt-3 p-3 rounded-xl bg-red-50 border border-red-100">
                       <p className="font-semibold text-red-900 mb-2 text-xs">Problemer funnet:</p>
                       <div className="space-y-1">
                         {data.issues.map((issue: any, i: number) => (

@@ -287,7 +287,7 @@ export function OrderDetailModal({
                 )}
                 {(depositMismatch || remainderMismatch) && (
                   <div className="pt-3 border-t">
-                    <div className="p-3 rounded-lg bg-amber-50 border border-amber-200 mb-2">
+                    <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 mb-2">
                       <p className="text-xs text-amber-900 mb-1">
                         <strong>Bemerkning:</strong> Betalingsbeløp avviker fra ordrebeløp. Dette kan skylde manuell tilpasning.
                       </p>
@@ -409,12 +409,12 @@ export function OrderDetailModal({
                   <p className="font-medium text-gray-900">{deliveryTypeLabels[order.delivery_type]}</p>
                 </div>
                 {order.locked_at && (
-                  <div className="px-3 py-2 rounded-lg bg-gray-50 text-gray-700 text-sm">
+                  <div className="px-3 py-2 rounded-xl bg-gray-50 text-gray-700 text-sm">
                     🔒 Ordre låst {new Date(order.locked_at).toLocaleDateString('nb-NO')}
                   </div>
                 )}
                 {order.marked_delivered_at && (
-                  <div className="px-3 py-2 rounded-lg bg-green-50 text-green-700 text-sm">
+                  <div className="px-3 py-2 rounded-xl bg-green-50 text-green-700 text-sm">
                     ✓ Levert {new Date(order.marked_delivered_at).toLocaleDateString('nb-NO')}
                   </div>
                 )}
@@ -442,7 +442,7 @@ export function OrderDetailModal({
                 {!editingNotes && (
                   <button
                     onClick={startEditingNotes}
-                    className="flex items-center gap-2 px-3 py-1 rounded-lg bg-amber-600 text-white hover:bg-amber-700 transition-colors text-sm"
+                    className="flex items-center gap-2 px-3 py-1 rounded-xl bg-amber-600 text-white hover:bg-amber-700 transition-colors text-sm"
                   >
                     <Edit3 className="w-4 h-4" />
                     Rediger
@@ -485,7 +485,7 @@ export function OrderDetailModal({
               <select
                 value={selectedStatus}
                 onChange={(e) => handleStatusChange(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="">Velg ny status...</option>
                 {statusOptions.map((option) => (

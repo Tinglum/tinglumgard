@@ -266,7 +266,7 @@ export function BoxConfiguration() {
                     <div
                       key={item.id}
                       className={cn(
-                        'flex items-center justify-between p-3 rounded-lg border',
+                        'flex items-center justify-between p-3 rounded-xl border',
                         editingBox === box.box_size ? 'bg-gray-50' : 'bg-white'
                       )}
                     >
@@ -342,7 +342,7 @@ export function BoxConfiguration() {
 
             {/* Add Item Form */}
             {editingBox === box.box_size && (
-              <div className="mt-4 p-4 rounded-lg bg-green-50 border border-green-200">
+              <div className="mt-4 p-4 rounded-xl bg-green-50 border border-green-200">
                 <Label className="mb-2 block text-sm font-semibold">Legg til produkt</Label>
                 <div className="space-y-2">
                   <Input
@@ -363,7 +363,7 @@ export function BoxConfiguration() {
                     <select
                       value={newItemUnit}
                       onChange={(e) => setNewItemUnit(e.target.value)}
-                      className="text-sm px-3 py-2 border rounded-md w-24"
+                      className="text-sm px-3 py-2 border rounded-xl w-24"
                     >
                       <option value="kg">kg</option>
                       <option value="g">g</option>

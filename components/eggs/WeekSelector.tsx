@@ -82,7 +82,7 @@ export function WeekSelector({ inventory, accentColor, onSelectWeek }: WeekSelec
                   key={month.key}
                   type="button"
                   onClick={() => setActiveMonthKey(month.key)}
-                  className="group min-w-[85%] snap-start text-left focus-ring rounded-lg sm:min-w-0 transition-transform duration-200 hover:-translate-y-1 will-change-transform"
+                  className="group min-w-[85%] snap-start text-left focus-ring rounded-xl sm:min-w-0 transition-transform duration-200 hover:-translate-y-1 will-change-transform"
                 >
                   <GlassCard className="p-3 shadow-none transition-all duration-200 group-hover:shadow-[0_18px_40px_-20px_rgba(15,23,42,0.3)] group-hover:border-neutral-200">
                     <div className="flex items-center justify-between mb-2">
@@ -117,7 +117,7 @@ export function WeekSelector({ inventory, accentColor, onSelectWeek }: WeekSelec
                             key={`row-${month.key}-${rowIndex}`}
                             className="grid grid-cols-9 gap-1 rounded-full border border-neutral-200 bg-white/70 p-1"
                           >
-                            <div className="rounded-md bg-white/70 px-1 py-1 min-h-[24px]">
+                            <div className="rounded-xl bg-white/70 px-1 py-1 min-h-[24px]">
                               <div className="flex h-full items-center justify-center text-[9px] font-semibold text-neutral-500">
                                 {rowWeekNumber ?? ''}
                               </div>
@@ -126,7 +126,7 @@ export function WeekSelector({ inventory, accentColor, onSelectWeek }: WeekSelec
                             {row.map((cell) => (
                               <div
                                 key={cell.key}
-                                className={`rounded-md px-1 py-1 min-h-[24px] ${
+                                className={`rounded-xl px-1 py-1 min-h-[24px] ${
                                   cell.isEmpty ? 'bg-transparent' : 'bg-white/70'
                                 } ${
                                   cell.isMonday
@@ -144,7 +144,7 @@ export function WeekSelector({ inventory, accentColor, onSelectWeek }: WeekSelec
                               </div>
                             ))}
 
-                            <div className="rounded-md bg-white/70 px-1 py-1 min-h-[24px]">
+                            <div className="rounded-xl bg-white/70 px-1 py-1 min-h-[24px]">
                               <div className="flex h-full items-center justify-center">
                                 <span
                                   className={`inline-flex items-center rounded-full px-2 py-0.5 text-[9px] font-semibold ${
@@ -201,14 +201,14 @@ export function WeekSelector({ inventory, accentColor, onSelectWeek }: WeekSelec
                     type="button"
                     onClick={() => week && isSelectable && onSelectWeek(week)}
                     disabled={!isSelectable}
-                    className={`group grid w-full grid-cols-8 gap-1 rounded-lg px-1 py-1 text-left transition-all ${
+                    className={`group grid w-full grid-cols-8 gap-1 rounded-xl px-1 py-1 text-left transition-all ${
                       isSelectable
                         ? 'cursor-pointer hover:bg-neutral-50'
                         : 'cursor-not-allowed opacity-50'
                     }`}
                   >
                     <div
-                      className={`relative rounded-md border px-2 py-2 min-h-[54px] ${
+                      className={`relative rounded-xl border px-2 py-2 min-h-[54px] ${
                         week ? 'border-neutral-200 bg-white' : 'border-transparent bg-transparent'
                       } ${isSelectable ? 'group-hover:bg-neutral-50' : ''}`}
                     >
@@ -236,7 +236,7 @@ export function WeekSelector({ inventory, accentColor, onSelectWeek }: WeekSelec
                     {row.map((cell) => (
                       <div
                         key={cell.key}
-                        className={`rounded-md border px-2 py-2 min-h-[54px] ${
+                        className={`rounded-xl border px-2 py-2 min-h-[54px] ${
                           cell.isEmpty ? 'border-transparent bg-transparent' : 'border-neutral-100 bg-white'
                         } ${
                           cell.isMonday
@@ -283,7 +283,7 @@ function WeekTooltip({
   const eggs = week?.eggsAvailable ?? 0
 
   return (
-    <div className="pointer-events-none absolute left-0 top-full z-10 mt-2 w-52 rounded-lg border border-neutral-200 bg-white px-3 py-2 text-[11px] text-neutral-700 opacity-0 shadow-lg transition-opacity group-hover:opacity-100">
+    <div className="pointer-events-none absolute left-0 top-full z-10 mt-2 w-52 rounded-xl border border-neutral-200 bg-white px-3 py-2 text-[11px] text-neutral-700 opacity-0 shadow-lg transition-opacity group-hover:opacity-100">
       <div className="font-semibold text-neutral-900">
         {language === 'no' ? 'Uke' : 'Week'} {weekNumber ?? getWeekNumber(monday)}
       </div>

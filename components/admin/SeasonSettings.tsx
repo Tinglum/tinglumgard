@@ -116,7 +116,7 @@ export function SeasonSettings() {
         </p>
       </div>
 
-      <div className={cn('p-6 rounded-lg border', theme.borderSecondary, theme.bgCard)}>
+      <div className={cn('p-6 rounded-xl border', theme.borderSecondary, theme.bgCard)}>
         <div className="grid grid-cols-2 gap-6">
           {/* Cutoff Settings */}
           <div className="col-span-2">
@@ -124,7 +124,7 @@ export function SeasonSettings() {
               <Calendar className="w-5 h-5" />
               Frist for endringer
             </h3>
-            <div className={cn('p-4 rounded-lg bg-amber-50 border border-amber-200 mb-4')}>
+            <div className={cn('p-4 rounded-xl bg-amber-50 border border-amber-200 mb-4')}>
               <div className="flex items-start gap-2">
                 <AlertCircle className="w-5 h-5 text-amber-600 mt-0.5" />
                 <div>
@@ -230,7 +230,7 @@ export function SeasonSettings() {
 
           {/* Accepting Orders Toggle */}
           <div className="col-span-2">
-            <div className="flex items-center justify-between p-4 rounded-lg border border-neutral-200">
+            <div className="flex items-center justify-between p-4 rounded-xl border border-neutral-200">
               <div>
                 <p className={cn('font-medium', theme.textPrimary)}>
                   Ta imot nye bestillinger

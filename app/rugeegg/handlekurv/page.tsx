@@ -81,7 +81,7 @@ export default function CartPage() {
         >
           {/* Header */}
           <div>
-            <h1 className="text-4xl md:text-5xl font-display font-semibold tracking-tight text-neutral-900 mb-4 leading-tight">
+            <h1 className="text-4xl md:text-5xl font-normal tracking-tight text-neutral-900 mb-4 leading-tight">
               {language === 'no' ? 'Handlekurv' : 'Shopping Cart'}
             </h1>
             <p className="text-lg text-neutral-600">
@@ -95,7 +95,7 @@ export default function CartPage() {
               <div className="w-16 h-16 rounded-full glass-dark flex items-center justify-center mx-auto mb-4">
                 <ShoppingBag className="w-8 h-8 text-neutral-400" />
               </div>
-              <h3 className="text-xl font-display font-semibold text-neutral-900 mb-2">
+              <h3 className="text-xl font-normal text-neutral-900 mb-2">
                 {language === 'no' ? 'Handlekurven er tom' : 'Cart is empty'}
               </h3>
               <p className="text-neutral-600 mb-6">
@@ -120,13 +120,13 @@ export default function CartPage() {
                     <GlassCard accentBorder={item.breed.accentColor} className="p-6">
                       <div className="flex items-start gap-4">
                         <div
-                          className="w-14 h-14 rounded-full flex items-center justify-center text-xl font-display font-bold text-white flex-shrink-0"
+                          className="w-14 h-14 rounded-full flex items-center justify-center text-xl font-normal text-white flex-shrink-0"
                           style={{ backgroundColor: item.breed.accentColor }}
                         >
                           {item.breed.name.charAt(0)}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <h3 className="text-lg font-display font-semibold text-neutral-900 mb-1">
+                          <h3 className="text-lg font-normal text-neutral-900 mb-1">
                             {item.breed.name}
                           </h3>
                           <div className="flex items-center gap-2 text-sm text-neutral-600 mb-4">
@@ -146,7 +146,7 @@ export default function CartPage() {
                               >
                                 <Minus className="w-4 h-4" />
                               </button>
-                              <span className="text-xl font-display font-semibold text-neutral-900 w-12 text-center">
+                              <span className="text-xl font-normal text-neutral-900 w-12 text-center">
                                 {item.quantity}
                               </span>
                               <button
@@ -159,7 +159,7 @@ export default function CartPage() {
                             </div>
 
                             <div className="text-right">
-                              <div className="text-xl font-display font-semibold text-neutral-900">
+                              <div className="text-xl font-normal text-neutral-900">
                                 {formatPrice(item.quantity * item.breed.pricePerEgg, language)}
                               </div>
                               <div className="text-xs text-neutral-500">
@@ -190,20 +190,20 @@ export default function CartPage() {
 
               {/* Summary sidebar */}
               <div className="lg:col-span-1">
-                <div className="sticky top-24">
+                <div>
                   <GlassCard className="p-6 space-y-6">
-                    <h2 className="text-lg font-display font-semibold text-neutral-900">
+                    <h2 className="text-lg font-normal text-neutral-900">
                       {language === 'no' ? 'Sammendrag' : 'Summary'}
                     </h2>
 
                     <div className="space-y-3">
                       <div className="flex justify-between text-sm">
                         <span className="text-neutral-600">{language === 'no' ? 'Antall egg' : 'Total eggs'}:</span>
-                        <span className="font-semibold text-neutral-900">{totalEggs}</span>
+                        <span className="font-normal text-neutral-900">{totalEggs}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-neutral-600">{language === 'no' ? 'Subtotal' : 'Subtotal'}:</span>
-                        <span className="text-xl font-display font-semibold text-neutral-900">
+                        <span className="text-xl font-normal text-neutral-900">
                           {formatPrice(totalPrice, language)}
                         </span>
                       </div>
@@ -215,7 +215,7 @@ export default function CartPage() {
                     {/* Minimum message */}
                     {minimumMessage && (
                       <div
-                        className={`p-4 rounded-lg flex items-start gap-3 ${
+                        className={`p-4 rounded-xl flex items-start gap-3 ${
                           minimumMessage.type === 'warning'
                             ? 'bg-warning-50 text-warning-700'
                             : minimumMessage.type === 'info'
@@ -233,7 +233,7 @@ export default function CartPage() {
                     )}
 
                     {checkoutStatus.allowed && (
-                      <div className="p-4 rounded-lg bg-success-50 text-success-700 flex items-start gap-3">
+                      <div className="p-4 rounded-xl bg-success-50 text-success-700 flex items-start gap-3">
                         <CheckCircle2 className="w-5 h-5 flex-shrink-0 mt-0.5" />
                         <p className="text-sm">
                           {language === 'no' ? 'Klar for betaling!' : 'Ready for checkout!'}
@@ -242,7 +242,7 @@ export default function CartPage() {
                     )}
 
                     {items.length > 1 && checkoutStatus.allowed && (
-                      <div className="p-4 rounded-lg bg-info-50 text-info-700 flex items-start gap-3">
+                      <div className="p-4 rounded-xl bg-info-50 text-info-700 flex items-start gap-3">
                         <Info className="w-5 h-5 flex-shrink-0 mt-0.5" />
                         <p className="text-sm">
                           {language === 'no'

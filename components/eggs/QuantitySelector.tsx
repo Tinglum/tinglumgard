@@ -42,7 +42,7 @@ export function QuantitySelector({ breed, week, onClose, onContinue }: QuantityS
           exit={{ y: '100%', opacity: 0 }}
           transition={{ type: 'spring', damping: 25, stiffness: 300 }}
           onClick={(e) => e.stopPropagation()}
-          className="w-full md:max-w-lg md:rounded-lg rounded-t-xl md:rounded-b-lg overflow-hidden"
+          className="w-full md:max-w-lg md:rounded-xl rounded-t-xl md:rounded-b-lg overflow-hidden"
         >
           <GlassCard variant="strong" className="p-6 md:p-8 max-h-[90vh] overflow-y-auto">
             {/* Header */}
@@ -68,7 +68,7 @@ export function QuantitySelector({ breed, week, onClose, onContinue }: QuantityS
             </div>
 
             {/* Availability info */}
-            <div className="glass-dark rounded-lg p-4 mb-6 flex items-start gap-3">
+            <div className="glass-dark rounded-xl p-4 mb-6 flex items-start gap-3">
               <Info className="w-5 h-5 text-neutral-600 flex-shrink-0 mt-0.5" />
               <p className="text-sm text-neutral-700">
                 {week.eggsAvailable} {t.quantity.available}

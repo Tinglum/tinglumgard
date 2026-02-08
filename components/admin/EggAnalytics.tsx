@@ -174,7 +174,7 @@ export function EggAnalytics() {
             {data.week_stats.map((week, index) => (
               <div
                 key={index}
-                className="p-3 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors"
+                className="p-3 rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors"
               >
                 <div className="flex justify-between items-center mb-2">
                   <span className="font-medium text-gray-900">
@@ -203,7 +203,7 @@ export function EggAnalytics() {
           <h3 className="font-semibold text-lg mb-4">Toppkunder (egg)</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {data.top_customers.map((customer, index) => (
-              <div key={index} className="p-4 rounded-lg bg-gray-50">
+              <div key={index} className="p-4 rounded-xl bg-gray-50">
                 <div className="flex items-start justify-between mb-2">
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-gray-900 truncate">

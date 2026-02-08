@@ -119,7 +119,7 @@ export function CommunicationCenter() {
               <button
                 key={template.id}
                 onClick={() => selectTemplate(template)}
-                className={`w-full text-left p-3 rounded-lg border transition-colors ${
+                className={`w-full text-left p-3 rounded-xl border transition-colors ${
                   selectedTemplate?.id === template.id
                     ? 'bg-blue-50 border-blue-200'
                     : 'hover:bg-gray-50 border-gray-200'
@@ -139,7 +139,7 @@ export function CommunicationCenter() {
           </h3>
 
           {selectedTemplate && (
-            <div className="mb-4 p-3 rounded-lg bg-blue-50 border border-blue-200 flex items-center justify-between">
+            <div className="mb-4 p-3 rounded-xl bg-blue-50 border border-blue-200 flex items-center justify-between">
               <p className="text-sm text-blue-900">
                 Mal valgt: <strong>{selectedTemplate.name}</strong>
               </p>
@@ -203,7 +203,7 @@ export function CommunicationCenter() {
       {(subject || message) && (
         <Card className="p-6">
           <h3 className="font-semibold text-lg mb-4">Forhåndsvisning</h3>
-          <div className="border rounded-lg p-6 bg-gray-50">
+          <div className="border rounded-xl p-6 bg-gray-50">
             <div className="bg-[#2C1810] text-white p-6 rounded-t-lg text-center">
               <h1 className="text-2xl font-bold">Tinglum Gård</h1>
             </div>

@@ -322,7 +322,7 @@ export default function Page() {
   const availabilitySegments = 10;
   const availabilityFilled = loading ? 0 : Math.round(availabilityRatio * availabilitySegments);
   const availabilityPercent = loading ? 0 : Math.round(availabilityRatio * 100);
-  const desktopFillClass = isSoldOut ? 'bg-neutral-300' : isLowStock ? 'bg-amber-500' : 'bg-neutral-900';
+  const desktopFillClass = isSoldOut ? 'bg-neutral-300' : isLowStock ? 'bg-neutral-500' : 'bg-neutral-900';
   const desktopEmptyClass = 'bg-neutral-200';
   const mobileFillColor = isSoldOut ? '#D7CEC3' : isLowStock ? '#B35A2A' : '#0F6C6F';
   const mobileEmptyColor = '#E9E1D6';

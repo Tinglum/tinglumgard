@@ -100,7 +100,7 @@ export default function RugeTipsPage() {
     <div className="min-h-screen py-12">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-screen-lg">
         <div className="mb-10">
-          <h1 className="text-4xl md:text-5xl font-display font-semibold tracking-tight text-neutral-900 mb-3">
+          <h1 className="text-4xl md:text-5xl font-normal tracking-tight text-neutral-900 mb-3">
             {content.title}
           </h1>
           <p className="text-lg text-neutral-600 max-w-prose">
@@ -111,7 +111,7 @@ export default function RugeTipsPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {content.sections.map((section) => (
             <GlassCard key={section.title} className="p-6">
-              <h2 className="text-xl font-display font-semibold text-neutral-900 mb-4">
+              <h2 className="text-xl font-normal text-neutral-900 mb-4">
                 {section.title}
               </h2>
               <ul className="space-y-3 text-sm text-neutral-700">

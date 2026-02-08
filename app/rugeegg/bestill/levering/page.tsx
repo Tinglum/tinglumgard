@@ -79,7 +79,7 @@ export default function EggDeliveryPage() {
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-5xl space-y-8">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-4xl font-display font-semibold text-neutral-900 mb-2">
+            <h1 className="text-4xl font-normal text-neutral-900 mb-2">
               {language === 'no' ? 'Levering' : 'Delivery'}
             </h1>
             <p className="text-neutral-600">
@@ -114,7 +114,7 @@ export default function EggDeliveryPage() {
                 >
                   <div className="flex items-start gap-4">
                     <div
-                      className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                      className={`w-10 h-10 rounded-xl flex items-center justify-center ${
                         active ? 'bg-white/10' : 'bg-neutral-100'
                       }`}
                     >
@@ -122,10 +122,10 @@ export default function EggDeliveryPage() {
                     </div>
                     <div className="flex-1">
                       <div className="flex items-center justify-between">
-                        <h3 className="text-lg font-semibold">
+                        <h3 className="text-lg font-normal">
                           {language === 'no' ? option.titleNo : option.titleEn}
                         </h3>
-                        <span className="text-sm font-semibold">
+                        <span className="text-sm font-normal">
                           {option.fee === 0
                             ? language === 'no'
                               ? 'Gratis'
@@ -149,9 +149,9 @@ export default function EggDeliveryPage() {
           </div>
 
           <div className="lg:col-span-1">
-            <div className="sticky top-24">
+            <div>
               <GlassCard className="p-6 space-y-5">
-                <h2 className="text-lg font-display font-semibold text-neutral-900">
+                <h2 className="text-lg font-normal text-neutral-900">
                   {language === 'no' ? 'Sammendrag' : 'Summary'}
                 </h2>
 
@@ -159,7 +159,7 @@ export default function EggDeliveryPage() {
                   {summaryRows.map((row) => (
                     <div key={row.label} className="flex justify-between text-neutral-600">
                       <span>{row.label}</span>
-                      <span className="font-semibold text-neutral-900">{row.value}</span>
+                      <span className="font-normal text-neutral-900">{row.value}</span>
                     </div>
                   ))}
                 </div>
@@ -167,19 +167,19 @@ export default function EggDeliveryPage() {
                 <div className="border-t border-neutral-200 pt-4 space-y-2 text-sm">
                   <div className="flex justify-between text-neutral-600">
                     <span>{language === 'no' ? 'Subtotal' : 'Subtotal'}</span>
-                    <span className="font-semibold text-neutral-900">
+                    <span className="font-normal text-neutral-900">
                       {formatPrice(currentDraft.subtotal, language)}
                     </span>
                   </div>
                   <div className="flex justify-between text-neutral-600">
                     <span>{language === 'no' ? 'Levering' : 'Delivery'}</span>
-                    <span className="font-semibold text-neutral-900">
+                    <span className="font-normal text-neutral-900">
                       {formatPrice(currentDraft.deliveryFee, language)}
                     </span>
                   </div>
                   <div className="flex justify-between text-neutral-900 text-base">
                     <span>{language === 'no' ? 'Totalt' : 'Total'}</span>
-                    <span className="font-semibold">{formatPrice(currentDraft.totalAmount, language)}</span>
+                    <span className="font-normal">{formatPrice(currentDraft.totalAmount, language)}</span>
                   </div>
                 </div>
 

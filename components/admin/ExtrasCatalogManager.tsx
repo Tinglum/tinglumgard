@@ -220,7 +220,7 @@ export function ExtrasCatalogManager() {
 
       {/* Create/Edit Form */}
       {(isCreating || editingId) && (
-        <div className={cn('p-6 rounded-lg border-2 border-blue-500', theme.bgCard)}>
+        <div className={cn('p-6 rounded-xl border-2 border-blue-500', theme.bgCard)}>
           <h3 className={cn('text-lg font-bold mb-4', theme.textPrimary)}>
             {isCreating ? 'Opprett nytt produkt' : 'Rediger produkt'}
           </h3>
@@ -367,7 +367,7 @@ export function ExtrasCatalogManager() {
             <div
               key={extra.id}
               className={cn(
-                'p-4 rounded-lg border',
+                'p-4 rounded-xl border',
                 theme.borderSecondary,
                 !extra.active && 'opacity-50'
               )}

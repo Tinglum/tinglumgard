@@ -1,81 +1,348 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useLanguage } from '@/contexts/LanguageContext'
-import { formatDate, formatPrice } from '@/lib/eggs/utils'
 import { GlassCard } from '@/components/eggs/GlassCard'
+import { formatDateFull, formatPrice } from '@/lib/eggs/utils'
+import { ArrowRight, Calendar, CheckCircle2, Loader2, MessageSquare, AlertTriangle } from 'lucide-react'
 
-type EggOrder = {
+interface EggPayment {
+  payment_type: string
+  status: string
+  amount_nok?: number
+  paid_at?: string | null
+}
+
+interface EggOrderAddition {
+  quantity: number
+  subtotal: number
+}
+
+interface EggOrder {
   id: string
   order_number: string
+  status: string
   quantity: number
   total_amount: number
   deposit_amount: number
   remainder_amount: number
   remainder_due_date?: string | null
-  week_number: number
   delivery_monday: string
-  status: string
-  egg_breeds?: { name?: string } | null
-  egg_payments?: Array<{
-    payment_type: string
-    status: string
-    amount_nok?: number
-  }>
+  week_number: number
+  delivery_method: string
+  delivery_fee?: number
+  egg_breeds?: { name?: string; accent_color?: string } | null
+  egg_payments?: EggPayment[]
+  egg_order_additions?: EggOrderAddition[]
+}
+
+type SupportState = {
+  sending: boolean
+  error?: string
+  success?: string
+}
+
+const toDateOnly = (value: string | Date) => {
+  const date = new Date(value)
+  return new Date(date.toISOString().split('T')[0])
+}
+
+const daysBetween = (future: Date, today: Date) => {
+  const diffMs = future.getTime() - today.getTime()
+  return Math.round(diffMs / (1000 * 60 * 60 * 24))
+}
+
+const formatDeliveryMethod = (method: string, language: string) => {
+  if (method === 'posten') {
+    return language === 'no' ? 'Posten levering' : 'Posten delivery'
+  }
+  if (method === 'e6_pickup') {
+    return language === 'no' ? 'E6 møtepunkt' : 'E6 pickup'
+  }
+  if (method === 'farm_pickup') {
+    return language === 'no' ? 'Henting på gården' : 'Farm pickup'
+  }
+  return method
+}
+
+const buildCalendarIcs = (params: {
+  orderNumber: string
+  breedName: string
+  deliveryMonday: string
+  language: string
+}) => {
+  const deliveryDate = new Date(params.deliveryMonday)
+  const endDate = new Date(deliveryDate)
+  endDate.setDate(endDate.getDate() + 1)
+  const formatDate = (date: Date) => date.toISOString().split('T')[0].replace(/-/g, '')
+  const summary =
+    params.language === 'no'
+      ? `Rugeegg levering - ${params.breedName}`
+      : `Hatching eggs delivery - ${params.breedName}`
+  const description =
+    params.language === 'no'
+      ? `Bestilling ${params.orderNumber} leveres denne uken.`
+      : `Order ${params.orderNumber} delivers this week.`
+
+  return [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//Tinglum Gård//Rugeegg//NO',
+    'CALSCALE:GREGORIAN',
+    'BEGIN:VEVENT',
+    `UID:${params.orderNumber}-${formatDate(deliveryDate)}@tinglumgard.no`,
+    `DTSTAMP:${formatDate(new Date())}T000000Z`,
+    `DTSTART;VALUE=DATE:${formatDate(deliveryDate)}`,
+    `DTEND;VALUE=DATE:${formatDate(endDate)}`,
+    `SUMMARY:${summary}`,
+    `DESCRIPTION:${description}`,
+    'END:VEVENT',
+    'END:VCALENDAR',
+  ].join('\r\n')
+}
+
+const getStatusMeta = (
+  order: EggOrder,
+  remainderDue: number,
+  daysToDue: number | null,
+  language: string
+) => {
+  const base = {
+    label: language === 'no' ? 'Venter' : 'Pending',
+    className: 'bg-neutral-100 text-neutral-700',
+  }
+
+  switch (order.status) {
+    case 'deposit_paid':
+      if (remainderDue > 0) {
+        const urgent = daysToDue !== null && daysToDue <= 6
+        return {
+          label: language === 'no' ? 'Restbetaling' : 'Remainder due',
+          className: urgent ? 'bg-amber-50 text-amber-700' : 'bg-blue-50 text-blue-700',
+        }
+      }
+      return {
+        label: language === 'no' ? 'Forskudd betalt' : 'Deposit paid',
+        className: 'bg-emerald-50 text-emerald-700',
+      }
+    case 'fully_paid':
+      return {
+        label: language === 'no' ? 'Betalt' : 'Paid',
+        className: 'bg-emerald-50 text-emerald-700',
+      }
+    case 'preparing':
+      return {
+        label: language === 'no' ? 'Klargjøres' : 'Preparing',
+        className: 'bg-indigo-50 text-indigo-700',
+      }
+    case 'shipped':
+      return {
+        label: language === 'no' ? 'Sendt' : 'Shipped',
+        className: 'bg-indigo-50 text-indigo-700',
+      }
+    case 'delivered':
+      return {
+        label: language === 'no' ? 'Levert' : 'Delivered',
+        className: 'bg-neutral-100 text-neutral-700',
+      }
+    case 'forfeited':
+      return {
+        label: language === 'no' ? 'Forfalt' : 'Forfeited',
+        className: 'bg-rose-50 text-rose-700',
+      }
+    case 'cancelled':
+      return {
+        label: language === 'no' ? 'Kansellert' : 'Cancelled',
+        className: 'bg-rose-50 text-rose-700',
+      }
+    default:
+      return base
+  }
 }
 
 export default function EggOrdersPage() {
   const { lang: language } = useLanguage()
   const [orders, setOrders] = useState<EggOrder[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [authRequired, setAuthRequired] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [isUnauthorized, setIsUnauthorized] = useState(false)
+  const [supportDrafts, setSupportDrafts] = useState<Record<string, string>>({})
+  const [supportStatus, setSupportStatus] = useState<Record<string, SupportState>>({})
+
+  const today = useMemo(() => toDateOnly(new Date()), [])
+
+  const sortedOrders = useMemo(() => {
+    return [...orders].sort((a, b) => {
+      const aDate = new Date(a.delivery_monday).getTime()
+      const bDate = new Date(b.delivery_monday).getTime()
+      return aDate - bDate
+    })
+  }, [orders])
 
   useEffect(() => {
-    let isActive = true
+    let isMounted = true
+
     async function loadOrders() {
+      setIsLoading(true)
       try {
-        setIsLoading(true)
         const response = await fetch('/api/eggs/my-orders', { cache: 'no-store' })
         if (response.status === 401) {
-          if (!isActive) return
-          setIsUnauthorized(true)
-          setOrders([])
+          if (isMounted) {
+            setAuthRequired(true)
+            setOrders([])
+            setError(null)
+          }
           return
         }
-        if (!response.ok) {
-          throw new Error('Failed to fetch orders')
-        }
+
         const data = await response.json()
-        if (!isActive) return
-        setOrders(data || [])
-      } catch (err) {
-        if (!isActive) return
-        console.error('Failed to load egg orders', err)
-        setError(language === 'no' ? 'Kunne ikke laste bestillinger.' : 'Failed to load orders.')
+        if (!response.ok) {
+          throw new Error(data?.error || 'Kunne ikke hente bestillinger')
+        }
+
+        if (isMounted) {
+          setOrders(data || [])
+          setAuthRequired(false)
+          setError(null)
+        }
+      } catch (err: any) {
+        if (isMounted) {
+          setError(err?.message || 'Kunne ikke hente bestillinger')
+        }
       } finally {
-        if (isActive) setIsLoading(false)
+        if (isMounted) setIsLoading(false)
       }
     }
+
     loadOrders()
     return () => {
-      isActive = false
+      isMounted = false
     }
-  }, [language])
+  }, [])
+
+  const handleSupportSend = async (order: EggOrder) => {
+    const message = (supportDrafts[order.id] || '').trim()
+    if (!message) {
+      setSupportStatus((prev) => ({
+        ...prev,
+        [order.id]: {
+          sending: false,
+          error: language === 'no' ? 'Skriv en melding før du sender.' : 'Write a message before sending.',
+        },
+      }))
+      return
+    }
+
+    setSupportStatus((prev) => ({ ...prev, [order.id]: { sending: true } }))
+
+    try {
+      const subject =
+        language === 'no'
+          ? `Rugeegg: ${order.order_number}`
+          : `Hatching eggs: ${order.order_number}`
+      const response = await fetch('/api/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          subject,
+          message: `${message}\n\nOrdre: ${order.order_number}`,
+          message_type: 'egg_support',
+        }),
+      })
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => null)
+        throw new Error(data?.error || 'Kunne ikke sende melding')
+      }
+
+      setSupportDrafts((prev) => ({ ...prev, [order.id]: '' }))
+      setSupportStatus((prev) => ({
+        ...prev,
+        [order.id]: {
+          sending: false,
+          success: language === 'no' ? 'Meldingen er sendt.' : 'Message sent.',
+        },
+      }))
+    } catch (err: any) {
+      setSupportStatus((prev) => ({
+        ...prev,
+        [order.id]: {
+          sending: false,
+          error: err?.message || (language === 'no' ? 'Kunne ikke sende melding.' : 'Failed to send message.'),
+        },
+      }))
+    }
+  }
+
+  const downloadCalendar = (order: EggOrder, breedName: string) => {
+    const ics = buildCalendarIcs({
+      orderNumber: order.order_number,
+      breedName,
+      deliveryMonday: order.delivery_monday,
+      language,
+    })
+    const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `rugeegg-${order.order_number}.ics`
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    URL.revokeObjectURL(url)
+  }
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="w-6 h-6 animate-spin text-neutral-500" />
+      </div>
+    )
+  }
+
+  if (authRequired) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-6 py-12">
+        <GlassCard className="p-8 text-center max-w-md space-y-6">
+          <div>
+            <h1 className="text-3xl font-normal text-neutral-900 mb-2">
+              {language === 'no' ? 'Logg inn med Vipps' : 'Log in with Vipps'}
+            </h1>
+            <p className="text-sm text-neutral-600">
+              {language === 'no'
+                ? 'For å se dine rugeegg-bestillinger må du logge inn.'
+                : 'Log in to view your hatching egg orders.'}
+            </p>
+          </div>
+          <button
+            onClick={() =>
+              (window.location.href = '/api/auth/vipps/login?returnTo=/rugeegg/mine-bestillinger')
+            }
+            className="btn-primary w-full"
+          >
+            {language === 'no' ? 'Logg inn med Vipps' : 'Log in with Vipps'}
+          </button>
+          <Link href="/rugeegg/raser" className="text-sm text-neutral-500 hover:text-neutral-700">
+            {language === 'no' ? 'Til raser' : 'Back to breeds'}
+          </Link>
+        </GlassCard>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen py-12">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-5xl space-y-8">
-        <div className="flex items-center justify-between">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-6xl space-y-8">
+        <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <h1 className="text-4xl font-display font-semibold text-neutral-900 mb-2">
+            <h1 className="text-4xl font-normal text-neutral-900 mb-2">
               {language === 'no' ? 'Mine bestillinger' : 'My orders'}
             </h1>
             <p className="text-neutral-600">
               {language === 'no'
                 ? 'Oversikt over dine rugeegg-bestillinger.'
-                : 'Overview of your egg orders.'}
+                : 'Overview of your hatching egg orders.'}
             </p>
           </div>
           <Link href="/rugeegg/raser" className="text-sm text-neutral-600 hover:text-neutral-900">
@@ -83,119 +350,231 @@ export default function EggOrdersPage() {
           </Link>
         </div>
 
-        {isUnauthorized && (
-          <GlassCard className="p-6 text-center">
-            <p className="text-sm text-neutral-600 mb-4">
-              {language === 'no'
-                ? 'Logg inn med Vipps for å se bestillingene dine.'
-                : 'Log in with Vipps to view your orders.'}
-            </p>
-            <Link
-              href="/api/auth/vipps/login?returnTo=/rugeegg/mine-bestillinger"
-              className="btn-primary inline-flex justify-center"
-            >
-              {language === 'no' ? 'Logg inn' : 'Log in'}
-            </Link>
+        {error && (
+          <GlassCard className="p-4 text-sm text-red-600">
+            {error}
           </GlassCard>
         )}
 
-        {error && <div className="text-sm text-red-600">{error}</div>}
-
-        {isLoading && (
-          <div className="text-sm text-neutral-500">
-            {language === 'no' ? 'Laster bestillinger...' : 'Loading orders...'}
-          </div>
-        )}
-
-        {!isLoading && !isUnauthorized && !error && orders.length === 0 && (
-          <GlassCard className="p-8 text-center">
-            <p className="text-sm text-neutral-600">
+        {orders.length === 0 ? (
+          <GlassCard className="p-12 text-center">
+            <p className="text-sm text-neutral-500">
               {language === 'no'
                 ? 'Ingen bestillinger funnet ennå.'
                 : 'No orders found yet.'}
             </p>
+            <Link href="/rugeegg/raser" className="btn-primary inline-flex mt-6">
+              {language === 'no' ? 'Se raser' : 'Browse breeds'}
+            </Link>
           </GlassCard>
-        )}
+        ) : (
+          <div className="space-y-6">
+            {sortedOrders.map((order) => {
+              const breedName = order.egg_breeds?.name || (language === 'no' ? 'Rugeegg' : 'Eggs')
+              const additionsEggs = (order.egg_order_additions || []).reduce(
+                (sum, addition) => sum + (addition.quantity || 0),
+                0
+              )
+              const totalEggs = order.quantity + additionsEggs
+              const remainderPaidOre =
+                order.egg_payments?.reduce((sum, payment) => {
+                  if (payment.payment_type !== 'remainder' || payment.status !== 'completed') return sum
+                  return sum + (payment.amount_nok || 0) * 100
+                }, 0) || 0
+              const remainderDue = Math.max(0, order.remainder_amount - remainderPaidOre)
+              const dueDate = order.remainder_due_date ? toDateOnly(order.remainder_due_date) : null
+              const deliveryDate = toDateOnly(order.delivery_monday)
+              const dayBefore = new Date(deliveryDate)
+              dayBefore.setDate(dayBefore.getDate() - 1)
+              const canAdd = today <= dayBefore
+              const daysToDue = dueDate ? daysBetween(dueDate, today) : null
+              const daysToDueLabel = daysToDue !== null ? Math.max(daysToDue, 0) : null
+              const daysToDelivery = daysBetween(deliveryDate, today)
+              const statusMeta = getStatusMeta(order, remainderDue, daysToDue, language)
 
-        <div className="space-y-4">
-          {orders.map((order) => {
-            const remainderPaidOre =
-              order.egg_payments?.reduce((sum, p) => {
-                if (p.payment_type !== 'remainder' || p.status !== 'completed') return sum
-                return sum + (p.amount_nok || 0) * 100
-              }, 0) || 0
-
-            const remainderDue = Math.max(0, order.remainder_amount - remainderPaidOre)
-            const cutoff = new Date(order.delivery_monday)
-            cutoff.setDate(cutoff.getDate() - 1)
-            const today = new Date(new Date().toISOString().split('T')[0])
-            const canEdit = today <= cutoff
-            const isActiveOrder = !['cancelled', 'forfeited'].includes(order.status)
-
-            return (
-              <GlassCard key={order.id} className="p-6">
-                <div className="flex flex-wrap items-center justify-between gap-4">
-                  <div>
-                    <div className="text-xs uppercase tracking-[0.2em] text-neutral-500 mb-2">
-                      {order.order_number}
+              return (
+                <GlassCard
+                  key={order.id}
+                  className="p-6 space-y-6"
+                  accentBorder={order.egg_breeds?.accent_color}
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-4">
+                    <div>
+                      <p className="text-xs uppercase tracking-[0.2em] text-neutral-500">
+                        {language === 'no' ? 'Ordre' : 'Order'}
+                      </p>
+                      <h2 className="text-2xl font-normal text-neutral-900">{order.order_number}</h2>
+                      <p className="text-sm text-neutral-600">
+                        {breedName} · {language === 'no' ? 'Uke' : 'Week'} {order.week_number} ·{' '}
+                        {formatDateFull(new Date(order.delivery_monday), language)}
+                      </p>
                     </div>
-                    <div className="text-lg font-display font-semibold text-neutral-900">
-                      {order.egg_breeds?.name || (language === 'no' ? 'Rugeegg' : 'Eggs')}
+                    <span
+                      className={`px-3 py-1 rounded-full text-xs font-medium ${statusMeta.className}`}
+                    >
+                      {statusMeta.label}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div className="space-y-3">
+                      <div>
+                        <p className="text-xs uppercase tracking-[0.2em] text-neutral-500">
+                          {language === 'no' ? 'Mengde' : 'Quantity'}
+                        </p>
+                        <p className="text-2xl font-normal text-neutral-900">
+                          {totalEggs} {language === 'no' ? 'egg' : 'eggs'}
+                        </p>
+                        {additionsEggs > 0 && (
+                          <p className="text-xs text-neutral-500">
+                            {language === 'no'
+                              ? `+${additionsEggs} tillegg`
+                              : `+${additionsEggs} additions`}
+                          </p>
+                        )}
+                      </div>
+                      <div>
+                        <p className="text-xs uppercase tracking-[0.2em] text-neutral-500">
+                          {language === 'no' ? 'Total' : 'Total'}
+                        </p>
+                        <p className="text-lg font-normal text-neutral-900">
+                          {formatPrice(order.total_amount, language)}
+                        </p>
+                      </div>
                     </div>
-                    <div className="text-sm text-neutral-600">
-                      {language === 'no' ? 'Uke' : 'Week'} {order.week_number} -{' '}
-                      {formatDate(new Date(order.delivery_monday), language)}
+
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-neutral-500">
+                          {language === 'no' ? 'Forskudd' : 'Deposit'}
+                        </span>
+                        <span className="font-normal text-neutral-900">
+                          {formatPrice(order.deposit_amount, language)}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-neutral-500">
+                          {language === 'no' ? 'Restbetaling' : 'Remainder'}
+                        </span>
+                        <span className="font-normal text-neutral-900">
+                          {formatPrice(remainderDue, language)}
+                        </span>
+                      </div>
+                      {dueDate && remainderDue > 0 && (
+                        <div className="flex items-start gap-2 text-xs text-neutral-600">
+                          <AlertTriangle className="w-4 h-4 text-amber-500" />
+                          <span>
+                            {language === 'no'
+                              ? `Forfaller ${formatDateFull(dueDate, language)}`
+                              : `Due ${formatDateFull(dueDate, language)}`}
+                            {daysToDueLabel !== null &&
+                              ` · ${daysToDueLabel} ${language === 'no' ? 'dager igjen' : 'days left'}`}
+                          </span>
+                        </div>
+                      )}
+                      <div className="flex items-center gap-2 text-xs text-neutral-500">
+                        <CheckCircle2 className="w-4 h-4 text-neutral-900" />
+                        <span>
+                          {language === 'no'
+                            ? `Levering ${formatDateFull(deliveryDate, language)}`
+                            : `Delivery ${formatDateFull(deliveryDate, language)}`}
+                          {daysToDelivery >= 0 &&
+                            ` · ${daysToDelivery} ${language === 'no' ? 'dager igjen' : 'days left'}`}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="space-y-3">
+                      <div className="text-sm text-neutral-600">
+                        <p className="text-xs uppercase tracking-[0.2em] text-neutral-500">
+                          {language === 'no' ? 'Levering' : 'Delivery'}
+                        </p>
+                        <p className="font-normal text-neutral-900">
+                          {formatDeliveryMethod(order.delivery_method, language)}
+                        </p>
+                        {typeof order.delivery_fee === 'number' && (
+                          <p className="text-xs text-neutral-500">
+                            {formatPrice(order.delivery_fee, language)}
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {remainderDue > 0 && order.status === 'deposit_paid' && (
+                          <Link
+                            href={`/rugeegg/mine-bestillinger/${order.id}/betaling`}
+                            className="btn-primary inline-flex"
+                          >
+                            {language === 'no' ? 'Betal rest' : 'Pay remainder'}
+                            <ArrowRight className="w-4 h-4" />
+                          </Link>
+                        )}
+                        {canAdd && ['deposit_paid', 'fully_paid'].includes(order.status) && (
+                          <Link
+                            href={`/rugeegg/mine-bestillinger/${order.id}/betaling`}
+                            className="btn-secondary inline-flex"
+                          >
+                            {language === 'no' ? 'Legg til egg' : 'Add eggs'}
+                          </Link>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => downloadCalendar(order, breedName)}
+                          className="btn-secondary inline-flex"
+                        >
+                          <Calendar className="w-4 h-4" />
+                          {language === 'no' ? 'Legg til i kalender' : 'Add to calendar'}
+                        </button>
+                      </div>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <div className="text-sm text-neutral-500">
-                      {order.quantity} {language === 'no' ? 'egg' : 'eggs'}
-                    </div>
-                    <div className="text-lg font-semibold text-neutral-900">
-                      {formatPrice(order.total_amount, language)}
-                    </div>
-                    <div className="text-xs text-neutral-500">
-                      {language === 'no' ? 'Forskudd' : 'Deposit'}:{' '}
-                      {formatPrice(order.deposit_amount, language)}
-                    </div>
-                    {order.status === 'deposit_paid' && order.remainder_due_date && (
-                      <div className="text-xs text-neutral-500">
-                        {language === 'no' ? 'Restbetaling innen' : 'Remainder due'}:{' '}
-                        {formatDate(new Date(order.remainder_due_date), language)}
-                      </div>
-                    )}
-                    {remainderDue <= 0 && (
-                      <div className="text-xs text-emerald-600">
-                        {language === 'no' ? 'Restbetaling betalt' : 'Remainder paid'}
-                      </div>
-                    )}
-                  </div>
-                </div>
 
-                {isActiveOrder && (remainderDue > 0 || canEdit) && (
-                  <div className="mt-4 flex flex-wrap justify-end gap-3">
-                    {canEdit && (
-                      <Link
-                        href={`/rugeegg/mine-bestillinger/${order.id}/betaling`}
-                        className="btn-secondary"
-                      >
-                        {language === 'no' ? 'Legg til egg' : 'Add eggs'}
-                      </Link>
+                  <div className="border-t border-neutral-200 pt-5 space-y-3">
+                    <div className="flex items-center gap-2 text-sm font-medium text-neutral-900">
+                      <MessageSquare className="w-4 h-4" />
+                      {language === 'no' ? 'Trenger du hjelp?' : 'Need help?'}
+                    </div>
+                    <textarea
+                      value={supportDrafts[order.id] || ''}
+                      onChange={(event) =>
+                        setSupportDrafts((prev) => ({ ...prev, [order.id]: event.target.value }))
+                      }
+                      rows={3}
+                      placeholder={
+                        language === 'no'
+                          ? 'Send en melding om bestillingen din...'
+                          : 'Send a message about your order...'
+                      }
+                      className="w-full rounded-xl border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-300"
+                    />
+                    {supportStatus[order.id]?.error && (
+                      <p className="text-xs text-red-600">{supportStatus[order.id]?.error}</p>
                     )}
-                    {remainderDue > 0 && (
-                      <Link
-                        href={`/rugeegg/mine-bestillinger/${order.id}/betaling`}
+                    {supportStatus[order.id]?.success && (
+                      <p className="text-xs text-neutral-900">{supportStatus[order.id]?.success}</p>
+                    )}
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-neutral-500">
+                        {language === 'no'
+                          ? 'Svar innen 24 timer på hverdager.'
+                          : 'Replies within 24 hours on weekdays.'}
+                      </span>
+                      <button
+                        type="button"
+                        disabled={supportStatus[order.id]?.sending}
+                        onClick={() => handleSupportSend(order)}
                         className="btn-primary"
                       >
-                        {language === 'no' ? 'Betal rest' : 'Pay remainder'}
-                      </Link>
-                    )}
+                        {supportStatus[order.id]?.sending
+                          ? (language === 'no' ? 'Sender...' : 'Sending...')
+                          : (language === 'no' ? 'Send melding' : 'Send message')}
+                      </button>
+                    </div>
                   </div>
-                )}
-              </GlassCard>
-            )
-          })}
-        </div>
+                </GlassCard>
+              )
+            })}
+          </div>
+        )}
       </div>
     </div>
   )

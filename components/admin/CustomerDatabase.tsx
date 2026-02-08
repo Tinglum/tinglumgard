@@ -109,19 +109,19 @@ export function CustomerDatabase() {
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-            <div className="p-4 rounded-lg bg-blue-50">
+            <div className="p-4 rounded-xl bg-blue-50">
               <p className="text-sm text-blue-700 mb-1">Totale ordrer</p>
               <p className="text-2xl font-bold text-blue-900">{selectedCustomer.total_orders}</p>
             </div>
-            <div className="p-4 rounded-lg bg-green-50">
+            <div className="p-4 rounded-xl bg-green-50">
               <p className="text-sm text-green-700 mb-1">Fullførte</p>
               <p className="text-2xl font-bold text-green-900">{selectedCustomer.completed_orders}</p>
             </div>
-            <div className="p-4 rounded-lg bg-purple-50">
+            <div className="p-4 rounded-xl bg-purple-50">
               <p className="text-sm text-purple-700 mb-1">Totalt brukt</p>
               <p className="text-2xl font-bold text-purple-900">kr {selectedCustomer.total_spent.toLocaleString('nb-NO')}</p>
             </div>
-            <div className="p-4 rounded-lg bg-amber-50">
+            <div className="p-4 rounded-xl bg-amber-50">
               <p className="text-sm text-amber-700 mb-1">Snitt per ordre</p>
               <p className="text-2xl font-bold text-amber-900">kr {selectedCustomer.avg_order_value.toLocaleString('nb-NO')}</p>
             </div>
@@ -132,7 +132,7 @@ export function CustomerDatabase() {
               <h3 className="font-semibold text-lg mb-3">Produktpreferanser</h3>
               <div className="space-y-2">
                 {selectedCustomer.product_preferences.map((pref: any, index: number) => (
-                  <div key={index} className="flex items-center justify-between p-3 rounded-lg bg-gray-50">
+                  <div key={index} className="flex items-center justify-between p-3 rounded-xl bg-gray-50">
                     <span className="font-medium">{pref.product}</span>
                     <span className="text-gray-600">{pref.count} ordrer</span>
                   </div>
@@ -146,7 +146,7 @@ export function CustomerDatabase() {
               <h3 className="font-semibold text-lg mb-3">Favoritt ekstraprodukter</h3>
               <div className="space-y-2">
                 {selectedCustomer.favorite_extras.slice(0, 5).map((extra: any, index: number) => (
-                  <div key={index} className="flex items-center justify-between p-3 rounded-lg bg-gray-50">
+                  <div key={index} className="flex items-center justify-between p-3 rounded-xl bg-gray-50">
                     <span className="font-medium">{extra.name}</span>
                     <span className="text-gray-600">{extra.count}x (kr {extra.total_spent})</span>
                   </div>
@@ -159,7 +159,7 @@ export function CustomerDatabase() {
             <h3 className="font-semibold text-lg mb-3">Ordrehistorikk</h3>
             <div className="space-y-2">
               {selectedCustomer.orders.map((order: any) => (
-                <div key={order.order_number} className="flex items-center justify-between p-3 rounded-lg bg-gray-50">
+                <div key={order.order_number} className="flex items-center justify-between p-3 rounded-xl bg-gray-50">
                   <div>
                     <span className="font-medium">{order.order_number}</span>
                     <span className="text-sm text-gray-600 ml-3">{new Date(order.created_at).toLocaleDateString('nb-NO')}</span>
@@ -211,7 +211,7 @@ export function CustomerDatabase() {
           {filteredCustomers.map((customer) => (
             <div
               key={customer.email}
-              className="flex items-center justify-between p-4 rounded-lg border hover:bg-gray-50 transition-colors"
+              className="flex items-center justify-between p-4 rounded-xl border hover:bg-gray-50 transition-colors"
             >
               <div className="flex-1">
                 <div className="flex items-center gap-3 mb-2">

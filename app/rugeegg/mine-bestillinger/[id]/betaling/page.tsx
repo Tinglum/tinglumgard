@@ -62,7 +62,8 @@ export default function EggRemainderPage() {
   const [inventory, setInventory] = useState<WeekInventoryItem[]>([])
   const [selectedQuantities, setSelectedQuantities] = useState<Record<string, number>>({})
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [loadError, setLoadError] = useState<string | null>(null)
+  const [actionError, setActionError] = useState<string | null>(null)
   const [isPaying, setIsPaying] = useState(false)
 
   useEffect(() => {
@@ -85,10 +86,10 @@ export default function EggRemainderPage() {
           }
         })
         setSelectedQuantities(initial)
-        setError(null)
+        setLoadError(null)
       } catch (err: any) {
         if (!isMounted) return
-        setError(err?.message || 'Kunne ikke hente ordre')
+        setLoadError(err?.message || 'Kunne ikke hente ordre')
       } finally {
         if (isMounted) setLoading(false)
       }
@@ -196,6 +197,7 @@ export default function EggRemainderPage() {
     if (!['deposit_paid', 'fully_paid'].includes(order.status)) return
 
     setIsPaying(true)
+    setActionError(null)
     try {
       const additionsPayload = Object.entries(selectedQuantities)
         .filter(([_, qty]) => qty > 0)
@@ -234,7 +236,7 @@ export default function EggRemainderPage() {
 
       window.location.href = remainderData.redirectUrl
     } catch (err: any) {
-      setError(err?.message || 'Kunne ikke starte betaling')
+      setActionError(err?.message || 'Kunne ikke starte betaling')
       setIsPaying(false)
     }
   }
@@ -247,11 +249,11 @@ export default function EggRemainderPage() {
     )
   }
 
-  if (error || !order) {
+  if (loadError || !order) {
     return (
       <div className="min-h-screen flex items-center justify-center px-6">
         <GlassCard className="p-8 text-center max-w-md">
-          <p className="text-sm text-neutral-600 mb-4">{error || 'Kunne ikke hente ordre.'}</p>
+          <p className="text-sm text-neutral-600 mb-4">{loadError || 'Kunne ikke hente ordre.'}</p>
           <Link href="/rugeegg/mine-bestillinger" className="btn-secondary inline-flex justify-center">
             {language === 'no' ? 'Tilbake' : 'Back'}
           </Link>
@@ -282,8 +284,8 @@ export default function EggRemainderPage() {
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-4xl space-y-8">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-4xl font-display font-semibold text-neutral-900 mb-2">
-              {language === 'no' ? 'Betal restbelÃ¸p' : 'Pay remainder'}
+            <h1 className="text-4xl font-normal text-neutral-900 mb-2">
+              {language === 'no' ? 'Betal restbeløp' : 'Pay remainder'}
             </h1>
             <p className="text-neutral-600">
               {language === 'no' ? `Bestilling ${order.order_number}` : `Order ${order.order_number}`}
@@ -300,7 +302,7 @@ export default function EggRemainderPage() {
               <p className="text-xs uppercase tracking-[0.2em] text-neutral-500">
                 {language === 'no' ? 'Rase' : 'Breed'}
               </p>
-              <p className="text-lg font-semibold text-neutral-900">
+              <p className="text-lg font-normal text-neutral-900">
                 {order.egg_breeds?.name || (language === 'no' ? 'Rugeegg' : 'Eggs')}
               </p>
               <p className="text-sm text-neutral-600">
@@ -312,7 +314,7 @@ export default function EggRemainderPage() {
               <p className="text-sm text-neutral-500">
                 {language === 'no' ? 'Forskudd betalt' : 'Deposit paid'}
               </p>
-              <p className="text-lg font-semibold text-neutral-900">
+              <p className="text-lg font-normal text-neutral-900">
                 {formatPrice(order.deposit_amount, language)}
               </p>
               {order.remainder_due_date && (
@@ -327,7 +329,7 @@ export default function EggRemainderPage() {
 
         <GlassCard className="p-6 space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-neutral-900">
+            <h2 className="text-lg font-normal text-neutral-900">
               {language === 'no' ? 'Legg til flere egg (valgfritt)' : 'Add more eggs (optional)'}
             </h2>
             <span className="text-xs text-neutral-500">
@@ -335,9 +337,9 @@ export default function EggRemainderPage() {
             </span>
           </div>
           {!canAdd && (
-            <p className="text-xs text-amber-600">
+            <p className="text-xs text-neutral-600">
               {language === 'no'
-                ? 'Tillegg er stengt etter dagen fÃ¸r levering.'
+                ? 'Tillegg er stengt etter dagen før levering.'
                 : 'Additions are closed after the day before delivery.'}
             </p>
           )}
@@ -359,9 +361,9 @@ export default function EggRemainderPage() {
               const disabled = maxQty === 0 || !canAdd
 
               return (
-                <div key={item.id} className="flex flex-wrap items-center justify-between gap-3 border border-neutral-200 rounded-lg p-4">
+                <div key={item.id} className="flex flex-wrap items-center justify-between gap-3 border border-neutral-200 rounded-xl p-4">
                   <div>
-                    <p className="font-semibold text-neutral-900">{item.egg_breeds?.name}</p>
+                    <p className="font-normal text-neutral-900">{item.egg_breeds?.name}</p>
                     <p className="text-xs text-neutral-500">
                       {remaining} {language === 'no' ? 'egg igjen' : 'eggs left'} -{' '}
                       {formatPrice(item.egg_breeds?.price_per_egg || 0, language)} / {language === 'no' ? 'egg' : 'egg'}
@@ -376,7 +378,7 @@ export default function EggRemainderPage() {
                     >
                       <Minus className="w-4 h-4" />
                     </button>
-                    <span className="w-10 text-center text-sm font-semibold text-neutral-900">{selected}</span>
+                    <span className="w-10 text-center text-sm font-normal text-neutral-900">{selected}</span>
                     <button
                       type="button"
                       disabled={disabled || isPaying}
@@ -393,31 +395,35 @@ export default function EggRemainderPage() {
         </GlassCard>
 
         <GlassCard className="p-6 space-y-4">
-          <h2 className="text-lg font-semibold text-neutral-900">
+          <h2 className="text-lg font-normal text-neutral-900">
             {language === 'no' ? 'Betalingsoversikt' : 'Payment summary'}
           </h2>
           <div className="space-y-2 text-sm">
             <div className="flex justify-between text-neutral-600">
-              <span>{language === 'no' ? 'RestbelÃ¸p' : 'Remainder'}</span>
-              <span className="font-semibold text-neutral-900">{formatPrice(baseRemainder, language)}</span>
+              <span>{language === 'no' ? 'Restbeløp' : 'Remainder'}</span>
+              <span className="font-normal text-neutral-900">{formatPrice(baseRemainder, language)}</span>
             </div>
             {additionsTotal > 0 && (
               <div className="flex justify-between text-neutral-600">
                 <span>{language === 'no' ? 'Tillegg' : 'Additions'}</span>
-                <span className="font-semibold text-neutral-900">{formatPrice(additionsTotal, language)}</span>
+                <span className="font-normal text-neutral-900">{formatPrice(additionsTotal, language)}</span>
               </div>
             )}
             {remainderPaidOre > 0 && (
               <div className="flex justify-between text-neutral-600">
                 <span>{language === 'no' ? 'Allerede betalt' : 'Already paid'}</span>
-                <span className="font-semibold text-neutral-900">{formatPrice(remainderPaidOre, language)}</span>
+                <span className="font-normal text-neutral-900">{formatPrice(remainderPaidOre, language)}</span>
               </div>
             )}
             <div className="flex justify-between text-neutral-900 text-base pt-2 border-t border-neutral-200">
-              <span className="font-semibold">{language === 'no' ? 'Ã… betale nÃ¥' : 'Due now'}</span>
-              <span className="font-semibold">{formatPrice(amountDue, language)}</span>
+              <span className="font-normal">{language === 'no' ? 'Å betale nå' : 'Due now'}</span>
+              <span className="font-normal">{formatPrice(amountDue, language)}</span>
             </div>
           </div>
+
+          {actionError && (
+            <p className="text-xs text-red-600">{actionError}</p>
+          )}
 
           <button
             type="button"
@@ -433,3 +439,4 @@ export default function EggRemainderPage() {
     </div>
   )
 }
+

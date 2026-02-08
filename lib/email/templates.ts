@@ -493,10 +493,16 @@ interface CustomerMessageConfirmationParams {
   subject: string;
   message: string;
   orderNumber?: string;
+  portalUrl?: string;
+  portalLabel?: string;
 }
 
 export function getCustomerMessageConfirmationTemplate(params: CustomerMessageConfirmationParams): { subject: string; html: string } {
   const threadId = `msg_${params.messageId}`;
+  const portalUrl =
+    params.portalUrl ||
+    `${process.env.NEXT_PUBLIC_APP_URL || 'https://tinglumgard.no'}/min-side`;
+  const portalLabel = params.portalLabel || 'Min Side';
   
   return {
     subject: `[${threadId}] Melding mottatt - ${params.subject}`,
@@ -534,7 +540,7 @@ export function getCustomerMessageConfirmationTemplate(params: CustomerMessageCo
 
       <p><strong>Du kan svare på denne e-posten direkte</strong>, og svaret vil automatisk legges til i samtalen.</p>
       
-      <p>Du kan også følge med på meldingen din på <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://tinglumgard.no'}/min-side">Min Side</a>.</p>
+      <p>Du kan også følge med på meldingen din på <a href="${portalUrl}">${portalLabel}</a>.</p>
       
       <p style="margin-top: 30px; font-size: 14px; color: #666;">
         Forventet svartid: Innen 24 timer på hverdager
@@ -556,10 +562,16 @@ interface AdminReplyNotificationParams {
   subject: string;
   replyText: string;
   adminName: string;
+  portalUrl?: string;
+  portalLabel?: string;
 }
 
 export function getAdminReplyNotificationTemplate(params: AdminReplyNotificationParams): { subject: string; html: string } {
   const threadId = `msg_${params.messageId}`;
+  const portalUrl =
+    params.portalUrl ||
+    `${process.env.NEXT_PUBLIC_APP_URL || 'https://tinglumgard.no'}/min-side`;
+  const portalLabel = params.portalLabel || 'Min Side';
   
   return {
     subject: `[${threadId}] Svar på: ${params.subject}`,
@@ -590,7 +602,7 @@ export function getAdminReplyNotificationTemplate(params: AdminReplyNotification
         <p style="white-space: pre-wrap;">${params.replyText}</p>
       </div>
 
-      <p><strong>Du kan svare direkte på denne e-posten</strong>, eller gå til <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://tinglumgard.no'}/min-side">Min Side</a> for å se hele samtalen.</p>
+      <p><strong>Du kan svare direkte på denne e-posten</strong>, eller gå til <a href="${portalUrl}">${portalLabel}</a> for å se hele samtalen.</p>
       
       <p>Vennlig hilsen,<br>${params.adminName}<br>Tinglum Gård</p>
     </div>
@@ -600,3 +612,5 @@ export function getAdminReplyNotificationTemplate(params: AdminReplyNotification
     `,
   };
 }
+
+

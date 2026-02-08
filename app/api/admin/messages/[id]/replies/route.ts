@@ -56,17 +56,21 @@ export async function POST(
       // Get message details with customer email
       const { data: message } = await supabaseAdmin
         .from('customer_messages')
-        .select('customer_email, customer_name, subject, email_thread_id, id')
+        .select('customer_email, customer_name, subject, email_thread_id, id, message_type')
         .eq('id', params.id)
         .single();
 
       if (message && message.customer_email) {
+        const isEggMessage = typeof message.message_type === 'string' && message.message_type.startsWith('egg');
+        const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://tinglumgard.no';
         const emailTemplate = getAdminReplyNotificationTemplate({
           customerName: message.customer_name || 'Kunde',
           messageId: message.id,
           subject: message.subject,
           replyText: reply_text.trim(),
           adminName,
+          portalUrl: isEggMessage ? `${appUrl}/rugeegg/mine-bestillinger` : `${appUrl}/min-side`,
+          portalLabel: 'Min side',
         });
 
         const emailResult = await sendEmail({

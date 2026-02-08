@@ -268,7 +268,7 @@ export function ConfigurationManagement() {
           </div>
         </div>
 
-        <div className="mt-6 p-4 rounded-lg bg-blue-50 border border-blue-200">
+        <div className="mt-6 p-4 rounded-xl bg-blue-50 border border-blue-200">
           <p className="text-sm text-blue-900 font-medium mb-2">Priseksempel:</p>
           <div className="grid grid-cols-2 gap-2 text-sm text-blue-800">
             <div>8 kg forskudd ({box8kgDepositPercentage}%):</div>
@@ -315,7 +315,7 @@ export function ConfigurationManagement() {
           </div>
         </div>
 
-        <div className="mt-4 p-4 rounded-lg bg-amber-50 border border-amber-200">
+        <div className="mt-4 p-4 rounded-xl bg-amber-50 border border-amber-200">
           <p className="text-sm text-amber-900">
             <strong>Aktiv frist:</strong> Uke {cutoffWeek}, {cutoffYear}
           </p>
