@@ -270,6 +270,75 @@ async function moveEggOrder(orderId: string, year: number, weekNumber: number, r
   return NextResponse.json({ success: true })
 }
 
+async function updateEggDelivery(
+  orderId: string,
+  deliveryMethod: string | undefined,
+  deliveryFee: number | undefined,
+  reason: string | undefined
+) {
+  if (!deliveryMethod || !Number.isFinite(deliveryFee)) {
+    return NextResponse.json({ error: 'Invalid delivery data' }, { status: 400 })
+  }
+
+  const { data: order, error } = await supabaseAdmin
+    .from('egg_orders')
+    .select('id, order_number, admin_notes, subtotal, deposit_amount, status')
+    .eq('id', orderId)
+    .single()
+
+  if (error || !order) {
+    return NextResponse.json({ error: 'Order not found' }, { status: 404 })
+  }
+
+  const { data: additions } = await supabaseAdmin
+    .from('egg_order_additions')
+    .select('subtotal')
+    .eq('egg_order_id', orderId)
+
+  const additionsTotal = (additions || []).reduce((sum, row: any) => sum + (row.subtotal || 0), 0)
+  const nextBaseTotal = (order.subtotal || 0) + deliveryFee
+  const nextTotal = nextBaseTotal + additionsTotal
+  const nextRemainder = Math.max(0, nextTotal - (order.deposit_amount || 0))
+
+  let nextStatus = order.status
+  if (['deposit_paid', 'fully_paid'].includes(order.status)) {
+    const { data: remainderPayments } = await supabaseAdmin
+      .from('egg_payments')
+      .select('amount_nok, status')
+      .eq('egg_order_id', orderId)
+      .eq('payment_type', 'remainder')
+      .eq('status', 'completed')
+
+    const remainderPaidOre =
+      (remainderPayments || []).reduce((sum, p: any) => sum + (p.amount_nok || 0) * 100, 0) || 0
+    nextStatus = remainderPaidOre >= nextRemainder ? 'fully_paid' : 'deposit_paid'
+  }
+
+  const { error: updateError } = await supabaseAdmin
+    .from('egg_orders')
+    .update({
+      delivery_method: deliveryMethod,
+      delivery_fee: deliveryFee,
+      total_amount: nextTotal,
+      remainder_amount: nextRemainder,
+      status: nextStatus,
+    })
+    .eq('id', orderId)
+
+  if (updateError) {
+    logError('admin-egg-delivery-update', updateError)
+    return NextResponse.json({ error: 'Failed to update delivery' }, { status: 500 })
+  }
+
+  await appendAdminNote(
+    orderId,
+    order.admin_notes,
+    `Admin: delivery updated to ${deliveryMethod} (${deliveryFee} ore)${reason ? ` - ${reason}` : ''}`
+  )
+
+  return NextResponse.json({ success: true })
+}
+
 export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -298,6 +367,13 @@ export async function POST(
         }
       case 'move_week':
         return await moveEggOrder(params.id, data?.year, data?.weekNumber, data?.reason)
+      case 'update_delivery':
+        return await updateEggDelivery(
+          params.id,
+          data?.deliveryMethod,
+          data?.deliveryFee,
+          data?.reason
+        )
       default:
         return NextResponse.json({ error: 'Unknown action' }, { status: 400 })
     }

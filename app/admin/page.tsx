@@ -339,7 +339,7 @@ export default function AdminPage() {
 
   async function handleEggOrderAction(order: Order) {
     const actionInput = window.prompt(
-      'Handling for egg-ordre: refund, cancel, cancel_refund, move',
+      'Handling for egg-ordre: refund, cancel, cancel_refund, move, delivery',
       'refund'
     )
 
@@ -351,13 +351,14 @@ export default function AdminPage() {
       cancel: 'cancel_order',
       cancel_refund: 'cancel_and_refund',
       move: 'move_week',
+      delivery: 'update_delivery',
     }
 
     const action = actionMap[actionKey]
     if (!action) {
       toast({
         title: 'Ugyldig handling',
-        description: 'Bruk refund, cancel, cancel_refund eller move',
+        description: 'Bruk refund, cancel, cancel_refund, move eller delivery',
         variant: 'destructive',
       })
       return
@@ -383,6 +384,31 @@ export default function AdminPage() {
 
       data.weekNumber = weekNumber
       data.year = year
+    }
+
+    if (action === 'update_delivery') {
+      const methodInput = window.prompt('Levering (posten, e6, farm)?', 'posten')
+      if (!methodInput) return
+
+      const normalized = methodInput.trim().toLowerCase()
+      const methodMap: Record<string, { method: string; fee: number }> = {
+        posten: { method: 'posten', fee: 30000 },
+        e6: { method: 'e6_pickup', fee: 20000 },
+        farm: { method: 'farm_pickup', fee: 0 },
+      }
+
+      const delivery = methodMap[normalized]
+      if (!delivery) {
+        toast({
+          title: 'Ugyldig levering',
+          description: 'Bruk posten, e6 eller farm',
+          variant: 'destructive',
+        })
+        return
+      }
+
+      data.deliveryMethod = delivery.method
+      data.deliveryFee = delivery.fee
     }
 
     if (action === 'cancel_order' || action === 'cancel_and_refund') {

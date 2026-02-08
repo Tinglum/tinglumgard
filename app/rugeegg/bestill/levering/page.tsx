@@ -11,6 +11,16 @@ import { ArrowRight, Truck, MapPin, Store } from 'lucide-react'
 
 const deliveryOptions = [
   {
+    id: 'posten' as const,
+    icon: Truck,
+    titleNo: 'Sending med Posten',
+    titleEn: 'Posten shipment',
+    descriptionNo: 'Sendes trygt med Posten til nærmeste hentested.',
+    descriptionEn: 'Shipped with Posten to your nearest pickup point.',
+    fee: 30000,
+    recommended: true,
+  },
+  {
     id: 'farm_pickup' as const,
     icon: Store,
     titleNo: 'Henting på gården',
@@ -27,15 +37,6 @@ const deliveryOptions = [
     descriptionNo: 'Avhenting ved avtalt møtepunkt langs E6.',
     descriptionEn: 'Pickup at an agreed E6 meeting point.',
     fee: 20000,
-  },
-  {
-    id: 'posten' as const,
-    icon: Truck,
-    titleNo: 'Posten sending',
-    titleEn: 'Posten shipment',
-    descriptionNo: 'Sendes trygt med Posten til nærmeste hentested.',
-    descriptionEn: 'Shipped with Posten to your nearest pickup point.',
-    fee: 30000,
   },
 ]
 
@@ -100,6 +101,8 @@ export default function EggDeliveryPage() {
               const active = selectedMethod === option.id
               const Icon = option.icon
 
+              const isRecommended = option.recommended
+
               return (
                 <button
                   key={option.id}
@@ -109,7 +112,9 @@ export default function EggDeliveryPage() {
                   className={`w-full text-left rounded-xl border px-6 py-5 transition-all ${
                     active
                       ? 'border-neutral-900 bg-neutral-900 text-white'
-                      : 'border-neutral-200 bg-white text-neutral-900 hover:border-neutral-400'
+                      : isRecommended
+                        ? 'border-amber-300 bg-amber-50 text-neutral-900 hover:border-amber-400'
+                        : 'border-neutral-200 bg-white text-neutral-900 hover:border-neutral-400'
                   } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
                   <div className="flex items-start gap-4">
@@ -122,9 +127,22 @@ export default function EggDeliveryPage() {
                     </div>
                     <div className="flex-1">
                       <div className="flex items-center justify-between">
-                        <h3 className="text-lg font-normal">
-                          {language === 'no' ? option.titleNo : option.titleEn}
-                        </h3>
+                        <div className="flex items-center gap-2">
+                          <h3 className="text-lg font-normal">
+                            {language === 'no' ? option.titleNo : option.titleEn}
+                          </h3>
+                          {isRecommended && (
+                            <span
+                              className={`text-[11px] px-2 py-0.5 rounded-full ${
+                                active
+                                  ? 'bg-white/15 text-white'
+                                  : 'bg-amber-100 text-amber-800'
+                              }`}
+                            >
+                              {language === 'no' ? 'Anbefalt' : 'Recommended'}
+                            </span>
+                          )}
+                        </div>
                         <span className="text-sm font-normal">
                           {option.fee === 0
                             ? language === 'no'
@@ -146,6 +164,11 @@ export default function EggDeliveryPage() {
                 </button>
               )
             })}
+            <div className="rounded-xl border border-neutral-200 bg-neutral-50 px-5 py-4 text-sm text-neutral-700">
+              {language === 'no'
+                ? 'Henting på gården og levering langs E6 Namsos–Trondheim er ønskeløsninger som kan avtales etter at forskuddet er betalt. Send en melding etter innbetalt forskudd, så ser vi om det er mulig å ordne.'
+                : 'Farm pickup and E6 Namsos–Trondheim delivery are wishes that may be arranged after the deposit is paid. Send a message after the deposit, and we will see if it can be arranged.'}
+            </div>
           </div>
 
           <div className="lg:col-span-1">

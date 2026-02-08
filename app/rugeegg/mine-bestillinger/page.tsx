@@ -50,7 +50,7 @@ const daysBetween = (future: Date, today: Date) => {
 
 const formatDeliveryMethod = (method: string, language: string) => {
   if (method === 'posten') {
-    return language === 'no' ? 'Posten sending' : 'Posten shipment'
+    return language === 'no' ? 'Sending med Posten' : 'Posten shipment'
   }
   if (method === 'e6_pickup') {
     return language === 'no' ? 'E6 møtepunkt' : 'E6 pickup'
