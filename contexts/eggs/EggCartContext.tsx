@@ -104,6 +104,12 @@ export function CartProvider({ children }: { children: ReactNode }) {
       return { allowed: false, reason: 'cart_empty' }
     }
 
+    const firstWeekId = items[0].week.id
+    const sameWeek = items.every((item) => item.week.id === firstWeekId)
+    if (!sameWeek) {
+      return { allowed: false, reason: 'mixed_weeks' }
+    }
+
     const requiredBaseQty = (slug: string) => (slug === 'ayam-cemani' ? 6 : 10)
     const hasBaseQuantity = items.some(
       (item) => item.quantity >= requiredBaseQty(item.breed.slug)

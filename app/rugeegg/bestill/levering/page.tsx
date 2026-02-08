@@ -60,18 +60,22 @@ export default function EggDeliveryPage() {
   }
 
   const selectedMethod = currentDraft.deliveryMethod
+  const totalEggs = currentDraft.items.reduce((sum, item) => sum + item.quantity, 0)
+  const itemSummary = currentDraft.items
+    .map((item) => `${item.breed.name} (${item.quantity})`)
+    .join(', ')
   const summaryRows = [
     {
-      label: language === 'no' ? 'Rase' : 'Breed',
-      value: currentDraft.breed.name,
+      label: language === 'no' ? 'Raser' : 'Breeds',
+      value: itemSummary,
     },
     {
       label: language === 'no' ? 'Uke' : 'Week',
-      value: `${currentDraft.week.weekNumber} · ${formatDate(currentDraft.week.deliveryMonday, language)}`,
+      value: `${currentDraft.deliveryWeek.weekNumber} · ${formatDate(currentDraft.deliveryWeek.deliveryMonday, language)}`,
     },
     {
       label: language === 'no' ? 'Antall egg' : 'Eggs',
-      value: String(currentDraft.quantity),
+      value: String(totalEggs),
     },
   ]
 
@@ -97,7 +101,7 @@ export default function EggDeliveryPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-4">
             {deliveryOptions.map((option) => {
-              const disabled = option.id === 'e6_pickup' && !currentDraft.week.e6PickupAvailable
+              const disabled = option.id === 'e6_pickup' && !currentDraft.deliveryWeek.e6PickupAvailable
               const active = selectedMethod === option.id
               const Icon = option.icon
 

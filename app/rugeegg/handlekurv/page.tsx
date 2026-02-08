@@ -23,10 +23,7 @@ export default function CartPage() {
   const handleCheckout = () => {
     if (!checkoutStatus.allowed) return
 
-    // Process first item and keep others in cart
-    const item = items[0]
-    startOrder(item.breed, item.week, item.quantity)
-    removeFromCart(item.breed.id, item.week.id)
+    startOrder(items)
     router.push('/rugeegg/bestill/levering')
   }
 
@@ -62,6 +59,14 @@ export default function CartPage() {
             language === 'no'
               ? `Minimum 12 egg totalt når du blander raser (med mindre én rase har 10 egg, Ayam Cemani 6). Du har ${totalEggs}`
               : `Minimum 12 eggs total when mixing breeds (unless one breed has 10 eggs, Ayam Cemani 6). You have ${totalEggs}`,
+        }
+      case 'mixed_weeks':
+        return {
+          type: 'warning',
+          message:
+            language === 'no'
+              ? 'Velg egg fra samme uke for én samlet forsendelse.'
+              : 'Choose eggs from the same week for a single shipment.',
         }
       default:
         return null
@@ -246,8 +251,8 @@ export default function CartPage() {
                         <Info className="w-5 h-5 flex-shrink-0 mt-0.5" />
                         <p className="text-sm">
                           {language === 'no'
-                            ? 'Du vil fullføre en bestilling om gangen. Resterende varer forblir i handlekurven.'
-                            : 'You will complete one order at a time. Remaining items will stay in your cart.'}
+                            ? 'Alle eggene samles i én bestilling og én forsendelse.'
+                            : 'All eggs will be combined into one order and one shipment.'}
                         </p>
                       </div>
                     )}

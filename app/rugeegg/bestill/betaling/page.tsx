@@ -34,15 +34,19 @@ export default function EggPaymentPage() {
     )
   }
 
+  const totalEggs = currentDraft.items.reduce((sum, item) => sum + item.quantity, 0)
+
   const handlePayment = async () => {
     setIsPaying(true)
     setError(null)
     try {
       const orderDetails = {
         productType: 'eggs',
-        breedId: currentDraft.breed.id,
-        inventoryId: currentDraft.week.id,
-        quantity: currentDraft.quantity,
+        items: currentDraft.items.map((item) => ({
+          breedId: item.breed.id,
+          inventoryId: item.week.id,
+          quantity: item.quantity,
+        })),
         deliveryMethod: currentDraft.deliveryMethod,
         notes: '',
       }
@@ -159,19 +163,19 @@ export default function EggPaymentPage() {
                 </h2>
                 <div className="space-y-2 text-sm text-neutral-600">
                   <div className="flex justify-between">
-                    <span>{language === 'no' ? 'Rase' : 'Breed'}</span>
-                    <span className="font-normal text-neutral-900">{currentDraft.breed.name}</span>
+                    <span>{language === 'no' ? 'Antall egg' : 'Total eggs'}</span>
+                    <span className="font-normal text-neutral-900">{totalEggs}</span>
                   </div>
                   <div className="flex justify-between">
                     <span>{language === 'no' ? 'Uke' : 'Week'}</span>
                     <span className="font-normal text-neutral-900">
-                      {currentDraft.week.weekNumber}
+                      {currentDraft.deliveryWeek.weekNumber}
                     </span>
                   </div>
                   <div className="flex justify-between">
                     <span>{language === 'no' ? 'Forsendelse' : 'Shipment'}</span>
                     <span className="font-normal text-neutral-900">
-                      {formatDate(currentDraft.week.deliveryMonday, language)}
+                      {formatDate(currentDraft.deliveryWeek.deliveryMonday, language)}
                     </span>
                   </div>
                 </div>

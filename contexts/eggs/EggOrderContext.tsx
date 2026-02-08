@@ -4,10 +4,15 @@ import { createContext, useContext, useState, useEffect, ReactNode } from 'react
 import { Order, Breed, WeekInventory, DeliveryMethod } from '@/lib/eggs/types'
 import { generateOrderNumber } from '@/lib/eggs/utils'
 
-interface OrderDraft {
+interface OrderItemDraft {
   breed: Breed
   week: WeekInventory
   quantity: number
+}
+
+interface OrderDraft {
+  items: OrderItemDraft[]
+  deliveryWeek: WeekInventory
   deliveryMethod?: DeliveryMethod
   subtotal: number
   deliveryFee: number
@@ -19,7 +24,7 @@ interface OrderDraft {
 interface OrderContextType {
   currentDraft: OrderDraft | null
   completedOrders: Order[]
-  startOrder: (breed: Breed, week: WeekInventory, quantity: number) => void
+  startOrder: (items: OrderItemDraft[]) => void
   setDeliveryMethod: (method: DeliveryMethod) => void
   completeOrder: () => Order
   clearDraft: () => void
@@ -58,17 +63,18 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     }
   }, [completedOrders])
 
-  const startOrder = (breed: Breed, week: WeekInventory, quantity: number) => {
-    const subtotal = quantity * breed.pricePerEgg
+  const startOrder = (items: OrderItemDraft[]) => {
+    if (!items.length) return
+
+    const subtotal = items.reduce((sum, item) => sum + item.quantity * item.breed.pricePerEgg, 0)
     const deliveryFee = 0 // Will be set when delivery method is chosen
     const totalAmount = subtotal + deliveryFee
     const depositAmount = Math.round(subtotal / 2)
     const remainderAmount = (subtotal - depositAmount) + deliveryFee
 
     setCurrentDraft({
-      breed,
-      week,
-      quantity,
+      items,
+      deliveryWeek: items[0].week,
       subtotal,
       deliveryFee,
       totalAmount,
@@ -109,20 +115,27 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     const orderNumber = generateOrderNumber(completedOrders.length)
 
     // Calculate remainder due date (6 days before delivery)
-    const remainderDueDate = new Date(currentDraft.week.deliveryMonday)
+    const remainderDueDate = new Date(currentDraft.deliveryWeek.deliveryMonday)
     remainderDueDate.setDate(remainderDueDate.getDate() - 6)
+
+    const primaryItem = currentDraft.items[0]
+    const totalEggs = currentDraft.items.reduce((sum, item) => sum + item.quantity, 0)
+    const primaryName =
+      currentDraft.items.length === 1
+        ? primaryItem.breed.name
+        : 'Flere raser'
 
     const order: Order = {
       id: `order-${Date.now()}`,
       orderNumber,
       userId: 'demo-user',
-      breedId: currentDraft.breed.id,
-      breedName: currentDraft.breed.name,
-      year: currentDraft.week.year,
-      weekNumber: currentDraft.week.weekNumber,
-      deliveryMonday: currentDraft.week.deliveryMonday,
-      quantity: currentDraft.quantity,
-      pricePerEgg: currentDraft.breed.pricePerEgg,
+      breedId: primaryItem.breed.id,
+      breedName: primaryName,
+      year: currentDraft.deliveryWeek.year,
+      weekNumber: currentDraft.deliveryWeek.weekNumber,
+      deliveryMonday: currentDraft.deliveryWeek.deliveryMonday,
+      quantity: totalEggs,
+      pricePerEgg: primaryItem.breed.pricePerEgg,
       subtotal: currentDraft.subtotal,
       deliveryFee: currentDraft.deliveryFee,
       totalAmount: currentDraft.totalAmount,

@@ -19,10 +19,12 @@ export async function GET(request: NextRequest) {
 
     // Store state in a cookie for CSRF protection
     const cookieStore = await cookies();
+    const isProduction = process.env.NODE_ENV === 'production';
+
     cookieStore.set('vipps_state', state, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      secure: isProduction,
+      sameSite: isProduction ? 'none' : 'lax',
       maxAge: 600, // 10 minutes
       path: '/',
     });
@@ -63,10 +65,12 @@ export async function POST(request: NextRequest) {
 
     // Store state in a cookie for CSRF protection
     const cookieStore = await cookies();
+    const isProduction = process.env.NODE_ENV === 'production';
+
     cookieStore.set('vipps_state', state, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      secure: isProduction,
+      sameSite: isProduction ? 'none' : 'lax',
       maxAge: 600, // 10 minutes
       path: '/',
     });

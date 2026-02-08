@@ -4,9 +4,10 @@ import { logError } from '@/lib/logger'
 
 interface EggCheckoutRequest {
   productType?: 'eggs'
-  breedId: string
-  inventoryId: string
-  quantity: number
+  breedId?: string
+  inventoryId?: string
+  quantity?: number
+  items?: Array<{ breedId: string; inventoryId: string; quantity: number }>
   deliveryMethod: 'farm_pickup' | 'e6_pickup' | 'posten'
   notes?: string
   customerName?: string
@@ -18,50 +19,88 @@ export async function POST(request: NextRequest) {
   try {
     const body: EggCheckoutRequest = await request.json()
 
-    if (!body.breedId || !body.inventoryId || !body.quantity || !body.deliveryMethod) {
+    if (!body.deliveryMethod) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
 
-    const quantity = Number(body.quantity)
-    if (!Number.isFinite(quantity) || quantity <= 0) {
+    const rawItems = Array.isArray(body.items) && body.items.length > 0
+      ? body.items
+      : body.breedId && body.inventoryId && body.quantity
+        ? [{ breedId: body.breedId, inventoryId: body.inventoryId, quantity: body.quantity }]
+        : []
+
+    if (rawItems.length === 0) {
+      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+    }
+
+    const items = rawItems.map((item) => ({
+      breedId: item.breedId,
+      inventoryId: item.inventoryId,
+      quantity: Number(item.quantity),
+    }))
+
+    if (items.some((item) => !item.breedId || !item.inventoryId || !Number.isFinite(item.quantity) || item.quantity <= 0)) {
       return NextResponse.json({ error: 'Invalid quantity' }, { status: 400 })
     }
 
-    const { data: breed, error: breedError } = await supabaseAdmin
-      .from('egg_breeds')
-      .select('*')
-      .eq('id', body.breedId)
-      .eq('active', true)
-      .single()
-
-    if (breedError || !breed) {
-      return NextResponse.json({ error: 'Breed not found' }, { status: 404 })
-    }
-
-    const { data: inventory, error: inventoryError } = await supabaseAdmin
+    const inventoryIds = items.map((item) => item.inventoryId)
+    const { data: inventories, error: inventoryError } = await supabaseAdmin
       .from('egg_inventory')
-      .select('*')
-      .eq('id', body.inventoryId)
-      .single()
+      .select('*, egg_breeds(*)')
+      .in('id', inventoryIds)
 
-    if (inventoryError || !inventory) {
+    if (inventoryError || !inventories || inventories.length !== inventoryIds.length) {
       return NextResponse.json({ error: 'Inventory not found' }, { status: 404 })
     }
 
-    if (inventory.breed_id !== body.breedId) {
-      return NextResponse.json({ error: 'Inventory mismatch' }, { status: 400 })
+    const inventoryMap = new Map(inventories.map((row) => [row.id, row]))
+
+    const deliveryWeek = inventories[0]
+    if (!inventories.every((row) => row.year === deliveryWeek.year && row.week_number === deliveryWeek.week_number)) {
+      return NextResponse.json({ error: 'All items must be in the same delivery week' }, { status: 400 })
     }
 
-    const eggsRemaining = inventory.eggs_remaining ?? (inventory.eggs_available - inventory.eggs_allocated)
-    if (eggsRemaining < quantity) {
-      return NextResponse.json({ error: 'Not enough eggs available' }, { status: 400 })
-    }
+    const requiredBaseQty = (slug: string) => (slug === 'ayam-cemani' ? 6 : 10)
+    const totalEggs = items.reduce((sum, item) => sum + item.quantity, 0)
+    const hasBaseQuantity = items.some((item) => {
+      const inventory = inventoryMap.get(item.inventoryId)
+      const slug = inventory?.egg_breeds?.slug || ''
+      return item.quantity >= requiredBaseQty(slug)
+    })
 
-    if (quantity < breed.min_order_quantity) {
+    if (items.length === 1) {
+      const onlyItem = items[0]
+      const inventory = inventoryMap.get(onlyItem.inventoryId)
+      const slug = inventory?.egg_breeds?.slug || ''
+      if (onlyItem.quantity < requiredBaseQty(slug)) {
+        return NextResponse.json({ error: 'Below minimum order quantity' }, { status: 400 })
+      }
+    } else if (!hasBaseQuantity && totalEggs < 12) {
       return NextResponse.json({ error: 'Below minimum order quantity' }, { status: 400 })
     }
 
-    const subtotal = quantity * breed.price_per_egg
+    for (const item of items) {
+      const inventory = inventoryMap.get(item.inventoryId)
+      if (!inventory) {
+        return NextResponse.json({ error: 'Inventory not found' }, { status: 404 })
+      }
+
+      if (inventory.breed_id !== item.breedId) {
+        return NextResponse.json({ error: 'Inventory mismatch' }, { status: 400 })
+      }
+
+      const eggsRemaining = inventory.eggs_remaining ?? (inventory.eggs_available - inventory.eggs_allocated)
+      if (eggsRemaining < item.quantity) {
+        return NextResponse.json({ error: 'Not enough eggs available' }, { status: 400 })
+      }
+    }
+
+    const subtotal = items.reduce((sum, item) => {
+      const inventory = inventoryMap.get(item.inventoryId)
+      const pricePerEgg = inventory?.egg_breeds?.price_per_egg || 0
+      return sum + item.quantity * pricePerEgg
+    }, 0)
+
     const deliveryFee =
       body.deliveryMethod === 'posten'
         ? 30000
@@ -72,11 +111,15 @@ export async function POST(request: NextRequest) {
     const depositAmount = Math.round(subtotal / 2)
     const remainderAmount = (subtotal - depositAmount) + deliveryFee
 
-    const deliveryMonday = inventory.delivery_monday
+    const deliveryMonday = deliveryWeek.delivery_monday
     const remainderDueDate = new Date(deliveryMonday)
     remainderDueDate.setDate(remainderDueDate.getDate() - 6)
 
     const orderNumber = `EGG${Date.now().toString().slice(-8)}`
+
+    const primaryItem = items[0]
+    const primaryInventory = inventoryMap.get(primaryItem.inventoryId)
+    const primaryPricePerEgg = primaryInventory?.egg_breeds?.price_per_egg || 0
 
     const { data: order, error: orderError } = await supabaseAdmin
       .from('egg_orders')
@@ -86,19 +129,19 @@ export async function POST(request: NextRequest) {
         customer_name: body.customerName || 'Vipps kunde',
         customer_email: body.customerEmail || 'pending@vipps.no',
         customer_phone: body.customerPhone || null,
-        breed_id: body.breedId,
-        inventory_id: body.inventoryId,
-        quantity,
-        price_per_egg: breed.price_per_egg,
-        subtotal,
+        breed_id: primaryItem.breedId,
+        inventory_id: primaryItem.inventoryId,
+        quantity: primaryItem.quantity,
+        price_per_egg: primaryPricePerEgg,
+        subtotal: primaryItem.quantity * primaryPricePerEgg,
         delivery_fee: deliveryFee,
         total_amount: totalAmount,
         deposit_amount: depositAmount,
         remainder_amount: remainderAmount,
         delivery_method: body.deliveryMethod,
-        year: inventory.year,
-        week_number: inventory.week_number,
-        delivery_monday: inventory.delivery_monday,
+        year: deliveryWeek.year,
+        week_number: deliveryWeek.week_number,
+        delivery_monday: deliveryWeek.delivery_monday,
         remainder_due_date: remainderDueDate.toISOString().split('T')[0],
         notes: body.notes || null,
         status: 'pending',
@@ -112,14 +155,42 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to create order' }, { status: 500 })
     }
 
-    const nextAllocated = (inventory.eggs_allocated || 0) + quantity
-    const { error: updateError } = await supabaseAdmin
-      .from('egg_inventory')
-      .update({ eggs_allocated: nextAllocated })
-      .eq('id', inventory.id)
+    for (const item of items) {
+      const inventory = inventoryMap.get(item.inventoryId)
+      if (!inventory) continue
 
-    if (updateError) {
-      logError('egg-checkout-inventory-update', updateError)
+      const nextAllocated = (inventory.eggs_allocated || 0) + item.quantity
+      const { error: updateError } = await supabaseAdmin
+        .from('egg_inventory')
+        .update({ eggs_allocated: nextAllocated })
+        .eq('id', inventory.id)
+
+      if (updateError) {
+        logError('egg-checkout-inventory-update', updateError)
+      }
+    }
+
+    const additions = items.slice(1).map((item) => {
+      const inventory = inventoryMap.get(item.inventoryId)
+      const pricePerEgg = inventory?.egg_breeds?.price_per_egg || 0
+      return {
+        egg_order_id: order.id,
+        breed_id: item.breedId,
+        inventory_id: item.inventoryId,
+        quantity: item.quantity,
+        price_per_egg: pricePerEgg,
+        subtotal: item.quantity * pricePerEgg,
+      }
+    })
+
+    if (additions.length > 0) {
+      const { error: additionsError } = await supabaseAdmin
+        .from('egg_order_additions')
+        .insert(additions)
+
+      if (additionsError) {
+        logError('egg-checkout-additions-insert', additionsError)
+      }
     }
 
     return NextResponse.json({ success: true, orderId: order.id, orderNumber: order.order_number })
