@@ -67,7 +67,7 @@ export default function EggPaymentPage() {
       console.error('Payment error', error)
       setError(
         language === 'no'
-          ? 'Kunne ikke starte Vipps-innlogging. Prøv igjen.'
+          ? 'Kunne ikke starte Vipps-innlogging. PrÃ¸v igjen.'
           : 'Failed to start Vipps login. Please try again.'
       )
     }
@@ -83,7 +83,7 @@ export default function EggPaymentPage() {
             </h1>
             <p className="text-neutral-600">
               {language === 'no'
-                ? 'Betal forskuddet for å bekrefte bestillingen.'
+                ? 'Betal forskuddet for Ã¥ bekrefte bestillingen.'
                 : 'Pay the deposit to confirm your order.'}
             </p>
           </div>
@@ -111,7 +111,7 @@ export default function EggPaymentPage() {
                   </h2>
                   <p className="text-sm text-neutral-600">
                     {language === 'no'
-                      ? 'Du betaler 50% nå, resten før levering.'
+                      ? 'Du betaler 50% nÃ¥, resten fÃ¸r levering.'
                       : 'You pay 50% now, the rest before delivery.'}
                   </p>
                 </div>
@@ -119,7 +119,7 @@ export default function EggPaymentPage() {
 
               <div className="flex items-center justify-between border-t border-neutral-200 pt-4">
                 <span className="text-sm text-neutral-600">
-                  {language === 'no' ? 'Forskudd å betale' : 'Deposit due'}
+                  {language === 'no' ? 'Forskudd Ã¥ betale' : 'Deposit due'}
                 </span>
                 <span className="text-2xl font-normal text-neutral-900">
                   {formatPrice(currentDraft.depositAmount, language)}
