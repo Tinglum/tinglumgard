@@ -346,7 +346,11 @@ export function AdminMessagingPanel() {
               <label className="block text-sm font-medium text-gray-700 mb-2">{t.messaging.category}</label>
               <select
                 value={broadcastType}
-                onChange={(e) => setBroadcastType(e.target.value)}
+                onChange={(e) =>
+                  setBroadcastType(
+                    e.target.value as 'support' | 'inquiry' | 'complaint' | 'feedback' | 'referral_question'
+                  )
+                }
                 className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 <option value="support">{t.messaging.support}</option>
