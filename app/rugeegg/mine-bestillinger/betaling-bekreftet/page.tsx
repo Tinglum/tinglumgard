@@ -43,7 +43,7 @@ export default function EggRemainderConfirmationPage() {
         return
       }
       try {
-        const response = await fetch(`/api/eggs/orders/${orderId}`, { cache: 'no-store' })
+        const response = await fetch(`/api/eggs/my-orders/${orderId}`, { cache: 'no-store' })
         if (!response.ok) {
           throw new Error('Order not found')
         }
