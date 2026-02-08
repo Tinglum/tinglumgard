@@ -1,6 +1,59 @@
 import { NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth/session'
 import { supabaseAdmin } from '@/lib/supabase/server'
+import { vippsClient } from '@/lib/vipps/api-client'
+
+const allowedPaymentStates = new Set(['AUTHORIZED', 'CAPTURED'])
+
+async function reconcileEggOrder(order: any) {
+  const depositPayment = (order.egg_payments || []).find(
+    (payment: any) => payment.payment_type === 'deposit'
+  )
+
+  if (!depositPayment || depositPayment.status !== 'pending') {
+    return order
+  }
+
+  const vippsId = depositPayment.vipps_order_id
+  if (!vippsId) {
+    return order
+  }
+
+  try {
+    const session = await vippsClient.getCheckoutSession(vippsId)
+    const sessionState = session?.sessionState as string | undefined
+    const paymentState = session?.paymentDetails?.state as string | undefined
+
+    if (sessionState !== 'PaymentSuccessful' || !allowedPaymentStates.has(paymentState || '')) {
+      return order
+    }
+
+    const paidAt = new Date().toISOString()
+
+    await supabaseAdmin
+      .from('egg_payments')
+      .update({ status: 'completed', paid_at: paidAt, webhook_processed_at: paidAt })
+      .eq('id', depositPayment.id)
+
+    await supabaseAdmin
+      .from('egg_orders')
+      .update({ status: 'deposit_paid' })
+      .eq('id', order.id)
+
+    return {
+      ...order,
+      status: 'deposit_paid',
+      egg_payments: (order.egg_payments || []).map((payment: any) =>
+        payment.id === depositPayment.id
+          ? { ...payment, status: 'completed', paid_at: paidAt }
+          : payment
+      ),
+    }
+  } catch (error) {
+    console.error('Failed to reconcile egg order payment:', error)
+    return order
+  }
+}
 
 export async function GET() {
   const session = await getSession()
@@ -60,7 +113,13 @@ export async function GET() {
       return b.created_at.localeCompare(a.created_at)
     })
 
-    return NextResponse.json(data)
+    const reconciled = []
+    for (const order of data) {
+      // Keep API responsive even if Vipps check fails for one order.
+      reconciled.push(await reconcileEggOrder(order))
+    }
+
+    return NextResponse.json(reconciled)
   } catch (error: any) {
     console.error('Unexpected error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

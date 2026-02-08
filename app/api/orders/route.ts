@@ -1,6 +1,59 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth/session';
 import { supabaseAdmin } from '@/lib/supabase/server';
+import { vippsClient } from '@/lib/vipps/api-client';
+
+const allowedPaymentStates = new Set(['AUTHORIZED', 'CAPTURED']);
+
+async function reconcilePigOrder(order: any) {
+  const depositPayment = (order.payments || []).find(
+    (payment: any) => payment.payment_type === 'deposit'
+  );
+
+  if (!depositPayment || depositPayment.status !== 'pending') {
+    return order;
+  }
+
+  const vippsId = depositPayment.vipps_session_id || depositPayment.vipps_order_id;
+  if (!vippsId) {
+    return order;
+  }
+
+  try {
+    const session = await vippsClient.getCheckoutSession(vippsId);
+    const sessionState = session?.sessionState as string | undefined;
+    const paymentState = session?.paymentDetails?.state as string | undefined;
+
+    if (sessionState !== 'PaymentSuccessful' || !allowedPaymentStates.has(paymentState || '')) {
+      return order;
+    }
+
+    const paidAt = new Date().toISOString();
+
+    await supabaseAdmin
+      .from('payments')
+      .update({ status: 'completed', paid_at: paidAt, webhook_processed_at: paidAt })
+      .eq('id', depositPayment.id);
+
+    await supabaseAdmin
+      .from('orders')
+      .update({ status: 'deposit_paid' })
+      .eq('id', order.id);
+
+    return {
+      ...order,
+      status: 'deposit_paid',
+      payments: (order.payments || []).map((payment: any) =>
+        payment.id === depositPayment.id
+          ? { ...payment, status: 'completed', paid_at: paidAt }
+          : payment
+      ),
+    };
+  } catch (error) {
+    console.error('Failed to reconcile pig order payment:', error);
+    return order;
+  }
+}
 
 export async function GET() {
   const session = await getSession();
@@ -64,7 +117,12 @@ export async function GET() {
     // Sort by created_at descending
     allOrders.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
-    return NextResponse.json({ orders: allOrders });
+    const reconciledOrders = [];
+    for (const order of allOrders) {
+      reconciledOrders.push(await reconcilePigOrder(order));
+    }
+
+    return NextResponse.json({ orders: reconciledOrders });
   } catch (error) {
     console.error('Error fetching orders:', error);
     return NextResponse.json(
