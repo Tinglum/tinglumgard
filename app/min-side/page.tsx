@@ -181,7 +181,7 @@ export default function CustomerPortalPage() {
                 : 'text-neutral-500 hover:text-neutral-900'
             }`}
           >
-            {t.minSide.messages || 'Meldinger'}
+            Meldinger
           </button>
         </div>
 
