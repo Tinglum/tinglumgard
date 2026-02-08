@@ -193,6 +193,10 @@ class VippsClient {
         'client_secret': vippsConfig.clientSecret,
         'Ocp-Apim-Subscription-Key': vippsConfig.subscriptionKey,
         'Merchant-Serial-Number': vippsConfig.merchantSerialNumber,
+        'Vipps-System-Name': 'tinglumgard',
+        'Vipps-System-Version': '1.0.0',
+        'Vipps-System-Plugin-Name': 'tinglumgard-checkout',
+        'Vipps-System-Plugin-Version': '1.0.0',
       },
     });
 
@@ -211,6 +215,10 @@ class VippsClient {
         'client_secret': vippsConfig.clientSecret,
         'Ocp-Apim-Subscription-Key': vippsConfig.subscriptionKey,
         'Merchant-Serial-Number': vippsConfig.merchantSerialNumber,
+        'Vipps-System-Name': 'tinglumgard',
+        'Vipps-System-Version': '1.0.0',
+        'Vipps-System-Plugin-Name': 'tinglumgard-checkout',
+        'Vipps-System-Plugin-Version': '1.0.0',
       },
     });
 
