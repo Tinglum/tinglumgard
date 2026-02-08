@@ -60,15 +60,6 @@ export default function CustomerPortalPage() {
   const [canEdit, setCanEdit] = useState(false);
   const [activeTab, setActiveTab] = useState<'orders' | 'referrals' | 'messages'>('orders');
 
-  useEffect(() => {
-    if (!authLoading && isAuthenticated) {
-      loadOrders();
-      loadConfig();
-    } else if (!authLoading && !isAuthenticated) {
-      setLoading(false);
-    }
-  }, [authLoading, isAuthenticated, loadOrders, loadConfig]);
-
   async function handleVippsLogin() {
     window.location.href = '/api/auth/vipps/login?returnTo=/min-side';
   }
@@ -104,6 +95,15 @@ export default function CustomerPortalPage() {
       setLoading(false);
     }
   }, []);
+
+  useEffect(() => {
+    if (!authLoading && isAuthenticated) {
+      loadOrders();
+      loadConfig();
+    } else if (!authLoading && !isAuthenticated) {
+      setLoading(false);
+    }
+  }, [authLoading, isAuthenticated, loadOrders, loadConfig]);
 
   function getWeekNumber(date: Date): { year: number; week: number } {
     const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
