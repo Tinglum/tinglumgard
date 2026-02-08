@@ -108,8 +108,12 @@ export async function POST(request: NextRequest) {
           ? 20000
           : 0
     const totalAmount = subtotal + deliveryFee
-    const depositAmount = Math.round(subtotal / 2)
-    const remainderAmount = (subtotal - depositAmount) + deliveryFee
+    const deliveryDate = new Date(new Date(deliveryWeek.delivery_monday).toISOString().split('T')[0])
+    const today = new Date(new Date().toISOString().split('T')[0])
+    const daysToDelivery = Math.round((deliveryDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+    const isFullPayment = daysToDelivery <= 11
+    const depositAmount = isFullPayment ? totalAmount : Math.round(subtotal / 2)
+    const remainderAmount = isFullPayment ? 0 : (subtotal - depositAmount) + deliveryFee
 
     const deliveryMonday = deliveryWeek.delivery_monday
     const remainderDueDate = new Date(deliveryMonday)
@@ -142,7 +146,7 @@ export async function POST(request: NextRequest) {
         year: deliveryWeek.year,
         week_number: deliveryWeek.week_number,
         delivery_monday: deliveryWeek.delivery_monday,
-        remainder_due_date: remainderDueDate.toISOString().split('T')[0],
+        remainder_due_date: isFullPayment ? null : remainderDueDate.toISOString().split('T')[0],
         notes: body.notes || null,
         status: 'pending',
         policy_version: 'v1-2026',

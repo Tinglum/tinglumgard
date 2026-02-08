@@ -86,9 +86,13 @@ export default function EggPaymentPage() {
               {language === 'no' ? 'Betaling' : 'Payment'}
             </h1>
             <p className="text-neutral-600">
-              {language === 'no'
-                ? 'Betal forskuddet for eggene for å bekrefte bestillingen.'
-                : 'Pay the deposit for the eggs to confirm your order.'}
+              {currentDraft.isFullPayment
+                ? language === 'no'
+                  ? 'Betal hele beløpet for å bekrefte bestillingen.'
+                  : 'Pay the full amount to confirm your order.'
+                : language === 'no'
+                  ? 'Betal forskuddet for eggene for å bekrefte bestillingen.'
+                  : 'Pay the deposit for the eggs to confirm your order.'}
             </p>
           </div>
           <Link href="/rugeegg/bestill/levering" className="text-sm text-neutral-600 hover:text-neutral-900">
@@ -111,12 +115,22 @@ export default function EggPaymentPage() {
                 </div>
                 <div>
                   <h2 className="text-lg font-normal text-neutral-900">
-                    {language === 'no' ? 'Forskudd' : 'Deposit'}
+                    {currentDraft.isFullPayment
+                      ? language === 'no'
+                        ? 'Full betaling'
+                        : 'Full payment'
+                      : language === 'no'
+                        ? 'Forskudd'
+                        : 'Deposit'}
                   </h2>
                   <p className="text-sm text-neutral-600">
-                    {language === 'no'
-                      ? 'Du betaler 50% av eggene nå, resten før sending.'
-                      : 'You pay 50% for the eggs now, the rest before shipment.'}
+                    {currentDraft.isFullPayment
+                      ? language === 'no'
+                        ? 'Bestillingen sendes snart, så hele beløpet betales nå.'
+                        : 'The order ships soon, so the full amount is due now.'
+                      : language === 'no'
+                        ? 'Du betaler 50% av eggene nå, resten før sending.'
+                        : 'You pay 50% for the eggs now, the rest before shipment.'}
                   </p>
                   <p className="text-xs text-neutral-500 mt-2">
                     {language === 'no'
@@ -128,7 +142,13 @@ export default function EggPaymentPage() {
 
               <div className="flex items-center justify-between border-t border-neutral-200 pt-4">
                 <span className="text-sm text-neutral-600">
-                  {language === 'no' ? 'Forskudd å betale' : 'Deposit due'}
+                  {currentDraft.isFullPayment
+                    ? language === 'no'
+                      ? 'Å betale nå'
+                      : 'Due now'
+                    : language === 'no'
+                      ? 'Forskudd å betale'
+                      : 'Deposit due'}
                 </span>
                 <span className="text-2xl font-normal text-neutral-900">
                   {formatPrice(currentDraft.depositAmount, language)}

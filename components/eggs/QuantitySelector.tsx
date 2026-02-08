@@ -20,9 +20,10 @@ export function QuantitySelector({ breed, week, initialQuantity, onClose, onCont
   const { language, t } = useLanguage()
   const maxQuantity = Math.min(week.eggsAvailable, breed.maxOrderQuantity)
   const minQuantity = 1
+  const defaultQuantity = Math.max(10, breed.minOrderQuantity)
   const [quantity, setQuantity] = useState(
     clamp(
-      initialQuantity ?? breed.minOrderQuantity,
+      initialQuantity ?? defaultQuantity,
       minQuantity,
       Math.min(maxQuantity, breed.maxOrderQuantity)
     )
@@ -31,12 +32,12 @@ export function QuantitySelector({ breed, week, initialQuantity, onClose, onCont
   useEffect(() => {
     setQuantity(
       clamp(
-        initialQuantity ?? breed.minOrderQuantity,
+        initialQuantity ?? defaultQuantity,
         minQuantity,
         Math.min(maxQuantity, breed.maxOrderQuantity)
       )
     )
-  }, [initialQuantity, breed.minOrderQuantity, maxQuantity])
+  }, [initialQuantity, defaultQuantity, maxQuantity])
 
   const handleQuantityChange = (newQuantity: number) => {
     setQuantity(clamp(newQuantity, minQuantity, maxQuantity))

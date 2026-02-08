@@ -11,7 +11,7 @@ import { formatPrice } from '@/lib/eggs/utils'
 import { GlassCard } from '@/components/eggs/GlassCard'
 import { WeekSelector } from '@/components/eggs/WeekSelector'
 import { QuantitySelector } from '@/components/eggs/QuantitySelector'
-import { ArrowLeft, Info } from 'lucide-react'
+import { ArrowLeft, Info, AlertTriangle } from 'lucide-react'
 import { Breed, WeekInventory } from '@/lib/eggs/types'
 import { fetchBreedBySlug, fetchInventory } from '@/lib/eggs/api'
 
@@ -21,12 +21,14 @@ export default function BreedDetailPage() {
   const slug = params.slug as string
   const { lang: language, t } = useLanguage()
   const { startOrder } = useOrder()
-  const { items, addToCart } = useCart()
+  const { items, addToCart, clearCart } = useCart()
 
   const [breed, setBreed] = useState<Breed | null>(null)
   const [inventory, setInventory] = useState<WeekInventory[]>([])
   const [selectedWeek, setSelectedWeek] = useState<WeekInventory | null>(null)
   const [showQuantityModal, setShowQuantityModal] = useState(false)
+  const [showActiveOrderPrompt, setShowActiveOrderPrompt] = useState(false)
+  const [skipAutoWeek, setSkipAutoWeek] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -58,18 +60,11 @@ export default function BreedDetailPage() {
 
   useEffect(() => {
     if (selectedWeek || showQuantityModal || inventory.length === 0) return
-    if (items.length === 0) return
+    if (items.length === 0 || skipAutoWeek) return
+    if (showActiveOrderPrompt) return
 
-    const firstWeekId = items[0].week.id
-    const sameWeek = items.every((item) => item.week.id === firstWeekId)
-    if (!sameWeek) return
-
-    const matchingWeek = inventory.find((week) => week.id === firstWeekId)
-    if (!matchingWeek) return
-
-    setSelectedWeek(matchingWeek)
-    setShowQuantityModal(true)
-  }, [inventory, items, selectedWeek, showQuantityModal])
+    setShowActiveOrderPrompt(true)
+  }, [inventory, items, selectedWeek, showQuantityModal, showActiveOrderPrompt, skipAutoWeek])
 
   if (isLoading) {
     return (
@@ -99,6 +94,33 @@ export default function BreedDetailPage() {
   const handleWeekSelect = (week: WeekInventory) => {
     setSelectedWeek(week)
     setShowQuantityModal(true)
+  }
+
+  const handleContinueExistingOrder = () => {
+    setShowActiveOrderPrompt(false)
+
+    const firstWeekId = items[0]?.week.id
+    const sameWeek = items.every((item) => item.week.id === firstWeekId)
+    if (!sameWeek) {
+      setSkipAutoWeek(true)
+      return
+    }
+
+    const matchingWeek = inventory.find((week) => week.id === firstWeekId)
+    if (!matchingWeek) {
+      setSkipAutoWeek(true)
+      return
+    }
+
+    setSelectedWeek(matchingWeek)
+    setShowQuantityModal(true)
+  }
+
+  const handleStartNewOrder = () => {
+    setShowActiveOrderPrompt(false)
+    setSkipAutoWeek(true)
+    clearCart()
+    setSelectedWeek(null)
   }
 
   const handleQuantityContinue = (quantity: number) => {
@@ -253,6 +275,36 @@ export default function BreedDetailPage() {
       </div>
 
       {/* Quantity selector modal */}
+      {showActiveOrderPrompt && (
+        <div className="fixed inset-0 z-40 flex items-end md:items-center justify-center p-4 bg-black/40">
+          <GlassCard variant="strong" className="w-full max-w-lg p-6 md:p-8">
+            <div className="flex items-start gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center">
+                <AlertTriangle className="w-5 h-5" />
+              </div>
+              <div>
+                <h2 className="text-lg font-normal text-neutral-900">
+                  {language === 'no' ? 'Du har en aktiv bestilling' : 'You have an active order'}
+                </h2>
+                <p className="text-sm text-neutral-600">
+                  {language === 'no'
+                    ? 'Vil du legge flere egg til samme bestilling og uke?'
+                    : 'Do you want to add more eggs to the same order and week?'}
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <button type="button" onClick={handleContinueExistingOrder} className="btn-primary w-full">
+                {language === 'no' ? 'Ja, fortsett' : 'Yes, continue'}
+              </button>
+              <button type="button" onClick={handleStartNewOrder} className="btn-secondary w-full">
+                {language === 'no' ? 'Nei, ny bestilling' : 'No, new order'}
+              </button>
+            </div>
+          </GlassCard>
+        </div>
+      )}
+
       {showQuantityModal && selectedWeek && (
         <QuantitySelector
           breed={breed}

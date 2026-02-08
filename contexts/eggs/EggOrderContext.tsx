@@ -19,6 +19,7 @@ interface OrderDraft {
   totalAmount: number
   depositAmount: number
   remainderAmount: number
+  isFullPayment: boolean
 }
 
 interface OrderContextType {
@@ -69,8 +70,14 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     const subtotal = items.reduce((sum, item) => sum + item.quantity * item.breed.pricePerEgg, 0)
     const deliveryFee = 0 // Will be set when delivery method is chosen
     const totalAmount = subtotal + deliveryFee
-    const depositAmount = Math.round(subtotal / 2)
-    const remainderAmount = (subtotal - depositAmount) + deliveryFee
+    const deliveryMonday = items[0].week.deliveryMonday
+    const today = new Date(new Date().toISOString().split('T')[0])
+    const deliveryDate = new Date(new Date(deliveryMonday).toISOString().split('T')[0])
+    const daysToDelivery = Math.round((deliveryDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+    const isFullPayment = daysToDelivery <= 11
+
+    const depositAmount = isFullPayment ? totalAmount : Math.round(subtotal / 2)
+    const remainderAmount = isFullPayment ? 0 : (subtotal - depositAmount) + deliveryFee
 
     setCurrentDraft({
       items,
@@ -80,6 +87,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
       totalAmount,
       depositAmount,
       remainderAmount,
+      isFullPayment,
     })
   }
 
@@ -94,8 +102,12 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     }
 
     const totalAmount = currentDraft.subtotal + deliveryFee
-    const depositAmount = Math.round(currentDraft.subtotal / 2)
-    const remainderAmount = (currentDraft.subtotal - depositAmount) + deliveryFee
+    const deliveryDate = new Date(new Date(currentDraft.deliveryWeek.deliveryMonday).toISOString().split('T')[0])
+    const today = new Date(new Date().toISOString().split('T')[0])
+    const daysToDelivery = Math.round((deliveryDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+    const isFullPayment = daysToDelivery <= 11
+    const depositAmount = isFullPayment ? totalAmount : Math.round(currentDraft.subtotal / 2)
+    const remainderAmount = isFullPayment ? 0 : (currentDraft.subtotal - depositAmount) + deliveryFee
 
     setCurrentDraft({
       ...currentDraft,
@@ -104,6 +116,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
       totalAmount,
       depositAmount,
       remainderAmount,
+      isFullPayment,
     })
   }
 

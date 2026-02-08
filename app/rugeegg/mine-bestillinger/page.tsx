@@ -8,7 +8,6 @@ import { MessagingPanel } from '@/components/MessagingPanel'
 import { formatDateFull, formatPrice } from '@/lib/eggs/utils'
 import {
   ArrowRight,
-  Calendar,
   CheckCircle2,
   Loader2,
   AlertTriangle,
@@ -68,41 +67,6 @@ const formatDeliveryMethod = (method: string, language: string) => {
   return method
 }
 
-const buildCalendarIcs = (params: {
-  orderNumber: string
-  breedName: string
-  deliveryMonday: string
-  language: string
-}) => {
-  const deliveryDate = new Date(params.deliveryMonday)
-  const endDate = new Date(deliveryDate)
-  endDate.setDate(endDate.getDate() + 1)
-  const formatDate = (date: Date) => date.toISOString().split('T')[0].replace(/-/g, '')
-  const summary =
-    params.language === 'no'
-      ? `Rugeegg sending - ${params.breedName}`
-      : `Hatching eggs shipment - ${params.breedName}`
-  const description =
-    params.language === 'no'
-      ? `Bestilling ${params.orderNumber} sendes denne uken.`
-      : `Order ${params.orderNumber} ships this week.`
-
-  return [
-    'BEGIN:VCALENDAR',
-    'VERSION:2.0',
-    'PRODID:-//Tinglum Gård//Rugeegg//NO',
-    'CALSCALE:GREGORIAN',
-    'BEGIN:VEVENT',
-    `UID:${params.orderNumber}-${formatDate(deliveryDate)}@tinglumgard.no`,
-    `DTSTAMP:${formatDate(new Date())}T000000Z`,
-    `DTSTART;VALUE=DATE:${formatDate(deliveryDate)}`,
-    `DTEND;VALUE=DATE:${formatDate(endDate)}`,
-    `SUMMARY:${summary}`,
-    `DESCRIPTION:${description}`,
-    'END:VEVENT',
-    'END:VCALENDAR',
-  ].join('\r\n')
-}
 
 const getStatusMeta = (
   order: EggOrder,
@@ -221,23 +185,6 @@ export default function EggOrdersPage() {
     }
   }, [])
 
-  const downloadCalendar = (order: EggOrder, breedName: string) => {
-    const ics = buildCalendarIcs({
-      orderNumber: order.order_number,
-      breedName,
-      deliveryMonday: order.delivery_monday,
-      language,
-    })
-    const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `rugeegg-${order.order_number}.ics`
-    document.body.appendChild(link)
-    link.click()
-    link.remove()
-    URL.revokeObjectURL(url)
-  }
 
   if (isLoading) {
     return (
@@ -536,14 +483,6 @@ export default function EggOrdersPage() {
                               {language === 'no' ? 'Legg til egg' : 'Add eggs'}
                             </Link>
                           )}
-                          <button
-                            type="button"
-                            onClick={() => downloadCalendar(order, breedName)}
-                            className="btn-secondary inline-flex"
-                          >
-                            <Calendar className="w-4 h-4" />
-                            {language === 'no' ? 'Legg til i kalender' : 'Add to calendar'}
-                          </button>
                         </div>
                       </div>
                     </div>
