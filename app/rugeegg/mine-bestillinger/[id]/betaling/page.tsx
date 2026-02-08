@@ -72,7 +72,7 @@ export default function EggRemainderPage() {
       if (!orderId) return
       setLoading(true)
       try {
-        const response = await fetch(`/api/eggs/orders/${orderId}`)
+        const response = await fetch(`/api/eggs/my-orders/${orderId}`)
         const data = await response.json()
         if (!response.ok) {
           throw new Error(data?.error || 'Kunne ikke hente ordre')
@@ -444,4 +444,3 @@ export default function EggRemainderPage() {
     </div>
   )
 }
-
