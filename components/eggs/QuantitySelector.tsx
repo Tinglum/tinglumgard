@@ -20,7 +20,10 @@ export function QuantitySelector({ breed, week, initialQuantity, onClose, onCont
   const { language, t } = useLanguage()
   const maxQuantity = Math.min(week.eggsAvailable, breed.maxOrderQuantity)
   const minQuantity = 1
-  const defaultQuantity = Math.max(10, breed.minOrderQuantity)
+  const baseMinimum = breed.slug === 'ayam-cemani' ? 6 : 10
+  const defaultQuantity = maxQuantity < baseMinimum
+    ? maxQuantity
+    : Math.max(10, breed.minOrderQuantity)
   const [quantity, setQuantity] = useState(
     clamp(
       initialQuantity ?? defaultQuantity,
@@ -93,6 +96,14 @@ export function QuantitySelector({ breed, week, initialQuantity, onClose, onCont
                 {week.eggsAvailable} {t.quantity.available}
               </p>
             </div>
+
+            {maxQuantity < baseMinimum && (
+              <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                {language === 'no'
+                  ? `Kun ${maxQuantity} egg igjen denne uken. Vi har foreslått ${maxQuantity} egg.`
+                  : `Only ${maxQuantity} eggs left this week. We suggested ${maxQuantity} eggs.`}
+              </div>
+            )}
 
             {/* Quantity selector with numeric input + slider */}
             <div className="mb-6">

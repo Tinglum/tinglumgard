@@ -7,7 +7,7 @@ import { motion } from 'framer-motion'
 import { useLanguage } from '@/contexts/LanguageContext'
 import { useOrder } from '@/contexts/eggs/EggOrderContext'
 import { useCart } from '@/contexts/eggs/EggCartContext'
-import { formatPrice } from '@/lib/eggs/utils'
+import { formatPrice, formatDate } from '@/lib/eggs/utils'
 import { GlassCard } from '@/components/eggs/GlassCard'
 import { WeekSelector } from '@/components/eggs/WeekSelector'
 import { QuantitySelector } from '@/components/eggs/QuantitySelector'
@@ -92,6 +92,15 @@ export default function BreedDetailPage() {
   }
 
   const handleWeekSelect = (week: WeekInventory) => {
+    if (items.length > 0) {
+      const firstWeekId = items[0].week.id
+      const sameWeek = items.every((item) => item.week.id === firstWeekId)
+      if (!sameWeek || week.id !== firstWeekId) {
+        setShowActiveOrderPrompt(true)
+        return
+      }
+    }
+
     setSelectedWeek(week)
     setShowQuantityModal(true)
   }
@@ -293,6 +302,26 @@ export default function BreedDetailPage() {
                 </p>
               </div>
             </div>
+            {items.length > 0 && (
+              <div className="mb-5 rounded-xl border border-neutral-200 bg-white/70 p-4 text-sm text-neutral-700">
+                <div className="font-medium text-neutral-900 mb-2">
+                  {language === 'no' ? 'Aktiv uke' : 'Active week'}:{' '}
+                  {items[0].week.weekNumber} · {formatDate(items[0].week.deliveryMonday, language)}
+                </div>
+                <div className="space-y-1">
+                  {items.map((item) => (
+                    <div key={`${item.breed.id}-${item.week.id}`} className="flex items-center justify-between">
+                      <span>{item.breed.name}</span>
+                      <span className="text-neutral-600">
+                        {language === 'no'
+                          ? `${item.quantity} egg i bestillingen · ${item.week.eggsAvailable} igjen`
+                          : `${item.quantity} eggs in order · ${item.week.eggsAvailable} left`}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
             <div className="flex flex-col sm:flex-row gap-3">
               <button type="button" onClick={handleContinueExistingOrder} className="btn-primary w-full">
                 {language === 'no' ? 'Ja, fortsett' : 'Yes, continue'}

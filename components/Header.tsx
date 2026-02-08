@@ -7,6 +7,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { useTheme, type ThemeMode } from "@/contexts/ThemeContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
+import { ShoppingBag } from "lucide-react";
 
 export function Header() {
   const { t, lang, setLang } = useLanguage();
@@ -18,6 +19,7 @@ export function Header() {
   const [showDropdown, setShowDropdown] = useState(false);
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
   const [scrolled, setScrolled] = useState(false);
+  const [eggCartCount, setEggCartCount] = useState(0);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Detect scroll for header transformation
@@ -65,6 +67,35 @@ export function Header() {
       return () => document.removeEventListener('mousedown', handleClickOutside);
     }
   }, [showDropdown]);
+
+  useEffect(() => {
+    if (!isEggRoute) {
+      setEggCartCount(0);
+      return;
+    }
+
+    const readCartCount = () => {
+      try {
+        const stored = localStorage.getItem('tinglumgard_cart');
+        if (!stored) {
+          setEggCartCount(0);
+          return;
+        }
+        const parsed = JSON.parse(stored) as Array<{ quantity?: number }>;
+        const total = Array.isArray(parsed)
+          ? parsed.reduce((sum, item) => sum + (item.quantity || 0), 0)
+          : 0;
+        setEggCartCount(total);
+      } catch (error) {
+        setEggCartCount(0);
+      }
+    };
+
+    readCartCount();
+    const handler = () => readCartCount();
+    window.addEventListener('tinglum_cart_updated', handler);
+    return () => window.removeEventListener('tinglum_cart_updated', handler);
+  }, [isEggRoute]);
 
   const handleVippsLogin = () => {
     const returnTo = isEggRoute ? '/rugeegg/mine-bestillinger' : '/min-side';
@@ -159,6 +190,18 @@ export function Header() {
 
             {/* Actions */}
             <div className="flex items-center gap-3">
+              {isEggRoute && eggCartCount > 0 && (
+                <Link
+                  href="/rugeegg/handlekurv"
+                  className="relative flex items-center justify-center w-10 h-10 rounded-lg text-neutral-700 bg-neutral-50 hover:bg-white border border-neutral-200 transition-all duration-300 hover:shadow-[0_4px_12px_rgba(0,0,0,0.08)] hover:-translate-y-0.5"
+                  aria-label={lang === "no" ? "Handlekurv" : "Shopping cart"}
+                >
+                  <ShoppingBag className="w-5 h-5" />
+                  <span className="absolute -top-1 -right-1 w-5 h-5 bg-neutral-900 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                    {eggCartCount}
+                  </span>
+                </Link>
+              )}
               <Link
                 href={isEggRoute ? "/" : "/rugeegg"}
                 className="hidden md:inline-flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all duration-300 text-neutral-700 bg-white border border-neutral-200 hover:text-neutral-900 hover:shadow-[0_6px_16px_rgba(0,0,0,0.1)] hover:-translate-y-0.5"

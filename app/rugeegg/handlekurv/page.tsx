@@ -7,8 +7,9 @@ import { useLanguage } from '@/contexts/LanguageContext'
 import { useCart } from '@/contexts/eggs/EggCartContext'
 import { useOrder } from '@/contexts/eggs/EggOrderContext'
 import { formatPrice, formatDate } from '@/lib/eggs/utils'
+import { mapBreed, mapInventory } from '@/lib/eggs/api'
 import { GlassCard } from '@/components/eggs/GlassCard'
-import { ShoppingBag, Trash2, Plus, Minus, ArrowRight, Calendar, AlertCircle, CheckCircle2, Info } from 'lucide-react'
+import { ShoppingBag, Trash2, Plus, Minus, ArrowRight, Calendar, AlertCircle, CheckCircle2, Info, X } from 'lucide-react'
 
 export default function CartPage() {
   const router = useRouter()
@@ -19,6 +20,54 @@ export default function CartPage() {
   const totalEggs = getTotalEggs()
   const totalPrice = getTotalPrice()
   const checkoutStatus = canCheckout()
+  const [weekOptions, setWeekOptions] = useState<Array<{ breed: any; week: any }>>([])
+  const [showMixModal, setShowMixModal] = useState(false)
+  useEffect(() => {
+    if (items.length === 0) {
+      setWeekOptions([])
+      return
+    }
+
+    const week = items[0].week
+    const url = `/api/eggs/inventory?year=${week.year}&week=${week.weekNumber}`
+
+    fetch(url)
+      .then((res) => res.json())
+      .then((data) => {
+        const rows = Array.isArray(data) ? data : []
+        const mapped = rows.map((row) => {
+          const breed = row.egg_breeds ? mapBreed(row.egg_breeds) : null
+          return {
+            breed,
+            week: mapInventory(row, breed || undefined),
+          }
+        }).filter((entry) => entry.breed)
+        setWeekOptions(mapped)
+      })
+      .catch(() => setWeekOptions([]))
+  }, [items])
+
+  useEffect(() => {
+    if (checkoutStatus.allowed) return
+    if (!['mixed_min_12', 'single_breed_min_10', 'ayam_cemani_min_6'].includes(checkoutStatus.reason || '')) return
+    if (items.length === 0) return
+    setShowMixModal(true)
+  }, [checkoutStatus.allowed, checkoutStatus.reason, items.length])
+
+  const handleAdjustBreed = (breedId: string, weekId: string, delta: number, maxAvailable: number, breed: any, week: any) => {
+    const existing = items.find((item) => item.breed.id === breedId && item.week.id === weekId)
+    const currentQty = existing?.quantity || 0
+    const nextQty = Math.max(0, Math.min(currentQty + delta, maxAvailable))
+
+    if (nextQty === 0) {
+      if (existing) {
+        removeFromCart(breedId, weekId)
+      }
+      return
+    }
+
+    addToCart(breed, week, nextQty)
+  }
 
   const handleCheckout = () => {
     if (!checkoutStatus.allowed) return
@@ -237,6 +286,16 @@ export default function CartPage() {
                       </div>
                     )}
 
+                    {minimumMessage && (
+                      <button
+                        type="button"
+                        onClick={() => setShowMixModal(true)}
+                        className="btn-secondary w-full justify-center"
+                      >
+                        {language === 'no' ? 'Legg til flere egg' : 'Add more eggs'}
+                      </button>
+                    )}
+
                     {checkoutStatus.allowed && (
                       <div className="p-4 rounded-xl bg-success-50 text-success-700 flex items-start gap-3">
                         <CheckCircle2 className="w-5 h-5 flex-shrink-0 mt-0.5" />
@@ -276,6 +335,80 @@ export default function CartPage() {
           )}
         </motion.div>
       </div>
+
+      {showMixModal && weekOptions.length > 0 && (
+        <div className="fixed inset-0 z-40 flex items-end md:items-center justify-center p-4 bg-black/40">
+          <GlassCard variant="strong" className="w-full max-w-2xl p-6 md:p-8">
+            <div className="flex items-start justify-between gap-4 mb-6">
+              <div>
+                <h2 className="text-lg font-normal text-neutral-900">
+                  {language === 'no' ? 'Bygg en blandet bestilling' : 'Build a mixed order'}
+                </h2>
+                <p className="text-sm text-neutral-600">
+                  {language === 'no'
+                    ? 'Legg til egg fra flere raser for å nå minimum 12 egg.'
+                    : 'Add eggs from other breeds to reach the 12-egg minimum.'}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowMixModal(false)}
+                className="p-2 rounded-full text-neutral-500 hover:text-neutral-900 hover:bg-neutral-100 transition-colors"
+                aria-label="Close"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              {weekOptions.map((option) => {
+                const existing = items.find((item) => item.breed.id === option.breed.id)
+                const qty = existing?.quantity || 0
+                const maxAvailable = option.week.eggsAvailable
+
+                return (
+                  <div
+                    key={option.week.id}
+                    className="flex items-center justify-between rounded-xl border border-neutral-200 bg-white/70 px-4 py-3"
+                  >
+                    <div>
+                      <p className="text-sm font-medium text-neutral-900">{option.breed.name}</p>
+                      <p className="text-xs text-neutral-500">
+                        {language === 'no' ? 'Igjen denne uken' : 'Left this week'}: {maxAvailable}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => handleAdjustBreed(option.breed.id, option.week.id, -1, maxAvailable, option.breed, option.week)}
+                        disabled={qty <= 0}
+                        className="w-8 h-8 rounded-full border border-neutral-200 flex items-center justify-center disabled:opacity-40"
+                      >
+                        <Minus className="w-4 h-4" />
+                      </button>
+                      <span className="w-8 text-center text-sm text-neutral-900">{qty}</span>
+                      <button
+                        type="button"
+                        onClick={() => handleAdjustBreed(option.breed.id, option.week.id, 1, maxAvailable, option.breed, option.week)}
+                        disabled={qty >= maxAvailable}
+                        className="w-8 h-8 rounded-full border border-neutral-200 flex items-center justify-center disabled:opacity-40"
+                      >
+                        <Plus className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+
+            <div className="mt-6 flex flex-col sm:flex-row gap-3">
+              <button type="button" onClick={() => setShowMixModal(false)} className="btn-primary w-full">
+                {language === 'no' ? 'Ferdig' : 'Done'}
+              </button>
+            </div>
+          </GlassCard>
+        </div>
+      )}
     </div>
   )
 }

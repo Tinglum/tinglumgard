@@ -50,6 +50,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
   // Save cart to localStorage whenever it changes
   useEffect(() => {
     localStorage.setItem('tinglumgard_cart', JSON.stringify(items))
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('tinglum_cart_updated'))
+    }
   }, [items])
 
   const addToCart = (breed: Breed, week: WeekInventory, quantity: number) => {
