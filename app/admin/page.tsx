@@ -128,27 +128,6 @@ export default function AdminPage() {
     setLoading(false);
   }, []);
 
-  useEffect(() => {
-    if (isAuthenticated && activeTab === 'dashboard') {
-      loadDashboard();
-    } else if (isAuthenticated && activeTab === 'orders') {
-      loadOrders();
-    } else if (isAuthenticated && activeTab === 'analytics') {
-      loadAnalytics();
-    }
-  }, [isAuthenticated, activeTab, loadDashboard, loadOrders, loadAnalytics]);
-
-  useEffect(() => {
-    if (!isAuthenticated) return;
-
-    loadMessageStats();
-    const interval = setInterval(() => {
-      loadMessageStats();
-    }, 30000);
-
-    return () => clearInterval(interval);
-  }, [isAuthenticated, loadMessageStats]);
-
   async function handlePasswordSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
@@ -275,6 +254,27 @@ export default function AdminPage() {
       console.error('Failed to load message stats:', error);
     }
   }, []);
+
+  useEffect(() => {
+    if (isAuthenticated && activeTab === 'dashboard') {
+      loadDashboard();
+    } else if (isAuthenticated && activeTab === 'orders') {
+      loadOrders();
+    } else if (isAuthenticated && activeTab === 'analytics') {
+      loadAnalytics();
+    }
+  }, [isAuthenticated, activeTab, loadDashboard, loadOrders, loadAnalytics]);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    loadMessageStats();
+    const interval = setInterval(() => {
+      loadMessageStats();
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, [isAuthenticated, loadMessageStats]);
 
   async function handleStatusChange(orderId: string, newStatus: string) {
     try {
