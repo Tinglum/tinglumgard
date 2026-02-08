@@ -5,6 +5,35 @@ import { vippsClient } from '@/lib/vipps/api-client'
 
 const allowedPaymentStates = new Set(['AUTHORIZED', 'CAPTURED'])
 
+function buildShippingUpdate(details: any) {
+  if (!details || typeof details !== 'object') return null
+
+  const firstName = details.firstName || details.first_name || ''
+  const lastName = details.lastName || details.last_name || ''
+  const name = [firstName, lastName].filter(Boolean).join(' ').trim()
+  const email = details.email || details.emailAddress || ''
+  const phone = details.phoneNumber || details.phone_number || ''
+  const street = details.streetAddress || details.addressLine1 || details.address || ''
+  const postal = details.postalCode || details.zipCode || ''
+  const city = details.city || ''
+  const country = details.country || ''
+
+  const update: Record<string, string> = {}
+  if (name) update.shipping_name = name
+  if (email) update.shipping_email = email
+  if (phone) update.shipping_phone = phone
+  if (street) update.shipping_address = street
+  if (postal) update.shipping_postal_code = postal
+  if (city) update.shipping_city = city
+  if (country) update.shipping_country = country
+
+  if (name) update.customer_name = name
+  if (email) update.customer_email = email
+  if (phone) update.customer_phone = phone
+
+  return Object.keys(update).length ? update : null
+}
+
 async function reconcileEggOrder(order: any) {
   const depositPayment = (order.egg_payments || []).find(
     (payment: any) => payment.payment_type === 'deposit'
@@ -29,6 +58,15 @@ async function reconcileEggOrder(order: any) {
     }
 
     const paidAt = new Date().toISOString()
+    const shippingDetails = session?.shippingDetails || session?.billingDetails
+    const shippingUpdate = buildShippingUpdate(shippingDetails)
+
+    if (shippingUpdate) {
+      await supabaseAdmin
+        .from('egg_orders')
+        .update(shippingUpdate)
+        .eq('id', order.id)
+    }
 
     await supabaseAdmin
       .from('egg_payments')
@@ -43,6 +81,7 @@ async function reconcileEggOrder(order: any) {
     return {
       ...order,
       status: 'deposit_paid',
+      ...(shippingUpdate ? shippingUpdate : {}),
       egg_payments: (order.egg_payments || []).map((payment: any) =>
         payment.id === depositPayment.id
           ? { ...payment, status: 'completed', paid_at: paidAt }

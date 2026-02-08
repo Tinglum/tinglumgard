@@ -77,6 +77,7 @@ export async function POST(
     // Create shorter reference (max 50 chars) using order number
     const shortReference = `DEP-${order.order_number}`;
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://tinglum.no';
+    const needsShippingAddress = order.delivery_type === 'delivery_trondheim';
 
     // Generate callback authorization token
     const { randomBytes } = await import('crypto');
@@ -102,7 +103,7 @@ export async function POST(
       configuration: {
         userFlow: 'WEB_REDIRECT',
         // Skip address/contact info collection in Checkout
-        elements: 'PaymentOnly',
+        elements: needsShippingAddress ? 'PaymentAndContactInfo' : 'PaymentOnly',
         customerInteraction: 'CUSTOMER_PRESENT',
       },
       // Add logistics configuration to handle shipping

@@ -49,6 +49,7 @@ export async function POST(
     const depositAmount = order.deposit_amount
     const shortReference = `EGG-DEP-${order.order_number}`
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://tinglum.no'
+    const needsShippingAddress = order.delivery_method === 'posten'
 
     const { randomBytes } = await import('crypto')
     const callbackToken = randomBytes(16).toString('hex')
@@ -71,7 +72,7 @@ export async function POST(
       },
       configuration: {
         userFlow: 'WEB_REDIRECT',
-        elements: 'PaymentOnly',
+        elements: needsShippingAddress ? 'PaymentAndContactInfo' : 'PaymentOnly',
         customerInteraction: 'CUSTOMER_PRESENT',
       },
     }

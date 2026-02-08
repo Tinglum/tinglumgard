@@ -49,6 +49,35 @@ function verifyVippsWebhookHmac(req: NextRequest, bodyText: string): boolean {
   return authorization === expectedAuth;
 }
 
+function buildShippingUpdate(details: any) {
+  if (!details || typeof details !== 'object') return null;
+
+  const firstName = details.firstName || details.first_name || '';
+  const lastName = details.lastName || details.last_name || '';
+  const name = [firstName, lastName].filter(Boolean).join(' ').trim();
+  const email = details.email || details.emailAddress || '';
+  const phone = details.phoneNumber || details.phone_number || '';
+  const street = details.streetAddress || details.addressLine1 || details.address || '';
+  const postal = details.postalCode || details.zipCode || '';
+  const city = details.city || '';
+  const country = details.country || '';
+
+  const update: Record<string, string> = {};
+  if (name) update.shipping_name = name;
+  if (email) update.shipping_email = email;
+  if (phone) update.shipping_phone = phone;
+  if (street) update.shipping_address = street;
+  if (postal) update.shipping_postal_code = postal;
+  if (city) update.shipping_city = city;
+  if (country) update.shipping_country = country;
+
+  if (name) update.customer_name = name;
+  if (email) update.customer_email = email;
+  if (phone) update.customer_phone = phone;
+
+  return Object.keys(update).length ? update : null;
+}
+
 export async function POST(request: NextRequest) {
   try {
     const bodyText = await request.text();
@@ -71,6 +100,8 @@ export async function POST(request: NextRequest) {
         type?: string;
         amount?: { value: number; currency: string };
       };
+      shippingDetails?: Record<string, unknown>;
+      billingDetails?: Record<string, unknown>;
       [k: string]: unknown;
     };
 
@@ -215,6 +246,20 @@ export async function POST(request: NextRequest) {
     }
 
     console.log('Payment marked as completed with timestamp');
+
+    const shippingDetails = (payload.shippingDetails || payload.billingDetails) as Record<string, unknown> | undefined;
+    const shippingUpdate = buildShippingUpdate(shippingDetails);
+
+    if (shippingUpdate) {
+      const { error: shipErr } = await supabaseAdmin
+        .from(isEggPayment ? "egg_orders" : "orders")
+        .update(shippingUpdate)
+        .eq("id", isEggPayment ? resolvedPayment.egg_order_id : resolvedPayment.order_id);
+
+      if (shipErr) {
+        logError('vipps-webhook-shipping-update-failed', shipErr);
+      }
+    }
 
     // Fetch the order details for email notification
     let order: any = null;
