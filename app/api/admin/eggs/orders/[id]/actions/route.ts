@@ -216,7 +216,7 @@ async function moveEggOrder(orderId: string, year: number, weekNumber: number, r
     )
   }
 
-  for (const [inventoryId, requiredQty] of requiredByInventory.entries()) {
+  for (const [inventoryId, requiredQty] of Array.from(requiredByInventory.entries())) {
     const { data: inventory } = await supabaseAdmin
       .from('egg_inventory')
       .select('eggs_available, eggs_allocated')
@@ -233,7 +233,7 @@ async function moveEggOrder(orderId: string, year: number, weekNumber: number, r
     }
   }
 
-  for (const [inventoryId, requiredQty] of requiredByInventory.entries()) {
+  for (const [inventoryId, requiredQty] of Array.from(requiredByInventory.entries())) {
     await allocateInventory(inventoryId, requiredQty)
   }
 
