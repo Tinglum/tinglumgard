@@ -40,6 +40,9 @@ export function AdminMessagingPanel() {
   const [replyLoading, setReplyLoading] = useState(false);
   const [broadcastSubject, setBroadcastSubject] = useState('');
   const [broadcastMessage, setBroadcastMessage] = useState('');
+  const [broadcastType, setBroadcastType] = useState<
+    'support' | 'inquiry' | 'complaint' | 'feedback' | 'referral_question'
+  >('support');
   const [broadcastLoading, setBroadcastLoading] = useState(false);
   const [broadcastError, setBroadcastError] = useState<string | null>(null);
   const [broadcastSuccess, setBroadcastSuccess] = useState(false);
