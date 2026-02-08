@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -67,13 +67,13 @@ export default function CustomerPortalPage() {
     } else if (!authLoading && !isAuthenticated) {
       setLoading(false);
     }
-  }, [authLoading, isAuthenticated]);
+  }, [authLoading, isAuthenticated, loadOrders, loadConfig]);
 
   async function handleVippsLogin() {
     window.location.href = '/api/auth/vipps/login?returnTo=/min-side';
   }
 
-  async function loadConfig() {
+  const loadConfig = useCallback(async () => {
     try {
       const response = await fetch('/api/config');
       const data = await response.json();
@@ -91,9 +91,9 @@ export default function CustomerPortalPage() {
     } catch (error) {
       console.error('Failed to load config:', error);
     }
-  }
+  }, []);
 
-  async function loadOrders() {
+  const loadOrders = useCallback(async () => {
     try {
       const response = await fetch('/api/orders');
       const data = await response.json();
@@ -103,7 +103,7 @@ export default function CustomerPortalPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
 
   function getWeekNumber(date: Date): { year: number; week: number } {
     const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));

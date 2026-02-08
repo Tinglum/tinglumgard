@@ -195,7 +195,7 @@ export function SeasonSettings() {
               </div>
             </div>
             <p className={cn('text-xs mt-2', theme.textMuted)}>
-              Kunder vil se: "Estimert levering: Uke {config.delivery_week_start}-{config.delivery_week_end}, {config.cutoff_year}"
+              Kunder vil se: &quot;Estimert levering: Uke {config.delivery_week_start}-{config.delivery_week_end}, {config.cutoff_year}&quot;
             </p>
           </div>
 

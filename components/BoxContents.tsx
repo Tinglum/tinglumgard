@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Package, CheckCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -29,11 +29,7 @@ export function BoxContents({ boxSize, className }: BoxContentsProps) {
   const [boxConfig, setBoxConfig] = useState<BoxConfig | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    loadBoxConfig();
-  }, [boxSize]);
-
-  async function loadBoxConfig() {
+  const loadBoxConfig = useCallback(async () => {
     setLoading(true);
     try {
       const response = await fetch('/api/admin/box-config');
@@ -45,7 +41,11 @@ export function BoxContents({ boxSize, className }: BoxContentsProps) {
     } finally {
       setLoading(false);
     }
-  }
+  }, [boxSize]);
+
+  useEffect(() => {
+    loadBoxConfig();
+  }, [loadBoxConfig]);
 
   if (loading) {
     return (

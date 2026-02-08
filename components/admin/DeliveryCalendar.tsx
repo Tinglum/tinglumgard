@@ -205,8 +205,8 @@ export function DeliveryCalendar() {
       <Card className="p-6 bg-blue-50 border-blue-200">
         <h3 className="font-semibold text-blue-900 mb-2">Tips for henting og levering</h3>
         <ul className="list-disc list-inside space-y-1 text-sm text-blue-800">
-          <li>Ordrer vises automatisk her når de er merket som "Klar for henting"</li>
-          <li>Bruk "Merk som hentet" knappen når kunden har hentet ordren sin</li>
+          <li>Ordrer vises automatisk her når de er merket som &quot;Klar for henting&quot;</li>
+          <li>Bruk &quot;Merk som hentet&quot; knappen når kunden har hentet ordren sin</li>
           <li>For leveringer, organiser ruter basert på adresser</li>
           <li>Ordrer er gruppert etter leveringsmåte for enkel oversikt</li>
         </ul>

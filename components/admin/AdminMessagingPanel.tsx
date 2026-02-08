@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Send, X, Clock, AlertCircle, CheckCircle, MessageSquare, Filter } from 'lucide-react';
@@ -40,7 +40,6 @@ export function AdminMessagingPanel() {
   const [replyLoading, setReplyLoading] = useState(false);
   const [broadcastSubject, setBroadcastSubject] = useState('');
   const [broadcastMessage, setBroadcastMessage] = useState('');
-  const [broadcastType, setBroadcastType] = useState('support');
   const [broadcastLoading, setBroadcastLoading] = useState(false);
   const [broadcastError, setBroadcastError] = useState<string | null>(null);
   const [broadcastSuccess, setBroadcastSuccess] = useState(false);
@@ -63,7 +62,7 @@ export function AdminMessagingPanel() {
   const [stats, setStats] = useState({ total: 0, open: 0, in_progress: 0, resolved: 0 });
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const loadMessages = async () => {
+  const loadMessages = useCallback(async () => {
     try {
       setLoading(true);
       const params = new URLSearchParams();
@@ -83,11 +82,11 @@ export function AdminMessagingPanel() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [priorityFilter, statusFilter]);
 
   useEffect(() => {
     loadMessages();
-  }, [statusFilter, priorityFilter]);
+  }, [loadMessages]);
 
   useEffect(() => {
     const loadRecipients = async () => {

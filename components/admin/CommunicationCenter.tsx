@@ -179,7 +179,7 @@ export function CommunicationCenter() {
 
             <div className="pt-4 border-t">
               <p className="text-sm text-gray-600 mb-4">
-                Send e-post til alle kunder som har registrert e-postadresse, eller velg ordrer fra "Bestillinger"-fanen for målrettet sending.
+                Send e-post til alle kunder som har registrert e-postadresse, eller velg ordrer fra &quot;Bestillinger&quot;-fanen for målrettet sending.
               </p>
               <div className="flex gap-2">
                 <Button

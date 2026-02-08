@@ -73,7 +73,7 @@ export default function CutsPage() {
                 </li>
                 <li className="flex items-start gap-3">
                   <span className="w-1.5 h-1.5 rounded-full bg-neutral-400 mt-2 flex-shrink-0" />
-                  <span>Bytt mellom "I kassen" og "Ekstra" i diagrammet dersom støttet av komponenten.</span>
+                  <span>Bytt mellom &quot;I kassen&quot; og &quot;Ekstra&quot; i diagrammet dersom støttet av komponenten.</span>
                 </li>
                 <li className="flex items-start gap-3">
                   <span className="w-1.5 h-1.5 rounded-full bg-neutral-400 mt-2 flex-shrink-0" />

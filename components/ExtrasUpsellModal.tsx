@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { cn } from '@/lib/utils';
@@ -67,7 +67,7 @@ export function ExtrasUpsellModal({
       initializedRef.current = false;
       setSelectedQuantities({});
     }
-  }, [isOpen]);
+  }, [currentExtras, isOpen, loadExtras]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -81,7 +81,7 @@ export function ExtrasUpsellModal({
     };
   }, [isOpen]);
 
-  async function loadExtras() {
+  const loadExtras = useCallback(async () => {
     try {
       const response = await fetch('/api/extras');
       const data = await response.json();
@@ -95,7 +95,7 @@ export function ExtrasUpsellModal({
     } finally {
       setLoadingExtras(false);
     }
-  }
+  }, []);
 
   function handleQuantityChange(slug: string, quantity: number) {
     setSelectedQuantities(prev => {

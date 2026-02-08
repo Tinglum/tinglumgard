@@ -56,7 +56,7 @@ export default function VilkarPage() {
                     <li>E-post: post@tinglum.com</li>
                   </ul>
                   <p className="mt-4">
-                    Kjøper er den personen som gjennomfører bestillingen og omtales som "kunde".
+                    Kjøper er den personen som gjennomfører bestillingen og omtales som &quot;kunde&quot;.
                   </p>
                 </div>
               </section>
@@ -184,7 +184,7 @@ export default function VilkarPage() {
                     <li>Email: post@tinglum.com</li>
                   </ul>
                   <p className="mt-4">
-                    The buyer is the person who completes the order and is referred to as "customer".
+                    The buyer is the person who completes the order and is referred to as &quot;customer&quot;.
                   </p>
                 </div>
               </section>

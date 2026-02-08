@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -136,7 +136,7 @@ export default function AdminPage() {
     } else if (isAuthenticated && activeTab === 'analytics') {
       loadAnalytics();
     }
-  }, [isAuthenticated, activeTab]);
+  }, [isAuthenticated, activeTab, loadDashboard, loadOrders, loadAnalytics]);
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -147,7 +147,7 @@ export default function AdminPage() {
     }, 30000);
 
     return () => clearInterval(interval);
-  }, [isAuthenticated]);
+  }, [isAuthenticated, loadMessageStats]);
 
   async function handlePasswordSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -173,7 +173,7 @@ export default function AdminPage() {
     }
   }
 
-  async function loadDashboard() {
+  const loadDashboard = useCallback(async () => {
     setDashboardLoading(true);
     try {
       // Fetch pig metrics
@@ -207,9 +207,9 @@ export default function AdminPage() {
     } finally {
       setDashboardLoading(false);
     }
-  }
+  }, []);
 
-  async function loadOrders() {
+  const loadOrders = useCallback(async () => {
     setOrdersLoading(true);
     try {
       const params = new URLSearchParams();
@@ -246,9 +246,9 @@ export default function AdminPage() {
     } finally {
       setOrdersLoading(false);
     }
-  }
+  }, [searchTerm, statusFilter]);
 
-  async function loadAnalytics() {
+  const loadAnalytics = useCallback(async () => {
     try {
       const response = await fetch('/api/admin/analytics');
       const data = await response.json();
@@ -256,9 +256,9 @@ export default function AdminPage() {
     } catch (error) {
       console.error('Failed to load analytics:', error);
     }
-  }
+  }, []);
 
-  async function loadMessageStats() {
+  const loadMessageStats = useCallback(async () => {
     try {
       const response = await fetch('/api/admin/messages');
       if (!response.ok) {
@@ -274,7 +274,7 @@ export default function AdminPage() {
     } catch (error) {
       console.error('Failed to load message stats:', error);
     }
-  }
+  }, []);
 
   async function handleStatusChange(orderId: string, newStatus: string) {
     try {

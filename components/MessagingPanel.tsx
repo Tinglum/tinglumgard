@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -30,11 +30,19 @@ export function MessagingPanel({ className, variant = 'light' }: MessagingPanelP
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
 
   // Fetch messages on mount
-  useEffect(() => {
-    loadMessages();
+  const markMessagesAsViewed = useCallback(async (messageIds: string[]) => {
+    try {
+      await fetch('/api/messages/unread-count', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messageIds }),
+      });
+    } catch (error) {
+      console.error('Failed to mark messages as viewed:', error);
+    }
   }, []);
 
-  async function loadMessages() {
+  const loadMessages = useCallback(async () => {
     try {
       setIsLoading(true);
       const res = await fetch('/api/messages');
@@ -52,19 +60,11 @@ export function MessagingPanel({ className, variant = 'light' }: MessagingPanelP
     } finally {
       setIsLoading(false);
     }
-  }
+  }, [markMessagesAsViewed]);
 
-  async function markMessagesAsViewed(messageIds: string[]) {
-    try {
-      await fetch('/api/messages/unread-count', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messageIds }),
-      });
-    } catch (error) {
-      console.error('Failed to mark messages as viewed:', error);
-    }
-  }
+  useEffect(() => {
+    loadMessages();
+  }, [loadMessages]);
 
   async function handleReply(messageId: string) {
     const replyText = replyTexts[messageId];
