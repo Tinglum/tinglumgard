@@ -62,8 +62,8 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     const subtotal = quantity * breed.pricePerEgg
     const deliveryFee = 0 // Will be set when delivery method is chosen
     const totalAmount = subtotal + deliveryFee
-    const depositAmount = Math.round(totalAmount / 2)
-    const remainderAmount = totalAmount - depositAmount
+    const depositAmount = Math.round(subtotal / 2)
+    const remainderAmount = (subtotal - depositAmount) + deliveryFee
 
     setCurrentDraft({
       breed,
@@ -88,8 +88,8 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     }
 
     const totalAmount = currentDraft.subtotal + deliveryFee
-    const depositAmount = Math.round(totalAmount / 2)
-    const remainderAmount = totalAmount - depositAmount
+    const depositAmount = Math.round(currentDraft.subtotal / 2)
+    const remainderAmount = (currentDraft.subtotal - depositAmount) + deliveryFee
 
     setCurrentDraft({
       ...currentDraft,

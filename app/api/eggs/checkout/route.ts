@@ -69,8 +69,8 @@ export async function POST(request: NextRequest) {
           ? 20000
           : 0
     const totalAmount = subtotal + deliveryFee
-    const depositAmount = Math.round(totalAmount / 2)
-    const remainderAmount = totalAmount - depositAmount
+    const depositAmount = Math.round(subtotal / 2)
+    const remainderAmount = (subtotal - depositAmount) + deliveryFee
 
     const deliveryMonday = inventory.delivery_monday
     const remainderDueDate = new Date(deliveryMonday)
