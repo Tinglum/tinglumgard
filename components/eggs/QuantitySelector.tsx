@@ -18,10 +18,11 @@ interface QuantitySelectorProps {
 export function QuantitySelector({ breed, week, onClose, onContinue }: QuantitySelectorProps) {
   const { language, t } = useLanguage()
   const maxQuantity = Math.min(week.eggsAvailable, breed.maxOrderQuantity)
-  const [quantity, setQuantity] = useState(breed.minOrderQuantity)
+  const minQuantity = 1
+  const [quantity, setQuantity] = useState(Math.min(maxQuantity, breed.minOrderQuantity))
 
   const handleQuantityChange = (newQuantity: number) => {
-    setQuantity(clamp(newQuantity, breed.minOrderQuantity, maxQuantity))
+    setQuantity(clamp(newQuantity, minQuantity, maxQuantity))
   }
 
   const subtotal = quantity * breed.pricePerEgg
@@ -85,7 +86,7 @@ export function QuantitySelector({ breed, week, onClose, onContinue }: QuantityS
               <div className="flex items-center gap-4 mb-4">
                 <button
                   onClick={() => handleQuantityChange(quantity - 1)}
-                  disabled={quantity <= breed.minOrderQuantity}
+                  disabled={quantity <= minQuantity}
                   className="w-12 h-12 rounded-full glass-light flex items-center justify-center hover:glass-strong disabled:opacity-40 disabled:cursor-not-allowed transition-all focus-ring"
                   aria-label="Decrease quantity"
                 >
@@ -96,8 +97,8 @@ export function QuantitySelector({ breed, week, onClose, onContinue }: QuantityS
                   <input
                     type="number"
                     value={quantity}
-                    onChange={(e) => handleQuantityChange(parseInt(e.target.value) || breed.minOrderQuantity)}
-                    min={breed.minOrderQuantity}
+                    onChange={(e) => handleQuantityChange(parseInt(e.target.value) || minQuantity)}
+                    min={minQuantity}
                     max={maxQuantity}
                     className="w-full text-center text-4xl font-display font-semibold text-neutral-900 bg-transparent border-none focus:outline-none focus:ring-4 focus:ring-black/5 rounded"
                     style={{ MozAppearance: 'textfield' }}
@@ -127,15 +128,15 @@ export function QuantitySelector({ breed, week, onClose, onContinue }: QuantityS
                   type="range"
                   value={quantity}
                   onChange={(e) => handleQuantityChange(parseInt(e.target.value))}
-                  min={breed.minOrderQuantity}
+                  min={minQuantity}
                   max={maxQuantity}
                   step={1}
                   className="w-full h-2 bg-neutral-200 rounded-full appearance-none cursor-pointer focus:outline-none focus:ring-4 focus:ring-black/5"
                   style={{
                     background: `linear-gradient(to right, ${breed.accentColor} 0%, ${breed.accentColor} ${
-                      ((quantity - breed.minOrderQuantity) / (maxQuantity - breed.minOrderQuantity)) * 100
+                      ((quantity - minQuantity) / Math.max(1, maxQuantity - minQuantity)) * 100
                     }%, #e5e5e5 ${
-                      ((quantity - breed.minOrderQuantity) / (maxQuantity - breed.minOrderQuantity)) * 100
+                      ((quantity - minQuantity) / Math.max(1, maxQuantity - minQuantity)) * 100
                     }%, #e5e5e5 100%)`,
                   }}
                 />

@@ -47,21 +47,21 @@ export default function CartPage() {
               ? `Ayam Cemani: minimum 6 egg (du har ${totalEggs})`
               : `Ayam Cemani: minimum 6 eggs (you have ${totalEggs})`,
         }
+      case 'single_breed_min_10':
+        return {
+          type: 'warning',
+          message:
+            language === 'no'
+              ? `Minimum 10 egg for én rase (du har ${totalEggs})`
+              : `Minimum 10 eggs for a single breed (you have ${totalEggs})`,
+        }
       case 'mixed_min_12':
         return {
           type: 'warning',
           message:
             language === 'no'
-              ? `Minimum 12 egg totalt for blandede bestillinger (du har ${totalEggs})`
-              : `Minimum 12 eggs total for mixed orders (you have ${totalEggs})`,
-        }
-      case 'breed_minimum_not_met':
-        return {
-          type: 'warning',
-          message:
-            language === 'no'
-              ? 'En eller flere raser oppfyller ikke minimumsantallet'
-              : 'One or more breeds do not meet minimum quantity',
+              ? `Minimum 12 egg totalt når du blander raser (med mindre én rase har 10 egg, Ayam Cemani 6). Du har ${totalEggs}`
+              : `Minimum 12 eggs total when mixing breeds (unless one breed has 10 eggs, Ayam Cemani 6). You have ${totalEggs}`,
         }
       default:
         return null
