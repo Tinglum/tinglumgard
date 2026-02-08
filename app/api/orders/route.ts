@@ -3,8 +3,6 @@ import { getSession } from '@/lib/auth/session';
 import { supabaseAdmin } from '@/lib/supabase/server';
 import { vippsClient } from '@/lib/vipps/api-client';
 
-const allowedPaymentStates = new Set(['AUTHORIZED', 'AUTHORISED', 'CAPTURED']);
-
 function buildShippingUpdate(details: any) {
   if (!details || typeof details !== 'object') return null;
 
@@ -34,12 +32,41 @@ function buildShippingUpdate(details: any) {
   return Object.keys(update).length ? update : null;
 }
 
+function pickLatestPendingDeposit(payments: any[] = []) {
+  return payments
+    .filter((payment) => payment.payment_type === 'deposit' && payment.status === 'pending')
+    .sort((a, b) => {
+      const aTs = new Date(a.created_at || 0).getTime();
+      const bTs = new Date(b.created_at || 0).getTime();
+      return bTs - aTs;
+    })[0];
+}
+
 async function reconcilePigOrder(order: any) {
-  const depositPayment = (order.payments || []).find(
-    (payment: any) => payment.payment_type === 'deposit'
+  const completedDeposit = (order.payments || []).find(
+    (payment: any) => payment.payment_type === 'deposit' && payment.status === 'completed'
   );
 
-  if (!depositPayment || depositPayment.status !== 'pending') {
+  if (completedDeposit && order.status === 'draft') {
+    const { error: statusErr } = await supabaseAdmin
+      .from('orders')
+      .update({ status: 'deposit_paid' })
+      .eq('id', order.id);
+
+    if (statusErr) {
+      console.error('Failed to self-heal pig order status:', statusErr);
+      return order;
+    }
+
+    return {
+      ...order,
+      status: 'deposit_paid',
+    };
+  }
+
+  const depositPayment = pickLatestPendingDeposit(order.payments || []);
+
+  if (!depositPayment) {
     return order;
   }
 
@@ -51,13 +78,8 @@ async function reconcilePigOrder(order: any) {
   try {
     const session = await vippsClient.getCheckoutSession(vippsId);
     const sessionState = session?.sessionState as string | undefined;
-    const paymentState = session?.paymentDetails?.state as string | undefined;
 
     if (sessionState !== 'PaymentSuccessful') {
-      return order;
-    }
-
-    if (paymentState && !allowedPaymentStates.has(paymentState.toUpperCase())) {
       return order;
     }
 
@@ -75,12 +97,14 @@ async function reconcilePigOrder(order: any) {
     await supabaseAdmin
       .from('payments')
       .update({ status: 'completed', paid_at: paidAt, webhook_processed_at: paidAt })
-      .eq('id', depositPayment.id);
+      .eq('id', depositPayment.id)
+      .throwOnError();
 
     await supabaseAdmin
       .from('orders')
       .update({ status: 'deposit_paid' })
-      .eq('id', order.id);
+      .eq('id', order.id)
+      .throwOnError();
 
     return {
       ...order,
