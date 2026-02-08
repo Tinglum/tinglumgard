@@ -5,7 +5,7 @@ class VippsClient {
     const params = new URLSearchParams({
       client_id: vippsConfig.clientId,
       response_type: 'code',
-      scope: 'openid email name phoneNumber address',
+      scope: 'openid email name phoneNumber',
       state,
       redirect_uri: vippsConfig.redirectUri,
     });
