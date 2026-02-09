@@ -901,9 +901,8 @@ export default function CheckoutPage() {
           </div>
 
           {/* Sidebar Summary */}
-          <div className="w-full md:w-1/3 md:flex-shrink-0">
-            <div className="md:sticky md:top-24">
-              <div className="bg-white border border-neutral-200 rounded-xl p-8 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.1)] transition-all duration-500 hover:shadow-[0_30px_80px_-20px_rgba(0,0,0,0.15)]">
+          <div className="w-full md:w-1/3 md:flex-shrink-0 md:self-start md:sticky md:top-24">
+            <div className="bg-white border border-neutral-200 rounded-xl p-8 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.1)] transition-all duration-500 hover:shadow-[0_30px_80px_-20px_rgba(0,0,0,0.15)]">
                 <h3 className="text-2xl font-light text-neutral-900 mb-6">
                   {t.checkout.summary}
                 </h3>
@@ -1080,7 +1079,6 @@ export default function CheckoutPage() {
                     </div>
                   </div>
                 )}
-              </div>
             </div>
           </div>
         </div>
