@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { GlassCard } from '@/components/eggs/GlassCard'
@@ -44,12 +44,29 @@ export default function EggDeliveryPage() {
   const router = useRouter()
   const { lang: language } = useLanguage()
   const { currentDraft, setDeliveryMethod, setShippingDetails } = useOrder()
+  const [showAddressError, setShowAddressError] = useState(false)
 
   useEffect(() => {
     if (!currentDraft) {
       router.replace('/rugeegg/handlekurv')
     }
   }, [currentDraft, router])
+
+  useEffect(() => {
+    if (!showAddressError || !currentDraft) return
+
+    const postenSelected = currentDraft.deliveryMethod === 'posten'
+    const hasCompleteShipping = !postenSelected || (
+      (currentDraft.shippingAddress || '').trim() &&
+      (currentDraft.shippingPostalCode || '').trim() &&
+      (currentDraft.shippingCity || '').trim() &&
+      (currentDraft.shippingCountry || '').trim()
+    )
+
+    if (hasCompleteShipping) {
+      setShowAddressError(false)
+    }
+  }, [showAddressError, currentDraft])
 
   if (!currentDraft) {
     return (
@@ -59,12 +76,12 @@ export default function EggDeliveryPage() {
     )
   }
 
-  const shippingAddress = currentDraft.shippingAddress || ''
-  const shippingPostalCode = currentDraft.shippingPostalCode || ''
-  const shippingCity = currentDraft.shippingCity || ''
-  const shippingCountry = currentDraft.shippingCountry || ''
+  const shippingAddress = currentDraft?.shippingAddress || ''
+  const shippingPostalCode = currentDraft?.shippingPostalCode || ''
+  const shippingCity = currentDraft?.shippingCity || ''
+  const shippingCountry = currentDraft?.shippingCountry || ''
 
-  const selectedMethod = currentDraft.deliveryMethod
+  const selectedMethod = currentDraft?.deliveryMethod
   const isPosten = selectedMethod === 'posten'
   const shippingComplete = !isPosten || (
     shippingAddress.trim() &&
@@ -90,6 +107,15 @@ export default function EggDeliveryPage() {
       value: String(totalEggs),
     },
   ]
+
+  const handleContinue = () => {
+    if (!selectedMethod) return
+    if (isPosten && !shippingComplete) {
+      setShowAddressError(true)
+      return
+    }
+    router.push('/rugeegg/bestill/betaling')
+  }
 
   return (
     <div className="min-h-screen py-12">
@@ -199,6 +225,8 @@ export default function EggDeliveryPage() {
                     </label>
                     <input
                       type="text"
+                      name="shippingAddress"
+                      autoComplete="address-line1"
                       value={shippingAddress}
                       onChange={(event) => setShippingDetails({ shippingAddress: event.target.value })}
                       className="mt-1 w-full rounded-xl border border-neutral-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900/20"
@@ -213,6 +241,8 @@ export default function EggDeliveryPage() {
                       </label>
                       <input
                         type="text"
+                        name="shippingPostalCode"
+                        autoComplete="postal-code"
                         value={shippingPostalCode}
                         onChange={(event) => setShippingDetails({ shippingPostalCode: event.target.value })}
                         className="mt-1 w-full rounded-xl border border-neutral-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900/20"
@@ -226,6 +256,8 @@ export default function EggDeliveryPage() {
                       </label>
                       <input
                         type="text"
+                        name="shippingCity"
+                        autoComplete="address-level2"
                         value={shippingCity}
                         onChange={(event) => setShippingDetails({ shippingCity: event.target.value })}
                         className="mt-1 w-full rounded-xl border border-neutral-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900/20"
@@ -240,6 +272,8 @@ export default function EggDeliveryPage() {
                     </label>
                     <input
                       type="text"
+                      name="shippingCountry"
+                      autoComplete="country"
                       value={shippingCountry}
                       onChange={(event) => setShippingDetails({ shippingCountry: event.target.value })}
                       className="mt-1 w-full rounded-xl border border-neutral-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900/20"
@@ -248,11 +282,11 @@ export default function EggDeliveryPage() {
                     />
                   </div>
                 </div>
-                {!shippingComplete && (
-                  <p className="text-xs text-amber-700">
+                {showAddressError && !shippingComplete && (
+                  <p className="text-xs text-red-600">
                     {language === 'no'
-                      ? 'Fyll ut adresse for a fortsette.'
-                      : 'Complete the address to continue.'}
+                      ? 'Fyll ut alle adressefeltene for a fortsette.'
+                      : 'Fill in all address fields to continue.'}
                   </p>
                 )}
               </div>
@@ -301,8 +335,8 @@ export default function EggDeliveryPage() {
 
                 <button
                   type="button"
-                  onClick={() => router.push('/rugeegg/bestill/betaling')}
-                  disabled={!selectedMethod || !shippingComplete}
+                  onClick={handleContinue}
+                  disabled={!selectedMethod}
                   className="btn-primary w-full"
                 >
                   {language === 'no' ? 'Fortsett til betaling' : 'Continue to payment'}
