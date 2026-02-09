@@ -91,7 +91,7 @@ export default function EggRemainderConfirmationPage() {
   const canAdd = useMemo(() => {
     if (!cutoffDate) return false
     const today = new Date(new Date().toISOString().split('T')[0])
-    return today <= cutoffDate
+    return today < cutoffDate
   }, [cutoffDate])
 
   useEffect(() => {

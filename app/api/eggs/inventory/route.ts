@@ -10,11 +10,15 @@ export async function GET(request: Request) {
     const yearParam = searchParams.get('year')
     const weekParam = searchParams.get('week')
 
+    const today = new Date(new Date().toISOString().split('T')[0])
+    const cutoffDate = new Date(today)
+    cutoffDate.setDate(cutoffDate.getDate() + 1)
+
     let query = supabaseServer
       .from('egg_inventory')
       .select('*, egg_breeds(*)')
       .in('status', ['open', 'sold_out'])
-      .gte('delivery_monday', new Date().toISOString().split('T')[0])
+      .gt('delivery_monday', cutoffDate.toISOString().split('T')[0])
       .order('delivery_monday')
 
     if (breedId) {

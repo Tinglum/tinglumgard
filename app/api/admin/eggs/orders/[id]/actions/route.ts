@@ -11,6 +11,27 @@ interface EggOrderAddition {
   quantity: number
 }
 
+interface EggPaymentRow {
+  id: string
+  payment_type: 'deposit' | 'remainder'
+  status: string
+  amount_nok: number
+  paid_at: string | null
+  created_at: string
+}
+
+interface EggOrderPaymentView {
+  id: string
+  order_number: string
+  status: string
+  deposit_amount: number
+  remainder_amount: number
+  admin_notes: string | null
+  egg_payments?: EggPaymentRow[]
+}
+
+const STATUS_LOCK = new Set(['preparing', 'shipped', 'delivered', 'cancelled', 'forfeited'])
+
 async function releaseInventory(inventoryId: string, quantity: number) {
   const { data: inventory, error } = await supabaseAdmin
     .from('egg_inventory')
@@ -85,6 +106,276 @@ async function appendAdminNote(orderId: string, existingNotes: string | null, no
     .from('egg_orders')
     .update({ admin_notes: nextNotes })
     .eq('id', orderId)
+}
+
+function deriveStatusFromPayments(
+  currentStatus: string,
+  payments: EggPaymentRow[] = [],
+  remainderTargetOre: number
+): string {
+  if (STATUS_LOCK.has(currentStatus)) {
+    return currentStatus
+  }
+
+  const depositCompleted = payments.some(
+    (payment) => payment.payment_type === 'deposit' && payment.status === 'completed'
+  )
+
+  if (!depositCompleted) {
+    return 'pending'
+  }
+
+  const remainderPaidOre =
+    payments.reduce((sum, payment) => {
+      if (payment.payment_type !== 'remainder' || payment.status !== 'completed') return sum
+      return sum + (payment.amount_nok || 0) * 100
+    }, 0) || 0
+
+  if (remainderTargetOre <= 0 || remainderPaidOre >= remainderTargetOre) {
+    return 'fully_paid'
+  }
+
+  return 'deposit_paid'
+}
+
+async function getOrderForPaymentActions(orderId: string) {
+  const { data: order, error } = await supabaseAdmin
+    .from('egg_orders')
+    .select('id, order_number, status, deposit_amount, remainder_amount, admin_notes, egg_payments(*)')
+    .eq('id', orderId)
+    .single()
+
+  if (error || !order) {
+    return { order: null, error: 'Order not found' }
+  }
+
+  return { order: order as EggOrderPaymentView, error: null }
+}
+
+async function syncEggOrderStatus(orderId: string, reason: string | undefined) {
+  const { order, error } = await getOrderForPaymentActions(orderId)
+  if (error || !order) {
+    return NextResponse.json({ error: error || 'Order not found' }, { status: 404 })
+  }
+
+  const nextStatus = deriveStatusFromPayments(
+    order.status,
+    order.egg_payments || [],
+    order.remainder_amount || 0
+  )
+
+  const updatePayload: Record<string, unknown> = { status: nextStatus }
+  if (nextStatus === 'delivered') {
+    updatePayload.marked_delivered_at = new Date().toISOString()
+  }
+
+  const { error: updateError } = await supabaseAdmin
+    .from('egg_orders')
+    .update(updatePayload)
+    .eq('id', orderId)
+
+  if (updateError) {
+    return NextResponse.json({ error: 'Failed to sync order status' }, { status: 500 })
+  }
+
+  await appendAdminNote(
+    orderId,
+    order.admin_notes,
+    `Admin: synced status to ${nextStatus}${reason ? ` - ${reason}` : ''}`
+  )
+
+  return NextResponse.json({ success: true, status: nextStatus })
+}
+
+async function markPaymentCompleted(
+  orderId: string,
+  paymentType: 'deposit' | 'remainder',
+  reason: string | undefined
+) {
+  const { order, error } = await getOrderForPaymentActions(orderId)
+  if (error || !order) {
+    return NextResponse.json({ error: error || 'Order not found' }, { status: 404 })
+  }
+
+  const nowIso = new Date().toISOString()
+  const payments = order.egg_payments || []
+
+  if (paymentType === 'deposit') {
+    let target = [...payments]
+      .filter((payment) => payment.payment_type === 'deposit')
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0]
+
+    if (!target) {
+      const { data: inserted, error: insertError } = await supabaseAdmin
+        .from('egg_payments')
+        .insert({
+          egg_order_id: orderId,
+          payment_type: 'deposit',
+          amount_nok: Math.round((order.deposit_amount || 0) / 100),
+          status: 'completed',
+          paid_at: nowIso,
+          webhook_processed_at: nowIso,
+        })
+        .select('id')
+        .single()
+
+      if (insertError || !inserted) {
+        return NextResponse.json({ error: 'Failed to create deposit payment' }, { status: 500 })
+      }
+    } else {
+      const { error: updateError } = await supabaseAdmin
+        .from('egg_payments')
+        .update({ status: 'completed', paid_at: nowIso, webhook_processed_at: nowIso })
+        .eq('id', target.id)
+
+      if (updateError) {
+        return NextResponse.json({ error: 'Failed to mark deposit paid' }, { status: 500 })
+      }
+    }
+  } else {
+    const paidRemainderOre =
+      payments.reduce((sum, payment) => {
+        if (payment.payment_type !== 'remainder' || payment.status !== 'completed') return sum
+        return sum + (payment.amount_nok || 0) * 100
+      }, 0) || 0
+
+    const amountDueOre = Math.max(0, (order.remainder_amount || 0) - paidRemainderOre)
+    if (amountDueOre <= 0) {
+      return NextResponse.json({ error: 'Remainder already fully paid' }, { status: 400 })
+    }
+
+    const pending = [...payments]
+      .filter((payment) => payment.payment_type === 'remainder' && payment.status !== 'completed')
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0]
+
+    if (pending) {
+      const { error: updateError } = await supabaseAdmin
+        .from('egg_payments')
+        .update({
+          status: 'completed',
+          amount_nok: Math.round(amountDueOre / 100),
+          paid_at: nowIso,
+          webhook_processed_at: nowIso,
+        })
+        .eq('id', pending.id)
+
+      if (updateError) {
+        return NextResponse.json({ error: 'Failed to mark remainder paid' }, { status: 500 })
+      }
+    } else {
+      const { error: insertError } = await supabaseAdmin
+        .from('egg_payments')
+        .insert({
+          egg_order_id: orderId,
+          payment_type: 'remainder',
+          amount_nok: Math.round(amountDueOre / 100),
+          status: 'completed',
+          paid_at: nowIso,
+          webhook_processed_at: nowIso,
+          idempotency_key: `admin-manual-remainder-${orderId}-${Date.now()}`,
+        })
+
+      if (insertError) {
+        return NextResponse.json({ error: 'Failed to create remainder payment' }, { status: 500 })
+      }
+    }
+  }
+
+  const synced = await syncEggOrderStatus(orderId, reason)
+  if (!synced.ok) {
+    return synced
+  }
+
+  await appendAdminNote(
+    orderId,
+    order.admin_notes,
+    `Admin: marked ${paymentType} as completed${reason ? ` - ${reason}` : ''}`
+  )
+
+  return NextResponse.json({ success: true })
+}
+
+async function markPaymentRefunded(
+  orderId: string,
+  paymentType: 'deposit' | 'remainder',
+  reason: string | undefined
+) {
+  const { order, error } = await getOrderForPaymentActions(orderId)
+  if (error || !order) {
+    return NextResponse.json({ error: error || 'Order not found' }, { status: 404 })
+  }
+
+  const target = [...(order.egg_payments || [])]
+    .filter((payment) => payment.payment_type === paymentType)
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0]
+
+  if (!target) {
+    return NextResponse.json({ error: `No ${paymentType} payment found` }, { status: 400 })
+  }
+
+  const { error: updateError } = await supabaseAdmin
+    .from('egg_payments')
+    .update({ status: 'refunded' })
+    .eq('id', target.id)
+
+  if (updateError) {
+    return NextResponse.json({ error: 'Failed to mark payment refunded' }, { status: 500 })
+  }
+
+  if (paymentType === 'deposit') {
+    await supabaseAdmin
+      .from('egg_orders')
+      .update({ status: 'pending' })
+      .eq('id', orderId)
+  } else {
+    await syncEggOrderStatus(orderId, reason)
+  }
+
+  await appendAdminNote(
+    orderId,
+    order.admin_notes,
+    `Admin: marked ${paymentType} as refunded${reason ? ` - ${reason}` : ''}`
+  )
+
+  return NextResponse.json({ success: true })
+}
+
+async function setEggOrderStatus(orderId: string, nextStatus: string, reason: string | undefined) {
+  if (!nextStatus || typeof nextStatus !== 'string') {
+    return NextResponse.json({ error: 'Missing status value' }, { status: 400 })
+  }
+
+  const { data: order, error } = await supabaseAdmin
+    .from('egg_orders')
+    .select('id, admin_notes')
+    .eq('id', orderId)
+    .single()
+
+  if (error || !order) {
+    return NextResponse.json({ error: 'Order not found' }, { status: 404 })
+  }
+
+  const updatePayload: Record<string, unknown> = { status: nextStatus }
+  if (nextStatus === 'delivered') {
+    updatePayload.marked_delivered_at = new Date().toISOString()
+  }
+
+  const { error: updateError } = await supabaseAdmin
+    .from('egg_orders')
+    .update(updatePayload)
+    .eq('id', orderId)
+
+  if (updateError) {
+    return NextResponse.json({ error: 'Failed to set status' }, { status: 500 })
+  }
+
+  await appendAdminNote(
+    orderId,
+    order.admin_notes,
+    `Admin: status set to ${nextStatus}${reason ? ` - ${reason}` : ''}`
+  )
+
+  return NextResponse.json({ success: true })
 }
 
 async function refundDeposit(orderId: string, reason: string | undefined) {
@@ -374,6 +665,18 @@ export async function POST(
           data?.deliveryFee,
           data?.reason
         )
+      case 'mark_deposit_paid':
+        return await markPaymentCompleted(params.id, 'deposit', data?.reason)
+      case 'mark_remainder_paid':
+        return await markPaymentCompleted(params.id, 'remainder', data?.reason)
+      case 'mark_deposit_refunded':
+        return await markPaymentRefunded(params.id, 'deposit', data?.reason)
+      case 'mark_remainder_refunded':
+        return await markPaymentRefunded(params.id, 'remainder', data?.reason)
+      case 'sync_status':
+        return await syncEggOrderStatus(params.id, data?.reason)
+      case 'set_status':
+        return await setEggOrderStatus(params.id, data?.status, data?.reason)
       default:
         return NextResponse.json({ error: 'Unknown action' }, { status: 400 })
     }

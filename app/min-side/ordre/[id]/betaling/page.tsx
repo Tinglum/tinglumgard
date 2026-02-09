@@ -24,6 +24,7 @@ interface OrderData {
   delivery_type: 'pickup_farm' | 'pickup_e6' | 'delivery_trondheim';
   fresh_delivery: boolean;
   extra_products?: Array<{ slug: string; name: string; quantity: number; total_price: number }>;
+  extra_credit_amount_nok?: number;
 }
 
 interface ExtrasCatalogItem {
@@ -39,10 +40,24 @@ interface ExtrasCatalogItem {
   active: boolean;
 }
 
+interface OutOfStockItem {
+  slug: string;
+  name: string;
+  requestedQty: number;
+  availableQty: number;
+  totalPrice: number;
+}
+
 export default function RemainderPaymentSummaryPage() {
   const params = useParams<{ id: string }>();
   const orderId = params?.id;
   const { toast } = useToast();
+  const remainderDueDate = new Date('2026-11-16');
+  const formattedDueDate = remainderDueDate.toLocaleDateString('nb-NO', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
 
   const [order, setOrder] = useState<OrderData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -52,6 +67,8 @@ export default function RemainderPaymentSummaryPage() {
   const [availableExtras, setAvailableExtras] = useState<ExtrasCatalogItem[]>([]);
   const [extrasLoading, setExtrasLoading] = useState(true);
   const [selectedQuantities, setSelectedQuantities] = useState<Record<string, number>>({});
+  const [outOfStockItems, setOutOfStockItems] = useState<OutOfStockItem[]>([]);
+  const [resolvingStock, setResolvingStock] = useState(false);
 
   // Delivery management
   const [deliveryType, setDeliveryType] = useState<'pickup_farm' | 'pickup_e6' | 'delivery_trondheim'>('pickup_farm');
@@ -138,6 +155,8 @@ export default function RemainderPaymentSummaryPage() {
     loadPricing();
   }, []);
 
+  const extraCreditBalance = order?.extra_credit_amount_nok || 0;
+
   // Calculate totals based on CURRENT selections (not saved extras)
   const newExtrasTotal = useMemo(() => {
     return Object.entries(selectedQuantities).reduce((sum, [slug, qty]) => {
@@ -192,10 +211,15 @@ export default function RemainderPaymentSummaryPage() {
 
   const totalDeliveryDelta = deliveryFeeDelta + freshDeliveryFeeDelta;
 
-  // Total to pay = base remainder + NEW extras selection + delivery delta
+  const creditApplied = useMemo(() => {
+    return Math.min(extraCreditBalance, newExtrasTotal);
+  }, [extraCreditBalance, newExtrasTotal]);
+
+  // Total to pay = base remainder + NEW extras selection (minus credit) + delivery delta
   const finalTotal = useMemo(() => {
-    return baseRemainder + newExtrasTotal + totalDeliveryDelta;
-  }, [baseRemainder, newExtrasTotal, totalDeliveryDelta]);
+    const extrasAfterCredit = Math.max(0, newExtrasTotal - creditApplied);
+    return baseRemainder + extrasAfterCredit + totalDeliveryDelta;
+  }, [baseRemainder, newExtrasTotal, creditApplied, totalDeliveryDelta]);
 
   // Check if extras have changed from saved state
   const hasExtrasChanges = useMemo(() => {
@@ -234,6 +258,87 @@ export default function RemainderPaymentSummaryPage() {
         [slug]: quantity
       };
     });
+  }
+
+  useEffect(() => {
+    if (!order || availableExtras.length === 0) return;
+    const issues: OutOfStockItem[] = [];
+
+    (order.extra_products || []).forEach((extra) => {
+      const catalogItem = availableExtras.find((item) => item.slug === extra.slug);
+      const stockQty = catalogItem?.stock_quantity;
+      if (stockQty === null || stockQty === undefined) return;
+      if (stockQty < extra.quantity) {
+        const totalPrice = extra.total_price || (catalogItem ? catalogItem.price_nok * extra.quantity : 0);
+        issues.push({
+          slug: extra.slug,
+          name: extra.name,
+          requestedQty: extra.quantity,
+          availableQty: Math.max(0, stockQty),
+          totalPrice,
+        });
+      }
+    });
+
+    setOutOfStockItems(issues);
+  }, [order, availableExtras]);
+
+  async function resolveOutOfStock(useCredit: boolean) {
+    if (!orderId || outOfStockItems.length === 0) return;
+    setResolvingStock(true);
+
+    const nextQuantities = { ...selectedQuantities };
+    outOfStockItems.forEach((item) => {
+      delete nextQuantities[item.slug];
+    });
+
+    const updatedExtras = Object.entries(nextQuantities)
+      .filter(([_, qty]) => qty > 0)
+      .map(([slug, quantity]) => ({ slug, quantity }));
+
+    const creditAmountNok = useCredit
+      ? Math.round(outOfStockItems.reduce((sum, item) => sum + item.totalPrice * 1.1, 0))
+      : 0;
+
+    try {
+      const response = await fetch(`/api/orders/${orderId}/add-extras`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ extras: updatedExtras, creditAmountNok }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => null);
+        throw new Error(data?.error || 'Kunne ikke oppdatere ekstra produkter');
+      }
+
+      const refreshed = await fetch(`/api/orders/${orderId}`);
+      if (refreshed.ok) {
+        const data = await refreshed.json();
+        setOrder(data);
+        const quantities: Record<string, number> = {};
+        (data.extra_products || []).forEach((ep: any) => {
+          quantities[ep.slug] = ep.quantity;
+        });
+        setSelectedQuantities(quantities);
+      }
+
+      setOutOfStockItems([]);
+      toast({
+        title: 'Oppdatert',
+        description: useCredit
+          ? 'Utsolgte produkter fjernet og kreditt lagt til.'
+          : 'Utsolgte produkter fjernet fra bestillingen.',
+      });
+    } catch (err: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Kunne ikke oppdatere',
+        description: err?.message || 'Prøv igjen.',
+      });
+    } finally {
+      setResolvingStock(false);
+    }
   }
 
   function getSelectedExtras() {
@@ -333,6 +438,49 @@ export default function RemainderPaymentSummaryPage() {
 
   return (
     <div className="min-h-screen bg-white py-20">
+      {outOfStockItems.length > 0 && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-6">
+          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
+            <h2 className="text-xl font-light text-neutral-900 mb-3">Beklager, noen ekstra varer er utsolgt</h2>
+            <p className="text-sm text-neutral-600 mb-4">
+              Vi har ikke nok lager til alle ekstra varer du valgte ved forskuddsbestilling.
+              Du kan fjerne varene eller få 110% kreditt som kan brukes på andre ekstra produkter.
+              Ubrukt kreditt refunderes ikke.
+            </p>
+            <div className="space-y-2 mb-5">
+              {outOfStockItems.map((item) => (
+                <div key={item.slug} className="flex items-center justify-between rounded-xl border border-neutral-200 px-4 py-2">
+                  <div>
+                    <p className="text-sm font-medium text-neutral-900">{item.name}</p>
+                    <p className="text-xs text-neutral-500">
+                      Bestilt: {item.requestedQty} • Tilgjengelig: {item.availableQty}
+                    </p>
+                  </div>
+                  <span className="text-sm font-medium text-neutral-700">
+                    kr {item.totalPrice.toLocaleString('nb-NO')}
+                  </span>
+                </div>
+              ))}
+            </div>
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <button
+                onClick={() => resolveOutOfStock(false)}
+                disabled={resolvingStock}
+                className="flex-1 rounded-xl border border-neutral-200 px-4 py-3 text-sm font-medium text-neutral-900 hover:bg-neutral-50 disabled:opacity-50"
+              >
+                Fjern utsolgte produkter
+              </button>
+              <button
+                onClick={() => resolveOutOfStock(true)}
+                disabled={resolvingStock}
+                className="flex-1 rounded-xl bg-neutral-900 px-4 py-3 text-sm font-medium text-white hover:bg-neutral-800 disabled:opacity-50"
+              >
+                Ta 110% kreditt
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Subtle parallax background */}
       <div className="fixed inset-0 pointer-events-none -z-10">
         <div
@@ -351,6 +499,10 @@ export default function RemainderPaymentSummaryPage() {
             <div>
               <h1 className="text-3xl font-light tracking-tight text-neutral-900">Betal restbeløp</h1>
               <p className="text-sm font-light text-neutral-600 mt-2">Ordre {order.order_number}</p>
+              <p className="text-xs text-neutral-500 mt-2">Forfallsdato: {formattedDueDate}</p>
+              <p className="text-xs text-neutral-500 mt-1">
+                Jo tidligere du betaler restbeløpet, jo større er sjansen for å få ekstra produkter.
+              </p>
             </div>
             <Link href="/min-side" className="text-sm font-light text-neutral-600 underline hover:text-neutral-900 transition-colors">
               Tilbake
@@ -406,6 +558,15 @@ export default function RemainderPaymentSummaryPage() {
               <div className="mt-4 p-4 rounded-xl bg-neutral-50 border border-neutral-200">
                 <p className="text-sm font-light text-neutral-900 leading-relaxed">
                   ⚠️ Du har endringer som ikke er lagret. De vil bli lagret når du klikker &quot;Betal med Vipps&quot;.
+                </p>
+              </div>
+            )}
+
+            {extraCreditBalance > 0 && (
+              <div className="mt-4 p-4 rounded-xl bg-amber-50 border border-amber-200">
+                <p className="text-sm font-light text-amber-900 leading-relaxed">
+                  Kreditt for utsolgte produkter: kr {extraCreditBalance.toLocaleString('nb-NO')}.
+                  Kreditten kan brukes på ekstra produkter og refunderes ikke.
                 </p>
               </div>
             )}
@@ -579,6 +740,12 @@ export default function RemainderPaymentSummaryPage() {
                 </span>
               </div>
             )}
+            {creditApplied > 0 && (
+              <div className="flex justify-between">
+                <span className="font-light text-neutral-600">Kreditt ekstra produkter</span>
+                <span className="font-light text-neutral-900">-kr {creditApplied.toLocaleString('nb-NO')}</span>
+              </div>
+            )}
             {totalDeliveryDelta !== 0 && (
               <div className="flex justify-between">
                 <span className="font-light text-neutral-600">Leveringsendring</span>
@@ -598,7 +765,7 @@ export default function RemainderPaymentSummaryPage() {
           <div className="mt-8 flex flex-col gap-4">
             <button
               onClick={executePayment}
-              disabled={isPaying}
+              disabled={isPaying || outOfStockItems.length > 0}
               className="w-full py-5 bg-neutral-900 hover:bg-neutral-800 text-white rounded-xl text-base font-light uppercase tracking-wide shadow-[0_20px_60px_-15px_rgba(0,0,0,0.08)] hover:shadow-[0_30px_80px_-20px_rgba(0,0,0,0.12)] hover:-translate-y-1 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0"
             >
               {isPaying ? (

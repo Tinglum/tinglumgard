@@ -70,6 +70,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'All items must be in the same delivery week' }, { status: 400 })
     }
 
+    const orderCutoff = new Date(deliveryWeek.delivery_monday)
+    orderCutoff.setDate(orderCutoff.getDate() - 1)
+    const todayDate = new Date(new Date().toISOString().split('T')[0])
+    if (todayDate >= orderCutoff) {
+      return NextResponse.json({ error: 'Orders are closed for this delivery week' }, { status: 400 })
+    }
+
     const requiredBaseQty = (slug: string) => (slug === 'ayam-cemani' ? 6 : 10)
     const totalEggs = items.reduce((sum, item) => sum + item.quantity, 0)
     const hasBaseQuantity = items.some((item) => {
@@ -119,8 +126,7 @@ export async function POST(request: NextRequest) {
           : 0
     const totalAmount = subtotal + deliveryFee
     const deliveryDate = new Date(new Date(deliveryWeek.delivery_monday).toISOString().split('T')[0])
-    const today = new Date(new Date().toISOString().split('T')[0])
-    const daysToDelivery = Math.round((deliveryDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+    const daysToDelivery = Math.round((deliveryDate.getTime() - todayDate.getTime()) / (1000 * 60 * 60 * 24))
     const isFullPayment = daysToDelivery <= 11
     const depositAmount = isFullPayment ? totalAmount : Math.round(subtotal / 2)
     const remainderAmount = isFullPayment ? 0 : (subtotal - depositAmount) + deliveryFee

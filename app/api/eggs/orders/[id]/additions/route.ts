@@ -34,7 +34,7 @@ export async function POST(
     const cutoffDate = new Date(order.delivery_monday)
     cutoffDate.setDate(cutoffDate.getDate() - 1)
     const today = new Date(new Date().toISOString().split('T')[0])
-    if (today > cutoffDate) {
+    if (today >= cutoffDate) {
       return NextResponse.json({ error: 'Additions are closed for this delivery week' }, { status: 400 })
     }
 

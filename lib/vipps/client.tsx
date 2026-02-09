@@ -890,23 +890,9 @@ export default function CheckoutPage() {
                   <button
                     disabled={!agreedToTerms || !agreedToDepositPolicy || isProcessing}
                     onClick={handleCheckout}
-                    className="w-full bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-bold text-lg py-5 px-8 rounded-2xl shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-300 flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:from-gray-400 disabled:to-gray-500"
-                    style={{ backgroundColor: isProcessing ? undefined : '#FF5B24' }}
+                    className="w-full bg-[#FF5B24] hover:bg-[#E6501F] text-white font-bold text-lg py-5 px-8 rounded-2xl shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-300 flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:bg-gray-400"
                   >
-                    {isProcessing ? (
-                      'Behandler...'
-                    ) : (
-                      <>
-                        <span>Betal med</span>
-                        <Image
-                          src="/vipps-logo.svg"
-                          alt="Vipps"
-                          width={72}
-                          height={24}
-                          className="h-6 w-auto object-contain brightness-0 invert"
-                        />
-                      </>
-                    )}
+                    {isProcessing ? 'Behandler...' : 'BETAL MED VIPPS'}
                   </button>
 
                   {/* Info text */}

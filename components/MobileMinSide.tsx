@@ -43,6 +43,12 @@ interface MobileMinSideProps {
 export function MobileMinSide(props: MobileMinSideProps) {
   const { orders, activeTab, setActiveTab, canEdit, cutoffWeek, cutoffYear, onPayRemainder } = props;
   const { t } = useLanguage();
+  const remainderDueDate = new Date('2026-11-16');
+  const formattedDueDate = remainderDueDate.toLocaleDateString('nb-NO', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
 
   const getPaymentStatus = (order: Order) => {
     const depositPaid = order.payments.some(p => p.payment_type === 'deposit' && p.status === 'completed');
@@ -175,6 +181,11 @@ export function MobileMinSide(props: MobileMinSideProps) {
                         {remainderPaid ? <Check className="h-4 w-4 text-[#0F6C6F]" /> : <Clock className="h-4 w-4 text-[#B35A2A]" />}
                       </span>
                     </div>
+                    {depositPaid && !remainderPaid && (
+                      <div className="mt-2 text-xs text-[#6A6258]">
+                        Forfallsdato: {formattedDueDate}
+                      </div>
+                    )}
                     <div className="mt-3 flex items-center justify-between text-base font-semibold">
                       <span>{t.common.total}</span>
                       <span>{order.total_amount.toLocaleString('nb-NO')} {t.common.currency}</span>

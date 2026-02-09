@@ -19,6 +19,12 @@ export function getOrderConfirmationTemplate({
   totalAmount,
   language,
 }: OrderConfirmationParams): { subject: string; html: string } {
+  const remainderDueDate = new Date('2026-11-16');
+  const dueDateLabel = remainderDueDate.toLocaleDateString(language === 'en' ? 'en-GB' : 'nb-NO', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
   if (language === 'en') {
     return {
       subject: `Order Confirmation - ${orderNumber}`,
@@ -43,6 +49,8 @@ export function getOrderConfirmationTemplate({
       <p>Hi ${customerName},</p>
       <p>Thank you for your order <strong>${orderNumber}</strong>.</p>
       <p>Your ${boxSize}kg pork box has been reserved. We will send you a Vipps payment request for the 50% deposit shortly.</p>
+      <p>Remainder payment must be completed by <strong>${dueDateLabel}</strong>.</p>
+      <p>The sooner you pay the remainder, the more likely you are to receive your extra products.</p>
       <div class="amount">Total: kr ${totalAmount.toLocaleString('nb-NO')}</div>
       <div class="amount" style="font-size: 18px;">Deposit (50%): kr ${depositAmount.toLocaleString('nb-NO')}</div>
       <p>Best regards,<br>Tinglum Gård</p>
@@ -77,6 +85,8 @@ export function getOrderConfirmationTemplate({
       <p>Hei ${customerName},</p>
       <p>Takk for din bestilling <strong>${orderNumber}</strong>.</p>
       <p>Din ${boxSize}kg griskasse er reservert. Vi sender deg snart en Vipps-betalingsforespørsel for forskuddet på 50%.</p>
+      <p>Restbetalingen må være betalt innen <strong>${dueDateLabel}</strong>.</p>
+      <p>Jo tidligere du betaler restbeløpet, jo større er sjansen for å få ekstra produkter.</p>
       <div class="amount">Totalt: kr ${totalAmount.toLocaleString('nb-NO')}</div>
       <div class="amount" style="font-size: 18px;">Forskudd (50%): kr ${depositAmount.toLocaleString('nb-NO')}</div>
       <p>Vennlig hilsen,<br>Tinglum Gård</p>

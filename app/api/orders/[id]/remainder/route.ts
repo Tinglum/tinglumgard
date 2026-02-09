@@ -89,8 +89,14 @@ export async function POST(
       );
     }
 
-    // Use the remainder amount from the order (already calculated and may be customized)
-    const remainderAmount = order.remainder_amount;
+    const extrasTotal = (order.extra_products || []).reduce((sum: number, extra: any) => {
+      return sum + (extra.total_price || 0);
+    }, 0);
+    const creditBalance = Math.max(0, order.extra_credit_amount_nok || 0);
+    const creditApplied = Math.min(creditBalance, extrasTotal);
+
+    // Use remainder amount minus applicable credit (credit applies to extras only)
+    const remainderAmount = Math.max(0, Math.round(order.remainder_amount - creditApplied));
 
     const remainderPayment = order.payments?.find(
       (p: any) => p.payment_type === 'remainder'
@@ -145,6 +151,7 @@ export async function POST(
     console.log('Creating remainder payment session (payment only, no customer info):', {
       reference: shortReference,
       amount: remainderAmount,
+      creditApplied,
     });
 
     const vippsResult = await vippsClient.createCheckoutSession(sessionData);

@@ -412,7 +412,7 @@ export function OrderModificationModal({ order, isOpen, onClose, onSave }: Order
             <Button
               onClick={handleSaveClick}
               disabled={!hasChanges || saving}
-              className="flex-1 bg-[#2C1810] hover:bg-[#2C1810]/90"
+              className="flex-1 bg-[#2C1810] text-white hover:bg-[#2C1810]/90 disabled:bg-[#2C1810]/40 disabled:text-white/70"
             >
               <Save className="w-4 h-4 mr-2" />
               {saving ? 'Lagrer...' : 'Lagre endringer'}
@@ -443,7 +443,7 @@ export function OrderModificationModal({ order, isOpen, onClose, onSave }: Order
               </Button>
               <Button
                 onClick={confirmSave}
-                className="flex-1 bg-[#2C1810] hover:bg-[#2C1810]/90"
+                className="flex-1 bg-[#2C1810] text-white hover:bg-[#2C1810]/90 disabled:bg-[#2C1810]/40 disabled:text-white/70"
               >
                 Bekreft
               </Button>

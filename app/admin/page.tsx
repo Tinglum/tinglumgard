@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useCallback, useEffect, useState } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -41,6 +41,7 @@ import { InventoryManagement } from '@/components/admin/InventoryManagement';
 import { EggInventoryManagement } from '@/components/admin/EggInventoryManagement';
 import { BreedManagement } from '@/components/admin/BreedManagement';
 import { EggAnalytics } from '@/components/admin/EggAnalytics';
+import { EggOrdersWorkbench } from '@/components/admin/EggOrdersWorkbench';
 import { AdminMessagingPanel } from '@/components/admin/AdminMessagingPanel';
 import { ConfigurationManagement } from '@/components/admin/ConfigurationManagement';
 import { DeliveryCalendar } from '@/components/admin/DeliveryCalendar';
@@ -262,12 +263,12 @@ export default function AdminPage() {
   useEffect(() => {
     if (isAuthenticated && activeTab === 'dashboard') {
       loadDashboard();
-    } else if (isAuthenticated && activeTab === 'orders') {
+    } else if (isAuthenticated && activeTab === 'orders' && productMode !== 'eggs') {
       loadOrders();
     } else if (isAuthenticated && activeTab === 'analytics') {
       loadAnalytics();
     }
-  }, [isAuthenticated, activeTab, loadDashboard, loadOrders, loadAnalytics]);
+  }, [isAuthenticated, activeTab, productMode, loadDashboard, loadOrders, loadAnalytics]);
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -341,117 +342,6 @@ export default function AdminPage() {
     }
   }
 
-  async function handleEggOrderAction(order: Order) {
-    const actionInput = window.prompt(
-      'Handling for egg-ordre: refund, cancel, cancel_refund, move, delivery',
-      'refund'
-    )
-
-    if (!actionInput) return
-
-    const actionKey = actionInput.trim().toLowerCase()
-    const actionMap: Record<string, string> = {
-      refund: 'refund_deposit',
-      cancel: 'cancel_order',
-      cancel_refund: 'cancel_and_refund',
-      move: 'move_week',
-      delivery: 'update_delivery',
-    }
-
-    const action = actionMap[actionKey]
-    if (!action) {
-      toast({
-        title: 'Ugyldig handling',
-        description: 'Bruk refund, cancel, cancel_refund, move eller delivery',
-        variant: 'destructive',
-      })
-      return
-    }
-
-    const data: any = {}
-    if (action === 'move_week') {
-      const weekInput = window.prompt('Ny uke (1-53)?', order.week_number?.toString() || '')
-      if (!weekInput) return
-      const yearInput = window.prompt('År?', order.year?.toString() || '')
-      if (!yearInput) return
-
-      const weekNumber = Number(weekInput)
-      const year = Number(yearInput)
-      if (!Number.isFinite(weekNumber) || !Number.isFinite(year)) {
-        toast({
-          title: 'Ugyldig uke/år',
-          description: 'Oppgi gyldige tall for uke og år',
-          variant: 'destructive',
-        })
-        return
-      }
-
-      data.weekNumber = weekNumber
-      data.year = year
-    }
-
-    if (action === 'update_delivery') {
-      const methodInput = window.prompt('Levering (posten, e6, farm)?', 'posten')
-      if (!methodInput) return
-
-      const normalized = methodInput.trim().toLowerCase()
-      const methodMap: Record<string, { method: string; fee: number }> = {
-        posten: { method: 'posten', fee: 30000 },
-        e6: { method: 'e6_pickup', fee: 20000 },
-        farm: { method: 'farm_pickup', fee: 0 },
-      }
-
-      const delivery = methodMap[normalized]
-      if (!delivery) {
-        toast({
-          title: 'Ugyldig levering',
-          description: 'Bruk posten, e6 eller farm',
-          variant: 'destructive',
-        })
-        return
-      }
-
-      data.deliveryMethod = delivery.method
-      data.deliveryFee = delivery.fee
-    }
-
-    if (action === 'cancel_order' || action === 'cancel_and_refund') {
-      data.releaseInventory = window.confirm('Frigi lager/inventory for denne ordren?')
-    }
-
-    if (!window.confirm('Bekreft handling?')) return
-
-    const reason = window.prompt('Årsak (valgfritt):', '')
-    if (reason) {
-      data.reason = reason
-    }
-
-    try {
-      const response = await fetch(`/api/admin/eggs/orders/${order.id}/actions`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action, data }),
-      })
-
-      const result = await response.json().catch(() => ({}))
-      if (!response.ok) {
-        throw new Error(result?.error || 'Kunne ikke utføre handling')
-      }
-
-      await loadOrders()
-      toast({
-        title: 'Oppdatert',
-        description: 'Handling utført på egg-ordre',
-      })
-    } catch (error: any) {
-      toast({
-        title: 'Feil',
-        description: error?.message || 'Kunne ikke utføre handling',
-        variant: 'destructive',
-      })
-    }
-  }
-
   function toggleOrderSelection(orderId: string) {
     const newSelection = new Set(selectedOrders);
     if (newSelection.has(orderId)) {
@@ -474,7 +364,7 @@ export default function AdminPage() {
     if (selectedOrders.size === 0) {
       toast({
         title: 'Ingen ordrer valgt',
-        description: 'Velg minst én ordre for å fortsette',
+        description: 'Velg minst Ã©n ordre for Ã¥ fortsette',
         variant: 'destructive'
       });
       return;
@@ -526,13 +416,13 @@ export default function AdminPage() {
     if (selectedOrders.size === 0) {
       toast({
         title: 'Ingen ordrer valgt',
-        description: 'Velg minst én ordre for å låse',
+        description: 'Velg minst Ã©n ordre for Ã¥ lÃ¥se',
         variant: 'destructive'
       });
       return;
     }
 
-    if (!window.confirm(`Låse ${selectedOrders.size} ordrer? Dette kan ikke angres.`)) {
+    if (!window.confirm(`LÃ¥se ${selectedOrders.size} ordrer? Dette kan ikke angres.`)) {
       return;
     }
 
@@ -551,13 +441,13 @@ export default function AdminPage() {
         await loadOrders();
         setSelectedOrders(new Set());
         toast({
-          title: 'Ordrer låst',
-          description: `${selectedOrders.size} ordrer ble låst`
+          title: 'Ordrer lÃ¥st',
+          description: `${selectedOrders.size} ordrer ble lÃ¥st`
         });
       } else {
         toast({
           title: 'Feil',
-          description: 'Kunne ikke låse ordrer',
+          description: 'Kunne ikke lÃ¥se ordrer',
           variant: 'destructive'
         });
       }
@@ -565,7 +455,7 @@ export default function AdminPage() {
       console.error('Bulk lock error:', error);
       toast({
         title: 'Feil',
-        description: 'Kunne ikke låse ordrer',
+        description: 'Kunne ikke lÃ¥se ordrer',
         variant: 'destructive'
       });
     } finally {
@@ -603,7 +493,7 @@ export default function AdminPage() {
     if (selectedOrders.size === 0) {
       toast({
         title: 'Ingen ordrer valgt',
-        description: 'Velg ordrer å eksportere',
+        description: 'Velg ordrer Ã¥ eksportere',
         variant: 'destructive'
       });
       return;
@@ -679,12 +569,12 @@ export default function AdminPage() {
 
   const statusOptions = [
     { value: 'all', label: 'Alle statuser' },
-    { value: 'pending', label: 'Venter på forskudd' },
+    { value: 'pending', label: 'Venter pÃ¥ forskudd' },
     { value: 'draft', label: 'Utkast' },
     { value: 'deposit_paid', label: 'Forskudd betalt' },
     { value: 'paid', label: 'Fullstendig betalt' },
     { value: 'ready_for_pickup', label: 'Klar for henting' },
-    { value: 'completed', label: 'Fullført' },
+    { value: 'completed', label: 'FullfÃ¸rt' },
     { value: 'cancelled', label: 'Kansellert' },
     { value: 'forfeited', label: 'Fortapt' },
   ];
@@ -717,10 +607,10 @@ export default function AdminPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 className="mt-2 border-neutral-200 rounded-xl font-light"
                 autoFocus
-                placeholder="••••••••"
+                placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
               />
               {passwordError && (
-                <p className="text-red-600 text-sm font-light mt-2">Feil passord. Prøv igjen.</p>
+                <p className="text-red-600 text-sm font-light mt-2">Feil passord. PrÃ¸v igjen.</p>
               )}
             </div>
             <button
@@ -741,7 +631,7 @@ export default function AdminPage() {
       <div className="bg-white border-b border-neutral-200 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.08)]">
         <div className="max-w-[1800px] mx-auto px-6 py-6">
           <div className="flex items-center justify-between">
-            <h1 className="text-3xl font-light tracking-tight text-neutral-900">Tinglumgård Admin</h1>
+            <h1 className="text-3xl font-light tracking-tight text-neutral-900">TinglumgÃ¥rd Admin</h1>
             <button
               onClick={async () => {
                 await fetch('/api/admin/logout', { method: 'POST' });
@@ -770,7 +660,7 @@ export default function AdminPage() {
                     : 'bg-white text-neutral-700 hover:bg-neutral-50 border border-neutral-200 hover:border-neutral-300 hover:-translate-y-0.5'
                 )}
               >
-                🐷 Pigs
+                ðŸ· Pigs
               </button>
               <button
                 onClick={() => setProductMode('eggs')}
@@ -781,7 +671,7 @@ export default function AdminPage() {
                     : 'bg-white text-neutral-700 hover:bg-neutral-50 border border-neutral-200 hover:border-neutral-300 hover:-translate-y-0.5'
                 )}
               >
-                🥚 Eggs
+                ðŸ¥š Eggs
               </button>
               <button
                 onClick={() => setProductMode('combined')}
@@ -792,7 +682,7 @@ export default function AdminPage() {
                     : 'bg-white text-neutral-700 hover:bg-neutral-50 border border-neutral-200 hover:border-neutral-300 hover:-translate-y-0.5'
                 )}
               >
-                📊 Combined
+                ðŸ“Š Combined
               </button>
             </div>
           </div>
@@ -854,14 +744,14 @@ export default function AdminPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="text-2xl font-light text-neutral-900">Ubehandlede meldinger</h3>
-                  <p className="text-sm font-light text-neutral-600 mt-1">Åpne og under behandling</p>
+                  <p className="text-sm font-light text-neutral-600 mt-1">Ã…pne og under behandling</p>
                 </div>
                 <div className="flex items-center gap-4">
                   <div className="text-5xl font-light text-neutral-900 tabular-nums">
                     {messageStats.open + messageStats.in_progress}
                   </div>
                   <Button onClick={() => setActiveTab('messages')} variant="outline">
-                    Gå til meldinger
+                    GÃ¥ til meldinger
                   </Button>
                 </div>
               </div>
@@ -894,7 +784,11 @@ export default function AdminPage() {
         )}
 
         {/* ORDERS TAB */}
-        {activeTab === 'orders' && (
+        {activeTab === 'orders' && productMode === 'eggs' && (
+          <EggOrdersWorkbench />
+        )}
+
+        {activeTab === 'orders' && productMode !== 'eggs' && (
           <div className="space-y-6">
             {/* Filters & Search */}
             <div className="flex flex-col lg:flex-row gap-4">
@@ -903,7 +797,7 @@ export default function AdminPage() {
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
                   <Input
                     type="text"
-                    placeholder="Søk etter ordre, navn eller e-post..."
+                    placeholder="SÃ¸k etter ordre, navn eller e-post..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="pl-10"
@@ -954,7 +848,7 @@ export default function AdminPage() {
                       disabled={bulkActionLoading}
                     >
                       <Lock className="w-4 h-4 mr-1" />
-                      Lås
+                      LÃ¥s
                     </Button>
                     <Button
                       size="sm"
@@ -986,7 +880,7 @@ export default function AdminPage() {
               <Card className="p-12 text-center">
                 <ShoppingCart className="w-16 h-16 mx-auto mb-4 text-gray-400" />
                 <p className="text-xl font-normal text-gray-900 mb-2">Ingen bestillinger funnet</p>
-                <p className="text-gray-600">Prøv å justere filtrene dine</p>
+                <p className="text-gray-600">PrÃ¸v Ã¥ justere filtrene dine</p>
               </Card>
             ) : (
               <Card className="overflow-hidden">
@@ -1007,7 +901,7 @@ export default function AdminPage() {
                         <th className="px-4 py-3 text-left text-sm font-normal text-gray-700">Produkt</th>
                         <th className="px-4 py-3 text-left text-sm font-normal text-gray-700">Status</th>
                         <th className="px-4 py-3 text-left text-sm font-normal text-gray-700">Levering</th>
-                        <th className="px-4 py-3 text-left text-sm font-normal text-gray-700">Beløp</th>
+                        <th className="px-4 py-3 text-left text-sm font-normal text-gray-700">BelÃ¸p</th>
                         <th className="px-4 py-3 text-left text-sm font-normal text-gray-700">Dato</th>
                         <th className="px-4 py-3 text-right text-sm font-normal text-gray-700">Handlinger</th>
                       </tr>
@@ -1027,6 +921,11 @@ export default function AdminPage() {
                             <div className="flex items-center gap-2">
                               <button
                                 onClick={() => {
+                                  if (order.product_type === 'eggs') {
+                                    setProductMode('eggs');
+                                    setSearchTerm(order.order_number);
+                                    return;
+                                  }
                                   setSelectedOrder(order);
                                   setShowOrderDetail(true);
                                 }}
@@ -1036,12 +935,12 @@ export default function AdminPage() {
                               </button>
                               {order.product_type === 'eggs' && (
                                 <span className="px-2 py-0.5 bg-yellow-100 text-yellow-800 text-xs rounded-full font-medium">
-                                  🥚
+                                  ðŸ¥š
                                 </span>
                               )}
                               {order.product_type === 'pig_box' && (
                                 <span className="px-2 py-0.5 bg-pink-100 text-pink-800 text-xs rounded-full font-medium">
-                                  🐷
+                                  ðŸ·
                                 </span>
                               )}
                             </div>
@@ -1094,7 +993,9 @@ export default function AdminPage() {
                                 <Button
                                   size="sm"
                                   variant="outline"
-                                  onClick={() => handleEggOrderAction(order)}
+                                  onClick={() => {
+                                    setProductMode('eggs');
+                                  }}
                                 >
                                   <Settings className="w-4 h-4" />
                                 </Button>
@@ -1103,6 +1004,11 @@ export default function AdminPage() {
                                 size="sm"
                                 variant="outline"
                                 onClick={() => {
+                                  if (order.product_type === 'eggs') {
+                                    setProductMode('eggs');
+                                    setSearchTerm(order.order_number);
+                                    return;
+                                  }
                                   setSelectedOrder(order);
                                   setShowOrderDetail(true);
                                 }}
@@ -1129,11 +1035,11 @@ export default function AdminPage() {
             {/* Pig Analytics */}
             {(productMode === 'pigs' || productMode === 'combined') && analytics && (
               <div>
-                <h3 className="text-xl font-bold text-gray-900 mb-4">🐷 Grisanalyse</h3>
+                <h3 className="text-xl font-bold text-gray-900 mb-4">ðŸ· Grisanalyse</h3>
             {analytics ? (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <Card className="p-6">
-                  <h3 className="font-normal text-lg mb-4">Nøkkeltall</h3>
+                  <h3 className="font-normal text-lg mb-4">NÃ¸kkeltall</h3>
                   <div className="space-y-3">
                     <div className="flex justify-between">
                       <span className="text-gray-600">Totale bestillinger</span>
@@ -1179,7 +1085,7 @@ export default function AdminPage() {
 
                 {analytics.products.combinations.length > 0 && (
                   <Card className="p-6 lg:col-span-2">
-                    <h3 className="font-normal text-lg mb-4">Populære produktkombinasjoner</h3>
+                    <h3 className="font-normal text-lg mb-4">PopulÃ¦re produktkombinasjoner</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                       {analytics.products.combinations.map((combo: any, index: number) => (
                         <div key={index} className="p-4 rounded-xl bg-gray-50">
@@ -1203,7 +1109,7 @@ export default function AdminPage() {
             {/* Egg Analytics */}
             {(productMode === 'eggs' || productMode === 'combined') && (
               <div>
-                <h3 className="text-xl font-bold text-gray-900 mb-4">🥚 Egganalyse</h3>
+                <h3 className="text-xl font-bold text-gray-900 mb-4">ðŸ¥š Egganalyse</h3>
                 <EggAnalytics />
               </div>
             )}
@@ -1218,14 +1124,14 @@ export default function AdminPage() {
           <div className="space-y-8">
             {(productMode === 'pigs' || productMode === 'combined') && (
               <div>
-                <h3 className="text-xl font-bold text-gray-900 mb-4">🐷 Grislager</h3>
+                <h3 className="text-xl font-bold text-gray-900 mb-4">ðŸ· Grislager</h3>
                 <InventoryManagement />
               </div>
             )}
 
             {(productMode === 'eggs' || productMode === 'combined') && (
               <div>
-                <h3 className="text-xl font-bold text-gray-900 mb-4">🥚 Egglager</h3>
+                <h3 className="text-xl font-bold text-gray-900 mb-4">ðŸ¥š Egglager</h3>
                 <EggInventoryManagement />
               </div>
             )}

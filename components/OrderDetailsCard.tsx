@@ -96,6 +96,12 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
     0
   ) || 0;
   const baseRemainder = Math.max(0, order.remainder_amount - extrasTotal);
+  const remainderDueDate = new Date('2026-11-16');
+  const formattedDueDate = remainderDueDate.toLocaleDateString('nb-NO', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
 
   // Determine next action
   function getNextAction() {
@@ -319,6 +325,12 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
               </Button>
             )}
           </div>
+          {needsRemainderPayment && (
+            <div className="mt-3 text-sm text-amber-900">
+              <p>Forfallsdato: {formattedDueDate}</p>
+              <p>Jo tidligere du betaler restbeløpet, jo større er sjansen for ekstra produkter.</p>
+            </div>
+          )}
         </div>
 
         <div className="p-6 space-y-6">
@@ -452,6 +464,10 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
                   </span>
                   {remainderPaid && <CheckCircle2 className="w-4 h-4 text-green-600" />}
                 </div>
+              </div>
+              <div className="flex justify-between text-sm text-gray-600">
+                <span>Forfallsdato restbetaling</span>
+                <span>{formattedDueDate}</span>
               </div>
               <div className={cn('pt-2 border-t flex justify-between', theme.borderSecondary)}>
                 <span className={cn('font-bold', theme.textPrimary)}>Totalt</span>
