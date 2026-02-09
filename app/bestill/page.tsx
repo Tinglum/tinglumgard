@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useIsMobile } from '@/hooks/useMediaQuery';
@@ -30,6 +30,11 @@ export default function CheckoutPage() {
   const searchParams = useSearchParams();
   const isMobile = useIsMobile();
   const { toast } = useToast();
+  const mainContentRef = useRef<HTMLDivElement>(null);
+  const step1Ref = useRef<HTMLDivElement>(null);
+  const step2Ref = useRef<HTMLDivElement>(null);
+  const step3Ref = useRef<HTMLDivElement>(null);
+  const step4Ref = useRef<HTMLDivElement>(null);
   const [step, setStep] = useState(1);
   const [boxSize, setBoxSize] = useState<'8' | '12' | ''>('');
   const [ribbeChoice, setRibbeChoice] = useState<'tynnribbe' | 'familieribbe' | 'porchetta' | 'butchers_choice' | ''>('butchers_choice');
@@ -56,6 +61,38 @@ export default function CheckoutPage() {
     description: string;
   } | null>(null);
   const [showDiscountCodes, setShowDiscountCodes] = useState(false);
+  const [summaryOffset, setSummaryOffset] = useState(0);
+
+  const syncSummaryOffset = useCallback(() => {
+    if (isMobile) {
+      setSummaryOffset(0);
+      return;
+    }
+
+    const mainContent = mainContentRef.current;
+    if (!mainContent) return;
+
+    const stepElements: Record<number, HTMLDivElement | null> = {
+      1: step1Ref.current,
+      2: step2Ref.current,
+      3: step3Ref.current,
+      4: step4Ref.current,
+    };
+
+    let targetStep = step;
+    while (targetStep > 1 && !stepElements[targetStep]) {
+      targetStep -= 1;
+    }
+
+    const targetElement = stepElements[targetStep] ?? step1Ref.current;
+    if (!targetElement) return;
+
+    const mainTop = mainContent.getBoundingClientRect().top + window.scrollY;
+    const targetTop = targetElement.getBoundingClientRect().top + window.scrollY;
+    const nextOffset = Math.max(0, targetTop - mainTop);
+
+    setSummaryOffset((previous) => (previous === nextOffset ? previous : nextOffset));
+  }, [isMobile, step]);
 
   // URL parameter handling
   useEffect(() => {
@@ -71,6 +108,49 @@ export default function CheckoutPage() {
       setStep(4);
     }
   }, [isMobile, step]);
+
+  useEffect(() => {
+    if (isMobile || typeof window === 'undefined') {
+      setSummaryOffset(0);
+      return;
+    }
+
+    let rafId: number | null = null;
+    const scheduleSync = () => {
+      if (rafId !== null) {
+        window.cancelAnimationFrame(rafId);
+      }
+
+      rafId = window.requestAnimationFrame(() => {
+        syncSummaryOffset();
+      });
+    };
+
+    scheduleSync();
+    window.addEventListener('resize', scheduleSync);
+
+    const resizeObserver = typeof ResizeObserver !== 'undefined'
+      ? new ResizeObserver(scheduleSync)
+      : null;
+
+    [
+      mainContentRef.current,
+      step1Ref.current,
+      step2Ref.current,
+      step3Ref.current,
+      step4Ref.current,
+    ]
+      .filter((element): element is HTMLDivElement => Boolean(element))
+      .forEach((element) => resizeObserver?.observe(element));
+
+    return () => {
+      window.removeEventListener('resize', scheduleSync);
+      if (rafId !== null) {
+        window.cancelAnimationFrame(rafId);
+      }
+      resizeObserver?.disconnect();
+    };
+  }, [isMobile, syncSummaryOffset]);
 
   // Fetch pricing configuration
   useEffect(() => {
@@ -467,10 +547,10 @@ export default function CheckoutPage() {
 
         <div className="md:flex md:gap-8 md:items-start">
           {/* Main Content */}
-          <div className="md:flex-1 md:w-2/3 space-y-8 mb-8 md:mb-0">
+          <div ref={mainContentRef} className="md:flex-1 md:w-2/3 space-y-8 mb-8 md:mb-0">
 
             {/* Step 1: Box Size */}
-            <div className="bg-white border border-neutral-200 rounded-xl p-8 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.08)] transition-all duration-500 hover:shadow-[0_30px_80px_-20px_rgba(0,0,0,0.12)]">
+            <div ref={step1Ref} className="bg-white border border-neutral-200 rounded-xl p-8 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.08)] transition-all duration-500 hover:shadow-[0_30px_80px_-20px_rgba(0,0,0,0.12)]">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-2xl font-light text-neutral-900">{t.checkout.step1Title}</h2>
                 {boxSize && step > 1 && (
@@ -547,7 +627,7 @@ export default function CheckoutPage() {
 
             {/* Step 2: Ribbe Choice */}
             {boxSize && (
-              <div className={cn(
+              <div ref={step2Ref} className={cn(
                 "bg-white border border-neutral-200 rounded-xl p-8 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.08)] transition-all duration-500",
                 step < 2 && "opacity-40 pointer-events-none",
                 step >= 2 && "hover:shadow-[0_30px_80px_-20px_rgba(0,0,0,0.12)]"
@@ -612,7 +692,7 @@ export default function CheckoutPage() {
 
             {/* Step 3: Extra Products */}
             {ribbeChoice && (
-              <div className={cn(
+              <div ref={step3Ref} className={cn(
                 "bg-white border border-neutral-200 rounded-xl p-8 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.08)] transition-all duration-500",
                 step < 3 && "opacity-40 pointer-events-none",
                 step >= 3 && "hover:shadow-[0_30px_80px_-20px_rgba(0,0,0,0.12)]"
@@ -772,7 +852,7 @@ export default function CheckoutPage() {
 
             {/* Step 4: Delivery */}
             {step >= 4 && (
-              <div className="bg-white border border-neutral-200 rounded-xl p-8 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.08)] transition-all duration-500 hover:shadow-[0_30px_80px_-20px_rgba(0,0,0,0.12)]">
+              <div ref={step4Ref} className="bg-white border border-neutral-200 rounded-xl p-8 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.08)] transition-all duration-500 hover:shadow-[0_30px_80px_-20px_rgba(0,0,0,0.12)]">
                 <h2 className="text-2xl font-light text-neutral-900 mb-6">{t.checkout.step4Title}</h2>
 
                 <div className="space-y-6">
@@ -901,7 +981,10 @@ export default function CheckoutPage() {
           </div>
 
           {/* Sidebar Summary */}
-          <div className="w-full md:w-1/3 md:flex-shrink-0 md:self-start md:sticky md:top-28">
+          <div
+            className="w-full md:w-1/3 md:flex-shrink-0 md:self-start md:sticky md:top-28 transition-[margin] duration-300"
+            style={!isMobile ? { marginTop: `${summaryOffset}px` } : undefined}
+          >
             <div className="bg-white border border-neutral-200 rounded-xl p-8 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.1)] transition-all duration-500 hover:shadow-[0_30px_80px_-20px_rgba(0,0,0,0.15)]">
                 <h3 className="text-2xl font-light text-neutral-900 mb-6">
                   {t.checkout.summary}
