@@ -1457,11 +1457,11 @@ export function DataTable<T extends { id: string }>({
 
 ### 41. **Fix Norwegian Character Encoding (Mojibake)**
 **Location:** `language-context.tsx`, `mock-data.ts`, `WeekSelector.tsx`, `QuantitySelector.tsx`
-**Issue:** Characters like å, ø, æ display as � or garbled text
+**Issue:** Characters like å, ø, æ display as U+FFFD or garbled text
 **Current Problem:**
 ```typescript
 // Incorrect encoding or file saved wrong
-const text = "Legg til ï¿½yle"; // Should be "Legg til øyle"
+const text = "Legg til U+FFFDyle"; // Should be "Legg til øyle"
 ```
 **Solution:**
 ```typescript
