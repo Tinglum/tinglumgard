@@ -699,6 +699,45 @@ export const no = {
       "Disse vilkårene er ment som informasjon til kunder og utgjør ikke juridisk rådgivning.",
   },
 
+  privacy: {
+    back: "Tilbake",
+    title: "Personvern",
+    intro:
+      "Kort oversikt over hvordan vi behandler personopplysninger ved reservasjon og kontakt.",
+    sections: [
+      {
+        title: "Hva vi samler inn",
+        paragraphs: [
+          "Navn, kontaktinformasjon og bestillingsdetaljer du oppgir.",
+          "Betalingsbekreftelse fra Vipps og leveringsvalg.",
+        ],
+      },
+      {
+        title: "Hvorfor vi samler inn",
+        paragraphs: [
+          "For å behandle reservasjonen din og levere kassen.",
+          "For å sende oppdateringer om betaling, levering og sesongendringer.",
+        ],
+      },
+      {
+        title: "Lagring og deling",
+        paragraphs: [
+          "Vi lagrer data kun så lenge det er behov for bestilling og lovpålagte krav.",
+          "Vi selger ikke data. Vi deler kun med tjenester som trengs for betaling og levering.",
+        ],
+      },
+      {
+        title: "Dine rettigheter",
+        paragraphs: [
+          "Du kan be om innsyn, retting eller sletting der det er aktuelt.",
+          "Kontakt oss, så svarer vi så raskt som mulig.",
+        ],
+      },
+    ],
+    contact: "Kontakt: post@tinglum.com",
+    lastUpdated: "Sist oppdatert 10. februar 2026",
+  },
+
   // My Orders / Customer Portal
   minSide: {
     title: "Min side",
@@ -1081,54 +1120,152 @@ export const no = {
 
   // Product page
   productPage: {
-    productLabel: "Produkt",
-    heroTitle: "Kun en gang i aret",
+    stickyTitle: "Ullgris-kasser 2026",
+    stickyLead: "Sesongkasser fra Tinglum Gard, klar for desember.",
+    stickyCta: "Reserver kasse",
+    stickySecondary: "Se kutt",
+    heroEyebrow: "Produktdetaljer",
+    heroTitle: "Ullgris-kasse fra Tinglum Gard",
     heroLead:
-      "Fra Tinglum Gard i Namdalseid. Oppvokst pa garden hele aret og levert i desember. En sesongkasse med kuttene du faktisk bruker.",
-    heroCtaPrimary: "Reserver en kasse",
-    heroCtaSecondary: "Se innhold",
-    highlightOneTitle: "Ribbe til jul",
-    highlightOneBody: "Utvalgte kutt til jul, vakuumpakket og fryseklart.",
-    highlightTwoTitle: "Lokalt og helt dyr",
-    highlightTwoBody: "Vi bruker hele dyret og lar verdien bli igjen lokalt.",
-    highlightThreeTitle: "Kun en sesong",
-    highlightThreeBody: "Bestilling stenges nar kapasiteten er full, sa apner vi igjen neste ar.",
-    storyTitle: "Hvorfor denne kassen",
-    storyHeading: "En kasse som gir mening",
-    storyBody:
-      "Vi ville lage en kasse med kuttene du bruker gjennom vinteren. Ribbe til jul, polser til hverdags, bacon, koteletter og langtidskutt - alt fra gris oppvokst lokalt med omsorg.",
-    storySupportTitle: "Stott lokalt landbruk",
-    storySupportBody:
-      "Din reservasjon hjelper oss a planlegge sesongen, ha fa dyr med god kvalitet, og holde hele prosessen lokal - fra gard til slakt til levering.",
-    storyPointOneTitle: "Sesongplan",
-    storyPointOneBody: "Reservasjoner lar oss planlegge en arlig produksjon uten slosing.",
-    storyPointTwoTitle: "Lokal verdi",
-    storyPointTwoBody: "Mer av verdien blir igjen i narmiljoet og dyrene behandles lokalt.",
-    scarcityTitle: "Begrenset av kapasitet",
-    scarcityBody:
-      "Vi produserer kun det vi har kapasitet til. Nar sesongen er full, stenger bestillingen til neste ar.",
-    packageContents: "Innhold i pakken",
-    contentsTitle: "I kassen",
-    contentsHeading: "Dette far du",
-    contentsLead: "Innholdet varierer litt, men dette er omtrent det du far.",
-    ribbeItem: "2-3 kg ribbe, vakuumpakket",
-    sausageItem: "1 kg polser, frosset",
-    baconItem: "500 g bacon, skiver",
-    chopsItem: "1.5 kg nakkekoteletter",
-    stewItem: "1-2 kg kokkekutt",
-    sizesTitle: "Velg storrelse",
-    sizesHeading: "To storrelser, samme kvalitet",
-    sizesLead: "Betal 50% na for a sikre plassen din og resten for levering.",
-    priceNote: "Forskudd sikrer plassen din. Resten betales for levering.",
+      "En hel sesongkasse med ribbe til jul og hverdagskutt for resten av vinteren.",
+    heroCtaPrimary: "Reserver kasse",
+    heroCtaSecondary: "Hva er i boksen",
+    quickFacts: [
+      "Vakuumpakket og merket",
+      "Klar for fryser",
+      "Sesongslipp en gang i året",
+      "Henting eller levering",
+      "Lokal slakt i desember",
+    ],
     availabilityTitle: "Tilgjengelighet",
-    availabilityNote: "Antall oppdateres fortlopende nar det reserveres.",
-    timelineTitle: "Fra reservasjon til levering",
-    timelineHeading: "Slik fungerer sesongen",
-    timelineLead: "Enkle steg fra na til levering i desember.",
-    reserveHeading: "Reserver din kasse for sesongen",
-    reserveBody:
-      "Kun en produksjon i aret. Nar kassene er borte, stenger bestillingen til neste sesong.",
-    reserveCta: "Reserver en kasse",
+    availabilityLead: "Begrenset antall kasser. Bestilling stenger når sesongen er full.",
+    availabilityOpen: "Åpen for reservasjon",
+    scarcityTitle: "Begrenset kapasitet",
+    scarcityBody:
+      "Vi produserer kun det vi har kapasitet til. Når sesongen er full, stenger bestillingen til neste år.",
+    valueTitle: "Dette får du",
+    valueHeading: "Trygt, planlagt og klart",
+    valueLead: "En kasse med struktur og kvalitet, laget for sesongen.",
+    valueCards: [
+      {
+        title: "Ferdig pakket",
+        body: "Alt er vakuumpakket, merket og klart for fryser.",
+      },
+      {
+        title: "Balansert kasse",
+        body: "Ribbe, polser, bacon, koteletter og grytekutt - en god miks for hverdagsmat og jul.",
+      },
+      {
+        title: "Planlagt for året",
+        body: "En produksjon i året gir forutsigbarhet, bedre dyrevelferd og mindre sløsing.",
+      },
+    ],
+    contentsTitle: "Innhold i boksen",
+    contentsHeading: "Dette får du",
+    contentsLead: "Kuttlisten under viser hva som vanligvis ligger i kassen.",
+    contentsNote: "Dette varierer litt etter størrelse og slakt.",
+    contentsGuarantee:
+      "Ribbe er alltid med, resten balanseres mellom hverdagskutt og langtidskutt.",
+    contentsLinkLabel: "Se kuttkart",
+    contents: {
+      ribbe: {
+        title: "Ribbe",
+        items: ["Ribbe til jul, vakuumpakket"],
+      },
+      chops: {
+        title: "Koteletter",
+        items: ["Nakkekoteletter eller koteletter"],
+      },
+      bacon: {
+        title: "Bacon",
+        items: ["Skivet bacon"],
+      },
+      sausages: {
+        title: "Polser",
+        items: ["Julepolser eller grillpolser"],
+      },
+      stew: {
+        title: "Grytekjott",
+        items: ["Grytekutt til langtidskok"],
+      },
+      surprises: {
+        title: "Overraskelser",
+        items: ["Et ekstra kutt når tilgjengelig"],
+      },
+    },
+    sizesTitle: "Velg kasse",
+    sizesHeading: "To størrelser, samme kvalitet",
+    sizesLead:
+      "Velg størrelse som passer husholdningen din. Totalsum vises, betaling deles i to.",
+    sizesNote: "Forskudd sikrer plassen din. Resten betales for levering.",
+    paymentSummary: "Slik betaler du",
+    paymentDepositLabel: "Forskudd",
+    paymentRemainderLabel: "Restsum for levering",
+    paymentNote: "Vi sender betalingsinfo i god tid for levering.",
+    reserve8Label: "Reserver 8 kg",
+    reserve12Label: "Reserver 12 kg",
+    timelineTitle: "Slik fungerer det",
+    timelineHeading: "Fra reservasjon til levering",
+    timelineLead: "Enkle steg fra nå til desember.",
+    timelineScarcity: "Bestilling stenger når sesongens kasser er reservert.",
+    timelineSteps: [
+      {
+        week: "Uke 44",
+        title: "Reserver kasse",
+        body: "Betal forskudd og sikre plassen din i sesongen.",
+      },
+      {
+        week: "Uke 46",
+        title: "Endringer stenger",
+        body: "Siste frist for å endre størrelse eller levering.",
+      },
+      {
+        week: "Uke 48",
+        title: "Levering",
+        body: "Kassene leveres eller hentes, klar for fryser.",
+      },
+      {
+        week: "Uke 50",
+        title: "Fersk levering",
+        body: "Valgfri fersk levering for deg som vil ha alt helt nytt.",
+      },
+    ],
+    storyTitle: "Hvorfor en gang i året",
+    storyHeading: "Sesongkasser som gir mening",
+    storyLead:
+      "En årlig produksjon lar deg planlegge ribbe til jul, og lar oss holde alt lokalt og kontrollert.",
+    storyBody:
+      "Du får en kasse med struktur, og vi kan planlegge dyrehold, slakt og levering med ro og kvalitet.",
+    storyHighlight: "Kortreist, forutsigbart og fullt av julefavoritter.",
+    faqTitle: "Spørsmål",
+    faqHeading: "Praktisk info",
+    faqLead: "Svar på det viktigste for deg som vil reservere nå.",
+    faqItems: [
+      {
+        question: "Hvordan leveres kassene?",
+        answer: "Du velger levering eller henting i bestillingen. Tidspunkt oppgis når sesongen planlegges.",
+      },
+      {
+        question: "Kan jeg endre bestillingen senere?",
+        answer: "Du kan endre størrelse og levering frem til uke 46. Etter det låses bestillingen.",
+      },
+      {
+        question: "Hva om jeg ikke kan hente?",
+        answer: "Gi oss beskjed så tidlig som mulig, så finner vi en løsning.",
+      },
+      {
+        question: "Hva skjer med forskuddet?",
+        answer: "Forskuddet reserverer plassen din i sesongen og trekkes fra totalsummen.",
+      },
+    ],
+    policyLead: "Les mer:",
+    policyTerms: "Vilkår",
+    policyPrivacy: "Personvern",
+    finalCtaEyebrow: "Begrenset tilbud",
+    finalCtaHeading: "Reserver din kasse for sesongen",
+    finalCtaBody:
+      "Når kassene er reservert, stenger vi bestilling til neste år.",
+    finalCtaButton: "Reserver kasse",
   },
 
   // Cuts page

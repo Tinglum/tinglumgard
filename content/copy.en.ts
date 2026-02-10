@@ -699,6 +699,45 @@ export const en = {
       "These terms are intended as information for customers and do not constitute legal advice.",
   },
 
+  privacy: {
+    back: "Back",
+    title: "Privacy policy",
+    intro:
+      "This is a short overview of how we process personal data when you reserve or contact us.",
+    sections: [
+      {
+        title: "What we collect",
+        paragraphs: [
+          "Name, contact details, and order information you provide.",
+          "Payment confirmation from Vipps and delivery preferences.",
+        ],
+      },
+      {
+        title: "Why we collect it",
+        paragraphs: [
+          "To process your reservation and deliver your box.",
+          "To send updates about payment, delivery, and changes in the season.",
+        ],
+      },
+      {
+        title: "Storage and sharing",
+        paragraphs: [
+          "We store data only as long as needed for orders and legal requirements.",
+          "We do not sell your data. We only share with services required to complete payment and delivery.",
+        ],
+      },
+      {
+        title: "Your rights",
+        paragraphs: [
+          "You can request access, correction, or deletion where applicable.",
+          "Contact us and we will respond as quickly as possible.",
+        ],
+      },
+    ],
+    contact: "Contact: post@tinglum.com",
+    lastUpdated: "Last updated February 10, 2026",
+  },
+
   // My Orders / Customer Portal
   minSide: {
     title: "My page",
@@ -1081,54 +1120,151 @@ export const en = {
 
   // Product page
   productPage: {
-    productLabel: "Product",
-    heroTitle: "The once-a-year pork box",
+    stickyTitle: "Woolly pig boxes 2026",
+    stickyLead: "Seasonal boxes from Tinglum Gard, ready for December.",
+    stickyCta: "Reserve box",
+    stickySecondary: "See cuts",
+    heroEyebrow: "Product details",
+    heroTitle: "Woolly pig box from Tinglum Gard",
     heroLead:
-      "From Tinglum Gard in Namdalseid. Raised on the farm all year and delivered in December. A single seasonal box designed for the cuts you actually use.",
-    heroCtaPrimary: "Reserve a box",
-    heroCtaSecondary: "See box contents",
-    highlightOneTitle: "Ribbe for Christmas",
-    highlightOneBody: "Cuts chosen for the holiday table, vacuum packed and freezer ready.",
-    highlightTwoTitle: "Local, whole-animal",
-    highlightTwoBody: "We use the animal well and keep the value in the local community.",
-    highlightThreeTitle: "Only once a year",
-    highlightThreeBody: "We close ordering when capacity is full and open again next season.",
-    storyTitle: "Why this box exists",
-    storyHeading: "A box that actually makes sense",
-    storyBody:
-      "We wanted one box that gives you the cuts you reach for through the winter. Ribbe for Christmas, sausages for everyday meals, bacon, chops, and slow-cook cuts - all from pigs raised locally with care.",
-    storySupportTitle: "Support local farming",
-    storySupportBody:
-      "Your reservation helps us plan the season, raise fewer animals better, and keep the entire process local - from farm to slaughter to delivery.",
-    storyPointOneTitle: "Seasonal planning",
-    storyPointOneBody: "Reservations let us plan a single yearly production with zero waste.",
-    storyPointTwoTitle: "Local value",
-    storyPointTwoBody: "More of the value stays in the community and the animals are handled close to home.",
-    scarcityTitle: "Limited by real capacity",
-    scarcityBody:
-      "We only produce what we can raise and handle. When the season is fully reserved, ordering closes until next year.",
-    packageContents: "Package contents",
-    contentsTitle: "In the box",
-    contentsHeading: "Whats included",
-    contentsLead: "Contents vary slightly, but this is approximately what you get.",
-    ribbeItem: "2-3 kg ribs, vacuum-packed",
-    sausageItem: "1 kg sausages, frozen",
-    baconItem: "500 g bacon, sliced",
-    chopsItem: "1.5 kg pork neck chops",
-    stewItem: "1-2 kg cooking cuts",
-    sizesTitle: "Choose your size",
-    sizesHeading: "Two sizes, same quality",
-    sizesLead: "Pay 50% now to secure your spot and the rest before delivery.",
-    priceNote: "Deposit secures your spot. Remainder is paid before delivery.",
+      "A full seasonal box with Christmas ribs and everyday cuts for the rest of winter.",
+    heroCtaPrimary: "Reserve box",
+    heroCtaSecondary: "What's in the box",
+    quickFacts: [
+      "Vacuum packed and labeled",
+      "Freezer ready",
+      "Season release once a year",
+      "Pickup or delivery",
+      "Local slaughter in December",
+    ],
     availabilityTitle: "Availability",
-    availabilityNote: "Live count updates as boxes are reserved.",
-    timelineTitle: "From reservation to delivery",
-    timelineHeading: "How the season works",
-    timelineLead: "Simple steps from now to December delivery.",
-    reserveHeading: "Reserve your box for the season",
-    reserveBody:
-      "A single production each year. When the boxes are gone, ordering closes until the next season.",
-    reserveCta: "Reserve a box",
+    availabilityLead: "Limited number of boxes. Ordering closes when the season is full.",
+    availabilityOpen: "Open for reservations",
+    scarcityTitle: "Limited capacity",
+    scarcityBody:
+      "We only produce what we can raise and handle. When the season is full, ordering closes until next year.",
+    valueTitle: "What you get",
+    valueHeading: "Clear, planned, and ready",
+    valueLead: "A box with structure and quality, built for the season.",
+    valueCards: [
+      {
+        title: "Packed and ready",
+        body: "Everything is vacuum packed, labeled, and ready for the freezer.",
+      },
+      {
+        title: "Balanced box",
+        body: "Ribs, sausages, bacon, chops, and stewing cuts - a solid mix for daily meals and Christmas.",
+      },
+      {
+        title: "Planned for the year",
+        body: "One production a year gives predictability, better welfare, and less waste.",
+      },
+    ],
+    contentsTitle: "Box contents",
+    contentsHeading: "What you get",
+    contentsLead: "The cut list below shows what is usually included.",
+    contentsNote: "Contents vary slightly by size and slaughter.",
+    contentsGuarantee:
+      "Ribs are always included, the rest is balanced between everyday and slow-cook cuts.",
+    contentsLinkLabel: "See cut map",
+    contents: {
+      ribbe: {
+        title: "Ribs",
+        items: ["Ribs for Christmas, vacuum packed"],
+      },
+      chops: {
+        title: "Chops",
+        items: ["Neck chops or chops"],
+      },
+      bacon: {
+        title: "Bacon",
+        items: ["Sliced bacon"],
+      },
+      sausages: {
+        title: "Sausages",
+        items: ["Christmas or grill sausages"],
+      },
+      stew: {
+        title: "Stew cuts",
+        items: ["Slow-cook cuts"],
+      },
+      surprises: {
+        title: "Surprises",
+        items: ["An extra cut when available"],
+      },
+    },
+    sizesTitle: "Choose your box",
+    sizesHeading: "Two sizes, same quality",
+    sizesLead:
+      "Pick the size that fits your household. Total price is shown, payment is split in two.",
+    sizesNote: "The deposit secures your spot. The remainder is paid before delivery.",
+    paymentSummary: "How you pay",
+    paymentDepositLabel: "Deposit",
+    paymentRemainderLabel: "Remainder before delivery",
+    paymentNote: "We send payment details well before delivery.",
+    reserve8Label: "Reserve 8 kg",
+    reserve12Label: "Reserve 12 kg",
+    timelineTitle: "How it works",
+    timelineHeading: "From reservation to delivery",
+    timelineLead: "Simple steps from now to December.",
+    timelineScarcity: "Ordering closes when the season is fully reserved.",
+    timelineSteps: [
+      {
+        week: "Week 44",
+        title: "Reserve your box",
+        body: "Pay the deposit and secure your spot for the season.",
+      },
+      {
+        week: "Week 46",
+        title: "Changes close",
+        body: "Last chance to adjust size or delivery option.",
+      },
+      {
+        week: "Week 48",
+        title: "Delivery",
+        body: "Boxes are delivered or picked up, ready for the freezer.",
+      },
+      {
+        week: "Week 50",
+        title: "Fresh delivery",
+        body: "Optional fresh delivery for those who want it brand new.",
+      },
+    ],
+    storyTitle: "Why once a year",
+    storyHeading: "Seasonal boxes that make sense",
+    storyLead:
+      "One yearly production lets you plan Christmas ribs and lets us keep everything local and controlled.",
+    storyBody:
+      "You get a structured box, and we can plan animal welfare, slaughter, and delivery with care.",
+    storyHighlight: "Local, predictable, and full of holiday favorites.",
+    faqTitle: "Questions",
+    faqHeading: "Practical details",
+    faqLead: "Quick answers for you ready to reserve now.",
+    faqItems: [
+      {
+        question: "How are boxes delivered?",
+        answer: "Choose delivery or pickup when ordering. Timing is confirmed as the season is planned.",
+      },
+      {
+        question: "Can I change my order later?",
+        answer: "You can adjust size and delivery until week 46. After that, the order is locked.",
+      },
+      {
+        question: "What if I cannot pick up?",
+        answer: "Let us know early and we will find a solution.",
+      },
+      {
+        question: "What happens with the deposit?",
+        answer: "The deposit reserves your spot in the season and is deducted from the total.",
+      },
+    ],
+    policyLead: "Read more:",
+    policyTerms: "Terms",
+    policyPrivacy: "Privacy",
+    finalCtaEyebrow: "Limited offer",
+    finalCtaHeading: "Reserve your seasonal box",
+    finalCtaBody: "When boxes are reserved, ordering closes until next year.",
+    finalCtaButton: "Reserve box",
   },
 
   // Cuts page
