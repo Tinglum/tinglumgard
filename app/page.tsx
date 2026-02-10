@@ -449,28 +449,28 @@ export default function Page() {
         <MobileTimeline />
 
         <section className="px-5 py-12">
-          <div className="relative mx-auto max-w-md overflow-hidden rounded-[32px] border border-[#E7DED2] bg-[#FFF7ED] px-6 py-8 shadow-[0_26px_60px_rgba(68,45,23,0.22)]">
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(255,231,196,0.8),_transparent_55%)]" />
-            <div className="absolute -right-10 -top-12 h-40 w-40 rounded-full bg-[#F6C56D]/40 blur-3xl" />
-            <div className="absolute -bottom-16 left-6 h-40 w-40 rounded-full bg-[#D9A272]/30 blur-3xl" />
+          <div className="relative mx-auto max-w-md overflow-hidden rounded-[28px] border border-[#1C1C1C] bg-[#0F0F10] px-6 py-8 shadow-[0_28px_60px_rgba(0,0,0,0.45)]">
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.08),_transparent_55%)]" />
+            <div className="absolute -right-12 -top-12 h-40 w-40 rounded-full bg-white/10 blur-3xl" />
+            <div className="absolute -bottom-16 left-6 h-40 w-40 rounded-full bg-white/5 blur-3xl" />
             <div className="relative z-10">
-              <span className="inline-flex items-center rounded-full border border-[#E6C89B] bg-[#FFE8C4] px-4 py-1 text-[10px] font-semibold uppercase tracking-[0.35em] text-[#7B4A17]">
+              <span className="inline-flex items-center rounded-full border border-white/20 bg-white/10 px-4 py-1 text-[10px] font-semibold uppercase tracking-[0.35em] text-white/70">
                 {t.hero.limitedOffer}
               </span>
-              <h2 className="mt-4 text-3xl font-semibold text-[#2B1B0E] font-[family:var(--font-playfair)]">
+              <h2 className="mt-4 text-3xl font-semibold text-white font-[family:var(--font-playfair)] leading-tight">
                 {t.hero.seasonOnce}
               </h2>
-              <p className="mt-3 text-sm text-[#5B4536]">{t.hero.limitedProduction}</p>
+              <p className="mt-3 text-sm text-white/70 leading-relaxed">{t.hero.limitedProduction}</p>
               <div className="mt-6 grid gap-3">
                 <Link
                   href="/bestill"
-                  className="inline-flex w-full items-center justify-center rounded-2xl bg-[#2B1B0E] px-6 py-4 text-[11px] font-semibold uppercase tracking-[0.28em] text-[#FFF4E6] shadow-[0_16px_30px_rgba(43,27,14,0.35)]"
+                  className="inline-flex w-full items-center justify-center rounded-2xl bg-white px-6 py-4 text-[11px] font-semibold uppercase tracking-[0.28em] text-[#0F0F10] shadow-[0_18px_35px_rgba(0,0,0,0.35)]"
                 >
                   {t.hero.reservePackageNow}
                 </Link>
                 <Link
                   href="/produkt"
-                  className="inline-flex w-full items-center justify-center rounded-2xl border border-[#D9C3AB] bg-white/70 px-6 py-4 text-[11px] font-semibold uppercase tracking-[0.28em] text-[#2B1B0E]"
+                  className="inline-flex w-full items-center justify-center rounded-2xl border border-white/30 bg-transparent px-6 py-4 text-[11px] font-semibold uppercase tracking-[0.28em] text-white"
                 >
                   {t.hero.learnMore}
                 </Link>
@@ -734,6 +734,44 @@ export default function Page() {
                   ))}
                 </div>
                 <p className="text-sm text-neutral-500">{pageCopy.updatedToday}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* LIMITED OFFER TILE */}
+      <section className="py-16 px-6 lg:px-8">
+        <div className="max-w-6xl mx-auto">
+          <div className="relative overflow-hidden rounded-2xl border border-[#1C1C1C] bg-[#0F0F10] px-10 py-12 shadow-[0_36px_80px_-40px_rgba(0,0,0,0.7)]">
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.08),_transparent_55%)]" />
+            <div className="absolute -right-16 -top-20 h-52 w-52 rounded-full bg-white/10 blur-3xl" />
+            <div className="absolute -bottom-20 left-12 h-52 w-52 rounded-full bg-white/5 blur-3xl" />
+            <div className="relative z-10 grid gap-10 lg:grid-cols-[1.2fr,auto] lg:items-center">
+              <div className="space-y-4">
+                <span className="inline-flex items-center rounded-full border border-white/20 bg-white/10 px-4 py-1 text-xs font-semibold uppercase tracking-[0.35em] text-white/70">
+                  {t.hero.limitedOffer}
+                </span>
+                <h2 className="text-6xl font-light tracking-tight text-white font-[family:var(--font-playfair)]">
+                  {t.hero.seasonOnce}
+                </h2>
+                <p className="text-lg text-white/70 max-w-2xl leading-relaxed">
+                  {t.hero.limitedProduction}
+                </p>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
+                <Link
+                  href="/bestill"
+                  className="inline-flex items-center justify-center rounded-xl bg-white px-8 py-4 text-xs font-bold uppercase tracking-[0.3em] text-[#0F0F10] shadow-[0_18px_40px_-20px_rgba(0,0,0,0.6)]"
+                >
+                  {t.hero.reservePackageNow}
+                </Link>
+                <Link
+                  href="/produkt"
+                  className="inline-flex items-center justify-center rounded-xl border border-white/30 bg-transparent px-8 py-4 text-xs font-bold uppercase tracking-[0.3em] text-white"
+                >
+                  {t.hero.learnMore}
+                </Link>
               </div>
             </div>
           </div>
