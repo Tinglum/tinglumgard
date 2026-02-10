@@ -2,7 +2,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "node:crypto";
 import { supabaseAdmin } from "@/lib/supabase/server";
-import { vippsClient } from "@/lib/vipps/api-client";
 import { sendEmail } from "@/lib/email/client";
 import { getAdminEggOrderNotificationTemplate, getAdminOrderNotificationTemplate } from "@/lib/email/templates";
 import { logError } from "@/lib/logger";
@@ -49,89 +48,18 @@ function verifyVippsWebhookHmac(req: NextRequest, bodyText: string): boolean {
   return authorization === expectedAuth;
 }
 
-function buildShippingUpdate(details: any) {
-  if (!details || typeof details !== 'object') return null;
-
-  const firstName = details.firstName || details.first_name || '';
-  const lastName = details.lastName || details.last_name || '';
-  const name = [firstName, lastName].filter(Boolean).join(' ').trim();
-  const email = details.email || details.emailAddress || '';
-  const phone = details.phoneNumber || details.phone_number || '';
-  const street = details.streetAddress || details.addressLine1 || details.address || '';
-  const postal = details.postalCode || details.zipCode || '';
-  const city = details.city || '';
-  const country = details.country || '';
-
-  const update: Record<string, string> = {};
-  if (name) update.shipping_name = name;
-  if (email) update.shipping_email = email;
-  if (phone) update.shipping_phone = phone;
-  if (street) update.shipping_address = street;
-  if (postal) update.shipping_postal_code = postal;
-  if (city) update.shipping_city = city;
-  if (country) update.shipping_country = country;
-
-  if (name) update.customer_name = name;
-  if (email) update.customer_email = email;
-  if (phone) update.customer_phone = phone;
-
-  return Object.keys(update).length ? update : null;
-}
-
-function normalizeCallbackToken(rawHeader: string | null): string | null {
-  if (!rawHeader) return null;
-  const trimmed = rawHeader.trim();
-  if (!trimmed) return null;
-  const bearerMatch = /^Bearer\s+(.+)$/i.exec(trimmed);
-  return (bearerMatch ? bearerMatch[1] : trimmed).trim();
-}
-
-function extractCallbackToken(request: NextRequest): string | null {
-  const candidates = [
-    request.headers.get('X-Vipps-Callback-Auth-Token'),
-    request.headers.get('X-Vipps-Callback-Authorization-Token'),
-    request.headers.get('Vipps-Callback-Auth-Token'),
-    request.headers.get('Vipps-Callback-Authorization-Token'),
-    request.headers.get('Authorization'),
-  ];
-
-  for (const value of candidates) {
-    const normalized = normalizeCallbackToken(value);
-    if (normalized) return normalized;
-  }
-
-  return null;
-}
-
-async function getCheckoutSessionFromCandidates(
-  candidateIds: Array<string | undefined | null>
-) {
-  const seen = new Set<string>();
-  let lastError: unknown;
-
-  for (const candidate of candidateIds) {
-    const id = candidate?.trim();
-    if (!id || seen.has(id)) continue;
-    seen.add(id);
-
-    try {
-      return await vippsClient.getCheckoutSession(id);
-    } catch (error) {
-      lastError = error;
-    }
-  }
-
-  if (lastError) throw lastError;
-  throw new Error('No checkout session candidate available');
-}
-
 export async function POST(request: NextRequest) {
   try {
     const bodyText = await request.text();
-    const callbackAuthToken = extractCallbackToken(request);
+    console.log('Vipps webhook received:', bodyText);
+    console.log('Webhook headers:', {
+      authorization: request.headers.get('authorization'),
+      callbackAuthToken: request.headers.get('X-Vipps-Callback-Auth-Token'),
+    });
 
     // Vipps Checkout v3 uses callbackAuthorizationToken instead of HMAC
-    // Require a valid callback token or HMAC verification.
+    // For now, we'll accept all webhooks and add proper verification later
+    // TODO: Verify callbackAuthorizationToken matches what we sent
 
     const payload = JSON.parse(bodyText) as {
       orderId?: string;
@@ -145,20 +73,34 @@ export async function POST(request: NextRequest) {
         type?: string;
         amount?: { value: number; currency: string };
       };
-      shippingDetails?: Record<string, unknown>;
-      billingDetails?: Record<string, unknown>;
       [k: string]: unknown;
     };
+
+    console.log('Webhook payload:', payload);
+
+    // CRITICAL: Check if payment was actually successful
+    const sessionState = payload.sessionState as string | undefined;
+    const paymentState = payload.paymentDetails?.state as string | undefined;
+
+    console.log('Payment states:', { sessionState, paymentState });
+
+    // Only process successful payments
+    if (sessionState !== 'PaymentSuccessful' || paymentState !== 'AUTHORIZED') {
+      console.log('Payment not successful, ignoring webhook', { sessionState, paymentState });
+      return NextResponse.json(
+        { 
+          message: "Payment not successful, no action taken",
+          sessionState,
+          paymentState
+        },
+        { status: 200 }
+      );
+    }
 
     // Try to find payment by session ID or reference
     const vippsId =
       (payload.sessionId as string | undefined) ||
-      (payload.reference as string | undefined) ||
-      (payload.orderId as string | undefined);
-
-    // Track payload state; definitive verification may use an API fetch.
-    const sessionState = payload.sessionState as string | undefined;
-    let paymentState = payload.paymentDetails?.state as string | undefined;
+      (payload.reference as string | undefined);
 
     if (!vippsId) {
       logError('vipps-webhook-missing-identifier', new Error('Missing vipps identifier in webhook'));
@@ -168,23 +110,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { data: paymentBySession, error: paymentError } = await supabaseAdmin
+    console.log('Looking for payment with vipps_session_id:', vippsId);
+
+    // Find payment row by vipps_session_id (not vipps_payment_id)
+    const { data: payment, error: paymentError } = await supabaseAdmin
       .from("payments")
       .select("*")
       .eq("vipps_session_id", vippsId)
       .maybeSingle();
-
-    let payment = paymentBySession;
-
-    if (!payment) {
-      const { data: paymentByReference } = await supabaseAdmin
-        .from("payments")
-        .select("*")
-        .eq("idempotency_key", vippsId)
-        .maybeSingle();
-
-      payment = paymentByReference;
-    }
 
     let isEggPayment = false;
     let resolvedPayment: any = payment;
@@ -226,106 +159,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (resolvedPayment.webhook_processed_at) {
-      return NextResponse.json({ received: true });
-    }
-
-    const sessionLookupCandidates = [
-      payload.sessionId as string | undefined,
-      payload.reference as string | undefined,
-      payload.orderId as string | undefined,
-      resolvedPayment.idempotency_key as string | undefined,
-      resolvedPayment.vipps_session_id as string | undefined,
-      resolvedPayment.vipps_order_id as string | undefined,
-    ];
-
-    let cachedSession: any | null | undefined;
-    const fetchCheckoutSession = async () => {
-      if (cachedSession !== undefined) {
-        return cachedSession;
-      }
-      cachedSession = await getCheckoutSessionFromCandidates(sessionLookupCandidates);
-      return cachedSession;
-    };
-
-    // Only process successful sessions; when payload is incomplete, verify via API lookup.
-    if (sessionState !== 'PaymentSuccessful') {
-      try {
-        const session = await fetchCheckoutSession();
-        const sessionStateFromVipps = session?.sessionState as string | undefined;
-        const paymentStateFromVipps = session?.paymentDetails?.state as string | undefined;
-
-        if (sessionStateFromVipps !== 'PaymentSuccessful') {
-          return NextResponse.json(
-            {
-              message: "Payment not successful, no action taken",
-              sessionState: sessionStateFromVipps || sessionState,
-              paymentState: paymentStateFromVipps || paymentState
-            },
-            { status: 200 }
-          );
-        }
-
-        paymentState = paymentStateFromVipps || paymentState;
-      } catch (error) {
-        logError('vipps-webhook-session-verify-failed', error);
-        return NextResponse.json(
-          {
-            message: "Payment not successful, no action taken",
-            sessionState,
-            paymentState
-          },
-          { status: 200 }
-        );
-      }
-    }
-
-    const hmacVerified = verifyVippsWebhookHmac(request, bodyText);
-    const callbackVerified =
-      !!resolvedPayment.vipps_callback_token &&
-      !!callbackAuthToken &&
-      callbackAuthToken === resolvedPayment.vipps_callback_token;
-    let sessionVerified = false;
-
-    if (!callbackVerified && !hmacVerified) {
-      try {
-        const session = await fetchCheckoutSession();
-        const sessionStateFromVipps = session?.sessionState as string | undefined;
-
-        if (sessionStateFromVipps === 'PaymentSuccessful') {
-          sessionVerified = true;
-        }
-      } catch (error) {
-        logError('vipps-webhook-session-verify-failed', error);
-      }
-
-      if (!sessionVerified) {
-        logError('vipps-webhook-unauthorized', new Error('Invalid webhook authorization'));
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-      }
-    }
-
-    const payloadAmount = payload.paymentDetails?.amount?.value;
-    const payloadCurrency = payload.paymentDetails?.amount?.currency;
-    const expectedAmount = Math.round((resolvedPayment.amount_nok || 0) * 100);
-
-    if (payloadCurrency && payloadCurrency !== 'NOK') {
-      logError('vipps-webhook-currency-mismatch', new Error('Unexpected currency'));
-      return NextResponse.json({ error: 'Invalid currency' }, { status: 400 });
-    }
-
-    if (Number.isFinite(payloadAmount) && payloadAmount !== expectedAmount) {
-      logError('vipps-webhook-amount-mismatch', new Error('Amount mismatch'));
-      return NextResponse.json({ error: 'Amount mismatch' }, { status: 400 });
-    }
+    console.log('Found payment:', resolvedPayment.id, 'type:', resolvedPayment.payment_type, 'egg:', isEggPayment);
 
     // Mark payment as completed with timestamp
     const { error: updErr } = await supabaseAdmin
       .from(isEggPayment ? "egg_payments" : "payments")
       .update({ 
         status: "completed",
-        paid_at: new Date().toISOString(),
-        webhook_processed_at: new Date().toISOString(),
+        paid_at: new Date().toISOString()
       })
       .eq("id", resolvedPayment.id);
 
@@ -335,20 +176,6 @@ export async function POST(request: NextRequest) {
     }
 
     console.log('Payment marked as completed with timestamp');
-
-    const shippingDetails = (payload.shippingDetails || payload.billingDetails) as Record<string, unknown> | undefined;
-    const shippingUpdate = buildShippingUpdate(shippingDetails);
-
-    if (shippingUpdate) {
-      const { error: shipErr } = await supabaseAdmin
-        .from(isEggPayment ? "egg_orders" : "orders")
-        .update(shippingUpdate)
-        .eq("id", isEggPayment ? resolvedPayment.egg_order_id : resolvedPayment.order_id);
-
-      if (shipErr) {
-        logError('vipps-webhook-shipping-update-failed', shipErr);
-      }
-    }
 
     // Fetch the order details for email notification
     let order: any = null;

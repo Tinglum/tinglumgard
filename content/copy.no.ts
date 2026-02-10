@@ -1082,12 +1082,53 @@ export const no = {
   // Product page
   productPage: {
     productLabel: "Produkt",
+    heroTitle: "Kun en gang i aret",
+    heroLead:
+      "Fra Tinglum Gard i Namdalseid. Oppvokst pa garden hele aret og levert i desember. En sesongkasse med kuttene du faktisk bruker.",
+    heroCtaPrimary: "Reserver en kasse",
+    heroCtaSecondary: "Se innhold",
+    highlightOneTitle: "Ribbe til jul",
+    highlightOneBody: "Utvalgte kutt til jul, vakuumpakket og fryseklart.",
+    highlightTwoTitle: "Lokalt og helt dyr",
+    highlightTwoBody: "Vi bruker hele dyret og lar verdien bli igjen lokalt.",
+    highlightThreeTitle: "Kun en sesong",
+    highlightThreeBody: "Bestilling stenges nar kapasiteten er full, sa apner vi igjen neste ar.",
+    storyTitle: "Hvorfor denne kassen",
+    storyHeading: "En kasse som gir mening",
+    storyBody:
+      "Vi ville lage en kasse med kuttene du bruker gjennom vinteren. Ribbe til jul, polser til hverdags, bacon, koteletter og langtidskutt - alt fra gris oppvokst lokalt med omsorg.",
+    storySupportTitle: "Stott lokalt landbruk",
+    storySupportBody:
+      "Din reservasjon hjelper oss a planlegge sesongen, ha fa dyr med god kvalitet, og holde hele prosessen lokal - fra gard til slakt til levering.",
+    storyPointOneTitle: "Sesongplan",
+    storyPointOneBody: "Reservasjoner lar oss planlegge en arlig produksjon uten slosing.",
+    storyPointTwoTitle: "Lokal verdi",
+    storyPointTwoBody: "Mer av verdien blir igjen i narmiljoet og dyrene behandles lokalt.",
+    scarcityTitle: "Begrenset av kapasitet",
+    scarcityBody:
+      "Vi produserer kun det vi har kapasitet til. Nar sesongen er full, stenger bestillingen til neste ar.",
     packageContents: "Innhold i pakken",
+    contentsTitle: "I kassen",
+    contentsHeading: "Dette far du",
+    contentsLead: "Innholdet varierer litt, men dette er omtrent det du far.",
     ribbeItem: "2-3 kg ribbe, vakuumpakket",
     sausageItem: "1 kg polser, frosset",
     baconItem: "500 g bacon, skiver",
     chopsItem: "1.5 kg nakkekoteletter",
     stewItem: "1-2 kg kokkekutt",
+    sizesTitle: "Velg storrelse",
+    sizesHeading: "To storrelser, samme kvalitet",
+    sizesLead: "Betal 50% na for a sikre plassen din og resten for levering.",
+    priceNote: "Forskudd sikrer plassen din. Resten betales for levering.",
+    availabilityTitle: "Tilgjengelighet",
+    availabilityNote: "Antall oppdateres fortlopende nar det reserveres.",
+    timelineTitle: "Fra reservasjon til levering",
+    timelineHeading: "Slik fungerer sesongen",
+    timelineLead: "Enkle steg fra na til levering i desember.",
+    reserveHeading: "Reserver din kasse for sesongen",
+    reserveBody:
+      "Kun en produksjon i aret. Nar kassene er borte, stenger bestillingen til neste sesong.",
+    reserveCta: "Reserver en kasse",
   },
 
   // Cuts page

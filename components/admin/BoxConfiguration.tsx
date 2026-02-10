@@ -396,7 +396,7 @@ export function BoxConfiguration() {
       <Card className="p-6 bg-blue-50 border-blue-200">
         <h3 className="font-semibold text-blue-900 mb-2">Administrasjon av boksinnhold</h3>
         <ul className="list-disc list-inside space-y-1 text-sm text-blue-800">
-          <li>Klikk &quot;Rediger&quot; for å endre innhold og pris for en boks</li>
+          <li>Klikk "Rediger" for å endre innhold og pris for en boks</li>
           <li>Legg til produkter med navn, mengde og enhet</li>
           <li>Produkter kan redigeres eller slettes etter de er lagt til</li>
           <li>Husk å lagre endringer før du går videre til neste boks</li>

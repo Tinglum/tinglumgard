@@ -1082,12 +1082,53 @@ export const en = {
   // Product page
   productPage: {
     productLabel: "Product",
+    heroTitle: "The once-a-year pork box",
+    heroLead:
+      "From Tinglum Gard in Namdalseid. Raised on the farm all year and delivered in December. A single seasonal box designed for the cuts you actually use.",
+    heroCtaPrimary: "Reserve a box",
+    heroCtaSecondary: "See box contents",
+    highlightOneTitle: "Ribbe for Christmas",
+    highlightOneBody: "Cuts chosen for the holiday table, vacuum packed and freezer ready.",
+    highlightTwoTitle: "Local, whole-animal",
+    highlightTwoBody: "We use the animal well and keep the value in the local community.",
+    highlightThreeTitle: "Only once a year",
+    highlightThreeBody: "We close ordering when capacity is full and open again next season.",
+    storyTitle: "Why this box exists",
+    storyHeading: "A box that actually makes sense",
+    storyBody:
+      "We wanted one box that gives you the cuts you reach for through the winter. Ribbe for Christmas, sausages for everyday meals, bacon, chops, and slow-cook cuts - all from pigs raised locally with care.",
+    storySupportTitle: "Support local farming",
+    storySupportBody:
+      "Your reservation helps us plan the season, raise fewer animals better, and keep the entire process local - from farm to slaughter to delivery.",
+    storyPointOneTitle: "Seasonal planning",
+    storyPointOneBody: "Reservations let us plan a single yearly production with zero waste.",
+    storyPointTwoTitle: "Local value",
+    storyPointTwoBody: "More of the value stays in the community and the animals are handled close to home.",
+    scarcityTitle: "Limited by real capacity",
+    scarcityBody:
+      "We only produce what we can raise and handle. When the season is fully reserved, ordering closes until next year.",
     packageContents: "Package contents",
+    contentsTitle: "In the box",
+    contentsHeading: "Whats included",
+    contentsLead: "Contents vary slightly, but this is approximately what you get.",
     ribbeItem: "2-3 kg ribs, vacuum-packed",
     sausageItem: "1 kg sausages, frozen",
     baconItem: "500 g bacon, sliced",
     chopsItem: "1.5 kg pork neck chops",
     stewItem: "1-2 kg cooking cuts",
+    sizesTitle: "Choose your size",
+    sizesHeading: "Two sizes, same quality",
+    sizesLead: "Pay 50% now to secure your spot and the rest before delivery.",
+    priceNote: "Deposit secures your spot. Remainder is paid before delivery.",
+    availabilityTitle: "Availability",
+    availabilityNote: "Live count updates as boxes are reserved.",
+    timelineTitle: "From reservation to delivery",
+    timelineHeading: "How the season works",
+    timelineLead: "Simple steps from now to December delivery.",
+    reserveHeading: "Reserve your box for the season",
+    reserveBody:
+      "A single production each year. When the boxes are gone, ordering closes until the next season.",
+    reserveCta: "Reserve a box",
   },
 
   // Cuts page

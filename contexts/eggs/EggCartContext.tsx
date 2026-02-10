@@ -50,9 +50,6 @@ export function CartProvider({ children }: { children: ReactNode }) {
   // Save cart to localStorage whenever it changes
   useEffect(() => {
     localStorage.setItem('tinglumgard_cart', JSON.stringify(items))
-    if (typeof window !== 'undefined') {
-      window.dispatchEvent(new Event('tinglum_cart_updated'))
-    }
   }, [items])
 
   const addToCart = (breed: Breed, week: WeekInventory, quantity: number) => {
@@ -107,31 +104,27 @@ export function CartProvider({ children }: { children: ReactNode }) {
       return { allowed: false, reason: 'cart_empty' }
     }
 
-    const firstWeekId = items[0].week.id
-    const sameWeek = items.every((item) => item.week.id === firstWeekId)
-    if (!sameWeek) {
-      return { allowed: false, reason: 'mixed_weeks' }
-    }
+    // Check if it's a pure Ayam Cemani order
+    const isPureAyamCemani =
+      items.length === 1 && items.every((item) => item.breed.slug === 'ayam-cemani')
 
-    const requiredBaseQty = (slug: string) => (slug === 'ayam-cemani' ? 6 : 10)
-    const hasBaseQuantity = items.some(
-      (item) => item.quantity >= requiredBaseQty(item.breed.slug)
-    )
-
-    if (items.length === 1) {
-      const item = items[0]
-      const minimum = requiredBaseQty(item.breed.slug)
-      if (item.quantity < minimum) {
-        return {
-          allowed: false,
-          reason: item.breed.slug === 'ayam-cemani' ? 'ayam_cemani_min_6' : 'single_breed_min_10',
-        }
+    if (isPureAyamCemani) {
+      // Ayam Cemani: minimum 6 eggs
+      if (totalEggs < 6) {
+        return { allowed: false, reason: 'ayam_cemani_min_6' }
       }
-      return { allowed: true }
+    } else {
+      // Mixed or other orders: minimum 12 eggs total
+      if (totalEggs < 12) {
+        return { allowed: false, reason: 'mixed_min_12' }
+      }
     }
 
-    if (!hasBaseQuantity && totalEggs < 12) {
-      return { allowed: false, reason: 'mixed_min_12' }
+    // Check individual breed minimums for each item
+    for (const item of items) {
+      if (item.quantity < item.breed.minOrderQuantity) {
+        return { allowed: false, reason: 'breed_minimum_not_met' }
+      }
     }
 
     return { allowed: true }

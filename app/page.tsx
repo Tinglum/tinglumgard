@@ -740,44 +740,6 @@ export default function Page() {
         </div>
       </section>
 
-      {/* LIMITED OFFER TILE */}
-      <section className="py-16 px-6 lg:px-8">
-        <div className="max-w-6xl mx-auto">
-          <div className="relative overflow-hidden rounded-2xl border border-[#1C1C1C] bg-[#0F0F10] px-10 py-12 shadow-[0_36px_80px_-40px_rgba(0,0,0,0.7)]">
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.08),_transparent_55%)]" />
-            <div className="absolute -right-16 -top-20 h-52 w-52 rounded-full bg-white/10 blur-3xl" />
-            <div className="absolute -bottom-20 left-12 h-52 w-52 rounded-full bg-white/5 blur-3xl" />
-            <div className="relative z-10 grid gap-10 lg:grid-cols-[1.2fr,auto] lg:items-center">
-              <div className="space-y-4">
-                <span className="inline-flex items-center rounded-full border border-white/20 bg-white/10 px-4 py-1 text-xs font-semibold uppercase tracking-[0.35em] text-white/70">
-                  {t.hero.limitedOffer}
-                </span>
-                <h2 className="text-6xl font-light tracking-tight text-white font-[family:var(--font-playfair)]">
-                  {t.hero.seasonOnce}
-                </h2>
-                <p className="text-lg text-white/70 max-w-2xl leading-relaxed">
-                  {t.hero.limitedProduction}
-                </p>
-              </div>
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
-                <Link
-                  href="/bestill"
-                  className="inline-flex items-center justify-center rounded-xl bg-white px-8 py-4 text-xs font-bold uppercase tracking-[0.3em] text-[#0F0F10] shadow-[0_18px_40px_-20px_rgba(0,0,0,0.6)]"
-                >
-                  {t.hero.reservePackageNow}
-                </Link>
-                <Link
-                  href="/produkt"
-                  className="inline-flex items-center justify-center rounded-xl border border-white/30 bg-transparent px-8 py-4 text-xs font-bold uppercase tracking-[0.3em] text-white"
-                >
-                  {t.hero.learnMore}
-                </Link>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
       {/* TIMELINE SECTION - Scroll cascade */}
       <section className="py-20 px-6 lg:px-8 bg-neutral-50">
         <div className="max-w-5xl mx-auto">
@@ -826,43 +788,6 @@ export default function Page() {
         </div>
       </section>
 
-      {/* CTA SECTION */}
-      <section className="py-24 px-6 lg:px-8 bg-neutral-900 text-white">
-        <div className="max-w-4xl mx-auto text-center space-y-10">
-
-          <div className="space-y-6">
-            <MetaLabel>
-              <span className="text-neutral-400">{t.hero.limitedOffer}</span>
-            </MetaLabel>
-            <h2 className="text-7xl font-light tracking-tight">
-              {t.hero.seasonOnce}
-            </h2>
-            <p className="text-xl leading-relaxed text-neutral-300 max-w-2xl mx-auto">
-              {t.hero.limitedProduction}
-            </p>
-          </div>
-
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-5 pt-6">
-            <Link
-              href="/bestill"
-              className="inline-flex items-center gap-3 px-10 py-5 bg-white text-neutral-900 rounded-lg text-sm font-bold uppercase tracking-wider hover:bg-neutral-100 transition-all duration-300 hover:shadow-[0_20px_50px_-15px_rgba(255,255,255,0.3)] hover:-translate-y-1"
-            >
-              {t.hero.reservePackageNow}
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-              </svg>
-            </Link>
-            <Link
-              href="/produkt"
-              className="text-base font-semibold text-white underline underline-offset-4 hover:text-neutral-300 transition-colors"
-            >
-              {t.hero.learnMore}
-            </Link>
-          </div>
-
-        </div>
-      </section>
-
       {/* FAQ SECTION */}
       <section className="py-20 px-6 lg:px-8">
         <div className="max-w-4xl mx-auto">
@@ -903,6 +828,44 @@ export default function Page() {
             ))}
           </div>
 
+        </div>
+      </section>
+
+      {/* LIMITED OFFER TILE */}
+      <section className="py-16 px-6 lg:px-8">
+        <div className="max-w-6xl mx-auto">
+          <div className="relative overflow-hidden rounded-2xl border border-[#1C1C1C] bg-[#0F0F10] px-10 py-12 shadow-[0_36px_80px_-40px_rgba(0,0,0,0.7)]">
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.08),_transparent_55%)]" />
+            <div className="absolute -right-16 -top-20 h-52 w-52 rounded-full bg-white/10 blur-3xl" />
+            <div className="absolute -bottom-20 left-12 h-52 w-52 rounded-full bg-white/5 blur-3xl" />
+            <div className="relative z-10 grid gap-10 lg:grid-cols-[1.2fr,auto] lg:items-center">
+              <div className="space-y-4">
+                <span className="inline-flex items-center rounded-full border border-white/20 bg-white/10 px-4 py-1 text-xs font-semibold uppercase tracking-[0.35em] text-white/70">
+                  {t.hero.limitedOffer}
+                </span>
+                <h2 className="text-6xl font-light tracking-tight text-white font-[family:var(--font-playfair)]">
+                  {t.hero.seasonOnce}
+                </h2>
+                <p className="text-lg text-white/70 max-w-2xl leading-relaxed">
+                  {t.hero.limitedProduction}
+                </p>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
+                <Link
+                  href="/bestill"
+                  className="inline-flex items-center justify-center rounded-xl bg-white px-8 py-4 text-xs font-bold uppercase tracking-[0.3em] text-[#0F0F10] shadow-[0_18px_40px_-20px_rgba(0,0,0,0.6)]"
+                >
+                  {t.hero.reservePackageNow}
+                </Link>
+                <Link
+                  href="/produkt"
+                  className="inline-flex items-center justify-center rounded-xl border border-white/30 bg-transparent px-8 py-4 text-xs font-bold uppercase tracking-[0.3em] text-white"
+                >
+                  {t.hero.learnMore}
+                </Link>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
