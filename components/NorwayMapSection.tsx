@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from 'react';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 export function NorwayMapSection() {
+  const { lang } = useLanguage();
   const containerRef = useRef<HTMLDivElement>(null);
   const [zoomLevel, setZoomLevel] = useState(0);
 
@@ -31,14 +33,22 @@ export function NorwayMapSection() {
   const scale = 1 + zoomLevel * 4;
   const opacity = 0.3 + zoomLevel * 0.7;
 
-  const stages = [
-    { label: 'Norge', progress: 0.25 },
-    { label: 'Trøndelag', progress: 0.5 },
-    { label: 'Namdalseid', progress: 0.75 },
-    { label: 'Tinglum Gård', progress: 1 },
-  ];
+  const stages = lang === 'en'
+    ? [
+        { label: 'Norway', progress: 0.25 },
+        { label: 'Trondelag', progress: 0.5 },
+        { label: 'Namdalseid', progress: 0.75 },
+        { label: 'Tinglum Gard', progress: 1 },
+      ]
+    : [
+        { label: 'Norge', progress: 0.25 },
+        { label: 'Trondelag', progress: 0.5 },
+        { label: 'Namdalseid', progress: 0.75 },
+        { label: 'Tinglum Gard', progress: 1 },
+      ];
 
-  const currentStage = stages.findIndex(s => zoomLevel < s.progress) || stages.length - 1;
+  const nextStageIndex = stages.findIndex((stage) => zoomLevel < stage.progress);
+  const currentStage = nextStageIndex === -1 ? stages.length - 1 : nextStageIndex;
 
   return (
     <section
@@ -114,7 +124,7 @@ export function NorwayMapSection() {
               className="text-[var(--text-secondary)] text-sm animate-fade-in"
               style={{ animationDelay: '0.3s', opacity: 0, animationFillMode: 'forwards' }}
             >
-              6364 Namdalseid, Trøndelag
+              6364 Namdalseid, Trondelag
             </p>
           )}
         </div>

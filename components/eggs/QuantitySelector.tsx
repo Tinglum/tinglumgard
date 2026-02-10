@@ -6,7 +6,7 @@ import { useLanguage } from '@/lib/eggs/language-context'
 import { Breed, WeekInventory } from '@/lib/eggs/types'
 import { formatPrice, formatDate, clamp } from '@/lib/eggs/utils'
 import { GlassCard } from './GlassCard'
-import { X, Minus, Plus, Calendar, Package, Info } from 'lucide-react'
+import { X, Minus, Plus, Calendar, Info } from 'lucide-react'
 
 interface QuantitySelectorProps {
   breed: Breed
@@ -40,7 +40,7 @@ export function QuantitySelector({ breed, week, initialQuantity, onClose, onCont
         Math.min(maxQuantity, breed.maxOrderQuantity)
       )
     )
-  }, [initialQuantity, defaultQuantity, maxQuantity])
+  }, [initialQuantity, defaultQuantity, maxQuantity, breed.maxOrderQuantity])
 
   const handleQuantityChange = (newQuantity: number) => {
     setQuantity(clamp(newQuantity, minQuantity, maxQuantity))
@@ -57,17 +57,15 @@ export function QuantitySelector({ breed, week, initialQuantity, onClose, onCont
         className="fixed inset-0 bg-black/40 z-40 flex items-end md:items-center justify-center p-0 md:p-4"
         onClick={onClose}
       >
-        {/* Mobile: Bottom sheet, Desktop: Centered modal */}
         <motion.div
           initial={{ y: '100%', opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           exit={{ y: '100%', opacity: 0 }}
           transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-          onClick={(e) => e.stopPropagation()}
+          onClick={(event) => event.stopPropagation()}
           className="w-full md:max-w-lg md:rounded-xl rounded-t-xl md:rounded-b-lg overflow-hidden"
         >
           <GlassCard variant="strong" className="p-6 md:p-8 max-h-[90vh] overflow-y-auto">
-            {/* Header */}
             <div className="flex items-start justify-between mb-6">
               <div className="flex-1">
                 <h2 className="text-2xl font-display font-semibold text-neutral-900 mb-2">
@@ -76,20 +74,19 @@ export function QuantitySelector({ breed, week, initialQuantity, onClose, onCont
                 <div className="flex items-center gap-2 text-sm text-neutral-600">
                   <Calendar className="w-4 h-4" />
                   <span>
-                    {t.common.week} {week.weekNumber} · {formatDate(week.deliveryMonday, language)}
+                    {t.common.week} {week.weekNumber} - {formatDate(week.deliveryMonday, language)}
                   </span>
                 </div>
               </div>
               <button
                 onClick={onClose}
                 className="text-neutral-400 hover:text-neutral-900 transition-colors p-1 focus-ring rounded"
-                aria-label="Close"
+                aria-label={t.common.close}
               >
                 <X className="w-6 h-6" />
               </button>
             </div>
 
-            {/* Availability info */}
             <div className="glass-dark rounded-xl p-4 mb-6 flex items-start gap-3">
               <Info className="w-5 h-5 text-neutral-600 flex-shrink-0 mt-0.5" />
               <p className="text-sm text-neutral-700">
@@ -99,25 +96,21 @@ export function QuantitySelector({ breed, week, initialQuantity, onClose, onCont
 
             {maxQuantity < baseMinimum && (
               <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-                {language === 'no'
-                  ? `Kun ${maxQuantity} egg igjen denne uken. Vi har foreslått ${maxQuantity} egg.`
-                  : `Only ${maxQuantity} eggs left this week. We suggested ${maxQuantity} eggs.`}
+                {t.eggs.cart.onlyEggsLeftThisWeek.replaceAll('{count}', String(maxQuantity))}
               </div>
             )}
 
-            {/* Quantity selector with numeric input + slider */}
             <div className="mb-6">
               <label className="block text-sm font-medium text-neutral-700 mb-4">
                 {t.quantity.numberOfEggs}
               </label>
 
-              {/* Numeric input with +/- buttons */}
               <div className="flex items-center gap-4 mb-4">
                 <button
                   onClick={() => handleQuantityChange(quantity - 1)}
                   disabled={quantity <= minQuantity}
                   className="w-12 h-12 rounded-full glass-light flex items-center justify-center hover:glass-strong disabled:opacity-40 disabled:cursor-not-allowed transition-all focus-ring"
-                  aria-label="Decrease quantity"
+                  aria-label={t.common.remove}
                 >
                   <Minus className="w-5 h-5 text-neutral-700" />
                 </button>
@@ -126,7 +119,7 @@ export function QuantitySelector({ breed, week, initialQuantity, onClose, onCont
                   <input
                     type="number"
                     value={quantity}
-                    onChange={(e) => handleQuantityChange(parseInt(e.target.value) || minQuantity)}
+                    onChange={(event) => handleQuantityChange(parseInt(event.target.value) || minQuantity)}
                     min={minQuantity}
                     max={maxQuantity}
                     className="w-full text-center text-4xl font-display font-semibold text-neutral-900 bg-transparent border-none focus:outline-none focus:ring-4 focus:ring-black/5 rounded"
@@ -145,18 +138,17 @@ export function QuantitySelector({ breed, week, initialQuantity, onClose, onCont
                   onClick={() => handleQuantityChange(quantity + 1)}
                   disabled={quantity >= maxQuantity}
                   className="w-12 h-12 rounded-full glass-light flex items-center justify-center hover:glass-strong disabled:opacity-40 disabled:cursor-not-allowed transition-all focus-ring"
-                  aria-label="Increase quantity"
+                  aria-label={t.common.add}
                 >
                   <Plus className="w-5 h-5 text-neutral-700" />
                 </button>
               </div>
 
-              {/* Slider (secondary input method) */}
               <div className="relative">
                 <input
                   type="range"
                   value={quantity}
-                  onChange={(e) => handleQuantityChange(parseInt(e.target.value))}
+                  onChange={(event) => handleQuantityChange(parseInt(event.target.value))}
                   min={minQuantity}
                   max={maxQuantity}
                   step={1}
@@ -197,11 +189,10 @@ export function QuantitySelector({ breed, week, initialQuantity, onClose, onCont
               </p>
             </div>
 
-            {/* Price breakdown */}
             <div className="space-y-3 mb-6 pt-6 border-t border-neutral-200">
               <div className="flex justify-between items-baseline text-sm">
                 <span className="text-neutral-600">
-                  {quantity} × {formatPrice(breed.pricePerEgg, language)}
+                  {quantity} x {formatPrice(breed.pricePerEgg, language)}
                 </span>
                 <span className="font-medium text-neutral-900">{formatPrice(subtotal, language)}</span>
               </div>
@@ -214,7 +205,6 @@ export function QuantitySelector({ breed, week, initialQuantity, onClose, onCont
               <p className="text-xs text-neutral-500">+ {t.quantity.shippingCalculated}</p>
             </div>
 
-            {/* Continue button */}
             <button onClick={() => onContinue(quantity)} className="btn-primary w-full">
               {t.quantity.addToCart}
             </button>

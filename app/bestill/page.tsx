@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
@@ -26,7 +26,8 @@ function MetaLabel({ children }: { children: React.ReactNode }) {
 }
 
 export default function CheckoutPage() {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
+  const locale = lang === 'no' ? 'nb-NO' : 'en-US';
   const searchParams = useSearchParams();
   const isMobile = useIsMobile();
   const { toast } = useToast();
@@ -240,7 +241,7 @@ export default function CheckoutPage() {
     } catch (error) {
       console.error('Checkout failed:', error);
       toast({
-        title: 'Feil',
+        title: t.common.error,
         description: t.checkout.somethingWentWrong,
         variant: 'destructive'
       });
@@ -272,7 +273,7 @@ export default function CheckoutPage() {
     '8': [
       { name: t.boxContents.ribbe8kg, highlight: true },
       { name: t.boxContents.nakkekoteletter8kg },
-      { name: t.boxContents.julepølse8kg },
+      { name: t.boxContents.julepolse8kg },
       { name: t.boxContents.svinesteik8kg },
       { name: t.boxContents.medisterfarse8kg },
       { name: t.boxContents.knoke },
@@ -281,7 +282,7 @@ export default function CheckoutPage() {
     '12': [
       { name: t.boxContents.ribbe12kg, highlight: true },
       { name: t.boxContents.nakkekoteletter12kg },
-      { name: t.boxContents.julepølse12kg },
+      { name: t.boxContents.julepolse12kg },
       { name: t.boxContents.svinesteik12kg },
       { name: t.boxContents.medisterfarse12kg },
       { name: t.boxContents.knoke },
@@ -331,7 +332,7 @@ export default function CheckoutPage() {
             </div>
 
             {/* Title */}
-            <h1 className="text-5xl font-light tracking-tight text-neutral-900 mb-4">
+            <h1 className="text-5xl font-normal tracking-tight text-neutral-900 mb-4">
               {t.checkout.orderReceived}
             </h1>
 
@@ -340,7 +341,7 @@ export default function CheckoutPage() {
               {t.checkout.thankYou}
             </p>
             <p className="text-sm font-light text-neutral-500 mb-10">
-              Forventet levering: uke 48–49.
+              {t.checkout.expectedDelivery}
             </p>
 
             {/* Order number */}
@@ -496,7 +497,7 @@ export default function CheckoutPage() {
         {/* Hero */}
         <div className="mb-16">
           <MetaLabel>{t.checkout.title}</MetaLabel>
-          <h1 className="text-5xl font-light tracking-tight text-neutral-900 mt-3 mb-4">
+          <h1 className="text-5xl font-normal tracking-tight text-neutral-900 mt-3 mb-4">
             {t.checkout.pageTitle}
           </h1>
           <p className="text-base leading-relaxed text-neutral-600 max-w-2xl font-light">
@@ -1034,27 +1035,27 @@ export default function CheckoutPage() {
                 <div className="space-y-4">
                   <div className="flex justify-between text-sm">
                     <span className="font-light text-neutral-600">{t.checkout.deposit50Percent}</span>
-                    <span className="font-light text-neutral-900 tabular-nums">{baseDepositTotal.toLocaleString('nb-NO')} kr</span>
+                    <span className="font-light text-neutral-900 tabular-nums">{baseDepositTotal.toLocaleString(locale)} {t.common.currency}</span>
                   </div>
                   {referralData && (
                     <div className="flex justify-between text-sm text-green-700">
                       <span className="font-light">{t.checkout.friendDiscount}</span>
-                      <span className="font-light tabular-nums">-{referralDiscount.toLocaleString('nb-NO')} kr</span>
+                      <span className="font-light tabular-nums">-{referralDiscount.toLocaleString(locale)} {t.common.currency}</span>
                     </div>
                   )}
                   {rebateData && (
                     <div className="flex justify-between text-sm text-blue-700">
                       <span className="font-light">{t.checkout.discountCode}</span>
-                      <span className="font-light tabular-nums">-{rebateDiscount.toLocaleString('nb-NO')} kr</span>
+                      <span className="font-light tabular-nums">-{rebateDiscount.toLocaleString(locale)} {t.common.currency}</span>
                     </div>
                   )}
                   <div className="flex justify-between text-sm pb-4 border-b border-neutral-200">
                     <span className="font-light text-neutral-600">{t.checkout.remainderBeforeDelivery}</span>
-                    <span className="font-light text-neutral-900 tabular-nums">{remainderTotal.toLocaleString('nb-NO')} kr</span>
+                    <span className="font-light text-neutral-900 tabular-nums">{remainderTotal.toLocaleString(locale)} {t.common.currency}</span>
                   </div>
                   <div className="flex justify-between text-2xl">
                     <span className="font-light text-neutral-900">{t.common.total}</span>
-                    <span className="font-light text-neutral-900 tabular-nums">{totalPrice.toLocaleString('nb-NO')} kr</span>
+                    <span className="font-light text-neutral-900 tabular-nums">{totalPrice.toLocaleString(locale)} {t.common.currency}</span>
                   </div>
                 </div>
 
@@ -1138,22 +1139,12 @@ export default function CheckoutPage() {
                     <button
                       disabled={!agreedToTerms || !agreedToDepositPolicy || isProcessing}
                       onClick={handleCheckout}
-                      className="w-full px-6 py-4 bg-neutral-900 text-white rounded-xl text-sm font-light uppercase tracking-wide shadow-[0_20px_60px_-15px_rgba(0,0,0,0.3)] hover:shadow-[0_30px_80px_-20px_rgba(0,0,0,0.4)] hover:-translate-y-1 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-[0_20px_60px_-15px_rgba(0,0,0,0.3)] flex items-center justify-center gap-2"
+                      className="w-full px-6 py-4 bg-[#FF5B24] text-white rounded-xl text-sm font-light uppercase tracking-wide shadow-[0_20px_60px_-15px_rgba(0,0,0,0.3)] hover:bg-[#E6501F] hover:shadow-[0_30px_80px_-20px_rgba(0,0,0,0.4)] hover:-translate-y-1 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-[0_20px_60px_-15px_rgba(0,0,0,0.3)] flex items-center justify-center gap-2"
                     >
                       {isProcessing ? (
                         t.common.processing
                       ) : (
-                        <>
-                          <span>{t.checkout.payWith}</span>
-                          <div className="relative w-16 h-6">
-                            <Image
-                              src="/vipps-logo.svg"
-                              alt="Vipps"
-                              fill
-                              className="object-contain brightness-0 invert"
-                            />
-                          </div>
-                        </>
+                        <span>{t.checkout.payWith} VIPPS</span>
                       )}
                     </button>
 
@@ -1169,3 +1160,4 @@ export default function CheckoutPage() {
     </div>
   );
 }
+

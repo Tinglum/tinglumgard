@@ -4,13 +4,16 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { Minus, Plus } from 'lucide-react';
 
 interface ExtraProductCardProps {
   extra: {
     slug: string;
     name_no: string;
+    name_en: string;
     description_no: string;
+    description_en: string;
     price_nok: number;
     pricing_type: 'per_unit' | 'per_kg';
     stock_quantity: number | null;
@@ -22,10 +25,17 @@ interface ExtraProductCardProps {
 
 export function ExtraProductCard({ extra, quantity, onChange, disabled }: ExtraProductCardProps) {
   const { getThemeClasses } = useTheme();
+  const { lang, t } = useLanguage();
   const theme = getThemeClasses();
+  const locale = lang === 'en' ? 'en-US' : 'nb-NO';
+
+  const copy = t.extraProductCard;
 
   const increment = extra.pricing_type === 'per_kg' ? 0.5 : 1;
   const totalPrice = quantity * extra.price_nok;
+  const productName = lang === 'en' ? extra.name_en : extra.name_no;
+  const productDescription = lang === 'en' ? extra.description_en : extra.description_no;
+  const unitLabel = extra.pricing_type === 'per_kg' ? t.common.kg : copy.unitPieces;
 
   function handleIncrement() {
     onChange(quantity + increment);
@@ -53,17 +63,19 @@ export function ExtraProductCard({ extra, quantity, onChange, disabled }: ExtraP
         {/* Product Info */}
         <div className="flex-1">
           <h3 className={cn('font-semibold mb-1', theme.textPrimary)}>
-            {extra.name_no}
+            {productName}
           </h3>
           <p className={cn('text-sm mb-2', theme.textSecondary)}>
-            {extra.description_no}
+            {productDescription}
           </p>
           <p className={cn('text-sm font-medium', theme.textPrimary)}>
-            kr {extra.price_nok.toLocaleString('nb-NO')}/{extra.pricing_type === 'per_kg' ? 'kg' : 'stk'}
+            {t.common.currency} {extra.price_nok.toLocaleString(locale)}/{unitLabel}
           </p>
           {extra.stock_quantity !== null && extra.stock_quantity < 10 && (
             <p className="text-xs text-amber-600 mt-1">
-              {extra.stock_quantity > 0 ? `Bare ${extra.stock_quantity} igjen` : 'Utsolgt'}
+              {extra.stock_quantity > 0
+                ? copy.onlyLeft.replace('{count}', extra.stock_quantity.toString())
+                : copy.soldOut}
             </p>
           )}
         </div>
@@ -91,7 +103,7 @@ export function ExtraProductCard({ extra, quantity, onChange, disabled }: ExtraP
               className="w-20 text-center h-9"
             />
             <span className={cn('text-xs mt-1', theme.textMuted)}>
-              {extra.pricing_type === 'per_kg' ? 'kg' : 'stk'}
+              {unitLabel}
             </span>
           </div>
 
@@ -111,10 +123,10 @@ export function ExtraProductCard({ extra, quantity, onChange, disabled }: ExtraP
       {quantity > 0 && (
         <div className={cn('mt-3 pt-3 border-t flex justify-between items-center', theme.borderSecondary)}>
           <span className={cn('text-sm', theme.textSecondary)}>
-            {quantity} {extra.pricing_type === 'per_kg' ? 'kg' : 'stk'}
+            {quantity} {unitLabel}
           </span>
           <span className={cn('text-lg font-bold', theme.textPrimary)}>
-            kr {totalPrice.toLocaleString('nb-NO')}
+            {t.common.currency} {totalPrice.toLocaleString(locale)}
           </span>
         </div>
       )}

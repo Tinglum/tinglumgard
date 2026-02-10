@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from 'next/link';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -8,7 +8,25 @@ interface MobileProductTilesProps {
 }
 
 export function MobileProductTiles({ pricing }: MobileProductTilesProps) {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
+  const locale = lang === 'no' ? 'nb-NO' : 'en-US';
+  const mobileCopy = lang === 'no'
+    ? {
+        boxes: 'Kasser',
+        inBox: 'I kassen',
+        meals8: '12-16 maltider',
+        meals12: '20-28 maltider',
+        freezer8: 'Lite fryserom',
+        freezer12: 'Mer fryserom',
+      }
+    : {
+        boxes: 'Boxes',
+        inBox: 'In the box',
+        meals8: '12-16 meals',
+        meals12: '20-28 meals',
+        freezer8: 'Less freezer space',
+        freezer12: 'More freezer space',
+      };
 
   const packages = [
     {
@@ -19,11 +37,11 @@ export function MobileProductTiles({ pricing }: MobileProductTilesProps) {
       items: [
         t.boxContents.ribbe8kg,
         t.boxContents.nakkekoteletter8kg,
-        t.boxContents.julepølse8kg,
+        t.boxContents.julepolse8kg,
         t.boxContents.svinesteik8kg,
       ],
-      meals: '12–16 måltider',
-      freezer: 'Lite fryserom',
+      meals: mobileCopy.meals8,
+      freezer: mobileCopy.freezer8,
       price: pricing ? pricing.box_8kg_price : null,
       deposit: pricing
         ? Math.floor(pricing.box_8kg_price * pricing.box_8kg_deposit_percentage / 100)
@@ -37,11 +55,11 @@ export function MobileProductTiles({ pricing }: MobileProductTilesProps) {
       items: [
         t.boxContents.ribbe12kg,
         t.boxContents.nakkekoteletter12kg,
-        t.boxContents.julepølse12kg,
+        t.boxContents.julepolse12kg,
         t.boxContents.svinesteik12kg,
       ],
-      meals: '20–28 måltider',
-      freezer: 'Mer fryserom',
+      meals: mobileCopy.meals12,
+      freezer: mobileCopy.freezer12,
       price: pricing ? pricing.box_12kg_price : null,
       deposit: pricing
         ? Math.floor(pricing.box_12kg_price * pricing.box_12kg_deposit_percentage / 100)
@@ -54,7 +72,7 @@ export function MobileProductTiles({ pricing }: MobileProductTilesProps) {
       <div className="mx-auto max-w-md font-[family:var(--font-manrope)]">
         <div className="flex items-end justify-between gap-4">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-[#6A6258]">Kasser</p>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-[#6A6258]">{mobileCopy.boxes}</p>
             <h2 className="mt-2 text-2xl font-semibold text-[#1E1B16] font-[family:var(--font-playfair)]">
               {t.product.choosePackage}
             </h2>
@@ -87,7 +105,7 @@ export function MobileProductTiles({ pricing }: MobileProductTilesProps) {
                   <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-[#6A6258]">{pkg.label}</p>
                   <p className="mt-2 text-4xl font-semibold text-[#1E1B16] font-[family:var(--font-playfair)]">
                     {pkg.size}
-                    <span className="ml-2 text-base font-semibold text-[#6A6258]">kg</span>
+                    <span className="ml-2 text-base font-semibold text-[#6A6258]">{t.common.kg}</span>
                   </p>
                   <p className="mt-2 text-sm text-[#5E5A50]">{pkg.people}</p>
                 </div>
@@ -95,10 +113,10 @@ export function MobileProductTiles({ pricing }: MobileProductTilesProps) {
                   {pkg.price ? (
                     <>
                       <p className="text-xl font-semibold text-[#1E1B16]">
-                        {pkg.price.toLocaleString('nb-NO')} {t.common.currency}
+                        {pkg.price.toLocaleString(locale)} {t.common.currency}
                       </p>
                       <p className="text-xs text-[#5E5A50]">
-                        {t.product.deposit50}: {pkg.deposit?.toLocaleString('nb-NO')} {t.common.currency}
+                        {t.product.deposit50}: {pkg.deposit?.toLocaleString(locale)} {t.common.currency}
                       </p>
                     </>
                   ) : (
@@ -108,7 +126,7 @@ export function MobileProductTiles({ pricing }: MobileProductTilesProps) {
               </div>
 
               <div className="mt-5 rounded-2xl border border-[#E9E1D6] bg-[#FBFAF7] p-4">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-[#6A6258]">I kassen</p>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-[#6A6258]">{mobileCopy.inBox}</p>
                 <ul className="mt-3 grid grid-cols-2 gap-2 text-sm text-[#4F4A42]">
                   {pkg.items.map((item) => (
                     <li key={item} className="flex items-start gap-2">
@@ -141,3 +159,4 @@ export function MobileProductTiles({ pricing }: MobileProductTilesProps) {
     </section>
   );
 }
+

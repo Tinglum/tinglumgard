@@ -1,8 +1,8 @@
 ﻿-- =============================================================================
--- ADD BASE EGG INVENTORY (15 ± 5) THROUGH JUNE 2026
+-- ADD BASE EGG INVENTORY (15 ± 5) THROUGH AUGUST 2026
 -- =============================================================================
 -- Run this in Supabase SQL Editor
--- Creates weekly inventory for ALL active breeds from next Monday through 2026-06-30
+-- Creates weekly inventory for ALL active breeds from next Monday through 2026-08-01
 -- Eggs available per week = random between 10 and 20 (15 ± 5)
 -- Existing rows are preserved (ON CONFLICT DO NOTHING)
 -- =============================================================================
@@ -10,12 +10,12 @@
 -- Optional: clear existing rows in the range first
 -- DELETE FROM egg_inventory
 -- WHERE delivery_monday >= (date_trunc('week', current_date)::date + interval '7 days')
---   AND delivery_monday <= date '2026-06-30';
+--   AND delivery_monday <= date '2026-08-01';
 
 WITH params AS (
   SELECT
     (date_trunc('week', current_date)::date + interval '7 days')::date AS start_monday,
-    date '2026-06-30' AS end_date
+    date '2026-08-01' AS end_date
 ),
 mondays AS (
   SELECT generate_series(start_monday, end_date, interval '7 days')::date AS delivery_monday
@@ -66,7 +66,7 @@ SELECT
 FROM egg_inventory ei
 JOIN egg_breeds eb ON eb.id = ei.breed_id
 WHERE ei.delivery_monday >= (date_trunc('week', current_date)::date + interval '7 days')
-  AND ei.delivery_monday <= date '2026-06-30'
+  AND ei.delivery_monday <= date '2026-08-01'
 ORDER BY eb.display_order, ei.delivery_monday;
 
 -- =============================================================================

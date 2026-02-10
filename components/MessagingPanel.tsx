@@ -3,10 +3,10 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Send, MessageSquare, AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+import { useLanguage } from '@/contexts/LanguageContext';
 import type { CustomerMessage, MessageReply } from '@/lib/types';
 
 interface MessagingPanelProps {
@@ -18,6 +18,53 @@ type CustomerMessageWithReplies = CustomerMessage & { message_replies?: MessageR
 
 export function MessagingPanel({ className, variant = 'light' }: MessagingPanelProps) {
   const { toast } = useToast();
+  const { lang, t } = useLanguage();
+  const locale = lang === 'en' ? 'en-US' : 'nb-NO';
+
+  const copy = {
+    loadError: t.customerMessagingPanel.loadError,
+    emptyReplyTitle: t.customerMessagingPanel.emptyReplyTitle,
+    emptyReplyDescription: t.customerMessagingPanel.emptyReplyDescription,
+    replySentTitle: t.customerMessagingPanel.replySentTitle,
+    replySentDescription: t.customerMessagingPanel.replySentDescription,
+    errorTitle: t.customerMessagingPanel.errorTitle,
+    sendReplyFailed: t.customerMessagingPanel.sendReplyFailed,
+    missingInfoTitle: t.customerMessagingPanel.missingInfoTitle,
+    missingInfoDescription: t.customerMessagingPanel.missingInfoDescription,
+    messageSentTitle: t.customerMessagingPanel.messageSentTitle,
+    messageSentDescription: t.customerMessagingPanel.messageSentDescription,
+    sendFailedTitle: t.customerMessagingPanel.sendFailedTitle,
+    sendFailedDescription: t.customerMessagingPanel.sendFailedDescription,
+    panelTitle: t.customerMessagingPanel.panelTitle,
+    category: t.customerMessagingPanel.category,
+    subject: t.customerMessagingPanel.subject,
+    message: t.customerMessagingPanel.message,
+    subjectPlaceholder: t.customerMessagingPanel.subjectPlaceholder,
+    messagePlaceholder: t.customerMessagingPanel.messagePlaceholder,
+    successMessage: t.customerMessagingPanel.successMessage,
+    sending: t.customerMessagingPanel.sending,
+    sendMessage: t.customerMessagingPanel.sendMessage,
+    yourMessages: t.customerMessagingPanel.yourMessages,
+    loadingMessages: t.customerMessagingPanel.loadingMessages,
+    noMessages: t.customerMessagingPanel.noMessages,
+    fromYou: t.customerMessagingPanel.fromYou,
+    fromFarm: t.customerMessagingPanel.fromFarm,
+    replyPlaceholder: t.customerMessagingPanel.replyPlaceholder,
+    categories: {
+      support: t.customerMessagingPanel.categorySupport,
+      inquiry: t.customerMessagingPanel.categoryInquiry,
+      complaint: t.customerMessagingPanel.categoryComplaint,
+      feedback: t.customerMessagingPanel.categoryFeedback,
+      referral_question: t.customerMessagingPanel.categoryReferralQuestion,
+    },
+    statuses: {
+      open: t.customerMessagingPanel.statusOpen,
+      in_progress: t.customerMessagingPanel.statusInProgress,
+      resolved: t.customerMessagingPanel.statusResolved,
+      closed: t.customerMessagingPanel.statusClosed,
+    },
+  };
+
   const [messages, setMessages] = useState<CustomerMessageWithReplies[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -29,7 +76,6 @@ export function MessagingPanel({ className, variant = 'light' }: MessagingPanelP
   const [replyTexts, setReplyTexts] = useState<Record<string, string>>({});
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
 
-  // Fetch messages on mount
   const markMessagesAsViewed = useCallback(async (messageIds: string[]) => {
     try {
       await fetch('/api/messages/unread-count', {
@@ -37,8 +83,8 @@ export function MessagingPanel({ className, variant = 'light' }: MessagingPanelP
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ messageIds }),
       });
-    } catch (error) {
-      console.error('Failed to mark messages as viewed:', error);
+    } catch (markError) {
+      console.error('Failed to mark messages as viewed:', markError);
     }
   }, []);
 
@@ -51,16 +97,15 @@ export function MessagingPanel({ className, variant = 'light' }: MessagingPanelP
       const loadedMessages = data.messages || [];
       setMessages(loadedMessages);
 
-      // Mark all messages as viewed
       if (loadedMessages.length > 0) {
-        markMessagesAsViewed(loadedMessages.map((m: CustomerMessageWithReplies) => m.id));
+        markMessagesAsViewed(loadedMessages.map((message: CustomerMessageWithReplies) => message.id));
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Kunne ikke laste meldinger');
+    } catch (loadError) {
+      setError(loadError instanceof Error ? loadError.message : copy.loadError);
     } finally {
       setIsLoading(false);
     }
-  }, [markMessagesAsViewed]);
+  }, [copy.loadError, markMessagesAsViewed]);
 
   useEffect(() => {
     loadMessages();
@@ -70,9 +115,9 @@ export function MessagingPanel({ className, variant = 'light' }: MessagingPanelP
     const replyText = replyTexts[messageId];
     if (!replyText?.trim()) {
       toast({
-        title: 'Tom melding',
-        description: 'Svar kan ikke være tomt',
-        variant: 'destructive'
+        title: copy.emptyReplyTitle,
+        description: copy.emptyReplyDescription,
+        variant: 'destructive',
       });
       return;
     }
@@ -87,46 +132,44 @@ export function MessagingPanel({ className, variant = 'light' }: MessagingPanelP
       });
 
       const data = await res.json();
-
       if (!res.ok) {
         throw new Error(data.error);
       }
 
       toast({
-        title: 'Svar sendt',
-        description: 'Svaret ditt har blitt sendt'
+        title: copy.replySentTitle,
+        description: copy.replySentDescription,
       });
 
-      // Clear the reply text for this message
       setReplyTexts((prev) => ({ ...prev, [messageId]: '' }));
-
-      // Reload messages to show the new reply
       await loadMessages();
-    } catch (err) {
+    } catch (replyError) {
       toast({
-        title: 'Feil',
-        description: err instanceof Error ? err.message : 'Kunne ikke sende svar',
-        variant: 'destructive'
+        title: copy.errorTitle,
+        description: replyError instanceof Error ? replyError.message : copy.sendReplyFailed,
+        variant: 'destructive',
       });
     } finally {
       setReplyingTo(null);
     }
   }
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  async function handleSubmit(event: React.FormEvent) {
+    event.preventDefault();
 
     if (!subject.trim() || !messageText.trim()) {
       toast({
-        title: 'Manglende informasjon',
-        description: 'Emne og melding må fylles ut',
-        variant: 'destructive'
+        title: copy.missingInfoTitle,
+        description: copy.missingInfoDescription,
+        variant: 'destructive',
       });
       return;
     }
 
     try {
       setIsSubmitting(true);
+      setSuccess(false);
+      setError(null);
 
       const res = await fetch('/api/messages', {
         method: 'POST',
@@ -139,44 +182,29 @@ export function MessagingPanel({ className, variant = 'light' }: MessagingPanelP
       });
 
       const data = await res.json();
-
       if (!res.ok) {
         throw new Error(data.details || data.error);
       }
 
       toast({
-        title: 'Melding sendt',
-        description: 'Din melding har blitt sendt til administratoren'
+        title: copy.messageSentTitle,
+        description: copy.messageSentDescription,
       });
-      
+
       setSubject('');
       setMessageText('');
+      setSuccess(true);
       setMessages((prev) => [data.message, ...prev]);
-    } catch (err) {
+    } catch (submitError) {
       toast({
-        title: 'Feil ved sending',
-        description: err instanceof Error ? err.message : 'Kunne ikke sende melding',
-        variant: 'destructive'
+        title: copy.sendFailedTitle,
+        description: submitError instanceof Error ? submitError.message : copy.sendFailedDescription,
+        variant: 'destructive',
       });
     } finally {
       setIsSubmitting(false);
     }
   }
-
-  const typeLabels = {
-    support: 'Support',
-    inquiry: 'Spørsmål',
-    complaint: 'Klage',
-    feedback: 'Tilbakemelding',
-    referral_question: 'Vennerabatt',
-  };
-
-  const statusLabels = {
-    open: 'Åpen',
-    in_progress: 'Under behandling',
-    resolved: 'Løst',
-    closed: 'Lukket',
-  };
 
   const statusColors = {
     open: 'bg-yellow-50 border-yellow-200',
@@ -196,7 +224,6 @@ export function MessagingPanel({ className, variant = 'light' }: MessagingPanelP
 
   return (
     <div className={cn('space-y-6', className)}>
-      {/* New Message Form */}
       <div
         className={cn(
           'rounded-2xl p-6 border',
@@ -204,18 +231,17 @@ export function MessagingPanel({ className, variant = 'light' }: MessagingPanelP
         )}
       >
         <h3 className={cn('text-xl font-semibold mb-4', isDark ? 'text-white' : 'text-gray-900')}>
-          Send oss en melding
+          {copy.panelTitle}
         </h3>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Message Type */}
           <div>
             <label className={cn('block text-sm font-medium mb-2', isDark ? 'text-white/80' : 'text-gray-700')}>
-              Kategori
+              {copy.category}
             </label>
             <select
               value={messageType}
-              onChange={(e) => setMessageType(e.target.value as any)}
+              onChange={(event) => setMessageType(event.target.value as typeof messageType)}
               className={cn(
                 'w-full px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400',
                 isDark
@@ -223,24 +249,23 @@ export function MessagingPanel({ className, variant = 'light' }: MessagingPanelP
                   : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'
               )}
             >
-              <option value="support">Support</option>
-              <option value="inquiry">Spørsmål</option>
-              <option value="complaint">Klage</option>
-              <option value="feedback">Tilbakemelding</option>
-              <option value="referral_question">Vennerabatt</option>
+              <option value="support">{copy.categories.support}</option>
+              <option value="inquiry">{copy.categories.inquiry}</option>
+              <option value="complaint">{copy.categories.complaint}</option>
+              <option value="feedback">{copy.categories.feedback}</option>
+              <option value="referral_question">{copy.categories.referral_question}</option>
             </select>
           </div>
 
-          {/* Subject */}
           <div>
             <label className={cn('block text-sm font-medium mb-2', isDark ? 'text-white/80' : 'text-gray-700')}>
-              Emne
+              {copy.subject}
             </label>
             <Input
               type="text"
               value={subject}
-              onChange={(e) => setSubject(e.target.value)}
-              placeholder="f.eks. Spørsmål om ordre #12345"
+              onChange={(event) => setSubject(event.target.value)}
+              placeholder={copy.subjectPlaceholder}
               className={cn(
                 isDark
                   ? 'bg-white/10 border-white/20 text-white placeholder-white/40'
@@ -250,15 +275,14 @@ export function MessagingPanel({ className, variant = 'light' }: MessagingPanelP
             />
           </div>
 
-          {/* Message */}
           <div>
             <label className={cn('block text-sm font-medium mb-2', isDark ? 'text-white/80' : 'text-gray-700')}>
-              Melding
+              {copy.message}
             </label>
             <textarea
               value={messageText}
-              onChange={(e) => setMessageText(e.target.value)}
-              placeholder="Hva kan vi hjelpe deg med?"
+              onChange={(event) => setMessageText(event.target.value)}
+              placeholder={copy.messagePlaceholder}
               className={cn(
                 'w-full h-32 px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none',
                 isDark
@@ -269,7 +293,6 @@ export function MessagingPanel({ className, variant = 'light' }: MessagingPanelP
             />
           </div>
 
-          {/* Error/Success Messages */}
           {error && (
             <div
               className={cn(
@@ -294,35 +317,42 @@ export function MessagingPanel({ className, variant = 'light' }: MessagingPanelP
               )}
             >
               <CheckCircle className="h-4 w-4" />
-              <span className="text-sm">Meldingen er sendt!</span>
+              <span className="text-sm">{copy.successMessage}</span>
             </div>
           )}
 
-          {/* Submit Button */}
           <Button
             type="submit"
             disabled={isSubmitting}
             className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700"
           >
-            <Send className="mr-2 h-4 w-4" />
-            {isSubmitting ? 'Sender...' : 'Send melding'}
+            {isSubmitting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                {copy.sending}
+              </>
+            ) : (
+              <>
+                <Send className="mr-2 h-4 w-4" />
+                {copy.sendMessage}
+              </>
+            )}
           </Button>
         </form>
       </div>
 
-      {/* Messages List */}
       <div className="space-y-4">
         <h3 className={cn('text-xl font-semibold', isDark ? 'text-white' : 'text-gray-900')}>
-          Dine meldinger
+          {copy.yourMessages}
         </h3>
 
         {isLoading ? (
           <div className={cn('text-center py-8', isDark ? 'text-white/60' : 'text-gray-500')}>
-            Laster meldinger...
+            {copy.loadingMessages}
           </div>
         ) : messages.length === 0 ? (
           <div className={cn('text-center py-8', isDark ? 'text-white/60' : 'text-gray-500')}>
-            Ingen meldinger ennå
+            {copy.noMessages}
           </div>
         ) : (
           messages.map((msg) => (
@@ -335,11 +365,13 @@ export function MessagingPanel({ className, variant = 'light' }: MessagingPanelP
                   {statusIcons[msg.status as keyof typeof statusIcons]}
                   <div>
                     <h4 className="font-semibold text-gray-900">{msg.subject}</h4>
-                    <p className="text-sm text-gray-600">{typeLabels[msg.message_type]}</p>
+                    <p className="text-sm text-gray-600">
+                      {copy.categories[msg.message_type as keyof typeof copy.categories]}
+                    </p>
                   </div>
                 </div>
                 <span className="text-xs text-gray-500">
-                  {new Date(msg.created_at).toLocaleDateString()}
+                  {new Date(msg.created_at).toLocaleDateString(locale)}
                 </span>
               </div>
 
@@ -357,16 +389,20 @@ export function MessagingPanel({ className, variant = 'light' }: MessagingPanelP
                           className={cn(
                             'rounded-lg border p-3',
                             isFromCustomer
-                              ? (isDark ? 'bg-blue-900/30 border-blue-500/30 text-white ml-4' : 'bg-blue-50 border-blue-200 ml-4')
-                              : (isDark ? 'bg-white/10 border-white/20 text-white mr-4' : 'bg-white border-gray-200 mr-4')
+                              ? isDark
+                                ? 'bg-blue-900/30 border-blue-500/30 text-white ml-4'
+                                : 'bg-blue-50 border-blue-200 ml-4'
+                              : isDark
+                                ? 'bg-white/10 border-white/20 text-white mr-4'
+                                : 'bg-white border-gray-200 mr-4'
                           )}
                         >
                           <div className="flex items-center justify-between mb-1">
                             <p className={cn('text-xs font-semibold', isDark ? 'text-white/80' : 'text-gray-700')}>
-                              {isFromCustomer ? 'Du' : 'Svar fra Tinglum Gård'}
+                              {isFromCustomer ? copy.fromYou : copy.fromFarm}
                             </p>
                             <span className="text-xs text-gray-500">
-                              {new Date(reply.created_at).toLocaleDateString('nb-NO', {
+                              {new Date(reply.created_at).toLocaleDateString(locale, {
                                 day: '2-digit',
                                 month: '2-digit',
                                 year: 'numeric',
@@ -382,17 +418,16 @@ export function MessagingPanel({ className, variant = 'light' }: MessagingPanelP
                 </div>
               )}
 
-              {/* Reply Input - Only show for non-closed messages */}
               {msg.status !== 'closed' && (
                 <div className="mt-4 space-y-2">
                   <div className="flex gap-2">
                     <Input
-                      placeholder="Skriv et svar..."
+                      placeholder={copy.replyPlaceholder}
                       value={replyTexts[msg.id] || ''}
-                      onChange={(e) => setReplyTexts((prev) => ({ ...prev, [msg.id]: e.target.value }))}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' && !e.shiftKey) {
-                          e.preventDefault();
+                      onChange={(event) => setReplyTexts((prev) => ({ ...prev, [msg.id]: event.target.value }))}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter' && !event.shiftKey) {
+                          event.preventDefault();
                           handleReply(msg.id);
                         }
                       }}
@@ -418,15 +453,16 @@ export function MessagingPanel({ className, variant = 'light' }: MessagingPanelP
                 </div>
               )}
 
-              {/* Status Badge */}
-              <span className={cn(
-                'inline-block px-3 py-1 rounded-full text-xs font-medium capitalize',
-                msg.status === 'open' && 'bg-yellow-100 text-yellow-800',
-                msg.status === 'in_progress' && 'bg-blue-100 text-blue-800',
-                msg.status === 'resolved' && 'bg-green-100 text-green-800',
-                msg.status === 'closed' && 'bg-gray-100 text-gray-800',
-              )}>
-                {statusLabels[msg.status]}
+              <span
+                className={cn(
+                  'inline-block px-3 py-1 rounded-full text-xs font-medium capitalize',
+                  msg.status === 'open' && 'bg-yellow-100 text-yellow-800',
+                  msg.status === 'in_progress' && 'bg-blue-100 text-blue-800',
+                  msg.status === 'resolved' && 'bg-green-100 text-green-800',
+                  msg.status === 'closed' && 'bg-gray-100 text-gray-800'
+                )}
+              >
+                {copy.statuses[msg.status as keyof typeof copy.statuses]}
               </span>
             </div>
           ))

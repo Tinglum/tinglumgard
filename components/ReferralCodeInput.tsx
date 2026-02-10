@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tag, CheckCircle2, XCircle, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface ReferralCodeInputProps {
   onCodeApplied: (codeData: {
@@ -24,6 +25,9 @@ export function ReferralCodeInput({
   depositAmount,
   className,
 }: ReferralCodeInputProps) {
+  const { t, lang } = useLanguage();
+  const locale = lang === 'en' ? 'en-US' : 'nb-NO';
+
   const [code, setCode] = useState('');
   const [isValidating, setIsValidating] = useState(false);
   const [appliedCode, setAppliedCode] = useState<string | null>(null);
@@ -31,7 +35,7 @@ export function ReferralCodeInput({
 
   const handleValidate = async () => {
     if (!code.trim()) {
-      setError('Vennligst skriv inn en kode');
+      setError(t.referrals.pleaseEnterCode);
       return;
     }
 
@@ -48,11 +52,10 @@ export function ReferralCodeInput({
       const data = await response.json();
 
       if (!response.ok || !data.valid) {
-        setError(data.error || 'Ugyldig kode');
+        setError(data.error || t.referrals.invalidCode);
         return;
       }
 
-      // Calculate discount amount (20% of deposit)
       const discountAmount = Math.round(depositAmount * 0.20);
 
       setAppliedCode(code.toUpperCase().trim());
@@ -64,7 +67,7 @@ export function ReferralCodeInput({
       });
     } catch (err) {
       console.error('Error validating code:', err);
-      setError('Kunne ikke validere koden');
+      setError(t.referrals.couldNotValidate);
     } finally {
       setIsValidating(false);
     }
@@ -84,14 +87,16 @@ export function ReferralCodeInput({
           <div className="flex items-center gap-3">
             <CheckCircle2 className="h-5 w-5 text-green-600" />
             <div>
-              <p className="font-semibold text-green-900">Kode aktivert: {appliedCode}</p>
+              <p className="font-semibold text-green-900">
+                {t.referrals.codeActivated.replace('{code}', appliedCode)}
+              </p>
               <p className="text-sm text-green-700">
-                Du får 20% rabatt på forskuddet ({Math.round(depositAmount * 0.20)} kr)
+                {t.referrals.youGet20Off.replace('{amount}', Math.round(depositAmount * 0.20).toLocaleString(locale))}
               </p>
             </div>
           </div>
           <Button variant="ghost" size="sm" onClick={handleRemove}>
-            Fjern
+            {t.referrals.remove}
           </Button>
         </div>
       </div>
@@ -103,25 +108,25 @@ export function ReferralCodeInput({
       <div className="flex items-center gap-2">
         <Tag className="h-5 w-5 text-amber-600" />
         <label className="text-base font-semibold text-amber-900">
-          Har du en vennerabattkode? Få 20% rabatt!
+          {t.referrals.haveCode}
         </label>
       </div>
       <p className="text-sm text-amber-700">
-        Spar {Math.round(depositAmount * 0.20)} kr på forskuddet ditt
+        {t.referrals.youGet20Off.replace('{amount}', Math.round(depositAmount * 0.20).toLocaleString(locale))}
       </p>
 
       <div className="flex gap-2">
         <Input
           type="text"
-          placeholder="Skriv inn kode"
+          placeholder={t.referrals.enterCode}
           value={code}
-          onChange={(e) => {
-            setCode(e.target.value.toUpperCase());
+          onChange={(event) => {
+            setCode(event.target.value.toUpperCase());
             setError(null);
           }}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              e.preventDefault();
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') {
+              event.preventDefault();
               handleValidate();
             }
           }}
@@ -141,10 +146,10 @@ export function ReferralCodeInput({
           {isValidating ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Sjekker...
+              {t.referrals.checking}
             </>
           ) : (
-            'Bruk kode'
+            t.referrals.useCode
           )}
         </Button>
       </div>
@@ -157,7 +162,7 @@ export function ReferralCodeInput({
       )}
 
       <p className="text-xs text-gray-500">
-        Nye kunder får 20% rabatt på forskuddet ved bruk av vennerabattkode
+        {t.referrals.newCustomersGet20}
       </p>
     </div>
   );

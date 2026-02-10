@@ -10,15 +10,11 @@ export async function GET(request: Request) {
     const yearParam = searchParams.get('year')
     const weekParam = searchParams.get('week')
 
-    const today = new Date(new Date().toISOString().split('T')[0])
-    const cutoffDate = new Date(today)
-    cutoffDate.setDate(cutoffDate.getDate() + 1)
-
     let query = supabaseServer
       .from('egg_inventory')
       .select('*, egg_breeds(*)')
       .in('status', ['open', 'sold_out'])
-      .gt('delivery_monday', cutoffDate.toISOString().split('T')[0])
+      .gte('delivery_monday', new Date().toISOString().split('T')[0])
       .order('delivery_monday')
 
     if (breedId) {
@@ -38,7 +34,18 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    return NextResponse.json(data || [])
+    const now = new Date()
+    const applyCutoff = !yearParam && !weekParam
+    const filtered = applyCutoff
+      ? (data || []).filter((row: any) => {
+          const deliveryMondayLocal = new Date(`${row.delivery_monday}T00:00:00`)
+          const cutoff = new Date(deliveryMondayLocal)
+          cutoff.setHours(cutoff.getHours() - 8)
+          return now < cutoff
+        })
+      : (data || [])
+
+    return NextResponse.json(filtered)
   } catch (error: any) {
     console.error('Unexpected error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

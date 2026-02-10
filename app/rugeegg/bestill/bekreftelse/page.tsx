@@ -31,7 +31,7 @@ type EggOrder = {
 }
 
 export default function EggConfirmationPage() {
-  const { lang: language } = useLanguage()
+  const { lang: language, t } = useLanguage()
   const searchParams = useSearchParams()
   const orderId = searchParams.get('orderId')
   const { clearCart } = useCart()
@@ -40,6 +40,8 @@ export default function EggConfirmationPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [paymentStatus, setPaymentStatus] = useState<EggPaymentStatus>('pending')
   const [pollCount, setPollCount] = useState(0)
+  const confirmation = t.eggs.confirmation
+  const orderNotFoundError = t.eggs.errors.orderNotFound
 
   useEffect(() => {
     if (!orderId) return
@@ -57,7 +59,7 @@ export default function EggConfirmationPage() {
       try {
         const response = await fetch(`/api/eggs/my-orders/${orderId}`, { cache: 'no-store' })
         if (!response.ok) {
-          throw new Error('Order not found')
+          throw new Error(orderNotFoundError)
         }
         const data = await response.json()
         if (!isActive) return
@@ -77,19 +79,15 @@ export default function EggConfirmationPage() {
     return () => {
       isActive = false
     }
-  }, [orderId])
+  }, [orderId, orderNotFoundError])
 
   useEffect(() => {
-    if (!orderId || paymentStatus === 'completed' || pollCount >= 10) {
-      return
-    }
+    if (!orderId || paymentStatus === 'completed' || pollCount >= 10) return
 
     const interval = setInterval(async () => {
       try {
         const response = await fetch(`/api/eggs/my-orders/${orderId}`, { cache: 'no-store' })
-        if (!response.ok) {
-          return
-        }
+        if (!response.ok) return
         const data = await response.json()
         const depositPayment = data?.egg_payments?.find((payment: any) => payment.payment_type === 'deposit')
         if (depositPayment?.status) {
@@ -110,7 +108,7 @@ export default function EggConfirmationPage() {
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="text-sm text-neutral-500">Laster...</div>
+        <div className="text-sm text-neutral-500">{t.eggs.common.loading}</div>
       </div>
     )
   }
@@ -119,16 +117,10 @@ export default function EggConfirmationPage() {
     return (
       <div className="min-h-screen flex items-center justify-center px-4">
         <GlassCard className="p-8 text-center max-w-lg">
-          <h1 className="text-2xl font-normal text-neutral-900 mb-3">
-            {language === 'no' ? 'Fant ingen ordre' : 'Order not found'}
-          </h1>
-          <p className="text-sm text-neutral-600 mb-6">
-            {language === 'no'
-              ? 'Bestillingen ble ikke funnet.'
-              : 'We could not find your order.'}
-          </p>
+          <h1 className="text-2xl font-normal text-neutral-900 mb-3">{confirmation.orderNotFoundTitle}</h1>
+          <p className="text-sm text-neutral-600 mb-6">{confirmation.orderNotFoundDescription}</p>
           <Link href="/rugeegg/raser" className="btn-primary inline-flex">
-            {language === 'no' ? 'Tilbake til raser' : 'Back to breeds'}
+            {t.eggs.common.backToBreeds}
           </Link>
         </GlassCard>
       </div>
@@ -137,17 +129,17 @@ export default function EggConfirmationPage() {
 
   const statusTitle =
     paymentStatus === 'completed'
-      ? (language === 'no' ? 'Bestilling mottatt!' : 'Order confirmed!')
+      ? confirmation.titleCompleted
       : paymentStatus === 'failed'
-        ? (language === 'no' ? 'Betaling feilet' : 'Payment failed')
-        : (language === 'no' ? 'Venter på betalingsbekreftelse' : 'Waiting for payment confirmation')
+        ? confirmation.titleFailed
+        : confirmation.titlePending
 
   const statusLead =
     paymentStatus === 'completed'
-      ? (language === 'no' ? 'Vi har registrert forskuddsbetalingen.' : 'We have registered your deposit payment.')
+      ? confirmation.leadCompleted
       : paymentStatus === 'failed'
-        ? (language === 'no' ? 'Vipps-betalingen ble ikke fullført.' : 'The Vipps payment was not completed.')
-        : (language === 'no' ? 'Vi venter fortsatt på bekreftelse fra Vipps.' : 'We are still waiting for confirmation from Vipps.')
+        ? confirmation.leadFailed
+        : confirmation.leadPending
 
   const StatusIcon = paymentStatus === 'completed' ? CheckCircle2 : paymentStatus === 'failed' ? XCircle : Clock3
 
@@ -158,50 +150,40 @@ export default function EggConfirmationPage() {
           <div className="mx-auto w-14 h-14 rounded-full bg-neutral-50 text-neutral-900 border border-neutral-200 flex items-center justify-center">
             <StatusIcon className="w-7 h-7" />
           </div>
-          <h1 className="text-4xl font-normal text-neutral-900">
-            {statusTitle}
-          </h1>
-          <p className="text-neutral-600">
-            {statusLead}
-          </p>
-          <p className="text-sm text-neutral-500">
-            {language === 'no'
-              ? 'Forskuddet refunderes ikke. Vi jobber med levende dyr, og bestillingen setter i gang produksjonsplanlegging.'
-              : 'The deposit is non-refundable. We work with live animals, and the order starts production planning.'}
-          </p>
+          <h1 className="text-4xl font-normal text-neutral-900">{statusTitle}</h1>
+          <p className="text-neutral-600">{statusLead}</p>
+          <p className="text-sm text-neutral-500">{t.eggs.payment.nonRefundableNote}</p>
         </div>
 
         <GlassCard className="p-6 space-y-4">
-          <h2 className="text-lg font-normal text-neutral-900">
-            {language === 'no' ? 'Oppsummering' : 'Summary'}
-          </h2>
+          <h2 className="text-lg font-normal text-neutral-900">{t.eggs.common.summary}</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
             <div>
-              <div className="text-neutral-500">{language === 'no' ? 'Ordrenummer' : 'Order number'}</div>
+              <div className="text-neutral-500">{t.eggs.common.orderNumber}</div>
               <div className="font-normal text-neutral-900">{order.order_number}</div>
             </div>
             <div>
-              <div className="text-neutral-500">{language === 'no' ? 'Rase' : 'Breed'}</div>
+              <div className="text-neutral-500">{t.eggs.common.breed}</div>
               <div className="font-normal text-neutral-900">
-                {order.egg_breeds?.name || order.breed_name || ''}
+                {order.egg_breeds?.name || order.breed_name || t.eggs.common.fallbackBreed}
               </div>
             </div>
             <div>
-              <div className="text-neutral-500">{language === 'no' ? 'Uke' : 'Week'}</div>
+              <div className="text-neutral-500">{t.eggs.common.week}</div>
               <div className="font-normal text-neutral-900">{order.week_number}</div>
             </div>
             <div>
-              <div className="text-neutral-500">{language === 'no' ? 'Sendingsdato' : 'Shipping date'}</div>
+              <div className="text-neutral-500">{t.eggs.common.shippingDate}</div>
               <div className="font-normal text-neutral-900">
                 {formatDate(new Date(order.delivery_monday), language)}
               </div>
             </div>
             <div>
-              <div className="text-neutral-500">{language === 'no' ? 'Antall egg' : 'Eggs'}</div>
+              <div className="text-neutral-500">{t.eggs.common.totalEggs}</div>
               <div className="font-normal text-neutral-900">{order.quantity}</div>
             </div>
             <div>
-              <div className="text-neutral-500">{language === 'no' ? 'Forskudd' : 'Deposit'}</div>
+              <div className="text-neutral-500">{t.eggs.common.deposit}</div>
               <div className="font-normal text-neutral-900">
                 {formatPrice(order.deposit_amount, language)}
               </div>
@@ -211,26 +193,19 @@ export default function EggConfirmationPage() {
 
         {paymentStatus !== 'completed' && (
           <GlassCard className="p-5 text-sm text-neutral-700">
-            {paymentStatus === 'failed'
-              ? (language === 'no'
-                ? 'Betalingen ble ikke registrert som fullført. Gå til "Mine bestillinger" og prøv betaling på nytt.'
-                : 'Payment was not registered as completed. Open "My orders" and retry payment.')
-              : (language === 'no'
-                ? 'Hvis betaling er gjennomført i Vipps, oppdateres status automatisk når bekreftelsen kommer.'
-                : 'If payment is completed in Vipps, status updates automatically when confirmation arrives.')}
+            {paymentStatus === 'failed' ? confirmation.failedHelp : confirmation.pendingHelp}
           </GlassCard>
         )}
 
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
           <Link href="/rugeegg/raser" className="btn-secondary w-full sm:w-auto justify-center">
-            {language === 'no' ? 'Tilbake til raser' : 'Back to breeds'}
+            {t.eggs.common.backToBreeds}
           </Link>
           <Link href="/rugeegg/mine-bestillinger" className="btn-primary w-full sm:w-auto justify-center">
-            {language === 'no' ? 'Til mine bestillinger' : 'Go to my orders'}
+            {confirmation.goToMyOrders}
           </Link>
         </div>
       </div>
     </div>
   )
 }
-

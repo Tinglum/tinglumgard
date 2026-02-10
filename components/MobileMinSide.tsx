@@ -42,9 +42,10 @@ interface MobileMinSideProps {
 
 export function MobileMinSide(props: MobileMinSideProps) {
   const { orders, activeTab, setActiveTab, canEdit, cutoffWeek, cutoffYear, onPayRemainder } = props;
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
+  const locale = lang === 'no' ? 'nb-NO' : 'en-US';
   const remainderDueDate = new Date('2026-11-16');
-  const formattedDueDate = remainderDueDate.toLocaleDateString('nb-NO', {
+  const formattedDueDate = remainderDueDate.toLocaleDateString(locale, {
     day: 'numeric',
     month: 'long',
     year: 'numeric',
@@ -92,7 +93,7 @@ export function MobileMinSide(props: MobileMinSideProps) {
         {[
           { id: 'orders', label: t.minSide.orders, icon: Package },
           { id: 'referrals', label: t.minSide.referrals, icon: Gift },
-          { id: 'messages', label: 'Meldinger', icon: MessageSquare },
+          { id: 'messages', label: t.eggs.myOrders.tabMessages, icon: MessageSquare },
         ].map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -170,25 +171,25 @@ export function MobileMinSide(props: MobileMinSideProps) {
                     <div className="flex items-center justify-between">
                       <span className="text-[#5E5A50]">{t.minSide.deposit}</span>
                       <span className="flex items-center gap-2 font-semibold text-[#1E1B16]">
-                        {order.deposit_amount.toLocaleString('nb-NO')} {t.common.currency}
+                        {order.deposit_amount.toLocaleString(locale)} {t.common.currency}
                         {depositPaid && <Check className="h-4 w-4 text-[#0F6C6F]" />}
                       </span>
                     </div>
                     <div className="mt-2 flex items-center justify-between">
                       <span className="text-[#5E5A50]">{t.minSide.remainder}</span>
                       <span className="flex items-center gap-2 font-semibold text-[#1E1B16]">
-                        {order.remainder_amount.toLocaleString('nb-NO')} {t.common.currency}
+                        {order.remainder_amount.toLocaleString(locale)} {t.common.currency}
                         {remainderPaid ? <Check className="h-4 w-4 text-[#0F6C6F]" /> : <Clock className="h-4 w-4 text-[#B35A2A]" />}
                       </span>
                     </div>
                     {depositPaid && !remainderPaid && (
                       <div className="mt-2 text-xs text-[#6A6258]">
-                        Forfallsdato: {formattedDueDate}
+                        {t.minSide.dueDate}: {formattedDueDate}
                       </div>
                     )}
                     <div className="mt-3 flex items-center justify-between text-base font-semibold">
                       <span>{t.common.total}</span>
-                      <span>{order.total_amount.toLocaleString('nb-NO')} {t.common.currency}</span>
+                      <span>{order.total_amount.toLocaleString(locale)} {t.common.currency}</span>
                     </div>
                   </div>
 

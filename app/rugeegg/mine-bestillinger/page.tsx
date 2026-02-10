@@ -54,87 +54,15 @@ const daysBetween = (future: Date, today: Date) => {
   return Math.round(diffMs / (1000 * 60 * 60 * 24))
 }
 
-const formatDeliveryMethod = (method: string, language: string) => {
-  if (method === 'posten') {
-    return language === 'no' ? 'Sending med Posten' : 'Posten shipment'
-  }
-  if (method === 'e6_pickup') {
-    return language === 'no' ? 'E6 møtepunkt' : 'E6 pickup'
-  }
-  if (method === 'farm_pickup') {
-    return language === 'no' ? 'Henting på gården' : 'Farm pickup'
-  }
-  return method
-}
-
-
-const getStatusMeta = (
-  order: EggOrder,
-  remainderDue: number,
-  daysToDue: number | null,
-  language: string
-) => {
-  const base = {
-    label: language === 'no' ? 'Venter' : 'Pending',
-    className: 'bg-neutral-100 text-neutral-700',
-  }
-
-  switch (order.status) {
-    case 'deposit_paid':
-      if (remainderDue > 0) {
-        const urgent = daysToDue !== null && daysToDue <= 6
-        return {
-          label: language === 'no' ? 'Restbetaling' : 'Remainder due',
-          className: urgent ? 'bg-amber-50 text-amber-700' : 'bg-blue-50 text-blue-700',
-        }
-      }
-      return {
-        label: language === 'no' ? 'Forskudd betalt' : 'Deposit paid',
-        className: 'bg-emerald-50 text-emerald-700',
-      }
-    case 'fully_paid':
-      return {
-        label: language === 'no' ? 'Betalt' : 'Paid',
-        className: 'bg-emerald-50 text-emerald-700',
-      }
-    case 'preparing':
-      return {
-        label: language === 'no' ? 'Klargjøres' : 'Preparing',
-        className: 'bg-indigo-50 text-indigo-700',
-      }
-    case 'shipped':
-      return {
-        label: language === 'no' ? 'Sendt' : 'Shipped',
-        className: 'bg-indigo-50 text-indigo-700',
-      }
-    case 'delivered':
-      return {
-        label: language === 'no' ? 'Levert' : 'Delivered',
-        className: 'bg-neutral-100 text-neutral-700',
-      }
-    case 'forfeited':
-      return {
-        label: language === 'no' ? 'Forfalt' : 'Forfeited',
-        className: 'bg-rose-50 text-rose-700',
-      }
-    case 'cancelled':
-      return {
-        label: language === 'no' ? 'Kansellert' : 'Cancelled',
-        className: 'bg-rose-50 text-rose-700',
-      }
-    default:
-      return base
-  }
-}
-
 export default function EggOrdersPage() {
-  const { lang: language } = useLanguage()
+  const { lang: language, t } = useLanguage()
   const [orders, setOrders] = useState<EggOrder[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [authRequired, setAuthRequired] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<'orders' | 'messages'>('orders')
   const today = useMemo(() => toDateOnly(new Date()), [])
+  const ordersCopy = t.eggs.myOrders
 
   const sortedOrders = useMemo(() => {
     return [...orders].sort((a, b) => {
@@ -162,7 +90,7 @@ export default function EggOrdersPage() {
 
         const data = await response.json()
         if (!response.ok) {
-          throw new Error(data?.error || 'Kunne ikke hente bestillinger')
+          throw new Error(data?.error || t.eggs.errors.couldNotFetchOrders)
         }
 
         if (isMounted) {
@@ -172,7 +100,7 @@ export default function EggOrdersPage() {
         }
       } catch (err: any) {
         if (isMounted) {
-          setError(err?.message || 'Kunne ikke hente bestillinger')
+          setError(err?.message || t.eggs.errors.couldNotFetchOrders)
         }
       } finally {
         if (isMounted) setIsLoading(false)
@@ -183,8 +111,73 @@ export default function EggOrdersPage() {
     return () => {
       isMounted = false
     }
-  }, [])
+  }, [t])
 
+  const formatDeliveryMethod = (method: string) => {
+    if (method === 'posten') return ordersCopy.deliveryPosten
+    if (method === 'e6_pickup') return ordersCopy.deliveryE6
+    if (method === 'farm_pickup') return ordersCopy.deliveryFarm
+    return method
+  }
+
+  const getStatusMeta = (order: EggOrder, remainderDue: number, daysToDue: number | null) => {
+    const base = {
+      label: ordersCopy.statusPending,
+      className: 'bg-neutral-100 text-neutral-700',
+    }
+
+    switch (order.status) {
+      case 'deposit_paid':
+        if (remainderDue > 0) {
+          const urgent = daysToDue !== null && daysToDue <= 6
+          return {
+            label: ordersCopy.statusRemainderDue,
+            className: urgent ? 'bg-amber-50 text-amber-700' : 'bg-blue-50 text-blue-700',
+          }
+        }
+        return {
+          label: ordersCopy.statusDepositPaid,
+          className: 'bg-emerald-50 text-emerald-700',
+        }
+      case 'fully_paid':
+        return {
+          label: ordersCopy.statusPaid,
+          className: 'bg-emerald-50 text-emerald-700',
+        }
+      case 'preparing':
+        return {
+          label: ordersCopy.statusPreparing,
+          className: 'bg-indigo-50 text-indigo-700',
+        }
+      case 'shipped':
+        return {
+          label: ordersCopy.statusShipped,
+          className: 'bg-indigo-50 text-indigo-700',
+        }
+      case 'delivered':
+        return {
+          label: ordersCopy.statusDelivered,
+          className: 'bg-neutral-100 text-neutral-700',
+        }
+      case 'forfeited':
+        return {
+          label: ordersCopy.statusForfeited,
+          className: 'bg-rose-50 text-rose-700',
+        }
+      case 'cancelled':
+        return {
+          label: ordersCopy.statusCancelled,
+          className: 'bg-rose-50 text-rose-700',
+        }
+      default:
+        return base
+    }
+  }
+
+  const getTimelineDate = (value?: string | null) => {
+    if (!value) return '-'
+    return formatDateFull(new Date(value), language)
+  }
 
   if (isLoading) {
     return (
@@ -199,14 +192,8 @@ export default function EggOrdersPage() {
       <div className="min-h-screen flex items-center justify-center px-6 py-12">
         <GlassCard className="p-8 text-center max-w-md space-y-6">
           <div>
-            <h1 className="text-3xl font-normal text-neutral-900 mb-2">
-              {language === 'no' ? 'Logg inn med Vipps' : 'Log in with Vipps'}
-            </h1>
-            <p className="text-sm text-neutral-600">
-              {language === 'no'
-                ? 'For å se dine rugeegg-bestillinger må du logge inn.'
-                : 'Log in to view your hatching egg orders.'}
-            </p>
+            <h1 className="text-3xl font-normal text-neutral-900 mb-2">{ordersCopy.authTitle}</h1>
+            <p className="text-sm text-neutral-600">{ordersCopy.authDescription}</p>
           </div>
           <button
             onClick={() =>
@@ -214,19 +201,14 @@ export default function EggOrdersPage() {
             }
             className="btn-primary w-full"
           >
-            {language === 'no' ? 'Logg inn med Vipps' : 'Log in with Vipps'}
+            {ordersCopy.authTitle}
           </button>
           <Link href="/rugeegg/raser" className="text-sm text-neutral-500 hover:text-neutral-700">
-            {language === 'no' ? 'Til raser' : 'Back to breeds'}
+            {t.eggs.common.backToBreeds}
           </Link>
         </GlassCard>
       </div>
     )
-  }
-
-  const getTimelineDate = (value?: string | null) => {
-    if (!value) return '-'
-    return formatDateFull(new Date(value), language)
   }
 
   return (
@@ -234,17 +216,11 @@ export default function EggOrdersPage() {
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-6xl space-y-8">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <h1 className="text-4xl font-normal text-neutral-900 mb-2">
-              {language === 'no' ? 'Mine bestillinger' : 'My orders'}
-            </h1>
-            <p className="text-neutral-600">
-              {language === 'no'
-                ? 'Oversikt over dine rugeegg-bestillinger.'
-                : 'Overview of your hatching egg orders.'}
-            </p>
+            <h1 className="text-4xl font-normal text-neutral-900 mb-2">{ordersCopy.pageTitle}</h1>
+            <p className="text-neutral-600">{ordersCopy.pageDescription}</p>
           </div>
           <Link href="/rugeegg/raser" className="text-sm text-neutral-600 hover:text-neutral-900">
-            {language === 'no' ? 'Til raser' : 'Back to breeds'}
+            {t.eggs.common.backToBreeds}
           </Link>
         </div>
 
@@ -257,7 +233,7 @@ export default function EggOrdersPage() {
                 : 'text-neutral-500 hover:text-neutral-900'
             }`}
           >
-            {language === 'no' ? 'Bestillinger' : 'Orders'}
+            {ordersCopy.tabOrders}
           </button>
           <button
             onClick={() => setActiveTab('messages')}
@@ -267,32 +243,24 @@ export default function EggOrdersPage() {
                 : 'text-neutral-500 hover:text-neutral-900'
             }`}
           >
-            {language === 'no' ? 'Meldinger' : 'Messages'}
+            {ordersCopy.tabMessages}
           </button>
         </div>
 
         {activeTab === 'orders' && (
           <div className="space-y-6">
-            {error && (
-              <GlassCard className="p-4 text-sm text-red-600">
-                {error}
-              </GlassCard>
-            )}
+            {error && <GlassCard className="p-4 text-sm text-red-600">{error}</GlassCard>}
 
             {orders.length === 0 ? (
               <GlassCard className="p-12 text-center">
-                <p className="text-sm text-neutral-500">
-                  {language === 'no'
-                    ? 'Ingen bestillinger funnet ennå.'
-                    : 'No orders found yet.'}
-                </p>
+                <p className="text-sm text-neutral-500">{ordersCopy.noOrders}</p>
                 <Link href="/rugeegg/raser" className="btn-primary inline-flex mt-6">
-                  {language === 'no' ? 'Se raser' : 'Browse breeds'}
+                  {ordersCopy.browseBreeds}
                 </Link>
               </GlassCard>
             ) : (
               sortedOrders.map((order) => {
-                const breedName = order.egg_breeds?.name || (language === 'no' ? 'Rugeegg' : 'Eggs')
+                const breedName = order.egg_breeds?.name || t.eggs.common.fallbackBreed
                 const additionsEggs = (order.egg_order_additions || []).reduce(
                   (sum, addition) => sum + (addition.quantity || 0),
                   0
@@ -306,13 +274,12 @@ export default function EggOrdersPage() {
                 const remainderDue = Math.max(0, order.remainder_amount - remainderPaidOre)
                 const dueDate = order.remainder_due_date ? toDateOnly(order.remainder_due_date) : null
                 const deliveryDate = toDateOnly(order.delivery_monday)
-                const dayBefore = new Date(deliveryDate)
-                dayBefore.setDate(dayBefore.getDate() - 1)
-                const canAdd = today <= dayBefore
+                const deliveryMondayLocal = new Date(`${order.delivery_monday}T00:00:00`)
+                const canAdd = new Date() < deliveryMondayLocal && ['fully_paid', 'preparing'].includes(order.status)
                 const daysToDue = dueDate ? daysBetween(dueDate, today) : null
                 const daysToDueLabel = daysToDue !== null ? Math.max(daysToDue, 0) : null
                 const daysToDelivery = daysBetween(deliveryDate, today)
-                const statusMeta = getStatusMeta(order, remainderDue, daysToDue, language)
+                const statusMeta = getStatusMeta(order, remainderDue, daysToDue)
                 const depositPayment = order.egg_payments?.find(
                   (payment) => payment.payment_type === 'deposit' && payment.status === 'completed'
                 )
@@ -324,35 +291,31 @@ export default function EggOrdersPage() {
                 const timelineSteps = [
                   {
                     key: 'placed',
-                    label: language === 'no' ? 'Bestilling' : 'Order placed',
+                    label: ordersCopy.stepPlaced,
                     date: getTimelineDate(order.created_at || null),
                     completed: true,
                   },
                   {
                     key: 'deposit',
-                    label: language === 'no' ? 'Forskudd' : 'Deposit',
+                    label: ordersCopy.stepDeposit,
                     date: depositPaid
                       ? getTimelineDate(depositPayment?.paid_at || null)
-                      : language === 'no'
-                        ? 'Ikke betalt'
-                        : 'Not paid',
+                      : t.eggs.common.notPaid,
                     completed: depositPaid,
                   },
                   {
                     key: 'remainder',
-                    label: language === 'no' ? 'Restbetaling' : 'Remainder',
+                    label: ordersCopy.stepRemainder,
                     date: remainderPaid
                       ? getTimelineDate(remainderPayment?.paid_at || null)
                       : order.remainder_due_date
                         ? getTimelineDate(order.remainder_due_date)
-                        : language === 'no'
-                          ? 'Ikke betalt'
-                          : 'Not paid',
+                        : t.eggs.common.notPaid,
                     completed: remainderPaid,
                   },
                   {
                     key: 'shipment',
-                    label: language === 'no' ? 'Sending' : 'Shipment',
+                    label: ordersCopy.stepShipment,
                     date: getTimelineDate(order.delivery_monday),
                     completed: ['shipped', 'delivered'].includes(order.status),
                   },
@@ -368,17 +331,15 @@ export default function EggOrdersPage() {
                     <div className="flex flex-wrap items-start justify-between gap-4">
                       <div>
                         <p className="text-xs uppercase tracking-[0.2em] text-neutral-500">
-                          {language === 'no' ? 'Ordre' : 'Order'}
+                          {t.eggs.common.order}
                         </p>
                         <h2 className="text-2xl font-normal text-neutral-900">{order.order_number}</h2>
                         <p className="text-sm text-neutral-600">
-                          {breedName} · {language === 'no' ? 'Uke' : 'Week'} {order.week_number} ·{' '}
+                          {breedName} - {t.eggs.common.week} {order.week_number} -{' '}
                           {formatDateFull(new Date(order.delivery_monday), language)}
                         </p>
                       </div>
-                      <span
-                        className={`px-3 py-1 rounded-full text-xs font-medium ${statusMeta.className}`}
-                      >
+                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${statusMeta.className}`}>
                         {statusMeta.label}
                       </span>
                     </div>
@@ -386,24 +347,18 @@ export default function EggOrdersPage() {
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                       <div className="space-y-3">
                         <div>
-                          <p className="text-xs uppercase tracking-[0.2em] text-neutral-500">
-                            {language === 'no' ? 'Mengde' : 'Quantity'}
-                          </p>
+                          <p className="text-xs uppercase tracking-[0.2em] text-neutral-500">{ordersCopy.quantity}</p>
                           <p className="text-2xl font-normal text-neutral-900">
-                            {totalEggs} {language === 'no' ? 'egg' : 'eggs'}
+                            {totalEggs} {t.eggs.common.eggs}
                           </p>
                           {additionsEggs > 0 && (
                             <p className="text-xs text-neutral-500">
-                              {language === 'no'
-                                ? `+${additionsEggs} tillegg`
-                                : `+${additionsEggs} additions`}
+                              {ordersCopy.additionsSuffix.replace('{count}', String(additionsEggs))}
                             </p>
                           )}
                         </div>
                         <div>
-                          <p className="text-xs uppercase tracking-[0.2em] text-neutral-500">
-                            {language === 'no' ? 'Total' : 'Total'}
-                          </p>
+                          <p className="text-xs uppercase tracking-[0.2em] text-neutral-500">{ordersCopy.total}</p>
                           <p className="text-lg font-normal text-neutral-900">
                             {formatPrice(order.total_amount, language)}
                           </p>
@@ -412,17 +367,13 @@ export default function EggOrdersPage() {
 
                       <div className="space-y-3">
                         <div className="flex items-center justify-between text-sm">
-                          <span className="text-neutral-500">
-                            {language === 'no' ? 'Forskudd' : 'Deposit'}
-                          </span>
+                          <span className="text-neutral-500">{t.eggs.common.deposit}</span>
                           <span className="font-normal text-neutral-900">
                             {formatPrice(order.deposit_amount, language)}
                           </span>
                         </div>
                         <div className="flex items-center justify-between text-sm">
-                          <span className="text-neutral-500">
-                            {language === 'no' ? 'Restbetaling' : 'Remainder'}
-                          </span>
+                          <span className="text-neutral-500">{t.eggs.common.remainder}</span>
                           <span className="font-normal text-neutral-900">
                             {formatPrice(remainderDue, language)}
                           </span>
@@ -431,33 +382,25 @@ export default function EggOrdersPage() {
                           <div className="flex items-start gap-2 text-xs text-neutral-600">
                             <AlertTriangle className="w-4 h-4 text-amber-500" />
                             <span>
-                              {language === 'no'
-                                ? `Forfaller ${formatDateFull(dueDate, language)}`
-                                : `Due ${formatDateFull(dueDate, language)}`}
-                              {daysToDueLabel !== null &&
-                                ` · ${daysToDueLabel} ${language === 'no' ? 'dager igjen' : 'days left'}`}
+                              {ordersCopy.duePrefix} {formatDateFull(dueDate, language)}
+                              {daysToDueLabel !== null && ` - ${daysToDueLabel} ${t.eggs.common.daysLeft}`}
                             </span>
                           </div>
                         )}
                         <div className="flex items-center gap-2 text-xs text-neutral-500">
                           <CheckCircle2 className="w-4 h-4 text-neutral-900" />
                           <span>
-                            {language === 'no'
-                              ? `Forsendelse ${formatDateFull(deliveryDate, language)}`
-                              : `Shipment ${formatDateFull(deliveryDate, language)}`}
-                            {daysToDelivery >= 0 &&
-                              ` · ${daysToDelivery} ${language === 'no' ? 'dager igjen' : 'days left'}`}
+                            {ordersCopy.shipmentPrefix} {formatDateFull(deliveryDate, language)}
+                            {daysToDelivery >= 0 && ` - ${daysToDelivery} ${t.eggs.common.daysLeft}`}
                           </span>
                         </div>
                       </div>
 
                       <div className="space-y-3">
                         <div className="text-sm text-neutral-600">
-                          <p className="text-xs uppercase tracking-[0.2em] text-neutral-500">
-                            {language === 'no' ? 'Forsendelse' : 'Shipment'}
-                          </p>
+                          <p className="text-xs uppercase tracking-[0.2em] text-neutral-500">{ordersCopy.delivery}</p>
                           <p className="font-normal text-neutral-900">
-                            {formatDeliveryMethod(order.delivery_method, language)}
+                            {formatDeliveryMethod(order.delivery_method)}
                           </p>
                           {typeof order.delivery_fee === 'number' && (
                             <p className="text-xs text-neutral-500">
@@ -471,16 +414,16 @@ export default function EggOrdersPage() {
                               href={`/rugeegg/mine-bestillinger/${order.id}/betaling`}
                               className="btn-primary inline-flex"
                             >
-                              {language === 'no' ? 'Betal rest' : 'Pay remainder'}
+                              {ordersCopy.payRemainder}
                               <ArrowRight className="w-4 h-4" />
                             </Link>
                           )}
-                          {canAdd && ['deposit_paid', 'fully_paid'].includes(order.status) && (
+                          {canAdd && (
                             <Link
                               href={`/rugeegg/mine-bestillinger/${order.id}/betaling`}
                               className="btn-secondary inline-flex"
                             >
-                              {language === 'no' ? 'Legg til egg' : 'Add eggs'}
+                              {ordersCopy.addEggs}
                             </Link>
                           )}
                         </div>
@@ -488,9 +431,7 @@ export default function EggOrdersPage() {
                     </div>
 
                     <div>
-                      <p className="text-xs uppercase tracking-[0.2em] text-neutral-500">
-                        {language === 'no' ? 'Statuslinje' : 'Timeline'}
-                      </p>
+                      <p className="text-xs uppercase tracking-[0.2em] text-neutral-500">{ordersCopy.timeline}</p>
                       <div className="mt-4">
                         <div className="flex items-start justify-between">
                           {timelineSteps.map((step, index) => {
@@ -531,11 +472,7 @@ export default function EggOrdersPage() {
                                 </div>
                                 {!isLast && (
                                   <div className="flex-1 h-0.5 mx-2 mt-4">
-                                    <div
-                                      className={`h-full ${
-                                        isCompleted ? 'bg-emerald-500' : 'bg-neutral-200'
-                                      }`}
-                                    />
+                                    <div className={`h-full ${isCompleted ? 'bg-emerald-500' : 'bg-neutral-200'}`} />
                                   </div>
                                 )}
                               </div>

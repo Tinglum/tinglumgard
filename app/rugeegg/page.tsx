@@ -13,6 +13,7 @@ import type { Breed, WeekAvailability } from '@/lib/eggs/types'
 
 export default function HomePage() {
   const { lang: language, t } = useLanguage()
+  const loadEggDataError = t.eggs.errors.loadEggData
   const [browseMode, setBrowseMode] = useState<BrowseMode>('breed')
   const [breeds, setBreeds] = useState<Breed[]>([])
   const [weekAvailability, setWeekAvailability] = useState<WeekAvailability[]>([])
@@ -31,7 +32,7 @@ export default function HomePage() {
       } catch (err) {
         if (!isActive) return
         console.error('Failed to load egg data', err)
-        setError(language === 'no' ? 'Kunne ikke laste eggdata.' : 'Failed to load egg data.')
+        setError(loadEggDataError)
       } finally {
         if (isActive) setIsLoading(false)
       }
@@ -40,7 +41,7 @@ export default function HomePage() {
     return () => {
       isActive = false
     }
-  }, [language])
+  }, [language, loadEggDataError])
 
   return (
     <div className="min-h-screen">
@@ -100,7 +101,7 @@ export default function HomePage() {
             >
               {isLoading && (
                 <div className="col-span-full text-sm text-neutral-500">
-                  {language === 'no' ? 'Laster raser…' : 'Loading breeds…'}
+                  {t.eggs.common.loadingBreeds}
                 </div>
               )}
               {breeds.map((breed, index) => (
@@ -172,7 +173,7 @@ export default function HomePage() {
             >
               {isLoading && (
                 <div className="text-sm text-neutral-500">
-                  {language === 'no' ? 'Laster uker…' : 'Loading weeks…'}
+                  {t.eggs.common.loadingWeeks}
                 </div>
               )}
               {weekAvailability.slice(0, 12).map((week, index) => (

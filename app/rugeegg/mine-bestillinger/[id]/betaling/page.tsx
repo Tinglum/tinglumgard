@@ -57,7 +57,7 @@ interface WeekInventoryItem {
 export default function EggRemainderPage() {
   const params = useParams<{ id: string }>()
   const orderId = params?.id
-  const { lang: language } = useLanguage()
+  const { lang: language, t } = useLanguage()
   const [order, setOrder] = useState<EggOrder | null>(null)
   const [inventory, setInventory] = useState<WeekInventoryItem[]>([])
   const [selectedQuantities, setSelectedQuantities] = useState<Record<string, number>>({})
@@ -65,6 +65,7 @@ export default function EggRemainderPage() {
   const [loadError, setLoadError] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
   const [isPaying, setIsPaying] = useState(false)
+  const remainderCopy = t.eggs.remainderPayment
 
   useEffect(() => {
     let isMounted = true
@@ -75,7 +76,7 @@ export default function EggRemainderPage() {
         const response = await fetch(`/api/eggs/my-orders/${orderId}`)
         const data = await response.json()
         if (!response.ok) {
-          throw new Error(data?.error || 'Kunne ikke hente ordre')
+          throw new Error(data?.error || t.eggs.errors.couldNotFetchOrder)
         }
         if (!isMounted) return
         setOrder(data)
@@ -89,7 +90,7 @@ export default function EggRemainderPage() {
         setLoadError(null)
       } catch (err: any) {
         if (!isMounted) return
-        setLoadError(err?.message || 'Kunne ikke hente ordre')
+        setLoadError(err?.message || t.eggs.errors.couldNotFetchOrder)
       } finally {
         if (isMounted) setLoading(false)
       }
@@ -98,7 +99,7 @@ export default function EggRemainderPage() {
     return () => {
       isMounted = false
     }
-  }, [orderId])
+  }, [orderId, t])
 
   useEffect(() => {
     let isMounted = true
@@ -110,7 +111,7 @@ export default function EggRemainderPage() {
         )
         const data = await response.json()
         if (!response.ok) {
-          throw new Error(data?.error || 'Kunne ikke hente tilgjengelige uker')
+          throw new Error(data?.error || t.eggs.errors.couldNotFetchInventory)
         }
         if (isMounted) {
           setInventory(data || [])
@@ -123,7 +124,7 @@ export default function EggRemainderPage() {
     return () => {
       isMounted = false
     }
-  }, [order])
+  }, [order, t])
 
   const savedAdditionsTotal = useMemo(() => {
     return (order?.egg_order_additions || []).reduce((sum, addition) => sum + (addition.subtotal || 0), 0)
@@ -148,31 +149,43 @@ export default function EggRemainderPage() {
     return Math.max(0, baseTotal - order.deposit_amount)
   }, [order, baseTotal])
 
+  const deliveryMondayLocal = useMemo(() => {
+    if (!order) return null
+    return new Date(`${order.delivery_monday}T00:00:00`)
+  }, [order])
+
+  const dayBeforeStart = useMemo(() => {
+    if (!deliveryMondayLocal) return null
+    const start = new Date(deliveryMondayLocal)
+    start.setDate(start.getDate() - 1)
+    return start
+  }, [deliveryMondayLocal])
+
+  const canAdd = useMemo(() => {
+    if (!deliveryMondayLocal || !order) return false
+    const now = new Date()
+    return now < deliveryMondayLocal && ['fully_paid', 'preparing'].includes(order.status)
+  }, [deliveryMondayLocal, order])
+
+  const discountEligible = useMemo(() => {
+    if (!deliveryMondayLocal || !dayBeforeStart || !order) return false
+    const now = new Date()
+    return now >= dayBeforeStart && now < deliveryMondayLocal && ['fully_paid', 'preparing'].includes(order.status)
+  }, [deliveryMondayLocal, dayBeforeStart, order])
+
   const additionsTotal = useMemo(() => {
+    const multiplier = discountEligible ? 0.7 : 1
     return Object.entries(selectedQuantities).reduce((sum, [inventoryId, qty]) => {
       if (qty <= 0) return sum
-      const item = inventory.find((inv) => inv.id === inventoryId)
+      const item = inventory.find((inventoryRow) => inventoryRow.id === inventoryId)
       if (!item) return sum
-      return sum + qty * (item.egg_breeds?.price_per_egg || 0)
+      return sum + Math.round(qty * (item.egg_breeds?.price_per_egg || 0) * multiplier)
     }, 0)
-  }, [selectedQuantities, inventory])
+  }, [selectedQuantities, inventory, discountEligible])
 
   const nextTotal = baseTotal + additionsTotal
   const nextRemainder = Math.max(0, nextTotal - (order?.deposit_amount || 0))
   const amountDue = Math.max(0, nextRemainder - remainderPaidOre)
-
-  const cutoffDate = useMemo(() => {
-    if (!order) return null
-    const cutoff = new Date(order.delivery_monday)
-    cutoff.setDate(cutoff.getDate() - 1)
-    return cutoff
-  }, [order])
-
-  const canAdd = useMemo(() => {
-    if (!cutoffDate) return false
-    const today = new Date(new Date().toISOString().split('T')[0])
-    return today < cutoffDate
-  }, [cutoffDate])
 
   const hasChanges = useMemo(() => {
     const saved = new Map<string, number>()
@@ -194,7 +207,7 @@ export default function EggRemainderPage() {
 
   const handlePayment = async () => {
     if (!order) return
-    if (!['deposit_paid', 'fully_paid'].includes(order.status)) return
+    if (!['deposit_paid', 'fully_paid', 'preparing'].includes(order.status)) return
 
     setIsPaying(true)
     setActionError(null)
@@ -212,7 +225,7 @@ export default function EggRemainderPage() {
 
         if (!additionsResponse.ok) {
           const data = await additionsResponse.json().catch(() => null)
-          throw new Error(data?.error || 'Kunne ikke lagre tillegg')
+          throw new Error(data?.error || t.eggs.errors.couldNotSaveAdditions)
         }
       }
 
@@ -231,12 +244,12 @@ export default function EggRemainderPage() {
           window.location.href = `/rugeegg/mine-bestillinger/betaling-bekreftet?orderId=${order.id}`
           return
         }
-        throw new Error(remainderData?.error || 'Kunne ikke starte betaling')
+        throw new Error(remainderData?.error || t.eggs.errors.couldNotStartPayment)
       }
 
       window.location.href = remainderData.redirectUrl
     } catch (err: any) {
-      setActionError(err?.message || 'Kunne ikke starte betaling')
+      setActionError(err?.message || t.eggs.errors.couldNotStartPayment)
       setIsPaying(false)
     }
   }
@@ -253,26 +266,22 @@ export default function EggRemainderPage() {
     return (
       <div className="min-h-screen flex items-center justify-center px-6">
         <GlassCard className="p-8 text-center max-w-md">
-          <p className="text-sm text-neutral-600 mb-4">{loadError || 'Kunne ikke hente ordre.'}</p>
+          <p className="text-sm text-neutral-600 mb-4">{loadError || t.eggs.errors.couldNotFetchOrder}</p>
           <Link href="/rugeegg/mine-bestillinger" className="btn-secondary inline-flex justify-center">
-            {language === 'no' ? 'Tilbake' : 'Back'}
+            {t.nav.back}
           </Link>
         </GlassCard>
       </div>
     )
   }
 
-  if (!['deposit_paid', 'fully_paid'].includes(order.status)) {
+  if (!['deposit_paid', 'fully_paid', 'preparing'].includes(order.status)) {
     return (
       <div className="min-h-screen flex items-center justify-center px-6">
         <GlassCard className="p-8 text-center max-w-md">
-          <p className="text-sm text-neutral-600 mb-4">
-            {language === 'no'
-              ? 'Restbetaling er ikke tilgjengelig for denne bestillingen.'
-              : 'Remainder payment is not available for this order.'}
-          </p>
+          <p className="text-sm text-neutral-600 mb-4">{remainderCopy.unavailable}</p>
           <Link href="/rugeegg/mine-bestillinger" className="btn-secondary inline-flex justify-center">
-            {language === 'no' ? 'Tilbake' : 'Back'}
+            {t.nav.back}
           </Link>
         </GlassCard>
       </div>
@@ -284,43 +293,33 @@ export default function EggRemainderPage() {
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-4xl space-y-8">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-4xl font-normal text-neutral-900 mb-2">
-              {language === 'no' ? 'Betal restbeløp' : 'Pay remainder'}
-            </h1>
+            <h1 className="text-4xl font-normal text-neutral-900 mb-2">{remainderCopy.title}</h1>
             <p className="text-neutral-600">
-              {language === 'no' ? `Bestilling ${order.order_number}` : `Order ${order.order_number}`}
+              {remainderCopy.orderLabel.replace('{orderNumber}', order.order_number)}
             </p>
           </div>
           <Link href="/rugeegg/mine-bestillinger" className="text-sm text-neutral-600 hover:text-neutral-900">
-            {language === 'no' ? 'Tilbake' : 'Back'}
+            {t.nav.back}
           </Link>
         </div>
 
         <GlassCard className="p-6 space-y-4">
           <div className="flex flex-wrap justify-between gap-4">
             <div>
-              <p className="text-xs uppercase tracking-[0.2em] text-neutral-500">
-                {language === 'no' ? 'Rase' : 'Breed'}
-              </p>
+              <p className="text-xs uppercase tracking-[0.2em] text-neutral-500">{t.eggs.common.breed}</p>
               <p className="text-lg font-normal text-neutral-900">
-                {order.egg_breeds?.name || (language === 'no' ? 'Rugeegg' : 'Eggs')}
+                {order.egg_breeds?.name || t.eggs.common.fallbackBreed}
               </p>
               <p className="text-sm text-neutral-600">
-                {language === 'no' ? 'Uke' : 'Week'} {order.week_number} -{' '}
-                {formatDate(new Date(order.delivery_monday), language)}
+                {t.eggs.common.week} {order.week_number} - {formatDate(new Date(order.delivery_monday), language)}
               </p>
             </div>
             <div className="text-right">
-              <p className="text-sm text-neutral-500">
-                {language === 'no' ? 'Forskudd betalt (egg)' : 'Deposit paid (eggs)'}
-              </p>
-              <p className="text-lg font-normal text-neutral-900">
-                {formatPrice(order.deposit_amount, language)}
-              </p>
+              <p className="text-sm text-neutral-500">{remainderCopy.depositPaidEggs}</p>
+              <p className="text-lg font-normal text-neutral-900">{formatPrice(order.deposit_amount, language)}</p>
               {order.remainder_due_date && (
                 <p className="text-xs text-neutral-500">
-                  {language === 'no' ? 'Forfallsdato' : 'Due date'}:{' '}
-                  {formatDate(new Date(order.remainder_due_date), language)}
+                  {t.eggs.common.dueDate}: {formatDate(new Date(order.remainder_due_date), language)}
                 </p>
               )}
             </div>
@@ -329,44 +328,34 @@ export default function EggRemainderPage() {
 
         <GlassCard className="p-6 space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-normal text-neutral-900">
-              {language === 'no' ? 'Legg til flere egg (valgfritt)' : 'Add more eggs (optional)'}
-            </h2>
-            <span className="text-xs text-neutral-500">
-              {language === 'no' ? 'Samme sendingsuke' : 'Same shipment week'}
-            </span>
+            <h2 className="text-lg font-normal text-neutral-900">{remainderCopy.addMoreEggsOptional}</h2>
+            <span className="text-xs text-neutral-500">{remainderCopy.sameShipmentWeek}</span>
           </div>
-          {!canAdd && (
-            <p className="text-xs text-neutral-600">
-              {language === 'no'
-                ? 'Tillegg er stengt etter dagen før sending.'
-                : 'Additions are closed after the day before shipment.'}
-            </p>
-          )}
+          {!canAdd && <p className="text-xs text-neutral-600">{remainderCopy.additionsClosed}</p>}
+          {discountEligible && <p className="text-xs text-emerald-700">{remainderCopy.discountToday}</p>}
 
           <div className="space-y-3">
             {inventory.length === 0 && (
-              <p className="text-sm text-neutral-500">
-                {language === 'no' ? 'Ingen tilgjengelige egg for denne uken.' : 'No available eggs for this week.'}
-              </p>
+              <p className="text-sm text-neutral-500">{remainderCopy.noEggsThisWeek}</p>
             )}
 
             {inventory.map((item) => {
               const remaining = item.eggs_remaining ?? (item.eggs_available - item.eggs_allocated)
               const selected = selectedQuantities[item.id] || 0
               const existingQty =
-                order?.egg_order_additions?.find((addition) => addition.inventory_id === item.id)?.quantity || 0
-              const minQty = order?.status === 'fully_paid' ? existingQty : 0
+                order.egg_order_additions?.find((addition) => addition.inventory_id === item.id)?.quantity || 0
+              const minQty = ['fully_paid', 'preparing'].includes(order.status || '') ? existingQty : 0
               const maxQty = Math.max(0, remaining + selected)
               const disabled = maxQty === 0 || !canAdd
+              const basePrice = item.egg_breeds?.price_per_egg || 0
+              const displayPrice = discountEligible ? Math.round(basePrice * 0.7) : basePrice
 
               return (
                 <div key={item.id} className="flex flex-wrap items-center justify-between gap-3 border border-neutral-200 rounded-xl p-4">
                   <div>
                     <p className="font-normal text-neutral-900">{item.egg_breeds?.name}</p>
                     <p className="text-xs text-neutral-500">
-                      {remaining} {language === 'no' ? 'egg igjen' : 'eggs left'} -{' '}
-                      {formatPrice(item.egg_breeds?.price_per_egg || 0, language)} / {language === 'no' ? 'egg' : 'egg'}
+                      {remaining} {remainderCopy.eggsLeft} - {formatPrice(displayPrice, language)} / {t.eggs.common.eggs}
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
@@ -395,48 +384,40 @@ export default function EggRemainderPage() {
         </GlassCard>
 
         <GlassCard className="p-6 space-y-4">
-          <h2 className="text-lg font-normal text-neutral-900">
-            {language === 'no' ? 'Betalingsoversikt' : 'Payment summary'}
-          </h2>
-          <p className="text-sm text-neutral-600">
-            {language === 'no'
-              ? 'Restbeløpet inkluderer pakking og sending.'
-              : 'The remainder includes packing and shipment.'}
-          </p>
+          <h2 className="text-lg font-normal text-neutral-900">{remainderCopy.paymentSummaryTitle}</h2>
+          <p className="text-sm text-neutral-600">{remainderCopy.paymentSummaryDescription}</p>
           <div className="space-y-2 text-sm">
             <div className="flex justify-between text-neutral-600">
-              <span>{language === 'no' ? 'Restbeløp' : 'Remainder'}</span>
+              <span>{t.eggs.common.remainder}</span>
               <span className="font-normal text-neutral-900">{formatPrice(baseRemainder, language)}</span>
             </div>
             {additionsTotal > 0 && (
               <div className="flex justify-between text-neutral-600">
-                <span>{language === 'no' ? 'Tillegg' : 'Additions'}</span>
+                <span>{t.eggs.common.additions}</span>
                 <span className="font-normal text-neutral-900">{formatPrice(additionsTotal, language)}</span>
               </div>
             )}
             {remainderPaidOre > 0 && (
               <div className="flex justify-between text-neutral-600">
-                <span>{language === 'no' ? 'Allerede betalt' : 'Already paid'}</span>
+                <span>{t.eggs.common.alreadyPaid}</span>
                 <span className="font-normal text-neutral-900">{formatPrice(remainderPaidOre, language)}</span>
               </div>
             )}
             <div className="flex justify-between text-neutral-900 text-base pt-2 border-t border-neutral-200">
-              <span className="font-normal">{language === 'no' ? 'Å betale nå' : 'Due now'}</span>
+              <span className="font-normal">{t.eggs.common.dueNow}</span>
               <span className="font-normal">{formatPrice(amountDue, language)}</span>
             </div>
           </div>
 
-          {actionError && (
-            <p className="text-xs text-red-600">{actionError}</p>
-          )}
+          {actionError && <p className="text-xs text-red-600">{actionError}</p>}
 
           <button
             type="button"
             onClick={handlePayment}
             disabled={isPaying || amountDue <= 0}
-            className="btn-primary w-full"
+            className="w-full px-6 py-4 bg-[#FF5B24] text-white rounded-xl text-sm font-light uppercase tracking-wide shadow-[0_20px_60px_-15px_rgba(0,0,0,0.3)] hover:bg-[#E6501F] hover:shadow-[0_30px_80px_-20px_rgba(0,0,0,0.4)] hover:-translate-y-1 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-[0_20px_60px_-15px_rgba(0,0,0,0.3)] flex items-center justify-center gap-2"
           >
-            {language === 'no' ? 'Betal med Vipps' : 'Pay with Vipps'}
+            {t.eggs.common.payWithVipps}
             <ArrowRight className="w-5 h-5" />
           </button>
         </GlassCard>

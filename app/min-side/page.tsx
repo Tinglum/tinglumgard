@@ -181,7 +181,7 @@ export default function CustomerPortalPage() {
                 : 'text-neutral-500 hover:text-neutral-900'
             }`}
           >
-            Meldinger
+            {t.eggs.myOrders.tabMessages}
           </button>
         </div>
 

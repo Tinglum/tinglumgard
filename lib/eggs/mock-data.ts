@@ -126,7 +126,7 @@ export const breeds: Breed[] = [
 ]
 
 /**
- * Generate mock inventory for next 16 weeks
+ * Generate mock inventory through Aug 1, 2026
  * Tuned to show urgency and realistic near-term availability
  */
 export function generateMockInventory(): WeekInventory[] {
@@ -134,7 +134,9 @@ export function generateMockInventory(): WeekInventory[] {
   const currentDate = new Date()
   const currentYear = currentDate.getFullYear()
   const currentWeek = getWeekNumber(currentDate)
-  const weeksToGenerate = 16
+  const endDate = new Date('2026-08-01')
+  const msPerWeek = 7 * 24 * 60 * 60 * 1000
+  const weeksToGenerate = Math.max(0, Math.ceil((endDate.getTime() - currentDate.getTime()) / msPerWeek))
 
   for (let i = 1; i <= weeksToGenerate; i++) {
     const weekNumber = currentWeek + i

@@ -1,8 +1,9 @@
-'use client';
+"use client";
 
 import { cn } from '@/lib/utils';
 import { useTheme } from '@/contexts/ThemeContext';
-import { Check, Circle, Package, CreditCard, Lock, Truck, CheckCircle2 } from 'lucide-react';
+import { useLanguage } from '@/contexts/LanguageContext';
+import { Check, Package, CreditCard, Lock, Truck, CheckCircle2 } from 'lucide-react';
 
 interface OrderStatusTimelineProps {
   status: string;
@@ -17,51 +18,52 @@ export function OrderStatusTimeline({
   depositPaid,
   remainderPaid,
   lockedAt,
-  markedDeliveredAt,
 }: OrderStatusTimelineProps) {
   const { getThemeClasses } = useTheme();
+  const { t } = useLanguage();
   const theme = getThemeClasses();
+
+  const copy = t.orderStatusTimeline;
 
   const steps = [
     {
       key: 'created',
-      label: 'Bestilling opprettet',
+      label: copy.created,
       icon: Package,
-      completed: true, // Always completed if order exists
+      completed: true,
     },
     {
       key: 'deposit',
-      label: 'Forskudd betalt',
+      label: copy.deposit,
       icon: CreditCard,
       completed: depositPaid || status !== 'draft',
     },
     {
       key: 'remainder',
-      label: 'Fullstendig betalt',
+      label: copy.remainder,
       icon: CreditCard,
       completed: remainderPaid || ['paid', 'ready_for_pickup', 'completed'].includes(status),
     },
     {
       key: 'locked',
-      label: 'Ordre låst',
+      label: copy.locked,
       icon: Lock,
       completed: !!lockedAt,
     },
     {
       key: 'ready',
-      label: 'Klar for henting',
+      label: copy.ready,
       icon: Truck,
       completed: ['ready_for_pickup', 'completed'].includes(status),
     },
     {
       key: 'completed',
-      label: 'Fullført',
+      label: copy.completed,
       icon: CheckCircle2,
       completed: status === 'completed',
     },
   ];
 
-  // Find current step
   const currentStepIndex = steps.findIndex((step) => !step.completed);
 
   return (
@@ -76,36 +78,33 @@ export function OrderStatusTimeline({
           return (
             <div key={step.key} className="flex items-center flex-1">
               <div className="flex flex-col items-center relative z-10">
-                {/* Icon circle */}
                 <div
                   className={cn(
                     'flex items-center justify-center w-12 h-12 rounded-full border-2 transition-all mb-2',
                     isCompleted
                       ? 'bg-green-500 border-green-500 text-white'
                       : isCurrent
-                      ? 'bg-white border-blue-500 text-blue-500 animate-pulse'
-                      : 'bg-white border-gray-300 text-gray-400'
+                        ? 'bg-white border-blue-500 text-blue-500 animate-pulse'
+                        : 'bg-white border-gray-300 text-gray-400'
                   )}
                 >
                   {isCompleted ? <Check className="w-6 h-6" /> : <Icon className="w-6 h-6" />}
                 </div>
 
-                {/* Label */}
                 <p
                   className={cn(
                     'text-xs text-center font-medium transition-colors',
                     isCompleted
                       ? theme.textPrimary
                       : isCurrent
-                      ? 'text-blue-600'
-                      : theme.textMuted
+                        ? 'text-blue-600'
+                        : theme.textMuted
                   )}
                 >
                   {step.label}
                 </p>
               </div>
 
-              {/* Connector line */}
               {!isLast && (
                 <div className="flex-1 h-0.5 mx-2 -mt-8">
                   <div

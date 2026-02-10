@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
@@ -91,6 +91,8 @@ function ProductCard({
   pricing: any;
   delay?: number;
 }) {
+  const { t, lang } = useLanguage();
+  const locale = lang === 'no' ? 'nb-NO' : 'en-US';
   const [isVisible, setIsVisible] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
 
@@ -124,7 +126,7 @@ function ProductCard({
         {isFeatured && (
           <div className="absolute -top-3 left-1/2 -translate-x-1/2">
             <span className="inline-block px-4 py-1.5 bg-neutral-900 text-white text-xs uppercase tracking-wider font-bold rounded-full shadow-lg">
-              Mest populær
+              {t.product.mostPopular}
             </span>
           </div>
         )}
@@ -134,7 +136,7 @@ function ProductCard({
           <div className="space-y-3 pb-6 border-b border-neutral-200">
             <MetaLabel>{label}</MetaLabel>
             <h3 className="text-7xl font-light tracking-tight text-neutral-900 tabular-nums">
-              {size} <span className="text-2xl text-neutral-500">kg</span>
+              {size} <span className="text-2xl text-neutral-500">{t.common.kg}</span>
             </h3>
             <p className="text-base text-neutral-600 leading-relaxed">{description}</p>
             <div className="flex items-center gap-3 text-xs text-neutral-500 font-medium">
@@ -149,7 +151,7 @@ function ProductCard({
           {/* Features */}
           <div className="space-y-3">
             <h4 className="text-xs uppercase tracking-wider text-neutral-500 font-semibold">
-              Innhold
+              {t.checkout.inBox}
             </h4>
             <ul className="space-y-2">
               {features.map((feature, i) => (
@@ -165,22 +167,22 @@ function ProductCard({
           <div className="space-y-3 pt-6 border-t border-neutral-200">
             <div className="flex items-baseline justify-between">
               <span className="text-xs uppercase tracking-wider text-neutral-500 font-semibold">
-                Totalpris
+                {t.product.totalPrice}
               </span>
               <span className="text-4xl font-light tracking-tight text-neutral-900 tabular-nums">
-                {price?.toLocaleString('nb-NO')} <span className="text-base text-neutral-500">kr</span>
+                {price?.toLocaleString(locale)} <span className="text-base text-neutral-500">{t.common.currency}</span>
               </span>
             </div>
             <div className="flex items-baseline justify-between text-sm">
-              <span className="text-neutral-600">Forskudd (50%)</span>
+              <span className="text-neutral-600">{t.product.deposit50}</span>
               <span className="text-neutral-900 font-medium tabular-nums">
-                {deposit?.toLocaleString('nb-NO')} kr
+                {deposit?.toLocaleString(locale)} {t.common.currency}
               </span>
             </div>
             <div className="flex items-baseline justify-between text-sm">
-              <span className="text-neutral-600">Ved levering</span>
+              <span className="text-neutral-600">{t.product.balanceOnDelivery}</span>
               <span className="text-neutral-900 font-medium tabular-nums">
-                {balance?.toLocaleString('nb-NO')} kr
+                {balance?.toLocaleString(locale)} {t.common.currency}
               </span>
             </div>
           </div>
@@ -214,8 +216,10 @@ function TimelineStep({
   isOptional?: boolean;
   delay?: number;
 }) {
+  const { t } = useLanguage();
   const [isVisible, setIsVisible] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const [datePrefix, dateValue] = date.split(' ');
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -240,15 +244,15 @@ function TimelineStep({
       style={{ transitionDelay: `${delay}ms` }}
     >
       <div className="flex-shrink-0 w-24 h-24 bg-white border border-neutral-200 rounded-lg flex flex-col items-center justify-center shadow-md transition-all duration-300 hover:shadow-lg hover:-translate-y-1">
-        <span className="text-xs uppercase tracking-wider text-neutral-500 font-semibold">{date.split(' ')[0]}</span>
-        <span className="text-3xl font-light text-neutral-900">{date.split(' ')[1]}</span>
+        <span className="text-xs uppercase tracking-wider text-neutral-500 font-semibold">{datePrefix}</span>
+        <span className="text-3xl font-light text-neutral-900">{dateValue || ''}</span>
       </div>
       <div className="flex-1 pt-3">
         <div className="flex items-center gap-3 mb-3">
           <h3 className="text-3xl font-medium text-neutral-900">{title}</h3>
           {isOptional && (
             <span className="px-3 py-1 bg-neutral-200 text-neutral-600 text-xs uppercase tracking-wider font-semibold rounded-full">
-              Valgfritt
+              {t.timeline.optional}
             </span>
           )}
         </div>
@@ -260,7 +264,7 @@ function TimelineStep({
 }
 
 export default function Page() {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const { getThemeClasses } = useTheme();
   const theme = getThemeClasses();
   const heroStyles = getHeroStyles(theme);
@@ -334,6 +338,48 @@ export default function Page() {
           : pricing.box_12kg_price * pricing.box_12kg_deposit_percentage) / 100
       )
     : null;
+  const locale = lang === 'no' ? 'nb-NO' : 'en-US';
+  const pageCopy = lang === 'no'
+    ? {
+        updatedToday: 'Oppdatert i dag',
+        instagram: 'Instagram',
+        followInstagram: 'Folg oss pa Instagram',
+        instagramDescription: 'Se hverdagen pa garden og oppdateringer gjennom sesongen.',
+        reserveBox: 'Reserver kasse',
+        fromPrice: 'Fra',
+        depositFrom: 'Forskudd fra',
+        deliveryWindow: 'Levering uke 46-48',
+        timelineDate1: 'Jan 26',
+        timelineDate2: 'Uke 46',
+        timelineDate3: 'Uke 48',
+        timelineDate4: 'Uke 50/51',
+        personCount8: '2-3 pers',
+        personCount12: '4-6 pers',
+        meals8: '12-16 maltider',
+        meals12: '20-28 maltider',
+        freezer8: 'Lite fryserom',
+        freezer12: 'Mer fryserom',
+      }
+    : {
+        updatedToday: 'Updated today',
+        instagram: 'Instagram',
+        followInstagram: 'Follow us on Instagram',
+        instagramDescription: 'See everyday life on the farm and season updates.',
+        reserveBox: 'Reserve box',
+        fromPrice: 'From',
+        depositFrom: 'Deposit from',
+        deliveryWindow: 'Delivery weeks 46-48',
+        timelineDate1: 'Jan 26',
+        timelineDate2: 'Week 46',
+        timelineDate3: 'Week 48',
+        timelineDate4: 'Week 50/51',
+        personCount8: '2-3 people',
+        personCount12: '4-6 people',
+        meals8: '12-16 meals',
+        meals12: '20-28 meals',
+        freezer8: 'Less freezer space',
+        freezer12: 'More freezer space',
+      };
 
   // Mobile version - keep existing design
   if (isMobile) {
@@ -372,7 +418,7 @@ export default function Page() {
             <div className="mt-6 grid grid-cols-[auto,1fr] items-end gap-5">
               <div>
                 <p className="text-5xl font-semibold text-[#1E1B16] font-[family:var(--font-playfair)]">
-                  {loading ? "—" : boxesLeft}
+                  {loading ? '--' : boxesLeft}
                 </p>
                 <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-[#6A6258]">
                   {t.availability.boxesAvailable}
@@ -392,8 +438,8 @@ export default function Page() {
                   ))}
                 </div>
                 <div className="flex items-center justify-between text-[11px] text-[#6A6258]">
-                  <span>{loading ? "—" : `${availabilityPercent}%`}</span>
-                  <span>Oppdatert i dag</span>
+                  <span>{loading ? '--' : `${availabilityPercent}%`}</span>
+                  <span>{pageCopy.updatedToday}</span>
                 </div>
               </div>
             </div>
@@ -445,10 +491,10 @@ export default function Page() {
 
         <section className="px-5 py-10">
           <div className="mx-auto max-w-md rounded-[28px] border border-[#E4DED5] bg-white p-6 shadow-[0_18px_40px_rgba(30,27,22,0.12)]">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-[#6A6258]">Instagram</p>
-            <h3 className="mt-2 text-xl font-semibold text-[#1E1B16] font-[family:var(--font-playfair)]">Følg oss på Instagram</h3>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-[#6A6258]">{pageCopy.instagram}</p>
+            <h3 className="mt-2 text-xl font-semibold text-[#1E1B16] font-[family:var(--font-playfair)]">{pageCopy.followInstagram}</h3>
             <p className="mt-2 text-sm text-[#5E5A50]">
-              Se hverdagen på gården og oppdateringer gjennom sesongen.
+              {pageCopy.instagramDescription}
             </p>
             <a
               href="https://www.instagram.com/tinglum.farm"
@@ -464,10 +510,10 @@ export default function Page() {
         <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-[#E4DED5] bg-[#F6F4EF]/95 backdrop-blur">
           <div className="mx-auto flex max-w-md items-center justify-between gap-4 px-5 py-3">
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-[#6A6258]">Reserver kasse</p>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-[#6A6258]">{pageCopy.reserveBox}</p>
               {minPrice && (
                 <p className="text-sm font-semibold text-[#1E1B16]">
-                  Fra {minPrice.toLocaleString('nb-NO')} {t.common.currency}
+                  {pageCopy.fromPrice} {minPrice.toLocaleString(locale)} {t.common.currency}
                 </p>
               )}
             </div>
@@ -516,10 +562,10 @@ export default function Page() {
                 {minPrice && minDeposit && (
                   <div className="flex items-center gap-4 text-base text-neutral-600">
                     <span className="font-medium tabular-nums">
-                      Fra {minPrice.toLocaleString('nb-NO')} {t.common.currency}
+                      {pageCopy.fromPrice} {minPrice.toLocaleString(locale)} {t.common.currency}
                     </span>
                     <span className="w-1 h-1 rounded-full bg-neutral-400" />
-                    <span>Forskudd fra {minDeposit.toLocaleString('nb-NO')} {t.common.currency}</span>
+                    <span>{pageCopy.depositFrom} {minDeposit.toLocaleString(locale)} {t.common.currency}</span>
                   </div>
                 )}
                 <div className="flex items-center gap-4">
@@ -552,7 +598,7 @@ export default function Page() {
                 </span>
                 <span className="flex items-center gap-2">
                   <span className="w-1 h-1 rounded-full bg-neutral-400" />
-                  Levering uke 46–48
+                  {pageCopy.deliveryWindow}
                 </span>
               </div>
 
@@ -583,15 +629,15 @@ export default function Page() {
               features={[
                 t.boxContents.ribbe8kg,
                 t.boxContents.nakkekoteletter8kg,
-                t.boxContents.julepølse8kg,
+                t.boxContents.julepolse8kg,
                 t.boxContents.svinesteik8kg,
                 t.boxContents.medisterfarse8kg,
                 t.boxContents.knoke,
                 t.boxContents.butchersChoice8kg
               ]}
-              personCount="2–3 pers"
-              mealsCount="12–16 måltider"
-              freezerNote="Lite fryserom"
+              personCount={pageCopy.personCount8}
+              mealsCount={pageCopy.meals8}
+              freezerNote={pageCopy.freezer8}
               price={pricing?.box_8kg_price}
               deposit={pricing ? Math.floor(pricing.box_8kg_price * pricing.box_8kg_deposit_percentage / 100) : undefined}
               balance={pricing ? pricing.box_8kg_price - Math.floor(pricing.box_8kg_price * pricing.box_8kg_deposit_percentage / 100) : undefined}
@@ -608,15 +654,15 @@ export default function Page() {
               features={[
                 t.boxContents.ribbe12kg,
                 t.boxContents.nakkekoteletter12kg,
-                t.boxContents.julepølse12kg,
+                t.boxContents.julepolse12kg,
                 t.boxContents.svinesteik12kg,
                 t.boxContents.medisterfarse12kg,
                 t.boxContents.knoke,
                 t.boxContents.butchersChoice12kg
               ]}
-              personCount="4–6 pers"
-              mealsCount="20–28 måltider"
-              freezerNote="Mer fryserom"
+              personCount={pageCopy.personCount12}
+              mealsCount={pageCopy.meals12}
+              freezerNote={pageCopy.freezer12}
               price={pricing?.box_12kg_price}
               deposit={pricing ? Math.floor(pricing.box_12kg_price * pricing.box_12kg_deposit_percentage / 100) : undefined}
               balance={pricing ? pricing.box_12kg_price - Math.floor(pricing.box_12kg_price * pricing.box_12kg_deposit_percentage / 100) : undefined}
@@ -652,7 +698,7 @@ export default function Page() {
             <div className="mt-10 grid grid-cols-1 md:grid-cols-[auto,1fr] items-center gap-10">
               <div className="text-center md:text-left">
                 <div className="text-7xl font-light tracking-tight text-neutral-900 tabular-nums">
-                  {loading ? "—" : boxesLeft}
+                  {loading ? '--' : boxesLeft}
                 </div>
                 <p className="mt-2 text-xs uppercase tracking-wider text-neutral-500 font-semibold">
                   {t.availability.boxesAvailable}
@@ -662,7 +708,7 @@ export default function Page() {
               <div className="space-y-4">
                 <div className="flex items-center justify-between text-xs uppercase tracking-wider text-neutral-500 font-semibold">
                   <span>{t.availability.boxesAvailable}</span>
-                  <span>{loading ? "—" : `${availabilityPercent}%`}</span>
+                  <span>{loading ? '--' : `${availabilityPercent}%`}</span>
                 </div>
                 <div className="grid grid-cols-10 gap-1">
                   {Array.from({ length: availabilitySegments }).map((_, index) => (
@@ -672,7 +718,7 @@ export default function Page() {
                     />
                   ))}
                 </div>
-                <p className="text-sm text-neutral-500">Oppdatert i dag</p>
+                <p className="text-sm text-neutral-500">{pageCopy.updatedToday}</p>
               </div>
             </div>
           </div>
@@ -695,28 +741,28 @@ export default function Page() {
 
           <div className="space-y-12">
             <TimelineStep
-              date="Jan 26"
+              date={pageCopy.timelineDate1}
               title={t.timeline.step1Title}
               description={t.timeline.step1Desc}
               time={t.timeline.step1Time}
               delay={0}
             />
             <TimelineStep
-              date="Uke 46"
+              date={pageCopy.timelineDate2}
               title={t.timeline.step2Title}
               description={t.timeline.step2Desc}
               time={t.timeline.step2Time}
               delay={100}
             />
             <TimelineStep
-              date="Uke 48"
+              date={pageCopy.timelineDate3}
               title={t.timeline.step3Title}
               description={t.timeline.step3Desc}
               time={t.timeline.step3Time}
               delay={200}
             />
             <TimelineStep
-              date="Uke 50/51"
+              date={pageCopy.timelineDate4}
               title={t.timeline.step4Title}
               description={t.timeline.step4Desc}
               time={t.timeline.step4Time}
@@ -813,3 +859,5 @@ export default function Page() {
     </div>
   );
 }
+
+

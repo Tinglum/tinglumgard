@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from 'next/link';
 import { motion } from 'framer-motion';
@@ -17,8 +17,18 @@ const fadeUp = {
 };
 
 export function MobileHero({ isSoldOut, minPrice, minDeposit }: MobileHeroProps) {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
+  const locale = lang === 'no' ? 'nb-NO' : 'en-US';
   const subtitle = t.hero.subtitle || t.hero.description;
+  const mobileCopy = lang === 'no'
+    ? {
+        fromPrice: 'Fra pris',
+        deposit: 'Forskudd',
+      }
+    : {
+        fromPrice: 'From price',
+        deposit: 'Deposit',
+      };
 
   return (
     <section className="relative overflow-hidden px-5 pt-12 pb-12 text-[#1E1B16]">
@@ -65,15 +75,15 @@ export function MobileHero({ isSoldOut, minPrice, minDeposit }: MobileHeroProps)
             className="mt-6 rounded-2xl border border-[#E4DED5] bg-white p-4 shadow-[0_18px_40px_rgba(30,27,22,0.12)]"
           >
             <div className="flex items-center justify-between text-[11px] font-semibold uppercase tracking-[0.25em] text-[#6A6258]">
-              <span>Fra pris</span>
-              <span>Forskudd</span>
+              <span>{mobileCopy.fromPrice}</span>
+              <span>{mobileCopy.deposit}</span>
             </div>
             <div className="mt-3 flex items-end justify-between">
               <div className="text-2xl font-semibold text-[#1E1B16]">
-                {minPrice ? `${minPrice.toLocaleString('nb-NO')} ${t.common.currency}` : '—'}
+                {minPrice ? `${minPrice.toLocaleString(locale)} ${t.common.currency}` : '-'}
               </div>
               <div className="text-sm font-semibold text-[#5E5A50]">
-                {minDeposit ? `${minDeposit.toLocaleString('nb-NO')} ${t.common.currency}` : '—'}
+                {minDeposit ? `${minDeposit.toLocaleString(locale)} ${t.common.currency}` : '-'}
               </div>
             </div>
           </motion.div>
@@ -128,3 +138,4 @@ export function MobileHero({ isSoldOut, minPrice, minDeposit }: MobileHeroProps)
     </section>
   );
 }
+

@@ -2,13 +2,17 @@
 
 import { useState, useEffect } from 'react';
 import { Clock } from 'lucide-react';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface CountdownTimerProps {
   targetDate: Date;
   label?: string;
 }
 
-export function CountdownTimer({ targetDate, label = "Levering i uke 48" }: CountdownTimerProps) {
+export function CountdownTimer({ targetDate, label }: CountdownTimerProps) {
+  const { t } = useLanguage();
+  const copy = t.countdownTimer;
+  const resolvedLabel = label || copy.defaultLabel;
   const [timeLeft, setTimeLeft] = useState({
     days: 0,
     hours: 0,
@@ -50,7 +54,7 @@ export function CountdownTimer({ targetDate, label = "Levering i uke 48" }: Coun
     return (
       <div className="inline-flex items-center gap-2 px-4 py-2 bg-neutral-100 text-neutral-600">
         <Clock className="w-4 h-4" />
-        <span className="text-sm font-medium">{label}</span>
+        <span className="text-sm font-medium">{resolvedLabel}</span>
       </div>
     );
   }
@@ -61,7 +65,7 @@ export function CountdownTimer({ targetDate, label = "Levering i uke 48" }: Coun
     return (
       <div className="inline-flex items-center gap-2 px-4 py-2 bg-green-50 text-green-900 border border-green-200">
         <Clock className="w-4 h-4" />
-        <span className="text-sm font-medium">Leveringstid!</span>
+        <span className="text-sm font-medium">{copy.expired}</span>
       </div>
     );
   }
@@ -70,7 +74,7 @@ export function CountdownTimer({ targetDate, label = "Levering i uke 48" }: Coun
     <div className="inline-flex flex-col gap-2">
       <div className="flex items-center gap-2 text-sm text-neutral-600">
         <Clock className="w-4 h-4" />
-        <span className="font-medium">{label}</span>
+        <span className="font-medium">{resolvedLabel}</span>
       </div>
       <div className="flex gap-2 sm:gap-4">
         <div className="flex flex-col items-center min-w-[3.5rem] px-3 py-2 bg-neutral-900 text-white">
@@ -78,7 +82,7 @@ export function CountdownTimer({ targetDate, label = "Levering i uke 48" }: Coun
             {timeLeft.days}
           </span>
           <span className="text-[10px] sm:text-xs uppercase tracking-wide text-neutral-400">
-            Dager
+            {copy.days}
           </span>
         </div>
         <div className="flex flex-col items-center min-w-[3.5rem] px-3 py-2 bg-neutral-900 text-white">
@@ -86,7 +90,7 @@ export function CountdownTimer({ targetDate, label = "Levering i uke 48" }: Coun
             {timeLeft.hours}
           </span>
           <span className="text-[10px] sm:text-xs uppercase tracking-wide text-neutral-400">
-            Timer
+            {copy.hours}
           </span>
         </div>
         <div className="flex flex-col items-center min-w-[3.5rem] px-3 py-2 bg-neutral-900 text-white">
@@ -94,7 +98,7 @@ export function CountdownTimer({ targetDate, label = "Levering i uke 48" }: Coun
             {timeLeft.minutes}
           </span>
           <span className="text-[10px] sm:text-xs uppercase tracking-wide text-neutral-400">
-            Min
+            {copy.minutes}
           </span>
         </div>
         <div className="flex flex-col items-center min-w-[3.5rem] px-3 py-2 bg-neutral-900 text-white">
@@ -102,7 +106,7 @@ export function CountdownTimer({ targetDate, label = "Levering i uke 48" }: Coun
             {timeLeft.seconds}
           </span>
           <span className="text-[10px] sm:text-xs uppercase tracking-wide text-neutral-400">
-            Sek
+            {copy.seconds}
           </span>
         </div>
       </div>

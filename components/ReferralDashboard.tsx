@@ -4,18 +4,10 @@ import { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import {
-  Users,
-  Gift,
-  Copy,
-  CheckCircle2,
-  AlertCircle,
-  Loader2,
-  Share2,
-} from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { Users, Gift, Copy, CheckCircle2, AlertCircle, Loader2, Share2 } from 'lucide-react';
 import { format } from 'date-fns';
-import { nb } from 'date-fns/locale';
+import { nb, enUS } from 'date-fns/locale';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface ReferralStats {
   totalReferrals: number;
@@ -38,12 +30,15 @@ interface Referral {
 }
 
 export function ReferralDashboard() {
+  const { lang, t } = useLanguage();
+  const locale = lang === 'en' ? 'en-US' : 'nb-NO';
+  const dateLocale = lang === 'en' ? enUS : nb;
+
   const [loading, setLoading] = useState(true);
   const [hasCode, setHasCode] = useState(false);
   const [code, setCode] = useState<string | null>(null);
   const [stats, setStats] = useState<ReferralStats | null>(null);
   const [referrals, setReferrals] = useState<Referral[]>([]);
-
   const [creatingCode, setCreatingCode] = useState(false);
   const [newCodeInput, setNewCodeInput] = useState('');
   const [createError, setCreateError] = useState<string | null>(null);
@@ -71,7 +66,7 @@ export function ReferralDashboard() {
 
   async function handleCreateCode() {
     if (!newCodeInput.trim()) {
-      setCreateError('Vennligst skriv inn en kode');
+      setCreateError(t.referrals.pleaseEnterCode);
       return;
     }
 
@@ -89,18 +84,16 @@ export function ReferralDashboard() {
       });
 
       const data = await response.json();
-
       if (!response.ok) {
-        setCreateError(data.error || 'Kunne ikke opprette kode');
+        setCreateError(data.error || t.referrals.couldNotCreate);
         return;
       }
 
-      // Reload data to show new code
       await loadReferralData();
       setNewCodeInput('');
     } catch (error) {
       console.error('Error creating code:', error);
-      setCreateError('Kunne ikke opprette kode');
+      setCreateError(t.referrals.couldNotCreate);
     } finally {
       setCreatingCode(false);
     }
@@ -116,11 +109,11 @@ export function ReferralDashboard() {
 
   function handleShareCode() {
     if (code) {
-      const shareText = `Bestill ullgris fra Tinglum Gård og få 20% rabatt på forskuddet med min vennerabattkode: ${code}\n\n${window.location.origin}/bestill`;
+      const shareText = `${t.referrals.shareMessage.replace('{code}', code)}\n\n${window.location.origin}/bestill`;
 
       if (navigator.share) {
         navigator.share({
-          title: 'Tinglum Gård - Vennerabatt',
+          title: `${t.footer.farm} - ${t.minSide.referrals}`,
           text: shareText,
         });
       } else {
@@ -146,31 +139,29 @@ export function ReferralDashboard() {
           <div className="flex items-center gap-3 mb-6">
             <Gift className="h-8 w-8 text-green-600" />
             <div>
-              <h2 className="text-2xl font-bold text-gray-900">Opprett vennerabattkode</h2>
-              <p className="text-gray-600">
-                Få 10% kreditt for hver venn som bruker din kode
-              </p>
+              <h2 className="text-2xl font-bold text-gray-900">{t.referrals.createCode}</h2>
+              <p className="text-gray-600">{t.referrals.getCredit}</p>
             </div>
           </div>
 
           <div className="bg-green-50 border border-green-200 rounded-lg p-6 mb-6">
-            <h3 className="font-semibold text-green-900 mb-3">Slik fungerer det:</h3>
+            <h3 className="font-semibold text-green-900 mb-3">{t.referrals.howItWorks}</h3>
             <ul className="space-y-2 text-sm text-green-800">
               <li className="flex items-start gap-2">
                 <CheckCircle2 className="h-5 w-5 flex-shrink-0 mt-0.5" />
-                <span>Dine venner får <strong>20% rabatt</strong> på forskuddet</span>
+                <span>{t.referrals.step1}</span>
               </li>
               <li className="flex items-start gap-2">
                 <CheckCircle2 className="h-5 w-5 flex-shrink-0 mt-0.5" />
-                <span>Du får <strong>10% kreditt</strong> som kan brukes på restbeløpet</span>
+                <span>{t.referrals.step2}</span>
               </li>
               <li className="flex items-start gap-2">
                 <CheckCircle2 className="h-5 w-5 flex-shrink-0 mt-0.5" />
-                <span>Du kan gi rabatt til <strong>5 venner per kasse</strong> du bestiller</span>
+                <span>{t.referrals.step3}</span>
               </li>
               <li className="flex items-start gap-2">
                 <CheckCircle2 className="h-5 w-5 flex-shrink-0 mt-0.5" />
-                <span>Kreditten din kan brukes senere eller på neste ordre</span>
+                <span>{t.referrals.step4}</span>
               </li>
             </ul>
           </div>
@@ -178,20 +169,20 @@ export function ReferralDashboard() {
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Velg din unike kode (4-20 tegn, kun bokstaver og tall)
+                {t.referrals.chooseCode}
               </label>
               <div className="flex gap-2">
                 <Input
                   type="text"
-                  placeholder="f.eks. KENNETH2026"
+                  placeholder={t.referrals.exampleCode}
                   value={newCodeInput}
-                  onChange={(e) => {
-                    setNewCodeInput(e.target.value.toUpperCase());
+                  onChange={(event) => {
+                    setNewCodeInput(event.target.value.toUpperCase());
                     setCreateError(null);
                   }}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') {
+                      event.preventDefault();
                       handleCreateCode();
                     }
                   }}
@@ -199,18 +190,14 @@ export function ReferralDashboard() {
                   maxLength={20}
                   disabled={creatingCode}
                 />
-                <Button
-                  onClick={handleCreateCode}
-                  disabled={creatingCode || !newCodeInput.trim()}
-                  className="px-6"
-                >
+                <Button onClick={handleCreateCode} disabled={creatingCode || !newCodeInput.trim()} className="px-6">
                   {creatingCode ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Oppretter...
+                      {t.referrals.creating}
                     </>
                   ) : (
-                    'Opprett kode'
+                    t.referrals.createButton
                   )}
                 </Button>
               </div>
@@ -229,53 +216,49 @@ export function ReferralDashboard() {
 
   return (
     <div className="space-y-6">
-      {/* Code Display Card */}
       <Card className="p-6">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h2 className="text-xl font-bold text-gray-900">Din vennerabattkode</h2>
-            <p className="text-sm text-gray-600">Del denne koden med venner og familie</p>
+            <h2 className="text-xl font-bold text-gray-900">{t.referrals.yourCode}</h2>
+            <p className="text-sm text-gray-600">{t.referrals.shareCode}</p>
           </div>
           <Gift className="h-8 w-8 text-green-600" />
         </div>
 
         <div className="bg-gradient-to-r from-green-50 to-blue-50 border-2 border-green-200 rounded-lg p-6 mb-4">
           <div className="text-center">
-            <p className="text-sm text-gray-600 mb-2">Din kode:</p>
+            <p className="text-sm text-gray-600 mb-2">{t.referrals.code}</p>
             <p className="text-4xl font-bold text-gray-900 tracking-wider mb-4">{code}</p>
             <div className="flex gap-2 justify-center">
               <Button onClick={handleCopyCode} variant="outline" size="sm">
                 {copied ? (
                   <>
                     <CheckCircle2 className="mr-2 h-4 w-4" />
-                    Kopiert!
+                    {t.referrals.copied}
                   </>
                 ) : (
                   <>
                     <Copy className="mr-2 h-4 w-4" />
-                    Kopier kode
+                    {t.referrals.copyCode}
                   </>
                 )}
               </Button>
               <Button onClick={handleShareCode} variant="outline" size="sm">
                 <Share2 className="mr-2 h-4 w-4" />
-                Del kode
+                {t.referrals.shareButton}
               </Button>
             </div>
           </div>
         </div>
 
-        <p className="text-sm text-gray-600 text-center">
-          Venner får 20% rabatt på forskuddet • Du får 10% kreditt per henvisning
-        </p>
+        <p className="text-sm text-gray-600 text-center">{t.referrals.friendsGet20}</p>
       </Card>
 
-      {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card className="p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">Totale henvisninger</p>
+              <p className="text-sm text-gray-600">{t.referrals.totalReferrals}</p>
               <p className="text-3xl font-bold text-gray-900">{stats?.totalReferrals || 0}</p>
             </div>
             <Users className="h-8 w-8 text-blue-600" />
@@ -285,9 +268,9 @@ export function ReferralDashboard() {
         <Card className="p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">Tilgjengelig kreditt</p>
+              <p className="text-sm text-gray-600">{t.referrals.availableCredit}</p>
               <p className="text-3xl font-bold text-green-600">
-                {stats?.creditsAvailable.toLocaleString('nb-NO')} kr
+                {stats?.creditsAvailable.toLocaleString(locale)} kr
               </p>
             </div>
             <Gift className="h-8 w-8 text-green-600" />
@@ -297,61 +280,51 @@ export function ReferralDashboard() {
         <Card className="p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">Kredittering igjen</p>
-              <p className="text-3xl font-bold text-gray-900">
-                {stats ? stats.maxUses - stats.currentUses : 0}
+              <p className="text-sm text-gray-600">{t.referrals.creditRemaining}</p>
+              <p className="text-3xl font-bold text-gray-900">{stats ? stats.maxUses - stats.currentUses : 0}</p>
+              <p className="text-xs text-gray-500">
+                {t.referrals.of} {stats?.maxUses || 5}
               </p>
-              <p className="text-xs text-gray-500">av {stats?.maxUses || 5}</p>
             </div>
             <CheckCircle2 className="h-8 w-8 text-purple-600" />
           </div>
         </Card>
       </div>
 
-      {/* Unused Bonus Alert */}
       {stats && stats.unusedBonusCount > 0 && (
         <Card className="p-6 bg-yellow-50 border-yellow-200">
           <div className="flex items-start gap-3">
             <AlertCircle className="h-6 w-6 text-yellow-600 flex-shrink-0 mt-0.5" />
             <div>
               <h3 className="font-semibold text-yellow-900 mb-1">
-                Du har {stats.unusedBonusCount} ubrukte bonuser!
+                {t.referrals.unusedBonuses.replace('{count}', stats.unusedBonusCount.toString())}
               </h3>
-              <p className="text-sm text-yellow-800 mb-3">
-                Du har henvist flere venner enn du kan få kreditt for med din nåværende bestilling.
-                Bestill en ekstra kasse for å få 5 flere kredittering.
-              </p>
+              <p className="text-sm text-yellow-800 mb-3">{t.referrals.moreReferrals}</p>
               <Button size="sm" variant="outline" className="bg-white">
-                Bestill ny kasse
+                {t.referrals.orderNew}
               </Button>
             </div>
           </div>
         </Card>
       )}
 
-      {/* Referrals List */}
       {referrals.length > 0 && (
         <Card className="p-6">
-          <h3 className="text-lg font-bold text-gray-900 mb-4">Dine henvisninger</h3>
+          <h3 className="text-lg font-bold text-gray-900 mb-4">{t.referrals.yourReferrals}</h3>
           <div className="space-y-3">
             {referrals.map((referral) => (
-              <div
-                key={referral.id}
-                className="flex items-center justify-between p-4 bg-gray-50 rounded-lg"
-              >
+              <div key={referral.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                 <div className="flex-1">
                   <p className="font-semibold text-gray-900">{referral.name}</p>
                   <p className="text-sm text-gray-600">
-                    {format(new Date(referral.date), 'dd. MMM yyyy', { locale: nb })} • Ordre{' '}
+                    {format(new Date(referral.date), 'dd. MMM yyyy', { locale: dateLocale })} - {t.minSide.orderNo}{' '}
                     {referral.orderNumber}
                   </p>
                 </div>
                 <div className="text-right">
-                  <p className="font-semibold text-green-600">
-                    +{referral.creditAmount.toLocaleString('nb-NO')} kr
-                  </p>
+                  <p className="font-semibold text-green-600">+{referral.creditAmount.toLocaleString(locale)} kr</p>
                   <p className="text-xs text-gray-500">
-                    {referral.creditApplied ? 'Brukt' : 'Tilgjengelig'}
+                    {referral.creditApplied ? t.referrals.used : t.referrals.available}
                   </p>
                 </div>
               </div>

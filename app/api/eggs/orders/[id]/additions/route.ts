@@ -27,16 +27,20 @@ export async function POST(
       return NextResponse.json({ error: 'Order not found' }, { status: 404 })
     }
 
-    if (!['deposit_paid', 'fully_paid'].includes(order.status)) {
+    if (!['fully_paid', 'preparing'].includes(order.status)) {
       return NextResponse.json({ error: 'Order is not eligible for additions' }, { status: 400 })
     }
 
-    const cutoffDate = new Date(order.delivery_monday)
-    cutoffDate.setDate(cutoffDate.getDate() - 1)
-    const today = new Date(new Date().toISOString().split('T')[0])
-    if (today >= cutoffDate) {
+    const now = new Date()
+    const deliveryMondayLocal = new Date(`${order.delivery_monday}T00:00:00`)
+    if (now >= deliveryMondayLocal) {
       return NextResponse.json({ error: 'Additions are closed for this delivery week' }, { status: 400 })
     }
+
+    const dayBeforeStart = new Date(deliveryMondayLocal)
+    dayBeforeStart.setDate(dayBeforeStart.getDate() - 1)
+    const discountEligible = now >= dayBeforeStart && now < deliveryMondayLocal
+    const discountMultiplier = discountEligible ? 0.7 : 1
 
     const { data: remainderPayments } = await supabaseAdmin
       .from('egg_payments')
@@ -183,7 +187,8 @@ export async function POST(
 
     const additionsPayload = additions.map((item) => {
       const inventory = inventoryMap.get(item.inventoryId)
-      const pricePerEgg = inventory?.egg_breeds?.price_per_egg || 0
+      const basePrice = inventory?.egg_breeds?.price_per_egg || 0
+      const pricePerEgg = Math.round(basePrice * discountMultiplier)
       return {
         egg_order_id: order.id,
         breed_id: inventory.breed_id,

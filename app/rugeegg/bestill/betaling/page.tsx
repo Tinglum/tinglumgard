@@ -11,10 +11,11 @@ import { ArrowRight, CreditCard, ShieldCheck } from 'lucide-react'
 
 export default function EggPaymentPage() {
   const router = useRouter()
-  const { lang: language } = useLanguage()
+  const { lang: language, t } = useLanguage()
   const { currentDraft } = useOrder()
   const [isPaying, setIsPaying] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const copy = t.eggs.payment
 
   useEffect(() => {
     if (!currentDraft) {
@@ -29,7 +30,7 @@ export default function EggPaymentPage() {
   if (!currentDraft) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="text-sm text-neutral-500">Laster...</div>
+        <div className="text-sm text-neutral-500">{t.eggs.common.loading}</div>
       </div>
     )
   }
@@ -49,11 +50,7 @@ export default function EggPaymentPage() {
 
   const handlePayment = async () => {
     if (!shippingComplete) {
-      setError(
-        language === 'no'
-          ? 'Leveringsadresse mangler. Gå tilbake og fyll ut adressen.'
-          : 'Shipping address is missing. Go back and complete the address.'
-      )
+      setError(t.eggs.errors.shippingAddressMissing)
       return
     }
 
@@ -86,18 +83,14 @@ export default function EggPaymentPage() {
       const result = await response.json()
 
       if (!response.ok) {
-        throw new Error(result.error || 'Vipps login failed')
+        throw new Error(result.error || t.eggs.errors.vippsLoginFailed)
       }
 
       window.location.href = result.authUrl
-    } catch (error) {
+    } catch (paymentError) {
       setIsPaying(false)
-      console.error('Payment error', error)
-      setError(
-        language === 'no'
-          ? 'Kunne ikke starte Vipps-innlogging. Prøv igjen.'
-          : 'Failed to start Vipps login. Please try again.'
-      )
+      console.error('Payment error', paymentError)
+      setError(t.eggs.errors.vippsLoginFailed)
     }
   }
 
@@ -106,29 +99,17 @@ export default function EggPaymentPage() {
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-4xl space-y-8">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-4xl font-normal text-neutral-900 mb-2">
-              {language === 'no' ? 'Betaling' : 'Payment'}
-            </h1>
+            <h1 className="text-4xl font-normal text-neutral-900 mb-2">{copy.title}</h1>
             <p className="text-neutral-600">
-              {currentDraft.isFullPayment
-                ? language === 'no'
-                  ? 'Betal hele beløpet for å bekrefte bestillingen.'
-                  : 'Pay the full amount to confirm your order.'
-                : language === 'no'
-                  ? 'Betal forskuddet for eggene for å bekrefte bestillingen.'
-                  : 'Pay the deposit for the eggs to confirm your order.'}
+              {currentDraft.isFullPayment ? copy.subtitleFullPayment : copy.subtitleDeposit}
             </p>
           </div>
           <Link href="/rugeegg/bestill/levering" className="text-sm text-neutral-600 hover:text-neutral-900">
-            {language === 'no' ? 'Tilbake til forsendelse' : 'Back to shipment'}
+            {t.eggs.common.backToShipment}
           </Link>
         </div>
 
-        {error && (
-          <GlassCard className="p-4 text-sm text-red-600">
-            {error}
-          </GlassCard>
-        )}
+        {error && <GlassCard className="p-4 text-sm text-red-600">{error}</GlassCard>}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-6">
@@ -139,40 +120,18 @@ export default function EggPaymentPage() {
                 </div>
                 <div>
                   <h2 className="text-lg font-normal text-neutral-900">
-                    {currentDraft.isFullPayment
-                      ? language === 'no'
-                        ? 'Full betaling'
-                        : 'Full payment'
-                      : language === 'no'
-                        ? 'Forskudd'
-                        : 'Deposit'}
+                    {currentDraft.isFullPayment ? copy.fullPaymentTitle : copy.depositTitle}
                   </h2>
                   <p className="text-sm text-neutral-600">
-                    {currentDraft.isFullPayment
-                      ? language === 'no'
-                        ? 'Bestillingen sendes snart, så hele beløpet betales nå.'
-                        : 'The order ships soon, so the full amount is due now.'
-                      : language === 'no'
-                        ? 'Du betaler 50% av eggene nå, resten før sending.'
-                        : 'You pay 50% for the eggs now, the rest before shipment.'}
+                    {currentDraft.isFullPayment ? copy.fullPaymentDescription : copy.depositDescription}
                   </p>
-                  <p className="text-xs text-neutral-500 mt-2">
-                    {language === 'no'
-                      ? 'Forskuddet refunderes ikke. Vi jobber med levende dyr, og bestillingen setter i gang produksjonsplanlegging.'
-                      : 'The deposit is non-refundable. We work with live animals, and the order starts production planning.'}
-                  </p>
+                  <p className="text-xs text-neutral-500 mt-2">{copy.nonRefundableNote}</p>
                 </div>
               </div>
 
               <div className="flex items-center justify-between border-t border-neutral-200 pt-4">
                 <span className="text-sm text-neutral-600">
-                  {currentDraft.isFullPayment
-                    ? language === 'no'
-                      ? 'Å betale nå'
-                      : 'Due now'
-                    : language === 'no'
-                      ? 'Forskudd å betale'
-                      : 'Deposit due'}
+                  {currentDraft.isFullPayment ? copy.dueNow : copy.depositDue}
                 </span>
                 <span className="text-2xl font-normal text-neutral-900">
                   {formatPrice(currentDraft.depositAmount, language)}
@@ -186,14 +145,8 @@ export default function EggPaymentPage() {
                   <ShieldCheck className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-base font-normal text-neutral-900">
-                    {language === 'no' ? 'Trygg betaling' : 'Secure payment'}
-                  </h3>
-                  <p className="text-sm text-neutral-600">
-                    {language === 'no'
-                      ? 'Vi bruker Vipps for raske og sikre betalinger.'
-                      : 'We use Vipps for fast and secure payments.'}
-                  </p>
+                  <h3 className="text-base font-normal text-neutral-900">{copy.securePaymentTitle}</h3>
+                  <p className="text-sm text-neutral-600">{copy.securePaymentDescription}</p>
                 </div>
               </div>
             </GlassCard>
@@ -202,22 +155,20 @@ export default function EggPaymentPage() {
           <div className="lg:col-span-1">
             <div>
               <GlassCard className="p-6 space-y-5">
-                <h2 className="text-lg font-normal text-neutral-900">
-                  {language === 'no' ? 'Bestilling' : 'Order'}
-                </h2>
+                <h2 className="text-lg font-normal text-neutral-900">{copy.orderTitle}</h2>
                 <div className="space-y-2 text-sm text-neutral-600">
                   <div className="flex justify-between">
-                    <span>{language === 'no' ? 'Antall egg' : 'Total eggs'}</span>
+                    <span>{t.eggs.common.totalEggs}</span>
                     <span className="font-normal text-neutral-900">{totalEggs}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span>{language === 'no' ? 'Uke' : 'Week'}</span>
+                    <span>{t.eggs.common.week}</span>
                     <span className="font-normal text-neutral-900">
                       {currentDraft.deliveryWeek.weekNumber}
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span>{language === 'no' ? 'Forsendelse' : 'Shipment'}</span>
+                    <span>{t.eggs.common.shipment}</span>
                     <span className="font-normal text-neutral-900">
                       {formatDate(currentDraft.deliveryWeek.deliveryMonday, language)}
                     </span>
@@ -226,25 +177,30 @@ export default function EggPaymentPage() {
 
                 <div className="border-t border-neutral-200 pt-4 space-y-2 text-sm">
                   <div className="flex justify-between text-neutral-600">
-                    <span>{language === 'no' ? 'Subtotal' : 'Subtotal'}</span>
+                    <span>{t.eggs.common.subtotal}</span>
                     <span className="font-normal text-neutral-900">
                       {formatPrice(currentDraft.subtotal, language)}
                     </span>
                   </div>
                   <div className="flex justify-between text-neutral-600">
-                    <span>{language === 'no' ? 'Pakking og forsendelse' : 'Packing and shipment'}</span>
+                    <span>{copy.packingAndShipment}</span>
                     <span className="font-normal text-neutral-900">
                       {formatPrice(currentDraft.deliveryFee, language)}
                     </span>
                   </div>
                   <div className="flex justify-between text-neutral-900 text-base">
-                    <span>{language === 'no' ? 'Totalt' : 'Total'}</span>
+                    <span>{t.eggs.common.total}</span>
                     <span className="font-normal">{formatPrice(currentDraft.totalAmount, language)}</span>
                   </div>
                 </div>
 
-                <button type="button" onClick={handlePayment} disabled={isPaying} className="btn-primary w-full">
-                  {language === 'no' ? 'Betal med Vipps' : 'Pay with Vipps'}
+                <button
+                  type="button"
+                  onClick={handlePayment}
+                  disabled={isPaying}
+                  className="w-full px-6 py-4 bg-[#FF5B24] text-white rounded-xl text-sm font-light uppercase tracking-wide shadow-[0_20px_60px_-15px_rgba(0,0,0,0.3)] hover:bg-[#E6501F] hover:shadow-[0_30px_80px_-20px_rgba(0,0,0,0.4)] hover:-translate-y-1 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-[0_20px_60px_-15px_rgba(0,0,0,0.3)] flex items-center justify-center gap-2"
+                >
+                  {t.eggs.common.payWithVipps}
                   <ArrowRight className="w-5 h-5" />
                 </button>
               </GlassCard>
@@ -255,5 +211,3 @@ export default function EggPaymentPage() {
     </div>
   )
 }
-
-

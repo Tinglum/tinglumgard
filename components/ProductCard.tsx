@@ -1,10 +1,8 @@
 "use client";
 
 import { useState } from 'react';
-import Link from 'next/link';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { Button } from './ui/button';
-import { Badge } from './ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -22,14 +20,27 @@ interface ProductCardProps {
   href: string;
 }
 
-export function ProductCard({ title, price, depositLabel, remainderLabel, boxesLeft, isLowStock, isSoldOut, href }: ProductCardProps) {
-  const { t } = useLanguage();
+export function ProductCard({
+  title,
+  price,
+  depositLabel,
+  remainderLabel,
+  boxesLeft,
+  isLowStock,
+  isSoldOut,
+  href,
+}: ProductCardProps) {
+  const { t, lang } = useLanguage();
   const { toast } = useToast();
   const [showWaitlistDialog, setShowWaitlistDialog] = useState(false);
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+
+  const locale = lang === 'no' ? 'nb-NO' : 'en-US';
+  const copy = t.productCard;
+
   const totalBoxes = 50;
   const availabilityRatio = totalBoxes > 0 ? Math.min(1, boxesLeft / totalBoxes) : 0;
   const availabilitySegments = 10;
@@ -63,17 +74,17 @@ export function ProductCard({ title, price, depositLabel, remainderLabel, boxesL
       } else {
         const data = await response.json();
         toast({
-          title: 'Feil',
-          description: data.error || 'Noe gikk galt',
-          variant: 'destructive'
+          title: t.common.error,
+          description: data.error || t.checkout.somethingWentWrong,
+          variant: 'destructive',
         });
       }
     } catch (error) {
       console.error('Waitlist error:', error);
       toast({
-        title: 'Feil',
-        description: 'Noe gikk galt. Vennligst prøv igjen.',
-        variant: 'destructive'
+        title: t.common.error,
+        description: t.checkout.somethingWentWrong,
+        variant: 'destructive',
       });
     } finally {
       setIsSubmitting(false);
@@ -102,23 +113,21 @@ export function ProductCard({ title, price, depositLabel, remainderLabel, boxesL
 
       <div className="space-y-8">
         <div className="space-y-3">
-          <h3 className="text-2xl font-medium text-white tracking-tight">
-            {title}
-          </h3>
+          <h3 className="text-2xl font-medium text-white tracking-tight">{title}</h3>
         </div>
 
         <div className="space-y-4 py-6 border-t border-white/10">
           <div className="flex justify-between items-baseline">
-            <span className="text-sm text-[var(--text-secondary)]">Total pris</span>
-            <span className="text-3xl font-medium text-white">kr {price}</span>
+            <span className="text-sm text-[var(--text-secondary)]">{t.product.totalPrice}</span>
+            <span className="text-3xl font-medium text-white">{price.toLocaleString(locale)} {t.common.currency}</span>
           </div>
           <div className="flex justify-between items-baseline text-sm">
             <span className="text-[var(--text-secondary)]">{depositLabel}</span>
-            <span className="text-[var(--text-secondary)]">kr {depositAmount}</span>
+            <span className="text-[var(--text-secondary)]">{depositAmount.toLocaleString(locale)} {t.common.currency}</span>
           </div>
           <div className="flex justify-between items-baseline text-sm">
             <span className="text-[var(--text-secondary)]">{remainderLabel}</span>
-            <span className="text-[var(--text-secondary)]">kr {remainderAmount}</span>
+            <span className="text-[var(--text-secondary)]">{remainderAmount.toLocaleString(locale)} {t.common.currency}</span>
           </div>
         </div>
 
@@ -164,41 +173,39 @@ export function ProductCard({ title, price, depositLabel, remainderLabel, boxesL
       <Dialog open={showWaitlistDialog} onOpenChange={setShowWaitlistDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Skriv deg på venteliste</DialogTitle>
-            <DialogDescription>
-              Vi varsler deg når vi har mer på lager.
-            </DialogDescription>
+            <DialogTitle>{copy.waitlistTitle}</DialogTitle>
+            <DialogDescription>{copy.waitlistDescription}</DialogDescription>
           </DialogHeader>
 
           {submitted ? (
             <div className="py-8 text-center">
-              <p className="text-green-600 font-medium">Takk! Du er nå på ventelisten.</p>
+              <p className="text-green-600 font-medium">{copy.waitlistSuccess}</p>
             </div>
           ) : (
             <form onSubmit={handleWaitlistSubmit} className="space-y-4">
               <div>
-                <Label htmlFor="email">E-post *</Label>
+                <Label htmlFor="email">{copy.emailLabel}</Label>
                 <Input
                   id="email"
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  placeholder="din@epost.no"
+                  placeholder={copy.emailPlaceholder}
                 />
               </div>
               <div>
-                <Label htmlFor="name">Navn (valgfritt)</Label>
+                <Label htmlFor="name">{copy.nameLabel}</Label>
                 <Input
                   id="name"
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="Ditt navn"
+                  placeholder={copy.namePlaceholder}
                 />
               </div>
               <Button type="submit" disabled={isSubmitting} className="w-full">
-                {isSubmitting ? 'Sender...' : 'Meld meg på'}
+                {isSubmitting ? copy.sending : copy.submitWaitlist}
               </Button>
             </form>
           )}

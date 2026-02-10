@@ -1,15 +1,15 @@
-'use client';
+﻿'use client';
 
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { useToast } from '@/hooks/use-toast';
 import {
   Package,
   Calendar,
   MapPin,
   CreditCard,
-  FileText,
   Phone,
   Mail,
   Download,
@@ -76,6 +76,10 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
   const { getThemeClasses } = useTheme();
   const theme = getThemeClasses();
   const { toast } = useToast();
+  const { lang, t } = useLanguage();
+  const locale = lang === 'en' ? 'en-US' : 'nb-NO';
+  const copy = t.orderDetailsCard;
+  const currency = t.common.currency;
 
   const [showExtrasModal, setShowExtrasModal] = useState(false);
   const [showModificationModal, setShowModificationModal] = useState(false);
@@ -83,7 +87,6 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
   const [showContactModal, setShowContactModal] = useState(false);
   const [showTimelineModal, setShowTimelineModal] = useState(false);
   const [addingExtras, setAddingExtras] = useState(false);
-  const [expandedSection, setExpandedSection] = useState<string | null>(null);
   const [reordering, setReordering] = useState(false);
 
   const depositPayment = order.payments?.find((p) => p.payment_type === 'deposit');
@@ -97,7 +100,7 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
   ) || 0;
   const baseRemainder = Math.max(0, order.remainder_amount - extrasTotal);
   const remainderDueDate = new Date('2026-11-16');
-  const formattedDueDate = remainderDueDate.toLocaleDateString('nb-NO', {
+  const formattedDueDate = remainderDueDate.toLocaleDateString(locale, {
     day: 'numeric',
     month: 'long',
     year: 'numeric',
@@ -106,48 +109,54 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
   // Determine next action
   function getNextAction() {
     if (order.status === 'completed') {
-      return { type: 'completed', message: 'Ordren er fullført', color: 'green' };
+      return { type: 'completed', message: copy.nextActionCompleted, color: 'green' };
     }
     if (order.status === 'ready_for_pickup') {
-      return { type: 'ready', message: 'Klar for henting - se detaljer nedenfor', color: 'green' };
+      return { type: 'ready', message: copy.nextActionReady, color: 'green' };
     }
     if (needsRemainderPayment) {
       return {
         type: 'payment',
-        message: `Restbetaling på kr ${order.remainder_amount.toLocaleString('nb-NO')} må betales`,
+        message: copy.nextActionPaymentDue
+          .replace('{currency}', currency)
+          .replace('{amount}', order.remainder_amount.toLocaleString(locale)),
         color: 'amber',
       };
     }
     if (depositPaid && !remainderPaid && order.locked_at) {
       return {
         type: 'locked',
-        message: 'Ordre låst - venter på restbetaling',
+        message: copy.nextActionLocked,
         color: 'amber',
       };
     }
     if (!depositPaid) {
       return {
         type: 'deposit',
-        message: 'Venter på forskuddsbetaling',
+        message: copy.nextActionWaitingDeposit,
         color: 'amber',
       };
     }
-    return { type: 'processing', message: 'Alt er i orden - vi holder deg oppdatert', color: 'blue' };
+    return {
+      type: 'processing',
+      message: copy.nextActionProcessing,
+      color: 'blue',
+    };
   }
 
   const nextAction = getNextAction();
 
   const deliveryTypeLabels: Record<string, string> = {
-    pickup_farm: 'Henting på gård',
-    pickup_e6: 'Henting ved E6',
-    delivery_trondheim: 'Henting i Trondheim',
+    pickup_farm: copy.deliveryTypePickupFarm,
+    pickup_e6: copy.deliveryTypePickupE6,
+    delivery_trondheim: copy.deliveryTypePickupTrondheim,
   };
 
   const ribbeChoiceLabels: Record<string, string> = {
-    tynnribbe: 'Tynnribbe',
-    familieribbe: 'Familieribbe',
-    porchetta: 'Porchetta',
-    butchers_choice: 'Slakterens valg',
+    tynnribbe: copy.ribChoiceTynnribbe,
+    familieribbe: copy.ribChoiceFamilieribbe,
+    porchetta: copy.ribChoicePorchetta,
+    butchers_choice: copy.ribChoiceButchersChoice,
   };
 
   async function handleAddExtras(selectedExtras: { slug: string; quantity: number }[], proceedToPayment = false) {
@@ -161,11 +170,14 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
 
       const data = await response.json().catch(() => null);
       if (!response.ok) {
-        const message = data?.error || 'Failed to update extras';
+        const message = data?.error || copy.updateError;
         throw new Error(message);
       }
       const addedCount = data?.extrasAdded ?? (selectedExtras.length);
-      toast({ title: 'Oppdatert', description: `Oppdatert ekstra produkter (${addedCount}).` });
+      toast({
+        title: copy.updatedTitle,
+        description: copy.updatedExtras.replace('{count}', String(addedCount)),
+      });
 
       setShowExtrasModal(false);
 
@@ -180,8 +192,8 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
     } catch (error: any) {
       console.error('Error adding extras:', error);
       toast({
-        title: 'Feil',
-        description: error?.message || 'Kunne ikke legge til ekstra produkter. Prøv igjen.',
+        title: copy.errorTitle,
+        description: error?.message || copy.addExtrasError,
         variant: 'destructive'
       });
     } finally {
@@ -190,8 +202,7 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
   }
 
   function handleRemainderPayment() {
-    // Navigate directly to payment page where user can select extras inline
-    window.location.href = `/min-side/ordre/${order.id}/betaling`;
+    onPayRemainder(order.id);
   }
 
   function handleExtrasModalClose() {
@@ -216,7 +227,7 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
         body: JSON.stringify(modifications),
       });
 
-      if (!response.ok) throw new Error('Failed to save modifications');
+      if (!response.ok) throw new Error(copy.saveModificationsError);
 
       setShowModificationModal(false);
       onRefresh();
@@ -227,7 +238,7 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
   }
 
   async function handleReorder() {
-    if (!window.confirm('Ønsker du å bestille samme okseboks på nytt?')) {
+    if (!window.confirm(copy.reorderConfirm)) {
       return;
     }
 
@@ -239,19 +250,19 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
         body: JSON.stringify({ orderId: order.id }),
       });
 
-      if (!response.ok) throw new Error('Failed to reorder');
+      if (!response.ok) throw new Error(copy.reorderFailed);
 
       const data = await response.json();
       toast({
-        title: 'Ny ordre opprettet',
-        description: `Ordrenummer: ${data.orderNumber}`
+        title: copy.reorderCreatedTitle,
+        description: copy.reorderCreatedDescription.replace('{orderNumber}', data.orderNumber),
       });
       onRefresh();
     } catch (error) {
       console.error('Error reordering:', error);
       toast({
-        title: 'Feil',
-        description: 'Kunne ikke opprette ny ordre. Prøv igjen.',
+        title: copy.errorTitle,
+        description: copy.reorderFailed,
         variant: 'destructive'
       });
     } finally {
@@ -259,22 +270,16 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
     }
   }
 
-  function toggleSection(section: string) {
-    setExpandedSection(expandedSection === section ? null : section);
-  }
-
   function getEstimatedDeliveryDate() {
-    // Estimate based on status
     if (order.marked_delivered_at) {
-      return new Date(order.marked_delivered_at).toLocaleDateString('nb-NO');
+      return new Date(order.marked_delivered_at).toLocaleDateString(locale);
     }
 
     if (order.status === 'ready_for_pickup') {
-      return 'Klar nå!';
+      return copy.estimatedReadyNow;
     }
 
-    // Default: Week 47-48 of 2026
-    return 'Uke 47-48, 2026';
+    return copy.estimatedWeekRange;
   }
 
   return (
@@ -321,14 +326,14 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
                 onClick={handleRemainderPayment}
                 className="bg-green-600 hover:bg-green-700 text-white"
               >
-                Betal restbeløp
+                {copy.payRemainder}
               </Button>
             )}
           </div>
           {needsRemainderPayment && (
             <div className="mt-3 text-sm text-amber-900">
-              <p>Forfallsdato: {formattedDueDate}</p>
-              <p>Jo tidligere du betaler restbeløpet, jo større er sjansen for ekstra produkter.</p>
+              <p>{copy.dueDate}: {formattedDueDate}</p>
+              <p>{copy.earlyPaymentHint}</p>
             </div>
           )}
         </div>
@@ -355,27 +360,28 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
                   }
                   label={
                     order.status === 'draft'
-                      ? 'Betaling gjenstår'
+                      ? copy.statusPaymentRemaining
                       : order.status === 'deposit_paid'
-                      ? 'Betaling gjenstår'
+                      ? copy.statusPaymentRemaining
                       : order.status === 'paid'
-                      ? 'Betalt'
+                      ? copy.statusPaid
                       : order.status === 'ready_for_pickup'
-                      ? 'Levert'
+                      ? copy.statusDelivered
                       : order.status === 'completed'
-                      ? 'Fullført'
-                      : 'Venter på forskudd'
+                      ? copy.statusCompleted
+                      : copy.statusWaitingDeposit
                   }
                 />
                 {order.locked_at && (
                   <div className="flex items-center gap-1 px-3 py-1 rounded-full bg-gray-100 text-gray-700">
                     <Lock className="w-4 h-4" />
-                    <span className="text-xs font-medium">Låst</span>
+                    <span className="text-xs font-medium">{copy.locked}</span>
                   </div>
                 )}
               </div>
               <p className={cn('text-sm', theme.textMuted)}>
-                Bestilt {new Date(order.created_at).toLocaleDateString('nb-NO', {
+                {copy.ordered}{' '}
+                {new Date(order.created_at).toLocaleDateString(locale, {
                   day: 'numeric',
                   month: 'long',
                   year: 'numeric',
@@ -391,7 +397,7 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
                   theme.textMuted,
                   'hover:bg-black/5'
                 )}
-                title="Last ned kvittering"
+                title={copy.downloadReceipt}
               >
                 <Download className="w-5 h-5" />
               </button>
@@ -402,7 +408,7 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
                   theme.textMuted,
                   'hover:bg-black/5'
                 )}
-                title="Skriv ut"
+                title={copy.print}
               >
                 <Printer className="w-5 h-5" />
               </button>
@@ -422,57 +428,58 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
           <div className={cn('p-4 rounded-xl border', theme.borderSecondary)}>
             <h4 className={cn('font-semibold mb-3 flex items-center gap-2', theme.textPrimary)}>
               <CreditCard className="w-5 h-5" />
-              Betalingsoversikt
+              {copy.paymentSummary}
             </h4>
             <div className="space-y-2">
               <div className="flex justify-between">
-                <span className={theme.textSecondary}>Forskudd ({order.box_size}kg boks)</span>
+                <span className={theme.textSecondary}>
+                  {copy.depositBoxLabel.replace('{size}', String(order.box_size))}</span>
                 <div className="flex items-center gap-2">
                   <span className={cn('font-semibold', theme.textPrimary)}>
-                    kr {depositPaid && depositPayment
-                      ? depositPayment.amount_nok.toLocaleString('nb-NO')
-                      : order.deposit_amount.toLocaleString('nb-NO')}
+                    {currency} {depositPaid && depositPayment
+                      ? depositPayment.amount_nok.toLocaleString(locale)
+                      : order.deposit_amount.toLocaleString(locale)}
                   </span>
                   {depositPaid && <CheckCircle2 className="w-4 h-4 text-green-600" />}
                 </div>
               </div>
               <div className="flex justify-between">
-                <span className={theme.textSecondary}>Restbeløp kasse</span>
+                <span className={theme.textSecondary}>{copy.boxRemainder}</span>
                 <div className="flex items-center gap-2">
                   <span className={cn('font-semibold', theme.textPrimary)}>
-                    kr {baseRemainder.toLocaleString('nb-NO')}
+                    {currency} {baseRemainder.toLocaleString(locale)}
                   </span>
                 </div>
               </div>
               {extrasTotal > 0 && (
                 <div className="flex justify-between">
-                  <span className={theme.textSecondary}>Ekstra produkter</span>
+                  <span className={theme.textSecondary}>{copy.extraProducts}</span>
                   <div className="flex items-center gap-2">
                     <span className={cn('font-semibold', theme.textPrimary)}>
-                      kr {extrasTotal.toLocaleString('nb-NO')}
+                      {currency} {extrasTotal.toLocaleString(locale)}
                     </span>
                   </div>
                 </div>
               )}
               <div className={cn('pt-2 border-t flex justify-between', theme.borderSecondary)}>
-                <span className={theme.textSecondary}>Restbetaling totalt</span>
+                <span className={theme.textSecondary}>{copy.remainderTotal}</span>
                 <div className="flex items-center gap-2">
                   <span className={cn('font-semibold', theme.textPrimary)}>
-                    kr {remainderPaid && remainderPayment
-                      ? remainderPayment.amount_nok.toLocaleString('nb-NO')
-                      : order.remainder_amount.toLocaleString('nb-NO')}
+                    {currency} {remainderPaid && remainderPayment
+                      ? remainderPayment.amount_nok.toLocaleString(locale)
+                      : order.remainder_amount.toLocaleString(locale)}
                   </span>
                   {remainderPaid && <CheckCircle2 className="w-4 h-4 text-green-600" />}
                 </div>
               </div>
               <div className="flex justify-between text-sm text-gray-600">
-                <span>Forfallsdato restbetaling</span>
+                <span>{copy.remainderDueDate}</span>
                 <span>{formattedDueDate}</span>
               </div>
               <div className={cn('pt-2 border-t flex justify-between', theme.borderSecondary)}>
-                <span className={cn('font-bold', theme.textPrimary)}>Totalt</span>
+                <span className={cn('font-bold', theme.textPrimary)}>{copy.total}</span>
                 <span className={cn('font-bold text-xl', theme.textPrimary)}>
-                  kr {order.total_amount.toLocaleString('nb-NO')}
+                  {currency} {order.total_amount.toLocaleString(locale)}
                 </span>
               </div>
             </div>
@@ -482,31 +489,35 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
           <div className={cn('p-4 rounded-xl border', theme.borderSecondary)}>
             <h4 className={cn('font-semibold mb-3 flex items-center gap-2', theme.textPrimary)}>
               <Package className="w-5 h-5" />
-              Bestillingsinnhold
+              {copy.orderContents}
             </h4>
             <div className="space-y-2">
               <div className="flex items-center gap-2">
-                <span className={cn('font-medium', theme.textPrimary)}>{order.box_size}kg Griskasse</span>
+                <span className={cn('font-medium', theme.textPrimary)}>
+                  {copy.porkBoxLabel.replace('{size}', String(order.box_size))}
+                </span>
               </div>
               <div>
-                <span className={theme.textMuted}>Ribbe: </span>
+                <span className={theme.textMuted}>{copy.ribChoice}: </span>
                 <span className={theme.textPrimary}>{ribbeChoiceLabels[order.ribbe_choice] || order.ribbe_choice}</span>
               </div>
               {order.fresh_delivery && (
                 <div className={cn('px-3 py-1 rounded-full bg-blue-50 text-blue-700 text-sm inline-flex items-center')}>
-                  Fersk levering (+kr 200)
+                  {copy.freshDeliveryAddon.replace('{currency}', currency)}
                 </div>
               )}
               {order.extra_products && order.extra_products.length > 0 && (
                 <div className="mt-3 pt-3 border-t">
-                  <p className={cn('text-sm font-medium mb-2', theme.textSecondary)}>Ekstra produkter:</p>
+                  <p className={cn('text-sm font-medium mb-2', theme.textSecondary)}>
+                    {copy.extraProducts}:
+                  </p>
                   <div className="space-y-1">
                     {order.extra_products.map((extra: any, index: number) => (
                       <div key={index} className="flex justify-between text-sm">
                         <span className={theme.textPrimary}>
                           {extra.quantity}x {extra.name}
                         </span>
-                        <span className={theme.textSecondary}>kr {extra.total_price?.toLocaleString('nb-NO')}</span>
+                        <span className={theme.textSecondary}>{currency} {extra.total_price?.toLocaleString(locale)}</span>
                       </div>
                     ))}
                   </div>
@@ -519,7 +530,7 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
                   className="w-full mt-3"
                 >
                   <ShoppingCart className="w-4 h-4 mr-2" />
-                  Legg til ekstra produkter
+                  {copy.addExtraProducts}
                 </Button>
               )}
             </div>
@@ -529,25 +540,25 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
           <div className={cn('p-4 rounded-xl border', theme.borderSecondary)}>
             <h4 className={cn('font-semibold mb-3 flex items-center gap-2', theme.textPrimary)}>
               <MapPin className="w-5 h-5" />
-              Hente-/leveringsinformasjon
+              {copy.deliveryInfo}
             </h4>
             <div className="space-y-2">
               <div>
-                <span className={theme.textMuted}>Type: </span>
+                <span className={theme.textMuted}>{copy.type}: </span>
                 <span className={theme.textPrimary}>{deliveryTypeLabels[order.delivery_type]}</span>
               </div>
               {order.delivery_type === 'pickup_farm' && (
                 <div className={cn('text-sm p-3 rounded-lg bg-blue-50 border border-blue-200', theme.textSecondary)}>
-                  <p className="font-medium text-blue-900 mb-1">Tinglum Gård</p>
-                  <p>Adresse kommer i e-post når ordren er klar</p>
+                  <p className="font-medium text-blue-900 mb-1">{copy.farmName}</p>
+                  <p>{copy.addressByEmail}</p>
                   <p className="mt-2">
-                    <strong>Hva du må ta med:</strong> Kjølebag eller kjøleboks
+                    <strong>{copy.whatToBring}</strong> {copy.bringCooler}
                   </p>
                 </div>
               )}
               {order.notes && (
                 <div className="mt-3">
-                  <p className={cn('text-sm font-medium mb-1', theme.textSecondary)}>Dine notater:</p>
+                  <p className={cn('text-sm font-medium mb-1', theme.textSecondary)}>{copy.yourNotes}</p>
                   <p className={cn('text-sm p-2 rounded bg-gray-50', theme.textPrimary)}>{order.notes}</p>
                 </div>
               )}
@@ -558,7 +569,7 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
           <div className={cn('p-4 rounded-xl border bg-gradient-to-r from-blue-50 to-indigo-50', theme.borderSecondary)}>
             <h4 className={cn('font-semibold mb-4 flex items-center gap-2 text-blue-900')}>
               <MessageSquare className="w-5 h-5" />
-              Ordre-handlinger
+              {copy.orderActions}
             </h4>
             <div className="grid grid-cols-2 gap-3">
               <Button
@@ -567,7 +578,7 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
                 className="w-full justify-start"
               >
                 <CreditCard className="w-4 h-4 mr-2" />
-                Betalingshistorikk
+                {copy.paymentHistory}
               </Button>
               <Button
                 onClick={() => setShowTimelineModal(true)}
@@ -575,7 +586,7 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
                 className="w-full justify-start"
               >
                 <Clock className="w-4 h-4 mr-2" />
-                Ordrehistorikk
+                {copy.orderHistory}
               </Button>
               <Button
                 onClick={() => setShowContactModal(true)}
@@ -583,7 +594,7 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
                 className="w-full justify-start"
               >
                 <MessageSquare className="w-4 h-4 mr-2" />
-                Kontakt oss
+                {copy.contactUs}
               </Button>
               <Button
                 onClick={() => {
@@ -593,17 +604,17 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
                 className="w-full justify-start"
               >
                 <Printer className="w-4 h-4 mr-2" />
-                Skriv ut
+                {copy.print}
               </Button>
             </div>
             <div className="mt-4 pt-4 border-t border-blue-200 space-y-2">
               <div className="flex items-center gap-2 text-blue-700 text-sm">
                 <Mail className="w-4 h-4" />
-                <span>post@tinglum.no</span>
+                <span>{copy.contactEmail}</span>
               </div>
               <div className="flex items-center gap-2 text-blue-700 text-sm">
                 <Phone className="w-4 h-4" />
-                <span>+47 123 45 678</span>
+                <span>{copy.contactPhone}</span>
               </div>
             </div>
           </div>
@@ -613,11 +624,11 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
             <div className={cn('p-4 rounded-xl border bg-purple-50 border-purple-200')}>
               <div className="flex items-center gap-2 text-purple-900 mb-1">
                 <Calendar className="w-5 h-5" />
-                <p className="font-medium">Estimert leveringsdato</p>
+                <p className="font-medium">{copy.estimatedDeliveryDate}</p>
               </div>
               <p className="text-lg font-bold text-purple-900">{getEstimatedDeliveryDate()}</p>
               <p className="text-sm text-purple-700 mt-1">
-                Vi sender varsel når ordren er klar for henting
+                {copy.notifyReady}
               </p>
             </div>
           )}
@@ -628,18 +639,18 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2 text-green-900">
                   <Edit3 className="w-5 h-5" />
-                  <p className="font-medium">Du kan fortsatt endre bestillingen din</p>
+                  <p className="font-medium">{copy.canStillEdit}</p>
                 </div>
               </div>
               <p className="text-sm text-green-700 mb-3">
-                Endringer må gjøres før låsetidspunktet
+                {copy.changesBeforeLock}
               </p>
               <Button
                 onClick={() => setShowModificationModal(true)}
                 className="w-full bg-green-600 hover:bg-green-700"
               >
                 <Edit3 className="w-4 h-4 mr-2" />
-                Endre bestilling
+                {copy.editOrder}
               </Button>
             </div>
           )}
@@ -648,10 +659,10 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
             <div className={cn('p-4 rounded-xl border bg-gray-50 border-gray-200')}>
               <div className="flex items-center gap-2 text-gray-900">
                 <Lock className="w-5 h-5" />
-                <p className="font-medium">Bestillingen er låst</p>
+                <p className="font-medium">{copy.orderLocked}</p>
               </div>
               <p className="text-sm text-gray-700 mt-1">
-                Låst {new Date(order.locked_at).toLocaleDateString('nb-NO')} - ingen flere endringer mulig
+                {copy.locked} {new Date(order.locked_at).toLocaleDateString(locale)} {copy.noMoreChanges}
               </p>
             </div>
           )}
@@ -659,17 +670,17 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
           {/* Reorder Button for Completed Orders */}
           {order.status === 'completed' && (
             <div className={cn('p-4 rounded-xl border bg-blue-50 border-blue-200')}>
-              <p className="font-medium text-blue-900 mb-3">Fornøyd med ordren?</p>
+              <p className="font-medium text-blue-900 mb-3">{copy.happyWithOrder}</p>
               <Button
                 onClick={handleReorder}
                 disabled={reordering}
                 className="w-full bg-blue-600 hover:bg-blue-700"
               >
                 <ShoppingCart className="w-4 h-4 mr-2" />
-                {reordering ? 'Oppretter ordre...' : 'Bestill igjen'}
+                {reordering ? copy.creatingOrder : copy.orderAgain}
               </Button>
               <p className="text-xs text-blue-700 mt-2">
-                Opprett en ny ordre med samme innhold
+                {copy.reorderSameContents}
               </p>
             </div>
           )}
@@ -713,11 +724,11 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
         isOpen={showContactModal}
         onClose={() => setShowContactModal(false)}
         orderNumber={order.order_number}
-        orderDetails={`Boksstørrelse: ${order.box_size}kg
-Ribbevalg: ${order.ribbe_choice}
-Leveringstype: ${order.delivery_type}
-Status: ${order.status}
-Totalbeløp: kr ${order.total_amount.toLocaleString('nb-NO')}`}
+        orderDetails={`${copy.contactDetailsBoxSize}: ${order.box_size}kg
+${copy.contactDetailsRibChoice}: ${ribbeChoiceLabels[order.ribbe_choice] || order.ribbe_choice}
+${copy.contactDetailsDeliveryType}: ${deliveryTypeLabels[order.delivery_type] || order.delivery_type}
+${copy.contactDetailsStatus}: ${order.status}
+${copy.contactDetailsTotalAmount}: ${currency} ${order.total_amount.toLocaleString(locale)}`}
       />
 
       {/* Order Timeline Modal */}
@@ -729,3 +740,4 @@ Totalbeløp: kr ${order.total_amount.toLocaleString('nb-NO')}`}
     </>
   );
 }
+

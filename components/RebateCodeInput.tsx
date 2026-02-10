@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tag, CheckCircle2, XCircle, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface RebateCodeInputProps {
   onCodeApplied: (codeData: {
@@ -29,6 +30,9 @@ export function RebateCodeInput({
   customerEmail,
   className,
 }: RebateCodeInputProps) {
+  const { t, lang } = useLanguage();
+  const locale = lang === 'en' ? 'en-US' : 'nb-NO';
+
   const [code, setCode] = useState('');
   const [isValidating, setIsValidating] = useState(false);
   const [appliedCode, setAppliedCode] = useState<string | null>(null);
@@ -38,7 +42,7 @@ export function RebateCodeInput({
 
   const handleValidate = async () => {
     if (!code.trim()) {
-      setError('Vennligst skriv inn en kode');
+      setError(t.referrals.pleaseEnterCode);
       return;
     }
 
@@ -61,7 +65,7 @@ export function RebateCodeInput({
       const data = await response.json();
 
       if (!response.ok || !data.valid) {
-        setError(data.error || 'Ugyldig kode');
+        setError(data.error || t.referrals.invalidCode);
         return;
       }
 
@@ -75,7 +79,7 @@ export function RebateCodeInput({
       });
     } catch (err) {
       console.error('Error validating code:', err);
-      setError('Kunne ikke validere koden');
+      setError(t.referrals.couldNotValidate);
     } finally {
       setIsValidating(false);
     }
@@ -97,15 +101,19 @@ export function RebateCodeInput({
           <div className="flex items-center gap-3">
             <CheckCircle2 className="h-5 w-5 text-blue-600" />
             <div>
-              <p className="font-semibold text-blue-900">Rabattkode aktivert: {appliedCode}</p>
+              <p className="font-semibold text-blue-900">
+                {t.referrals.codeActivated.replace('{code}', appliedCode)}
+              </p>
               <p className="text-sm text-blue-700">
                 {appliedDescription && `${appliedDescription} - `}
-                Du sparer {appliedDiscount.toLocaleString('nb-NO')} kr
+                {t.referrals.youSave
+                  .replace('{amount}', appliedDiscount.toLocaleString(locale))
+                  .replace('NOK', t.common.currency)}
               </p>
             </div>
           </div>
           <Button variant="ghost" size="sm" onClick={handleRemove}>
-            Fjern
+            {t.referrals.remove}
           </Button>
         </div>
       </div>
@@ -117,14 +125,14 @@ export function RebateCodeInput({
       <div className="flex items-center gap-2">
         <Tag className="h-4 w-4 text-gray-500" />
         <label className="text-sm font-medium text-gray-700">
-          Har du en rabattkode?
+          {t.referrals.haveRebateCode}
         </label>
       </div>
 
       <div className="flex gap-2">
         <Input
           type="text"
-          placeholder="Skriv inn kode"
+          placeholder={t.referrals.enterCode}
           value={code}
           onChange={(e) => {
             setCode(e.target.value.toUpperCase());
@@ -152,10 +160,10 @@ export function RebateCodeInput({
           {isValidating ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Sjekker...
+              {t.referrals.checking}
             </>
           ) : (
-            'Bruk kode'
+            t.referrals.useCode
           )}
         </Button>
       </div>

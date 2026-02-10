@@ -21,9 +21,38 @@ type CalendarCell = {
   week: WeekInventory | null
 }
 
+type WeekSelectorCopy = {
+  weekShort: string
+  weekShortAbbr: string
+  chooseMonth: string
+  through: string
+  weeks: string
+  eggs: string
+  eggShort: string
+  backToMonths: string
+  available: string
+  status: string
+  shipsIn: string
+  days: string
+  dayLabels: string[]
+  statusSoldOut: string
+  statusLowStock: string
+  statusClosed: string
+  statusLocked: string
+  statusAvailable: string
+  statusNotScheduled: string
+}
+
+const END_DATE = new Date('2026-08-01')
+
 export function WeekSelector({ inventory, accentColor, onSelectWeek }: WeekSelectorProps) {
   const { language, t } = useLanguage()
+  const copy = t.eggs.weekSelector as WeekSelectorCopy
   const [activeMonthKey, setActiveMonthKey] = useState<string | null>(null)
+  const endDateLabel = END_DATE.toLocaleDateString(language === 'no' ? 'nb-NO' : 'en-GB', {
+    day: 'numeric',
+    month: 'long',
+  })
 
   const inventoryByDate = useMemo(() => {
     const map = new Map<string, WeekInventory>()
@@ -35,23 +64,31 @@ export function WeekSelector({ inventory, accentColor, onSelectWeek }: WeekSelec
 
   const months = useMemo(() => {
     const now = new Date()
-    return Array.from({ length: 4 }, (_, index) => {
-      const start = new Date(now.getFullYear(), now.getMonth() + index, 1)
+    const startMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+    const endMonth = new Date(END_DATE.getFullYear(), END_DATE.getMonth(), 1)
+    const monthList: { key: string; year: number; month: number; monthDate: Date; totalEggs: number; availableWeeks: number }[] = []
+    const cursor = new Date(startMonth)
+
+    while (cursor <= endMonth) {
+      const start = new Date(cursor.getFullYear(), cursor.getMonth(), 1)
       const year = start.getFullYear()
       const month = start.getMonth()
       const mondays = getMondaysInMonth(year, month)
       const weeks = mondays.map((date) => inventoryByDate.get(dateKey(date)) || null)
       const totalEggs = weeks.reduce((sum, week) => sum + (week?.eggsAvailable || 0), 0)
       const availableWeeks = weeks.filter((week) => week && isWeekAvailable(week)).length
-      return {
+      monthList.push({
         key: `${year}-${month}`,
         year,
         month,
         monthDate: start,
         totalEggs,
         availableWeeks,
-      }
-    })
+      })
+      cursor.setMonth(cursor.getMonth() + 1)
+    }
+
+    return monthList
   }, [inventoryByDate])
 
   const activeMonth = months.find((month) => month.key === activeMonthKey) || null
@@ -61,12 +98,8 @@ export function WeekSelector({ inventory, accentColor, onSelectWeek }: WeekSelec
       {!activeMonth ? (
         <>
           <div className="flex items-center justify-between">
-            <h3 className="text-lg font-display font-semibold text-neutral-900">
-              {language === 'no' ? 'Velg måned' : 'Choose month'}
-            </h3>
-            <span className="text-[11px] text-neutral-500">
-              {language === 'no' ? 'Neste 4 måneder' : 'Next 4 months'}
-            </span>
+            <h3 className="text-lg font-display font-semibold text-neutral-900">{copy.chooseMonth}</h3>
+            <span className="text-[11px] text-neutral-500">{copy.through.replace('{date}', endDateLabel)}</span>
           </div>
 
           <div className="flex gap-3 overflow-x-auto pb-2 snap-x snap-mandatory sm:grid sm:grid-cols-2 sm:gap-3 sm:overflow-visible">
@@ -90,20 +123,18 @@ export function WeekSelector({ inventory, accentColor, onSelectWeek }: WeekSelec
                         {formatMonthTitle(month.monthDate, language)}
                       </div>
                       <div className="text-[10px] text-neutral-400">
-                        {month.availableWeeks}{' '}
-                        {language === 'no' ? 'uker' : 'weeks'} · {month.totalEggs}{' '}
-                        {language === 'no' ? 'egg' : 'eggs'}
+                        {month.availableWeeks} {copy.weeks} - {month.totalEggs} {copy.eggs}
                       </div>
                     </div>
 
                     <div className="grid grid-cols-9 gap-1 text-[9px] text-neutral-400 mb-1">
-                      <div className="text-center">{language === 'no' ? 'Uke' : 'Wk'}</div>
-                      {getDayLabels(language).map((label) => (
+                      <div className="text-center">{copy.weekShortAbbr}</div>
+                      {copy.dayLabels.map((label) => (
                         <div key={label} className="text-center">
                           {label}
                         </div>
                       ))}
-                      <div className="text-center">{language === 'no' ? 'Egg' : 'Eggs'}</div>
+                      <div className="text-center">{copy.eggShort}</div>
                     </div>
 
                     <div className="space-y-1">
@@ -151,7 +182,7 @@ export function WeekSelector({ inventory, accentColor, onSelectWeek }: WeekSelec
                                     rowWeek ? statusPill(rowWeek.status) : 'bg-neutral-100 text-neutral-400'
                                   }`}
                                 >
-                                  {rowWeek?.eggsAvailable ?? 0} {language === 'no' ? 'egg' : 'eggs'}
+                                  {rowWeek?.eggsAvailable ?? 0} {copy.eggs}
                                 </span>
                               </div>
                             </div>
@@ -174,7 +205,7 @@ export function WeekSelector({ inventory, accentColor, onSelectWeek }: WeekSelec
               className="flex items-center gap-2 text-sm font-medium text-neutral-700 hover:text-neutral-900 transition-colors"
             >
               <ChevronLeft className="w-4 h-4" />
-              {language === 'no' ? 'Tilbake til måneder' : 'Back to months'}
+              {copy.backToMonths}
             </button>
             <div className="text-sm font-semibold text-neutral-900">
               {formatMonthTitle(activeMonth.monthDate, language)}
@@ -215,20 +246,21 @@ export function WeekSelector({ inventory, accentColor, onSelectWeek }: WeekSelec
                       {week ? (
                         <div className="flex h-full flex-col justify-between">
                           <div className="text-[10px] font-semibold text-neutral-600">
-                            {language === 'no' ? 'Uke' : 'Week'} {weekNumber ?? ''}
+                            {copy.weekShort} {weekNumber ?? ''}
                           </div>
                           <span
                             className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ${
                               week ? statusPill(week.status) : 'bg-neutral-100 text-neutral-400'
                             }`}
                           >
-                            {week?.eggsAvailable ?? 0} {language === 'no' ? 'egg' : 'eggs'}
+                            {week?.eggsAvailable ?? 0} {copy.eggs}
                           </span>
                           <WeekTooltip
                             week={week}
                             weekNumber={weekNumber}
                             monday={rowMonday}
                             language={language}
+                            copy={copy}
                           />
                         </div>
                       ) : null}
@@ -270,37 +302,38 @@ function WeekTooltip({
   weekNumber,
   monday,
   language,
+  copy,
 }: {
   week: WeekInventory | null
   weekNumber: number | null
   monday: Date | null
   language: Language
+  copy: WeekSelectorCopy
 }) {
   if (!monday) return null
   const sunday = new Date(monday)
   sunday.setDate(monday.getDate() + 6)
-  const statusLabel = getStatusLabel(week?.status || null, language)
+  const statusLabel = getStatusLabel(week?.status || null, copy)
   const eggs = week?.eggsAvailable ?? 0
 
   return (
     <div className="pointer-events-none absolute left-0 top-full z-10 mt-2 w-52 rounded-xl border border-neutral-200 bg-white px-3 py-2 text-[11px] text-neutral-700 opacity-0 shadow-lg transition-opacity group-hover:opacity-100">
       <div className="font-semibold text-neutral-900">
-        {language === 'no' ? 'Uke' : 'Week'} {weekNumber ?? getWeekNumber(monday)}
+        {copy.weekShort} {weekNumber ?? getWeekNumber(monday)}
       </div>
       <div className="text-neutral-500">
         {formatDate(monday, language)} - {formatDate(sunday, language)}
       </div>
       <div className="mt-1 flex items-center justify-between">
-        <span>{language === 'no' ? 'Tilgjengelig' : 'Available'}</span>
+        <span>{copy.available}</span>
         <span className="font-semibold">{eggs}</span>
       </div>
       <div className="mt-1 flex items-center justify-between">
-        <span>{language === 'no' ? 'Status' : 'Status'}</span>
+        <span>{copy.status}</span>
         <span className="font-semibold">{statusLabel}</span>
       </div>
       <div className="mt-1 text-neutral-500">
-        {language === 'no' ? 'Sendes om' : 'Ships in'} {daysUntil(monday)}{' '}
-        {language === 'no' ? 'dager' : 'days'}
+        {copy.shipsIn} {daysUntil(monday)} {copy.days}
       </div>
     </div>
   )
@@ -323,13 +356,13 @@ function statusPill(status: WeekInventory['status']) {
   }
 }
 
-function getStatusLabel(status: WeekInventory['status'] | null, language: Language): string {
-  if (status === 'sold_out') return language === 'no' ? 'Utsolgt' : 'Sold out'
-  if (status === 'low_stock') return language === 'no' ? 'Få igjen' : 'Low stock'
-  if (status === 'closed') return language === 'no' ? 'Stengt' : 'Closed'
-  if (status === 'locked') return language === 'no' ? 'Låst' : 'Locked'
-  if (status === 'available') return language === 'no' ? 'Tilgjengelig' : 'Available'
-  return language === 'no' ? 'Ikke planlagt' : 'Not scheduled'
+function getStatusLabel(status: WeekInventory['status'] | null, copy: WeekSelectorCopy): string {
+  if (status === 'sold_out') return copy.statusSoldOut
+  if (status === 'low_stock') return copy.statusLowStock
+  if (status === 'closed') return copy.statusClosed
+  if (status === 'locked') return copy.statusLocked
+  if (status === 'available') return copy.statusAvailable
+  return copy.statusNotScheduled
 }
 
 function getRowMonday(row: CalendarCell[]): Date | null {
@@ -363,12 +396,6 @@ function getMondaysInMonth(year: number, month: number): Date[] {
   }
 
   return mondays
-}
-
-function getDayLabels(language: Language): string[] {
-  return language === 'no'
-    ? ['Man', 'Tir', 'Ons', 'Tor', 'Fre', 'Lør', 'Søn']
-    : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 }
 
 function formatMonthTitle(date: Date, language: Language): string {

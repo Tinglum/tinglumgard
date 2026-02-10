@@ -14,7 +14,7 @@ import { ShoppingBag, Trash2, Plus, Minus, ArrowRight, Calendar, AlertCircle, Ch
 
 export default function CartPage() {
   const router = useRouter()
-  const { lang: language } = useLanguage()
+  const { lang: language, t } = useLanguage()
   const { items, addToCart, removeFromCart, updateQuantity, getTotalEggs, getTotalPrice, canCheckout, clearCart } = useCart()
   const { startOrder } = useOrder()
 
@@ -84,39 +84,27 @@ export default function CartPage() {
       case 'cart_empty':
         return {
           type: 'info',
-          message: language === 'no' ? 'Handlekurven er tom' : 'Cart is empty',
+          message: t.eggs.cart.cartEmptyMessage,
         }
       case 'ayam_cemani_min_6':
         return {
           type: 'warning',
-          message:
-            language === 'no'
-              ? `Ayam Cemani: minimum 6 egg (du har ${totalEggs})`
-              : `Ayam Cemani: minimum 6 eggs (you have ${totalEggs})`,
+          message: t.eggs.cart.ayamMinimum.replace('{count}', String(totalEggs)),
         }
       case 'single_breed_min_10':
         return {
           type: 'warning',
-          message:
-            language === 'no'
-              ? `Minimum 10 egg for én rase (du har ${totalEggs})`
-              : `Minimum 10 eggs for a single breed (you have ${totalEggs})`,
+          message: t.eggs.cart.singleBreedMinimum.replace('{count}', String(totalEggs)),
         }
       case 'mixed_min_12':
         return {
           type: 'warning',
-          message:
-            language === 'no'
-              ? `Minimum 12 egg totalt når du blander raser (med mindre én rase har 10 egg, Ayam Cemani 6). Du har ${totalEggs}`
-              : `Minimum 12 eggs total when mixing breeds (unless one breed has 10 eggs, Ayam Cemani 6). You have ${totalEggs}`,
+          message: t.eggs.cart.mixedMinimum.replace('{count}', String(totalEggs)),
         }
       case 'mixed_weeks':
         return {
           type: 'warning',
-          message:
-            language === 'no'
-              ? 'Velg egg fra samme uke for én samlet forsendelse.'
-              : 'Choose eggs from the same week for a single shipment.',
+          message: t.eggs.cart.mixedWeeks,
         }
       default:
         return null
@@ -137,10 +125,10 @@ export default function CartPage() {
           {/* Header */}
           <div>
             <h1 className="text-4xl md:text-5xl font-normal tracking-tight text-neutral-900 mb-4 leading-tight">
-              {language === 'no' ? 'Handlekurv' : 'Shopping Cart'}
+              {t.eggs.cart.title}
             </h1>
             <p className="text-lg text-neutral-600">
-              {totalEggs} {language === 'no' ? 'egg' : 'eggs'} • {formatPrice(totalPrice, language)}
+              {totalEggs} {t.eggs.common.eggs} • {formatPrice(totalPrice, language)}
             </p>
           </div>
 
@@ -151,13 +139,13 @@ export default function CartPage() {
                 <ShoppingBag className="w-8 h-8 text-neutral-400" />
               </div>
               <h3 className="text-xl font-normal text-neutral-900 mb-2">
-                {language === 'no' ? 'Handlekurven er tom' : 'Cart is empty'}
+                {t.eggs.cart.emptyTitle}
               </h3>
               <p className="text-neutral-600 mb-6">
-                {language === 'no' ? 'Legg til egg for å komme i gang' : 'Add eggs to get started'}
+                {t.eggs.cart.emptyDescription}
               </p>
               <Link href="/rugeegg/raser" className="btn-primary inline-flex">
-                {language === 'no' ? 'Se raser' : 'View breeds'}
+                {t.eggs.breedsPage.browseBreeds}
                 <ArrowRight className="w-5 h-5" />
               </Link>
             </GlassCard>
@@ -187,7 +175,7 @@ export default function CartPage() {
                           <div className="flex items-center gap-2 text-sm text-neutral-600 mb-4">
                             <Calendar className="w-4 h-4" />
                             <span>
-                              {language === 'no' ? 'Uke' : 'Week'} {item.week.weekNumber} •{' '}
+                              {t.eggs.common.week} {item.week.weekNumber} •{' '}
                               {formatDate(item.week.deliveryMonday, language)}
                             </span>
                           </div>
@@ -218,7 +206,7 @@ export default function CartPage() {
                                 {formatPrice(item.quantity * item.breed.pricePerEgg, language)}
                               </div>
                               <div className="text-xs text-neutral-500">
-                                {formatPrice(item.breed.pricePerEgg, language)} / {language === 'no' ? 'egg' : 'egg'}
+                                {formatPrice(item.breed.pricePerEgg, language)} / {t.eggs.cart.perEgg}
                               </div>
                             </div>
 
@@ -232,8 +220,8 @@ export default function CartPage() {
 
                           {item.quantity < item.breed.minOrderQuantity && (
                             <div className="mt-3 text-xs text-warning-700 bg-warning-50 px-3 py-2 rounded-sm">
-                              {language === 'no' ? 'Minimum' : 'Minimum'}: {item.breed.minOrderQuantity}{' '}
-                              {language === 'no' ? 'egg' : 'eggs'}
+                              {t.eggs.cart.minimum}: {item.breed.minOrderQuantity}{' '}
+                              {t.eggs.common.eggs}
                             </div>
                           )}
                         </div>
@@ -248,22 +236,22 @@ export default function CartPage() {
                 <div>
                   <GlassCard className="p-6 space-y-6">
                     <h2 className="text-lg font-normal text-neutral-900">
-                      {language === 'no' ? 'Sammendrag' : 'Summary'}
+                      {t.eggs.common.summary}
                     </h2>
 
                     <div className="space-y-3">
                       <div className="flex justify-between text-sm">
-                        <span className="text-neutral-600">{language === 'no' ? 'Antall egg' : 'Total eggs'}:</span>
+                        <span className="text-neutral-600">{t.eggs.common.totalEggs}:</span>
                         <span className="font-normal text-neutral-900">{totalEggs}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-neutral-600">{language === 'no' ? 'Subtotal' : 'Subtotal'}:</span>
+                        <span className="text-neutral-600">{t.eggs.common.subtotal}:</span>
                         <span className="text-xl font-normal text-neutral-900">
                           {formatPrice(totalPrice, language)}
                         </span>
                       </div>
                       <p className="text-xs text-neutral-500">
-                        + {language === 'no' ? 'forsendelse beregnes i neste steg' : 'shipping calculated in next step'}
+                        + {t.eggs.cart.shippingCalculatedNext}
                       </p>
                     </div>
 
@@ -293,7 +281,7 @@ export default function CartPage() {
                         onClick={() => setShowMixModal(true)}
                         className="btn-secondary w-full justify-center"
                       >
-                        {language === 'no' ? 'Legg til flere egg' : 'Add more eggs'}
+                        {t.eggs.cart.addMoreEggs}
                       </button>
                     )}
 
@@ -301,7 +289,7 @@ export default function CartPage() {
                       <div className="p-4 rounded-xl bg-success-50 text-success-700 flex items-start gap-3">
                         <CheckCircle2 className="w-5 h-5 flex-shrink-0 mt-0.5" />
                         <p className="text-sm">
-                          {language === 'no' ? 'Klar for betaling!' : 'Ready for checkout!'}
+                          {t.eggs.cart.readyForCheckout}
                         </p>
                       </div>
                     )}
@@ -310,9 +298,7 @@ export default function CartPage() {
                       <div className="p-4 rounded-xl bg-info-50 text-info-700 flex items-start gap-3">
                         <Info className="w-5 h-5 flex-shrink-0 mt-0.5" />
                         <p className="text-sm">
-                          {language === 'no'
-                            ? 'Du kan endre antall per rase når som helst. Bestillingen går videre når alle kravene er oppfylt.'
-                            : 'You can adjust quantities anytime. The order proceeds when all requirements are met.'}
+                          {t.eggs.cart.mixedInfo}
                         </p>
                       </div>
                     )}
@@ -322,12 +308,12 @@ export default function CartPage() {
                       disabled={!checkoutStatus.allowed}
                       className="btn-primary w-full"
                     >
-                      {language === 'no' ? 'Gå til kassen' : 'Go to checkout'}
+                      {t.eggs.cart.goToCheckout}
                       <ArrowRight className="w-5 h-5" />
                     </button>
 
                     <Link href="/rugeegg/raser" className="btn-secondary w-full justify-center">
-                      {language === 'no' ? 'Fortsett å handle' : 'Continue shopping'}
+                      {t.eggs.cart.continueShopping}
                     </Link>
                   </GlassCard>
                 </div>
@@ -343,19 +329,17 @@ export default function CartPage() {
             <div className="flex items-start justify-between gap-4 mb-6">
               <div>
                 <h2 className="text-lg font-normal text-neutral-900">
-                  {language === 'no' ? 'Bygg en blandet bestilling' : 'Build a mixed order'}
+                  {t.eggs.cart.mixedOrderTitle}
                 </h2>
                 <p className="text-sm text-neutral-600">
-                  {language === 'no'
-                    ? 'Legg til egg fra flere raser for å nå minimum 12 egg.'
-                    : 'Add eggs from other breeds to reach the 12-egg minimum.'}
+                  {t.eggs.cart.mixedOrderDescription}
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => setShowMixModal(false)}
                 className="p-2 rounded-full text-neutral-500 hover:text-neutral-900 hover:bg-neutral-100 transition-colors"
-                aria-label="Close"
+                aria-label={t.eggs.common.close}
               >
                 <X className="w-5 h-5" />
               </button>
@@ -375,7 +359,7 @@ export default function CartPage() {
                     <div>
                       <p className="text-sm font-medium text-neutral-900">{option.breed.name}</p>
                       <p className="text-xs text-neutral-500">
-                        {language === 'no' ? 'Igjen denne uken' : 'Left this week'}: {maxAvailable}
+                        {t.eggs.cart.leftThisWeek}: {maxAvailable}
                       </p>
                     </div>
                     <div className="flex items-center gap-3">
@@ -404,7 +388,7 @@ export default function CartPage() {
 
             <div className="mt-6 flex flex-col sm:flex-row gap-3">
               <button type="button" onClick={() => setShowMixModal(false)} className="btn-primary w-full">
-                {language === 'no' ? 'Ferdig' : 'Done'}
+                {t.eggs.cart.done}
               </button>
             </div>
           </GlassCard>
@@ -413,3 +397,4 @@ export default function CartPage() {
     </div>
   )
 }
+

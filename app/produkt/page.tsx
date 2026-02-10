@@ -1,10 +1,8 @@
 "use client";
 
-import { useLanguage } from '@/contexts/LanguageContext';
-import { Button } from '@/components/ui/button';
 import Link from 'next/link';
+import { useLanguage } from '@/contexts/LanguageContext';
 
-// Reusable Meta Label Component
 function MetaLabel({ children }: { children: React.ReactNode }) {
   return (
     <div className="text-xs uppercase tracking-wide text-neutral-500 font-medium">
@@ -13,20 +11,19 @@ function MetaLabel({ children }: { children: React.ReactNode }) {
   );
 }
 
-// Content Card Component - Refined Nordic Design
 function ContentCard({
   category,
-  items
+  items,
 }: {
   category: string;
-  items: string[]
+  items: string[];
 }) {
   return (
     <div className="group bg-white border border-neutral-200 rounded-xl p-8 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.08)] transition-all duration-500 hover:shadow-[0_30px_80px_-20px_rgba(0,0,0,0.12)] hover:-translate-y-1">
       <MetaLabel>{category}</MetaLabel>
       <ul className="mt-6 space-y-4">
-        {items.map((detail, i) => (
-          <li key={i} className="text-base font-light leading-relaxed text-neutral-700 flex items-start gap-3">
+        {items.map((detail, index) => (
+          <li key={index} className="text-base font-light leading-relaxed text-neutral-700 flex items-start gap-3">
             <span className="w-1.5 h-1.5 rounded-full bg-neutral-400 mt-2.5 flex-shrink-0" />
             <span>{detail}</span>
           </li>
@@ -36,19 +33,21 @@ function ContentCard({
   );
 }
 
-// Disabled Addon Row - Visually Recessive
 function DisabledAddonRow({
   label,
-  price
+  price,
 }: {
   label: string;
-  price: number
+  price: number;
 }) {
+  const { t, lang } = useLanguage();
+  const locale = lang === 'no' ? 'nb-NO' : 'en-US';
+
   return (
     <div className="flex items-center justify-between py-5 border-b border-neutral-100 last:border-b-0">
       <span className="text-sm font-light text-neutral-400 leading-relaxed">{label}</span>
       <span className="text-sm font-light text-neutral-400 tabular-nums">
-        {price > 0 ? `kr ${price}` : 'Gratis'}
+        {price > 0 ? `${price.toLocaleString(locale)} ${t.common.currency}` : t.common.free}
       </span>
     </div>
   );
@@ -56,13 +55,14 @@ function DisabledAddonRow({
 
 export default function ProductPage() {
   const { t } = useLanguage();
+  const copy = t.productPage;
 
   const contents = [
-    { category: t.productDetail.categories.ribbe, items: ['2-3 kg ribbe, vakuumpakket'] },
-    { category: t.productDetail.categories.sausages, items: ['1 kg pølser, frosset'] },
-    { category: t.productDetail.categories.bacon, items: ['500g bacon, skiver'] },
-    { category: t.productDetail.categories.chops, items: ['1.5 kg nakkekoteletter'] },
-    { category: t.productDetail.categories.stew, items: ['1-2 kg kokkekutt'] },
+    { category: t.productDetail.categories.ribbe, items: [copy.ribbeItem] },
+    { category: t.productDetail.categories.sausages, items: [copy.sausageItem] },
+    { category: t.productDetail.categories.bacon, items: [copy.baconItem] },
+    { category: t.productDetail.categories.chops, items: [copy.chopsItem] },
+    { category: t.productDetail.categories.stew, items: [copy.stewItem] },
   ];
 
   const addons = [
@@ -73,20 +73,17 @@ export default function ProductPage() {
 
   return (
     <div className="min-h-screen bg-white py-20">
-      {/* Subtle parallax background */}
       <div className="fixed inset-0 pointer-events-none -z-10">
         <div
           className="absolute top-1/3 right-1/4 w-[800px] h-[800px] rounded-full blur-3xl opacity-20 bg-neutral-100"
           style={{
             transform: `translateY(${typeof window !== 'undefined' ? window.scrollY * 0.1 : 0}px)`,
-            transition: 'transform 0.05s linear'
+            transition: 'transform 0.05s linear',
           }}
         />
       </div>
 
       <div className="max-w-4xl mx-auto px-6 lg:px-8">
-
-        {/* Subtle Back Navigation */}
         <div className="mb-12">
           <Link
             href="/"
@@ -100,10 +97,8 @@ export default function ProductPage() {
         </div>
 
         <div className="space-y-16">
-
-          {/* Page Title Section - Clean, Refined Typography */}
           <header className="space-y-4 border-b border-neutral-200 pb-12">
-            <MetaLabel>Produkt</MetaLabel>
+            <MetaLabel>{copy.productLabel}</MetaLabel>
             <h1 className="text-5xl font-light tracking-tight text-neutral-900">
               {t.productDetail.title}
             </h1>
@@ -112,10 +107,9 @@ export default function ProductPage() {
             </p>
           </header>
 
-          {/* Content Grid - Calm, Operational */}
           <section className="space-y-8">
             <h2 className="text-3xl font-light text-neutral-900">
-              Innhold i pakken
+              {copy.packageContents}
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {contents.map((item, index) => (
@@ -128,7 +122,6 @@ export default function ProductPage() {
             </div>
           </section>
 
-          {/* Addons Section - Visually Recessive When Disabled */}
           <section className="space-y-8 border-t border-neutral-200 pt-16">
             <div className="space-y-3">
               <h2 className="text-3xl font-light text-neutral-900">
@@ -152,7 +145,6 @@ export default function ProductPage() {
             </div>
           </section>
 
-          {/* Primary CTA - Clear Hierarchy */}
           <div className="flex justify-center pt-16 border-t border-neutral-200">
             <Link
               href="/bestill"
@@ -161,7 +153,6 @@ export default function ProductPage() {
               {t.product.orderNow}
             </Link>
           </div>
-
         </div>
       </div>
     </div>

@@ -91,6 +91,7 @@ function buildForfeitHtml(params: {
 
 function buildDayBeforeHtml(params: {
   customerName: string
+  orderId: string
   orderNumber: string
   breedName: string
   weekNumber: number
@@ -116,9 +117,9 @@ function buildDayBeforeHtml(params: {
       <div class="title">Levering i morgen</div>
       <p>Hei ${params.customerName},</p>
       <p class="muted">Bestilling ${params.orderNumber} � ${params.breedName} � Uke ${params.weekNumber}</p>
-      <p>Rugeeggene sendes i morgen. Du finner bestillingen p� Min side.</p>
+      <p>Rugeeggene sendes i morgen. Du kan legge til ekstra egg i dag med 30% rabatt, sa lenge lageret rekker.</p>
       <p>
-        <a class="button" href="${params.appUrl}/rugeegg/mine-bestillinger">G� til Min side</a>
+        <a class="button" href="${params.appUrl}/rugeegg/mine-bestillinger/${params.orderId}/betaling">Legg til egg i dag</a>
       </p>
     </div>
   </div>
@@ -331,6 +332,7 @@ export async function GET(request: NextRequest) {
           subject: `Levering i morgen - ${order.order_number}`,
           html: buildDayBeforeHtml({
             customerName: order.customer_name,
+            orderId: order.id,
             orderNumber: order.order_number,
             breedName: resolveBreedName(order.egg_breeds),
             weekNumber: order.week_number,

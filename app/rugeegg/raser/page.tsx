@@ -12,6 +12,7 @@ import type { Breed } from '@/lib/eggs/types'
 
 export default function BreedsPage() {
   const { lang: language, t } = useLanguage()
+  const loadBreedsError = t.eggs.errors.loadBreeds
   const [breeds, setBreeds] = useState<Breed[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -27,7 +28,7 @@ export default function BreedsPage() {
       } catch (err) {
         if (!isActive) return
         console.error('Failed to load breeds', err)
-        setError(language === 'no' ? 'Kunne ikke laste raser.' : 'Failed to load breeds.')
+        setError(loadBreedsError)
       } finally {
         if (isActive) setIsLoading(false)
       }
@@ -36,7 +37,7 @@ export default function BreedsPage() {
     return () => {
       isActive = false
     }
-  }, [language])
+  }, [language, loadBreedsError])
 
   return (
     <div className="min-h-screen py-12">
@@ -50,9 +51,7 @@ export default function BreedsPage() {
             {t.nav.breeds}
           </h1>
           <p className="text-lg text-neutral-600 mb-12 leading-normal max-w-prose">
-            {language === 'no'
-              ? 'Fire unike raser med distinkte egenskaper. Alle hønsene våre går fritt og fôres med økologisk fôr.'
-              : 'Four unique breeds with distinctive characteristics. All our chickens are free-range and fed organic feed.'}
+            {t.eggs.breedsPage.subtitle}
           </p>
 
           {error && <div className="text-sm text-red-600 mb-6">{error}</div>}
@@ -60,7 +59,7 @@ export default function BreedsPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {isLoading && (
               <div className="col-span-full text-sm text-neutral-500">
-                {language === 'no' ? 'Laster raser…' : 'Loading breeds…'}
+                {t.eggs.common.loadingBreeds}
               </div>
             )}
             {breeds.map((breed, index) => (
@@ -124,3 +123,5 @@ export default function BreedsPage() {
     </div>
   )
 }
+
+

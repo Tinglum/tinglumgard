@@ -59,7 +59,7 @@ export function Header() {
             <Link
               href="/rugeegg/handlekurv"
               className="relative p-2 text-neutral-700 hover:text-neutral-900 rounded hover:bg-neutral-100 transition-all focus-ring"
-              aria-label={language === 'no' ? 'Handlekurv' : 'Shopping cart'}
+              aria-label={t.eggs.common.cartAria}
             >
               <ShoppingBag className="w-5 h-5" />
               {totalEggs > 0 && (
@@ -73,7 +73,7 @@ export function Header() {
             <button
               onClick={() => setLanguage(language === 'no' ? 'en' : 'no')}
               className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-neutral-700 hover:text-neutral-900 rounded hover:bg-neutral-100 transition-all focus-ring"
-              aria-label="Toggle language"
+              aria-label={t.eggs.common.toggleLanguageAria}
             >
               <Globe className="w-4 h-4" />
               <span className="uppercase text-xs tracking-wider">{language}</span>

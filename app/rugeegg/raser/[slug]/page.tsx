@@ -20,6 +20,7 @@ export default function BreedDetailPage() {
   const router = useRouter()
   const slug = params.slug as string
   const { lang: language, t } = useLanguage()
+  const loadBreedError = t.eggs.errors.loadBreed
   const { startOrder } = useOrder()
   const { items, addToCart, clearCart } = useCart()
 
@@ -45,7 +46,7 @@ export default function BreedDetailPage() {
       } catch (err) {
         if (!isActive) return
         console.error('Failed to load breed', err)
-        setError(language === 'no' ? 'Kunne ikke laste rase.' : 'Failed to load breed.')
+        setError(loadBreedError)
       } finally {
         if (isActive) setIsLoading(false)
       }
@@ -56,7 +57,7 @@ export default function BreedDetailPage() {
     return () => {
       isActive = false
     }
-  }, [slug, language])
+  }, [slug, language, loadBreedError])
 
   useEffect(() => {
     if (selectedWeek || showQuantityModal || inventory.length === 0) return
@@ -70,7 +71,7 @@ export default function BreedDetailPage() {
     return (
       <div className="min-h-screen py-12 flex items-center justify-center">
         <div className="text-sm text-neutral-500">
-          {language === 'no' ? 'Laster rase…' : 'Loading breed…'}
+          {t.eggs.common.loadingBreed}
         </div>
       </div>
     )
@@ -81,10 +82,10 @@ export default function BreedDetailPage() {
       <div className="min-h-screen py-12 flex items-center justify-center">
         <div className="text-center">
           <h1 className="text-2xl font-normal text-neutral-900 mb-2">
-            {error || (language === 'no' ? 'Rase ikke funnet' : 'Breed not found')}
+            {error || t.eggs.breedsPage.breedNotFound}
           </h1>
           <Link href="/rugeegg/raser" className="text-neutral-600 hover:text-neutral-900">
-            {language === 'no' ? 'Tilbake til raser' : 'Back to breeds'}
+            {t.eggs.common.backToBreeds}
           </Link>
         </div>
       </div>
@@ -189,7 +190,7 @@ export default function BreedDetailPage() {
             <GlassCard className="p-6 mb-6">
               <div className="flex items-end justify-between mb-2">
                 <div>
-                  <div className="text-sm text-neutral-600 mb-1">{language === 'no' ? 'Pris per egg' : 'Price per egg'}</div>
+                  <div className="text-sm text-neutral-600 mb-1">{t.eggs.breedsPage.pricePerEgg}</div>
                   <div className="text-3xl font-normal text-neutral-900">
                     {formatPrice(breed.pricePerEgg, language)}
                   </div>
@@ -293,19 +294,17 @@ export default function BreedDetailPage() {
               </div>
               <div>
                 <h2 className="text-lg font-normal text-neutral-900">
-                  {language === 'no' ? 'Du har en aktiv bestilling' : 'You have an active order'}
+                  {t.eggs.activeOrderPrompt.title}
                 </h2>
                 <p className="text-sm text-neutral-600">
-                  {language === 'no'
-                    ? 'Vil du legge flere egg til samme bestilling og uke?'
-                    : 'Do you want to add more eggs to the same order and week?'}
+                  {t.eggs.activeOrderPrompt.description}
                 </p>
               </div>
             </div>
             {items.length > 0 && (
               <div className="mb-5 rounded-xl border border-neutral-200 bg-white/70 p-4 text-sm text-neutral-700">
                 <div className="font-medium text-neutral-900 mb-2">
-                  {language === 'no' ? 'Aktiv uke' : 'Active week'}:{' '}
+                  {t.eggs.activeOrderPrompt.activeWeek}:{' '}
                   {items[0].week.weekNumber} · {formatDate(items[0].week.deliveryMonday, language)}
                 </div>
                 <div className="space-y-1">
@@ -313,9 +312,9 @@ export default function BreedDetailPage() {
                     <div key={`${item.breed.id}-${item.week.id}`} className="flex items-center justify-between">
                       <span>{item.breed.name}</span>
                       <span className="text-neutral-600">
-                        {language === 'no'
-                          ? `${item.quantity} egg i bestillingen · ${item.week.eggsAvailable} igjen`
-                          : `${item.quantity} eggs in order · ${item.week.eggsAvailable} left`}
+                        {t.eggs.activeOrderPrompt.eggsInOrderAndLeft
+                          .replace('{inOrder}', String(item.quantity))
+                          .replace('{left}', String(item.week.eggsAvailable))}
                       </span>
                     </div>
                   ))}
@@ -324,10 +323,10 @@ export default function BreedDetailPage() {
             )}
             <div className="flex flex-col sm:flex-row gap-3">
               <button type="button" onClick={handleContinueExistingOrder} className="btn-primary w-full">
-                {language === 'no' ? 'Ja, fortsett' : 'Yes, continue'}
+                {t.eggs.activeOrderPrompt.yesContinue}
               </button>
               <button type="button" onClick={handleStartNewOrder} className="btn-secondary w-full">
-                {language === 'no' ? 'Nei, ny bestilling' : 'No, new order'}
+                {t.eggs.activeOrderPrompt.noNewOrder}
               </button>
             </div>
           </GlassCard>

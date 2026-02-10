@@ -13,38 +13,27 @@ const deliveryOptions = [
   {
     id: 'posten' as const,
     icon: Truck,
-    titleNo: 'Sending med Posten',
-    titleEn: 'Posten shipment',
-    descriptionNo: 'Sendes trygt med Posten til nærmeste hentested.',
-    descriptionEn: 'Shipped with Posten to your nearest pickup point.',
     fee: 30000,
     recommended: true,
   },
   {
     id: 'farm_pickup' as const,
     icon: Store,
-    titleNo: 'Henting på gården',
-    titleEn: 'Farm pickup',
-    descriptionNo: 'Hent på Tinglum gård etter avtale.',
-    descriptionEn: 'Pick up at Tinglum farm by appointment.',
     fee: 0,
   },
   {
     id: 'e6_pickup' as const,
     icon: MapPin,
-    titleNo: 'E6 møtepunkt',
-    titleEn: 'E6 pickup point',
-    descriptionNo: 'Avhenting ved avtalt møtepunkt langs E6.',
-    descriptionEn: 'Pickup at an agreed E6 meeting point.',
     fee: 20000,
   },
 ]
 
 export default function EggDeliveryPage() {
   const router = useRouter()
-  const { lang: language } = useLanguage()
+  const { lang: language, t } = useLanguage()
   const { currentDraft, setDeliveryMethod, setShippingDetails } = useOrder()
   const [showAddressError, setShowAddressError] = useState(false)
+  const copy = t.eggs.delivery
 
   useEffect(() => {
     if (!currentDraft) {
@@ -71,17 +60,17 @@ export default function EggDeliveryPage() {
   if (!currentDraft) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="text-sm text-neutral-500">Laster…</div>
+        <div className="text-sm text-neutral-500">{t.eggs.common.loading}</div>
       </div>
     )
   }
 
-  const shippingAddress = currentDraft?.shippingAddress || ''
-  const shippingPostalCode = currentDraft?.shippingPostalCode || ''
-  const shippingCity = currentDraft?.shippingCity || ''
-  const shippingCountry = currentDraft?.shippingCountry || ''
+  const shippingAddress = currentDraft.shippingAddress || ''
+  const shippingPostalCode = currentDraft.shippingPostalCode || ''
+  const shippingCity = currentDraft.shippingCity || ''
+  const shippingCountry = currentDraft.shippingCountry || ''
 
-  const selectedMethod = currentDraft?.deliveryMethod
+  const selectedMethod = currentDraft.deliveryMethod
   const isPosten = selectedMethod === 'posten'
   const shippingComplete = !isPosten || (
     shippingAddress.trim() &&
@@ -95,18 +84,30 @@ export default function EggDeliveryPage() {
     .join(', ')
   const summaryRows = [
     {
-      label: language === 'no' ? 'Raser' : 'Breeds',
+      label: t.eggs.common.breeds,
       value: itemSummary,
     },
     {
-      label: language === 'no' ? 'Uke' : 'Week',
-      value: `${currentDraft.deliveryWeek.weekNumber} · ${formatDate(currentDraft.deliveryWeek.deliveryMonday, language)}`,
+      label: t.eggs.common.week,
+      value: `${currentDraft.deliveryWeek.weekNumber} - ${formatDate(currentDraft.deliveryWeek.deliveryMonday, language)}`,
     },
     {
-      label: language === 'no' ? 'Antall egg' : 'Eggs',
+      label: t.eggs.common.totalEggs,
       value: String(totalEggs),
     },
   ]
+
+  const getTitleByMethod = (method: 'posten' | 'farm_pickup' | 'e6_pickup') => {
+    if (method === 'posten') return copy.postenTitle
+    if (method === 'farm_pickup') return copy.farmPickupTitle
+    return copy.e6PickupTitle
+  }
+
+  const getDescriptionByMethod = (method: 'posten' | 'farm_pickup' | 'e6_pickup') => {
+    if (method === 'posten') return copy.postenDescription
+    if (method === 'farm_pickup') return copy.farmPickupDescription
+    return copy.e6PickupDescription
+  }
 
   const handleContinue = () => {
     if (!selectedMethod) return
@@ -122,17 +123,11 @@ export default function EggDeliveryPage() {
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-5xl space-y-8">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-4xl font-normal text-neutral-900 mb-2">
-              {language === 'no' ? 'Forsendelse' : 'Shipment'}
-            </h1>
-            <p className="text-neutral-600">
-              {language === 'no'
-                ? 'Velg hvordan rugeeggene skal sendes eller hentes.'
-                : 'Choose how the eggs will be shipped or picked up.'}
-            </p>
+            <h1 className="text-4xl font-normal text-neutral-900 mb-2">{copy.title}</h1>
+            <p className="text-neutral-600">{copy.subtitle}</p>
           </div>
           <Link href="/rugeegg/handlekurv" className="text-sm text-neutral-600 hover:text-neutral-900">
-            {language === 'no' ? 'Tilbake til handlekurv' : 'Back to cart'}
+            {t.eggs.common.backToCart}
           </Link>
         </div>
 
@@ -142,7 +137,6 @@ export default function EggDeliveryPage() {
               const disabled = option.id === 'e6_pickup' && !currentDraft.deliveryWeek.e6PickupAvailable
               const active = selectedMethod === option.id
               const Icon = option.icon
-
               const isRecommended = option.recommended
 
               return (
@@ -170,9 +164,7 @@ export default function EggDeliveryPage() {
                     <div className="flex-1">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                          <h3 className="text-lg font-normal">
-                            {language === 'no' ? option.titleNo : option.titleEn}
-                          </h3>
+                          <h3 className="text-lg font-normal">{getTitleByMethod(option.id)}</h3>
                           {isRecommended && (
                             <span
                               className={`text-[11px] px-2 py-0.5 rounded-full ${
@@ -181,48 +173,36 @@ export default function EggDeliveryPage() {
                                   : 'bg-amber-100 text-amber-800'
                               }`}
                             >
-                              {language === 'no' ? 'Anbefalt' : 'Recommended'}
+                              {copy.recommended}
                             </span>
                           )}
                         </div>
                         <span className="text-sm font-normal">
-                          {option.fee === 0
-                            ? language === 'no'
-                              ? 'Gratis'
-                              : 'Free'
-                            : formatPrice(option.fee, language)}
+                          {option.fee === 0 ? t.common.free : formatPrice(option.fee, language)}
                         </span>
                       </div>
                       <p className={`text-sm ${active ? 'text-white/80' : 'text-neutral-600'}`}>
-                        {language === 'no' ? option.descriptionNo : option.descriptionEn}
+                        {getDescriptionByMethod(option.id)}
                       </p>
                       {disabled && (
-                        <p className="text-xs text-neutral-500 mt-2">
-                          {language === 'no' ? 'Ikke tilgjengelig denne uken.' : 'Not available this week.'}
-                        </p>
+                        <p className="text-xs text-neutral-500 mt-2">{copy.unavailableThisWeek}</p>
                       )}
                     </div>
                   </div>
                 </button>
               )
             })}
+
             {selectedMethod === 'posten' && (
               <div className="rounded-xl border border-neutral-200 bg-white p-6 space-y-4">
                 <div>
-                  <h3 className="text-lg font-normal text-neutral-900">
-                    {language === 'no' ? 'Leveringsadresse' : 'Shipping address'}
-                  </h3>
-                  <p className="text-sm text-neutral-600">
-                    {language === 'no'
-                      ? 'Vi trenger adresse for Posten-forsendelse.'
-                      : 'We need your address for Posten shipment.'}
-                  </p>
+                  <h3 className="text-lg font-normal text-neutral-900">{copy.shippingAddressTitle}</h3>
+                  <p className="text-sm text-neutral-600">{copy.shippingAddressDescription}</p>
                 </div>
+
                 <div className="grid grid-cols-1 gap-4">
                   <div>
-                    <label className="text-sm text-neutral-600">
-                      {language === 'no' ? 'Adresse' : 'Address'}
-                    </label>
+                    <label className="text-sm text-neutral-600">{copy.address}</label>
                     <input
                       type="text"
                       name="shippingAddress"
@@ -230,15 +210,14 @@ export default function EggDeliveryPage() {
                       value={shippingAddress}
                       onChange={(event) => setShippingDetails({ shippingAddress: event.target.value })}
                       className="mt-1 w-full rounded-xl border border-neutral-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900/20"
-                      placeholder={language === 'no' ? 'Gateadresse og nummer' : 'Street address'}
+                      placeholder={copy.addressPlaceholder}
                       required
                     />
                   </div>
+
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div>
-                      <label className="text-sm text-neutral-600">
-                        {language === 'no' ? 'Postnummer' : 'Postal code'}
-                      </label>
+                      <label className="text-sm text-neutral-600">{copy.postalCode}</label>
                       <input
                         type="text"
                         name="shippingPostalCode"
@@ -246,14 +225,12 @@ export default function EggDeliveryPage() {
                         value={shippingPostalCode}
                         onChange={(event) => setShippingDetails({ shippingPostalCode: event.target.value })}
                         className="mt-1 w-full rounded-xl border border-neutral-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900/20"
-                        placeholder={language === 'no' ? '0000' : '0000'}
+                        placeholder="0000"
                         required
                       />
                     </div>
                     <div className="sm:col-span-2">
-                      <label className="text-sm text-neutral-600">
-                        {language === 'no' ? 'Poststed' : 'City'}
-                      </label>
+                      <label className="text-sm text-neutral-600">{copy.city}</label>
                       <input
                         type="text"
                         name="shippingCity"
@@ -261,15 +238,14 @@ export default function EggDeliveryPage() {
                         value={shippingCity}
                         onChange={(event) => setShippingDetails({ shippingCity: event.target.value })}
                         className="mt-1 w-full rounded-xl border border-neutral-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900/20"
-                        placeholder={language === 'no' ? 'Poststed' : 'City'}
+                        placeholder={copy.cityPlaceholder}
                         required
                       />
                     </div>
                   </div>
+
                   <div>
-                    <label className="text-sm text-neutral-600">
-                      {language === 'no' ? 'Land' : 'Country'}
-                    </label>
+                    <label className="text-sm text-neutral-600">{copy.country}</label>
                     <input
                       type="text"
                       name="shippingCountry"
@@ -277,33 +253,27 @@ export default function EggDeliveryPage() {
                       value={shippingCountry}
                       onChange={(event) => setShippingDetails({ shippingCountry: event.target.value })}
                       className="mt-1 w-full rounded-xl border border-neutral-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900/20"
-                      placeholder={language === 'no' ? 'Norge' : 'Norway'}
+                      placeholder={copy.countryPlaceholder}
                       required
                     />
                   </div>
                 </div>
+
                 {showAddressError && !shippingComplete && (
-                  <p className="text-xs text-red-600">
-                    {language === 'no'
-                      ? 'Fyll ut alle adressefeltene for a fortsette.'
-                      : 'Fill in all address fields to continue.'}
-                  </p>
+                  <p className="text-xs text-red-600">{copy.addressRequired}</p>
                 )}
               </div>
             )}
+
             <div className="rounded-xl border border-neutral-200 bg-neutral-50 px-5 py-4 text-sm text-neutral-700">
-              {language === 'no'
-                ? 'Henting på gården og levering langs E6 Namsos–Trondheim er ønskeløsninger som kan avtales etter at forskuddet er betalt. Send en melding etter innbetalt forskudd, så ser vi om det er mulig å ordne.'
-                : 'Farm pickup and E6 Namsos–Trondheim delivery are wishes that may be arranged after the deposit is paid. Send a message after the deposit, and we will see if it can be arranged.'}
+              {copy.methodInfo}
             </div>
           </div>
 
           <div className="lg:col-span-1">
             <div>
               <GlassCard className="p-6 space-y-5">
-                <h2 className="text-lg font-normal text-neutral-900">
-                  {language === 'no' ? 'Sammendrag' : 'Summary'}
-                </h2>
+                <h2 className="text-lg font-normal text-neutral-900">{t.eggs.common.summary}</h2>
 
                 <div className="space-y-3 text-sm">
                   {summaryRows.map((row) => (
@@ -316,19 +286,19 @@ export default function EggDeliveryPage() {
 
                 <div className="border-t border-neutral-200 pt-4 space-y-2 text-sm">
                   <div className="flex justify-between text-neutral-600">
-                    <span>{language === 'no' ? 'Subtotal' : 'Subtotal'}</span>
+                    <span>{t.eggs.common.subtotal}</span>
                     <span className="font-normal text-neutral-900">
                       {formatPrice(currentDraft.subtotal, language)}
                     </span>
                   </div>
                   <div className="flex justify-between text-neutral-600">
-                    <span>{language === 'no' ? 'Forsendelse' : 'Shipment'}</span>
+                    <span>{t.eggs.common.shipment}</span>
                     <span className="font-normal text-neutral-900">
                       {formatPrice(currentDraft.deliveryFee, language)}
                     </span>
                   </div>
                   <div className="flex justify-between text-neutral-900 text-base">
-                    <span>{language === 'no' ? 'Totalt' : 'Total'}</span>
+                    <span>{t.eggs.common.total}</span>
                     <span className="font-normal">{formatPrice(currentDraft.totalAmount, language)}</span>
                   </div>
                 </div>
@@ -339,7 +309,7 @@ export default function EggDeliveryPage() {
                   disabled={!selectedMethod}
                   className="btn-primary w-full"
                 >
-                  {language === 'no' ? 'Fortsett til betaling' : 'Continue to payment'}
+                  {t.eggs.common.continueToPayment}
                   <ArrowRight className="w-5 h-5" />
                 </button>
               </GlassCard>

@@ -70,10 +70,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'All items must be in the same delivery week' }, { status: 400 })
     }
 
-    const orderCutoff = new Date(deliveryWeek.delivery_monday)
-    orderCutoff.setDate(orderCutoff.getDate() - 1)
-    const todayDate = new Date(new Date().toISOString().split('T')[0])
-    if (todayDate >= orderCutoff) {
+    const now = new Date()
+    const deliveryMondayLocal = new Date(`${deliveryWeek.delivery_monday}T00:00:00`)
+    const orderCutoff = new Date(deliveryMondayLocal)
+    orderCutoff.setHours(orderCutoff.getHours() - 8)
+    if (now >= orderCutoff) {
       return NextResponse.json({ error: 'Orders are closed for this delivery week' }, { status: 400 })
     }
 
@@ -126,7 +127,7 @@ export async function POST(request: NextRequest) {
           : 0
     const totalAmount = subtotal + deliveryFee
     const deliveryDate = new Date(new Date(deliveryWeek.delivery_monday).toISOString().split('T')[0])
-    const daysToDelivery = Math.round((deliveryDate.getTime() - todayDate.getTime()) / (1000 * 60 * 60 * 24))
+    const daysToDelivery = Math.round((deliveryDate.getTime() - new Date(now.toISOString().split('T')[0]).getTime()) / (1000 * 60 * 60 * 24))
     const isFullPayment = daysToDelivery <= 11
     const depositAmount = isFullPayment ? totalAmount : Math.round(subtotal / 2)
     const remainderAmount = isFullPayment ? 0 : (subtotal - depositAmount) + deliveryFee

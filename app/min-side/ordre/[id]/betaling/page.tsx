@@ -3,16 +3,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { Card } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { useAsyncAction } from '@/hooks/useAsyncAction';
-import { Spinner } from '@/components/ui/spinner';
-import { ExtraProductCard } from '@/components/ExtraProductCard';
 import { ExtraProductsSelector } from '@/components/ExtraProductsSelector';
 import { ShoppingCart, Check } from 'lucide-react';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface OrderData {
   id: string;
@@ -52,8 +48,12 @@ export default function RemainderPaymentSummaryPage() {
   const params = useParams<{ id: string }>();
   const orderId = params?.id;
   const { toast } = useToast();
+  const { lang, t } = useLanguage();
+  const locale = lang === 'en' ? 'en-US' : 'nb-NO';
+  const copy = t.remainderPaymentPage;
+  const currency = t.common.currency;
   const remainderDueDate = new Date('2026-11-16');
-  const formattedDueDate = remainderDueDate.toLocaleDateString('nb-NO', {
+  const formattedDueDate = remainderDueDate.toLocaleDateString(locale, {
     day: 'numeric',
     month: 'long',
     year: 'numeric',
@@ -85,7 +85,7 @@ export default function RemainderPaymentSummaryPage() {
         const response = await fetch(`/api/orders/${orderId}`);
         const data = await response.json();
         if (!response.ok) {
-          throw new Error(data?.error || 'Kunne ikke hente ordre');
+          throw new Error(data?.error || copy.fetchOrderError);
         }
         if (isMounted) {
           setOrder(data);
@@ -105,7 +105,7 @@ export default function RemainderPaymentSummaryPage() {
           }
         }
       } catch (err: any) {
-        if (isMounted) setError(err?.message || 'Kunne ikke hente ordre');
+        if (isMounted) setError(err?.message || copy.fetchOrderError);
       } finally {
         if (isMounted) setLoading(false);
       }
@@ -309,7 +309,7 @@ export default function RemainderPaymentSummaryPage() {
 
       if (!response.ok) {
         const data = await response.json().catch(() => null);
-        throw new Error(data?.error || 'Kunne ikke oppdatere ekstra produkter');
+        throw new Error(data?.error || copy.updateExtrasError);
       }
 
       const refreshed = await fetch(`/api/orders/${orderId}`);
@@ -325,16 +325,16 @@ export default function RemainderPaymentSummaryPage() {
 
       setOutOfStockItems([]);
       toast({
-        title: 'Oppdatert',
+        title: copy.updatedTitle,
         description: useCredit
-          ? 'Utsolgte produkter fjernet og kreditt lagt til.'
-          : 'Utsolgte produkter fjernet fra bestillingen.',
+          ? copy.soldOutRemovedWithCredit
+          : copy.soldOutRemoved,
       });
     } catch (err: any) {
       toast({
         variant: 'destructive',
-        title: 'Kunne ikke oppdatere',
-        description: err?.message || 'Prøv igjen.',
+        title: copy.couldNotUpdate,
+        description: err?.message || copy.tryAgain,
       });
     } finally {
       setResolvingStock(false);
@@ -349,7 +349,7 @@ export default function RemainderPaymentSummaryPage() {
 
   const [isPaying, executePayment] = useAsyncAction(
     async () => {
-      if (!orderId) throw new Error('Mangler ordre-ID');
+      if (!orderId) throw new Error(copy.missingOrderId);
 
       // Step 1: Save extras if they've changed
       if (hasExtrasChanges) {
@@ -361,7 +361,7 @@ export default function RemainderPaymentSummaryPage() {
 
         if (!extrasResponse.ok) {
           const extrasData = await extrasResponse.json().catch(() => null);
-          throw new Error(extrasData?.error || 'Kunne ikke oppdatere ekstra produkter');
+          throw new Error(extrasData?.error || copy.updateExtrasError);
         }
       }
 
@@ -378,15 +378,15 @@ export default function RemainderPaymentSummaryPage() {
 
         if (!deliveryResponse.ok) {
           const deliveryData = await deliveryResponse.json().catch(() => null);
-          throw new Error(deliveryData?.error || 'Kunne ikke oppdatere leveringsdetaljer');
+          throw new Error(deliveryData?.error || copy.updateDeliveryError);
         }
       }
 
       // Show brief success if any changes were made
       if (hasExtrasChanges || hasDeliveryChanges) {
         toast({
-          title: 'Endringer lagret',
-          description: 'Starter betaling...',
+          title: copy.changesSaved,
+          description: copy.startingPayment,
         });
       }
 
@@ -400,15 +400,15 @@ export default function RemainderPaymentSummaryPage() {
       if (response.ok && data.redirectUrl) {
         window.location.href = data.redirectUrl;
       } else {
-        throw new Error(data?.error || `Kunne ikke starte betaling (status ${response.status})`);
+        throw new Error(data?.error || copy.startPaymentError.replace('{status}', String(response.status)));
       }
     },
     {
       onError: (err) => {
         toast({
           variant: 'destructive',
-          title: 'Betalingsfeil',
-          description: err.message || 'Kunne ikke starte betaling. Prøv igjen.',
+          title: copy.paymentErrorTitle,
+          description: err.message || copy.paymentErrorDescription,
         });
       },
     }
@@ -426,10 +426,12 @@ export default function RemainderPaymentSummaryPage() {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center px-6">
         <div className="bg-white border border-neutral-200 rounded-xl p-8 max-w-md w-full shadow-[0_20px_60px_-15px_rgba(0,0,0,0.1)]">
-          <h1 className="text-2xl font-light tracking-tight text-neutral-900 mb-3">Kunne ikke hente ordre</h1>
-          <p className="text-sm font-light text-neutral-600 mb-6">{error || 'Ukjent feil'}</p>
+          <h1 className="text-2xl font-light tracking-tight text-neutral-900 mb-3">
+            {copy.fetchOrderError}
+          </h1>
+          <p className="text-sm font-light text-neutral-600 mb-6">{error || copy.unknownError}</p>
           <Link href="/min-side" className="text-sm font-light text-neutral-900 underline hover:text-neutral-600 transition-colors">
-            Tilbake til Min side
+            {copy.backToMyPage}
           </Link>
         </div>
       </div>
@@ -441,23 +443,22 @@ export default function RemainderPaymentSummaryPage() {
       {outOfStockItems.length > 0 && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-6">
           <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
-            <h2 className="text-xl font-light text-neutral-900 mb-3">Beklager, noen ekstra varer er utsolgt</h2>
-            <p className="text-sm text-neutral-600 mb-4">
-              Vi har ikke nok lager til alle ekstra varer du valgte ved forskuddsbestilling.
-              Du kan fjerne varene eller få 110% kreditt som kan brukes på andre ekstra produkter.
-              Ubrukt kreditt refunderes ikke.
-            </p>
+            <h2 className="text-xl font-light text-neutral-900 mb-3">
+              {copy.soldOutTitle}
+            </h2>
+            <p className="text-sm text-neutral-600 mb-4">{copy.soldOutBody}</p>
             <div className="space-y-2 mb-5">
               {outOfStockItems.map((item) => (
                 <div key={item.slug} className="flex items-center justify-between rounded-xl border border-neutral-200 px-4 py-2">
                   <div>
                     <p className="text-sm font-medium text-neutral-900">{item.name}</p>
                     <p className="text-xs text-neutral-500">
-                      Bestilt: {item.requestedQty} • Tilgjengelig: {item.availableQty}
+                      {copy.ordered}: {item.requestedQty} - {copy.available}:{' '}
+                      {item.availableQty}
                     </p>
                   </div>
                   <span className="text-sm font-medium text-neutral-700">
-                    kr {item.totalPrice.toLocaleString('nb-NO')}
+                    {currency} {item.totalPrice.toLocaleString(locale)}
                   </span>
                 </div>
               ))}
@@ -468,14 +469,14 @@ export default function RemainderPaymentSummaryPage() {
                 disabled={resolvingStock}
                 className="flex-1 rounded-xl border border-neutral-200 px-4 py-3 text-sm font-medium text-neutral-900 hover:bg-neutral-50 disabled:opacity-50"
               >
-                Fjern utsolgte produkter
+                {copy.removeSoldOut}
               </button>
               <button
                 onClick={() => resolveOutOfStock(true)}
                 disabled={resolvingStock}
                 className="flex-1 rounded-xl bg-neutral-900 px-4 py-3 text-sm font-medium text-white hover:bg-neutral-800 disabled:opacity-50"
               >
-                Ta 110% kreditt
+                {copy.takeCredit110}
               </button>
             </div>
           </div>
@@ -497,15 +498,19 @@ export default function RemainderPaymentSummaryPage() {
         <div className="bg-white border border-neutral-200 rounded-xl p-8 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.08)] transition-all duration-500 hover:shadow-[0_30px_80px_-20px_rgba(0,0,0,0.12)]">
           <div className="flex items-start justify-between">
             <div>
-              <h1 className="text-3xl font-light tracking-tight text-neutral-900">Betal restbeløp</h1>
-              <p className="text-sm font-light text-neutral-600 mt-2">Ordre {order.order_number}</p>
-              <p className="text-xs text-neutral-500 mt-2">Forfallsdato: {formattedDueDate}</p>
-              <p className="text-xs text-neutral-500 mt-1">
-                Jo tidligere du betaler restbeløpet, jo større er sjansen for å få ekstra produkter.
+              <h1 className="text-3xl font-light tracking-tight text-neutral-900">
+                {copy.payRemainderTitle}
+              </h1>
+              <p className="text-sm font-light text-neutral-600 mt-2">
+                {copy.orderLabel} {order.order_number}
               </p>
+              <p className="text-xs text-neutral-500 mt-2">
+                {copy.dueDate}: {formattedDueDate}
+              </p>
+              <p className="text-xs text-neutral-500 mt-1">{copy.earlyPaymentHint}</p>
             </div>
             <Link href="/min-side" className="text-sm font-light text-neutral-600 underline hover:text-neutral-900 transition-colors">
-              Tilbake
+              {copy.back}
             </Link>
           </div>
         </div>
@@ -515,11 +520,11 @@ export default function RemainderPaymentSummaryPage() {
           <div className="bg-white border border-neutral-200 rounded-xl p-8 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.08)] transition-all duration-500 hover:shadow-[0_30px_80px_-20px_rgba(0,0,0,0.12)]">
             <div className="flex items-center gap-3 mb-6">
               <ShoppingCart className="w-6 h-6 text-neutral-500" />
-              <h2 className="text-2xl font-light tracking-tight text-neutral-900">Ekstra produkter (valgfritt)</h2>
+              <h2 className="text-2xl font-light tracking-tight text-neutral-900">
+                {copy.extrasTitle}
+              </h2>
             </div>
-            <p className="text-sm font-light text-neutral-600 mb-8 leading-relaxed">
-              Legg til ekstra produkter før du betaler. Prisen legges til restbeløpet.
-            </p>
+            <p className="text-sm font-light text-neutral-600 mb-8 leading-relaxed">{copy.extrasSubtitle}</p>
 
             <ExtraProductsSelector
               availableExtras={availableExtras}
@@ -534,9 +539,9 @@ export default function RemainderPaymentSummaryPage() {
                 borderSecondary: 'border-neutral-200'
               }}
               translations={{
-                quantity: 'Antall',
-                kg: 'kg',
-                stk: 'stk'
+                quantity: copy.quantity,
+                kg: copy.unitKg,
+                stk: copy.unitPieces
               }}
             />
 
@@ -544,11 +549,11 @@ export default function RemainderPaymentSummaryPage() {
               <div className="mt-4 p-3 rounded-xl bg-neutral-50 border border-neutral-200">
                 {extrasDelta > 0 ? (
                   <p className="text-sm text-neutral-900">
-                    ⬆ Du legger til kr {extrasDelta.toLocaleString('nb-NO')} til den opprinnelige bestillingen
+                    {copy.youAdd} {currency} {extrasDelta.toLocaleString(locale)} {copy.toOriginalOrder}
                   </p>
                 ) : (
                   <p className="text-sm text-neutral-900">
-                    ⬇ Du reduserer bestillingen med kr {Math.abs(extrasDelta).toLocaleString('nb-NO')}
+                    {copy.youReduce} {currency} {Math.abs(extrasDelta).toLocaleString(locale)}
                   </p>
                 )}
               </div>
@@ -556,17 +561,16 @@ export default function RemainderPaymentSummaryPage() {
 
             {hasExtrasChanges && (
               <div className="mt-4 p-4 rounded-xl bg-neutral-50 border border-neutral-200">
-                <p className="text-sm font-light text-neutral-900 leading-relaxed">
-                  ⚠️ Du har endringer som ikke er lagret. De vil bli lagret når du klikker &quot;Betal med Vipps&quot;.
-                </p>
+                <p className="text-sm font-light text-neutral-900 leading-relaxed">{copy.unsavedChangesWarning}</p>
               </div>
             )}
 
             {extraCreditBalance > 0 && (
               <div className="mt-4 p-4 rounded-xl bg-amber-50 border border-amber-200">
                 <p className="text-sm font-light text-amber-900 leading-relaxed">
-                  Kreditt for utsolgte produkter: kr {extraCreditBalance.toLocaleString('nb-NO')}.
-                  Kreditten kan brukes på ekstra produkter og refunderes ikke.
+                  {copy.soldOutCreditTitle}: {currency}{' '}
+                  {extraCreditBalance.toLocaleString(locale)}.{' '}
+                  {copy.soldOutCreditNote}
                 </p>
               </div>
             )}
@@ -575,12 +579,16 @@ export default function RemainderPaymentSummaryPage() {
 
         {/* Pickup/Delivery Details Card - Interactive */}
         <div className="bg-white border border-neutral-200 rounded-xl p-8 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.08)] transition-all duration-500 hover:shadow-[0_30px_80px_-20px_rgba(0,0,0,0.12)]">
-          <h2 className="text-2xl font-light tracking-tight text-neutral-900 mb-6">Henting og levering</h2>
+          <h2 className="text-2xl font-light tracking-tight text-neutral-900 mb-6">
+            {copy.pickupDeliveryTitle}
+          </h2>
 
           <div className="space-y-6">
             {/* Delivery Type Selection */}
             <div>
-              <p className="text-sm font-light text-neutral-900 mb-4 uppercase tracking-wide">Leveringsmetode</p>
+              <p className="text-sm font-light text-neutral-900 mb-4 uppercase tracking-wide">
+                {copy.deliveryMethod}
+              </p>
               <div className="space-y-3">
                 {/* Farm Pickup - FREE */}
                 <button
@@ -595,10 +603,12 @@ export default function RemainderPaymentSummaryPage() {
                 >
                   <div className="flex justify-between items-center">
                     <div>
-                      <p className="font-light text-neutral-900">Henting på gården</p>
-                      <p className="text-sm font-light text-neutral-600 mt-1">Tinglum Gård, Sjøfossen</p>
+                      <p className="font-light text-neutral-900">{copy.pickupFarm}</p>
+                      <p className="text-sm font-light text-neutral-600 mt-1">
+                        {copy.pickupFarmLocation}
+                      </p>
                     </div>
-                    <span className="text-sm font-normal text-neutral-900">Gratis</span>
+                    <span className="text-sm font-normal text-neutral-900">{copy.free}</span>
                   </div>
                 </button>
 
@@ -618,11 +628,11 @@ export default function RemainderPaymentSummaryPage() {
                 >
                   <div className="flex justify-between items-center">
                     <div>
-                      <p className="font-light text-neutral-900">Henting ved E6</p>
-                      <p className="text-sm font-light text-neutral-600 mt-1">Hentested ved E6</p>
+                      <p className="font-light text-neutral-900">{copy.pickupE6}</p>
+                      <p className="text-sm font-light text-neutral-600 mt-1">{copy.pickupE6Point}</p>
                     </div>
                     <span className="text-sm font-light text-neutral-900">
-                      +{pricingConfig?.delivery_fee_pickup_e6 || 300} kr
+                      +{pricingConfig?.delivery_fee_pickup_e6 || 300} {currency}
                     </span>
                   </div>
                 </button>
@@ -643,11 +653,11 @@ export default function RemainderPaymentSummaryPage() {
                 >
                   <div className="flex justify-between items-center">
                     <div>
-                      <p className="font-light text-neutral-900">Levering i Trondheim</p>
-                      <p className="text-sm font-light text-neutral-600 mt-1">Levering til din adresse</p>
+                      <p className="font-light text-neutral-900">{copy.deliveryTrondheim}</p>
+                      <p className="text-sm font-light text-neutral-600 mt-1">{copy.deliveryAddress}</p>
                     </div>
                     <span className="text-sm font-light text-neutral-900">
-                      +{pricingConfig?.delivery_fee_trondheim || 200} kr
+                      +{pricingConfig?.delivery_fee_trondheim || 200} {currency}
                     </span>
                   </div>
                 </button>
@@ -657,7 +667,9 @@ export default function RemainderPaymentSummaryPage() {
             {/* Fresh Delivery Option - Only with Farm Pickup */}
             {deliveryType === 'pickup_farm' && (
               <div>
-                <p className="text-sm font-light text-neutral-900 mb-4 uppercase tracking-wide">Ekstra alternativ</p>
+                <p className="text-sm font-light text-neutral-900 mb-4 uppercase tracking-wide">
+                  {copy.extraOption}
+                </p>
                 <button
                   onClick={() => setFreshDelivery(!freshDelivery)}
                   disabled={isPaying}
@@ -673,15 +685,15 @@ export default function RemainderPaymentSummaryPage() {
                       {freshDelivery && <Check className="w-6 h-6 text-neutral-900" />}
                       <div>
                         <p className="font-light text-neutral-900">
-                          Fersk levering
+                          {copy.freshDelivery}
                         </p>
                         <p className="text-sm font-light mt-1 text-neutral-600">
-                          Produktene leveres ferske (ikke frosset)
+                          {copy.freshDeliveryDescription}
                         </p>
                       </div>
                     </div>
                     <span className="text-sm font-light text-neutral-900">
-                      +{pricingConfig?.fresh_delivery_fee || 500} kr
+                      +{pricingConfig?.fresh_delivery_fee || 500} {currency}
                     </span>
                   </div>
                 </button>
@@ -693,11 +705,11 @@ export default function RemainderPaymentSummaryPage() {
               <div className="p-3 rounded-xl bg-neutral-50 border border-neutral-200">
                 {totalDeliveryDelta > 0 ? (
                   <p className="text-sm text-neutral-900">
-                    ⬆ Du legger til kr {totalDeliveryDelta.toLocaleString('nb-NO')} for leveringsendring
+                    {copy.youAdd} {currency} {totalDeliveryDelta.toLocaleString(locale)} {copy.forDeliveryChange}
                   </p>
                 ) : (
                   <p className="text-sm text-neutral-900">
-                    ⬇ Du sparer kr {Math.abs(totalDeliveryDelta).toLocaleString('nb-NO')} på leveringsendring
+                    {t.referrals.youSave.replace('{amount}', Math.abs(totalDeliveryDelta).toLocaleString(locale))} {copy.saveOnDeliveryChange}
                   </p>
                 )}
               </div>
@@ -706,9 +718,7 @@ export default function RemainderPaymentSummaryPage() {
             {/* Changes Warning */}
             {hasDeliveryChanges && (
               <div className="p-4 rounded-xl bg-neutral-50 border border-neutral-200">
-                <p className="text-sm font-light text-neutral-900 leading-relaxed">
-                  ⚠️ Du har endret leveringsdetaljene. De vil bli lagret når du klikker &quot;Betal med Vipps&quot;.
-                </p>
+                <p className="text-sm font-light text-neutral-900 leading-relaxed">{copy.deliveryChangesWarning}</p>
               </div>
             )}
           </div>
@@ -717,47 +727,49 @@ export default function RemainderPaymentSummaryPage() {
         {/* Payment Summary Card */}
         <div className="bg-white border border-neutral-200 rounded-xl p-8 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.08)] transition-all duration-500 hover:shadow-[0_30px_80px_-20px_rgba(0,0,0,0.12)]">
 
-          <h2 className="text-2xl font-light tracking-tight text-neutral-900 mb-6">Betalingsoversikt</h2>
+          <h2 className="text-2xl font-light tracking-tight text-neutral-900 mb-6">
+            {copy.paymentSummary}
+          </h2>
 
           <div className="space-y-4">
             <div className="flex justify-between">
-              <span className="font-light text-neutral-600">Forskudd (betalt)</span>
+              <span className="font-light text-neutral-600">{copy.depositPaid}</span>
               <span className="font-light text-neutral-900">
-                kr {order.deposit_amount.toLocaleString('nb-NO')}
+                {currency} {order.deposit_amount.toLocaleString(locale)}
               </span>
             </div>
             <div className="flex justify-between">
-              <span className="font-light text-neutral-600">Restbeløp kasse</span>
+              <span className="font-light text-neutral-600">{copy.boxRemainder}</span>
               <span className="font-light text-neutral-900">
-                kr {baseRemainder.toLocaleString('nb-NO')}
+                {currency} {baseRemainder.toLocaleString(locale)}
               </span>
             </div>
             {newExtrasTotal > 0 && (
               <div className="flex justify-between">
-                <span className="font-light text-neutral-600">Ekstra produkter</span>
+                <span className="font-light text-neutral-600">{copy.extraProducts}</span>
                 <span className="font-light text-neutral-900">
-                  kr {newExtrasTotal.toLocaleString('nb-NO')}
+                  {currency} {newExtrasTotal.toLocaleString(locale)}
                 </span>
               </div>
             )}
             {creditApplied > 0 && (
               <div className="flex justify-between">
-                <span className="font-light text-neutral-600">Kreditt ekstra produkter</span>
-                <span className="font-light text-neutral-900">-kr {creditApplied.toLocaleString('nb-NO')}</span>
+                <span className="font-light text-neutral-600">{copy.extraProductsCredit}</span>
+                <span className="font-light text-neutral-900">-{currency} {creditApplied.toLocaleString(locale)}</span>
               </div>
             )}
             {totalDeliveryDelta !== 0 && (
               <div className="flex justify-between">
-                <span className="font-light text-neutral-600">Leveringsendring</span>
+                <span className="font-light text-neutral-600">{copy.deliveryChange}</span>
                 <span className={cn('font-light', totalDeliveryDelta > 0 ? 'text-neutral-900' : 'text-neutral-900')}>
-                  {totalDeliveryDelta > 0 ? '+' : ''}kr {totalDeliveryDelta.toLocaleString('nb-NO')}
+                  {totalDeliveryDelta > 0 ? '+' : ''}{currency} {totalDeliveryDelta.toLocaleString(locale)}
                 </span>
               </div>
             )}
             <div className="pt-4 mt-4 border-t border-neutral-200 flex justify-between items-center">
-              <span className="text-xl font-light text-neutral-900">Å betale nå</span>
+              <span className="text-xl font-light text-neutral-900">{copy.payNow}</span>
               <span className="text-3xl font-light text-neutral-900">
-                kr {finalTotal.toLocaleString('nb-NO')}
+                {currency} {finalTotal.toLocaleString(locale)}
               </span>
             </div>
           </div>
@@ -766,15 +778,19 @@ export default function RemainderPaymentSummaryPage() {
             <button
               onClick={executePayment}
               disabled={isPaying || outOfStockItems.length > 0}
-              className="w-full py-5 bg-neutral-900 hover:bg-neutral-800 text-white rounded-xl text-base font-light uppercase tracking-wide shadow-[0_20px_60px_-15px_rgba(0,0,0,0.08)] hover:shadow-[0_30px_80px_-20px_rgba(0,0,0,0.12)] hover:-translate-y-1 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0"
+              className="w-full py-5 bg-[#FF5B24] hover:bg-[#E6501F] text-white rounded-xl text-base font-light uppercase tracking-wide shadow-[0_20px_60px_-15px_rgba(0,0,0,0.3)] hover:shadow-[0_30px_80px_-20px_rgba(0,0,0,0.4)] hover:-translate-y-1 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0"
             >
               {isPaying ? (
                 <span className="flex items-center justify-center gap-3">
                   <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  {hasExtrasChanges ? 'Lagrer ekstra produkter...' : 'Starter betaling...'}
+                  {hasExtrasChanges
+                    ? copy.savingExtras
+                    : copy.startingPayment}
                 </span>
               ) : (
-                `Betal kr ${finalTotal.toLocaleString('nb-NO')} med Vipps`
+                copy.payWithVipps
+                  .replace('{currency}', currency)
+                  .replace('{amount}', finalTotal.toLocaleString(locale))
               )}
             </button>
             <Link href="/min-side" className="w-full">
@@ -782,7 +798,7 @@ export default function RemainderPaymentSummaryPage() {
                 disabled={isPaying}
                 className="w-full py-5 bg-neutral-50 hover:bg-neutral-100 text-neutral-900 border border-neutral-200 rounded-xl text-base font-light uppercase tracking-wide hover:shadow-[0_10px_30px_-10px_rgba(0,0,0,0.15)] hover:-translate-y-0.5 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0"
               >
-                Tilbake til Min side
+                {copy.backToMyPage}
               </button>
             </Link>
           </div>

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useRef, useState } from 'react';
 import { Check, ChevronLeft, ChevronRight, AlertCircle } from 'lucide-react';
@@ -80,17 +80,44 @@ export function MobileCheckout(props: MobileCheckoutProps) {
     rebateDiscount,
   } = props;
 
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const [expandedBox, setExpandedBox] = useState<'8' | '12' | null>(null);
   const [showDiscountCodes, setShowDiscountCodes] = useState(false);
   const stepRef = useRef<HTMLDivElement>(null);
 
+  const mobileCopy = lang === 'no'
+    ? {
+        step: 'Steg',
+        chooseBox: 'Velg kasse',
+        showLess: 'Vis mindre',
+        showAllContents: 'Se hele innholdet',
+        ribbeLabel: 'Ribbe',
+        importantInfo: 'Viktig informasjon',
+        summaryLabel: 'Oppsummering',
+        included: 'Inkludert',
+        discount: 'Rabatt',
+        payDeposit: 'Betal forskudd',
+      }
+    : {
+        step: 'Step',
+        chooseBox: 'Choose box',
+        showLess: 'Show less',
+        showAllContents: 'Show full contents',
+        ribbeLabel: 'Ribs',
+        importantInfo: 'Important information',
+        summaryLabel: 'Summary',
+        included: 'Included',
+        discount: 'Discount',
+        payDeposit: 'Pay deposit',
+      };
+  const locale = lang === 'no' ? 'nb-NO' : 'en-US';
+
   const stepLabels = [
-    t.checkout.stepSize || 'Størrelse',
-    t.checkout.stepRibbe || 'Ribbe',
-    t.checkout.stepExtras || 'Ekstra',
-    t.checkout.stepDelivery || 'Levering',
-    t.checkout.summary || 'Betaling',
+    t.checkout.stepSize,
+    t.checkout.stepRibbe,
+    t.checkout.stepExtras,
+    t.checkout.stepDelivery,
+    t.checkout.summary,
   ];
 
   const stepTitle = step === 1
@@ -110,7 +137,7 @@ export function MobileCheckout(props: MobileCheckoutProps) {
     '8': [
       t.boxContents.ribbe8kg,
       t.boxContents.nakkekoteletter8kg,
-      t.boxContents.julepølse8kg,
+      t.boxContents.julepolse8kg,
       t.boxContents.svinesteik8kg,
       t.boxContents.medisterfarse8kg,
       t.boxContents.knoke,
@@ -119,7 +146,7 @@ export function MobileCheckout(props: MobileCheckoutProps) {
     '12': [
       t.boxContents.ribbe12kg,
       t.boxContents.nakkekoteletter12kg,
-      t.boxContents.julepølse12kg,
+      t.boxContents.julepolse12kg,
       t.boxContents.svinesteik12kg,
       t.boxContents.medisterfarse12kg,
       t.boxContents.knoke,
@@ -146,6 +173,8 @@ export function MobileCheckout(props: MobileCheckoutProps) {
   const filteredExtras = availableExtras.filter(
     (extra) => !['delivery_trondheim', 'pickup_e6', 'fresh_delivery'].includes(extra.slug)
   );
+  const getExtraName = (extra: any) => (lang === 'en' && extra.name_en ? extra.name_en : extra.name_no);
+  const getExtraDescription = (extra: any) => (lang === 'en' && extra.description_en ? extra.description_en : extra.description_no);
 
   useEffect(() => {
     if (!stepRef.current) return;
@@ -162,7 +191,7 @@ export function MobileCheckout(props: MobileCheckoutProps) {
     <div className="space-y-8 pb-36 text-[#1E1B16] font-[family:var(--font-manrope)]">
       <div ref={stepRef} className={`${sectionCard} scroll-mt-6`}>
         <div className="flex items-center justify-between text-[10px] font-semibold uppercase tracking-[0.2em] text-[#6A6258]">
-          <span>Steg {step}/5</span>
+          <span>{mobileCopy.step} {step}/5</span>
           {step > 1 && (
             <button
               type="button"
@@ -194,7 +223,7 @@ export function MobileCheckout(props: MobileCheckoutProps) {
 
       {step === 1 && (
         <div className={sectionCard}>
-          <p className={labelText}>Velg kasse</p>
+          <p className={labelText}>{mobileCopy.chooseBox}</p>
           <div className="mt-5 space-y-5">
             {(['8', '12'] as const).map((size) => (
               <button
@@ -212,7 +241,7 @@ export function MobileCheckout(props: MobileCheckoutProps) {
                       {size} kg
                     </p>
                     <p className="mt-2 text-3xl font-semibold font-[family:var(--font-playfair)]">
-                      {size} <span className="text-base font-semibold">kg</span>
+                      {size} <span className="text-base font-semibold">{t.common.kg}</span>
                     </p>
                     <p className={`mt-2 text-sm leading-relaxed ${boxSize === size ? 'text-white/70' : 'text-[#5E5A50]'}`}>
                       {size === '8' ? t.product.perfectFor2to3 : t.product.idealFor4to6}
@@ -221,10 +250,10 @@ export function MobileCheckout(props: MobileCheckoutProps) {
                   {prices && prices[size]?.total ? (
                     <div className="text-right">
                       <p className="text-xl font-semibold">
-                        {prices[size].total.toLocaleString('nb-NO')} {t.common.currency}
+                        {prices[size].total.toLocaleString(locale)} {t.common.currency}
                       </p>
                       <p className={`text-xs ${boxSize === size ? 'text-white/70' : 'text-[#5E5A50]'}`}>
-                        {t.product.deposit50}: {prices[size].deposit.toLocaleString('nb-NO')} {t.common.currency}
+                        {t.product.deposit50}: {prices[size].deposit.toLocaleString(locale)} {t.common.currency}
                       </p>
                     </div>
                   ) : (
@@ -244,7 +273,7 @@ export function MobileCheckout(props: MobileCheckoutProps) {
                         }}
                         className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/70"
                       >
-                        {expandedBox === size ? 'Vis mindre' : 'Se hele innholdet'}
+                        {expandedBox === size ? mobileCopy.showLess : mobileCopy.showAllContents}
                       </button>
                     </div>
                     <ul className="mt-3 space-y-1.5 text-white/80">
@@ -271,7 +300,7 @@ export function MobileCheckout(props: MobileCheckoutProps) {
       {step === 2 && (
         <div className={sectionCard}>
           <div className="flex items-center justify-between">
-            <p className={labelText}>Ribbe</p>
+            <p className={labelText}>{mobileCopy.ribbeLabel}</p>
             <span className="text-xs text-[#5E5A50]">{boxSize ? `${boxSize} kg` : ''}</span>
           </div>
           <div className="mt-5 space-y-4">
@@ -318,7 +347,7 @@ export function MobileCheckout(props: MobileCheckoutProps) {
                 <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
                 <div>
                   <p className="text-xs font-semibold text-amber-900 mb-0.5">
-                    Viktig informasjon
+                    {mobileCopy.importantInfo}
                   </p>
                   <p className="text-xs text-amber-800 leading-relaxed">
                     {t.checkout.extrasWarning}
@@ -334,8 +363,8 @@ export function MobileCheckout(props: MobileCheckoutProps) {
                   : (extra.default_quantity || (extra.pricing_type === 'per_kg' ? 0.5 : 1));
                 const unitLabel = extra.pricing_type === 'per_kg' ? t.common.kg : t.common.stk;
                 const formattedQty = extra.pricing_type === 'per_kg'
-                  ? quantity.toLocaleString('nb-NO', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
-                  : quantity.toLocaleString('nb-NO');
+                  ? quantity.toLocaleString(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+                  : quantity.toLocaleString(locale);
 
                 const toggleExtra = () => {
                   if (extraProducts.includes(extra.slug)) {
@@ -370,18 +399,18 @@ export function MobileCheckout(props: MobileCheckoutProps) {
                   >
                     <div>
                       <div className="flex items-start justify-between gap-2">
-                        <p className="text-sm font-semibold leading-snug break-words pr-1">{extra.name_no}</p>
+                        <p className="text-sm font-semibold leading-snug break-words pr-1">{getExtraName(extra)}</p>
                       </div>
-                      {extra.description_no && (
+                      {getExtraDescription(extra) && (
                         <p className={`mt-2 text-[11px] leading-relaxed break-words ${isSelected ? 'text-white/70' : 'text-[#5E5A50]'}`}>
-                          {extra.description_no}
+                          {getExtraDescription(extra)}
                         </p>
                       )}
                     </div>
 
                     <div className="mt-4 flex items-center justify-between text-xs">
                       <span className="font-semibold">
-                        {extra.price_nok} {t.common.currency}
+                        {extra.price_nok.toLocaleString(locale)} {t.common.currency}
                         <span className={`ml-1 text-[10px] ${isSelected ? 'text-white/70' : 'text-[#5E5A50]'}`}>
                           /{unitLabel}
                         </span>
@@ -501,7 +530,7 @@ export function MobileCheckout(props: MobileCheckoutProps) {
         <div className="space-y-6">
           <div className={sectionCard}>
             <div className="flex items-center justify-between">
-              <p className={labelText}>Oppsummering</p>
+              <p className={labelText}>{mobileCopy.summaryLabel}</p>
               <span className="text-xs text-[#5E5A50]">{boxSize} kg</span>
             </div>
 
@@ -509,13 +538,13 @@ export function MobileCheckout(props: MobileCheckoutProps) {
               <div className="flex items-center justify-between">
                 <span>{boxSize === '12' ? t.product.box12 : t.product.box8}</span>
                 <span className="font-semibold">
-                  {prices && prices[boxSize] ? `${prices[boxSize].total.toLocaleString('nb-NO')} ${t.common.currency}` : '...'}
+                  {prices && prices[boxSize] ? `${prices[boxSize].total.toLocaleString(locale)} ${t.common.currency}` : '...'}
                 </span>
               </div>
 
               <div className="mt-2 flex items-center justify-between text-xs text-[#5E5A50]">
                 <span>{ribbeSummary}</span>
-                <span>Inkludert</span>
+                <span>{mobileCopy.included}</span>
               </div>
 
               {deliveryType !== 'farm' && (
@@ -538,8 +567,8 @@ export function MobileCheckout(props: MobileCheckoutProps) {
                 if (!extra) return null;
                 return (
                   <div key={slug} className="mt-2 flex items-center justify-between text-xs text-[#5E5A50]">
-                    <span>{extra.name_no} ({quantity}{extra.pricing_type === 'per_kg' ? t.common.kg : t.common.stk})</span>
-                    <span>{(extra.price_nok * quantity).toLocaleString('nb-NO')} {t.common.currency}</span>
+                    <span>{getExtraName(extra)} ({quantity}{extra.pricing_type === 'per_kg' ? t.common.kg : t.common.stk})</span>
+                    <span>{(extra.price_nok * quantity).toLocaleString(locale)} {t.common.currency}</span>
                   </div>
                 );
               })}
@@ -547,21 +576,21 @@ export function MobileCheckout(props: MobileCheckoutProps) {
               <div className="mt-4 border-t border-[#E4DED5] pt-3">
                 {(referralDiscount > 0 || rebateDiscount > 0) && (
                   <div className="flex items-center justify-between text-xs text-[#0F6C6F]">
-                    <span>Rabatt</span>
-                    <span className="font-semibold">-{(referralDiscount || rebateDiscount).toLocaleString('nb-NO')} {t.common.currency}</span>
+                    <span>{mobileCopy.discount}</span>
+                    <span className="font-semibold">-{(referralDiscount || rebateDiscount).toLocaleString(locale)} {t.common.currency}</span>
                   </div>
                 )}
                 <div className="mt-2 flex items-center justify-between text-base font-semibold">
                   <span>{t.common.total}</span>
-                  <span>{totalPrice.toLocaleString('nb-NO')} {t.common.currency}</span>
+                  <span>{totalPrice.toLocaleString(locale)} {t.common.currency}</span>
                 </div>
                 <div className="mt-2 flex items-center justify-between text-xs text-[#5E5A50]">
                   <span>{t.checkout.deposit50Percent}</span>
-                  <span>{depositTotal.toLocaleString('nb-NO')} {t.common.currency}</span>
+                  <span>{depositTotal.toLocaleString(locale)} {t.common.currency}</span>
                 </div>
                 <div className="mt-1 flex items-center justify-between text-xs text-[#5E5A50]">
                   <span>{t.checkout.remainderBeforeDelivery}</span>
-                  <span>{remainderTotal.toLocaleString('nb-NO')} {t.common.currency}</span>
+                  <span>{remainderTotal.toLocaleString(locale)} {t.common.currency}</span>
                 </div>
               </div>
             </div>
@@ -665,7 +694,7 @@ export function MobileCheckout(props: MobileCheckoutProps) {
                 t.common.processing
               ) : (
                 <>
-                  Betal forskudd {depositTotal.toLocaleString('nb-NO')} {t.common.currency}
+                  {mobileCopy.payDeposit} {depositTotal.toLocaleString(locale)} {t.common.currency}
                   <ChevronRight className="h-4 w-4" />
                 </>
               )}
@@ -677,3 +706,4 @@ export function MobileCheckout(props: MobileCheckoutProps) {
     </div>
   );
 }
+

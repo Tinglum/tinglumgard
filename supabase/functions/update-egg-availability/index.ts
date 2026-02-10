@@ -6,7 +6,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Client-Info, Apikey',
 };
 
-const WEEKS_AHEAD = 16;
+const END_DATE = new Date('2026-08-01');
 const NEAR_WEEKS = 6;
 const MID_WEEKS = 8;
 const NEAR_MIN = 10;
@@ -45,8 +45,9 @@ Deno.serve(async (req: Request) => {
     }
 
     const now = new Date();
-    const endDate = new Date(now);
-    endDate.setUTCDate(endDate.getUTCDate() + WEEKS_AHEAD * 7);
+    const endDate = new Date(END_DATE);
+    const msPerWeek = 7 * 24 * 60 * 60 * 1000;
+    const weeksAhead = Math.max(0, Math.ceil((endDate.getTime() - now.getTime()) / msPerWeek));
 
     const { data: existingInventory, error: inventoryError } = await supabase
       .from('egg_inventory')
@@ -72,7 +73,7 @@ Deno.serve(async (req: Request) => {
 
     const upserts: any[] = [];
 
-    for (let i = 1; i <= WEEKS_AHEAD; i++) {
+    for (let i = 1; i <= weeksAhead; i++) {
       const { year, week } = addWeeksToIsoWeek(now, i);
       const deliveryMonday = getMondayOfIsoWeek(year, week);
 

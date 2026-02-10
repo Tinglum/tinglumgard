@@ -6,16 +6,16 @@ import { CutDiagram } from "@/components/CutDiagram";
 
 export default function CutsPage() {
   const { t } = useLanguage();
+  const copy = t.cutsPage;
 
   return (
     <div className="min-h-screen bg-white py-20">
-      {/* Subtle parallax background */}
       <div className="fixed inset-0 pointer-events-none -z-10">
         <div
           className="absolute top-1/3 left-1/4 w-[800px] h-[800px] rounded-full blur-3xl opacity-20 bg-neutral-100"
           style={{
             transform: `translateY(${typeof window !== 'undefined' ? window.scrollY * 0.1 : 0}px)`,
-            transition: 'transform 0.05s linear'
+            transition: 'transform 0.05s linear',
           }}
         />
       </div>
@@ -38,7 +38,6 @@ export default function CutsPage() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-[1.2fr_0.8fr] gap-6 lg:gap-10 items-start">
-          {/* Main diagram card */}
           <div className="bg-white border border-neutral-200 rounded-xl p-8 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.08)] transition-all duration-500 hover:shadow-[0_30px_80px_-20px_rgba(0,0,0,0.12)]">
             <div className="flex items-end justify-between gap-6">
               <div>
@@ -46,7 +45,7 @@ export default function CutsPage() {
                   {t.cuts.title}
                 </h1>
                 <p className="mt-3 text-base font-light leading-relaxed text-neutral-600 max-w-2xl">
-                  Se hvor kuttene sitter, og hva som normalt ligger i kassen versus hva som kan bestilles ekstra.
+                  {copy.diagramLead}
                 </p>
               </div>
 
@@ -61,23 +60,21 @@ export default function CutsPage() {
             </div>
           </div>
 
-          {/* Sidebar cards */}
           <div className="space-y-6">
-            {/* How to use card */}
             <div className="bg-white border border-neutral-200 rounded-xl p-8 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.08)] transition-all duration-500 hover:shadow-[0_30px_80px_-20px_rgba(0,0,0,0.12)] hover:-translate-y-1">
-              <div className="text-xs uppercase tracking-wide text-neutral-500 font-medium mb-4">Hvordan bruke dette</div>
+              <div className="text-xs uppercase tracking-wide text-neutral-500 font-medium mb-4">{copy.howToUse}</div>
               <ul className="space-y-3 text-sm font-light text-neutral-600 leading-relaxed">
                 <li className="flex items-start gap-3">
                   <span className="w-1.5 h-1.5 rounded-full bg-neutral-400 mt-2 flex-shrink-0" />
-                  <span>Trykk på et område for å se navn og bruksområde.</span>
+                  <span>{copy.howToUse1}</span>
                 </li>
                 <li className="flex items-start gap-3">
                   <span className="w-1.5 h-1.5 rounded-full bg-neutral-400 mt-2 flex-shrink-0" />
-                  <span>Bytt mellom &quot;I kassen&quot; og &quot;Ekstra&quot; i diagrammet dersom støttet av komponenten.</span>
+                  <span>{copy.howToUse2}</span>
                 </li>
                 <li className="flex items-start gap-3">
                   <span className="w-1.5 h-1.5 rounded-full bg-neutral-400 mt-2 flex-shrink-0" />
-                  <span>Se produkt-siden for innhold og struktur.</span>
+                  <span>{copy.howToUse3}</span>
                 </li>
               </ul>
 
@@ -97,9 +94,8 @@ export default function CutsPage() {
               </div>
             </div>
 
-            {/* Terminology card */}
             <div className="bg-white border border-neutral-200 rounded-xl p-8 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.08)] transition-all duration-500 hover:shadow-[0_30px_80px_-20px_rgba(0,0,0,0.12)] hover:-translate-y-1">
-              <div className="text-xs uppercase tracking-wide text-neutral-500 font-medium mb-3">Terminologi</div>
+              <div className="text-xs uppercase tracking-wide text-neutral-500 font-medium mb-3">{copy.terminology}</div>
               <div className="text-sm font-light text-neutral-600 leading-relaxed">
                 {t.cuts.shoulder}, {t.cuts.loin}, {t.cuts.belly}, {t.cuts.leg}
               </div>
