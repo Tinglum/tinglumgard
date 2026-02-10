@@ -43,13 +43,13 @@ function buildReminderHtml(params: {
 <body>
   <div class="container">
     <div class="card">
-      <div class="title">P�minnelse om restbetaling</div>
+      <div class="title">Påminnelse om restbetaling</div>
       <p>Hei ${params.customerName},</p>
-      <p class="muted">Bestilling ${params.orderNumber} � ${params.breedName} � Uke ${params.weekNumber}</p>
-      <div class="amount">Restbel�p: kr ${params.remainderNok}</div>
-      <p>Vennligst betal innen ${params.dueDate} for � beholde bestillingen.</p>
+      <p class="muted">Bestilling ${params.orderNumber} · ${params.breedName} · Uke ${params.weekNumber}</p>
+      <div class="amount">Restbeløp: kr ${params.remainderNok}</div>
+      <p>Vennligst betal innen ${params.dueDate} for å beholde bestillingen.</p>
       <p>
-        <a class="button" href="${params.appUrl}/rugeegg/mine-bestillinger">Betal restbel�p</a>
+        <a class="button" href="${params.appUrl}/rugeegg/mine-bestillinger">Betal restbeløp</a>
       </p>
     </div>
   </div>
@@ -81,7 +81,7 @@ function buildForfeitHtml(params: {
     <div class="card">
       <div class="title">Bestilling kansellert</div>
       <p>Hei ${params.customerName},</p>
-      <p class="muted">Bestilling ${params.orderNumber} � ${params.breedName} � Uke ${params.weekNumber}</p>
+      <p class="muted">Bestilling ${params.orderNumber} · ${params.breedName} · Uke ${params.weekNumber}</p>
       <p>Restbetalingen ble ikke mottatt innen fristen. Bestillingen er derfor kansellert og eggene er frigitt.</p>
     </div>
   </div>
@@ -116,8 +116,8 @@ function buildDayBeforeHtml(params: {
     <div class="card">
       <div class="title">Levering i morgen</div>
       <p>Hei ${params.customerName},</p>
-      <p class="muted">Bestilling ${params.orderNumber} � ${params.breedName} � Uke ${params.weekNumber}</p>
-      <p>Rugeeggene sendes i morgen. Du kan legge til ekstra egg i dag med 30% rabatt, sa lenge lageret rekker.</p>
+      <p class="muted">Bestilling ${params.orderNumber} · ${params.breedName} · Uke ${params.weekNumber}</p>
+      <p>Rugeeggene sendes i morgen. Du kan legge til ekstra egg i dag med 30% rabatt, så lenge lageret rekker.</p>
       <p>
         <a class="button" href="${params.appUrl}/rugeegg/mine-bestillinger/${params.orderId}/betaling">Legg til egg i dag</a>
       </p>
@@ -291,7 +291,7 @@ export async function GET(request: NextRequest) {
 
       await sendEmail({
         to: order.customer_email,
-        subject: `P�minnelse om restbetaling - ${order.order_number}`,
+        subject: `Påminnelse om restbetaling - ${order.order_number}`,
         html: buildReminderHtml({
           customerName: order.customer_name,
           orderNumber: order.order_number,

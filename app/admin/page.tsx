@@ -95,7 +95,10 @@ interface Order {
 }
 
 export default function AdminPage() {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
+  const copy = t.adminPage;
+  const locale = lang === 'en' ? 'en-US' : 'nb-NO';
+  const currency = t.common.currency;
   const { toast } = useToast();
 
   // Authentication
@@ -295,16 +298,16 @@ export default function AdminPage() {
         setShowOrderDetail(false);
       } else {
         toast({
-          title: 'Feil',
-          description: 'Kunne ikke oppdatere status',
+          title: copy.toastErrorTitle,
+          description: copy.updateStatusError,
           variant: 'destructive'
         });
       }
     } catch (error) {
       console.error('Error updating status:', error);
       toast({
-        title: 'Feil',
-        description: 'Kunne ikke oppdatere status',
+        title: copy.toastErrorTitle,
+        description: copy.updateStatusError,
         variant: 'destructive'
       });
     }
@@ -327,16 +330,16 @@ export default function AdminPage() {
         }
       } else {
         toast({
-          title: 'Feil',
-          description: 'Kunne ikke lagre notater',
+          title: copy.toastErrorTitle,
+          description: copy.saveNotesError,
           variant: 'destructive'
         });
       }
     } catch (error) {
       console.error('Error saving notes:', error);
       toast({
-        title: 'Feil',
-        description: 'Kunne ikke lagre notater',
+        title: copy.toastErrorTitle,
+        description: copy.saveNotesError,
         variant: 'destructive'
       });
     }
@@ -363,14 +366,18 @@ export default function AdminPage() {
   async function handleBulkStatusUpdate(newStatus: string) {
     if (selectedOrders.size === 0) {
       toast({
-        title: 'Ingen ordrer valgt',
-        description: 'Velg minst Ã©n ordre for Ã¥ fortsette',
+        title: copy.noOrdersSelectedTitle,
+        description: copy.bulkNoSelectionUpdate,
         variant: 'destructive'
       });
       return;
     }
 
-    if (!window.confirm(`Endre status til "${newStatus}" for ${selectedOrders.size} ordrer?`)) {
+    if (!window.confirm(
+      copy.confirmBulkUpdate
+        .replace('{status}', newStatus)
+        .replace('{count}', String(selectedOrders.size))
+    )) {
       return;
     }
 
@@ -390,21 +397,21 @@ export default function AdminPage() {
         await loadOrders();
         setSelectedOrders(new Set());
         toast({
-          title: 'Ordrer oppdatert',
-          description: `${selectedOrders.size} ordrer ble oppdatert`
+          title: copy.bulkUpdateSuccessTitle,
+          description: copy.bulkUpdateSuccessDescription.replace('{count}', String(selectedOrders.size))
         });
       } else {
         toast({
-          title: 'Feil',
-          description: 'Kunne ikke oppdatere ordrer',
+          title: copy.toastErrorTitle,
+          description: copy.bulkUpdateError,
           variant: 'destructive'
         });
       }
     } catch (error) {
       console.error('Bulk update error:', error);
       toast({
-        title: 'Feil',
-        description: 'Kunne ikke oppdatere ordrer',
+        title: copy.toastErrorTitle,
+        description: copy.bulkUpdateError,
         variant: 'destructive'
       });
     } finally {
@@ -415,14 +422,14 @@ export default function AdminPage() {
   async function handleBulkLock() {
     if (selectedOrders.size === 0) {
       toast({
-        title: 'Ingen ordrer valgt',
-        description: 'Velg minst Ã©n ordre for Ã¥ lÃ¥se',
+        title: copy.noOrdersSelectedTitle,
+        description: copy.bulkNoSelectionLock,
         variant: 'destructive'
       });
       return;
     }
 
-    if (!window.confirm(`LÃ¥se ${selectedOrders.size} ordrer? Dette kan ikke angres.`)) {
+    if (!window.confirm(copy.confirmBulkLock.replace('{count}', String(selectedOrders.size)))) {
       return;
     }
 
@@ -441,21 +448,21 @@ export default function AdminPage() {
         await loadOrders();
         setSelectedOrders(new Set());
         toast({
-          title: 'Ordrer lÃ¥st',
-          description: `${selectedOrders.size} ordrer ble lÃ¥st`
+          title: copy.bulkLockSuccessTitle,
+          description: copy.bulkLockSuccessDescription.replace('{count}', String(selectedOrders.size))
         });
       } else {
         toast({
-          title: 'Feil',
-          description: 'Kunne ikke lÃ¥se ordrer',
+          title: copy.toastErrorTitle,
+          description: copy.bulkLockError,
           variant: 'destructive'
         });
       }
     } catch (error) {
       console.error('Bulk lock error:', error);
       toast({
-        title: 'Feil',
-        description: 'Kunne ikke lÃ¥se ordrer',
+        title: copy.toastErrorTitle,
+        description: copy.bulkLockError,
         variant: 'destructive'
       });
     } finally {
@@ -482,8 +489,8 @@ export default function AdminPage() {
     } catch (error) {
       console.error('Export error:', error);
       toast({
-        title: 'Feil',
-        description: 'Kunne ikke eksportere CSV',
+        title: copy.toastErrorTitle,
+        description: copy.exportCsvError,
         variant: 'destructive'
       });
     }
@@ -492,8 +499,8 @@ export default function AdminPage() {
   async function handleExportProduction() {
     if (selectedOrders.size === 0) {
       toast({
-        title: 'Ingen ordrer valgt',
-        description: 'Velg ordrer Ã¥ eksportere',
+        title: copy.noOrdersSelectedTitle,
+        description: copy.noOrdersSelectedDescription,
         variant: 'destructive'
       });
       return;
@@ -524,8 +531,8 @@ export default function AdminPage() {
     } catch (error) {
       console.error('Export error:', error);
       toast({
-        title: 'Feil',
-        description: 'Kunne ikke eksportere produksjonsplan',
+        title: copy.toastErrorTitle,
+        description: copy.exportProductionError,
         variant: 'destructive'
       });
     }
@@ -550,33 +557,33 @@ export default function AdminPage() {
   });
 
   const tabs: Array<{ id: TabType; label: string; icon: any }> = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'orders', label: 'Bestillinger', icon: ShoppingCart },
-    { id: 'customers', label: 'Kunder', icon: Users },
-    { id: 'analytics', label: 'Analyse', icon: BarChart3 },
-    { id: 'communication', label: 'Kommunikasjon', icon: MessageSquare },
-    { id: 'messages', label: 'Kundemeldinger', icon: MessageSquare },
-    { id: 'production', label: 'Hentekalender', icon: Calendar },
-    { id: 'inventory', label: 'Lager', icon: Warehouse },
-    { id: 'breeds', label: 'Eggraser', icon: Tag },
-    { id: 'boxes', label: 'Boksinnhold', icon: Package },
-    { id: 'rebates', label: 'Rabattkoder', icon: Tag },
-    { id: 'extras', label: 'Ekstraprodukter', icon: ShoppingCart },
-    { id: 'notifications', label: 'Varsler', icon: Mail },
-    { id: 'health', label: 'Systemhelse', icon: Activity },
-    { id: 'settings', label: 'Innstillinger', icon: Settings },
+    { id: 'dashboard', label: copy.tabs.dashboard, icon: LayoutDashboard },
+    { id: 'orders', label: copy.tabs.orders, icon: ShoppingCart },
+    { id: 'customers', label: copy.tabs.customers, icon: Users },
+    { id: 'analytics', label: copy.tabs.analytics, icon: BarChart3 },
+    { id: 'communication', label: copy.tabs.communication, icon: MessageSquare },
+    { id: 'messages', label: copy.tabs.messages, icon: MessageSquare },
+    { id: 'production', label: copy.tabs.production, icon: Calendar },
+    { id: 'inventory', label: copy.tabs.inventory, icon: Warehouse },
+    { id: 'breeds', label: copy.tabs.breeds, icon: Tag },
+    { id: 'boxes', label: copy.tabs.boxes, icon: Package },
+    { id: 'rebates', label: copy.tabs.rebates, icon: Tag },
+    { id: 'extras', label: copy.tabs.extras, icon: ShoppingCart },
+    { id: 'notifications', label: copy.tabs.notifications, icon: Mail },
+    { id: 'health', label: copy.tabs.health, icon: Activity },
+    { id: 'settings', label: copy.tabs.settings, icon: Settings },
   ];
 
   const statusOptions = [
-    { value: 'all', label: 'Alle statuser' },
-    { value: 'pending', label: 'Venter pÃ¥ forskudd' },
-    { value: 'draft', label: 'Utkast' },
-    { value: 'deposit_paid', label: 'Forskudd betalt' },
-    { value: 'paid', label: 'Fullstendig betalt' },
-    { value: 'ready_for_pickup', label: 'Klar for henting' },
-    { value: 'completed', label: 'FullfÃ¸rt' },
-    { value: 'cancelled', label: 'Kansellert' },
-    { value: 'forfeited', label: 'Fortapt' },
+    { value: 'all', label: copy.statusOptions.all },
+    { value: 'pending', label: copy.statusOptions.pending },
+    { value: 'draft', label: copy.statusOptions.draft },
+    { value: 'deposit_paid', label: copy.statusOptions.depositPaid },
+    { value: 'paid', label: copy.statusOptions.paid },
+    { value: 'ready_for_pickup', label: copy.statusOptions.readyForPickup },
+    { value: 'completed', label: copy.statusOptions.completed },
+    { value: 'cancelled', label: copy.statusOptions.cancelled },
+    { value: 'forfeited', label: copy.statusOptions.forfeited },
   ];
 
   if (loading) {
@@ -594,11 +601,11 @@ export default function AdminPage() {
           <div className="flex items-center justify-center mb-8">
             <Lock className="w-16 h-16 text-neutral-400" />
           </div>
-          <h1 className="text-4xl font-light tracking-tight text-neutral-900 mb-8 text-center">Admin Login</h1>
+          <h1 className="text-4xl font-light tracking-tight text-neutral-900 mb-8 text-center">{copy.loginTitle}</h1>
           <form onSubmit={handlePasswordSubmit} className="space-y-6">
             <div>
               <Label htmlFor="admin-password" className="text-sm font-light text-neutral-600">
-                Passord
+                {copy.passwordLabel}
               </Label>
               <Input
                 id="admin-password"
@@ -607,17 +614,17 @@ export default function AdminPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 className="mt-2 border-neutral-200 rounded-xl font-light"
                 autoFocus
-                placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
+                placeholder={copy.passwordPlaceholder}
               />
               {passwordError && (
-                <p className="text-red-600 text-sm font-light mt-2">Feil passord. PrÃ¸v igjen.</p>
+                <p className="text-red-600 text-sm font-light mt-2">{copy.passwordError}</p>
               )}
             </div>
             <button
               type="submit"
               className="w-full px-6 py-4 bg-neutral-900 text-white rounded-xl text-sm font-light uppercase tracking-wide shadow-[0_20px_60px_-15px_rgba(0,0,0,0.3)] hover:shadow-[0_30px_80px_-20px_rgba(0,0,0,0.4)] hover:-translate-y-1 transition-all duration-300"
             >
-              Logg inn
+              {copy.loginButton}
             </button>
           </form>
         </div>
@@ -631,7 +638,7 @@ export default function AdminPage() {
       <div className="bg-white border-b border-neutral-200 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.08)]">
         <div className="max-w-[1800px] mx-auto px-6 py-6">
           <div className="flex items-center justify-between">
-            <h1 className="text-3xl font-light tracking-tight text-neutral-900">TinglumgÃ¥rd Admin</h1>
+            <h1 className="text-3xl font-light tracking-tight text-neutral-900">{copy.headerTitle}</h1>
             <button
               onClick={async () => {
                 await fetch('/api/admin/logout', { method: 'POST' });
@@ -639,7 +646,7 @@ export default function AdminPage() {
               }}
               className="px-6 py-3 border-2 border-neutral-200 text-neutral-900 rounded-xl text-sm font-light hover:bg-neutral-50 hover:border-neutral-300 hover:-translate-y-0.5 hover:shadow-[0_10px_30px_-10px_rgba(0,0,0,0.1)] transition-all duration-300"
             >
-              Logg ut
+              {copy.logoutButton}
             </button>
           </div>
         </div>
@@ -649,7 +656,7 @@ export default function AdminPage() {
       <div className="bg-neutral-50 border-b border-neutral-200">
         <div className="max-w-[1800px] mx-auto px-6 py-5">
           <div className="flex items-center gap-4">
-            <span className="text-sm font-light text-neutral-600">Product View:</span>
+            <span className="text-sm font-light text-neutral-600">{copy.productViewLabel}</span>
             <div className="flex gap-3">
               <button
                 onClick={() => setProductMode('pigs')}
@@ -660,7 +667,7 @@ export default function AdminPage() {
                     : 'bg-white text-neutral-700 hover:bg-neutral-50 border border-neutral-200 hover:border-neutral-300 hover:-translate-y-0.5'
                 )}
               >
-                ðŸ· Pigs
+                ðŸ· {copy.productViewPigs}
               </button>
               <button
                 onClick={() => setProductMode('eggs')}
@@ -671,7 +678,7 @@ export default function AdminPage() {
                     : 'bg-white text-neutral-700 hover:bg-neutral-50 border border-neutral-200 hover:border-neutral-300 hover:-translate-y-0.5'
                 )}
               >
-                ðŸ¥š Eggs
+                ðŸ¥š {copy.productViewEggs}
               </button>
               <button
                 onClick={() => setProductMode('combined')}
@@ -682,7 +689,7 @@ export default function AdminPage() {
                     : 'bg-white text-neutral-700 hover:bg-neutral-50 border border-neutral-200 hover:border-neutral-300 hover:-translate-y-0.5'
                 )}
               >
-                ðŸ“Š Combined
+                ðŸ“Š {copy.productViewCombined}
               </button>
             </div>
           </div>
@@ -730,28 +737,28 @@ export default function AdminPage() {
         {activeTab === 'dashboard' && (
           <div className="space-y-8">
             <div className="flex items-center justify-between">
-              <h2 className="text-4xl font-light tracking-tight text-neutral-900">Dashboard</h2>
+              <h2 className="text-4xl font-light tracking-tight text-neutral-900">{copy.dashboardTitle}</h2>
               <button
                 onClick={loadDashboard}
                 className="px-6 py-3 border-2 border-neutral-200 text-neutral-900 rounded-xl text-sm font-light flex items-center gap-2 hover:bg-neutral-50 hover:border-neutral-300 hover:-translate-y-0.5 hover:shadow-[0_10px_30px_-10px_rgba(0,0,0,0.1)] transition-all duration-300"
               >
                 <RefreshCw className="w-4 h-4" />
-                Oppdater
+                {copy.refreshButton}
               </button>
             </div>
 
             <div className="bg-white border border-neutral-200 rounded-xl p-8 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.08)] transition-all duration-500 hover:shadow-[0_30px_80px_-20px_rgba(0,0,0,0.12)]">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-2xl font-light text-neutral-900">Ubehandlede meldinger</h3>
-                  <p className="text-sm font-light text-neutral-600 mt-1">Ã…pne og under behandling</p>
+                  <h3 className="text-2xl font-light text-neutral-900">{copy.pendingMessagesTitle}</h3>
+                  <p className="text-sm font-light text-neutral-600 mt-1">{copy.pendingMessagesSubtitle}</p>
                 </div>
                 <div className="flex items-center gap-4">
                   <div className="text-5xl font-light text-neutral-900 tabular-nums">
                     {messageStats.open + messageStats.in_progress}
                   </div>
                   <Button onClick={() => setActiveTab('messages')} variant="outline">
-                    GÃ¥ til meldinger
+                    {copy.goToMessages}
                   </Button>
                 </div>
               </div>
@@ -777,7 +784,7 @@ export default function AdminPage() {
               </div>
             ) : (
               <Card className="p-12 text-center">
-                <p className="text-gray-600">Ingen data tilgjengelig</p>
+                <p className="text-gray-600">{copy.noData}</p>
               </Card>
             )}
           </div>
@@ -797,7 +804,7 @@ export default function AdminPage() {
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
                   <Input
                     type="text"
-                    placeholder="SÃ¸k etter ordre, navn eller e-post..."
+                    placeholder={copy.searchPlaceholder}
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="pl-10"
@@ -817,11 +824,11 @@ export default function AdminPage() {
               </select>
               <Button onClick={loadOrders} variant="outline">
                 <Filter className="w-4 h-4 mr-2" />
-                Filtrer
+                {copy.filterButton}
               </Button>
               <Button onClick={handleExportCSV} variant="outline">
                 <Download className="w-4 h-4 mr-2" />
-                Eksporter CSV
+                {copy.exportCsvButton}
               </Button>
             </div>
 
@@ -830,7 +837,7 @@ export default function AdminPage() {
               <Card className="p-4 bg-blue-50 border-blue-200">
                 <div className="flex items-center justify-between">
                   <p className="font-medium text-blue-900">
-                    {selectedOrders.size} ordre(r) valgt
+                    {copy.bulkSelected.replace('{count}', String(selectedOrders.size))}
                   </p>
                   <div className="flex gap-2">
                     <Button
@@ -839,7 +846,7 @@ export default function AdminPage() {
                       onClick={() => handleBulkStatusUpdate('ready_for_pickup')}
                       disabled={bulkActionLoading}
                     >
-                      Marker klar
+                      {copy.bulkMarkReady}
                     </Button>
                     <Button
                       size="sm"
@@ -848,7 +855,7 @@ export default function AdminPage() {
                       disabled={bulkActionLoading}
                     >
                       <Lock className="w-4 h-4 mr-1" />
-                      LÃ¥s
+                      {copy.bulkLock}
                     </Button>
                     <Button
                       size="sm"
@@ -857,14 +864,14 @@ export default function AdminPage() {
                       disabled={bulkActionLoading}
                     >
                       <Download className="w-4 h-4 mr-1" />
-                      Produksjonsplan
+                      {copy.bulkProductionPlan}
                     </Button>
                     <Button
                       size="sm"
                       variant="outline"
                       onClick={() => setSelectedOrders(new Set())}
                     >
-                      Avbryt
+                      {copy.bulkCancel}
                     </Button>
                   </div>
                 </div>
@@ -879,8 +886,8 @@ export default function AdminPage() {
             ) : filteredOrders.length === 0 ? (
               <Card className="p-12 text-center">
                 <ShoppingCart className="w-16 h-16 mx-auto mb-4 text-gray-400" />
-                <p className="text-xl font-normal text-gray-900 mb-2">Ingen bestillinger funnet</p>
-                <p className="text-gray-600">PrÃ¸v Ã¥ justere filtrene dine</p>
+                <p className="text-xl font-normal text-gray-900 mb-2">{copy.noOrdersTitle}</p>
+                <p className="text-gray-600">{copy.noOrdersSubtitle}</p>
               </Card>
             ) : (
               <Card className="overflow-hidden">
@@ -896,14 +903,14 @@ export default function AdminPage() {
                             className="rounded"
                           />
                         </th>
-                        <th className="px-4 py-3 text-left text-sm font-normal text-gray-700">Ordrenr</th>
-                        <th className="px-4 py-3 text-left text-sm font-normal text-gray-700">Kunde</th>
-                        <th className="px-4 py-3 text-left text-sm font-normal text-gray-700">Produkt</th>
-                        <th className="px-4 py-3 text-left text-sm font-normal text-gray-700">Status</th>
-                        <th className="px-4 py-3 text-left text-sm font-normal text-gray-700">Levering</th>
-                        <th className="px-4 py-3 text-left text-sm font-normal text-gray-700">BelÃ¸p</th>
-                        <th className="px-4 py-3 text-left text-sm font-normal text-gray-700">Dato</th>
-                        <th className="px-4 py-3 text-right text-sm font-normal text-gray-700">Handlinger</th>
+                        <th className="px-4 py-3 text-left text-sm font-normal text-gray-700">{copy.table.orderNumber}</th>
+                        <th className="px-4 py-3 text-left text-sm font-normal text-gray-700">{copy.table.customer}</th>
+                        <th className="px-4 py-3 text-left text-sm font-normal text-gray-700">{copy.table.product}</th>
+                        <th className="px-4 py-3 text-left text-sm font-normal text-gray-700">{copy.table.status}</th>
+                        <th className="px-4 py-3 text-left text-sm font-normal text-gray-700">{copy.table.delivery}</th>
+                        <th className="px-4 py-3 text-left text-sm font-normal text-gray-700">{copy.table.amount}</th>
+                        <th className="px-4 py-3 text-left text-sm font-normal text-gray-700">{copy.table.date}</th>
+                        <th className="px-4 py-3 text-right text-sm font-normal text-gray-700">{copy.table.actions}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y">
@@ -953,12 +960,16 @@ export default function AdminPage() {
                           </td>
                           <td className="px-4 py-3">
                             {order.product_type === 'pig_box' && (
-                              <span className="text-gray-900">{order.box_size}kg gris</span>
+                              <span className="text-gray-900">
+                                {copy.productPigBox.replace('{size}', String(order.box_size))}
+                              </span>
                             )}
                             {order.product_type === 'eggs' && (
                               <div>
                                 <p className="font-medium text-gray-900">{order.breed_name}</p>
-                                <p className="text-sm text-gray-600">{order.quantity} egg</p>
+                                <p className="text-sm text-gray-600">
+                                  {copy.productEggs.replace('{quantity}', String(order.quantity))}
+                                </p>
                               </div>
                             )}
                           </td>
@@ -977,15 +988,15 @@ export default function AdminPage() {
                           </td>
                           <td className="px-4 py-3 text-sm text-gray-600">
                             {order.product_type === 'eggs' && order.week_number && (
-                              <div>Uke {order.week_number}</div>
+                              <div>{copy.weekLabel.replace('{week}', String(order.week_number))}</div>
                             )}
                             <div>{order.delivery_type}</div>
                           </td>
                           <td className="px-4 py-3 font-medium text-gray-900">
-                            kr {(order.total_amount / 100).toLocaleString('nb-NO')}
+                            {currency} {(order.total_amount / 100).toLocaleString(locale)}
                           </td>
                           <td className="px-4 py-3 text-sm text-gray-600">
-                            {new Date(order.created_at).toLocaleDateString('nb-NO')}
+                            {new Date(order.created_at).toLocaleDateString(locale)}
                           </td>
                           <td className="px-4 py-3 text-right">
                             <div className="flex items-center justify-end gap-2">
@@ -1030,38 +1041,38 @@ export default function AdminPage() {
         {/* ANALYTICS TAB */}
         {activeTab === 'analytics' && (
           <div className="space-y-8">
-            <h2 className="text-3xl font-bold text-gray-900">Analyse & Rapporter</h2>
+            <h2 className="text-3xl font-bold text-gray-900">{copy.analyticsTitle}</h2>
 
             {/* Pig Analytics */}
             {(productMode === 'pigs' || productMode === 'combined') && analytics && (
               <div>
-                <h3 className="text-xl font-bold text-gray-900 mb-4">ðŸ· Grisanalyse</h3>
+                <h3 className="text-xl font-bold text-gray-900 mb-4">ðŸ· {copy.pigAnalyticsTitle}</h3>
             {analytics ? (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <Card className="p-6">
-                  <h3 className="font-normal text-lg mb-4">NÃ¸kkeltall</h3>
+                  <h3 className="font-normal text-lg mb-4">{copy.keyMetricsTitle}</h3>
                   <div className="space-y-3">
                     <div className="flex justify-between">
-                      <span className="text-gray-600">Totale bestillinger</span>
+                      <span className="text-gray-600">{copy.totalOrdersLabel}</span>
                       <span className="font-bold text-xl">{analytics.summary.total_orders}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-600">Unike kunder</span>
+                      <span className="text-gray-600">{copy.uniqueCustomersLabel}</span>
                       <span className="font-bold text-xl">{analytics.summary.total_customers}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-600">Gjentakende kunder</span>
+                      <span className="text-gray-600">{copy.repeatCustomersLabel}</span>
                       <span className="font-bold text-xl">{analytics.summary.repeat_customers}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-600">Gjentakelsesrate</span>
+                      <span className="text-gray-600">{copy.repeatRateLabel}</span>
                       <span className="font-bold text-xl">{analytics.customer_insights.repeat_rate.toFixed(1)}%</span>
                     </div>
                   </div>
                 </Card>
 
                 <Card className="p-6">
-                  <h3 className="font-normal text-lg mb-4">Konverteringstrakt</h3>
+                  <h3 className="font-normal text-lg mb-4">{copy.conversionFunnelTitle}</h3>
                   <div className="space-y-2">
                     {Object.entries(analytics.conversion_funnel).map(([status, count]: [string, any]) => {
                       const percentage = (count / analytics.summary.total_orders) * 100;
@@ -1085,13 +1096,13 @@ export default function AdminPage() {
 
                 {analytics.products.combinations.length > 0 && (
                   <Card className="p-6 lg:col-span-2">
-                    <h3 className="font-normal text-lg mb-4">PopulÃ¦re produktkombinasjoner</h3>
+                    <h3 className="font-normal text-lg mb-4">{copy.popularCombosTitle}</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                       {analytics.products.combinations.map((combo: any, index: number) => (
                         <div key={index} className="p-4 rounded-xl bg-gray-50">
                           <p className="font-medium text-gray-900">{combo.combo}</p>
                           <p className="text-2xl font-bold text-blue-600">{combo.count}</p>
-                          <p className="text-sm text-gray-600">bestillinger</p>
+                          <p className="text-sm text-gray-600">{copy.ordersLabel}</p>
                         </div>
                       ))}
                     </div>
@@ -1100,7 +1111,7 @@ export default function AdminPage() {
               </div>
             ) : (
               <Card className="p-12 text-center">
-                <p className="text-gray-600">Laster analysedata...</p>
+                <p className="text-gray-600">{copy.loadingAnalytics}</p>
               </Card>
             )}
               </div>
@@ -1109,7 +1120,7 @@ export default function AdminPage() {
             {/* Egg Analytics */}
             {(productMode === 'eggs' || productMode === 'combined') && (
               <div>
-                <h3 className="text-xl font-bold text-gray-900 mb-4">ðŸ¥š Egganalyse</h3>
+                <h3 className="text-xl font-bold text-gray-900 mb-4">ðŸ¥š {copy.eggAnalyticsTitle}</h3>
                 <EggAnalytics />
               </div>
             )}
@@ -1124,14 +1135,14 @@ export default function AdminPage() {
           <div className="space-y-8">
             {(productMode === 'pigs' || productMode === 'combined') && (
               <div>
-                <h3 className="text-xl font-bold text-gray-900 mb-4">ðŸ· Grislager</h3>
+                <h3 className="text-xl font-bold text-gray-900 mb-4">ðŸ· {copy.pigInventoryTitle}</h3>
                 <InventoryManagement />
               </div>
             )}
 
             {(productMode === 'eggs' || productMode === 'combined') && (
               <div>
-                <h3 className="text-xl font-bold text-gray-900 mb-4">ðŸ¥š Egglager</h3>
+                <h3 className="text-xl font-bold text-gray-900 mb-4">ðŸ¥š {copy.eggInventoryTitle}</h3>
                 <EggInventoryManagement />
               </div>
             )}
@@ -1150,7 +1161,7 @@ export default function AdminPage() {
                   onClick={() => setActiveTab('communication')}
                   className="pb-3 px-1 border-b-2 border-[#2C1810] text-[#2C1810] font-medium"
                 >
-                  Send e-post
+                  {copy.communicationSendEmail}
                 </button>
                 <button
                   onClick={() => {
@@ -1159,7 +1170,7 @@ export default function AdminPage() {
                   }}
                   className="pb-3 px-1 border-b-2 border-transparent text-gray-600 hover:text-gray-900 font-medium"
                 >
-                  Historikk
+                  {copy.communicationHistory}
                 </button>
               </div>
             </div>

@@ -16,11 +16,14 @@ import { Check, ChevronRight } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 export default function CheckoutPage() {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const { getThemeClasses } = useTheme();
   const theme = getThemeClasses();
   const searchParams = useSearchParams();
   const { toast } = useToast();
+  const copy = t.vippsCheckout;
+  const currency = t.common.currency;
+  const locale = lang === 'en' ? 'en-US' : 'nb-NO';
   const [step, setStep] = useState(1);
   const [boxSize, setBoxSize] = useState<'8' | '12' | ''>('');
   const [ribbeChoice, setRibbeChoice] = useState<'tynnribbe' | 'familieribbe' | 'porchetta' | 'butchers_choice' | ''>('butchers_choice');
@@ -140,8 +143,8 @@ export default function CheckoutPage() {
             setOrderConfirmed(true);
             setOrderId(orderId);
             toast({
-              title: 'Ordre opprettet',
-              description: 'Betaling kunne ikke startes automatisk. Vennligst kontakt oss.',
+              title: copy.toastOrderCreatedTitle,
+              description: copy.toastOrderCreatedDescription,
               variant: 'destructive'
             });
           }
@@ -151,15 +154,15 @@ export default function CheckoutPage() {
           setOrderConfirmed(true);
           setOrderId(orderId);
           toast({
-            title: 'Ordre opprettet',
-            description: 'Betaling kunne ikke startes automatisk. Vennligst kontakt oss.',
+            title: copy.toastOrderCreatedTitle,
+            description: copy.toastOrderCreatedDescription,
             variant: 'destructive'
           });
         }
       } else {
         toast({
-          title: 'Noe gikk galt',
-          description: 'Kunne ikke fullføre bestillingen. Vennligst prøv igjen.',
+          title: copy.toastErrorTitle,
+          description: copy.toastErrorDescription,
           variant: 'destructive'
         });
         setIsProcessing(false);
@@ -167,8 +170,8 @@ export default function CheckoutPage() {
     } catch (error) {
       console.error('Checkout failed:', error);
       toast({
-        title: 'Noe gikk galt',
-        description: 'Kunne ikke fullføre bestillingen. Vennligst prøv igjen.',
+        title: copy.toastErrorTitle,
+        description: copy.toastErrorDescription,
         variant: 'destructive'
       });
       setIsProcessing(false);
@@ -198,24 +201,8 @@ export default function CheckoutPage() {
   };
 
   const boxContents = {
-    '8': [
-      { name: 'ca. 2.0 kg ribbe', highlight: true },
-      { name: 'ca. 0.75 kg nakkekoteletter' },
-      { name: 'ca. 0.5 kg julepølse' },
-      { name: 'ca. 1.0 kg svinesteik' },
-      { name: 'ca. 1.0 kg medisterfarse' },
-      { name: '1 knoke' },
-      { name: '+ Slakterens valg (ca. 2-3 kg)' },
-    ],
-    '12': [
-      { name: 'ca. 3.0 kg ribbe', highlight: true },
-      { name: 'ca. 1.0 kg nakkekoteletter' },
-      { name: 'ca. 1.0 kg julepølse' },
-      { name: 'ca. 1.0 kg svinesteik' },
-      { name: 'ca. 1.5 kg medisterfarse' },
-      { name: '1 knoke' },
-      { name: '+ Slakterens valg (ca. 3.5-4.5 kg)' },
-    ],
+    '8': copy.boxContents8.map((name, index) => ({ name, highlight: index === 0 })),
+    '12': copy.boxContents12.map((name, index) => ({ name, highlight: index === 0 })),
   };
 
   const selectedPrice = boxSize ? prices[boxSize] : null;
@@ -256,34 +243,34 @@ export default function CheckoutPage() {
             </div>
 
             <h1 className={cn("text-4xl md:text-5xl font-bold mb-4", theme.textPrimary)}>
-              Bestilling mottatt!
+              {copy.confirmationTitle}
             </h1>
 
             <p className={cn("text-lg mb-8", theme.textMuted)}>
-              Takk for din bestilling. Vi har mottatt din reservasjon og vil sende deg en Vipps-betalingsforespørsel for forskuddet på 50%.
+              {copy.confirmationBody}
             </p>
 
             {orderId && (
               <div className={cn("rounded-2xl p-6 mb-8", theme.bgSecondary)}>
-                <p className={cn("text-sm mb-2", theme.textMuted)}>Bestillingsnummer</p>
+                <p className={cn("text-sm mb-2", theme.textMuted)}>{copy.orderNumberLabel}</p>
                 <p className={cn("text-2xl font-bold font-mono", theme.textPrimary)}>{orderId}</p>
               </div>
             )}
 
             <div className={cn("space-y-4 text-left rounded-2xl p-6 mb-8", theme.bgSecondary)}>
-              <h3 className={cn("font-bold text-lg mb-4", theme.textPrimary)}>Neste steg:</h3>
+              <h3 className={cn("font-bold text-lg mb-4", theme.textPrimary)}>{copy.nextStepsTitle}</h3>
               <div className="space-y-3">
                 <div className="flex items-start gap-3">
                   <div className={cn("w-6 h-6 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 mt-0.5", theme.bgDark, theme.textOnDark)}>1</div>
-                  <p className={cn("text-sm", theme.textSecondary)}>Du vil motta en Vipps-betalingsforespørsel for forskuddet (50% av totalbeløpet)</p>
+                  <p className={cn("text-sm", theme.textSecondary)}>{copy.nextStep1}</p>
                 </div>
                 <div className="flex items-start gap-3">
                   <div className={cn("w-6 h-6 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 mt-0.5", theme.bgDark, theme.textOnDark)}>1</div>
-                  <p className={cn("text-sm", theme.textSecondary)}>Du får en bekreftelse på e-post når forskuddet er mottatt</p>
+                  <p className={cn("text-sm", theme.textSecondary)}>{copy.nextStep2}</p>
                 </div>
                 <div className="flex items-start gap-3">
                   <div className={cn("w-6 h-6 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 mt-0.5", theme.bgDark, theme.textOnDark)}>3</div>
-                  <p className={cn("text-sm", theme.textSecondary)}>Resterende beløp betales ved levering</p>
+                  <p className={cn("text-sm", theme.textSecondary)}>{copy.nextStep3}</p>
                 </div>
               </div>
             </div>
@@ -293,13 +280,13 @@ export default function CheckoutPage() {
                 href="/"
                 className={cn("px-8 py-4 rounded-2xl font-bold hover:shadow-2xl hover:scale-105 transition-all duration-300", theme.buttonPrimary, theme.buttonPrimaryHover, theme.textOnDark)}
               >
-                Tilbake til forsiden
+                {copy.backToHome}
               </Link>
               <Link
                 href="/min-side"
                 className={cn("px-8 py-4 rounded-2xl font-bold border hover:shadow-2xl hover:scale-105 transition-all duration-300", theme.buttonSecondary, theme.buttonSecondaryHover, theme.textPrimary, theme.glassBorder, theme.glassCard)}
               >
-                Se mine bestillinger
+                {copy.viewOrders}
               </Link>
             </div>
           </div>
@@ -327,17 +314,17 @@ export default function CheckoutPage() {
             <svg className="w-5 h-5 group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
-            Tilbake
+            {copy.back}
           </Link>
         </div>
 
         {/* Hero */}
         <div className="text-center mb-16 animate-in fade-in duration-700">
           <h1 className={cn("text-5xl md:text-6xl font-bold mb-4", theme.textPrimary)}>
-            Reserver din kasse
+            {copy.heroTitle}
           </h1>
           <p className={cn("text-lg max-w-2xl mx-auto", theme.textMuted)}>
-            Velg størrelse, ribbe-type og ekstra tillegg. Vi sender deg Vipps-betalingsforespørsel etter bestilling.
+            {copy.heroSubtitle}
           </p>
         </div>
 
@@ -365,19 +352,19 @@ export default function CheckoutPage() {
           </div>
           <div className="flex items-center justify-center gap-4 mt-4">
             <div className="text-center w-12 md:w-24">
-              <p className={cn("text-xs font-semibold", theme.textPrimary)}>Størrelse</p>
+              <p className={cn("text-xs font-semibold", theme.textPrimary)}>{copy.progressSize}</p>
             </div>
             <div className="w-12 md:w-24" />
             <div className="text-center w-12 md:w-24">
-              <p className={cn("text-xs font-semibold", theme.textPrimary)}>Ribbe</p>
+              <p className={cn("text-xs font-semibold", theme.textPrimary)}>{copy.progressRibbe}</p>
             </div>
             <div className="w-12 md:w-24" />
             <div className="text-center w-12 md:w-24">
-              <p className={cn("text-xs font-semibold", theme.textPrimary)}>Ekstra</p>
+              <p className={cn("text-xs font-semibold", theme.textPrimary)}>{copy.progressExtras}</p>
             </div>
             <div className="w-12 md:w-24" />
             <div className="text-center w-12 md:w-24">
-              <p className={cn("text-xs font-semibold", theme.textPrimary)}>Levering</p>
+              <p className={cn("text-xs font-semibold", theme.textPrimary)}>{copy.progressDelivery}</p>
             </div>
           </div>
         </div>
@@ -395,13 +382,13 @@ export default function CheckoutPage() {
               step === 1 ? cn("ring-2", theme.borderPrimary) : step > 1 ? "opacity-60" : ""
             )}>
               <div className="flex items-center justify-between mb-6">
-                <h2 className={cn("text-2xl font-bold", theme.textPrimary)}>1. Velg kassestørrelse</h2>
+                <h2 className={cn("text-2xl font-bold", theme.textPrimary)}>{copy.step1Title}</h2>
                 {boxSize && step > 1 && (
                   <button
                     onClick={() => setStep(1)}
                     className={cn("text-sm underline", theme.textSecondary, `hover:${theme.textPrimary}`)}
                   >
-                    Endre
+                    {copy.change}
                   </button>
                 )}
               </div>
@@ -422,18 +409,24 @@ export default function CheckoutPage() {
                     )}
                   >
                     <div className="text-center mb-4">
-                      <p className={cn("text-5xl font-bold mb-2", theme.textPrimary)}>{size} <span className={cn("text-2xl", theme.textMuted)}>kg</span></p>
-                      <p className={cn("text-sm", theme.textMuted)}>{size === '8' ? '2-3 personer' : '4-6 personer'}</p>
+                      <p className={cn("text-5xl font-bold mb-2", theme.textPrimary)}>
+                        {size} <span className={cn("text-2xl", theme.textMuted)}>{copy.unitKg}</span>
+                      </p>
+                      <p className={cn("text-sm", theme.textMuted)}>
+                        {size === '8' ? copy.sizePeople8 : copy.sizePeople12}
+                      </p>
                     </div>
                     {pricing && prices[size].total > 0 ? (
-                      <p className={cn("text-2xl font-bold text-center", theme.textPrimary)}>kr {prices[size].total.toLocaleString('nb-NO')}</p>
+                      <p className={cn("text-2xl font-bold text-center", theme.textPrimary)}>
+                        {currency} {prices[size].total.toLocaleString(locale)}
+                      </p>
                     ) : (
-                      <p className={cn("text-xl text-center animate-pulse", theme.textMuted)}>Laster priser...</p>
+                      <p className={cn("text-xl text-center animate-pulse", theme.textMuted)}>{copy.loadingPrices}</p>
                     )}
 
                     {boxSize === size && boxContents[size] && (
                       <div className={cn("mt-6 pt-6 border-t animate-in fade-in slide-in-from-top-2 duration-500", theme.borderSecondary)}>
-                        <p className={cn("text-xs font-bold uppercase tracking-wider mb-3", theme.textPrimary)}>I kassen:</p>
+                        <p className={cn("text-xs font-bold uppercase tracking-wider mb-3", theme.textPrimary)}>{copy.inBox}</p>
                         <ul className="space-y-2">
                           {boxContents[size].map((item, idx) => (
                             <li key={idx} className={cn("flex items-start gap-2 text-sm", item.highlight ? cn("font-medium", theme.textPrimary) : theme.textMuted)}>
@@ -453,7 +446,7 @@ export default function CheckoutPage() {
                   onClick={() => setStep(2)}
                   className={cn("mt-6 w-full px-8 py-4 rounded-2xl font-bold uppercase tracking-wider hover:shadow-2xl hover:scale-105 transition-all duration-300 flex items-center justify-center gap-2", theme.buttonPrimary, theme.buttonPrimaryHover, theme.textOnDark)}
                 >
-                  Gå videre til ribbe-valg
+                  {copy.nextToRibbe}
                   <ChevronRight className="w-5 h-5" />
                 </button>
               )}
@@ -469,27 +462,27 @@ export default function CheckoutPage() {
                 step === 2 ? cn("ring-2", theme.borderPrimary) : step > 2 ? "opacity-60" : step < 2 ? "opacity-40 pointer-events-none" : ""
               )}>
                 <div className="flex items-center justify-between mb-6">
-                  <h2 className={cn("text-2xl font-bold", theme.textPrimary)}>2. Velg ribbe-type</h2>
+                  <h2 className={cn("text-2xl font-bold", theme.textPrimary)}>{copy.step2Title}</h2>
                   {ribbeChoice && step > 2 && (
                     <button
                       onClick={() => setStep(2)}
                       className={cn("text-sm underline", theme.textSecondary, `hover:${theme.textPrimary}`)}
                     >
-                      Endre
+                      {copy.change}
                     </button>
                   )}
                 </div>
 
                 <p className={cn("text-sm mb-6", theme.textMuted)}>
-                  Din kasse inneholder ca. {boxSize === '8' ? '2.0' : '3.0'} kg ribbe. Velg hvilken type:
+                  {copy.ribbeHint.replace('{amount}', boxSize === '8' ? '2.0' : '3.0')}
                 </p>
 
                 <div className="grid gap-4">
                   {[
-                    { id: 'tynnribbe', name: 'Tynnribbe', desc: 'Klassisk ribbe med ribbein - perfekt sprøstekt svor', tag: null },
-                    { id: 'familieribbe', name: 'Familieribbe', desc: 'Inkluderer kotelettkammen med ytrefileten - mer kjøtt, magrere kjøtt', tag: null },
-                    { id: 'porchetta', name: 'Porchetta', desc: 'Beinfri nedre mage - italiensk stil', tag: null },
-                    { id: 'butchers_choice', name: 'Slakterens valg', desc: 'Vi velger en god ribbe til deg basert på tilgjengelighet', tag: 'Forhåndsvalgt' },
+                    { id: 'tynnribbe', name: copy.ribOptionTynnribbeName, desc: copy.ribOptionTynnribbeDesc, tag: null },
+                    { id: 'familieribbe', name: copy.ribOptionFamilieribbeName, desc: copy.ribOptionFamilieribbeDesc, tag: null },
+                    { id: 'porchetta', name: copy.ribOptionPorchettaName, desc: copy.ribOptionPorchettaDesc, tag: null },
+                    { id: 'butchers_choice', name: copy.ribOptionButcherName, desc: copy.ribOptionButcherDesc, tag: copy.ribOptionTagDefault },
                   ].map((option) => (
                     <button
                       key={option.id}
@@ -520,7 +513,7 @@ export default function CheckoutPage() {
                     onClick={() => setStep(3)}
                     className={cn("mt-6 w-full px-8 py-4 rounded-2xl font-bold uppercase tracking-wider hover:shadow-2xl hover:scale-105 transition-all duration-300 flex items-center justify-center gap-2", theme.buttonPrimary, theme.buttonPrimaryHover, theme.textOnDark)}
                   >
-                    Gå videre til ekstra tillegg
+                    {copy.nextToExtras}
                     <ChevronRight className="w-5 h-5" />
                   </button>
                 )}
@@ -537,20 +530,20 @@ export default function CheckoutPage() {
                 step === 3 ? cn("ring-2", theme.borderPrimary) : step > 3 ? "opacity-60" : step < 3 ? "opacity-40 pointer-events-none" : ""
               )}>
                 <div className="flex items-center justify-between mb-6">
-                  <h2 className={cn("text-2xl font-bold", theme.textPrimary)}>3. Ekstra kjøttprodukter (valgfritt)</h2>
+                  <h2 className={cn("text-2xl font-bold", theme.textPrimary)}>{copy.step3Title}</h2>
                   {step > 3 && (
                     <button
                       onClick={() => setStep(3)}
                       className={cn("text-sm underline", theme.textSecondary, `hover:${theme.textPrimary}`)}
                     >
-                      Endre
+                      {copy.change}
                     </button>
                   )}
                 </div>
 
                 <div className="mb-8 p-5 bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-300 rounded-2xl shadow-sm">
                   <p className="text-sm text-amber-900 leading-relaxed">
-                    <strong className="font-bold">Obs:</strong> Ekstra produkter er avhengig av tilgjengelighet og grisestørrelse ved slakt. Vi gjør vårt beste for å oppfylle ønskene dine.
+                    <strong className="font-bold">{copy.extrasNoticeTitle}</strong> {copy.extrasNoticeBody}
                   </p>
                 </div>
 
@@ -606,10 +599,10 @@ export default function CheckoutPage() {
                           {/* Price */}
                           <div className="flex items-baseline gap-2 mb-4">
                             <span className={cn("text-2xl font-bold", isSelected ? "text-amber-600" : theme.textPrimary)}>
-                              {extra.price_nok} kr
+                              {currency} {extra.price_nok.toLocaleString(locale)}
                             </span>
                             <span className={cn("text-sm", theme.textMuted)}>
-                              /{extra.pricing_type === 'per_kg' ? 'kg' : 'stk'}
+                              /{extra.pricing_type === 'per_kg' ? copy.unitKg : copy.unitPieces}
                             </span>
                           </div>
 
@@ -619,7 +612,7 @@ export default function CheckoutPage() {
                               className="flex items-center gap-3 pt-4 border-t border-amber-200 animate-in fade-in slide-in-from-top-2 duration-300"
                               onClick={(e) => e.stopPropagation()}
                             >
-                              <label className={cn("text-sm font-semibold", theme.textPrimary)}>Mengde:</label>
+                              <label className={cn("text-sm font-semibold", theme.textPrimary)}>{copy.quantityLabel}</label>
                               <Input
                                 type="number"
                                 min={extra.pricing_type === 'per_kg' ? '0.1' : '1'}
@@ -637,7 +630,7 @@ export default function CheckoutPage() {
                                 className={cn("w-24 text-center font-bold text-lg border-2 border-amber-300 focus:border-amber-500", theme.textPrimary)}
                               />
                               <span className={cn("text-sm font-medium", theme.textPrimary)}>
-                                {extra.pricing_type === 'per_kg' ? 'kg' : 'stk'}
+                                {extra.pricing_type === 'per_kg' ? copy.unitKg : copy.unitPieces}
                               </span>
                             </div>
                           )}
@@ -652,7 +645,7 @@ export default function CheckoutPage() {
                     onClick={() => setStep(4)}
                     className={cn("mt-6 w-full px-8 py-4 rounded-2xl font-bold uppercase tracking-wider hover:shadow-2xl hover:scale-105 transition-all duration-300 flex items-center justify-center gap-2", theme.buttonPrimary, theme.buttonPrimaryHover, theme.textOnDark)}
                   >
-                    Gå videre til levering
+                    {copy.nextToDelivery}
                     <ChevronRight className="w-5 h-5" />
                   </button>
                 )}
@@ -668,12 +661,12 @@ export default function CheckoutPage() {
                 theme.glassBorder,
                 step === 4 ? cn("ring-2", theme.borderPrimary) : ""
               )}>
-                <h2 className={cn("text-2xl font-bold mb-6", theme.textPrimary)}>4. Levering og tillegg</h2>
+                <h2 className={cn("text-2xl font-bold mb-6", theme.textPrimary)}>{copy.step4Title}</h2>
 
                 <div className="space-y-6">
                   {/* Delivery Type Selection */}
                   <div>
-                    <h3 className={cn("text-sm font-bold uppercase tracking-wider mb-3", theme.textPrimary)}>Leveringsalternativ</h3>
+                    <h3 className={cn("text-sm font-bold uppercase tracking-wider mb-3", theme.textPrimary)}>{copy.deliveryOptionsTitle}</h3>
                     <div className="space-y-3">
                       <button
                         onClick={() => setDeliveryType('farm')}
@@ -690,11 +683,11 @@ export default function CheckoutPage() {
                               {deliveryType === 'farm' && <div className={cn("w-2.5 h-2.5 rounded-full", theme.textOnDark)} />}
                             </div>
                             <div>
-                              <p className={cn("font-semibold", theme.textPrimary)}>Henting på gården</p>
-                              <p className={cn("text-sm", theme.textMuted)}>Tinglemsvegen 91, Namdalseid</p>
+                              <p className={cn("font-semibold", theme.textPrimary)}>{copy.pickupFarmTitle}</p>
+                              <p className={cn("text-sm", theme.textMuted)}>{copy.pickupFarmAddress}</p>
                             </div>
                           </div>
-                          <span className="text-sm font-bold text-green-600">Gratis</span>
+                          <span className="text-sm font-bold text-green-600">{copy.free}</span>
                         </div>
                       </button>
 
@@ -713,11 +706,11 @@ export default function CheckoutPage() {
                               {deliveryType === 'trondheim' && <div className={cn("w-2.5 h-2.5 rounded-full", theme.textOnDark)} />}
                             </div>
                             <div>
-                              <p className={cn("font-semibold", theme.textPrimary)}>Henting i Trondheim</p>
-                              <p className={cn("text-sm", theme.textMuted)}>Veita Mat AS, Jomfrugata</p>
+                              <p className={cn("font-semibold", theme.textPrimary)}>{copy.pickupTrondheimTitle}</p>
+                              <p className={cn("text-sm", theme.textMuted)}>{copy.pickupTrondheimAddress}</p>
                             </div>
                           </div>
-                          <span className={cn("text-sm font-bold", theme.textPrimary)}>+{addonPrices.trondheim} kr</span>
+                          <span className={cn("text-sm font-bold", theme.textPrimary)}>+{addonPrices.trondheim} {currency}</span>
                         </div>
                       </button>
 
@@ -736,11 +729,11 @@ export default function CheckoutPage() {
                               {deliveryType === 'e6' && <div className={cn("w-2.5 h-2.5 rounded-full", theme.textOnDark)} />}
                             </div>
                             <div>
-                              <p className={cn("font-semibold", theme.textPrimary)}>Levering langs E6</p>
-                              <p className={cn("text-sm", theme.textMuted)}>Stjørdal-Namsos</p>
+                              <p className={cn("font-semibold", theme.textPrimary)}>{copy.deliveryE6Title}</p>
+                              <p className={cn("text-sm", theme.textMuted)}>{copy.deliveryE6Address}</p>
                             </div>
                           </div>
-                          <span className={cn("text-sm font-bold", theme.textPrimary)}>+{addonPrices.e6} kr</span>
+                          <span className={cn("text-sm font-bold", theme.textPrimary)}>+{addonPrices.e6} {currency}</span>
                         </div>
                       </button>
                     </div>
@@ -749,7 +742,7 @@ export default function CheckoutPage() {
                   {/* Fresh Delivery Option - Only available with farm pickup */}
                   {deliveryType === 'farm' && (
                     <div>
-                      <h3 className={cn("text-sm font-bold uppercase tracking-wider mb-3", theme.textPrimary)}>Ekstra tilvalg</h3>
+                      <h3 className={cn("text-sm font-bold uppercase tracking-wider mb-3", theme.textPrimary)}>{copy.extraOptionsTitle}</h3>
                       <button
                         onClick={() => setFreshDelivery(!freshDelivery)}
                         className={cn(
@@ -765,11 +758,11 @@ export default function CheckoutPage() {
                               {freshDelivery && <Check className={cn("w-3 h-3", theme.textOnDark)} />}
                             </div>
                             <div>
-                              <p className={cn("font-semibold", theme.textPrimary)}>Fersk levering (uke 50/51)</p>
-                              <p className={cn("text-sm", theme.textMuted)}>Motta kassen fersk i stedet for frossen - kun på gården</p>
+                              <p className={cn("font-semibold", theme.textPrimary)}>{copy.freshDeliveryTitle}</p>
+                              <p className={cn("text-sm", theme.textMuted)}>{copy.freshDeliveryDesc}</p>
                             </div>
                           </div>
-                          <span className={cn("text-sm font-bold", theme.textPrimary)}>+{addonPrices.fresh} kr</span>
+                          <span className={cn("text-sm font-bold", theme.textPrimary)}>+{addonPrices.fresh} {currency}</span>
                         </div>
                       </button>
                     </div>
@@ -790,7 +783,7 @@ export default function CheckoutPage() {
                 <div className="relative w-40 h-14">
                   <Image
                     src="/vipps-logo.svg"
-                    alt="Vipps"
+                    alt={copy.vippsLogoAlt}
                     fill
                     className="object-contain"
                     priority
@@ -803,27 +796,33 @@ export default function CheckoutPage() {
               <div className="space-y-4 mb-6">
                 {boxSize && (
                   <div className="flex justify-between text-sm">
-                    <span className={theme.textMuted}>{boxSize} kg kasse</span>
-                    <span className={cn("font-bold", theme.textPrimary)}>kr {prices[boxSize].total}</span>
+                    <span className={theme.textMuted}>
+                      {copy.summaryBoxLabel.replace('{size}', boxSize)}
+                    </span>
+                    <span className={cn("font-bold", theme.textPrimary)}>
+                      {currency} {prices[boxSize].total.toLocaleString(locale)}
+                    </span>
                   </div>
                 )}
                 {deliveryType !== 'farm' && (
                   <div className="flex justify-between text-sm">
                     <span className={theme.textMuted}>
-                      {deliveryType === 'trondheim' ? 'Henting Trondheim' : 'Levering E6'}
+                      {deliveryType === 'trondheim' ? copy.summaryPickupTrondheim : copy.summaryDeliveryE6}
                     </span>
-                    <span className={cn("font-bold", theme.textPrimary)}>+{deliveryType === 'trondheim' ? addonPrices.trondheim : addonPrices.e6} kr</span>
+                    <span className={cn("font-bold", theme.textPrimary)}>
+                      +{deliveryType === 'trondheim' ? addonPrices.trondheim : addonPrices.e6} {currency}
+                    </span>
                   </div>
                 )}
                 {freshDelivery && (
                   <div className="flex justify-between text-sm">
-                    <span className={theme.textMuted}>Fersk levering</span>
-                    <span className={cn("font-bold", theme.textPrimary)}>+{addonPrices.fresh} kr</span>
+                    <span className={theme.textMuted}>{copy.summaryFreshDelivery}</span>
+                    <span className={cn("font-bold", theme.textPrimary)}>+{addonPrices.fresh} {currency}</span>
                   </div>
                 )}
                 {extraProducts.length > 0 && (
                   <div className="space-y-2 mt-4">
-                    <p className={cn("text-xs uppercase tracking-wider font-semibold", theme.textMuted)}>Ekstra produkter</p>
+                    <p className={cn("text-xs uppercase tracking-wider font-semibold", theme.textMuted)}>{copy.summaryExtrasTitle}</p>
                     {extraProducts.map(slug => {
                       const extra = availableExtras.find(e => e.slug === slug);
                       if (!extra) return null;
@@ -832,9 +831,12 @@ export default function CheckoutPage() {
                       return (
                         <div key={slug} className="flex justify-between text-sm">
                           <span className={theme.textMuted}>
-                            {extra.name_no} ({quantity} {extra.pricing_type === 'per_kg' ? 'kg' : 'stk'})
+                            {copy.summaryExtraItem
+                              .replace('{name}', extra.name_no)
+                              .replace('{quantity}', String(quantity))
+                              .replace('{unit}', extra.pricing_type === 'per_kg' ? copy.unitKg : copy.unitPieces)}
                           </span>
-                          <span className={cn("font-bold", theme.textPrimary)}>+{itemTotal} kr</span>
+                          <span className={cn("font-bold", theme.textPrimary)}>+{currency} {itemTotal.toLocaleString(locale)}</span>
                         </div>
                       );
                     })}
@@ -845,15 +847,17 @@ export default function CheckoutPage() {
               <div className={cn("border-t pt-4 mb-6", theme.borderSecondary)}>
                 <div className="flex justify-between text-sm mb-2">
                   <span className={theme.textMuted}>{t.checkout.payNow}</span>
-                  <span className={cn("font-bold", theme.textPrimary)}>kr {depositTotal}</span>
+                  <span className={cn("font-bold", theme.textPrimary)}>{currency} {depositTotal.toLocaleString(locale)}</span>
                 </div>
                 <div className="flex justify-between text-sm mb-4">
                   <span className={theme.textMuted}>{t.checkout.payLater}</span>
-                  <span className={cn("font-bold", theme.textPrimary)}>kr {selectedPrice?.remainder || 0}</span>
+                  <span className={cn("font-bold", theme.textPrimary)}>
+                    {currency} {(selectedPrice?.remainder || 0).toLocaleString(locale)}
+                  </span>
                 </div>
                 <div className="flex justify-between text-lg sm:text-xl font-bold">
                   <span className={theme.textPrimary}>{t.checkout.totalLabel}</span>
-                  <span className={theme.textPrimary}>kr {totalPrice}</span>
+                  <span className={theme.textPrimary}>{currency} {totalPrice.toLocaleString(locale)}</span>
                 </div>
               </div>
 
@@ -868,7 +872,7 @@ export default function CheckoutPage() {
                         className="mt-0.5 rounded"
                       />
                       <span className="text-sm leading-relaxed text-amber-900">
-                        <strong className="font-bold">Jeg forstår at forskuddet ikke refunderes.</strong> Dette utløser produksjonsplanlegging.
+                        <strong className="font-bold">{copy.depositPolicyTitle}</strong> {copy.depositPolicyBody}
                       </span>
                     </Label>
                   </div>
@@ -882,7 +886,10 @@ export default function CheckoutPage() {
                         className="mt-0.5 rounded"
                       />
                       <span className="text-sm leading-relaxed text-slate-800">
-                        Jeg godtar <a href="/vilkar" target="_blank" rel="noopener noreferrer" className="underline font-semibold hover:text-amber-600">vilkårene for kjøpet</a>
+                        {copy.termsTextStart}{' '}
+                        <a href="/vilkar" target="_blank" rel="noopener noreferrer" className="underline font-semibold hover:text-amber-600">
+                          {copy.termsLinkText}
+                        </a>
                       </span>
                     </Label>
                   </div>
@@ -892,7 +899,7 @@ export default function CheckoutPage() {
                     onClick={handleCheckout}
                     className="w-full bg-[#FF5B24] hover:bg-[#E6501F] text-white font-bold text-lg py-5 px-8 rounded-2xl shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-300 flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:bg-gray-400"
                   >
-                    {isProcessing ? 'Behandler...' : 'BETAL MED VIPPS'}
+                    {isProcessing ? copy.processing : copy.payWithVipps}
                   </button>
 
                   {/* Info text */}
@@ -901,10 +908,10 @@ export default function CheckoutPage() {
                       <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
                       </svg>
-                      <span className="font-medium">Sikker betaling med Vipps</span>
+                      <span className="font-medium">{copy.securePayment}</span>
                     </div>
                     <p className="text-xs text-center text-gray-500">
-                      Dine kontaktopplysninger hentes automatisk fra Vipps
+                      {copy.vippsInfo}
                     </p>
                   </div>
                 </div>
