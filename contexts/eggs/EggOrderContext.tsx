@@ -110,9 +110,9 @@ export function OrderProvider({ children }: { children: ReactNode }) {
 
     let deliveryFee = 0
     if (method === 'posten') {
-      deliveryFee = 30000 // 300 kr in øre
+      deliveryFee = 30000 // 300 kr in Ã¸re
     } else if (method === 'e6_pickup') {
-      deliveryFee = 20000 // 200 kr in øre
+      deliveryFee = 20000 // 200 kr in Ã¸re
     }
 
     const totalAmount = currentDraft.subtotal + deliveryFee
