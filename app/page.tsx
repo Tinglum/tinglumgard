@@ -449,18 +449,33 @@ export default function Page() {
         <MobileTimeline />
 
         <section className="px-5 py-12">
-          <div className="mx-auto max-w-md rounded-[32px] border border-[#1E1B16] bg-[#1E1B16] px-6 py-8 text-[#F6F4EF] shadow-[0_24px_50px_rgba(30,27,22,0.3)]">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-[#F6F4EF]/70">
-              {t.hero.limitedOffer}
-            </p>
-            <h2 className="mt-4 text-3xl font-semibold font-[family:var(--font-playfair)]">{t.hero.seasonOnce}</h2>
-            <p className="mt-3 text-sm text-[#F6F4EF]/70">{t.hero.limitedProduction}</p>
-            <Link
-              href="/bestill"
-              className="mt-6 inline-flex w-full items-center justify-center rounded-2xl bg-[#F6F4EF] px-6 py-4 text-sm font-bold uppercase tracking-[0.2em] text-[#1E1B16]"
-            >
-              {t.hero.reservePackageNow}
-            </Link>
+          <div className="relative mx-auto max-w-md overflow-hidden rounded-[32px] border border-[#E7DED2] bg-[#FFF7ED] px-6 py-8 shadow-[0_26px_60px_rgba(68,45,23,0.22)]">
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(255,231,196,0.8),_transparent_55%)]" />
+            <div className="absolute -right-10 -top-12 h-40 w-40 rounded-full bg-[#F6C56D]/40 blur-3xl" />
+            <div className="absolute -bottom-16 left-6 h-40 w-40 rounded-full bg-[#D9A272]/30 blur-3xl" />
+            <div className="relative z-10">
+              <span className="inline-flex items-center rounded-full border border-[#E6C89B] bg-[#FFE8C4] px-4 py-1 text-[10px] font-semibold uppercase tracking-[0.35em] text-[#7B4A17]">
+                {t.hero.limitedOffer}
+              </span>
+              <h2 className="mt-4 text-3xl font-semibold text-[#2B1B0E] font-[family:var(--font-playfair)]">
+                {t.hero.seasonOnce}
+              </h2>
+              <p className="mt-3 text-sm text-[#5B4536]">{t.hero.limitedProduction}</p>
+              <div className="mt-6 grid gap-3">
+                <Link
+                  href="/bestill"
+                  className="inline-flex w-full items-center justify-center rounded-2xl bg-[#2B1B0E] px-6 py-4 text-[11px] font-semibold uppercase tracking-[0.28em] text-[#FFF4E6] shadow-[0_16px_30px_rgba(43,27,14,0.35)]"
+                >
+                  {t.hero.reservePackageNow}
+                </Link>
+                <Link
+                  href="/produkt"
+                  className="inline-flex w-full items-center justify-center rounded-2xl border border-[#D9C3AB] bg-white/70 px-6 py-4 text-[11px] font-semibold uppercase tracking-[0.28em] text-[#2B1B0E]"
+                >
+                  {t.hero.learnMore}
+                </Link>
+              </div>
+            </div>
           </div>
         </section>
 
