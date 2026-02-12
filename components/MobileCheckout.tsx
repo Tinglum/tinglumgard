@@ -160,9 +160,18 @@ export function MobileCheckout(props: MobileCheckoutProps) {
   const ribbeSummary = ribbeOptions.find((opt) => opt.id === ribbeChoice)?.name || t.checkout.selectRibbeType;
   const deliverySummary = deliveryOptions.find((opt) => opt.id === deliveryType)?.name || t.checkout.deliveryOptions;
   const canContinue = step === 1 ? !!selectedPreset : step === 2 ? ribbeChoice !== '' : true;
-  const filteredExtras = availableExtras.filter(
-    (extra) => !['delivery_trondheim', 'pickup_e6', 'fresh_delivery'].includes(extra.slug)
-  );
+  const filteredExtras = [...availableExtras]
+    .filter((extra) => !['delivery_trondheim', 'pickup_e6', 'fresh_delivery'].includes(extra.slug))
+    .sort((a, b) => {
+      const aIsSpecial = Boolean(a.chef_term_no || a.chef_term_en || String(a.slug || '').startsWith('extra-'));
+      const bIsSpecial = Boolean(b.chef_term_no || b.chef_term_en || String(b.slug || '').startsWith('extra-'));
+
+      if (aIsSpecial !== bIsSpecial) {
+        return aIsSpecial ? -1 : 1;
+      }
+
+      return (a.display_order ?? 9999) - (b.display_order ?? 9999);
+    });
   const getExtraName = (extra: any) => (lang === 'en' && extra.name_en ? extra.name_en : extra.name_no);
   const getExtraDescription = (extra: any) => (lang === 'en' && extra.description_en ? extra.description_en : extra.description_no);
 

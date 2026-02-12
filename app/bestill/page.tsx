@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useIsMobile } from '@/hooks/useMediaQuery';
@@ -89,6 +89,21 @@ export default function CheckoutPage() {
   } | null>(null);
   const [showDiscountCodes, setShowDiscountCodes] = useState(false);
   const [summaryOffset, setSummaryOffset] = useState(0);
+
+  const selectableExtras = useMemo(() => {
+    return [...availableExtras]
+      .filter((extra) => !['delivery_trondheim', 'pickup_e6', 'fresh_delivery'].includes(extra.slug))
+      .sort((a, b) => {
+        const aIsSpecial = Boolean(a.chef_term_no || a.chef_term_en || String(a.slug || '').startsWith('extra-'));
+        const bIsSpecial = Boolean(b.chef_term_no || b.chef_term_en || String(b.slug || '').startsWith('extra-'));
+
+        if (aIsSpecial !== bIsSpecial) {
+          return aIsSpecial ? -1 : 1;
+        }
+
+        return (a.display_order ?? 9999) - (b.display_order ?? 9999);
+      });
+  }, [availableExtras]);
 
   const syncSummaryOffset = useCallback(() => {
     if (isMobile) {
@@ -781,8 +796,7 @@ export default function CheckoutPage() {
                 </div>
 
                 <div className="grid md:grid-cols-2 gap-6">
-                  {availableExtras
-                    .filter(extra => !['delivery_trondheim', 'pickup_e6', 'fresh_delivery'].includes(extra.slug))
+                  {selectableExtras
                     .map((extra) => {
                     const isSelected = extraProducts.includes(extra.slug);
                     const defaultQty = extra.default_quantity || (extra.pricing_type === 'per_kg' ? 0.5 : 1);
