@@ -36,8 +36,6 @@ export async function GET(request: NextRequest) {
 }
 
 function calculateDashboardMetrics(orders: any[]) {
-  const now = new Date();
-
   // Payment tracking
   const outstandingDeposits = orders.filter(
     (o) => o.status === 'draft' && !o.payments?.some((p: any) => p.payment_type === 'deposit' && p.status === 'completed')
@@ -72,9 +70,17 @@ function calculateDashboardMetrics(orders: any[]) {
 
   // Product breakdown
   const boxSizes = orders.map((o) => getEffectiveBoxSize(o));
+  const boxCounts = boxSizes.reduce((acc, size) => {
+    if (!size) return acc;
+    const key = `${size}`;
+    acc[key] = (acc[key] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+
   const productBreakdown = {
     box_8kg: boxSizes.filter((size) => size === 8).length,
     box_12kg: boxSizes.filter((size) => size === 12).length,
+    box_counts: boxCounts,
     total_kg: boxSizes.reduce((sum, size) => sum + size, 0),
   };
 

@@ -84,8 +84,16 @@ async function getInventoryStatus() {
   const remainingKg = maxKg - allocatedKg;
   const utilizationRate = maxKg > 0 ? (allocatedKg / maxKg) * 100 : 0;
 
-  const box8kgCount = orders?.filter((o) => getEffectiveBoxSize(o) === 8).length || 0;
-  const box12kgCount = orders?.filter((o) => getEffectiveBoxSize(o) === 12).length || 0;
+  const boxCounts = (orders || []).reduce((acc, order) => {
+    const size = getEffectiveBoxSize(order);
+    if (!size) return acc;
+    const key = `${size}`;
+    acc[key] = (acc[key] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+
+  const box8kgCount = boxCounts['8'] || 0;
+  const box12kgCount = boxCounts['12'] || 0;
 
   return NextResponse.json({
     inventory: {
@@ -95,6 +103,7 @@ async function getInventoryStatus() {
       utilization_rate: Math.round(utilizationRate * 10) / 10,
       box_8kg_count: box8kgCount,
       box_12kg_count: box12kgCount,
+      box_counts: boxCounts,
       total_orders: orders?.length || 0,
     },
   });

@@ -117,7 +117,7 @@ export default function AdminPage() {
   const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set());
 
   // Product Mode Filter
-  const [productMode, setProductMode] = useState<'pigs' | 'eggs' | 'combined'>('combined');
+  const [productMode, setProductMode] = useState<'pigs' | 'eggs' | 'combined'>('pigs');
 
   // Data
   const [orders, setOrders] = useState<Order[]>([]);
@@ -570,16 +570,16 @@ export default function AdminPage() {
 
   const tabs: Array<{ id: TabType; label: string; icon: any }> = [
     { id: 'dashboard', label: copy.tabs.dashboard, icon: LayoutDashboard },
-    { id: 'orders', label: copy.tabs.orders, icon: ShoppingCart },
-    { id: 'customers', label: copy.tabs.customers, icon: Users },
-    { id: 'analytics', label: copy.tabs.analytics, icon: BarChart3 },
-    { id: 'communication', label: copy.tabs.communication, icon: MessageSquare },
-    { id: 'messages', label: copy.tabs.messages, icon: MessageSquare },
-    { id: 'production', label: copy.tabs.production, icon: Calendar },
-    { id: 'inventory', label: copy.tabs.inventory, icon: Warehouse },
-    { id: 'breeds', label: copy.tabs.breeds, icon: Tag },
     { id: 'mangalitsa-boxes', label: 'Mangalitsa Bokser', icon: Package },
     { id: 'mangalitsa-extras', label: 'Ekstraprodukter', icon: ShoppingCart },
+    { id: 'orders', label: copy.tabs.orders, icon: ShoppingCart },
+    { id: 'inventory', label: copy.tabs.inventory, icon: Warehouse },
+    { id: 'production', label: copy.tabs.production, icon: Calendar },
+    { id: 'analytics', label: copy.tabs.analytics, icon: BarChart3 },
+    { id: 'messages', label: copy.tabs.messages, icon: MessageSquare },
+    { id: 'customers', label: copy.tabs.customers, icon: Users },
+    { id: 'communication', label: copy.tabs.communication, icon: MessageSquare },
+    { id: 'breeds', label: copy.tabs.breeds, icon: Tag },
     { id: 'rebates', label: copy.tabs.rebates, icon: Tag },
     { id: 'notifications', label: copy.tabs.notifications, icon: Mail },
     { id: 'health', label: copy.tabs.health, icon: Activity },
@@ -650,7 +650,7 @@ export default function AdminPage() {
       <div className="bg-white border-b border-neutral-200 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.08)]">
         <div className="max-w-[1800px] mx-auto px-6 py-6">
           <div className="flex items-center justify-between">
-            <h1 className="text-3xl font-light tracking-tight text-neutral-900">{copy.headerTitle}</h1>
+            <h1 className="text-3xl font-light tracking-tight text-neutral-900">Tinglumgard Admin - Mangalitsa</h1>
             <button
               onClick={async () => {
                 await fetch('/api/admin/logout', { method: 'POST' });
@@ -660,50 +660,6 @@ export default function AdminPage() {
             >
               {copy.logoutButton}
             </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Product Mode Toggle */}
-      <div className="bg-neutral-50 border-b border-neutral-200">
-        <div className="max-w-[1800px] mx-auto px-6 py-5">
-          <div className="flex items-center gap-4">
-            <span className="text-sm font-light text-neutral-600">{copy.productViewLabel}</span>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setProductMode('pigs')}
-                className={cn(
-                  'px-5 py-2.5 rounded-xl text-sm font-light transition-all duration-300',
-                  productMode === 'pigs'
-                    ? 'bg-neutral-900 text-white shadow-[0_10px_30px_-10px_rgba(0,0,0,0.3)]'
-                    : 'bg-white text-neutral-700 hover:bg-neutral-50 border border-neutral-200 hover:border-neutral-300 hover:-translate-y-0.5'
-                )}
-              >
-                ðŸ· {copy.productViewPigs}
-              </button>
-              <button
-                onClick={() => setProductMode('eggs')}
-                className={cn(
-                  'px-5 py-2.5 rounded-xl text-sm font-light transition-all duration-300',
-                  productMode === 'eggs'
-                    ? 'bg-neutral-900 text-white shadow-[0_10px_30px_-10px_rgba(0,0,0,0.3)]'
-                    : 'bg-white text-neutral-700 hover:bg-neutral-50 border border-neutral-200 hover:border-neutral-300 hover:-translate-y-0.5'
-                )}
-              >
-                ðŸ¥š {copy.productViewEggs}
-              </button>
-              <button
-                onClick={() => setProductMode('combined')}
-                className={cn(
-                  'px-5 py-2.5 rounded-xl text-sm font-light transition-all duration-300',
-                  productMode === 'combined'
-                    ? 'bg-neutral-900 text-white shadow-[0_10px_30px_-10px_rgba(0,0,0,0.3)]'
-                    : 'bg-white text-neutral-700 hover:bg-neutral-50 border border-neutral-200 hover:border-neutral-300 hover:-translate-y-0.5'
-                )}
-              >
-                ðŸ“Š {copy.productViewCombined}
-              </button>
-            </div>
           </div>
         </div>
       </div>

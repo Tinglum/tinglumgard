@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth/session';
 import { supabaseAdmin } from '@/lib/supabase/server';
 import { logError } from '@/lib/logger';
+import { getEffectiveBoxSize } from '@/lib/orders/display';
 
 type BroadcastFilters = {
   awaitingFinalPayment?: boolean;
@@ -85,22 +86,24 @@ async function getRecipientsFromOrders(filters: BroadcastFilters, excludePhones:
 
   let ordersQuery = supabaseAdmin
     .from('orders')
-    .select('id, customer_phone, customer_name, customer_email, box_size, status');
+    .select('id, customer_phone, customer_name, customer_email, box_size, status, mangalitsa_preset:mangalitsa_box_presets(target_weight_kg)');
 
   if (filters.awaitingFinalPayment) {
     ordersQuery = ordersQuery.eq('status', 'deposit_paid');
-  }
-  if (filters.boxSize) {
-    ordersQuery = ordersQuery.eq('box_size', filters.boxSize);
   }
   if (orderIds) {
     ordersQuery = ordersQuery.in('id', orderIds);
   }
 
-  const { data: orders, error: ordersError } = await ordersQuery;
+  const { data: fetchedOrders, error: ordersError } = await ordersQuery;
   if (ordersError) throw ordersError;
 
-  const recipients = (orders || [])
+  const orders = (fetchedOrders || []).filter((order) => {
+    if (!filters.boxSize) return true;
+    return getEffectiveBoxSize(order as any) === filters.boxSize;
+  });
+
+  const recipients = orders
     .filter((o) => o.customer_phone && !excluded.has(o.customer_phone))
     .map((o) => ({
       phone: o.customer_phone as string,

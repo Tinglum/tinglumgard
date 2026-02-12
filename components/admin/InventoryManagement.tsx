@@ -17,6 +17,7 @@ interface InventoryData {
   utilization_rate: number;
   box_8kg_count: number;
   box_12kg_count: number;
+  box_counts?: Record<string, number>;
   total_orders: number;
 }
 
@@ -118,6 +119,11 @@ export function InventoryManagement() {
     inventory.remaining_kg < 100 ? 'text-red-600' :
     inventory.remaining_kg < 500 ? 'text-amber-600' :
     'text-green-600';
+  const boxCounts = inventory.box_counts || {
+    '8': inventory.box_8kg_count || 0,
+    '12': inventory.box_12kg_count || 0,
+  };
+  const sortedBoxEntries = Object.entries(boxCounts).sort((a, b) => Number(a[0]) - Number(b[0]));
 
   return (
     <div className="space-y-6">
@@ -209,21 +215,19 @@ export function InventoryManagement() {
 
       <Card className="p-6">
         <h3 className="font-semibold text-lg mb-4">{copy.boxBreakdownTitle}</h3>
-        <div className="grid grid-cols-2 gap-4">
-          <div className="p-4 rounded-xl bg-blue-50 border border-blue-200">
-            <p className="text-sm text-blue-700 mb-1">{copy.box8Label}</p>
-            <p className="text-3xl font-bold text-blue-900">{inventory.box_8kg_count}</p>
-            <p className="text-sm text-blue-600 mt-1">
-              {copy.kgTotal.replace('{count}', String(inventory.box_8kg_count * 8))}
-            </p>
-          </div>
-          <div className="p-4 rounded-xl bg-purple-50 border border-purple-200">
-            <p className="text-sm text-purple-700 mb-1">{copy.box12Label}</p>
-            <p className="text-3xl font-bold text-purple-900">{inventory.box_12kg_count}</p>
-            <p className="text-sm text-purple-600 mt-1">
-              {copy.kgTotal.replace('{count}', String(inventory.box_12kg_count * 12))}
-            </p>
-          </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {sortedBoxEntries.map(([size, count]) => {
+            const sizeNum = Number(size);
+            return (
+              <div key={size} className="p-4 rounded-xl bg-blue-50 border border-blue-200">
+                <p className="text-sm text-blue-700 mb-1">{size} kg</p>
+                <p className="text-3xl font-bold text-blue-900">{count}</p>
+                <p className="text-sm text-blue-600 mt-1">
+                  {copy.kgTotal.replace('{count}', String(count * sizeNum))}
+                </p>
+              </div>
+            );
+          })}
         </div>
       </Card>
 
