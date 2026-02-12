@@ -2693,5 +2693,95 @@ export const en = {
     communicationSendEmail: "Send email",
     communicationHistory: "History",
   },
+
+  // Mangalitsa Premium Content
+  mangalitsa: {
+    pageTitle: 'Mangalitsa Woolly Pig - Premium',
+    hero: {
+      title: 'Only 4 boxes per pig. Slaughtered once a year.',
+      subtitle: 'This is not regular pork. This is woolly pig, built for flavor, fat cap and juiciness.',
+      scarcity: 'When it\'s gone, it\'s gone.',
+    },
+    boxes: {
+      premiumCuts: {
+        name: 'Premium Cuts',
+        tagline: 'All the cool stuff',
+        audience: 'Food enthusiast, chef, "I want what nobody else has"',
+        description: 'This is the box for those who want to feel the difference immediately. Pork jowl (guanciale), neck collar (coppa) and the small "secret" cuts you never see in stores.',
+        whyPremium: 'Contains guanciale + lardo + butcher steak - names that signal restaurant, not "regular pork".',
+      },
+      bbqSteakhouse: {
+        name: 'BBQ & Steakhouse',
+        tagline: 'Weekend feasts & grill',
+        audience: 'Grill, smoker, weekend meals, "wow on the cutting board"',
+        description: 'This is the weekend box. Tomahawk chops, pork ribeye and shoulder roast. Made for smoke, grill and long cooking.',
+        whyPremium: 'Thick chops with long bone (tomahawk) and ribeye-style steaks with fat cap.',
+      },
+      julespesial: {
+        name: 'Christmas Special',
+        tagline: 'Ribs + sausage package',
+        audience: 'Those planning Christmas who want "real" ingredients',
+        description: 'Ribs are not just ribs. Here you get rib selection + medister sausages and medister mix from Mangalitsa. This is the box you buy when you want quality, tradition and a meal that actually feels like an occasion.',
+        whyPremium: 'Medister that actually tastes like something, because the raw material is woolly pig with fat cap.',
+      },
+      familieboks: {
+        name: 'Family Box',
+        tagline: 'Meal prep & good dinners',
+        audience: 'Volume and flexibility, but still premium ingredients',
+        description: 'This is the meal prep box. Bacon, chops, ground pork with higher fat percentage, and sausage. Everything you need for a week of good dinners.',
+        whyPremium: 'Best margin control with ground meat and sausage, without the box feeling "cheap".',
+      },
+    },
+    ribbeSelection: {
+      title: 'Choose rib type',
+      subtitle: 'All boxes include 1.5 kg rib selection',
+    },
+    premiumProof: [
+      'Cut with fat cap',
+      'Only one slaughter per year',
+      'Only 4 boxes per pig',
+      'Two guanciale per animal',
+    ],
+    whyExpensive: {
+      title: 'Why so expensive?',
+      reasons: [
+        {
+          title: 'Limited',
+          body: 'Only 4 boxes per pig. Only one slaughter per year. When it\'s gone, it\'s gone.',
+        },
+        {
+          title: 'Craftsmanship',
+          body: 'Each pig is 11 months old. Each box is hand-cut. Every part has a purpose.',
+        },
+        {
+          title: 'Quality',
+          body: 'Woolly pig has 3-4 times more intramuscular fat than regular pork. This is flavor, juiciness and texture you actually remember.',
+        },
+      ],
+    },
+    contrast: {
+      standard: 'Store pork is "lean and similar"',
+      mangalitsa: 'Woolly pig is "marbling, fat cap, depth"',
+    },
+    threeRules: [
+      'Only 4 boxes per pig',
+      'Slaughtered once a year',
+      'Ribs for Christmas, and meat you actually remember',
+    ],
+    reserveBox: 'Reserve this box',
+    perKg: 'NOK/kg',
+    loading: 'Loading...',
+  },
+
+  // Extra product modal
+  extraModal: {
+    title: 'About this product',
+    pureTerms: 'What it is',
+    chefTerms: 'Chef name',
+    preparation: 'Preparation',
+    recipes: 'Recipes',
+    comingSoon: 'Coming soon',
+    viewRecipe: 'View recipe',
+  },
 };
 

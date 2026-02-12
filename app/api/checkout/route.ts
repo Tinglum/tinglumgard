@@ -12,7 +12,8 @@ interface ExtraProduct {
 }
 
 interface CheckoutRequest {
-  boxSize: 8 | 12;
+  boxSize?: 8 | 12;
+  mangalitsaPresetId?: string;
   ribbeChoice: 'tynnribbe' | 'familieribbe' | 'porchetta' | 'butchers_choice';
   extraProducts?: ExtraProduct[];
   deliveryType: 'pickup_farm' | 'pickup_e6' | 'delivery_trondheim';
@@ -33,12 +34,30 @@ export async function POST(request: NextRequest) {
 
   try {
     const body: CheckoutRequest = await request.json();
-    const { boxSize, ribbeChoice, extraProducts, deliveryType, freshDelivery, notes, customerName, customerEmail, customerPhone, referralCode, referralDiscount, referredByPhone, rebateCode, rebateDiscount } = body;
+    const { boxSize, mangalitsaPresetId, ribbeChoice, extraProducts, deliveryType, freshDelivery, notes, customerName, customerEmail, customerPhone, referralCode, referralDiscount, referredByPhone, rebateCode, rebateDiscount } = body;
+
+    const isMangalitsa = !!mangalitsaPresetId;
+    let mangalitsaPresetData: any = null;
 
     // Validation
-    if (boxSize !== 8 && boxSize !== 12) {
+    if (isMangalitsa) {
+      // Fetch Mangalitsa preset for pricing
+      const { data: preset, error: presetError } = await supabaseAdmin
+        .from('mangalitsa_box_presets')
+        .select('*')
+        .eq('id', mangalitsaPresetId)
+        .eq('active', true)
+        .single();
+
+      if (presetError || !preset) {
+        return NextResponse.json({ error: 'Invalid Mangalitsa preset' }, { status: 400 });
+      }
+      mangalitsaPresetData = preset;
+    } else if (boxSize !== 8 && boxSize !== 12) {
       return NextResponse.json({ error: 'Invalid box size' }, { status: 400 });
     }
+
+    const effectiveBoxSize = isMangalitsa ? mangalitsaPresetData.target_weight_kg : boxSize;
 
     // Customer details are optional - they will be populated from Vipps after payment
 
@@ -49,15 +68,15 @@ export async function POST(request: NextRequest) {
       .eq('active', true)
       .maybeSingle();
 
-    if (!inventory.data || inventory.data.kg_remaining < boxSize) {
+    if (!inventory.data || inventory.data.kg_remaining < effectiveBoxSize) {
       return NextResponse.json({ error: 'Failed to update inventory' }, { status: 500 });
     }
 
     // Fetch dynamic pricing from config
     const pricing = await getPricingConfig();
 
-    // Calculate pricing using dynamic config
-    const basePrice = boxSize === 8 ? pricing.box_8kg_price : pricing.box_12kg_price;
+    // Calculate pricing - Mangalitsa uses preset price, standard uses config
+    const basePrice = isMangalitsa ? mangalitsaPresetData.price_nok : (boxSize === 8 ? pricing.box_8kg_price : pricing.box_12kg_price);
     let deliveryFee = 0;
     if (deliveryType === 'pickup_e6') {
       deliveryFee = pricing.delivery_fee_pickup_e6;
@@ -97,7 +116,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Calculate base amounts
-    const depositPercentage = boxSize === 8 ? pricing.box_8kg_deposit_percentage : pricing.box_12kg_deposit_percentage;
+    const depositPercentage = isMangalitsa
+      ? 50 // Mangalitsa uses 50% deposit
+      : (boxSize === 8 ? pricing.box_8kg_deposit_percentage : pricing.box_12kg_deposit_percentage);
     const baseDepositAmount = Math.round(basePrice * (depositPercentage / 100));
 
     // Apply discount to deposit only (referral OR rebate - cannot stack)
@@ -125,7 +146,9 @@ export async function POST(request: NextRequest) {
       .insert({
         user_id: null, // Anonymous order
         order_number: orderNumber,
-        box_size: boxSize,
+        box_size: isMangalitsa ? null : boxSize,
+        mangalitsa_preset_id: isMangalitsa ? mangalitsaPresetId : null,
+        is_mangalitsa: isMangalitsa,
         status: 'draft',
         deposit_amount: depositAmount,
         remainder_amount: remainderAmount,
@@ -230,7 +253,7 @@ export async function POST(request: NextRequest) {
     // Update inventory
     const { error: inventoryError } = await supabaseAdmin
       .from('inventory')
-      .update({ kg_remaining: inventory.data.kg_remaining - boxSize })
+      .update({ kg_remaining: inventory.data.kg_remaining - effectiveBoxSize })
       .eq('id', inventory.data.id);
 
     if (inventoryError) {

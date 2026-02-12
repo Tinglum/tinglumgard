@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { GlassCard } from "@/components/GlassCard";
+import { MangalitsaBoxesSection } from "@/components/MangalitsaBoxesSection";
+import { MangalitsaPremiumStory } from "@/components/MangalitsaPremiumStory";
 import {
   Accordion,
   AccordionContent,
@@ -356,6 +358,12 @@ export default function ProductPage() {
           </div>
         </div>
       </Section>
+
+      {/* Mangalitsa Premium Boxes */}
+      <MangalitsaBoxesSection />
+
+      {/* Premium Storytelling */}
+      <MangalitsaPremiumStory />
 
       <Section id="velg-kasse" className="bg-[#F7F5F2]">
         <div className="mx-auto max-w-6xl px-6 space-y-10">

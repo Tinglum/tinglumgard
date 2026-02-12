@@ -10,7 +10,7 @@ export async function PATCH(
     const updates = await request.json();
 
     const { data, error } = await supabaseAdmin
-      .from('extras_catalog')
+      .from('mangalitsa_box_presets')
       .update({
         ...updates,
         updated_at: new Date().toISOString(),
@@ -20,13 +20,13 @@ export async function PATCH(
       .single();
 
     if (error) {
-      logError('admin-extras-update', error);
+      logError('admin-mangalitsa-preset-update', error);
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json({ extra: data });
+    return NextResponse.json({ preset: data });
   } catch (error) {
-    logError('admin-extras-update', error);
-    return NextResponse.json({ error: 'Failed to update extra' }, { status: 500 });
+    logError('admin-mangalitsa-preset-update', error);
+    return NextResponse.json({ error: 'Failed to update preset' }, { status: 500 });
   }
 }

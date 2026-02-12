@@ -17,6 +17,9 @@ interface CutInfo {
   description: string;
   inBox: readonly string[];
   extraOrder: readonly string[];
+  weight?: string;
+  preparation?: string;
+  premiumNote?: string;
 }
 
 export default function OppdelingsplanPage() {
@@ -28,71 +31,23 @@ export default function OppdelingsplanPage() {
 
   const copy = oppdelingsplanContent[lang].page;
 
-  const cuts: CutInfo[] = [
-    {
-      id: 3,
-      name: t.oppdelingsplan.nakke,
-      description: t.oppdelingsplan.nakkeDesc,
-      inBox: copy.cutDetails.nakke.inBox,
-      extraOrder: copy.cutDetails.nakke.extraOrder,
-    },
-    {
-      id: 4,
-      name: t.oppdelingsplan.indrefilet,
-      description: t.oppdelingsplan.indrefiletDesc,
-      inBox: copy.cutDetails.indrefilet.inBox,
-      extraOrder: copy.cutDetails.indrefilet.extraOrder,
-    },
-    {
-      id: 5,
-      name: t.oppdelingsplan.kotelettkam,
-      description: t.oppdelingsplan.kotelettkamDesc,
-      inBox: copy.cutDetails.kotelettkam.inBox,
-      extraOrder: copy.cutDetails.kotelettkam.extraOrder,
-    },
-    {
-      id: 7,
-      name: t.oppdelingsplan.ribbeside,
-      description: t.oppdelingsplan.ribbesideDesc,
-      inBox: copy.cutDetails.ribbeside.inBox,
-      extraOrder: copy.cutDetails.ribbeside.extraOrder,
-    },
-    {
-      id: 8,
-      name: t.oppdelingsplan.svinebog,
-      description: t.oppdelingsplan.svinebogDesc,
-      inBox: copy.cutDetails.svinebog.inBox,
-      extraOrder: copy.cutDetails.svinebog.extraOrder,
-    },
-    {
-      id: 9,
-      name: t.oppdelingsplan.skinke,
-      description: t.oppdelingsplan.skinkeDesc,
-      inBox: copy.cutDetails.skinke.inBox,
-      extraOrder: copy.cutDetails.skinke.extraOrder,
-    },
-    {
-      id: 10,
-      name: t.oppdelingsplan.knoke,
-      description: t.oppdelingsplan.knokeDesc,
-      inBox: copy.cutDetails.knoke.inBox,
-      extraOrder: copy.cutDetails.knoke.extraOrder,
-    },
-    {
-      id: 11,
-      name: t.oppdelingsplan.labb,
-      description: t.oppdelingsplan.labbDesc,
-      inBox: copy.cutDetails.labb.inBox,
-      extraOrder: copy.cutDetails.labb.extraOrder,
-    },
-    {
-      id: 12,
-      name: t.oppdelingsplan.polserFarse,
-      description: t.oppdelingsplan.polserFarseDesc,
-      inBox: copy.cutDetails.polserFarse.inBox,
-      extraOrder: copy.cutDetails.polserFarse.extraOrder,
-    },
-  ];
+  // Build cuts from Mangalitsa content (names with chef terminology)
+  const cutKeys = ['nakke', 'indrefilet', 'kotelettkam', 'ribbeside', 'svinebog', 'skinke', 'knoke', 'labb', 'polserFarse'] as const;
+  const cutIds = [3, 4, 5, 7, 8, 9, 10, 11, 12];
+
+  const cuts: CutInfo[] = cutKeys.map((key, idx) => {
+    const detail = copy.cutDetails[key] as any;
+    return {
+      id: cutIds[idx],
+      name: detail.name || t.oppdelingsplan[key] || key,
+      description: detail.description || t.oppdelingsplan[`${key}Desc`] || '',
+      inBox: detail.inBox,
+      extraOrder: detail.extraOrder,
+      weight: detail.weight,
+      preparation: detail.preparation,
+      premiumNote: detail.premiumNote,
+    };
+  });
 
   const inBoxSummary: string[] = boxContents?.inBox ?? [];
   const canOrderSummary: string[] = extras.length > 0
@@ -151,7 +106,7 @@ export default function OppdelingsplanPage() {
         </Link>
 
         <div className="text-center mb-16">
-          <h1 className="text-5xl font-light tracking-tight text-neutral-900 mb-4">{t.oppdelingsplan.title}</h1>
+          <h1 className="text-5xl font-light tracking-tight text-neutral-900 mb-4 font-[family:var(--font-playfair)]">{copy.title || t.oppdelingsplan.title}</h1>
           <p className="text-base font-light text-neutral-600 max-w-3xl mx-auto">
             {t.oppdelingsplan.subtitle}
           </p>
@@ -244,8 +199,31 @@ export default function OppdelingsplanPage() {
             <div className="border-t-2 border-neutral-200 p-10 animate-fade-in bg-white">
               <div className="max-w-4xl mx-auto">
                 <div className="flex-1">
-                  <h2 className="text-4xl font-light mb-4 text-neutral-900">{selectedCutInfo.name}</h2>
-                  <p className="text-base font-light text-neutral-600 mb-8">{selectedCutInfo.description}</p>
+                  <h2 className="text-4xl font-light mb-4 text-neutral-900 font-[family:var(--font-playfair)]">{selectedCutInfo.name}</h2>
+                  <p className="text-base font-light text-neutral-600 mb-4">{selectedCutInfo.description}</p>
+
+                  {selectedCutInfo.premiumNote && (
+                    <div className="mb-6 p-4 bg-neutral-50 border border-neutral-200 rounded-xl">
+                      <p className="text-sm font-normal text-neutral-900">{selectedCutInfo.premiumNote}</p>
+                    </div>
+                  )}
+
+                  {(selectedCutInfo.weight || selectedCutInfo.preparation) && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                      {selectedCutInfo.weight && (
+                        <div>
+                          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-neutral-500 mb-2">Vekt</p>
+                          <p className="text-sm font-light text-neutral-900">{selectedCutInfo.weight}</p>
+                        </div>
+                      )}
+                      {selectedCutInfo.preparation && (
+                        <div>
+                          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-neutral-500 mb-2">Tilberedning</p>
+                          <p className="text-sm font-light text-neutral-600">{selectedCutInfo.preparation}</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   <div className="flex flex-col md:flex-row gap-8 mb-8">
                     <div className="flex-1">
@@ -296,7 +274,7 @@ export default function OppdelingsplanPage() {
                         <p className="text-sm font-light text-neutral-500">{t.oppdelingsplan.ribbeTypeInfo}</p>
                       </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                         {copy.ribbeCards.map((card) => (
                           <div
                             key={card.title}
@@ -321,10 +299,6 @@ export default function OppdelingsplanPage() {
                             </ul>
                           </div>
                         ))}
-                      </div>
-
-                      <div className="rounded-xl p-4 text-sm font-light bg-neutral-50 text-neutral-600 border border-neutral-200">
-                        {t.oppdelingsplan.butchersChoiceFull}
                       </div>
                     </div>
                   )}

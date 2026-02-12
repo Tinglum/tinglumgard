@@ -48,9 +48,11 @@ import { DeliveryCalendar } from '@/components/admin/DeliveryCalendar';
 import { BoxConfiguration } from '@/components/admin/BoxConfiguration';
 import { RebateCodesManager } from '@/components/admin/RebateCodesManager';
 import { ExtrasCatalogManager } from '@/components/admin/ExtrasCatalogManager';
+import { MangalitsaBoxManager } from '@/components/admin/MangalitsaBoxManager';
+import { MangalitsaExtrasManager } from '@/components/admin/MangalitsaExtrasManager';
 import { NotificationSettings } from '@/components/admin/NotificationSettings';
 
-type TabType = 'dashboard' | 'orders' | 'customers' | 'analytics' | 'production' | 'communication' | 'messages' | 'health' | 'inventory' | 'breeds' | 'boxes' | 'rebates' | 'extras' | 'settings' | 'notifications';
+type TabType = 'dashboard' | 'orders' | 'customers' | 'analytics' | 'production' | 'communication' | 'messages' | 'health' | 'inventory' | 'breeds' | 'boxes' | 'mangalitsa-boxes' | 'mangalitsa-extras' | 'rebates' | 'extras' | 'settings' | 'notifications';
 
 interface Order {
   id: string;
@@ -566,6 +568,8 @@ export default function AdminPage() {
     { id: 'production', label: copy.tabs.production, icon: Calendar },
     { id: 'inventory', label: copy.tabs.inventory, icon: Warehouse },
     { id: 'breeds', label: copy.tabs.breeds, icon: Tag },
+    { id: 'mangalitsa-boxes', label: 'Mangalitsa Bokser', icon: Package },
+    { id: 'mangalitsa-extras', label: 'Mangalitsa Extras', icon: ShoppingCart },
     { id: 'boxes', label: copy.tabs.boxes, icon: Package },
     { id: 'rebates', label: copy.tabs.rebates, icon: Tag },
     { id: 'extras', label: copy.tabs.extras, icon: ShoppingCart },
@@ -1195,6 +1199,12 @@ export default function AdminPage() {
 
         {/* REBATE CODES TAB */}
         {activeTab === 'rebates' && <RebateCodesManager />}
+
+        {/* MANGALITSA BOXES TAB */}
+        {activeTab === 'mangalitsa-boxes' && <MangalitsaBoxManager />}
+
+        {/* MANGALITSA EXTRAS TAB */}
+        {activeTab === 'mangalitsa-extras' && <MangalitsaExtrasManager />}
 
         {/* EXTRAS TAB */}
         {activeTab === 'extras' && <ExtrasCatalogManager />}

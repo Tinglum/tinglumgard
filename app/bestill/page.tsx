@@ -14,6 +14,7 @@ import { Check } from 'lucide-react';
 import { ReferralCodeInput } from '@/components/ReferralCodeInput';
 import { RebateCodeInput } from '@/components/RebateCodeInput';
 import { MobileCheckout } from '@/components/MobileCheckout';
+import { ExtraProductModal } from '@/components/ExtraProductModal';
 import { useToast } from '@/hooks/use-toast';
 
 // Reusable Components for Nordic Minimal Design
@@ -38,10 +39,13 @@ export default function CheckoutPage() {
   const step4Ref = useRef<HTMLDivElement>(null);
   const [step, setStep] = useState(1);
   const [boxSize, setBoxSize] = useState<'8' | '12' | ''>('');
+  const [mangalitsaPreset, setMangalitsaPreset] = useState<any>(null);
   const [ribbeChoice, setRibbeChoice] = useState<'tynnribbe' | 'familieribbe' | 'porchetta' | 'butchers_choice' | ''>('butchers_choice');
   const [extraProducts, setExtraProducts] = useState<string[]>([]);
   const [extraQuantities, setExtraQuantities] = useState<Record<string, number>>({});
   const [availableExtras, setAvailableExtras] = useState<any[]>([]);
+  const [hoveredExtra, setHoveredExtra] = useState<any>(null);
+  const [modalPosition, setModalPosition] = useState({ x: 0, y: 0 });
   const [deliveryType, setDeliveryType] = useState<'farm' | 'trondheim' | 'e6'>('farm');
   const [freshDelivery, setFreshDelivery] = useState(false);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
@@ -98,7 +102,22 @@ export default function CheckoutPage() {
   // URL parameter handling
   useEffect(() => {
     const sizeParam = searchParams.get('size');
-    if (sizeParam === '8' || sizeParam === '12') {
+    const presetParam = searchParams.get('preset');
+
+    if (presetParam) {
+      // Load Mangalitsa preset
+      fetch('/api/mangalitsa/presets')
+        .then(res => res.json())
+        .then(data => {
+          const preset = (data.presets || []).find((p: any) => p.slug === presetParam);
+          if (preset) {
+            setMangalitsaPreset(preset);
+            setBoxSize(String(preset.target_weight_kg) as any);
+            setStep(2); // Skip to ribbe selection
+          }
+        })
+        .catch(err => console.error('Failed to load preset:', err));
+    } else if (sizeParam === '8' || sizeParam === '12') {
       setBoxSize(sizeParam);
       setStep(2);
     }
@@ -202,7 +221,10 @@ export default function CheckoutPage() {
 
       // Prepare order details for Vipps login
       const orderDetails = {
-        boxSize: parseInt(boxSize),
+        ...(mangalitsaPreset
+          ? { mangalitsaPresetId: mangalitsaPreset.id }
+          : { boxSize: parseInt(boxSize) }
+        ),
         ribbeChoice,
         extraProducts: extrasWithQuantities,
         deliveryType: apiDeliveryType,
@@ -249,7 +271,13 @@ export default function CheckoutPage() {
     }
   }
 
-  // Calculate prices from dynamic config
+  // Calculate prices from dynamic config or Mangalitsa preset
+  const mangalitsaPriceObj = mangalitsaPreset ? {
+    deposit: Math.floor(mangalitsaPreset.price_nok * 0.5),
+    remainder: mangalitsaPreset.price_nok - Math.floor(mangalitsaPreset.price_nok * 0.5),
+    total: mangalitsaPreset.price_nok,
+  } : null;
+
   const prices = pricing ? {
     '8': {
       deposit: Math.floor(pricing.box_8kg_price * (pricing.box_8kg_deposit_percentage / 100)),
@@ -290,7 +318,7 @@ export default function CheckoutPage() {
     ],
   };
 
-  const selectedPrice = boxSize && prices ? prices[boxSize] : null;
+  const selectedPrice = mangalitsaPriceObj ? mangalitsaPriceObj : (boxSize && prices ? (prices as any)[boxSize] : null);
   const deliveryPrice = !addonPrices ? 0 : (deliveryType === 'farm' ? 0 : deliveryType === 'trondheim' ? addonPrices.trondheim : addonPrices.e6);
   const freshPrice = freshDelivery && addonPrices ? addonPrices.fresh : 0;
 
@@ -749,7 +777,28 @@ export default function CheckoutPage() {
                         }}
                       >
                         <div className="flex items-center justify-between mb-4">
-                          <h4 className="font-normal text-neutral-900">{extra.name_no}</h4>
+                          <div className="flex items-center gap-2">
+                            <h4 className="font-normal text-neutral-900">
+                              {lang === 'no' ? extra.name_no : (extra.name_en || extra.name_no)}
+                            </h4>
+                            {extra.chef_term_no && (
+                              <span className="text-xs text-neutral-400 italic">({lang === 'no' ? extra.chef_term_no : (extra.chef_term_en || extra.chef_term_no)})</span>
+                            )}
+                            {(extra.description_premium_no || extra.recipe_suggestions) && (
+                              <button
+                                onClick={(e) => { e.stopPropagation(); }}
+                                onMouseEnter={(e) => {
+                                  e.stopPropagation();
+                                  setHoveredExtra(extra);
+                                  setModalPosition({ x: e.clientX, y: e.clientY });
+                                }}
+                                onMouseLeave={() => setHoveredExtra(null)}
+                                className="w-5 h-5 rounded-full border border-neutral-300 flex items-center justify-center text-xs text-neutral-400 hover:text-neutral-900 hover:border-neutral-900 transition-all"
+                              >
+                                i
+                              </button>
+                            )}
+                          </div>
                           <div className={cn(
                             "w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all duration-300",
                             isSelected ? "border-neutral-900 bg-neutral-900 shadow-[0_5px_15px_-5px_rgba(0,0,0,0.3)]" : "border-neutral-200 group-hover:border-neutral-300"
@@ -758,8 +807,10 @@ export default function CheckoutPage() {
                           </div>
                         </div>
 
-                        {extra.description_no && (
-                          <p className="text-sm font-light text-neutral-600 mb-4">{extra.description_no}</p>
+                        {(lang === 'no' ? (extra.description_premium_no || extra.description_no) : (extra.description_premium_en || extra.description_en || extra.description_no)) && (
+                          <p className="text-sm font-light text-neutral-600 mb-4">
+                            {lang === 'no' ? (extra.description_premium_no || extra.description_no) : (extra.description_premium_en || extra.description_en || extra.description_no)}
+                          </p>
                         )}
 
                         <div className="text-2xl font-light text-neutral-900 tabular-nums">
@@ -839,6 +890,15 @@ export default function CheckoutPage() {
                     );
                   })}
                 </div>
+
+                {/* Extra Product Info Modal */}
+                {hoveredExtra && (
+                  <ExtraProductModal
+                    extra={hoveredExtra}
+                    position={modalPosition}
+                    onClose={() => setHoveredExtra(null)}
+                  />
+                )}
 
                 {step === 3 && (
                   <button

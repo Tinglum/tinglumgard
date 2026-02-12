@@ -2694,5 +2694,95 @@ export const no = {
     communicationSendEmail: "Send e-post",
     communicationHistory: "Historikk",
   },
+
+  // Mangalitsa Premium Content
+  mangalitsa: {
+    pageTitle: 'Mangalitsa Ullgris - Premium',
+    hero: {
+      title: 'Kun 4 bokser per gris. Slaktes én gang i året.',
+      subtitle: 'Dette er ikke vanlig svinekjøtt. Dette er ullgris, bygget for smak, fettkappe og saftighet.',
+      scarcity: 'Når det er tomt, er det tomt.',
+    },
+    boxes: {
+      premiumCuts: {
+        name: 'Premium Cuts',
+        tagline: 'Alt det kule',
+        audience: 'Matentusiast, kokk, "jeg vil ha det ingen andre har"',
+        description: 'Dette er boksen for deg som vil kjenne forskjellen med en gang. Svinekinn (guanciale), nakkekam (coppa) og de små "hemmelige" stykkene du aldri ser i butikk.',
+        whyPremium: 'Inneholder guanciale + lardo + slakterbiff - navn som signaliserer restaurant, ikke "vanlig svin".',
+      },
+      bbqSteakhouse: {
+        name: 'BBQ og Steakhouse',
+        tagline: 'Helgemat og grill',
+        audience: 'Grill, smoker, helgemat, "wow på skjærefjøla"',
+        description: 'Dette er helgeboksen. Tomahawk-koteletter, svine-entrecôte og bogstek. Laget for røyk, grill og lang tid.',
+        whyPremium: 'Tykke koteletter med langt bein (tomahawk) og ribeye-lignende biffer med fettkappe.',
+      },
+      julespesial: {
+        name: 'Julespesial',
+        tagline: 'Ribbe + medisterpakka',
+        audience: 'De som planlegger jul og vil ha "ekte" råvare',
+        description: 'Ribbe er ikke bare ribbe. Her får du ribbevalg + medisterpølser og medisterfarse av Mangalitsa. Dette er boksen du kjøper når du vil ha trygghet, tradisjon og et måltid som faktisk føles som en anledning.',
+        whyPremium: 'Medister som faktisk smaker noe, fordi råvaren er ullgris med fettkappe.',
+      },
+      familieboks: {
+        name: 'Familieboks',
+        tagline: 'Matuke og gode middager',
+        audience: 'Volum og fleksibilitet, men fortsatt premium råvare',
+        description: 'Dette er matukeboksen. Bacon, koteletter, kjøttdeig med høyere fettprosent, og pølse. Alt du trenger for en uke med gode middager.',
+        whyPremium: 'Best kontroll på margin med deig og pølse, uten at boksen føles "billig".',
+      },
+    },
+    ribbeSelection: {
+      title: 'Velg ribbetype',
+      subtitle: 'Alle bokser inkluderer 1,5 kg ribbevalg',
+    },
+    premiumProof: [
+      'Skåret med fettkappe',
+      'Kun én slakt i året',
+      'Kun 4 bokser per gris',
+      'To guanciale per dyr',
+    ],
+    whyExpensive: {
+      title: 'Hvorfor så dyrt?',
+      reasons: [
+        {
+          title: 'Limited',
+          body: 'Kun 4 bokser per gris. Kun én slakt per år. Når det er tomt, er det tomt.',
+        },
+        {
+          title: 'Håndverk',
+          body: 'Hver gris er 11 måneder gammel. Hver boks er skåret for hand. Hver del har et formål.',
+        },
+        {
+          title: 'Kvalitet',
+          body: 'Ullgris har 3-4 ganger mer intramuskulært fett enn vanlig gris. Dette er smak, saftighet og tekstur du faktisk husker.',
+        },
+      ],
+    },
+    contrast: {
+      standard: 'Butikkgris er "magert og likt"',
+      mangalitsa: 'Ullgris er "marmorering, fettkappe, dybde"',
+    },
+    threeRules: [
+      'Kun 4 bokser per gris',
+      'Slaktes én gang i året',
+      'Ribbe til jul, og kjøtt du faktisk husker',
+    ],
+    reserveBox: 'Reserver denne boksen',
+    perKg: 'kr/kg',
+    loading: 'Laster...',
+  },
+
+  // Extra product modal
+  extraModal: {
+    title: 'Om dette produktet',
+    pureTerms: 'Hva det er',
+    chefTerms: 'Kokke-navn',
+    preparation: 'Tilberedning',
+    recipes: 'Oppskrifter',
+    comingSoon: 'Kommer snart',
+    viewRecipe: 'Se oppskrift',
+  },
 };
 
