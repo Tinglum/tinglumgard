@@ -375,12 +375,39 @@ ALTER TABLE extras_catalog
   ADD COLUMN IF NOT EXISTS preparation_tips_no TEXT,
   ADD COLUMN IF NOT EXISTS preparation_tips_en TEXT;
 
+-- Seed premium language for known extras (idempotent)
+UPDATE extras_catalog
+SET
+  description_premium_no = COALESCE(description_premium_no, 'Ekstra ryggspekk fra ullgris. Perfekt til lardo, stekefett eller fritert som crunch-topping.'),
+  description_premium_en = COALESCE(description_premium_en, 'Extra back fat from woolly pig. Perfect for lardo, cooking fat, or fried as crispy topping.'),
+  chef_term_no = COALESCE(chef_term_no, 'Lardo'),
+  chef_term_en = COALESCE(chef_term_en, 'Lardo'),
+  recipe_suggestions = COALESCE(
+    recipe_suggestions,
+    '[
+      {"title_no":"Lardo Crostini","title_en":"Lardo Crostini","description_no":"Tynt skaret lardo pa ristet brod med honning","description_en":"Thinly sliced lardo on toasted bread with honey","future_slug":"lardo-crostini"},
+      {"title_no":"Stekt i lardo","title_en":"Fried in lardo","description_no":"Bruk lardo som stekefett til koteletter eller biffer","description_en":"Use lardo as cooking fat for chops or steaks","future_slug":"lardo-frying"}
+    ]'::jsonb
+  ),
+  preparation_tips_no = COALESCE(preparation_tips_no, 'Kutt i tynne skiver og la smelte pa varmt brod, eller smelt ned til stekefett.'),
+  preparation_tips_en = COALESCE(preparation_tips_en, 'Slice thinly and let melt on warm bread, or render down to cooking fat.')
+WHERE slug = 'extra-spekk';
+
 -- ============================================================================
 -- 6. Alter orders table
 -- ============================================================================
 ALTER TABLE orders
   ADD COLUMN IF NOT EXISTS mangalitsa_preset_id UUID REFERENCES mangalitsa_box_presets(id),
   ADD COLUMN IF NOT EXISTS is_mangalitsa BOOLEAN DEFAULT false;
+
+ALTER TABLE orders
+  DROP CONSTRAINT IF EXISTS check_box_type;
+
+ALTER TABLE orders
+  ADD CONSTRAINT check_box_type CHECK (
+    (box_size IS NOT NULL AND mangalitsa_preset_id IS NULL AND is_mangalitsa = false) OR
+    (box_size IS NULL AND mangalitsa_preset_id IS NOT NULL AND is_mangalitsa = true)
+  ) NOT VALID;
 
 -- ============================================================================
 -- 7. Add RLS policies for the new tables

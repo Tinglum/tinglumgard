@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth/session';
 import { supabaseAdmin } from '@/lib/supabase/server';
 import { logError } from '@/lib/logger';
+import { getEffectiveBoxSize } from '@/lib/orders/display';
 
 export async function GET(request: NextRequest) {
   const session = await getSession();
@@ -20,6 +21,7 @@ export async function GET(request: NextRequest) {
       .from('orders')
       .select(`
         *,
+        mangalitsa_preset:mangalitsa_box_presets(id, slug, name_no, name_en, target_weight_kg),
         payments (*)
       `)
       .order('created_at', { ascending: false });
@@ -76,7 +78,8 @@ function calculateAnalytics(orders: any[], insights: any[]) {
 
   // Popular product combinations
   const productCombinations = orders.reduce((acc, order) => {
-    const combo = `${order.box_size}kg + ${order.ribbe_choice}`;
+    const effectiveBoxSize = getEffectiveBoxSize(order);
+    const combo = `${effectiveBoxSize || '?'}kg + ${order.ribbe_choice || 'n/a'}`;
     acc[combo] = (acc[combo] || 0) + 1;
     return acc;
   }, {} as Record<string, number>);

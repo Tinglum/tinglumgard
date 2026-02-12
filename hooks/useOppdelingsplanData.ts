@@ -1,25 +1,39 @@
 import { useEffect, useState } from 'react';
-import { Extra, BoxContents, ExtrasResponse, ConfigResponse } from '@/lib/types';
+import { Extra, ExtrasResponse } from '@/lib/types';
+
+interface MangalitsaPresetContent {
+  id: string;
+  content_name_no: string;
+  content_name_en: string;
+  display_order: number;
+}
+
+interface MangalitsaPreset {
+  id: string;
+  name_no: string;
+  name_en: string;
+  contents?: MangalitsaPresetContent[];
+}
 
 export function useOppdelingsplanData() {
   const [extras, setExtras] = useState<Extra[]>([]);
-  const [boxContents, setBoxContents] = useState<BoxContents | null>(null);
+  const [presets, setPresets] = useState<MangalitsaPreset[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     let mounted = true;
     (async () => {
       try {
-        const [extrasRes, cfgRes] = await Promise.all([
+        const [extrasRes, presetsRes] = await Promise.all([
           fetch('/api/extras'),
-          fetch('/api/config'),
+          fetch('/api/mangalitsa/presets'),
         ]);
 
         const extrasJson: ExtrasResponse = await extrasRes.json();
         if (extrasJson.extras) setExtras(extrasJson.extras);
 
-        const cfgJson: ConfigResponse = await cfgRes.json();
-        if (cfgJson.box_contents) setBoxContents(cfgJson.box_contents);
+        const presetsJson = await presetsRes.json();
+        if (presetsJson.presets) setPresets(presetsJson.presets);
       } catch (err) {
         // Error during fetch - state remains empty, graceful fallback
       } finally {
@@ -29,5 +43,5 @@ export function useOppdelingsplanData() {
     return () => { mounted = false; };
   }, []);
 
-  return { extras, boxContents, isLoading };
+  return { extras, presets, isLoading };
 }

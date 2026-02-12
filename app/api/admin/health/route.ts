@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth/session';
 import { supabaseAdmin } from '@/lib/supabase/server';
+import { getEffectiveBoxSize } from '@/lib/orders/display';
 
 export async function GET(request: NextRequest) {
   const session = await getSession();
@@ -170,10 +171,10 @@ async function checkInventoryHealth() {
   // Calculate allocated kg
   const { data: orders } = await supabaseAdmin
     .from('orders')
-    .select('box_size, status')
+    .select('box_size, status, mangalitsa_preset:mangalitsa_box_presets(target_weight_kg)')
     .not('status', 'eq', 'cancelled');
 
-  const allocatedKg = orders?.reduce((sum, o) => sum + o.box_size, 0) || 0;
+  const allocatedKg = orders?.reduce((sum, o) => sum + getEffectiveBoxSize(o), 0) || 0;
   const remainingKg = maxKg - allocatedKg;
   const utilizationRate = maxKg > 0 ? (allocatedKg / maxKg) * 100 : 0;
 

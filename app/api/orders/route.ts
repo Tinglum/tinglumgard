@@ -1,7 +1,9 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth/session';
 import { supabaseAdmin } from '@/lib/supabase/server';
 import { vippsClient } from '@/lib/vipps/api-client';
+import { POST as checkoutPost } from '@/app/api/checkout/route';
+import { normalizeOrderForDisplay } from '@/lib/orders/display';
 
 function buildShippingUpdate(details: any) {
   if (!details || typeof details !== 'object') return null;
@@ -164,6 +166,7 @@ export async function GET() {
       .from('orders')
       .select(`
         *,
+        mangalitsa_preset:mangalitsa_box_presets(id, slug, name_no, name_en, target_weight_kg),
         payments (*)
       `)
       .eq('user_id', session.userId)
@@ -177,6 +180,7 @@ export async function GET() {
       .from('orders')
       .select(`
         *,
+        mangalitsa_preset:mangalitsa_box_presets(id, slug, name_no, name_en, target_weight_kg),
         payments (*)
       `)
       .is('user_id', null)
@@ -207,8 +211,13 @@ export async function GET() {
       }
     }
 
-    // Combine both sets of orders
-    const allOrders = [...(userOrders || []), ...(anonymousOrders || [])];
+    // Combine both sets of orders and dedupe by order id
+    const combinedOrders = [...(userOrders || []), ...(anonymousOrders || [])];
+    const uniqueOrders = new Map<string, any>();
+    for (const order of combinedOrders) {
+      uniqueOrders.set(order.id, order);
+    }
+    const allOrders = Array.from(uniqueOrders.values());
 
     // Sort by created_at descending
     allOrders.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
@@ -218,7 +227,7 @@ export async function GET() {
       reconciledOrders.push(await reconcilePigOrder(order));
     }
 
-    return NextResponse.json({ orders: reconciledOrders });
+    return NextResponse.json({ orders: reconciledOrders.map((order) => normalizeOrderForDisplay(order)) });
   } catch (error) {
     console.error('Error fetching orders:', error);
     return NextResponse.json(
@@ -226,4 +235,9 @@ export async function GET() {
       { status: 500 }
     );
   }
+}
+
+// Alias order creation to checkout flow so clients can POST to /api/orders
+export async function POST(request: NextRequest) {
+  return checkoutPost(request);
 }

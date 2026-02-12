@@ -18,23 +18,34 @@ interface CutInfo {
 export function MobileOppdelingsplan() {
   const { t, lang } = useLanguage();
   const [expandedCut, setExpandedCut] = useState<number | null>(null);
-  const { extras, boxContents } = useOppdelingsplanData();
+  const { extras, presets } = useOppdelingsplanData();
 
-  const copy = oppdelingsplanContent[lang].mobile;
+  const mobileCopy = oppdelingsplanContent[lang].mobile;
+  const pageCopy = oppdelingsplanContent[lang].page;
 
   const cuts: CutInfo[] = [
-    { id: 3, name: t.oppdelingsplan.nakke, description: t.oppdelingsplan.nakkeDesc, inBox: copy.cutDetails.nakke.inBox, extraOrder: copy.cutDetails.nakke.extraOrder },
-    { id: 4, name: t.oppdelingsplan.indrefilet, description: t.oppdelingsplan.indrefiletDesc, inBox: copy.cutDetails.indrefilet.inBox, extraOrder: copy.cutDetails.indrefilet.extraOrder },
-    { id: 5, name: t.oppdelingsplan.kotelettkam, description: t.oppdelingsplan.kotelettkamDesc, inBox: copy.cutDetails.kotelettkam.inBox, extraOrder: copy.cutDetails.kotelettkam.extraOrder },
-    { id: 7, name: t.oppdelingsplan.ribbeside, description: t.oppdelingsplan.ribbesideDesc, inBox: copy.cutDetails.ribbeside.inBox, extraOrder: copy.cutDetails.ribbeside.extraOrder },
-    { id: 8, name: t.oppdelingsplan.svinebog, description: t.oppdelingsplan.svinebogDesc, inBox: copy.cutDetails.svinebog.inBox, extraOrder: copy.cutDetails.svinebog.extraOrder },
-    { id: 9, name: t.oppdelingsplan.skinke, description: t.oppdelingsplan.skinkeDesc, inBox: copy.cutDetails.skinke.inBox, extraOrder: copy.cutDetails.skinke.extraOrder },
-    { id: 10, name: t.oppdelingsplan.knoke, description: t.oppdelingsplan.knokeDesc, inBox: copy.cutDetails.knoke.inBox, extraOrder: copy.cutDetails.knoke.extraOrder },
-    { id: 11, name: t.oppdelingsplan.labb, description: t.oppdelingsplan.labbDesc, inBox: copy.cutDetails.labb.inBox, extraOrder: copy.cutDetails.labb.extraOrder },
-    { id: 12, name: t.oppdelingsplan.polserFarse, description: t.oppdelingsplan.polserFarseDesc, inBox: copy.cutDetails.polserFarse.inBox, extraOrder: copy.cutDetails.polserFarse.extraOrder },
+    { id: 3, name: pageCopy.cutDetails.nakke.name, description: pageCopy.cutDetails.nakke.description, inBox: pageCopy.cutDetails.nakke.inBox, extraOrder: pageCopy.cutDetails.nakke.extraOrder },
+    { id: 4, name: pageCopy.cutDetails.indrefilet.name, description: pageCopy.cutDetails.indrefilet.description, inBox: pageCopy.cutDetails.indrefilet.inBox, extraOrder: pageCopy.cutDetails.indrefilet.extraOrder },
+    { id: 5, name: pageCopy.cutDetails.kotelettkam.name, description: pageCopy.cutDetails.kotelettkam.description, inBox: pageCopy.cutDetails.kotelettkam.inBox, extraOrder: pageCopy.cutDetails.kotelettkam.extraOrder },
+    { id: 7, name: pageCopy.cutDetails.ribbeside.name, description: pageCopy.cutDetails.ribbeside.description, inBox: pageCopy.cutDetails.ribbeside.inBox, extraOrder: pageCopy.cutDetails.ribbeside.extraOrder },
+    { id: 8, name: pageCopy.cutDetails.svinebog.name, description: pageCopy.cutDetails.svinebog.description, inBox: pageCopy.cutDetails.svinebog.inBox, extraOrder: pageCopy.cutDetails.svinebog.extraOrder },
+    { id: 9, name: pageCopy.cutDetails.skinke.name, description: pageCopy.cutDetails.skinke.description, inBox: pageCopy.cutDetails.skinke.inBox, extraOrder: pageCopy.cutDetails.skinke.extraOrder },
+    { id: 10, name: pageCopy.cutDetails.knoke.name, description: pageCopy.cutDetails.knoke.description, inBox: pageCopy.cutDetails.knoke.inBox, extraOrder: pageCopy.cutDetails.knoke.extraOrder },
+    { id: 11, name: pageCopy.cutDetails.labb.name, description: pageCopy.cutDetails.labb.description, inBox: pageCopy.cutDetails.labb.inBox, extraOrder: pageCopy.cutDetails.labb.extraOrder },
+    { id: 12, name: pageCopy.cutDetails.polserFarse.name, description: pageCopy.cutDetails.polserFarse.description, inBox: pageCopy.cutDetails.polserFarse.inBox, extraOrder: pageCopy.cutDetails.polserFarse.extraOrder },
   ];
 
-  const inBoxSummary: string[] = boxContents?.inBox ?? [];
+  const inBoxSummary: string[] = Array.from(
+    new Set(
+      presets.flatMap((preset) =>
+        (preset.contents || []).map((content: any) => {
+          const presetName = lang === 'en' ? preset.name_en : preset.name_no;
+          const contentName = lang === 'en' ? content.content_name_en : content.content_name_no;
+          return `${presetName}: ${contentName}`;
+        })
+      )
+    )
+  );
   const canOrderSummary: string[] = extras.length > 0
     ? extras.map((extra) => (lang === 'en' && extra.name_en ? extra.name_en : extra.name_no))
     : [];
@@ -42,16 +53,16 @@ export function MobileOppdelingsplan() {
   return (
     <div className="space-y-6 pb-20 text-[#1E1B16] font-[family:var(--font-manrope)]">
       <header className="rounded-[28px] border border-[#E4DED5] bg-white p-6 shadow-[0_18px_40px_rgba(30,27,22,0.12)]">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-[#6A6258]">{t.oppdelingsplan.title}</p>
-        <h1 className="mt-2 text-3xl font-semibold text-[#1E1B16] font-[family:var(--font-playfair)]">{t.oppdelingsplan.title}</h1>
-        <p className="mt-2 text-sm text-[#5E5A50]">{t.oppdelingsplan.subtitle}</p>
+        <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-[#6A6258]">{pageCopy.title}</p>
+        <h1 className="mt-2 text-3xl font-semibold text-[#1E1B16] font-[family:var(--font-playfair)]">{pageCopy.title}</h1>
+        <p className="mt-2 text-sm text-[#5E5A50]">{pageCopy.subtitle}</p>
       </header>
 
       <div className="rounded-[28px] border border-[#E4DED5] bg-white p-4 shadow-[0_18px_40px_rgba(30,27,22,0.12)]">
         <div className="relative aspect-[16/9] w-full overflow-hidden rounded-2xl bg-[#FBFAF7]">
           <Image
             src="/pig-diagram3.png"
-            alt={copy.diagramAlt}
+            alt={mobileCopy.diagramAlt}
             fill
             sizes="100vw"
             className="object-contain"
@@ -102,7 +113,7 @@ export function MobileOppdelingsplan() {
                 className="flex w-full items-center justify-between px-4 py-4 text-left"
               >
                 <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-[#6A6258]">{copy.partLabel} {cut.id}</p>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-[#6A6258]">{mobileCopy.partLabel} {cut.id}</p>
                   <p className="mt-1 text-lg font-semibold text-[#1E1B16]">{cut.name}</p>
                 </div>
                 <ChevronDown className={`h-5 w-5 text-[#6A6258] transition-transform ${isOpen ? 'rotate-180' : ''}`} />

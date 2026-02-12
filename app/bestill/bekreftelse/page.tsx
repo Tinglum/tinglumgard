@@ -12,17 +12,21 @@ type PaymentStatus = "pending" | "completed" | "failed";
 type OrderData = {
   id: string;
   order_number: string;
-  box_size: number;
+  box_size: number | null;
+  effective_box_size?: number;
+  display_box_name_no?: string | null;
+  display_box_name_en?: string | null;
+  mangalitsa_preset?: {
+    name_no?: string | null;
+    name_en?: string | null;
+    target_weight_kg?: number | null;
+  } | null;
   deposit_amount: number;
   status: string;
   payments?: Array<{ payment_type: string; status: PaymentStatus }>;
 };
 
 type ConfigData = {
-  pricing?: {
-    box_8kg_deposit_percentage?: number;
-    box_12kg_deposit_percentage?: number;
-  };
   cutoff?: {
     year?: number;
   };
@@ -106,16 +110,24 @@ export default function ConfirmationPage() {
     return () => clearInterval(pollInterval);
   }, [orderId, paymentStatus, pollCount]);
 
-  const depositPercentage = useMemo(() => {
-    if (!order) return 50;
-    return order.box_size === 8
-      ? config?.pricing?.box_8kg_deposit_percentage || 50
-      : config?.pricing?.box_12kg_deposit_percentage || 50;
-  }, [order, config]);
+  const depositPercentage = 50;
 
   const deliveryYear = config?.cutoff?.year || 2026;
   const referralGivePercentage = 20;
   const referralEarnPercentage = 10;
+  const boxDisplay = useMemo(() => {
+    if (!order) return '';
+    const presetName =
+      (lang === 'no' ? order.display_box_name_no : order.display_box_name_en) ||
+      (lang === 'no' ? order.mangalitsa_preset?.name_no : order.mangalitsa_preset?.name_en) ||
+      order.display_box_name_no ||
+      order.display_box_name_en;
+    const boxSize = order.box_size || order.effective_box_size || order.mangalitsa_preset?.target_weight_kg;
+    if (presetName && boxSize) return `${presetName} (${boxSize} kg)`;
+    if (presetName) return presetName;
+    if (boxSize) return `${boxSize} kg`;
+    return '-';
+  }, [order, lang]);
 
   const statusTextByOrder = order
     ? {
@@ -188,7 +200,7 @@ export default function ConfirmationPage() {
               <Package className="w-6 h-6 mt-1 text-neutral-500" />
               <div>
                 <p className="font-light text-neutral-900 mb-1">{copy.boxSizeLabel}</p>
-                <p className="text-base font-light text-neutral-600">{order.box_size} kg</p>
+                <p className="text-base font-light text-neutral-600">{boxDisplay}</p>
               </div>
             </div>
 

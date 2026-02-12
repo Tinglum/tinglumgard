@@ -45,14 +45,12 @@ import { EggOrdersWorkbench } from '@/components/admin/EggOrdersWorkbench';
 import { AdminMessagingPanel } from '@/components/admin/AdminMessagingPanel';
 import { ConfigurationManagement } from '@/components/admin/ConfigurationManagement';
 import { DeliveryCalendar } from '@/components/admin/DeliveryCalendar';
-import { BoxConfiguration } from '@/components/admin/BoxConfiguration';
 import { RebateCodesManager } from '@/components/admin/RebateCodesManager';
-import { ExtrasCatalogManager } from '@/components/admin/ExtrasCatalogManager';
 import { MangalitsaBoxManager } from '@/components/admin/MangalitsaBoxManager';
 import { MangalitsaExtrasManager } from '@/components/admin/MangalitsaExtrasManager';
 import { NotificationSettings } from '@/components/admin/NotificationSettings';
 
-type TabType = 'dashboard' | 'orders' | 'customers' | 'analytics' | 'production' | 'communication' | 'messages' | 'health' | 'inventory' | 'breeds' | 'boxes' | 'mangalitsa-boxes' | 'mangalitsa-extras' | 'rebates' | 'extras' | 'settings' | 'notifications';
+type TabType = 'dashboard' | 'orders' | 'customers' | 'analytics' | 'production' | 'communication' | 'messages' | 'health' | 'inventory' | 'breeds' | 'mangalitsa-boxes' | 'mangalitsa-extras' | 'rebates' | 'settings' | 'notifications';
 
 interface Order {
   id: string;
@@ -68,6 +66,9 @@ interface Order {
 
   // Pig-specific fields (optional)
   box_size?: number;
+  effective_box_size?: number;
+  display_box_name_no?: string | null;
+  display_box_name_en?: string | null;
   fresh_delivery?: boolean;
   ribbe_choice?: string;
   extra_products?: any[];
@@ -558,6 +559,15 @@ export default function AdminPage() {
     return matchesProductMode && matchesSearch && matchesStatus && matchesDelivery;
   });
 
+  function getPigProductLabel(order: Order): string {
+    const presetName = lang === 'no' ? order.display_box_name_no : order.display_box_name_en;
+    const boxSize = order.box_size || order.effective_box_size;
+    if (presetName && boxSize) return `${presetName} (${boxSize} kg)`;
+    if (presetName) return presetName;
+    if (boxSize) return copy.productPigBox.replace('{size}', String(boxSize));
+    return 'Mangalitsa';
+  }
+
   const tabs: Array<{ id: TabType; label: string; icon: any }> = [
     { id: 'dashboard', label: copy.tabs.dashboard, icon: LayoutDashboard },
     { id: 'orders', label: copy.tabs.orders, icon: ShoppingCart },
@@ -569,10 +579,8 @@ export default function AdminPage() {
     { id: 'inventory', label: copy.tabs.inventory, icon: Warehouse },
     { id: 'breeds', label: copy.tabs.breeds, icon: Tag },
     { id: 'mangalitsa-boxes', label: 'Mangalitsa Bokser', icon: Package },
-    { id: 'mangalitsa-extras', label: 'Mangalitsa Extras', icon: ShoppingCart },
-    { id: 'boxes', label: copy.tabs.boxes, icon: Package },
+    { id: 'mangalitsa-extras', label: 'Ekstraprodukter', icon: ShoppingCart },
     { id: 'rebates', label: copy.tabs.rebates, icon: Tag },
-    { id: 'extras', label: copy.tabs.extras, icon: ShoppingCart },
     { id: 'notifications', label: copy.tabs.notifications, icon: Mail },
     { id: 'health', label: copy.tabs.health, icon: Activity },
     { id: 'settings', label: copy.tabs.settings, icon: Settings },
@@ -965,7 +973,7 @@ export default function AdminPage() {
                           <td className="px-4 py-3">
                             {order.product_type === 'pig_box' && (
                               <span className="text-gray-900">
-                                {copy.productPigBox.replace('{size}', String(order.box_size))}
+                                {getPigProductLabel(order)}
                               </span>
                             )}
                             {order.product_type === 'eggs' && (
@@ -997,7 +1005,7 @@ export default function AdminPage() {
                             <div>{order.delivery_type}</div>
                           </td>
                           <td className="px-4 py-3 font-medium text-gray-900">
-                            {currency} {(order.total_amount / 100).toLocaleString(locale)}
+                            {currency} {(order.product_type === 'eggs' ? (order.total_amount / 100) : order.total_amount).toLocaleString(locale)}
                           </td>
                           <td className="px-4 py-3 text-sm text-gray-600">
                             {new Date(order.created_at).toLocaleDateString(locale)}
@@ -1188,9 +1196,6 @@ export default function AdminPage() {
         {/* BREEDS TAB */}
         {activeTab === 'breeds' && <BreedManagement />}
 
-        {/* BOX CONFIGURATION TAB */}
-        {activeTab === 'boxes' && <BoxConfiguration />}
-
   {/* MESSAGES TAB */}
   {activeTab === 'messages' && <AdminMessagingPanel />}
 
@@ -1205,9 +1210,6 @@ export default function AdminPage() {
 
         {/* MANGALITSA EXTRAS TAB */}
         {activeTab === 'mangalitsa-extras' && <MangalitsaExtrasManager />}
-
-        {/* EXTRAS TAB */}
-        {activeTab === 'extras' && <ExtrasCatalogManager />}
 
         {/* NOTIFICATIONS TAB */}
         {activeTab === 'notifications' && <NotificationSettings />}

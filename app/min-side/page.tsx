@@ -21,7 +21,10 @@ interface Payment {
 interface Order {
   id: string;
   order_number: string;
-  box_size: number;
+  box_size: number | null;
+  effective_box_size?: number;
+  display_box_name_no?: string | null;
+  display_box_name_en?: string | null;
   status: string;
   delivery_type: string;
   fresh_delivery: boolean;

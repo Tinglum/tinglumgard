@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth/session';
 import { supabaseAdmin } from '@/lib/supabase/server';
+import { getEffectiveBoxSize, normalizeOrderForDisplay } from '@/lib/orders/display';
 
 export async function GET(request: NextRequest) {
   const session = await getSession();
@@ -15,13 +16,14 @@ export async function GET(request: NextRequest) {
       .from('orders')
       .select(`
         *,
+        mangalitsa_preset:mangalitsa_box_presets(id, slug, name_no, name_en, target_weight_kg),
         payments (*)
       `);
 
     if (ordersError) throw ordersError;
 
     // Calculate dashboard metrics
-    const metrics = calculateDashboardMetrics(orders || []);
+    const metrics = calculateDashboardMetrics((orders || []).map((order) => normalizeOrderForDisplay(order)));
 
     return NextResponse.json(metrics);
   } catch (error) {
@@ -69,10 +71,11 @@ function calculateDashboardMetrics(orders: any[]) {
   }, {} as Record<string, number>);
 
   // Product breakdown
+  const boxSizes = orders.map((o) => getEffectiveBoxSize(o));
   const productBreakdown = {
-    box_8kg: orders.filter((o) => o.box_size === 8).length,
-    box_12kg: orders.filter((o) => o.box_size === 12).length,
-    total_kg: orders.reduce((sum, o) => sum + o.box_size, 0),
+    box_8kg: boxSizes.filter((size) => size === 8).length,
+    box_12kg: boxSizes.filter((size) => size === 12).length,
+    total_kg: boxSizes.reduce((sum, size) => sum + size, 0),
   };
 
   // Delivery type breakdown

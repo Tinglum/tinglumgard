@@ -657,7 +657,7 @@ export default function Page() {
               deposit={pricing ? Math.floor(pricing.box_8kg_price * pricing.box_8kg_deposit_percentage / 100) : undefined}
               balance={pricing ? pricing.box_8kg_price - Math.floor(pricing.box_8kg_price * pricing.box_8kg_deposit_percentage / 100) : undefined}
               ctaText={t.product.reserve8kg}
-              ctaHref="/bestill?size=8"
+              ctaHref="/bestill"
               pricing={pricing}
               delay={0}
             />
@@ -682,7 +682,7 @@ export default function Page() {
               deposit={pricing ? Math.floor(pricing.box_12kg_price * pricing.box_12kg_deposit_percentage / 100) : undefined}
               balance={pricing ? pricing.box_12kg_price - Math.floor(pricing.box_12kg_price * pricing.box_12kg_deposit_percentage / 100) : undefined}
               ctaText={t.product.reserve12kg}
-              ctaHref="/bestill?size=12"
+              ctaHref="/bestill"
               isFeatured={true}
               pricing={pricing}
               delay={150}

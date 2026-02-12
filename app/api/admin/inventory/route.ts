@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/server';
 import { getSession } from '@/lib/auth/session';
+import { getEffectiveBoxSize } from '@/lib/orders/display';
 
 export async function GET(request: NextRequest) {
   const session = await getSession();
@@ -76,15 +77,15 @@ async function getInventoryStatus() {
   // Get all active orders
   const { data: orders } = await supabaseAdmin
     .from('orders')
-    .select('box_size, status')
+    .select('box_size, status, mangalitsa_preset:mangalitsa_box_presets(target_weight_kg)')
     .not('status', 'eq', 'cancelled');
 
-  const allocatedKg = orders?.reduce((sum, o) => sum + o.box_size, 0) || 0;
+  const allocatedKg = orders?.reduce((sum, o) => sum + getEffectiveBoxSize(o), 0) || 0;
   const remainingKg = maxKg - allocatedKg;
   const utilizationRate = maxKg > 0 ? (allocatedKg / maxKg) * 100 : 0;
 
-  const box8kgCount = orders?.filter(o => o.box_size === 8).length || 0;
-  const box12kgCount = orders?.filter(o => o.box_size === 12).length || 0;
+  const box8kgCount = orders?.filter((o) => getEffectiveBoxSize(o) === 8).length || 0;
+  const box12kgCount = orders?.filter((o) => getEffectiveBoxSize(o) === 12).length || 0;
 
   return NextResponse.json({
     inventory: {

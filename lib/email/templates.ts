@@ -322,7 +322,8 @@ interface AdminOrderNotificationParams {
   customerName: string;
   customerEmail: string;
   customerPhone: string;
-  boxSize: 8 | 12;
+  boxSize: number;
+  boxName?: string;
   deliveryType: string;
   freshDelivery: boolean;
   ribbeChoice: string;
@@ -335,6 +336,10 @@ interface AdminOrderNotificationParams {
 }
 
 export function getAdminOrderNotificationTemplate(params: AdminOrderNotificationParams): { subject: string; html: string } {
+  const boxLabel = params.boxName
+    ? `${params.boxName} (${params.boxSize}kg)`
+    : `${params.boxSize}kg`;
+
   const discountInfo = params.referralDiscount || params.rebateDiscount 
     ? `<p><strong>Rabatt:</strong> kr ${(params.referralDiscount || params.rebateDiscount || 0).toLocaleString('nb-NO')}</p>`
     : '';
@@ -377,7 +382,7 @@ export function getAdminOrderNotificationTemplate(params: AdminOrderNotification
 
       <div class="section">
         <h3>Ordredetaljer</h3>
-        <p><strong>Kassestørrelse:</strong> ${params.boxSize}kg</p>
+        <p><strong>Mangalitsa-boks:</strong> ${boxLabel}</p>
         <p><strong>Ribbe valg:</strong> ${params.ribbeChoice}</p>
         <p><strong>Leveringstype:</strong> ${params.deliveryType}</p>
         <p><strong>Fersk levering:</strong> ${params.freshDelivery ? 'Ja (+200 kr)' : 'Nei'}</p>
@@ -622,5 +627,3 @@ export function getAdminReplyNotificationTemplate(params: AdminReplyNotification
     `,
   };
 }
-
-

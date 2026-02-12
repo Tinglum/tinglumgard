@@ -3,6 +3,7 @@ import { getSession } from '@/lib/auth/session';
 import { supabaseAdmin } from '@/lib/supabase/server';
 import { isBeforeCutoff } from '@/lib/utils/date';
 import { getPricingConfig } from '@/lib/config/pricing';
+import { normalizeOrderForDisplay } from '@/lib/orders/display';
 
 export async function GET(
   request: NextRequest,
@@ -16,6 +17,7 @@ export async function GET(
       .from('orders')
       .select(`
         *,
+        mangalitsa_preset:mangalitsa_box_presets(id, slug, name_no, name_en, target_weight_kg),
         order_extras (
           *,
           extras_catalog (*)
@@ -31,7 +33,7 @@ export async function GET(
 
     // If user is logged in and order belongs to them, return it
     if (session && order.user_id === session.userId) {
-      return NextResponse.json(order);
+      return NextResponse.json(normalizeOrderForDisplay(order));
     }
 
     // Allow access to anonymous orders (user_id is null) if user just completed payment
@@ -46,7 +48,7 @@ export async function GET(
 
         order.user_id = session.userId;
       }
-      return NextResponse.json(order);
+      return NextResponse.json(normalizeOrderForDisplay(order));
     }
 
     // Order belongs to someone else
@@ -91,7 +93,7 @@ export async function PATCH(
 
     const { data: existingOrder } = await supabaseAdmin
       .from('orders')
-      .select('id, user_id')
+      .select('id, user_id, is_mangalitsa, box_size')
       .eq('id', params.id)
       .eq('user_id', session.userId)
       .maybeSingle();
@@ -109,6 +111,20 @@ export async function PATCH(
 
     // Handle box size changes
     if (box_size !== undefined) {
+      if (existingOrder.is_mangalitsa) {
+        return NextResponse.json(
+          { error: 'Mangalitsa preset orders do not support box size changes' },
+          { status: 400 }
+        );
+      }
+
+      if (typeof box_size !== 'number' || ![8, 12].includes(box_size)) {
+        return NextResponse.json(
+          { error: 'Invalid box size for standard order' },
+          { status: 400 }
+        );
+      }
+
       // Fetch dynamic pricing from config
       const pricing = await getPricingConfig();
 
@@ -225,12 +241,15 @@ export async function PATCH(
       .from('orders')
       .update(updateData)
       .eq('id', params.id)
-      .select()
+      .select(`
+        *,
+        mangalitsa_preset:mangalitsa_box_presets(id, slug, name_no, name_en, target_weight_kg)
+      `)
       .single();
 
     if (error) throw error;
 
-    return NextResponse.json({ order: updatedOrder });
+    return NextResponse.json({ order: normalizeOrderForDisplay(updatedOrder) });
   } catch (error) {
     console.error('Error updating order:', error);
     return NextResponse.json(

@@ -147,7 +147,7 @@ export function MobileProductTiles({ pricing }: MobileProductTilesProps) {
               </div>
 
               <Link
-                href={`/bestill?size=${pkg.size}`}
+                href="/bestill"
                 className="mt-6 inline-flex w-full items-center justify-center rounded-2xl bg-[#1E1B16] px-4 py-4 text-sm font-bold uppercase tracking-[0.2em] text-[#F6F4EF]"
               >
                 {t.product.orderNow}

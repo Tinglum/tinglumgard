@@ -24,7 +24,14 @@ export async function GET() {
       contents: (preset.contents || []).sort((a: any, b: any) => a.display_order - b.display_order),
     }));
 
-    return NextResponse.json({ presets: sortedPresets });
+    return NextResponse.json(
+      { presets: sortedPresets },
+      {
+        headers: {
+          'Cache-Control': 'no-store, must-revalidate',
+        },
+      }
+    );
   } catch (error) {
     logError('mangalitsa-presets-route', error);
     return NextResponse.json({ error: 'Failed to fetch presets' }, { status: 500 });

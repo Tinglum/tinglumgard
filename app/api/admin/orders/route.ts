@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth/session';
 import { supabaseAdmin } from '@/lib/supabase/server';
+import { normalizeOrderForDisplay } from '@/lib/orders/display';
 
 export async function GET(request: NextRequest) {
   const session = await getSession();
@@ -19,6 +20,7 @@ export async function GET(request: NextRequest) {
       .from('orders')
       .select(`
         *,
+        mangalitsa_preset:mangalitsa_box_presets(id, slug, name_no, name_en, target_weight_kg),
         order_extras (
           *,
           extras_catalog (*)
@@ -38,8 +40,10 @@ export async function GET(request: NextRequest) {
 
     if (error) throw error;
 
+    const normalizedOrders = (orders || []).map((order) => normalizeOrderForDisplay(order));
+
     if (format === 'csv') {
-      const csv = generateCSV(orders || []);
+      const csv = generateCSV(normalizedOrders);
       return new NextResponse(csv, {
         headers: {
           'Content-Type': 'text/csv',
@@ -48,7 +52,7 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    return NextResponse.json({ orders: orders || [] });
+    return NextResponse.json({ orders: normalizedOrders });
   } catch (error) {
     console.error('Error fetching orders:', error);
     return NextResponse.json(
@@ -64,7 +68,8 @@ function generateCSV(orders: any[]): string {
     'Customer Name',
     'Email',
     'Phone',
-    'Box Size',
+    'Product',
+    'Box Size (kg)',
     'Status',
     'Delivery Type',
     'Fresh Delivery',
@@ -85,7 +90,8 @@ function generateCSV(orders: any[]): string {
       order.customer_name,
       order.customer_email,
       order.customer_phone || '',
-      order.box_size,
+      order.display_box_name_no || order.display_box_name_en || 'Mangalitsa',
+      order.box_size ?? '',
       order.status,
       order.delivery_type,
       order.fresh_delivery ? 'Yes' : 'No',

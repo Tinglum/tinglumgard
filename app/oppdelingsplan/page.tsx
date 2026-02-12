@@ -7,6 +7,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { useIsMobile } from '@/hooks/useMediaQuery';
 import { cn } from '@/lib/utils';
 import { MobileOppdelingsplan } from '@/components/MobileOppdelingsplan';
+import { MangalitsaCutInfo } from '@/components/MangalitsaCutInfo';
 import { PIG_CUT_POLYGONS } from '@/lib/constants/pig-diagram';
 import { useOppdelingsplanData } from '@/hooks/useOppdelingsplanData';
 import { oppdelingsplanContent } from '@/content/oppdelingsplan-content';
@@ -20,6 +21,12 @@ interface CutInfo {
   weight?: string;
   preparation?: string;
   premiumNote?: string;
+  ribbeOptions?: readonly {
+    title: string;
+    subtitle: string;
+    points: readonly string[];
+    premium: boolean;
+  }[];
 }
 
 export default function OppdelingsplanPage() {
@@ -27,7 +34,7 @@ export default function OppdelingsplanPage() {
   const isMobile = useIsMobile();
   const [selectedCut, setSelectedCut] = useState<number | null>(null);
   const [hoveredCut, setHoveredCut] = useState<number | null>(null);
-  const { extras, boxContents } = useOppdelingsplanData();
+  const { extras, presets } = useOppdelingsplanData();
 
   const copy = oppdelingsplanContent[lang].page;
 
@@ -46,10 +53,22 @@ export default function OppdelingsplanPage() {
       weight: detail.weight,
       preparation: detail.preparation,
       premiumNote: detail.premiumNote,
+      ribbeOptions: key === 'ribbeside' ? copy.ribbeCards : undefined,
     };
   });
 
-  const inBoxSummary: string[] = boxContents?.inBox ?? [];
+  const inBoxSummary: string[] = Array.from(
+    new Set(
+      presets
+        .flatMap((preset) =>
+          (preset.contents || []).map((content) => {
+            const presetName = lang === 'en' ? preset.name_en : preset.name_no;
+            const contentName = lang === 'en' ? content.content_name_en : content.content_name_no;
+            return `${presetName}: ${contentName}`;
+          })
+        )
+    )
+  );
   const canOrderSummary: string[] = extras.length > 0
     ? extras.map((extra) => {
         const englishName = (extra as any).name_en;
@@ -108,7 +127,7 @@ export default function OppdelingsplanPage() {
         <div className="text-center mb-16">
           <h1 className="text-5xl font-light tracking-tight text-neutral-900 mb-4 font-[family:var(--font-playfair)]">{copy.title || t.oppdelingsplan.title}</h1>
           <p className="text-base font-light text-neutral-600 max-w-3xl mx-auto">
-            {t.oppdelingsplan.subtitle}
+            {copy.subtitle}
           </p>
         </div>
 
@@ -197,113 +216,23 @@ export default function OppdelingsplanPage() {
 
           {selectedCutInfo ? (
             <div className="border-t-2 border-neutral-200 p-10 animate-fade-in bg-white">
-              <div className="max-w-4xl mx-auto">
-                <div className="flex-1">
-                  <h2 className="text-4xl font-light mb-4 text-neutral-900 font-[family:var(--font-playfair)]">{selectedCutInfo.name}</h2>
-                  <p className="text-base font-light text-neutral-600 mb-4">{selectedCutInfo.description}</p>
-
-                  {selectedCutInfo.premiumNote && (
-                    <div className="mb-6 p-4 bg-neutral-50 border border-neutral-200 rounded-xl">
-                      <p className="text-sm font-normal text-neutral-900">{selectedCutInfo.premiumNote}</p>
-                    </div>
-                  )}
-
-                  {(selectedCutInfo.weight || selectedCutInfo.preparation) && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                      {selectedCutInfo.weight && (
-                        <div>
-                          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-neutral-500 mb-2">Vekt</p>
-                          <p className="text-sm font-light text-neutral-900">{selectedCutInfo.weight}</p>
-                        </div>
-                      )}
-                      {selectedCutInfo.preparation && (
-                        <div>
-                          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-neutral-500 mb-2">Tilberedning</p>
-                          <p className="text-sm font-light text-neutral-600">{selectedCutInfo.preparation}</p>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  <div className="flex flex-col md:flex-row gap-8 mb-8">
-                    <div className="flex-1">
-                      <h3 className="text-xs font-light uppercase tracking-wider mb-4 flex items-center gap-2 text-neutral-600">
-                        <svg className="w-5 h-5 text-neutral-600" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                        </svg>
-                        {t.oppdelingsplan.inBox}
-                      </h3>
-                      {selectedCutInfo.inBox.length > 0 ? (
-                        <div className="flex flex-wrap gap-2">
-                          {selectedCutInfo.inBox.map((product, index) => (
-                            <span key={index} className="px-4 py-2 bg-neutral-50 border border-neutral-200 rounded-xl text-sm font-light text-neutral-900 hover:border-neutral-300 hover:shadow-[0_5px_15px_-5px_rgba(0,0,0,0.1)] hover:-translate-y-0.5 transition-all duration-300">
-                              {product}
-                            </span>
-                          ))}
-                        </div>
-                      ) : (
-                        <p className="text-sm font-light italic text-neutral-500">{t.oppdelingsplan.noProductsInBox}</p>
-                      )}
-                    </div>
-
-                    <div className="flex-1 md:max-h-[400px] overflow-y-auto">
-                      <h3 className="text-xs font-light uppercase tracking-wider mb-4 flex items-center gap-2 text-neutral-600">
-                        <svg className="w-5 h-5 text-neutral-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                        </svg>
-                        {t.oppdelingsplan.canOrder}
-                      </h3>
-                      {selectedCutInfo.extraOrder.length > 0 ? (
-                        <div className="flex flex-wrap gap-2">
-                          {selectedCutInfo.extraOrder.map((product, index) => (
-                            <span key={index} className="px-4 py-2 bg-neutral-50 border border-neutral-200 rounded-xl text-sm font-light text-neutral-900 hover:border-neutral-300 hover:shadow-[0_5px_15px_-5px_rgba(0,0,0,0.1)] hover:-translate-y-0.5 transition-all duration-300">
-                              {product}
-                            </span>
-                          ))}
-                        </div>
-                      ) : (
-                        <p className="text-sm font-light italic text-neutral-500">{t.oppdelingsplan.noExtraProducts}</p>
-                      )}
-                    </div>
-                  </div>
-
-                  {selectedCutInfo.id === 7 && (
-                    <div className="mt-8 pt-8 border-t border-neutral-200">
-                      <div className="text-center mb-6">
-                        <h3 className="text-2xl font-light mb-2 text-neutral-900">{t.oppdelingsplan.chooseRibbeType}</h3>
-                        <p className="text-sm font-light text-neutral-500">{t.oppdelingsplan.ribbeTypeInfo}</p>
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                        {copy.ribbeCards.map((card) => (
-                          <div
-                            key={card.title}
-                            className={cn(
-                              'rounded-xl p-4 border bg-white',
-                              card.premium
-                                ? 'shadow-[0_20px_60px_-15px_rgba(0,0,0,0.08)] border-2 border-neutral-900'
-                                : 'shadow-[0_10px_30px_-10px_rgba(0,0,0,0.08)] border-neutral-200'
-                            )}
-                          >
-                            <div className="flex items-center justify-between mb-1">
-                              <h4 className="font-normal text-neutral-900">{card.title}</h4>
-                              {card.premium && (
-                                <span className="text-xs px-2 py-0.5 rounded bg-neutral-900 text-white">{copy.premium}</span>
-                              )}
-                            </div>
-                            <p className="text-xs mb-2 font-light text-neutral-500">{card.subtitle}</p>
-                            <ul className="space-y-1 text-xs font-light text-neutral-600">
-                              {card.points.map((point) => (
-                                <li key={point}>- {point}</li>
-                              ))}
-                            </ul>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
+              <MangalitsaCutInfo
+                cutInfo={{
+                  name: selectedCutInfo.name,
+                  description: selectedCutInfo.description,
+                  inBox: [...selectedCutInfo.inBox],
+                  extraOrder: [...selectedCutInfo.extraOrder],
+                  weight: selectedCutInfo.weight || '',
+                  preparation: selectedCutInfo.preparation || '',
+                  premiumNote: selectedCutInfo.premiumNote || '',
+                  ribbeOptions: selectedCutInfo.ribbeOptions
+                    ? selectedCutInfo.ribbeOptions.map((option) => ({
+                        ...option,
+                        points: [...option.points],
+                      }))
+                    : undefined,
+                }}
+              />
             </div>
           ) : (
             <div className="border-t-2 border-neutral-200 p-16 text-center bg-white">

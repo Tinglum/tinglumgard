@@ -17,6 +17,27 @@ import { MobileCheckout } from '@/components/MobileCheckout';
 import { ExtraProductModal } from '@/components/ExtraProductModal';
 import { useToast } from '@/hooks/use-toast';
 
+interface MangalitsaPreset {
+  id: string;
+  slug: string;
+  name_no: string;
+  name_en: string;
+  short_pitch_no: string;
+  short_pitch_en: string;
+  target_weight_kg: number;
+  price_nok: number;
+  scarcity_message_no?: string | null;
+  scarcity_message_en?: string | null;
+  contents?: Array<{
+    id: string;
+    content_name_no: string;
+    content_name_en: string;
+    target_weight_kg?: number | null;
+    display_order: number;
+    is_hero: boolean;
+  }>;
+}
+
 // Reusable Components for Nordic Minimal Design
 function MetaLabel({ children }: { children: React.ReactNode }) {
   return (
@@ -38,8 +59,9 @@ export default function CheckoutPage() {
   const step3Ref = useRef<HTMLDivElement>(null);
   const step4Ref = useRef<HTMLDivElement>(null);
   const [step, setStep] = useState(1);
-  const [boxSize, setBoxSize] = useState<'8' | '12' | ''>('');
-  const [mangalitsaPreset, setMangalitsaPreset] = useState<any>(null);
+  const [boxSize, setBoxSize] = useState<'8' | '9' | '10' | '12' | ''>('');
+  const [mangalitsaPresets, setMangalitsaPresets] = useState<MangalitsaPreset[]>([]);
+  const [mangalitsaPreset, setMangalitsaPreset] = useState<MangalitsaPreset | null>(null);
   const [ribbeChoice, setRibbeChoice] = useState<'tynnribbe' | 'familieribbe' | 'porchetta' | 'butchers_choice' | ''>('butchers_choice');
   const [extraProducts, setExtraProducts] = useState<string[]>([]);
   const [extraQuantities, setExtraQuantities] = useState<Record<string, number>>({});
@@ -99,29 +121,48 @@ export default function CheckoutPage() {
     setSummaryOffset((previous) => (previous === nextOffset ? previous : nextOffset));
   }, [isMobile, step]);
 
+  // Load Mangalitsa presets
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const response = await fetch('/api/mangalitsa/presets');
+        const data = await response.json();
+        if (active) {
+          setMangalitsaPresets(data.presets || []);
+        }
+      } catch (error) {
+        console.error('Failed to load presets:', error);
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
   // URL parameter handling
   useEffect(() => {
-    const sizeParam = searchParams.get('size');
-    const presetParam = searchParams.get('preset');
+    if (mangalitsaPresets.length === 0) return;
 
-    if (presetParam) {
-      // Load Mangalitsa preset
-      fetch('/api/mangalitsa/presets')
-        .then(res => res.json())
-        .then(data => {
-          const preset = (data.presets || []).find((p: any) => p.slug === presetParam);
-          if (preset) {
-            setMangalitsaPreset(preset);
-            setBoxSize(String(preset.target_weight_kg) as any);
-            setStep(2); // Skip to ribbe selection
-          }
-        })
-        .catch(err => console.error('Failed to load preset:', err));
-    } else if (sizeParam === '8' || sizeParam === '12') {
-      setBoxSize(sizeParam);
+    const presetParam = searchParams.get('preset');
+    const matchedBySlug = presetParam
+      ? mangalitsaPresets.find((preset) => preset.slug === presetParam)
+      : null;
+    const sizeParam = searchParams.get('size');
+    const matchedByWeight = sizeParam
+      ? mangalitsaPresets.find((preset) => String(preset.target_weight_kg) === sizeParam)
+      : null;
+
+    const selected = matchedBySlug || matchedByWeight || mangalitsaPresets[0] || null;
+    if (!selected) return;
+
+    setMangalitsaPreset(selected);
+    setBoxSize(String(selected.target_weight_kg) as '8' | '9' | '10' | '12');
+    if (matchedBySlug || matchedByWeight) {
       setStep(2);
     }
-  }, [searchParams]);
+  }, [searchParams, mangalitsaPresets]);
 
   useEffect(() => {
     if (!isMobile && step > 4) {
@@ -220,11 +261,12 @@ export default function CheckoutPage() {
       }));
 
       // Prepare order details for Vipps login
+      if (!mangalitsaPreset) {
+        throw new Error('No Mangalitsa preset selected');
+      }
+
       const orderDetails = {
-        ...(mangalitsaPreset
-          ? { mangalitsaPresetId: mangalitsaPreset.id }
-          : { boxSize: parseInt(boxSize) }
-        ),
+        mangalitsaPresetId: mangalitsaPreset.id,
         ribbeChoice,
         extraProducts: extrasWithQuantities,
         deliveryType: apiDeliveryType,
@@ -278,47 +320,13 @@ export default function CheckoutPage() {
     total: mangalitsaPreset.price_nok,
   } : null;
 
-  const prices = pricing ? {
-    '8': {
-      deposit: Math.floor(pricing.box_8kg_price * (pricing.box_8kg_deposit_percentage / 100)),
-      remainder: pricing.box_8kg_price - Math.floor(pricing.box_8kg_price * (pricing.box_8kg_deposit_percentage / 100)),
-      total: pricing.box_8kg_price
-    },
-    '12': {
-      deposit: Math.floor(pricing.box_12kg_price * (pricing.box_12kg_deposit_percentage / 100)),
-      remainder: pricing.box_12kg_price - Math.floor(pricing.box_12kg_price * (pricing.box_12kg_deposit_percentage / 100)),
-      total: pricing.box_12kg_price
-    },
-  } : null;
-
   const addonPrices = pricing ? {
     trondheim: pricing.delivery_fee_trondheim,
     e6: pricing.delivery_fee_pickup_e6,
     fresh: pricing.fresh_delivery_fee,
   } : null;
 
-  const boxContents = {
-    '8': [
-      { name: t.boxContents.ribbe8kg, highlight: true },
-      { name: t.boxContents.nakkekoteletter8kg },
-      { name: t.boxContents.julepolse8kg },
-      { name: t.boxContents.svinesteik8kg },
-      { name: t.boxContents.medisterfarse8kg },
-      { name: t.boxContents.knoke },
-      { name: t.boxContents.butchersChoice8kg },
-    ],
-    '12': [
-      { name: t.boxContents.ribbe12kg, highlight: true },
-      { name: t.boxContents.nakkekoteletter12kg },
-      { name: t.boxContents.julepolse12kg },
-      { name: t.boxContents.svinesteik12kg },
-      { name: t.boxContents.medisterfarse12kg },
-      { name: t.boxContents.knoke },
-      { name: t.boxContents.butchersChoice12kg },
-    ],
-  };
-
-  const selectedPrice = mangalitsaPriceObj ? mangalitsaPriceObj : (boxSize && prices ? (prices as any)[boxSize] : null);
+  const selectedPrice = mangalitsaPriceObj;
   const deliveryPrice = !addonPrices ? 0 : (deliveryType === 'farm' ? 0 : deliveryType === 'trondheim' ? addonPrices.trondheim : addonPrices.e6);
   const freshPrice = freshDelivery && addonPrices ? addonPrices.fresh : 0;
 
@@ -345,7 +353,7 @@ export default function CheckoutPage() {
   const remainderTotal = selectedPrice ? selectedPrice.remainder + addonTotal : 0;
   const totalPrice = depositTotal + remainderTotal;
 
-  const canProceedToStep2 = boxSize !== '';
+  const canProceedToStep2 = !!mangalitsaPreset;
   const canProceedToStep3 = ribbeChoice !== '';
 
   // Show order confirmation if order is confirmed
@@ -451,14 +459,19 @@ export default function CheckoutPage() {
           <div className="mt-6 mb-8 rounded-[28px] border border-[#E4DED5] bg-white p-6 shadow-[0_18px_40px_rgba(30,27,22,0.12)]">
             <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-[#6A6258]">{t.checkout.title}</p>
             <h1 className="mt-2 text-3xl font-semibold text-[#1E1B16] font-[family:var(--font-playfair)]">{t.checkout.pageTitle}</h1>
-            <p className="mt-3 text-sm text-[#5E5A50]">{t.checkout.selectSize}</p>
+            <p className="mt-3 text-sm text-[#5E5A50]">{t.mangalitsa.hero.subtitle}</p>
           </div>
 
           <MobileCheckout
             step={step}
             setStep={setStep}
             boxSize={boxSize}
-            setBoxSize={setBoxSize}
+            presets={mangalitsaPresets}
+            selectedPreset={mangalitsaPreset}
+            setSelectedPreset={(preset) => {
+              setMangalitsaPreset(preset);
+              setBoxSize(String(preset.target_weight_kg) as '8' | '9' | '10' | '12');
+            }}
             ribbeChoice={ribbeChoice}
             setRibbeChoice={setRibbeChoice}
             extraProducts={extraProducts}
@@ -476,7 +489,7 @@ export default function CheckoutPage() {
             setAgreedToDepositPolicy={setAgreedToDepositPolicy}
             isProcessing={isProcessing}
             handleCheckout={handleCheckout}
-            prices={prices}
+            selectedPrice={selectedPrice}
             addonPrices={addonPrices}
             depositTotal={depositTotal}
             remainderTotal={remainderTotal}
@@ -581,8 +594,10 @@ export default function CheckoutPage() {
             {/* Step 1: Box Size */}
             <div ref={step1Ref} className="bg-white border border-neutral-200 rounded-xl p-8 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.08)] transition-all duration-500 hover:shadow-[0_30px_80px_-20px_rgba(0,0,0,0.12)]">
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-light text-neutral-900">{t.checkout.step1Title}</h2>
-                {boxSize && step > 1 && (
+                <h2 className="text-2xl font-light text-neutral-900">
+                  {lang === 'no' ? 'Velg Mangalitsa-boks' : 'Choose your Mangalitsa box'}
+                </h2>
+                {mangalitsaPreset && step > 1 && (
                   <button
                     onClick={() => setStep(1)}
                     className="text-sm font-light text-neutral-600 hover:text-neutral-900 underline transition-all duration-300 hover:-translate-y-0.5"
@@ -593,55 +608,76 @@ export default function CheckoutPage() {
               </div>
 
               <div className="grid md:grid-cols-2 gap-6">
-                {(['8', '12'] as const).map((size) => (
-                  <button
-                    key={size}
-                    onClick={() => {
-                      setBoxSize(size);
-                      if (step === 1) setStep(2);
-                    }}
-                    className={cn(
-                      "p-8 border-2 rounded-xl transition-all duration-500 text-center group",
-                      boxSize === size
-                        ? "border-neutral-900 bg-neutral-50 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.15)]"
-                        : "border-neutral-200 hover:border-neutral-300 hover:shadow-[0_15px_40px_-12px_rgba(0,0,0,0.1)] hover:-translate-y-1"
-                    )}
-                  >
-                    <div className="space-y-4">
-                      <h3 className="text-6xl font-light text-neutral-900 tabular-nums transition-transform duration-300 group-hover:scale-105">
-                        {size} <span className="text-2xl text-neutral-500 font-light">{t.common.kg}</span>
-                      </h3>
-                      <p className="text-sm font-light text-neutral-600">
-                        {size === '8' ? t.checkout.persons2to3 : t.checkout.persons4to6}
-                      </p>
-                      <div className="text-3xl font-light text-neutral-900 tabular-nums">
-                        {prices ? `${prices[size].total} kr` : t.common.loading}
-                      </div>
-                      <p className="text-xs font-light text-neutral-500">
-                        {t.checkout.payNow}: {prices ? `${prices[size].deposit} kr` : t.common.loading}
-                      </p>
-                    </div>
+                {mangalitsaPresets.length === 0 && (
+                  <div className="md:col-span-2 p-8 text-center text-sm font-light text-neutral-500 border border-neutral-200 rounded-xl">
+                    {t.mangalitsa.loading}
+                  </div>
+                )}
+                {mangalitsaPresets.map((preset) => {
+                  const isSelected = mangalitsaPreset?.id === preset.id;
+                  const presetName = lang === 'no' ? preset.name_no : preset.name_en;
+                  const presetPitch = lang === 'no' ? preset.short_pitch_no : preset.short_pitch_en;
+                  const scarcity = lang === 'no' ? preset.scarcity_message_no : preset.scarcity_message_en;
 
-                    {boxSize === size && boxContents[size] && (
-                      <div className="mt-8 pt-6 border-t border-neutral-200">
-                        <MetaLabel>{t.checkout.inBox}</MetaLabel>
-                        <ul className="space-y-3 mt-4">
-                          {boxContents[size].map((item, idx) => (
-                            <li key={idx} className="flex items-start gap-3 text-sm text-left">
-                              <span className="w-1.5 h-1.5 rounded-full bg-neutral-400 mt-2 flex-shrink-0" />
-                              <span className={cn(
-                                "font-light",
-                                item.highlight ? "text-neutral-900 font-normal" : "text-neutral-600"
-                              )}>
-                                {item.name}
-                              </span>
-                            </li>
-                          ))}
-                        </ul>
+                  return (
+                    <button
+                      key={preset.id}
+                      onClick={() => {
+                        setMangalitsaPreset(preset);
+                        setBoxSize(String(preset.target_weight_kg) as '8' | '9' | '10' | '12');
+                        if (step === 1) setStep(2);
+                      }}
+                      className={cn(
+                        "p-8 border-2 rounded-xl transition-all duration-500 text-left group",
+                        isSelected
+                          ? "border-neutral-900 bg-neutral-50 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.15)]"
+                          : "border-neutral-200 hover:border-neutral-300 hover:shadow-[0_15px_40px_-12px_rgba(0,0,0,0.1)] hover:-translate-y-1"
+                      )}
+                    >
+                      <div className="space-y-4">
+                        <div className="flex items-start justify-between gap-4">
+                          <h3 className="text-2xl font-normal text-neutral-900">{presetName}</h3>
+                          <span className="text-xs px-2.5 py-1 rounded-full bg-neutral-900 text-white uppercase tracking-wide">
+                            {preset.target_weight_kg} kg
+                          </span>
+                        </div>
+                        <p className="text-sm font-light text-neutral-600 italic">{presetPitch}</p>
+                        <div className="text-3xl font-light text-neutral-900 tabular-nums">
+                          {preset.price_nok.toLocaleString(locale)} kr
+                        </div>
+                        <p className="text-xs font-light text-neutral-500">
+                          {Math.round(preset.price_nok / preset.target_weight_kg)} {t.mangalitsa.perKg}
+                        </p>
+                        {scarcity && (
+                          <p className="text-xs font-light text-neutral-500 uppercase tracking-wide">
+                            {scarcity}
+                          </p>
+                        )}
                       </div>
-                    )}
-                  </button>
-                ))}
+
+                      {isSelected && (
+                        <div className="mt-8 pt-6 border-t border-neutral-200">
+                          <MetaLabel>{t.checkout.inBox}</MetaLabel>
+                          <ul className="space-y-3 mt-4">
+                            {(preset.contents || []).map((content) => (
+                              <li key={content.id} className="flex items-start gap-3 text-sm text-left">
+                                <span className="w-1.5 h-1.5 rounded-full bg-neutral-400 mt-2 flex-shrink-0" />
+                                <span
+                                  className={cn(
+                                    "font-light",
+                                    content.is_hero ? "text-neutral-900 font-normal" : "text-neutral-600"
+                                  )}
+                                >
+                                  {lang === 'no' ? content.content_name_no : content.content_name_en}
+                                </span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
               </div>
 
               {canProceedToStep2 && step === 1 && (
@@ -655,7 +691,7 @@ export default function CheckoutPage() {
             </div>
 
             {/* Step 2: Ribbe Choice */}
-            {boxSize && (
+            {mangalitsaPreset && (
               <div ref={step2Ref} className={cn(
                 "bg-white border border-neutral-200 rounded-xl p-8 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.08)] transition-all duration-500",
                 step < 2 && "opacity-40 pointer-events-none",
@@ -674,7 +710,7 @@ export default function CheckoutPage() {
                 </div>
 
                 <p className="text-sm font-light text-neutral-600 mb-6">
-                  {t.checkout.boxContains.replace('{size}', boxSize === '8' ? '2.0' : '3.0')}
+                  {t.mangalitsa.ribbeSelection.subtitle}
                 </p>
 
                 <div className="space-y-4">
@@ -1053,10 +1089,12 @@ export default function CheckoutPage() {
 
                 {/* Line items */}
                 <div className="space-y-4 pb-6 border-b border-neutral-200">
-                  {boxSize && prices && (
+                  {mangalitsaPreset && selectedPrice && (
                     <div className="flex justify-between text-sm">
-                      <span className="font-light text-neutral-600">{boxSize} kg {boxSize === '8' ? t.product.box8 : t.product.box12}</span>
-                      <span className="font-light text-neutral-900 tabular-nums">{prices[boxSize].total} kr</span>
+                      <span className="font-light text-neutral-600">
+                        {lang === 'no' ? mangalitsaPreset.name_no : mangalitsaPreset.name_en} ({mangalitsaPreset.target_weight_kg} kg)
+                      </span>
+                      <span className="font-light text-neutral-900 tabular-nums">{selectedPrice.total.toLocaleString(locale)} kr</span>
                     </div>
                   )}
                   {deliveryType !== 'farm' && addonPrices && (
@@ -1119,7 +1157,7 @@ export default function CheckoutPage() {
                   </div>
                 </div>
 
-                {step === 4 && boxSize && (
+                {step === 4 && mangalitsaPreset && (
                   <div className="space-y-6 mt-6">
                     {/* Discount codes */}
                     <div className="pt-6 border-t border-neutral-200">
@@ -1152,7 +1190,7 @@ export default function CheckoutPage() {
                           {!referralData && (
                             <RebateCodeInput
                               depositAmount={baseDepositTotal}
-                              boxSize={parseInt(boxSize)}
+                              boxSize={mangalitsaPreset.target_weight_kg}
                               onCodeApplied={(data) => {
                                 setRebateData({
                                   code: data.code,
@@ -1220,4 +1258,3 @@ export default function CheckoutPage() {
     </div>
   );
 }
-

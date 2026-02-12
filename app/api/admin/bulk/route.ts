@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth/session';
 import { supabaseAdmin } from '@/lib/supabase/server';
 import { sendEmail } from '@/lib/email/client';
+import { getEffectiveBoxSize } from '@/lib/orders/display';
 
 export async function POST(request: NextRequest) {
   const session = await getSession();
@@ -224,32 +225,39 @@ async function bulkLockOrders(orderIds: string[]) {
 async function exportProductionList(orderIds: string[]) {
   const { data: orders, error } = await supabaseAdmin
     .from('orders')
-    .select('*')
+    .select('*, mangalitsa_preset:mangalitsa_box_presets(id, slug, name_no, name_en, target_weight_kg)')
     .in('id', orderIds)
     .order('delivery_type', { ascending: true });
 
   if (error) throw error;
 
+  const normalizedOrders = (orders || []).map((order) => ({
+    ...order,
+    effective_box_size: getEffectiveBoxSize(order),
+  }));
+
   // Aggregate production data
   const production = {
     boxes: {
-      '8kg': orders.filter((o) => o.box_size === 8).length,
-      '12kg': orders.filter((o) => o.box_size === 12).length,
-      total_kg: orders.reduce((sum, o) => sum + o.box_size, 0),
+      '8kg': normalizedOrders.filter((o) => o.effective_box_size === 8).length,
+      '9kg': normalizedOrders.filter((o) => o.effective_box_size === 9).length,
+      '10kg': normalizedOrders.filter((o) => o.effective_box_size === 10).length,
+      '12kg': normalizedOrders.filter((o) => o.effective_box_size === 12).length,
+      total_kg: normalizedOrders.reduce((sum, o) => sum + o.effective_box_size, 0),
     },
-    ribbe: orders.reduce((acc, o) => {
+    ribbe: normalizedOrders.reduce((acc, o) => {
       acc[o.ribbe_choice] = (acc[o.ribbe_choice] || 0) + 1;
       return acc;
     }, {} as Record<string, number>),
-    delivery: orders.reduce((acc, o) => {
+    delivery: normalizedOrders.reduce((acc, o) => {
       acc[o.delivery_type] = (acc[o.delivery_type] || 0) + 1;
       return acc;
     }, {} as Record<string, number>),
     fresh_vs_frozen: {
-      fresh: orders.filter((o) => o.fresh_delivery).length,
-      frozen: orders.filter((o) => !o.fresh_delivery).length,
+      fresh: normalizedOrders.filter((o) => o.fresh_delivery).length,
+      frozen: normalizedOrders.filter((o) => !o.fresh_delivery).length,
     },
-    extras: orders.reduce((acc, o) => {
+    extras: normalizedOrders.reduce((acc, o) => {
       if (o.extra_products && Array.isArray(o.extra_products)) {
         o.extra_products.forEach((extra: any) => {
           if (!acc[extra.name]) {
@@ -265,10 +273,11 @@ async function exportProductionList(orderIds: string[]) {
   return NextResponse.json({
     success: true,
     production,
-    orders: orders.map((o) => ({
+    orders: normalizedOrders.map((o) => ({
       order_number: o.order_number,
       customer_name: o.customer_name,
-      box_size: o.box_size,
+      box_size: o.effective_box_size,
+      mangalitsa_preset_name: o.mangalitsa_preset?.name_no || o.mangalitsa_preset?.name_en || null,
       ribbe_choice: o.ribbe_choice,
       delivery_type: o.delivery_type,
       fresh_delivery: o.fresh_delivery,

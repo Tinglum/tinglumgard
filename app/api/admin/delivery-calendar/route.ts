@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth/session';
 import { supabaseAdmin } from '@/lib/supabase/server';
+import { getEffectiveBoxSize } from '@/lib/orders/display';
 
 export async function GET(request: NextRequest) {
   const session = await getSession();
@@ -13,7 +14,7 @@ export async function GET(request: NextRequest) {
     // Fetch all orders that are ready for pickup or delivery
     const { data: orders, error } = await supabaseAdmin
       .from('orders')
-      .select('*')
+      .select('*, mangalitsa_preset:mangalitsa_box_presets(target_weight_kg)')
       .in('status', ['ready_for_pickup', 'completed'])
       .order('created_at', { ascending: true });
 
@@ -35,7 +36,7 @@ export async function GET(request: NextRequest) {
       acc[key].orders.push({
         order_number: order.order_number,
         customer_name: order.customer_name,
-        box_size: order.box_size,
+        box_size: getEffectiveBoxSize(order),
         fresh_delivery: order.fresh_delivery,
         marked_collected: !!order.marked_delivered_at,
       });

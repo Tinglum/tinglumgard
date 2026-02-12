@@ -73,10 +73,8 @@ function StickyCTABar({
 }
 
 export default function ProductPage() {
-  const { t, lang } = useLanguage();
+  const { t } = useLanguage();
   const copy = t.productPage;
-  const locale = lang === "no" ? "nb-NO" : "en-US";
-  const [pricing, setPricing] = useState<any>(null);
   const [inventory, setInventory] = useState<InventoryData | null>(null);
   const [loadingInventory, setLoadingInventory] = useState(true);
   const [isScrolled, setIsScrolled] = useState(false);
@@ -86,21 +84,6 @@ export default function ProductPage() {
     handleScroll();
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
-
-  useEffect(() => {
-    async function fetchPricing() {
-      try {
-        const res = await fetch("/api/config/pricing");
-        if (res.ok) {
-          const data = await res.json();
-          setPricing(data);
-        }
-      } catch (error) {
-        console.error("Failed to fetch pricing:", error);
-      }
-    }
-    fetchPricing();
   }, []);
 
   useEffect(() => {
@@ -123,17 +106,6 @@ export default function ProductPage() {
   const boxesLeft = inventory?.boxesRemaining ?? 0;
   const isSoldOut = inventory?.isSoldOut ?? false;
   const isLowStock = inventory?.isLowStock ?? false;
-
-  const box8Price = pricing?.box_8kg_price;
-  const box12Price = pricing?.box_12kg_price;
-  const box8Deposit = pricing
-    ? Math.floor(pricing.box_8kg_price * pricing.box_8kg_deposit_percentage / 100)
-    : null;
-  const box12Deposit = pricing
-    ? Math.floor(pricing.box_12kg_price * pricing.box_12kg_deposit_percentage / 100)
-    : null;
-  const box8Balance = pricing && box8Deposit !== null ? pricing.box_8kg_price - box8Deposit : null;
-  const box12Balance = pricing && box12Deposit !== null ? pricing.box_12kg_price - box12Deposit : null;
 
   const contents = useMemo(
     () => [
@@ -169,7 +141,7 @@ export default function ProductPage() {
               {copy.stickySecondary}
             </Link>
             <Link
-              href="#velg-kasse"
+              href="#mangalitsa-boxes"
               className="rounded-full bg-neutral-900 px-5 py-2 text-xs font-bold uppercase tracking-[0.25em] text-white"
             >
               {copy.stickyCta}
@@ -198,7 +170,7 @@ export default function ProductPage() {
 
               <div className="flex flex-wrap gap-3 pt-2">
                 <Link
-                  href="#velg-kasse"
+                  href="#mangalitsa-boxes"
                   className="inline-flex items-center justify-center rounded-xl bg-white px-7 py-4 text-xs font-bold uppercase tracking-[0.3em] text-[#101012] shadow-[0_18px_40px_-20px_rgba(0,0,0,0.5)]"
                 >
                   {copy.heroCtaPrimary}
@@ -253,20 +225,18 @@ export default function ProductPage() {
                 </div>
 
                 <div className="border-t border-white/15 pt-6 space-y-3">
-                  <SectionLabel>{copy.sizesTitle}</SectionLabel>
-                  <p className="text-sm text-white/65">{copy.sizesLead}</p>
+                  <SectionLabel>{t.mangalitsa.pageTitle}</SectionLabel>
+                  <p className="text-sm text-white/65">
+                    {t.mangalitsa.hero.title}
+                  </p>
                   <div className="space-y-2 text-sm text-white/80">
                     <div className="flex items-center justify-between">
-                      <span>{t.product.box8}</span>
-                      <span className="tabular-nums">
-                        {box8Price ? `${box8Price.toLocaleString(locale)} ${t.common.currency}` : t.common.loading}
-                      </span>
+                      <span>4 bokser per gris</span>
+                      <span className="tabular-nums">15 600 NOK</span>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span>{t.product.box12}</span>
-                      <span className="tabular-nums">
-                        {box12Price ? `${box12Price.toLocaleString(locale)} ${t.common.currency}` : t.common.loading}
-                      </span>
+                      <span>Fra 310 NOK/kg</span>
+                      <span className="tabular-nums">Opp til 613 NOK/kg</span>
                     </div>
                   </div>
                 </div>
@@ -366,153 +336,24 @@ export default function ProductPage() {
       <MangalitsaPremiumStory />
 
       <Section id="velg-kasse" className="bg-[#F7F5F2]">
-        <div className="mx-auto max-w-6xl px-6 space-y-10">
-          <div className="max-w-2xl space-y-3">
-            <SectionLabel>{copy.sizesTitle}</SectionLabel>
-            <h2 className="text-3xl sm:text-4xl font-light tracking-tight font-[family:var(--font-playfair)] text-neutral-900">
-              {copy.sizesHeading}
-            </h2>
-            <p className="text-base text-neutral-600 leading-relaxed">
-              {copy.sizesLead}
-            </p>
-          </div>
-
-          <GlassCard className="bg-white/80 backdrop-blur border-white/50">
-            <div className="flex flex-wrap items-center justify-between gap-4 p-6">
-              <div>
-                <p className="text-xs uppercase tracking-[0.3em] text-neutral-500 font-semibold">
-                  {copy.availabilityTitle}
-                </p>
-                <p className="mt-2 text-3xl font-light tabular-nums text-neutral-900">
-                  {loadingInventory ? "--" : boxesLeft}
-                </p>
-                <p className="text-sm text-neutral-500">{copy.availabilityLead}</p>
-              </div>
-              <div className="flex items-center gap-3">
-                {isSoldOut && (
-                  <span className="rounded-full bg-neutral-200 px-4 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-neutral-700">
-                    {t.availability.soldOut}
-                  </span>
-                )}
-                {!isSoldOut && isLowStock && (
-                  <span className="rounded-full bg-neutral-900 px-4 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-white">
-                    {t.availability.fewLeft}
-                  </span>
-                )}
-                {!isSoldOut && !isLowStock && (
-                  <span className="rounded-full bg-neutral-200 px-4 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-neutral-700">
-                    {copy.availabilityOpen}
-                  </span>
-                )}
-              </div>
+        <div className="mx-auto max-w-5xl px-6">
+          <GlassCard className="bg-white/85 backdrop-blur border-white/60">
+            <div className="p-8 sm:p-10 space-y-6 text-center">
+              <SectionLabel>{t.mangalitsa.pageTitle}</SectionLabel>
+              <h2 className="text-3xl sm:text-4xl font-light tracking-tight font-[family:var(--font-playfair)] text-neutral-900">
+                {t.mangalitsa.hero.title}
+              </h2>
+              <p className="text-base text-neutral-600 leading-relaxed max-w-2xl mx-auto">
+                {t.mangalitsa.hero.subtitle}
+              </p>
+              <Link
+                href="/bestill"
+                className="inline-flex items-center justify-center rounded-xl bg-neutral-900 px-8 py-4 text-xs font-bold uppercase tracking-[0.3em] text-white"
+              >
+                {t.mangalitsa.reserveBox}
+              </Link>
             </div>
           </GlassCard>
-
-          <div className="grid gap-6 lg:grid-cols-2">
-            <GlassCard className="bg-white/90 backdrop-blur border-white/60 motion-safe:transition-transform motion-safe:hover:-translate-y-1">
-              <div className="p-8 space-y-6">
-                <div className="space-y-3">
-                  <p className="text-xs uppercase tracking-[0.3em] text-neutral-500 font-semibold">
-                    {t.product.box8}
-                  </p>
-                  <p className="text-5xl font-light tracking-tight text-neutral-900">
-                    8 <span className="text-lg text-neutral-500">{t.common.kg}</span>
-                  </p>
-                  <p className="text-sm text-neutral-600">{t.product.perfectFor2to3}</p>
-                </div>
-
-                <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
-                  <p className="text-xs uppercase tracking-[0.3em] text-neutral-500 font-semibold">
-                    {t.product.totalPrice}
-                  </p>
-                  <p className="mt-2 text-3xl font-light text-neutral-900 tabular-nums">
-                    {box8Price ? `${box8Price.toLocaleString(locale)} ${t.common.currency}` : t.common.loading}
-                  </p>
-                </div>
-
-                <details className="rounded-2xl border border-neutral-200 bg-white/70 p-4">
-                  <summary className="cursor-pointer list-none text-xs font-semibold uppercase tracking-[0.25em] text-neutral-600">
-                    {copy.paymentSummary}
-                  </summary>
-                  <div className="mt-3 space-y-2 text-sm text-neutral-600">
-                    <div className="flex items-center justify-between">
-                      <span>{copy.paymentDepositLabel}</span>
-                      <span className="tabular-nums">
-                        {box8Deposit !== null ? `${box8Deposit.toLocaleString(locale)} ${t.common.currency}` : t.common.loading}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span>{copy.paymentRemainderLabel}</span>
-                      <span className="tabular-nums">
-                        {box8Balance !== null ? `${box8Balance.toLocaleString(locale)} ${t.common.currency}` : t.common.loading}
-                      </span>
-                    </div>
-                    <p className="text-xs text-neutral-500">{copy.paymentNote}</p>
-                  </div>
-                </details>
-
-                <Link
-                  href="/bestill?size=8"
-                  className="inline-flex w-full items-center justify-center rounded-xl bg-neutral-900 px-6 py-4 text-xs font-bold uppercase tracking-[0.3em] text-white"
-                >
-                  {copy.reserve8Label}
-                </Link>
-              </div>
-            </GlassCard>
-
-            <GlassCard className="bg-neutral-900 text-white border-neutral-900 motion-safe:transition-transform motion-safe:hover:-translate-y-1">
-              <div className="p-8 space-y-6">
-                <div className="space-y-3">
-                  <p className="text-xs uppercase tracking-[0.3em] text-white/70 font-semibold">
-                    {t.product.box12}
-                  </p>
-                  <p className="text-5xl font-light tracking-tight">
-                    12 <span className="text-lg text-white/70">{t.common.kg}</span>
-                  </p>
-                  <p className="text-sm text-white/70">{t.product.idealFor4to6}</p>
-                </div>
-
-                <div className="rounded-2xl border border-white/15 bg-white/10 p-4">
-                  <p className="text-xs uppercase tracking-[0.3em] text-white/70 font-semibold">
-                    {t.product.totalPrice}
-                  </p>
-                  <p className="mt-2 text-3xl font-light tabular-nums">
-                    {box12Price ? `${box12Price.toLocaleString(locale)} ${t.common.currency}` : t.common.loading}
-                  </p>
-                </div>
-
-                <details className="rounded-2xl border border-white/15 bg-white/5 p-4">
-                  <summary className="cursor-pointer list-none text-xs font-semibold uppercase tracking-[0.25em] text-white/70">
-                    {copy.paymentSummary}
-                  </summary>
-                  <div className="mt-3 space-y-2 text-sm text-white/70">
-                    <div className="flex items-center justify-between">
-                      <span>{copy.paymentDepositLabel}</span>
-                      <span className="tabular-nums">
-                        {box12Deposit !== null ? `${box12Deposit.toLocaleString(locale)} ${t.common.currency}` : t.common.loading}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span>{copy.paymentRemainderLabel}</span>
-                      <span className="tabular-nums">
-                        {box12Balance !== null ? `${box12Balance.toLocaleString(locale)} ${t.common.currency}` : t.common.loading}
-                      </span>
-                    </div>
-                    <p className="text-xs text-white/60">{copy.paymentNote}</p>
-                  </div>
-                </details>
-
-                <Link
-                  href="/bestill?size=12"
-                  className="inline-flex w-full items-center justify-center rounded-xl bg-white px-6 py-4 text-xs font-bold uppercase tracking-[0.3em] text-neutral-900"
-                >
-                  {copy.reserve12Label}
-                </Link>
-              </div>
-            </GlassCard>
-          </div>
-
-          <p className="text-sm text-neutral-500">{copy.sizesNote}</p>
         </div>
       </Section>
 
@@ -636,7 +477,7 @@ export default function ProductPage() {
             {copy.finalCtaBody}
           </p>
           <Link
-            href="#velg-kasse"
+            href="#mangalitsa-boxes"
             className="inline-flex items-center justify-center rounded-xl bg-white px-10 py-4 text-xs font-bold uppercase tracking-[0.3em] text-neutral-900"
           >
             {copy.finalCtaButton}
@@ -647,7 +488,7 @@ export default function ProductPage() {
       <StickyCTABar
         label={copy.stickyTitle}
         ctaLabel={copy.stickyCta}
-        ctaHref="#velg-kasse"
+        ctaHref="#mangalitsa-boxes"
       />
     </div>
   );

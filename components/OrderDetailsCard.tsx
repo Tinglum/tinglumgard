@@ -43,7 +43,10 @@ interface Payment {
 interface Order {
   id: string;
   order_number: string;
-  box_size: number;
+  box_size: number | null;
+  effective_box_size?: number;
+  display_box_name_no?: string | null;
+  display_box_name_en?: string | null;
   status: string;
   delivery_type: string;
   fresh_delivery: boolean;
@@ -105,6 +108,9 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
     month: 'long',
     year: 'numeric',
   });
+  const boxName = lang === 'no' ? order.display_box_name_no : order.display_box_name_en;
+  const boxSize = order.box_size || order.effective_box_size || 0;
+  const boxLabel = boxName && boxSize ? `${boxName} (${boxSize}kg)` : boxName || (boxSize ? `${boxSize}kg` : '-');
 
   // Determine next action
   function getNextAction() {
@@ -433,7 +439,7 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
             <div className="space-y-2">
               <div className="flex justify-between">
                 <span className={theme.textSecondary}>
-                  {copy.depositBoxLabel.replace('{size}', String(order.box_size))}</span>
+                  {copy.depositBoxLabel.replace('{size}', String(boxSize || '?'))}</span>
                 <div className="flex items-center gap-2">
                   <span className={cn('font-semibold', theme.textPrimary)}>
                     {currency} {depositPaid && depositPayment
@@ -494,7 +500,7 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <span className={cn('font-medium', theme.textPrimary)}>
-                  {copy.porkBoxLabel.replace('{size}', String(order.box_size))}
+                  {boxLabel}
                 </span>
               </div>
               <div>
@@ -724,7 +730,7 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
         isOpen={showContactModal}
         onClose={() => setShowContactModal(false)}
         orderNumber={order.order_number}
-        orderDetails={`${copy.contactDetailsBoxSize}: ${order.box_size}kg
+        orderDetails={`${copy.contactDetailsBoxSize}: ${boxLabel}
 ${copy.contactDetailsRibChoice}: ${ribbeChoiceLabels[order.ribbe_choice] || order.ribbe_choice}
 ${copy.contactDetailsDeliveryType}: ${deliveryTypeLabels[order.delivery_type] || order.delivery_type}
 ${copy.contactDetailsStatus}: ${order.status}
@@ -740,4 +746,3 @@ ${copy.contactDetailsTotalAmount}: ${currency} ${order.total_amount.toLocaleStri
     </>
   );
 }
-

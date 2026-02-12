@@ -202,7 +202,7 @@ export async function POST(request: NextRequest) {
     } else {
       const result = await supabaseAdmin
         .from("orders")
-        .select("*")
+        .select("*, mangalitsa_preset:mangalitsa_box_presets(name_no, name_en, target_weight_kg)")
         .eq("id", resolvedPayment.order_id)
         .single();
       order = result.data;
@@ -288,6 +288,11 @@ export async function POST(request: NextRequest) {
       if (!isEggPayment && order && order.customer_email && order.customer_email !== 'pending@vipps.no') {
         try {
           const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://tinglum.no';
+          const displayBoxWeight = order.box_size || order.mangalitsa_preset?.target_weight_kg || 0;
+          const displayBoxName = order.mangalitsa_preset?.name_no || order.mangalitsa_preset?.name_en || null;
+          const boxDisplay = displayBoxName
+            ? `${displayBoxName} (${displayBoxWeight}kg)`
+            : `${displayBoxWeight}kg`;
           
           // Build extras list
           let extrasHtml = '';
@@ -338,7 +343,7 @@ export async function POST(request: NextRequest) {
       
       <div class="order-details">
         <p><strong>Bestillingsnummer:</strong> ${order.order_number}</p>
-        <p><strong>Griskasse:</strong> ${order.box_size}kg</p>
+        <p><strong>Mangalitsa-boks:</strong> ${boxDisplay}</p>
         <p><strong>Ribbe:</strong> ${order.ribbe_choice}</p>
         <p><strong>Leveringsmåte:</strong> ${order.delivery_type === 'pickup_farm' ? 'Henting på gård' : order.delivery_type === 'pickup_e6' ? 'Henting ved E6' : 'Levering Trondheim'}</p>
         ${extrasHtml}
@@ -407,7 +412,8 @@ export async function POST(request: NextRequest) {
                 customerName: order.customer_name,
                 customerEmail: order.customer_email,
                 customerPhone: order.customer_phone || 'Ikke oppgitt',
-                boxSize: order.box_size,
+                boxSize: order.box_size || order.mangalitsa_preset?.target_weight_kg || 0,
+                boxName: order.mangalitsa_preset?.name_no || order.mangalitsa_preset?.name_en || undefined,
                 deliveryType: order.delivery_type,
                 freshDelivery: order.fresh_delivery,
                 ribbeChoice: order.ribbe_choice,
@@ -501,6 +507,11 @@ export async function POST(request: NextRequest) {
       if (!isEggPayment && order && order.customer_email && order.customer_email !== 'pending@vipps.no') {
         try {
           const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://tinglum.no';
+          const displayBoxWeight = order.box_size || order.mangalitsa_preset?.target_weight_kg || 0;
+          const displayBoxName = order.mangalitsa_preset?.name_no || order.mangalitsa_preset?.name_en || null;
+          const boxDisplay = displayBoxName
+            ? `${displayBoxName} (${displayBoxWeight}kg)`
+            : `${displayBoxWeight}kg`;
           const remainderConfirmationHtml = `
 <!DOCTYPE html>
 <html>
@@ -522,7 +533,7 @@ export async function POST(request: NextRequest) {
       <p>Hei ${order.customer_name},</p>
       <p>Vi har mottatt restbetalingen for din bestilling <strong>${order.order_number}</strong>.</p>
       <div class="amount">Totalt betalt: kr ${order.total_amount.toLocaleString('nb-NO')}</div>
-      <p>Din ${order.box_size}kg griskasse er nå fullstendig betalt!</p>
+      <p>Din ${boxDisplay} er nå fullstendig betalt!</p>
       <p><strong>Hva skjer videre?</strong></p>
       <ul>
         <li>Bestillingen din blir låst ca. 2 uker før henting (ingen flere endringer)</li>

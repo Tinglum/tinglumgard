@@ -13,7 +13,10 @@ import { useLanguage } from '@/contexts/LanguageContext';
 interface OrderData {
   id: string;
   order_number: string;
-  box_size: number;
+  box_size: number | null;
+  effective_box_size?: number;
+  display_box_name_no?: string | null;
+  display_box_name_en?: string | null;
   deposit_amount: number;
   remainder_amount: number;
   total_amount: number;
@@ -114,7 +117,7 @@ export default function RemainderPaymentSummaryPage() {
     return () => {
       isMounted = false;
     };
-  }, [orderId]);
+  }, [orderId, copy.fetchOrderError]);
 
   // Load available extras catalog
   useEffect(() => {

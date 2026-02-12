@@ -2,10 +2,11 @@
 
 import { useLanguage } from '@/contexts/LanguageContext';
 import { GlassCard } from '@/components/GlassCard';
+import { mangalitsaStory } from '@/content/mangalitsa-story';
 
 export function MangalitsaPremiumStory() {
-  const { t } = useLanguage();
-  const story = t.mangalitsa;
+  const { lang } = useLanguage();
+  const story = mangalitsaStory[lang];
 
   return (
     <section className="py-20 bg-[#F7F5F2]">
@@ -38,7 +39,9 @@ export function MangalitsaPremiumStory() {
         {/* Contrast */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-16">
           <div className="p-8 rounded-2xl border border-neutral-200 bg-white/50">
-            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-neutral-400 mb-3">Standard</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-neutral-400 mb-3">
+              {lang === 'no' ? 'Standard' : 'Standard'}
+            </p>
             <p className="text-lg font-light text-neutral-500 italic">
               {story.contrast.standard}
             </p>

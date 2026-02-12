@@ -16,7 +16,10 @@ interface Payment {
 interface Order {
   id: string;
   order_number: string;
-  box_size: number;
+  box_size: number | null;
+  effective_box_size?: number;
+  display_box_name_no?: string | null;
+  display_box_name_en?: string | null;
   status: string;
   delivery_type: string;
   fresh_delivery: boolean;
@@ -77,6 +80,14 @@ export function MobileMinSide(props: MobileMinSideProps) {
       pickup_e6: t.checkout.deliveryE6,
     };
     return labels[type] || type;
+  };
+
+  const getBoxLabel = (order: Order) => {
+    const name = lang === 'no' ? order.display_box_name_no : order.display_box_name_en;
+    const boxSize = order.box_size || order.effective_box_size;
+    if (name && boxSize) return `${name} (${boxSize} kg)`;
+    if (name) return name;
+    return boxSize ? `${boxSize} kg` : '-';
   };
 
   return (
@@ -155,7 +166,7 @@ export function MobileMinSide(props: MobileMinSideProps) {
                   <div className="mt-4 space-y-2 text-sm text-[#5E5A50]">
                     <div className="flex items-center justify-between">
                       <span>{t.minSide.box}</span>
-                      <span className="font-semibold text-[#1E1B16]">{order.box_size} kg</span>
+                      <span className="font-semibold text-[#1E1B16]">{getBoxLabel(order)}</span>
                     </div>
                     <div className="flex items-center justify-between">
                       <span>{t.minSide.ribbe}</span>

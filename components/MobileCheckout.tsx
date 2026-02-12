@@ -10,8 +10,10 @@ import { RebateCodeInput } from '@/components/RebateCodeInput';
 interface MobileCheckoutProps {
   step: number;
   setStep: (step: number) => void;
-  boxSize: '8' | '12' | '';
-  setBoxSize: (size: '8' | '12') => void;
+  boxSize: '8' | '9' | '10' | '12' | '';
+  presets: any[];
+  selectedPreset: any | null;
+  setSelectedPreset: (preset: any) => void;
   ribbeChoice: 'tynnribbe' | 'familieribbe' | 'porchetta' | 'butchers_choice' | '';
   setRibbeChoice: (choice: 'tynnribbe' | 'familieribbe' | 'porchetta' | 'butchers_choice' | '') => void;
   extraProducts: string[];
@@ -29,7 +31,11 @@ interface MobileCheckoutProps {
   setAgreedToDepositPolicy: (agreed: boolean) => void;
   isProcessing: boolean;
   handleCheckout: () => void;
-  prices: any;
+  selectedPrice: {
+    deposit: number;
+    remainder: number;
+    total: number;
+  } | null;
   addonPrices: any;
   depositTotal: number;
   remainderTotal: number;
@@ -48,7 +54,9 @@ export function MobileCheckout(props: MobileCheckoutProps) {
     step,
     setStep,
     boxSize,
-    setBoxSize,
+    presets,
+    selectedPreset,
+    setSelectedPreset,
     ribbeChoice,
     setRibbeChoice,
     extraProducts,
@@ -66,7 +74,7 @@ export function MobileCheckout(props: MobileCheckoutProps) {
     setAgreedToDepositPolicy,
     isProcessing,
     handleCheckout,
-    prices,
+    selectedPrice,
     addonPrices,
     depositTotal,
     remainderTotal,
@@ -81,7 +89,7 @@ export function MobileCheckout(props: MobileCheckoutProps) {
   } = props;
 
   const { t, lang } = useLanguage();
-  const [expandedBox, setExpandedBox] = useState<'8' | '12' | null>(null);
+  const [expandedBox, setExpandedBox] = useState<string | null>(null);
   const [showDiscountCodes, setShowDiscountCodes] = useState(false);
   const stepRef = useRef<HTMLDivElement>(null);
 
@@ -121,7 +129,7 @@ export function MobileCheckout(props: MobileCheckoutProps) {
   ];
 
   const stepTitle = step === 1
-    ? t.checkout.step1Title
+    ? (lang === 'no' ? 'Velg Mangalitsa-boks' : 'Choose your Mangalitsa box')
     : step === 2
       ? t.checkout.step2Title || t.checkout.selectRibbeType
       : step === 3
@@ -132,27 +140,9 @@ export function MobileCheckout(props: MobileCheckoutProps) {
 
   const sectionCard = "rounded-[30px] border border-[#E4DED5] bg-white p-6 shadow-[0_18px_40px_rgba(30,27,22,0.12)]";
   const labelText = "text-[10px] font-semibold uppercase tracking-[0.2em] text-[#6A6258]";
-
-  const boxContents = {
-    '8': [
-      t.boxContents.ribbe8kg,
-      t.boxContents.nakkekoteletter8kg,
-      t.boxContents.julepolse8kg,
-      t.boxContents.svinesteik8kg,
-      t.boxContents.medisterfarse8kg,
-      t.boxContents.knoke,
-      t.boxContents.butchersChoice8kg,
-    ],
-    '12': [
-      t.boxContents.ribbe12kg,
-      t.boxContents.nakkekoteletter12kg,
-      t.boxContents.julepolse12kg,
-      t.boxContents.svinesteik12kg,
-      t.boxContents.medisterfarse12kg,
-      t.boxContents.knoke,
-      t.boxContents.butchersChoice12kg,
-    ],
-  };
+  const selectedWeight = selectedPreset?.target_weight_kg
+    ? String(selectedPreset.target_weight_kg)
+    : boxSize;
 
   const ribbeOptions = [
     { id: 'tynnribbe', name: t.checkout.tynnribbe, desc: t.checkout.tynnribbeDesc },
@@ -169,7 +159,7 @@ export function MobileCheckout(props: MobileCheckoutProps) {
 
   const ribbeSummary = ribbeOptions.find((opt) => opt.id === ribbeChoice)?.name || t.checkout.selectRibbeType;
   const deliverySummary = deliveryOptions.find((opt) => opt.id === deliveryType)?.name || t.checkout.deliveryOptions;
-  const canContinue = step === 1 ? boxSize !== '' : step === 2 ? ribbeChoice !== '' : true;
+  const canContinue = step === 1 ? !!selectedPreset : step === 2 ? ribbeChoice !== '' : true;
   const filteredExtras = availableExtras.filter(
     (extra) => !['delivery_trondheim', 'pickup_e6', 'fresh_delivery'].includes(extra.slug)
   );
@@ -225,74 +215,88 @@ export function MobileCheckout(props: MobileCheckoutProps) {
         <div className={sectionCard}>
           <p className={labelText}>{mobileCopy.chooseBox}</p>
           <div className="mt-5 space-y-5">
-            {(['8', '12'] as const).map((size) => (
-              <button
-                key={size}
-                onClick={() => setBoxSize(size)}
-                className={`w-full rounded-[28px] border px-5 py-5 text-left transition-all ${
-                  boxSize === size
+            {presets.length === 0 && (
+              <div className="rounded-[28px] border border-[#E4DED5] bg-[#FBFAF7] px-5 py-5 text-center text-sm text-[#5E5A50]">
+                {t.mangalitsa.loading}
+              </div>
+            )}
+            {presets.map((preset) => {
+              const isSelected = selectedPreset?.id === preset.id;
+              const presetName = lang === 'en' ? preset.name_en : preset.name_no;
+              const pitch = lang === 'en' ? preset.short_pitch_en : preset.short_pitch_no;
+              const scarcity = lang === 'en' ? preset.scarcity_message_en : preset.scarcity_message_no;
+              const presetContents = preset.contents || [];
+
+              return (
+                <button
+                  key={preset.id}
+                  onClick={() => setSelectedPreset(preset)}
+                  className={`w-full rounded-[28px] border px-5 py-5 text-left transition-all ${
+                    isSelected
                     ? 'border-[#0F6C6F] bg-[#0F6C6F] text-white'
                     : 'border-[#E4DED5] bg-[#FBFAF7] text-[#1E1B16]'
-                }`}
-              >
-                <div className="flex items-start justify-between gap-5">
-                  <div>
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.3em]">
-                      {size} kg
-                    </p>
-                    <p className="mt-2 text-3xl font-semibold font-[family:var(--font-playfair)]">
-                      {size} <span className="text-base font-semibold">{t.common.kg}</span>
-                    </p>
-                    <p className={`mt-2 text-sm leading-relaxed ${boxSize === size ? 'text-white/70' : 'text-[#5E5A50]'}`}>
-                      {size === '8' ? t.product.perfectFor2to3 : t.product.idealFor4to6}
-                    </p>
-                  </div>
-                  {prices && prices[size]?.total ? (
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-5">
+                    <div>
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.3em]">
+                        {preset.target_weight_kg} kg
+                      </p>
+                      <p className="mt-2 text-3xl font-semibold font-[family:var(--font-playfair)]">
+                        {presetName}
+                      </p>
+                      <p className={`mt-2 text-sm leading-relaxed ${isSelected ? 'text-white/70' : 'text-[#5E5A50]'}`}>
+                        {pitch}
+                      </p>
+                      {scarcity && (
+                        <p className={`mt-2 text-[11px] uppercase tracking-[0.2em] ${isSelected ? 'text-white/70' : 'text-[#5E5A50]'}`}>
+                          {scarcity}
+                        </p>
+                      )}
+                    </div>
                     <div className="text-right">
                       <p className="text-xl font-semibold">
-                        {prices[size].total.toLocaleString(locale)} {t.common.currency}
+                        {preset.price_nok.toLocaleString(locale)} {t.common.currency}
                       </p>
-                      <p className={`text-xs ${boxSize === size ? 'text-white/70' : 'text-[#5E5A50]'}`}>
-                        {t.product.deposit50}: {prices[size].deposit.toLocaleString(locale)} {t.common.currency}
+                      <p className={`text-xs ${isSelected ? 'text-white/70' : 'text-[#5E5A50]'}`}>
+                        {t.product.deposit50}: {Math.floor(preset.price_nok * 0.5).toLocaleString(locale)} {t.common.currency}
                       </p>
                     </div>
-                  ) : (
-                    <p className="text-sm text-[#5E5A50]">{t.common.loading}</p>
-                  )}
-                </div>
-
-                {boxSize === size && (
-                  <div className="mt-4 rounded-2xl border border-white/15 bg-white/10 px-4 py-4 text-xs">
-                    <div className="flex items-center justify-between">
-                      <p className="uppercase tracking-[0.2em] text-white/70">{t.checkout.inBox}</p>
-                      <button
-                        type="button"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          setExpandedBox(expandedBox === size ? null : size);
-                        }}
-                        className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/70"
-                      >
-                        {expandedBox === size ? mobileCopy.showLess : mobileCopy.showAllContents}
-                      </button>
-                    </div>
-                    <ul className="mt-3 space-y-1.5 text-white/80">
-                      {(expandedBox === size ? boxContents[size] : boxContents[size].slice(0, 4)).map((item) => (
-                        <li key={item} className="flex items-start gap-2">
-                          <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-white" />
-                          <span>{item}</span>
-                        </li>
-                      ))}
-                    </ul>
-                    {expandedBox !== size && boxContents[size].length > 4 && (
-                      <p className="mt-2 text-[10px] uppercase tracking-[0.2em] text-white/60">
-                        + {boxContents[size].length - 4} {t.checkout.moreItems}
-                      </p>
-                    )}
                   </div>
-                )}
-              </button>
-            ))}
+
+                  {isSelected && (
+                    <div className="mt-4 rounded-2xl border border-white/15 bg-white/10 px-4 py-4 text-xs">
+                      <div className="flex items-center justify-between">
+                        <p className="uppercase tracking-[0.2em] text-white/70">{t.checkout.inBox}</p>
+                        <button
+                          type="button"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            setExpandedBox(expandedBox === preset.id ? null : preset.id);
+                          }}
+                          className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/70"
+                        >
+                          {expandedBox === preset.id ? mobileCopy.showLess : mobileCopy.showAllContents}
+                        </button>
+                      </div>
+                      <ul className="mt-3 space-y-1.5 text-white/80">
+                        {(expandedBox === preset.id ? presetContents : presetContents.slice(0, 4)).map((item: any) => (
+                          <li key={`${preset.id}-${item.id}`} className="flex items-start gap-2">
+                            <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-white" />
+                            <span>{lang === 'en' ? item.content_name_en : item.content_name_no}</span>
+                          </li>
+                        ))}
+                      </ul>
+                      {expandedBox !== preset.id && presetContents.length > 4 && (
+                        <p className="mt-2 text-[10px] uppercase tracking-[0.2em] text-white/60">
+                          + {presetContents.length - 4} {t.checkout.moreItems}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </button>
+              );
+            })}
           </div>
         </div>
       )}
@@ -301,7 +305,7 @@ export function MobileCheckout(props: MobileCheckoutProps) {
         <div className={sectionCard}>
           <div className="flex items-center justify-between">
             <p className={labelText}>{mobileCopy.ribbeLabel}</p>
-            <span className="text-xs text-[#5E5A50]">{boxSize ? `${boxSize} kg` : ''}</span>
+            <span className="text-xs text-[#5E5A50]">{selectedWeight ? `${selectedWeight} kg` : ''}</span>
           </div>
           <div className="mt-5 space-y-4">
             {ribbeOptions.map((option) => (
@@ -531,14 +535,14 @@ export function MobileCheckout(props: MobileCheckoutProps) {
           <div className={sectionCard}>
             <div className="flex items-center justify-between">
               <p className={labelText}>{mobileCopy.summaryLabel}</p>
-              <span className="text-xs text-[#5E5A50]">{boxSize} kg</span>
+              <span className="text-xs text-[#5E5A50]">{selectedWeight ? `${selectedWeight} kg` : ''}</span>
             </div>
 
             <div className="mt-4 rounded-2xl border border-[#E4DED5] bg-[#FBFAF7] p-4 text-sm">
               <div className="flex items-center justify-between">
-                <span>{boxSize === '12' ? t.product.box12 : t.product.box8}</span>
+                <span>{selectedPreset ? (lang === 'en' ? selectedPreset.name_en : selectedPreset.name_no) : t.checkout.step1Title}</span>
                 <span className="font-semibold">
-                  {prices && prices[boxSize] ? `${prices[boxSize].total.toLocaleString(locale)} ${t.common.currency}` : '...'}
+                  {selectedPrice ? `${selectedPrice.total.toLocaleString(locale)} ${t.common.currency}` : '...'}
                 </span>
               </div>
 
@@ -626,7 +630,7 @@ export function MobileCheckout(props: MobileCheckoutProps) {
                 {!referralData && (
                   <RebateCodeInput
                     depositAmount={baseDepositTotal}
-                    boxSize={boxSize ? parseInt(boxSize) : 0}
+                    boxSize={selectedPreset?.target_weight_kg || (boxSize ? parseInt(boxSize, 10) : 0)}
                     onCodeApplied={(data) => {
                       setRebateData({
                         code: data.code,
