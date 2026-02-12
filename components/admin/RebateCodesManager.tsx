@@ -66,6 +66,8 @@ export function RebateCodesManager() {
   const [validUntil, setValidUntil] = useState('');
   const [minOrderAmount, setMinOrderAmount] = useState('');
   const [applicable8kg, setApplicable8kg] = useState(true);
+  const [applicable9kg, setApplicable9kg] = useState(true);
+  const [applicable10kg, setApplicable10kg] = useState(true);
   const [applicable12kg, setApplicable12kg] = useState(true);
   const [description, setDescription] = useState('');
   const [creating, setCreating] = useState(false);
@@ -94,6 +96,8 @@ export function RebateCodesManager() {
     try {
       const applicableTo = [];
       if (applicable8kg) applicableTo.push('8kg');
+      if (applicable9kg) applicableTo.push('9kg');
+      if (applicable10kg) applicableTo.push('10kg');
       if (applicable12kg) applicableTo.push('12kg');
 
       const response = await fetch('/api/admin/rebate-codes', {
@@ -128,6 +132,8 @@ export function RebateCodesManager() {
       setValidUntil('');
       setMinOrderAmount('');
       setApplicable8kg(true);
+      setApplicable9kg(true);
+      setApplicable10kg(true);
       setApplicable12kg(true);
       setDescription('');
       setShowCreateForm(false);
@@ -319,6 +325,22 @@ export function RebateCodesManager() {
                     onCheckedChange={(checked) => setApplicable12kg(checked as boolean)}
                   />
                   <Label htmlFor="12kg" className="cursor-pointer">{copy.applies12kg}</Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="9kg"
+                    checked={applicable9kg}
+                    onCheckedChange={(checked) => setApplicable9kg(checked as boolean)}
+                  />
+                  <Label htmlFor="9kg" className="cursor-pointer">9kg</Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="10kg"
+                    checked={applicable10kg}
+                    onCheckedChange={(checked) => setApplicable10kg(checked as boolean)}
+                  />
+                  <Label htmlFor="10kg" className="cursor-pointer">10kg</Label>
                 </div>
               </div>
             </div>

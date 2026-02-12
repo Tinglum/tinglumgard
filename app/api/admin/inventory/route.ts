@@ -92,17 +92,12 @@ async function getInventoryStatus() {
     return acc;
   }, {} as Record<string, number>);
 
-  const box8kgCount = boxCounts['8'] || 0;
-  const box12kgCount = boxCounts['12'] || 0;
-
   return NextResponse.json({
     inventory: {
       max_kg: maxKg,
       allocated_kg: allocatedKg,
       remaining_kg: remainingKg,
       utilization_rate: Math.round(utilizationRate * 10) / 10,
-      box_8kg_count: box8kgCount,
-      box_12kg_count: box12kgCount,
       box_counts: boxCounts,
       total_orders: orders?.length || 0,
     },

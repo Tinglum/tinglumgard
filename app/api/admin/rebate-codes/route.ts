@@ -79,7 +79,7 @@ export async function POST(request: NextRequest) {
         valid_from: validFrom || null,
         valid_until: validUntil || null,
         min_order_amount: minOrderAmount || null,
-        applicable_to: applicableTo || ['8kg', '12kg'],
+        applicable_to: applicableTo || ['8kg', '9kg', '10kg', '12kg'],
         description: description || '',
         created_by: session.name || session.email,
         is_active: true,

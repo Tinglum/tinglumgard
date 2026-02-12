@@ -78,8 +78,6 @@ function calculateDashboardMetrics(orders: any[]) {
   }, {} as Record<string, number>);
 
   const productBreakdown = {
-    box_8kg: boxSizes.filter((size) => size === 8).length,
-    box_12kg: boxSizes.filter((size) => size === 12).length,
     box_counts: boxCounts,
     total_kg: boxSizes.reduce((sum, size) => sum + size, 0),
   };

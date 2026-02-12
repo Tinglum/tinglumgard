@@ -38,10 +38,7 @@ export async function GET() {
       cutoff: config?.value || { year: 2026, week: 46 },
       box_contents,
       pricing: {
-        box_8kg_price: pricing.box_8kg_price,
-        box_12kg_price: pricing.box_12kg_price,
-        box_8kg_deposit_percentage: pricing.box_8kg_deposit_percentage,
-        box_12kg_deposit_percentage: pricing.box_12kg_deposit_percentage,
+        deposit_percentage: 50,
         delivery_fee_pickup_e6: pricing.delivery_fee_pickup_e6,
         delivery_fee_trondheim: pricing.delivery_fee_trondheim,
         fresh_delivery_fee: pricing.fresh_delivery_fee,

@@ -54,7 +54,7 @@ export function AdminMessagingPanel() {
   const [recipientSearch, setRecipientSearch] = useState('');
   const [selectedClientPhone, setSelectedClientPhone] = useState('');
   const [filterAwaitingFinalPayment, setFilterAwaitingFinalPayment] = useState(false);
-  const [filterBoxSize, setFilterBoxSize] = useState<'all' | '8' | '12'>('all');
+  const [filterBoxSize, setFilterBoxSize] = useState<'all' | '8' | '9' | '10' | '12'>('all');
   const [filterHasExtras, setFilterHasExtras] = useState(false);
   const [filterExtraIds, setFilterExtraIds] = useState<string[]>([]);
   const [previewRecipients, setPreviewRecipients] = useState<Array<{ phone: string; name?: string; email?: string }>>([]);
@@ -452,11 +452,13 @@ export function AdminMessagingPanel() {
                     <label className="block text-sm font-medium text-gray-700 mb-2">{t.messaging.boxSize}</label>
                     <select
                       value={filterBoxSize}
-                      onChange={(e) => setFilterBoxSize(e.target.value as 'all' | '8' | '12')}
+                      onChange={(e) => setFilterBoxSize(e.target.value as 'all' | '8' | '9' | '10' | '12')}
                       className="w-full px-3 py-2 border border-gray-300 rounded-xl"
                     >
                       <option value="all">{t.messaging.all}</option>
                       <option value="8">8kg</option>
+                      <option value="9">9kg</option>
+                      <option value="10">10kg</option>
                       <option value="12">12kg</option>
                     </select>
                   </div>

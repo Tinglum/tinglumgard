@@ -15,8 +15,8 @@ interface InventoryData {
   allocated_kg: number;
   remaining_kg: number;
   utilization_rate: number;
-  box_8kg_count: number;
-  box_12kg_count: number;
+  box_8kg_count?: number;
+  box_12kg_count?: number;
   box_counts?: Record<string, number>;
   total_orders: number;
 }

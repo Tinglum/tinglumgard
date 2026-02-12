@@ -23,7 +23,6 @@ export function OrderModificationModal({ order, isOpen, onClose, onSave }: Order
   const locale = lang === 'en' ? 'en-US' : 'nb-NO';
   const copy = t.orderModificationModal;
 
-  const [boxSize, setBoxSize] = useState(order.box_size);
   const [ribbeChoice, setRibbeChoice] = useState(order.ribbe_choice);
   const [deliveryType, setDeliveryType] = useState(order.delivery_type);
   const [freshDelivery, setFreshDelivery] = useState(order.fresh_delivery);
@@ -33,11 +32,8 @@ export function OrderModificationModal({ order, isOpen, onClose, onSave }: Order
   const [availableExtras, setAvailableExtras] = useState<any[]>([]);
   const [extrasLoading, setExtrasLoading] = useState(true);
   const [selectedQuantities, setSelectedQuantities] = useState<Record<string, number>>({});
-  const isMangalitsaOrder = Boolean(order?.is_mangalitsa || order?.mangalitsa_preset_id || order?.display_box_name_no || order?.display_box_name_en);
-
   useEffect(() => {
     if (isOpen) {
-      setBoxSize(order.box_size);
       setRibbeChoice(order.ribbe_choice);
       setDeliveryType(order.delivery_type);
       setFreshDelivery(order.fresh_delivery);
@@ -96,8 +92,6 @@ export function OrderModificationModal({ order, isOpen, onClose, onSave }: Order
 
   const isFreshAllowed = deliveryType === 'pickup_farm';
   const freshFee = pricing?.fresh_delivery_fee;
-  const boxPrice8 = pricing?.box_8kg_price;
-  const boxPrice12 = pricing?.box_12kg_price;
   const pickupE6Fee = pricing?.delivery_fee_pickup_e6 ?? pricing?.delivery_fee_e6;
   const trondheimFee = pricing?.delivery_fee_trondheim;
 
@@ -116,7 +110,6 @@ export function OrderModificationModal({ order, isOpen, onClose, onSave }: Order
   }, [selectedQuantities, order]);
 
   const hasChanges =
-    (!isMangalitsaOrder && boxSize !== order.box_size) ||
     ribbeChoice !== order.ribbe_choice ||
     deliveryType !== order.delivery_type ||
     freshDelivery !== order.fresh_delivery ||
@@ -159,9 +152,6 @@ export function OrderModificationModal({ order, isOpen, onClose, onSave }: Order
         delivery_type: deliveryType,
         fresh_delivery: freshDelivery,
       };
-      if (!isMangalitsaOrder) {
-        payload.box_size = boxSize;
-      }
 
       await onSave(payload);
 
@@ -220,46 +210,13 @@ export function OrderModificationModal({ order, isOpen, onClose, onSave }: Order
               <Package className="w-5 h-5" />
               {copy.boxSize}
             </Label>
-            {isMangalitsaOrder ? (
-              <div className="p-4 rounded-xl border border-gray-300 bg-gray-50">
-                <p className="font-semibold text-gray-900">
-                  {lang === 'no' ? order.display_box_name_no : order.display_box_name_en}
-                  {(order.box_size || order.effective_box_size) ? ` (${order.box_size || order.effective_box_size} kg)` : ''}
-                </p>
-                <p className="text-sm text-gray-600 mt-1">Mangalitsa-boks er laast etter reservasjon.</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-2 gap-4">
-                <button
-                  onClick={() => setBoxSize(8)}
-                  className={cn(
-                    'p-4 rounded-xl border-2 transition-all text-left',
-                    boxSize === 8
-                      ? 'border-[#2C1810] bg-[#2C1810]/10 text-gray-900'
-                      : 'border-gray-300 hover:border-gray-400 text-gray-900'
-                  )}
-                >
-                  <p className="text-2xl font-bold text-gray-900">8 kg</p>
-                  <p className="text-sm text-gray-700">
-                    {boxPrice8 ? `${t.common.currency} ${boxPrice8.toLocaleString(locale)}` : copy.priceFromAdmin}
-                  </p>
-                </button>
-                <button
-                  onClick={() => setBoxSize(12)}
-                  className={cn(
-                    'p-4 rounded-xl border-2 transition-all text-left',
-                    boxSize === 12
-                      ? 'border-[#2C1810] bg-[#2C1810]/10 text-gray-900'
-                      : 'border-gray-300 hover:border-gray-400 text-gray-900'
-                  )}
-                >
-                  <p className="text-2xl font-bold text-gray-900">12 kg</p>
-                  <p className="text-sm text-gray-700">
-                    {boxPrice12 ? `${t.common.currency} ${boxPrice12.toLocaleString(locale)}` : copy.priceFromAdmin}
-                  </p>
-                </button>
-              </div>
-            )}
+            <div className="p-4 rounded-xl border border-gray-300 bg-gray-50">
+              <p className="font-semibold text-gray-900">
+                {lang === 'no' ? order.display_box_name_no : order.display_box_name_en}
+                {(order.box_size || order.effective_box_size) ? ` (${order.box_size || order.effective_box_size} kg)` : ''}
+              </p>
+              <p className="text-sm text-gray-600 mt-1">Mangalitsa-boks er laast etter reservasjon.</p>
+            </div>
           </div>
 
           <div>

@@ -15,7 +15,18 @@ export async function GET() {
       return NextResponse.json({ error: 'Failed to fetch extras' }, { status: 500 });
     }
 
-    return NextResponse.json({ extras: extras || [] });
+    const normalizedExtras = (extras || []).map((extra) => ({
+      ...extra,
+      description_premium_no: extra.description_premium_no ?? extra.description_no ?? null,
+      description_premium_en: extra.description_premium_en ?? extra.description_en ?? null,
+      chef_term_no: extra.chef_term_no ?? null,
+      chef_term_en: extra.chef_term_en ?? null,
+      recipe_suggestions: extra.recipe_suggestions ?? [],
+      preparation_tips_no: extra.preparation_tips_no ?? null,
+      preparation_tips_en: extra.preparation_tips_en ?? null,
+    }));
+
+    return NextResponse.json({ extras: normalizedExtras });
   } catch (error) {
     logError('extras-route', error);
     return NextResponse.json({ error: 'Failed to fetch extras' }, { status: 500 });

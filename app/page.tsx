@@ -3,9 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { useTheme } from "@/contexts/ThemeContext";
 import { InstagramFeed } from "@/components/InstagramFeed";
-import { getHeroStyles, getBannerStyles, getInventoryStyles } from "@/lib/theme-utils";
 import { useIsMobile } from "@/hooks/useMediaQuery";
 import { MobileHero } from "@/components/MobileHero";
 import { MobileProductTiles } from "@/components/MobileProductTiles";
@@ -18,6 +16,29 @@ interface InventoryData {
   isLowStock: boolean;
   isSoldOut: boolean;
   active: boolean;
+}
+
+interface MangalitsaPreset {
+  id: string;
+  slug: string;
+  name_no: string;
+  name_en: string;
+  short_pitch_no: string;
+  short_pitch_en: string;
+  description_no?: string | null;
+  description_en?: string | null;
+  target_audience_no?: string | null;
+  target_audience_en?: string | null;
+  scarcity_message_no?: string | null;
+  scarcity_message_en?: string | null;
+  target_weight_kg: number;
+  price_nok: number;
+  display_order?: number;
+  contents?: Array<{
+    content_name_no: string;
+    content_name_en: string;
+    display_order?: number;
+  }>;
 }
 
 // Meta Label Component
@@ -72,7 +93,6 @@ function ProductCard({
   ctaText,
   ctaHref,
   isFeatured = false,
-  pricing,
   delay = 0
 }: {
   size: string;
@@ -88,7 +108,6 @@ function ProductCard({
   ctaText: string;
   ctaHref: string;
   isFeatured?: boolean;
-  pricing: any;
   delay?: number;
 }) {
   const { t, lang } = useLanguage();
@@ -265,25 +284,9 @@ function TimelineStep({
 
 export default function Page() {
   const { t, lang } = useLanguage();
-  const { getThemeClasses } = useTheme();
-  const theme = getThemeClasses();
-  const heroStyles = getHeroStyles(theme);
-  const bannerStyles = getBannerStyles(theme);
-  const inventoryStyles = getInventoryStyles(theme);
   const [inventory, setInventory] = useState<InventoryData | null>(null);
+  const [presets, setPresets] = useState<MangalitsaPreset[]>([]);
   const [loading, setLoading] = useState(true);
-  const [pricing, setPricing] = useState<any>(null);
-  const [scrollY, setScrollY] = useState(0);
-
-  // Parallax scroll effect
-  useEffect(() => {
-    const handleScroll = () => {
-      setScrollY(window.scrollY);
-    };
-
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
 
   useEffect(() => {
     async function fetchInventory() {
@@ -303,18 +306,18 @@ export default function Page() {
   }, []);
 
   useEffect(() => {
-    async function fetchPricing() {
+    async function fetchPresets() {
       try {
-        const res = await fetch('/api/config/pricing');
+        const res = await fetch('/api/mangalitsa/presets');
         if (res.ok) {
           const data = await res.json();
-          setPricing(data);
+          setPresets(data.presets || []);
         }
       } catch (error) {
-        console.error('Failed to fetch pricing:', error);
+        console.error('Failed to fetch presets:', error);
       }
     }
-    fetchPricing();
+    fetchPresets();
   }, []);
 
   const boxesLeft = inventory?.boxesRemaining ?? 0;
@@ -330,14 +333,11 @@ export default function Page() {
   const desktopEmptyClass = 'bg-neutral-200';
   const mobileFillColor = isSoldOut ? '#D7CEC3' : isLowStock ? '#B35A2A' : '#0F6C6F';
   const mobileEmptyColor = '#E9E1D6';
-  const minPrice = pricing ? Math.min(pricing.box_8kg_price, pricing.box_12kg_price) : null;
-  const minDeposit = pricing
-    ? Math.floor(
-        (pricing.box_8kg_price <= pricing.box_12kg_price
-          ? pricing.box_8kg_price * pricing.box_8kg_deposit_percentage
-          : pricing.box_12kg_price * pricing.box_12kg_deposit_percentage) / 100
-      )
+  const minPresetPrice = presets.length > 0
+    ? Math.min(...presets.map((preset) => preset.price_nok))
     : null;
+  const minPrice = minPresetPrice;
+  const minDeposit = minPresetPrice ? Math.floor(minPresetPrice * 0.5) : null;
   const locale = lang === 'no' ? 'nb-NO' : 'en-US';
   const pageCopy = lang === 'no'
     ? {
@@ -353,12 +353,6 @@ export default function Page() {
         timelineDate2: 'Uke 46',
         timelineDate3: 'Uke 48',
         timelineDate4: 'Uke 50/51',
-        personCount8: '2-3 pers',
-        personCount12: '4-6 pers',
-        meals8: '12-16 maltider',
-        meals12: '20-28 maltider',
-        freezer8: 'Lite fryserom',
-        freezer12: 'Mer fryserom',
       }
     : {
         updatedToday: 'Updated today',
@@ -373,13 +367,8 @@ export default function Page() {
         timelineDate2: 'Week 46',
         timelineDate3: 'Week 48',
         timelineDate4: 'Week 50/51',
-        personCount8: '2-3 people',
-        personCount12: '4-6 people',
-        meals8: '12-16 meals',
-        meals12: '20-28 meals',
-        freezer8: 'Less freezer space',
-        freezer12: 'More freezer space',
       };
+  const sortedPresets = [...presets].sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
 
   // Mobile version - keep existing design
   if (isMobile) {
@@ -393,7 +382,7 @@ export default function Page() {
 
         <MobileHero isSoldOut={isSoldOut} minPrice={minPrice} minDeposit={minDeposit} />
 
-        <MobileProductTiles pricing={pricing} />
+        <MobileProductTiles presets={presets} />
 
         <section className="px-5 py-10">
           <div className="mx-auto max-w-md rounded-[28px] border border-[#E4DED5] bg-white p-6 shadow-[0_20px_45px_rgba(30,27,22,0.12)]">
@@ -627,66 +616,51 @@ export default function Page() {
         <div className="max-w-6xl mx-auto">
 
           <div className="max-w-2xl mb-16">
-            <MetaLabel>{t.product.choosePackage}</MetaLabel>
+            <MetaLabel>{t.mangalitsa.pageTitle}</MetaLabel>
             <h2 className="text-6xl font-light tracking-tight text-neutral-900 mt-3 mb-6">
-              {t.product.twoSizes}
+              {t.mangalitsa.hero.title}
             </h2>
             <p className="text-lg leading-relaxed text-neutral-600">
-              {t.product.sameQuality}
+              {t.mangalitsa.hero.subtitle}
             </p>
           </div>
 
           <div className="grid md:grid-cols-2 gap-8">
-            <ProductCard
-              size="8"
-              label={t.product.smallerPackage}
-              description={t.product.perfectFor2to3}
-              features={[
-                t.boxContents.ribbe8kg,
-                t.boxContents.nakkekoteletter8kg,
-                t.boxContents.julepolse8kg,
-                t.boxContents.svinesteik8kg,
-                t.boxContents.medisterfarse8kg,
-                t.boxContents.knoke,
-                t.boxContents.butchersChoice8kg
-              ]}
-              personCount={pageCopy.personCount8}
-              mealsCount={pageCopy.meals8}
-              freezerNote={pageCopy.freezer8}
-              price={pricing?.box_8kg_price}
-              deposit={pricing ? Math.floor(pricing.box_8kg_price * pricing.box_8kg_deposit_percentage / 100) : undefined}
-              balance={pricing ? pricing.box_8kg_price - Math.floor(pricing.box_8kg_price * pricing.box_8kg_deposit_percentage / 100) : undefined}
-              ctaText={t.product.reserve8kg}
-              ctaHref="/bestill"
-              pricing={pricing}
-              delay={0}
-            />
+            {sortedPresets.map((preset, index) => {
+              const label = lang === 'no' ? preset.name_no : preset.name_en;
+              const description = (lang === 'no' ? preset.description_no : preset.description_en)
+                || (lang === 'no' ? preset.short_pitch_no : preset.short_pitch_en)
+                || '';
+              const audience = (lang === 'no' ? preset.target_audience_no : preset.target_audience_en)
+                || (lang === 'no' ? preset.short_pitch_no : preset.short_pitch_en)
+                || t.mangalitsa.hero.scarcity;
+              const scarcity = (lang === 'no' ? preset.scarcity_message_no : preset.scarcity_message_en)
+                || t.mangalitsa.hero.scarcity;
+              const perKg = `${Math.round(preset.price_nok / preset.target_weight_kg)} ${t.mangalitsa.perKg}`;
+              const features = [...(preset.contents || [])]
+                .sort((a, b) => (a.display_order || 0) - (b.display_order || 0))
+                .map((content) => (lang === 'no' ? content.content_name_no : content.content_name_en));
 
-            <ProductCard
-              size="12"
-              label={t.product.largerPackage}
-              description={t.product.idealFor4to6}
-              features={[
-                t.boxContents.ribbe12kg,
-                t.boxContents.nakkekoteletter12kg,
-                t.boxContents.julepolse12kg,
-                t.boxContents.svinesteik12kg,
-                t.boxContents.medisterfarse12kg,
-                t.boxContents.knoke,
-                t.boxContents.butchersChoice12kg
-              ]}
-              personCount={pageCopy.personCount12}
-              mealsCount={pageCopy.meals12}
-              freezerNote={pageCopy.freezer12}
-              price={pricing?.box_12kg_price}
-              deposit={pricing ? Math.floor(pricing.box_12kg_price * pricing.box_12kg_deposit_percentage / 100) : undefined}
-              balance={pricing ? pricing.box_12kg_price - Math.floor(pricing.box_12kg_price * pricing.box_12kg_deposit_percentage / 100) : undefined}
-              ctaText={t.product.reserve12kg}
-              ctaHref="/bestill"
-              isFeatured={true}
-              pricing={pricing}
-              delay={150}
-            />
+              return (
+                <ProductCard
+                  key={preset.id}
+                  size={String(preset.target_weight_kg)}
+                  label={label}
+                  description={description}
+                  features={features}
+                  personCount={audience}
+                  mealsCount={perKg}
+                  freezerNote={scarcity}
+                  price={preset.price_nok}
+                  deposit={Math.floor(preset.price_nok * 0.5)}
+                  balance={preset.price_nok - Math.floor(preset.price_nok * 0.5)}
+                  ctaText={t.mangalitsa.reserveBox}
+                  ctaHref={`/bestill?preset=${preset.slug}`}
+                  isFeatured={index === 0}
+                  delay={index * 120}
+                />
+              );
+            })}
           </div>
 
         </div>

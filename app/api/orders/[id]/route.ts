@@ -109,43 +109,12 @@ export async function PATCH(
       last_modified_at: new Date().toISOString(),
     };
 
-    // Handle box size changes
+    // Legacy 8/12 box-size edits are no longer supported.
     if (box_size !== undefined) {
-      if (existingOrder.is_mangalitsa) {
-        return NextResponse.json(
-          { error: 'Mangalitsa preset orders do not support box size changes' },
-          { status: 400 }
-        );
-      }
-
-      if (typeof box_size !== 'number' || ![8, 12].includes(box_size)) {
-        return NextResponse.json(
-          { error: 'Invalid box size for standard order' },
-          { status: 400 }
-        );
-      }
-
-      // Fetch dynamic pricing from config
-      const pricing = await getPricingConfig();
-
-      const basePrice = box_size === 8 ? pricing.box_8kg_price : pricing.box_12kg_price;
-      let deliveryFee = 0;
-      const delType = delivery_type || deliveryType;
-      if (delType === 'pickup_e6') {
-        deliveryFee = pricing.delivery_fee_pickup_e6;
-      } else if (delType === 'delivery_trondheim') {
-        deliveryFee = pricing.delivery_fee_trondheim;
-      }
-      const freshFee = (freshDelivery !== undefined ? freshDelivery : false) ? pricing.fresh_delivery_fee : 0;
-      const depositPercentage = box_size === 8 ? pricing.box_8kg_deposit_percentage : pricing.box_12kg_deposit_percentage;
-      const depositAmount = Math.floor(basePrice * (depositPercentage / 100));
-      const totalAmount = basePrice + deliveryFee + freshFee;
-      const remainderAmount = totalAmount - depositAmount;
-
-      updateData.box_size = box_size;
-      updateData.total_amount = totalAmount;
-      updateData.deposit_amount = depositAmount;
-      updateData.remainder_amount = remainderAmount;
+      return NextResponse.json(
+        { error: 'Box size updates are no longer supported. Mangalitsa preset orders are fixed after reservation.' },
+        { status: 400 }
+      );
     }
 
     if (ribbe_choice !== undefined) {

@@ -30,10 +30,7 @@ export interface ConfigResponse {
   };
   box_contents?: BoxContents | null;
   pricing: {
-    box_8kg_price: number;
-    box_12kg_price: number;
-    box_8kg_deposit_percentage: number;
-    box_12kg_deposit_percentage: number;
+    deposit_percentage: number;
     delivery_fee_pickup_e6: number;
     delivery_fee_trondheim: number;
     fresh_delivery_fee: number;

@@ -17,8 +17,8 @@ interface DashboardMetricsProps {
     };
     status_breakdown: Record<string, number>;
     product_breakdown: {
-      box_8kg: number;
-      box_12kg: number;
+      box_8kg?: number;
+      box_12kg?: number;
       box_counts?: Record<string, number>;
       total_kg: number;
     };
@@ -37,8 +37,8 @@ export function DashboardMetrics({ metrics }: DashboardMetricsProps) {
 
   const { summary, status_breakdown, product_breakdown, completion_rates } = metrics;
   const boxCounts = product_breakdown.box_counts || {
-    '8': product_breakdown.box_8kg,
-    '12': product_breakdown.box_12kg,
+    '8': product_breakdown.box_8kg || 0,
+    '12': product_breakdown.box_12kg || 0,
   };
   const sortedBoxEntries = Object.entries(boxCounts).sort((a, b) => Number(a[0]) - Number(b[0]));
 

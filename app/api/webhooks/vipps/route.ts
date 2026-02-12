@@ -48,6 +48,15 @@ function verifyVippsWebhookHmac(req: NextRequest, bodyText: string): boolean {
   return authorization === expectedAuth;
 }
 
+function safeTokenEquals(left: string, right: string): boolean {
+  const leftBuffer = Buffer.from(left);
+  const rightBuffer = Buffer.from(right);
+  if (leftBuffer.length !== rightBuffer.length) {
+    return false;
+  }
+  return crypto.timingSafeEqual(leftBuffer, rightBuffer);
+}
+
 export async function POST(request: NextRequest) {
   try {
     const bodyText = await request.text();
@@ -56,10 +65,6 @@ export async function POST(request: NextRequest) {
       authorization: request.headers.get('authorization'),
       callbackAuthToken: request.headers.get('X-Vipps-Callback-Auth-Token'),
     });
-
-    // Vipps Checkout v3 uses callbackAuthorizationToken instead of HMAC
-    // For now, we'll accept all webhooks and add proper verification later
-    // TODO: Verify callbackAuthorizationToken matches what we sent
 
     const payload = JSON.parse(bodyText) as {
       orderId?: string;
@@ -160,6 +165,20 @@ export async function POST(request: NextRequest) {
     }
 
     console.log('Found payment:', resolvedPayment.id, 'type:', resolvedPayment.payment_type, 'egg:', isEggPayment);
+
+    const incomingCallbackToken =
+      request.headers.get('x-vipps-callback-auth-token') ||
+      request.headers.get('x-vipps-callback-authorization-token') ||
+      '';
+    const storedCallbackToken = resolvedPayment.vipps_callback_token || '';
+
+    if (!incomingCallbackToken || !storedCallbackToken || !safeTokenEquals(incomingCallbackToken, storedCallbackToken)) {
+      logError(
+        'vipps-webhook-callback-token-mismatch',
+        new Error(`Callback token mismatch for payment ${resolvedPayment.id}`)
+      );
+      return NextResponse.json({ error: 'Unauthorized webhook callback token' }, { status: 401 });
+    }
 
     // Mark payment as completed with timestamp
     const { error: updErr } = await supabaseAdmin
