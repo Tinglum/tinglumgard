@@ -161,7 +161,7 @@ export default function ProductPage() {
           </div>
           <div className="flex items-center gap-4">
             <Link
-              href="/kutt"
+              href="/oppdelingsplan"
               className="text-xs font-semibold uppercase tracking-[0.3em] text-neutral-600 hover:text-neutral-900 transition-colors"
             >
               {copy.stickySecondary}
@@ -187,7 +187,7 @@ export default function ProductPage() {
               <span className="inline-flex items-center rounded-full border border-white/20 bg-white/10 px-4 py-1 text-[10px] font-semibold uppercase tracking-[0.4em] text-white/70">
                 {copy.heroEyebrow}
               </span>
-              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-light tracking-tight font-[family:var(--font-playfair)]">
+              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-light tracking-tight font-[family:var(--font-playfair)] text-white drop-shadow-[0_8px_24px_rgba(0,0,0,0.65)]">
                 {copy.heroTitle}
               </h1>
               <p className="text-lg text-white/75 leading-relaxed max-w-2xl">
@@ -347,7 +347,7 @@ export default function ProductPage() {
             <p>{copy.contentsNote}</p>
             <p className="font-medium text-neutral-800">{copy.contentsGuarantee}</p>
             <Link
-              href="/kutt"
+              href="/oppdelingsplan"
               className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.3em] text-neutral-700 hover:text-neutral-900"
             >
               {copy.contentsLinkLabel}

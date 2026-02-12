@@ -4,76 +4,29 @@ import { useState } from 'react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { cn } from '@/lib/utils';
 import { Bell, Mail, CheckCircle } from 'lucide-react';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface NotificationSetting {
   id: string;
-  name: string;
-  description: string;
   enabled: boolean;
   category: 'order' | 'payment' | 'delivery' | 'admin';
 }
 
 export function NotificationSettings() {
   const { getThemeClasses } = useTheme();
+  const { t } = useLanguage();
+  const copy = t.notificationSettings;
   const theme = getThemeClasses();
 
   const [notifications, setNotifications] = useState<NotificationSetting[]>([
-    {
-      id: 'order_confirmation',
-      name: 'Ordrebekreftelse',
-      description: 'Send e-post når en ny ordre er opprettet',
-      enabled: true,
-      category: 'order',
-    },
-    {
-      id: 'deposit_paid',
-      name: 'Forskudd betalt',
-      description: 'Send e-post når forskudd er betalt',
-      enabled: true,
-      category: 'payment',
-    },
-    {
-      id: 'remainder_reminder',
-      name: 'Påminnelse om restbetaling',
-      description: 'Send påminnelse om å betale restbeløp (3 dager før låsing)',
-      enabled: true,
-      category: 'payment',
-    },
-    {
-      id: 'order_locked',
-      name: 'Ordre låst',
-      description: 'Varsle kunde når ordre er låst for endringer',
-      enabled: true,
-      category: 'order',
-    },
-    {
-      id: 'ready_for_pickup',
-      name: 'Klar for henting',
-      description: 'Send varsel når ordre er klar for henting',
-      enabled: true,
-      category: 'delivery',
-    },
-    {
-      id: 'order_completed',
-      name: 'Ordre fullført',
-      description: 'Takk-for-kjøpet melding når ordre er levert',
-      enabled: true,
-      category: 'order',
-    },
-    {
-      id: 'admin_new_order',
-      name: 'Ny ordre (Admin)',
-      description: 'Varsle admin om nye bestillinger',
-      enabled: true,
-      category: 'admin',
-    },
-    {
-      id: 'admin_payment_received',
-      name: 'Betaling mottatt (Admin)',
-      description: 'Varsle admin når betalinger mottas',
-      enabled: false,
-      category: 'admin',
-    },
+    { id: 'order_confirmation', enabled: true, category: 'order' },
+    { id: 'deposit_paid', enabled: true, category: 'payment' },
+    { id: 'remainder_reminder', enabled: true, category: 'payment' },
+    { id: 'order_locked', enabled: true, category: 'order' },
+    { id: 'ready_for_pickup', enabled: true, category: 'delivery' },
+    { id: 'order_completed', enabled: true, category: 'order' },
+    { id: 'admin_new_order', enabled: true, category: 'admin' },
+    { id: 'admin_payment_received', enabled: false, category: 'admin' },
   ]);
 
   function toggleNotification(id: string) {
@@ -83,13 +36,6 @@ export function NotificationSettings() {
       )
     );
   }
-
-  const categoryLabels = {
-    order: 'Ordrevarsler',
-    payment: 'Betalingsvarsler',
-    delivery: 'Leveringsvarsler',
-    admin: 'Admin-varsler',
-  };
 
   const categoryIcons = {
     order: Mail,
@@ -103,12 +49,8 @@ export function NotificationSettings() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className={cn('text-2xl font-bold', theme.textPrimary)}>
-          Automatiske varsler
-        </h2>
-        <p className={cn('text-sm mt-1', theme.textSecondary)}>
-          Konfigurer hvilke e-postvarsler som skal sendes automatisk
-        </p>
+        <h2 className={cn('text-2xl font-bold', theme.textPrimary)}>{copy.title}</h2>
+        <p className={cn('text-sm mt-1', theme.textSecondary)}>{copy.subtitle}</p>
       </div>
 
       {categories.map((category) => {
@@ -119,7 +61,7 @@ export function NotificationSettings() {
           <div key={category} className={cn('p-6 rounded-xl border', theme.borderSecondary, theme.bgCard)}>
             <h3 className={cn('text-lg font-semibold mb-4 flex items-center gap-2', theme.textPrimary)}>
               <Icon className="w-5 h-5" />
-              {categoryLabels[category]}
+              {copy.categoryLabels[category]}
             </h3>
 
             <div className="space-y-3">
@@ -133,10 +75,10 @@ export function NotificationSettings() {
                 >
                   <div className="flex-1">
                     <p className={cn('font-medium', theme.textPrimary)}>
-                      {notification.name}
+                      {copy.items[notification.id as keyof typeof copy.items].name}
                     </p>
                     <p className={cn('text-sm', theme.textMuted)}>
-                      {notification.description}
+                      {copy.items[notification.id as keyof typeof copy.items].description}
                     </p>
                   </div>
 
@@ -147,7 +89,7 @@ export function NotificationSettings() {
                       onChange={() => toggleNotification(notification.id)}
                       className="sr-only peer"
                     />
-                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-green-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-600"></div>
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-green-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-600" />
                   </label>
                 </div>
               ))}
@@ -158,8 +100,7 @@ export function NotificationSettings() {
 
       <div className={cn('p-4 rounded-xl bg-blue-50 border border-blue-200')}>
         <p className="text-sm text-blue-900">
-          <strong>Merk:</strong> Disse innstillingene styrer kun hvilke varsler som sendes automatisk.
-          E-postmaler kan ikke redigeres via dette grensesnittet ennå.
+          <strong>{copy.noteLabel}</strong> {copy.noteText}
         </p>
       </div>
     </div>

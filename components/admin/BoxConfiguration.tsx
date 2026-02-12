@@ -9,6 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Package, Plus, Trash2, Save, Edit3, Check, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface BoxItem {
   id: string;
@@ -27,6 +28,9 @@ interface BoxConfig {
 
 export function BoxConfiguration() {
   const { toast } = useToast();
+  const { t } = useLanguage();
+  const copy = t.boxConfiguration;
+  const currency = t.common.currency;
   const [boxes, setBoxes] = useState<BoxConfig[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -77,21 +81,21 @@ export function BoxConfiguration() {
         await loadBoxConfigs();
         setEditingBox(null);
         toast({
-          title: 'Lagret',
-          description: 'Bokskonfigurasjon ble lagret'
+          title: copy.savedTitle,
+          description: copy.savedDescription
         });
       } else {
         toast({
-          title: 'Feil',
-          description: 'Kunne ikke lagre bokskonfigurasjon',
+          title: copy.errorTitle,
+          description: copy.saveError,
           variant: 'destructive'
         });
       }
     } catch (error) {
       console.error('Error saving box config:', error);
       toast({
-        title: 'Feil',
-        description: 'Kunne ikke lagre bokskonfigurasjon',
+        title: copy.errorTitle,
+        description: copy.saveError,
         variant: 'destructive'
       });
     } finally {
@@ -114,8 +118,8 @@ export function BoxConfiguration() {
   function addItemToBox(boxSize: number) {
     if (!newItemName || !newItemQuantity) {
       toast({
-        title: 'Manglende informasjon',
-        description: 'Vennligst fyll ut navn og mengde',
+        title: copy.missingInfoTitle,
+        description: copy.missingInfoDescription,
         variant: 'destructive'
       });
       return;
@@ -174,8 +178,8 @@ export function BoxConfiguration() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold">Bokskonfigurasjon</h2>
-        <p className="text-gray-600">Administrer innhold og priser for hver boksstørrelse</p>
+        <h2 className="text-2xl font-bold">{copy.title}</h2>
+        <p className="text-gray-600">{copy.subtitle}</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -187,7 +191,7 @@ export function BoxConfiguration() {
                 <div>
                   <h3 className="text-xl font-bold">{box.box_size} kg Boks</h3>
                   <p className="text-sm text-gray-600">
-                    {box.items.length} produkter
+                    {copy.productCount.replace('{count}', String(box.items.length))}
                   </p>
                 </div>
               </div>
@@ -200,7 +204,7 @@ export function BoxConfiguration() {
                     className="bg-green-600 hover:bg-green-700"
                   >
                     <Check className="w-4 h-4 mr-1" />
-                    Lagre
+                    {t.common.save}
                   </Button>
                   <Button
                     onClick={() => {
@@ -211,7 +215,7 @@ export function BoxConfiguration() {
                     variant="outline"
                   >
                     <X className="w-4 h-4 mr-1" />
-                    Avbryt
+                    {t.common.cancel}
                   </Button>
                 </div>
               ) : (
@@ -221,14 +225,14 @@ export function BoxConfiguration() {
                   variant="outline"
                 >
                   <Edit3 className="w-4 h-4 mr-1" />
-                  Rediger
+                  {t.common.edit}
                 </Button>
               )}
             </div>
 
             {/* Price */}
             <div className="mb-4">
-              <Label>Pris (NOK)</Label>
+              <Label>{copy.priceLabel.replace('{currency}', currency)}</Label>
               <Input
                 type="number"
                 value={box.price}
@@ -242,24 +246,24 @@ export function BoxConfiguration() {
 
             {/* Description */}
             <div className="mb-4">
-              <Label>Beskrivelse</Label>
+              <Label>{copy.descriptionLabel}</Label>
               <Textarea
                 value={box.description}
                 onChange={(e) => updateBoxDescription(box.box_size, e.target.value)}
                 disabled={editingBox !== box.box_size}
                 className="mt-2"
-                placeholder="Kort beskrivelse av boksen..."
+                placeholder={copy.descriptionPlaceholder}
                 rows={2}
               />
             </div>
 
             {/* Items List */}
             <div className="mb-4">
-              <Label className="mb-3 block">Innhold</Label>
+              <Label className="mb-3 block">{copy.contentsLabel}</Label>
               <div className="space-y-2 max-h-64 overflow-y-auto">
                 {box.items.length === 0 ? (
                   <p className="text-sm text-gray-500 text-center py-4">
-                    Ingen produkter lagt til ennå
+                    {copy.noProducts}
                   </p>
                 ) : (
                   box.items.map((item) => (
@@ -276,7 +280,7 @@ export function BoxConfiguration() {
                             <Input
                               value={item.name}
                               onChange={(e) => updateItemInBox(box.box_size, item.id, { name: e.target.value })}
-                              placeholder="Produktnavn"
+                              placeholder={copy.productNamePlaceholder}
                               className="text-sm"
                             />
                             <div className="flex gap-2">
@@ -284,14 +288,14 @@ export function BoxConfiguration() {
                                 type="number"
                                 value={item.quantity}
                                 onChange={(e) => updateItemInBox(box.box_size, item.id, { quantity: parseFloat(e.target.value) })}
-                                placeholder="Mengde"
+                                placeholder={copy.quantityPlaceholder}
                                 className="text-sm w-24"
                                 step="0.1"
                               />
                               <Input
                                 value={item.unit}
                                 onChange={(e) => updateItemInBox(box.box_size, item.id, { unit: e.target.value })}
-                                placeholder="Enhet"
+                                placeholder={copy.unitPlaceholder}
                                 className="text-sm w-20"
                               />
                             </div>
@@ -300,7 +304,7 @@ export function BoxConfiguration() {
                               size="sm"
                               variant="outline"
                             >
-                              Ferdig
+                              {copy.doneButton}
                             </Button>
                           </div>
                         ) : (
@@ -343,12 +347,12 @@ export function BoxConfiguration() {
             {/* Add Item Form */}
             {editingBox === box.box_size && (
               <div className="mt-4 p-4 rounded-xl bg-green-50 border border-green-200">
-                <Label className="mb-2 block text-sm font-semibold">Legg til produkt</Label>
+                <Label className="mb-2 block text-sm font-semibold">{copy.addProductLabel}</Label>
                 <div className="space-y-2">
                   <Input
                     value={newItemName}
                     onChange={(e) => setNewItemName(e.target.value)}
-                    placeholder="Produktnavn (f.eks. Entrecôte)"
+                    placeholder={copy.newProductNamePlaceholder}
                     className="text-sm"
                   />
                   <div className="flex gap-2">
@@ -356,7 +360,7 @@ export function BoxConfiguration() {
                       type="number"
                       value={newItemQuantity}
                       onChange={(e) => setNewItemQuantity(e.target.value)}
-                      placeholder="Mengde"
+                      placeholder={copy.quantityPlaceholder}
                       className="text-sm flex-1"
                       step="0.1"
                     />
@@ -365,16 +369,16 @@ export function BoxConfiguration() {
                       onChange={(e) => setNewItemUnit(e.target.value)}
                       className="text-sm px-3 py-2 border rounded-xl w-24"
                     >
-                      <option value="kg">kg</option>
-                      <option value="g">g</option>
-                      <option value="stk">stk</option>
-                      <option value="pakke">pakke</option>
+                      <option value="kg">{t.common.kg}</option>
+                      <option value="g">{copy.gramUnit}</option>
+                      <option value="stk">{t.common.stk}</option>
+                      <option value="pakke">{copy.packageUnit}</option>
                     </select>
                   </div>
                   <Input
                     value={newItemDescription}
                     onChange={(e) => setNewItemDescription(e.target.value)}
-                    placeholder="Beskrivelse (valgfritt)"
+                    placeholder={copy.optionalDescriptionPlaceholder}
                     className="text-sm"
                   />
                   <Button
@@ -383,7 +387,7 @@ export function BoxConfiguration() {
                     className="w-full bg-green-600 hover:bg-green-700"
                   >
                     <Plus className="w-4 h-4 mr-2" />
-                    Legg til produkt
+                    {copy.addProductButton}
                   </Button>
                 </div>
               </div>
@@ -394,13 +398,11 @@ export function BoxConfiguration() {
 
       {/* Summary Card */}
       <Card className="p-6 bg-blue-50 border-blue-200">
-        <h3 className="font-semibold text-blue-900 mb-2">Administrasjon av boksinnhold</h3>
+        <h3 className="font-semibold text-blue-900 mb-2">{copy.helpTitle}</h3>
         <ul className="list-disc list-inside space-y-1 text-sm text-blue-800">
-          <li>Klikk "Rediger" for å endre innhold og pris for en boks</li>
-          <li>Legg til produkter med navn, mengde og enhet</li>
-          <li>Produkter kan redigeres eller slettes etter de er lagt til</li>
-          <li>Husk å lagre endringer før du går videre til neste boks</li>
-          <li>Priser og innhold vises automatisk til kundene når de bestiller</li>
+          {copy.helpItems.map((item) => (
+            <li key={item}>{item}</li>
+          ))}
         </ul>
       </Card>
     </div>

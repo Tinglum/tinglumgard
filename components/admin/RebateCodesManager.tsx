@@ -26,7 +26,8 @@ import {
   Package,
 } from 'lucide-react';
 import { format } from 'date-fns';
-import { nb } from 'date-fns/locale';
+import { nb, enUS } from 'date-fns/locale';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface RebateCode {
   id: string;
@@ -46,11 +47,16 @@ interface RebateCode {
 }
 
 export function RebateCodesManager() {
+  const { t, lang } = useLanguage();
+  const copy = t.rebateCodesManager;
+  const locale = lang === 'en' ? 'en-US' : 'nb-NO';
+  const dateLocale = lang === 'en' ? enUS : nb;
+  const currency = t.common.currency;
+
   const [codes, setCodes] = useState<RebateCode[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateForm, setShowCreateForm] = useState(false);
 
-  // Form state
   const [newCode, setNewCode] = useState('');
   const [discountType, setDiscountType] = useState<'percentage' | 'fixed_amount'>('percentage');
   const [discountValue, setDiscountValue] = useState('');
@@ -97,8 +103,8 @@ export function RebateCodesManager() {
           code: newCode,
           discountType,
           discountValue: parseFloat(discountValue),
-          maxUses: maxUses ? parseInt(maxUses) : null,
-          maxUsesPerCustomer: parseInt(maxUsesPerCustomer),
+          maxUses: maxUses ? parseInt(maxUses, 10) : null,
+          maxUsesPerCustomer: parseInt(maxUsesPerCustomer, 10),
           validFrom: validFrom || null,
           validUntil: validUntil || null,
           minOrderAmount: minOrderAmount ? parseFloat(minOrderAmount) : null,
@@ -110,11 +116,10 @@ export function RebateCodesManager() {
       const data = await response.json();
 
       if (!response.ok) {
-        setError(data.error || 'Failed to create code');
+        setError(data.error || copy.createFailed);
         return;
       }
 
-      // Reset form
       setNewCode('');
       setDiscountValue('');
       setMaxUses('');
@@ -127,11 +132,10 @@ export function RebateCodesManager() {
       setDescription('');
       setShowCreateForm(false);
 
-      // Reload codes
       await loadCodes();
     } catch (err) {
       console.error('Error creating code:', err);
-      setError('Failed to create code');
+      setError(copy.createFailed);
     } finally {
       setCreating(false);
     }
@@ -155,7 +159,7 @@ export function RebateCodesManager() {
   }
 
   async function handleDelete(id: string) {
-    if (!confirm('Er du sikker på at du vil slette denne koden?')) return;
+    if (!window.confirm(copy.confirmDelete)) return;
 
     try {
       await fetch(`/api/admin/rebate-codes?id=${id}`, {
@@ -169,100 +173,104 @@ export function RebateCodesManager() {
   }
 
   if (loading) {
-    return <div className="text-center py-8">Laster...</div>;
+    return <div className="text-center py-8">{copy.loading}</div>;
   }
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold">Rabattkoder</h2>
+        <h2 className="text-2xl font-bold">{copy.title}</h2>
         <Button onClick={() => setShowCreateForm(!showCreateForm)}>
           <Plus className="mr-2 h-4 w-4" />
-          Ny rabattkode
+          {copy.newCodeButton}
         </Button>
       </div>
 
       {showCreateForm && (
         <Card className="p-6">
-          <h3 className="text-lg font-semibold mb-4">Opprett rabattkode</h3>
+          <h3 className="text-lg font-semibold mb-4">{copy.createTitle}</h3>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <Label htmlFor="code">Kode *</Label>
+              <Label htmlFor="code">{copy.codeLabel}</Label>
               <Input
                 id="code"
                 value={newCode}
                 onChange={(e) => setNewCode(e.target.value.toUpperCase())}
-                placeholder="SOMMER2026"
+                placeholder={copy.codePlaceholder}
                 maxLength={20}
                 className="uppercase"
               />
             </div>
 
             <div>
-              <Label htmlFor="discountType">Rabatttype *</Label>
+              <Label htmlFor="discountType">{copy.discountTypeLabel}</Label>
               <Select value={discountType} onValueChange={(v: any) => setDiscountType(v)}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="percentage">Prosent (%)</SelectItem>
-                  <SelectItem value="fixed_amount">Fast beløp (kr)</SelectItem>
+                  <SelectItem value="percentage">{copy.discountTypePercentage}</SelectItem>
+                  <SelectItem value="fixed_amount">{copy.discountTypeFixed}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div>
               <Label htmlFor="discountValue">
-                Rabattverdi * {discountType === 'percentage' ? '(%)' : '(kr)'}
+                {copy.discountValueLabel} {discountType === 'percentage' ? '(%)' : `(${currency})`}
               </Label>
               <Input
                 id="discountValue"
                 type="number"
                 value={discountValue}
                 onChange={(e) => setDiscountValue(e.target.value)}
-                placeholder={discountType === 'percentage' ? '10' : '500'}
+                placeholder={
+                  discountType === 'percentage'
+                    ? copy.discountValuePercentagePlaceholder
+                    : copy.discountValueFixedPlaceholder
+                }
                 min="0"
                 max={discountType === 'percentage' ? '100' : undefined}
               />
             </div>
 
             <div>
-              <Label htmlFor="description">Beskrivelse</Label>
+              <Label htmlFor="description">{copy.descriptionLabel}</Label>
               <Input
                 id="description"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="Sommerrabatt 2026"
+                placeholder={copy.descriptionPlaceholder}
               />
             </div>
 
             <div>
-              <Label htmlFor="maxUses">Maks antall bruk (totalt)</Label>
+              <Label htmlFor="maxUses">{copy.maxUsesLabel}</Label>
               <Input
                 id="maxUses"
                 type="number"
                 value={maxUses}
                 onChange={(e) => setMaxUses(e.target.value)}
-                placeholder="Ubegrenset"
+                placeholder={copy.unlimitedPlaceholder}
                 min="0"
               />
             </div>
 
             <div>
-              <Label htmlFor="maxUsesPerCustomer">Maks bruk per kunde</Label>
+              <Label htmlFor="maxUsesPerCustomer">{copy.maxUsesPerCustomerLabel}</Label>
               <Input
                 id="maxUsesPerCustomer"
                 type="number"
                 value={maxUsesPerCustomer}
                 onChange={(e) => setMaxUsesPerCustomer(e.target.value)}
-                placeholder="1"
+                placeholder={copy.maxUsesPerCustomerPlaceholder}
                 min="1"
               />
             </div>
 
             <div>
-              <Label htmlFor="validFrom">Gyldig fra</Label>
+              <Label htmlFor="validFrom">{copy.validFromLabel}</Label>
               <Input
                 id="validFrom"
                 type="datetime-local"
@@ -272,7 +280,7 @@ export function RebateCodesManager() {
             </div>
 
             <div>
-              <Label htmlFor="validUntil">Gyldig til</Label>
+              <Label htmlFor="validUntil">{copy.validUntilLabel}</Label>
               <Input
                 id="validUntil"
                 type="datetime-local"
@@ -282,19 +290,19 @@ export function RebateCodesManager() {
             </div>
 
             <div>
-              <Label htmlFor="minOrderAmount">Minimumsbeløp (kr)</Label>
+              <Label htmlFor="minOrderAmount">{copy.minOrderAmountLabel}</Label>
               <Input
                 id="minOrderAmount"
                 type="number"
                 value={minOrderAmount}
                 onChange={(e) => setMinOrderAmount(e.target.value)}
-                placeholder="Ingen minimum"
+                placeholder={copy.noMinimumPlaceholder}
                 min="0"
               />
             </div>
 
             <div>
-              <Label className="mb-2 block">Gjelder for</Label>
+              <Label className="mb-2 block">{copy.appliesToLabel}</Label>
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
                   <Checkbox
@@ -302,7 +310,7 @@ export function RebateCodesManager() {
                     checked={applicable8kg}
                     onCheckedChange={(checked) => setApplicable8kg(checked as boolean)}
                   />
-                  <Label htmlFor="8kg" className="cursor-pointer">8kg kasser</Label>
+                  <Label htmlFor="8kg" className="cursor-pointer">{copy.applies8kg}</Label>
                 </div>
                 <div className="flex items-center gap-2">
                   <Checkbox
@@ -310,7 +318,7 @@ export function RebateCodesManager() {
                     checked={applicable12kg}
                     onCheckedChange={(checked) => setApplicable12kg(checked as boolean)}
                   />
-                  <Label htmlFor="12kg" className="cursor-pointer">12kg kasser</Label>
+                  <Label htmlFor="12kg" className="cursor-pointer">{copy.applies12kg}</Label>
                 </div>
               </div>
             </div>
@@ -324,21 +332,20 @@ export function RebateCodesManager() {
 
           <div className="flex gap-2 mt-6">
             <Button onClick={handleCreate} disabled={creating || !newCode || !discountValue}>
-              {creating ? 'Oppretter...' : 'Opprett kode'}
+              {creating ? copy.creating : copy.createButton}
             </Button>
             <Button variant="outline" onClick={() => setShowCreateForm(false)}>
-              Avbryt
+              {t.common.cancel}
             </Button>
           </div>
         </Card>
       )}
 
-      {/* Codes List */}
       <div className="space-y-4">
         {codes.length === 0 ? (
           <Card className="p-12 text-center text-gray-500">
             <Tag className="w-12 h-12 mx-auto mb-4 opacity-50" />
-            <p>Ingen rabattkoder opprettet ennå</p>
+            <p>{copy.empty}</p>
           </Card>
         ) : (
           codes.map((code) => (
@@ -354,7 +361,7 @@ export function RebateCodesManager() {
                           : 'bg-gray-100 text-gray-600'
                       }`}
                     >
-                      {code.is_active ? 'Aktiv' : 'Inaktiv'}
+                      {code.is_active ? copy.activeStatus : copy.inactiveStatus}
                     </span>
                   </div>
 
@@ -371,15 +378,19 @@ export function RebateCodesManager() {
                       )}
                       <span>
                         {code.discount_type === 'percentage'
-                          ? `${code.discount_value}% rabatt`
-                          : `${code.discount_value} kr rabatt`}
+                          ? copy.discountPercentageValue.replace('{value}', String(code.discount_value))
+                          : copy.discountFixedValue
+                            .replace('{value}', String(code.discount_value))
+                            .replace('{currency}', currency)}
                       </span>
                     </div>
 
                     <div className="flex items-center gap-2">
                       <Users className="h-4 w-4 text-purple-600" />
                       <span>
-                        {code.current_uses}/{code.max_uses || '∞'} brukt
+                        {copy.usesValue
+                          .replace('{current}', String(code.current_uses))
+                          .replace('{max}', code.max_uses ? String(code.max_uses) : copy.infinity)}
                       </span>
                     </div>
 
@@ -392,7 +403,7 @@ export function RebateCodesManager() {
                       <div className="flex items-center gap-2">
                         <Calendar className="h-4 w-4 text-red-600" />
                         <span>
-                          Til {format(new Date(code.valid_until), 'dd.MM.yyyy', { locale: nb })}
+                          {copy.validUntilPrefix} {format(new Date(code.valid_until), 'dd.MM.yyyy', { locale: dateLocale })}
                         </span>
                       </div>
                     )}
@@ -400,7 +411,7 @@ export function RebateCodesManager() {
 
                   {code.min_order_amount && (
                     <p className="text-xs text-gray-500 mt-2">
-                      Minimum: {code.min_order_amount} kr
+                      {copy.minimumPrefix} {code.min_order_amount.toLocaleString(locale)} {currency}
                     </p>
                   )}
                 </div>

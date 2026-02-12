@@ -4,8 +4,9 @@ import { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Search, Mail, Phone, TrendingUp, ShoppingBag, DollarSign, Calendar, Eye, AlertTriangle } from 'lucide-react';
+import { Search, Mail, Phone, Calendar, Eye, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface Customer {
   email: string;
@@ -21,6 +22,11 @@ interface Customer {
 }
 
 export function CustomerDatabase() {
+  const { t, lang } = useLanguage();
+  const copy = t.customerDatabase;
+  const locale = lang === 'en' ? 'en-US' : 'nb-NO';
+  const currency = t.common.currency;
+
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -77,7 +83,7 @@ export function CustomerDatabase() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <Button onClick={() => setShowProfile(false)} variant="outline">
-            ← Tilbake til liste
+            {copy.backToList}
           </Button>
         </div>
 
@@ -88,53 +94,53 @@ export function CustomerDatabase() {
             <div className="flex items-center gap-3">
               <Mail className="w-5 h-5 text-gray-500" />
               <div>
-                <p className="text-sm text-gray-600">E-post</p>
+                <p className="text-sm text-gray-600">{copy.emailLabel}</p>
                 <p className="font-semibold">{selectedCustomer.email}</p>
               </div>
             </div>
             <div className="flex items-center gap-3">
               <Phone className="w-5 h-5 text-gray-500" />
               <div>
-                <p className="text-sm text-gray-600">Telefon</p>
-                <p className="font-semibold">{selectedCustomer.phone || 'Ikke oppgitt'}</p>
+                <p className="text-sm text-gray-600">{copy.phoneLabel}</p>
+                <p className="font-semibold">{selectedCustomer.phone || copy.notProvided}</p>
               </div>
             </div>
             <div className="flex items-center gap-3">
               <Calendar className="w-5 h-5 text-gray-500" />
               <div>
-                <p className="text-sm text-gray-600">Første ordre</p>
-                <p className="font-semibold">{new Date(selectedCustomer.first_order_date).toLocaleDateString('nb-NO')}</p>
+                <p className="text-sm text-gray-600">{copy.firstOrderLabel}</p>
+                <p className="font-semibold">{new Date(selectedCustomer.first_order_date).toLocaleDateString(locale)}</p>
               </div>
             </div>
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
             <div className="p-4 rounded-xl bg-blue-50">
-              <p className="text-sm text-blue-700 mb-1">Totale ordrer</p>
+              <p className="text-sm text-blue-700 mb-1">{copy.totalOrdersLabel}</p>
               <p className="text-2xl font-bold text-blue-900">{selectedCustomer.total_orders}</p>
             </div>
             <div className="p-4 rounded-xl bg-green-50">
-              <p className="text-sm text-green-700 mb-1">Fullførte</p>
+              <p className="text-sm text-green-700 mb-1">{copy.completedLabel}</p>
               <p className="text-2xl font-bold text-green-900">{selectedCustomer.completed_orders}</p>
             </div>
             <div className="p-4 rounded-xl bg-purple-50">
-              <p className="text-sm text-purple-700 mb-1">Totalt brukt</p>
-              <p className="text-2xl font-bold text-purple-900">kr {selectedCustomer.total_spent.toLocaleString('nb-NO')}</p>
+              <p className="text-sm text-purple-700 mb-1">{copy.totalSpentLabel}</p>
+              <p className="text-2xl font-bold text-purple-900">{currency} {selectedCustomer.total_spent.toLocaleString(locale)}</p>
             </div>
             <div className="p-4 rounded-xl bg-amber-50">
-              <p className="text-sm text-amber-700 mb-1">Snitt per ordre</p>
-              <p className="text-2xl font-bold text-amber-900">kr {selectedCustomer.avg_order_value.toLocaleString('nb-NO')}</p>
+              <p className="text-sm text-amber-700 mb-1">{copy.averagePerOrderLabel}</p>
+              <p className="text-2xl font-bold text-amber-900">{currency} {selectedCustomer.avg_order_value.toLocaleString(locale)}</p>
             </div>
           </div>
 
           {selectedCustomer.product_preferences && selectedCustomer.product_preferences.length > 0 && (
             <div className="mb-6">
-              <h3 className="font-semibold text-lg mb-3">Produktpreferanser</h3>
+              <h3 className="font-semibold text-lg mb-3">{copy.productPreferencesTitle}</h3>
               <div className="space-y-2">
                 {selectedCustomer.product_preferences.map((pref: any, index: number) => (
                   <div key={index} className="flex items-center justify-between p-3 rounded-xl bg-gray-50">
                     <span className="font-medium">{pref.product}</span>
-                    <span className="text-gray-600">{pref.count} ordrer</span>
+                    <span className="text-gray-600">{copy.ordersCount.replace('{count}', String(pref.count))}</span>
                   </div>
                 ))}
               </div>
@@ -143,12 +149,16 @@ export function CustomerDatabase() {
 
           {selectedCustomer.favorite_extras && selectedCustomer.favorite_extras.length > 0 && (
             <div className="mb-6">
-              <h3 className="font-semibold text-lg mb-3">Favoritt ekstraprodukter</h3>
+              <h3 className="font-semibold text-lg mb-3">{copy.favoriteExtrasTitle}</h3>
               <div className="space-y-2">
                 {selectedCustomer.favorite_extras.slice(0, 5).map((extra: any, index: number) => (
                   <div key={index} className="flex items-center justify-between p-3 rounded-xl bg-gray-50">
                     <span className="font-medium">{extra.name}</span>
-                    <span className="text-gray-600">{extra.count}x (kr {extra.total_spent})</span>
+                    <span className="text-gray-600">
+                      {copy.extraCountAndSpend
+                        .replace('{count}', String(extra.count))
+                        .replace('{amount}', String(extra.total_spent))}
+                    </span>
                   </div>
                 ))}
               </div>
@@ -156,23 +166,25 @@ export function CustomerDatabase() {
           )}
 
           <div>
-            <h3 className="font-semibold text-lg mb-3">Ordrehistorikk</h3>
+            <h3 className="font-semibold text-lg mb-3">{copy.orderHistoryTitle}</h3>
             <div className="space-y-2">
               {selectedCustomer.orders.map((order: any) => (
                 <div key={order.order_number} className="flex items-center justify-between p-3 rounded-xl bg-gray-50">
                   <div>
                     <span className="font-medium">{order.order_number}</span>
-                    <span className="text-sm text-gray-600 ml-3">{new Date(order.created_at).toLocaleDateString('nb-NO')}</span>
+                    <span className="text-sm text-gray-600 ml-3">{new Date(order.created_at).toLocaleDateString(locale)}</span>
                   </div>
                   <div className="flex items-center gap-3">
-                    <span className="text-gray-900 font-semibold">kr {order.total_amount.toLocaleString('nb-NO')}</span>
+                    <span className="text-gray-900 font-semibold">
+                      {currency} {order.total_amount.toLocaleString(locale)}
+                    </span>
                     <span className={cn(
                       'px-2 py-1 rounded text-xs font-medium',
                       order.status === 'completed' ? 'bg-green-100 text-green-800' :
                       order.status === 'paid' ? 'bg-blue-100 text-blue-800' :
                       'bg-gray-100 text-gray-800'
                     )}>
-                      {order.status}
+                      {copy.statusLabels[order.status as keyof typeof copy.statusLabels] || order.status}
                     </span>
                   </div>
                 </div>
@@ -188,8 +200,8 @@ export function CustomerDatabase() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold">Kundedatabase</h2>
-          <p className="text-gray-600">Totalt {customers.length} kunder</p>
+          <h2 className="text-2xl font-bold">{copy.title}</h2>
+          <p className="text-gray-600">{copy.totalCustomers.replace('{count}', String(customers.length))}</p>
         </div>
       </div>
 
@@ -199,7 +211,7 @@ export function CustomerDatabase() {
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
             <Input
               type="text"
-              placeholder="Søk etter navn, e-post eller telefon..."
+              placeholder={copy.searchPlaceholder}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-10"
@@ -219,12 +231,12 @@ export function CustomerDatabase() {
                   {customer.at_risk && (
                     <span className="flex items-center gap-1 px-2 py-1 rounded-full bg-red-100 text-red-700 text-xs font-medium">
                       <AlertTriangle className="w-3 h-3" />
-                      I risiko
+                      {copy.atRiskTag}
                     </span>
                   )}
                   {customer.total_orders > 1 && (
                     <span className="px-2 py-1 rounded-full bg-purple-100 text-purple-700 text-xs font-medium">
-                      Gjenganger
+                      {copy.repeatTag}
                     </span>
                   )}
                 </div>
@@ -244,20 +256,16 @@ export function CustomerDatabase() {
 
               <div className="flex items-center gap-6">
                 <div className="text-right">
-                  <p className="text-sm text-gray-600">Ordrer</p>
+                  <p className="text-sm text-gray-600">{copy.ordersLabel}</p>
                   <p className="font-bold text-lg">{customer.total_orders}</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm text-gray-600">LTV</p>
-                  <p className="font-bold text-lg text-green-600">kr {customer.lifetime_value.toLocaleString('nb-NO')}</p>
+                  <p className="text-sm text-gray-600">{copy.ltvLabel}</p>
+                  <p className="font-bold text-lg text-green-600">{currency} {customer.lifetime_value.toLocaleString(locale)}</p>
                 </div>
-                <Button
-                  onClick={() => viewCustomerProfile(customer.email)}
-                  variant="outline"
-                  size="sm"
-                >
+                <Button onClick={() => viewCustomerProfile(customer.email)} variant="outline" size="sm">
                   <Eye className="w-4 h-4 mr-1" />
-                  Vis profil
+                  {copy.viewProfileButton}
                 </Button>
               </div>
             </div>
@@ -265,9 +273,7 @@ export function CustomerDatabase() {
         </div>
 
         {filteredCustomers.length === 0 && (
-          <div className="text-center py-12 text-gray-500">
-            Ingen kunder funnet
-          </div>
+          <div className="text-center py-12 text-gray-500">{copy.emptyResults}</div>
         )}
       </Card>
     </div>

@@ -2,11 +2,12 @@
 
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
-import { X, Package, User, Mail, Phone, MapPin, CreditCard, Calendar, FileText, AlertCircle, CheckCircle2, Edit3, Save } from 'lucide-react';
+import { X, Package, User, Mail, Phone, MapPin, CreditCard, FileText, AlertCircle, CheckCircle2, Edit3, Save } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface Payment {
   id: string;
@@ -28,14 +29,10 @@ interface Order {
   shipping_postal_code?: string | null;
   shipping_city?: string | null;
   shipping_country?: string | null;
-
-  // Pig-specific fields
   box_size?: number;
   fresh_delivery?: boolean;
   ribbe_choice?: string;
   extra_products?: any[];
-
-  // Egg-specific fields
   breed_id?: string;
   breed_name?: string;
   quantity?: number;
@@ -43,8 +40,6 @@ interface Order {
   year?: number;
   delivery_monday?: string;
   price_per_egg?: number;
-
-  // Common fields
   status: string;
   delivery_type: string;
   notes: string;
@@ -74,6 +69,11 @@ export function OrderDetailModal({
   onSaveNotes,
 }: OrderDetailModalProps) {
   const { toast } = useToast();
+  const { t, lang } = useLanguage();
+  const copy = t.orderDetailModal;
+  const locale = lang === 'en' ? 'en-US' : 'nb-NO';
+  const currency = t.common.currency;
+
   const [editingNotes, setEditingNotes] = useState(false);
   const [adminNotes, setAdminNotes] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('');
@@ -84,40 +84,42 @@ export function OrderDetailModal({
   const depositPayment = order.payments?.find((p) => p.payment_type === 'deposit');
   const remainderPayment = order.payments?.find((p) => p.payment_type === 'remainder');
 
-  // Check for mismatch between order amounts and actual payment amounts
   const depositMismatch = depositPayment && depositPayment.amount_nok !== order.deposit_amount;
   const remainderMismatch = remainderPayment && remainderPayment.amount_nok !== order.remainder_amount;
   const actualDepositAmount = depositPayment?.amount_nok || order.deposit_amount;
   const actualRemainderAmount = remainderPayment?.amount_nok || order.remainder_amount;
 
+  const formatMoney = (amount: number | undefined | null) => `${currency} ${Number(amount || 0).toLocaleString(locale)}`;
+
   const statusOptions = [
-    { value: 'draft', label: 'Utkast' },
-    { value: 'deposit_paid', label: 'Forskudd betalt' },
-    { value: 'paid', label: 'Fullstendig betalt' },
-    { value: 'ready_for_pickup', label: 'Klar for henting' },
-    { value: 'completed', label: 'Fullført' },
-    { value: 'cancelled', label: 'Kansellert' },
+    { value: 'draft', label: copy.statusOptions.draft },
+    { value: 'deposit_paid', label: copy.statusOptions.depositPaid },
+    { value: 'paid', label: copy.statusOptions.paid },
+    { value: 'ready_for_pickup', label: copy.statusOptions.readyForPickup },
+    { value: 'completed', label: copy.statusOptions.completed },
+    { value: 'cancelled', label: copy.statusOptions.cancelled },
   ];
 
   const deliveryTypeLabels: Record<string, string> = {
-    pickup_farm: 'Henting på gård',
-    pickup_e6: 'Henting ved E6',
-    delivery_trondheim: 'Levering i Trondheim',
-    posten: 'Sending med Posten',
-    farm_pickup: 'Henting pa gard',
-    e6_pickup: 'E6 motepunkt',
+    pickup_farm: copy.deliveryTypes.pickupFarm,
+    pickup_e6: copy.deliveryTypes.pickupE6,
+    delivery_trondheim: copy.deliveryTypes.deliveryTrondheim,
+    posten: copy.deliveryTypes.posten,
+    farm_pickup: copy.deliveryTypes.farmPickup,
+    e6_pickup: copy.deliveryTypes.e6Pickup,
   };
 
   const ribbeChoiceLabels: Record<string, string> = {
-    tynnribbe: 'Tynnribbe',
-    familieribbe: 'Familieribbe',
-    porchetta: 'Porchetta',
-    butchers_choice: 'Slakterens valg',
+    tynnribbe: copy.ribbeChoices.tynnribbe,
+    familieribbe: copy.ribbeChoices.familieribbe,
+    porchetta: copy.ribbeChoices.porchetta,
+    butchers_choice: copy.ribbeChoices.butchersChoice,
   };
 
   function handleStatusChange(newStatus: string) {
     if (!order) return;
-    if (window.confirm(`Endre status til "${statusOptions.find((s) => s.value === newStatus)?.label}"?`)) {
+    const statusLabel = statusOptions.find((s) => s.value === newStatus)?.label || newStatus;
+    if (window.confirm(copy.confirmChangeStatus.replace('{status}', statusLabel))) {
       onStatusChange(order.id, newStatus);
       setSelectedStatus('');
     }
@@ -131,7 +133,7 @@ export function OrderDetailModal({
 
   async function handleSyncAmounts() {
     if (!order) return;
-    if (!confirm('Synkroniser ordrebeløp med faktiske betalingsbeløp? Dette vil oppdatere forskudd og restbeløp i ordren.')) {
+    if (!window.confirm(copy.confirmSyncAmounts)) {
       return;
     }
 
@@ -147,22 +149,22 @@ export function OrderDetailModal({
 
       if (response.ok && result.synced) {
         toast({
-          title: 'Beløp synkronisert',
-          description: 'Oppdater siden for å se endringene.'
+          title: copy.syncSuccessTitle,
+          description: copy.syncSuccessDescription,
         });
         window.location.reload();
       } else {
         toast({
-          title: 'Info',
-          description: result.message || 'Ingen endringer nødvendig'
+          title: copy.infoTitle,
+          description: result.message || copy.noSyncChangesNeeded,
         });
       }
     } catch (error) {
       console.error('Error syncing amounts:', error);
       toast({
-        title: 'Feil',
-        description: 'Kunne ikke synkronisere beløp',
-        variant: 'destructive'
+        title: copy.errorTitle,
+        description: copy.syncErrorDescription,
+        variant: 'destructive',
       });
     } finally {
       setSyncing(false);
@@ -178,7 +180,6 @@ export function OrderDetailModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
       <div className="relative w-full max-w-5xl max-h-[90vh] overflow-hidden rounded-3xl shadow-2xl bg-white">
-        {/* Header */}
         <div className="sticky top-0 z-10 px-8 py-6 border-b bg-white">
           <button
             onClick={onClose}
@@ -188,7 +189,7 @@ export function OrderDetailModal({
           </button>
           <div className="pr-12">
             <h2 className="text-3xl font-bold text-gray-900 mb-2">
-              Ordre {order.order_number}
+              {copy.orderTitle} {order.order_number}
             </h2>
             <div className="flex items-center gap-4">
               <span className={cn(
@@ -202,24 +203,22 @@ export function OrderDetailModal({
                 {statusOptions.find((s) => s.value === order.status)?.label || order.status}
               </span>
               <span className="text-sm text-gray-600">
-                Opprettet {new Date(order.created_at).toLocaleDateString('nb-NO')}
+                {copy.createdAtLabel} {new Date(order.created_at).toLocaleDateString(locale)}
               </span>
             </div>
           </div>
         </div>
 
-        {/* Content */}
         <div className="px-8 py-6 overflow-y-auto max-h-[calc(90vh-180px)]">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Customer Information */}
             <div className="p-6 rounded-xl border border-gray-200">
               <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
                 <User className="w-5 h-5 text-gray-600" />
-                Kundeinformasjon
+                {copy.customerInfoTitle}
               </h3>
               <div className="space-y-3">
                 <div>
-                  <p className="text-sm text-gray-600">Navn</p>
+                  <p className="text-sm text-gray-600">{copy.nameLabel}</p>
                   <p className="font-medium text-gray-900">{order.customer_name}</p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -239,20 +238,19 @@ export function OrderDetailModal({
               </div>
             </div>
 
-            {/* Payment Information */}
             <div className="p-6 rounded-xl border border-gray-200">
               <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
                 <CreditCard className="w-5 h-5 text-gray-600" />
-                Betalingsinformasjon
+                {copy.paymentInfoTitle}
               </h3>
               <div className="space-y-3">
                 <div className="flex justify-between items-center">
-                  <span className="text-gray-600">Forskudd</span>
+                  <span className="text-gray-600">{copy.depositLabel}</span>
                   <div className="flex items-center gap-2">
-                    <span className="font-semibold">kr {actualDepositAmount.toLocaleString('nb-NO')}</span>
+                    <span className="font-semibold">{formatMoney(actualDepositAmount)}</span>
                     {depositMismatch && (
-                      <span className="text-xs text-amber-600" title={`Order amount: kr ${order.deposit_amount}`}>
-                        (tilpasset)
+                      <span className="text-xs text-amber-600" title={copy.orderAmountTitle.replace('{amount}', formatMoney(order.deposit_amount))}>
+                        {copy.adjustedTag}
                       </span>
                     )}
                     {depositPayment?.status === 'completed' ? (
@@ -263,12 +261,12 @@ export function OrderDetailModal({
                   </div>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-gray-600">Restbeløp</span>
+                  <span className="text-gray-600">{copy.remainderLabel}</span>
                   <div className="flex items-center gap-2">
-                    <span className="font-semibold">kr {actualRemainderAmount.toLocaleString('nb-NO')}</span>
+                    <span className="font-semibold">{formatMoney(actualRemainderAmount)}</span>
                     {remainderMismatch && (
-                      <span className="text-xs text-amber-600" title={`Order amount: kr ${order.remainder_amount}`}>
-                        (tilpasset)
+                      <span className="text-xs text-amber-600" title={copy.orderAmountTitle.replace('{amount}', formatMoney(order.remainder_amount))}>
+                        {copy.adjustedTag}
                       </span>
                     )}
                     {remainderPayment?.status === 'completed' ? (
@@ -279,77 +277,77 @@ export function OrderDetailModal({
                   </div>
                 </div>
                 <div className="pt-3 border-t flex justify-between items-center">
-                  <span className="font-bold text-gray-900">Totalt</span>
-                  <span className="font-bold text-xl text-gray-900">kr {order.total_amount.toLocaleString('nb-NO')}</span>
+                  <span className="font-bold text-gray-900">{copy.totalLabel}</span>
+                  <span className="font-bold text-xl text-gray-900">{formatMoney(order.total_amount)}</span>
                 </div>
                 {depositPayment && (
                   <div className="text-xs text-gray-600">
-                    Forskudd betalt: {depositPayment.paid_at ? new Date(depositPayment.paid_at).toLocaleString('nb-NO') : 'Venter'}
+                    {copy.depositPaidAtLabel}{' '}
+                    {depositPayment.paid_at ? new Date(depositPayment.paid_at).toLocaleString(locale) : copy.pending}
                   </div>
                 )}
                 {remainderPayment && remainderPayment.status === 'completed' && (
                   <div className="text-xs text-gray-600">
-                    Restbeløp betalt: {remainderPayment.paid_at ? new Date(remainderPayment.paid_at).toLocaleString('nb-NO') : 'Venter'}
+                    {copy.remainderPaidAtLabel}{' '}
+                    {remainderPayment.paid_at ? new Date(remainderPayment.paid_at).toLocaleString(locale) : copy.pending}
                   </div>
                 )}
                 {(depositMismatch || remainderMismatch) && (
                   <div className="pt-3 border-t">
                     <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 mb-2">
                       <p className="text-xs text-amber-900 mb-1">
-                        <strong>Bemerkning:</strong> Betalingsbeløp avviker fra ordrebeløp. Dette kan skylde manuell tilpasning.
+                        <strong>{copy.mismatchNoteTitle}</strong> {copy.mismatchNoteBody}
                       </p>
                       <p className="text-xs text-amber-700">
-                        Ordre: Forskudd kr {order.deposit_amount.toLocaleString('nb-NO')}, Restbeløp kr {order.remainder_amount.toLocaleString('nb-NO')}
+                        {copy.orderAmountsLabel}{' '}
+                        {copy.depositLabel} {formatMoney(order.deposit_amount)}, {copy.remainderLabel} {formatMoney(order.remainder_amount)}
                       </p>
                       <p className="text-xs text-amber-700">
-                        Faktisk: Forskudd kr {actualDepositAmount.toLocaleString('nb-NO')}, Restbeløp kr {actualRemainderAmount.toLocaleString('nb-NO')}
+                        {copy.actualAmountsLabel}{' '}
+                        {copy.depositLabel} {formatMoney(actualDepositAmount)}, {copy.remainderLabel} {formatMoney(actualRemainderAmount)}
                       </p>
                     </div>
-                    <Button
-                      onClick={handleSyncAmounts}
-                      disabled={syncing}
-                      size="sm"
-                      variant="outline"
-                      className="w-full"
-                    >
-                      {syncing ? 'Synkroniserer...' : 'Synkroniser beløp'}
+                    <Button onClick={handleSyncAmounts} disabled={syncing} size="sm" variant="outline" className="w-full">
+                      {syncing ? copy.syncingButton : copy.syncButton}
                     </Button>
                   </div>
                 )}
               </div>
             </div>
 
-            {/* Order Contents */}
             <div className="p-6 rounded-xl border border-gray-200">
               <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
                 <Package className="w-5 h-5 text-gray-600" />
-                Bestillingsinnhold
+                {copy.orderContentsTitle}
               </h3>
               <div className="space-y-3">
-                {/* Pig Box Order */}
                 {(!order.product_type || order.product_type === 'pig_box') && (
                   <>
                     <div>
-                      <p className="text-sm text-gray-600">Boks</p>
-                      <p className="font-medium text-gray-900">{order.box_size}kg Griskasse</p>
+                      <p className="text-sm text-gray-600">{copy.boxLabel}</p>
+                      <p className="font-medium text-gray-900">
+                        {copy.pigBoxValue.replace('{size}', String(order.box_size || 0))}
+                      </p>
                     </div>
                     <div>
-                      <p className="text-sm text-gray-600">Ribbe</p>
-                      <p className="font-medium text-gray-900">{ribbeChoiceLabels[order.ribbe_choice || ''] || order.ribbe_choice}</p>
+                      <p className="text-sm text-gray-600">{copy.ribbeLabel}</p>
+                      <p className="font-medium text-gray-900">
+                        {ribbeChoiceLabels[order.ribbe_choice || ''] || order.ribbe_choice}
+                      </p>
                     </div>
                     {order.fresh_delivery && (
                       <div className="px-3 py-1 rounded-full bg-blue-50 text-blue-700 text-sm inline-block">
-                        Fersk levering
+                        {copy.freshDeliveryTag}
                       </div>
                     )}
                     {order.extra_products && order.extra_products.length > 0 && (
                       <div className="mt-3 pt-3 border-t">
-                        <p className="text-sm font-medium text-gray-600 mb-2">Ekstra produkter:</p>
+                        <p className="text-sm font-medium text-gray-600 mb-2">{copy.extraProductsLabel}</p>
                         <div className="space-y-1">
                           {order.extra_products.map((extra: any, index: number) => (
                             <div key={index} className="flex justify-between text-sm">
                               <span>{extra.quantity}x {extra.name}</span>
-                              <span className="text-gray-600">kr {extra.total_price?.toLocaleString('nb-NO')}</span>
+                              <span className="text-gray-600">{formatMoney(extra.total_price)}</span>
                             </div>
                           ))}
                         </div>
@@ -358,43 +356,41 @@ export function OrderDetailModal({
                   </>
                 )}
 
-                {/* Egg Order */}
                 {order.product_type === 'eggs' && (
                   <>
                     <div className="flex items-center gap-2 mb-2">
-                      <span className="text-2xl">🥚</span>
-                      <h4 className="text-lg font-semibold text-gray-900">Rugeegg</h4>
+                      <h4 className="text-lg font-semibold text-gray-900">{copy.eggsTitle}</h4>
                     </div>
                     <div>
-                      <p className="text-sm text-gray-600">Rase</p>
+                      <p className="text-sm text-gray-600">{copy.breedLabel}</p>
                       <p className="font-medium text-gray-900">{order.breed_name}</p>
                     </div>
                     <div>
-                      <p className="text-sm text-gray-600">Antall egg</p>
-                      <p className="font-medium text-gray-900">{order.quantity} stk</p>
+                      <p className="text-sm text-gray-600">{copy.eggCountLabel}</p>
+                      <p className="font-medium text-gray-900">{order.quantity} {t.common.stk}</p>
                     </div>
                     {order.price_per_egg && (
                       <div>
-                        <p className="text-sm text-gray-600">Pris per egg</p>
+                        <p className="text-sm text-gray-600">{copy.pricePerEggLabel}</p>
                         <p className="font-medium text-gray-900">
-                          {((order.price_per_egg || 0) / 100).toFixed(2)} kr
+                          {((order.price_per_egg || 0) / 100).toFixed(2)} {currency}
                         </p>
                       </div>
                     )}
                     <div>
-                      <p className="text-sm text-gray-600">Leveringsuke</p>
+                      <p className="text-sm text-gray-600">{copy.deliveryWeekLabel}</p>
                       <p className="font-medium text-gray-900">
-                        Uke {order.week_number}, {order.year}
+                        {copy.weekValue.replace('{week}', String(order.week_number || '')).replace('{year}', String(order.year || ''))}
                       </p>
                     </div>
                     {order.delivery_monday && (
                       <div>
-                        <p className="text-sm text-gray-600">Leveringsdato (mandag)</p>
+                        <p className="text-sm text-gray-600">{copy.deliveryDateMondayLabel}</p>
                         <p className="font-medium text-gray-900">
-                          {new Date(order.delivery_monday).toLocaleDateString('nb-NO', {
+                          {new Date(order.delivery_monday).toLocaleDateString(locale, {
                             day: 'numeric',
                             month: 'long',
-                            year: 'numeric'
+                            year: 'numeric',
                           })}
                         </p>
                       </div>
@@ -404,20 +400,19 @@ export function OrderDetailModal({
               </div>
             </div>
 
-            {/* Delivery Information */}
             <div className="p-6 rounded-xl border border-gray-200">
               <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
                 <MapPin className="w-5 h-5 text-gray-600" />
-                Leveringsinformasjon
+                {copy.deliveryInfoTitle}
               </h3>
               <div className="space-y-3">
                 <div>
-                  <p className="text-sm text-gray-600">Type</p>
+                  <p className="text-sm text-gray-600">{copy.typeLabel}</p>
                   <p className="font-medium text-gray-900">{deliveryTypeLabels[order.delivery_type]}</p>
                 </div>
                 {(order.shipping_address || order.shipping_postal_code || order.shipping_city) && (
                   <div>
-                    <p className="text-sm text-gray-600">Adresse</p>
+                    <p className="text-sm text-gray-600">{copy.addressLabel}</p>
                     <p className="font-medium text-gray-900">
                       {order.shipping_address || ''}
                       {(order.shipping_postal_code || order.shipping_city) && (
@@ -434,34 +429,32 @@ export function OrderDetailModal({
                 )}
                 {order.locked_at && (
                   <div className="px-3 py-2 rounded-xl bg-gray-50 text-gray-700 text-sm">
-                    🔒 Ordre låst {new Date(order.locked_at).toLocaleDateString('nb-NO')}
+                    {copy.lockedTag} {new Date(order.locked_at).toLocaleDateString(locale)}
                   </div>
                 )}
                 {order.marked_delivered_at && (
                   <div className="px-3 py-2 rounded-xl bg-green-50 text-green-700 text-sm">
-                    ✓ Levert {new Date(order.marked_delivered_at).toLocaleDateString('nb-NO')}
+                    {copy.deliveredTag} {new Date(order.marked_delivered_at).toLocaleDateString(locale)}
                   </div>
                 )}
               </div>
             </div>
 
-            {/* Customer Notes */}
             {order.notes && (
               <div className="p-6 rounded-xl border border-gray-200 lg:col-span-2">
                 <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
                   <FileText className="w-5 h-5 text-gray-600" />
-                  Kundens notater
+                  {copy.customerNotesTitle}
                 </h3>
                 <p className="text-gray-700 whitespace-pre-wrap">{order.notes}</p>
               </div>
             )}
 
-            {/* Admin Notes */}
             <div className="p-6 rounded-xl border border-gray-200 lg:col-span-2 bg-amber-50">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-semibold text-lg flex items-center gap-2">
                   <FileText className="w-5 h-5 text-amber-600" />
-                  Interne notater (admin)
+                  {copy.adminNotesTitle}
                 </h3>
                 {!editingNotes && (
                   <button
@@ -469,7 +462,7 @@ export function OrderDetailModal({
                     className="flex items-center gap-2 px-3 py-1 rounded-xl bg-amber-600 text-white hover:bg-amber-700 transition-colors text-sm"
                   >
                     <Edit3 className="w-4 h-4" />
-                    Rediger
+                    {t.common.edit}
                   </button>
                 )}
               </div>
@@ -479,39 +472,38 @@ export function OrderDetailModal({
                     value={adminNotes}
                     onChange={(e) => setAdminNotes(e.target.value)}
                     rows={4}
-                    placeholder="Legg til interne notater..."
+                    placeholder={copy.adminNotesPlaceholder}
                     className="bg-white"
                   />
                   <div className="flex gap-2">
                     <Button onClick={handleSaveNotes} size="sm">
                       <Save className="w-4 h-4 mr-2" />
-                      Lagre
+                      {t.common.save}
                     </Button>
                     <Button onClick={() => setEditingNotes(false)} variant="outline" size="sm">
-                      Avbryt
+                      {t.common.cancel}
                     </Button>
                   </div>
                 </div>
               ) : (
                 <p className="text-gray-700 whitespace-pre-wrap">
-                  {order.admin_notes || 'Ingen interne notater ennå'}
+                  {order.admin_notes || copy.noAdminNotes}
                 </p>
               )}
             </div>
           </div>
         </div>
 
-        {/* Footer */}
         <div className="sticky bottom-0 px-8 py-6 border-t bg-white">
           <div className="flex items-center justify-between gap-6">
             <div className="flex-1">
-              <Label className="text-sm font-medium text-gray-700 mb-2 block">Endre status</Label>
+              <Label className="text-sm font-medium text-gray-700 mb-2 block">{copy.changeStatusLabel}</Label>
               <select
                 value={selectedStatus}
                 onChange={(e) => handleStatusChange(e.target.value)}
                 className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
-                <option value="">Velg ny status...</option>
+                <option value="">{copy.selectNewStatus}</option>
                 {statusOptions.map((option) => (
                   <option key={option.value} value={option.value}>
                     {option.label}
@@ -520,7 +512,7 @@ export function OrderDetailModal({
               </select>
             </div>
             <Button onClick={onClose} variant="outline" className="px-8">
-              Lukk
+              {t.common.close}
             </Button>
           </div>
         </div>

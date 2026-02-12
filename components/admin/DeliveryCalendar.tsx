@@ -5,6 +5,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Calendar, MapPin, Package, Truck, Users, CheckCircle2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface DeliveryGroup {
   date: string;
@@ -20,6 +21,10 @@ interface DeliveryGroup {
 }
 
 export function DeliveryCalendar() {
+  const { t, lang } = useLanguage();
+  const copy = t.deliveryCalendar;
+  const locale = lang === 'en' ? 'en-US' : 'nb-NO';
+
   const [deliveryGroups, setDeliveryGroups] = useState<DeliveryGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedType, setSelectedType] = useState<'all' | 'pickup' | 'delivery'>('all');
@@ -57,7 +62,7 @@ export function DeliveryCalendar() {
     }
   }
 
-  const filteredGroups = deliveryGroups.filter(group => {
+  const filteredGroups = deliveryGroups.filter((group) => {
     if (selectedType === 'all') return true;
     if (selectedType === 'pickup') return group.delivery_type !== 'delivery';
     return group.delivery_type === 'delivery';
@@ -75,19 +80,18 @@ export function DeliveryCalendar() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold">Hentekalender</h2>
-          <p className="text-gray-600">Oversikt over henting og leveringer</p>
+          <h2 className="text-2xl font-bold">{copy.title}</h2>
+          <p className="text-gray-600">{copy.subtitle}</p>
         </div>
       </div>
 
-      {/* Filter Buttons */}
       <div className="flex gap-2">
         <Button
           onClick={() => setSelectedType('all')}
           variant={selectedType === 'all' ? 'default' : 'outline'}
           className={selectedType === 'all' ? 'bg-[#2C1810]' : ''}
         >
-          Alle ({deliveryGroups.reduce((sum, g) => sum + g.orders.length, 0)})
+          {copy.filterAll} ({deliveryGroups.reduce((sum, g) => sum + g.orders.length, 0)})
         </Button>
         <Button
           onClick={() => setSelectedType('pickup')}
@@ -95,7 +99,7 @@ export function DeliveryCalendar() {
           className={selectedType === 'pickup' ? 'bg-[#2C1810]' : ''}
         >
           <MapPin className="w-4 h-4 mr-2" />
-          Henting ({deliveryGroups.filter(g => g.delivery_type !== 'delivery').reduce((sum, g) => sum + g.orders.length, 0)})
+          {copy.filterPickup} ({deliveryGroups.filter((g) => g.delivery_type !== 'delivery').reduce((sum, g) => sum + g.orders.length, 0)})
         </Button>
         <Button
           onClick={() => setSelectedType('delivery')}
@@ -103,16 +107,15 @@ export function DeliveryCalendar() {
           className={selectedType === 'delivery' ? 'bg-[#2C1810]' : ''}
         >
           <Truck className="w-4 h-4 mr-2" />
-          Levering ({deliveryGroups.filter(g => g.delivery_type === 'delivery').reduce((sum, g) => sum + g.orders.length, 0)})
+          {copy.filterDelivery} ({deliveryGroups.filter((g) => g.delivery_type === 'delivery').reduce((sum, g) => sum + g.orders.length, 0)})
         </Button>
       </div>
 
-      {/* Delivery Groups */}
       {filteredGroups.length === 0 ? (
         <Card className="p-12 text-center">
           <Calendar className="w-12 h-12 mx-auto mb-4 text-gray-400" />
-          <p className="text-gray-600">Ingen ordrer klar for henting/levering</p>
-          <p className="text-sm text-gray-500 mt-2">Ordrer vises her når de er merket som klar</p>
+          <p className="text-gray-600">{copy.emptyTitle}</p>
+          <p className="text-sm text-gray-500 mt-2">{copy.emptySubtitle}</p>
         </Card>
       ) : (
         <div className="space-y-4">
@@ -127,20 +130,17 @@ export function DeliveryCalendar() {
                   )}
                   <div>
                     <h3 className="font-semibold text-lg">
-                      {group.delivery_type === 'delivery' ? 'Hjemlevering' : 'Henting på gården'}
+                      {group.delivery_type === 'delivery' ? copy.deliveryTypeHome : copy.deliveryTypeFarmPickup}
                     </h3>
-                    {group.location && (
-                      <p className="text-sm text-gray-600">{group.location}</p>
-                    )}
+                    {group.location && <p className="text-sm text-gray-600">{group.location}</p>}
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm text-gray-600">Dato</p>
-                  <p className="font-semibold">{new Date(group.date).toLocaleDateString('nb-NO')}</p>
+                  <p className="text-sm text-gray-600">{copy.dateLabel}</p>
+                  <p className="font-semibold">{new Date(group.date).toLocaleDateString(locale)}</p>
                 </div>
               </div>
 
-              {/* Orders List */}
               <div className="space-y-2">
                 {group.orders.map((order) => (
                   <div
@@ -155,8 +155,8 @@ export function DeliveryCalendar() {
                       <div>
                         <p className="font-medium">{order.customer_name}</p>
                         <p className="text-sm text-gray-600">
-                          Ordre: {order.order_number} • {order.box_size} kg
-                          {order.fresh_delivery && ' • Fersk'}
+                          {copy.orderPrefix}: {order.order_number} - {order.box_size} {t.common.kg}
+                          {order.fresh_delivery ? ` - ${copy.freshTag}` : ''}
                         </p>
                       </div>
                     </div>
@@ -164,16 +164,12 @@ export function DeliveryCalendar() {
                       {order.marked_collected ? (
                         <div className="flex items-center gap-2 text-green-600">
                           <CheckCircle2 className="w-5 h-5" />
-                          <span className="font-medium">Hentet</span>
+                          <span className="font-medium">{copy.collected}</span>
                         </div>
                       ) : (
-                        <Button
-                          onClick={() => markCollected(order.order_number)}
-                          size="sm"
-                          className="bg-green-600 hover:bg-green-700"
-                        >
+                        <Button onClick={() => markCollected(order.order_number)} size="sm" className="bg-green-600 hover:bg-green-700">
                           <CheckCircle2 className="w-4 h-4 mr-2" />
-                          Merk som hentet
+                          {copy.markCollected}
                         </Button>
                       )}
                     </div>
@@ -181,19 +177,22 @@ export function DeliveryCalendar() {
                 ))}
               </div>
 
-              {/* Summary */}
               <div className="mt-4 pt-4 border-t flex items-center gap-6 text-sm text-gray-600">
                 <div className="flex items-center gap-2">
                   <Users className="w-4 h-4" />
-                  <span>{group.orders.length} ordrer</span>
+                  <span>{copy.ordersCount.replace('{count}', String(group.orders.length))}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Package className="w-4 h-4" />
-                  <span>{group.orders.reduce((sum, o) => sum + o.box_size, 0)} kg totalt</span>
+                  <span>
+                    {copy.kgTotal.replace('{count}', String(group.orders.reduce((sum, o) => sum + o.box_size, 0)))}
+                  </span>
                 </div>
                 <div className="flex items-center gap-2">
                   <CheckCircle2 className="w-4 h-4" />
-                  <span>{group.orders.filter(o => o.marked_collected).length} hentet</span>
+                  <span>
+                    {copy.collectedCount.replace('{count}', String(group.orders.filter((o) => o.marked_collected).length))}
+                  </span>
                 </div>
               </div>
             </Card>
@@ -201,14 +200,12 @@ export function DeliveryCalendar() {
         </div>
       )}
 
-      {/* Help Text */}
       <Card className="p-6 bg-blue-50 border-blue-200">
-        <h3 className="font-semibold text-blue-900 mb-2">Tips for henting og levering</h3>
+        <h3 className="font-semibold text-blue-900 mb-2">{copy.tipsTitle}</h3>
         <ul className="list-disc list-inside space-y-1 text-sm text-blue-800">
-          <li>Ordrer vises automatisk her når de er merket som &quot;Klar for henting&quot;</li>
-          <li>Bruk &quot;Merk som hentet&quot; knappen når kunden har hentet ordren sin</li>
-          <li>For leveringer, organiser ruter basert på adresser</li>
-          <li>Ordrer er gruppert etter leveringsmåte for enkel oversikt</li>
+          {copy.tips.map((tip) => (
+            <li key={tip}>{tip}</li>
+          ))}
         </ul>
       </Card>
     </div>

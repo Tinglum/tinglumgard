@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/hooks/use-toast'
 import { cn } from '@/lib/utils'
+import { useLanguage } from '@/contexts/LanguageContext'
 import {
   AlertTriangle,
   CheckCircle2,
@@ -137,42 +138,37 @@ interface EggOrderFormState {
 }
 
 const STATUS_OPTIONS = [
-  { value: 'pending', label: 'Venter forskudd' },
-  { value: 'deposit_paid', label: 'Forskudd betalt' },
-  { value: 'fully_paid', label: 'Fullt betalt' },
-  { value: 'preparing', label: 'Forberedes' },
-  { value: 'shipped', label: 'Sendt' },
-  { value: 'delivered', label: 'Levert' },
-  { value: 'cancelled', label: 'Kansellert' },
-  { value: 'forfeited', label: 'Fortapt' },
+  'pending',
+  'deposit_paid',
+  'fully_paid',
+  'preparing',
+  'shipped',
+  'delivered',
+  'cancelled',
+  'forfeited',
+] as const
+
+const PAYMENT_OPTIONS: Array<'all' | PaymentState> = [
+  'all',
+  'deposit_pending',
+  'remainder_due',
+  'fully_paid',
+  'refunded',
+  'failed',
 ]
 
-const PAYMENT_OPTIONS: Array<{ value: 'all' | PaymentState; label: string }> = [
-  { value: 'all', label: 'Alle betalingsstater' },
-  { value: 'deposit_pending', label: 'Mangler forskudd' },
-  { value: 'remainder_due', label: 'Restbelop ubetalt' },
-  { value: 'fully_paid', label: 'Fullt betalt' },
-  { value: 'refunded', label: 'Refundert' },
-  { value: 'failed', label: 'Feilet' },
-]
-
-const DELIVERY_OPTIONS = [
-  { value: 'all', label: 'Alle leveringsmetoder' },
-  { value: 'posten', label: 'Posten' },
-  { value: 'e6_pickup', label: 'E6 motepunkt' },
-  { value: 'farm_pickup', label: 'Henting pa gard' },
-]
+const DELIVERY_OPTIONS = ['all', 'posten', 'e6_pickup', 'farm_pickup'] as const
 
 const SORT_OPTIONS = [
-  { value: 'newest', label: 'Nyeste forst' },
-  { value: 'oldest', label: 'Eldste forst' },
-  { value: 'delivery_asc', label: 'Tidligste levering' },
-  { value: 'delivery_desc', label: 'Seneste levering' },
-  { value: 'amount_desc', label: 'Hoyeste belop' },
-  { value: 'amount_asc', label: 'Laveste belop' },
-  { value: 'week_asc', label: 'Uke stigende' },
-  { value: 'week_desc', label: 'Uke synkende' },
-]
+  'newest',
+  'oldest',
+  'delivery_asc',
+  'delivery_desc',
+  'amount_desc',
+  'amount_asc',
+  'week_asc',
+  'week_desc',
+] as const
 
 const EMPTY_SUMMARY: EggOrdersSummary = {
   totalOrders: 0,
@@ -186,25 +182,6 @@ const EMPTY_SUMMARY: EggOrdersSummary = {
   shippingMissing: 0,
   revenueOre: 0,
   outstandingOre: 0,
-}
-
-function formatOre(value: number | null | undefined): string {
-  const safe = Number(value || 0)
-  return `kr ${(safe / 100).toLocaleString('nb-NO')}`
-}
-
-function formatDate(value: string | null | undefined): string {
-  if (!value) return '-'
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return '-'
-  return date.toLocaleDateString('nb-NO')
-}
-
-function getDeliveryLabel(method: string): string {
-  if (method === 'posten') return 'Posten'
-  if (method === 'e6_pickup') return 'E6 motepunkt'
-  if (method === 'farm_pickup') return 'Henting pa gard'
-  return method
 }
 
 function getDefaultDeliveryFee(method: string): number {
@@ -235,14 +212,6 @@ function getPaymentState(order: EggOrder): PaymentState {
   const due = Math.max(0, (order.remainder_amount || 0) - remainderPaidOre)
   if (due <= 0) return 'fully_paid'
   return hasFailed ? 'failed' : 'remainder_due'
-}
-
-function getPaymentStateLabel(state: PaymentState): string {
-  if (state === 'deposit_pending') return 'Mangler forskudd'
-  if (state === 'remainder_due') return 'Restbelop ubetalt'
-  if (state === 'fully_paid') return 'Fullt betalt'
-  if (state === 'refunded') return 'Refundert'
-  return 'Feilet'
 }
 
 function paymentBadgeClass(state: PaymentState): string {
@@ -277,7 +246,7 @@ function hasMissingShipping(order: EggOrder): boolean {
   )
 }
 
-function toFormState(order: EggOrder): EggOrderFormState {
+function toFormState(order: EggOrder, defaultCountry: string): EggOrderFormState {
   return {
     customerName: order.customer_name || '',
     customerEmail: order.customer_email || '',
@@ -288,7 +257,7 @@ function toFormState(order: EggOrder): EggOrderFormState {
     shippingAddress: order.shipping_address || '',
     shippingPostalCode: order.shipping_postal_code || '',
     shippingCity: order.shipping_city || '',
-    shippingCountry: order.shipping_country || 'Norge',
+    shippingCountry: order.shipping_country || defaultCountry,
     quantity: String(order.quantity || 0),
     pricePerEgg: String(order.price_per_egg || 0),
     deliveryMethod: order.delivery_method || 'posten',
@@ -305,6 +274,8 @@ function toFormState(order: EggOrder): EggOrderFormState {
 
 export function EggOrdersWorkbench() {
   const { toast } = useToast()
+  const { t } = useLanguage()
+  const copy = t.eggOrdersWorkbench
   const [orders, setOrders] = useState<EggOrder[]>([])
   const [summary, setSummary] = useState<EggOrdersSummary>(EMPTY_SUMMARY)
   const [availableWeeks, setAvailableWeeks] = useState<WeekOption[]>([])
@@ -341,6 +312,80 @@ export function EggOrdersWorkbench() {
   const [deliveryActionMethod, setDeliveryActionMethod] = useState('posten')
   const [deliveryActionFee, setDeliveryActionFee] = useState('30000')
 
+  const statusOptions = useMemo(
+    () =>
+      STATUS_OPTIONS.map((value) => ({
+        value,
+        label: copy.statusOptions[value],
+      })),
+    [copy]
+  )
+
+  const paymentOptions = useMemo(
+    () =>
+      PAYMENT_OPTIONS.map((value) => ({
+        value,
+        label: copy.paymentOptions[value],
+      })),
+    [copy]
+  )
+
+  const deliveryOptions = useMemo(
+    () =>
+      DELIVERY_OPTIONS.map((value) => ({
+        value,
+        label: copy.deliveryOptions[value],
+      })),
+    [copy]
+  )
+
+  const sortOptions = useMemo(
+    () =>
+      SORT_OPTIONS.map((value) => ({
+        value,
+        label: copy.sortOptions[value],
+      })),
+    [copy]
+  )
+
+  function replaceTokens(template: string, tokens: Record<string, string | number>): string {
+    return Object.entries(tokens).reduce((text, [token, tokenValue]) => {
+      return text.replace(new RegExp(`\\{${token}\\}`, 'g'), String(tokenValue))
+    }, template)
+  }
+
+  function formatOre(value: number | null | undefined): string {
+    const safe = Number(value || 0)
+    return `${copy.currencyPrefix} ${(safe / 100).toLocaleString(copy.locale)}`
+  }
+
+  function formatDate(value: string | null | undefined): string {
+    if (!value) return copy.emptyDate
+    const date = new Date(value)
+    if (Number.isNaN(date.getTime())) return copy.emptyDate
+    return date.toLocaleDateString(copy.locale)
+  }
+
+  function getDeliveryLabel(method: string): string {
+    if (method === 'posten') return copy.deliveryOptions.posten
+    if (method === 'e6_pickup') return copy.deliveryOptions.e6_pickup
+    if (method === 'farm_pickup') return copy.deliveryOptions.farm_pickup
+    return method
+  }
+
+  function getStatusLabel(status: string): string {
+    return statusOptions.find((option) => option.value === status)?.label || status
+  }
+
+  function getPaymentStateLabel(state: PaymentState): string {
+    return copy.paymentOptions[state]
+  }
+
+  function getPaymentStatusLabel(status: string): string {
+    const labels = copy.paymentStatusLabels as Record<string, string>
+    return labels[status] || status
+  }
+
   useEffect(() => {
     const timeout = window.setTimeout(() => {
       setSearchTerm(searchInput.trim())
@@ -370,14 +415,14 @@ export function EggOrdersWorkbench() {
         const response = await fetch(`/api/admin/eggs/orders?${params.toString()}`)
         const data = await response.json()
         if (!response.ok) {
-          throw new Error(data?.error || 'Failed to load egg orders')
+          throw new Error(data?.error || copy.errors.loadOrders)
         }
 
         setOrders(Array.isArray(data.orders) ? data.orders : [])
         setSummary(data.summary || EMPTY_SUMMARY)
         setAvailableWeeks(Array.isArray(data.availableWeeks) ? data.availableWeeks : [])
       } catch (error: any) {
-        setErrorText(error?.message || 'Failed to load egg orders')
+        setErrorText(error?.message || copy.errors.loadOrders)
       } finally {
         if (isBackgroundRefresh) {
           setRefreshing(false)
@@ -386,7 +431,7 @@ export function EggOrdersWorkbench() {
         }
       }
     },
-    [searchTerm, statusFilter, paymentFilter, deliveryFilter, weekFilter, atRiskOnly, sortBy]
+    [searchTerm, statusFilter, paymentFilter, deliveryFilter, weekFilter, atRiskOnly, sortBy, copy.errors.loadOrders]
   )
 
   useEffect(() => {
@@ -435,11 +480,11 @@ export function EggOrdersWorkbench() {
       const response = await fetch(`/api/admin/eggs/orders/${orderId}`)
       const data = await response.json()
       if (!response.ok) {
-        throw new Error(data?.error || 'Failed to fetch order details')
+        throw new Error(data?.error || copy.errors.fetchOrderDetails)
       }
       const order = data as EggOrder
       setSelectedOrder(order)
-      setForm(toFormState(order))
+      setForm(toFormState(order, copy.defaultShippingCountry))
       setMoveWeek(String(order.week_number || ''))
       setMoveYear(String(order.year || ''))
       setManualStatus(order.status || 'deposit_paid')
@@ -448,8 +493,8 @@ export function EggOrdersWorkbench() {
       setActionReason('')
     } catch (error: any) {
       toast({
-        title: 'Feil',
-        description: error?.message || 'Kunne ikke hente ordredetaljer',
+        title: copy.toast.errorTitle,
+        description: error?.message || copy.errors.fetchOrderDetails,
         variant: 'destructive',
       })
       setPanelOpen(false)
@@ -504,23 +549,23 @@ export function EggOrdersWorkbench() {
       })
       const data = await response.json()
       if (!response.ok) {
-        throw new Error(data?.error || 'Failed to save order')
+        throw new Error(data?.error || copy.errors.saveOrder)
       }
 
       const nextOrder = (data?.order || data) as EggOrder
       setSelectedOrder(nextOrder)
-      setForm(toFormState(nextOrder))
+      setForm(toFormState(nextOrder, copy.defaultShippingCountry))
 
       toast({
-        title: 'Lagret',
-        description: 'Ordren er oppdatert',
+        title: copy.toast.savedTitle,
+        description: copy.toast.savedDescription,
       })
 
       await fetchOrders(true)
     } catch (error: any) {
       toast({
-        title: 'Feil',
-        description: error?.message || 'Kunne ikke lagre ordren',
+        title: copy.toast.errorTitle,
+        description: error?.message || copy.errors.saveOrder,
         variant: 'destructive',
       })
     } finally {
@@ -539,19 +584,19 @@ export function EggOrdersWorkbench() {
       })
       const result = await response.json().catch(() => ({}))
       if (!response.ok) {
-        throw new Error(result?.error || 'Action failed')
+        throw new Error(result?.error || copy.errors.orderActionFailed)
       }
 
       toast({
-        title: 'Oppdatert',
-        description: 'Handling fullfort',
+        title: copy.toast.updatedTitle,
+        description: copy.toast.actionCompleted,
       })
 
       await Promise.all([refreshSelectedOrder(), fetchOrders(true)])
     } catch (error: any) {
       toast({
-        title: 'Feil',
-        description: error?.message || 'Kunne ikke utfore handling',
+        title: copy.toast.errorTitle,
+        description: error?.message || copy.errors.orderActionFailed,
         variant: 'destructive',
       })
     } finally {
@@ -570,20 +615,25 @@ export function EggOrdersWorkbench() {
       })
       const result = await response.json().catch(() => ({}))
       if (!response.ok) {
-        throw new Error(result?.error || 'Bulk action failed')
+        throw new Error(result?.error || copy.errors.bulkActionFailed)
       }
 
       const failures = Array.isArray(result?.failures) ? result.failures : []
       if (failures.length > 0) {
         toast({
-          title: 'Delvis fullfort',
-          description: `${result?.affected || 0} oppdatert, ${failures.length} feilet`,
+          title: copy.toast.partialTitle,
+          description: replaceTokens(copy.toast.partialDescription, {
+            affected: result?.affected || 0,
+            failed: failures.length,
+          }),
           variant: 'destructive',
         })
       } else {
         toast({
-          title: 'Oppdatert',
-          description: `${result?.affected || selectedIds.size} ordre(r) oppdatert`,
+          title: copy.toast.updatedTitle,
+          description: replaceTokens(copy.toast.bulkUpdatedDescription, {
+            affected: result?.affected || selectedIds.size,
+          }),
         })
       }
 
@@ -591,8 +641,8 @@ export function EggOrdersWorkbench() {
       await fetchOrders(true)
     } catch (error: any) {
       toast({
-        title: 'Feil',
-        description: error?.message || 'Kunne ikke utfore bulk handling',
+        title: copy.toast.errorTitle,
+        description: error?.message || copy.errors.bulkActionFailed,
         variant: 'destructive',
       })
     } finally {
@@ -614,22 +664,22 @@ export function EggOrdersWorkbench() {
 
       const response = await fetch(`/api/admin/eggs/orders?${params.toString()}`)
       if (!response.ok) {
-        throw new Error('Failed to export CSV')
+        throw new Error(copy.errors.exportCsv)
       }
 
       const blob = await response.blob()
       const url = window.URL.createObjectURL(blob)
       const link = document.createElement('a')
       link.href = url
-      link.download = `egg-orders-${new Date().toISOString().split('T')[0]}.csv`
+      link.download = `${copy.exportFilenamePrefix}-${new Date().toISOString().split('T')[0]}.csv`
       document.body.appendChild(link)
       link.click()
       link.remove()
       window.URL.revokeObjectURL(url)
     } catch (error: any) {
       toast({
-        title: 'Feil',
-        description: error?.message || 'Kunne ikke eksportere CSV',
+        title: copy.toast.errorTitle,
+        description: error?.message || copy.errors.exportCsv,
         variant: 'destructive',
       })
     }
@@ -642,10 +692,8 @@ export function EggOrdersWorkbench() {
     <div className="space-y-6">
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
         <div>
-          <h2 className="text-3xl font-light tracking-tight text-neutral-900">Egg Orders Workbench</h2>
-          <p className="text-sm text-neutral-600 mt-1">
-            Full styring av egg-ordre, betaling, levering, notater og korrigeringer.
-          </p>
+          <h2 className="text-3xl font-light tracking-tight text-neutral-900">{copy.title}</h2>
+          <p className="text-sm text-neutral-600 mt-1">{copy.subtitle}</p>
         </div>
         <div className="flex items-center gap-2">
           <Button
@@ -655,69 +703,73 @@ export function EggOrdersWorkbench() {
             className="gap-2"
           >
             {refreshing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-            Oppdater
+            {copy.refreshButton}
           </Button>
           <Button variant="outline" onClick={exportCsv} className="gap-2">
             <Download className="w-4 h-4" />
-            CSV
+            {copy.exportCsvButton}
           </Button>
         </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
         <Card className="p-4">
-          <p className="text-xs text-neutral-500 uppercase tracking-wide">Ordre</p>
+          <p className="text-xs text-neutral-500 uppercase tracking-wide">{copy.stats.orders}</p>
           <p className="text-2xl font-semibold text-neutral-900">{summary.filteredOrders}</p>
-          <p className="text-xs text-neutral-500">av {summary.totalOrders}</p>
+          <p className="text-xs text-neutral-500">
+            {replaceTokens(copy.stats.ofTotal, { count: summary.totalOrders })}
+          </p>
         </Card>
         <Card className="p-4">
-          <p className="text-xs text-neutral-500 uppercase tracking-wide">Mangler forskudd</p>
+          <p className="text-xs text-neutral-500 uppercase tracking-wide">{copy.stats.missingDeposit}</p>
           <p className="text-2xl font-semibold text-orange-700">{summary.pendingDeposit}</p>
         </Card>
         <Card className="p-4">
-          <p className="text-xs text-neutral-500 uppercase tracking-wide">Restbelop ubetalt</p>
+          <p className="text-xs text-neutral-500 uppercase tracking-wide">{copy.stats.remainderDue}</p>
           <p className="text-2xl font-semibold text-amber-700">{summary.remainderDue}</p>
           <p className="text-xs text-neutral-500">{outstanding}</p>
         </Card>
         <Card className="p-4">
-          <p className="text-xs text-neutral-500 uppercase tracking-wide">Fullt betalt</p>
+          <p className="text-xs text-neutral-500 uppercase tracking-wide">{copy.stats.fullyPaid}</p>
           <p className="text-2xl font-semibold text-emerald-700">{summary.fullyPaid}</p>
           <p className="text-xs text-neutral-500">{revenue}</p>
         </Card>
         <Card className="p-4">
-          <p className="text-xs text-neutral-500 uppercase tracking-wide">Krever oppfolging</p>
+          <p className="text-xs text-neutral-500 uppercase tracking-wide">{copy.stats.needsAttention}</p>
           <div className="flex items-center gap-2 text-red-700 font-semibold text-xl">
             <ShieldAlert className="w-5 h-5" />
             {summary.atRisk}
           </div>
-          <p className="text-xs text-neutral-500">Frakt mangler: {summary.shippingMissing}</p>
+          <p className="text-xs text-neutral-500">
+            {replaceTokens(copy.stats.shippingMissing, { count: summary.shippingMissing })}
+          </p>
         </Card>
       </div>
 
       <Card className="p-4">
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-7 gap-3">
           <div className="xl:col-span-2">
-            <Label className="text-xs text-neutral-500">Sok</Label>
+            <Label className="text-xs text-neutral-500">{copy.filters.searchLabel}</Label>
             <div className="relative mt-1">
               <Search className="w-4 h-4 text-neutral-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <Input
                 value={searchInput}
                 onChange={(event) => setSearchInput(event.target.value)}
-                placeholder="Ordre, navn, e-post, telefon..."
+                placeholder={copy.filters.searchPlaceholder}
                 className="pl-9"
               />
             </div>
           </div>
 
           <div>
-            <Label className="text-xs text-neutral-500">Status</Label>
+            <Label className="text-xs text-neutral-500">{copy.filters.statusLabel}</Label>
             <select
               value={statusFilter}
               onChange={(event) => setStatusFilter(event.target.value)}
               className="mt-1 w-full h-10 rounded-md border border-neutral-200 px-3 text-sm bg-white"
             >
-              <option value="all">Alle statuser</option>
-              {STATUS_OPTIONS.map((option) => (
+              <option value="all">{copy.filters.allStatuses}</option>
+              {statusOptions.map((option) => (
                 <option key={option.value} value={option.value}>
                   {option.label}
                 </option>
@@ -726,13 +778,13 @@ export function EggOrdersWorkbench() {
           </div>
 
           <div>
-            <Label className="text-xs text-neutral-500">Betaling</Label>
+            <Label className="text-xs text-neutral-500">{copy.filters.paymentLabel}</Label>
             <select
               value={paymentFilter}
               onChange={(event) => setPaymentFilter(event.target.value as 'all' | PaymentState)}
               className="mt-1 w-full h-10 rounded-md border border-neutral-200 px-3 text-sm bg-white"
             >
-              {PAYMENT_OPTIONS.map((option) => (
+              {paymentOptions.map((option) => (
                 <option key={option.value} value={option.value}>
                   {option.label}
                 </option>
@@ -741,13 +793,13 @@ export function EggOrdersWorkbench() {
           </div>
 
           <div>
-            <Label className="text-xs text-neutral-500">Levering</Label>
+            <Label className="text-xs text-neutral-500">{copy.filters.deliveryLabel}</Label>
             <select
               value={deliveryFilter}
               onChange={(event) => setDeliveryFilter(event.target.value)}
               className="mt-1 w-full h-10 rounded-md border border-neutral-200 px-3 text-sm bg-white"
             >
-              {DELIVERY_OPTIONS.map((option) => (
+              {deliveryOptions.map((option) => (
                 <option key={option.value} value={option.value}>
                   {option.label}
                 </option>
@@ -756,13 +808,13 @@ export function EggOrdersWorkbench() {
           </div>
 
           <div>
-            <Label className="text-xs text-neutral-500">Uke</Label>
+            <Label className="text-xs text-neutral-500">{copy.filters.weekLabel}</Label>
             <select
               value={weekFilter}
               onChange={(event) => setWeekFilter(event.target.value)}
               className="mt-1 w-full h-10 rounded-md border border-neutral-200 px-3 text-sm bg-white"
             >
-              <option value="all">Alle uker</option>
+              <option value="all">{copy.filters.allWeeks}</option>
               {availableWeeks.map((week) => (
                 <option key={week.value} value={week.value}>
                   {week.label}
@@ -772,13 +824,13 @@ export function EggOrdersWorkbench() {
           </div>
 
           <div>
-            <Label className="text-xs text-neutral-500">Sortering</Label>
+            <Label className="text-xs text-neutral-500">{copy.filters.sortLabel}</Label>
             <select
               value={sortBy}
               onChange={(event) => setSortBy(event.target.value)}
               className="mt-1 w-full h-10 rounded-md border border-neutral-200 px-3 text-sm bg-white"
             >
-              {SORT_OPTIONS.map((option) => (
+              {sortOptions.map((option) => (
                 <option key={option.value} value={option.value}>
                   {option.label}
                 </option>
@@ -795,17 +847,17 @@ export function EggOrdersWorkbench() {
               onChange={(event) => setAtRiskOnly(event.target.checked)}
               className="rounded border-neutral-300"
             />
-            Vis kun ordre med risiko
+            {copy.filters.atRiskOnly}
           </label>
           {(summary.failedPayments > 0 || summary.shippingMissing > 0) && (
             <div className="text-xs text-neutral-600 flex items-center gap-3">
               <span className="inline-flex items-center gap-1">
                 <AlertTriangle className="w-3 h-3 text-red-500" />
-                Betaling feilet: {summary.failedPayments}
+                {replaceTokens(copy.filters.failedPayments, { count: summary.failedPayments })}
               </span>
               <span className="inline-flex items-center gap-1">
                 <Truck className="w-3 h-3 text-amber-500" />
-                Mangler fraktdata: {summary.shippingMissing}
+                {replaceTokens(copy.filters.missingShippingData, { count: summary.shippingMissing })}
               </span>
             </div>
           )}
@@ -815,7 +867,9 @@ export function EggOrdersWorkbench() {
       {selectedCount > 0 && (
         <Card className="p-4 border-blue-200 bg-blue-50">
           <div className="space-y-3">
-            <p className="text-sm font-medium text-blue-900">{selectedCount} ordre(r) valgt</p>
+            <p className="text-sm font-medium text-blue-900">
+              {replaceTokens(copy.bulk.selectedCount, { count: selectedCount })}
+            </p>
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-3">
               <div className="flex gap-2">
                 <select
@@ -823,7 +877,7 @@ export function EggOrdersWorkbench() {
                   onChange={(event) => setBulkStatus(event.target.value)}
                   className="h-10 flex-1 rounded-md border border-blue-200 px-3 text-sm bg-white"
                 >
-                  {STATUS_OPTIONS.map((option) => (
+                  {statusOptions.map((option) => (
                     <option key={option.value} value={option.value}>
                       {option.label}
                     </option>
@@ -834,7 +888,7 @@ export function EggOrdersWorkbench() {
                   disabled={bulkLoading}
                   onClick={() => runBulkAction('set_status', { status: bulkStatus })}
                 >
-                  Sett status
+                  {copy.bulk.setStatusButton}
                 </Button>
               </div>
               <div className="flex gap-2">
@@ -847,9 +901,13 @@ export function EggOrdersWorkbench() {
                   }}
                   className="h-10 flex-1 rounded-md border border-blue-200 px-3 text-sm bg-white"
                 >
-                  <option value="posten">Posten</option>
-                  <option value="e6_pickup">E6 motepunkt</option>
-                  <option value="farm_pickup">Henting pa gard</option>
+                  {deliveryOptions
+                    .filter((option) => option.value !== 'all')
+                    .map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
                 </select>
                 <Input
                   value={bulkDeliveryFee}
@@ -866,14 +924,14 @@ export function EggOrdersWorkbench() {
                     })
                   }
                 >
-                  Levering
+                  {copy.bulk.deliveryButton}
                 </Button>
               </div>
               <div className="flex gap-2 lg:col-span-2">
                 <Input
                   value={bulkNote}
                   onChange={(event) => setBulkNote(event.target.value)}
-                  placeholder="Legg til felles admin-notat..."
+                  placeholder={copy.bulk.notePlaceholder}
                 />
                 <Button
                   variant="outline"
@@ -883,13 +941,13 @@ export function EggOrdersWorkbench() {
                     setBulkNote('')
                   }}
                 >
-                  Notat
+                  {copy.bulk.noteButton}
                 </Button>
                 <Button variant="outline" disabled={bulkLoading} onClick={() => runBulkAction('lock_orders', {})}>
-                  Las
+                  {copy.bulk.lockButton}
                 </Button>
                 <Button variant="outline" disabled={bulkLoading} onClick={() => runBulkAction('unlock_orders', {})}>
-                  Las opp
+                  {copy.bulk.unlockButton}
                 </Button>
               </div>
             </div>
@@ -903,14 +961,14 @@ export function EggOrdersWorkbench() {
         </Card>
       ) : errorText ? (
         <Card className="p-8 text-center">
-          <p className="text-red-600 font-medium">Kunne ikke laste egg-ordrer</p>
+          <p className="text-red-600 font-medium">{copy.states.loadErrorTitle}</p>
           <p className="text-sm text-neutral-600 mt-2">{errorText}</p>
           <Button variant="outline" className="mt-4" onClick={() => fetchOrders()}>
-            Prov igjen
+            {copy.states.retryButton}
           </Button>
         </Card>
       ) : orders.length === 0 ? (
-        <Card className="p-8 text-center text-neutral-600">Ingen egg-ordrer matcher filtrene.</Card>
+        <Card className="p-8 text-center text-neutral-600">{copy.states.empty}</Card>
       ) : (
         <Card className="overflow-hidden">
           <div className="overflow-x-auto">
@@ -925,13 +983,13 @@ export function EggOrdersWorkbench() {
                       className="rounded border-neutral-300"
                     />
                   </th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-neutral-700">Ordre</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-neutral-700">Kunde</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-neutral-700">Levering</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-neutral-700">Betaling</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-neutral-700">Status</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-neutral-700">Belop</th>
-                  <th className="px-4 py-3 text-right text-sm font-medium text-neutral-700">Handling</th>
+                  <th className="px-4 py-3 text-left text-sm font-medium text-neutral-700">{copy.table.order}</th>
+                  <th className="px-4 py-3 text-left text-sm font-medium text-neutral-700">{copy.table.customer}</th>
+                  <th className="px-4 py-3 text-left text-sm font-medium text-neutral-700">{copy.table.delivery}</th>
+                  <th className="px-4 py-3 text-left text-sm font-medium text-neutral-700">{copy.table.payment}</th>
+                  <th className="px-4 py-3 text-left text-sm font-medium text-neutral-700">{copy.table.status}</th>
+                  <th className="px-4 py-3 text-left text-sm font-medium text-neutral-700">{copy.table.amount}</th>
+                  <th className="px-4 py-3 text-right text-sm font-medium text-neutral-700">{copy.table.action}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-neutral-100">
@@ -939,8 +997,7 @@ export function EggOrdersWorkbench() {
                   const paymentState = getPaymentState(order)
                   const orderAtRisk = isAtRiskOrder(order)
                   const shippingMissing = hasMissingShipping(order)
-                  const statusLabel =
-                    STATUS_OPTIONS.find((option) => option.value === order.status)?.label || order.status
+                  const statusLabel = getStatusLabel(order.status)
 
                   return (
                     <tr key={order.id} className="hover:bg-neutral-50/60 transition-colors">
@@ -961,7 +1018,10 @@ export function EggOrdersWorkbench() {
                             {order.order_number}
                           </button>
                           <p className="text-xs text-neutral-500 mt-1">
-                            {order.egg_breeds?.name || 'Ukjent rase'} · {order.quantity} egg
+                            {replaceTokens(copy.table.breedEggsValue, {
+                              breed: order.egg_breeds?.name || copy.fallbackBreed,
+                              quantity: order.quantity,
+                            })}
                           </p>
                         </div>
                       </td>
@@ -972,7 +1032,10 @@ export function EggOrdersWorkbench() {
                       </td>
                       <td className="px-4 py-3 text-sm">
                         <p className="text-neutral-900">
-                          Uke {order.week_number}/{order.year}
+                          {replaceTokens(copy.table.weekValue, {
+                            week: order.week_number,
+                            year: order.year,
+                          })}
                         </p>
                         <p className="text-neutral-600">{getDeliveryLabel(order.delivery_method)}</p>
                         <p className="text-neutral-500">{formatDate(order.delivery_monday)}</p>
@@ -991,13 +1054,13 @@ export function EggOrdersWorkbench() {
                             {orderAtRisk && (
                               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] bg-red-100 text-red-800">
                                 <AlertTriangle className="w-3 h-3" />
-                                Risiko
+                                {copy.table.riskBadge}
                               </span>
                             )}
                             {shippingMissing && (
                               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] bg-amber-100 text-amber-800">
                                 <Truck className="w-3 h-3" />
-                                Fraktdata
+                                {copy.table.shippingBadge}
                               </span>
                             )}
                           </div>
@@ -1007,18 +1070,22 @@ export function EggOrdersWorkbench() {
                         <span className="inline-flex items-center px-2 py-1 rounded-full bg-neutral-100 text-neutral-800 text-xs font-medium">
                           {statusLabel}
                         </span>
-                        {order.locked_at && <p className="text-xs text-neutral-500 mt-1">Last</p>}
+                        {order.locked_at && <p className="text-xs text-neutral-500 mt-1">{copy.table.locked}</p>}
                       </td>
                       <td className="px-4 py-3 text-sm">
                         <p className="font-semibold text-neutral-900">{formatOre(order.total_amount)}</p>
-                        <p className="text-neutral-600">Forskudd: {formatOre(order.deposit_amount)}</p>
-                        <p className="text-neutral-500">Rest: {formatOre(order.remainder_amount)}</p>
+                        <p className="text-neutral-600">
+                          {replaceTokens(copy.table.depositValue, { amount: formatOre(order.deposit_amount) })}
+                        </p>
+                        <p className="text-neutral-500">
+                          {replaceTokens(copy.table.remainderValue, { amount: formatOre(order.remainder_amount) })}
+                        </p>
                       </td>
                       <td className="px-4 py-3 text-right">
                         <div className="inline-flex items-center gap-2">
                           <Button size="sm" variant="outline" onClick={() => fetchOrderDetail(order.id)}>
                             <Settings className="w-4 h-4 mr-1" />
-                            Administrer
+                            {copy.table.manageButton}
                           </Button>
                         </div>
                       </td>
@@ -1037,18 +1104,22 @@ export function EggOrdersWorkbench() {
             <div className="sticky top-0 bg-white border-b border-neutral-200 px-6 py-4 flex items-start justify-between z-10">
               <div>
                 <h3 className="text-2xl font-light text-neutral-900">
-                  {selectedOrder ? selectedOrder.order_number : 'Egg ordre'}
+                  {selectedOrder ? selectedOrder.order_number : copy.panel.fallbackTitle}
                 </h3>
                 {selectedOrder && (
                   <p className="text-sm text-neutral-600 mt-1">
-                    {selectedOrder.egg_breeds?.name || 'Rase'} · {selectedOrder.quantity} egg · Uke{' '}
-                    {selectedOrder.week_number}/{selectedOrder.year}
+                    {replaceTokens(copy.panel.summaryValue, {
+                      breed: selectedOrder.egg_breeds?.name || copy.fallbackBreedShort,
+                      quantity: selectedOrder.quantity,
+                      week: selectedOrder.week_number,
+                      year: selectedOrder.year,
+                    })}
                   </p>
                 )}
               </div>
               <Button variant="outline" onClick={() => setPanelOpen(false)} className="gap-2">
                 <X className="w-4 h-4" />
-                Lukk
+                {copy.panel.closeButton}
               </Button>
             </div>
 
@@ -1059,35 +1130,35 @@ export function EggOrdersWorkbench() {
             ) : (
               <div className="p-6 space-y-6">
                 <Card className="p-4 border-neutral-200">
-                  <h4 className="font-medium text-neutral-900 mb-3">Hurtighandlinger</h4>
+                  <h4 className="font-medium text-neutral-900 mb-3">{copy.panel.quickActionsTitle}</h4>
                   <div className="grid grid-cols-2 xl:grid-cols-4 gap-2">
                     <Button
                       variant="outline"
                       disabled={actionLoading !== null}
                       onClick={() => runOrderAction('mark_deposit_paid', { reason: actionReason || undefined })}
                     >
-                      Marker forskudd betalt
+                      {copy.panel.actions.markDepositPaid}
                     </Button>
                     <Button
                       variant="outline"
                       disabled={actionLoading !== null}
                       onClick={() => runOrderAction('mark_remainder_paid', { reason: actionReason || undefined })}
                     >
-                      Marker rest betalt
+                      {copy.panel.actions.markRemainderPaid}
                     </Button>
                     <Button
                       variant="outline"
                       disabled={actionLoading !== null}
                       onClick={() => runOrderAction('sync_status', { reason: actionReason || undefined })}
                     >
-                      Synk status
+                      {copy.panel.actions.syncStatus}
                     </Button>
                     <Button
                       variant="outline"
                       disabled={actionLoading !== null}
                       onClick={() => runOrderAction('refund_deposit', { reason: actionReason || undefined })}
                     >
-                      Refunder forskudd
+                      {copy.panel.actions.refundDeposit}
                     </Button>
                     <Button
                       variant="outline"
@@ -1099,7 +1170,7 @@ export function EggOrdersWorkbench() {
                         })
                       }
                     >
-                      Kanseller
+                      {copy.panel.actions.cancel}
                     </Button>
                     <Button
                       variant="outline"
@@ -1111,39 +1182,39 @@ export function EggOrdersWorkbench() {
                         })
                       }
                     >
-                      Kanseller + refunder
+                      {copy.panel.actions.cancelAndRefund}
                     </Button>
                     <Button
                       variant="outline"
                       disabled={actionLoading !== null}
                       onClick={() => runOrderAction('mark_deposit_refunded', { reason: actionReason || undefined })}
                     >
-                      Marker forskudd refundert
+                      {copy.panel.actions.markDepositRefunded}
                     </Button>
                     <Button
                       variant="outline"
                       disabled={actionLoading !== null}
                       onClick={() => runOrderAction('mark_remainder_refunded', { reason: actionReason || undefined })}
                     >
-                      Marker rest refundert
+                      {copy.panel.actions.markRemainderRefunded}
                     </Button>
                   </div>
                   <div className="mt-3">
-                    <Label className="text-xs text-neutral-500">Arsak for handlinger (valgfritt)</Label>
+                    <Label className="text-xs text-neutral-500">{copy.panel.actionReasonLabel}</Label>
                     <Input
                       value={actionReason}
                       onChange={(event) => setActionReason(event.target.value)}
-                      placeholder="Notat/reason for action"
+                      placeholder={copy.panel.actionReasonPlaceholder}
                       className="mt-1"
                     />
                   </div>
                 </Card>
 
                 <Card className="p-4 border-neutral-200">
-                  <h4 className="font-medium text-neutral-900 mb-3">Flytt uke / levering / status</h4>
+                  <h4 className="font-medium text-neutral-900 mb-3">{copy.panel.moveSectionTitle}</h4>
                   <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
                     <div className="space-y-2">
-                      <Label>Ny uke</Label>
+                      <Label>{copy.panel.newWeekLabel}</Label>
                       <div className="flex gap-2">
                         <Input value={moveWeek} onChange={(event) => setMoveWeek(event.target.value)} />
                         <Input value={moveYear} onChange={(event) => setMoveYear(event.target.value)} />
@@ -1159,12 +1230,12 @@ export function EggOrdersWorkbench() {
                           })
                         }
                       >
-                        Flytt ordre
+                        {copy.panel.moveOrderButton}
                       </Button>
                     </div>
 
                     <div className="space-y-2">
-                      <Label>Leveringsmetode</Label>
+                      <Label>{copy.panel.deliveryMethodLabel}</Label>
                       <div className="flex gap-2">
                         <select
                           value={deliveryActionMethod}
@@ -1175,9 +1246,13 @@ export function EggOrdersWorkbench() {
                           }}
                           className="h-10 flex-1 rounded-md border border-neutral-200 px-3 text-sm"
                         >
-                          <option value="posten">Posten</option>
-                          <option value="e6_pickup">E6 motepunkt</option>
-                          <option value="farm_pickup">Henting pa gard</option>
+                          {deliveryOptions
+                            .filter((option) => option.value !== 'all')
+                            .map((option) => (
+                              <option key={option.value} value={option.value}>
+                                {option.label}
+                              </option>
+                            ))}
                         </select>
                         <Input
                           value={deliveryActionFee}
@@ -1196,19 +1271,19 @@ export function EggOrdersWorkbench() {
                           })
                         }
                       >
-                        Oppdater levering
+                        {copy.panel.updateDeliveryButton}
                       </Button>
                     </div>
 
                     <div className="space-y-2">
-                      <Label>Manuell status</Label>
+                      <Label>{copy.panel.manualStatusLabel}</Label>
                       <div className="flex gap-2">
                         <select
                           value={manualStatus}
                           onChange={(event) => setManualStatus(event.target.value)}
                           className="h-10 flex-1 rounded-md border border-neutral-200 px-3 text-sm"
                         >
-                          {STATUS_OPTIONS.map((option) => (
+                          {statusOptions.map((option) => (
                             <option key={option.value} value={option.value}>
                               {option.label}
                             </option>
@@ -1225,80 +1300,80 @@ export function EggOrdersWorkbench() {
                           })
                         }
                       >
-                        Sett status
+                        {copy.bulk.setStatusButton}
                       </Button>
                     </div>
                   </div>
                 </Card>
 
                 <Card className="p-4 border-neutral-200">
-                  <h4 className="font-medium text-neutral-900 mb-3">Kunde og shipping</h4>
+                  <h4 className="font-medium text-neutral-900 mb-3">{copy.panel.customerShippingTitle}</h4>
                   <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
                     <div>
-                      <Label>Navn</Label>
+                      <Label>{copy.panel.fields.name}</Label>
                       <Input
                         value={form.customerName}
                         onChange={(event) => setForm({ ...form, customerName: event.target.value })}
                       />
                     </div>
                     <div>
-                      <Label>E-post</Label>
+                      <Label>{copy.panel.fields.email}</Label>
                       <Input
                         value={form.customerEmail}
                         onChange={(event) => setForm({ ...form, customerEmail: event.target.value })}
                       />
                     </div>
                     <div>
-                      <Label>Telefon</Label>
+                      <Label>{copy.panel.fields.phone}</Label>
                       <Input
                         value={form.customerPhone}
                         onChange={(event) => setForm({ ...form, customerPhone: event.target.value })}
                       />
                     </div>
                     <div>
-                      <Label>Shipping navn</Label>
+                      <Label>{copy.panel.fields.shippingName}</Label>
                       <Input
                         value={form.shippingName}
                         onChange={(event) => setForm({ ...form, shippingName: event.target.value })}
                       />
                     </div>
                     <div>
-                      <Label>Shipping e-post</Label>
+                      <Label>{copy.panel.fields.shippingEmail}</Label>
                       <Input
                         value={form.shippingEmail}
                         onChange={(event) => setForm({ ...form, shippingEmail: event.target.value })}
                       />
                     </div>
                     <div>
-                      <Label>Shipping telefon</Label>
+                      <Label>{copy.panel.fields.shippingPhone}</Label>
                       <Input
                         value={form.shippingPhone}
                         onChange={(event) => setForm({ ...form, shippingPhone: event.target.value })}
                       />
                     </div>
                     <div className="lg:col-span-2">
-                      <Label>Adresse</Label>
+                      <Label>{copy.panel.fields.address}</Label>
                       <Input
                         value={form.shippingAddress}
                         onChange={(event) => setForm({ ...form, shippingAddress: event.target.value })}
                       />
                     </div>
                     <div>
-                      <Label>Postnummer</Label>
+                      <Label>{copy.panel.fields.postalCode}</Label>
                       <Input
                         value={form.shippingPostalCode}
                         onChange={(event) => setForm({ ...form, shippingPostalCode: event.target.value })}
                       />
                     </div>
                     <div>
-                      <Label>By</Label>
+                      <Label>{copy.panel.fields.city}</Label>
                       <Input
                         value={form.shippingCity}
                         onChange={(event) => setForm({ ...form, shippingCity: event.target.value })}
                       />
                     </div>
                     <div>
-                      <Label>Land</Label>
+                      <Label>{copy.panel.fields.country}</Label>
                       <Input
                         value={form.shippingCountry}
                         onChange={(event) => setForm({ ...form, shippingCountry: event.target.value })}
@@ -1308,10 +1383,10 @@ export function EggOrdersWorkbench() {
                 </Card>
 
                 <Card className="p-4 border-neutral-200">
-                  <h4 className="font-medium text-neutral-900 mb-3">Pris, status, notater</h4>
+                  <h4 className="font-medium text-neutral-900 mb-3">{copy.panel.pricingStatusNotesTitle}</h4>
                   <div className="grid grid-cols-1 lg:grid-cols-4 gap-3">
                     <div>
-                      <Label>Antall egg</Label>
+                      <Label>{copy.panel.fields.eggCount}</Label>
                       <Input
                         type="number"
                         value={form.quantity}
@@ -1319,7 +1394,7 @@ export function EggOrdersWorkbench() {
                       />
                     </div>
                     <div>
-                      <Label>Pris per egg (ore)</Label>
+                      <Label>{copy.panel.fields.pricePerEggOre}</Label>
                       <Input
                         type="number"
                         value={form.pricePerEgg}
@@ -1327,7 +1402,7 @@ export function EggOrdersWorkbench() {
                       />
                     </div>
                     <div>
-                      <Label>Leveringsmetode</Label>
+                      <Label>{copy.panel.deliveryMethodLabel}</Label>
                       <select
                         value={form.deliveryMethod}
                         onChange={(event) => {
@@ -1340,13 +1415,17 @@ export function EggOrdersWorkbench() {
                         }}
                         className="h-10 w-full rounded-md border border-neutral-200 px-3 text-sm"
                       >
-                        <option value="posten">Posten</option>
-                        <option value="e6_pickup">E6 motepunkt</option>
-                        <option value="farm_pickup">Henting pa gard</option>
+                        {deliveryOptions
+                          .filter((option) => option.value !== 'all')
+                          .map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
                       </select>
                     </div>
                     <div>
-                      <Label>Leveringsgebyr (ore)</Label>
+                      <Label>{copy.panel.fields.deliveryFeeOre}</Label>
                       <Input
                         type="number"
                         value={form.deliveryFee}
@@ -1354,7 +1433,7 @@ export function EggOrdersWorkbench() {
                       />
                     </div>
                     <div>
-                      <Label>Forskudd (ore)</Label>
+                      <Label>{copy.panel.fields.depositOre}</Label>
                       <Input
                         type="number"
                         value={form.depositAmount}
@@ -1362,7 +1441,7 @@ export function EggOrdersWorkbench() {
                       />
                     </div>
                     <div>
-                      <Label>Restbelop (ore)</Label>
+                      <Label>{copy.panel.fields.remainderOre}</Label>
                       <Input
                         type="number"
                         value={form.remainderAmount}
@@ -1370,13 +1449,13 @@ export function EggOrdersWorkbench() {
                       />
                     </div>
                     <div>
-                      <Label>Status</Label>
+                      <Label>{copy.filters.statusLabel}</Label>
                       <select
                         value={form.status}
                         onChange={(event) => setForm({ ...form, status: event.target.value })}
                         className="h-10 w-full rounded-md border border-neutral-200 px-3 text-sm"
                       >
-                        {STATUS_OPTIONS.map((option) => (
+                        {statusOptions.map((option) => (
                           <option key={option.value} value={option.value}>
                             {option.label}
                           </option>
@@ -1384,21 +1463,21 @@ export function EggOrdersWorkbench() {
                       </select>
                     </div>
                     <div>
-                      <Label>Lasing</Label>
+                      <Label>{copy.panel.fields.locking}</Label>
                       <label className="h-10 w-full border border-neutral-200 rounded-md px-3 inline-flex items-center gap-2 text-sm">
                         <input
                           type="checkbox"
                           checked={form.lockOrder}
                           onChange={(event) => setForm({ ...form, lockOrder: event.target.checked })}
                         />
-                        Las ordren
+                        {copy.panel.fields.lockOrder}
                       </label>
                     </div>
                   </div>
 
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mt-3">
                     <div>
-                      <Label>Kundenotater</Label>
+                      <Label>{copy.panel.fields.customerNotes}</Label>
                       <Textarea
                         rows={3}
                         value={form.notes}
@@ -1406,7 +1485,7 @@ export function EggOrdersWorkbench() {
                       />
                     </div>
                     <div>
-                      <Label>Admin-notater</Label>
+                      <Label>{copy.panel.fields.adminNotes}</Label>
                       <Textarea
                         rows={3}
                         value={form.adminNotes}
@@ -1416,7 +1495,7 @@ export function EggOrdersWorkbench() {
                   </div>
 
                   <div className="mt-3">
-                    <Label>Legg til nytt admin-notat (append)</Label>
+                    <Label>{copy.panel.fields.appendAdminNote}</Label>
                     <Textarea
                       rows={2}
                       value={form.appendAdminNote}
@@ -1427,23 +1506,25 @@ export function EggOrdersWorkbench() {
                   <div className="mt-3 flex items-center gap-2">
                     <Button onClick={saveOrderEdits} disabled={saveLoading || actionLoading !== null}>
                       {saveLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
-                      Lagre endringer
+                      {copy.panel.saveChangesButton}
                     </Button>
                     <Button
                       variant="outline"
                       disabled={saveLoading || actionLoading !== null}
-                      onClick={() => runOrderAction('set_status', { status: 'delivered', reason: 'Marked delivered' })}
+                      onClick={() =>
+                        runOrderAction('set_status', { status: 'delivered', reason: copy.panel.markDeliveredReason })
+                      }
                     >
                       <CheckCircle2 className="w-4 h-4 mr-2" />
-                      Marker levert
+                      {copy.panel.markDeliveredButton}
                     </Button>
                   </div>
                 </Card>
 
                 <Card className="p-4 border-neutral-200">
-                  <h4 className="font-medium text-neutral-900 mb-3">Betalingshistorikk</h4>
+                  <h4 className="font-medium text-neutral-900 mb-3">{copy.payments.title}</h4>
                   {(selectedOrder.egg_payments || []).length === 0 ? (
-                    <p className="text-sm text-neutral-600">Ingen betalinger registrert.</p>
+                    <p className="text-sm text-neutral-600">{copy.payments.empty}</p>
                   ) : (
                     <div className="space-y-2">
                       {(selectedOrder.egg_payments || [])
@@ -1456,12 +1537,23 @@ export function EggOrdersWorkbench() {
                           >
                             <div>
                               <p className="font-medium text-neutral-900">
-                                {payment.payment_type === 'deposit' ? 'Forskudd' : 'Restbetaling'} ·{' '}
+                                {payment.payment_type === 'deposit'
+                                  ? copy.payments.depositType
+                                  : copy.payments.remainderType}{' '}
+                                |{' '}
                                 {formatOre((payment.amount_nok || 0) * 100)}
                               </p>
                               <p className="text-neutral-600">
-                                Status: {payment.status} · Opprettet: {formatDate(payment.created_at)}{' '}
-                                {payment.paid_at ? `· Betalt: ${formatDate(payment.paid_at)}` : ''}
+                                {replaceTokens(copy.payments.statusValue, {
+                                  status: getPaymentStatusLabel(payment.status),
+                                })}{' '}
+                                |{' '}
+                                {replaceTokens(copy.payments.createdValue, {
+                                  date: formatDate(payment.created_at),
+                                })}{' '}
+                                {payment.paid_at
+                                  ? `| ${replaceTokens(copy.payments.paidValue, { date: formatDate(payment.paid_at) })}`
+                                  : ''}
                               </p>
                             </div>
                             <span
@@ -1476,7 +1568,7 @@ export function EggOrdersWorkbench() {
                                       : 'bg-slate-200 text-slate-700'
                               )}
                             >
-                              {payment.status}
+                              {getPaymentStatusLabel(payment.status)}
                             </span>
                           </div>
                         ))}
@@ -1485,9 +1577,9 @@ export function EggOrdersWorkbench() {
                 </Card>
 
                 <Card className="p-4 border-neutral-200">
-                  <h4 className="font-medium text-neutral-900 mb-3">Tillegg / upsell</h4>
+                  <h4 className="font-medium text-neutral-900 mb-3">{copy.additions.title}</h4>
                   {(selectedOrder.egg_order_additions || []).length === 0 ? (
-                    <p className="text-sm text-neutral-600">Ingen tillegg registrert.</p>
+                    <p className="text-sm text-neutral-600">{copy.additions.empty}</p>
                   ) : (
                     <div className="space-y-2">
                       {(selectedOrder.egg_order_additions || []).map((addition) => (
@@ -1497,10 +1589,16 @@ export function EggOrdersWorkbench() {
                         >
                           <div>
                             <p className="font-medium text-neutral-900">
-                              {addition.egg_breeds?.name || 'Rase'} · {addition.quantity} egg
+                              {replaceTokens(copy.additions.breedEggsValue, {
+                                breed: addition.egg_breeds?.name || copy.fallbackBreedShort,
+                                quantity: addition.quantity,
+                              })}
                             </p>
                             <p className="text-neutral-600">
-                              Uke {addition.egg_inventory?.week_number}/{addition.egg_inventory?.year}
+                              {replaceTokens(copy.additions.weekValue, {
+                                week: addition.egg_inventory?.week_number ?? '-',
+                                year: addition.egg_inventory?.year ?? '-',
+                              })}
                             </p>
                           </div>
                           <p className="font-medium text-neutral-900">{formatOre(addition.subtotal)}</p>

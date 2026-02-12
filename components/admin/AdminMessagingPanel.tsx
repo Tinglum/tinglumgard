@@ -33,6 +33,7 @@ type PriorityFilter = 'all' | 'low' | 'normal' | 'high' | 'urgent';
 
 export function AdminMessagingPanel() {
   const { t } = useLanguage();
+  const copy = t.adminMessagingPanel;
   const [messages, setMessages] = useState<CustomerMessage[]>([]);
   const [selectedMessage, setSelectedMessage] = useState<CustomerMessage | null>(null);
   const [loading, setLoading] = useState(true);
@@ -356,8 +357,8 @@ export function AdminMessagingPanel() {
                 <option value="support">{t.messaging.support}</option>
                 <option value="inquiry">{t.messaging.inquiry}</option>
                 <option value="complaint">{t.messaging.complaint}</option>
-                <option value="feedback">Feedback</option>
-                <option value="referral_question">Referral</option>
+                <option value="feedback">{copy.feedback}</option>
+                <option value="referral_question">{copy.referral}</option>
               </select>
             </div>
             <div>
@@ -373,7 +374,7 @@ export function AdminMessagingPanel() {
 
             {recipientMode === 'all' && (
               <div className="text-sm text-gray-600">
-                This will send to all clients ({clients.length}).
+                {copy.sendToAllInfo.replace('{count}', String(clients.length))}
               </div>
             )}
 
@@ -384,14 +385,14 @@ export function AdminMessagingPanel() {
                     value={recipientSearch}
                     onChange={(e) => setRecipientSearch(e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-xl"
-                    placeholder="Search by name, phone, or email"
+                    placeholder={copy.searchRecipientPlaceholder}
                   />
                   <select
                     value={selectedClientPhone}
                     onChange={(e) => setSelectedClientPhone(e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-xl"
                   >
-                    <option value="">Select client</option>
+                    <option value="">{copy.selectClient}</option>
                     {filteredClientOptions.map((client) => (
                       <option key={client.phone} value={client.phone}>
                         {client.name || client.phone} {client.email ? `(${client.email})` : ''}
@@ -408,7 +409,7 @@ export function AdminMessagingPanel() {
                     }}
                     disabled={!selectedClientPhone}
                   >
-                    Add recipient
+                    {copy.addRecipient}
                   </Button>
                 </div>
 
@@ -429,7 +430,7 @@ export function AdminMessagingPanel() {
                       variant="outline"
                       onClick={() => setSelectedRecipients([])}
                     >
-                      Clear
+                      {copy.clearSelection}
                     </Button>
                   </div>
                 )}
@@ -495,7 +496,7 @@ export function AdminMessagingPanel() {
 
                 <div className="flex items-center gap-3">
                   <Button variant="outline" onClick={handlePreviewRecipients}>
-                    {previewLoading ? 'Loading...' : t.messaging.previewRecipients}
+                    {previewLoading ? copy.loading : t.messaging.previewRecipients}
                   </Button>
                   <Button
                     variant="outline"
@@ -511,7 +512,9 @@ export function AdminMessagingPanel() {
                   >
                     {t.messaging.clearAll}
                   </Button>
-                  <span className="text-sm text-gray-600">Matched: {previewCount}</span>
+                  <span className="text-sm text-gray-600">
+                    {copy.matchedCount.replace('{count}', String(previewCount))}
+                  </span>
                 </div>
 
                 {excludedPhones.length > 0 && (
@@ -532,7 +535,9 @@ export function AdminMessagingPanel() {
 
                 {previewRecipients.length > 0 && (
                   <div className="border border-gray-200 rounded-xl p-3 max-h-56 overflow-y-auto">
-                    <p className="text-sm text-gray-600 mb-2">Preview (first {previewRecipients.length})</p>
+                    <p className="text-sm text-gray-600 mb-2">
+                      {copy.previewFirst.replace('{count}', String(previewRecipients.length))}
+                    </p>
                     <div className="space-y-2">
                       {previewRecipients.map((client) => (
                         <div key={client.phone} className="flex items-center justify-between text-sm">
@@ -577,19 +582,19 @@ export function AdminMessagingPanel() {
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           <Card className="p-4 bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
             <div className="text-3xl font-bold text-blue-900">{stats.total}</div>
-            <div className="text-sm text-blue-700">Total Messages</div>
+            <div className="text-sm text-blue-700">{copy.totalMessages}</div>
           </Card>
           <Card className="p-4 bg-gradient-to-br from-red-50 to-red-100 border-red-200">
             <div className="text-3xl font-bold text-red-900">{stats.open}</div>
-            <div className="text-sm text-red-700">Open</div>
+            <div className="text-sm text-red-700">{t.messaging.open}</div>
           </Card>
           <Card className="p-4 bg-gradient-to-br from-yellow-50 to-yellow-100 border-yellow-200">
             <div className="text-3xl font-bold text-yellow-900">{stats.in_progress}</div>
-            <div className="text-sm text-yellow-700">In Progress</div>
+            <div className="text-sm text-yellow-700">{t.messaging.inProgress}</div>
           </Card>
           <Card className="p-4 bg-gradient-to-br from-green-50 to-green-100 border-green-200">
             <div className="text-3xl font-bold text-green-900">{stats.resolved}</div>
-            <div className="text-sm text-green-700">Resolved</div>
+            <div className="text-sm text-green-700">{t.messaging.resolved}</div>
           </Card>
         </div>
 
@@ -597,35 +602,35 @@ export function AdminMessagingPanel() {
         <Card className="p-4 border border-gray-200">
           <div className="flex items-center gap-2 mb-4">
             <Filter className="w-5 h-5 text-gray-600" />
-            <span className="font-semibold text-gray-700">Filters</span>
+            <span className="font-semibold text-gray-700">{copy.filters}</span>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">{t.messaging.status}</label>
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
-                <option value="all">All Status</option>
-                <option value="open">Open</option>
-                <option value="in_progress">In Progress</option>
-                <option value="resolved">Resolved</option>
-                <option value="closed">Closed</option>
+                <option value="all">{copy.allStatus}</option>
+                <option value="open">{t.messaging.open}</option>
+                <option value="in_progress">{t.messaging.inProgress}</option>
+                <option value="resolved">{t.messaging.resolved}</option>
+                <option value="closed">{t.messaging.closed}</option>
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Priority</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">{t.messaging.priority}</label>
               <select
                 value={priorityFilter}
                 onChange={(e) => setPriorityFilter(e.target.value as PriorityFilter)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
-                <option value="all">All Priorities</option>
-                <option value="low">Low</option>
-                <option value="normal">Normal</option>
-                <option value="high">High</option>
-                <option value="urgent">Urgent</option>
+                <option value="all">{copy.allPriorities}</option>
+                <option value="low">{t.messaging.low}</option>
+                <option value="normal">{t.messaging.normal}</option>
+                <option value="high">{t.messaging.high}</option>
+                <option value="urgent">{t.messaging.urgent}</option>
               </select>
             </div>
           </div>
@@ -636,12 +641,12 @@ export function AdminMessagingPanel() {
           {loading ? (
             <Card className="p-8 text-center text-gray-500">
               <MessageSquare className="w-12 h-12 mx-auto mb-3 text-gray-400" />
-              <p>Loading messages...</p>
+              <p>{copy.loadingMessages}</p>
             </Card>
           ) : filteredMessages.length === 0 ? (
             <Card className="p-8 text-center text-gray-500">
               <MessageSquare className="w-12 h-12 mx-auto mb-3 text-gray-400" />
-              <p>No messages found</p>
+              <p>{copy.noMessagesFound}</p>
             </Card>
           ) : (
             filteredMessages.map((msg) => (
@@ -686,7 +691,7 @@ export function AdminMessagingPanel() {
         className="flex items-center gap-2 text-blue-600 hover:text-blue-800 font-medium mb-4"
       >
         <X className="w-5 h-5" />
-        Back to Messages
+        {copy.backToMessages}
       </button>
 
       {/* Message Detail Card */}
@@ -707,22 +712,22 @@ export function AdminMessagingPanel() {
                 onClick={() => handleUpdateStatus('resolved')}
                 disabled={selectedMessage.status === 'resolved'}
               >
-                Mark resolved
+                {copy.markResolved}
               </Button>
             </div>
           </div>
 
           <div className="grid grid-cols-3 gap-4 text-sm mb-4">
             <div>
-              <span className="text-gray-600">Type:</span>
+              <span className="text-gray-600">{copy.typeLabel}</span>
               <p className="font-semibold text-gray-900">{selectedMessage.message_type}</p>
             </div>
             <div>
-              <span className="text-gray-600">Priority:</span>
+              <span className="text-gray-600">{copy.priorityLabel}</span>
               <p className="font-semibold capitalize text-gray-900">{selectedMessage.priority}</p>
             </div>
             <div>
-              <span className="text-gray-600">Date:</span>
+              <span className="text-gray-600">{copy.dateLabel}</span>
               <p className="font-semibold text-gray-900">{formatDate(selectedMessage.created_at)}</p>
             </div>
           </div>
@@ -735,16 +740,18 @@ export function AdminMessagingPanel() {
 
       {/* Conversation Thread */}
       <Card className="p-6">
-        <h3 className="font-semibold text-gray-900 mb-4">Conversation</h3>
+        <h3 className="font-semibold text-gray-900 mb-4">{copy.conversation}</h3>
         <div className="space-y-4 max-h-96 overflow-y-auto mb-4">
           {/* Original Message */}
           <div className="flex gap-3">
             <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
-              <span className="text-xs font-bold text-blue-600">C</span>
+              <span className="text-xs font-bold text-blue-600">
+                {(selectedMessage.customer_name || copy.customerFallback).charAt(0).toUpperCase()}
+              </span>
             </div>
             <div className="flex-1">
               <div className="bg-gray-100 p-3 rounded-xl">
-                <p className="text-xs font-semibold text-gray-600 mb-1">{selectedMessage.customer_name || 'Customer'}</p>
+                <p className="text-xs font-semibold text-gray-600 mb-1">{selectedMessage.customer_name || copy.customerFallback}</p>
                 <p className="text-gray-800">{selectedMessage.message}</p>
               </div>
               <p className="text-xs text-gray-500 mt-1">{formatDate(selectedMessage.created_at)}</p>
@@ -766,7 +773,9 @@ export function AdminMessagingPanel() {
                         "text-xs font-bold",
                         isFromCustomer ? "text-blue-600" : "text-green-600"
                       )}>
-                        {isFromCustomer ? 'C' : 'A'}
+                        {isFromCustomer
+                          ? (selectedMessage.customer_name || copy.customerFallback).charAt(0).toUpperCase()
+                          : copy.farmSender.charAt(0).toUpperCase()}
                       </span>
                     </div>
                     <div className="flex-1">
@@ -778,7 +787,7 @@ export function AdminMessagingPanel() {
                           "text-xs font-semibold mb-1",
                           isFromCustomer ? "text-blue-600" : "text-green-600"
                         )}>
-                          {isFromCustomer ? reply.admin_name : 'Tinglum Gård'}
+                          {isFromCustomer ? reply.admin_name : copy.farmSender}
                         </p>
                         <p className="text-gray-800">{reply.reply_text}</p>
                       </div>
@@ -809,7 +818,7 @@ export function AdminMessagingPanel() {
               variant="outline"
               onClick={() => setSelectedMessage(null)}
             >
-              Cancel
+              {t.common.cancel}
             </Button>
             <Button
               onClick={handleSendReply}

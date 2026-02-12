@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import { Plus, Edit, Trash2, Save, X, RefreshCw, Eye, EyeOff } from 'lucide-react';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface Breed {
   id: string;
@@ -23,6 +24,10 @@ interface Breed {
 }
 
 export function BreedManagement() {
+  const { t } = useLanguage();
+  const copy = t.breedManagement;
+  const currency = t.common.currency;
+
   const [breeds, setBreeds] = useState<Breed[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingBreed, setEditingBreed] = useState<Breed | null>(null);
@@ -108,7 +113,7 @@ export function BreedManagement() {
   }
 
   async function handleDelete(breedId: string) {
-    if (!window.confirm('Er du sikker på at du vil slette denne rasen? Dette kan ikke angres.')) {
+    if (!window.confirm(copy.confirmDelete)) {
       return;
     }
 
@@ -166,17 +171,17 @@ export function BreedManagement() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Rasehåndtering</h2>
-          <p className="text-sm text-gray-600 mt-1">Administrer eggraser og priser</p>
+          <h2 className="text-2xl font-bold text-gray-900">{copy.title}</h2>
+          <p className="text-sm text-gray-600 mt-1">{copy.subtitle}</p>
         </div>
         <div className="flex items-center gap-3">
           <Button onClick={loadBreeds} variant="outline" size="sm">
             <RefreshCw className="w-4 h-4 mr-2" />
-            Oppdater
+            {copy.refreshButton}
           </Button>
           <Button onClick={() => setShowAddForm(true)} size="sm">
             <Plus className="w-4 h-4 mr-2" />
-            Ny rase
+            {copy.newBreedButton}
           </Button>
         </div>
       </div>
@@ -187,7 +192,7 @@ export function BreedManagement() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-gray-900">
-                {editingBreed ? 'Rediger rase' : 'Legg til ny rase'}
+                {editingBreed ? copy.editBreedTitle : copy.addBreedTitle}
               </h3>
               <Button
                 type="button"
@@ -201,7 +206,7 @@ export function BreedManagement() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="name">Rasenavn *</Label>
+                <Label htmlFor="name">{copy.nameLabel}</Label>
                 <Input
                   id="name"
                   value={formData.name}
@@ -218,7 +223,7 @@ export function BreedManagement() {
               </div>
 
               <div>
-                <Label htmlFor="slug">Slug (auto-generert)</Label>
+                <Label htmlFor="slug">{copy.slugLabel}</Label>
                 <Input
                   id="slug"
                   value={formData.slug}
@@ -228,7 +233,7 @@ export function BreedManagement() {
               </div>
 
               <div>
-                <Label htmlFor="price">Pris per egg (øre) *</Label>
+                <Label htmlFor="price">{copy.pricePerEggLabel}</Label>
                 <Input
                   id="price"
                   type="number"
@@ -239,12 +244,12 @@ export function BreedManagement() {
                   required
                 />
                 <p className="text-xs text-gray-600 mt-1">
-                  {((formData.price_per_egg || 0) / 100).toFixed(2)} kr
+                  {((formData.price_per_egg || 0) / 100).toFixed(2)} {currency}
                 </p>
               </div>
 
               <div>
-                <Label htmlFor="min_egg_weight_grams">Minste eggvekt (g)</Label>
+                <Label htmlFor="min_egg_weight_grams">{copy.minEggWeightLabel}</Label>
                 <Input
                   id="min_egg_weight_grams"
                   type="number"
@@ -261,7 +266,7 @@ export function BreedManagement() {
               </div>
 
               <div>
-                <Label htmlFor="color">Aksentfarge</Label>
+                <Label htmlFor="color">{copy.accentColorLabel}</Label>
                 <div className="flex gap-2">
                   <Input
                     id="color"
@@ -284,7 +289,7 @@ export function BreedManagement() {
               </div>
 
               <div>
-                <Label htmlFor="image_url">Bilde URL</Label>
+                <Label htmlFor="image_url">{copy.imageUrlLabel}</Label>
                 <Input
                   id="image_url"
                   type="url"
@@ -294,7 +299,7 @@ export function BreedManagement() {
               </div>
 
               <div>
-                <Label htmlFor="display_order">Visningsrekkefølge</Label>
+                <Label htmlFor="display_order">{copy.displayOrderLabel}</Label>
                 <Input
                   id="display_order"
                   type="number"
@@ -306,7 +311,7 @@ export function BreedManagement() {
               </div>
 
               <div className="md:col-span-2">
-                <Label htmlFor="description">Beskrivelse</Label>
+                <Label htmlFor="description">{copy.descriptionLabel}</Label>
                 <textarea
                   id="description"
                   value={formData.description}
@@ -323,17 +328,17 @@ export function BreedManagement() {
                   onChange={(e) => setFormData({ ...formData, active: e.target.checked })}
                   className="rounded"
                 />
-                <Label htmlFor="active" className="mb-0">Aktiv (synlig for kunder)</Label>
+                <Label htmlFor="active" className="mb-0">{copy.activeForCustomersLabel}</Label>
               </div>
             </div>
 
             <div className="flex justify-end gap-3 pt-4">
               <Button type="button" variant="outline" onClick={resetForm}>
-                Avbryt
+                {t.common.cancel}
               </Button>
               <Button type="submit">
                 <Save className="w-4 h-4 mr-2" />
-                {editingBreed ? 'Lagre endringer' : 'Legg til rase'}
+                {editingBreed ? copy.saveChangesButton : copy.addBreedSubmitButton}
               </Button>
             </div>
           </form>
@@ -343,11 +348,11 @@ export function BreedManagement() {
       {/* Breeds List */}
       {breeds.length === 0 ? (
         <Card className="p-12 text-center">
-          <p className="text-lg font-semibold text-gray-900 mb-2">Ingen raser funnet</p>
-          <p className="text-sm text-gray-600 mb-4">Legg til din første rase for å begynne</p>
+          <p className="text-lg font-semibold text-gray-900 mb-2">{copy.emptyTitle}</p>
+          <p className="text-sm text-gray-600 mb-4">{copy.emptySubtitle}</p>
           <Button onClick={() => setShowAddForm(true)} size="sm">
             <Plus className="w-4 h-4 mr-2" />
-            Legg til rase
+            {copy.addBreedButton}
           </Button>
         </Card>
       ) : (
@@ -383,16 +388,20 @@ export function BreedManagement() {
                       : 'bg-gray-100 text-gray-800'
                   )}
                 >
-                  {breed.active ? 'Aktiv' : 'Inaktiv'}
+                  {breed.active ? copy.activeStatus : copy.inactiveStatus}
                 </span>
               </div>
 
               <div className="mb-4 space-y-2">
                 <p className="text-sm text-gray-700 line-clamp-3">{breed.description}</p>
                 <p className="text-lg font-bold text-gray-900">
-                  {(breed.price_per_egg / 100).toFixed(2)} kr per egg
+                  {copy.pricePerEggValue
+                    .replace('{value}', (breed.price_per_egg / 100).toFixed(2))
+                    .replace('{currency}', currency)}
                 </p>
-                <p className="text-xs text-gray-600">Rekkefølge: {breed.display_order}</p>
+                <p className="text-xs text-gray-600">
+                  {copy.orderValue.replace('{value}', String(breed.display_order))}
+                </p>
               </div>
 
               {/* Actions */}
@@ -404,7 +413,7 @@ export function BreedManagement() {
                   onClick={() => handleEdit(breed)}
                 >
                   <Edit className="w-3.5 h-3.5 mr-1.5" />
-                  Rediger
+                  {t.common.edit}
                 </Button>
                 <Button
                   variant="outline"

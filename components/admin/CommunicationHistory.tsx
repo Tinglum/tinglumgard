@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { History, Mail, RefreshCw } from 'lucide-react';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface EmailHistoryItem {
   id: string;
@@ -19,6 +20,10 @@ interface EmailHistoryItem {
 }
 
 export function CommunicationHistory() {
+  const { t, lang } = useLanguage();
+  const copy = t.communicationHistory;
+  const locale = lang === 'en' ? 'en-US' : 'nb-NO';
+
   const [history, setHistory] = useState<EmailHistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -55,19 +60,19 @@ export function CommunicationHistory() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold">E-posthistorikk</h2>
-          <p className="text-gray-600">Oversikt over alle sendte e-poster</p>
+          <h2 className="text-2xl font-bold">{copy.title}</h2>
+          <p className="text-gray-600">{copy.subtitle}</p>
         </div>
         <Button onClick={loadHistory} variant="outline">
           <RefreshCw className="w-4 h-4 mr-2" />
-          Oppdater
+          {copy.refreshButton}
         </Button>
       </div>
 
       {history.length === 0 ? (
         <Card className="p-12 text-center">
           <History className="w-12 h-12 mx-auto mb-4 text-gray-400" />
-          <p className="text-gray-600">Ingen e-poster sendt ennå</p>
+          <p className="text-gray-600">{copy.empty}</p>
         </Card>
       ) : (
         <div className="space-y-3">
@@ -77,16 +82,14 @@ export function CommunicationHistory() {
                 <Mail className="w-5 h-5 text-blue-600 mt-1 flex-shrink-0" />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between mb-1">
-                    <p className="font-semibold text-gray-900 truncate">
-                      {item.subject}
-                    </p>
+                    <p className="font-semibold text-gray-900 truncate">{item.subject}</p>
                     <span className="text-xs text-gray-500 whitespace-nowrap ml-4">
-                      {new Date(item.sent_at).toLocaleString('nb-NO')}
+                      {new Date(item.sent_at).toLocaleString(locale)}
                     </span>
                   </div>
                   <div className="text-sm text-gray-600 space-y-1">
                     <p>
-                      <span className="font-medium">Til:</span> {item.recipient}
+                      <span className="font-medium">{copy.toLabel}</span> {item.recipient}
                       {item.orders && (
                         <span className="ml-2 text-gray-500">
                           ({item.orders.customer_name} - {item.orders.order_number})
