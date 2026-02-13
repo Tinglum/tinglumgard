@@ -626,6 +626,13 @@ export default function Page() {
           </div>
 
           <div className="grid md:grid-cols-2 gap-8">
+            {sortedPresets.length === 0 && (
+              <div className="md:col-span-2 rounded-xl border border-neutral-200 bg-neutral-50 p-8 text-sm text-neutral-600">
+                {lang === 'en'
+                  ? 'No Mangalitsa boxes are configured yet.'
+                  : 'Ingen Mangalitsa-bokser er konfigurert ennå.'}
+              </div>
+            )}
             {sortedPresets.map((preset, index) => {
               const label = lang === 'no' ? preset.name_no : preset.name_en;
               const description = (lang === 'no' ? preset.description_no : preset.description_en)

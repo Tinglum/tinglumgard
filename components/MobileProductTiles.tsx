@@ -61,6 +61,13 @@ export function MobileProductTiles({ presets }: MobileProductTilesProps) {
         </div>
 
         <div className="mt-8 space-y-6">
+          {sortedPresets.length === 0 && (
+            <div className="rounded-[28px] border border-[#E4DED5] bg-white p-6 text-sm text-[#5E5A50] shadow-[0_20px_45px_rgba(30,27,22,0.12)]">
+              {lang === 'en'
+                ? 'No Mangalitsa boxes are configured yet.'
+                : 'Ingen Mangalitsa-bokser er konfigurert ennå.'}
+            </div>
+          )}
           {sortedPresets.map((preset, idx) => {
             const name = lang === 'no' ? preset.name_no : preset.name_en;
             const pitch = lang === 'no' ? preset.short_pitch_no : preset.short_pitch_en;

@@ -147,38 +147,26 @@ export default function ProductPage() {
   const isLowStock = inventory?.isLowStock ?? false;
 
   const contents = useMemo(
-    () => {
-      if (boxPresets.length > 0) {
-        return boxPresets
-          .slice()
-          .sort((a, b) => a.display_order - b.display_order)
-          .map((preset) => {
-            const title = lang === 'en' ? preset.name_en : preset.name_no;
-            const items = (preset.contents || [])
-              .slice()
-              .sort((a, b) => a.display_order - b.display_order)
-              .map((content) => {
-                const base = lang === 'en' ? content.content_name_en : content.content_name_no;
-                if (content.target_weight_kg) {
-                  return `${base} (${content.target_weight_kg} ${t.common.kg})`;
-                }
-                return base;
-              });
+    () =>
+      boxPresets
+        .slice()
+        .sort((a, b) => a.display_order - b.display_order)
+        .map((preset) => {
+          const title = lang === 'en' ? preset.name_en : preset.name_no;
+          const items = (preset.contents || [])
+            .slice()
+            .sort((a, b) => a.display_order - b.display_order)
+            .map((content) => {
+              const base = lang === 'en' ? content.content_name_en : content.content_name_no;
+              if (content.target_weight_kg) {
+                return `${base} (${content.target_weight_kg} ${t.common.kg})`;
+              }
+              return base;
+            });
 
-            return { title, items };
-          });
-      }
-
-      return [
-        copy.contents.ribbe,
-        copy.contents.chops,
-        copy.contents.bacon,
-        copy.contents.sausages,
-        copy.contents.stew,
-        copy.contents.surprises,
-      ];
-    },
-    [boxPresets, copy, lang, t.common.kg]
+          return { title, items };
+        }),
+    [boxPresets, lang, t.common.kg]
   );
 
   return (
@@ -350,32 +338,46 @@ export default function ProductPage() {
               {copy.contentsHeading}
             </h2>
             <p className="text-base text-neutral-600 leading-relaxed">
-              {loadingPresets ? t.common.loading : copy.contentsLead}
+              {loadingPresets
+                ? t.common.loading
+                : contents.length > 0
+                  ? copy.contentsLead
+                  : (lang === 'en' ? 'No box contents configured yet.' : 'Ingen boksinnhold er konfigurert ennå.')}
             </p>
           </div>
 
-          <div className="grid gap-6 md:grid-cols-2">
-            {contents.map((item: { title: string; items: string[] }) => (
-              <GlassCard
-                key={item.title}
-                className="bg-white/80 backdrop-blur border-white/50 motion-safe:transition-transform motion-safe:hover:-translate-y-1"
-              >
-                <div className="p-6">
-                  <p className="text-xs uppercase tracking-[0.3em] text-neutral-500 font-semibold">
-                    {item.title}
-                  </p>
-                  <ul className="mt-5 space-y-3">
-                    {item.items.map((detail) => (
-                      <li key={detail} className="flex items-start gap-3 text-sm text-neutral-700">
-                        <span className="mt-2 h-1.5 w-1.5 rounded-full bg-neutral-400" />
-                        <span>{detail}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </GlassCard>
-            ))}
-          </div>
+          {contents.length > 0 ? (
+            <div className="grid gap-6 md:grid-cols-2">
+              {contents.map((item: { title: string; items: string[] }) => (
+                <GlassCard
+                  key={item.title}
+                  className="bg-white/80 backdrop-blur border-white/50 motion-safe:transition-transform motion-safe:hover:-translate-y-1"
+                >
+                  <div className="p-6">
+                    <p className="text-xs uppercase tracking-[0.3em] text-neutral-500 font-semibold">
+                      {item.title}
+                    </p>
+                    <ul className="mt-5 space-y-3">
+                      {item.items.map((detail) => (
+                        <li key={detail} className="flex items-start gap-3 text-sm text-neutral-700">
+                          <span className="mt-2 h-1.5 w-1.5 rounded-full bg-neutral-400" />
+                          <span>{detail}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </GlassCard>
+              ))}
+            </div>
+          ) : (
+            !loadingPresets && (
+              <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-6 text-sm text-neutral-600">
+                {lang === 'en'
+                  ? 'No Mangalitsa boxes are available yet. Configure box contents in admin.'
+                  : 'Ingen Mangalitsa-bokser er tilgjengelige ennå. Konfigurer boksinnhold i admin.'}
+              </div>
+            )
+          )}
 
           <div className="flex flex-col gap-4 rounded-2xl border border-neutral-200 bg-neutral-50 p-6 text-sm text-neutral-600">
             <p>{copy.contentsNote}</p>

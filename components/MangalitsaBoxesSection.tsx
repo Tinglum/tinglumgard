@@ -49,8 +49,15 @@ export function MangalitsaBoxesSection() {
         </div>
 
         {/* Box grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          {presets.map((preset: any) => {
+        {presets.length === 0 ? (
+          <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-8 text-center text-sm text-neutral-600">
+            {lang === 'en'
+              ? 'No Mangalitsa boxes configured yet.'
+              : 'Ingen Mangalitsa-bokser er konfigurert ennå.'}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            {presets.map((preset: any) => {
             const name = lang === 'no' ? preset.name_no : preset.name_en;
             const pitch = lang === 'no' ? preset.short_pitch_no : preset.short_pitch_en;
             const scarcity = lang === 'no' ? preset.scarcity_message_no : preset.scarcity_message_en;
@@ -119,8 +126,9 @@ export function MangalitsaBoxesSection() {
                 </div>
               </div>
             );
-          })}
-        </div>
+            })}
+          </div>
+        )}
 
         {/* Premium proof section */}
         <div className="mt-16 text-center">
