@@ -7,35 +7,38 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { useIsMobile } from '@/hooks/useMediaQuery';
 import { cn } from '@/lib/utils';
 import { MobileOppdelingsplan } from '@/components/MobileOppdelingsplan';
-import { MangalitsaCutInfo } from '@/components/MangalitsaCutInfo';
 import { PIG_CUT_POLYGONS } from '@/lib/constants/pig-diagram';
 import { useOppdelingsplanData } from '@/hooks/useOppdelingsplanData';
-import { oppdelingsplanContent } from '@/content/oppdelingsplan-content';
 
-interface CutInfo {
-  id: number;
-  name: string;
-  description: string;
-  inBox: readonly string[];
-  extraOrder: readonly string[];
-  weight?: string;
-  preparation?: string;
-  premiumNote?: string;
-  ribbeOptions?: readonly {
-    title: string;
-    subtitle: string;
-    points: readonly string[];
-    premium: boolean;
-  }[];
-}
+type PartKey = 'nakke' | 'svinebog' | 'kotelettkam' | 'ribbeside' | 'skinke' | 'knoke' | 'unknown';
 
 interface CutOverview {
   key: string;
   name: string;
-  partKey: string;
+  description: string;
+  partKey: PartKey;
   partName: string;
   boxes: string[];
 }
+
+const PART_BY_POLYGON_ID: Record<number, PartKey> = {
+  3: 'nakke',
+  5: 'kotelettkam',
+  7: 'ribbeside',
+  8: 'svinebog',
+  9: 'skinke',
+  10: 'knoke',
+};
+
+const PART_ORDER: Record<PartKey, number> = {
+  nakke: 1,
+  svinebog: 2,
+  kotelettkam: 3,
+  ribbeside: 4,
+  skinke: 5,
+  knoke: 6,
+  unknown: 99,
+};
 
 export default function OppdelingsplanPage() {
   const { t, lang } = useLanguage();
@@ -44,114 +47,99 @@ export default function OppdelingsplanPage() {
   const [hoveredCut, setHoveredCut] = useState<number | null>(null);
   const { extras, presets } = useOppdelingsplanData();
 
-  const copy = oppdelingsplanContent[lang].page;
-
-  // Build cuts from Mangalitsa content (names with chef terminology)
-  const cutKeys = ['nakke', 'indrefilet', 'kotelettkam', 'ribbeside', 'svinebog', 'skinke', 'knoke', 'labb', 'polserFarse'] as const;
-  const cutIds = [3, 4, 5, 7, 8, 9, 10, 11, 12];
-
-  const diagramCuts: CutInfo[] = cutKeys.map((key, idx) => {
-    const detail = copy.cutDetails[key] as any;
-    return {
-      id: cutIds[idx],
-      name: detail.name || t.oppdelingsplan[key] || key,
-      description: detail.description || t.oppdelingsplan[`${key}Desc`] || '',
-      inBox: detail.inBox,
-      extraOrder: detail.extraOrder,
-      weight: detail.weight,
-      preparation: detail.preparation,
-      premiumNote: detail.premiumNote,
-      ribbeOptions: key === 'ribbeside' ? copy.ribbeCards : undefined,
-    };
-  });
+  const partMeta = useMemo(
+    () => ({
+      nakke: {
+        name: t.oppdelingsplan.nakke,
+        description: t.oppdelingsplan.nakkeDesc,
+      },
+      svinebog: {
+        name: t.oppdelingsplan.svinebog,
+        description: t.oppdelingsplan.svinebogDesc,
+      },
+      kotelettkam: {
+        name: t.oppdelingsplan.kotelettkam,
+        description: t.oppdelingsplan.kotelettkamDesc,
+      },
+      ribbeside: {
+        name: t.oppdelingsplan.ribbeside,
+        description: t.oppdelingsplan.ribbesideDesc,
+      },
+      skinke: {
+        name: t.oppdelingsplan.skinke,
+        description: t.oppdelingsplan.skinkeDesc,
+      },
+      knoke: {
+        name: t.oppdelingsplan.knoke,
+        description: t.oppdelingsplan.knokeDesc,
+      },
+      unknown: {
+        name: lang === 'en' ? 'Unknown part' : 'Ukjent del',
+        description: '',
+      },
+    }),
+    [lang, t]
+  );
 
   const allCutsOverview = useMemo<CutOverview[]>(() => {
-    const partOrder: Record<string, number> = {
-      nakke: 1,
-      svinebog: 2,
-      kotelettkam: 3,
-      ribbeside: 4,
-      skinke: 5,
-      knoke: 6,
-    };
-
     const map = new Map<string, CutOverview>();
-
-    const inferPartFromCutName = (name: string): { key: string; nameNo: string; nameEn: string } => {
-      const normalized = name.toLowerCase();
-      if (normalized.includes('guanciale') || normalized.includes('svinekinn') || normalized.includes('nakkekam') || normalized.includes('coppa') || normalized.includes('secreto') || normalized.includes('presa') || normalized.includes('pluma')) {
-        return { key: 'nakke', nameNo: 'Nakke', nameEn: 'Neck' };
-      }
-      if (normalized.includes('tomahawk') || normalized.includes('entrecote') || normalized.includes('entrecôte') || normalized.includes('kotelett') || normalized.includes('indrefilet') || normalized.includes('lardo') || normalized.includes('ryggspekk')) {
-        return { key: 'kotelettkam', nameNo: 'Kotelettkam', nameEn: 'Loin' };
-      }
-      if (normalized.includes('ribbe') || normalized.includes('bacon') || normalized.includes('sideflesk') || normalized.includes('smult')) {
-        return { key: 'ribbeside', nameNo: 'Ribbeside', nameEn: 'Belly / Ribs' };
-      }
-      if (normalized.includes('bog') || normalized.includes('farse') || normalized.includes('pølse') || normalized.includes('polse') || normalized.includes('kjøttdeig') || normalized.includes('kjottdeig') || normalized.includes('gryte') || normalized.includes('steke')) {
-        return { key: 'svinebog', nameNo: 'Svinebog', nameEn: 'Shoulder' };
-      }
-      if (normalized.includes('skinke')) {
-        return { key: 'skinke', nameNo: 'Skinke', nameEn: 'Ham' };
-      }
-      if (normalized.includes('knoke') || normalized.includes('labb')) {
-        return { key: 'knoke', nameNo: 'Knoke', nameEn: 'Hock / Knuckle' };
-      }
-      return { key: 'unknown', nameNo: 'Ukjent del', nameEn: 'Unknown part' };
-    };
 
     for (const preset of presets) {
       const presetName = lang === 'en' ? preset.name_en : preset.name_no;
       const contents = (preset.contents || []).slice().sort((a, b) => a.display_order - b.display_order);
 
       for (const content of contents) {
-        const key = content.cut_id || content.cut_slug || content.content_name_no;
-        if (!key) continue;
-
         const cutName = lang === 'en' ? content.content_name_en : content.content_name_no;
-        const inferredPart = inferPartFromCutName(cutName);
-        const partKey = content.part_key || inferredPart.key;
-        const partName = lang === 'en'
-          ? (content.part_name_en || content.part_name_no || inferredPart.nameEn)
-          : (content.part_name_no || inferredPart.nameNo);
+        if (!cutName) continue;
 
-        const weightSuffix = content.target_weight_kg ? ` (${content.target_weight_kg} kg)` : '';
-        const boxLabel = `${presetName}${weightSuffix}`;
+        const key = content.cut_id || content.cut_slug || cutName;
+        const rawPartKey = (content.part_key || 'unknown') as PartKey;
+        const partKey: PartKey = rawPartKey in PART_ORDER ? rawPartKey : 'unknown';
+        const partName = lang === 'en'
+          ? content.part_name_en || content.part_name_no || partMeta[partKey].name
+          : content.part_name_no || partMeta[partKey].name;
+        const cutDescription = lang === 'en'
+          ? content.cut_description_en || ''
+          : content.cut_description_no || '';
+
+        const boxLabel = content.target_weight_kg
+          ? `${presetName} (${content.target_weight_kg} kg)`
+          : presetName;
 
         if (!map.has(key)) {
           map.set(key, {
             key,
             name: cutName,
+            description: cutDescription,
             partKey,
             partName,
             boxes: [boxLabel],
           });
-        } else {
-          const existing = map.get(key)!;
-          if (!existing.boxes.includes(boxLabel)) {
-            existing.boxes.push(boxLabel);
-          }
+          continue;
+        }
+
+        const existing = map.get(key)!;
+        if (!existing.boxes.includes(boxLabel)) {
+          existing.boxes.push(boxLabel);
         }
       }
     }
 
-    const sorted = Array.from(map.values()).sort((a, b) => {
-      const partDelta = (partOrder[a.partKey] || 99) - (partOrder[b.partKey] || 99);
+    return Array.from(map.values()).sort((a, b) => {
+      const partDelta = PART_ORDER[a.partKey] - PART_ORDER[b.partKey];
       if (partDelta !== 0) return partDelta;
       return a.name.localeCompare(b.name);
     });
+  }, [lang, partMeta, presets]);
 
-    if (sorted.length > 0) return sorted;
-
-    // Fallback before preset data is available: derive from static cut content.
-    return diagramCuts.map((cut) => ({
-      key: cut.name,
-      name: cut.name,
-      partKey: 'unknown',
-      partName: lang === 'en' ? 'Unknown part' : 'Ukjent del',
-      boxes: [...cut.inBox],
-    }));
-  }, [diagramCuts, lang, presets]);
+  const selectedPartKey = selectedCut ? PART_BY_POLYGON_ID[selectedCut] || null : null;
+  const selectedPartCuts = useMemo(
+    () => (selectedPartKey ? allCutsOverview.filter((cut) => cut.partKey === selectedPartKey) : []),
+    [allCutsOverview, selectedPartKey]
+  );
+  const selectedPartName = selectedPartKey ? (selectedPartCuts[0]?.partName || partMeta[selectedPartKey].name) : '';
+  const selectedPartDescription = selectedPartKey ? partMeta[selectedPartKey].description : '';
+  const hoveredPartName = hoveredCut ? partMeta[PART_BY_POLYGON_ID[hoveredCut] || 'unknown'].name : null;
 
   const inBoxSummary: string[] = Array.from(
     new Set(
@@ -165,15 +153,13 @@ export default function OppdelingsplanPage() {
         )
     )
   );
+
   const canOrderSummary: string[] = extras.length > 0
     ? extras.map((extra) => {
         const englishName = (extra as any).name_en;
         return lang === 'en' && englishName ? englishName : extra.name_no;
       })
     : [];
-
-  const selectedCutInfo = diagramCuts.find((cut) => cut.id === selectedCut);
-  const hoveredCutInfo = diagramCuts.find((cut) => cut.id === hoveredCut);
 
   if (isMobile) {
     return (
@@ -221,9 +207,11 @@ export default function OppdelingsplanPage() {
         </Link>
 
         <div className="text-center mb-16">
-          <h1 className="text-5xl font-light tracking-tight text-neutral-900 mb-4 font-[family:var(--font-playfair)]">{copy.title || t.oppdelingsplan.title}</h1>
+          <h1 className="text-5xl font-light tracking-tight text-neutral-900 mb-4 font-[family:var(--font-playfair)]">
+            {t.oppdelingsplan.title}
+          </h1>
           <p className="text-base font-light text-neutral-600 max-w-3xl mx-auto">
-            {copy.subtitle}
+            {t.oppdelingsplan.subtitle}
           </p>
         </div>
 
@@ -232,7 +220,7 @@ export default function OppdelingsplanPage() {
             <div className="relative w-full aspect-[16/9] max-w-5xl mx-auto">
               <Image
                 src="/pig-diagram3.png"
-                alt={copy.diagramAlt}
+                alt={lang === 'en' ? 'Butcher diagram' : 'Oppdelingsplan'}
                 fill
                 sizes="(min-width: 1024px) 800px, 100vw"
                 className="object-contain"
@@ -256,40 +244,66 @@ export default function OppdelingsplanPage() {
                 ))}
               </svg>
 
-              {hoveredCut && hoveredCutInfo && !selectedCut && (
+              {hoveredCut && hoveredPartName && !selectedCut && (
                 <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 rounded-xl shadow-[0_15px_40px_-12px_rgba(0,0,0,0.3)] px-6 py-3 pointer-events-none z-10 bg-white border border-neutral-200">
-                  <p className="text-sm font-light text-neutral-900">{hoveredCutInfo.name}</p>
+                  <p className="text-sm font-light text-neutral-900">{hoveredPartName}</p>
                 </div>
               )}
             </div>
           </div>
 
-          {selectedCutInfo ? (
+          {selectedPartKey ? (
             <div className="border-t-2 border-neutral-200 p-10 animate-fade-in bg-white">
-              <MangalitsaCutInfo
-                cutInfo={{
-                  name: selectedCutInfo.name,
-                  description: selectedCutInfo.description,
-                  inBox: [...selectedCutInfo.inBox],
-                  extraOrder: [...selectedCutInfo.extraOrder],
-                  weight: selectedCutInfo.weight || '',
-                  preparation: selectedCutInfo.preparation || '',
-                  premiumNote: selectedCutInfo.premiumNote || '',
-                  ribbeOptions: selectedCutInfo.ribbeOptions
-                    ? selectedCutInfo.ribbeOptions.map((option) => ({
-                        ...option,
-                        points: [...option.points],
-                      }))
-                    : undefined,
-                }}
-                labels={{
-                  inBox: copy.ui.inBox,
-                  addOns: copy.ui.addOns,
-                  weight: copy.ui.weight,
-                  preparation: copy.ui.preparation,
-                  ribbeSelection: copy.ui.ribbeSelection,
-                }}
-              />
+              <div className="bg-white border border-neutral-200 rounded-2xl p-8 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.08)] max-w-4xl mx-auto">
+                <div className="mb-6">
+                  <h3 className="text-3xl font-normal text-neutral-900 mb-3 font-[family:var(--font-playfair)]">
+                    {selectedPartName}
+                  </h3>
+                  {selectedPartDescription && (
+                    <p className="text-base font-light text-neutral-600 leading-relaxed">
+                      {selectedPartDescription}
+                    </p>
+                  )}
+                </div>
+
+                {selectedPartCuts.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-[0.3em] text-neutral-500 mb-3">
+                        {lang === 'en' ? 'Cuts from this part' : 'Kutt fra denne delen'}
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {selectedPartCuts.map((cut) => (
+                          <span
+                            key={`selected-cut-chip-${cut.key}`}
+                            className="text-xs bg-neutral-50 text-neutral-800 px-3 py-1 rounded-lg border border-neutral-200 font-light"
+                          >
+                            {cut.name}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-[0.3em] text-neutral-500 mb-3">
+                        {t.oppdelingsplan.inBox}
+                      </p>
+                      <ul className="space-y-3">
+                        {selectedPartCuts.map((cut) => (
+                          <li key={`selected-cut-boxes-${cut.key}`} className="rounded-xl border border-neutral-200 bg-neutral-50 p-3">
+                            <p className="text-sm font-normal text-neutral-900 mb-1">{cut.name}</p>
+                            <p className="text-sm font-light text-neutral-600">
+                              {cut.boxes.join(' • ')}
+                            </p>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-sm font-light text-neutral-600">{t.oppdelingsplan.noProductsInBox}</p>
+                )}
+              </div>
             </div>
           ) : (
             <div className="border-t-2 border-neutral-200 p-16 text-center bg-white">
@@ -303,34 +317,38 @@ export default function OppdelingsplanPage() {
 
         <div className="bg-white border border-neutral-200 rounded-xl p-10 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.08)] transition-all duration-500 hover:shadow-[0_30px_80px_-20px_rgba(0,0,0,0.12)]">
           <h2 className="text-3xl font-light text-neutral-900 mb-10 text-center">{t.oppdelingsplan.allCuts}</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {allCutsOverview.map((cut) => (
-              <div
-                key={cut.key}
-                className={cn(
-                  'p-6 rounded-xl border-2 text-left transition-all duration-300',
-                  'border-neutral-200 hover:border-neutral-300 hover:shadow-[0_10px_30px_-10px_rgba(0,0,0,0.1)] hover:-translate-y-1'
-                )}
-              >
-                <h3 className="text-xl font-normal text-neutral-900 mb-3">{cut.name}</h3>
-                <p className="text-sm font-light text-neutral-600 mb-4">
-                  {lang === 'en' ? 'From pig part:' : 'Fra del av gris:'} {cut.partName}
-                </p>
-                <div className="space-y-3">
-                  <div>
-                    <p className="text-xs font-light uppercase tracking-wider text-neutral-600 mb-2">{t.oppdelingsplan.inBoxShort}</p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {cut.boxes.map((box, index) => (
-                        <span key={`${cut.key}-${index}`} className="text-xs bg-neutral-50 text-neutral-800 px-2 py-1 rounded-lg border border-neutral-200 font-light">
-                          {box}
-                        </span>
-                      ))}
+          {allCutsOverview.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {allCutsOverview.map((cut) => (
+                <div
+                  key={cut.key}
+                  className={cn(
+                    'p-6 rounded-xl border-2 text-left transition-all duration-300',
+                    'border-neutral-200 hover:border-neutral-300 hover:shadow-[0_10px_30px_-10px_rgba(0,0,0,0.1)] hover:-translate-y-1'
+                  )}
+                >
+                  <h3 className="text-xl font-normal text-neutral-900 mb-3">{cut.name}</h3>
+                  <p className="text-sm font-light text-neutral-600 mb-4">
+                    {lang === 'en' ? 'From pig part:' : 'Fra del av gris:'} {cut.partName}
+                  </p>
+                  <div className="space-y-3">
+                    <div>
+                      <p className="text-xs font-light uppercase tracking-wider text-neutral-600 mb-2">{t.oppdelingsplan.inBoxShort}</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {cut.boxes.map((box, index) => (
+                          <span key={`${cut.key}-${index}`} className="text-xs bg-neutral-50 text-neutral-800 px-2 py-1 rounded-lg border border-neutral-200 font-light">
+                            {box}
+                          </span>
+                        ))}
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-neutral-500 text-center">{lang === 'en' ? 'No cuts loaded yet.' : 'Ingen kutt lastet inn ennå.'}</p>
+          )}
         </div>
 
         <div className="bg-white border border-neutral-200 rounded-xl p-10 mt-12 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.08)] transition-all duration-500 hover:shadow-[0_30px_80px_-20px_rgba(0,0,0,0.12)]">

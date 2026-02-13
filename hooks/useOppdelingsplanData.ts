@@ -10,6 +10,8 @@ interface MangalitsaPresetContent {
   part_key?: string | null;
   part_name_no?: string | null;
   part_name_en?: string | null;
+  cut_description_no?: string | null;
+  cut_description_en?: string | null;
   target_weight_kg?: number | null;
   quantity?: number | null;
   quantity_unit_no?: string | null;
