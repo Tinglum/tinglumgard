@@ -228,7 +228,11 @@ function calculateAnalytics(orders: any[], insights: any[]) {
         .map(([name, data]) => ({ name, ...data }))
         .sort((a, b) => b.count - a.count),
       revenue_trend: Object.entries(mangalitsaByWeek)
-        .map(([week, data]) => ({ week, ...data }))
+        .map(([week, data]) => ({
+          week,
+          count: (data as { count?: number; revenue?: number })?.count ?? 0,
+          revenue: (data as { count?: number; revenue?: number })?.revenue ?? 0,
+        }))
         .sort((a, b) => a.week.localeCompare(b.week)),
     },
   };
