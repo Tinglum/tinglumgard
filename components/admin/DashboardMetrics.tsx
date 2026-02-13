@@ -17,8 +17,6 @@ interface DashboardMetricsProps {
     };
     status_breakdown: Record<string, number>;
     product_breakdown: {
-      box_8kg?: number;
-      box_12kg?: number;
       box_counts?: Record<string, number>;
       total_kg: number;
     };
@@ -36,11 +34,8 @@ export function DashboardMetrics({ metrics }: DashboardMetricsProps) {
   const currency = t.common.currency;
 
   const { summary, status_breakdown, product_breakdown, completion_rates } = metrics;
-  const boxCounts = product_breakdown.box_counts || {
-    '8': product_breakdown.box_8kg || 0,
-    '12': product_breakdown.box_12kg || 0,
-  };
-  const sortedBoxEntries = Object.entries(boxCounts).sort((a, b) => Number(a[0]) - Number(b[0]));
+  const boxCounts = product_breakdown.box_counts || {};
+  const sortedBoxEntries = Object.entries(boxCounts).sort((a, b) => b[1] - a[1]);
 
   const metricCards = [
     {
@@ -196,10 +191,10 @@ export function DashboardMetrics({ metrics }: DashboardMetricsProps) {
           <div className="space-y-4">
             <div>
               <p className="text-sm text-gray-600 mb-2">{copy.boxSizesTitle}</p>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {sortedBoxEntries.map(([size, count]) => (
-                  <div key={size} className="flex-1 p-4 rounded-xl bg-blue-50">
-                    <p className="text-sm text-blue-700">{size} kg</p>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                {sortedBoxEntries.map(([label, count]) => (
+                  <div key={label} className="flex-1 p-4 rounded-xl bg-blue-50">
+                    <p className="text-sm text-blue-700 truncate" title={label}>{label}</p>
                     <p className="text-2xl font-bold text-blue-900">{count}</p>
                   </div>
                 ))}

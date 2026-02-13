@@ -9,7 +9,7 @@ export const mangalitsaStory = {
         },
         {
           title: 'Håndverk',
-          body: 'Hver gris er 11 måneder gammel. Hver boks er skåret for hand. Hver del har et formål.',
+          body: 'Hver gris er 11 måneder gammel. Hver boks er skåret for hånd. Hver del har et formål.',
         },
         {
           title: 'Kvalitet',
@@ -26,6 +26,10 @@ export const mangalitsaStory = {
       'Slaktes én gang i året',
       'Ribbe til jul, og kjøtt du faktisk husker',
     ],
+    labels: {
+      standard: 'Standard',
+      mangalitsa: 'Mangalitsa',
+    },
   },
   en: {
     whyExpensive: {
@@ -54,5 +58,9 @@ export const mangalitsaStory = {
       'Slaughtered once a year',
       'Ribs for Christmas, and meat you actually remember',
     ],
+    labels: {
+      standard: 'Standard',
+      mangalitsa: 'Mangalitsa',
+    },
   },
 };

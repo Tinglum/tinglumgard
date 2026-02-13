@@ -18,9 +18,16 @@ interface CutInfo {
 
 interface MangalitsaCutInfoProps {
   cutInfo: CutInfo;
+  labels: {
+    inBox: string;
+    addOns: string;
+    weight: string;
+    preparation: string;
+    ribbeSelection: string;
+  };
 }
 
-export function MangalitsaCutInfo({ cutInfo }: MangalitsaCutInfoProps) {
+export function MangalitsaCutInfo({ cutInfo, labels }: MangalitsaCutInfoProps) {
   return (
     <div className="bg-white border border-neutral-200 rounded-2xl p-8 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.08)] max-w-4xl mx-auto">
       {/* Header */}
@@ -46,7 +53,7 @@ export function MangalitsaCutInfo({ cutInfo }: MangalitsaCutInfoProps) {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-6">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.3em] text-neutral-500 mb-3">
-            I boks
+            {labels.inBox}
           </p>
           <ul className="space-y-2">
             {cutInfo.inBox.map((box, idx) => (
@@ -60,7 +67,7 @@ export function MangalitsaCutInfo({ cutInfo }: MangalitsaCutInfoProps) {
 
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.3em] text-neutral-500 mb-3">
-            Ekstra / Add-ons
+            {labels.addOns}
           </p>
           <ul className="space-y-2">
             {cutInfo.extraOrder.map((extra, idx) => (
@@ -77,13 +84,13 @@ export function MangalitsaCutInfo({ cutInfo }: MangalitsaCutInfoProps) {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-6 border-t border-neutral-200">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.3em] text-neutral-500 mb-2">
-            Vekt
+            {labels.weight}
           </p>
           <p className="text-sm font-light text-neutral-900">{cutInfo.weight}</p>
         </div>
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.3em] text-neutral-500 mb-2">
-            Tilberedning
+            {labels.preparation}
           </p>
           <p className="text-sm font-light text-neutral-600 leading-relaxed">
             {cutInfo.preparation}
@@ -95,7 +102,7 @@ export function MangalitsaCutInfo({ cutInfo }: MangalitsaCutInfoProps) {
       {cutInfo.ribbeOptions && cutInfo.ribbeOptions.length > 0 && (
         <div className="mt-8 pt-8 border-t border-neutral-200">
           <p className="text-xs font-semibold uppercase tracking-[0.3em] text-neutral-500 mb-4">
-            Velg ribbetype
+            {labels.ribbeSelection}
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {cutInfo.ribbeOptions.map((option, idx) => (

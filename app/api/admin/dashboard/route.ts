@@ -68,19 +68,35 @@ function calculateDashboardMetrics(orders: any[]) {
     return acc;
   }, {} as Record<string, number>);
 
-  // Product breakdown
-  const boxSizes = orders.map((o) => getEffectiveBoxSize(o));
-  const boxCounts = boxSizes.reduce((acc, size) => {
-    if (!size) return acc;
-    const key = `${size}`;
-    acc[key] = (acc[key] || 0) + 1;
-    return acc;
-  }, {} as Record<string, number>);
+  // Product breakdown — use preset names as keys instead of raw kg
+  const boxCounts: Record<string, number> = {};
+  let totalKg = 0;
+  for (const order of orders) {
+    const size = getEffectiveBoxSize(order);
+    if (!size) continue;
+    totalKg += size;
+    // Use display name (preset name) if available, otherwise fall back to "Xkg"
+    const presetName = order.display_box_name_no || order.mangalitsa_preset?.name_no;
+    const key = presetName ? `${presetName} (${size} kg)` : `${size} kg`;
+    boxCounts[key] = (boxCounts[key] || 0) + 1;
+  }
 
   const productBreakdown = {
     box_counts: boxCounts,
-    total_kg: boxSizes.reduce((sum, size) => sum + size, 0),
+    total_kg: totalKg,
   };
+
+  // Mangalitsa-specific aggregation
+  const mangalitsaOrders = orders.filter((o: any) => o.is_mangalitsa || o.mangalitsa_preset_id);
+  const mangalitsaRevenue = mangalitsaOrders.reduce((sum, order) => {
+    const completedPayments = order.payments?.filter((p: any) => p.status === 'completed') || [];
+    return sum + completedPayments.reduce((pSum: number, p: any) => pSum + p.amount_nok, 0);
+  }, 0);
+  const presetBreakdown: Record<string, number> = {};
+  for (const order of mangalitsaOrders) {
+    const name = order.display_box_name_no || order.mangalitsa_preset?.name_no || 'Ukjent';
+    presetBreakdown[name] = (presetBreakdown[name] || 0) + 1;
+  }
 
   // Delivery type breakdown
   const deliveryBreakdown = orders.reduce((acc, order) => {
@@ -161,5 +177,10 @@ function calculateDashboardMetrics(orders: any[]) {
       remainder_amount: o.remainder_amount,
       status: o.status,
     })),
+    mangalitsa: {
+      total_orders: mangalitsaOrders.length,
+      revenue: mangalitsaRevenue,
+      preset_breakdown: Object.entries(presetBreakdown).map(([name, count]) => ({ name, count })),
+    },
   };
 }

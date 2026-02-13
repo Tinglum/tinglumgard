@@ -1140,6 +1140,10 @@ export const en = {
     availabilityTitle: "Availability",
     availabilityLead: "Limited number of boxes. Ordering closes when the season is full.",
     availabilityOpen: "Open for reservations",
+    mangalitsaPerPigLabel: "4 boxes per pig",
+    mangalitsaPerPigValue: "15,600 NOK",
+    mangalitsaPriceFrom: "From 310 NOK/kg",
+    mangalitsaPriceTo: "Up to 613 NOK/kg",
     scarcityTitle: "Limited capacity",
     scarcityBody:
       "We only produce what we can raise and handle. When the season is full, ordering closes until next year.",

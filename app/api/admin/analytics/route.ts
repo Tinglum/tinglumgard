@@ -143,6 +143,40 @@ function calculateAnalytics(orders: any[], insights: any[]) {
     return acc;
   }, {} as Record<string, any>);
 
+  // Mangalitsa analytics
+  const mangalitsaOrders = orders.filter((o: any) => o.is_mangalitsa || o.mangalitsa_preset_id);
+  const standardOrders = orders.filter((o: any) => !o.is_mangalitsa && !o.mangalitsa_preset_id);
+
+  const mangalitsaRevenue = mangalitsaOrders.reduce((sum, order) => {
+    const completedPayments = order.payments?.filter((p: any) => p.status === 'completed') || [];
+    return sum + completedPayments.reduce((pSum: number, p: any) => pSum + p.amount_nok, 0);
+  }, 0);
+  const standardRevenue = totalRevenue - mangalitsaRevenue;
+
+  // Preset ranking
+  const presetRanking: Record<string, { count: number; revenue: number }> = {};
+  for (const order of mangalitsaOrders) {
+    const name = order.mangalitsa_preset?.name_no || order.display_box_name_no || 'Ukjent';
+    if (!presetRanking[name]) presetRanking[name] = { count: 0, revenue: 0 };
+    presetRanking[name].count++;
+    const rev = order.payments?.filter((p: any) => p.status === 'completed')
+      .reduce((s: number, p: any) => s + p.amount_nok, 0) || 0;
+    presetRanking[name].revenue += rev;
+  }
+
+  // Mangalitsa revenue trend by week
+  const mangalitsaByWeek = mangalitsaOrders.reduce((acc, order) => {
+    const date = new Date(order.created_at);
+    const week = getWeekNumber(date);
+    const key = `${week.year}-W${week.week}`;
+    if (!acc[key]) acc[key] = { count: 0, revenue: 0 };
+    acc[key].count++;
+    const rev = order.payments?.filter((p: any) => p.status === 'completed')
+      .reduce((s: number, p: any) => s + p.amount_nok, 0) || 0;
+    acc[key].revenue += rev;
+    return acc;
+  }, {} as Record<string, { count: number; revenue: number }>);
+
   return {
     summary: {
       total_orders: orders.length,
@@ -179,6 +213,23 @@ function calculateAnalytics(orders: any[], insights: any[]) {
       new_customers: insights.filter((i: any) => i.is_new_customer).length,
       loyal_customers: insights.filter((i: any) => i.is_loyal).length,
       at_risk_customers: insights.filter((i: any) => i.is_at_risk).length,
+    },
+    mangalitsa: {
+      split: {
+        mangalitsa_orders: mangalitsaOrders.length,
+        standard_orders: standardOrders.length,
+        mangalitsa_revenue: mangalitsaRevenue,
+        standard_revenue: standardRevenue,
+        mangalitsa_share_pct: orders.length > 0
+          ? Math.round((mangalitsaOrders.length / orders.length) * 100)
+          : 0,
+      },
+      preset_ranking: Object.entries(presetRanking)
+        .map(([name, data]) => ({ name, ...data }))
+        .sort((a, b) => b.count - a.count),
+      revenue_trend: Object.entries(mangalitsaByWeek)
+        .map(([week, data]) => ({ week, ...data }))
+        .sort((a, b) => a.week.localeCompare(b.week)),
     },
   };
 }

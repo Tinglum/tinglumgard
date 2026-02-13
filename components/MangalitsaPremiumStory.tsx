@@ -40,14 +40,14 @@ export function MangalitsaPremiumStory() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-16">
           <div className="p-8 rounded-2xl border border-neutral-200 bg-white/50">
             <p className="text-xs font-semibold uppercase tracking-[0.3em] text-neutral-400 mb-3">
-              {lang === 'no' ? 'Standard' : 'Standard'}
+              {story.labels.standard}
             </p>
             <p className="text-lg font-light text-neutral-500 italic">
               {story.contrast.standard}
             </p>
           </div>
           <div className="p-8 rounded-2xl border border-neutral-900 bg-neutral-900 text-white">
-            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-white/60 mb-3">Mangalitsa</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-white/60 mb-3">{story.labels.mangalitsa}</p>
             <p className="text-lg font-light italic">
               {story.contrast.mangalitsa}
             </p>

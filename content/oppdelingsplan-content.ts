@@ -5,6 +5,13 @@ export const oppdelingsplanContent = {
       subtitle: 'Se hva du får i hver boks, og hvilke kutt vi bruker. Klikk på et område for å lære mer.',
       diagramAlt: 'Oppdelingsplan Mangalitsa ullgris',
       premium: 'Premium',
+      ui: {
+        inBox: 'I boks',
+        addOns: 'Ekstra / Add-ons',
+        weight: 'Vekt',
+        preparation: 'Tilberedning',
+        ribbeSelection: 'Velg ribbetype',
+      },
       cutDetails: {
         nakke: {
           name: 'Nakkekam (coppa)',
@@ -226,6 +233,13 @@ export const oppdelingsplanContent = {
       subtitle: 'See what you get in each box, and which cuts we use. Click on an area to learn more.',
       diagramAlt: 'Butcher diagram Mangalitsa woolly pig',
       premium: 'Premium',
+      ui: {
+        inBox: 'In box',
+        addOns: 'Extra / Add-ons',
+        weight: 'Weight',
+        preparation: 'Preparation',
+        ribbeSelection: 'Choose rib type',
+      },
       cutDetails: {
         nakke: {
           name: 'Neck collar (coppa)',

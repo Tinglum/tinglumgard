@@ -460,3 +460,8 @@ COMMENT ON COLUMN mangalitsa_box_presets.target_weight_kg IS 'Total target weigh
 COMMENT ON COLUMN mangalitsa_box_presets.is_premium IS 'Indicates if this is a premium product offering';
 COMMENT ON COLUMN mangalitsa_preset_contents.is_hero IS 'Indicates if this cut is a hero/featured item for marketing';
 COMMENT ON COLUMN orders.is_mangalitsa IS 'Flag to identify Mangalitsa pig orders for inventory and fulfillment';
+
+-- ============================================================================
+-- 10. Validate the CHECK constraint (deferred from NOT VALID above)
+-- ============================================================================
+ALTER TABLE orders VALIDATE CONSTRAINT check_box_type;

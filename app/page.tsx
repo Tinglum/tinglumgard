@@ -343,8 +343,8 @@ export default function Page() {
     ? {
         updatedToday: 'Oppdatert i dag',
         instagram: 'Instagram',
-        followInstagram: 'Folg oss pa Instagram',
-        instagramDescription: 'Se hverdagen pa garden og oppdateringer gjennom sesongen.',
+        followInstagram: 'Følg oss på Instagram',
+        instagramDescription: 'Se hverdagen på gården og oppdateringer gjennom sesongen.',
         reserveBox: 'Reserver kasse',
         fromPrice: 'Fra',
         depositFrom: 'Forskudd fra',

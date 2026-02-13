@@ -231,12 +231,12 @@ export default function ProductPage() {
                   </p>
                   <div className="space-y-2 text-sm text-white/80">
                     <div className="flex items-center justify-between">
-                      <span>4 bokser per gris</span>
-                      <span className="tabular-nums">15 600 NOK</span>
+                      <span>{copy.mangalitsaPerPigLabel}</span>
+                      <span className="tabular-nums">{copy.mangalitsaPerPigValue}</span>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span>Fra 310 NOK/kg</span>
-                      <span className="tabular-nums">Opp til 613 NOK/kg</span>
+                      <span>{copy.mangalitsaPriceFrom}</span>
+                      <span className="tabular-nums">{copy.mangalitsaPriceTo}</span>
                     </div>
                   </div>
                 </div>
@@ -323,7 +323,7 @@ export default function ProductPage() {
               className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.3em] text-neutral-700 hover:text-neutral-900"
             >
               {copy.contentsLinkLabel}
-              <span aria-hidden>→</span>
+              <span aria-hidden>&rarr;</span>
             </Link>
           </div>
         </div>

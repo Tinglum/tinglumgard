@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useCallback, useEffect, useState } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -18,17 +18,13 @@ import {
   Search,
   Filter,
   Download,
-  Mail,
   Lock,
   Eye,
-  Trash2,
-  CheckSquare,
   RefreshCw,
-  Activity,
   MessageSquare,
   Warehouse,
-  Calendar,
-  Tag
+  Tag,
+  Beef,
 } from 'lucide-react';
 import { DashboardMetrics } from '@/components/admin/DashboardMetrics';
 import { OrderDetailModal } from '@/components/admin/OrderDetailModal';
@@ -43,9 +39,8 @@ import { DeliveryCalendar } from '@/components/admin/DeliveryCalendar';
 import { RebateCodesManager } from '@/components/admin/RebateCodesManager';
 import { MangalitsaBoxManager } from '@/components/admin/MangalitsaBoxManager';
 import { MangalitsaExtrasManager } from '@/components/admin/MangalitsaExtrasManager';
-import { NotificationSettings } from '@/components/admin/NotificationSettings';
 
-type TabType = 'dashboard' | 'orders' | 'customers' | 'analytics' | 'production' | 'communication' | 'messages' | 'health' | 'inventory' | 'mangalitsa-boxes' | 'mangalitsa-extras' | 'rebates' | 'settings' | 'notifications';
+type TabType = 'dashboard' | 'orders' | 'mangalitsa' | 'inventory' | 'customers' | 'analytics' | 'rebates' | 'settings';
 
 interface Order {
   id: string;
@@ -64,6 +59,8 @@ interface Order {
   effective_box_size?: number;
   display_box_name_no?: string | null;
   display_box_name_en?: string | null;
+  is_mangalitsa?: boolean;
+  mangalitsa_preset_id?: string | null;
   fresh_delivery?: boolean;
   ribbe_choice?: string;
   extra_products?: any[];
@@ -100,6 +97,10 @@ export default function AdminPage() {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [showOrderDetail, setShowOrderDetail] = useState(false);
   const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set());
+
+  // Sub-tab state
+  const [mangalitsaSubTab, setMangalitsaSubTab] = useState<'boxes' | 'extras'>('boxes');
+  const [customersSubTab, setCustomersSubTab] = useState<'database' | 'messages' | 'communication'>('database');
 
   // Data
   const [orders, setOrders] = useState<Order[]>([]);
@@ -275,7 +276,6 @@ export default function AdminPage() {
 
       if (response.ok) {
         await loadOrders();
-        // Update the selected order
         const updatedOrder = orders.find((o) => o.id === orderId);
         if (updatedOrder) {
           setSelectedOrder({ ...updatedOrder, admin_notes: notes });
@@ -470,7 +470,6 @@ export default function AdminPage() {
 
       const data = await response.json();
 
-      // Create downloadable JSON
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -513,18 +512,12 @@ export default function AdminPage() {
 
   const tabs: Array<{ id: TabType; label: string; icon: any }> = [
     { id: 'dashboard', label: copy.tabs.dashboard, icon: LayoutDashboard },
-    { id: 'mangalitsa-boxes', label: 'Mangalitsa Bokser', icon: Package },
-    { id: 'mangalitsa-extras', label: 'Ekstraprodukter', icon: ShoppingCart },
     { id: 'orders', label: copy.tabs.orders, icon: ShoppingCart },
+    { id: 'mangalitsa', label: 'Mangalitsa', icon: Beef },
     { id: 'inventory', label: copy.tabs.inventory, icon: Warehouse },
-    { id: 'production', label: copy.tabs.production, icon: Calendar },
-    { id: 'analytics', label: copy.tabs.analytics, icon: BarChart3 },
-    { id: 'messages', label: copy.tabs.messages, icon: MessageSquare },
     { id: 'customers', label: copy.tabs.customers, icon: Users },
-    { id: 'communication', label: copy.tabs.communication, icon: MessageSquare },
+    { id: 'analytics', label: copy.tabs.analytics, icon: BarChart3 },
     { id: 'rebates', label: copy.tabs.rebates, icon: Tag },
-    { id: 'notifications', label: copy.tabs.notifications, icon: Mail },
-    { id: 'health', label: copy.tabs.health, icon: Activity },
     { id: 'settings', label: copy.tabs.settings, icon: Settings },
   ];
 
@@ -586,6 +579,8 @@ export default function AdminPage() {
     );
   }
 
+  const unresolvedCount = messageStats.open + messageStats.in_progress;
+
   return (
     <div className="min-h-screen bg-white">
       {/* Header */}
@@ -606,17 +601,16 @@ export default function AdminPage() {
         </div>
       </div>
 
-      {/* Tabs */}
+      {/* Tabs — 8 tabs */}
       <div className="bg-white border-b border-neutral-200">
         <div className="max-w-[1800px] mx-auto px-6">
           <div className="flex gap-2 overflow-x-auto">
             {tabs.map((tab) => {
               const Icon = tab.icon;
-              const unresolvedCount = messageStats.open + messageStats.in_progress;
               return (
                 <button
                   key={tab.id}
-                  onClick={() => setActiveTab(tab.id as TabType)}
+                  onClick={() => setActiveTab(tab.id)}
                   className={cn(
                     'flex items-center gap-3 px-6 py-4 font-light transition-all duration-300 whitespace-nowrap relative',
                     activeTab === tab.id
@@ -626,7 +620,8 @@ export default function AdminPage() {
                 >
                   <Icon className="w-5 h-5" />
                   {tab.label}
-                  {tab.id === 'messages' && unresolvedCount > 0 && (
+                  {/* Unread messages badge on Kunder tab */}
+                  {tab.id === 'customers' && unresolvedCount > 0 && (
                     <span className="ml-1 inline-flex items-center justify-center text-xs font-light bg-red-600 text-white rounded-full px-2 py-0.5 shadow-[0_5px_15px_-5px_rgba(220,38,38,0.4)]">
                       {unresolvedCount}
                     </span>
@@ -643,7 +638,8 @@ export default function AdminPage() {
 
       {/* Content */}
       <div className="max-w-[1800px] mx-auto px-6 py-10">
-        {/* DASHBOARD TAB */}
+
+        {/* ═══════════ DASHBOARD TAB ═══════════ */}
         {activeTab === 'dashboard' && (
           <div className="space-y-8">
             <div className="flex items-center justify-between">
@@ -657,6 +653,7 @@ export default function AdminPage() {
               </button>
             </div>
 
+            {/* Message stats card */}
             <div className="bg-white border border-neutral-200 rounded-xl p-8 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.08)] transition-all duration-500 hover:shadow-[0_30px_80px_-20px_rgba(0,0,0,0.12)]">
               <div className="flex items-center justify-between">
                 <div>
@@ -665,9 +662,9 @@ export default function AdminPage() {
                 </div>
                 <div className="flex items-center gap-4">
                   <div className="text-5xl font-light text-neutral-900 tabular-nums">
-                    {messageStats.open + messageStats.in_progress}
+                    {unresolvedCount}
                   </div>
-                  <Button onClick={() => setActiveTab('messages')} variant="outline">
+                  <Button onClick={() => { setActiveTab('customers'); setCustomersSubTab('messages'); }} variant="outline">
                     {copy.goToMessages}
                   </Button>
                 </div>
@@ -681,8 +678,42 @@ export default function AdminPage() {
             ) : dashboardMetrics ? (
               <div className="space-y-8">
                 {dashboardMetrics.pigs && (
-                  <div>
-                    <DashboardMetrics metrics={dashboardMetrics.pigs} />
+                  <DashboardMetrics metrics={dashboardMetrics.pigs} />
+                )}
+
+                {/* Mangalitsa Widget */}
+                {dashboardMetrics.pigs?.mangalitsa && (
+                  <div className="bg-white border border-neutral-200 rounded-xl p-8 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.08)]">
+                    <div className="flex items-center gap-3 mb-6">
+                      <Beef className="w-6 h-6 text-amber-700" />
+                      <h3 className="text-2xl font-light text-neutral-900">Mangalitsa</h3>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      <div className="p-5 rounded-xl bg-amber-50 border border-amber-200">
+                        <p className="text-sm text-amber-700 mb-1">Bestillinger</p>
+                        <p className="text-3xl font-bold text-amber-900">{dashboardMetrics.pigs.mangalitsa.total_orders}</p>
+                      </div>
+                      <div className="p-5 rounded-xl bg-amber-50 border border-amber-200">
+                        <p className="text-sm text-amber-700 mb-1">Omsetning</p>
+                        <p className="text-3xl font-bold text-amber-900">
+                          {currency} {dashboardMetrics.pigs.mangalitsa.revenue.toLocaleString(locale)}
+                        </p>
+                      </div>
+                      <div className="p-5 rounded-xl bg-amber-50 border border-amber-200">
+                        <p className="text-sm text-amber-700 mb-1">Fordeling</p>
+                        <div className="space-y-1 mt-2">
+                          {dashboardMetrics.pigs.mangalitsa.preset_breakdown.map((p: any) => (
+                            <div key={p.name} className="flex justify-between text-sm">
+                              <span className="text-amber-800 truncate mr-2">{p.name}</span>
+                              <span className="font-bold text-amber-900">{p.count}</span>
+                            </div>
+                          ))}
+                          {dashboardMetrics.pigs.mangalitsa.preset_breakdown.length === 0 && (
+                            <p className="text-sm text-amber-600">Ingen bestillinger ennå</p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>
@@ -694,7 +725,7 @@ export default function AdminPage() {
           </div>
         )}
 
-        {/* ORDERS TAB */}
+        {/* ═══════════ ORDERS TAB (merged with Production/Calendar) ═══════════ */}
         {activeTab === 'orders' && (
           <div className="space-y-6">
             {/* Filters & Search */}
@@ -835,9 +866,11 @@ export default function AdminPage() {
                               >
                                 {order.order_number}
                               </button>
-                              <span className="px-2 py-0.5 bg-pink-100 text-pink-800 text-xs rounded-full font-medium">
-                                ðŸ·
-                              </span>
+                              {(order.is_mangalitsa || order.mangalitsa_preset_id) && (
+                                <span className="px-2 py-0.5 bg-amber-100 text-amber-800 text-xs rounded-full font-medium">
+                                  Mangalitsa
+                                </span>
+                              )}
                             </div>
                           </td>
                           <td className="px-4 py-3">
@@ -894,77 +927,286 @@ export default function AdminPage() {
                 </div>
               </Card>
             )}
+
+            {/* Delivery Calendar — merged from old Production tab */}
+            <div className="pt-8 border-t border-neutral-200">
+              <h3 className="text-2xl font-light text-neutral-900 mb-6">{copy.tabs.production}</h3>
+              <DeliveryCalendar />
+            </div>
           </div>
         )}
 
-        {/* ANALYTICS TAB */}
+        {/* ═══════════ MANGALITSA TAB (sub-tabbed: Bokser + Ekstra) ═══════════ */}
+        {activeTab === 'mangalitsa' && (
+          <div className="space-y-6">
+            <div className="flex items-center gap-3 mb-2">
+              <Beef className="w-7 h-7 text-amber-700" />
+              <h2 className="text-3xl font-light tracking-tight text-neutral-900">Mangalitsa</h2>
+            </div>
+
+            {/* Sub-tab bar */}
+            <div className="border-b border-neutral-200">
+              <div className="flex gap-1">
+                <button
+                  onClick={() => setMangalitsaSubTab('boxes')}
+                  className={cn(
+                    'px-5 py-3 text-sm font-light transition-all relative',
+                    mangalitsaSubTab === 'boxes'
+                      ? 'text-neutral-900'
+                      : 'text-neutral-500 hover:text-neutral-900'
+                  )}
+                >
+                  Bokser
+                  {mangalitsaSubTab === 'boxes' && (
+                    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-neutral-900" />
+                  )}
+                </button>
+                <button
+                  onClick={() => setMangalitsaSubTab('extras')}
+                  className={cn(
+                    'px-5 py-3 text-sm font-light transition-all relative',
+                    mangalitsaSubTab === 'extras'
+                      ? 'text-neutral-900'
+                      : 'text-neutral-500 hover:text-neutral-900'
+                  )}
+                >
+                  Ekstraprodukter
+                  {mangalitsaSubTab === 'extras' && (
+                    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-neutral-900" />
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {mangalitsaSubTab === 'boxes' && <MangalitsaBoxManager />}
+            {mangalitsaSubTab === 'extras' && <MangalitsaExtrasManager />}
+          </div>
+        )}
+
+        {/* ═══════════ INVENTORY TAB ═══════════ */}
+        {activeTab === 'inventory' && (
+          <div className="space-y-8">
+            <InventoryManagement />
+          </div>
+        )}
+
+        {/* ═══════════ CUSTOMERS TAB (sub-tabbed: Database + Messages + Communication) ═══════════ */}
+        {activeTab === 'customers' && (
+          <div className="space-y-6">
+            <h2 className="text-3xl font-light tracking-tight text-neutral-900">{copy.tabs.customers}</h2>
+
+            {/* Sub-tab bar */}
+            <div className="border-b border-neutral-200">
+              <div className="flex gap-1">
+                <button
+                  onClick={() => setCustomersSubTab('database')}
+                  className={cn(
+                    'px-5 py-3 text-sm font-light transition-all relative',
+                    customersSubTab === 'database'
+                      ? 'text-neutral-900'
+                      : 'text-neutral-500 hover:text-neutral-900'
+                  )}
+                >
+                  Database
+                  {customersSubTab === 'database' && (
+                    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-neutral-900" />
+                  )}
+                </button>
+                <button
+                  onClick={() => setCustomersSubTab('messages')}
+                  className={cn(
+                    'px-5 py-3 text-sm font-light transition-all relative',
+                    customersSubTab === 'messages'
+                      ? 'text-neutral-900'
+                      : 'text-neutral-500 hover:text-neutral-900'
+                  )}
+                >
+                  <span className="flex items-center gap-2">
+                    Meldinger
+                    {unresolvedCount > 0 && (
+                      <span className="inline-flex items-center justify-center text-xs font-light bg-red-600 text-white rounded-full px-2 py-0.5">
+                        {unresolvedCount}
+                      </span>
+                    )}
+                  </span>
+                  {customersSubTab === 'messages' && (
+                    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-neutral-900" />
+                  )}
+                </button>
+                <button
+                  onClick={() => setCustomersSubTab('communication')}
+                  className={cn(
+                    'px-5 py-3 text-sm font-light transition-all relative',
+                    customersSubTab === 'communication'
+                      ? 'text-neutral-900'
+                      : 'text-neutral-500 hover:text-neutral-900'
+                  )}
+                >
+                  Utsendelser
+                  {customersSubTab === 'communication' && (
+                    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-neutral-900" />
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {customersSubTab === 'database' && <CustomerDatabase />}
+            {customersSubTab === 'messages' && <AdminMessagingPanel />}
+            {customersSubTab === 'communication' && (
+              <div className="space-y-6">
+                <CommunicationCenter />
+                <CommunicationHistory />
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ═══════════ ANALYTICS TAB ═══════════ */}
         {activeTab === 'analytics' && (
           <div className="space-y-8">
             <h2 className="text-3xl font-bold text-gray-900">{copy.analyticsTitle}</h2>
 
-            {analytics && (
-              <div>
-                <h3 className="text-xl font-bold text-gray-900 mb-4">ðŸ· {copy.pigAnalyticsTitle}</h3>
             {analytics ? (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <Card className="p-6">
-                  <h3 className="font-normal text-lg mb-4">{copy.keyMetricsTitle}</h3>
-                  <div className="space-y-3">
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">{copy.totalOrdersLabel}</span>
-                      <span className="font-bold text-xl">{analytics.summary.total_orders}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">{copy.uniqueCustomersLabel}</span>
-                      <span className="font-bold text-xl">{analytics.summary.total_customers}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">{copy.repeatCustomersLabel}</span>
-                      <span className="font-bold text-xl">{analytics.summary.repeat_customers}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">{copy.repeatRateLabel}</span>
-                      <span className="font-bold text-xl">{analytics.customer_insights.repeat_rate.toFixed(1)}%</span>
-                    </div>
-                  </div>
-                </Card>
-
-                <Card className="p-6">
-                  <h3 className="font-normal text-lg mb-4">{copy.conversionFunnelTitle}</h3>
-                  <div className="space-y-2">
-                    {Object.entries(analytics.conversion_funnel).map(([status, count]: [string, any]) => {
-                      const percentage = (count / analytics.summary.total_orders) * 100;
-                      return (
-                        <div key={status}>
-                          <div className="flex justify-between text-sm mb-1">
-                            <span className="capitalize text-gray-700">{status.replace('_', ' ')}</span>
-                            <span className="font-normal">{count} ({percentage.toFixed(0)}%)</span>
-                          </div>
-                          <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                            <div
-                              className="h-full bg-blue-500 transition-all"
-                              style={{ width: `${percentage}%` }}
-                            />
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </Card>
-
-                {analytics.products.combinations.length > 0 && (
-                  <Card className="p-6 lg:col-span-2">
-                    <h3 className="font-normal text-lg mb-4">{copy.popularCombosTitle}</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {analytics.products.combinations.map((combo: any, index: number) => (
-                        <div key={index} className="p-4 rounded-xl bg-gray-50">
-                          <p className="font-medium text-gray-900">{combo.combo}</p>
-                          <p className="text-2xl font-bold text-blue-600">{combo.count}</p>
-                          <p className="text-sm text-gray-600">{copy.ordersLabel}</p>
-                        </div>
-                      ))}
+              <div className="space-y-8">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <Card className="p-6">
+                    <h3 className="font-normal text-lg mb-4">{copy.keyMetricsTitle}</h3>
+                    <div className="space-y-3">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">{copy.totalOrdersLabel}</span>
+                        <span className="font-bold text-xl">{analytics.summary.total_orders}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">{copy.uniqueCustomersLabel}</span>
+                        <span className="font-bold text-xl">{analytics.summary.total_customers}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">{copy.repeatCustomersLabel}</span>
+                        <span className="font-bold text-xl">{analytics.summary.repeat_customers}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">{copy.repeatRateLabel}</span>
+                        <span className="font-bold text-xl">{analytics.customer_insights.repeat_rate.toFixed(1)}%</span>
+                      </div>
                     </div>
                   </Card>
+
+                  <Card className="p-6">
+                    <h3 className="font-normal text-lg mb-4">{copy.conversionFunnelTitle}</h3>
+                    <div className="space-y-2">
+                      {Object.entries(analytics.conversion_funnel).map(([status, count]: [string, any]) => {
+                        const percentage = (count / analytics.summary.total_orders) * 100;
+                        return (
+                          <div key={status}>
+                            <div className="flex justify-between text-sm mb-1">
+                              <span className="capitalize text-gray-700">{status.replace('_', ' ')}</span>
+                              <span className="font-normal">{count} ({percentage.toFixed(0)}%)</span>
+                            </div>
+                            <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                              <div
+                                className="h-full bg-blue-500 transition-all"
+                                style={{ width: `${percentage}%` }}
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </Card>
+
+                  {analytics.products.combinations.length > 0 && (
+                    <Card className="p-6 lg:col-span-2">
+                      <h3 className="font-normal text-lg mb-4">{copy.popularCombosTitle}</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {analytics.products.combinations.map((combo: any, index: number) => (
+                          <div key={index} className="p-4 rounded-xl bg-gray-50">
+                            <p className="font-medium text-gray-900">{combo.combo}</p>
+                            <p className="text-2xl font-bold text-blue-600">{combo.count}</p>
+                            <p className="text-sm text-gray-600">{copy.ordersLabel}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </Card>
+                  )}
+                </div>
+
+                {/* Mangalitsa Analytics Section */}
+                {analytics.mangalitsa && (
+                  <div className="space-y-6">
+                    <div className="flex items-center gap-3">
+                      <Beef className="w-6 h-6 text-amber-700" />
+                      <h3 className="text-2xl font-light text-neutral-900">Mangalitsa-analyse</h3>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                      {/* Split card */}
+                      <Card className="p-6 bg-amber-50 border-amber-200">
+                        <h4 className="font-normal text-lg mb-4 text-amber-900">Fordeling</h4>
+                        <div className="space-y-3">
+                          <div className="flex justify-between">
+                            <span className="text-amber-800">Mangalitsa-bestillinger</span>
+                            <span className="font-bold text-amber-900">{analytics.mangalitsa.split.mangalitsa_orders}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-amber-800">Standard-bestillinger</span>
+                            <span className="font-bold text-amber-900">{analytics.mangalitsa.split.standard_orders}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-amber-800">Mangalitsa-andel</span>
+                            <span className="font-bold text-amber-900">{analytics.mangalitsa.split.mangalitsa_share_pct}%</span>
+                          </div>
+                          <div className="pt-2 border-t border-amber-200">
+                            <div className="flex justify-between">
+                              <span className="text-amber-800">Mangalitsa-omsetning</span>
+                              <span className="font-bold text-amber-900">
+                                {currency} {analytics.mangalitsa.split.mangalitsa_revenue.toLocaleString(locale)}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </Card>
+
+                      {/* Preset ranking */}
+                      <Card className="p-6">
+                        <h4 className="font-normal text-lg mb-4">Preset-rangering</h4>
+                        <div className="space-y-3">
+                          {analytics.mangalitsa.preset_ranking.length > 0 ? (
+                            analytics.mangalitsa.preset_ranking.map((preset: any, idx: number) => (
+                              <div key={idx} className="flex items-center justify-between p-3 rounded-xl bg-gray-50">
+                                <div>
+                                  <p className="font-medium text-gray-900">{preset.name}</p>
+                                  <p className="text-sm text-gray-600">{currency} {preset.revenue.toLocaleString(locale)}</p>
+                                </div>
+                                <span className="text-2xl font-bold text-gray-900">{preset.count}</span>
+                              </div>
+                            ))
+                          ) : (
+                            <p className="text-sm text-gray-500">Ingen Mangalitsa-bestillinger ennå</p>
+                          )}
+                        </div>
+                      </Card>
+
+                      {/* Revenue trend */}
+                      <Card className="p-6">
+                        <h4 className="font-normal text-lg mb-4">Trend per uke</h4>
+                        <div className="space-y-2">
+                          {analytics.mangalitsa.revenue_trend.length > 0 ? (
+                            analytics.mangalitsa.revenue_trend.slice(-8).map((week: any) => (
+                              <div key={week.week} className="flex items-center justify-between text-sm">
+                                <span className="text-gray-600">{week.week}</span>
+                                <div className="text-right">
+                                  <span className="font-bold text-gray-900">{week.count} </span>
+                                  <span className="text-gray-500">({currency} {week.revenue.toLocaleString(locale)})</span>
+                                </div>
+                              </div>
+                            ))
+                          ) : (
+                            <p className="text-sm text-gray-500">Ingen data ennå</p>
+                          )}
+                        </div>
+                      </Card>
+                    </div>
+                  </div>
                 )}
               </div>
             ) : (
@@ -972,76 +1214,23 @@ export default function AdminPage() {
                 <p className="text-gray-600">{copy.loadingAnalytics}</p>
               </Card>
             )}
-              </div>
-            )}
           </div>
         )}
 
-        {/* PRODUCTION/DELIVERY CALENDAR TAB */}
-        {activeTab === 'production' && <DeliveryCalendar />}
-
-        {/* INVENTORY TAB */}
-        {activeTab === 'inventory' && (
-          <div className="space-y-8">
-            <div>
-              <h3 className="text-xl font-bold text-gray-900 mb-4">ðŸ· {copy.pigInventoryTitle}</h3>
-              <InventoryManagement />
-            </div>
-          </div>
-        )}
-
-        {/* CUSTOMERS TAB */}
-        {activeTab === 'customers' && <CustomerDatabase />}
-
-        {/* COMMUNICATION TAB */}
-        {activeTab === 'communication' && (
-          <div className="space-y-6">
-            <div className="border-b">
-              <div className="flex gap-4">
-                <button
-                  onClick={() => setActiveTab('communication')}
-                  className="pb-3 px-1 border-b-2 border-[#2C1810] text-[#2C1810] font-medium"
-                >
-                  {copy.communicationSendEmail}
-                </button>
-                <button
-                  onClick={() => {
-                    const historySection = document.getElementById('comm-history');
-                    if (historySection) historySection.scrollIntoView({ behavior: 'smooth' });
-                  }}
-                  className="pb-3 px-1 border-b-2 border-transparent text-gray-600 hover:text-gray-900 font-medium"
-                >
-                  {copy.communicationHistory}
-                </button>
-              </div>
-            </div>
-            <CommunicationCenter />
-            <div id="comm-history">
-              <CommunicationHistory />
-            </div>
-          </div>
-        )}
-
-  {/* MESSAGES TAB */}
-  {activeTab === 'messages' && <AdminMessagingPanel />}
-
-        {/* SYSTEM HEALTH TAB */}
-        {activeTab === 'health' && <SystemHealth />}
-
-        {/* REBATE CODES TAB */}
+        {/* ═══════════ REBATES TAB ═══════════ */}
         {activeTab === 'rebates' && <RebateCodesManager />}
 
-        {/* MANGALITSA BOXES TAB */}
-        {activeTab === 'mangalitsa-boxes' && <MangalitsaBoxManager />}
+        {/* ═══════════ SETTINGS TAB (merged with SystemHealth) ═══════════ */}
+        {activeTab === 'settings' && (
+          <div className="space-y-8">
+            <ConfigurationManagement />
 
-        {/* MANGALITSA EXTRAS TAB */}
-        {activeTab === 'mangalitsa-extras' && <MangalitsaExtrasManager />}
-
-        {/* NOTIFICATIONS TAB */}
-        {activeTab === 'notifications' && <NotificationSettings />}
-
-        {/* SETTINGS TAB */}
-        {activeTab === 'settings' && <ConfigurationManagement />}
+            <div className="pt-8 border-t border-neutral-200">
+              <h3 className="text-2xl font-light text-neutral-900 mb-6">Systemhelse</h3>
+              <SystemHealth />
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Order Detail Modal */}

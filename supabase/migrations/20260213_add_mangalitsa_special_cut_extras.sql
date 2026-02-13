@@ -43,12 +43,12 @@ VALUES
     'Pork jowl (guanciale)',
     'Kun to kinn per gris. Dyp smak og sterk marmorering.',
     'Only two jowls per pig. Deep flavor and heavy marbling.',
-    'Restaurantkutt med hoy verdi per gram. Perfekt til carbonara og amatriciana.',
+    'Restaurantkutt med høy verdi per gram. Perfekt til carbonara og amatriciana.',
     'Restaurant-grade cut with very high value per gram. Ideal for carbonara and amatriciana.',
     'Guanciale',
     'Guanciale',
     '[
-      {"title_no":"Carbonara med guanciale","title_en":"Carbonara with guanciale","description_no":"Spr hostede biter med eggeplommer og pecorino","description_en":"Crisped cubes with egg yolks and pecorino","future_slug":"carbonara-guanciale"},
+      {"title_no":"Carbonara med guanciale","title_en":"Carbonara with guanciale","description_no":"Sprø, stekte biter med eggeplommer og pecorino","description_en":"Crisped cubes with egg yolks and pecorino","future_slug":"carbonara-guanciale"},
       {"title_no":"Amatriciana","title_en":"Amatriciana","description_no":"Tomat, chili og guanciale","description_en":"Tomato, chili and guanciale","future_slug":"amatriciana"}
     ]'::jsonb,
     'Salt lett, stek hardt, og bruk fettet i sausen.',
@@ -69,15 +69,15 @@ VALUES
     'Neck collar (coppa)',
     'Nakkekam med dyp marmorering.',
     'Neck collar with deep marbling.',
-    'Egner seg til speking som coppa eller tykke biffer pa grill.',
+    'Egner seg til speking som coppa eller tykke biffer på grill.',
     'Ideal for curing as coppa or thick steaks on high heat.',
     'Coppa',
     'Coppa',
     '[
-      {"title_no":"Coppa-prosjekt","title_en":"Coppa project","description_no":"Torrsalting og langtidsmodning","description_en":"Dry curing and long maturation","future_slug":"coppa-project"},
+      {"title_no":"Coppa-prosjekt","title_en":"Coppa project","description_no":"Tørrsalting og langtidsmodning","description_en":"Dry curing and long maturation","future_slug":"coppa-project"},
       {"title_no":"Nakkebiff","title_en":"Neck steak","description_no":"Hard varme, rosa kjerne","description_en":"High heat, pink center","future_slug":"neck-steak"}
     ]'::jsonb,
-    'Skjaer tykt, stek hardt, hvil 5 minutter.',
+    'Skjær tykt, stek hardt, hvil 5 minutter.',
     'Cut thick, sear hard, rest for 5 minutes.',
     545,
     'per_kg',
@@ -93,14 +93,14 @@ VALUES
     'extra-secreto-presa-pluma',
     'Slakterbiff (secreto, presa, pluma)',
     'Butcher steak (secreto, presa, pluma)',
-    'Smakstette, skjulte muskler med mye intramuskulart fett.',
+    'Smakstette, skjulte muskler med mye intramuskulært fett.',
     'Hidden butcher cuts with dense flavor and high intramuscular fat.',
-    'Dette er de mest ettertraktede sma-kuttene pa gris.',
+    'Dette er de mest ettertraktede små-kuttene på gris.',
     'These are the most sought-after small butcher cuts on pork.',
     'Secreto/Presa/Pluma',
     'Secreto/Presa/Pluma',
     '[
-      {"title_no":"Secreto pa plancha","title_en":"Secreto a la plancha","description_no":"2-3 min per side pa hard varme","description_en":"2-3 min per side on high heat","future_slug":"secreto-plancha"},
+      {"title_no":"Secreto på plancha","title_en":"Secreto a la plancha","description_no":"2-3 min per side på hard varme","description_en":"2-3 min per side on high heat","future_slug":"secreto-plancha"},
       {"title_no":"Presa med urter","title_en":"Presa with herbs","description_no":"Rask steking og hvile","description_en":"Quick sear and rest","future_slug":"presa-herbs"}
     ]'::jsonb,
     'Kort steketid og alltid hvile for servering.',
@@ -126,10 +126,10 @@ VALUES
     'Lardo',
     'Lardo',
     '[
-      {"title_no":"Lardo crostini","title_en":"Lardo crostini","description_no":"Tynne skiver pa ristet brod","description_en":"Thin slices on toasted bread","future_slug":"lardo-crostini"},
+      {"title_no":"Lardo crostini","title_en":"Lardo crostini","description_no":"Tynne skiver på ristet brød","description_en":"Thin slices on toasted bread","future_slug":"lardo-crostini"},
       {"title_no":"Smeltet smult","title_en":"Rendered lard","description_no":"Langsom utsmelting til glass","description_en":"Slow render into jarred fat","future_slug":"rendered-lard"}
     ]'::jsonb,
-    'Skjaer tynt for servering eller smelt ned pa lav varme.',
+    'Skjær tynt for servering eller smelt ned på lav varme.',
     'Slice thin for serving or render on low heat.',
     345,
     'per_kg',
@@ -147,12 +147,12 @@ VALUES
     'Tomahawk chop',
     'Tykke koteletter med langt bein og fettkappe.',
     'Thick chops with long bone and fat cap.',
-    'Steakhouse-kutt med wow-effekt pa fjola.',
+    'Steakhouse-kutt med wow-effekt på fjøla.',
     'Steakhouse cut with serious wow-factor.',
     'Tomahawk',
     'Tomahawk',
     '[
-      {"title_no":"Tomahawk pa grill","title_en":"Tomahawk on grill","description_no":"Direkte + indirekte varme","description_en":"Direct + indirect heat","future_slug":"tomahawk-grill"}
+      {"title_no":"Tomahawk på grill","title_en":"Tomahawk on grill","description_no":"Direkte + indirekte varme","description_en":"Direct + indirect heat","future_slug":"tomahawk-grill"}
     ]'::jsonb,
     'Sear hard first, then finish gently to medium.',
     'Sear hard first, then finish gently to medium.',
@@ -168,18 +168,18 @@ VALUES
   ),
   (
     'extra-svine-entrecote',
-    'Svine-entrecote',
+    'Svine-entrecôte',
     'Pork ribeye',
-    'Marmorerte biffer fra nakke/kam-omradet.',
+    'Marmorerte biffer fra nakke/kam-området.',
     'Marbled steaks from neck/loin area.',
     'Mye smak, mye saftighet, best med rosa kjerne.',
     'Big flavor and juiciness, best with a pink center.',
     'Ribeye',
     'Ribeye',
     '[
-      {"title_no":"Entrecote i panne","title_en":"Ribeye in pan","description_no":"Hoy varme og rask hvile","description_en":"High heat and short rest","future_slug":"pork-ribeye-pan"}
+      {"title_no":"Entrecôte i panne","title_en":"Ribeye in pan","description_no":"Høy varme og rask hvile","description_en":"High heat and short rest","future_slug":"pork-ribeye-pan"}
     ]'::jsonb,
-    'Stek 2-3 min per side pa hoy varme, hvil kort.',
+    'Stek 2-3 min per side på høy varme, hvil kort.',
     'Cook 2-3 min per side on high heat, rest briefly.',
     495,
     'per_kg',
@@ -229,7 +229,7 @@ VALUES
     '[
       {"title_no":"Speke skinke","title_en":"Cure a ham","description_no":"Lang modning 6-12 mnd","description_en":"Long cure 6-12 months","future_slug":"cure-ham"}
     ]'::jsonb,
-    'Hold fettkappen pa under lagring for bedre resultat.',
+    'Hold fettkappen på under lagring for bedre resultat.',
     'Keep the fat cap on during curing for better results.',
     449,
     'per_kg',
@@ -254,7 +254,7 @@ VALUES
     '[
       {"title_no":"Kraft av knoke","title_en":"Knuckle stock","description_no":"Langkok med aromater","description_en":"Long simmer with aromatics","future_slug":"knuckle-stock"}
     ]'::jsonb,
-    'Kok 4-6 timer for kraft, eller braiser til mork tekstur.',
+    'Kok 4-6 timer for kraft, eller braiser til mørk tekstur.',
     'Simmer 4-6 hours for stock, or braise until tender.',
     149,
     'per_unit',
@@ -272,7 +272,7 @@ VALUES
     'Rendered lard (jar)',
     'Ferdig utsmeltet fett klart til steking.',
     'Ready-rendered fat for high-flavor cooking.',
-    'Ren smak og hoy varmebestandighet pa kjokkenet.',
+    'Ren smak og høy varmebestandighet på kjøkkenet.',
     'Clean flavor and high heat performance in the kitchen.',
     'Rendered lard',
     'Rendered lard',
@@ -312,4 +312,3 @@ ON CONFLICT (slug) DO UPDATE SET
   consumes_inventory_kg = EXCLUDED.consumes_inventory_kg,
   kg_per_unit = EXCLUDED.kg_per_unit,
   updated_at = NOW();
-

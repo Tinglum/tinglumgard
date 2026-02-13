@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 
 export function MangalitsaBoxesSection() {
   const { lang, t } = useLanguage();
+  const locale = lang === 'no' ? 'nb-NO' : 'en-US';
   const [presets, setPresets] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -64,7 +65,7 @@ export function MangalitsaBoxesSection() {
                   <div className="flex items-center justify-between mb-2">
                     <h3 className="text-2xl font-normal text-neutral-900">{name}</h3>
                     <span className="text-xs px-3 py-1 bg-neutral-900 text-white rounded-full uppercase tracking-wide">
-                      {preset.target_weight_kg} kg
+                      {preset.target_weight_kg} {t.common.kg}
                     </span>
                   </div>
                   <p className="text-sm font-light text-neutral-500 italic">{pitch}</p>
@@ -80,11 +81,11 @@ export function MangalitsaBoxesSection() {
                           key={idx}
                           className={`text-sm font-light ${content.is_hero ? 'text-neutral-900 font-normal' : 'text-neutral-600'}`}
                         >
-                          <span className="mr-2">•</span>
+                          <span className="mr-2 text-neutral-400">&bull;</span>
                           {contentName}
                           {content.target_weight_kg && (
                             <span className="text-neutral-500 ml-1">
-                              ({content.target_weight_kg} kg)
+                              ({content.target_weight_kg} {t.common.kg})
                             </span>
                           )}
                         </div>
@@ -97,7 +98,7 @@ export function MangalitsaBoxesSection() {
                   <div className="flex items-center justify-between mb-4">
                     <div>
                       <p className="text-3xl font-light text-neutral-900">
-                        {preset.price_nok.toLocaleString('nb-NO')} kr
+                        {preset.price_nok.toLocaleString(locale)} {t.common.currency}
                       </p>
                       <p className="text-xs font-light text-neutral-500">
                         {Math.round(preset.price_nok / preset.target_weight_kg)} {t.mangalitsa.perKg}
