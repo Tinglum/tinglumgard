@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -29,6 +29,14 @@ interface CutInfo {
   }[];
 }
 
+interface CutOverview {
+  key: string;
+  name: string;
+  partKey: string;
+  partName: string;
+  boxes: string[];
+}
+
 export default function OppdelingsplanPage() {
   const { t, lang } = useLanguage();
   const isMobile = useIsMobile();
@@ -42,7 +50,7 @@ export default function OppdelingsplanPage() {
   const cutKeys = ['nakke', 'indrefilet', 'kotelettkam', 'ribbeside', 'svinebog', 'skinke', 'knoke', 'labb', 'polserFarse'] as const;
   const cutIds = [3, 4, 5, 7, 8, 9, 10, 11, 12];
 
-  const cuts: CutInfo[] = cutKeys.map((key, idx) => {
+  const diagramCuts: CutInfo[] = cutKeys.map((key, idx) => {
     const detail = copy.cutDetails[key] as any;
     return {
       id: cutIds[idx],
@@ -56,6 +64,94 @@ export default function OppdelingsplanPage() {
       ribbeOptions: key === 'ribbeside' ? copy.ribbeCards : undefined,
     };
   });
+
+  const allCutsOverview = useMemo<CutOverview[]>(() => {
+    const partOrder: Record<string, number> = {
+      nakke: 1,
+      svinebog: 2,
+      kotelettkam: 3,
+      ribbeside: 4,
+      skinke: 5,
+      knoke: 6,
+    };
+
+    const map = new Map<string, CutOverview>();
+
+    const inferPartFromCutName = (name: string): { key: string; nameNo: string; nameEn: string } => {
+      const normalized = name.toLowerCase();
+      if (normalized.includes('guanciale') || normalized.includes('svinekinn') || normalized.includes('nakkekam') || normalized.includes('coppa') || normalized.includes('secreto') || normalized.includes('presa') || normalized.includes('pluma')) {
+        return { key: 'nakke', nameNo: 'Nakke', nameEn: 'Neck' };
+      }
+      if (normalized.includes('tomahawk') || normalized.includes('entrecote') || normalized.includes('entrecôte') || normalized.includes('kotelett') || normalized.includes('indrefilet') || normalized.includes('lardo') || normalized.includes('ryggspekk')) {
+        return { key: 'kotelettkam', nameNo: 'Kotelettkam', nameEn: 'Loin' };
+      }
+      if (normalized.includes('ribbe') || normalized.includes('bacon') || normalized.includes('sideflesk') || normalized.includes('smult')) {
+        return { key: 'ribbeside', nameNo: 'Ribbeside', nameEn: 'Belly / Ribs' };
+      }
+      if (normalized.includes('bog') || normalized.includes('farse') || normalized.includes('pølse') || normalized.includes('polse') || normalized.includes('kjøttdeig') || normalized.includes('kjottdeig') || normalized.includes('gryte') || normalized.includes('steke')) {
+        return { key: 'svinebog', nameNo: 'Svinebog', nameEn: 'Shoulder' };
+      }
+      if (normalized.includes('skinke')) {
+        return { key: 'skinke', nameNo: 'Skinke', nameEn: 'Ham' };
+      }
+      if (normalized.includes('knoke') || normalized.includes('labb')) {
+        return { key: 'knoke', nameNo: 'Knoke', nameEn: 'Hock / Knuckle' };
+      }
+      return { key: 'unknown', nameNo: 'Ukjent del', nameEn: 'Unknown part' };
+    };
+
+    for (const preset of presets) {
+      const presetName = lang === 'en' ? preset.name_en : preset.name_no;
+      const contents = (preset.contents || []).slice().sort((a, b) => a.display_order - b.display_order);
+
+      for (const content of contents) {
+        const key = content.cut_id || content.cut_slug || content.content_name_no;
+        if (!key) continue;
+
+        const cutName = lang === 'en' ? content.content_name_en : content.content_name_no;
+        const inferredPart = inferPartFromCutName(cutName);
+        const partKey = content.part_key || inferredPart.key;
+        const partName = lang === 'en'
+          ? (content.part_name_en || content.part_name_no || inferredPart.nameEn)
+          : (content.part_name_no || inferredPart.nameNo);
+
+        const weightSuffix = content.target_weight_kg ? ` (${content.target_weight_kg} kg)` : '';
+        const boxLabel = `${presetName}${weightSuffix}`;
+
+        if (!map.has(key)) {
+          map.set(key, {
+            key,
+            name: cutName,
+            partKey,
+            partName,
+            boxes: [boxLabel],
+          });
+        } else {
+          const existing = map.get(key)!;
+          if (!existing.boxes.includes(boxLabel)) {
+            existing.boxes.push(boxLabel);
+          }
+        }
+      }
+    }
+
+    const sorted = Array.from(map.values()).sort((a, b) => {
+      const partDelta = (partOrder[a.partKey] || 99) - (partOrder[b.partKey] || 99);
+      if (partDelta !== 0) return partDelta;
+      return a.name.localeCompare(b.name);
+    });
+
+    if (sorted.length > 0) return sorted;
+
+    // Fallback before preset data is available: derive from static cut content.
+    return diagramCuts.map((cut) => ({
+      key: cut.name,
+      name: cut.name,
+      partKey: 'unknown',
+      partName: lang === 'en' ? 'Unknown part' : 'Ukjent del',
+      boxes: [...cut.inBox],
+    }));
+  }, [diagramCuts, lang, presets]);
 
   const inBoxSummary: string[] = Array.from(
     new Set(
@@ -76,8 +172,8 @@ export default function OppdelingsplanPage() {
       })
     : [];
 
-  const selectedCutInfo = cuts.find((cut) => cut.id === selectedCut);
-  const hoveredCutInfo = cuts.find((cut) => cut.id === hoveredCut);
+  const selectedCutInfo = diagramCuts.find((cut) => cut.id === selectedCut);
+  const hoveredCutInfo = diagramCuts.find((cut) => cut.id === hoveredCut);
 
   if (isMobile) {
     return (
@@ -208,42 +304,31 @@ export default function OppdelingsplanPage() {
         <div className="bg-white border border-neutral-200 rounded-xl p-10 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.08)] transition-all duration-500 hover:shadow-[0_30px_80px_-20px_rgba(0,0,0,0.12)]">
           <h2 className="text-3xl font-light text-neutral-900 mb-10 text-center">{t.oppdelingsplan.allCuts}</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {cuts.map((cut) => (
-              <button
-                key={cut.id}
-                onClick={() => setSelectedCut(cut.id)}
+            {allCutsOverview.map((cut) => (
+              <div
+                key={cut.key}
                 className={cn(
                   'p-6 rounded-xl border-2 text-left transition-all duration-300',
-                  selectedCut === cut.id
-                    ? 'border-neutral-900 bg-neutral-50 shadow-[0_15px_40px_-12px_rgba(0,0,0,0.15)]'
-                    : 'border-neutral-200 hover:border-neutral-300 hover:shadow-[0_10px_30px_-10px_rgba(0,0,0,0.1)] hover:-translate-y-1'
+                  'border-neutral-200 hover:border-neutral-300 hover:shadow-[0_10px_30px_-10px_rgba(0,0,0,0.1)] hover:-translate-y-1'
                 )}
               >
                 <h3 className="text-xl font-normal text-neutral-900 mb-3">{cut.name}</h3>
-                <p className="text-sm font-light text-neutral-600 mb-4">{cut.description}</p>
+                <p className="text-sm font-light text-neutral-600 mb-4">
+                  {lang === 'en' ? 'From pig part:' : 'Fra del av gris:'} {cut.partName}
+                </p>
                 <div className="space-y-3">
-                  {cut.inBox.length > 0 && (
-                    <div>
-                      <p className="text-xs font-light uppercase tracking-wider text-neutral-600 mb-2">{t.oppdelingsplan.inBoxShort}</p>
-                      <div className="flex flex-wrap gap-1.5">
-                        {cut.inBox.map((product, index) => (
-                          <span key={index} className="text-xs bg-neutral-50 text-neutral-800 px-2 py-1 rounded-lg border border-neutral-200 font-light">{product}</span>
-                        ))}
-                      </div>
+                  <div>
+                    <p className="text-xs font-light uppercase tracking-wider text-neutral-600 mb-2">{t.oppdelingsplan.inBoxShort}</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {cut.boxes.map((box, index) => (
+                        <span key={`${cut.key}-${index}`} className="text-xs bg-neutral-50 text-neutral-800 px-2 py-1 rounded-lg border border-neutral-200 font-light">
+                          {box}
+                        </span>
+                      ))}
                     </div>
-                  )}
-                  {cut.extraOrder.length > 0 && (
-                    <div>
-                      <p className="text-xs font-light uppercase tracking-wider text-neutral-600 mb-2">{t.oppdelingsplan.extraShort}</p>
-                      <div className="flex flex-wrap gap-1.5">
-                        {cut.extraOrder.map((product, index) => (
-                          <span key={index} className="text-xs bg-neutral-50 text-neutral-800 px-2 py-1 rounded-lg border border-neutral-200 font-light">{product}</span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+                  </div>
                 </div>
-              </button>
+              </div>
             ))}
           </div>
         </div>

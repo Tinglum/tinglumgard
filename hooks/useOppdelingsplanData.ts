@@ -5,11 +5,22 @@ interface MangalitsaPresetContent {
   id: string;
   content_name_no: string;
   content_name_en: string;
+  cut_id?: string | null;
+  cut_slug?: string | null;
+  part_key?: string | null;
+  part_name_no?: string | null;
+  part_name_en?: string | null;
+  target_weight_kg?: number | null;
+  quantity?: number | null;
+  quantity_unit_no?: string | null;
+  quantity_unit_en?: string | null;
+  is_hero?: boolean;
   display_order: number;
 }
 
 interface MangalitsaPreset {
   id: string;
+  slug: string;
   name_no: string;
   name_en: string;
   contents?: MangalitsaPresetContent[];

@@ -22,6 +22,22 @@ interface InventoryData {
   active: boolean;
 }
 
+interface MangalitsaPresetContent {
+  id: string;
+  content_name_no: string;
+  content_name_en: string;
+  target_weight_kg?: number | null;
+  display_order: number;
+}
+
+interface MangalitsaPreset {
+  id: string;
+  name_no: string;
+  name_en: string;
+  display_order: number;
+  contents?: MangalitsaPresetContent[];
+}
+
 function Section({
   id,
   className = "",
@@ -73,9 +89,11 @@ function StickyCTABar({
 }
 
 export default function ProductPage() {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const copy = t.productPage;
   const [inventory, setInventory] = useState<InventoryData | null>(null);
+  const [boxPresets, setBoxPresets] = useState<MangalitsaPreset[]>([]);
+  const [loadingPresets, setLoadingPresets] = useState(true);
   const [loadingInventory, setLoadingInventory] = useState(true);
   const [isScrolled, setIsScrolled] = useState(false);
 
@@ -84,6 +102,27 @@ export default function ProductPage() {
     handleScroll();
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    async function fetchPresets() {
+      try {
+        const res = await fetch('/api/mangalitsa/presets', { cache: 'no-store' });
+        const data = await res.json();
+        if (active) {
+          setBoxPresets(data.presets || []);
+        }
+      } catch (error) {
+        console.error('Failed to fetch presets for product page:', error);
+      } finally {
+        if (active) setLoadingPresets(false);
+      }
+    }
+    fetchPresets();
+    return () => {
+      active = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -108,15 +147,38 @@ export default function ProductPage() {
   const isLowStock = inventory?.isLowStock ?? false;
 
   const contents = useMemo(
-    () => [
-      copy.contents.ribbe,
-      copy.contents.chops,
-      copy.contents.bacon,
-      copy.contents.sausages,
-      copy.contents.stew,
-      copy.contents.surprises,
-    ],
-    [copy]
+    () => {
+      if (boxPresets.length > 0) {
+        return boxPresets
+          .slice()
+          .sort((a, b) => a.display_order - b.display_order)
+          .map((preset) => {
+            const title = lang === 'en' ? preset.name_en : preset.name_no;
+            const items = (preset.contents || [])
+              .slice()
+              .sort((a, b) => a.display_order - b.display_order)
+              .map((content) => {
+                const base = lang === 'en' ? content.content_name_en : content.content_name_no;
+                if (content.target_weight_kg) {
+                  return `${base} (${content.target_weight_kg} ${t.common.kg})`;
+                }
+                return base;
+              });
+
+            return { title, items };
+          });
+      }
+
+      return [
+        copy.contents.ribbe,
+        copy.contents.chops,
+        copy.contents.bacon,
+        copy.contents.sausages,
+        copy.contents.stew,
+        copy.contents.surprises,
+      ];
+    },
+    [boxPresets, copy, lang, t.common.kg]
   );
 
   return (
@@ -288,7 +350,7 @@ export default function ProductPage() {
               {copy.contentsHeading}
             </h2>
             <p className="text-base text-neutral-600 leading-relaxed">
-              {copy.contentsLead}
+              {loadingPresets ? t.common.loading : copy.contentsLead}
             </p>
           </div>
 
@@ -418,6 +480,24 @@ export default function ProductPage() {
         </div>
       </Section>
 
+      <Section className="bg-neutral-950 text-white">
+        <div className="mx-auto max-w-5xl px-6 text-center space-y-6">
+          <SectionLabel>{copy.finalCtaEyebrow}</SectionLabel>
+          <h2 className="text-3xl sm:text-4xl font-light tracking-tight font-[family:var(--font-playfair)]">
+            {copy.finalCtaHeading}
+          </h2>
+          <p className="text-base text-white/70 leading-relaxed">
+            {copy.finalCtaBody}
+          </p>
+          <Link
+            href="#mangalitsa-boxes"
+            className="inline-flex items-center justify-center rounded-xl bg-white px-10 py-4 text-xs font-bold uppercase tracking-[0.3em] text-neutral-900"
+          >
+            {copy.finalCtaButton}
+          </Link>
+        </div>
+      </Section>
+
       <Section className="bg-white">
         <div className="mx-auto max-w-5xl px-6 space-y-10">
           <div className="space-y-3">
@@ -464,24 +544,6 @@ export default function ProductPage() {
               {copy.policyPrivacy}
             </Link>
           </div>
-        </div>
-      </Section>
-
-      <Section className="bg-neutral-950 text-white">
-        <div className="mx-auto max-w-5xl px-6 text-center space-y-6">
-          <SectionLabel>{copy.finalCtaEyebrow}</SectionLabel>
-          <h2 className="text-3xl sm:text-4xl font-light tracking-tight font-[family:var(--font-playfair)]">
-            {copy.finalCtaHeading}
-          </h2>
-          <p className="text-base text-white/70 leading-relaxed">
-            {copy.finalCtaBody}
-          </p>
-          <Link
-            href="#mangalitsa-boxes"
-            className="inline-flex items-center justify-center rounded-xl bg-white px-10 py-4 text-xs font-bold uppercase tracking-[0.3em] text-neutral-900"
-          >
-            {copy.finalCtaButton}
-          </Link>
         </div>
       </Section>
 
