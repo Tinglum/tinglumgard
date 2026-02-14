@@ -8,6 +8,7 @@ import { useIsMobile } from "@/hooks/useMediaQuery";
 import { MobileHero } from "@/components/MobileHero";
 import { MobileProductTiles } from "@/components/MobileProductTiles";
 import { MobileTimeline } from "@/components/MobileTimeline";
+import { useToast } from "@/hooks/use-toast";
 
 interface InventoryData {
   season: string;
@@ -280,11 +281,60 @@ function TimelineStep({
   );
 }
 
+function LazySection({
+  children,
+  placeholderClassName = "py-20",
+}: {
+  children: React.ReactNode;
+  placeholderClassName?: string;
+}) {
+  const [isVisible, setIsVisible] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const node = containerRef.current;
+    if (!node || isVisible) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        if (entry?.isIntersecting) {
+          setIsVisible(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: "220px 0px" }
+    );
+
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [isVisible]);
+
+  return (
+    <div ref={containerRef}>
+      {isVisible ? (
+        children
+      ) : (
+        <div className={placeholderClassName}>
+          <div className="max-w-6xl mx-auto px-6">
+            <div className="h-24 rounded-2xl border border-neutral-200 bg-neutral-50" />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function Page() {
   const { t, lang } = useLanguage();
+  const { toast } = useToast();
   const [inventory, setInventory] = useState<InventoryData | null>(null);
   const [presets, setPresets] = useState<MangalitsaPreset[]>([]);
   const [loading, setLoading] = useState(true);
+  const [waitlistEmail, setWaitlistEmail] = useState('');
+  const [waitlistName, setWaitlistName] = useState('');
+  const [waitlistSubmitting, setWaitlistSubmitting] = useState(false);
+  const [waitlistSuccess, setWaitlistSuccess] = useState(false);
 
   useEffect(() => {
     async function fetchInventory() {
@@ -368,6 +418,40 @@ export default function Page() {
       };
   const sortedPresets = [...presets].sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
 
+  async function handleWaitlistSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!waitlistEmail.trim()) return;
+
+    setWaitlistSubmitting(true);
+    try {
+      const response = await fetch('/api/waitlist', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: waitlistEmail.trim(),
+          name: waitlistName.trim() || undefined,
+        }),
+      });
+
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null);
+        throw new Error(payload?.error || t.checkout.somethingWentWrong);
+      }
+
+      setWaitlistSuccess(true);
+      setWaitlistEmail('');
+      setWaitlistName('');
+    } catch (error: any) {
+      toast({
+        title: t.common.error,
+        description: error?.message || t.checkout.somethingWentWrong,
+        variant: 'destructive',
+      });
+    } finally {
+      setWaitlistSubmitting(false);
+    }
+  }
+
   // Mobile version - keep existing design
   if (isMobile) {
     return (
@@ -432,6 +516,47 @@ export default function Page() {
             </div>
           </div>
         </section>
+
+        {isSoldOut && (
+          <section id="waitlist" className="px-5 py-2">
+            <div className="mx-auto max-w-md rounded-[28px] border border-[#E4DED5] bg-white p-6 shadow-[0_20px_45px_rgba(30,27,22,0.12)]">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-[#6A6258]">{t.productCard.waitlistTitle}</p>
+              <h3 className="mt-2 text-2xl font-semibold text-[#1E1B16] font-[family:var(--font-playfair)]">
+                {t.hero.joinWaitlist}
+              </h3>
+              <p className="mt-3 text-sm text-[#5E5A50]">{t.productCard.waitlistDescription}</p>
+
+              {waitlistSuccess ? (
+                <p className="mt-4 text-sm text-emerald-700">{t.productCard.waitlistSuccess}</p>
+              ) : (
+                <form onSubmit={handleWaitlistSubmit} className="mt-4 space-y-2">
+                  <input
+                    type="email"
+                    required
+                    value={waitlistEmail}
+                    onChange={(event) => setWaitlistEmail(event.target.value)}
+                    placeholder={t.productCard.emailPlaceholder}
+                    className="w-full rounded-xl border border-[#E4DED5] px-3 py-2 text-sm text-[#1E1B16] focus:outline-none focus:ring-2 focus:ring-[#0F6C6F]"
+                  />
+                  <input
+                    type="text"
+                    value={waitlistName}
+                    onChange={(event) => setWaitlistName(event.target.value)}
+                    placeholder={t.productCard.namePlaceholder}
+                    className="w-full rounded-xl border border-[#E4DED5] px-3 py-2 text-sm text-[#1E1B16] focus:outline-none focus:ring-2 focus:ring-[#0F6C6F]"
+                  />
+                  <button
+                    type="submit"
+                    disabled={waitlistSubmitting}
+                    className="w-full rounded-xl bg-[#1E1B16] px-4 py-3 text-xs font-semibold uppercase tracking-[0.2em] text-white disabled:opacity-60"
+                  >
+                    {waitlistSubmitting ? t.common.processing : t.productCard.submitWaitlist}
+                  </button>
+                </form>
+              )}
+            </div>
+          </section>
+        )}
 
         <MobileTimeline />
 
@@ -626,9 +751,7 @@ export default function Page() {
           <div className="grid md:grid-cols-2 gap-8">
             {sortedPresets.length === 0 && (
               <div className="md:col-span-2 rounded-xl border border-neutral-200 bg-neutral-50 p-8 text-sm text-neutral-600">
-                {lang === 'en'
-                  ? 'No Mangalitsa boxes are configured yet.'
-                  : 'Ingen Mangalitsa-bokser er konfigurert ennå.'}
+                {t.mangalitsa.noPresets}
               </div>
             )}
             {sortedPresets.map((preset, index) => {
@@ -641,7 +764,8 @@ export default function Page() {
                 || t.mangalitsa.hero.scarcity;
               const scarcity = (lang === 'no' ? preset.scarcity_message_no : preset.scarcity_message_en)
                 || t.mangalitsa.hero.scarcity;
-              const weightMeta = `${preset.target_weight_kg} ${t.common.kg}`;
+              const approxLabel = lang === 'no' ? 'ca.' : 'approx.';
+              const weightMeta = `${approxLabel} ${preset.target_weight_kg} ${t.common.kg}`;
               const features = [...(preset.contents || [])]
                 .sort((a, b) => (a.display_order || 0) - (b.display_order || 0))
                 .map((content) => (lang === 'no' ? content.content_name_no : content.content_name_en));
@@ -718,96 +842,102 @@ export default function Page() {
         </div>
       </section>
 
-      {/* TIMELINE SECTION - Scroll cascade */}
-      <section className="py-20 px-6 lg:px-8 bg-neutral-50">
-        <div className="max-w-5xl mx-auto">
+      {isSoldOut && (
+        <section id="waitlist" className="py-16 px-6 lg:px-8 bg-white">
+          <div className="max-w-4xl mx-auto">
+            <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-8 md:p-10 shadow-[0_20px_60px_-20px_rgba(0,0,0,0.12)]">
+              <div className="max-w-2xl">
+                <MetaLabel>{t.productCard.waitlistTitle}</MetaLabel>
+                <h2 className="text-4xl font-light tracking-tight text-neutral-900 mt-3">
+                  {t.hero.joinWaitlist}
+                </h2>
+                <p className="mt-3 text-base text-neutral-600 leading-relaxed">
+                  {t.productCard.waitlistDescription}
+                </p>
+              </div>
 
-          <div className="max-w-2xl mb-16">
-            <MetaLabel>{t.timeline.howItWorks}</MetaLabel>
-            <h2 className="text-6xl font-light tracking-tight text-neutral-900 mt-3 mb-6">
-              {t.timeline.fromOrderToDelivery}
-            </h2>
-            <p className="text-lg leading-relaxed text-neutral-600">
-              {t.timeline.subtitle}
-            </p>
-          </div>
-
-          <div className="space-y-12">
-            <TimelineStep
-              date={pageCopy.timelineDate1}
-              title={t.timeline.step1Title}
-              description={t.timeline.step1Desc}
-              time={t.timeline.step1Time}
-              delay={0}
-            />
-            <TimelineStep
-              date={pageCopy.timelineDate2}
-              title={t.timeline.step2Title}
-              description={t.timeline.step2Desc}
-              time={t.timeline.step2Time}
-              delay={100}
-            />
-            <TimelineStep
-              date={pageCopy.timelineDate3}
-              title={t.timeline.step3Title}
-              description={t.timeline.step3Desc}
-              time={t.timeline.step3Time}
-              delay={200}
-            />
-            <TimelineStep
-              date={pageCopy.timelineDate4}
-              title={t.timeline.step4Title}
-              description={t.timeline.step4Desc}
-              time={t.timeline.step4Time}
-              isOptional={true}
-              delay={300}
-            />
-          </div>
-        </div>
-      </section>
-
-      {/* FAQ SECTION */}
-      <section className="py-20 px-6 lg:px-8">
-        <div className="max-w-4xl mx-auto">
-
-          <div className="max-w-2xl mb-12">
-            <MetaLabel>{t.faq.badge}</MetaLabel>
-            <h2 className="text-6xl font-light tracking-tight text-neutral-900 mt-3">
-              {t.faq.title}
-            </h2>
-          </div>
-
-          <div className="space-y-4">
-            {[
-              { q: t.faq.q1, a: t.faq.a1 },
-              { q: t.faq.q2, a: t.faq.a2 },
-              { q: t.faq.q3, a: t.faq.a3 },
-              { q: t.faq.q4, a: t.faq.a4 },
-            ].map((faq, i) => (
-              <details
-                key={i}
-                className="group bg-white border border-neutral-200 rounded-lg overflow-hidden transition-all duration-300 hover:shadow-[0_10px_30px_-10px_rgba(0,0,0,0.12)] hover:-translate-y-1"
-              >
-                <summary className="cursor-pointer py-6 px-8 flex items-center justify-between list-none font-semibold text-neutral-900">
-                  <span className="text-lg">{faq.q}</span>
-                  <svg
-                    className="w-6 h-6 text-neutral-400 transform group-open:rotate-180 transition-transform duration-300"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
+              {waitlistSuccess ? (
+                <p className="mt-6 text-sm text-emerald-700">{t.productCard.waitlistSuccess}</p>
+              ) : (
+                <form onSubmit={handleWaitlistSubmit} className="mt-6 grid gap-3 md:grid-cols-[1fr,1fr,auto]">
+                  <input
+                    type="email"
+                    required
+                    value={waitlistEmail}
+                    onChange={(event) => setWaitlistEmail(event.target.value)}
+                    placeholder={t.productCard.emailPlaceholder}
+                    className="rounded-xl border border-neutral-300 bg-white px-4 py-3 text-sm text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-400"
+                  />
+                  <input
+                    type="text"
+                    value={waitlistName}
+                    onChange={(event) => setWaitlistName(event.target.value)}
+                    placeholder={t.productCard.namePlaceholder}
+                    className="rounded-xl border border-neutral-300 bg-white px-4 py-3 text-sm text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-400"
+                  />
+                  <button
+                    type="submit"
+                    disabled={waitlistSubmitting}
+                    className="rounded-xl bg-neutral-900 px-6 py-3 text-xs font-bold uppercase tracking-[0.2em] text-white disabled:opacity-60"
                   >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
-                </summary>
-                <div className="px-8 pb-6 text-base leading-relaxed text-neutral-600">
-                  {faq.a}
-                </div>
-              </details>
-            ))}
+                    {waitlistSubmitting ? t.common.processing : t.productCard.submitWaitlist}
+                  </button>
+                </form>
+              )}
+            </div>
           </div>
+        </section>
+      )}
 
-        </div>
-      </section>
+      {/* TIMELINE SECTION - Scroll cascade */}
+      <LazySection placeholderClassName="py-20 bg-neutral-50">
+        <section className="py-20 px-6 lg:px-8 bg-neutral-50">
+          <div className="max-w-5xl mx-auto">
+
+            <div className="max-w-2xl mb-16">
+              <MetaLabel>{t.timeline.howItWorks}</MetaLabel>
+              <h2 className="text-6xl font-light tracking-tight text-neutral-900 mt-3 mb-6">
+                {t.timeline.fromOrderToDelivery}
+              </h2>
+              <p className="text-lg leading-relaxed text-neutral-600">
+                {t.timeline.subtitle}
+              </p>
+            </div>
+
+            <div className="space-y-12">
+              <TimelineStep
+                date={pageCopy.timelineDate1}
+                title={t.timeline.step1Title}
+                description={t.timeline.step1Desc}
+                time={t.timeline.step1Time}
+                delay={0}
+              />
+              <TimelineStep
+                date={pageCopy.timelineDate2}
+                title={t.timeline.step2Title}
+                description={t.timeline.step2Desc}
+                time={t.timeline.step2Time}
+                delay={100}
+              />
+              <TimelineStep
+                date={pageCopy.timelineDate3}
+                title={t.timeline.step3Title}
+                description={t.timeline.step3Desc}
+                time={t.timeline.step3Time}
+                delay={200}
+              />
+              <TimelineStep
+                date={pageCopy.timelineDate4}
+                title={t.timeline.step4Title}
+                description={t.timeline.step4Desc}
+                time={t.timeline.step4Time}
+                isOptional={true}
+                delay={300}
+              />
+            </div>
+          </div>
+        </section>
+      </LazySection>
 
       {/* LIMITED OFFER TILE */}
       <section className="py-16 px-6 lg:px-8">
@@ -847,8 +977,55 @@ export default function Page() {
         </div>
       </section>
 
+      {/* FAQ SECTION */}
+      <LazySection placeholderClassName="py-20">
+        <section className="py-20 px-6 lg:px-8">
+          <div className="max-w-4xl mx-auto">
+
+            <div className="max-w-2xl mb-12">
+              <MetaLabel>{t.faq.badge}</MetaLabel>
+              <h2 className="text-6xl font-light tracking-tight text-neutral-900 mt-3">
+                {t.faq.title}
+              </h2>
+            </div>
+
+            <div className="space-y-4">
+              {[
+                { q: t.faq.q1, a: t.faq.a1 },
+                { q: t.faq.q2, a: t.faq.a2 },
+                { q: t.faq.q3, a: t.faq.a3 },
+                { q: t.faq.q4, a: t.faq.a4 },
+              ].map((faq, i) => (
+                <details
+                  key={i}
+                  className="group bg-white border border-neutral-200 rounded-lg overflow-hidden transition-all duration-300 hover:shadow-[0_10px_30px_-10px_rgba(0,0,0,0.12)] hover:-translate-y-1"
+                >
+                  <summary className="cursor-pointer py-6 px-8 flex items-center justify-between list-none font-semibold text-neutral-900">
+                    <span className="text-lg">{faq.q}</span>
+                    <svg
+                      className="w-6 h-6 text-neutral-400 transform group-open:rotate-180 transition-transform duration-300"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </summary>
+                  <div className="px-8 pb-6 text-base leading-relaxed text-neutral-600">
+                    {faq.a}
+                  </div>
+                </details>
+              ))}
+            </div>
+
+          </div>
+        </section>
+      </LazySection>
+
       {/* INSTAGRAM FEED */}
-      <InstagramFeed />
+      <LazySection placeholderClassName="py-16">
+        <InstagramFeed />
+      </LazySection>
 
     </div>
   );

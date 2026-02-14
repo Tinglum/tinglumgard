@@ -254,6 +254,58 @@ export const en = {
     step3Title: "3. Extra meat products (optional)",
     step4Title: "4. Delivery and extras",
 
+    // UI labels
+    choosePresetTitle: "Choose your Mangalitsa box",
+    showProductInfoAria: "Show product info",
+    recipeLabel: "Recipe",
+    runningExtrasTotal: "Running extras total",
+    noExtrasSelected: "No extras selected yet",
+    chefPicksTitle: "Chef's Picks",
+    moreExtrasTitle: "More extras",
+    showCodes: "Show codes",
+    hideCodes: "Hide codes",
+    discountApplied: "Discount applied",
+
+    pricingSplit: {
+      now: "now",
+      atDelivery: "at delivery",
+      total: "total",
+      tooltip:
+        "We charge 50% now to reserve your seasonal slot, and 50% at delivery when your box is ready.",
+    },
+
+    ribbeMeta: {
+      tynnribbe: {
+        serves: "Serves: 6-8 people",
+        difficulty: "Easy - follow the guide",
+      },
+      familieribbe: {
+        serves: "Serves: 8-10 people",
+        difficulty: "Easy - forgiving cook time",
+      },
+      porchetta: {
+        serves: "Serves: 6-8 people",
+        difficulty: "Medium - roll and tie before roasting",
+      },
+      butchersChoice: {
+        serves: "Serves: adapted to selected cut",
+        difficulty: "Easy - optimized by butcher",
+      },
+    },
+
+    mobile: {
+      step: "Step",
+      chooseBox: "Choose box",
+      showLess: "Show less",
+      showAllContents: "Show full contents",
+      ribbeLabel: "Ribs",
+      importantInfo: "Important information",
+      summaryLabel: "Summary",
+      included: "Included",
+      discount: "Discount",
+      payDeposit: "Pay deposit",
+    },
+
     // Size selection
     persons2to3: "2-3 people",
     persons4to6: "4-6 people",
@@ -276,6 +328,10 @@ export const en = {
     porchettaDesc: "Boneless lower belly - Italian style",
     butchersChoice: "Butcher's choice",
     butchersChoiceDesc: "We'll choose a good rib for you based on availability",
+    butchersChoiceDescEnhanced:
+      "Recommended: the butcher selects the best rib cut from the day, with the right fat balance for juicy results.",
+    ribbeSpecialNote:
+      "Mangalitsa ribs have high fat marbling. Cook low and slow, then use the rendered fat for sauces, vegetables or mash for maximum flavor.",
     preSelected: "Pre-selected",
     recommended: "Recommended",
 
@@ -303,7 +359,7 @@ export const en = {
     remainderBeforeDelivery: "Balance before delivery",
     extraProducts: "Extra products",
     onlyOneDiscount: "Only one discount code can be used per order",
-    hasDiscountCode: "Discount code?",
+    hasDiscountCode: "Have a code?",
 
     // Terms
     depositNotRefundable: "I understand that the advance payment is non-refundable.",
@@ -331,6 +387,11 @@ export const en = {
     step2: "You'll get a confirmation email when the advance payment is received",
     step3: "Remaining amount is paid at delivery",
     seeMyOrders: "See my orders",
+    shareTitle: "Share with a friend",
+    shareBody:
+      "Share your referral discount from My page. You can also share the order page directly here.",
+    shareCopy: "Copy",
+    shareCopied: "Copied",
 
     // Errors
     somethingWentWrong: "Something went wrong. Please try again.",
@@ -796,6 +857,13 @@ export const en = {
     butchersChoiceFull: "Butcher's choice: Not sure? Choose 'Butcher's choice' when ordering, and we'll select based on availability.",
     quickSummary: "Quick summary",
     seeDetailsBelow: "See detailed information about each part below",
+    unknownPartName: "Unknown part",
+    diagramAlt: "Butcher diagram",
+    fromPigPartLabel: "From pig part:",
+    noCutsLoaded: "No cuts loaded yet.",
+    orderAsExtra: "Order as extra",
+    stickyCtaMessage: "Ready to order? Reserve your Mangalitsa box.",
+    stickyCtaButton: "Reserve box",
 
     // Cut names and descriptions
     nakke: "Neck",
@@ -1107,6 +1175,7 @@ export const en = {
 
   // Product card
   productCard: {
+    nextSeasonWaitlistTitle: "Next season waitlist",
     waitlistTitle: "Join the waitlist",
     waitlistDescription: "We will notify you when we have more stock.",
     waitlistSuccess: "Thanks! You are now on the waitlist.",
@@ -1171,6 +1240,13 @@ export const en = {
     contentsGuarantee:
       "Ribs are always included, the rest is balanced between everyday and slow-cook cuts.",
     contentsLinkLabel: "See cut map",
+    noBoxContentsConfigured: "No box contents configured yet.",
+    enhanceTitle: "Enhance your box",
+    enhanceLead: "Add premium extras during checkout",
+    enhanceBody:
+      "These are limited cuts. Reserve your box first, then add extras during checkout with one click.",
+    enhanceCta: "Add in checkout",
+    noFeaturedExtras: "No featured extras configured yet.",
     contents: {
       ribbe: {
         title: "Ribs",
@@ -1336,12 +1412,14 @@ export const en = {
 
   // Order status timeline
   orderStatusTimeline: {
-    created: "Order created",
-    deposit: "Deposit paid",
-    remainder: "Fully paid",
-    locked: "Order locked",
-    ready: "Ready for pickup",
-    completed: "Completed",
+    ordered: "Ordered",
+    orderedHint: "Order is registered",
+    growing: "Growing",
+    growingHint: "Production is underway",
+    slaughter: "Slaughter (Week 46)",
+    slaughterHint: "Scheduled for slaughter week",
+    delivery: "Delivery (Week 48)",
+    deliveryHint: "Prepared and delivered",
   },
 
   // Order timeline modal
@@ -2775,6 +2853,9 @@ export const en = {
     reserveBox: 'Reserve this box',
     perKg: 'NOK/kg',
     loading: 'Loading...',
+    noPresets: 'No Mangalitsa boxes are configured yet.',
+    boxesLabel: 'Mangalitsa boxes',
+    inBoxLabel: 'In the box',
   },
 
   // Extra product modal

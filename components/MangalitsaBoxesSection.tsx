@@ -51,9 +51,7 @@ export function MangalitsaBoxesSection() {
         {/* Box grid */}
         {presets.length === 0 ? (
           <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-8 text-center text-sm text-neutral-600">
-            {lang === 'en'
-              ? 'No Mangalitsa boxes configured yet.'
-              : 'Ingen Mangalitsa-bokser er konfigurert ennå.'}
+            {t.mangalitsa.noPresets}
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -107,8 +105,19 @@ export function MangalitsaBoxesSection() {
                       <p className="text-xs font-light text-neutral-500 uppercase tracking-wide">
                         {scarcity}
                       </p>
+                      <p className="text-xs font-light text-neutral-600 mt-2">
+                        {Math.floor(preset.price_nok * 0.5).toLocaleString(locale)} {t.common.currency} {t.checkout.pricingSplit.now}
+                        <span className="mx-1">+</span>
+                        {(preset.price_nok - Math.floor(preset.price_nok * 0.5)).toLocaleString(locale)} {t.common.currency} {t.checkout.pricingSplit.atDelivery}
+                        <span
+                          className="ml-2 text-neutral-400 cursor-help"
+                          title={t.checkout.pricingSplit.tooltip}
+                        >
+                          ⓘ
+                        </span>
+                      </p>
                       <p className="text-xs font-light text-neutral-500 mt-1">
-                        {preset.price_nok.toLocaleString(locale)} {t.common.currency}
+                        {preset.price_nok.toLocaleString(locale)} {t.common.currency} {t.checkout.pricingSplit.total}
                       </p>
                     </div>
                   </div>

@@ -47,6 +47,7 @@ interface MobileCheckoutProps {
   setRebateData: (data: any) => void;
   referralDiscount: number;
   rebateDiscount: number;
+  prefillReferralCode?: string | null;
 }
 
 export function MobileCheckout(props: MobileCheckoutProps) {
@@ -86,6 +87,7 @@ export function MobileCheckout(props: MobileCheckoutProps) {
     setRebateData,
     referralDiscount,
     rebateDiscount,
+    prefillReferralCode,
   } = props;
 
   const { t, lang } = useLanguage();
@@ -93,43 +95,19 @@ export function MobileCheckout(props: MobileCheckoutProps) {
   const [showDiscountCodes, setShowDiscountCodes] = useState(false);
   const stepRef = useRef<HTMLDivElement>(null);
 
-  const mobileCopy = lang === 'no'
-    ? {
-        step: 'Steg',
-        chooseBox: 'Velg kasse',
-        showLess: 'Vis mindre',
-        showAllContents: 'Se hele innholdet',
-        ribbeLabel: 'Ribbe',
-        importantInfo: 'Viktig informasjon',
-        summaryLabel: 'Oppsummering',
-        included: 'Inkludert',
-        discount: 'Rabatt',
-        payDeposit: 'Betal forskudd',
-      }
-    : {
-        step: 'Step',
-        chooseBox: 'Choose box',
-        showLess: 'Show less',
-        showAllContents: 'Show full contents',
-        ribbeLabel: 'Ribs',
-        importantInfo: 'Important information',
-        summaryLabel: 'Summary',
-        included: 'Included',
-        discount: 'Discount',
-        payDeposit: 'Pay deposit',
-      };
+  const mobileCopy = t.checkout.mobile;
   const locale = lang === 'no' ? 'nb-NO' : 'en-US';
 
-  const stepLabels = [
+  const checkoutStepLabels = [
     t.checkout.stepSize,
     t.checkout.stepRibbe,
     t.checkout.stepExtras,
     t.checkout.stepDelivery,
-    t.checkout.summary,
   ];
+  const progressStep = Math.min(step, 4);
 
   const stepTitle = step === 1
-    ? (lang === 'no' ? 'Velg Mangalitsa-boks' : 'Choose your Mangalitsa box')
+    ? t.checkout.choosePresetTitle
     : step === 2
       ? t.checkout.step2Title || t.checkout.selectRibbeType
       : step === 3
@@ -144,11 +122,45 @@ export function MobileCheckout(props: MobileCheckoutProps) {
     ? String(selectedPreset.target_weight_kg)
     : boxSize;
 
+  const ribbeSpecialNote = t.checkout.ribbeSpecialNote;
   const ribbeOptions = [
-    { id: 'tynnribbe', name: t.checkout.tynnribbe, desc: t.checkout.tynnribbeDesc },
-    { id: 'familieribbe', name: t.checkout.familieribbe, desc: t.checkout.familieribbeDesc },
-    { id: 'porchetta', name: t.checkout.porchetta, desc: t.checkout.porchettaDesc },
-    { id: 'butchers_choice', name: t.checkout.butchersChoice, desc: t.checkout.butchersChoiceDesc, recommended: true },
+    {
+      id: 'tynnribbe',
+      name: t.checkout.tynnribbe,
+      desc: t.checkout.tynnribbeDesc,
+      image: '🔥',
+      serves: t.checkout.ribbeMeta.tynnribbe.serves,
+      difficulty: t.checkout.ribbeMeta.tynnribbe.difficulty,
+      recipeSlug: 'tynnribbe',
+    },
+    {
+      id: 'familieribbe',
+      name: t.checkout.familieribbe,
+      desc: t.checkout.familieribbeDesc,
+      image: '🍽️',
+      serves: t.checkout.ribbeMeta.familieribbe.serves,
+      difficulty: t.checkout.ribbeMeta.familieribbe.difficulty,
+      recipeSlug: 'familieribbe',
+    },
+    {
+      id: 'porchetta',
+      name: t.checkout.porchetta,
+      desc: t.checkout.porchettaDesc,
+      image: '🇮🇹',
+      serves: t.checkout.ribbeMeta.porchetta.serves,
+      difficulty: t.checkout.ribbeMeta.porchetta.difficulty,
+      recipeSlug: 'porchetta',
+    },
+    {
+      id: 'butchers_choice',
+      name: t.checkout.butchersChoice,
+      desc: t.checkout.butchersChoiceDescEnhanced,
+      image: '🔪',
+      serves: t.checkout.ribbeMeta.butchersChoice.serves,
+      difficulty: t.checkout.ribbeMeta.butchersChoice.difficulty,
+      recipeSlug: 'butchers-choice-ribbe',
+      recommended: true,
+    },
   ];
 
   const deliveryOptions = [
@@ -172,8 +184,154 @@ export function MobileCheckout(props: MobileCheckoutProps) {
 
       return (a.display_order ?? 9999) - (b.display_order ?? 9999);
     });
+  const chefPickSlugs = new Set(['extra-guanciale', 'extra-secreto-presa-pluma', 'extra-tomahawk']);
+  const chefExtras = filteredExtras.filter((extra) => chefPickSlugs.has(extra.slug));
+  const standardExtras = filteredExtras.filter((extra) => !chefPickSlugs.has(extra.slug));
+  const extrasRunningTotal = extraProducts.reduce((total, slug) => {
+    const extra = availableExtras.find((item) => item.slug === slug);
+    if (!extra) return total;
+    const quantity = extraQuantities[slug] !== undefined
+      ? extraQuantities[slug]
+      : (extra.default_quantity || (extra.pricing_type === 'per_kg' ? 0.5 : 1));
+    return total + (extra.price_nok * quantity);
+  }, 0);
   const getExtraName = (extra: any) => (lang === 'en' && extra.name_en ? extra.name_en : extra.name_no);
   const getExtraDescription = (extra: any) => (lang === 'en' && extra.description_en ? extra.description_en : extra.description_no);
+  const recipeTagsForExtra = (extra: any) => {
+    const suggestions = Array.isArray(extra.recipe_suggestions) ? extra.recipe_suggestions : [];
+    return suggestions
+      .slice(0, 2)
+      .map((recipe: any) => (lang === 'en' ? recipe.title_en : recipe.title_no))
+      .filter(Boolean);
+  };
+
+  const renderMobileExtraCard = (extra: any, featured = false) => {
+    const isSelected = extraProducts.includes(extra.slug);
+    const quantity = extraQuantities[extra.slug] !== undefined
+      ? extraQuantities[extra.slug]
+      : (extra.default_quantity || (extra.pricing_type === 'per_kg' ? 0.5 : 1));
+    const unitLabel = extra.pricing_type === 'per_kg' ? t.common.kg : t.common.stk;
+    const formattedQty = extra.pricing_type === 'per_kg'
+      ? quantity.toLocaleString(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+      : quantity.toLocaleString(locale);
+    const recipeTags = recipeTagsForExtra(extra);
+
+    const toggleExtra = () => {
+      if (extraProducts.includes(extra.slug)) {
+        setExtraProducts(extraProducts.filter((slug) => slug !== extra.slug));
+        return;
+      }
+
+      setExtraProducts([...extraProducts, extra.slug]);
+      if (!extraQuantities[extra.slug]) {
+        const defaultQty = extra.default_quantity || (extra.pricing_type === 'per_kg' ? 0.5 : 1);
+        setExtraQuantities({
+          ...extraQuantities,
+          [extra.slug]: defaultQty,
+        });
+      }
+    };
+
+    return (
+      <div
+        key={extra.slug}
+        role="button"
+        tabIndex={0}
+        onClick={toggleExtra}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            toggleExtra();
+          }
+        }}
+        className={`flex h-full flex-col justify-between rounded-[26px] border px-4 py-4 text-left transition-all ${
+          isSelected ? 'border-[#1E1B16] bg-[#1E1B16] text-white' : 'border-[#E4DED5] bg-[#FBFAF7] text-[#1E1B16]'
+        }`}
+      >
+        <div>
+          {featured && (
+            <div className="mb-3 h-16 rounded-2xl border border-[#E4DED5] bg-gradient-to-br from-[#EEE8DD] to-[#F7F2E9] flex items-center justify-center text-lg">
+              🔥
+            </div>
+          )}
+          <div className="flex items-start justify-between gap-2">
+            <p className="text-sm font-semibold leading-snug break-words pr-1">{getExtraName(extra)}</p>
+          </div>
+          {getExtraDescription(extra) && (
+            <p className={`mt-2 text-[11px] leading-relaxed break-words ${isSelected ? 'text-white/70' : 'text-[#5E5A50]'}`}>
+              {getExtraDescription(extra)}
+            </p>
+          )}
+          {recipeTags.length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-1">
+              {recipeTags.map((tag: string) => (
+                <span
+                  key={`${extra.slug}-${tag}`}
+                  className={`rounded-full border px-2 py-0.5 text-[10px] ${isSelected ? 'border-white/30 text-white/70' : 'border-[#D7CEC1] text-[#5E5A50]'}`}
+                >
+                  {tag}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="mt-4 flex items-center justify-between text-xs">
+          <span className="font-semibold">
+            {extra.price_nok.toLocaleString(locale)} {t.common.currency}
+            <span className={`ml-1 text-[10px] ${isSelected ? 'text-white/70' : 'text-[#5E5A50]'}`}>
+              /{unitLabel}
+            </span>
+          </span>
+        </div>
+
+        {isSelected && (
+          <div className="mt-4 flex items-center justify-between rounded-full bg-white/10 px-2 py-2 text-xs">
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                const stepValue = extra.pricing_type === 'per_kg' ? 0.5 : 1;
+                const newQty = Math.round((quantity - stepValue) * 10) / 10;
+                if (newQty <= 0) {
+                  setExtraProducts(extraProducts.filter((slug) => slug !== extra.slug));
+                  const next = { ...extraQuantities };
+                  delete next[extra.slug];
+                  setExtraQuantities(next);
+                } else {
+                  setExtraQuantities({
+                    ...extraQuantities,
+                    [extra.slug]: newQty,
+                  });
+                }
+              }}
+              className="h-8 w-8 rounded-full border border-white/30 text-sm font-semibold text-white"
+            >
+              -
+            </button>
+            <div className="text-sm font-semibold text-white">
+              {formattedQty} {unitLabel}
+            </div>
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                const stepValue = extra.pricing_type === 'per_kg' ? 0.5 : 1;
+                const newQty = Math.round((quantity + stepValue) * 10) / 10;
+                setExtraQuantities({
+                  ...extraQuantities,
+                  [extra.slug]: newQty,
+                });
+              }}
+              className="h-8 w-8 rounded-full border border-white/30 text-sm font-semibold text-white"
+            >
+              +
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   useEffect(() => {
     if (!stepRef.current) return;
@@ -186,11 +344,17 @@ export function MobileCheckout(props: MobileCheckoutProps) {
     }
   }, [referralData, rebateData]);
 
+  useEffect(() => {
+    if (prefillReferralCode) {
+      setShowDiscountCodes(true);
+    }
+  }, [prefillReferralCode]);
+
   return (
     <div className="space-y-8 pb-36 text-[#1E1B16] font-[family:var(--font-manrope)]">
       <div ref={stepRef} className={`${sectionCard} scroll-mt-6`}>
         <div className="flex items-center justify-between text-[10px] font-semibold uppercase tracking-[0.2em] text-[#6A6258]">
-          <span>{mobileCopy.step} {step}/5</span>
+          <span>{mobileCopy.step} {progressStep}/4</span>
           {step > 1 && (
             <button
               type="button"
@@ -206,17 +370,17 @@ export function MobileCheckout(props: MobileCheckoutProps) {
           {stepTitle}
         </h2>
         <div className="mt-4 flex gap-2">
-          {stepLabels.map((_, index) => (
+          {checkoutStepLabels.map((_, index) => (
             <span
               key={index}
-              className={`h-1.5 flex-1 rounded-full ${step >= index + 1 ? 'bg-[#0F6C6F]' : 'bg-[#E9E1D6]'}`}
+              className={`h-1.5 flex-1 rounded-full ${progressStep >= index + 1 ? 'bg-[#0F6C6F]' : 'bg-[#E9E1D6]'}`}
             />
           ))}
         </div>
         <div className="mt-3 flex items-center justify-between text-[10px] uppercase tracking-[0.2em] text-[#B0A79C]">
-          <span className="w-1/3 text-left truncate">{step > 1 ? stepLabels[step - 2] : ''}</span>
-          <span className="w-1/3 text-center font-semibold text-[#0F6C6F]">{stepLabels[step - 1]}</span>
-          <span className="w-1/3 text-right truncate">{step < stepLabels.length ? stepLabels[step] : ''}</span>
+          <span className="w-1/3 text-left truncate">{progressStep > 1 ? checkoutStepLabels[progressStep - 2] : ''}</span>
+          <span className="w-1/3 text-center font-semibold text-[#0F6C6F]">{checkoutStepLabels[progressStep - 1]}</span>
+          <span className="w-1/3 text-right truncate">{progressStep < checkoutStepLabels.length ? checkoutStepLabels[progressStep] : ''}</span>
         </div>
       </div>
 
@@ -272,7 +436,7 @@ export function MobileCheckout(props: MobileCheckoutProps) {
                         {t.product.deposit50}: {Math.floor(preset.price_nok * 0.5).toLocaleString(locale)} {t.common.currency}
                       </p>
                       <p className={`mt-1 text-[11px] ${isSelected ? 'text-white/70' : 'text-[#5E5A50]'}`}>
-                        {preset.target_weight_kg} {t.common.kg}
+                        {lang === 'no' ? 'ca.' : 'approx.'} {preset.target_weight_kg} {t.common.kg}
                       </p>
                     </div>
                   </div>
@@ -324,7 +488,12 @@ export function MobileCheckout(props: MobileCheckoutProps) {
         <div className={sectionCard}>
           <div className="flex items-center justify-between">
             <p className={labelText}>{mobileCopy.ribbeLabel}</p>
-            <span className="text-xs text-[#5E5A50]">{selectedWeight ? `${selectedWeight} kg` : ''}</span>
+            <span className="text-xs text-[#5E5A50]">
+              {selectedWeight ? `${lang === 'no' ? 'ca.' : 'approx.'} ${selectedWeight} kg` : ''}
+            </span>
+          </div>
+          <div className="mt-4 rounded-2xl border border-[#E4DED5] bg-[#FBFAF7] p-4">
+            <p className="text-xs leading-relaxed text-[#5E5A50]">{ribbeSpecialNote}</p>
           </div>
           <div className="mt-5 space-y-4">
             {ribbeOptions.map((option) => (
@@ -339,7 +508,10 @@ export function MobileCheckout(props: MobileCheckoutProps) {
               >
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <p className="font-semibold">
+                    <p className="font-semibold flex items-center gap-2">
+                      <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-white/20 text-xs">
+                        {option.image}
+                      </span>
                       {option.name}
                       {option.recommended && (
                         <span className="ml-2 rounded-full bg-[#B35A2A] px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.2em] text-white">
@@ -350,6 +522,23 @@ export function MobileCheckout(props: MobileCheckoutProps) {
                     <p className={`mt-1 text-xs leading-relaxed ${ribbeChoice === option.id ? 'text-white/70' : 'text-[#5E5A50]'}`}>
                       {option.desc}
                     </p>
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      <span className={`rounded-full px-2 py-1 text-[10px] border ${ribbeChoice === option.id ? 'border-white/30 text-white/80' : 'border-[#D7CEC1] text-[#5E5A50]'}`}>
+                        {option.serves}
+                      </span>
+                      <span className={`rounded-full px-2 py-1 text-[10px] border ${ribbeChoice === option.id ? 'border-white/30 text-white/80' : 'border-[#D7CEC1] text-[#5E5A50]'}`}>
+                        {option.difficulty}
+                      </span>
+                      <a
+                        href={`/oppskrifter/${option.recipeSlug}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(event) => event.stopPropagation()}
+                        className={`rounded-full px-2 py-1 text-[10px] border ${ribbeChoice === option.id ? 'border-white/30 text-white/80' : 'border-[#D7CEC1] text-[#5E5A50]'}`}
+                      >
+                        {t.checkout.recipeLabel}
+                      </a>
+                    </div>
                   </div>
                   {ribbeChoice === option.id && <Check className="h-5 w-5 text-white" />}
                 </div>
@@ -378,116 +567,43 @@ export function MobileCheckout(props: MobileCheckoutProps) {
                 </div>
               </div>
             </div>
-            <div className="mt-5 grid grid-cols-2 gap-3">
-              {filteredExtras.map((extra) => {
-                const isSelected = extraProducts.includes(extra.slug);
-                const quantity = extraQuantities[extra.slug] !== undefined
-                  ? extraQuantities[extra.slug]
-                  : (extra.default_quantity || (extra.pricing_type === 'per_kg' ? 0.5 : 1));
-                const unitLabel = extra.pricing_type === 'per_kg' ? t.common.kg : t.common.stk;
-                const formattedQty = extra.pricing_type === 'per_kg'
-                  ? quantity.toLocaleString(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 })
-                  : quantity.toLocaleString(locale);
-
-                const toggleExtra = () => {
-                  if (extraProducts.includes(extra.slug)) {
-                    setExtraProducts(extraProducts.filter(p => p !== extra.slug));
-                    return;
-                  }
-                  setExtraProducts([...extraProducts, extra.slug]);
-                  if (!extraQuantities[extra.slug]) {
-                    const defaultQty = extra.default_quantity || (extra.pricing_type === 'per_kg' ? 0.5 : 1);
-                    setExtraQuantities({
-                      ...extraQuantities,
-                      [extra.slug]: defaultQty,
-                    });
-                  }
-                };
-
-                return (
-                  <div
-                    key={extra.slug}
-                    role="button"
-                    tabIndex={0}
-                    onClick={toggleExtra}
-                    onKeyDown={(event) => {
-                      if (event.key === 'Enter' || event.key === ' ') {
-                        event.preventDefault();
-                        toggleExtra();
-                      }
-                    }}
-                    className={`flex h-full flex-col justify-between rounded-[26px] border px-4 py-4 text-left transition-all ${
-                      isSelected ? 'border-[#1E1B16] bg-[#1E1B16] text-white' : 'border-[#E4DED5] bg-[#FBFAF7] text-[#1E1B16]'
-                    }`}
-                  >
-                    <div>
-                      <div className="flex items-start justify-between gap-2">
-                        <p className="text-sm font-semibold leading-snug break-words pr-1">{getExtraName(extra)}</p>
-                      </div>
-                      {getExtraDescription(extra) && (
-                        <p className={`mt-2 text-[11px] leading-relaxed break-words ${isSelected ? 'text-white/70' : 'text-[#5E5A50]'}`}>
-                          {getExtraDescription(extra)}
-                        </p>
-                      )}
-                    </div>
-
-                    <div className="mt-4 flex items-center justify-between text-xs">
-                      <span className="font-semibold">
-                        {extra.price_nok.toLocaleString(locale)} {t.common.currency}
-                        <span className={`ml-1 text-[10px] ${isSelected ? 'text-white/70' : 'text-[#5E5A50]'}`}>
-                          /{unitLabel}
-                        </span>
-                      </span>
-                    </div>
-
-                    {isSelected && (
-                      <div className="mt-4 flex items-center justify-between rounded-full bg-white/10 px-2 py-2 text-xs">
-                        <button
-                          type="button"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            const stepValue = extra.pricing_type === 'per_kg' ? 0.5 : 1;
-                            const newQty = Math.round((quantity - stepValue) * 10) / 10;
-                            if (newQty <= 0) {
-                              setExtraProducts(extraProducts.filter(p => p !== extra.slug));
-                              const newQuantities = { ...extraQuantities };
-                              delete newQuantities[extra.slug];
-                              setExtraQuantities(newQuantities);
-                            } else {
-                              setExtraQuantities({
-                                ...extraQuantities,
-                                [extra.slug]: newQty,
-                              });
-                            }
-                          }}
-                          className="h-8 w-8 rounded-full border border-white/30 text-sm font-semibold text-white"
-                        >
-                          -
-                        </button>
-                        <div className="text-sm font-semibold text-white">
-                          {formattedQty} {unitLabel}
-                        </div>
-                        <button
-                          type="button"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            const stepValue = extra.pricing_type === 'per_kg' ? 0.5 : 1;
-                            const newQty = Math.round((quantity + stepValue) * 10) / 10;
-                            setExtraQuantities({
-                              ...extraQuantities,
-                              [extra.slug]: newQty,
-                            });
-                          }}
-                          className="h-8 w-8 rounded-full border border-white/30 text-sm font-semibold text-white"
-                        >
-                          +
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+            <div className="mt-4 rounded-2xl border border-[#E4DED5] bg-[#FBFAF7] p-4">
+              <p className="text-[10px] uppercase tracking-[0.2em] text-[#6A6258]">
+                {t.checkout.runningExtrasTotal}
+              </p>
+              <div className="mt-2 flex items-center justify-between">
+                <p className="text-xs text-[#5E5A50]">
+                  {extraProducts.length > 0
+                    ? (lang === 'no' ? `${extraProducts.length} produkter valgt` : `${extraProducts.length} products selected`)
+                    : t.checkout.noExtrasSelected}
+                </p>
+                <p className="text-sm font-semibold text-[#1E1B16]">
+                  +{extrasRunningTotal.toLocaleString(locale)} {t.common.currency}
+                </p>
+              </div>
             </div>
+
+            {chefExtras.length > 0 && (
+              <div className="mt-5">
+                <p className="mb-2 text-[10px] uppercase tracking-[0.2em] text-[#6A6258]">
+                  {t.checkout.chefPicksTitle}
+                </p>
+                <div className="grid grid-cols-1 gap-3">
+                  {chefExtras.map((extra) => renderMobileExtraCard(extra, true))}
+                </div>
+              </div>
+            )}
+
+            {standardExtras.length > 0 && (
+              <div className="mt-5">
+                <p className="mb-2 text-[10px] uppercase tracking-[0.2em] text-[#6A6258]">
+                  {t.checkout.moreExtrasTitle}
+                </p>
+                <div className="grid grid-cols-2 gap-3">
+                  {standardExtras.map((extra) => renderMobileExtraCard(extra))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -554,7 +670,9 @@ export function MobileCheckout(props: MobileCheckoutProps) {
           <div className={sectionCard}>
             <div className="flex items-center justify-between">
               <p className={labelText}>{mobileCopy.summaryLabel}</p>
-              <span className="text-xs text-[#5E5A50]">{selectedWeight ? `${selectedWeight} kg` : ''}</span>
+              <span className="text-xs text-[#5E5A50]">
+                {selectedWeight ? `${lang === 'no' ? 'ca.' : 'approx.'} ${selectedWeight} kg` : ''}
+              </span>
             </div>
 
             <div className="mt-4 rounded-2xl border border-[#E4DED5] bg-[#FBFAF7] p-4 text-sm">
@@ -620,18 +738,41 @@ export function MobileCheckout(props: MobileCheckoutProps) {
           </div>
 
           <div className={sectionCard}>
-            <button
-              type="button"
-              onClick={() => setShowDiscountCodes(!showDiscountCodes)}
-              className="text-sm text-[#5E5A50] underline"
-            >
-              {t.checkout.hasDiscountCode}
-            </button>
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-sm text-[#5E5A50]">
+                  {t.checkout.hasDiscountCode}
+                </p>
+                {prefillReferralCode && !referralData && !rebateData && (
+                  <p className="mt-1 text-xs text-emerald-700">
+                    {lang === 'no'
+                      ? `Henvisningskode oppdaget: ${prefillReferralCode}`
+                      : `Referral code detected: ${prefillReferralCode}`}
+                  </p>
+                )}
+                {(referralData || rebateData) && (
+                  <p className="mt-1 text-xs text-emerald-700">
+                    {t.checkout.discountApplied}
+                  </p>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowDiscountCodes(!showDiscountCodes)}
+                className="text-sm text-[#5E5A50] underline"
+              >
+                {showDiscountCodes
+                  ? t.checkout.hideCodes
+                  : t.checkout.showCodes}
+              </button>
+            </div>
 
             {showDiscountCodes && (
               <div className="mt-4 space-y-4">
                 {!rebateData && (
                   <ReferralCodeInput
+                    initialCode={prefillReferralCode}
+                    autoApplyInitialCode={Boolean(prefillReferralCode)}
                     depositAmount={baseDepositTotal}
                     onCodeApplied={(data) => {
                       setReferralData({

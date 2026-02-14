@@ -17,9 +17,26 @@ interface EmailTemplate {
   message: string;
 }
 
+interface FlowTemplate {
+  id?: string;
+  slug: string;
+  product_type: 'mangalitsa' | 'eggs';
+  flow_stage: string;
+  name_no: string;
+  name_en: string;
+  subject_no: string;
+  subject_en: string;
+  body_no: string;
+  body_en: string;
+  active: boolean;
+  trigger_event?: string | null;
+  send_offset_days?: number;
+  display_order?: number;
+}
+
 export function CommunicationCenter() {
   const { toast } = useToast();
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const copy = t.communicationCenter;
 
   const [templates, setTemplates] = useState<EmailTemplate[]>([]);
@@ -27,6 +44,9 @@ export function CommunicationCenter() {
   const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
+  const [flowTemplates, setFlowTemplates] = useState<FlowTemplate[]>([]);
+  const [selectedFlowTemplate, setSelectedFlowTemplate] = useState<FlowTemplate | null>(null);
+  const [savingFlowTemplate, setSavingFlowTemplate] = useState(false);
 
   useEffect(() => {
     loadTemplates();
@@ -34,13 +54,28 @@ export function CommunicationCenter() {
 
   async function loadTemplates() {
     try {
-      const response = await fetch('/api/admin/communication', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'get_templates' }),
-      });
+      const [response, flowResponse] = await Promise.all([
+        fetch('/api/admin/communication', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'get_templates' }),
+        }),
+        fetch('/api/admin/communication', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'get_flow_templates' }),
+        }),
+      ]);
+
       const data = await response.json();
+      const flowData = await flowResponse.json();
+
       setTemplates(data.templates || []);
+      const flows = flowData.templates || [];
+      setFlowTemplates(flows);
+      if (flows.length > 0) {
+        setSelectedFlowTemplate(flows[0]);
+      }
     } catch (error) {
       console.error('Error loading templates:', error);
     }
@@ -56,6 +91,58 @@ export function CommunicationCenter() {
     setSelectedTemplate(null);
     setSubject('');
     setMessage('');
+  }
+
+  function selectFlowTemplate(template: FlowTemplate) {
+    setSelectedFlowTemplate(template);
+  }
+
+  function applyFlowToComposer() {
+    if (!selectedFlowTemplate) return;
+    setSubject(lang === 'no' ? selectedFlowTemplate.subject_no : selectedFlowTemplate.subject_en);
+    setMessage(lang === 'no' ? selectedFlowTemplate.body_no : selectedFlowTemplate.body_en);
+    setSelectedTemplate({
+      id: selectedFlowTemplate.slug,
+      name: lang === 'no' ? selectedFlowTemplate.name_no : selectedFlowTemplate.name_en,
+      subject: lang === 'no' ? selectedFlowTemplate.subject_no : selectedFlowTemplate.subject_en,
+      message: lang === 'no' ? selectedFlowTemplate.body_no : selectedFlowTemplate.body_en,
+    });
+  }
+
+  async function saveSelectedFlowTemplate() {
+    if (!selectedFlowTemplate) return;
+    setSavingFlowTemplate(true);
+    try {
+      const response = await fetch('/api/admin/communication', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'save_flow_template',
+          data: { template: selectedFlowTemplate },
+        }),
+      });
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload.error || copy.unknownError);
+      }
+
+      toast({
+        title: lang === 'no' ? 'Mal lagret' : 'Template saved',
+        description: lang === 'no'
+          ? 'Flytmalen ble oppdatert.'
+          : 'The flow template was updated.',
+      });
+
+      await loadTemplates();
+    } catch (error: any) {
+      toast({
+        title: copy.genericErrorTitle,
+        description: error?.message || copy.genericErrorDescription,
+        variant: 'destructive',
+      });
+    } finally {
+      setSavingFlowTemplate(false);
+    }
   }
 
   async function sendToAllCustomers() {
@@ -237,6 +324,169 @@ export function CommunicationCenter() {
           </div>
         </Card>
       )}
+
+      <Card className="p-6">
+        <div className="flex items-center justify-between gap-4 mb-4">
+          <div>
+            <h3 className="font-semibold text-lg">
+              {lang === 'no' ? 'Ordre-flyt maler (egg + Mangalitsa)' : 'Order flow templates (eggs + Mangalitsa)'}
+            </h3>
+            <p className="text-sm text-gray-600">
+              {lang === 'no'
+                ? 'Brukes til ordrebekreftelse, sesongoppdatering, slakte-/pakkeuke, levering og tilbakemelding.'
+                : 'Used for confirmation, season updates, slaughter/packing week, delivery, and feedback.'}
+            </p>
+          </div>
+          <Button variant="outline" onClick={applyFlowToComposer} disabled={!selectedFlowTemplate}>
+            {lang === 'no' ? 'Bruk i utsendelse' : 'Use in composer'}
+          </Button>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="space-y-2 max-h-[520px] overflow-y-auto pr-1">
+            {flowTemplates.map((template) => {
+              const isSelected = selectedFlowTemplate?.slug === template.slug;
+              return (
+                <button
+                  key={template.slug}
+                  onClick={() => selectFlowTemplate(template)}
+                  className={`w-full text-left p-3 rounded-xl border transition-colors ${
+                    isSelected
+                      ? 'bg-blue-50 border-blue-200'
+                      : 'hover:bg-gray-50 border-gray-200'
+                  }`}
+                >
+                  <p className="text-xs uppercase tracking-wide text-gray-500">
+                    {template.product_type} · {template.flow_stage}
+                  </p>
+                  <p className="font-medium text-sm mt-1">
+                    {lang === 'no' ? template.name_no : template.name_en}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {template.active
+                      ? (lang === 'no' ? 'Aktiv' : 'Active')
+                      : (lang === 'no' ? 'Inaktiv' : 'Inactive')}
+                  </p>
+                </button>
+              );
+            })}
+          </div>
+
+          {selectedFlowTemplate && (
+            <div className="lg:col-span-2 space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label>Navn (NO)</Label>
+                  <Input
+                    value={selectedFlowTemplate.name_no}
+                    onChange={(event) =>
+                      setSelectedFlowTemplate({
+                        ...selectedFlowTemplate,
+                        name_no: event.target.value,
+                      })
+                    }
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label>Name (EN)</Label>
+                  <Input
+                    value={selectedFlowTemplate.name_en}
+                    onChange={(event) =>
+                      setSelectedFlowTemplate({
+                        ...selectedFlowTemplate,
+                        name_en: event.target.value,
+                      })
+                    }
+                    className="mt-1"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label>Emne (NO)</Label>
+                  <Input
+                    value={selectedFlowTemplate.subject_no}
+                    onChange={(event) =>
+                      setSelectedFlowTemplate({
+                        ...selectedFlowTemplate,
+                        subject_no: event.target.value,
+                      })
+                    }
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label>Subject (EN)</Label>
+                  <Input
+                    value={selectedFlowTemplate.subject_en}
+                    onChange={(event) =>
+                      setSelectedFlowTemplate({
+                        ...selectedFlowTemplate,
+                        subject_en: event.target.value,
+                      })
+                    }
+                    className="mt-1"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label>Melding (NO)</Label>
+                  <Textarea
+                    rows={8}
+                    value={selectedFlowTemplate.body_no}
+                    onChange={(event) =>
+                      setSelectedFlowTemplate({
+                        ...selectedFlowTemplate,
+                        body_no: event.target.value,
+                      })
+                    }
+                    className="mt-1 font-mono text-sm"
+                  />
+                </div>
+                <div>
+                  <Label>Message (EN)</Label>
+                  <Textarea
+                    rows={8}
+                    value={selectedFlowTemplate.body_en}
+                    onChange={(event) =>
+                      setSelectedFlowTemplate({
+                        ...selectedFlowTemplate,
+                        body_en: event.target.value,
+                      })
+                    }
+                    className="mt-1 font-mono text-sm"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between pt-2">
+                <label className="flex items-center gap-2 text-sm text-gray-700">
+                  <input
+                    type="checkbox"
+                    checked={selectedFlowTemplate.active}
+                    onChange={(event) =>
+                      setSelectedFlowTemplate({
+                        ...selectedFlowTemplate,
+                        active: event.target.checked,
+                      })
+                    }
+                  />
+                  {lang === 'no' ? 'Aktiv mal' : 'Template active'}
+                </label>
+                <Button onClick={saveSelectedFlowTemplate} disabled={savingFlowTemplate}>
+                  {savingFlowTemplate
+                    ? (lang === 'no' ? 'Lagrer...' : 'Saving...')
+                    : (lang === 'no' ? 'Lagre flytmal' : 'Save flow template')}
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+      </Card>
     </div>
   );
 }

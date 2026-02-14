@@ -74,7 +74,7 @@ export default function OppdelingsplanPage() {
         description: t.oppdelingsplan.knokeDesc,
       },
       unknown: {
-        name: lang === 'en' ? 'Unknown part' : 'Ukjent del',
+        name: t.oppdelingsplan.unknownPartName,
         description: '',
       },
     }),
@@ -154,10 +154,13 @@ export default function OppdelingsplanPage() {
     )
   );
 
-  const canOrderSummary: string[] = extras.length > 0
+  const canOrderSummary: Array<{ slug: string; name: string }> = extras.length > 0
     ? extras.map((extra) => {
         const englishName = (extra as any).name_en;
-        return lang === 'en' && englishName ? englishName : extra.name_no;
+        return {
+          slug: extra.slug,
+          name: lang === 'en' && englishName ? englishName : extra.name_no,
+        };
       })
     : [];
 
@@ -220,7 +223,7 @@ export default function OppdelingsplanPage() {
             <div className="relative w-full aspect-[16/9] max-w-5xl mx-auto">
               <Image
                 src="/pig-diagram3.png"
-                alt={lang === 'en' ? 'Butcher diagram' : 'Oppdelingsplan'}
+                alt={t.oppdelingsplan.diagramAlt}
                 fill
                 sizes="(min-width: 1024px) 800px, 100vw"
                 className="object-contain"
@@ -318,7 +321,7 @@ export default function OppdelingsplanPage() {
                     <p className="text-sm font-light text-neutral-700 mb-3 leading-relaxed">{cut.description}</p>
                   )}
                   <p className="text-xs font-light text-neutral-500 mb-4">
-                    {lang === 'en' ? 'From pig part:' : 'Fra del av gris:'} {cut.partName}
+                    {t.oppdelingsplan.fromPigPartLabel} {cut.partName}
                   </p>
                   <div className="space-y-3">
                     <div>
@@ -336,7 +339,7 @@ export default function OppdelingsplanPage() {
               ))}
             </div>
           ) : (
-            <p className="text-sm text-neutral-500 text-center">{lang === 'en' ? 'No cuts loaded yet.' : 'Ingen kutt lastet inn ennå.'}</p>
+            <p className="text-sm text-neutral-500 text-center">{t.oppdelingsplan.noCutsLoaded}</p>
           )}
         </div>
 
@@ -374,15 +377,39 @@ export default function OppdelingsplanPage() {
               <p className="text-sm font-light text-neutral-600 mb-6">{t.oppdelingsplan.canOrderDesc}</p>
               <div className="space-y-3">
                 {canOrderSummary.map((product) => (
-                  <div key={product} className="flex items-center gap-4 p-4 bg-neutral-50 rounded-xl border border-neutral-200 hover:border-neutral-300 hover:shadow-[0_10px_30px_-10px_rgba(0,0,0,0.1)] hover:-translate-y-0.5 transition-all duration-300">
-                    <svg className="w-5 h-5 text-neutral-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                    </svg>
-                    <span className="font-light text-neutral-900">{product}</span>
+                  <div key={product.slug} className="flex flex-wrap items-center justify-between gap-3 p-4 bg-neutral-50 rounded-xl border border-neutral-200 hover:border-neutral-300 hover:shadow-[0_10px_30px_-10px_rgba(0,0,0,0.1)] hover:-translate-y-0.5 transition-all duration-300">
+                    <div className="flex items-center gap-4">
+                      <svg className="w-5 h-5 text-neutral-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                      </svg>
+                      <span className="font-light text-neutral-900">{product.name}</span>
+                    </div>
+                    <Link
+                      href={`/bestill?extra=${encodeURIComponent(product.slug)}`}
+                      className="inline-flex items-center gap-2 rounded-lg border border-neutral-300 bg-white px-3 py-2 text-xs font-semibold uppercase tracking-wide text-neutral-700 hover:text-neutral-900 hover:border-neutral-400 transition-colors"
+                    >
+                      {t.oppdelingsplan.orderAsExtra}
+                    </Link>
                   </div>
                 ))}
               </div>
             </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="fixed bottom-4 left-1/2 z-40 -translate-x-1/2 w-[calc(100%-2rem)] max-w-5xl">
+        <div className="rounded-2xl border border-neutral-200 bg-white/95 backdrop-blur px-5 py-4 shadow-[0_20px_60px_-20px_rgba(0,0,0,0.25)]">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm font-light text-neutral-700">
+              {t.oppdelingsplan.stickyCtaMessage}
+            </p>
+            <Link
+              href="/bestill"
+              className="inline-flex items-center justify-center rounded-xl bg-neutral-900 px-5 py-3 text-xs font-bold uppercase tracking-[0.25em] text-white"
+            >
+              {t.oppdelingsplan.stickyCtaButton}
+            </Link>
           </div>
         </div>
       </div>

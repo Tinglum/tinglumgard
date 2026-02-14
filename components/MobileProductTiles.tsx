@@ -34,22 +34,12 @@ export function MobileProductTiles({ presets }: MobileProductTilesProps) {
 
   const sortedPresets = [...presets].sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
 
-  const mobileCopy = lang === 'no'
-    ? {
-        boxes: 'Mangalitsa-bokser',
-        inBox: 'I boksen',
-      }
-    : {
-        boxes: 'Mangalitsa boxes',
-        inBox: 'In the box',
-      };
-
   return (
     <section className="px-5 py-12 text-[#1E1B16]">
       <div className="mx-auto max-w-md font-[family:var(--font-manrope)]">
         <div className="flex items-end justify-between gap-4">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-[#6A6258]">{mobileCopy.boxes}</p>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-[#6A6258]">{t.mangalitsa.boxesLabel}</p>
             <h2 className="mt-2 text-2xl font-semibold text-[#1E1B16] font-[family:var(--font-playfair)]">
               {t.mangalitsa.hero.title}
             </h2>
@@ -63,9 +53,7 @@ export function MobileProductTiles({ presets }: MobileProductTilesProps) {
         <div className="mt-8 space-y-6">
           {sortedPresets.length === 0 && (
             <div className="rounded-[28px] border border-[#E4DED5] bg-white p-6 text-sm text-[#5E5A50] shadow-[0_20px_45px_rgba(30,27,22,0.12)]">
-              {lang === 'en'
-                ? 'No Mangalitsa boxes are configured yet.'
-                : 'Ingen Mangalitsa-bokser er konfigurert ennå.'}
+              {t.mangalitsa.noPresets}
             </div>
           )}
           {sortedPresets.map((preset, idx) => {
@@ -106,14 +94,14 @@ export function MobileProductTiles({ presets }: MobileProductTilesProps) {
                       {t.product.deposit50}: {deposit.toLocaleString(locale)} {t.common.currency}
                     </p>
                     <p className="text-[11px] text-[#5E5A50] mt-1">
-                      {preset.target_weight_kg} {t.common.kg}
+                      {lang === 'no' ? 'ca.' : 'approx.'} {preset.target_weight_kg} {t.common.kg}
                     </p>
                   </div>
                 </div>
 
                 {contents.length > 0 && (
                   <div className="mt-5 rounded-2xl border border-[#E9E1D6] bg-[#FBFAF7] p-4">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-[#6A6258]">{mobileCopy.inBox}</p>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-[#6A6258]">{t.mangalitsa.inBoxLabel}</p>
                     <ul className="mt-3 grid grid-cols-1 gap-2 text-sm text-[#4F4A42]">
                       {contents.map((item) => (
                         <li key={item} className="flex items-start gap-2">

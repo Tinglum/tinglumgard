@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { CheckCircle, Package, Clock, CreditCard } from "lucide-react";
+import { CheckCircle, Package, Clock, CreditCard, Share2, Copy, ExternalLink } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 
 type PaymentStatus = "pending" | "completed" | "failed";
@@ -42,6 +42,7 @@ export default function ConfirmationPage() {
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>("pending");
   const [pollCount, setPollCount] = useState(0);
   const [config, setConfig] = useState<ConfigData | null>(null);
+  const [copiedShareLink, setCopiedShareLink] = useState(false);
 
   const copy = t.confirmationPage;
 
@@ -115,6 +116,15 @@ export default function ConfirmationPage() {
   const deliveryYear = config?.cutoff?.year || 2026;
   const referralGivePercentage = 20;
   const referralEarnPercentage = 10;
+  const shareUrl = useMemo(() => {
+    if (typeof window !== "undefined") {
+      return `${window.location.origin}/bestill`;
+    }
+    return "/bestill";
+  }, []);
+  const shareMessage = lang === "no"
+    ? "Jeg har reservert Mangalitsa-boks fra Tinglum Gård. Begrenset antall bokser hvert år."
+    : "I just reserved a Mangalitsa box from Tinglum Gard. Limited boxes each season.";
   const boxDisplay = useMemo(() => {
     if (!order) return '';
     const presetName =
@@ -166,6 +176,26 @@ export default function ConfirmationPage() {
   }
 
   const depositAmount = order.deposit_amount;
+
+  async function handleCopyShareLink() {
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setCopiedShareLink(true);
+      setTimeout(() => setCopiedShareLink(false), 1800);
+    } catch (error) {
+      console.error("Failed to copy share link", error);
+    }
+  }
+
+  function shareOnFacebook() {
+    const target = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`;
+    window.open(target, "_blank", "noopener,noreferrer");
+  }
+
+  function shareOnX() {
+    const target = `https://x.com/intent/tweet?text=${encodeURIComponent(shareMessage)}&url=${encodeURIComponent(shareUrl)}`;
+    window.open(target, "_blank", "noopener,noreferrer");
+  }
 
   return (
     <div className="min-h-screen bg-white py-20">
@@ -322,6 +352,51 @@ export default function ConfirmationPage() {
                 </p>
               </div>
             </div>
+          </div>
+        </div>
+
+        <div className="bg-white border border-neutral-200 rounded-xl p-8 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.08)] mb-6 transition-all duration-500 hover:shadow-[0_30px_80px_-20px_rgba(0,0,0,0.12)]">
+          <div className="flex items-center gap-3 mb-4">
+            <Share2 className="w-5 h-5 text-neutral-600" />
+            <h2 className="text-2xl font-light tracking-tight text-neutral-900">
+              {t.checkout.shareTitle}
+            </h2>
+          </div>
+          <p className="text-sm font-light text-neutral-600 mb-6 leading-relaxed">
+            {t.checkout.shareBody}
+          </p>
+
+          <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-4 mb-4 flex items-center justify-between gap-3">
+            <p className="text-sm font-light text-neutral-700 truncate">{shareUrl}</p>
+            <button
+              type="button"
+              onClick={handleCopyShareLink}
+              className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-neutral-900 text-white text-xs font-semibold uppercase tracking-wide"
+            >
+              <Copy className="w-3.5 h-3.5" />
+              {copiedShareLink
+                ? t.checkout.shareCopied
+                : t.checkout.shareCopy}
+            </button>
+          </div>
+
+          <div className="flex flex-wrap gap-3">
+            <button
+              type="button"
+              onClick={shareOnFacebook}
+              className="inline-flex items-center gap-2 px-4 py-3 rounded-xl border border-neutral-200 text-sm font-light text-neutral-900 hover:bg-neutral-50 transition-colors"
+            >
+              <ExternalLink className="w-4 h-4" />
+              Facebook
+            </button>
+            <button
+              type="button"
+              onClick={shareOnX}
+              className="inline-flex items-center gap-2 px-4 py-3 rounded-xl border border-neutral-200 text-sm font-light text-neutral-900 hover:bg-neutral-50 transition-colors"
+            >
+              <ExternalLink className="w-4 h-4" />
+              X
+            </button>
           </div>
         </div>
 

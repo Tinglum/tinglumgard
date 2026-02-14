@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Check } from 'lucide-react';
+import { Check, ExternalLink, Sparkles } from 'lucide-react';
 import { ReferralCodeInput } from '@/components/ReferralCodeInput';
 import { RebateCodeInput } from '@/components/RebateCodeInput';
 import { MobileCheckout } from '@/components/MobileCheckout';
@@ -89,6 +89,7 @@ export default function CheckoutPage() {
   } | null>(null);
   const [showDiscountCodes, setShowDiscountCodes] = useState(false);
   const [summaryOffset, setSummaryOffset] = useState(0);
+  const [prefillReferralCode, setPrefillReferralCode] = useState<string | null>(null);
 
   const selectableExtras = useMemo(() => {
     return [...availableExtras]
@@ -104,6 +105,25 @@ export default function CheckoutPage() {
         return (a.display_order ?? 9999) - (b.display_order ?? 9999);
       });
   }, [availableExtras]);
+
+  const chefPicks = useMemo(() => {
+    const premiumSlugs = ['extra-guanciale', 'extra-secreto-presa-pluma', 'extra-tomahawk'];
+    return selectableExtras.filter((extra) => premiumSlugs.includes(extra.slug));
+  }, [selectableExtras]);
+
+  const standardExtras = useMemo(() => {
+    const chefPickSlugs = new Set(chefPicks.map((extra) => extra.slug));
+    return selectableExtras.filter((extra) => !chefPickSlugs.has(extra.slug));
+  }, [chefPicks, selectableExtras]);
+
+  const checkoutExtrasTotal = useMemo(() => {
+    return extraProducts.reduce((total, slug) => {
+      const extra = availableExtras.find((candidate) => candidate.slug === slug);
+      if (!extra) return total;
+      const quantity = extraQuantities[slug] || extra.default_quantity || (extra.pricing_type === 'per_kg' ? 0.5 : 1);
+      return total + (extra.price_nok * quantity);
+    }, 0);
+  }, [availableExtras, extraProducts, extraQuantities]);
 
   const syncSummaryOffset = useCallback(() => {
     if (isMobile) {
@@ -178,6 +198,20 @@ export default function CheckoutPage() {
       setStep(2);
     }
   }, [searchParams, mangalitsaPresets]);
+
+  // URL discount/referral prefill
+  useEffect(() => {
+    const incomingReferralCode =
+      searchParams.get('ref') ||
+      searchParams.get('referral') ||
+      searchParams.get('referralCode') ||
+      searchParams.get('code');
+
+    if (incomingReferralCode) {
+      setPrefillReferralCode(incomingReferralCode.toUpperCase());
+      setShowDiscountCodes(true);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     if (!isMobile && step > 4) {
@@ -257,6 +291,229 @@ export default function CheckoutPage() {
     }
     fetchExtras();
   }, []);
+
+  // URL preselection of extras from other pages (supports ?extra=a,b and repeated ?extra=a&extra=b)
+  useEffect(() => {
+    if (availableExtras.length === 0) return;
+
+    const rawExtras = searchParams.getAll('extra');
+    const commaSeparated = searchParams.get('extras');
+    const merged = [
+      ...rawExtras.flatMap((value) => value.split(',')),
+      ...(commaSeparated ? commaSeparated.split(',') : []),
+    ]
+      .map((value) => value.trim())
+      .filter(Boolean);
+
+    if (merged.length === 0) return;
+
+    const validExtras = merged.filter((slug) => availableExtras.some((extra) => extra.slug === slug));
+    if (validExtras.length === 0) return;
+
+    setExtraProducts((previous) => Array.from(new Set([...previous, ...validExtras])));
+    setExtraQuantities((previous) => {
+      const next = { ...previous };
+      validExtras.forEach((slug) => {
+        if (!next[slug]) {
+          const extra = availableExtras.find((candidate) => candidate.slug === slug);
+          next[slug] = extra?.default_quantity || (extra?.pricing_type === 'per_kg' ? 0.5 : 1);
+        }
+      });
+      return next;
+    });
+  }, [availableExtras, searchParams]);
+
+  function recipeTagsForExtra(extra: any): string[] {
+    const suggestions = Array.isArray(extra.recipe_suggestions)
+      ? extra.recipe_suggestions
+      : [];
+
+    return suggestions
+      .slice(0, 3)
+      .map((recipe: any) => (lang === 'no' ? recipe.title_no : recipe.title_en))
+      .filter(Boolean);
+  }
+
+  function isChefPick(extra: any): boolean {
+    return chefPicks.some((pick) => pick.slug === extra.slug);
+  }
+
+  function getExtraQuantity(extra: any): number {
+    const defaultQty = extra.default_quantity || (extra.pricing_type === 'per_kg' ? 0.5 : 1);
+    return extraQuantities[extra.slug] || defaultQty;
+  }
+
+  function toggleExtraSelection(extra: any) {
+    const isSelected = extraProducts.includes(extra.slug);
+    setExtraProducts((previous) =>
+      isSelected
+        ? previous.filter((item) => item !== extra.slug)
+        : [...previous, extra.slug]
+    );
+
+    if (!isSelected && !extraQuantities[extra.slug]) {
+      const defaultQty = extra.default_quantity || (extra.pricing_type === 'per_kg' ? 0.5 : 1);
+      setExtraQuantities((previous) => ({
+        ...previous,
+        [extra.slug]: defaultQty,
+      }));
+    }
+  }
+
+  function renderExtraCard(extra: any, emphasized = false) {
+    const isSelected = extraProducts.includes(extra.slug);
+    const quantity = getExtraQuantity(extra);
+    const unitLabel = extra.pricing_type === 'per_kg' ? t.common.kg : t.common.stk;
+    const recipeTags = recipeTagsForExtra(extra);
+    const name = lang === 'no' ? extra.name_no : (extra.name_en || extra.name_no);
+    const description = lang === 'no'
+      ? (extra.description_premium_no || extra.description_no)
+      : (extra.description_premium_en || extra.description_en || extra.description_no);
+    const chefTerm = lang === 'no' ? extra.chef_term_no : (extra.chef_term_en || extra.chef_term_no);
+
+    return (
+      <div
+        key={extra.slug}
+        className={cn(
+          "border-2 rounded-xl transition-all duration-300 cursor-pointer group",
+          emphasized ? "p-6 md:p-7" : "p-5",
+          isSelected
+            ? "border-neutral-900 bg-neutral-50 shadow-[0_15px_40px_-12px_rgba(0,0,0,0.15)]"
+            : "border-neutral-200 hover:border-neutral-300 hover:shadow-[0_10px_30px_-10px_rgba(0,0,0,0.1)] hover:-translate-y-1"
+        )}
+        onClick={() => toggleExtraSelection(extra)}
+      >
+        {emphasized && (
+          <div className="mb-4">
+            <div className="h-28 rounded-xl border border-neutral-200 bg-gradient-to-br from-neutral-100 to-neutral-50 flex items-center justify-center text-2xl">
+              {isChefPick(extra) ? '🔥' : '🥩'}
+            </div>
+          </div>
+        )}
+
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <h4 className={cn("font-normal text-neutral-900", emphasized && "text-lg")}>
+              {name}
+            </h4>
+            {chefTerm && (
+              <span className="text-xs text-neutral-400 italic">({chefTerm})</span>
+            )}
+            {(extra.description_premium_no || extra.recipe_suggestions) && (
+              <button
+                onClick={(e) => { e.stopPropagation(); }}
+                onMouseEnter={(e) => {
+                  e.stopPropagation();
+                  setHoveredExtra(extra);
+                  setModalPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseLeave={() => setHoveredExtra(null)}
+                className="w-5 h-5 rounded-full border border-neutral-300 flex items-center justify-center text-xs text-neutral-400 hover:text-neutral-900 hover:border-neutral-900 transition-all"
+                aria-label={t.checkout.showProductInfoAria}
+              >
+                i
+              </button>
+            )}
+          </div>
+          <div className={cn(
+            "w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all duration-300",
+            isSelected ? "border-neutral-900 bg-neutral-900 shadow-[0_5px_15px_-5px_rgba(0,0,0,0.3)]" : "border-neutral-200 group-hover:border-neutral-300"
+          )}>
+            {isSelected && <Check className="w-3.5 h-3.5 text-white" />}
+          </div>
+        </div>
+
+        {description && (
+          <p className="text-sm font-light text-neutral-600 mb-4">
+            {description}
+          </p>
+        )}
+
+        {recipeTags.length > 0 && (
+          <div className="mb-4 flex flex-wrap gap-2">
+            {recipeTags.map((tag) => (
+              <span
+                key={`${extra.slug}-${tag}`}
+                className="text-[11px] px-2 py-1 rounded-full border border-neutral-200 bg-white text-neutral-600"
+              >
+                {tag}
+              </span>
+            ))}
+          </div>
+        )}
+
+        <div className={cn("font-light text-neutral-900 tabular-nums", emphasized ? "text-3xl" : "text-2xl")}>
+          {extra.price_nok} kr <span className="text-sm font-light text-neutral-500">/ {unitLabel}</span>
+        </div>
+
+        {isSelected && (
+          <div
+            className="flex items-center gap-2 pt-4 border-t border-neutral-200 mt-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => {
+                let newQty: number;
+                if (extra.pricing_type === 'per_kg') {
+                  newQty = Math.max(0, quantity - 0.5);
+                } else {
+                  newQty = quantity - 1;
+                }
+
+                if (newQty <= 0) {
+                  setExtraProducts((previous) => previous.filter((item) => item !== extra.slug));
+                  setExtraQuantities((previous) => {
+                    const next = { ...previous };
+                    delete next[extra.slug];
+                    return next;
+                  });
+                } else {
+                  setExtraQuantities((previous) => ({
+                    ...previous,
+                    [extra.slug]: newQty,
+                  }));
+                }
+              }}
+              className="w-8 h-8 border border-neutral-200 rounded flex items-center justify-center hover:bg-neutral-100"
+            >
+              -
+            </button>
+
+            <Input
+              type="number"
+              min={extra.pricing_type === 'per_kg' ? '0.5' : '1'}
+              step={extra.pricing_type === 'per_kg' ? '0.5' : '1'}
+              value={quantity}
+              onChange={(e) => {
+                const value = parseFloat(e.target.value);
+                if (!Number.isNaN(value) && value > 0) {
+                  setExtraQuantities((previous) => ({
+                    ...previous,
+                    [extra.slug]: value,
+                  }));
+                }
+              }}
+              className="w-20 text-center border border-neutral-200 rounded px-2 py-1 tabular-nums"
+            />
+
+            <button
+              onClick={() => {
+                const stepSize = extra.pricing_type === 'per_kg' ? 0.5 : 1;
+                const newQty = Number((quantity + stepSize).toFixed(1));
+                setExtraQuantities((previous) => ({
+                  ...previous,
+                  [extra.slug]: newQty,
+                }));
+              }}
+              className="w-8 h-8 border border-neutral-200 rounded flex items-center justify-center hover:bg-neutral-100"
+            >
+              +
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   async function handleCheckout() {
     setIsProcessing(true);
@@ -349,7 +606,7 @@ export default function CheckoutPage() {
   const extrasTotal = extraProducts.reduce((total, slug) => {
     const extra = availableExtras.find(e => e.slug === slug);
     if (!extra) return total;
-    const quantity = extraQuantities[slug] || 1;
+    const quantity = extraQuantities[slug] || extra.default_quantity || (extra.pricing_type === 'per_kg' ? 0.5 : 1);
     return total + (extra.price_nok * quantity);
   }, 0);
 
@@ -370,6 +627,49 @@ export default function CheckoutPage() {
 
   const canProceedToStep2 = !!mangalitsaPreset;
   const canProceedToStep3 = ribbeChoice !== '';
+  const ribbeSpecialNote = t.checkout.ribbeSpecialNote;
+  const ribbeOptions = [
+    {
+      id: 'tynnribbe',
+      name: t.checkout.tynnribbe,
+      desc: t.checkout.tynnribbeDesc,
+      image: '🔥',
+      serves: t.checkout.ribbeMeta.tynnribbe.serves,
+      difficulty: t.checkout.ribbeMeta.tynnribbe.difficulty,
+      recipeSlug: 'tynnribbe',
+      isRecommended: false,
+    },
+    {
+      id: 'familieribbe',
+      name: t.checkout.familieribbe,
+      desc: t.checkout.familieribbeDesc,
+      image: '🍽️',
+      serves: t.checkout.ribbeMeta.familieribbe.serves,
+      difficulty: t.checkout.ribbeMeta.familieribbe.difficulty,
+      recipeSlug: 'familieribbe',
+      isRecommended: false,
+    },
+    {
+      id: 'porchetta',
+      name: t.checkout.porchetta,
+      desc: t.checkout.porchettaDesc,
+      image: '🇮🇹',
+      serves: t.checkout.ribbeMeta.porchetta.serves,
+      difficulty: t.checkout.ribbeMeta.porchetta.difficulty,
+      recipeSlug: 'porchetta',
+      isRecommended: false,
+    },
+    {
+      id: 'butchers_choice',
+      name: t.checkout.butchersChoice,
+      desc: t.checkout.butchersChoiceDescEnhanced,
+      image: '🔪',
+      serves: t.checkout.ribbeMeta.butchersChoice.serves,
+      difficulty: t.checkout.ribbeMeta.butchersChoice.difficulty,
+      recipeSlug: 'butchers-choice-ribbe',
+      isRecommended: true,
+    },
+  ] as const;
 
   // Show order confirmation if order is confirmed
   if (orderConfirmed) {
@@ -516,6 +816,7 @@ export default function CheckoutPage() {
             setRebateData={setRebateData}
             referralDiscount={referralDiscount}
             rebateDiscount={rebateDiscount}
+            prefillReferralCode={prefillReferralCode}
           />
         </div>
       </div>
@@ -608,13 +909,13 @@ export default function CheckoutPage() {
 
             {/* Step 1: Box Size */}
             <div ref={step1Ref} className="bg-white border border-neutral-200 rounded-xl p-8 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.08)] transition-all duration-500 hover:shadow-[0_30px_80px_-20px_rgba(0,0,0,0.12)]">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-light text-neutral-900">
-                  {lang === 'no' ? 'Velg Mangalitsa-boks' : 'Choose your Mangalitsa box'}
-                </h2>
-                {mangalitsaPreset && step > 1 && (
-                  <button
-                    onClick={() => setStep(1)}
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-2xl font-light text-neutral-900">
+                  {t.checkout.choosePresetTitle}
+                  </h2>
+                  {mangalitsaPreset && step > 1 && (
+                    <button
+                      onClick={() => setStep(1)}
                     className="text-sm font-light text-neutral-600 hover:text-neutral-900 underline transition-all duration-300 hover:-translate-y-0.5"
                   >
                     {t.common.edit}
@@ -687,7 +988,18 @@ export default function CheckoutPage() {
                         <div className="pt-4 border-t border-neutral-200 text-xs font-light text-neutral-500">
                           {preset.price_nok.toLocaleString(locale)} kr
                           <span className="mx-2">•</span>
-                          {preset.target_weight_kg} kg
+                          {lang === 'no' ? 'ca.' : 'approx.'} {preset.target_weight_kg} kg
+                        </div>
+                        <div className="text-xs font-light text-neutral-600">
+                          {Math.floor(preset.price_nok * 0.5).toLocaleString(locale)} {t.common.currency} {t.checkout.pricingSplit.now}
+                          <span className="mx-1">+</span>
+                          {(preset.price_nok - Math.floor(preset.price_nok * 0.5)).toLocaleString(locale)} {t.common.currency} {t.checkout.pricingSplit.atDelivery}
+                          <span
+                            className="ml-2 text-neutral-400 cursor-help"
+                            title={t.checkout.pricingSplit.tooltip}
+                          >
+                            ⓘ
+                          </span>
                         </div>
                       </div>
                     </button>
@@ -728,13 +1040,14 @@ export default function CheckoutPage() {
                   {t.mangalitsa.ribbeSelection.subtitle}
                 </p>
 
+                <div className="mb-6 p-5 rounded-xl border border-neutral-200 bg-neutral-50">
+                  <p className="text-sm font-light text-neutral-700 leading-relaxed">
+                    {ribbeSpecialNote}
+                  </p>
+                </div>
+
                 <div className="space-y-4">
-                  {[
-                    { id: 'tynnribbe', name: t.checkout.tynnribbe, desc: t.checkout.tynnribbeDesc },
-                    { id: 'familieribbe', name: t.checkout.familieribbe, desc: t.checkout.familieribbeDesc },
-                    { id: 'porchetta', name: t.checkout.porchetta, desc: t.checkout.porchettaDesc },
-                    { id: 'butchers_choice', name: t.checkout.butchersChoice, desc: t.checkout.butchersChoiceDesc },
-                  ].map((option) => (
+                  {ribbeOptions.map((option) => (
                     <button
                       key={option.id}
                       onClick={() => {
@@ -748,10 +1061,38 @@ export default function CheckoutPage() {
                           : "border-neutral-200 hover:border-neutral-300 hover:shadow-[0_10px_30px_-10px_rgba(0,0,0,0.1)] hover:-translate-y-0.5"
                       )}
                     >
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="font-normal text-neutral-900">{option.name}</p>
-                          <p className="text-sm font-light text-neutral-600 mt-2">{option.desc}</p>
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-neutral-900 text-sm text-white">
+                              {option.image}
+                            </span>
+                            <p className="font-normal text-neutral-900">{option.name}</p>
+                            {option.isRecommended && (
+                              <span className="text-[10px] px-2 py-0.5 bg-neutral-900 text-white rounded-full uppercase tracking-wide">
+                                {t.checkout.recommended}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-sm font-light text-neutral-600">{option.desc}</p>
+                          <div className="flex flex-wrap items-center gap-2 mt-3">
+                            <span className="text-xs px-2 py-1 rounded-full border border-neutral-200 bg-white text-neutral-600">
+                              {option.serves}
+                            </span>
+                            <span className="text-xs px-2 py-1 rounded-full border border-neutral-200 bg-white text-neutral-600">
+                              {option.difficulty}
+                            </span>
+                            <a
+                              href={`/oppskrifter/${option.recipeSlug}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={(event) => event.stopPropagation()}
+                              className="text-xs px-2 py-1 rounded-full border border-neutral-200 bg-white text-neutral-700 hover:text-neutral-900 inline-flex items-center gap-1"
+                            >
+                              {t.checkout.recipeLabel}
+                              <ExternalLink className="w-3 h-3" />
+                            </a>
+                          </div>
                         </div>
                         {ribbeChoice === option.id && <Check className="w-5 h-5 text-neutral-900 flex-shrink-0 ml-4" />}
                       </div>
@@ -794,152 +1135,48 @@ export default function CheckoutPage() {
                     {t.checkout.extrasWarning}
                   </p>
                 </div>
-
-                <div className="grid md:grid-cols-2 gap-6">
-                  {selectableExtras
-                    .map((extra) => {
-                    const isSelected = extraProducts.includes(extra.slug);
-                    const defaultQty = extra.default_quantity || (extra.pricing_type === 'per_kg' ? 0.5 : 1);
-                    const quantity = extraQuantities[extra.slug] || defaultQty;
-
-                    return (
-                      <div
-                        key={extra.slug}
-                        className={cn(
-                          "p-6 border-2 rounded-xl transition-all duration-300 cursor-pointer group",
-                          isSelected
-                            ? "border-neutral-900 bg-neutral-50 shadow-[0_15px_40px_-12px_rgba(0,0,0,0.15)]"
-                            : "border-neutral-200 hover:border-neutral-300 hover:shadow-[0_10px_30px_-10px_rgba(0,0,0,0.1)] hover:-translate-y-1"
-                        )}
-                        onClick={() => {
-                          setExtraProducts(prev =>
-                            prev.includes(extra.slug)
-                              ? prev.filter(p => p !== extra.slug)
-                              : [...prev, extra.slug]
-                          );
-                          if (!isSelected && !extraQuantities[extra.slug]) {
-                            const defaultQty = extra.default_quantity || (extra.pricing_type === 'per_kg' ? 0.5 : 1);
-                            setExtraQuantities(prev => ({
-                              ...prev,
-                              [extra.slug]: defaultQty
-                            }));
-                          }
-                        }}
-                      >
-                        <div className="flex items-center justify-between mb-4">
-                          <div className="flex items-center gap-2">
-                            <h4 className="font-normal text-neutral-900">
-                              {lang === 'no' ? extra.name_no : (extra.name_en || extra.name_no)}
-                            </h4>
-                            {extra.chef_term_no && (
-                              <span className="text-xs text-neutral-400 italic">({lang === 'no' ? extra.chef_term_no : (extra.chef_term_en || extra.chef_term_no)})</span>
-                            )}
-                            {(extra.description_premium_no || extra.recipe_suggestions) && (
-                              <button
-                                onClick={(e) => { e.stopPropagation(); }}
-                                onMouseEnter={(e) => {
-                                  e.stopPropagation();
-                                  setHoveredExtra(extra);
-                                  setModalPosition({ x: e.clientX, y: e.clientY });
-                                }}
-                                onMouseLeave={() => setHoveredExtra(null)}
-                                className="w-5 h-5 rounded-full border border-neutral-300 flex items-center justify-center text-xs text-neutral-400 hover:text-neutral-900 hover:border-neutral-900 transition-all"
-                              >
-                                i
-                              </button>
-                            )}
-                          </div>
-                          <div className={cn(
-                            "w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all duration-300",
-                            isSelected ? "border-neutral-900 bg-neutral-900 shadow-[0_5px_15px_-5px_rgba(0,0,0,0.3)]" : "border-neutral-200 group-hover:border-neutral-300"
-                          )}>
-                            {isSelected && <Check className="w-3.5 h-3.5 text-white" />}
-                          </div>
-                        </div>
-
-                        {(lang === 'no' ? (extra.description_premium_no || extra.description_no) : (extra.description_premium_en || extra.description_en || extra.description_no)) && (
-                          <p className="text-sm font-light text-neutral-600 mb-4">
-                            {lang === 'no' ? (extra.description_premium_no || extra.description_no) : (extra.description_premium_en || extra.description_en || extra.description_no)}
-                          </p>
-                        )}
-
-                        <div className="text-2xl font-light text-neutral-900 tabular-nums">
-                          {extra.price_nok} kr <span className="text-sm font-light text-neutral-500">/ {extra.pricing_type === 'per_kg' ? t.common.kg : t.common.stk}</span>
-                        </div>
-
-                        {isSelected && (
-                          <div
-                            className="flex items-center gap-2 pt-4 border-t border-neutral-200 mt-4"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <button
-                              onClick={() => {
-                                let newQty: number;
-                                if (extra.pricing_type === 'per_kg') {
-                                  newQty = Math.floor((quantity - 0.1) / 0.5) * 0.5;
-                                } else {
-                                  newQty = quantity - 1;
-                                }
-
-                                if (newQty <= 0) {
-                                  setExtraProducts(prev => prev.filter(p => p !== extra.slug));
-                                  setExtraQuantities(prev => {
-                                    const newQuantities = { ...prev };
-                                    delete newQuantities[extra.slug];
-                                    return newQuantities;
-                                  });
-                                } else {
-                                  setExtraQuantities(prev => ({
-                                    ...prev,
-                                    [extra.slug]: newQty
-                                  }));
-                                }
-                              }}
-                              className="w-8 h-8 border border-neutral-200 rounded flex items-center justify-center hover:bg-neutral-100"
-                            >
-                              -
-                            </button>
-
-                            <Input
-                              type="number"
-                              min={extra.pricing_type === 'per_kg' ? '0.1' : '1'}
-                              step={extra.pricing_type === 'per_kg' ? '0.1' : '1'}
-                              value={quantity}
-                              onChange={(e) => {
-                                const value = parseFloat(e.target.value);
-                                if (!isNaN(value) && value > 0) {
-                                  setExtraQuantities(prev => ({
-                                    ...prev,
-                                    [extra.slug]: value
-                                  }));
-                                }
-                              }}
-                              className="w-16 text-center border border-neutral-200 rounded px-2 py-1 tabular-nums"
-                            />
-
-                            <button
-                              onClick={() => {
-                                let newQty: number;
-                                if (extra.pricing_type === 'per_kg') {
-                                  newQty = Math.ceil((quantity + 0.1) / 0.5) * 0.5;
-                                } else {
-                                  newQty = quantity + 1;
-                                }
-                                setExtraQuantities(prev => ({
-                                  ...prev,
-                                  [extra.slug]: newQty
-                                }));
-                              }}
-                              className="w-8 h-8 border border-neutral-200 rounded flex items-center justify-center hover:bg-neutral-100"
-                            >
-                              +
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
+                <div className="mb-8 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-neutral-200 bg-neutral-50 px-5 py-4">
+                  <div>
+                    <p className="text-xs uppercase tracking-wide text-neutral-500">
+                      {t.checkout.runningExtrasTotal}
+                    </p>
+                    <p className="text-sm font-light text-neutral-600">
+                      {extraProducts.length > 0
+                        ? (lang === 'no'
+                            ? `${extraProducts.length} produkter valgt`
+                            : `${extraProducts.length} products selected`)
+                        : t.checkout.noExtrasSelected}
+                    </p>
+                  </div>
+                  <p className="text-xl font-normal text-neutral-900 tabular-nums">
+                    +{checkoutExtrasTotal.toLocaleString(locale)} {t.common.currency}
+                  </p>
                 </div>
+
+                {chefPicks.length > 0 && (
+                  <div className="mb-10">
+                    <div className="mb-4 flex items-center gap-2">
+                      <Sparkles className="w-4 h-4 text-neutral-700" />
+                      <p className="text-sm uppercase tracking-wide text-neutral-700">
+                        {t.checkout.chefPicksTitle}
+                      </p>
+                    </div>
+                    <div className="grid md:grid-cols-3 gap-6">
+                      {chefPicks.map((extra) => renderExtraCard(extra, true))}
+                    </div>
+                  </div>
+                )}
+
+                {standardExtras.length > 0 && (
+                  <div>
+                    <p className="text-sm uppercase tracking-wide text-neutral-700 mb-4">
+                      {t.checkout.moreExtrasTitle}
+                    </p>
+                    <div className="grid md:grid-cols-2 gap-6">
+                      {standardExtras.map((extra) => renderExtraCard(extra, false))}
+                    </div>
+                  </div>
+                )}
 
                 {/* Extra Product Info Modal */}
                 {hoveredExtra && (
@@ -1106,7 +1343,7 @@ export default function CheckoutPage() {
                   {mangalitsaPreset && selectedPrice && (
                     <div className="flex justify-between text-sm">
                       <span className="font-light text-neutral-600">
-                        {lang === 'no' ? mangalitsaPreset.name_no : mangalitsaPreset.name_en} ({mangalitsaPreset.target_weight_kg} kg)
+                        {lang === 'no' ? mangalitsaPreset.name_no : mangalitsaPreset.name_en} ({lang === 'no' ? 'ca.' : 'approx.'} {mangalitsaPreset.target_weight_kg} kg)
                       </span>
                       <span className="font-light text-neutral-900 tabular-nums">{selectedPrice.total.toLocaleString(locale)} kr</span>
                     </div>
@@ -1175,18 +1412,43 @@ export default function CheckoutPage() {
                   <div className="space-y-6 mt-6">
                     {/* Discount codes */}
                     <div className="pt-6 border-t border-neutral-200">
-                      <button
-                        type="button"
-                        onClick={() => setShowDiscountCodes(!showDiscountCodes)}
-                        className="text-sm font-light text-neutral-600 hover:text-neutral-900 underline transition-colors duration-300"
-                      >
-                        {t.checkout.hasDiscountCode}
-                      </button>
+                      <div className="flex items-start justify-between gap-4">
+                        <div>
+                          <p className="text-sm font-light text-neutral-700">
+                            {t.checkout.hasDiscountCode}
+                          </p>
+                          {prefillReferralCode && !referralData && !rebateData && (
+                            <p className="mt-1 text-xs text-emerald-700">
+                              {lang === 'no'
+                                ? `Henvisningskode oppdaget: ${prefillReferralCode}`
+                                : `Referral code detected: ${prefillReferralCode}`}
+                            </p>
+                          )}
+                          {(referralData || rebateData) && (
+                            <p className="mt-1 text-xs text-emerald-700">
+                              {lang === 'no'
+                                ? `Rabatt aktiv: -${totalDiscount.toLocaleString(locale)} ${t.common.currency}`
+                                : `Discount active: -${totalDiscount.toLocaleString(locale)} ${t.common.currency}`}
+                            </p>
+                          )}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setShowDiscountCodes(!showDiscountCodes)}
+                          className="text-sm font-light text-neutral-600 hover:text-neutral-900 underline transition-colors duration-300 whitespace-nowrap"
+                        >
+                          {showDiscountCodes
+                            ? t.checkout.hideCodes
+                            : t.checkout.showCodes}
+                        </button>
+                      </div>
 
                       {showDiscountCodes && (
                         <div className="mt-4 space-y-4">
                           {!rebateData && (
                             <ReferralCodeInput
+                              initialCode={prefillReferralCode}
+                              autoApplyInitialCode={Boolean(prefillReferralCode)}
                               depositAmount={baseDepositTotal}
                               onCodeApplied={(data) => {
                                 setReferralData({

@@ -51,7 +51,7 @@
     seasonOnce: "Kun én sesong i året",
     porkFrom: "Ullgris fra",
     headline: "Ullgris fra",
-    title: "Rugeegg fra Tinglum Gard",
+    title: "Rugeegg fra Tinglum Gård",
     farmName: "Tinglum Gård",
     subtitle: "Gris fra Tinglum Gård i Namdalseid. Grisene vokser opp på gården gjennom 2026, slaktes lokalt i nov/des, og hentes fersk eller frossen.",
     cta: "Reserver nå",
@@ -71,7 +71,7 @@
 
   // Eggs hero
   eggsHero: {
-    title: "Rugeegg fra Tinglum Gard",
+    title: "Rugeegg fra Tinglum Gård",
     subtitle:
       "Rugeegg fra Tinglum Gård i Namdalseid. Ferske, nøye utvalgte egg fra flere raser og vakre eggfarger, levert uke for uke i sesong.",
   },
@@ -96,7 +96,7 @@
     minOrder: "Minimum",
     eggs: "egg",
     characteristics: "Egenskaper",
-    size: "Storrelse",
+    size: "Størrelse",
     minEggWeight: "Minste eggvekt",
     temperament: "Temperament",
     hatchingInfo: "Klekkinfo",
@@ -104,7 +104,7 @@
     days: "dager",
     temperature: "Temperatur",
     humidity: "Fuktighet",
-    qualityNote: "Ferske egg fra frittgaende honer. Sending og frakt beregnes i kassen.",
+    qualityNote: "Ferske egg fra frittgående høner. Sending og frakt beregnes i kassen.",
     selectWeek: "Velg uke",
     available: "Tilgjengelig",
   },
@@ -254,6 +254,58 @@
     step3Title: "3. Ekstra kjøttprodukter (valgfritt)",
     step4Title: "4. Levering og tillegg",
 
+    // UI labels
+    choosePresetTitle: "Velg Mangalitsa-boks",
+    showProductInfoAria: "Vis produktinfo",
+    recipeLabel: "Oppskrift",
+    runningExtrasTotal: "Løpende ekstra-total",
+    noExtrasSelected: "Ingen ekstra produkter valgt ennå",
+    chefPicksTitle: "Kokkens utvalgte",
+    moreExtrasTitle: "Flere tillegg",
+    showCodes: "Vis koder",
+    hideCodes: "Skjul koder",
+    discountApplied: "Rabatt aktivert",
+
+    pricingSplit: {
+      now: "nå",
+      atDelivery: "ved levering",
+      total: "totalt",
+      tooltip:
+        "Vi tar 50% nå for å reservere plass i sesongen, og 50% ved levering når boksen er klar.",
+    },
+
+    ribbeMeta: {
+      tynnribbe: {
+        serves: "Servering: 6-8 personer",
+        difficulty: "Lett - følg guiden",
+      },
+      familieribbe: {
+        serves: "Servering: 8-10 personer",
+        difficulty: "Lett - god margin på tid",
+      },
+      porchetta: {
+        serves: "Servering: 6-8 personer",
+        difficulty: "Medium - rull og snør før stek",
+      },
+      butchersChoice: {
+        serves: "Servering: tilpasses valgt snitt",
+        difficulty: "Lett - optimalisert av slakter",
+      },
+    },
+
+    mobile: {
+      step: "Steg",
+      chooseBox: "Velg kasse",
+      showLess: "Vis mindre",
+      showAllContents: "Se hele innholdet",
+      ribbeLabel: "Ribbe",
+      importantInfo: "Viktig informasjon",
+      summaryLabel: "Oppsummering",
+      included: "Inkludert",
+      discount: "Rabatt",
+      payDeposit: "Betal forskudd",
+    },
+
     // Size selection
     persons2to3: "2-3 personer",
     persons4to6: "4-6 personer",
@@ -276,6 +328,10 @@
     porchettaDesc: "Beinfri nedre mage - italiensk stil",
     butchersChoice: "Slakterens valg",
     butchersChoiceDesc: "Vi velger en god ribbe til deg basert på tilgjengelighet",
+    butchersChoiceDescEnhanced:
+      "Anbefalt: Slakteren velger det beste ribbesnittet fra dagens slakt, med riktig fettbalanse for saftig resultat.",
+    ribbeSpecialNote:
+      "Mangalitsa-ribbe har høy fettmarmorering. Stek lavt og lenge, og bruk det smeltede fettet i saus, grønnsaker eller potetmos for maksimal smak.",
     preSelected: "Forhåndsvalgt",
     recommended: "Anbefalt",
 
@@ -303,7 +359,7 @@
     remainderBeforeDelivery: "Rest før levering",
     extraProducts: "Ekstra produkter",
     onlyOneDiscount: "Kun én rabattkode kan brukes per bestilling",
-    hasDiscountCode: "Rabattkode?",
+    hasDiscountCode: "Har du kode?",
 
     // Terms
     depositNotRefundable: "Jeg forstår at forskuddet ikke refunderes.",
@@ -331,6 +387,11 @@
     step2: "Du får en bekreftelse på e-post når forskuddet er mottatt",
     step3: "Resterende beløp betales ved levering",
     seeMyOrders: "Se mine bestillinger",
+    shareTitle: "Del med en venn",
+    shareBody:
+      "Gi venner rabatten videre fra Min side. Du kan også dele bestillingssiden direkte her.",
+    shareCopy: "Kopier",
+    shareCopied: "Kopiert",
 
     // Errors
     somethingWentWrong: "Noe gikk galt. Vennligst prøv igjen.",
@@ -796,6 +857,13 @@
     butchersChoiceFull: "Slakterens valg: Ikke sikker? Velg 'Slakterens valg' ved bestilling, så velger vi basert på tilgjengelighet.",
     quickSummary: "Rask oversikt",
     seeDetailsBelow: "Se detaljert informasjon om hver del nedenfor",
+    unknownPartName: "Ukjent del",
+    diagramAlt: "Oppdelingsplan",
+    fromPigPartLabel: "Fra del av gris:",
+    noCutsLoaded: "Ingen kutt lastet inn ennå.",
+    orderAsExtra: "Bestill som ekstra",
+    stickyCtaMessage: "Klar til å bestille? Reserver din Mangalitsa-boks.",
+    stickyCtaButton: "Reserver boks",
 
     // Cut names and descriptions
     nakke: "Nakke",
@@ -1102,11 +1170,12 @@
     badge: "Følg oss på Instagram",
     title: "Se hverdagen på gården",
     description: "Følg med på grisene som vokser opp, livet på gården og oppdateringer gjennom sesongen",
-    fallback: "Kunne ikke laste Instagram-innlegg. Besok oss på Instagram:",
+    fallback: "Kunne ikke laste Instagram-innlegg. Besøk oss på Instagram:",
   },
 
   // Product card
   productCard: {
+    nextSeasonWaitlistTitle: "Venteliste neste sesong",
     waitlistTitle: "Skriv deg på venteliste",
     waitlistDescription: "Vi varsler deg når vi har mer på lager.",
     waitlistSuccess: "Takk! Du er nå på ventelisten.",
@@ -1121,11 +1190,11 @@
   // Product page
   productPage: {
     stickyTitle: "Ullgris-kasser 2026",
-    stickyLead: "Sesongkasser fra Tinglum Gard, klar for desember.",
+    stickyLead: "Sesongkasser fra Tinglum Gård, klar for desember.",
     stickyCta: "Reserver kasse",
     stickySecondary: "Se kutt",
     heroEyebrow: "Produktdetaljer",
-    heroTitle: "Ullgris-kasse fra Tinglum Gard",
+    heroTitle: "Ullgris-kasse fra Tinglum Gård",
     heroLead:
       "En hel sesongkasse med ribbe til jul og hverdagskutt for resten av vinteren.",
     heroCtaPrimary: "Reserver kasse",
@@ -1171,6 +1240,13 @@
     contentsGuarantee:
       "Ribbe er alltid med, resten balanseres mellom hverdagskutt og langtidskutt.",
     contentsLinkLabel: "Se kuttkart",
+    noBoxContentsConfigured: "Ingen boksinnhold er konfigurert ennå.",
+    enhanceTitle: "Forsterk boksen din",
+    enhanceLead: "Legg til premium ekstra i bestillingen",
+    enhanceBody:
+      "Dette er begrensede spesialkutt. Reserver boksen først, og legg til ekstra med ett klikk i bestillingen.",
+    enhanceCta: "Legg til i bestilling",
+    noFeaturedExtras: "Ingen premium ekstra er konfigurert ennå.",
     contents: {
       ribbe: {
         title: "Ribbe",
@@ -1300,7 +1376,7 @@
     statusDepositPaid: "Forskudd betalt - venter på rest",
     statusPaid: "Fullstendig betalt",
     statusReadyForPickup: "Klar for henting",
-    statusCompleted: "Fullfort",
+    statusCompleted: "Fullført",
     statusCancelled: "Kansellert",
     statusUnknown: "Ukjent status",
     pendingTitle: "Venter på betalingsbekreftelse",
@@ -1337,12 +1413,14 @@
 
   // Order status timeline
   orderStatusTimeline: {
-    created: "Bestilling opprettet",
-    deposit: "Forskudd betalt",
-    remainder: "Fullstendig betalt",
-    locked: "Ordre last",
-    ready: "Klar for henting",
-    completed: "Fullfort",
+    ordered: "Bestilt",
+    orderedHint: "Ordren er registrert",
+    growing: "Vokser opp",
+    growingHint: "Produksjonen er i gang",
+    slaughter: "Slakt (uke 46)",
+    slaughterHint: "Planlagt i slakteuke",
+    delivery: "Levering (uke 48)",
+    deliveryHint: "Klargjøres og leveres",
   },
 
   // Order timeline modal
@@ -1356,7 +1434,7 @@
     depositPending: "Forskudd venter",
     orderModified: "Ordre endret",
     orderModifiedDesc: "Bestillingen ble oppdatert",
-    orderLocked: "Ordre last",
+    orderLocked: "Ordre låst",
     orderLockedDesc: "Bestillingen kan ikke lenger endres",
     remainderPaid: "Restbeløp betalt",
     remainderPending: "Restbeløp venter",
@@ -1442,7 +1520,7 @@
     saveSuccessTitle: "Endringer lagret",
     saveSuccessDescription: "Ordren din har blitt oppdatert",
     saveErrorTitle: "Feil",
-    saveErrorDescription: "Kunne ikke lagre endringer. Prov igjen.",
+    saveErrorDescription: "Kunne ikke lagre endringer. Prøv igjen.",
     extrasError: "Kunne ikke oppdatere ekstra produkter",
     quantity: "Antall",
     unitPieces: "stk",
@@ -1456,7 +1534,7 @@
   customerMessagingPanel: {
     loadError: "Kunne ikke laste meldinger",
     emptyReplyTitle: "Tom melding",
-    emptyReplyDescription: "Svar kan ikke vaere tomt",
+    emptyReplyDescription: "Svar kan ikke være tomt",
     replySentTitle: "Svar sendt",
     replySentDescription: "Svaret ditt har blitt sendt",
     errorTitle: "Feil",
@@ -1471,7 +1549,7 @@
     category: "Kategori",
     subject: "Emne",
     message: "Melding",
-    subjectPlaceholder: "f.eks. Sporsmaal om ordre #12345",
+    subjectPlaceholder: "f.eks. Spørsmål om ordre #12345",
     messagePlaceholder: "Hva kan vi hjelpe deg med?",
     successMessage: "Meldingen er sendt!",
     sending: "Sender...",
@@ -1480,10 +1558,10 @@
     loadingMessages: "Laster meldinger...",
     noMessages: "Ingen meldinger ennaa",
     fromYou: "Du",
-    fromFarm: "Svar fra Tinglum Gard",
+    fromFarm: "Svar fra Tinglum Gård",
     replyPlaceholder: "Skriv et svar...",
     categorySupport: "Support",
-    categoryInquiry: "Sporsmaal",
+    categoryInquiry: "Spørsmål",
     categoryComplaint: "Klage",
     categoryFeedback: "Tilbakemelding",
     categoryReferralQuestion: "Vennerabatt",
@@ -1498,7 +1576,7 @@
     nextActionCompleted: "Ordren er fullført",
     nextActionReady: "Klar for henting - se detaljer nedenfor",
     nextActionPaymentDue: "Restbetaling på {currency} {amount} må betales",
-    nextActionLocked: "Ordre last - venter på restbetaling",
+    nextActionLocked: "Ordre låst - venter på restbetaling",
     nextActionWaitingDeposit: "Venter på forskuddsbetaling",
     nextActionProcessing: "Alt er i orden - vi holder deg oppdatert",
     deliveryTypePickupFarm: "Henting på gård",
@@ -1512,10 +1590,10 @@
     updatedTitle: "Oppdatert",
     updatedExtras: "Oppdatert ekstra produkter ({count}).",
     errorTitle: "Feil",
-    addExtrasError: "Kunne ikke legge til ekstra produkter. Prov igjen.",
+    addExtrasError: "Kunne ikke legge til ekstra produkter. Prøv igjen.",
     saveModificationsError: "Kunne ikke lagre endringer",
     reorderConfirm: "Ønsker du å bestille samme boks på nytt?",
-    reorderFailed: "Kunne ikke opprette ny ordre. Prov igjen.",
+    reorderFailed: "Kunne ikke opprette ny ordre. Prøv igjen.",
     reorderCreatedTitle: "Ny ordre opprettet",
     reorderCreatedDescription: "Ordrenummer: {orderNumber}",
     estimatedReadyNow: "Klar nå!",
@@ -1527,7 +1605,7 @@
     statusPaymentRemaining: "Betaling gjenstar",
     statusPaid: "Betalt",
     statusDelivered: "Levert",
-    statusCompleted: "Fullfort",
+    statusCompleted: "Fullført",
     statusWaitingDeposit: "Venter på forskudd",
     locked: "Låst",
     ordered: "Bestilt",
@@ -1547,7 +1625,7 @@
     addExtraProducts: "Legg til ekstra produkter",
     deliveryInfo: "Hente-/leveringsinformasjon",
     type: "Type",
-    farmName: "Tinglum Gard",
+    farmName: "Tinglum Gård",
     addressByEmail: "Adresse kommer i e-post når ordren er klar",
     whatToBring: "Hva du må ta med:",
     bringCooler: "Kjolebag eller kjoleboks",
@@ -1585,7 +1663,7 @@
     soldOutRemovedWithCredit: "Utsolgte produkter fjernet og kreditt lagt til.",
     soldOutRemoved: "Utsolgte produkter fjernet fra bestillingen.",
     couldNotUpdate: "Kunne ikke oppdatere",
-    tryAgain: "Prov igjen.",
+    tryAgain: "Prøv igjen.",
     missingOrderId: "Mangler ordre-ID",
     updateExtrasError: "Kunne ikke oppdatere ekstra produkter",
     updateDeliveryError: "Kunne ikke oppdatere leveringsdetaljer",
@@ -1593,7 +1671,7 @@
     startingPayment: "Starter betaling...",
     startPaymentError: "Kunne ikke starte betaling (status {status})",
     paymentErrorTitle: "Betalingsfeil",
-    paymentErrorDescription: "Kunne ikke starte betaling. Prov igjen.",
+    paymentErrorDescription: "Kunne ikke starte betaling. Prøv igjen.",
     soldOutTitle: "Beklager, noen ekstra varer er utsolgt",
     soldOutBody:
       "Vi har ikke nok lager til alle ekstra varer du valgte ved forskuddsbestilling. Du kan fjerne varene eller få 110% kreditt som kan brukes på andre ekstra produkter. Ubrukt kreditt refunderes ikke.",
@@ -1624,7 +1702,7 @@
     pickupDeliveryTitle: "Henting og levering",
     deliveryMethod: "Leveringsmetode",
     pickupFarm: "Henting på gården",
-    pickupFarmLocation: "Tinglum Gard, Sjofossen",
+    pickupFarmLocation: "Tinglum Gård, Sjøfossen",
     free: "Gratis",
     pickupE6: "Henting ved E6",
     pickupE6Point: "Hentested ved E6",
@@ -1670,7 +1748,7 @@
     heroTitle: "Reserver din kasse",
     heroSubtitle:
       "Velg størrelse, ribbe-type og ekstra tillegg. Vi sender deg Vipps-betalingsforespørsel etter bestilling.",
-    progressSize: "Storrelse",
+    progressSize: "Størrelse",
     progressRibbe: "Ribbe",
     progressExtras: "Ekstra",
     progressDelivery: "Levering",
@@ -1798,7 +1876,7 @@
       paid: "Betalt",
       fully_paid: "Fullt betalt",
       ready_for_pickup: "Klar for henting",
-      completed: "Fullfort",
+      completed: "Fullført",
       cancelled: "Kansellert",
       forfeited: "Fortapt",
     },
@@ -1880,7 +1958,7 @@
     sendAllButton: "Send til alle kunder",
     sendAllHint: "Dette sender til alle unike e-postadresser",
     previewTitle: "Forhandsvisning",
-    previewBrand: "Tinglum Gard",
+    previewBrand: "Tinglum Gård",
     previewSubjectLabel: "Emne:",
     previewCustomerName: "Kundenavn",
     previewOrderNumber: "Ordrenummer",
@@ -1895,7 +1973,7 @@
     errorTitle: "Feil",
     updateErrorDescription: "Kunne ikke oppdatere mengde",
     loadError: "Kunne ikke laste lagerbeholdning",
-    retryButton: "Prov igjen",
+    retryButton: "Prøv igjen",
     title: "Lagerstyring",
     subtitle: "Oversikt over tilgjengelig varebeholdning",
     refreshButton: "Oppdater",
@@ -1906,7 +1984,7 @@
     maxCapacityLabel: "Maksimal kapasitet",
     allocatedLabel: "Allokert",
     ordersCount: "{count} ordrer",
-    remainingLabel: "Gjenvaerende",
+    remainingLabel: "Gjenværende",
     utilizationValue: "{value}% utnyttet",
     utilizationTitle: "Kapasitetsutnyttelse",
     utilizationLabel: "Utnyttelse",
@@ -1927,7 +2005,7 @@
 
   systemHealth: {
     loadError: "Kunne ikke hente systemhelse",
-    retryButton: "Prov igjen",
+    retryButton: "Prøv igjen",
     title: "Systemhelse",
     lastCheckedLabel: "Sist sjekket:",
     refreshButton: "Oppdater",
@@ -1966,7 +2044,7 @@
     inventory: {
       maxKgLabel: "Maks kg:",
       allocatedLabel: "Allokert:",
-      remainingLabel: "Gjenvaerende:",
+      remainingLabel: "Gjenværende:",
       utilizationLabel: "Utnyttelsesgrad:",
     },
     emails: {
@@ -1986,7 +2064,7 @@
     notProvided: "Ikke oppgitt",
     firstOrderLabel: "Forste ordre",
     totalOrdersLabel: "Totale ordrer",
-    completedLabel: "Fullforte",
+    completedLabel: "Fullførte",
     totalSpentLabel: "Totalt brukt",
     averagePerOrderLabel: "Snitt per ordre",
     productPreferencesTitle: "Produktpreferanser",
@@ -1998,7 +2076,7 @@
       pending: "Venter",
       deposit_paid: "Forskudd betalt",
       paid: "Betalt",
-      completed: "Fullfort",
+      completed: "Fullført",
       cancelled: "Kansellert",
       forfeited: "Fortapt",
     },
@@ -2036,7 +2114,7 @@
         description: "Send påminnelse om å betale restbeløp (3 dager for låsing)",
       },
       order_locked: {
-        name: "Ordre last",
+        name: "Ordre låst",
         description: "Varsle kunde når ordre er last for endringer",
       },
       ready_for_pickup: {
@@ -2085,7 +2163,7 @@
     dateLabel: "Dato:",
     conversation: "Samtale",
     customerFallback: "Kunde",
-    farmSender: "Tinglum Gard",
+    farmSender: "Tinglum Gård",
   },
 
   boxConfiguration: {
@@ -2274,7 +2352,7 @@
     weekValue: "Uke {week}, {year}",
     deliveryDatePrefix: "Leveringsdato:",
     allocatedLabel: "Allokert",
-    remainingEggs: "{count} egg gjenvaerende",
+    remainingEggs: "{count} egg gjenværende",
     closeButton: "Steng",
     openButton: "Åpne",
   },
@@ -2325,7 +2403,7 @@
       week_desc: "Uke synkende",
     },
     paymentStatusLabels: {
-      completed: "Fullfort",
+      completed: "Fullført",
       pending: "Venter",
       failed: "Feilet",
       refunded: "Refundert",
@@ -2384,7 +2462,7 @@
     },
     states: {
       loadErrorTitle: "Kunne ikke laste egg-ordrer",
-      retryButton: "Prov igjen",
+      retryButton: "Prøv igjen",
       empty: "Ingen egg-ordrer matcher filtrene.",
     },
     table: {
@@ -2524,7 +2602,7 @@
       depositPaid: "Forskudd betalt",
       paid: "Fullstendig betalt",
       readyForPickup: "Klar for henting",
-      completed: "Fullfort",
+      completed: "Fullført",
       cancelled: "Kansellert",
     },
     deliveryTypes: {
@@ -2585,7 +2663,7 @@
     deliveryInfoTitle: "Leveringsinformasjon",
     typeLabel: "Type",
     addressLabel: "Adresse",
-    lockedTag: "Ordre last",
+    lockedTag: "Ordre låst",
     deliveredTag: "Levert",
     customerNotesTitle: "Kundens notater",
     adminNotesTitle: "Interne notater (admin)",
@@ -2637,14 +2715,14 @@
       depositPaid: "Forskudd betalt",
       paid: "Fullstendig betalt",
       readyForPickup: "Klar for henting",
-      completed: "Fullfort",
+      completed: "Fullført",
       cancelled: "Kansellert",
       forfeited: "Fortapt",
     },
     loginTitle: "Admin Login",
     passwordLabel: "Passord",
     passwordPlaceholder: "••••••••",
-    passwordError: "Feil passord. Prov igjen.",
+    passwordError: "Feil passord. Prøv igjen.",
     loginButton: "Logg inn",
     headerTitle: "Tinglumgard Admin",
     logoutButton: "Logg ut",
@@ -2776,6 +2854,9 @@
     reserveBox: 'Reserver denne boksen',
     perKg: 'kr/kg',
     loading: 'Laster...',
+    noPresets: 'Ingen Mangalitsa-bokser er konfigurert ennå.',
+    boxesLabel: 'Mangalitsa-bokser',
+    inBoxLabel: 'I boksen',
   },
 
   // Extra product modal

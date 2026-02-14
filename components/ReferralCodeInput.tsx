@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tag, CheckCircle2, XCircle, Loader2 } from 'lucide-react';
@@ -17,6 +17,8 @@ interface ReferralCodeInputProps {
   onCodeRemoved: () => void;
   depositAmount: number;
   className?: string;
+  initialCode?: string | null;
+  autoApplyInitialCode?: boolean;
 }
 
 export function ReferralCodeInput({
@@ -24,6 +26,8 @@ export function ReferralCodeInput({
   onCodeRemoved,
   depositAmount,
   className,
+  initialCode,
+  autoApplyInitialCode = false,
 }: ReferralCodeInputProps) {
   const { t, lang } = useLanguage();
   const locale = lang === 'en' ? 'en-US' : 'nb-NO';
@@ -33,8 +37,9 @@ export function ReferralCodeInput({
   const [appliedCode, setAppliedCode] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const handleValidate = async () => {
-    if (!code.trim()) {
+  const handleValidate = useCallback(async (incomingCode?: string) => {
+    const codeValue = (incomingCode ?? code).trim();
+    if (!codeValue) {
       setError(t.referrals.pleaseEnterCode);
       return;
     }
@@ -46,7 +51,7 @@ export function ReferralCodeInput({
       const response = await fetch('/api/referrals/validate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code: code.trim() }),
+        body: JSON.stringify({ code: codeValue }),
       });
 
       const data = await response.json();
@@ -57,10 +62,11 @@ export function ReferralCodeInput({
       }
 
       const discountAmount = Math.round(depositAmount * 0.20);
+      const normalizedCode = codeValue.toUpperCase();
 
-      setAppliedCode(code.toUpperCase().trim());
+      setAppliedCode(normalizedCode);
       onCodeApplied({
-        code: code.toUpperCase().trim(),
+        code: normalizedCode,
         discountPercentage: data.discount_percentage,
         discountAmount,
         referrerUserId: data.referrer_user_id,
@@ -71,7 +77,17 @@ export function ReferralCodeInput({
     } finally {
       setIsValidating(false);
     }
-  };
+  }, [code, depositAmount, onCodeApplied, t.referrals]);
+
+  useEffect(() => {
+    const normalized = (initialCode || '').trim().toUpperCase();
+    if (!normalized || appliedCode) return;
+    setCode(normalized);
+    setError(null);
+    if (autoApplyInitialCode) {
+      void handleValidate(normalized);
+    }
+  }, [appliedCode, autoApplyInitialCode, handleValidate, initialCode]);
 
   const handleRemove = () => {
     setAppliedCode(null);
@@ -139,7 +155,9 @@ export function ReferralCodeInput({
         />
         <Button
           type="button"
-          onClick={handleValidate}
+          onClick={() => {
+            void handleValidate();
+          }}
           disabled={isValidating || !code.trim()}
           className="px-6"
         >

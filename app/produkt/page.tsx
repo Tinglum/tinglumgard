@@ -38,6 +38,22 @@ interface MangalitsaPreset {
   contents?: MangalitsaPresetContent[];
 }
 
+interface FeaturedExtra {
+  slug: string;
+  name_no: string;
+  name_en?: string | null;
+  description_no?: string | null;
+  description_en?: string | null;
+  description_premium_no?: string | null;
+  description_premium_en?: string | null;
+  chef_term_no?: string | null;
+  chef_term_en?: string | null;
+  recipe_suggestions?: Array<{
+    title_no?: string | null;
+    title_en?: string | null;
+  }> | null;
+}
+
 function Section({
   id,
   className = "",
@@ -95,7 +111,9 @@ export default function ProductPage() {
   const [boxPresets, setBoxPresets] = useState<MangalitsaPreset[]>([]);
   const [loadingPresets, setLoadingPresets] = useState(true);
   const [loadingInventory, setLoadingInventory] = useState(true);
+  const [loadingExtras, setLoadingExtras] = useState(true);
   const [isScrolled, setIsScrolled] = useState(false);
+  const [featuredExtras, setFeaturedExtras] = useState<FeaturedExtra[]>([]);
 
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 20);
@@ -140,6 +158,37 @@ export default function ProductPage() {
       }
     }
     fetchInventory();
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    async function fetchExtras() {
+      try {
+        const response = await fetch('/api/extras', { cache: 'no-store' });
+        const data = await response.json();
+        const extras = Array.isArray(data.extras) ? data.extras : [];
+        const prioritized = extras
+          .filter((extra: FeaturedExtra) => Boolean(extra.slug))
+          .sort((a: FeaturedExtra, b: FeaturedExtra) => {
+            const aPremium = Boolean(a.chef_term_no || a.chef_term_en || String(a.slug || '').startsWith('extra-'));
+            const bPremium = Boolean(b.chef_term_no || b.chef_term_en || String(b.slug || '').startsWith('extra-'));
+            if (aPremium !== bPremium) return aPremium ? -1 : 1;
+            return 0;
+          })
+          .slice(0, 4);
+        if (active) {
+          setFeaturedExtras(prioritized);
+        }
+      } catch (error) {
+        console.error('Failed to fetch featured extras:', error);
+      } finally {
+        if (active) setLoadingExtras(false);
+      }
+    }
+    fetchExtras();
+    return () => {
+      active = false;
+    };
   }, []);
 
   const boxesLeft = inventory?.boxesRemaining ?? 0;
@@ -284,10 +333,6 @@ export default function ProductPage() {
                       <span>{copy.mangalitsaPerPigLabel}</span>
                       <span className="tabular-nums">{copy.mangalitsaPerPigValue}</span>
                     </div>
-                    <div className="flex items-center justify-between">
-                      <span>{copy.mangalitsaPriceFrom}</span>
-                      <span className="tabular-nums">{copy.mangalitsaPriceTo}</span>
-                    </div>
                   </div>
                 </div>
 
@@ -342,7 +387,7 @@ export default function ProductPage() {
                 ? t.common.loading
                 : contents.length > 0
                   ? copy.contentsLead
-                  : (lang === 'en' ? 'No box contents configured yet.' : 'Ingen boksinnhold er konfigurert ennå.')}
+                  : copy.noBoxContentsConfigured}
             </p>
           </div>
 
@@ -372,9 +417,7 @@ export default function ProductPage() {
           ) : (
             !loadingPresets && (
               <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-6 text-sm text-neutral-600">
-                {lang === 'en'
-                  ? 'No Mangalitsa boxes are available yet. Configure box contents in admin.'
-                  : 'Ingen Mangalitsa-bokser er tilgjengelige ennå. Konfigurer boksinnhold i admin.'}
+                {t.mangalitsa.noPresets}
               </div>
             )
           )}
@@ -395,6 +438,75 @@ export default function ProductPage() {
 
       {/* Mangalitsa Premium Boxes */}
       <MangalitsaBoxesSection />
+
+      <Section className="bg-white">
+        <div className="mx-auto max-w-6xl px-6 space-y-8">
+          <div className="max-w-2xl space-y-3">
+            <SectionLabel>{copy.enhanceTitle}</SectionLabel>
+            <h2 className="text-3xl sm:text-4xl font-light tracking-tight font-[family:var(--font-playfair)] text-neutral-900">
+              {copy.enhanceLead}
+            </h2>
+            <p className="text-base text-neutral-600 leading-relaxed">
+              {copy.enhanceBody}
+            </p>
+          </div>
+
+          {loadingExtras ? (
+            <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-6 text-sm text-neutral-600">
+              {t.common.loading}
+            </div>
+          ) : featuredExtras.length > 0 ? (
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+              {featuredExtras.map((extra) => {
+                const name = lang === 'en' && extra.name_en ? extra.name_en : extra.name_no;
+                const chef = lang === 'en' ? (extra.chef_term_en || extra.chef_term_no) : extra.chef_term_no;
+                const description = lang === 'en'
+                  ? (extra.description_premium_en || extra.description_en || extra.description_no || '')
+                  : (extra.description_premium_no || extra.description_no || '');
+                const recipeTags = Array.isArray(extra.recipe_suggestions)
+                  ? extra.recipe_suggestions
+                      .slice(0, 2)
+                      .map((recipe) => (lang === 'en' ? recipe.title_en : recipe.title_no))
+                      .filter((value): value is string => Boolean(value))
+                  : [];
+
+                return (
+                  <GlassCard key={extra.slug} className="bg-white/85 backdrop-blur border-white/50">
+                    <div className="p-5 space-y-4">
+                      <div>
+                        <p className="text-lg font-semibold text-neutral-900">{name}</p>
+                        {chef && (
+                          <p className="text-xs italic text-neutral-500 mt-1">{chef}</p>
+                        )}
+                      </div>
+                      <p className="text-sm text-neutral-600 leading-relaxed">{description}</p>
+                      {recipeTags.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5">
+                          {recipeTags.map((tag) => (
+                            <span key={`${extra.slug}-${tag}`} className="text-[11px] px-2 py-1 rounded-full border border-neutral-200 bg-neutral-50 text-neutral-600">
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                      <Link
+                        href={`/bestill?extra=${encodeURIComponent(extra.slug)}`}
+                        className="inline-flex items-center justify-center rounded-xl border border-neutral-300 px-3 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-neutral-800 hover:text-neutral-900 hover:border-neutral-400"
+                      >
+                        {copy.enhanceCta}
+                      </Link>
+                    </div>
+                  </GlassCard>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-6 text-sm text-neutral-600">
+              {copy.noFeaturedExtras}
+            </div>
+          )}
+        </div>
+      </Section>
 
       {/* Premium Storytelling */}
       <MangalitsaPremiumStory />
