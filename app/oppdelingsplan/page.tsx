@@ -267,38 +267,24 @@ export default function OppdelingsplanPage() {
                 </div>
 
                 {selectedPartCuts.length > 0 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    <div>
-                      <p className="text-xs font-semibold uppercase tracking-[0.3em] text-neutral-500 mb-3">
-                        {lang === 'en' ? 'Cuts from this part' : 'Kutt fra denne delen'}
-                      </p>
-                      <div className="flex flex-wrap gap-2">
-                        {selectedPartCuts.map((cut) => (
-                          <span
-                            key={`selected-cut-chip-${cut.key}`}
-                            className="text-xs bg-neutral-50 text-neutral-800 px-3 py-1 rounded-lg border border-neutral-200 font-light"
-                          >
-                            {cut.name}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div>
-                      <p className="text-xs font-semibold uppercase tracking-[0.3em] text-neutral-500 mb-3">
-                        {t.oppdelingsplan.inBox}
-                      </p>
-                      <ul className="space-y-3">
-                        {selectedPartCuts.map((cut) => (
-                          <li key={`selected-cut-boxes-${cut.key}`} className="rounded-xl border border-neutral-200 bg-neutral-50 p-3">
-                            <p className="text-sm font-normal text-neutral-900 mb-1">{cut.name}</p>
-                            <p className="text-sm font-light text-neutral-600">
-                              {cut.boxes.join(' • ')}
-                            </p>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
+                  <div className="space-y-6">
+                    <ul className="space-y-4">
+                      {selectedPartCuts.map((cut) => (
+                        <li key={`selected-cut-detail-${cut.key}`} className="rounded-xl border border-neutral-200 bg-neutral-50 p-4">
+                          <p className="text-base font-normal text-neutral-900 mb-1">{cut.name}</p>
+                          {cut.description && (
+                            <p className="text-sm font-light text-neutral-600 mb-2 leading-relaxed">{cut.description}</p>
+                          )}
+                          <div className="flex flex-wrap gap-1.5">
+                            {cut.boxes.map((box, idx) => (
+                              <span key={`${cut.key}-box-${idx}`} className="text-xs bg-white text-neutral-700 px-2 py-1 rounded-lg border border-neutral-200 font-light">
+                                {box}
+                              </span>
+                            ))}
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
                   </div>
                 ) : (
                   <p className="text-sm font-light text-neutral-600">{t.oppdelingsplan.noProductsInBox}</p>
@@ -327,8 +313,11 @@ export default function OppdelingsplanPage() {
                     'border-neutral-200 hover:border-neutral-300 hover:shadow-[0_10px_30px_-10px_rgba(0,0,0,0.1)] hover:-translate-y-1'
                   )}
                 >
-                  <h3 className="text-xl font-normal text-neutral-900 mb-3">{cut.name}</h3>
-                  <p className="text-sm font-light text-neutral-600 mb-4">
+                  <h3 className="text-xl font-normal text-neutral-900 mb-2">{cut.name}</h3>
+                  {cut.description && (
+                    <p className="text-sm font-light text-neutral-700 mb-3 leading-relaxed">{cut.description}</p>
+                  )}
+                  <p className="text-xs font-light text-neutral-500 mb-4">
                     {lang === 'en' ? 'From pig part:' : 'Fra del av gris:'} {cut.partName}
                   </p>
                   <div className="space-y-3">

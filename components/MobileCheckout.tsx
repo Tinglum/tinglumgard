@@ -234,7 +234,11 @@ export function MobileCheckout(props: MobileCheckoutProps) {
               const presetName = lang === 'en' ? preset.name_en : preset.name_no;
               const pitch = lang === 'en' ? preset.short_pitch_en : preset.short_pitch_no;
               const scarcity = lang === 'en' ? preset.scarcity_message_en : preset.scarcity_message_no;
-              const presetContents = preset.contents || [];
+              const presetContents = [...(preset.contents || [])]
+                .sort((a: any, b: any) => (a.display_order || 0) - (b.display_order || 0));
+              const visibleContents = isSelected
+                ? (expandedBox === preset.id ? presetContents : presetContents.slice(0, 4))
+                : presetContents.slice(0, 3);
 
               return (
                 <button
@@ -248,9 +252,6 @@ export function MobileCheckout(props: MobileCheckoutProps) {
                 >
                   <div className="flex items-start justify-between gap-5">
                     <div>
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.3em]">
-                        {preset.target_weight_kg} kg
-                      </p>
                       <p className="mt-2 text-3xl font-semibold font-[family:var(--font-playfair)]">
                         {presetName}
                       </p>
@@ -264,41 +265,50 @@ export function MobileCheckout(props: MobileCheckoutProps) {
                       )}
                     </div>
                     <div className="text-right">
-                      <p className="text-xl font-semibold">
+                      <p className="text-sm font-semibold">
                         {preset.price_nok.toLocaleString(locale)} {t.common.currency}
                       </p>
-                      <p className={`text-xs ${isSelected ? 'text-white/70' : 'text-[#5E5A50]'}`}>
+                      <p className={`text-[11px] ${isSelected ? 'text-white/70' : 'text-[#5E5A50]'}`}>
                         {t.product.deposit50}: {Math.floor(preset.price_nok * 0.5).toLocaleString(locale)} {t.common.currency}
+                      </p>
+                      <p className={`mt-1 text-[11px] ${isSelected ? 'text-white/70' : 'text-[#5E5A50]'}`}>
+                        {preset.target_weight_kg} {t.common.kg}
                       </p>
                     </div>
                   </div>
 
-                  {isSelected && (
-                    <div className="mt-4 rounded-2xl border border-white/15 bg-white/10 px-4 py-4 text-xs">
+                  {presetContents.length > 0 && (
+                    <div className={`mt-4 rounded-2xl px-4 py-4 text-xs ${
+                      isSelected
+                        ? 'border border-white/15 bg-white/10'
+                        : 'border border-[#E4DED5] bg-white'
+                    }`}>
                       <div className="flex items-center justify-between">
-                        <p className="uppercase tracking-[0.2em] text-white/70">{t.checkout.inBox}</p>
-                        <button
-                          type="button"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            setExpandedBox(expandedBox === preset.id ? null : preset.id);
-                          }}
-                          className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/70"
-                        >
-                          {expandedBox === preset.id ? mobileCopy.showLess : mobileCopy.showAllContents}
-                        </button>
+                        <p className={`uppercase tracking-[0.2em] ${isSelected ? 'text-white/70' : 'text-[#6A6258]'}`}>{t.checkout.inBox}</p>
+                        {isSelected && (
+                          <button
+                            type="button"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              setExpandedBox(expandedBox === preset.id ? null : preset.id);
+                            }}
+                            className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/70"
+                          >
+                            {expandedBox === preset.id ? mobileCopy.showLess : mobileCopy.showAllContents}
+                          </button>
+                        )}
                       </div>
-                      <ul className="mt-3 space-y-1.5 text-white/80">
-                        {(expandedBox === preset.id ? presetContents : presetContents.slice(0, 4)).map((item: any) => (
+                      <ul className={`mt-3 space-y-1.5 ${isSelected ? 'text-white/80' : 'text-[#4F4A42]'}`}>
+                        {visibleContents.map((item: any) => (
                           <li key={`${preset.id}-${item.id}`} className="flex items-start gap-2">
-                            <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-white" />
+                            <span className={`mt-1.5 h-1.5 w-1.5 rounded-full ${isSelected ? 'bg-white' : 'bg-[#B35A2A]'}`} />
                             <span>{lang === 'en' ? item.content_name_en : item.content_name_no}</span>
                           </li>
                         ))}
                       </ul>
-                      {expandedBox !== preset.id && presetContents.length > 4 && (
-                        <p className="mt-2 text-[10px] uppercase tracking-[0.2em] text-white/60">
-                          + {presetContents.length - 4} {t.checkout.moreItems}
+                      {((isSelected && expandedBox !== preset.id && presetContents.length > 4) || (!isSelected && presetContents.length > 3)) && (
+                        <p className={`mt-2 text-[10px] uppercase tracking-[0.2em] ${isSelected ? 'text-white/60' : 'text-[#6A6258]'}`}>
+                          + {isSelected ? presetContents.length - 4 : presetContents.length - 3} {t.checkout.moreItems}
                         </p>
                       )}
                     </div>

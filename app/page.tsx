@@ -80,7 +80,6 @@ function ParallaxLayer({
 
 // Product Card with refined animations - KEPT (scroll-triggered stagger)
 function ProductCard({
-  size,
   label,
   description,
   features,
@@ -95,7 +94,6 @@ function ProductCard({
   isFeatured = false,
   delay = 0
 }: {
-  size: string;
   label: string;
   description: string;
   features: string[];
@@ -153,12 +151,12 @@ function ProductCard({
         <div className="space-y-6">
           {/* Header */}
           <div className="space-y-3 pb-6 border-b border-neutral-200">
-            <MetaLabel>{label}</MetaLabel>
-            <h3 className="text-7xl font-light tracking-tight text-neutral-900 tabular-nums">
-              {size} <span className="text-2xl text-neutral-500">{t.common.kg}</span>
+            <MetaLabel>{t.mangalitsa.pageTitle}</MetaLabel>
+            <h3 className="text-4xl font-light tracking-tight text-neutral-900 font-[family:var(--font-playfair)]">
+              {label}
             </h3>
             <p className="text-base text-neutral-600 leading-relaxed">{description}</p>
-            <div className="flex items-center gap-3 text-xs text-neutral-500 font-medium">
+            <div className="flex flex-wrap items-center gap-3 text-xs text-neutral-500 font-medium">
               <span>{personCount}</span>
               <span className="w-1 h-1 rounded-full bg-neutral-400" />
               <span>{mealsCount}</span>
@@ -188,7 +186,7 @@ function ProductCard({
               <span className="text-xs uppercase tracking-wider text-neutral-500 font-semibold">
                 {t.product.totalPrice}
               </span>
-              <span className="text-4xl font-light tracking-tight text-neutral-900 tabular-nums">
+              <span className="text-2xl font-light tracking-tight text-neutral-900 tabular-nums">
                 {price?.toLocaleString(locale)} <span className="text-base text-neutral-500">{t.common.currency}</span>
               </span>
             </div>
@@ -643,7 +641,7 @@ export default function Page() {
                 || t.mangalitsa.hero.scarcity;
               const scarcity = (lang === 'no' ? preset.scarcity_message_no : preset.scarcity_message_en)
                 || t.mangalitsa.hero.scarcity;
-              const perKg = `${Math.round(preset.price_nok / preset.target_weight_kg)} ${t.mangalitsa.perKg}`;
+              const weightMeta = `${preset.target_weight_kg} ${t.common.kg}`;
               const features = [...(preset.contents || [])]
                 .sort((a, b) => (a.display_order || 0) - (b.display_order || 0))
                 .map((content) => (lang === 'no' ? content.content_name_no : content.content_name_en));
@@ -651,12 +649,11 @@ export default function Page() {
               return (
                 <ProductCard
                   key={preset.id}
-                  size={String(preset.target_weight_kg)}
                   label={label}
                   description={description}
                   features={features}
                   personCount={audience}
-                  mealsCount={perKg}
+                  mealsCount={weightMeta}
                   freezerNote={scarcity}
                   price={preset.price_nok}
                   deposit={Math.floor(preset.price_nok * 0.5)}

@@ -633,6 +633,9 @@ export default function CheckoutPage() {
                   const presetName = lang === 'no' ? preset.name_no : preset.name_en;
                   const presetPitch = lang === 'no' ? preset.short_pitch_no : preset.short_pitch_en;
                   const scarcity = lang === 'no' ? preset.scarcity_message_no : preset.scarcity_message_en;
+                  const sortedContents = [...(preset.contents || [])]
+                    .sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
+                  const visibleContents = isSelected ? sortedContents : sortedContents.slice(0, 4);
 
                   return (
                     <button
@@ -650,31 +653,17 @@ export default function CheckoutPage() {
                       )}
                     >
                       <div className="space-y-4">
-                        <div className="flex items-start justify-between gap-4">
-                          <h3 className="text-2xl font-normal text-neutral-900">{presetName}</h3>
-                          <span className="text-xs px-2.5 py-1 rounded-full bg-neutral-900 text-white uppercase tracking-wide">
-                            {preset.target_weight_kg} kg
-                          </span>
-                        </div>
+                        <h3 className="text-2xl font-normal text-neutral-900">{presetName}</h3>
                         <p className="text-sm font-light text-neutral-600 italic">{presetPitch}</p>
-                        <div className="text-3xl font-light text-neutral-900 tabular-nums">
-                          {preset.price_nok.toLocaleString(locale)} kr
-                        </div>
-                        <p className="text-xs font-light text-neutral-500">
-                          {Math.round(preset.price_nok / preset.target_weight_kg)} {t.mangalitsa.perKg}
-                        </p>
                         {scarcity && (
                           <p className="text-xs font-light text-neutral-500 uppercase tracking-wide">
                             {scarcity}
                           </p>
                         )}
-                      </div>
-
-                      {isSelected && (
-                        <div className="mt-8 pt-6 border-t border-neutral-200">
+                        <div className="pt-4 border-t border-neutral-200">
                           <MetaLabel>{t.checkout.inBox}</MetaLabel>
                           <ul className="space-y-3 mt-4">
-                            {(preset.contents || []).map((content) => (
+                            {visibleContents.map((content) => (
                               <li key={content.id} className="flex items-start gap-3 text-sm text-left">
                                 <span className="w-1.5 h-1.5 rounded-full bg-neutral-400 mt-2 flex-shrink-0" />
                                 <span
@@ -688,8 +677,19 @@ export default function CheckoutPage() {
                               </li>
                             ))}
                           </ul>
+                          {!isSelected && sortedContents.length > 4 && (
+                            <p className="text-xs font-light text-neutral-500 mt-3">
+                              +{sortedContents.length - 4} {t.checkout.moreItems}
+                            </p>
+                          )}
                         </div>
-                      )}
+
+                        <div className="pt-4 border-t border-neutral-200 text-xs font-light text-neutral-500">
+                          {preset.price_nok.toLocaleString(locale)} kr
+                          <span className="mx-2">•</span>
+                          {preset.target_weight_kg} kg
+                        </div>
+                      </div>
                     </button>
                   );
                 })}

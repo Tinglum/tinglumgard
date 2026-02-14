@@ -93,22 +93,20 @@ export function MobileProductTiles({ presets }: MobileProductTilesProps) {
 
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-[#6A6258]">{name}</p>
-                    <p className="mt-2 text-4xl font-semibold text-[#1E1B16] font-[family:var(--font-playfair)]">
-                      {preset.target_weight_kg}
-                      <span className="ml-2 text-base font-semibold text-[#6A6258]">{t.common.kg}</span>
+                    <p className="text-3xl font-semibold text-[#1E1B16] font-[family:var(--font-playfair)]">
+                      {name}
                     </p>
                     <p className="mt-2 text-sm text-[#5E5A50]">{pitch}</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-xl font-semibold text-[#1E1B16]">
+                    <p className="text-sm font-semibold text-[#1E1B16]">
                       {preset.price_nok.toLocaleString(locale)} {t.common.currency}
                     </p>
-                    <p className="text-xs text-[#5E5A50]">
+                    <p className="text-[11px] text-[#5E5A50]">
                       {t.product.deposit50}: {deposit.toLocaleString(locale)} {t.common.currency}
                     </p>
-                    <p className="text-xs text-[#5E5A50] mt-1">
-                      {Math.round(preset.price_nok / preset.target_weight_kg)} {t.mangalitsa.perKg}
+                    <p className="text-[11px] text-[#5E5A50] mt-1">
+                      {preset.target_weight_kg} {t.common.kg}
                     </p>
                   </div>
                 </div>

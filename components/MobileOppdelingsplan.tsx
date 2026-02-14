@@ -11,6 +11,7 @@ type PartKey = 'nakke' | 'svinebog' | 'kotelettkam' | 'ribbeside' | 'skinke' | '
 interface PartCut {
   key: string;
   name: string;
+  description: string;
   boxes: string[];
 }
 
@@ -98,12 +99,17 @@ export function MobileOppdelingsplan() {
           ? `${presetName} (${content.target_weight_kg} kg)`
           : presetName;
 
+        const cutDescription = lang === 'en'
+          ? (content as any).cut_description_en || ''
+          : (content as any).cut_description_no || '';
+
         const part = partMap.get(partKey)!;
         const existingCut = part.cuts.find((cut) => cut.key === cutKey);
         if (!existingCut) {
           part.cuts.push({
             key: cutKey,
             name: cutName,
+            description: cutDescription,
             boxes: [boxLabel],
           });
           continue;
@@ -229,7 +235,10 @@ export function MobileOppdelingsplan() {
                         {part.cuts.map((cut) => (
                           <li key={`mobile-cut-boxes-${cut.key}`} className="rounded-lg border border-[#E4DED5] bg-white p-2">
                             <p className="text-sm text-[#1E1B16]">{cut.name}</p>
-                            <p className="text-xs text-[#5E5A50]">{cut.boxes.join(' • ')}</p>
+                            {cut.description && (
+                              <p className="text-xs text-[#5E5A50] mt-0.5 leading-relaxed">{cut.description}</p>
+                            )}
+                            <p className="text-xs text-[#6A6258] mt-1">{cut.boxes.join(' • ')}</p>
                           </li>
                         ))}
                       </ul>

@@ -62,6 +62,9 @@ export function MangalitsaBoxesSection() {
             const pitch = lang === 'no' ? preset.short_pitch_no : preset.short_pitch_en;
             const scarcity = lang === 'no' ? preset.scarcity_message_no : preset.scarcity_message_en;
 
+            const sortedContents = [...(preset.contents || [])]
+              .sort((a: any, b: any) => (a.display_order || 0) - (b.display_order || 0));
+
             return (
               <div
                 key={preset.id}
@@ -69,19 +72,16 @@ export function MangalitsaBoxesSection() {
               >
                 {/* Header */}
                 <div className="mb-6">
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className="text-2xl font-normal text-neutral-900">{name}</h3>
-                    <span className="text-xs px-3 py-1 bg-neutral-900 text-white rounded-full uppercase tracking-wide">
-                      {preset.target_weight_kg} {t.common.kg}
-                    </span>
-                  </div>
+                  <h3 className="text-2xl font-normal text-neutral-900 mb-2">{name}</h3>
                   <p className="text-sm font-light text-neutral-500 italic">{pitch}</p>
                 </div>
 
                 {/* Contents */}
                 <div className="mb-6 space-y-2">
-                  {preset.contents
-                    ?.map((content: any, idx: number) => {
+                  <p className="text-xs uppercase tracking-wide text-neutral-500 mb-3">
+                    {t.checkout.inBox}
+                  </p>
+                  {sortedContents.map((content: any, idx: number) => {
                       const contentName = lang === 'no' ? content.content_name_no : content.content_name_en;
                       return (
                         <div
@@ -103,17 +103,12 @@ export function MangalitsaBoxesSection() {
                 {/* Price & CTA */}
                 <div className="border-t border-neutral-200 pt-6">
                   <div className="flex items-center justify-between mb-4">
-                    <div>
-                      <p className="text-3xl font-light text-neutral-900">
-                        {preset.price_nok.toLocaleString(locale)} {t.common.currency}
-                      </p>
-                      <p className="text-xs font-light text-neutral-500">
-                        {Math.round(preset.price_nok / preset.target_weight_kg)} {t.mangalitsa.perKg}
-                      </p>
-                    </div>
-                    <div className="text-right">
+                    <div className="text-right ml-auto">
                       <p className="text-xs font-light text-neutral-500 uppercase tracking-wide">
                         {scarcity}
+                      </p>
+                      <p className="text-xs font-light text-neutral-500 mt-1">
+                        {preset.price_nok.toLocaleString(locale)} {t.common.currency}
                       </p>
                     </div>
                   </div>
