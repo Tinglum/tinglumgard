@@ -19,6 +19,10 @@ export async function GET() {
       .order('display_order', { ascending: true });
 
     if (error) {
+      if ((error as any).code === 'PGRST205') {
+        // Relational cut catalog not migrated yet in this environment.
+        return NextResponse.json({ cuts: [], legacy: true });
+      }
       logError('admin-mangalitsa-cuts', error);
       return NextResponse.json({ error: error.message }, { status: 500 });
     }

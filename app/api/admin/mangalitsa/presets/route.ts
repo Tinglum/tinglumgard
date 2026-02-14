@@ -55,6 +55,16 @@ type PartRow = {
   name_en: string;
 };
 
+type LegacyPresetContentRow = {
+  id: string;
+  preset_id: string;
+  content_name_no: string;
+  content_name_en: string;
+  target_weight_kg?: number | null;
+  display_order?: number | null;
+  is_hero?: boolean | null;
+};
+
 function formatQuantity(value: number, lang: Lang): string {
   if (Number.isInteger(value)) {
     return String(value);
@@ -167,7 +177,40 @@ async function fetchPresetsForAdmin() {
     .order('display_order', { ascending: true });
 
   if (presetCutsError) {
-    throw presetCutsError;
+    const { data: legacyContents, error: legacyError } = await supabaseAdmin
+      .from('mangalitsa_preset_contents')
+      .select('id,preset_id,content_name_no,content_name_en,target_weight_kg,display_order,is_hero')
+      .in('preset_id', presetIds)
+      .order('display_order', { ascending: true });
+
+    if (legacyError) {
+      throw presetCutsError;
+    }
+
+    const legacyRows = (legacyContents || []) as LegacyPresetContentRow[];
+    return presetRows.map((preset) => ({
+      ...preset,
+      contents: legacyRows
+        .filter((row) => row.preset_id === preset.id)
+        .map((row, idx) => ({
+          id: row.id,
+          cut_id: null,
+          cut_slug: null,
+          part_key: null,
+          part_name_no: null,
+          part_name_en: null,
+          content_name_no: row.content_name_no,
+          content_name_en: row.content_name_en,
+          target_weight_kg: row.target_weight_kg ?? null,
+          quantity: null,
+          quantity_unit_no: null,
+          quantity_unit_en: null,
+          display_order: row.display_order ?? idx + 1,
+          is_hero: Boolean(row.is_hero),
+          cut: null,
+        }))
+        .sort((a, b) => a.display_order - b.display_order),
+    }));
   }
 
   const presetCutRows = (presetCuts || []) as PresetCutRow[];
@@ -181,7 +224,40 @@ async function fetchPresetsForAdmin() {
       .in('id', cutIds);
 
     if (cutsError) {
-      throw cutsError;
+      const { data: legacyContents, error: legacyError } = await supabaseAdmin
+        .from('mangalitsa_preset_contents')
+        .select('id,preset_id,content_name_no,content_name_en,target_weight_kg,display_order,is_hero')
+        .in('preset_id', presetIds)
+        .order('display_order', { ascending: true });
+
+      if (legacyError) {
+        throw cutsError;
+      }
+
+      const legacyRows = (legacyContents || []) as LegacyPresetContentRow[];
+      return presetRows.map((preset) => ({
+        ...preset,
+        contents: legacyRows
+          .filter((row) => row.preset_id === preset.id)
+          .map((row, idx) => ({
+            id: row.id,
+            cut_id: null,
+            cut_slug: null,
+            part_key: null,
+            part_name_no: null,
+            part_name_en: null,
+            content_name_no: row.content_name_no,
+            content_name_en: row.content_name_en,
+            target_weight_kg: row.target_weight_kg ?? null,
+            quantity: null,
+            quantity_unit_no: null,
+            quantity_unit_en: null,
+            display_order: row.display_order ?? idx + 1,
+            is_hero: Boolean(row.is_hero),
+            cut: null,
+          }))
+          .sort((a, b) => a.display_order - b.display_order),
+      }));
     }
 
     cutRows = (cuts || []) as CutRow[];

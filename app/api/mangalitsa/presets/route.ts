@@ -54,6 +54,16 @@ type PartRow = {
   name_en: string;
 };
 
+type LegacyPresetContentRow = {
+  id: string;
+  preset_id: string;
+  content_name_no: string;
+  content_name_en: string;
+  target_weight_kg?: number | null;
+  display_order?: number | null;
+  is_hero?: boolean | null;
+};
+
 function formatQuantity(value: number, lang: Lang): string {
   if (Number.isInteger(value)) {
     return String(value);
@@ -131,6 +141,45 @@ function normalizePreset(
   };
 }
 
+async function normalizeLegacyPresets(presetRows: PresetRow[]) {
+  const presetIds = presetRows.map((preset) => preset.id);
+  const { data: legacyContents, error: legacyError } = await supabaseAdmin
+    .from('mangalitsa_preset_contents')
+    .select('id,preset_id,content_name_no,content_name_en,target_weight_kg,display_order,is_hero')
+    .in('preset_id', presetIds)
+    .order('display_order', { ascending: true });
+
+  if (legacyError) {
+    throw legacyError;
+  }
+
+  const rows = (legacyContents || []) as LegacyPresetContentRow[];
+  return presetRows.map((preset) => ({
+    ...preset,
+    contents: rows
+      .filter((row) => row.preset_id === preset.id)
+      .map((row, idx) => ({
+        id: row.id,
+        cut_id: null,
+        cut_slug: null,
+        part_key: null,
+        part_name_no: null,
+        part_name_en: null,
+        cut_description_no: null,
+        cut_description_en: null,
+        content_name_no: row.content_name_no,
+        content_name_en: row.content_name_en,
+        target_weight_kg: row.target_weight_kg ?? null,
+        quantity: null,
+        quantity_unit_no: null,
+        quantity_unit_en: null,
+        display_order: row.display_order ?? idx + 1,
+        is_hero: Boolean(row.is_hero),
+      }))
+      .sort((a, b) => a.display_order - b.display_order),
+  }));
+}
+
 export async function GET() {
   try {
     const { data: presets, error: presetsError } = await supabaseAdmin
@@ -166,10 +215,23 @@ export async function GET() {
 
     if (presetCutsError) {
       logError('mangalitsa-presets-route-preset-cuts', presetCutsError);
-      return NextResponse.json(
-        { error: 'Missing relational cut tables. Run the latest Supabase migrations.' },
-        { status: 500 }
-      );
+      try {
+        const legacyPresets = await normalizeLegacyPresets(presetRows);
+        return NextResponse.json(
+          { presets: legacyPresets, legacy: true },
+          {
+            headers: {
+              'Cache-Control': 'no-store, must-revalidate',
+            },
+          }
+        );
+      } catch (legacyFallbackError) {
+        logError('mangalitsa-presets-route-legacy-fallback', legacyFallbackError);
+        return NextResponse.json(
+          { error: 'Missing relational cut tables. Run the latest Supabase migrations.' },
+          { status: 500 }
+        );
+      }
     }
 
     const presetCutRows = (presetCuts || []) as PresetCutRow[];
@@ -184,7 +246,20 @@ export async function GET() {
 
       if (cutsError) {
         logError('mangalitsa-presets-route-cuts', cutsError);
-        return NextResponse.json({ error: 'Failed to fetch cuts catalog' }, { status: 500 });
+        try {
+          const legacyPresets = await normalizeLegacyPresets(presetRows);
+          return NextResponse.json(
+            { presets: legacyPresets, legacy: true },
+            {
+              headers: {
+                'Cache-Control': 'no-store, must-revalidate',
+              },
+            }
+          );
+        } catch (legacyFallbackError) {
+          logError('mangalitsa-presets-route-legacy-fallback', legacyFallbackError);
+          return NextResponse.json({ error: 'Failed to fetch cuts catalog' }, { status: 500 });
+        }
       }
 
       cutRows = (cuts || []) as CutRow[];
@@ -200,7 +275,20 @@ export async function GET() {
 
       if (partsError) {
         logError('mangalitsa-presets-route-parts', partsError);
-        return NextResponse.json({ error: 'Failed to fetch pig parts' }, { status: 500 });
+        try {
+          const legacyPresets = await normalizeLegacyPresets(presetRows);
+          return NextResponse.json(
+            { presets: legacyPresets, legacy: true },
+            {
+              headers: {
+                'Cache-Control': 'no-store, must-revalidate',
+              },
+            }
+          );
+        } catch (legacyFallbackError) {
+          logError('mangalitsa-presets-route-legacy-fallback', legacyFallbackError);
+          return NextResponse.json({ error: 'Failed to fetch pig parts' }, { status: 500 });
+        }
       }
 
       partRows = (parts || []) as PartRow[];
