@@ -881,6 +881,42 @@
     orderAsExtra: "Bestill som ekstra",
     stickyCtaMessage: "Klar til å bestille? Reserver din Mangalitsa-boks.",
     stickyCtaButton: "Reserver boks",
+    addToOrder: "Legg til i bestilling",
+    filteredBy: "Filtrert på: {part}",
+    clearFilter: "Fjern filter",
+
+    // Add-to-order flows
+    chooseOrderTitle: "Velg bestilling",
+    chooseOrderDesc: "Du har flere bestillinger. Velg hvilken du vil legge dette til i.",
+    chooseOrderPrompt: "Velg bestilling",
+    unknownBoxName: "Ukjent boks",
+    changeOrder: "Bytt",
+    viewOrder: "Se bestilling",
+
+    chooseBoxTitle: "Velg kasse",
+    chooseBoxDesc: "Dette stykket finnes i flere bokser. Velg hvilken kasse du ønsker å bruke.",
+    boxWeightHint: "ca. {kg} kg",
+
+    draftSelectionLabel: "Utkast",
+    draftSelectedBox: "Valgt kasse: {box}",
+    draftNoBoxSelected: "Ingen kasse valgt",
+    draftExtrasCount: "{count} ekstra",
+    clearDraft: "Nullstill",
+    goToCheckout: "Gå til bestilling",
+
+    addedToDraftTitle: "Lagt til",
+    addedToDraftBox: "Valgte kasse: {box}",
+    addedToDraftIncluded: "Dette stykket ligger i {box}",
+    addedToDraftAsExtra: "Lagt til som ekstra",
+
+    addedToOrderTitle: "Oppdatert bestilling",
+    addedToOrderDesc: "La til {item}",
+    addingToOrderLabel: "Legger til...",
+    loadingOrdersTitle: "Henter bestillinger...",
+
+    couldNotAddTitle: "Kunne ikke legge til",
+    couldNotAddNoExtra: "Fant ikke et passende ekstraprodukt for dette stykket ennå.",
+    couldNotAddOrder: "Kunne ikke oppdatere bestillingen. Prøv igjen.",
 
     // Cut names and descriptions
     nakke: "Nakke",
@@ -2808,7 +2844,7 @@
         tagline: 'Alt det kule',
         audience: 'Matentusiast, kokk, "jeg vil ha det ingen andre har"',
         description: 'Dette er boksen for deg som vil kjenne forskjellen med en gang. Svinekinn (guanciale), nakkekam (coppa) og de små "hemmelige" stykkene du aldri ser i butikk.',
-        whyPremium: 'Inneholder guanciale + lardo + slakterbiff - navn som signaliserer restaurant, ikke "vanlig svin".',
+        whyPremium: 'Inneholder guanciale + lardo + slakterens hemmelighet - navn som signaliserer restaurant, ikke "vanlig svin".',
       },
       bbqSteakhouse: {
         name: 'BBQ og Steakhouse',
@@ -2879,7 +2915,8 @@
   // Extra product modal
   extraModal: {
     title: 'Om dette produktet',
-    pureTerms: 'Hva det er',
+    pureTerms: 'Om stykket',
+    whySpecial: 'Hvorfor Mangalitsa',
     chefTerms: 'Kokke-navn',
     preparation: 'Tilberedning',
     recipes: 'Oppskrifter',

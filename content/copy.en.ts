@@ -881,6 +881,42 @@ export const en = {
     orderAsExtra: "Order as extra",
     stickyCtaMessage: "Ready to order? Reserve your Mangalitsa box.",
     stickyCtaButton: "Reserve box",
+    addToOrder: "Add to order",
+    filteredBy: "Filtered by: {part}",
+    clearFilter: "Clear filter",
+
+    // Add-to-order flows
+    chooseOrderTitle: "Choose order",
+    chooseOrderDesc: "You have multiple orders. Choose which one to add this to.",
+    chooseOrderPrompt: "Choose order",
+    unknownBoxName: "Unknown box",
+    changeOrder: "Change",
+    viewOrder: "View order",
+
+    chooseBoxTitle: "Choose box",
+    chooseBoxDesc: "This item is included in multiple boxes. Choose which box you want.",
+    boxWeightHint: "approx. {kg} kg",
+
+    draftSelectionLabel: "Draft",
+    draftSelectedBox: "Selected box: {box}",
+    draftNoBoxSelected: "No box selected",
+    draftExtrasCount: "{count} extras",
+    clearDraft: "Clear",
+    goToCheckout: "Go to checkout",
+
+    addedToDraftTitle: "Added",
+    addedToDraftBox: "Selected box: {box}",
+    addedToDraftIncluded: "This item is included in {box}",
+    addedToDraftAsExtra: "Added as extra",
+
+    addedToOrderTitle: "Order updated",
+    addedToOrderDesc: "Added {item}",
+    addingToOrderLabel: "Adding...",
+    loadingOrdersTitle: "Loading orders...",
+
+    couldNotAddTitle: "Could not add",
+    couldNotAddNoExtra: "Couldn't find a matching extra product for this item yet.",
+    couldNotAddOrder: "Could not update the order. Please try again.",
 
     // Cut names and descriptions
     nakke: "Neck",
@@ -2878,7 +2914,8 @@ export const en = {
   // Extra product modal
   extraModal: {
     title: 'About this product',
-    pureTerms: 'What it is',
+    pureTerms: 'About the cut',
+    whySpecial: 'Why Mangalitsa',
     chefTerms: 'Chef name',
     preparation: 'Preparation',
     recipes: 'Recipes',

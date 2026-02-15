@@ -1,7 +1,7 @@
 'use client';
 
 import { useLanguage } from '@/contexts/LanguageContext';
-import { ChefHat, ExternalLink, Flame } from 'lucide-react';
+import { ChefHat, ExternalLink, Flame, MapPin, Sparkles } from 'lucide-react';
 
 interface Recipe {
   title_no: string;
@@ -42,51 +42,63 @@ export function ExtraProductDetails({ extra }: { extra: ExtraProductDetailsExtra
   const displayName = chefTerm ? stripTrailingParens(rawName) : rawName;
 
   return (
-    <>
-      <div className="mb-4">
-        <h3 className="text-xl font-normal text-neutral-900 mb-1">{displayName}</h3>
+    <div className="space-y-5">
+      {/* Header */}
+      <div className="pr-8">
+        <h3 className="text-2xl font-normal text-neutral-900 mb-1 font-[family:var(--font-playfair)]">
+          {displayName}
+        </h3>
         {chefTerm && (
           <p className="text-sm font-light text-neutral-500 italic flex items-center gap-2">
-            <ChefHat className="w-4 h-4" />
+            <ChefHat className="w-4 h-4 flex-shrink-0" />
             {chefTerm}
           </p>
         )}
       </div>
 
+      {/* About the cut — where it comes from, anatomy, weight */}
       {description && (
-        <div className="mb-4">
-          <p className="text-xs font-normal uppercase tracking-wide text-neutral-500 mb-1">
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-neutral-500 mb-2 flex items-center gap-1.5">
+            <MapPin className="w-3.5 h-3.5" />
             {t.extraModal.pureTerms}
           </p>
-          <p className="text-sm font-light text-neutral-600 leading-relaxed">
+          <p className="text-sm font-light text-neutral-700 leading-relaxed">
             {description}
           </p>
         </div>
       )}
 
+      {/* Why Mangalitsa — what makes this breed special for this cut */}
       {premiumDesc && (
-        <div className="mb-4 p-3 bg-neutral-50 rounded-xl border border-neutral-200">
+        <div className="p-4 bg-neutral-50 rounded-xl border border-neutral-200">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-neutral-500 mb-2 flex items-center gap-1.5">
+            <Sparkles className="w-3.5 h-3.5" />
+            {t.extraModal.whySpecial}
+          </p>
           <p className="text-sm font-light text-neutral-900 leading-relaxed">
             {premiumDesc}
           </p>
         </div>
       )}
 
+      {/* Preparation tips */}
       {prepTips && (
-        <div className="mb-4">
-          <p className="text-xs font-normal uppercase tracking-wide text-neutral-500 mb-1 flex items-center gap-1">
-            <Flame className="w-3 h-3" />
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-neutral-500 mb-2 flex items-center gap-1.5">
+            <Flame className="w-3.5 h-3.5" />
             {t.extraModal.preparation}
           </p>
-          <p className="text-sm font-light text-neutral-600 leading-relaxed">
+          <p className="text-sm font-light text-neutral-700 leading-relaxed">
             {prepTips}
           </p>
         </div>
       )}
 
+      {/* Recipe suggestions */}
       {recipes.length > 0 && (
-        <div className="border-t border-neutral-200 pt-4">
-          <p className="text-xs font-normal uppercase tracking-wide text-neutral-500 mb-2">
+        <div className="border-t border-neutral-200 pt-5">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-neutral-500 mb-3">
             {t.extraModal.recipes}
           </p>
           <div className="space-y-2">
@@ -106,7 +118,7 @@ export function ExtraProductDetails({ extra }: { extra: ExtraProductDetailsExtra
                     <p className="text-sm font-normal text-neutral-900 group-hover:text-neutral-900">
                       {recipeTitle}
                     </p>
-                    <ExternalLink className="w-4 h-4 text-neutral-400 group-hover:text-neutral-900 transition-colors" />
+                    <ExternalLink className="w-4 h-4 text-neutral-400 group-hover:text-neutral-900 transition-colors flex-shrink-0" />
                   </div>
                   <p className="text-xs font-light text-neutral-500">
                     {recipeDesc}
@@ -120,7 +132,6 @@ export function ExtraProductDetails({ extra }: { extra: ExtraProductDetailsExtra
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 }
-

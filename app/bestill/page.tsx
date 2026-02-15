@@ -180,10 +180,21 @@ export default function CheckoutPage() {
     if (mangalitsaPresets.length === 0) return;
 
     const presetParam = searchParams.get('preset');
+    const sizeParam = searchParams.get('size');
+    const forceChooseBox = searchParams.get('chooseBox') === '1' || searchParams.get('choose') === '1';
+
+    // When coming from oppdelingsplan with extras but without a box, we want the user
+    // to actively pick a box instead of auto-selecting the first preset.
+    if (!presetParam && !sizeParam && forceChooseBox) {
+      setMangalitsaPreset(null);
+      setBoxSize('');
+      setStep(1);
+      return;
+    }
+
     const matchedBySlug = presetParam
       ? mangalitsaPresets.find((preset) => preset.slug === presetParam)
       : null;
-    const sizeParam = searchParams.get('size');
     const matchedByWeight = sizeParam
       ? mangalitsaPresets.find((preset) => String(preset.target_weight_kg) === sizeParam)
       : null;

@@ -1,25 +1,20 @@
 "use client";
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { ArrowRight, Plus } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { useIsMobile } from '@/hooks/useMediaQuery';
 import { cn } from '@/lib/utils';
 import { MobileOppdelingsplan } from '@/components/MobileOppdelingsplan';
 import { PIG_CUT_POLYGONS } from '@/lib/constants/pig-diagram';
 import { useOppdelingsplanData } from '@/hooks/useOppdelingsplanData';
-
-type PartKey = 'nakke' | 'svinebog' | 'kotelettkam' | 'ribbeside' | 'skinke' | 'knoke' | 'unknown';
-
-interface CutOverview {
-  key: string;
-  name: string;
-  description: string;
-  partKey: PartKey;
-  partName: string;
-  boxes: string[];
-}
+import { useToast } from '@/hooks/use-toast';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import type { CutBoxOption, CutOverview, PartKey, PendingAddAction } from '@/lib/oppdelingsplan/types';
 
 const PART_BY_POLYGON_ID: Record<number, PartKey> = {
   3: 'nakke',
@@ -28,6 +23,15 @@ const PART_BY_POLYGON_ID: Record<number, PartKey> = {
   8: 'svinebog',
   9: 'skinke',
   10: 'knoke',
+};
+
+const POLYGON_ID_BY_PART: Record<Exclude<PartKey, 'unknown'>, number> = {
+  nakke: 3,
+  svinebog: 8,
+  kotelettkam: 5,
+  ribbeside: 7,
+  skinke: 9,
+  knoke: 10,
 };
 
 const PART_ORDER: Record<PartKey, number> = {
@@ -40,12 +44,62 @@ const PART_ORDER: Record<PartKey, number> = {
   unknown: 99,
 };
 
+const CUT_SLUG_TO_EXTRA_SLUG_OVERRIDES: Record<string, string> = {
+  // Cuts whose extra slugs don't follow a simple convention.
+  'nakkekam-coppa': 'extra-coppa',
+  'ryggspekk-lardo': 'extra-spekk',
+  'tomahawk-kotelett': 'extra-tomahawk',
+  'koteletter-fettkappe': 'koteletter',
+  'ytrefilet-ryggfilet': 'ytrefilet',
+  'svinekoteletter': 'koteletter',
+  'bacon-sideflesk': 'bacon',
+  'ekstra-ribbe': 'ekstra_ribbe',
+  'bogstek': 'bogsteik',
+  'kjottdeig-grov': 'kjottdeig',
+  'gryte-stekekjott': 'kjottbiter',
+  'labb': 'svinelabb',
+};
+
+function normalizeTextForMatch(value: string): string {
+  return value
+    .toLowerCase()
+    .normalize('NFD')
+    // Remove accents/diacritics for robust matching (e.g., ø/æ/å in various encodings).
+    .replace(/\p{Diacritic}/gu, '')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+}
+
+function stripCutNameNoise(value: string): string {
+  return value
+    .replace(/\s*\([^)]*\)\s*/g, ' ')
+    .replace(/,\s*\d+(\.\d+)?\s*\w+.*$/i, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 export default function OppdelingsplanPage() {
   const { t, lang } = useLanguage();
   const isMobile = useIsMobile();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const { toast } = useToast();
+  const diagramRef = useRef<HTMLDivElement>(null);
   const [selectedCut, setSelectedCut] = useState<number | null>(null);
   const [hoveredCut, setHoveredCut] = useState<number | null>(null);
   const { extras, presets } = useOppdelingsplanData();
+  const [orders, setOrders] = useState<any[]>([]);
+  const [ordersLoading, setOrdersLoading] = useState(false);
+  const [activeOrderId, setActiveOrderId] = useState<string | null>(null);
+  const [orderPickerOpen, setOrderPickerOpen] = useState(false);
+  const [pendingAddAction, setPendingAddAction] = useState<PendingAddAction | null>(null);
+
+  const [draftPresetSlug, setDraftPresetSlug] = useState<string | null>(null);
+  const [draftExtras, setDraftExtras] = useState<string[]>([]);
+  const [draftSelectedCutKeys, setDraftSelectedCutKeys] = useState<string[]>([]);
+  const [chooseBoxOpen, setChooseBoxOpen] = useState(false);
+  const [pendingChooseBoxCut, setPendingChooseBoxCut] = useState<CutOverview | null>(null);
 
   const partMeta = useMemo(
     () => ({
@@ -93,6 +147,8 @@ export default function OppdelingsplanPage() {
         if (!cutName) continue;
 
         const key = content.cut_id || content.cut_slug || cutName;
+        const cutId = content.cut_id || null;
+        const cutSlug = content.cut_slug || null;
         const rawPartKey = (content.part_key || 'unknown') as PartKey;
         const partKey: PartKey = rawPartKey in PART_ORDER ? rawPartKey : 'unknown';
         const partName = lang === 'en'
@@ -106,21 +162,37 @@ export default function OppdelingsplanPage() {
           ? `${presetName} (${content.target_weight_kg} kg)`
           : presetName;
 
+        const boxOption: CutBoxOption = {
+          preset_id: preset.id,
+          preset_slug: preset.slug,
+          preset_name: presetName,
+          target_weight_kg: content.target_weight_kg ?? null,
+          label: boxLabel,
+        };
+
         if (!map.has(key)) {
           map.set(key, {
             key,
+            cut_id: cutId,
+            cut_slug: cutSlug,
             name: cutName,
             description: cutDescription,
             partKey,
             partName,
-            boxes: [boxLabel],
+            boxOptions: [boxOption],
           });
           continue;
         }
 
         const existing = map.get(key)!;
-        if (!existing.boxes.includes(boxLabel)) {
-          existing.boxes.push(boxLabel);
+        if (!existing.cut_id && cutId) {
+          existing.cut_id = cutId;
+        }
+        if (!existing.cut_slug && cutSlug) {
+          existing.cut_slug = cutSlug;
+        }
+        if (!existing.boxOptions.some((option) => option.preset_slug === preset.slug)) {
+          existing.boxOptions.push(boxOption);
         }
       }
     }
@@ -140,6 +212,10 @@ export default function OppdelingsplanPage() {
   const selectedPartName = selectedPartKey ? (selectedPartCuts[0]?.partName || partMeta[selectedPartKey].name) : '';
   const selectedPartDescription = selectedPartKey ? partMeta[selectedPartKey].description : '';
   const hoveredPartName = hoveredCut ? partMeta[PART_BY_POLYGON_ID[hoveredCut] || 'unknown'].name : null;
+  const filteredCutsOverview = useMemo(
+    () => (selectedPartKey ? allCutsOverview.filter((cut) => cut.partKey === selectedPartKey) : allCutsOverview),
+    [allCutsOverview, selectedPartKey]
+  );
 
   const inBoxSummary: string[] = Array.from(
     new Set(
@@ -164,6 +240,521 @@ export default function OppdelingsplanPage() {
       })
     : [];
 
+  const activeOrder = useMemo(() => {
+    if (!orders || orders.length === 0) return null;
+    if (orders.length === 1) return orders[0];
+    if (!activeOrderId) return null;
+    return orders.find((order) => order.id === activeOrderId) || null;
+  }, [activeOrderId, orders]);
+
+  const hasMultipleOrders = orders.length > 1;
+  const draftPresetDisplayName = useMemo(() => {
+    if (!draftPresetSlug) return null;
+    const preset = presets.find((candidate) => candidate.slug === draftPresetSlug);
+    if (!preset) return draftPresetSlug;
+    return lang === 'en' ? preset.name_en : preset.name_no;
+  }, [draftPresetSlug, lang, presets]);
+
+  function resolveExtraSlugForCut(cut: Pick<CutOverview, 'cut_slug' | 'name'>): string | null {
+    const cutSlug = (cut.cut_slug || '').trim();
+    const candidates: string[] = [];
+
+    if (cutSlug) {
+      const override = CUT_SLUG_TO_EXTRA_SLUG_OVERRIDES[cutSlug];
+      if (override) candidates.push(override);
+      candidates.push(cutSlug);
+      candidates.push(cutSlug.replace(/-/g, '_'));
+      candidates.push(cutSlug.replace(/_/g, '-'));
+      candidates.push(`extra-${cutSlug}`);
+    }
+
+    for (const candidate of candidates) {
+      if (!candidate) continue;
+      if (extras.some((extra) => extra.slug === candidate)) return candidate;
+    }
+
+    // Name-based fallback (helps when slugs diverge).
+    const normalizedCutName = normalizeTextForMatch(stripCutNameNoise(cut.name));
+    if (!normalizedCutName) return null;
+
+    const match = extras.find((extra) => {
+      const extraName = lang === 'en' && (extra as any).name_en ? (extra as any).name_en : extra.name_no;
+      const normalizedExtraName = normalizeTextForMatch(stripCutNameNoise(String(extraName || '')));
+
+      return (
+        normalizedExtraName.includes(normalizedCutName) ||
+        normalizedCutName.includes(normalizedExtraName)
+      );
+    });
+
+    return match?.slug || null;
+  }
+
+  function getBoxPresetSlugsForCut(cut: CutOverview): string[] {
+    return Array.from(new Set(cut.boxOptions.map((option) => option.preset_slug).filter(Boolean)));
+  }
+
+  function addCutToDraft(cut: CutOverview) {
+    setDraftSelectedCutKeys((previous) => Array.from(new Set([...previous, cut.key])));
+
+    const boxPresetSlugs = getBoxPresetSlugsForCut(cut);
+
+    if (!draftPresetSlug) {
+      if (boxPresetSlugs.length === 1) {
+        const boxName = cut.boxOptions.find((option) => option.preset_slug === boxPresetSlugs[0])?.preset_name || boxPresetSlugs[0];
+        setDraftPresetSlug(boxPresetSlugs[0]);
+        toast({
+          title: t.oppdelingsplan.addedToDraftTitle,
+          description: t.oppdelingsplan.addedToDraftBox.replace('{box}', boxName),
+        });
+        return;
+      }
+
+      if (boxPresetSlugs.length > 1) {
+        setPendingChooseBoxCut(cut);
+        setChooseBoxOpen(true);
+        return;
+      }
+    }
+
+    if (draftPresetSlug && boxPresetSlugs.includes(draftPresetSlug)) {
+      const boxName = cut.boxOptions.find((option) => option.preset_slug === draftPresetSlug)?.preset_name || draftPresetSlug;
+      toast({
+        title: t.oppdelingsplan.addedToDraftTitle,
+        description: t.oppdelingsplan.addedToDraftIncluded.replace('{box}', boxName),
+      });
+      return;
+    }
+
+    const extraSlug = resolveExtraSlugForCut(cut);
+    if (!extraSlug) {
+      toast({
+        title: t.oppdelingsplan.couldNotAddTitle,
+        description: t.oppdelingsplan.couldNotAddNoExtra,
+      });
+      return;
+    }
+
+    setDraftExtras((previous) => Array.from(new Set([...previous, extraSlug])));
+    toast({
+      title: t.oppdelingsplan.addedToDraftTitle,
+      description: t.oppdelingsplan.addedToDraftAsExtra,
+    });
+  }
+
+  function addExtraToDraft(extraSlug: string) {
+    setDraftExtras((previous) => Array.from(new Set([...previous, extraSlug])));
+    toast({
+      title: t.oppdelingsplan.addedToDraftTitle,
+      description: t.oppdelingsplan.addedToDraftAsExtra,
+    });
+  }
+
+  async function addExtraToExistingOrder(extraSlug: string, extraName?: string) {
+    if (!activeOrder) return;
+
+    const existingExtras = Array.isArray(activeOrder.extra_products) ? activeOrder.extra_products : [];
+    const existing = existingExtras.find((item: any) => item?.slug === extraSlug);
+
+    const extraCatalogItem = extras.find((extra) => extra.slug === extraSlug) as any;
+    const step = extraCatalogItem?.pricing_type === 'per_kg' ? 0.5 : 1;
+    const defaultQty = Number(extraCatalogItem?.default_quantity) > 0 ? Number(extraCatalogItem.default_quantity) : step;
+    const nextQty = existing?.quantity
+      ? Math.round((Number(existing.quantity) + step) * 10) / 10
+      : defaultQty;
+
+    const merged: Array<{ slug: string; quantity: number }> = existingExtras
+      .filter((item: any) => item?.slug)
+      .map((item: any) => ({
+        slug: String(item.slug),
+        quantity: Number(item.quantity) > 0 ? Number(item.quantity) : 1,
+      }));
+
+    const mergedIndex = merged.findIndex((item) => item.slug === extraSlug);
+    if (mergedIndex >= 0) {
+      merged[mergedIndex] = { slug: extraSlug, quantity: nextQty };
+    } else {
+      merged.push({ slug: extraSlug, quantity: nextQty });
+    }
+
+    try {
+      const response = await fetch(`/api/orders/${activeOrder.id}/add-extras`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ extras: merged }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data?.error || 'Failed to add extra');
+      }
+
+      // Update local order snapshot for subsequent additions.
+      setOrders((previous) =>
+        previous.map((order) => (order.id === activeOrder.id ? { ...order, ...(data.order || {}) } : order))
+      );
+
+      toast({
+        title: t.oppdelingsplan.addedToOrderTitle,
+        description: t.oppdelingsplan.addedToOrderDesc.replace('{item}', extraName || extraSlug),
+      });
+    } catch (error) {
+      toast({
+        title: t.oppdelingsplan.couldNotAddTitle,
+        description: t.oppdelingsplan.couldNotAddOrder,
+      });
+    }
+  }
+
+  function handleAddCut(cut: CutOverview) {
+    if (authLoading) return;
+
+    if (!isAuthenticated) {
+      const returnTo = `/oppdelingsplan?add=${encodeURIComponent(cut.cut_slug || cut.key)}`;
+      window.location.href = `/api/auth/vipps/login?returnTo=${encodeURIComponent(returnTo)}`;
+      return;
+    }
+
+    if (ordersLoading) {
+      toast({ title: t.oppdelingsplan.loadingOrdersTitle });
+      return;
+    }
+
+    if (orders.length > 0) {
+      if (hasMultipleOrders && !activeOrder) {
+        setPendingAddAction({ kind: 'cut', cut });
+        setOrderPickerOpen(true);
+        return;
+      }
+
+      const extraSlug = resolveExtraSlugForCut(cut);
+      if (!extraSlug) {
+        toast({
+          title: t.oppdelingsplan.couldNotAddTitle,
+          description: t.oppdelingsplan.couldNotAddNoExtra,
+        });
+        return;
+      }
+
+      void addExtraToExistingOrder(extraSlug, cut.name);
+      return;
+    }
+
+    addCutToDraft(cut);
+  }
+
+  function handleAddExtra(extraSlug: string, extraName: string) {
+    if (authLoading) return;
+
+    if (!isAuthenticated) {
+      const returnTo = `/oppdelingsplan?add=${encodeURIComponent(extraSlug)}`;
+      window.location.href = `/api/auth/vipps/login?returnTo=${encodeURIComponent(returnTo)}`;
+      return;
+    }
+
+    if (ordersLoading) {
+      toast({ title: t.oppdelingsplan.loadingOrdersTitle });
+      return;
+    }
+
+    if (orders.length > 0) {
+      if (hasMultipleOrders && !activeOrder) {
+        setPendingAddAction({ kind: 'extra', extraSlug, extraName });
+        setOrderPickerOpen(true);
+        return;
+      }
+
+      void addExtraToExistingOrder(extraSlug, extraName);
+      return;
+    }
+
+    addExtraToDraft(extraSlug);
+  }
+
+  function buildCheckoutHref(): string | null {
+    const extrasParams = draftExtras.map((slug) => `extra=${encodeURIComponent(slug)}`).join('&');
+    const base = draftPresetSlug
+      ? `/bestill?preset=${encodeURIComponent(draftPresetSlug)}${extrasParams ? `&${extrasParams}` : ''}`
+      : `/bestill?chooseBox=1${extrasParams ? `&${extrasParams}` : ''}`;
+
+    return base;
+  }
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setOrders([]);
+      setActiveOrderId(null);
+      return;
+    }
+
+    let cancelled = false;
+    setOrdersLoading(true);
+
+    fetch('/api/orders')
+      .then(async (res) => {
+        if (!res.ok) {
+          throw new Error('Failed to load orders');
+        }
+        return res.json();
+      })
+      .then((data) => {
+        if (cancelled) return;
+        setOrders(Array.isArray(data?.orders) ? data.orders : []);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setOrders([]);
+      })
+      .finally(() => {
+        if (cancelled) return;
+        setOrdersLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthenticated]);
+
+  useEffect(() => {
+    const queuedAdd = searchParams.get('add');
+    if (!queuedAdd) return;
+    if (authLoading) return;
+    if (!isAuthenticated) return;
+    if (ordersLoading) return;
+
+    const decoded = queuedAdd.trim();
+    if (!decoded) return;
+
+    const cut = allCutsOverview.find(
+      (candidate) => candidate.cut_slug === decoded || candidate.cut_id === decoded || candidate.key === decoded
+    );
+    if (cut) {
+      handleAddCut(cut);
+      router.replace('/oppdelingsplan');
+      return;
+    }
+
+    const extra = canOrderSummary.find((candidate) => candidate.slug === decoded);
+    if (extra) {
+      handleAddExtra(extra.slug, extra.name);
+      router.replace('/oppdelingsplan');
+    }
+  }, [
+    allCutsOverview,
+    authLoading,
+    canOrderSummary,
+    isAuthenticated,
+    ordersLoading,
+    router,
+    searchParams,
+  ]);
+
+  useEffect(() => {
+    if (!pendingAddAction) return;
+    if (!activeOrder) return;
+    if (orderPickerOpen) return;
+
+    const action = pendingAddAction;
+    setPendingAddAction(null);
+
+    if (action.kind === 'cut') {
+      handleAddCut(action.cut);
+      return;
+    }
+
+    handleAddExtra(action.extraSlug, action.extraName);
+  }, [activeOrder, orderPickerOpen, pendingAddAction]);
+
+  function renderOverlays() {
+    return (
+      <>
+        <Dialog
+          open={orderPickerOpen}
+          onOpenChange={(open) => {
+            setOrderPickerOpen(open);
+            if (!open) {
+              setPendingAddAction(null);
+            }
+          }}
+        >
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle className="font-[family:var(--font-playfair)] font-normal text-neutral-900">
+                {t.oppdelingsplan.chooseOrderTitle}
+              </DialogTitle>
+              <DialogDescription className="text-neutral-600 font-light">
+                {t.oppdelingsplan.chooseOrderDesc}
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-2">
+              {orders.map((order) => {
+                const boxName = lang === 'en' ? order.display_box_name_en : order.display_box_name_no;
+                return (
+                  <button
+                    key={order.id}
+                    type="button"
+                    onClick={() => {
+                      setActiveOrderId(order.id);
+                      setOrderPickerOpen(false);
+                    }}
+                    className="w-full text-left rounded-xl border border-neutral-200 bg-white px-4 py-3 hover:border-neutral-300 hover:shadow-[0_10px_30px_-10px_rgba(0,0,0,0.08)] transition-all"
+                  >
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-neutral-900 truncate">
+                          #{order.order_number}
+                        </p>
+                        <p className="text-xs font-light text-neutral-600 truncate">
+                          {boxName || t.oppdelingsplan.unknownBoxName}
+                        </p>
+                      </div>
+                      <ArrowRight className="w-4 h-4 text-neutral-400" />
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog
+          open={chooseBoxOpen}
+          onOpenChange={(open) => {
+            setChooseBoxOpen(open);
+            if (!open) {
+              setPendingChooseBoxCut(null);
+            }
+          }}
+        >
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle className="font-[family:var(--font-playfair)] font-normal text-neutral-900">
+                {t.oppdelingsplan.chooseBoxTitle}
+              </DialogTitle>
+              <DialogDescription className="text-neutral-600 font-light">
+                {t.oppdelingsplan.chooseBoxDesc}
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-2">
+              {(pendingChooseBoxCut?.boxOptions || []).map((option) => (
+                <button
+                  key={`choose-box-${option.preset_slug}`}
+                  type="button"
+                  onClick={() => {
+                    setDraftPresetSlug(option.preset_slug);
+                    setChooseBoxOpen(false);
+                    setPendingChooseBoxCut(null);
+                    toast({
+                      title: t.oppdelingsplan.addedToDraftTitle,
+                      description: t.oppdelingsplan.addedToDraftBox.replace('{box}', option.preset_name),
+                    });
+                  }}
+                  className="w-full text-left rounded-xl border border-neutral-200 bg-white px-4 py-3 hover:border-neutral-300 hover:shadow-[0_10px_30px_-10px_rgba(0,0,0,0.08)] transition-all"
+                >
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-neutral-900 truncate">{option.preset_name}</p>
+                      {option.target_weight_kg ? (
+                        <p className="text-xs font-light text-neutral-600 truncate">
+                          {t.oppdelingsplan.boxWeightHint.replace('{kg}', String(option.target_weight_kg))}
+                        </p>
+                      ) : null}
+                    </div>
+                    <ArrowRight className="w-4 h-4 text-neutral-400" />
+                  </div>
+                </button>
+              ))}
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {orders.length > 0 && (
+          <div className="fixed bottom-4 left-1/2 z-40 -translate-x-1/2 w-[calc(100%-2rem)] max-w-5xl">
+            <div className="rounded-2xl border border-neutral-200 bg-white/95 backdrop-blur px-5 py-4 shadow-[0_20px_60px_-20px_rgba(0,0,0,0.25)]">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-neutral-500">
+                    {t.oppdelingsplan.addingToOrderLabel}
+                  </p>
+                  <p className="text-sm font-light text-neutral-700 truncate">
+                    {activeOrder
+                      ? `#${activeOrder.order_number} \u2022 ${lang === 'en' ? activeOrder.display_box_name_en : activeOrder.display_box_name_no}`
+                      : t.oppdelingsplan.chooseOrderPrompt}
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  {orders.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => setOrderPickerOpen(true)}
+                      className="inline-flex items-center gap-2 rounded-xl border border-neutral-200 bg-white px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-neutral-700 hover:text-neutral-900 hover:border-neutral-300 transition-colors"
+                    >
+                      {t.oppdelingsplan.changeOrder}
+                    </button>
+                  )}
+                  <Link
+                    href="/min-side"
+                    className="inline-flex items-center gap-2 rounded-xl bg-neutral-900 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-white hover:bg-neutral-800 transition-colors"
+                  >
+                    {t.oppdelingsplan.viewOrder}
+                    <ArrowRight className="w-4 h-4" />
+                  </Link>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {orders.length === 0 && (draftPresetSlug || draftExtras.length > 0) && (
+          <div className="fixed bottom-4 left-1/2 z-40 -translate-x-1/2 w-[calc(100%-2rem)] max-w-5xl">
+            <div className="rounded-2xl border border-neutral-200 bg-white/95 backdrop-blur px-5 py-4 shadow-[0_20px_60px_-20px_rgba(0,0,0,0.25)]">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-neutral-500">
+                    {t.oppdelingsplan.draftSelectionLabel}
+                  </p>
+                  <p className="text-sm font-light text-neutral-700">
+                    {draftPresetSlug
+                      ? t.oppdelingsplan.draftSelectedBox.replace('{box}', draftPresetDisplayName || draftPresetSlug)
+                      : t.oppdelingsplan.draftNoBoxSelected}
+                    {draftExtras.length > 0
+                      ? ` \u2022 ${t.oppdelingsplan.draftExtrasCount.replace('{count}', String(draftExtras.length))}`
+                      : ''}
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDraftPresetSlug(null);
+                      setDraftExtras([]);
+                      setDraftSelectedCutKeys([]);
+                    }}
+                    className="inline-flex items-center gap-2 rounded-xl border border-neutral-200 bg-white px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-neutral-700 hover:text-neutral-900 hover:border-neutral-300 transition-colors"
+                  >
+                    {t.oppdelingsplan.clearDraft}
+                  </button>
+
+                  <Link
+                    href={buildCheckoutHref() || '/bestill'}
+                    className="inline-flex items-center gap-2 rounded-xl bg-neutral-900 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-white hover:bg-neutral-800 transition-colors"
+                  >
+                    {t.oppdelingsplan.goToCheckout}
+                    <ArrowRight className="w-4 h-4" />
+                  </Link>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </>
+    );
+  }
+
   if (isMobile) {
     return (
       <div className="relative min-h-screen bg-[#F6F4EF] text-[#1E1B16]">
@@ -183,8 +774,15 @@ export default function OppdelingsplanPage() {
             {t.nav.back}
           </Link>
 
-          <MobileOppdelingsplan />
+          <MobileOppdelingsplan
+            inBoxSummary={inBoxSummary}
+            canOrderSummary={canOrderSummary}
+            cuts={allCutsOverview}
+            onAddCut={handleAddCut}
+            onAddExtra={handleAddExtra}
+          />
         </div>
+        {renderOverlays()}
       </div>
     );
   }
@@ -218,7 +816,10 @@ export default function OppdelingsplanPage() {
           </p>
         </div>
 
-        <div className="bg-white border border-neutral-200 rounded-xl overflow-hidden mb-12 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.08)] transition-all duration-500 hover:shadow-[0_30px_80px_-20px_rgba(0,0,0,0.12)]">
+        <div
+          ref={diagramRef}
+          className="bg-white border border-neutral-200 rounded-xl overflow-hidden mb-12 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.08)] transition-all duration-500 hover:shadow-[0_30px_80px_-20px_rgba(0,0,0,0.12)]"
+        >
           <div className="relative px-8 py-6 bg-neutral-900">
             <div className="relative w-full aspect-[16/9] max-w-5xl mx-auto">
               <Image
@@ -231,20 +832,26 @@ export default function OppdelingsplanPage() {
               />
 
               <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 100 100" preserveAspectRatio="none">
-                {PIG_CUT_POLYGONS.map((polygon) => (
-                  <polygon
-                    key={`${polygon.id}-${polygon.points}`}
-                    points={polygon.points}
-                    fill="transparent"
-                    stroke="transparent"
-                    strokeWidth="0.5"
-                    className="pointer-events-auto cursor-pointer hover:fill-white/20 hover:stroke-white/50 transition-all duration-200"
-                    onClick={() => setSelectedCut(polygon.id)}
-                    onMouseEnter={() => setHoveredCut(polygon.id)}
-                    onMouseLeave={() => setHoveredCut(null)}
-                    aria-label={polygon.ariaLabel}
-                  />
-                ))}
+                {PIG_CUT_POLYGONS.map((polygon) => {
+                  const isSelected = selectedCut === polygon.id;
+                  const isHovered = hoveredCut === polygon.id;
+                  const isActive = isSelected || isHovered;
+
+                  return (
+                    <polygon
+                      key={`${polygon.id}-${polygon.points}`}
+                      points={polygon.points}
+                      fill={isSelected ? 'rgba(255,255,255,0.28)' : isHovered ? 'rgba(255,255,255,0.18)' : 'transparent'}
+                      stroke={isActive ? 'rgba(255,255,255,0.7)' : 'transparent'}
+                      strokeWidth="0.6"
+                      className="pointer-events-auto cursor-pointer transition-all duration-200"
+                      onClick={() => setSelectedCut((previous) => (previous === polygon.id ? null : polygon.id))}
+                      onMouseEnter={() => setHoveredCut(polygon.id)}
+                      onMouseLeave={() => setHoveredCut(null)}
+                      aria-label={polygon.ariaLabel}
+                    />
+                  );
+                })}
               </svg>
 
               {hoveredCut && hoveredPartName && !selectedCut && (
@@ -274,14 +881,28 @@ export default function OppdelingsplanPage() {
                     <ul className="space-y-4">
                       {selectedPartCuts.map((cut) => (
                         <li key={`selected-cut-detail-${cut.key}`} className="rounded-xl border border-neutral-200 bg-neutral-50 p-4">
-                          <p className="text-base font-normal text-neutral-900 mb-1">{cut.name}</p>
-                          {cut.description && (
-                            <p className="text-sm font-light text-neutral-600 mb-2 leading-relaxed">{cut.description}</p>
-                          )}
-                          <div className="flex flex-wrap gap-1.5">
-                            {cut.boxes.map((box, idx) => (
+                          <div className="flex flex-wrap items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="text-base font-normal text-neutral-900 mb-1">{cut.name}</p>
+                              {cut.description && (
+                                <p className="text-sm font-light text-neutral-600 mb-2 leading-relaxed">{cut.description}</p>
+                              )}
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() => handleAddCut(cut)}
+                              className="shrink-0 inline-flex items-center gap-2 rounded-lg bg-neutral-900 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-white hover:bg-neutral-800 transition-colors"
+                            >
+                              <Plus className="w-4 h-4" />
+                              {t.oppdelingsplan.addToOrder}
+                            </button>
+                          </div>
+
+                          <div className="flex flex-wrap gap-1.5 mt-3">
+                            {cut.boxOptions.map((option, idx) => (
                               <span key={`${cut.key}-box-${idx}`} className="text-xs bg-white text-neutral-700 px-2 py-1 rounded-lg border border-neutral-200 font-light">
-                                {box}
+                                {option.label}
                               </span>
                             ))}
                           </div>
@@ -305,38 +926,96 @@ export default function OppdelingsplanPage() {
         </div>
 
         <div className="bg-white border border-neutral-200 rounded-xl p-10 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.08)] transition-all duration-500 hover:shadow-[0_30px_80px_-20px_rgba(0,0,0,0.12)]">
-          <h2 className="text-3xl font-light text-neutral-900 mb-10 text-center">{t.oppdelingsplan.allCuts}</h2>
-          {allCutsOverview.length > 0 ? (
+          <div className="flex flex-wrap items-end justify-between gap-4 mb-10">
+            <div className="text-center flex-1">
+              <h2 className="text-3xl font-light text-neutral-900">{t.oppdelingsplan.allCuts}</h2>
+              {selectedPartKey && (
+                <p className="mt-2 text-sm font-light text-neutral-600">
+                  {t.oppdelingsplan.filteredBy.replace('{part}', selectedPartName)}
+                </p>
+              )}
+            </div>
+
+            {selectedPartKey && (
+              <button
+                type="button"
+                onClick={() => setSelectedCut(null)}
+                className="shrink-0 inline-flex items-center gap-2 rounded-xl border border-neutral-200 bg-white px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-neutral-700 hover:text-neutral-900 hover:border-neutral-300 transition-colors"
+              >
+                {t.oppdelingsplan.clearFilter}
+              </button>
+            )}
+          </div>
+
+          {filteredCutsOverview.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {allCutsOverview.map((cut) => (
-                <div
-                  key={cut.key}
-                  className={cn(
-                    'p-6 rounded-xl border-2 text-left transition-all duration-300',
-                    'border-neutral-200 hover:border-neutral-300 hover:shadow-[0_10px_30px_-10px_rgba(0,0,0,0.1)] hover:-translate-y-1'
-                  )}
-                >
-                  <h3 className="text-xl font-normal text-neutral-900 mb-2">{cut.name}</h3>
-                  {cut.description && (
-                    <p className="text-sm font-light text-neutral-700 mb-3 leading-relaxed">{cut.description}</p>
-                  )}
-                  <p className="text-xs font-light text-neutral-500 mb-4">
-                    {t.oppdelingsplan.fromPigPartLabel} {cut.partName}
-                  </p>
-                  <div className="space-y-3">
-                    <div>
-                      <p className="text-xs font-light uppercase tracking-wider text-neutral-600 mb-2">{t.oppdelingsplan.inBoxShort}</p>
-                      <div className="flex flex-wrap gap-1.5">
-                        {cut.boxes.map((box, index) => (
-                          <span key={`${cut.key}-${index}`} className="text-xs bg-neutral-50 text-neutral-800 px-2 py-1 rounded-lg border border-neutral-200 font-light">
-                            {box}
-                          </span>
-                        ))}
+              {filteredCutsOverview.map((cut) => {
+                const isDraftSelected = draftSelectedCutKeys.includes(cut.key);
+                const polygonId = cut.partKey !== 'unknown' ? POLYGON_ID_BY_PART[cut.partKey] : null;
+
+                return (
+                  <div
+                    key={cut.key}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => {
+                      if (polygonId) {
+                        setSelectedCut(polygonId);
+                        diagramRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        if (polygonId) {
+                          setSelectedCut(polygonId);
+                          diagramRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        }
+                      }
+                    }}
+                    className={cn(
+                      'p-6 rounded-xl border-2 text-left transition-all duration-300 cursor-pointer',
+                      isDraftSelected
+                        ? 'border-neutral-900 bg-neutral-50 shadow-[0_15px_40px_-12px_rgba(0,0,0,0.12)]'
+                        : 'border-neutral-200 hover:border-neutral-300 hover:shadow-[0_10px_30px_-10px_rgba(0,0,0,0.1)] hover:-translate-y-1'
+                    )}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <h3 className="text-xl font-normal text-neutral-900 mb-2">{cut.name}</h3>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleAddCut(cut);
+                        }}
+                        className="shrink-0 inline-flex items-center gap-2 rounded-lg bg-neutral-900 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-white hover:bg-neutral-800 transition-colors"
+                      >
+                        <Plus className="w-4 h-4" />
+                        {t.oppdelingsplan.addToOrder}
+                      </button>
+                    </div>
+
+                    {cut.description && (
+                      <p className="text-sm font-light text-neutral-700 mb-3 leading-relaxed">{cut.description}</p>
+                    )}
+                    <p className="text-xs font-light text-neutral-500 mb-4">
+                      {t.oppdelingsplan.fromPigPartLabel} {cut.partName}
+                    </p>
+                    <div className="space-y-3">
+                      <div>
+                        <p className="text-xs font-light uppercase tracking-wider text-neutral-600 mb-2">{t.oppdelingsplan.inBoxShort}</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {cut.boxOptions.map((option, index) => (
+                            <span key={`${cut.key}-${index}`} className="text-xs bg-neutral-50 text-neutral-800 px-2 py-1 rounded-lg border border-neutral-200 font-light">
+                              {option.label}
+                            </span>
+                          ))}
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           ) : (
             <p className="text-sm text-neutral-500 text-center">{t.oppdelingsplan.noCutsLoaded}</p>
@@ -384,12 +1063,14 @@ export default function OppdelingsplanPage() {
                       </svg>
                       <span className="font-light text-neutral-900">{product.name}</span>
                     </div>
-                    <Link
-                      href={`/bestill?extra=${encodeURIComponent(product.slug)}`}
+                    <button
+                      type="button"
+                      onClick={() => handleAddExtra(product.slug, product.name)}
                       className="inline-flex items-center gap-2 rounded-lg border border-neutral-300 bg-white px-3 py-2 text-xs font-semibold uppercase tracking-wide text-neutral-700 hover:text-neutral-900 hover:border-neutral-400 transition-colors"
                     >
+                      <Plus className="w-4 h-4" />
                       {t.oppdelingsplan.orderAsExtra}
-                    </Link>
+                    </button>
                   </div>
                 ))}
               </div>
@@ -398,21 +1079,189 @@ export default function OppdelingsplanPage() {
         </div>
       </div>
 
-      <div className="fixed bottom-4 left-1/2 z-40 -translate-x-1/2 w-[calc(100%-2rem)] max-w-5xl">
-        <div className="rounded-2xl border border-neutral-200 bg-white/95 backdrop-blur px-5 py-4 shadow-[0_20px_60px_-20px_rgba(0,0,0,0.25)]">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="text-sm font-light text-neutral-700">
-              {t.oppdelingsplan.stickyCtaMessage}
-            </p>
-            <Link
-              href="/bestill"
-              className="inline-flex items-center justify-center rounded-xl bg-neutral-900 px-5 py-3 text-xs font-bold uppercase tracking-[0.25em] text-white"
-            >
-              {t.oppdelingsplan.stickyCtaButton}
-            </Link>
+      <Dialog
+        open={orderPickerOpen}
+        onOpenChange={(open) => {
+          setOrderPickerOpen(open);
+          if (!open) {
+            setPendingAddAction(null);
+          }
+        }}
+      >
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="font-[family:var(--font-playfair)] font-normal text-neutral-900">
+              {t.oppdelingsplan.chooseOrderTitle}
+            </DialogTitle>
+            <DialogDescription className="text-neutral-600 font-light">
+              {t.oppdelingsplan.chooseOrderDesc}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-2">
+            {orders.map((order) => {
+              const boxName = lang === 'en' ? order.display_box_name_en : order.display_box_name_no;
+              return (
+                <button
+                  key={order.id}
+                  type="button"
+                  onClick={() => {
+                    setActiveOrderId(order.id);
+                    setOrderPickerOpen(false);
+                  }}
+                  className="w-full text-left rounded-xl border border-neutral-200 bg-white px-4 py-3 hover:border-neutral-300 hover:shadow-[0_10px_30px_-10px_rgba(0,0,0,0.08)] transition-all"
+                >
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-neutral-900 truncate">
+                        #{order.order_number}
+                      </p>
+                      <p className="text-xs font-light text-neutral-600 truncate">
+                        {boxName || t.oppdelingsplan.unknownBoxName}
+                      </p>
+                    </div>
+                    <ArrowRight className="w-4 h-4 text-neutral-400" />
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={chooseBoxOpen}
+        onOpenChange={(open) => {
+          setChooseBoxOpen(open);
+          if (!open) {
+            setPendingChooseBoxCut(null);
+          }
+        }}
+      >
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="font-[family:var(--font-playfair)] font-normal text-neutral-900">
+              {t.oppdelingsplan.chooseBoxTitle}
+            </DialogTitle>
+            <DialogDescription className="text-neutral-600 font-light">
+              {t.oppdelingsplan.chooseBoxDesc}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-2">
+            {(pendingChooseBoxCut?.boxOptions || []).map((option) => (
+              <button
+                key={`choose-box-${option.preset_slug}`}
+                type="button"
+                onClick={() => {
+                  setDraftPresetSlug(option.preset_slug);
+                  setChooseBoxOpen(false);
+                  setPendingChooseBoxCut(null);
+                  toast({
+                    title: t.oppdelingsplan.addedToDraftTitle,
+                    description: t.oppdelingsplan.addedToDraftBox.replace('{box}', option.preset_name),
+                  });
+                }}
+                className="w-full text-left rounded-xl border border-neutral-200 bg-white px-4 py-3 hover:border-neutral-300 hover:shadow-[0_10px_30px_-10px_rgba(0,0,0,0.08)] transition-all"
+              >
+                <div className="flex items-center justify-between gap-4">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-neutral-900 truncate">{option.preset_name}</p>
+                    {option.target_weight_kg ? (
+                      <p className="text-xs font-light text-neutral-600 truncate">
+                        {t.oppdelingsplan.boxWeightHint.replace('{kg}', String(option.target_weight_kg))}
+                      </p>
+                    ) : null}
+                  </div>
+                  <ArrowRight className="w-4 h-4 text-neutral-400" />
+                </div>
+              </button>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {orders.length > 0 && (
+        <div className="fixed bottom-4 left-1/2 z-40 -translate-x-1/2 w-[calc(100%-2rem)] max-w-5xl">
+          <div className="rounded-2xl border border-neutral-200 bg-white/95 backdrop-blur px-5 py-4 shadow-[0_20px_60px_-20px_rgba(0,0,0,0.25)]">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-neutral-500">
+                  {t.oppdelingsplan.addingToOrderLabel}
+                </p>
+                <p className="text-sm font-light text-neutral-700 truncate">
+                  {activeOrder
+                    ? `#${activeOrder.order_number} \u2022 ${lang === 'en' ? activeOrder.display_box_name_en : activeOrder.display_box_name_no}`
+                    : t.oppdelingsplan.chooseOrderPrompt}
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                {orders.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => setOrderPickerOpen(true)}
+                    className="inline-flex items-center gap-2 rounded-xl border border-neutral-200 bg-white px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-neutral-700 hover:text-neutral-900 hover:border-neutral-300 transition-colors"
+                  >
+                    {t.oppdelingsplan.changeOrder}
+                  </button>
+                )}
+                <Link
+                  href="/min-side"
+                  className="inline-flex items-center gap-2 rounded-xl bg-neutral-900 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-white hover:bg-neutral-800 transition-colors"
+                >
+                  {t.oppdelingsplan.viewOrder}
+                  <ArrowRight className="w-4 h-4" />
+                </Link>
+              </div>
+            </div>
           </div>
         </div>
-      </div>
+      )}
+
+      {orders.length === 0 && (draftPresetSlug || draftExtras.length > 0) && (
+        <div className="fixed bottom-4 left-1/2 z-40 -translate-x-1/2 w-[calc(100%-2rem)] max-w-5xl">
+          <div className="rounded-2xl border border-neutral-200 bg-white/95 backdrop-blur px-5 py-4 shadow-[0_20px_60px_-20px_rgba(0,0,0,0.25)]">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-neutral-500">
+                  {t.oppdelingsplan.draftSelectionLabel}
+                </p>
+                <p className="text-sm font-light text-neutral-700">
+                  {draftPresetSlug
+                    ? t.oppdelingsplan.draftSelectedBox.replace('{box}', draftPresetDisplayName || draftPresetSlug)
+                    : t.oppdelingsplan.draftNoBoxSelected}
+                  {draftExtras.length > 0
+                    ? ` \u2022 ${t.oppdelingsplan.draftExtrasCount.replace('{count}', String(draftExtras.length))}`
+                    : ''}
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDraftPresetSlug(null);
+                    setDraftExtras([]);
+                    setDraftSelectedCutKeys([]);
+                  }}
+                  className="inline-flex items-center gap-2 rounded-xl border border-neutral-200 bg-white px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-neutral-700 hover:text-neutral-900 hover:border-neutral-300 transition-colors"
+                >
+                  {t.oppdelingsplan.clearDraft}
+                </button>
+
+                <Link
+                  href={buildCheckoutHref() || '/bestill'}
+                  className="inline-flex items-center gap-2 rounded-xl bg-neutral-900 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-white hover:bg-neutral-800 transition-colors"
+                >
+                  {t.oppdelingsplan.goToCheckout}
+                  <ArrowRight className="w-4 h-4" />
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <style jsx>{`
         @keyframes fade-in {
