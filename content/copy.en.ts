@@ -1280,8 +1280,6 @@ export const en = {
     availabilityTitle: "Availability",
     availabilityLead: "Limited number of boxes. Ordering closes when the season is full.",
     availabilityOpen: "Open for reservations",
-    mangalitsaPerPigLabel: "4 boxes per pig",
-    mangalitsaPerPigValue: "15,600 NOK",
     mangalitsaPriceFrom: "From 310 NOK/kg",
     mangalitsaPriceTo: "Up to 613 NOK/kg",
     scarcityTitle: "Limited capacity",
@@ -1307,10 +1305,10 @@ export const en = {
     contentsTitle: "Box contents",
     contentsHeading: "What you get",
     contentsLead: "The cut list below shows what is usually included.",
-    contentsNote: "Contents vary slightly by size and slaughter.",
+    contentsNote: "Contents may vary slightly from pig to pig.",
     contentsGuarantee:
-      "Ribs are always included, the rest is balanced between everyday and slow-cook cuts.",
-    contentsLinkLabel: "See cut map",
+      "Ribs are always included. See the butcher diagram for the full overview.",
+    contentsLinkLabel: "See butcher diagram",
     noBoxContentsConfigured: "No box contents configured yet.",
     enhanceTitle: "Enhance your box",
     enhanceLead: "Add premium extras during checkout",
@@ -2902,19 +2900,31 @@ export const en = {
       'Two guanciale per animal',
     ],
     whyExpensive: {
-      title: 'Why so expensive?',
+      title: 'Why is Mangalitsa more expensive than normal pigs?',
       reasons: [
         {
           title: 'Limited',
-          body: 'Only 4 boxes per pig. Only one slaughter per year. When it\'s gone, it\'s gone.',
+          body: 'Only 4 boxes per pig, slaughtered once a year. When it\'s gone, it\'s gone.',
         },
         {
-          title: 'Craftsmanship',
-          body: 'Each pig is 11 months old. Each box is hand-cut. Every part has a purpose.',
+          title: 'Slow-grown',
+          body: 'Mangalitsa grows more slowly. More time costs more, but builds flavor and marbling.',
         },
         {
-          title: 'Quality',
-          body: 'Woolly pig has 3-4 times more intramuscular fat than regular pork. This is flavor, juiciness and texture you actually remember.',
+          title: 'Animal welfare',
+          body: 'More space, more outdoor time, and better feed cost more per animal.',
+        },
+        {
+          title: 'Handcrafted',
+          body: 'Each box is cut, portioned, vacuum packed, and labeled by hand. It takes time and shows in quality.',
+        },
+        {
+          title: 'Fat quality',
+          body: 'Woolly pig has deeper marbling and a richer fat profile than standard pork.',
+        },
+        {
+          title: 'Small batch',
+          body: 'Small volumes mean higher slaughter, packing and cold-chain costs. We choose quality over scale.',
         },
       ],
     },

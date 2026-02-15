@@ -328,12 +328,6 @@ export default function ProductPage() {
                   <p className="text-sm text-white/65">
                     {t.mangalitsa.hero.title}
                   </p>
-                  <div className="space-y-2 text-sm text-white/80">
-                    <div className="flex items-center justify-between">
-                      <span>{copy.mangalitsaPerPigLabel}</span>
-                      <span className="tabular-nums">{copy.mangalitsaPerPigValue}</span>
-                    </div>
-                  </div>
                 </div>
 
                 <div className="border-t border-white/15 pt-6 space-y-2">

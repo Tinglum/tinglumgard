@@ -1,19 +1,31 @@
 export const mangalitsaStory = {
   no: {
     whyExpensive: {
-      title: 'Hvorfor så dyrt?',
+      title: 'Hvorfor er Mangalitsa dyrere enn vanlig gris?',
       reasons: [
         {
-          title: 'Limited',
-          body: 'Kun 4 bokser per gris. Kun én slakt per år. Når det er tomt, er det tomt.',
+          title: 'Begrenset',
+          body: 'Kun 4 bokser per gris, og slaktes én gang i året. Når det er tomt, er det tomt.',
+        },
+        {
+          title: 'Lang oppvekst',
+          body: 'Mangalitsa vokser saktere. Mer tid gir mer kostnad, men bygger smak og marmorering.',
+        },
+        {
+          title: 'Dyrevelferd',
+          body: 'Mer plass, mer aktivitet og mer tid ute gir en bedre råvare, men høyere kostnad per dyr.',
         },
         {
           title: 'Håndverk',
-          body: 'Hver gris er 11 måneder gammel. Hver boks er skåret for hånd. Hver del har et formål.',
+          body: 'Hver boks skjæres, porsjoneres, vakuumpakkes og merkes for hånd. Det tar tid, og det gir kvalitet.',
         },
         {
-          title: 'Kvalitet',
-          body: 'Ullgris har 3-4 ganger mer intramuskulært fett enn vanlig gris. Dette er smak, saftighet og tekstur du faktisk husker.',
+          title: 'Fettkvalitet',
+          body: 'Ullgris har mer fettmarmorering enn vanlig gris. Det gir saftighet, dybde og en tekstur du faktisk husker.',
+        },
+        {
+          title: 'Småskala',
+          body: 'Små volum gjør slakt, pakking og kjølekjede dyrere. Vi prioriterer kvalitet fremfor volum.',
         },
       ],
     },
@@ -33,19 +45,31 @@ export const mangalitsaStory = {
   },
   en: {
     whyExpensive: {
-      title: 'Why so expensive?',
+      title: 'Why is Mangalitsa more expensive than normal pigs?',
       reasons: [
         {
           title: 'Limited',
-          body: 'Only 4 boxes per pig. Only one slaughter per year. When it\'s gone, it\'s gone.',
+          body: 'Only 4 boxes per pig, slaughtered once a year. When it\'s gone, it\'s gone.',
         },
         {
-          title: 'Craftsmanship',
-          body: 'Each pig is 11 months old. Each box is hand-cut. Every part has a purpose.',
+          title: 'Slow-grown',
+          body: 'Mangalitsa grows more slowly. More time costs more, but builds flavor and marbling.',
         },
         {
-          title: 'Quality',
-          body: 'Woolly pig has 3-4 times more intramuscular fat than regular pork. This is flavor, juiciness and texture you actually remember.',
+          title: 'Animal welfare',
+          body: 'More space, more outdoor time, and better feed cost more per animal.',
+        },
+        {
+          title: 'Handcrafted',
+          body: 'Each box is cut, portioned, vacuum packed, and labeled by hand. It takes time and shows in quality.',
+        },
+        {
+          title: 'Fat quality',
+          body: 'Woolly pig has deeper marbling and a richer fat profile than standard pork.',
+        },
+        {
+          title: 'Small batch',
+          body: 'Small volumes mean higher slaughter, packing and cold-chain costs. We choose quality over scale.',
         },
       ],
     },

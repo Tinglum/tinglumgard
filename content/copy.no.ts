@@ -1273,16 +1273,14 @@
     heroCtaSecondary: "Hva er i boksen",
     quickFacts: [
       "Vakuumpakket og merket",
-      "Klar for fryser",
+      "Klar for fryseren",
       "Sesongslipp en gang i året",
       "Henting eller levering",
-      "Lokal slakt i desember",
+      "Lokalt slakt i desember",
     ],
     availabilityTitle: "Tilgjengelighet",
     availabilityLead: "Begrenset antall kasser. Bestilling stenger når sesongen er full.",
     availabilityOpen: "Åpen for reservasjon",
-    mangalitsaPerPigLabel: "4 bokser per gris",
-    mangalitsaPerPigValue: "15 600 NOK",
     mangalitsaPriceFrom: "Fra 310 kr/kg",
     mangalitsaPriceTo: "Opp til 613 kr/kg",
     scarcityTitle: "Begrenset kapasitet",
@@ -1294,7 +1292,7 @@
     valueCards: [
       {
         title: "Ferdig pakket",
-        body: "Alt er vakuumpakket, merket og klart for fryser.",
+        body: "Alt er vakuumpakket, merket og klart for fryseren.",
       },
       {
         title: "Balansert kasse",
@@ -1308,9 +1306,9 @@
     contentsTitle: "Innhold i boksen",
     contentsHeading: "Dette får du",
     contentsLead: "Listen under viser hva som vanligvis ligger i boksen.",
-    contentsNote: "Dette varierer litt etter størrelse og slakt.",
+    contentsNote: "Innholdet kan variere litt fra gris til gris.",
     contentsGuarantee:
-      "Ribbe er alltid med, resten balanseres mellom middagsstykker og langtidsstykker.",
+      "Ribbe er alltid med. Se oppdelingsplanen for full oversikt over resten.",
     contentsLinkLabel: "Se oppdelingsplan",
     noBoxContentsConfigured: "Ingen boksinnhold er konfigurert ennå.",
     enhanceTitle: "Forsterk boksen din",
@@ -2900,24 +2898,36 @@
     },
     premiumProof: [
       'Skåret med fettkappe',
-      'Kun én slakt i året',
+      'Slaktes én gang i året',
       'Kun 4 bokser per gris',
-      'To guanciale per dyr',
+      'Kun 2 svinekinn per dyr',
     ],
     whyExpensive: {
-      title: 'Hvorfor så dyrt?',
+      title: 'Hvorfor er Mangalitsa dyrere enn vanlig gris?',
       reasons: [
         {
-          title: 'Limited',
-          body: 'Kun 4 bokser per gris. Kun én slakt per år. Når det er tomt, er det tomt.',
+          title: 'Begrenset',
+          body: 'Kun 4 bokser per gris, og slaktes én gang i året. Når det er tomt, er det tomt.',
+        },
+        {
+          title: 'Lang oppvekst',
+          body: 'Mangalitsa vokser saktere. Mer tid gir mer kostnad, men bygger smak og marmorering.',
+        },
+        {
+          title: 'Dyrevelferd',
+          body: 'Mer plass, mer aktivitet og mer tid ute gir en bedre råvare, men høyere kostnad per dyr.',
         },
         {
           title: 'Håndverk',
-          body: 'Hver gris er 11 måneder gammel. Hver boks er skåret for hånd. Hver del har et formål.',
+          body: 'Hver boks skjæres, porsjoneres, vakuumpakkes og merkes for hånd. Det tar tid, og det gir kvalitet.',
         },
         {
-          title: 'Kvalitet',
-          body: 'Ullgris har 3-4 ganger mer intramuskulært fett enn vanlig gris. Dette er smak, saftighet og tekstur du faktisk husker.',
+          title: 'Fettkvalitet',
+          body: 'Ullgris har mer fettmarmorering enn vanlig gris. Det gir saftighet, dybde og en tekstur du faktisk husker.',
+        },
+        {
+          title: 'Småskala',
+          body: 'Små volum gjør slakt, pakking og kjølekjede dyrere. Vi prioriterer kvalitet fremfor volum.',
         },
       ],
     },
