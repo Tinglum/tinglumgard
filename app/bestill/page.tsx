@@ -471,84 +471,90 @@ export default function CheckoutPage() {
           </div>
         )}
 
-        <div className="mt-auto pt-5 mt-5 border-t border-neutral-200 flex items-end justify-between gap-4">
-          <p className="text-base font-normal text-neutral-900 tabular-nums">
-            {extra.price_nok.toLocaleString(locale)} {t.common.currency}
-            <span className="text-sm font-light text-neutral-500"> / {unitLabel}</span>
-          </p>
+        <div className="mt-auto pt-5 mt-5 border-t border-neutral-200">
+          <div className="flex items-end justify-between gap-4">
+            <p className="text-base font-normal text-neutral-900 tabular-nums">
+              {extra.price_nok.toLocaleString(locale)} {t.common.currency}
+              <span className="text-sm font-light text-neutral-500 whitespace-nowrap">/{unitLabel}</span>
+            </p>
 
-          {!isSelected ? (
-            <button
-              type="button"
-              onClick={() => toggleExtraSelection(extra)}
-              className="inline-flex items-center gap-2 rounded-xl bg-neutral-900 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.25em] text-white hover:bg-neutral-800 transition-colors"
-            >
-              <Plus className="w-4 h-4" />
-              {t.common.add}
-            </button>
-          ) : (
-            <div className="flex items-center gap-2">
+            {!isSelected && (
               <button
                 type="button"
-                onClick={() => {
-                  const newQty = Math.round((quantity - stepSize) * 10) / 10;
-                  if (newQty <= 0) {
-                    setExtraProducts((previous) => previous.filter((item) => item !== extra.slug));
-                    setExtraQuantities((previous) => {
-                      const next = { ...previous };
-                      delete next[extra.slug];
-                      return next;
-                    });
-                    return;
-                  }
-
-                  setExtraQuantities((previous) => ({
-                    ...previous,
-                    [extra.slug]: newQty,
-                  }));
-                }}
-                className="h-10 w-10 rounded-full border border-neutral-200 bg-white text-neutral-700 flex items-center justify-center hover:bg-neutral-50 hover:border-neutral-300 transition-colors"
-                aria-label={`${t.common.remove} ${stepSize} ${unitLabel}`}
-              >
-                <Minus className="w-4 h-4" />
-              </button>
-
-              <div className="flex flex-col items-center">
-                <Input
-                  type="number"
-                  min={extra.pricing_type === 'per_kg' ? '0.5' : '1'}
-                  step={String(stepSize)}
-                  value={quantity}
-                  onChange={(e) => {
-                    const value = parseFloat(e.target.value);
-                    if (!Number.isNaN(value) && value > 0) {
-                      setExtraQuantities((previous) => ({
-                        ...previous,
-                        [extra.slug]: value,
-                      }));
-                    }
-                  }}
-                  className="w-20 text-center border border-neutral-200 rounded-xl px-2 py-2 tabular-nums"
-                />
-                <span className="mt-1 text-[10px] uppercase tracking-wide text-neutral-500">
-                  {unitLabel}
-                </span>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => {
-                  const newQty = Math.round((quantity + stepSize) * 10) / 10;
-                  setExtraQuantities((previous) => ({
-                    ...previous,
-                    [extra.slug]: newQty,
-                  }));
-                }}
-                className="h-10 w-10 rounded-full border border-neutral-200 bg-white text-neutral-700 flex items-center justify-center hover:bg-neutral-50 hover:border-neutral-300 transition-colors"
-                aria-label={`${t.common.add} ${stepSize} ${unitLabel}`}
+                onClick={() => toggleExtraSelection(extra)}
+                className="inline-flex items-center gap-2 rounded-xl bg-neutral-900 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.25em] text-white hover:bg-neutral-800 transition-colors"
               >
                 <Plus className="w-4 h-4" />
+                {t.common.add}
               </button>
+            )}
+          </div>
+
+          {isSelected && (
+            <div className="mt-4 flex justify-end">
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const newQty = Math.round((quantity - stepSize) * 10) / 10;
+                    if (newQty <= 0) {
+                      setExtraProducts((previous) => previous.filter((item) => item !== extra.slug));
+                      setExtraQuantities((previous) => {
+                        const next = { ...previous };
+                        delete next[extra.slug];
+                        return next;
+                      });
+                      return;
+                    }
+
+                    setExtraQuantities((previous) => ({
+                      ...previous,
+                      [extra.slug]: newQty,
+                    }));
+                  }}
+                  className="h-9 w-9 rounded-full border border-neutral-200 bg-white text-neutral-700 flex items-center justify-center hover:bg-neutral-50 hover:border-neutral-300 transition-colors"
+                  aria-label={`${t.common.remove} ${stepSize} ${unitLabel}`}
+                >
+                  <Minus className="w-4 h-4" />
+                </button>
+
+                <div className="flex flex-col items-center">
+                  <Input
+                    type="number"
+                    min={extra.pricing_type === 'per_kg' ? '0.5' : '1'}
+                    step={String(stepSize)}
+                    value={quantity}
+                    onChange={(e) => {
+                      const value = parseFloat(e.target.value);
+                      if (!Number.isNaN(value) && value > 0) {
+                        setExtraQuantities((previous) => ({
+                          ...previous,
+                          [extra.slug]: value,
+                        }));
+                      }
+                    }}
+                    className="w-16 text-center border border-neutral-200 rounded-xl px-2 py-2 tabular-nums"
+                  />
+                  <span className="mt-1 text-[10px] uppercase tracking-wide text-neutral-500">
+                    {unitLabel}
+                  </span>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    const newQty = Math.round((quantity + stepSize) * 10) / 10;
+                    setExtraQuantities((previous) => ({
+                      ...previous,
+                      [extra.slug]: newQty,
+                    }));
+                  }}
+                  className="h-9 w-9 rounded-full border border-neutral-200 bg-white text-neutral-700 flex items-center justify-center hover:bg-neutral-50 hover:border-neutral-300 transition-colors"
+                  aria-label={`${t.common.add} ${stepSize} ${unitLabel}`}
+                >
+                  <Plus className="w-4 h-4" />
+                </button>
+              </div>
             </div>
           )}
         </div>
