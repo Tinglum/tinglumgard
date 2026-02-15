@@ -64,6 +64,155 @@ type LegacyPresetContentRow = {
   is_hero?: boolean | null;
 };
 
+type LegacyPartKey = 'nakke' | 'svinebog' | 'kotelettkam' | 'ribbeside' | 'skinke' | 'knoke' | 'unknown';
+
+function normalizeForMatch(input: string): string {
+  return String(input || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // remove accents
+    .replace(/æ/g, 'ae')
+    .replace(/ø/g, 'o')
+    .replace(/å/g, 'a')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+}
+
+function inferLegacyPartKey(contentNameNo?: string | null, contentNameEn?: string | null): LegacyPartKey {
+  const haystack = normalizeForMatch(`${contentNameNo || ''} ${contentNameEn || ''}`);
+
+  if (
+    haystack.includes('svinekinn') ||
+    haystack.includes('kinn') ||
+    haystack.includes('guanciale') ||
+    haystack.includes('jowl')
+  ) {
+    return 'nakke';
+  }
+
+  if (haystack.includes('nakkekam') || haystack.includes('coppa') || haystack.includes('neck collar')) {
+    return 'nakke';
+  }
+
+  if (
+    haystack.includes('slakterbiff') ||
+    haystack.includes('butcher steak') ||
+    haystack.includes('secreto') ||
+    haystack.includes('presa') ||
+    haystack.includes('pluma')
+  ) {
+    return 'nakke';
+  }
+
+  if (
+    haystack.includes('indrefilet') ||
+    haystack.includes('tenderloin') ||
+    haystack.includes('ytrefilet') ||
+    haystack.includes('ryggfilet') ||
+    haystack.includes('loin fillet')
+  ) {
+    return 'kotelettkam';
+  }
+
+  if (
+    haystack.includes('tomahawk') ||
+    haystack.includes('entrecote') ||
+    haystack.includes('ribeye') ||
+    haystack.includes('kotelett') ||
+    haystack.includes('chop')
+  ) {
+    return 'kotelettkam';
+  }
+
+  if (haystack.includes('ryggspekk') || haystack.includes('back fat') || haystack.includes('lardo')) {
+    return 'kotelettkam';
+  }
+
+  if (
+    haystack.includes('ribbe') ||
+    haystack.includes('ribs') ||
+    haystack.includes('belly') ||
+    haystack.includes('pancetta') ||
+    haystack.includes('sideflesk') ||
+    haystack.includes('bacon')
+  ) {
+    return 'ribbeside';
+  }
+
+  if (
+    haystack.includes('kokkefett') ||
+    haystack.includes('smult') ||
+    haystack.includes('cooking fat') ||
+    haystack.includes('lard')
+  ) {
+    return 'ribbeside';
+  }
+
+  if (
+    haystack.includes('bog') ||
+    haystack.includes('shoulder') ||
+    haystack.includes('kjottdeig') ||
+    haystack.includes('ground') ||
+    haystack.includes('mince') ||
+    haystack.includes('gryte') ||
+    haystack.includes('steke') ||
+    haystack.includes('stew') ||
+    haystack.includes('roast meat')
+  ) {
+    return 'svinebog';
+  }
+
+  if (haystack.includes('polse') || haystack.includes('sausage') || haystack.includes('medister') || haystack.includes('julepolse')) {
+    return 'svinebog';
+  }
+
+  if (haystack.includes('skinke') || haystack.includes('ham') || haystack.includes('prosciutto')) {
+    return 'skinke';
+  }
+
+  if (haystack.includes('knoke') || haystack.includes('knuckle') || haystack.includes('hock') || haystack.includes('shank')) {
+    return 'knoke';
+  }
+
+  if (haystack.includes('labb') || haystack.includes('trotter')) {
+    return 'knoke';
+  }
+
+  return 'unknown';
+}
+
+function inferLegacyCutSlug(contentNameNo?: string | null, contentNameEn?: string | null): string | null {
+  const haystack = normalizeForMatch(`${contentNameNo || ''} ${contentNameEn || ''}`);
+
+  if (haystack.includes('guanciale') || haystack.includes('svinekinn') || haystack.includes('jowl')) return 'guanciale';
+  if (haystack.includes('nakkekam') || haystack.includes('coppa')) return 'nakkekam-coppa';
+  if (haystack.includes('slakterbiff') || haystack.includes('secreto') || haystack.includes('presa') || haystack.includes('pluma')) return 'secreto-presa-pluma';
+  if (haystack.includes('indrefilet') || haystack.includes('tenderloin')) return 'indrefilet';
+  if (haystack.includes('tomahawk')) return 'tomahawk-kotelett';
+  if (haystack.includes('entrecote') || haystack.includes('ribeye')) return 'svine-entrecote';
+  if (haystack.includes('ryggspekk') || haystack.includes('lardo') || haystack.includes('back fat')) return 'ryggspekk-lardo';
+  if (haystack.includes('ribbevalg') || haystack.includes('rib selection')) return 'ribbevalg';
+  if (haystack.includes('ekstra ribbe') || (haystack.includes('ribbe') && haystack.includes('ekstra'))) return 'ekstra-ribbe';
+  if (haystack.includes('sideflesk')) return 'bacon-sideflesk';
+  if (haystack.includes('bacon')) return 'bacon';
+  if (haystack.includes('kokkefett') || haystack.includes('smult') || haystack.includes('cooking fat') || haystack.includes('lard')) return 'kokkefett-smult';
+  if (haystack.includes('bogstek') || (haystack.includes('bog') && haystack.includes('stek')) || haystack.includes('shoulder roast')) return 'bogstek';
+  if (haystack.includes('kjottdeig')) return 'kjottdeig-grov';
+  if (haystack.includes('gryte') || haystack.includes('stew') || haystack.includes('roast meat')) return 'gryte-stekekjott';
+  if (haystack.includes('bbq') && haystack.includes('polse')) return 'bbq-polse';
+  if (haystack.includes('premium') && haystack.includes('polse')) return 'premium-polse';
+  if (haystack.includes('medister') && haystack.includes('farse')) return 'medisterfarse';
+  if (haystack.includes('medister') && haystack.includes('polse')) return 'medisterpolser';
+  if (haystack.includes('julepolse') || (haystack.includes('christmas') && haystack.includes('sausage'))) return 'julepolse';
+  if (haystack.includes('knoke') || haystack.includes('knuckle') || haystack.includes('hock')) return 'knoke';
+  if (haystack.includes('skinke') || haystack.includes('ham')) return 'skinke-speking';
+  if (haystack.includes('ytrefilet') || haystack.includes('ryggfilet') || haystack.includes('loin fillet')) return 'ytrefilet-ryggfilet';
+  if (haystack.includes('svinekoteletter') || (haystack.includes('pork') && haystack.includes('chops'))) return 'svinekoteletter';
+  if (haystack.includes('labb') || haystack.includes('trotter')) return 'labb';
+
+  return null;
+}
+
 function formatQuantity(value: number, lang: Lang): string {
   if (Number.isInteger(value)) {
     return String(value);
@@ -161,8 +310,8 @@ async function normalizeLegacyPresets(presetRows: PresetRow[]) {
       .map((row, idx) => ({
         id: row.id,
         cut_id: null,
-        cut_slug: null,
-        part_key: null,
+        cut_slug: inferLegacyCutSlug(row.content_name_no, row.content_name_en),
+        part_key: inferLegacyPartKey(row.content_name_no, row.content_name_en),
         part_name_no: null,
         part_name_en: null,
         cut_description_no: null,
