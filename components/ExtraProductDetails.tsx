@@ -29,6 +29,32 @@ function stripTrailingParens(value: string) {
   return value.replace(/\s*\([^)]*\)\s*$/, '').trim();
 }
 
+function formatRecipeTitle(title: string, lang: 'no' | 'en'): string {
+  const trimmed = String(title || '').trim();
+  if (!trimmed) return '';
+
+  if (lang === 'no') {
+    if (/^speke\s+skinke$/i.test(trimmed)) {
+      return 'Lag din egen spekeskinke';
+    }
+    const match = trimmed.match(/^(.*?)-prosjekt$/i);
+    if (match?.[1]) {
+      return `Lag din egen ${match[1].trim().toLowerCase()}`;
+    }
+    return trimmed;
+  }
+
+  if (/^cure\s+a\s+ham$/i.test(trimmed)) {
+    return 'Make your own cured ham';
+  }
+  const match = trimmed.match(/^(.*?)\s+project$/i);
+  if (match?.[1]) {
+    return `Make your own ${match[1].trim().toLowerCase()}`;
+  }
+
+  return trimmed;
+}
+
 export function ExtraProductDetails({ extra }: { extra: ExtraProductDetailsExtra }) {
   const { lang, t } = useLanguage();
 
@@ -103,7 +129,8 @@ export function ExtraProductDetails({ extra }: { extra: ExtraProductDetailsExtra
           </p>
           <div className="space-y-2">
             {recipes.map((recipe, idx) => {
-              const recipeTitle = lang === 'no' ? recipe.title_no : recipe.title_en;
+              const rawTitle = lang === 'no' ? recipe.title_no : recipe.title_en;
+              const recipeTitle = formatRecipeTitle(String(rawTitle || ''), lang);
               const recipeDesc = lang === 'no' ? recipe.description_no : recipe.description_en;
 
               return (

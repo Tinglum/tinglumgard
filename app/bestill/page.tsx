@@ -339,8 +339,87 @@ export default function CheckoutPage() {
       : [];
 
     return suggestions
-      .map((recipe: any) => (lang === 'no' ? recipe.title_no : recipe.title_en))
+      .map((recipe: any) => {
+        const rawTitle = lang === 'no' ? recipe.title_no : recipe.title_en;
+        return formatRecipeTitle(String(rawTitle || ''), lang);
+      })
       .filter(Boolean);
+  }
+
+  function formatRecipeTitle(title: string, language: 'no' | 'en'): string {
+    const trimmed = String(title || '').trim();
+    if (!trimmed) return '';
+
+    if (language === 'no') {
+      if (/^speke\s+skinke$/i.test(trimmed)) {
+        return 'Lag din egen spekeskinke';
+      }
+      const match = trimmed.match(/^(.*?)-prosjekt$/i);
+      if (match?.[1]) {
+        return `Lag din egen ${match[1].trim().toLowerCase()}`;
+      }
+      return trimmed;
+    }
+
+    if (/^cure\s+a\s+ham$/i.test(trimmed)) {
+      return 'Make your own cured ham';
+    }
+    const match = trimmed.match(/^(.*?)\s+project$/i);
+    if (match?.[1]) {
+      return `Make your own ${match[1].trim().toLowerCase()}`;
+    }
+
+    return trimmed;
+  }
+
+  function stripToCardTeaser(text: string, maxChars: number) {
+    const cleaned = String(text || '').replace(/\s+/g, ' ').trim();
+    if (!cleaned) return '';
+
+    // Prefer the first sentence as teaser.
+    const sentenceMatch = cleaned.match(/^(.+?[.!?])(\s|$)/);
+    const firstSentence = (sentenceMatch?.[1] || cleaned).trim();
+    if (firstSentence.length <= maxChars) return firstSentence;
+
+    // Cut on a word boundary without adding ellipsis.
+    const sliced = firstSentence.slice(0, maxChars).trim();
+    return sliced.replace(/\s+\S*$/, '').trim();
+  }
+
+  function getCardDescription(extra: any) {
+    const overrides: Record<string, { no: string; en: string }> = {
+      'extra-guanciale': {
+        no: 'Råvaren bak ekte guanciale. Perfekt til carbonara og amatriciana.',
+        en: 'The real guanciale cut. Perfect for carbonara and amatriciana.',
+      },
+      'extra-secreto-presa-pluma': {
+        no: 'Secreto, presa og pluma samlet. Små biffer med ekstrem marmorering.',
+        en: 'Secreto, presa and pluma bundled. Small steaks with extreme marbling.',
+      },
+      'extra-tomahawk': {
+        no: 'Steakhouse-kutt fra ullgris. Tykk kotelett med langt bein og fettkappe.',
+        en: 'Steakhouse cut. Thick chop with long bone and fat cap.',
+      },
+      'extra-pancetta': {
+        no: 'Buklist med fettlag og dybde. Ideell til pancetta eller premium bacon.',
+        en: 'Belly strip with rich fat layers. Ideal for pancetta or premium bacon.',
+      },
+      'extra-skinke-speking': {
+        no: 'Stor skinke med fettkappe. Perfekt til langsteking eller speking.',
+        en: 'Large ham with fat cap. Ideal for slow roasting or curing.',
+      },
+    };
+
+    const override = overrides[String(extra.slug || '')];
+    if (override) {
+      return lang === 'no' ? override.no : override.en;
+    }
+
+    const source = lang === 'no'
+      ? (extra.description_premium_no || extra.description_no)
+      : (extra.description_premium_en || extra.description_en || extra.description_no);
+
+    return stripToCardTeaser(source, 120);
   }
 
   function splitExtraName(rawName: string) {
@@ -387,9 +466,7 @@ export default function CheckoutPage() {
     const chefTerm = (explicitChefTerm || parsedName.chefFromName || '').trim();
     const name = chefTerm ? parsedName.primary : rawName.trim();
 
-    const description = lang === 'no'
-      ? (extra.description_premium_no || extra.description_no)
-      : (extra.description_premium_en || extra.description_en || extra.description_no);
+    const description = getCardDescription(extra);
 
     const allRecipeTags = recipeTagsForExtra(extra);
     const visibleRecipeTags = allRecipeTags.slice(0, 2);
@@ -442,7 +519,7 @@ export default function CheckoutPage() {
                 align="end"
                 side="bottom"
                 sideOffset={12}
-                className="w-[380px] max-w-[92vw] p-6 max-h-[460px] overflow-y-auto"
+                className="w-[420px] max-w-[92vw] p-6 max-h-[70vh] overflow-y-auto rounded-2xl border border-neutral-200 bg-white text-neutral-900 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.25)]"
               >
                 <ExtraProductDetails extra={extra} />
               </PopoverContent>

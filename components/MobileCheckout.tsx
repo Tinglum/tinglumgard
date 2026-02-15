@@ -199,16 +199,87 @@ export function MobileCheckout(props: MobileCheckoutProps) {
     return total + (extra.price_nok * quantity);
   }, 0);
   const getExtraName = (extra: any) => (lang === 'en' && extra.name_en ? extra.name_en : extra.name_no);
-  const getExtraDescription = (extra: any) => (
-    lang === 'en'
+
+  const formatRecipeTitle = (title: string) => {
+    const trimmed = String(title || '').trim();
+    if (!trimmed) return '';
+
+    if (lang === 'no') {
+      if (/^speke\s+skinke$/i.test(trimmed)) {
+        return 'Lag din egen spekeskinke';
+      }
+      const match = trimmed.match(/^(.*?)-prosjekt$/i);
+      if (match?.[1]) {
+        return `Lag din egen ${match[1].trim().toLowerCase()}`;
+      }
+      return trimmed;
+    }
+
+    if (/^cure\s+a\s+ham$/i.test(trimmed)) {
+      return 'Make your own cured ham';
+    }
+    const match = trimmed.match(/^(.*?)\s+project$/i);
+    if (match?.[1]) {
+      return `Make your own ${match[1].trim().toLowerCase()}`;
+    }
+
+    return trimmed;
+  };
+
+  const stripToCardTeaser = (text: string, maxChars: number) => {
+    const cleaned = String(text || '').replace(/\s+/g, ' ').trim();
+    if (!cleaned) return '';
+
+    const sentenceMatch = cleaned.match(/^(.+?[.!?])(\s|$)/);
+    const firstSentence = (sentenceMatch?.[1] || cleaned).trim();
+    if (firstSentence.length <= maxChars) return firstSentence;
+
+    const sliced = firstSentence.slice(0, maxChars).trim();
+    return sliced.replace(/\s+\S*$/, '').trim();
+  };
+
+  const getExtraDescription = (extra: any) => {
+    const overrides: Record<string, { no: string; en: string }> = {
+      'extra-guanciale': {
+        no: 'Råvaren bak ekte guanciale. Perfekt til carbonara og amatriciana.',
+        en: 'The real guanciale cut. Perfect for carbonara and amatriciana.',
+      },
+      'extra-secreto-presa-pluma': {
+        no: 'Secreto, presa og pluma samlet. Små biffer med ekstrem marmorering.',
+        en: 'Secreto, presa and pluma bundled. Small steaks with extreme marbling.',
+      },
+      'extra-tomahawk': {
+        no: 'Steakhouse-kutt fra ullgris. Tykk kotelett med langt bein og fettkappe.',
+        en: 'Steakhouse cut. Thick chop with long bone and fat cap.',
+      },
+      'extra-pancetta': {
+        no: 'Buklist med fettlag og dybde. Ideell til pancetta eller premium bacon.',
+        en: 'Belly strip with rich fat layers. Ideal for pancetta or premium bacon.',
+      },
+      'extra-skinke-speking': {
+        no: 'Stor skinke med fettkappe. Perfekt til langsteking eller speking.',
+        en: 'Large ham with fat cap. Ideal for slow roasting or curing.',
+      },
+    };
+
+    const override = overrides[String(extra.slug || '')];
+    if (override) return lang === 'no' ? override.no : override.en;
+
+    const source = lang === 'en'
       ? (extra.description_premium_en || extra.description_en || extra.description_no)
-      : (extra.description_premium_no || extra.description_no)
-  );
+      : (extra.description_premium_no || extra.description_no);
+
+    return stripToCardTeaser(source, 120);
+  };
+
   const recipeTagsForExtra = (extra: any) => {
     const suggestions = Array.isArray(extra.recipe_suggestions) ? extra.recipe_suggestions : [];
     return suggestions
       .slice(0, 2)
-      .map((recipe: any) => (lang === 'en' ? recipe.title_en : recipe.title_no))
+      .map((recipe: any) => {
+        const raw = lang === 'en' ? recipe.title_en : recipe.title_no;
+        return formatRecipeTitle(String(raw || ''));
+      })
       .filter(Boolean);
   };
 
@@ -281,22 +352,22 @@ export function MobileCheckout(props: MobileCheckoutProps) {
               )}
             </div>
 
-            {hasDetails && (
-              <Dialog>
-                <DialogTrigger asChild>
-                  <button
-                    type="button"
-                    className="h-9 w-9 flex items-center justify-center rounded-full border border-[#D7CEC1] bg-white text-[#6A6258] shadow-sm"
-                    aria-label={t.checkout.showProductInfoAria}
-                  >
-                    <Info className="h-4 w-4" />
-                  </button>
-                </DialogTrigger>
-                <DialogContent className="max-w-[92vw] sm:max-w-lg max-h-[85vh] overflow-y-auto">
-                  <ExtraProductDetails extra={extra} />
-                </DialogContent>
-              </Dialog>
-            )}
+              {hasDetails && (
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <button
+                      type="button"
+                      className="h-9 w-9 flex items-center justify-center rounded-full border border-[#D7CEC1] bg-white text-[#6A6258] shadow-sm"
+                      aria-label={t.checkout.showProductInfoAria}
+                    >
+                      <Info className="h-4 w-4" />
+                    </button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-[92vw] sm:max-w-lg max-h-[85vh] overflow-y-auto border border-[#E4DED5] bg-white text-[#1E1B16] rounded-[28px] shadow-[0_30px_80px_-20px_rgba(30,27,22,0.35)]">
+                    <ExtraProductDetails extra={extra} />
+                  </DialogContent>
+                </Dialog>
+              )}
           </div>
 
           {description && (
