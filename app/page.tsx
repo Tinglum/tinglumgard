@@ -134,12 +134,12 @@ function ProductCard({
   return (
     <div
       ref={cardRef}
-      className={`group relative transition-all duration-700 ${
+      className={`group relative h-full transition-all duration-700 ${
         isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-12'
       }`}
       style={{ transitionDelay: `${delay}ms` }}
     >
-      <div className="bg-white border border-neutral-200 rounded-lg p-8 transition-all duration-500 hover:shadow-[0_30px_80px_-20px_rgba(0,0,0,0.2)] hover:-translate-y-3">
+      <div className="bg-white border border-neutral-200 rounded-lg p-8 h-full flex flex-col transition-all duration-500 hover:shadow-[0_30px_80px_-20px_rgba(0,0,0,0.2)] hover:-translate-y-3">
 
         {isFeatured && (
           <div className="absolute -top-3 left-1/2 -translate-x-1/2">
@@ -149,7 +149,7 @@ function ProductCard({
           </div>
         )}
 
-        <div className="space-y-6">
+        <div className="flex h-full flex-col gap-6">
           {/* Header */}
           <div className="space-y-3 pb-6 border-b border-neutral-200">
             <MetaLabel>{t.mangalitsa.pageTitle}</MetaLabel>
@@ -181,37 +181,39 @@ function ProductCard({
             </ul>
           </div>
 
-          {/* Pricing */}
-          <div className="space-y-3 pt-6 border-t border-neutral-200">
-            <div className="flex items-baseline justify-between">
-              <span className="text-xs uppercase tracking-wider text-neutral-500 font-semibold">
-                {t.product.totalPrice}
-              </span>
-              <span className="text-2xl font-light tracking-tight text-neutral-900 tabular-nums">
-                {price?.toLocaleString(locale)} <span className="text-base text-neutral-500">{t.common.currency}</span>
-              </span>
+          <div className="mt-auto space-y-6">
+            {/* Pricing */}
+            <div className="space-y-3 pt-6 border-t border-neutral-200">
+              <div className="flex items-baseline justify-between">
+                <span className="text-xs uppercase tracking-wider text-neutral-500 font-semibold">
+                  {t.product.totalPrice}
+                </span>
+                <span className="text-2xl font-light tracking-tight text-neutral-900 tabular-nums">
+                  {price?.toLocaleString(locale)} <span className="text-base text-neutral-500">{t.common.currency}</span>
+                </span>
+              </div>
+              <div className="flex items-baseline justify-between text-sm">
+                <span className="text-neutral-600">{t.product.deposit50}</span>
+                <span className="text-neutral-900 font-medium tabular-nums">
+                  {deposit?.toLocaleString(locale)} {t.common.currency}
+                </span>
+              </div>
+              <div className="flex items-baseline justify-between text-sm">
+                <span className="text-neutral-600">{t.product.balanceOnDelivery}</span>
+                <span className="text-neutral-900 font-medium tabular-nums">
+                  {balance?.toLocaleString(locale)} {t.common.currency}
+                </span>
+              </div>
             </div>
-            <div className="flex items-baseline justify-between text-sm">
-              <span className="text-neutral-600">{t.product.deposit50}</span>
-              <span className="text-neutral-900 font-medium tabular-nums">
-                {deposit?.toLocaleString(locale)} {t.common.currency}
-              </span>
-            </div>
-            <div className="flex items-baseline justify-between text-sm">
-              <span className="text-neutral-600">{t.product.balanceOnDelivery}</span>
-              <span className="text-neutral-900 font-medium tabular-nums">
-                {balance?.toLocaleString(locale)} {t.common.currency}
-              </span>
-            </div>
-          </div>
 
-          {/* CTA */}
-          <Link
-            href={ctaHref}
-            className="block w-full text-center px-6 py-4 bg-neutral-900 text-white rounded-lg text-sm font-bold uppercase tracking-wider hover:bg-neutral-800 transition-all duration-300 hover:shadow-[0_20px_50px_-15px_rgba(0,0,0,0.4)] hover:-translate-y-1"
-          >
-            {ctaText}
-          </Link>
+            {/* CTA */}
+            <Link
+              href={ctaHref}
+              className="block w-full text-center px-6 py-4 bg-neutral-900 text-white rounded-lg text-sm font-bold uppercase tracking-wider hover:bg-neutral-800 transition-all duration-300 hover:shadow-[0_20px_50px_-15px_rgba(0,0,0,0.4)] hover:-translate-y-1"
+            >
+              {ctaText}
+            </Link>
+          </div>
         </div>
       </div>
     </div>
@@ -757,7 +759,7 @@ export default function Page() {
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-8">
+          <div className="grid md:grid-cols-2 gap-8 items-stretch">
             {sortedPresets.length === 0 && (
               <div className="md:col-span-2 rounded-xl border border-neutral-200 bg-neutral-50 p-8 text-sm text-neutral-600">
                 {t.mangalitsa.noPresets}

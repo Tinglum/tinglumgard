@@ -6,10 +6,25 @@ type MaybePreset = {
 } | null;
 
 type OrderWithPreset = {
-  box_size?: number | null;
+  box_size?: number | string | null;
   mangalitsa_preset?: MaybePreset | MaybePreset[];
   mangalitsa_box_presets?: MaybePreset | MaybePreset[];
 };
+
+function parseBoxSize(value: unknown): number {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === 'string') {
+    const numeric = Number(value.trim());
+    if (Number.isFinite(numeric)) {
+      return numeric;
+    }
+  }
+
+  return 0;
+}
 
 function resolvePreset(order: OrderWithPreset): MaybePreset {
   const primary = order.mangalitsa_preset;
@@ -22,9 +37,8 @@ function resolvePreset(order: OrderWithPreset): MaybePreset {
 }
 
 export function getEffectiveBoxSize(order: OrderWithPreset): number {
-  if (typeof order.box_size === 'number' && Number.isFinite(order.box_size)) {
-    return order.box_size;
-  }
+  const directSize = parseBoxSize(order.box_size);
+  if (directSize > 0) return directSize;
 
   const preset = resolvePreset(order);
   if (typeof preset?.target_weight_kg === 'number' && Number.isFinite(preset.target_weight_kg)) {
@@ -36,10 +50,23 @@ export function getEffectiveBoxSize(order: OrderWithPreset): number {
 
 export function getOrderPresetNames(order: OrderWithPreset): { no: string | null; en: string | null } {
   const preset = resolvePreset(order);
-  return {
-    no: preset?.name_no || null,
-    en: preset?.name_en || null,
-  };
+  if (preset?.name_no || preset?.name_en) {
+    return {
+      no: preset?.name_no || null,
+      en: preset?.name_en || null,
+    };
+  }
+
+  // Fallback for standard (non-mangalitsa) orders that only have box_size.
+  const boxSize = parseBoxSize(order.box_size);
+  if (boxSize > 0) {
+    return {
+      no: `Kasse ${boxSize} kg`,
+      en: `Box ${boxSize} kg`,
+    };
+  }
+
+  return { no: null, en: null };
 }
 
 export function normalizeOrderForDisplay<T extends OrderWithPreset>(order: T): T & {

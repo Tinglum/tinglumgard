@@ -680,7 +680,7 @@ export default function OppdelingsplanPage() {
                   </p>
                   <p className="text-sm font-light text-neutral-700 truncate">
                     {activeOrder
-                      ? `#${activeOrder.order_number} \u2022 ${lang === 'en' ? activeOrder.display_box_name_en : activeOrder.display_box_name_no}`
+                      ? `#${activeOrder.order_number} \u2022 ${(lang === 'en' ? activeOrder.display_box_name_en : activeOrder.display_box_name_no) || t.oppdelingsplan.unknownBoxName}`
                       : t.oppdelingsplan.chooseOrderPrompt}
                   </p>
                 </div>
@@ -1191,7 +1191,7 @@ export default function OppdelingsplanPage() {
                 </p>
                 <p className="text-sm font-light text-neutral-700 truncate">
                   {activeOrder
-                    ? `#${activeOrder.order_number} \u2022 ${lang === 'en' ? activeOrder.display_box_name_en : activeOrder.display_box_name_no}`
+                    ? `#${activeOrder.order_number} \u2022 ${(lang === 'en' ? activeOrder.display_box_name_en : activeOrder.display_box_name_no) || t.oppdelingsplan.unknownBoxName}`
                     : t.oppdelingsplan.chooseOrderPrompt}
                 </p>
               </div>
