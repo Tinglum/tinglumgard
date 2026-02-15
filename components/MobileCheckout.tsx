@@ -1,9 +1,12 @@
 ﻿"use client";
 
 import { useEffect, useRef, useState } from 'react';
-import { Check, ChevronLeft, ChevronRight, AlertCircle } from 'lucide-react';
+import { Check, ChevronLeft, ChevronRight, AlertCircle, Info, Minus, Plus } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { cn } from '@/lib/utils';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
+import { ExtraProductDetails } from '@/components/ExtraProductDetails';
 import { ReferralCodeInput } from '@/components/ReferralCodeInput';
 import { RebateCodeInput } from '@/components/RebateCodeInput';
 
@@ -196,7 +199,11 @@ export function MobileCheckout(props: MobileCheckoutProps) {
     return total + (extra.price_nok * quantity);
   }, 0);
   const getExtraName = (extra: any) => (lang === 'en' && extra.name_en ? extra.name_en : extra.name_no);
-  const getExtraDescription = (extra: any) => (lang === 'en' && extra.description_en ? extra.description_en : extra.description_no);
+  const getExtraDescription = (extra: any) => (
+    lang === 'en'
+      ? (extra.description_premium_en || extra.description_en || extra.description_no)
+      : (extra.description_premium_no || extra.description_no)
+  );
   const recipeTagsForExtra = (extra: any) => {
     const suggestions = Array.isArray(extra.recipe_suggestions) ? extra.recipe_suggestions : [];
     return suggestions
@@ -205,26 +212,47 @@ export function MobileCheckout(props: MobileCheckoutProps) {
       .filter(Boolean);
   };
 
+  const splitExtraName = (rawName: string) => {
+    const match = rawName.match(/^(.*)\s*\(([^)]+)\)\s*$/);
+    if (!match) return { primary: rawName.trim(), chefFromName: '' };
+    return { primary: match[1].trim(), chefFromName: match[2].trim() };
+  };
+
   const renderMobileExtraCard = (extra: any, featured = false) => {
     const isSelected = extraProducts.includes(extra.slug);
     const quantity = extraQuantities[extra.slug] !== undefined
       ? extraQuantities[extra.slug]
       : (extra.default_quantity || (extra.pricing_type === 'per_kg' ? 0.5 : 1));
+    const stepValue = extra.pricing_type === 'per_kg' ? 0.5 : 1;
     const unitLabel = extra.pricing_type === 'per_kg' ? t.common.kg : t.common.stk;
     const formattedQty = extra.pricing_type === 'per_kg'
       ? quantity.toLocaleString(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 })
       : quantity.toLocaleString(locale);
+    const defaultQty = extra.default_quantity || (extra.pricing_type === 'per_kg' ? 0.5 : 1);
+
     const recipeTags = recipeTagsForExtra(extra);
+    const rawName = getExtraName(extra);
+    const parsedName = splitExtraName(rawName);
+    const explicitChefTerm = lang === 'en'
+      ? (extra.chef_term_en || extra.chef_term_no)
+      : extra.chef_term_no;
+    const chefTerm = (explicitChefTerm || parsedName.chefFromName || '').trim();
+    const displayName = chefTerm ? parsedName.primary : rawName;
 
-    const toggleExtra = () => {
-      if (extraProducts.includes(extra.slug)) {
-        setExtraProducts(extraProducts.filter((slug) => slug !== extra.slug));
-        return;
-      }
+    const description = getExtraDescription(extra);
+    const hasDetails = Boolean(
+      chefTerm ||
+      extra.description_premium_no ||
+      extra.description_premium_en ||
+      extra.preparation_tips_no ||
+      extra.preparation_tips_en ||
+      (Array.isArray(extra.recipe_suggestions) && extra.recipe_suggestions.length > 0)
+    );
 
+    const selectExtra = () => {
+      if (extraProducts.includes(extra.slug)) return;
       setExtraProducts([...extraProducts, extra.slug]);
-      if (!extraQuantities[extra.slug]) {
-        const defaultQty = extra.default_quantity || (extra.pricing_type === 'per_kg' ? 0.5 : 1);
+      if (extraQuantities[extra.slug] === undefined) {
         setExtraQuantities({
           ...extraQuantities,
           [extra.slug]: defaultQty,
@@ -235,31 +263,53 @@ export function MobileCheckout(props: MobileCheckoutProps) {
     return (
       <div
         key={extra.slug}
-        role="button"
-        tabIndex={0}
-        onClick={toggleExtra}
-        onKeyDown={(event) => {
-          if (event.key === 'Enter' || event.key === ' ') {
-            event.preventDefault();
-            toggleExtra();
-          }
-        }}
-        className={`flex h-full flex-col justify-between rounded-[26px] border px-4 py-4 text-left transition-all ${
-          isSelected ? 'border-[#1E1B16] bg-[#1E1B16] text-white' : 'border-[#E4DED5] bg-[#FBFAF7] text-[#1E1B16]'
-        }`}
+        className={cn(
+          'flex h-full flex-col rounded-[26px] border px-4 py-4 text-left transition-all',
+          isSelected
+            ? 'border-[#1E1B16] bg-white shadow-[0_18px_40px_rgba(30,27,22,0.12)]'
+            : 'border-[#E4DED5] bg-[#FBFAF7] text-[#1E1B16]'
+        )}
       >
         <div>
-          {featured && (
-            <div className="mb-3 h-16 rounded-2xl border border-[#E4DED5] bg-gradient-to-br from-[#EEE8DD] to-[#F7F2E9] flex items-center justify-center text-lg">
-              🔥
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0 pr-1">
+              <p className="text-sm font-semibold leading-snug break-words">{displayName}</p>
+              {chefTerm && (
+                <p className="mt-1 text-[11px] italic text-[#7A7368] break-words">
+                  {chefTerm}
+                </p>
+              )}
             </div>
-          )}
-          <div className="flex items-start justify-between gap-2">
-            <p className="text-sm font-semibold leading-snug break-words pr-1">{getExtraName(extra)}</p>
+
+            {hasDetails && (
+              <Dialog>
+                <DialogTrigger asChild>
+                  <button
+                    type="button"
+                    className="h-9 w-9 flex items-center justify-center rounded-full border border-[#D7CEC1] bg-white text-[#6A6258] shadow-sm"
+                    aria-label={t.checkout.showProductInfoAria}
+                  >
+                    <Info className="h-4 w-4" />
+                  </button>
+                </DialogTrigger>
+                <DialogContent className="max-w-[92vw] sm:max-w-lg max-h-[85vh] overflow-y-auto">
+                  <ExtraProductDetails extra={extra} />
+                </DialogContent>
+              </Dialog>
+            )}
           </div>
-          {getExtraDescription(extra) && (
-            <p className={`mt-2 text-[11px] leading-relaxed break-words ${isSelected ? 'text-white/70' : 'text-[#5E5A50]'}`}>
-              {getExtraDescription(extra)}
+
+          {description && (
+            <p
+              className="mt-3 text-[11px] leading-relaxed break-words text-[#5E5A50]"
+              style={{
+                display: '-webkit-box',
+                WebkitLineClamp: 3,
+                WebkitBoxOrient: 'vertical',
+                overflow: 'hidden',
+              }}
+            >
+              {description}
             </p>
           )}
           {recipeTags.length > 0 && (
@@ -267,7 +317,7 @@ export function MobileCheckout(props: MobileCheckoutProps) {
               {recipeTags.map((tag: string) => (
                 <span
                   key={`${extra.slug}-${tag}`}
-                  className={`rounded-full border px-2 py-0.5 text-[10px] ${isSelected ? 'border-white/30 text-white/70' : 'border-[#D7CEC1] text-[#5E5A50]'}`}
+                  className="rounded-full border border-[#D7CEC1] px-2 py-0.5 text-[10px] text-[#5E5A50]"
                 >
                   {tag}
                 </span>
@@ -276,59 +326,64 @@ export function MobileCheckout(props: MobileCheckoutProps) {
           )}
         </div>
 
-        <div className="mt-4 flex items-center justify-between text-xs">
-          <span className="font-semibold">
+        <div className="mt-5 pt-4 border-t border-[#E4DED5] flex items-center justify-between gap-3 text-xs">
+          <span className="font-semibold text-[#1E1B16]">
             {extra.price_nok.toLocaleString(locale)} {t.common.currency}
-            <span className={`ml-1 text-[10px] ${isSelected ? 'text-white/70' : 'text-[#5E5A50]'}`}>
-              /{unitLabel}
-            </span>
+            <span className="ml-1 text-[10px] text-[#5E5A50]">/{unitLabel}</span>
           </span>
-        </div>
 
-        {isSelected && (
-          <div className="mt-4 flex items-center justify-between rounded-full bg-white/10 px-2 py-2 text-xs">
+          {!isSelected ? (
             <button
               type="button"
-              onClick={(event) => {
-                event.stopPropagation();
-                const stepValue = extra.pricing_type === 'per_kg' ? 0.5 : 1;
-                const newQty = Math.round((quantity - stepValue) * 10) / 10;
-                if (newQty <= 0) {
-                  setExtraProducts(extraProducts.filter((slug) => slug !== extra.slug));
-                  const next = { ...extraQuantities };
-                  delete next[extra.slug];
-                  setExtraQuantities(next);
-                } else {
+              onClick={selectExtra}
+              className="inline-flex items-center gap-2 rounded-full bg-[#1E1B16] px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-white"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              {t.common.add}
+            </button>
+          ) : (
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  const newQty = Math.round((quantity - stepValue) * 10) / 10;
+                  if (newQty <= 0) {
+                    setExtraProducts(extraProducts.filter((slug) => slug !== extra.slug));
+                    const next = { ...extraQuantities };
+                    delete next[extra.slug];
+                    setExtraQuantities(next);
+                    return;
+                  }
                   setExtraQuantities({
                     ...extraQuantities,
                     [extra.slug]: newQty,
                   });
-                }
-              }}
-              className="h-8 w-8 rounded-full border border-white/30 text-sm font-semibold text-white"
-            >
-              -
-            </button>
-            <div className="text-sm font-semibold text-white">
-              {formattedQty} {unitLabel}
+                }}
+                className="h-9 w-9 rounded-full border border-[#D7CEC1] bg-white text-[#1E1B16] flex items-center justify-center"
+                aria-label={`${t.common.remove} ${stepValue} ${unitLabel}`}
+              >
+                <Minus className="h-4 w-4" />
+              </button>
+              <div className="text-[11px] font-semibold text-[#1E1B16] tabular-nums">
+                {formattedQty} {unitLabel}
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  const newQty = Math.round((quantity + stepValue) * 10) / 10;
+                  setExtraQuantities({
+                    ...extraQuantities,
+                    [extra.slug]: newQty,
+                  });
+                }}
+                className="h-9 w-9 rounded-full border border-[#D7CEC1] bg-white text-[#1E1B16] flex items-center justify-center"
+                aria-label={`${t.common.add} ${stepValue} ${unitLabel}`}
+              >
+                <Plus className="h-4 w-4" />
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={(event) => {
-                event.stopPropagation();
-                const stepValue = extra.pricing_type === 'per_kg' ? 0.5 : 1;
-                const newQty = Math.round((quantity + stepValue) * 10) / 10;
-                setExtraQuantities({
-                  ...extraQuantities,
-                  [extra.slug]: newQty,
-                });
-              }}
-              className="h-8 w-8 rounded-full border border-white/30 text-sm font-semibold text-white"
-            >
-              +
-            </button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     );
   };
@@ -574,7 +629,7 @@ export function MobileCheckout(props: MobileCheckoutProps) {
               <div className="mt-2 flex items-center justify-between">
                 <p className="text-xs text-[#5E5A50]">
                   {extraProducts.length > 0
-                    ? (lang === 'no' ? `${extraProducts.length} produkter valgt` : `${extraProducts.length} products selected`)
+                    ? t.checkout.extrasSelectedCount.replace('{count}', String(extraProducts.length))
                     : t.checkout.noExtrasSelected}
                 </p>
                 <p className="text-sm font-semibold text-[#1E1B16]">

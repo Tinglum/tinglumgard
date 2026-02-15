@@ -8,13 +8,14 @@ import { cn } from '@/lib/utils';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Check, ExternalLink, Sparkles } from 'lucide-react';
+import { Check, ExternalLink, Sparkles, Info, Minus, Plus } from 'lucide-react';
 import { ReferralCodeInput } from '@/components/ReferralCodeInput';
 import { RebateCodeInput } from '@/components/RebateCodeInput';
 import { MobileCheckout } from '@/components/MobileCheckout';
-import { ExtraProductModal } from '@/components/ExtraProductModal';
+import { ExtraProductDetails } from '@/components/ExtraProductDetails';
 import { useToast } from '@/hooks/use-toast';
 
 interface MangalitsaPreset {
@@ -66,8 +67,6 @@ export default function CheckoutPage() {
   const [extraProducts, setExtraProducts] = useState<string[]>([]);
   const [extraQuantities, setExtraQuantities] = useState<Record<string, number>>({});
   const [availableExtras, setAvailableExtras] = useState<any[]>([]);
-  const [hoveredExtra, setHoveredExtra] = useState<any>(null);
-  const [modalPosition, setModalPosition] = useState({ x: 0, y: 0 });
   const [deliveryType, setDeliveryType] = useState<'farm' | 'trondheim' | 'e6'>('farm');
   const [freshDelivery, setFreshDelivery] = useState(false);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
@@ -329,9 +328,14 @@ export default function CheckoutPage() {
       : [];
 
     return suggestions
-      .slice(0, 3)
       .map((recipe: any) => (lang === 'no' ? recipe.title_no : recipe.title_en))
       .filter(Boolean);
+  }
+
+  function splitExtraName(rawName: string) {
+    const match = rawName.match(/^(.*)\s*\(([^)]+)\)\s*$/);
+    if (!match) return { primary: rawName.trim(), chefFromName: '' };
+    return { primary: match[1].trim(), chefFromName: match[2].trim() };
   }
 
   function isChefPick(extra: any): boolean {
@@ -363,75 +367,95 @@ export default function CheckoutPage() {
   function renderExtraCard(extra: any, emphasized = false) {
     const isSelected = extraProducts.includes(extra.slug);
     const quantity = getExtraQuantity(extra);
+    const stepSize = extra.pricing_type === 'per_kg' ? 0.5 : 1;
     const unitLabel = extra.pricing_type === 'per_kg' ? t.common.kg : t.common.stk;
-    const recipeTags = recipeTagsForExtra(extra);
-    const name = lang === 'no' ? extra.name_no : (extra.name_en || extra.name_no);
+
+    const rawName = lang === 'no' ? extra.name_no : (extra.name_en || extra.name_no);
+    const parsedName = splitExtraName(rawName);
+    const explicitChefTerm = lang === 'no' ? extra.chef_term_no : (extra.chef_term_en || extra.chef_term_no);
+    const chefTerm = (explicitChefTerm || parsedName.chefFromName || '').trim();
+    const name = chefTerm ? parsedName.primary : rawName.trim();
+
     const description = lang === 'no'
       ? (extra.description_premium_no || extra.description_no)
       : (extra.description_premium_en || extra.description_en || extra.description_no);
-    const chefTerm = lang === 'no' ? extra.chef_term_no : (extra.chef_term_en || extra.chef_term_no);
+
+    const allRecipeTags = recipeTagsForExtra(extra);
+    const visibleRecipeTags = allRecipeTags.slice(0, 2);
+    const remainingRecipeCount = Math.max(0, allRecipeTags.length - visibleRecipeTags.length);
+
+    const hasDetails = Boolean(
+      chefTerm ||
+      extra.description_premium_no ||
+      extra.description_premium_en ||
+      extra.preparation_tips_no ||
+      extra.preparation_tips_en ||
+      (Array.isArray(extra.recipe_suggestions) && extra.recipe_suggestions.length > 0)
+    );
 
     return (
       <div
         key={extra.slug}
         className={cn(
-          "border-2 rounded-xl transition-all duration-300 cursor-pointer group",
+          "border-2 rounded-2xl transition-all duration-300 group flex flex-col h-full",
           emphasized ? "p-6 md:p-7" : "p-5",
           isSelected
             ? "border-neutral-900 bg-neutral-50 shadow-[0_15px_40px_-12px_rgba(0,0,0,0.15)]"
-            : "border-neutral-200 hover:border-neutral-300 hover:shadow-[0_10px_30px_-10px_rgba(0,0,0,0.1)] hover:-translate-y-1"
+            : "border-neutral-200 hover:border-neutral-300 hover:shadow-[0_10px_30px_-10px_rgba(0,0,0,0.1)]"
         )}
-        onClick={() => toggleExtraSelection(extra)}
       >
-        {emphasized && (
-          <div className="mb-4">
-            <div className="h-28 rounded-xl border border-neutral-200 bg-gradient-to-br from-neutral-100 to-neutral-50 flex items-center justify-center text-2xl">
-              {isChefPick(extra) ? '🔥' : '🥩'}
-            </div>
-          </div>
-        )}
-
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <h4 className={cn("font-normal text-neutral-900", emphasized && "text-lg")}>
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <h4 className={cn("font-normal text-neutral-900 leading-tight", emphasized ? "text-xl" : "text-lg")}>
               {name}
             </h4>
             {chefTerm && (
-              <span className="text-xs text-neutral-400 italic">({chefTerm})</span>
+              <p className="mt-1 text-sm font-light italic text-neutral-500">
+                {chefTerm}
+              </p>
             )}
-            {(extra.description_premium_no || extra.recipe_suggestions) && (
-              <button
-                onClick={(e) => { e.stopPropagation(); }}
-                onMouseEnter={(e) => {
-                  e.stopPropagation();
-                  setHoveredExtra(extra);
-                  setModalPosition({ x: e.clientX, y: e.clientY });
-                }}
-                onMouseLeave={() => setHoveredExtra(null)}
-                className="w-5 h-5 rounded-full border border-neutral-300 flex items-center justify-center text-xs text-neutral-400 hover:text-neutral-900 hover:border-neutral-900 transition-all"
-                aria-label={t.checkout.showProductInfoAria}
+          </div>
+
+          {hasDetails && (
+            <Popover>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  className="h-10 w-10 rounded-full border border-neutral-200 bg-white text-neutral-500 shadow-sm flex items-center justify-center hover:text-neutral-900 hover:border-neutral-400 hover:bg-neutral-50 transition-all"
+                  aria-label={t.checkout.showProductInfoAria}
+                >
+                  <Info className="w-4 h-4" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent
+                align="end"
+                side="bottom"
+                sideOffset={12}
+                className="w-[380px] max-w-[92vw] p-6 max-h-[460px] overflow-y-auto"
               >
-                i
-              </button>
-            )}
-          </div>
-          <div className={cn(
-            "w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all duration-300",
-            isSelected ? "border-neutral-900 bg-neutral-900 shadow-[0_5px_15px_-5px_rgba(0,0,0,0.3)]" : "border-neutral-200 group-hover:border-neutral-300"
-          )}>
-            {isSelected && <Check className="w-3.5 h-3.5 text-white" />}
-          </div>
+                <ExtraProductDetails extra={extra} />
+              </PopoverContent>
+            </Popover>
+          )}
         </div>
 
         {description && (
-          <p className="text-sm font-light text-neutral-600 mb-4">
+          <p
+            className="mt-4 text-sm font-light text-neutral-600 leading-relaxed"
+            style={{
+              display: '-webkit-box',
+              WebkitLineClamp: 3,
+              WebkitBoxOrient: 'vertical',
+              overflow: 'hidden',
+            }}
+          >
             {description}
           </p>
         )}
 
-        {recipeTags.length > 0 && (
-          <div className="mb-4 flex flex-wrap gap-2">
-            {recipeTags.map((tag) => (
+        {visibleRecipeTags.length > 0 && (
+          <div className="mt-4 flex flex-wrap gap-2">
+            {visibleRecipeTags.map((tag) => (
               <span
                 key={`${extra.slug}-${tag}`}
                 className="text-[11px] px-2 py-1 rounded-full border border-neutral-200 bg-white text-neutral-600"
@@ -439,78 +463,95 @@ export default function CheckoutPage() {
                 {tag}
               </span>
             ))}
+            {remainingRecipeCount > 0 && (
+              <span className="text-[11px] px-2 py-1 rounded-full border border-neutral-200 bg-white text-neutral-500">
+                +{remainingRecipeCount}
+              </span>
+            )}
           </div>
         )}
 
-        <div className={cn("font-light text-neutral-900 tabular-nums", emphasized ? "text-3xl" : "text-2xl")}>
-          {extra.price_nok} kr <span className="text-sm font-light text-neutral-500">/ {unitLabel}</span>
-        </div>
+        <div className="mt-auto pt-5 mt-5 border-t border-neutral-200 flex items-end justify-between gap-4">
+          <p className="text-base font-normal text-neutral-900 tabular-nums">
+            {extra.price_nok.toLocaleString(locale)} {t.common.currency}
+            <span className="text-sm font-light text-neutral-500"> / {unitLabel}</span>
+          </p>
 
-        {isSelected && (
-          <div
-            className="flex items-center gap-2 pt-4 border-t border-neutral-200 mt-4"
-            onClick={(e) => e.stopPropagation()}
-          >
+          {!isSelected ? (
             <button
-              onClick={() => {
-                let newQty: number;
-                if (extra.pricing_type === 'per_kg') {
-                  newQty = Math.max(0, quantity - 0.5);
-                } else {
-                  newQty = quantity - 1;
-                }
+              type="button"
+              onClick={() => toggleExtraSelection(extra)}
+              className="inline-flex items-center gap-2 rounded-xl bg-neutral-900 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.25em] text-white hover:bg-neutral-800 transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              {t.common.add}
+            </button>
+          ) : (
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  const newQty = Math.round((quantity - stepSize) * 10) / 10;
+                  if (newQty <= 0) {
+                    setExtraProducts((previous) => previous.filter((item) => item !== extra.slug));
+                    setExtraQuantities((previous) => {
+                      const next = { ...previous };
+                      delete next[extra.slug];
+                      return next;
+                    });
+                    return;
+                  }
 
-                if (newQty <= 0) {
-                  setExtraProducts((previous) => previous.filter((item) => item !== extra.slug));
-                  setExtraQuantities((previous) => {
-                    const next = { ...previous };
-                    delete next[extra.slug];
-                    return next;
-                  });
-                } else {
                   setExtraQuantities((previous) => ({
                     ...previous,
                     [extra.slug]: newQty,
                   }));
-                }
-              }}
-              className="w-8 h-8 border border-neutral-200 rounded flex items-center justify-center hover:bg-neutral-100"
-            >
-              -
-            </button>
+                }}
+                className="h-10 w-10 rounded-full border border-neutral-200 bg-white text-neutral-700 flex items-center justify-center hover:bg-neutral-50 hover:border-neutral-300 transition-colors"
+                aria-label={`${t.common.remove} ${stepSize} ${unitLabel}`}
+              >
+                <Minus className="w-4 h-4" />
+              </button>
 
-            <Input
-              type="number"
-              min={extra.pricing_type === 'per_kg' ? '0.5' : '1'}
-              step={extra.pricing_type === 'per_kg' ? '0.5' : '1'}
-              value={quantity}
-              onChange={(e) => {
-                const value = parseFloat(e.target.value);
-                if (!Number.isNaN(value) && value > 0) {
+              <div className="flex flex-col items-center">
+                <Input
+                  type="number"
+                  min={extra.pricing_type === 'per_kg' ? '0.5' : '1'}
+                  step={String(stepSize)}
+                  value={quantity}
+                  onChange={(e) => {
+                    const value = parseFloat(e.target.value);
+                    if (!Number.isNaN(value) && value > 0) {
+                      setExtraQuantities((previous) => ({
+                        ...previous,
+                        [extra.slug]: value,
+                      }));
+                    }
+                  }}
+                  className="w-20 text-center border border-neutral-200 rounded-xl px-2 py-2 tabular-nums"
+                />
+                <span className="mt-1 text-[10px] uppercase tracking-wide text-neutral-500">
+                  {unitLabel}
+                </span>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  const newQty = Math.round((quantity + stepSize) * 10) / 10;
                   setExtraQuantities((previous) => ({
                     ...previous,
-                    [extra.slug]: value,
+                    [extra.slug]: newQty,
                   }));
-                }
-              }}
-              className="w-20 text-center border border-neutral-200 rounded px-2 py-1 tabular-nums"
-            />
-
-            <button
-              onClick={() => {
-                const stepSize = extra.pricing_type === 'per_kg' ? 0.5 : 1;
-                const newQty = Number((quantity + stepSize).toFixed(1));
-                setExtraQuantities((previous) => ({
-                  ...previous,
-                  [extra.slug]: newQty,
-                }));
-              }}
-              className="w-8 h-8 border border-neutral-200 rounded flex items-center justify-center hover:bg-neutral-100"
-            >
-              +
-            </button>
-          </div>
-        )}
+                }}
+                className="h-10 w-10 rounded-full border border-neutral-200 bg-white text-neutral-700 flex items-center justify-center hover:bg-neutral-50 hover:border-neutral-300 transition-colors"
+                aria-label={`${t.common.add} ${stepSize} ${unitLabel}`}
+              >
+                <Plus className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     );
   }
@@ -1142,9 +1183,7 @@ export default function CheckoutPage() {
                     </p>
                     <p className="text-sm font-light text-neutral-600">
                       {extraProducts.length > 0
-                        ? (lang === 'no'
-                            ? `${extraProducts.length} produkter valgt`
-                            : `${extraProducts.length} products selected`)
+                        ? t.checkout.extrasSelectedCount.replace('{count}', String(extraProducts.length))
                         : t.checkout.noExtrasSelected}
                     </p>
                   </div>
@@ -1176,15 +1215,6 @@ export default function CheckoutPage() {
                       {standardExtras.map((extra) => renderExtraCard(extra, false))}
                     </div>
                   </div>
-                )}
-
-                {/* Extra Product Info Modal */}
-                {hoveredExtra && (
-                  <ExtraProductModal
-                    extra={hoveredExtra}
-                    position={modalPosition}
-                    onClose={() => setHoveredExtra(null)}
-                  />
                 )}
 
                 {step === 3 && (
