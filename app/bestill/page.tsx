@@ -9,7 +9,6 @@ import { fixMojibake } from '@/lib/utils/text';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Check, ExternalLink, Sparkles, Info, Minus, Plus } from 'lucide-react';
@@ -17,6 +16,7 @@ import { ReferralCodeInput } from '@/components/ReferralCodeInput';
 import { RebateCodeInput } from '@/components/RebateCodeInput';
 import { MobileCheckout } from '@/components/MobileCheckout';
 import { ExtraProductDetails } from '@/components/ExtraProductDetails';
+import { ExtraProductModal } from '@/components/ExtraProductModal';
 import { useToast } from '@/hooks/use-toast';
 
 interface MangalitsaPreset {
@@ -68,6 +68,7 @@ export default function CheckoutPage() {
   const [extraProducts, setExtraProducts] = useState<string[]>([]);
   const [extraQuantities, setExtraQuantities] = useState<Record<string, number>>({});
   const [availableExtras, setAvailableExtras] = useState<any[]>([]);
+  const [infoModalExtra, setInfoModalExtra] = useState<any | null>(null);
   const [deliveryType, setDeliveryType] = useState<'farm' | 'trondheim' | 'e6'>('farm');
   const [freshDelivery, setFreshDelivery] = useState(false);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
@@ -392,8 +393,8 @@ export default function CheckoutPage() {
     if (typeof override === 'string' && override.trim()) return override;
 
     const source = lang === 'no'
-      ? (extra.description_premium_no || extra.description_no)
-      : (extra.description_premium_en || extra.description_en || extra.description_no);
+      ? (extra.description_no || extra.description_premium_no)
+      : (extra.description_en || extra.description_premium_en || extra.description_no);
 
     return stripToCardTeaser(fixMojibake(String(source || '')), 120);
   }
@@ -481,25 +482,14 @@ export default function CheckoutPage() {
           </div>
 
           {hasDetails && (
-            <Popover>
-              <PopoverTrigger asChild>
-                <button
-                  type="button"
-                  className="h-10 w-10 rounded-full border border-neutral-200 bg-white text-neutral-500 shadow-sm flex items-center justify-center hover:text-neutral-900 hover:border-neutral-400 hover:bg-neutral-50 transition-all"
-                  aria-label={t.checkout.showProductInfoAria}
-                >
-                  <Info className="w-4 h-4" />
-                </button>
-              </PopoverTrigger>
-              <PopoverContent
-                align="end"
-                side="bottom"
-                sideOffset={12}
-                className="w-[420px] max-w-[92vw] p-6 max-h-[70vh] overflow-y-auto rounded-2xl border border-neutral-200 bg-white text-neutral-900 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.25)]"
-              >
-                <ExtraProductDetails extra={extra} />
-              </PopoverContent>
-            </Popover>
+            <button
+              type="button"
+              onClick={() => setInfoModalExtra(extra)}
+              className="h-10 w-10 rounded-full border border-neutral-200 bg-white text-neutral-500 shadow-sm flex items-center justify-center hover:text-neutral-900 hover:border-neutral-400 hover:bg-neutral-50 transition-all"
+              aria-label={t.checkout.showProductInfoAria}
+            >
+              <Info className="w-4 h-4" />
+            </button>
           )}
         </div>
 
@@ -862,6 +852,14 @@ export default function CheckoutPage() {
     );
   }
 
+  const infoModal = infoModalExtra ? (
+    <ExtraProductModal
+      extra={infoModalExtra}
+      position={{ x: 0, y: 0 }}
+      onClose={() => setInfoModalExtra(null)}
+    />
+  ) : null;
+
   // Mobile version - Keep existing design unchanged
   if (isMobile) {
     return (
@@ -930,6 +928,7 @@ export default function CheckoutPage() {
             prefillReferralCode={prefillReferralCode}
           />
         </div>
+        {infoModal}
       </div>
     );
   }
@@ -1631,6 +1630,7 @@ export default function CheckoutPage() {
           </div>
         </div>
       </div>
+      {infoModal}
     </div>
   );
 }

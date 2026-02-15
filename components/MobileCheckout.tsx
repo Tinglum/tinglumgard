@@ -244,8 +244,8 @@ export function MobileCheckout(props: MobileCheckoutProps) {
     if (typeof override === 'string' && override.trim()) return override;
 
     const source = lang === 'en'
-      ? (extra.description_premium_en || extra.description_en || extra.description_no)
-      : (extra.description_premium_no || extra.description_no);
+      ? (extra.description_en || extra.description_premium_en || extra.description_no)
+      : (extra.description_no || extra.description_premium_no);
 
     return stripToCardTeaser(fixMojibake(String(source || '')), 120);
   };
