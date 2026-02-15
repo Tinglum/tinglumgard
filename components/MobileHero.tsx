@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { FrontpageVideoDialog } from '@/components/FrontpageVideoDialog';
 
 interface MobileHeroProps {
   isSoldOut: boolean;
@@ -107,6 +108,9 @@ export function MobileHero({ isSoldOut, minPrice, minDeposit }: MobileHeroProps)
               {t.availability.soldOut}
             </div>
           )}
+
+          <FrontpageVideoDialog className="rounded-2xl border border-[#1E1B16] bg-transparent px-6 py-4 text-sm font-semibold uppercase tracking-[0.2em] text-[#1E1B16] hover:bg-white" />
+
           <Link
             href="/produkt"
             className="inline-flex items-center justify-center rounded-2xl border border-[#1E1B16] px-6 py-4 text-sm font-semibold uppercase tracking-[0.2em] text-[#1E1B16]"

@@ -159,9 +159,6 @@ export function ExtraProductDetails({ extra }: { extra: ExtraProductDetailsExtra
                   <p className="text-xs font-light text-neutral-500">
                     {recipeDesc}
                   </p>
-                  <p className="text-xs font-light text-neutral-400 mt-1 italic">
-                    {t.extraModal.comingSoon}
-                  </p>
                 </button>
               );
             })}

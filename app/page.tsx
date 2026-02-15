@@ -9,6 +9,7 @@ import { useIsMobile } from "@/hooks/useMediaQuery";
 import { MobileHero } from "@/components/MobileHero";
 import { MobileProductTiles } from "@/components/MobileProductTiles";
 import { MobileTimeline } from "@/components/MobileTimeline";
+import { FrontpageVideoDialog } from "@/components/FrontpageVideoDialog";
 import { useToast } from "@/hooks/use-toast";
 
 interface InventoryData {
@@ -717,6 +718,9 @@ export default function Page() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
                     </svg>
                   </Link>
+
+                  <FrontpageVideoDialog className="px-8 py-4" />
+
                   <Link
                     href="/produkt"
                     className="text-sm font-semibold text-neutral-900 underline underline-offset-4 hover:text-neutral-600 transition-colors"
