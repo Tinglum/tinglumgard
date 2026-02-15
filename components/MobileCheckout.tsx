@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Check, ChevronLeft, ChevronRight, AlertCircle, Info, Minus, Plus } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { cn } from '@/lib/utils';
+import { fixMojibake } from '@/lib/utils/text';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
 import { ExtraProductDetails } from '@/components/ExtraProductDetails';
@@ -198,29 +199,29 @@ export function MobileCheckout(props: MobileCheckoutProps) {
       : (extra.default_quantity || (extra.pricing_type === 'per_kg' ? 0.5 : 1));
     return total + (extra.price_nok * quantity);
   }, 0);
-  const getExtraName = (extra: any) => (lang === 'en' && extra.name_en ? extra.name_en : extra.name_no);
+  const getExtraName = (extra: any) => fixMojibake(lang === 'en' && extra.name_en ? extra.name_en : extra.name_no);
 
   const formatRecipeTitle = (title: string) => {
-    const trimmed = String(title || '').trim();
+    const trimmed = fixMojibake(String(title || '')).trim();
     if (!trimmed) return '';
 
     if (lang === 'no') {
       if (/^speke\s+skinke$/i.test(trimmed)) {
-        return 'Lag din egen spekeskinke';
+        return t.checkout.recipeMakeYourOwnHam;
       }
       const match = trimmed.match(/^(.*?)-prosjekt$/i);
       if (match?.[1]) {
-        return `Lag din egen ${match[1].trim().toLowerCase()}`;
+        return t.checkout.recipeMakeYourOwn.replace('{item}', match[1].trim().toLowerCase());
       }
       return trimmed;
     }
 
     if (/^cure\s+a\s+ham$/i.test(trimmed)) {
-      return 'Make your own cured ham';
+      return t.checkout.recipeMakeYourOwnHam;
     }
     const match = trimmed.match(/^(.*?)\s+project$/i);
     if (match?.[1]) {
-      return `Make your own ${match[1].trim().toLowerCase()}`;
+      return t.checkout.recipeMakeYourOwn.replace('{item}', match[1].trim().toLowerCase());
     }
 
     return trimmed;
@@ -239,37 +240,14 @@ export function MobileCheckout(props: MobileCheckoutProps) {
   };
 
   const getExtraDescription = (extra: any) => {
-    const overrides: Record<string, { no: string; en: string }> = {
-      'extra-guanciale': {
-        no: 'Råvaren bak ekte guanciale. Perfekt til carbonara og amatriciana.',
-        en: 'The real guanciale cut. Perfect for carbonara and amatriciana.',
-      },
-      'extra-secreto-presa-pluma': {
-        no: 'Secreto, presa og pluma samlet. Små biffer med ekstrem marmorering.',
-        en: 'Secreto, presa and pluma bundled. Small steaks with extreme marbling.',
-      },
-      'extra-tomahawk': {
-        no: 'Steakhouse-kutt fra ullgris. Tykk kotelett med langt bein og fettkappe.',
-        en: 'Steakhouse cut. Thick chop with long bone and fat cap.',
-      },
-      'extra-pancetta': {
-        no: 'Buklist med fettlag og dybde. Ideell til pancetta eller premium bacon.',
-        en: 'Belly strip with rich fat layers. Ideal for pancetta or premium bacon.',
-      },
-      'extra-skinke-speking': {
-        no: 'Stor skinke med fettkappe. Perfekt til langsteking eller speking.',
-        en: 'Large ham with fat cap. Ideal for slow roasting or curing.',
-      },
-    };
-
-    const override = overrides[String(extra.slug || '')];
-    if (override) return lang === 'no' ? override.no : override.en;
+    const override = (t.checkout as any)?.extraCardTeasers?.[String(extra.slug || '')];
+    if (typeof override === 'string' && override.trim()) return override;
 
     const source = lang === 'en'
       ? (extra.description_premium_en || extra.description_en || extra.description_no)
       : (extra.description_premium_no || extra.description_no);
 
-    return stripToCardTeaser(source, 120);
+    return stripToCardTeaser(fixMojibake(String(source || '')), 120);
   };
 
   const recipeTagsForExtra = (extra: any) => {
@@ -521,9 +499,9 @@ export function MobileCheckout(props: MobileCheckoutProps) {
             )}
             {presets.map((preset) => {
               const isSelected = selectedPreset?.id === preset.id;
-              const presetName = lang === 'en' ? preset.name_en : preset.name_no;
-              const pitch = lang === 'en' ? preset.short_pitch_en : preset.short_pitch_no;
-              const scarcity = lang === 'en' ? preset.scarcity_message_en : preset.scarcity_message_no;
+              const presetName = fixMojibake(lang === 'en' ? preset.name_en : preset.name_no);
+              const pitch = fixMojibake(lang === 'en' ? preset.short_pitch_en : preset.short_pitch_no);
+              const scarcity = fixMojibake(lang === 'en' ? preset.scarcity_message_en : preset.scarcity_message_no);
               const presetContents = [...(preset.contents || [])]
                 .sort((a: any, b: any) => (a.display_order || 0) - (b.display_order || 0));
               const visibleContents = isSelected
@@ -562,7 +540,7 @@ export function MobileCheckout(props: MobileCheckoutProps) {
                         {t.product.deposit50}: {Math.floor(preset.price_nok * 0.5).toLocaleString(locale)} {t.common.currency}
                       </p>
                       <p className={`mt-1 text-[11px] ${isSelected ? 'text-white/70' : 'text-[#5E5A50]'}`}>
-                        {lang === 'no' ? 'ca.' : 'approx.'} {preset.target_weight_kg} {t.common.kg}
+                        {t.common.approx} {preset.target_weight_kg} {t.common.kg}
                       </p>
                     </div>
                   </div>
@@ -592,7 +570,7 @@ export function MobileCheckout(props: MobileCheckoutProps) {
                         {visibleContents.map((item: any) => (
                           <li key={`${preset.id}-${item.id}`} className="flex items-start gap-2">
                             <span className={`mt-1.5 h-1.5 w-1.5 rounded-full ${isSelected ? 'bg-white' : 'bg-[#B35A2A]'}`} />
-                            <span>{lang === 'en' ? item.content_name_en : item.content_name_no}</span>
+                            <span>{fixMojibake(lang === 'en' ? item.content_name_en : item.content_name_no)}</span>
                           </li>
                         ))}
                       </ul>
@@ -615,7 +593,7 @@ export function MobileCheckout(props: MobileCheckoutProps) {
           <div className="flex items-center justify-between">
             <p className={labelText}>{mobileCopy.ribbeLabel}</p>
             <span className="text-xs text-[#5E5A50]">
-              {selectedWeight ? `${lang === 'no' ? 'ca.' : 'approx.'} ${selectedWeight} kg` : ''}
+              {selectedWeight ? `${t.common.approx} ${selectedWeight} kg` : ''}
             </span>
           </div>
           <div className="mt-4 rounded-2xl border border-[#E4DED5] bg-[#FBFAF7] p-4">
@@ -797,13 +775,13 @@ export function MobileCheckout(props: MobileCheckoutProps) {
             <div className="flex items-center justify-between">
               <p className={labelText}>{mobileCopy.summaryLabel}</p>
               <span className="text-xs text-[#5E5A50]">
-                {selectedWeight ? `${lang === 'no' ? 'ca.' : 'approx.'} ${selectedWeight} kg` : ''}
+                {selectedWeight ? `${t.common.approx} ${selectedWeight} kg` : ''}
               </span>
             </div>
 
             <div className="mt-4 rounded-2xl border border-[#E4DED5] bg-[#FBFAF7] p-4 text-sm">
               <div className="flex items-center justify-between">
-                <span>{selectedPreset ? (lang === 'en' ? selectedPreset.name_en : selectedPreset.name_no) : t.checkout.step1Title}</span>
+                <span>{selectedPreset ? fixMojibake(lang === 'en' ? selectedPreset.name_en : selectedPreset.name_no) : t.checkout.step1Title}</span>
                 <span className="font-semibold">
                   {selectedPrice ? `${selectedPrice.total.toLocaleString(locale)} ${t.common.currency}` : '...'}
                 </span>

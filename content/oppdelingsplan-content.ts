@@ -2,12 +2,12 @@ export const oppdelingsplanContent = {
   no: {
     page: {
       title: 'Oppdelingsplan - Mangalitsa Ullgris',
-      subtitle: 'Se hva du får i hver boks, og hvilke kutt vi bruker. Klikk på et område for å lære mer.',
+      subtitle: 'Se hva du får i hver boks, og hvilke stykker vi bruker. Klikk på et område for å lære mer.',
       diagramAlt: 'Oppdelingsplan Mangalitsa ullgris',
       premium: 'Premium',
       ui: {
-        inBox: 'I boks',
-        addOns: 'Ekstra / Add-ons',
+        inBox: 'I boksen',
+        addOns: 'Ekstra',
         weight: 'Vekt',
         preparation: 'Tilberedning',
         ribbeSelection: 'Velg ribbetype',
@@ -37,7 +37,7 @@ export const oppdelingsplanContent = {
           inBox: [
             'Premium Cuts boks: Koteletter med fettkappe, ca. 2 kg',
             'BBQ og Steakhouse boks: Tomahawk-koteletter med langt bein',
-            'Familieboks: Standard koteletter'
+            'Familieboks: Klassiske koteletter'
           ],
           extraOrder: ['Ekstra koteletter', 'Tomahawk-format spesialskjært'],
           weight: '2-3 kg total',
@@ -67,7 +67,7 @@ export const oppdelingsplanContent = {
           extraOrder: ['Ekstra bogstek', 'Bogstek til pulled pork-prosjekt'],
           weight: '2,8-3,8 kg',
           preparation: 'Langkok (6-8 timer) på lav varme, eller røyk 12 timer.',
-          premiumNote: 'Bliver aldri tørt. Fettet smelter inn og gir dybde.',
+          premiumNote: 'Blir aldri tørt. Fettet smelter inn og gir dybde.',
         },
         skinke: {
           name: 'Skinke (ham)',
@@ -94,7 +94,7 @@ export const oppdelingsplanContent = {
           extraOrder: ['Labb, 4 stk', 'Labb til gelé eller terrine'],
           weight: '200-400 g per labb',
           preparation: 'Kok 6-8 timer til gelé, eller bruk i terrine.',
-          premiumNote: 'Niche produkt for entusiaster og kokker.',
+          premiumNote: 'Nisjeprodukt for entusiaster og kokker.',
         },
         polserFarse: {
           name: 'Pølser og farse',
@@ -234,8 +234,8 @@ export const oppdelingsplanContent = {
       diagramAlt: 'Butcher diagram Mangalitsa woolly pig',
       premium: 'Premium',
       ui: {
-        inBox: 'In box',
-        addOns: 'Extra / Add-ons',
+        inBox: 'In the box',
+        addOns: 'Extras',
         weight: 'Weight',
         preparation: 'Preparation',
         ribbeSelection: 'Choose rib type',
@@ -265,7 +265,7 @@ export const oppdelingsplanContent = {
           inBox: [
             'Premium Cuts box: Chops with fat cap, approx. 2 kg',
             'BBQ & Steakhouse box: Tomahawk chops with long bone',
-            'Family Box: Standard chops'
+            'Family Box: Classic chops'
           ],
           extraOrder: ['Extra chops', 'Tomahawk format custom cut'],
           weight: '2-3 kg total',

@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { fixMojibake } from '@/lib/utils/text';
 
 interface MangalitsaPreset {
   id: string;
@@ -57,14 +58,14 @@ export function MobileProductTiles({ presets }: MobileProductTilesProps) {
             </div>
           )}
           {sortedPresets.map((preset, idx) => {
-            const name = lang === 'no' ? preset.name_no : preset.name_en;
-            const pitch = lang === 'no' ? preset.short_pitch_no : preset.short_pitch_en;
-            const scarcity = lang === 'no' ? preset.scarcity_message_no : preset.scarcity_message_en;
+            const name = fixMojibake(lang === 'no' ? preset.name_no : preset.name_en);
+            const pitch = fixMojibake(lang === 'no' ? preset.short_pitch_no : preset.short_pitch_en);
+            const scarcity = fixMojibake((lang === 'no' ? preset.scarcity_message_no : preset.scarcity_message_en) ?? '');
             const deposit = Math.floor(preset.price_nok * 0.5);
             const contents = [...(preset.contents || [])]
               .sort((a, b) => (a.display_order || 0) - (b.display_order || 0))
               .slice(0, 4)
-              .map((item) => (lang === 'no' ? item.content_name_no : item.content_name_en));
+              .map((item) => fixMojibake(lang === 'no' ? item.content_name_no : item.content_name_en));
 
             return (
               <div
@@ -94,7 +95,7 @@ export function MobileProductTiles({ presets }: MobileProductTilesProps) {
                       {t.product.deposit50}: {deposit.toLocaleString(locale)} {t.common.currency}
                     </p>
                     <p className="text-[11px] text-[#5E5A50] mt-1">
-                      {lang === 'no' ? 'ca.' : 'approx.'} {preset.target_weight_kg} {t.common.kg}
+                      {t.common.approx} {preset.target_weight_kg} {t.common.kg}
                     </p>
                   </div>
                 </div>

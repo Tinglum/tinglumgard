@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { fixMojibake } from "@/lib/utils/text";
 import { InstagramFeed } from "@/components/InstagramFeed";
 import { useIsMobile } from "@/hooks/useMediaQuery";
 import { MobileHero } from "@/components/MobileHero";
@@ -766,20 +767,19 @@ export default function Page() {
               </div>
             )}
             {sortedPresets.map((preset, index) => {
-              const label = lang === 'no' ? preset.name_no : preset.name_en;
-              const description = (lang === 'no' ? preset.description_no : preset.description_en)
+              const label = fixMojibake(lang === 'no' ? preset.name_no : preset.name_en);
+              const description = fixMojibake((lang === 'no' ? preset.description_no : preset.description_en)
                 || (lang === 'no' ? preset.short_pitch_no : preset.short_pitch_en)
-                || '';
+                || '');
               const audience = (lang === 'no' ? preset.target_audience_no : preset.target_audience_en)
                 || (lang === 'no' ? preset.short_pitch_no : preset.short_pitch_en)
                 || t.mangalitsa.hero.scarcity;
               const scarcity = (lang === 'no' ? preset.scarcity_message_no : preset.scarcity_message_en)
                 || t.mangalitsa.hero.scarcity;
-              const approxLabel = lang === 'no' ? 'ca.' : 'approx.';
-              const weightMeta = `${approxLabel} ${preset.target_weight_kg} ${t.common.kg}`;
+              const weightMeta = `${t.common.approx} ${preset.target_weight_kg} ${t.common.kg}`;
               const features = [...(preset.contents || [])]
                 .sort((a, b) => (a.display_order || 0) - (b.display_order || 0))
-                .map((content) => (lang === 'no' ? content.content_name_no : content.content_name_en));
+                .map((content) => fixMojibake(lang === 'no' ? content.content_name_no : content.content_name_en));
 
               return (
                 <ProductCard
@@ -787,9 +787,9 @@ export default function Page() {
                   label={label}
                   description={description}
                   features={features}
-                  personCount={audience}
+                  personCount={fixMojibake(String(audience || ''))}
                   mealsCount={weightMeta}
-                  freezerNote={scarcity}
+                  freezerNote={fixMojibake(String(scarcity || ''))}
                   price={preset.price_nok}
                   deposit={Math.floor(preset.price_nok * 0.5)}
                   balance={preset.price_nok - Math.floor(preset.price_nok * 0.5)}

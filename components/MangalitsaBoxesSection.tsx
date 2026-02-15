@@ -1,6 +1,7 @@
 'use client';
 
 import { useLanguage } from '@/contexts/LanguageContext';
+import { fixMojibake } from '@/lib/utils/text';
 import { useState, useEffect } from 'react';
 
 export function MangalitsaBoxesSection() {
@@ -56,9 +57,9 @@ export function MangalitsaBoxesSection() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             {presets.map((preset: any) => {
-            const name = lang === 'no' ? preset.name_no : preset.name_en;
-            const pitch = lang === 'no' ? preset.short_pitch_no : preset.short_pitch_en;
-            const scarcity = lang === 'no' ? preset.scarcity_message_no : preset.scarcity_message_en;
+            const name = fixMojibake(lang === 'no' ? preset.name_no : preset.name_en);
+            const pitch = fixMojibake(lang === 'no' ? preset.short_pitch_no : preset.short_pitch_en);
+            const scarcity = fixMojibake(lang === 'no' ? preset.scarcity_message_no : preset.scarcity_message_en);
 
             const sortedContents = [...(preset.contents || [])]
               .sort((a: any, b: any) => (a.display_order || 0) - (b.display_order || 0));
@@ -80,7 +81,7 @@ export function MangalitsaBoxesSection() {
                     {t.checkout.inBox}
                   </p>
                   {sortedContents.map((content: any, idx: number) => {
-                      const contentName = lang === 'no' ? content.content_name_no : content.content_name_en;
+                      const contentName = fixMojibake(lang === 'no' ? content.content_name_no : content.content_name_en);
                       return (
                         <div
                           key={idx}

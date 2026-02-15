@@ -33,7 +33,7 @@ export function FAQAccordion() {
           {t.faq.title}
         </h2>
         <p className="text-base sm:text-lg text-muted">
-          Vanlige spørsmål om bestilling og levering
+          {t.faq.subtitle}
         </p>
       </div>
 

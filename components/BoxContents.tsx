@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Package, CheckCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface BoxItem {
   id: string;
@@ -26,6 +27,7 @@ interface BoxContentsProps {
 }
 
 export function BoxContents({ boxSize, className }: BoxContentsProps) {
+  const { t } = useLanguage();
   const [boxConfig, setBoxConfig] = useState<BoxConfig | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -66,7 +68,9 @@ export function BoxContents({ boxSize, className }: BoxContentsProps) {
       <div className="flex items-center gap-3 mb-4">
         <Package className="w-6 h-6 text-[#2C1810]" />
         <div>
-          <h3 className="text-lg font-bold">Innhold i {boxSize} kg boksen</h3>
+          <h3 className="text-lg font-bold">
+            {t.boxContentsCard.title.replace('{kg}', String(boxSize))}
+          </h3>
           {boxConfig.description && (
             <p className="text-sm text-gray-600 mt-1">{boxConfig.description}</p>
           )}
@@ -97,7 +101,10 @@ export function BoxContents({ boxSize, className }: BoxContentsProps) {
 
       <div className="mt-4 pt-4 border-t">
         <p className="text-xs text-gray-600">
-          Totalt: {boxConfig.items.reduce((sum, item) => sum + item.quantity, 0).toFixed(1)} kg kjøtt
+          {t.boxContentsCard.total.replace(
+            '{kg}',
+            boxConfig.items.reduce((sum, item) => sum + item.quantity, 0).toFixed(1)
+          )}
         </p>
       </div>
     </Card>

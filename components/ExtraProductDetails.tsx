@@ -1,6 +1,7 @@
 'use client';
 
 import { useLanguage } from '@/contexts/LanguageContext';
+import { fixMojibake } from '@/lib/utils/text';
 import { ChefHat, ExternalLink, Flame, MapPin, Sparkles } from 'lucide-react';
 
 interface Recipe {
@@ -29,27 +30,27 @@ function stripTrailingParens(value: string) {
   return value.replace(/\s*\([^)]*\)\s*$/, '').trim();
 }
 
-function formatRecipeTitle(title: string, lang: 'no' | 'en'): string {
+function formatRecipeTitle(title: string, lang: 'no' | 'en', t: any): string {
   const trimmed = String(title || '').trim();
   if (!trimmed) return '';
 
   if (lang === 'no') {
     if (/^speke\s+skinke$/i.test(trimmed)) {
-      return 'Lag din egen spekeskinke';
+      return t.checkout.recipeMakeYourOwnHam;
     }
     const match = trimmed.match(/^(.*?)-prosjekt$/i);
     if (match?.[1]) {
-      return `Lag din egen ${match[1].trim().toLowerCase()}`;
+      return t.checkout.recipeMakeYourOwn.replace('{item}', match[1].trim().toLowerCase());
     }
     return trimmed;
   }
 
   if (/^cure\s+a\s+ham$/i.test(trimmed)) {
-    return 'Make your own cured ham';
+    return t.checkout.recipeMakeYourOwnHam;
   }
   const match = trimmed.match(/^(.*?)\s+project$/i);
   if (match?.[1]) {
-    return `Make your own ${match[1].trim().toLowerCase()}`;
+    return t.checkout.recipeMakeYourOwn.replace('{item}', match[1].trim().toLowerCase());
   }
 
   return trimmed;
@@ -58,11 +59,17 @@ function formatRecipeTitle(title: string, lang: 'no' | 'en'): string {
 export function ExtraProductDetails({ extra }: { extra: ExtraProductDetailsExtra }) {
   const { lang, t } = useLanguage();
 
-  const rawName = lang === 'no' ? extra.name_no : extra.name_en;
-  const description = lang === 'no' ? extra.description_no : extra.description_en;
-  const premiumDesc = lang === 'no' ? extra.description_premium_no : extra.description_premium_en;
-  const chefTerm = lang === 'no' ? extra.chef_term_no : extra.chef_term_en;
-  const prepTips = lang === 'no' ? extra.preparation_tips_no : extra.preparation_tips_en;
+  const rawNameSource = lang === 'no' ? extra.name_no : extra.name_en;
+  const descriptionSource = lang === 'no' ? extra.description_no : extra.description_en;
+  const premiumDescSource = lang === 'no' ? extra.description_premium_no : extra.description_premium_en;
+  const chefTermSource = lang === 'no' ? extra.chef_term_no : extra.chef_term_en;
+  const prepTipsSource = lang === 'no' ? extra.preparation_tips_no : extra.preparation_tips_en;
+
+  const rawName = fixMojibake(String(rawNameSource || ''));
+  const description = typeof descriptionSource === 'string' ? fixMojibake(descriptionSource) : descriptionSource;
+  const premiumDesc = typeof premiumDescSource === 'string' ? fixMojibake(premiumDescSource) : premiumDescSource;
+  const chefTerm = typeof chefTermSource === 'string' ? fixMojibake(chefTermSource) : chefTermSource;
+  const prepTips = typeof prepTipsSource === 'string' ? fixMojibake(prepTipsSource) : prepTipsSource;
   const recipes = extra.recipe_suggestions || [];
 
   const displayName = chefTerm ? stripTrailingParens(rawName) : rawName;
@@ -129,9 +136,11 @@ export function ExtraProductDetails({ extra }: { extra: ExtraProductDetailsExtra
           </p>
           <div className="space-y-2">
             {recipes.map((recipe, idx) => {
-              const rawTitle = lang === 'no' ? recipe.title_no : recipe.title_en;
-              const recipeTitle = formatRecipeTitle(String(rawTitle || ''), lang);
-              const recipeDesc = lang === 'no' ? recipe.description_no : recipe.description_en;
+              const rawTitleSource = lang === 'no' ? recipe.title_no : recipe.title_en;
+              const rawTitle = fixMojibake(String(rawTitleSource || ''));
+              const recipeTitle = formatRecipeTitle(rawTitle, lang, t);
+              const recipeDescSource = lang === 'no' ? recipe.description_no : recipe.description_en;
+              const recipeDesc = fixMojibake(String(recipeDescSource || ''));
 
               return (
                 <button

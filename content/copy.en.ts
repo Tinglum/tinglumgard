@@ -40,9 +40,15 @@ export const en = {
     week: "week",
     year: "year",
     currency: "NOK",
+    approx: "approx.",
     backTo: "Back to",
     languageCodeNo: "NO",
     languageCodeEn: "EN",
+  },
+
+  boxContentsCard: {
+    title: "Contents of the {kg} kg box",
+    total: "Total: {kg} kg of meat",
   },
 
   // Hero section
@@ -224,6 +230,7 @@ export const en = {
   // FAQ
   faq: {
     title: "Questions and answers",
+    subtitle: "Common questions about ordering and delivery",
     badge: "FAQ",
     commonQuestions: "Common questions",
     q1: "What do I get in the box?",
@@ -274,6 +281,8 @@ export const en = {
     choosePresetTitle: "Choose your Mangalitsa box",
     showProductInfoAria: "Show product info",
     recipeLabel: "Recipe",
+    recipeMakeYourOwn: "Make your own {item}",
+    recipeMakeYourOwnHam: "Make your own cured ham",
     runningExtrasTotal: "Running extras total",
     noExtrasSelected: "No extras selected yet",
     extrasSelectedCount: "{count} products selected",
@@ -282,6 +291,15 @@ export const en = {
     showCodes: "Show codes",
     hideCodes: "Hide codes",
     discountApplied: "Discount applied",
+
+    // Short, card-friendly descriptions for selected extras (avoid ellipsis on cards).
+    extraCardTeasers: {
+      "extra-guanciale": "The real guanciale cut. Perfect for carbonara and amatriciana.",
+      "extra-secreto-presa-pluma": "Secreto, presa and pluma together. Small steaks with extreme marbling.",
+      "extra-tomahawk": "Steakhouse cut. Thick chop with long bone and fat cap.",
+      "extra-pancetta": "Belly strip with rich fat layers. Ideal for pancetta or premium bacon.",
+      "extra-skinke-speking": "Large ham with fat cap. Ideal for slow roasting or curing.",
+    },
 
     pricingSplit: {
       now: "now",
@@ -1418,6 +1436,7 @@ export const en = {
     paymentReceived: "Payment received!",
     paymentFailed: "Payment failed",
     paymentWaiting: "Waiting for payment confirmation...",
+    shareMessage: "I just reserved a Mangalitsa box from Tinglum Gard. Limited boxes each season.",
     orderNumberLabel: "Order number",
     detailsTitle: "Order details",
     boxSizeLabel: "Box size",
@@ -1752,6 +1771,11 @@ export const en = {
     soldOutCreditNote:
       "Credit can be used for extra products and is not refundable.",
     pickupDeliveryTitle: "Pickup and delivery",
+    deliveryEditorLeadOpen: "Adjust delivery details if needed.",
+    deliveryEditorLeadClosed: "Default is to pay now and keep delivery unchanged.",
+    deliveryEditorToggleHide: "Hide delivery changes",
+    deliveryEditorToggleShow: "Want to change delivery?",
+    currentDeliverySelectionLabel: "Current delivery selection:",
     deliveryMethod: "Delivery method",
     pickupFarm: "Pickup at farm",
     pickupFarmLocation: "Tinglum Farm, Sjofossen",

@@ -589,9 +589,7 @@ export default function RemainderPaymentSummaryPage() {
                 {copy.pickupDeliveryTitle}
               </h2>
               <p className="text-sm text-neutral-600 mt-2">
-                {showDeliveryEditor
-                  ? (lang === 'no' ? 'Endre leveringsvalg ved behov.' : 'Adjust delivery details if needed.')
-                  : (lang === 'no' ? 'Standard er å betale nå og beholde levering som den er.' : 'Default is to pay now and keep delivery unchanged.')}
+                {showDeliveryEditor ? copy.deliveryEditorLeadOpen : copy.deliveryEditorLeadClosed}
               </p>
             </div>
             <button
@@ -599,15 +597,13 @@ export default function RemainderPaymentSummaryPage() {
               onClick={() => setShowDeliveryEditor((prev) => !prev)}
               className="text-sm font-light text-neutral-600 hover:text-neutral-900 underline whitespace-nowrap"
             >
-              {showDeliveryEditor
-                ? (lang === 'no' ? 'Skjul leveringsendringer' : 'Hide delivery changes')
-                : (lang === 'no' ? 'Vil du endre leveringen?' : 'Want to change delivery?')}
+              {showDeliveryEditor ? copy.deliveryEditorToggleHide : copy.deliveryEditorToggleShow}
             </button>
           </div>
 
           {!showDeliveryEditor && (
             <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-700">
-              {lang === 'no' ? 'Nåværende leveringsvalg:' : 'Current delivery selection:'}{' '}
+              {copy.currentDeliverySelectionLabel}{' '}
               <span className="font-medium text-neutral-900">
                 {deliveryType === 'pickup_farm'
                   ? copy.pickupFarm

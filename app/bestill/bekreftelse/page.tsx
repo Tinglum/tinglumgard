@@ -122,9 +122,7 @@ export default function ConfirmationPage() {
     }
     return "/bestill";
   }, []);
-  const shareMessage = lang === "no"
-    ? "Jeg har reservert Mangalitsa-boks fra Tinglum Gård. Begrenset antall bokser hvert år."
-    : "I just reserved a Mangalitsa box from Tinglum Gard. Limited boxes each season.";
+  const shareMessage = copy.shareMessage;
   const boxDisplay = useMemo(() => {
     if (!order) return '';
     const presetName =

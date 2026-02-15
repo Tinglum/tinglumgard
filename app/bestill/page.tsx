@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useIsMobile } from '@/hooks/useMediaQuery';
 import { cn } from '@/lib/utils';
+import { fixMojibake } from '@/lib/utils/text';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -341,32 +342,32 @@ export default function CheckoutPage() {
     return suggestions
       .map((recipe: any) => {
         const rawTitle = lang === 'no' ? recipe.title_no : recipe.title_en;
-        return formatRecipeTitle(String(rawTitle || ''), lang);
+        return formatRecipeTitle(fixMojibake(String(rawTitle || '')), lang);
       })
       .filter(Boolean);
   }
 
   function formatRecipeTitle(title: string, language: 'no' | 'en'): string {
-    const trimmed = String(title || '').trim();
+    const trimmed = fixMojibake(String(title || '')).trim();
     if (!trimmed) return '';
 
     if (language === 'no') {
       if (/^speke\s+skinke$/i.test(trimmed)) {
-        return 'Lag din egen spekeskinke';
+        return t.checkout.recipeMakeYourOwnHam;
       }
       const match = trimmed.match(/^(.*?)-prosjekt$/i);
       if (match?.[1]) {
-        return `Lag din egen ${match[1].trim().toLowerCase()}`;
+        return t.checkout.recipeMakeYourOwn.replace('{item}', match[1].trim().toLowerCase());
       }
       return trimmed;
     }
 
     if (/^cure\s+a\s+ham$/i.test(trimmed)) {
-      return 'Make your own cured ham';
+      return t.checkout.recipeMakeYourOwnHam;
     }
     const match = trimmed.match(/^(.*?)\s+project$/i);
     if (match?.[1]) {
-      return `Make your own ${match[1].trim().toLowerCase()}`;
+      return t.checkout.recipeMakeYourOwn.replace('{item}', match[1].trim().toLowerCase());
     }
 
     return trimmed;
@@ -387,39 +388,14 @@ export default function CheckoutPage() {
   }
 
   function getCardDescription(extra: any) {
-    const overrides: Record<string, { no: string; en: string }> = {
-      'extra-guanciale': {
-        no: 'Råvaren bak ekte guanciale. Perfekt til carbonara og amatriciana.',
-        en: 'The real guanciale cut. Perfect for carbonara and amatriciana.',
-      },
-      'extra-secreto-presa-pluma': {
-        no: 'Secreto, presa og pluma samlet. Små biffer med ekstrem marmorering.',
-        en: 'Secreto, presa and pluma bundled. Small steaks with extreme marbling.',
-      },
-      'extra-tomahawk': {
-        no: 'Steakhouse-kutt fra ullgris. Tykk kotelett med langt bein og fettkappe.',
-        en: 'Steakhouse cut. Thick chop with long bone and fat cap.',
-      },
-      'extra-pancetta': {
-        no: 'Buklist med fettlag og dybde. Ideell til pancetta eller premium bacon.',
-        en: 'Belly strip with rich fat layers. Ideal for pancetta or premium bacon.',
-      },
-      'extra-skinke-speking': {
-        no: 'Stor skinke med fettkappe. Perfekt til langsteking eller speking.',
-        en: 'Large ham with fat cap. Ideal for slow roasting or curing.',
-      },
-    };
-
-    const override = overrides[String(extra.slug || '')];
-    if (override) {
-      return lang === 'no' ? override.no : override.en;
-    }
+    const override = (t.checkout as any)?.extraCardTeasers?.[String(extra.slug || '')];
+    if (typeof override === 'string' && override.trim()) return override;
 
     const source = lang === 'no'
       ? (extra.description_premium_no || extra.description_no)
       : (extra.description_premium_en || extra.description_en || extra.description_no);
 
-    return stripToCardTeaser(source, 120);
+    return stripToCardTeaser(fixMojibake(String(source || '')), 120);
   }
 
   function splitExtraName(rawName: string) {
@@ -460,10 +436,10 @@ export default function CheckoutPage() {
     const stepSize = extra.pricing_type === 'per_kg' ? 0.5 : 1;
     const unitLabel = extra.pricing_type === 'per_kg' ? t.common.kg : t.common.stk;
 
-    const rawName = lang === 'no' ? extra.name_no : (extra.name_en || extra.name_no);
+    const rawName = fixMojibake(lang === 'no' ? extra.name_no : (extra.name_en || extra.name_no));
     const parsedName = splitExtraName(rawName);
     const explicitChefTerm = lang === 'no' ? extra.chef_term_no : (extra.chef_term_en || extra.chef_term_no);
-    const chefTerm = (explicitChefTerm || parsedName.chefFromName || '').trim();
+    const chefTerm = fixMojibake(String(explicitChefTerm || parsedName.chefFromName || '')).trim();
     const name = chefTerm ? parsedName.primary : rawName.trim();
 
     const description = getCardDescription(extra);
@@ -1066,9 +1042,9 @@ export default function CheckoutPage() {
                 )}
                 {mangalitsaPresets.map((preset) => {
                   const isSelected = mangalitsaPreset?.id === preset.id;
-                  const presetName = lang === 'no' ? preset.name_no : preset.name_en;
-                  const presetPitch = lang === 'no' ? preset.short_pitch_no : preset.short_pitch_en;
-                  const scarcity = lang === 'no' ? preset.scarcity_message_no : preset.scarcity_message_en;
+                  const presetName = fixMojibake(lang === 'no' ? preset.name_no : preset.name_en);
+                  const presetPitch = fixMojibake(lang === 'no' ? preset.short_pitch_no : preset.short_pitch_en);
+                  const scarcity = fixMojibake((lang === 'no' ? preset.scarcity_message_no : preset.scarcity_message_en) ?? '');
                   const sortedContents = [...(preset.contents || [])]
                     .sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
                   const visibleContents = isSelected ? sortedContents : sortedContents.slice(0, 4);
@@ -1108,7 +1084,7 @@ export default function CheckoutPage() {
                                     content.is_hero ? "text-neutral-900 font-normal" : "text-neutral-600"
                                   )}
                                 >
-                                  {lang === 'no' ? content.content_name_no : content.content_name_en}
+                                  {fixMojibake(lang === 'no' ? content.content_name_no : content.content_name_en)}
                                 </span>
                               </li>
                             ))}
@@ -1123,7 +1099,7 @@ export default function CheckoutPage() {
                         <div className="pt-4 border-t border-neutral-200 text-xs font-light text-neutral-500">
                           {preset.price_nok.toLocaleString(locale)} kr
                           <span className="mx-2">•</span>
-                          {lang === 'no' ? 'ca.' : 'approx.'} {preset.target_weight_kg} kg
+                          {t.common.approx} {preset.target_weight_kg} kg
                         </div>
                         <div className="text-xs font-light text-neutral-600">
                           {Math.floor(preset.price_nok * 0.5).toLocaleString(locale)} {t.common.currency} {t.checkout.pricingSplit.now}
@@ -1467,7 +1443,7 @@ export default function CheckoutPage() {
                   {mangalitsaPreset && selectedPrice && (
                     <div className="flex justify-between text-sm">
                       <span className="font-light text-neutral-600">
-                        {lang === 'no' ? mangalitsaPreset.name_no : mangalitsaPreset.name_en} ({lang === 'no' ? 'ca.' : 'approx.'} {mangalitsaPreset.target_weight_kg} kg)
+                        {fixMojibake(lang === 'no' ? mangalitsaPreset.name_no : mangalitsaPreset.name_en)} ({t.common.approx} {mangalitsaPreset.target_weight_kg} kg)
                       </span>
                       <span className="font-light text-neutral-900 tabular-nums">{selectedPrice.total.toLocaleString(locale)} kr</span>
                     </div>
@@ -1496,7 +1472,7 @@ export default function CheckoutPage() {
                     return (
                       <div key={slug} className="flex justify-between text-sm">
                         <span className="font-light text-neutral-600">
-                          {extra.name_no} ({quantity} {extra.pricing_type === 'per_kg' ? t.common.kg : t.common.stk})
+                          {fixMojibake(lang === 'no' ? extra.name_no : (extra.name_en || extra.name_no))} ({quantity} {extra.pricing_type === 'per_kg' ? t.common.kg : t.common.stk})
                         </span>
                         <span className="font-light text-neutral-900 tabular-nums">+{itemTotal} kr</span>
                       </div>
