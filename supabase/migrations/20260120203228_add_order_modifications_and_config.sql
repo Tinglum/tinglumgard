@@ -28,6 +28,9 @@ CREATE TABLE IF NOT EXISTS app_config (
 
 ALTER TABLE app_config ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Admins can manage config" ON app_config;
+DROP POLICY IF EXISTS "Service role can manage config" ON app_config;
+
 CREATE POLICY "Admins can manage config"
   ON app_config FOR ALL
   TO authenticated

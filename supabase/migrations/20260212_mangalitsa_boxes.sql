@@ -415,6 +415,9 @@ ALTER TABLE orders
 ALTER TABLE mangalitsa_box_presets ENABLE ROW LEVEL SECURITY;
 ALTER TABLE mangalitsa_preset_contents ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Anyone can read active presets" ON mangalitsa_box_presets;
+DROP POLICY IF EXISTS "Anyone can read preset contents" ON mangalitsa_preset_contents;
+
 CREATE POLICY "Anyone can read active presets" ON mangalitsa_box_presets
   FOR SELECT USING (true);
 

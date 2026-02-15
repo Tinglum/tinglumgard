@@ -4,6 +4,7 @@ import { supabaseAdmin } from '@/lib/supabase/server';
 import { logError } from '@/lib/logger';
 
 const ALLOWED_EXTRAS_FIELDS = new Set([
+  'cut_id',
   'name_no', 'name_en',
   'description_no', 'description_en',
   'description_premium_no', 'description_premium_en',

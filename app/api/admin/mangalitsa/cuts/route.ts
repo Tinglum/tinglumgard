@@ -15,7 +15,6 @@ export async function GET() {
     const { data: cuts, error } = await supabaseAdmin
       .from('cuts_catalog')
       .select('id,slug,name_no,name_en,chef_name_no,chef_name_en,display_order,active,part_id')
-      .eq('active', true)
       .order('display_order', { ascending: true });
 
     if (error) {

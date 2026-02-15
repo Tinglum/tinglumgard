@@ -14,6 +14,7 @@ interface Recipe {
 interface Extra {
   id: string;
   slug: string;
+  cut_id?: string | null;
   name_no: string;
   name_en: string;
   description_no: string;
@@ -30,10 +31,21 @@ interface Extra {
   active: boolean;
 }
 
+interface CutOption {
+  id: string;
+  slug: string;
+  name_no: string;
+  name_en: string;
+  chef_name_no?: string | null;
+  chef_name_en?: string | null;
+  part?: { id: string; key: string; name_no: string; name_en: string } | null;
+}
+
 type ToastType = { message: string; type: 'success' | 'error' } | null;
 
 export function MangalitsaExtrasManager() {
   const [extras, setExtras] = useState<Extra[]>([]);
+  const [cutsCatalog, setCutsCatalog] = useState<CutOption[]>([]);
   const [editingExtra, setEditingExtra] = useState<Extra | null>(null);
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState<ToastType>(null);
@@ -49,10 +61,21 @@ export function MangalitsaExtrasManager() {
 
   async function loadExtras() {
     try {
-      const res = await fetch('/api/admin/extras');
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
+      const [extrasRes, cutsRes] = await Promise.all([
+        fetch('/api/admin/extras'),
+        fetch('/api/admin/mangalitsa/cuts'),
+      ]);
+
+      if (!extrasRes.ok) throw new Error(`HTTP ${extrasRes.status}`);
+      const data = await extrasRes.json();
       setExtras(data.extras || []);
+
+      if (cutsRes.ok) {
+        const cutsData = await cutsRes.json();
+        setCutsCatalog(cutsData.cuts || []);
+      } else {
+        setCutsCatalog([]);
+      }
     } catch (error) {
       console.error('Failed to load extras:', error);
       showToast('Kunne ikke laste ekstraprodukter', 'error');
@@ -173,6 +196,7 @@ export function MangalitsaExtrasManager() {
       {editingExtra && (
         <EditExtraModal
           extra={editingExtra}
+          cuts={cutsCatalog}
           onSave={(updates) => updateExtra(editingExtra.id, updates)}
           onClose={() => setEditingExtra(null)}
         />
@@ -181,12 +205,14 @@ export function MangalitsaExtrasManager() {
   );
 }
 
-function EditExtraModal({ extra, onSave, onClose }: {
+function EditExtraModal({ extra, cuts, onSave, onClose }: {
   extra: Extra;
+  cuts: CutOption[];
   onSave: (updates: Record<string, unknown>) => Promise<void>;
   onClose: () => void;
 }) {
   const [saving, setSaving] = useState(false);
+  const [cutId, setCutId] = useState(extra.cut_id || '');
   const [descriptionPremiumNo, setDescriptionPremiumNo] = useState(extra.description_premium_no || '');
   const [descriptionPremiumEn, setDescriptionPremiumEn] = useState(extra.description_premium_en || '');
   const [chefTermNo, setChefTermNo] = useState(extra.chef_term_no || '');
@@ -220,6 +246,7 @@ function EditExtraModal({ extra, onSave, onClose }: {
     setSaving(true);
     try {
       await onSave({
+        cut_id: cutId || null,
         description_premium_no: descriptionPremiumNo || null,
         description_premium_en: descriptionPremiumEn || null,
         chef_term_no: chefTermNo || null,
@@ -247,6 +274,27 @@ function EditExtraModal({ extra, onSave, onClose }: {
         </div>
 
         <div className="space-y-4 mb-6 max-h-[60vh] overflow-y-auto pr-2">
+          <div>
+            <label className="text-sm font-light text-neutral-600 block mb-2">Knyt til stykke (katalog)</label>
+            <select
+              value={cutId}
+              onChange={(e) => setCutId(e.target.value)}
+              className={inputCls}
+            >
+              <option value="">Ikke knyttet</option>
+              {cuts.map((cut) => (
+                <option key={cut.id} value={cut.id}>
+                  {cut.name_no}{cut.chef_name_no ? ` (${cut.chef_name_no})` : ''}
+                </option>
+              ))}
+            </select>
+            {cutId && cuts.find((c) => c.id === cutId)?.part?.name_no && (
+              <p className="mt-1 text-xs text-neutral-500">
+                Fra del av gris: {cuts.find((c) => c.id === cutId)?.part?.name_no}
+              </p>
+            )}
+          </div>
+
           <div>
             <label className="text-sm font-light text-neutral-600 block mb-2">Premium beskrivelse (NO)</label>
             <textarea

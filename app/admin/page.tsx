@@ -39,6 +39,7 @@ import { DeliveryCalendar } from '@/components/admin/DeliveryCalendar';
 import { RebateCodesManager } from '@/components/admin/RebateCodesManager';
 import { MangalitsaBoxManager } from '@/components/admin/MangalitsaBoxManager';
 import { MangalitsaExtrasManager } from '@/components/admin/MangalitsaExtrasManager';
+import { MangalitsaCutsManager } from '@/components/admin/MangalitsaCutsManager';
 
 type TabType = 'dashboard' | 'orders' | 'mangalitsa' | 'inventory' | 'customers' | 'analytics' | 'rebates' | 'settings';
 
@@ -99,7 +100,7 @@ export default function AdminPage() {
   const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set());
 
   // Sub-tab state
-  const [mangalitsaSubTab, setMangalitsaSubTab] = useState<'boxes' | 'extras'>('boxes');
+  const [mangalitsaSubTab, setMangalitsaSubTab] = useState<'boxes' | 'extras' | 'cuts'>('boxes');
   const [customersSubTab, setCustomersSubTab] = useState<'database' | 'messages' | 'communication'>('database');
 
   // Data
@@ -975,11 +976,26 @@ export default function AdminPage() {
                     <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-neutral-900" />
                   )}
                 </button>
+                <button
+                  onClick={() => setMangalitsaSubTab('cuts')}
+                  className={cn(
+                    'px-5 py-3 text-sm font-light transition-all relative',
+                    mangalitsaSubTab === 'cuts'
+                      ? 'text-neutral-900'
+                      : 'text-neutral-500 hover:text-neutral-900'
+                  )}
+                >
+                  Stykker
+                  {mangalitsaSubTab === 'cuts' && (
+                    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-neutral-900" />
+                  )}
+                </button>
               </div>
             </div>
 
             {mangalitsaSubTab === 'boxes' && <MangalitsaBoxManager />}
             {mangalitsaSubTab === 'extras' && <MangalitsaExtrasManager />}
+            {mangalitsaSubTab === 'cuts' && <MangalitsaCutsManager />}
           </div>
         )}
 

@@ -35,6 +35,8 @@ CREATE TABLE IF NOT EXISTS vipps_users (
 
 ALTER TABLE vipps_users ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Service role can manage vipps users" ON vipps_users;
+
 CREATE POLICY "Service role can manage vipps users"
   ON vipps_users FOR ALL
   TO service_role

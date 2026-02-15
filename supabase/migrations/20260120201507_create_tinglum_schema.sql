@@ -87,6 +87,9 @@ CREATE TABLE IF NOT EXISTS profiles (
 
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can read own profile" ON profiles;
+DROP POLICY IF EXISTS "Admins can read all profiles" ON profiles;
+
 CREATE POLICY "Users can read own profile"
   ON profiles FOR SELECT
   TO authenticated
@@ -114,6 +117,10 @@ CREATE TABLE IF NOT EXISTS inventory (
 );
 
 ALTER TABLE inventory ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Anyone can read inventory" ON inventory;
+DROP POLICY IF EXISTS "Admins can update inventory" ON inventory;
+DROP POLICY IF EXISTS "Admins can insert inventory" ON inventory;
 
 CREATE POLICY "Anyone can read inventory"
   ON inventory FOR SELECT
@@ -161,6 +168,9 @@ CREATE TABLE IF NOT EXISTS extras_catalog (
 );
 
 ALTER TABLE extras_catalog ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Anyone can read extras" ON extras_catalog;
+DROP POLICY IF EXISTS "Admins can manage extras" ON extras_catalog;
 
 CREATE POLICY "Anyone can read extras"
   ON extras_catalog FOR SELECT
@@ -210,6 +220,12 @@ CREATE TABLE IF NOT EXISTS orders (
 );
 
 ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Users can read own orders" ON orders;
+DROP POLICY IF EXISTS "Admins can read all orders" ON orders;
+DROP POLICY IF EXISTS "Users can create orders" ON orders;
+DROP POLICY IF EXISTS "Users can update own orders" ON orders;
+DROP POLICY IF EXISTS "Admins can update all orders" ON orders;
 
 CREATE POLICY "Users can read own orders"
   ON orders FOR SELECT
@@ -267,6 +283,10 @@ CREATE TABLE IF NOT EXISTS order_extras (
 
 ALTER TABLE order_extras ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can read own order extras" ON order_extras;
+DROP POLICY IF EXISTS "Admins can read all order extras" ON order_extras;
+DROP POLICY IF EXISTS "Users can create order extras" ON order_extras;
+
 CREATE POLICY "Users can read own order extras"
   ON order_extras FOR SELECT
   TO authenticated
@@ -309,6 +329,11 @@ CREATE TABLE IF NOT EXISTS payments (
 );
 
 ALTER TABLE payments ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Users can read own payments" ON payments;
+DROP POLICY IF EXISTS "Admins can read all payments" ON payments;
+DROP POLICY IF EXISTS "System can create payments" ON payments;
+DROP POLICY IF EXISTS "Admins can update payments" ON payments;
 
 CREATE POLICY "Users can read own payments"
   ON payments FOR SELECT
@@ -364,6 +389,9 @@ CREATE TABLE IF NOT EXISTS waitlist (
 );
 
 ALTER TABLE waitlist ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Anyone can join waitlist" ON waitlist;
+DROP POLICY IF EXISTS "Admins can read waitlist" ON waitlist;
 
 CREATE POLICY "Anyone can join waitlist"
   ON waitlist FOR INSERT

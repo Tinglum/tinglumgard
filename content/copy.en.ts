@@ -886,6 +886,7 @@ export const en = {
     allCuts: "All cuts - Overview",
     inBoxShort: "In the box:",
     extraShort: "Extra:",
+    onlyAsExtra: "Extra only",
     noProductsInBox: "No products from this part in the standard box",
     noExtraProducts: "No extra products available from this part",
     chooseRibbeType: "Choose your rib type",

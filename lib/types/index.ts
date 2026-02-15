@@ -1,5 +1,5 @@
 /**
- * Core domain types for Tinglum Gård application
+ * Core domain types for Tinglum Gard application
  */
 
 export interface Extra {
@@ -9,6 +9,25 @@ export interface Extra {
   name_en: string;
   description_no?: string | null;
   description_en?: string | null;
+
+  // Optional canonical cut enrichment (when extras are linked to cuts_catalog)
+  cut_id?: string | null;
+  cut_slug?: string | null;
+  part_key?: string | null;
+  part_name_no?: string | null;
+  part_name_en?: string | null;
+  cut_description_no?: string | null;
+  cut_description_en?: string | null;
+
+  // Premium storytelling fields (used for Mangalitsa upsell UI)
+  description_premium_no?: string | null;
+  description_premium_en?: string | null;
+  chef_term_no?: string | null;
+  chef_term_en?: string | null;
+  recipe_suggestions?: any[] | null;
+  preparation_tips_no?: string | null;
+  preparation_tips_en?: string | null;
+
   price_nok: number;
   pricing_type: 'per_unit' | 'per_kg';
   default_quantity?: number | null;

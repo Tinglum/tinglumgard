@@ -56,6 +56,16 @@ UPDATE cuts_catalog SET
   description_en = 'Classic everyday chops. Versatile and easy to prepare — pan-fry, grill or oven-roast.'
 WHERE slug = 'svinekoteletter';
 
+UPDATE cuts_catalog SET
+  description_no = 'Hel svinekam med fettkappe. Perfekt til langsteking, julemiddag eller som imponerende stek til mange.',
+  description_en = 'Whole pork loin with fat cap. Perfect for slow roasting, Christmas dinner, or a centerpiece roast.'
+WHERE slug = 'svinekam';
+
+UPDATE cuts_catalog SET
+  description_no = 'Saftig steik fra kam/rygg-området. Allsidig stykke som kan langtidsstekes eller skjæres i tykke skiver.',
+  description_en = 'Juicy roast from the loin/back area. Versatile cut that can be slow-roasted or sliced into thick steaks.'
+WHERE slug = 'kamsteik';
+
 -- ═══ RIBBESIDE (Belly / Ribs) ═══
 
 UPDATE cuts_catalog SET
@@ -77,6 +87,11 @@ UPDATE cuts_catalog SET
   description_no = 'Ekstra ribbe til julemiddag eller BBQ. Mangalitsa-ribbe har 3x mer fett enn vanlig — julen du husker.',
   description_en = 'Extra ribs for Christmas dinner or BBQ. Mangalitsa ribs have 3x more fat than standard — the Christmas you''ll remember.'
 WHERE slug = 'ekstra-ribbe';
+
+UPDATE cuts_catalog SET
+  description_no = 'Tradisjonelt pinnekjøtt av ullgris. Saltet og tørket ribbe med dypere smak og mer saftighet.',
+  description_en = 'Traditional salt-cured ribs (pinnekjøtt) from woolly pig. Deeper flavor and more juiciness.'
+WHERE slug = 'pinnekjott';
 
 UPDATE cuts_catalog SET
   description_no = 'Buklist med fettlag perfekt til hjemmelaget pancetta eller premium bacon.',

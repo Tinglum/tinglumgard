@@ -19,6 +19,7 @@ export interface CutOverview {
   key: string;
   cut_id: string | null;
   cut_slug: string | null;
+  extra_slug?: string | null;
   name: string;
   description: string;
   partKey: PartKey;
@@ -29,4 +30,3 @@ export interface CutOverview {
 export type PendingAddAction =
   | { kind: 'cut'; cut: CutOverview }
   | { kind: 'extra'; extraSlug: string; extraName: string };
-

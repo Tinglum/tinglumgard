@@ -146,7 +146,7 @@ export default function OppdelingsplanPage() {
         const cutName = lang === 'en' ? content.content_name_en : content.content_name_no;
         if (!cutName) continue;
 
-        const key = content.cut_id || content.cut_slug || cutName;
+        const key = content.cut_slug || content.cut_id || cutName;
         const cutId = content.cut_id || null;
         const cutSlug = content.cut_slug || null;
         const rawPartKey = (content.part_key || 'unknown') as PartKey;
@@ -175,6 +175,7 @@ export default function OppdelingsplanPage() {
             key,
             cut_id: cutId,
             cut_slug: cutSlug,
+            extra_slug: null,
             name: cutName,
             description: cutDescription,
             partKey,
@@ -197,12 +198,57 @@ export default function OppdelingsplanPage() {
       }
     }
 
+    // Merge in extras (cuts that can be ordered as add-ons), so "Alle stykker" and the diagram
+    // can show both: included-in-box cuts and extra-only cuts.
+    for (const extra of extras as any[]) {
+      const cutSlug = (extra.cut_slug || '').trim() || null;
+      const cutId = extra.cut_id || null;
+      const key = cutSlug || cutId || extra.slug;
+      if (!key) continue;
+
+      const rawPartKey = (extra.part_key || 'unknown') as PartKey;
+      const partKey: PartKey = rawPartKey in PART_ORDER ? rawPartKey : 'unknown';
+      const partName = lang === 'en'
+        ? extra.part_name_en || extra.part_name_no || partMeta[partKey].name
+        : extra.part_name_no || partMeta[partKey].name;
+
+      const extraName = lang === 'en' && extra.name_en ? extra.name_en : extra.name_no;
+      const extraDescription = lang === 'en'
+        ? extra.description_en || extra.cut_description_en || ''
+        : extra.description_no || extra.cut_description_no || '';
+
+      if (!map.has(key)) {
+        map.set(key, {
+          key,
+          cut_id: cutId,
+          cut_slug: cutSlug,
+          extra_slug: extra.slug,
+          name: String(extraName || '').trim() || extra.slug,
+          description: String(extraDescription || '').trim(),
+          partKey,
+          partName,
+          boxOptions: [],
+        });
+        continue;
+      }
+
+      const existing = map.get(key)!;
+      if (!existing.cut_id && cutId) existing.cut_id = cutId;
+      if (!existing.cut_slug && cutSlug) existing.cut_slug = cutSlug;
+      if (!existing.extra_slug) existing.extra_slug = extra.slug;
+      if (!existing.description && extraDescription) existing.description = String(extraDescription || '').trim();
+      if (existing.partKey === 'unknown' && partKey !== 'unknown') {
+        existing.partKey = partKey;
+        existing.partName = partName;
+      }
+    }
+
     return Array.from(map.values()).sort((a, b) => {
       const partDelta = PART_ORDER[a.partKey] - PART_ORDER[b.partKey];
       if (partDelta !== 0) return partDelta;
       return a.name.localeCompare(b.name);
     });
-  }, [lang, partMeta, presets]);
+  }, [extras, lang, partMeta, presets]);
 
   const selectedPartKey = selectedCut ? PART_BY_POLYGON_ID[selectedCut] || null : null;
   const selectedPartCuts = useMemo(
@@ -326,7 +372,7 @@ export default function OppdelingsplanPage() {
       return;
     }
 
-    const extraSlug = resolveExtraSlugForCut(cut);
+    const extraSlug = cut.extra_slug || resolveExtraSlugForCut(cut);
     if (!extraSlug) {
       toast({
         title: t.oppdelingsplan.couldNotAddTitle,
@@ -900,11 +946,17 @@ export default function OppdelingsplanPage() {
                           </div>
 
                           <div className="flex flex-wrap gap-1.5 mt-3">
-                            {cut.boxOptions.map((option, idx) => (
-                              <span key={`${cut.key}-box-${idx}`} className="text-xs bg-white text-neutral-700 px-2 py-1 rounded-lg border border-neutral-200 font-light">
-                                {option.label}
+                            {cut.boxOptions.length > 0 ? (
+                              cut.boxOptions.map((option, idx) => (
+                                <span key={`${cut.key}-box-${idx}`} className="text-xs bg-white text-neutral-700 px-2 py-1 rounded-lg border border-neutral-200 font-light">
+                                  {option.label}
+                                </span>
+                              ))
+                            ) : (
+                              <span className="text-xs bg-white text-neutral-700 px-2 py-1 rounded-lg border border-neutral-200 font-light">
+                                {t.oppdelingsplan.onlyAsExtra}
                               </span>
-                            ))}
+                            )}
                           </div>
                         </li>
                       ))}
@@ -1002,16 +1054,23 @@ export default function OppdelingsplanPage() {
                       {t.oppdelingsplan.fromPigPartLabel} {cut.partName}
                     </p>
                     <div className="space-y-3">
-                      <div>
-                        <p className="text-xs font-light uppercase tracking-wider text-neutral-600 mb-2">{t.oppdelingsplan.inBoxShort}</p>
-                        <div className="flex flex-wrap gap-1.5">
-                          {cut.boxOptions.map((option, index) => (
-                            <span key={`${cut.key}-${index}`} className="text-xs bg-neutral-50 text-neutral-800 px-2 py-1 rounded-lg border border-neutral-200 font-light">
-                              {option.label}
-                            </span>
-                          ))}
+                      {cut.boxOptions.length > 0 ? (
+                        <div>
+                          <p className="text-xs font-light uppercase tracking-wider text-neutral-600 mb-2">{t.oppdelingsplan.inBoxShort}</p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {cut.boxOptions.map((option, index) => (
+                              <span key={`${cut.key}-${index}`} className="text-xs bg-neutral-50 text-neutral-800 px-2 py-1 rounded-lg border border-neutral-200 font-light">
+                                {option.label}
+                              </span>
+                            ))}
+                          </div>
                         </div>
-                      </div>
+                      ) : (
+                        <div>
+                          <p className="text-xs font-light uppercase tracking-wider text-neutral-600 mb-2">{t.oppdelingsplan.extraShort}</p>
+                          <p className="text-sm font-light text-neutral-700">{t.oppdelingsplan.onlyAsExtra}</p>
+                        </div>
+                      )}
                     </div>
                   </div>
                 );

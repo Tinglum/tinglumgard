@@ -10,6 +10,13 @@
 ALTER TABLE rebate_codes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE rebate_usage ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Anyone can view active rebate codes" ON rebate_codes;
+DROP POLICY IF EXISTS "Service role can manage rebate codes" ON rebate_codes;
+
+DROP POLICY IF EXISTS "Anyone can view rebate usage" ON rebate_usage;
+DROP POLICY IF EXISTS "Anyone can insert rebate usage" ON rebate_usage;
+DROP POLICY IF EXISTS "Service role can manage rebate usage" ON rebate_usage;
+
 -- Anyone can view active rebate codes (needed for validation)
 CREATE POLICY "Anyone can view active rebate codes"
 ON rebate_codes FOR SELECT
@@ -40,6 +47,15 @@ USING (auth.role() = 'service_role');
 -- ================================================
 ALTER TABLE referral_codes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE referrals ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Anyone can view active referral codes" ON referral_codes;
+DROP POLICY IF EXISTS "Authenticated users can create referral codes" ON referral_codes;
+DROP POLICY IF EXISTS "Users can update own referral codes" ON referral_codes;
+DROP POLICY IF EXISTS "Service role can manage referral codes" ON referral_codes;
+
+DROP POLICY IF EXISTS "Anyone can view referrals" ON referrals;
+DROP POLICY IF EXISTS "Anyone can insert referrals" ON referrals;
+DROP POLICY IF EXISTS "Service role can manage referrals" ON referrals;
 
 -- Anyone can view active referral codes (needed for validation)
 CREATE POLICY "Anyone can view active referral codes"

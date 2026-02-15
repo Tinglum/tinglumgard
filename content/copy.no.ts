@@ -887,6 +887,7 @@
     allCuts: "Alle stykker - oversikt",
     inBoxShort: "I boksen:",
     extraShort: "Ekstra:",
+    onlyAsExtra: "Kun som ekstra",
     noProductsInBox: "Ingen stykker fra denne delen i boksen",
     noExtraProducts: "Ingen ekstra produkter tilgjengelig fra denne delen",
     chooseRibbeType: "Velg ribbetype",
