@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AlertCircle, CheckCircle2, Edit, X } from 'lucide-react';
@@ -21,6 +21,8 @@ interface Cut {
   chef_name_en?: string | null;
   description_no?: string | null;
   description_en?: string | null;
+  size_from_kg?: number | null;
+  size_to_kg?: number | null;
   display_order: number;
   active: boolean;
   part_id: string | null;
@@ -72,6 +74,12 @@ export function MangalitsaCutsManager() {
   }, [loadAll]);
 
   const partsById = useMemo(() => new Map(parts.map((p) => [p.id, p])), [parts]);
+
+  function formatSizeRange(fromKg?: number | null, toKg?: number | null) {
+    if (fromKg == null || toKg == null) return null;
+    const format = (value: number) => value.toLocaleString('nb-NO', { maximumFractionDigits: 2 });
+    return `${format(fromKg)}-${format(toKg)} kg`;
+  }
 
   async function saveCut(cutId: string, updates: Record<string, unknown>) {
     try {
@@ -142,6 +150,14 @@ export function MangalitsaCutsManager() {
                       {part?.name_no || 'Ukjent del'}
                     </span>
                   </p>
+                  {formatSizeRange(cut.size_from_kg, cut.size_to_kg) && (
+                    <p className="text-sm font-light text-neutral-700 mt-1">
+                      Vektintervall:{' '}
+                      <span className="font-normal text-neutral-900">
+                        {formatSizeRange(cut.size_from_kg, cut.size_to_kg)}
+                      </span>
+                    </p>
+                  )}
                 </div>
                 <button
                   onClick={() => setEditingCut(cut)}
@@ -193,12 +209,27 @@ function EditCutModal({
   const [partId, setPartId] = useState(cut.part_id || '');
   const [descNo, setDescNo] = useState(cut.description_no || '');
   const [descEn, setDescEn] = useState(cut.description_en || '');
+  const [sizeFromKg, setSizeFromKg] = useState(cut.size_from_kg != null ? String(cut.size_from_kg) : '');
+  const [sizeToKg, setSizeToKg] = useState(cut.size_to_kg != null ? String(cut.size_to_kg) : '');
   const [displayOrder, setDisplayOrder] = useState<number>(Number.isFinite(cut.display_order) ? cut.display_order : 0);
   const [active, setActive] = useState(Boolean(cut.active));
 
   async function handleSave() {
     setSaving(true);
     try {
+      const parsedFrom = sizeFromKg ? parseFloat(sizeFromKg) : null;
+      const parsedTo = sizeToKg ? parseFloat(sizeToKg) : null;
+
+      if ((parsedFrom == null) !== (parsedTo == null)) {
+        window.alert('Du må fylle inn både fra-vekt og til-vekt, eller la begge stå tomme.');
+        return;
+      }
+
+      if (parsedFrom != null && parsedTo != null && parsedTo < parsedFrom) {
+        window.alert('Til-vekt må være større enn eller lik fra-vekt.');
+        return;
+      }
+
       await onSave({
         name_no: nameNo,
         name_en: nameEn,
@@ -207,6 +238,8 @@ function EditCutModal({
         part_id: partId || null,
         description_no: descNo || null,
         description_en: descEn || null,
+        size_from_kg: parsedFrom,
+        size_to_kg: parsedTo,
         display_order: displayOrder,
         active,
       });
@@ -286,6 +319,33 @@ function EditCutModal({
           </div>
         </div>
 
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+          <div>
+            <label className="text-sm font-light text-neutral-600 block mb-2">Fra vekt (kg)</label>
+            <input
+              type="number"
+              step="0.01"
+              min="0"
+              value={sizeFromKg}
+              onChange={(e) => setSizeFromKg(e.target.value)}
+              className={inputCls}
+              placeholder="f.eks. 0.8"
+            />
+          </div>
+          <div>
+            <label className="text-sm font-light text-neutral-600 block mb-2">Til vekt (kg)</label>
+            <input
+              type="number"
+              step="0.01"
+              min="0"
+              value={sizeToKg}
+              onChange={(e) => setSizeToKg(e.target.value)}
+              className={inputCls}
+              placeholder="f.eks. 1.1"
+            />
+          </div>
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
           <div>
             <label className="text-sm font-light text-neutral-600 block mb-2">Beskrivelse (NO)</label>

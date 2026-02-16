@@ -25,6 +25,7 @@ import {
   Warehouse,
   Tag,
   Beef,
+  BookOpen,
 } from 'lucide-react';
 import { DashboardMetrics } from '@/components/admin/DashboardMetrics';
 import { OrderDetailModal } from '@/components/admin/OrderDetailModal';
@@ -40,8 +41,9 @@ import { RebateCodesManager } from '@/components/admin/RebateCodesManager';
 import { MangalitsaBoxManager } from '@/components/admin/MangalitsaBoxManager';
 import { MangalitsaExtrasManager } from '@/components/admin/MangalitsaExtrasManager';
 import { MangalitsaCutsManager } from '@/components/admin/MangalitsaCutsManager';
+import { RecipeManager } from '@/components/admin/RecipeManager';
 
-type TabType = 'dashboard' | 'orders' | 'mangalitsa' | 'inventory' | 'customers' | 'analytics' | 'rebates' | 'settings';
+type TabType = 'dashboard' | 'orders' | 'mangalitsa' | 'inventory' | 'customers' | 'analytics' | 'rebates' | 'recipes' | 'settings';
 
 interface Order {
   id: string;
@@ -519,6 +521,7 @@ export default function AdminPage() {
     { id: 'customers', label: copy.tabs.customers, icon: Users },
     { id: 'analytics', label: copy.tabs.analytics, icon: BarChart3 },
     { id: 'rebates', label: copy.tabs.rebates, icon: Tag },
+    { id: 'recipes', label: 'Oppskrifter', icon: BookOpen },
     { id: 'settings', label: copy.tabs.settings, icon: Settings },
   ];
 
@@ -602,7 +605,7 @@ export default function AdminPage() {
         </div>
       </div>
 
-      {/* Tabs — 8 tabs */}
+      {/* Tabs - 8 tabs */}
       <div className="bg-white border-b border-neutral-200">
         <div className="max-w-[1800px] mx-auto px-6">
           <div className="flex gap-2 overflow-x-auto">
@@ -929,7 +932,7 @@ export default function AdminPage() {
               </Card>
             )}
 
-            {/* Delivery Calendar — merged from old Production tab */}
+            {/* Delivery Calendar - merged from old Production tab */}
             <div className="pt-8 border-t border-neutral-200">
               <h3 className="text-2xl font-light text-neutral-900 mb-6">{copy.tabs.production}</h3>
               <DeliveryCalendar />
@@ -1235,6 +1238,9 @@ export default function AdminPage() {
 
         {/* ═══════════ REBATES TAB ═══════════ */}
         {activeTab === 'rebates' && <RebateCodesManager />}
+
+        {/* ═══════════ RECIPES TAB ═══════════ */}
+        {activeTab === 'recipes' && <RecipeManager />}
 
         {/* ═══════════ SETTINGS TAB (merged with SystemHealth) ═══════════ */}
         {activeTab === 'settings' && (

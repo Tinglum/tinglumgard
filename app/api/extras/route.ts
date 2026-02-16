@@ -28,7 +28,7 @@ export async function GET() {
     if (cutIds.length > 0) {
       const { data: cuts, error: cutsError } = await supabaseAdmin
         .from('cuts_catalog')
-        .select('id,slug,name_no,name_en,chef_name_no,chef_name_en,description_no,description_en,part_id')
+        .select('id,slug,name_no,name_en,chef_name_no,chef_name_en,description_no,description_en,size_from_kg,size_to_kg,part_id')
         .in('id', cutIds);
 
       if (!cutsError && cuts) {
@@ -71,6 +71,8 @@ export async function GET() {
       part_name_en: part?.name_en ?? null,
       cut_description_no: cut?.description_no ?? null,
       cut_description_en: cut?.description_en ?? null,
+      cut_size_from_kg: cut?.size_from_kg ?? null,
+      cut_size_to_kg: cut?.size_to_kg ?? null,
       description_premium_no: extra.description_premium_no ?? extra.description_no ?? null,
       description_premium_en: extra.description_premium_en ?? extra.description_en ?? null,
       chef_term_no: extra.chef_term_no ?? null,

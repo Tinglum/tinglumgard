@@ -109,8 +109,8 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
     year: 'numeric',
   });
   const boxName = lang === 'no' ? order.display_box_name_no : order.display_box_name_en;
-  const boxSize = order.box_size || order.effective_box_size || 0;
-  const boxLabel = boxName && boxSize ? `${boxName} (${boxSize}kg)` : boxName || (boxSize ? `${boxSize}kg` : '-');
+  const fallbackBoxName = lang === 'en' ? 'Mangalitsa box' : 'Mangalitsa-boks';
+  const boxLabel = boxName || fallbackBoxName;
 
   // Determine next action
   function getNextAction() {
@@ -290,7 +290,7 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
 
   return (
     <>
-      <Card className={cn('overflow-hidden', theme.bgCard)}>
+      <Card className="overflow-hidden border-neutral-200 bg-white shadow-[0_20px_60px_-15px_rgba(0,0,0,0.08)]">
         {/* Next Action Banner */}
         <div
           className={cn(
@@ -397,6 +397,7 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
 
             <div className="flex gap-2">
               <button
+                type="button"
                 onClick={handleDownloadReceipt}
                 className={cn(
                   'p-2 rounded-lg transition-colors',
@@ -408,6 +409,7 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
                 <Download className="w-5 h-5" />
               </button>
               <button
+                type="button"
                 onClick={() => window.print()}
                 className={cn(
                   'p-2 rounded-lg transition-colors',
@@ -439,7 +441,7 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
             <div className="space-y-2">
               <div className="flex justify-between">
                 <span className={theme.textSecondary}>
-                  {copy.depositBoxLabel.replace('{size}', String(boxSize || '?'))}</span>
+                  {copy.depositBoxLabel.replace('{box}', boxLabel)}</span>
                 <div className="flex items-center gap-2">
                   <span className={cn('font-semibold', theme.textPrimary)}>
                     {currency} {depositPaid && depositPayment
@@ -572,8 +574,8 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
           </div>
 
           {/* Order Actions */}
-          <div className={cn('p-4 rounded-xl border bg-gradient-to-r from-blue-50 to-indigo-50', theme.borderSecondary)}>
-            <h4 className={cn('font-semibold mb-4 flex items-center gap-2 text-blue-900')}>
+          <div className={cn('p-4 rounded-xl border bg-white', theme.borderSecondary)}>
+            <h4 className={cn('font-semibold mb-4 flex items-center gap-2', theme.textPrimary)}>
               <MessageSquare className="w-5 h-5" />
               {copy.orderActions}
             </h4>
@@ -613,12 +615,12 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
                 {copy.print}
               </Button>
             </div>
-            <div className="mt-4 pt-4 border-t border-blue-200 space-y-2">
-              <div className="flex items-center gap-2 text-blue-700 text-sm">
+            <div className="mt-4 pt-4 border-t border-neutral-200 space-y-2">
+              <div className="flex items-center gap-2 text-neutral-700 text-sm">
                 <Mail className="w-4 h-4" />
                 <span>{copy.contactEmail}</span>
               </div>
-              <div className="flex items-center gap-2 text-blue-700 text-sm">
+              <div className="flex items-center gap-2 text-neutral-700 text-sm">
                 <Phone className="w-4 h-4" />
                 <span>{copy.contactPhone}</span>
               </div>
@@ -627,13 +629,13 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
 
           {/* Estimated Delivery Date */}
           {!order.marked_delivered_at && (
-            <div className={cn('p-4 rounded-xl border bg-purple-50 border-purple-200')}>
-              <div className="flex items-center gap-2 text-purple-900 mb-1">
+            <div className={cn('p-4 rounded-xl border bg-neutral-50 border-neutral-200')}>
+              <div className="flex items-center gap-2 text-neutral-900 mb-1">
                 <Calendar className="w-5 h-5" />
                 <p className="font-medium">{copy.estimatedDeliveryDate}</p>
               </div>
-              <p className="text-lg font-bold text-purple-900">{getEstimatedDeliveryDate()}</p>
-              <p className="text-sm text-purple-700 mt-1">
+              <p className="text-lg font-bold text-neutral-900">{getEstimatedDeliveryDate()}</p>
+              <p className="text-sm text-neutral-600 mt-1">
                 {copy.notifyReady}
               </p>
             </div>

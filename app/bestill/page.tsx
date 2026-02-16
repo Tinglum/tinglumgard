@@ -34,6 +34,8 @@ interface MangalitsaPreset {
     id: string;
     content_name_no: string;
     content_name_en: string;
+    cut_size_from_kg?: number | null;
+    cut_size_to_kg?: number | null;
     target_weight_kg?: number | null;
     display_order: number;
     is_hero: boolean;
@@ -388,6 +390,16 @@ export default function CheckoutPage() {
     return sliced.replace(/\s+\S*$/, '').trim();
   }
 
+  function formatCutSizeRange(fromKg?: number | null, toKg?: number | null) {
+    if (fromKg == null || toKg == null) return null;
+    const from = Number(fromKg);
+    const to = Number(toKg);
+    if (!Number.isFinite(from) || !Number.isFinite(to)) return null;
+    const formattedFrom = from.toLocaleString(locale, { maximumFractionDigits: 2 });
+    const formattedTo = to.toLocaleString(locale, { maximumFractionDigits: 2 });
+    return `${t.common.approx} ${formattedFrom}-${formattedTo} ${t.common.kg}`;
+  }
+
   function getCardDescription(extra: any) {
     const override = (t.checkout as any)?.extraCardTeasers?.[String(extra.slug || '')];
     if (typeof override === 'string' && override.trim()) return override;
@@ -444,6 +456,7 @@ export default function CheckoutPage() {
     const name = chefTerm ? parsedName.primary : rawName.trim();
 
     const description = getCardDescription(extra);
+    const sizeRange = formatCutSizeRange(extra.cut_size_from_kg, extra.cut_size_to_kg);
 
     const allRecipeTags = recipeTagsForExtra(extra);
     const visibleRecipeTags = allRecipeTags.slice(0, 2);
@@ -504,6 +517,12 @@ export default function CheckoutPage() {
             }}
           >
             {description}
+          </p>
+        )}
+
+        {sizeRange && (
+          <p className="mt-3 text-[11px] font-light uppercase tracking-wide text-neutral-500">
+            {sizeRange}
           </p>
         )}
 
@@ -1077,14 +1096,21 @@ export default function CheckoutPage() {
                             {visibleContents.map((content) => (
                               <li key={content.id} className="flex items-start gap-3 text-sm text-left">
                                 <span className="w-1.5 h-1.5 rounded-full bg-neutral-400 mt-2 flex-shrink-0" />
-                                <span
-                                  className={cn(
-                                    "font-light",
-                                    content.is_hero ? "text-neutral-900 font-normal" : "text-neutral-600"
+                                <div>
+                                  <span
+                                    className={cn(
+                                      "font-light",
+                                      content.is_hero ? "text-neutral-900 font-normal" : "text-neutral-600"
+                                    )}
+                                  >
+                                    {fixMojibake(lang === 'no' ? content.content_name_no : content.content_name_en)}
+                                  </span>
+                                  {formatCutSizeRange(content.cut_size_from_kg, content.cut_size_to_kg) && (
+                                    <p className="text-[11px] font-light uppercase tracking-wide text-neutral-500 mt-1">
+                                      {formatCutSizeRange(content.cut_size_from_kg, content.cut_size_to_kg)}
+                                    </p>
                                   )}
-                                >
-                                  {fixMojibake(lang === 'no' ? content.content_name_no : content.content_name_en)}
-                                </span>
+                                </div>
                               </li>
                             ))}
                           </ul>
@@ -1468,10 +1494,14 @@ export default function CheckoutPage() {
                     if (!extra) return null;
                     const quantity = extraQuantities[slug] || 1;
                     const itemTotal = extra.price_nok * quantity;
+                    const sizeRange = formatCutSizeRange(extra.cut_size_from_kg, extra.cut_size_to_kg);
                     return (
                       <div key={slug} className="flex justify-between text-sm">
                         <span className="font-light text-neutral-600">
-                          {fixMojibake(lang === 'no' ? extra.name_no : (extra.name_en || extra.name_no))} ({quantity} {extra.pricing_type === 'per_kg' ? t.common.kg : t.common.stk})
+                          {fixMojibake(lang === 'no' ? extra.name_no : (extra.name_en || extra.name_no))}
+                          {sizeRange ? ` (${sizeRange})` : ''}
+                          {' '}
+                          ({quantity} {extra.pricing_type === 'per_kg' ? t.common.kg : t.common.stk})
                         </span>
                         <span className="font-light text-neutral-900 tabular-nums">+{itemTotal} kr</span>
                       </div>

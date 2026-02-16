@@ -80,6 +80,7 @@ export async function POST(request: NextRequest) {
     // Calculate extra products total from database
     let extrasTotal = 0;
     const extraProductsData: any[] = [];
+    const cutRangesById = new Map<string, { size_from_kg: number | null; size_to_kg: number | null }>();
 
     if (extraProducts && extraProducts.length > 0) {
       // Fetch extras from database
@@ -89,9 +90,29 @@ export async function POST(request: NextRequest) {
         .in('slug', extraProducts.map(e => e.slug));
 
       if (!extrasError && extras) {
+        const cutIds = Array.from(new Set(extras.map((row: any) => row.cut_id).filter(Boolean)));
+        if (cutIds.length > 0) {
+          const { data: cutRows, error: cutRowsError } = await supabaseAdmin
+            .from('cuts_catalog')
+            .select('id,size_from_kg,size_to_kg')
+            .in('id', cutIds);
+
+          if (cutRowsError) {
+            logError('checkout-extra-cut-ranges', cutRowsError);
+          } else {
+            for (const cut of cutRows || []) {
+              cutRangesById.set(cut.id, {
+                size_from_kg: cut.size_from_kg ?? null,
+                size_to_kg: cut.size_to_kg ?? null,
+              });
+            }
+          }
+        }
+
         for (const extra of extraProducts) {
           const catalogItem = extras.find(e => e.slug === extra.slug);
           if (catalogItem) {
+            const cutRange = catalogItem.cut_id ? cutRangesById.get(catalogItem.cut_id) : null;
             const itemTotal = catalogItem.price_nok * extra.quantity;
             extrasTotal += itemTotal;
             extraProductsData.push({
@@ -100,6 +121,8 @@ export async function POST(request: NextRequest) {
               quantity: extra.quantity,
               unit_type: catalogItem.pricing_type === 'per_kg' ? 'kg' : 'unit',
               price_per_unit: catalogItem.price_nok,
+              size_from_kg: cutRange?.size_from_kg ?? null,
+              size_to_kg: cutRange?.size_to_kg ?? null,
               total_price: itemTotal
             });
           }
@@ -168,6 +191,19 @@ export async function POST(request: NextRequest) {
         details: orderError?.details,
       });
       logError('checkout-order-creation', orderError);
+      if (
+        orderError?.code === '23502' &&
+        typeof orderError?.message === 'string' &&
+        orderError.message.includes('box_size')
+      ) {
+        return NextResponse.json(
+          {
+            error: 'Database schema mismatch',
+            details: 'orders.box_size must allow NULL for Mangalitsa orders. Run latest migrations.',
+          },
+          { status: 500 }
+        );
+      }
       throw new Error(`Failed to create order: ${orderError?.message || 'Unknown error'}`);
     }
 

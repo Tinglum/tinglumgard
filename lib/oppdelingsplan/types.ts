@@ -22,6 +22,8 @@ export interface CutOverview {
   extra_slug?: string | null;
   name: string;
   description: string;
+  sizeFromKg?: number | null;
+  sizeToKg?: number | null;
   partKey: PartKey;
   partName: string;
   boxOptions: CutBoxOption[];

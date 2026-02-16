@@ -84,8 +84,8 @@ export function PaymentHistoryModal({ isOpen, onClose, payments, orderNumber, ex
     .reduce((sum, payment) => sum + payment.amount_nok, 0);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-      <Card className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/55">
+      <Card className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto border border-neutral-200 bg-white p-6 shadow-[0_40px_120px_-30px_rgba(0,0,0,0.35)]">
         <div className="flex items-center justify-between mb-6">
           <div>
             <h2 className="text-2xl font-bold">{copy.title}</h2>
@@ -93,7 +93,7 @@ export function PaymentHistoryModal({ isOpen, onClose, payments, orderNumber, ex
               {copy.orderPrefix} {orderNumber}
             </p>
           </div>
-          <button onClick={onClose} className="p-2 rounded-full hover:bg-gray-100 transition-colors">
+          <button type="button" onClick={onClose} className="p-2 rounded-full hover:bg-gray-100 transition-colors">
             <X className="w-6 h-6" />
           </button>
         </div>

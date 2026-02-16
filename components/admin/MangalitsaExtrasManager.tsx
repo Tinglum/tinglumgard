@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect, useCallback } from 'react';
 import { Edit, Save, X, Plus, Trash2, AlertCircle, CheckCircle2 } from 'lucide-react';
@@ -38,10 +38,20 @@ interface CutOption {
   name_en: string;
   chef_name_no?: string | null;
   chef_name_en?: string | null;
+  size_from_kg?: number | null;
+  size_to_kg?: number | null;
   part?: { id: string; key: string; name_no: string; name_en: string } | null;
 }
 
 type ToastType = { message: string; type: 'success' | 'error' } | null;
+
+function formatCutSizeRange(fromKg?: number | null, toKg?: number | null) {
+  if (fromKg == null || toKg == null) return null;
+  const from = Number(fromKg);
+  const to = Number(toKg);
+  if (!Number.isFinite(from) || !Number.isFinite(to)) return null;
+  return `ca. ${from.toLocaleString('nb-NO', { maximumFractionDigits: 2 })}-${to.toLocaleString('nb-NO', { maximumFractionDigits: 2 })} kg`;
+}
 
 export function MangalitsaExtrasManager() {
   const [extras, setExtras] = useState<Extra[]>([]);
@@ -106,6 +116,8 @@ export function MangalitsaExtrasManager() {
 
   if (loading) return <div className="py-8 text-center text-neutral-500">Laster ekstraprodukter...</div>;
 
+  const cutsById = new Map(cutsCatalog.map((cut) => [cut.id, cut]));
+
   return (
     <div className="space-y-8">
       {toast && (
@@ -122,11 +134,15 @@ export function MangalitsaExtrasManager() {
       </div>
 
       <div className="space-y-4">
-        {extras.map((extra) => (
-          <div
-            key={extra.id}
-            className="bg-white border border-neutral-200 rounded-xl p-6 shadow-sm"
-          >
+        {extras.map((extra) => {
+          const linkedCut = extra.cut_id ? cutsById.get(extra.cut_id) || null : null;
+          const sizeRange = formatCutSizeRange(linkedCut?.size_from_kg, linkedCut?.size_to_kg);
+
+          return (
+            <div
+              key={extra.id}
+              className="bg-white border border-neutral-200 rounded-xl p-6 shadow-sm"
+            >
             <div className="flex items-start justify-between mb-4">
               <div className="flex-1">
                 <div className="flex items-center gap-3 mb-2">
@@ -170,6 +186,20 @@ export function MangalitsaExtrasManager() {
               </div>
             </div>
 
+            {linkedCut && (
+              <div className="mt-3 p-3 bg-neutral-50 rounded-xl border border-neutral-200">
+                <p className="text-xs uppercase tracking-wide text-neutral-500 mb-1">Knyttet stykke</p>
+                <p className="text-sm font-light text-neutral-900">
+                  {linkedCut.name_no}
+                  {linkedCut.chef_name_no ? ` (${linkedCut.chef_name_no})` : ''}
+                </p>
+                <p className="text-xs text-neutral-500 mt-1">
+                  Del av gris: {linkedCut.part?.name_no || 'Uten del'}
+                  {sizeRange ? ` • ${sizeRange}` : ''}
+                </p>
+              </div>
+            )}
+
             {extra.preparation_tips_no && (
               <div className="mt-3 p-3 bg-neutral-50 rounded-xl border border-neutral-200">
                 <p className="text-xs uppercase tracking-wide text-neutral-500 mb-1">Tilberedning</p>
@@ -189,8 +219,9 @@ export function MangalitsaExtrasManager() {
                 </div>
               </div>
             )}
-          </div>
-        ))}
+            </div>
+          );
+        })}
       </div>
 
       {editingExtra && (
@@ -222,6 +253,8 @@ function EditExtraModal({ extra, cuts, onSave, onClose }: {
   const [recipes, setRecipes] = useState<Recipe[]>(
     Array.isArray(extra.recipe_suggestions) ? extra.recipe_suggestions.map((r) => ({ ...r })) : []
   );
+  const selectedCut = cutId ? cuts.find((c) => c.id === cutId) || null : null;
+  const selectedCutRange = formatCutSizeRange(selectedCut?.size_from_kg, selectedCut?.size_to_kg);
 
   function updateRecipe(index: number, field: keyof Recipe, value: string) {
     setRecipes((prev) => {
@@ -288,9 +321,10 @@ function EditExtraModal({ extra, cuts, onSave, onClose }: {
                 </option>
               ))}
             </select>
-            {cutId && cuts.find((c) => c.id === cutId)?.part?.name_no && (
+            {selectedCut?.part?.name_no && (
               <p className="mt-1 text-xs text-neutral-500">
-                Fra del av gris: {cuts.find((c) => c.id === cutId)?.part?.name_no}
+                Fra del av gris: {selectedCut.part.name_no}
+                {selectedCutRange ? ` • ${selectedCutRange}` : ''}
               </p>
             )}
           </div>
@@ -460,3 +494,4 @@ function EditExtraModal({ extra, cuts, onSave, onClose }: {
     </div>
   );
 }
+

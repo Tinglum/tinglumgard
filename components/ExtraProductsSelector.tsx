@@ -13,6 +13,8 @@ interface Extra {
   name_en?: string;
   description_no?: string;
   description_en?: string;
+  cut_size_from_kg?: number | null;
+  cut_size_to_kg?: number | null;
   price_nok: number;
   pricing_type: 'per_unit' | 'per_kg';
   default_quantity?: number | null;
@@ -54,6 +56,27 @@ export function ExtraProductsSelector({
     totalExtras: t.extraProductsSelector.totalExtras,
   };
 
+  function getDefaultQuantity(extra: Extra): number {
+    const fallback = extra.pricing_type === 'per_kg' ? 0.5 : 1;
+    const parsed = Number(extra.default_quantity);
+    if (Number.isFinite(parsed) && parsed > 0) {
+      return parsed;
+    }
+    return fallback;
+  }
+
+  function normalizeDashes(value?: string | null) {
+    if (!value) return '';
+    return value.replace(/[\u2013\u2014]/g, '-');
+  }
+
+  function formatCutSizeRange(fromKg?: number | null, toKg?: number | null) {
+    if (fromKg == null || toKg == null) return null;
+    const from = fromKg.toLocaleString(locale, { maximumFractionDigits: 2 });
+    const to = toKg.toLocaleString(locale, { maximumFractionDigits: 2 });
+    return `${t.common.approx} ${from}-${to} ${copy.kg}`;
+  }
+
   const total = useMemo(() => {
     return Object.entries(selectedQuantities).reduce((sum, [slug, qty]) => {
       if (qty === 0) return sum;
@@ -80,10 +103,14 @@ export function ExtraProductsSelector({
 
       <div className="grid md:grid-cols-2 gap-6">
         {availableExtras.map((extra) => {
-          const quantity = selectedQuantities[extra.slug] || 0;
+          const quantityRaw = selectedQuantities[extra.slug];
+          const quantity = Number.isFinite(Number(quantityRaw)) ? Number(quantityRaw) : 0;
           const isSelected = quantity > 0;
-          const name = lang === 'en' && extra.name_en ? extra.name_en : extra.name_no;
-          const description = lang === 'en' && extra.description_en ? extra.description_en : extra.description_no;
+          const nameRaw = lang === 'en' && extra.name_en ? extra.name_en : extra.name_no;
+          const descriptionRaw = lang === 'en' && extra.description_en ? extra.description_en : extra.description_no;
+          const name = normalizeDashes(nameRaw);
+          const description = normalizeDashes(descriptionRaw);
+          const sizeRange = formatCutSizeRange(extra.cut_size_from_kg, extra.cut_size_to_kg);
 
           return (
             <div
@@ -101,8 +128,7 @@ export function ExtraProductsSelector({
                   if (isSelected) {
                     onQuantityChange(extra.slug, 0);
                   } else {
-                    const defaultQty = extra.default_quantity || (extra.pricing_type === 'per_kg' ? 0.5 : 1);
-                    onQuantityChange(extra.slug, defaultQty);
+                    onQuantityChange(extra.slug, getDefaultQuantity(extra));
                   }
                 }
               }}
@@ -132,6 +158,15 @@ export function ExtraProductsSelector({
                     theme?.textMuted ? theme.textMuted : 'text-gray-600'
                   )}>
                     {description}
+                  </p>
+                )}
+
+                {sizeRange && (
+                  <p className={cn(
+                    'text-xs mb-3 uppercase tracking-wide',
+                    theme?.textMuted ? theme.textMuted : 'text-gray-500'
+                  )}>
+                    {sizeRange}
                   </p>
                 )}
 
@@ -171,12 +206,13 @@ export function ExtraProductsSelector({
                     </label>
 
                     <Button
+                      type="button"
                       variant="outline"
                       size="sm"
                       onClick={() => {
                         if (extra.pricing_type === 'per_kg') {
-                          const newQty = Math.floor((quantity - 0.1) / 0.5) * 0.5;
-                          onQuantityChange(extra.slug, newQty);
+                          const nextQty = Number(Math.max(0, quantity - 0.5).toFixed(1));
+                          onQuantityChange(extra.slug, nextQty);
                         } else {
                           const newQty = quantity - 1;
                           onQuantityChange(extra.slug, newQty);
@@ -207,12 +243,13 @@ export function ExtraProductsSelector({
                     />
 
                     <Button
+                      type="button"
                       variant="outline"
                       size="sm"
                       onClick={() => {
                         if (extra.pricing_type === 'per_kg') {
-                          const newQty = Math.ceil((quantity + 0.1) / 0.5) * 0.5;
-                          onQuantityChange(extra.slug, newQty);
+                          const nextQty = Number((quantity + 0.5).toFixed(1));
+                          onQuantityChange(extra.slug, nextQty);
                         } else {
                           const newQty = quantity + 1;
                           onQuantityChange(extra.slug, newQty);

@@ -18,6 +18,8 @@ export interface Extra {
   part_name_en?: string | null;
   cut_description_no?: string | null;
   cut_description_en?: string | null;
+  cut_size_from_kg?: number | null;
+  cut_size_to_kg?: number | null;
 
   // Premium storytelling fields (used for Mangalitsa upsell UI)
   description_premium_no?: string | null;

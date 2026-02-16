@@ -29,15 +29,11 @@ export async function GET(request: NextRequest) {
       path: '/',
     });
 
-    console.log('Vipps Login (GET) - Set cookie with state:', state.substring(0, 20) + '...');
-
     // Get the Vipps authorization URL with the state
     const authUrl = vippsClient.getAuthorizationUrl(state);
 
-    // Log the redirect URI being used (for debugging)
-    console.log('Vipps Login (GET) - Redirect URI:', process.env.NEXT_PUBLIC_APP_URL + '/api/auth/vipps/callback');
-    console.log('Vipps Login (GET) - Auth URL:', authUrl);
-    console.log('Vipps Login (GET) - Return to:', returnTo);
+    // Keep auth logs high-level only (no state/auth URL with encoded payloads).
+    console.log('Vipps Login (GET) - Initiating OAuth redirect', { returnTo });
 
     // Redirect to Vipps OAuth
     return NextResponse.redirect(authUrl);
@@ -75,14 +71,14 @@ export async function POST(request: NextRequest) {
       path: '/',
     });
 
-    console.log('Vipps Login (POST) - Set cookie with state:', state.substring(0, 20) + '...');
-
     // Get the Vipps authorization URL with the state
     const authUrl = vippsClient.getAuthorizationUrl(state);
 
-    // Log the redirect URI being used (for debugging)
-    console.log('Vipps Login (POST) - Redirect URI:', process.env.NEXT_PUBLIC_APP_URL + '/api/auth/vipps/callback');
-    console.log('Vipps Login (POST) - Auth URL:', authUrl);
+    // Keep auth logs high-level only (no state/auth URL with encoded payloads).
+    console.log('Vipps Login (POST) - Initiating OAuth redirect', {
+      hasPendingOrder: !!orderDetails,
+      productType: orderDetails?.productType || null,
+    });
 
     // Return the auth URL so the client can redirect
     return NextResponse.json({ authUrl });

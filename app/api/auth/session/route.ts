@@ -3,10 +3,8 @@ import { getSession } from '@/lib/auth/session';
 import { cookies } from 'next/headers';
 
 export async function GET() {
-  // Log all cookies to debug
-  const cookieStore = await cookies();
-  const allCookies = cookieStore.getAll();
-  console.log('Session API - All cookies:', allCookies.map(c => ({ name: c.name, value: c.value.substring(0, 20) + '...' })));
+  // Touch cookie store so frameworks don't tree-shake this runtime dependency.
+  await cookies();
 
   const session = await getSession();
 

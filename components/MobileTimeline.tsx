@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useLanguage } from '@/contexts/LanguageContext';
 
@@ -37,7 +37,7 @@ export function MobileTimeline() {
             <p className="mt-2 text-sm text-[#5E5A50]">{t.timeline.subtitle}</p>
           </div>
           <span className="rounded-full bg-[#0F6C6F] px-3 py-1 text-[10px] font-bold uppercase tracking-[0.25em] text-white">
-            1–3
+            1-3
           </span>
         </div>
 
@@ -68,3 +68,4 @@ export function MobileTimeline() {
     </section>
   );
 }
+

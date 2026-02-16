@@ -7,6 +7,23 @@ interface ExtraProduct {
   quantity: number;
 }
 
+function normalizeEmail(value?: string | null) {
+  return (value || '').trim().toLowerCase();
+}
+
+function normalizePhone(value?: string | null) {
+  return (value || '').replace(/\D/g, '');
+}
+
+function isPhoneMatch(sessionPhone: string, orderPhone: string) {
+  if (!sessionPhone || !orderPhone) return false;
+  if (sessionPhone === orderPhone) return true;
+
+  const sessionSuffix = sessionPhone.slice(-8);
+  const orderSuffix = orderPhone.slice(-8);
+  return sessionSuffix.length === 8 && orderSuffix.length === 8 && sessionSuffix === orderSuffix;
+}
+
 export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -25,27 +42,62 @@ export async function POST(
       return NextResponse.json({ error: 'Invalid extras data' }, { status: 400 });
     }
 
+    const normalizedExtras: ExtraProduct[] = extras.map((extra) => ({
+      slug: String(extra.slug || '').trim(),
+      quantity: Number(extra.quantity),
+    }));
+
+    const hasInvalidExtras = normalizedExtras.some(
+      (extra) => !extra.slug || !Number.isFinite(extra.quantity) || extra.quantity <= 0
+    );
+
+    if (hasInvalidExtras) {
+      return NextResponse.json({ error: 'Invalid extra selection' }, { status: 400 });
+    }
+
     const shouldUpdateCredit = Number.isFinite(creditAmountNok);
     const normalizedCredit = shouldUpdateCredit ? Math.max(0, Math.round(creditAmountNok as number)) : undefined;
-
-    // Verify order belongs to user (or is an anonymous order matching phone/email)
-    const orConditions = [`user_id.eq.${session.userId}`];
-    if (session.phoneNumber) {
-      orConditions.push(`and(user_id.is.null,customer_phone.eq.${session.phoneNumber})`);
-    }
-    if (session.email) {
-      orConditions.push(`and(user_id.is.null,customer_email.eq.${session.email})`);
-    }
 
     const { data: order, error: orderError } = await supabaseAdmin
       .from('orders')
       .select('*')
       .eq('id', params.id)
-      .or(orConditions.join(','))
-      .single();
+      .maybeSingle();
 
     if (orderError || !order) {
       return NextResponse.json({ error: 'Order not found' }, { status: 404 });
+    }
+
+    const ownsOrder = Boolean(order.user_id) && order.user_id === session.userId;
+    const normalizedOrderEmail = normalizeEmail(order.customer_email);
+    const normalizedSessionEmail = normalizeEmail(session.email as string | undefined);
+    const emailMatches = Boolean(
+      normalizedOrderEmail &&
+      normalizedSessionEmail &&
+      normalizedOrderEmail === normalizedSessionEmail
+    );
+    const phoneMatches = isPhoneMatch(
+      normalizePhone(session.phoneNumber as string | undefined),
+      normalizePhone(order.customer_phone)
+    );
+    const canAccessAnonymousOrder = !order.user_id && (emailMatches || phoneMatches);
+
+    if (!ownsOrder && !canAccessAnonymousOrder) {
+      return NextResponse.json({ error: 'Order not found' }, { status: 404 });
+    }
+
+    if (!order.user_id) {
+      const { error: claimOrderError } = await supabaseAdmin
+        .from('orders')
+        .update({ user_id: session.userId })
+        .eq('id', params.id)
+        .is('user_id', null);
+
+      if (claimOrderError) {
+        console.error('Failed to claim anonymous order for session user:', claimOrderError);
+      } else {
+        order.user_id = session.userId;
+      }
     }
 
     // Check if order is locked
@@ -66,25 +118,57 @@ export async function POST(
     }
 
     let extrasCatalog: any[] = [];
-    if (extras.length > 0) {
+    const cutRangesById = new Map<string, { size_from_kg: number | null; size_to_kg: number | null }>();
+    if (normalizedExtras.length > 0) {
       const { data: catalogData, error: catalogError } = await supabaseAdmin
         .from('extras_catalog')
         .select('*')
-        .in('slug', extras.map((e) => e.slug));
+        .in('slug', normalizedExtras.map((e) => e.slug));
 
       if (catalogError || !catalogData) {
         return NextResponse.json({ error: 'Failed to fetch extras catalog' }, { status: 500 });
       }
       extrasCatalog = catalogData;
+
+      const missingSlugs = normalizedExtras
+        .map((extra) => extra.slug)
+        .filter((slug) => !catalogData.some((row: any) => row.slug === slug));
+
+      if (missingSlugs.length > 0) {
+        return NextResponse.json(
+          { error: `Unknown extra products: ${missingSlugs.join(', ')}` },
+          { status: 400 }
+        );
+      }
+
+      const cutIds = Array.from(new Set(catalogData.map((row: any) => row.cut_id).filter(Boolean)));
+      if (cutIds.length > 0) {
+        const { data: cutRows, error: cutRowsError } = await supabaseAdmin
+          .from('cuts_catalog')
+          .select('id,size_from_kg,size_to_kg')
+          .in('id', cutIds);
+
+        if (cutRowsError) {
+          console.error('Failed to fetch cut ranges for extras:', cutRowsError);
+        } else {
+          for (const cut of cutRows || []) {
+            cutRangesById.set(cut.id, {
+              size_from_kg: cut.size_from_kg ?? null,
+              size_to_kg: cut.size_to_kg ?? null,
+            });
+          }
+        }
+      }
     }
 
     // Calculate new totals
     let extrasTotal = 0;
     const extraProductsData: any[] = [];
 
-    for (const extra of extras) {
+    for (const extra of normalizedExtras) {
       const catalogItem = extrasCatalog.find((e) => e.slug === extra.slug);
       if (catalogItem) {
+        const cutRange = catalogItem.cut_id ? cutRangesById.get(catalogItem.cut_id) : null;
         const itemTotal = Math.round(catalogItem.price_nok * extra.quantity);
         extrasTotal += itemTotal;
         extraProductsData.push({
@@ -93,6 +177,8 @@ export async function POST(
           quantity: extra.quantity,
           unit_type: catalogItem.pricing_type === 'per_kg' ? 'kg' : 'unit',
           price_per_unit: catalogItem.price_nok,
+          size_from_kg: cutRange?.size_from_kg ?? null,
+          size_to_kg: cutRange?.size_to_kg ?? null,
           total_price: itemTotal,
         });
       }

@@ -68,7 +68,7 @@ function calculateDashboardMetrics(orders: any[]) {
     return acc;
   }, {} as Record<string, number>);
 
-  // Product breakdown — use preset names as keys instead of raw kg
+  // Product breakdown - use preset names as keys instead of raw kg
   const boxCounts: Record<string, number> = {};
   let totalKg = 0;
   for (const order of orders) {

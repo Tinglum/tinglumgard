@@ -33,6 +33,16 @@ export function MangalitsaBoxesSection() {
     );
   }
 
+  const formatCutSizeRange = (fromKg?: number | null, toKg?: number | null) => {
+    if (fromKg == null || toKg == null) return null;
+    const fromValue = Number(fromKg);
+    const toValue = Number(toKg);
+    if (!Number.isFinite(fromValue) || !Number.isFinite(toValue)) return null;
+    const from = fromValue.toLocaleString(locale, { maximumFractionDigits: 2 });
+    const to = toValue.toLocaleString(locale, { maximumFractionDigits: 2 });
+    return `${t.common.approx} ${from}-${to} ${t.common.kg}`;
+  };
+
   return (
     <section id="mangalitsa-boxes" className="py-20 bg-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -82,6 +92,7 @@ export function MangalitsaBoxesSection() {
                   </p>
                   {sortedContents.map((content: any, idx: number) => {
                       const contentName = fixMojibake(lang === 'no' ? content.content_name_no : content.content_name_en);
+                      const sizeRange = formatCutSizeRange(content.cut_size_from_kg, content.cut_size_to_kg);
                       return (
                         <div
                           key={idx}
@@ -92,6 +103,11 @@ export function MangalitsaBoxesSection() {
                           {content.target_weight_kg && (
                             <span className="text-neutral-500 ml-1">
                               ({content.target_weight_kg} {t.common.kg})
+                            </span>
+                          )}
+                          {sizeRange && (
+                            <span className="text-neutral-500 ml-2">
+                              ({sizeRange})
                             </span>
                           )}
                         </div>

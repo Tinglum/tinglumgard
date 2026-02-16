@@ -57,14 +57,53 @@ function safeTokenEquals(left: string, right: string): boolean {
   return crypto.timingSafeEqual(leftBuffer, rightBuffer);
 }
 
+function getConfiguredCallbackTokens(): string[] {
+  const candidates = [
+    process.env.VIPPS_WEBHOOK_CALLBACK_AUTH_TOKEN,
+    process.env.VIPPS_WEBHOOK_AUTHORIZATION,
+    process.env.VIPPS_CALLBACK_AUTH_TOKEN,
+    process.env.VIPPS_CALLBACK_TOKEN,
+  ]
+    .map((value) => (value || '').trim())
+    .filter(Boolean);
+
+  return Array.from(new Set(candidates));
+}
+
+function extractIncomingCallbackToken(request: NextRequest): string {
+  const directHeaderToken =
+    request.headers.get('x-vipps-callback-auth-token') ||
+    request.headers.get('x-vipps-callback-authorization-token') ||
+    request.headers.get('callbackauthtoken') ||
+    '';
+
+  if (directHeaderToken.trim()) {
+    return directHeaderToken.trim();
+  }
+
+  // Some environments forward Vipps callbackAuthorizationToken as plain Authorization header.
+  const authorizationHeader = (request.headers.get('authorization') || '').trim();
+  if (!authorizationHeader) {
+    return '';
+  }
+
+  const lower = authorizationHeader.toLowerCase();
+
+  // Not callback token (e.g. HMAC signature format).
+  if (lower.startsWith('hmac-sha256')) {
+    return '';
+  }
+
+  if (lower.startsWith('bearer ')) {
+    return authorizationHeader.slice(7).trim();
+  }
+
+  return authorizationHeader;
+}
+
 export async function POST(request: NextRequest) {
   try {
     const bodyText = await request.text();
-    console.log('Vipps webhook received:', bodyText);
-    console.log('Webhook headers:', {
-      authorization: request.headers.get('authorization'),
-      callbackAuthToken: request.headers.get('X-Vipps-Callback-Auth-Token'),
-    });
 
     const payload = JSON.parse(bodyText) as {
       orderId?: string;
@@ -81,7 +120,16 @@ export async function POST(request: NextRequest) {
       [k: string]: unknown;
     };
 
-    console.log('Webhook payload:', payload);
+    console.log('Vipps webhook received', {
+      sessionId: payload.sessionId || null,
+      reference: payload.reference || null,
+      sessionState: payload.sessionState || null,
+      paymentState: payload.paymentDetails?.state || null,
+      hasAuthorizationHeader: !!request.headers.get('authorization'),
+      hasCallbackAuthHeader:
+        !!request.headers.get('x-vipps-callback-auth-token') ||
+        !!request.headers.get('x-vipps-callback-authorization-token'),
+    });
 
     // CRITICAL: Check if payment was actually successful
     const sessionState = payload.sessionState as string | undefined;
@@ -166,18 +214,46 @@ export async function POST(request: NextRequest) {
 
     console.log('Found payment:', resolvedPayment.id, 'type:', resolvedPayment.payment_type, 'egg:', isEggPayment);
 
-    const incomingCallbackToken =
-      request.headers.get('x-vipps-callback-auth-token') ||
-      request.headers.get('x-vipps-callback-authorization-token') ||
-      '';
-    const storedCallbackToken = resolvedPayment.vipps_callback_token || '';
+    const incomingCallbackToken = extractIncomingCallbackToken(request);
+    const storedCallbackToken = (resolvedPayment.vipps_callback_token || '').trim();
+    const configuredCallbackTokens = getConfiguredCallbackTokens();
+    const hmacVerified = verifyVippsWebhookHmac(request, bodyText);
 
-    if (!incomingCallbackToken || !storedCallbackToken || !safeTokenEquals(incomingCallbackToken, storedCallbackToken)) {
+    const hasStoredTokenMatch =
+      Boolean(incomingCallbackToken && storedCallbackToken) &&
+      safeTokenEquals(incomingCallbackToken, storedCallbackToken);
+
+    const hasConfiguredTokenMatch =
+      Boolean(incomingCallbackToken) &&
+      configuredCallbackTokens.some((configuredToken) => safeTokenEquals(incomingCallbackToken, configuredToken));
+
+    // Backward compatibility: some older pending payments may miss vipps_callback_token in DB.
+    // If no stored token exists, accept a non-empty incoming token as long as HMAC validation
+    // is not being used for this callback.
+    const allowLegacyMissingStoredToken =
+      !hmacVerified &&
+      !storedCallbackToken &&
+      Boolean(incomingCallbackToken);
+
+    const webhookAuthorized =
+      hmacVerified ||
+      hasStoredTokenMatch ||
+      hasConfiguredTokenMatch ||
+      allowLegacyMissingStoredToken;
+
+    if (!webhookAuthorized) {
       logError(
         'vipps-webhook-callback-token-mismatch',
         new Error(`Callback token mismatch for payment ${resolvedPayment.id}`)
       );
       return NextResponse.json({ error: 'Unauthorized webhook callback token' }, { status: 401 });
+    }
+
+    if (allowLegacyMissingStoredToken) {
+      console.warn('Vipps webhook accepted with legacy fallback (missing stored callback token)', {
+        paymentId: resolvedPayment.id,
+        sessionId: payload.sessionId || null,
+      });
     }
 
     // Mark payment as completed with timestamp
@@ -307,11 +383,8 @@ export async function POST(request: NextRequest) {
       if (!isEggPayment && order && order.customer_email && order.customer_email !== 'pending@vipps.no') {
         try {
           const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://tinglum.no';
-          const displayBoxWeight = order.box_size || order.mangalitsa_preset?.target_weight_kg || 0;
           const displayBoxName = order.mangalitsa_preset?.name_no || order.mangalitsa_preset?.name_en || null;
-          const boxDisplay = displayBoxName
-            ? `${displayBoxName} (${displayBoxWeight}kg)`
-            : `${displayBoxWeight}kg`;
+          const boxDisplay = displayBoxName || 'Mangalitsa-boks';
           
           // Build extras list
           let extrasHtml = '';

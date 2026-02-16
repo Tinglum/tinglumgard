@@ -130,11 +130,8 @@ export default function ConfirmationPage() {
       (lang === 'no' ? order.mangalitsa_preset?.name_no : order.mangalitsa_preset?.name_en) ||
       order.display_box_name_no ||
       order.display_box_name_en;
-    const boxSize = order.box_size || order.effective_box_size || order.mangalitsa_preset?.target_weight_kg;
-    if (presetName && boxSize) return `${presetName} (${boxSize} kg)`;
     if (presetName) return presetName;
-    if (boxSize) return `${boxSize} kg`;
-    return '-';
+    return lang === 'no' ? 'Mangalitsa-boks' : 'Mangalitsa box';
   }, [order, lang]);
 
   const statusTextByOrder = order

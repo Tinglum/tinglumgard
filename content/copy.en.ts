@@ -1,4 +1,4 @@
-export const en = {
+﻿export const en = {
   // Navigation & Common
   nav: {
     products: "Boxes",
@@ -245,19 +245,19 @@ export const en = {
     q5: "What is Mangalitsa?",
     a5: "Mangalitsa is an ancient Hungarian woolly pig breed known for extraordinary meat quality. The pigs grow slowly, live outdoors, and develop a deep, nutty flavour completely unlike regular pork. We are one of very few producers in Norway.",
     q6: "What is so special about the Mangalitsa fat?",
-    a6: "Mangalitsa has unique intramuscular fat with a higher proportion of monounsaturated fatty acids than regular pork — actually comparable to olive oil. This gives the meat a butter-like tenderness and a richness you won't find anywhere else. The fat melts at a lower temperature, which makes the ribs juicier, the bacon more flavourful, and the rendered fat perfect for cooking vegetables or making sauces.",
+    a6: "Mangalitsa has unique intramuscular fat with a higher proportion of monounsaturated fatty acids than regular pork, actually comparable to olive oil. This gives the meat a butter-like tenderness and a richness you won't find anywhere else. The fat melts at a lower temperature, which makes the ribs juicier, the bacon more flavourful, and the rendered fat perfect for cooking vegetables or making sauces.",
     q7: "How much freezer space do I need?",
     a7: "Plan for roughly 30 litres per 10 kg of meat. A small box (approx. 10 kg) fits in a standard freezer drawer, while a large box (approx. 25 kg) needs half a chest freezer.",
     q8: "How long does vacuum-packed meat last in the freezer?",
-    a8: "Vacuum-packed and frozen, the meat keeps for 12–18 months without quality loss. Labels on each pack show contents and date, so you always have full overview.",
+    a8: "Vacuum-packed and frozen, the meat keeps for 12-18 months without quality loss. Labels on each pack show contents and date, so you always have full overview.",
     q9: "How does the deposit payment work?",
     a9: "You pay 50% at the time of order as a deposit via Vipps. The remaining balance is invoiced before delivery in week 46. The deposit secures your spot and kicks off production.",
     q10: "Can I share a box with someone?",
-    a10: "Absolutely! Many customers share a larger box with family or friends. Choose a bigger box and divide it yourselves — everything is already portioned and labeled, making it easy to split.",
+    a10: "Absolutely! Many customers share a larger box with family or friends. Choose a bigger box and divide it yourselves, everything is already portioned and labeled, making it easy to split.",
     q11: "Do you deliver outside Trøndelag?",
     a11: "Currently we offer farm pickup, selected points along the E6 between Stjørdal and Namsos, and Trondheim city centre. We're working on expanding, but cannot promise delivery outside these areas yet.",
     q12: "What if I have allergies or special requests?",
-    a12: "Our products are pure pork with no additives. Sausages and bacon contain spices and salt — a full ingredient list is included. Get in touch if you have specific needs and we'll find a solution.",
+    a12: "Our products are pure pork with no additives. Sausages and bacon contain spices and salt, a full ingredient list is included. Get in touch if you have specific needs and we'll find a solution.",
   },
 
   // Checkout/Order page
@@ -464,7 +464,7 @@ export const en = {
       deposit: "Deposit",
       remainder: "Remainder",
       total: "Total",
-      dueDate: "Due date",
+      dueDate: "Pay by",
       dueNow: "Due now",
       notPaid: "Not paid",
       daysLeft: "days left",
@@ -868,7 +868,7 @@ export const en = {
     extraProductsTitle: "EXTRA PRODUCTS",
     deposit: "Deposit",
     remainder: "Balance",
-    dueDate: "Due date",
+    dueDate: "Pay by",
   },
 
   // Oppdelingsplan (Butcher diagram)
@@ -1439,7 +1439,7 @@ export const en = {
     shareMessage: "I just reserved a Mangalitsa box from Tinglum Gard. Limited boxes each season.",
     orderNumberLabel: "Order number",
     detailsTitle: "Order details",
-    boxSizeLabel: "Box size",
+    boxSizeLabel: "Box",
     depositLabel: "Deposit",
     statusLabel: "Status",
     nextStepsTitle: "Next steps",
@@ -1484,14 +1484,14 @@ export const en = {
 
   // Order status timeline
   orderStatusTimeline: {
-    ordered: "Ordered",
-    orderedHint: "Order is registered",
-    growing: "Growing",
-    growingHint: "Production is underway",
-    slaughter: "Slaughter (Week 46)",
-    slaughterHint: "Scheduled for slaughter week",
-    delivery: "Delivery (Week 48)",
-    deliveryHint: "Prepared and delivered",
+    ordered: "Ordered and deposit paid",
+    orderedHint: "Your order is registered and deposit is complete",
+    growing: "Production",
+    growingHint: "The woolly pigs are growing on the farm",
+    slaughter: "Remainder payment and slaughter",
+    slaughterHint: "Pay the remainder, then slaughter and packing start",
+    delivery: "Ready for pickup",
+    deliveryHint: "Your order is ready for handover",
   },
 
   // Order timeline modal
@@ -1670,9 +1670,9 @@ export const en = {
     estimatedReadyNow: "Ready now!",
     estimatedWeekRange: "Week 47-48, 2026",
     payRemainder: "Pay remainder",
-    dueDate: "Due date",
+    dueDate: "Pay by",
     earlyPaymentHint:
-      "The earlier you pay the remainder, the better your chance for extra products.",
+      "Extra products are confirmed when the remainder is paid. Any product shown as available in the extras view at that time can be added. Selection may vary because each cut has limited availability.",
     statusPaymentRemaining: "Payment remaining",
     statusPaid: "Paid",
     statusDelivered: "Delivered",
@@ -1683,14 +1683,14 @@ export const en = {
     downloadReceipt: "Download receipt",
     print: "Print",
     paymentSummary: "Payment summary",
-    depositBoxLabel: "Deposit ({size}kg box)",
+    depositBoxLabel: "Deposit ({box})",
     boxRemainder: "Box remainder",
     extraProducts: "Extra products",
     remainderTotal: "Remainder total",
-    remainderDueDate: "Remainder due date",
+    remainderDueDate: "Pay by",
     total: "Total",
     orderContents: "Order contents",
-    porkBoxLabel: "{size}kg pork box",
+    porkBoxLabel: "{box}",
     ribChoice: "Rib choice",
     freshDeliveryAddon: "Fresh delivery (+{currency} 200)",
     addExtraProducts: "Add extra products",
@@ -1716,7 +1716,7 @@ export const en = {
     creatingOrder: "Creating order...",
     orderAgain: "Order again",
     reorderSameContents: "Create a new order with the same contents",
-    contactDetailsBoxSize: "Box size",
+    contactDetailsBoxSize: "Box",
     contactDetailsRibChoice: "Rib choice",
     contactDetailsDeliveryType: "Delivery type",
     contactDetailsStatus: "Status",
@@ -1752,9 +1752,9 @@ export const en = {
     takeCredit110: "Take 110% credit",
     payRemainderTitle: "Pay remainder",
     orderLabel: "Order",
-    dueDate: "Due date",
+    dueDate: "Pay by",
     earlyPaymentHint:
-      "The earlier you pay the remainder, the better your chance of getting extra products.",
+      "Extra products are confirmed when the remainder is paid. Any product shown as available in the extras view at that time can be added. Selection may vary because each cut has limited availability.",
     back: "Back",
     extrasTitle: "Extra products (optional)",
     extrasSubtitle:
@@ -2962,7 +2962,7 @@ export const en = {
   // Recipe pages
   recipes: {
     pageTitle: 'Recipes',
-    pageSubtitle: 'Norwegian recipes adapted for Mangalitsa pork — with extra fat, flavour and love',
+    pageSubtitle: 'Norwegian recipes adapted for Mangalitsa pork, with extra fat, flavour and love',
     backToRecipes: 'Back to recipes',
     ingredients: 'Ingredients',
     steps: 'Method',
@@ -2986,4 +2986,5 @@ export const en = {
     orderExtra: 'Order',
   },
 };
+
 

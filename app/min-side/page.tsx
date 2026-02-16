@@ -190,21 +190,21 @@ export default function CustomerPortalPage() {
 
         {activeTab === 'orders' && (
           <div className="space-y-6">
-            <GlassCard className="p-4 text-sm text-neutral-600">
+            <div className="rounded-xl border border-neutral-200 bg-white p-4 text-sm text-neutral-600 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.08)]">
               {canEdit
                 ? t.minSide.canEditUntil.replace('{week}', cutoffWeek.toString()).replace('{year}', cutoffYear.toString())
                 : t.minSide.editPeriodExpired.replace('{week}', cutoffWeek.toString()).replace('{year}', cutoffYear.toString())}
-            </GlassCard>
+            </div>
 
             {orders.length === 0 ? (
-              <GlassCard className="p-12 text-center">
+              <div className="rounded-xl border border-neutral-200 bg-white p-12 text-center shadow-[0_20px_60px_-15px_rgba(0,0,0,0.08)]">
                 <Package className="w-12 h-12 mx-auto mb-4 text-neutral-400" />
                 <p className="text-lg font-normal text-neutral-900 mb-2">{t.minSide.noOrders}</p>
                 <p className="text-sm text-neutral-500 mb-6">{t.minSide.noOrdersDesc}</p>
                 <Link href="/bestill" className="btn-primary inline-flex">
                   {t.minSide.goToOrder}
                 </Link>
-              </GlassCard>
+              </div>
             ) : (
               <div className="space-y-6">
                 {orders.map((order) => (

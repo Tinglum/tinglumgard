@@ -245,19 +245,19 @@
     q5: "Hva er Mangalitsa?",
     a5: "Mangalitsa er en gammel ungarsk ullgrisrase kjent for ekstraordinær kjøttkvalitet. Grisen vokser sakte, lever utendørs og utvikler en dyp, nøtteaktig smak som skiller seg helt fra vanlig svinekjøtt. Vi er en av svært få produsenter i Norge.",
     q6: "Hva er så spesielt med Mangalitsa-fettet?",
-    a6: "Mangalitsa har et unikt intramuskulært fett med høyere andel enumettede fettsyrer enn vanlig gris — faktisk sammenlignbart med olivenolje. Det gir kjøttet en smørliknende mørhet og en rikdom i smak du ikke finner andre steder. Fettet smelter ved lavere temperatur, noe som gjør ribba saftigere, baconen mer smakfull, og stekefettet perfekt til å koke grønnsaker i eller lage saus av.",
+    a6: "Mangalitsa har et unikt intramuskulært fett med høyere andel enumettede fettsyrer enn vanlig gris, faktisk sammenlignbart med olivenolje. Det gir kjøttet en smørliknende mørhet og en rikdom i smak du ikke finner andre steder. Fettet smelter ved lavere temperatur, noe som gjør ribba saftigere, baconen mer smakfull, og stekefettet perfekt til å koke grønnsaker i eller lage saus av.",
     q7: "Hvor mye frysekapasitet trenger jeg?",
     a7: "Regn med ca. 30 liter per 10 kg kjøtt. En liten kasse (ca. 10 kg) passer i fryseskuffen, mens en stor kasse (ca. 25 kg) trenger en halv fryser eller en kummefryser.",
     q8: "Hvor lenge holder vakuumpakket kjøtt seg i fryseren?",
-    a8: "Vakuumpakket og frossent holder kjøttet seg i 12–18 måneder uten kvalitetstap. Merkelappene på hver pakke viser innhold og dato, så du har full oversikt.",
+    a8: "Vakuumpakket og frossent holder kjøttet seg i 12-18 måneder uten kvalitetstap. Merkelappene på hver pakke viser innhold og dato, så du har full oversikt.",
     q9: "Hvordan fungerer forskuddsbetalingen?",
     a9: "Du betaler 50 % ved bestilling som forskudd via Vipps. Restbeløpet faktureres før levering i uke 46. Forskuddet sikrer din plass og setter i gang produksjonen.",
     q10: "Kan jeg dele en kasse med noen?",
-    a10: "Absolutt! Mange kunder deler en større kasse med familie eller venner. Velg en større kasse og del opp selv — alt er allerede porsjonert og merket, så det er enkelt å fordele.",
+    a10: "Absolutt! Mange kunder deler en større kasse med familie eller venner. Velg en større kasse og del opp selv, alt er allerede porsjonert og merket, så det er enkelt å fordele.",
     q11: "Leverer dere utenfor Trøndelag?",
     a11: "Per i dag tilbyr vi henting på gården, utvalgte punkt langs E6 mellom Stjørdal og Namsos, og i Trondheim sentrum. Vi jobber med å utvide, men kan ikke love leveranse utenfor disse områdene ennå.",
     q12: "Hva om jeg har allergier eller spesielle ønsker?",
-    a12: "Produktene våre er rent svinekjøtt uten tilsetningsstoffer. Pølser og bacon inneholder krydder og salt — full ingrediensliste følger med. Ta kontakt om du har spesifikke behov, så finner vi en løsning.",
+    a12: "Produktene våre er rent svinekjøtt uten tilsetningsstoffer. Pølser og bacon inneholder krydder og salt, full ingrediensliste følger med. Ta kontakt om du har spesifikke behov, så finner vi en løsning.",
   },
 
   // Checkout/Order page
@@ -465,7 +465,7 @@
       deposit: "Forskudd",
       remainder: "Restbeløp",
       total: "Totalt",
-      dueDate: "Forfallsdato",
+      dueDate: "Betal senest",
       dueNow: "Å betale nå",
       notPaid: "Ikke betalt",
       daysLeft: "dager igjen",
@@ -869,7 +869,7 @@
     extraProductsTitle: "EKSTRA PRODUKTER",
     deposit: "Forskudd",
     remainder: "Restbeløp",
-    dueDate: "Forfallsdato",
+    dueDate: "Betal senest",
   },
 
   // Oppdelingsplan (Butcher diagram)
@@ -1442,7 +1442,7 @@
     shareMessage: "Jeg har reservert Mangalitsa-boks fra Tinglum Gård. Begrenset antall bokser hvert år.",
     orderNumberLabel: "Ordrenummer",
     detailsTitle: "Ordredetaljer",
-    boxSizeLabel: "Kassestørrelse",
+    boxSizeLabel: "Boks",
     depositLabel: "Forskudd",
     statusLabel: "Status",
     nextStepsTitle: "Neste steg",
@@ -1487,14 +1487,14 @@
 
   // Order status timeline
   orderStatusTimeline: {
-    ordered: "Bestilt",
-    orderedHint: "Ordren er registrert",
-    growing: "Vokser opp",
-    growingHint: "Produksjonen er i gang",
-    slaughter: "Slakt (uke 46)",
-    slaughterHint: "Planlagt i slakteuke",
-    delivery: "Levering (uke 48)",
-    deliveryHint: "Klargjøres og leveres",
+    ordered: "Bestilt og forskudd betalt",
+    orderedHint: "Bestillingen er registrert og forskuddet er mottatt",
+    growing: "Produksjon",
+    growingHint: "Ullgrisene vokser opp på gården",
+    slaughter: "Restbetaling og slakt",
+    slaughterHint: "Betal restbeløpet, deretter starter slakting og pakking",
+    delivery: "Klar for henting",
+    deliveryHint: "Bestillingen er klar for utlevering",
   },
 
   // Order timeline modal
@@ -1673,10 +1673,10 @@
     estimatedReadyNow: "Klar nå!",
     estimatedWeekRange: "Uke 47-48, 2026",
     payRemainder: "Betal restbeløp",
-    dueDate: "Forfallsdato",
+    dueDate: "Betal senest",
     earlyPaymentHint:
-      "Jo tidligere du betaler restbeløpet, jo større er sjansen for ekstra produkter.",
-    statusPaymentRemaining: "Betaling gjenstar",
+      "Ekstraprodukter bekreftes når restbeløpet betales. Produkter som vises i ekstraoversikten da, kan legges til. Utvalget kan variere fordi hver stykningsdel har begrenset tilgjengelighet.",
+    statusPaymentRemaining: "Betaling gjenstår",
     statusPaid: "Betalt",
     statusDelivered: "Levert",
     statusCompleted: "Fullført",
@@ -1686,14 +1686,14 @@
     downloadReceipt: "Last ned kvittering",
     print: "Skriv ut",
     paymentSummary: "Betalingsoversikt",
-    depositBoxLabel: "Forskudd ({size}kg boks)",
+    depositBoxLabel: "Forskudd ({box})",
     boxRemainder: "Restbeløp kasse",
     extraProducts: "Ekstra produkter",
     remainderTotal: "Restbetaling totalt",
-    remainderDueDate: "Forfallsdato restbetaling",
+    remainderDueDate: "Betal senest",
     total: "Totalt",
     orderContents: "Bestillingsinnhold",
-    porkBoxLabel: "{size}kg Griskasse",
+    porkBoxLabel: "{box}",
     ribChoice: "Ribbe",
     freshDeliveryAddon: "Fersk levering (+{currency} 200)",
     addExtraProducts: "Legg til ekstra produkter",
@@ -1702,7 +1702,7 @@
     farmName: "Tinglum Gård",
     addressByEmail: "Adresse kommer i e-post når ordren er klar",
     whatToBring: "Hva du må ta med:",
-    bringCooler: "Kjolebag eller kjoleboks",
+    bringCooler: "Kjølebag eller kjøleboks",
     yourNotes: "Dine notater:",
     orderActions: "Ordre-handlinger",
     paymentHistory: "Betalingshistorikk",
@@ -1713,13 +1713,13 @@
     canStillEdit: "Du kan fortsatt endre bestillingen din",
     changesBeforeLock: "Endringer må gjøres før låsetidspunktet",
     editOrder: "Endre bestilling",
-    orderLocked: "Bestillingen er last",
+    orderLocked: "Bestillingen er låst",
     noMoreChanges: "- ingen flere endringer mulig",
     happyWithOrder: "Fornøyd med ordren?",
     creatingOrder: "Oppretter ordre...",
     orderAgain: "Bestill igjen",
     reorderSameContents: "Opprett en ny ordre med samme innhold",
-    contactDetailsBoxSize: "Boksstørrelse",
+    contactDetailsBoxSize: "Boks",
     contactDetailsRibChoice: "Ribbevalg",
     contactDetailsDeliveryType: "Leveringstype",
     contactDetailsStatus: "Status",
@@ -1755,13 +1755,13 @@
     takeCredit110: "Ta 110% kreditt",
     payRemainderTitle: "Betal restbeløp",
     orderLabel: "Ordre",
-    dueDate: "Forfallsdato",
+    dueDate: "Betal senest",
     earlyPaymentHint:
-      "Jo tidligere du betaler restbeløpet, jo større er sjansen for å få ekstra produkter.",
+      "Ekstraprodukter bekreftes når restbeløpet betales. Produkter som vises i ekstraoversikten da, kan legges til. Utvalget kan variere fordi hver stykningsdel har begrenset tilgjengelighet.",
     back: "Tilbake",
     extrasTitle: "Ekstra produkter (valgfritt)",
     extrasSubtitle:
-      "Legg til ekstra produkter for du betaler. Prisen legges til restbeløpet.",
+      "Legg til ekstra produkter før du betaler. Prisen legges til restbeløpet.",
     quantity: "Antall",
     unitPieces: "stk",
     unitKg: "kg",
@@ -2194,7 +2194,7 @@
       },
       order_locked: {
         name: "Ordre låst",
-        description: "Varsle kunde når ordre er last for endringer",
+        description: "Varsle kunde når ordre er låst for endringer",
       },
       ready_for_pickup: {
         name: "Klar for henting",
@@ -2964,7 +2964,7 @@
   // Recipe pages
   recipes: {
     pageTitle: 'Oppskrifter',
-    pageSubtitle: 'Norske oppskrifter tilpasset Mangalitsa-gris — med ekstra fett, smak og kjærlighet',
+    pageSubtitle: 'Norske oppskrifter tilpasset Mangalitsa-gris, med ekstra fett, smak og kjærlighet',
     backToRecipes: 'Tilbake til oppskrifter',
     ingredients: 'Ingredienser',
     steps: 'Fremgangsmåte',
@@ -2988,6 +2988,7 @@
     orderExtra: 'Bestill',
   },
 };
+
 
 
 

@@ -103,7 +103,10 @@ export default function RemainderPaymentSummaryPage() {
           if (data.extra_products) {
             const quantities: Record<string, number> = {};
             data.extra_products.forEach((ep: any) => {
-              quantities[ep.slug] = ep.quantity;
+              const parsedQty = Number(ep.quantity);
+              if (Number.isFinite(parsedQty) && parsedQty > 0) {
+                quantities[ep.slug] = parsedQty;
+              }
             });
             setSelectedQuantities(quantities);
           }
@@ -249,9 +252,10 @@ export default function RemainderPaymentSummaryPage() {
   }, [deliveryType, freshDelivery, order]);
 
   function handleQuantityChange(slug: string, quantity: number) {
+    const normalizedQty = Number(quantity);
     setSelectedQuantities(prev => {
       // If quantity is 0 or less, remove the item entirely (deselect)
-      if (quantity <= 0) {
+      if (!Number.isFinite(normalizedQty) || normalizedQty <= 0) {
         const newQuantities = { ...prev };
         delete newQuantities[slug];
         return newQuantities;
@@ -259,7 +263,7 @@ export default function RemainderPaymentSummaryPage() {
 
       return {
         ...prev,
-        [slug]: quantity
+        [slug]: normalizedQty
       };
     });
   }
@@ -322,7 +326,10 @@ export default function RemainderPaymentSummaryPage() {
         setOrder(data);
         const quantities: Record<string, number> = {};
         (data.extra_products || []).forEach((ep: any) => {
-          quantities[ep.slug] = ep.quantity;
+          const parsedQty = Number(ep.quantity);
+          if (Number.isFinite(parsedQty) && parsedQty > 0) {
+            quantities[ep.slug] = parsedQty;
+          }
         });
         setSelectedQuantities(quantities);
       }

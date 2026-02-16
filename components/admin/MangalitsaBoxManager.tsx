@@ -18,6 +18,8 @@ interface CutOption {
   name_en: string;
   chef_name_no?: string | null;
   chef_name_en?: string | null;
+  size_from_kg?: number | null;
+  size_to_kg?: number | null;
   display_order: number;
   active: boolean;
   part?: CutPart | null;
@@ -45,6 +47,8 @@ interface PresetContent {
     name_en: string;
     chef_name_no?: string | null;
     chef_name_en?: string | null;
+    size_from_kg?: number | null;
+    size_to_kg?: number | null;
     part?: CutPart | null;
   };
 }
@@ -75,6 +79,13 @@ type ToastType = { message: string; type: 'success' | 'error' } | null;
 function formatQty(value: number, locale: 'no' | 'en') {
   if (Number.isInteger(value)) return String(value);
   return locale === 'no' ? String(value).replace('.', ',') : String(value);
+}
+
+function formatCutSizeRange(fromKg?: number | null, toKg?: number | null) {
+  if (fromKg == null || toKg == null) return null;
+  const from = fromKg.toLocaleString('nb-NO', { maximumFractionDigits: 2 });
+  const to = toKg.toLocaleString('nb-NO', { maximumFractionDigits: 2 });
+  return `ca. ${from}-${to} kg`;
 }
 
 function buildCutDisplayName(
@@ -296,6 +307,9 @@ export function MangalitsaBoxManager() {
                     {displayContentName(content, 'no')}
                     {content.target_weight_kg && ` (${content.target_weight_kg} kg)`}
                     {content.part_name_no ? ` \u2014 ${content.part_name_no}` : ''}
+                    {formatCutSizeRange(content.cut?.size_from_kg, content.cut?.size_to_kg)
+                      ? ` \u2014 ${formatCutSizeRange(content.cut?.size_from_kg, content.cut?.size_to_kg)}`
+                      : ''}
                   </li>
                 ))}
               </ul>
@@ -585,6 +599,7 @@ function EditContentsModal({
           {contents.map((content, idx) => {
             const selectedCut = content.cut_id ? cutsById.get(content.cut_id) : null;
             const partLabel = selectedCut?.part?.name_no || content.part_name_no || 'Uten del';
+            const sizeRange = formatCutSizeRange(selectedCut?.size_from_kg, selectedCut?.size_to_kg);
 
             return (
               <div key={idx} className="p-4 bg-neutral-50 rounded-xl border border-neutral-200 space-y-3">
@@ -623,6 +638,9 @@ function EditContentsModal({
                       ))}
                     </select>
                     <p className="mt-1 text-xs text-neutral-500">Fra del av gris: {partLabel}</p>
+                    {sizeRange && (
+                      <p className="mt-1 text-xs text-neutral-500">Vektintervall: {sizeRange}</p>
+                    )}
                   </div>
 
                   <div className="grid grid-cols-2 gap-2">

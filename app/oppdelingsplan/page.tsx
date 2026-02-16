@@ -78,6 +78,22 @@ function stripCutNameNoise(value: string): string {
     .trim();
 }
 
+function formatSizeRange(
+  fromKg: number | null | undefined,
+  toKg: number | null | undefined,
+  lang: 'no' | 'en',
+  approxLabel: string
+): string | null {
+  if (fromKg == null || toKg == null) return null;
+  const fromValue = Number(fromKg);
+  const toValue = Number(toKg);
+  if (!Number.isFinite(fromValue) || !Number.isFinite(toValue)) return null;
+  const locale = lang === 'no' ? 'nb-NO' : 'en-US';
+  const formattedFrom = fromValue.toLocaleString(locale, { maximumFractionDigits: 2 });
+  const formattedTo = toValue.toLocaleString(locale, { maximumFractionDigits: 2 });
+  return `${approxLabel} ${formattedFrom}-${formattedTo} kg`;
+}
+
 export default function OppdelingsplanPage() {
   const { t, lang } = useLanguage();
   const isMobile = useIsMobile();
@@ -178,6 +194,8 @@ export default function OppdelingsplanPage() {
             extra_slug: null,
             name: cutName,
             description: cutDescription,
+            sizeFromKg: content.cut_size_from_kg ?? null,
+            sizeToKg: content.cut_size_to_kg ?? null,
             partKey,
             partName,
             boxOptions: [boxOption],
@@ -191,6 +209,12 @@ export default function OppdelingsplanPage() {
         }
         if (!existing.cut_slug && cutSlug) {
           existing.cut_slug = cutSlug;
+        }
+        if (existing.sizeFromKg == null && content.cut_size_from_kg != null) {
+          existing.sizeFromKg = content.cut_size_from_kg;
+        }
+        if (existing.sizeToKg == null && content.cut_size_to_kg != null) {
+          existing.sizeToKg = content.cut_size_to_kg;
         }
         if (!existing.boxOptions.some((option) => option.preset_slug === preset.slug)) {
           existing.boxOptions.push(boxOption);
@@ -225,6 +249,8 @@ export default function OppdelingsplanPage() {
           extra_slug: extra.slug,
           name: String(extraName || '').trim() || extra.slug,
           description: String(extraDescription || '').trim(),
+          sizeFromKg: extra.cut_size_from_kg ?? null,
+          sizeToKg: extra.cut_size_to_kg ?? null,
           partKey,
           partName,
           boxOptions: [],
@@ -237,6 +263,12 @@ export default function OppdelingsplanPage() {
       if (!existing.cut_slug && cutSlug) existing.cut_slug = cutSlug;
       if (!existing.extra_slug) existing.extra_slug = extra.slug;
       if (!existing.description && extraDescription) existing.description = String(extraDescription || '').trim();
+      if (existing.sizeFromKg == null && extra.cut_size_from_kg != null) {
+        existing.sizeFromKg = extra.cut_size_from_kg;
+      }
+      if (existing.sizeToKg == null && extra.cut_size_to_kg != null) {
+        existing.sizeToKg = extra.cut_size_to_kg;
+      }
       if (existing.partKey === 'unknown' && partKey !== 'unknown') {
         existing.partKey = partKey;
         existing.partName = partName;
@@ -276,12 +308,14 @@ export default function OppdelingsplanPage() {
     )
   );
 
-  const canOrderSummary: Array<{ slug: string; name: string }> = extras.length > 0
+  const canOrderSummary: Array<{ slug: string; name: string; sizeFromKg?: number | null; sizeToKg?: number | null }> = extras.length > 0
     ? extras.map((extra) => {
         const englishName = (extra as any).name_en;
         return {
           slug: extra.slug,
           name: lang === 'en' && englishName ? englishName : extra.name_no,
+          sizeFromKg: (extra as any).cut_size_from_kg ?? null,
+          sizeToKg: (extra as any).cut_size_to_kg ?? null,
         };
       })
     : [];
@@ -933,6 +967,11 @@ export default function OppdelingsplanPage() {
                               {cut.description && (
                                 <p className="text-sm font-light text-neutral-600 mb-2 leading-relaxed">{cut.description}</p>
                               )}
+                              {formatSizeRange(cut.sizeFromKg, cut.sizeToKg, lang, t.common.approx) && (
+                                <p className="text-xs font-light text-neutral-500">
+                                  {formatSizeRange(cut.sizeFromKg, cut.sizeToKg, lang, t.common.approx)}
+                                </p>
+                              )}
                             </div>
 
                             <button
@@ -1053,6 +1092,11 @@ export default function OppdelingsplanPage() {
                     <p className="text-xs font-light text-neutral-500 mb-4">
                       {t.oppdelingsplan.fromPigPartLabel} {cut.partName}
                     </p>
+                    {formatSizeRange(cut.sizeFromKg, cut.sizeToKg, lang, t.common.approx) && (
+                      <p className="text-xs font-light text-neutral-500 mb-4">
+                        {formatSizeRange(cut.sizeFromKg, cut.sizeToKg, lang, t.common.approx)}
+                      </p>
+                    )}
                     <div className="space-y-3">
                       {cut.boxOptions.length > 0 ? (
                         <div>
@@ -1120,7 +1164,14 @@ export default function OppdelingsplanPage() {
                       <svg className="w-5 h-5 text-neutral-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                       </svg>
-                      <span className="font-light text-neutral-900">{product.name}</span>
+                      <div>
+                        <p className="font-light text-neutral-900">{product.name}</p>
+                        {formatSizeRange(product.sizeFromKg, product.sizeToKg, lang, t.common.approx) && (
+                          <p className="text-xs font-light text-neutral-500 mt-1">
+                            {formatSizeRange(product.sizeFromKg, product.sizeToKg, lang, t.common.approx)}
+                          </p>
+                        )}
+                      </div>
                     </div>
                     <button
                       type="button"

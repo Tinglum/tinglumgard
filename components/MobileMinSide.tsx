@@ -84,10 +84,8 @@ export function MobileMinSide(props: MobileMinSideProps) {
 
   const getBoxLabel = (order: Order) => {
     const name = lang === 'no' ? order.display_box_name_no : order.display_box_name_en;
-    const boxSize = order.box_size || order.effective_box_size;
-    if (name && boxSize) return `${name} (${boxSize} kg)`;
     if (name) return name;
-    return boxSize ? `${boxSize} kg` : '-';
+    return lang === 'no' ? 'Mangalitsa-boks' : 'Mangalitsa box';
   };
 
   return (
@@ -110,6 +108,7 @@ export function MobileMinSide(props: MobileMinSideProps) {
           const isActive = activeTab === tab.id;
           return (
             <button
+              type="button"
               key={tab.id}
               onClick={() => setActiveTab(tab.id as typeof activeTab)}
               className={`flex items-center justify-center gap-2 rounded-2xl border px-3 py-3 text-[11px] font-semibold uppercase tracking-[0.2em] ${
@@ -207,6 +206,7 @@ export function MobileMinSide(props: MobileMinSideProps) {
                   <div className="mt-4 space-y-2">
                     {depositPaid && !remainderPaid && (
                       <button
+                        type="button"
                         onClick={() => onPayRemainder(order.id)}
                         className="w-full rounded-2xl bg-[#1E1B16] px-4 py-3 text-xs font-bold uppercase tracking-[0.2em] text-[#F6F4EF]"
                       >

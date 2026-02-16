@@ -9,13 +9,8 @@ export async function GET(request: NextRequest) {
   const code = searchParams.get('code');
   const state = searchParams.get('state');
 
-  console.log('Vipps Callback - Received params:', { code: code?.substring(0, 10) + '...', state: state?.substring(0, 20) + '...' });
-
   const cookieStore = await cookies();
   const savedState = cookieStore.get('vipps_state')?.value;
-
-  console.log('Vipps Callback - Saved state:', savedState?.substring(0, 20) + '...');
-  console.log('Vipps Callback - All cookies:', cookieStore.getAll().map(c => c.name));
 
   if (!code) {
     console.error('Vipps Callback - No code received');
@@ -28,7 +23,7 @@ export async function GET(request: NextRequest) {
   }
 
   if (state !== savedState) {
-    console.error('Vipps Callback - State mismatch', { received: state?.substring(0, 20), saved: savedState?.substring(0, 20) });
+    console.error('Vipps Callback - State mismatch');
     return NextResponse.redirect(new URL('/?error=state_mismatch', request.url));
   }
 
@@ -37,7 +32,7 @@ export async function GET(request: NextRequest) {
     const tokens = await vippsClient.exchangeCodeForToken(code);
     console.log('Vipps Callback - Got tokens, fetching user info');
     const userInfo = await vippsClient.getUserInfo(tokens.access_token);
-    console.log('Vipps Callback - Got user info:', { sub: userInfo.sub, email: userInfo.email });
+    console.log('Vipps Callback - Got user info');
 
     let user = await supabaseAdmin
       .from('vipps_users')
@@ -111,7 +106,7 @@ export async function GET(request: NextRequest) {
       });
 
       if (!createOrderResponse.ok) {
-        console.error('Failed to create order:', await createOrderResponse.text());
+        console.error('Failed to create order', { status: createOrderResponse.status });
         const errorRedirect = NextResponse.redirect(
           new URL(isEggOrder ? '/rugeegg/bestill?error=order_creation_failed' : '/bestill?error=order_creation_failed', request.url)
         );
@@ -135,7 +130,7 @@ export async function GET(request: NextRequest) {
       });
 
       if (!depositResponse.ok) {
-        console.error('Failed to create deposit payment:', await depositResponse.text());
+        console.error('Failed to create deposit payment', { status: depositResponse.status });
         const errorRedirect = NextResponse.redirect(
           new URL(
             isEggOrder

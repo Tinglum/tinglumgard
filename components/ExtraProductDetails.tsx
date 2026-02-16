@@ -30,6 +30,11 @@ function stripTrailingParens(value: string) {
   return value.replace(/\s*\([^)]*\)\s*$/, '').trim();
 }
 
+function normalizeDashes(value?: string | null) {
+  if (!value) return '';
+  return String(value).replace(/[\u2013\u2014]/g, '-');
+}
+
 function formatRecipeTitle(title: string, lang: 'no' | 'en', t: any): string {
   const trimmed = String(title || '').trim();
   if (!trimmed) return '';
@@ -72,11 +77,14 @@ export function ExtraProductDetails({ extra }: { extra: ExtraProductDetailsExtra
   const prepTips = typeof prepTipsSource === 'string' ? fixMojibake(prepTipsSource) : prepTipsSource;
   const recipes = extra.recipe_suggestions || [];
 
-  const displayName = chefTerm ? stripTrailingParens(rawName) : rawName;
+  const displayName = normalizeDashes(chefTerm ? stripTrailingParens(rawName) : rawName);
+  const normalizedDescription = normalizeDashes(description);
+  const normalizedPremiumDesc = normalizeDashes(premiumDesc);
+  const normalizedChefTerm = normalizeDashes(chefTerm);
+  const normalizedPrepTips = normalizeDashes(prepTips);
 
   return (
     <div className="space-y-5">
-      {/* Header */}
       <div className="pr-8">
         <h3 className="text-2xl font-normal text-neutral-900 mb-1 font-[family:var(--font-playfair)]">
           {displayName}
@@ -84,12 +92,11 @@ export function ExtraProductDetails({ extra }: { extra: ExtraProductDetailsExtra
         {chefTerm && (
           <p className="text-sm font-light text-neutral-500 italic flex items-center gap-2">
             <ChefHat className="w-4 h-4 flex-shrink-0" />
-            {chefTerm}
+            {normalizedChefTerm}
           </p>
         )}
       </div>
 
-      {/* About the cut — where it comes from, anatomy, weight */}
       {description && (
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-wider text-neutral-500 mb-2 flex items-center gap-1.5">
@@ -97,12 +104,11 @@ export function ExtraProductDetails({ extra }: { extra: ExtraProductDetailsExtra
             {t.extraModal.pureTerms}
           </p>
           <p className="text-sm font-light text-neutral-700 leading-relaxed">
-            {description}
+            {normalizedDescription}
           </p>
         </div>
       )}
 
-      {/* Why Mangalitsa — what makes this breed special for this cut */}
       {premiumDesc && (
         <div className="p-4 bg-neutral-50 rounded-xl border border-neutral-200">
           <p className="text-[11px] font-semibold uppercase tracking-wider text-neutral-500 mb-2 flex items-center gap-1.5">
@@ -110,12 +116,11 @@ export function ExtraProductDetails({ extra }: { extra: ExtraProductDetailsExtra
             {t.extraModal.whySpecial}
           </p>
           <p className="text-sm font-light text-neutral-900 leading-relaxed">
-            {premiumDesc}
+            {normalizedPremiumDesc}
           </p>
         </div>
       )}
 
-      {/* Preparation tips */}
       {prepTips && (
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-wider text-neutral-500 mb-2 flex items-center gap-1.5">
@@ -123,12 +128,11 @@ export function ExtraProductDetails({ extra }: { extra: ExtraProductDetailsExtra
             {t.extraModal.preparation}
           </p>
           <p className="text-sm font-light text-neutral-700 leading-relaxed">
-            {prepTips}
+            {normalizedPrepTips}
           </p>
         </div>
       )}
 
-      {/* Recipe suggestions */}
       {recipes.length > 0 && (
         <div className="border-t border-neutral-200 pt-5">
           <p className="text-[11px] font-semibold uppercase tracking-wider text-neutral-500 mb-3">
@@ -138,12 +142,13 @@ export function ExtraProductDetails({ extra }: { extra: ExtraProductDetailsExtra
             {recipes.map((recipe, idx) => {
               const rawTitleSource = lang === 'no' ? recipe.title_no : recipe.title_en;
               const rawTitle = fixMojibake(String(rawTitleSource || ''));
-              const recipeTitle = formatRecipeTitle(rawTitle, lang, t);
+              const recipeTitle = normalizeDashes(formatRecipeTitle(rawTitle, lang, t));
               const recipeDescSource = lang === 'no' ? recipe.description_no : recipe.description_en;
-              const recipeDesc = fixMojibake(String(recipeDescSource || ''));
+              const recipeDesc = normalizeDashes(fixMojibake(String(recipeDescSource || '')));
 
               return (
                 <button
+                  type="button"
                   key={idx}
                   onClick={() => {
                     window.open(`/oppskrifter/${recipe.future_slug}`, '_blank');

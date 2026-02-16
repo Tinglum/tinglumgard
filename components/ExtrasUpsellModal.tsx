@@ -85,7 +85,10 @@ export function ExtrasUpsellModal({
       if (!initializedRef.current) {
         const initialQuantities: Record<string, number> = {};
         currentExtras.forEach((extra) => {
-          initialQuantities[extra.slug] = extra.quantity;
+          const parsedQty = Number(extra.quantity);
+          if (Number.isFinite(parsedQty) && parsedQty > 0) {
+            initialQuantities[extra.slug] = parsedQty;
+          }
         });
         setSelectedQuantities(initialQuantities);
         initializedRef.current = true;
@@ -97,8 +100,9 @@ export function ExtrasUpsellModal({
   }, [currentExtras, isOpen, loadExtras]);
 
   function handleQuantityChange(slug: string, quantity: number) {
+    const normalizedQty = Number(quantity);
     setSelectedQuantities((prev) => {
-      if (quantity <= 0) {
+      if (!Number.isFinite(normalizedQty) || normalizedQty <= 0) {
         const next = { ...prev };
         delete next[slug];
         return next;
@@ -106,7 +110,7 @@ export function ExtrasUpsellModal({
 
       return {
         ...prev,
-        [slug]: quantity,
+        [slug]: normalizedQty,
       };
     });
   }
@@ -176,18 +180,16 @@ export function ExtrasUpsellModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/55 animate-in fade-in duration-200"
       onWheel={(event) => event.stopPropagation()}
       onTouchMove={(event) => event.stopPropagation()}
     >
       <div
-        className={cn(
-          'relative w-full max-w-4xl max-h-[90vh] overflow-hidden rounded-3xl shadow-2xl animate-in zoom-in-95 duration-200',
-          theme.bgCard
-        )}
+        className="relative w-full max-w-4xl max-h-[90vh] overflow-hidden rounded-3xl border border-neutral-200 bg-white shadow-[0_40px_120px_-30px_rgba(0,0,0,0.35)] animate-in zoom-in-95 duration-200"
       >
-        <div className={cn('sticky top-0 z-10 px-8 py-6 border-b', theme.bgCard, theme.borderSecondary)}>
+        <div className={cn('sticky top-0 z-10 px-8 py-6 border-b bg-white', theme.borderSecondary)}>
           <button
+            type="button"
             onClick={onClose}
             className={cn(
               'absolute top-6 right-6 p-2 rounded-full transition-colors',
@@ -203,7 +205,7 @@ export function ExtrasUpsellModal({
           </div>
         </div>
 
-        <div className="px-8 py-6 pb-28 overflow-y-auto overscroll-contain max-h-[calc(90vh-220px)]">
+        <div className="px-8 py-6 pb-40 overflow-y-auto overscroll-contain max-h-[calc(90vh-220px)]">
           {loadingExtras ? (
             <div className="flex items-center justify-center py-12">
               <div className="w-12 h-12 border-4 border-neutral-200 border-t-neutral-600 rounded-full animate-spin" />
@@ -229,7 +231,7 @@ export function ExtrasUpsellModal({
           )}
         </div>
 
-        <div className={cn('sticky bottom-0 px-8 py-6 border-t', theme.bgCard, theme.borderSecondary)}>
+        <div className={cn('sticky bottom-0 px-8 py-6 border-t bg-white', theme.borderSecondary)}>
           <div className="flex items-center justify-between gap-6">
             <div>
               <p className={cn('text-sm mb-1', theme.textMuted)}>{copy.selectedExtras}</p>
@@ -242,11 +244,12 @@ export function ExtrasUpsellModal({
               <p className={cn('text-xs mt-1', theme.textMuted)}>{copy.addedToRemainder}</p>
             </div>
             <div className="flex gap-4">
-              <Button variant="outline" onClick={onClose} disabled={loading} className="px-8">
+              <Button type="button" variant="outline" onClick={onClose} disabled={loading} className="px-8">
                 {copy.cancel}
               </Button>
               {isPaymentFlow ? (
                 <Button
+                  type="button"
                   onClick={() => handleConfirm(true)}
                   disabled={loading}
                   className="px-8 bg-green-600 hover:bg-green-700 text-white"
@@ -263,6 +266,7 @@ export function ExtrasUpsellModal({
                 </Button>
               ) : (
                 <Button
+                  type="button"
                   onClick={() => handleConfirm(false)}
                   disabled={loading || calculateDeltaAmount() === 0}
                   className="px-8 bg-green-600 hover:bg-green-700 text-white"

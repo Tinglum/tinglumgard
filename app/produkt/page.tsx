@@ -26,6 +26,8 @@ interface MangalitsaPresetContent {
   id: string;
   content_name_no: string;
   content_name_en: string;
+  cut_size_from_kg?: number | null;
+  cut_size_to_kg?: number | null;
   target_weight_kg?: number | null;
   display_order: number;
 }
@@ -106,6 +108,7 @@ function StickyCTABar({
 
 export default function ProductPage() {
   const { t, lang } = useLanguage();
+  const locale = lang === 'en' ? 'en-US' : 'nb-NO';
   const copy = t.productPage;
   const [inventory, setInventory] = useState<InventoryData | null>(null);
   const [boxPresets, setBoxPresets] = useState<MangalitsaPreset[]>([]);
@@ -207,15 +210,22 @@ export default function ProductPage() {
             .sort((a, b) => a.display_order - b.display_order)
             .map((content) => {
               const base = lang === 'en' ? content.content_name_en : content.content_name_no;
+              const sizeFrom = content.cut_size_from_kg != null ? Number(content.cut_size_from_kg) : null;
+              const sizeTo = content.cut_size_to_kg != null ? Number(content.cut_size_to_kg) : null;
+              const sizeRange = sizeFrom != null && sizeTo != null && Number.isFinite(sizeFrom) && Number.isFinite(sizeTo)
+                ? `${t.common.approx} ${sizeFrom.toLocaleString(locale, { maximumFractionDigits: 2 })}-${sizeTo.toLocaleString(locale, { maximumFractionDigits: 2 })} ${t.common.kg}`
+                : null;
               if (content.target_weight_kg) {
-                return `${base} (${content.target_weight_kg} ${t.common.kg})`;
+                return sizeRange
+                  ? `${base} (${content.target_weight_kg} ${t.common.kg} • ${sizeRange})`
+                  : `${base} (${content.target_weight_kg} ${t.common.kg})`;
               }
-              return base;
+              return sizeRange ? `${base} (${sizeRange})` : base;
             });
 
           return { title, items };
         }),
-    [boxPresets, lang, t.common.kg]
+    [boxPresets, lang, locale, t.common.approx, t.common.kg]
   );
 
   return (

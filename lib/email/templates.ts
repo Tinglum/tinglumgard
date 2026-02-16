@@ -48,9 +48,9 @@ export function getOrderConfirmationTemplate({
       <h2>Order Received!</h2>
       <p>Hi ${customerName},</p>
       <p>Thank you for your order <strong>${orderNumber}</strong>.</p>
-      <p>Your ${boxSize}kg pork box has been reserved. We will send you a Vipps payment request for the 50% deposit shortly.</p>
+      <p>Your Mangalitsa box has been reserved. We will send you a Vipps payment request for the 50% deposit shortly.</p>
       <p>Remainder payment must be completed by <strong>${dueDateLabel}</strong>.</p>
-      <p>The sooner you pay the remainder, the more likely you are to receive your extra products.</p>
+      <p>Extra products are confirmed when the remainder is paid. Products shown as available at that time can be added, but selection can vary due to limited availability per cut.</p>
       <div class="amount">Total: kr ${totalAmount.toLocaleString('nb-NO')}</div>
       <div class="amount" style="font-size: 18px;">Deposit (50%): kr ${depositAmount.toLocaleString('nb-NO')}</div>
       <p>Best regards,<br>Tinglum Gård</p>
@@ -84,9 +84,9 @@ export function getOrderConfirmationTemplate({
       <h2>Bestilling mottatt!</h2>
       <p>Hei ${customerName},</p>
       <p>Takk for din bestilling <strong>${orderNumber}</strong>.</p>
-      <p>Din ${boxSize}kg griskasse er reservert. Vi sender deg snart en Vipps-betalingsforespørsel for forskuddet på 50%.</p>
+      <p>Din Mangalitsa-boks er reservert. Vi sender deg snart en Vipps-betalingsforespørsel for forskuddet på 50%.</p>
       <p>Restbetalingen må være betalt innen <strong>${dueDateLabel}</strong>.</p>
-      <p>Jo tidligere du betaler restbeløpet, jo større er sjansen for å få ekstra produkter.</p>
+      <p>Ekstraprodukter bekreftes når restbeløpet betales. Produkter som vises som tilgjengelige da, kan legges til, men utvalget kan variere fordi hver stykningsdel har begrenset tilgjengelighet.</p>
       <div class="amount">Totalt: kr ${totalAmount.toLocaleString('nb-NO')}</div>
       <div class="amount" style="font-size: 18px;">Forskudd (50%): kr ${depositAmount.toLocaleString('nb-NO')}</div>
       <p>Vennlig hilsen,<br>Tinglum Gård</p>
@@ -143,11 +143,11 @@ export function getRemainderReminderTemplate({
     <div class="content">
       <h2>Hi ${customerName},</h2>
       <p>Thank you for your deposit payment for order <strong>${orderNumber}</strong>.</p>
-      <p>The remainder payment for your beef box is now due.</p>
+      <p>The remainder payment for your Mangalitsa box is now due.</p>
 
       <div class="info-box">
         <p style="margin: 0;"><strong>Order:</strong> ${orderNumber}</p>
-        <p style="margin: 10px 0 0 0;"><strong>Due date:</strong> ${dueDate}</p>
+        <p style="margin: 10px 0 0 0;"><strong>Pay by:</strong> ${dueDate}</p>
       </div>
 
       <div style="text-align: center;">
@@ -198,11 +198,11 @@ export function getRemainderReminderTemplate({
     <div class="content">
       <h2>Hei ${customerName},</h2>
       <p>Takk for forskudd for ordre <strong>${orderNumber}</strong>.</p>
-      <p>Restbetalingen for din okseboks forfaller nå.</p>
+      <p>Restbetalingen for Mangalitsa-boksen din forfaller nå.</p>
 
       <div class="info-box">
         <p style="margin: 0;"><strong>Ordrenummer:</strong> ${orderNumber}</p>
-        <p style="margin: 10px 0 0 0;"><strong>Forfallsdato:</strong> ${dueDate}</p>
+        <p style="margin: 10px 0 0 0;"><strong>Betal senest:</strong> ${dueDate}</p>
       </div>
 
       <div style="text-align: center;">
@@ -211,7 +211,7 @@ export function getRemainderReminderTemplate({
       </div>
 
       <p style="margin-top: 30px; font-size: 14px; color: #666;">
-        Hvis du allerede har betalt, kan du se bort fra denne påminnelsen. Bestillingen din vil bli låst etter forfallsdato.
+        Hvis du allerede har betalt, kan du se bort fra denne påminnelsen. Bestillingen din vil bli låst etter betalingsfristen.
       </p>
 
       <p>Vennlig hilsen,<br>Tinglum Gård</p>

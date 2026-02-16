@@ -1,4 +1,4 @@
-import { Breed, WeekInventory, Order, WeekAvailability } from './types'
+﻿import { Breed, WeekInventory, Order, WeekAvailability } from './types'
 import { getMondayOfWeek } from './utils'
 
 // 4 breeds with complete data
@@ -9,7 +9,7 @@ export const breeds: Breed[] = [
     slug: 'ayam-cemani',
     description: 'Eksotisk indonesisk rase med helt svart fjærdrakt, hud og kjøtt. Høyt verdsatt av samlere.',
     detailedDescription:
-      'Ayam Cemani er en av de mest unike hønserasene, kjent for sitt helt sorte utseende – fra fjær til kjøtt og til og med bein. Denne fascinerende rasen er høyt verdsatt av samlere og hønseentusiaster, og er utrolig koselige dyr å ha med å gjøre. Våre høner kommer fra en frisk og nøye sammensatt flokk med fem ulike blodslinjer, for å gi best mulig utgangspunkt for sterke og sunne kyllinger. Viktig å vite: Ayam Cemani kan være krevende å klekke, og de er ekstra følsomme for endringer i temperatur og fuktighet under ruging.',
+      'Ayam Cemani er en av de mest unike hønserasene, kjent for sitt helt sorte utseende - fra fjær til kjøtt og til og med bein. Denne fascinerende rasen er høyt verdsatt av samlere og hønseentusiaster, og er utrolig koselige dyr å ha med å gjøre. Våre høner kommer fra en frisk og nøye sammensatt flokk med fem ulike blodslinjer, for å gi best mulig utgangspunkt for sterke og sunne kyllinger. Viktig å vite: Ayam Cemani kan være krevende å klekke, og de er ekstra følsomme for endringer i temperatur og fuktighet under ruging.',
     pricePerEgg: 8000, // 80 kr
     minOrderQuantity: 6,
     maxOrderQuantity: 24,
@@ -105,7 +105,7 @@ export const breeds: Breed[] = [
     slug: 'maran',
     description: 'Fransk rase med vakker kobberhalset fjærdrakt og dype sjokoladebrune egg.',
     detailedDescription:
-      'Våre kobberhalset Maran-høner er verdsatt for sin vakre fjærdrakt, rolige lynne og ikke minst de dype sjokoladebrune eggene. Dette er en fransk hønserase kjent for sin hardførhet og store egg, en veldig populær rase! En voksen kobberhalset Maran-høne legger i snitt 180–220 egg i året, ofte med en vekt på rundt 70 gram (minstevekt 65). Eggfargen er karakteristisk mørkebrun til rødlig. Våre høner er ikke perfekte, men vi streber etter å hver sesong bli enda nærmere standarden. Genetikk og standard er kompliserte elementer.',
+      'Våre kobberhalset Maran-høner er verdsatt for sin vakre fjærdrakt, rolige lynne og ikke minst de dype sjokoladebrune eggene. Dette er en fransk hønserase kjent for sin hardførhet og store egg, en veldig populær rase! En voksen kobberhalset Maran-høne legger i snitt 180-220 egg i året, ofte med en vekt på rundt 70 gram (minstevekt 65). Eggfargen er karakteristisk mørkebrun til rødlig. Våre høner er ikke perfekte, men vi streber etter å hver sesong bli enda nærmere standarden. Genetikk og standard er kompliserte elementer.',
     pricePerEgg: 4500, // 45 kr
     minOrderQuantity: 6,
     maxOrderQuantity: 24,
@@ -307,3 +307,4 @@ export function getWeekInventory(id: string): WeekInventory | undefined {
 export function getBreedBySlug(slug: string): Breed | undefined {
   return breeds.find((b) => b.slug === slug)
 }
+

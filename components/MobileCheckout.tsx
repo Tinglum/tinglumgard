@@ -250,6 +250,16 @@ export function MobileCheckout(props: MobileCheckoutProps) {
     return stripToCardTeaser(fixMojibake(String(source || '')), 120);
   };
 
+  const formatCutSizeRange = (fromKg?: number | null, toKg?: number | null) => {
+    if (fromKg == null || toKg == null) return null;
+    const from = Number(fromKg);
+    const to = Number(toKg);
+    if (!Number.isFinite(from) || !Number.isFinite(to)) return null;
+    const formattedFrom = from.toLocaleString(locale, { maximumFractionDigits: 2 });
+    const formattedTo = to.toLocaleString(locale, { maximumFractionDigits: 2 });
+    return `${t.common.approx} ${formattedFrom}-${formattedTo} ${t.common.kg}`;
+  };
+
   const recipeTagsForExtra = (extra: any) => {
     const suggestions = Array.isArray(extra.recipe_suggestions) ? extra.recipe_suggestions : [];
     return suggestions
@@ -289,6 +299,7 @@ export function MobileCheckout(props: MobileCheckoutProps) {
     const displayName = chefTerm ? parsedName.primary : rawName;
 
     const description = getExtraDescription(extra);
+    const sizeRange = formatCutSizeRange(extra.cut_size_from_kg, extra.cut_size_to_kg);
     const hasDetails = Boolean(
       chefTerm ||
       extra.description_premium_no ||
@@ -359,6 +370,11 @@ export function MobileCheckout(props: MobileCheckoutProps) {
               }}
             >
               {description}
+            </p>
+          )}
+          {sizeRange && (
+            <p className="mt-2 text-[10px] uppercase tracking-[0.2em] text-[#6A6258]">
+              {sizeRange}
             </p>
           )}
           {recipeTags.length > 0 && (
@@ -570,7 +586,14 @@ export function MobileCheckout(props: MobileCheckoutProps) {
                         {visibleContents.map((item: any) => (
                           <li key={`${preset.id}-${item.id}`} className="flex items-start gap-2">
                             <span className={`mt-1.5 h-1.5 w-1.5 rounded-full ${isSelected ? 'bg-white' : 'bg-[#B35A2A]'}`} />
-                            <span>{fixMojibake(lang === 'en' ? item.content_name_en : item.content_name_no)}</span>
+                            <div>
+                              <span>{fixMojibake(lang === 'en' ? item.content_name_en : item.content_name_no)}</span>
+                              {formatCutSizeRange(item.cut_size_from_kg, item.cut_size_to_kg) && (
+                                <p className={`mt-1 text-[10px] uppercase tracking-[0.2em] ${isSelected ? 'text-white/65' : 'text-[#6A6258]'}`}>
+                                  {formatCutSizeRange(item.cut_size_from_kg, item.cut_size_to_kg)}
+                                </p>
+                              )}
+                            </div>
                           </li>
                         ))}
                       </ul>
@@ -810,9 +833,15 @@ export function MobileCheckout(props: MobileCheckoutProps) {
                 const extra = availableExtras.find(e => e.slug === slug);
                 const quantity = extraQuantities[slug] || 1;
                 if (!extra) return null;
+                const sizeRange = formatCutSizeRange(extra.cut_size_from_kg, extra.cut_size_to_kg);
                 return (
                   <div key={slug} className="mt-2 flex items-center justify-between text-xs text-[#5E5A50]">
-                    <span>{getExtraName(extra)} ({quantity}{extra.pricing_type === 'per_kg' ? t.common.kg : t.common.stk})</span>
+                    <span>
+                      {getExtraName(extra)}
+                      {sizeRange ? ` (${sizeRange})` : ''}
+                      {' '}
+                      ({quantity}{extra.pricing_type === 'per_kg' ? t.common.kg : t.common.stk})
+                    </span>
                     <span>{(extra.price_nok * quantity).toLocaleString(locale)} {t.common.currency}</span>
                   </div>
                 );
@@ -974,4 +1003,3 @@ export function MobileCheckout(props: MobileCheckoutProps) {
     </div>
   );
 }
-

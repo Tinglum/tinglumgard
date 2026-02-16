@@ -45,6 +45,8 @@ type CutRow = {
   chef_name_en?: string | null;
   description_no?: string | null;
   description_en?: string | null;
+  size_from_kg?: number | null;
+  size_to_kg?: number | null;
   part_id?: string | null;
 };
 
@@ -116,6 +118,8 @@ function normalizePreset(
         id: item.id,
         cut_id: cut?.id ?? item.cut_id ?? null,
         cut_slug: cut?.slug ?? null,
+        cut_size_from_kg: cut?.size_from_kg ?? null,
+        cut_size_to_kg: cut?.size_to_kg ?? null,
         part_key: part?.key ?? null,
         part_name_no: part?.name_no ?? null,
         part_name_en: part?.name_en ?? null,
@@ -135,6 +139,8 @@ function normalizePreset(
               name_en: cut.name_en,
               chef_name_no: cut.chef_name_no ?? null,
               chef_name_en: cut.chef_name_en ?? null,
+              size_from_kg: cut.size_from_kg ?? null,
+              size_to_kg: cut.size_to_kg ?? null,
               part: part
                 ? {
                     id: part.id,
@@ -196,6 +202,8 @@ async function fetchPresetsForAdmin() {
           id: row.id,
           cut_id: null,
           cut_slug: null,
+          cut_size_from_kg: null,
+          cut_size_to_kg: null,
           part_key: null,
           part_name_no: null,
           part_name_en: null,
@@ -220,7 +228,7 @@ async function fetchPresetsForAdmin() {
   if (cutIds.length > 0) {
     const { data: cuts, error: cutsError } = await supabaseAdmin
       .from('cuts_catalog')
-      .select('id,slug,name_no,name_en,chef_name_no,chef_name_en,description_no,description_en,part_id')
+      .select('id,slug,name_no,name_en,chef_name_no,chef_name_en,description_no,description_en,size_from_kg,size_to_kg,part_id')
       .in('id', cutIds);
 
     if (cutsError) {
@@ -243,6 +251,8 @@ async function fetchPresetsForAdmin() {
             id: row.id,
             cut_id: null,
             cut_slug: null,
+            cut_size_from_kg: null,
+            cut_size_to_kg: null,
             part_key: null,
             part_name_no: null,
             part_name_en: null,

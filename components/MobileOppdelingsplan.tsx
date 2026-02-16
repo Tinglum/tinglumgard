@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useMemo, useState } from 'react';
 import Image from 'next/image';
@@ -7,7 +7,12 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { PIG_CUT_POLYGONS } from '@/lib/constants/pig-diagram';
 import type { CutOverview, PartKey } from '@/lib/oppdelingsplan/types';
 
-type ExtraSummary = { slug: string; name: string };
+type ExtraSummary = {
+  slug: string;
+  name: string;
+  sizeFromKg?: number | null;
+  sizeToKg?: number | null;
+};
 
 interface MobileOppdelingsplanProps {
   inBoxSummary: string[];
@@ -45,6 +50,22 @@ const PART_ORDER: Record<PartKey, number> = {
   unknown: 99,
 };
 
+function formatSizeRange(
+  fromKg: number | null | undefined,
+  toKg: number | null | undefined,
+  lang: 'no' | 'en',
+  approxLabel: string
+) {
+  if (fromKg == null || toKg == null) return null;
+  const fromValue = Number(fromKg);
+  const toValue = Number(toKg);
+  if (!Number.isFinite(fromValue) || !Number.isFinite(toValue)) return null;
+  const locale = lang === 'no' ? 'nb-NO' : 'en-US';
+  const from = fromValue.toLocaleString(locale, { maximumFractionDigits: 2 });
+  const to = toValue.toLocaleString(locale, { maximumFractionDigits: 2 });
+  return `${approxLabel} ${from}-${to} kg`;
+}
+
 export function MobileOppdelingsplan({
   inBoxSummary,
   canOrderSummary,
@@ -52,7 +73,7 @@ export function MobileOppdelingsplan({
   onAddCut,
   onAddExtra,
 }: MobileOppdelingsplanProps) {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const [selectedPolygonId, setSelectedPolygonId] = useState<number | null>(null);
   const [hoveredPolygonId, setHoveredPolygonId] = useState<number | null>(null);
 
@@ -205,7 +226,14 @@ export function MobileOppdelingsplan({
                 key={extra.slug}
                 className="flex items-center justify-between gap-3 rounded-xl border border-[#E4DED5] bg-[#FBFAF7] px-3 py-2"
               >
-                <span className="min-w-0 truncate">{extra.name}</span>
+                <div className="min-w-0">
+                  <p className="truncate">{extra.name}</p>
+                  {formatSizeRange(extra.sizeFromKg, extra.sizeToKg, lang, t.common.approx) && (
+                    <p className="text-[11px] text-[#6A6258]">
+                      {formatSizeRange(extra.sizeFromKg, extra.sizeToKg, lang, t.common.approx)}
+                    </p>
+                  )}
+                </div>
                 <button
                   type="button"
                   onClick={() => onAddExtra(extra.slug, extra.name)}
@@ -245,6 +273,11 @@ export function MobileOppdelingsplan({
                       <p className="mt-2 text-xs text-[#6A6258]">
                         {t.oppdelingsplan.fromPigPartLabel} {cut.partName}
                       </p>
+                      {formatSizeRange(cut.sizeFromKg, cut.sizeToKg, lang, t.common.approx) && (
+                        <p className="mt-1 text-xs text-[#6A6258]">
+                          {formatSizeRange(cut.sizeFromKg, cut.sizeToKg, lang, t.common.approx)}
+                        </p>
+                      )}
                       {boxLabels.length > 0 ? (
                         <p className="mt-2 text-xs text-[#6A6258]">
                           {t.oppdelingsplan.inBoxShort} {boxLabels.join(' • ')}
