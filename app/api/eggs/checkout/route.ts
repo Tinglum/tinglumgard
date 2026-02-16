@@ -78,22 +78,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Orders are closed for this delivery week' }, { status: 400 })
     }
 
-    const requiredBaseQty = (slug: string) => (slug === 'ayam-cemani' ? 6 : 10)
     const totalEggs = items.reduce((sum, item) => sum + item.quantity, 0)
-    const hasBaseQuantity = items.some((item) => {
+    const isPureAyamCemani = items.every((item) => {
       const inventory = inventoryMap.get(item.inventoryId)
       const slug = inventory?.egg_breeds?.slug || ''
-      return item.quantity >= requiredBaseQty(slug)
+      return slug === 'ayam-cemani'
     })
 
-    if (items.length === 1) {
-      const onlyItem = items[0]
-      const inventory = inventoryMap.get(onlyItem.inventoryId)
-      const slug = inventory?.egg_breeds?.slug || ''
-      if (onlyItem.quantity < requiredBaseQty(slug)) {
-        return NextResponse.json({ error: 'Below minimum order quantity' }, { status: 400 })
-      }
-    } else if (!hasBaseQuantity && totalEggs < 12) {
+    if (isPureAyamCemani && totalEggs < 6) {
+      return NextResponse.json({ error: 'Below minimum order quantity' }, { status: 400 })
+    }
+
+    if (!isPureAyamCemani && totalEggs < 10) {
       return NextResponse.json({ error: 'Below minimum order quantity' }, { status: 400 })
     }
 

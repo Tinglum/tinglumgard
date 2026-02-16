@@ -41,7 +41,10 @@ export function OrderModificationModal({ order, isOpen, onClose, onSave }: Order
       if (order.extra_products) {
         const quantities: Record<string, number> = {};
         order.extra_products.forEach((extraProduct: any) => {
-          quantities[extraProduct.slug] = extraProduct.quantity;
+          const parsedQty = Number(extraProduct.quantity);
+          if (Number.isFinite(parsedQty) && parsedQty > 0) {
+            quantities[extraProduct.slug] = parsedQty;
+          }
         });
         setSelectedQuantities(quantities);
       } else {
@@ -109,15 +112,17 @@ export function OrderModificationModal({ order, isOpen, onClose, onSave }: Order
     return false;
   }, [selectedQuantities, order]);
 
-  const hasChanges =
+  const hasCoreChanges =
     ribbeChoice !== order.ribbe_choice ||
     deliveryType !== order.delivery_type ||
-    freshDelivery !== order.fresh_delivery ||
-    hasExtrasChanges;
+    freshDelivery !== order.fresh_delivery;
+
+  const hasChanges = hasCoreChanges || hasExtrasChanges;
 
   function handleQuantityChange(slug: string, quantity: number) {
+    const normalizedQty = Number(quantity);
     setSelectedQuantities((prev) => {
-      if (quantity <= 0) {
+      if (!Number.isFinite(normalizedQty) || normalizedQty <= 0) {
         const next = { ...prev };
         delete next[slug];
         return next;
@@ -125,7 +130,7 @@ export function OrderModificationModal({ order, isOpen, onClose, onSave }: Order
 
       return {
         ...prev,
-        [slug]: quantity,
+        [slug]: normalizedQty,
       };
     });
   }
@@ -147,13 +152,14 @@ export function OrderModificationModal({ order, isOpen, onClose, onSave }: Order
     setSaving(true);
 
     try {
-      const payload: Record<string, unknown> = {
-        ribbe_choice: ribbeChoice,
-        delivery_type: deliveryType,
-        fresh_delivery: freshDelivery,
-      };
-
-      await onSave(payload);
+      if (hasCoreChanges) {
+        const payload: Record<string, unknown> = {
+          ribbe_choice: ribbeChoice,
+          delivery_type: deliveryType,
+          fresh_delivery: freshDelivery,
+        };
+        await onSave(payload);
+      }
 
       if (hasExtrasChanges) {
         const extrasResponse = await fetch(`/api/orders/${order.id}/add-extras`, {

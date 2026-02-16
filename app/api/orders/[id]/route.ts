@@ -5,6 +5,29 @@ import { isBeforeCutoff } from '@/lib/utils/date';
 import { getPricingConfig } from '@/lib/config/pricing';
 import { normalizeOrderForDisplay } from '@/lib/orders/display';
 
+function normalizeEmail(value?: string | null) {
+  return (value || '').trim().toLowerCase();
+}
+
+function normalizePhone(value?: string | null) {
+  return (value || '').replace(/\D/g, '');
+}
+
+function isPhoneMatch(sessionPhone: string, orderPhone: string) {
+  if (!sessionPhone || !orderPhone) return false;
+  if (sessionPhone === orderPhone) return true;
+
+  const sessionSuffix8 = sessionPhone.slice(-8);
+  const orderSuffix8 = orderPhone.slice(-8);
+  if (sessionSuffix8.length === 8 && orderSuffix8.length === 8 && sessionSuffix8 === orderSuffix8) {
+    return true;
+  }
+
+  const sessionSuffix4 = sessionPhone.slice(-4);
+  const orderSuffix4 = orderPhone.slice(-4);
+  return sessionSuffix4.length === 4 && orderSuffix4.length === 4 && sessionSuffix4 === orderSuffix4;
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -91,15 +114,57 @@ export async function PATCH(
       );
     }
 
-    const { data: existingOrder } = await supabaseAdmin
+    const { data: ownOrder } = await supabaseAdmin
       .from('orders')
       .select('id, user_id, is_mangalitsa, box_size')
       .eq('id', params.id)
       .eq('user_id', session.userId)
       .maybeSingle();
 
+    let existingOrder = ownOrder;
+
     if (!existingOrder) {
-      return NextResponse.json({ error: 'Order not found' }, { status: 404 });
+      const { data: candidateOrder, error: candidateOrderError } = await supabaseAdmin
+        .from('orders')
+        .select('id, user_id, is_mangalitsa, box_size, customer_email, customer_phone')
+        .eq('id', params.id)
+        .maybeSingle();
+
+      if (candidateOrderError || !candidateOrder) {
+        return NextResponse.json({ error: 'Order not found' }, { status: 404 });
+      }
+
+      const ownsOrder = Boolean(candidateOrder.user_id) && candidateOrder.user_id === session.userId;
+      const normalizedOrderEmail = normalizeEmail(candidateOrder.customer_email);
+      const normalizedSessionEmail = normalizeEmail(session.email as string | undefined);
+      const emailMatches = Boolean(
+        normalizedOrderEmail &&
+        normalizedSessionEmail &&
+        normalizedOrderEmail === normalizedSessionEmail
+      );
+      const phoneMatches = isPhoneMatch(
+        normalizePhone(session.phoneNumber as string | undefined),
+        normalizePhone(candidateOrder.customer_phone)
+      );
+      const canAccessAnonymousOrder = !candidateOrder.user_id && (emailMatches || phoneMatches);
+
+      if (!ownsOrder && !canAccessAnonymousOrder) {
+        return NextResponse.json({ error: 'Order not found' }, { status: 404 });
+      }
+
+      if (!candidateOrder.user_id) {
+        const { error: claimOrderError } = await supabaseAdmin
+          .from('orders')
+          .update({ user_id: session.userId })
+          .eq('id', params.id)
+          .is('user_id', null);
+
+        if (claimOrderError) {
+          console.warn('Could not claim anonymous order in PATCH /api/orders/[id]:', claimOrderError.message);
+        }
+      }
+
+      existingOrder = candidateOrder;
     }
 
     const body = await request.json();

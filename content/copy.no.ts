@@ -516,17 +516,17 @@
       addMoreEggs: "Legg til flere egg",
       readyForCheckout: "Klar for betaling!",
       mixedInfo:
-        "Du kan endre antall per rase når som helst. Bestillingen går videre når alle kravene er oppfylt.",
+        "Du kan endre antall per rase når som helst. Minstekrav er 10 egg totalt, eller 6 egg ved ren Ayam Cemani-bestilling.",
       goToCheckout: "Gå til kassen",
       continueShopping: "Fortsett å handle",
       mixedOrderTitle: "Bygg en blandet bestilling",
-      mixedOrderDescription: "Legg til egg fra flere raser for å nå minimum 12 egg.",
+      mixedOrderDescription: "Legg til egg fra flere raser for å nå minimum 10 egg totalt.",
       leftThisWeek: "Igjen denne uken",
       done: "Ferdig",
       ayamMinimum: "Ayam Cemani: minimum 6 egg (du har {count})",
       singleBreedMinimum: "Minimum 10 egg for en rase (du har {count})",
       mixedMinimum:
-        "Minimum 12 egg totalt når du blander raser (med mindre en rase har 10 egg, Ayam Cemani 6). Du har {count}",
+        "Minimum 10 egg totalt. Ren Ayam Cemani-bestilling har minimum 6 egg. Du har {count}",
       mixedWeeks: "Velg egg fra samme uke for en samlet forsendelse.",
       onlyEggsLeftThisWeek: "Kun {count} egg igjen denne uken. Vi har foreslått {count} egg.",
     },
@@ -870,6 +870,8 @@
     deposit: "Forskudd",
     remainder: "Restbeløp",
     dueDate: "Betal senest",
+    impersonationActive: "Du ser nå Min side som kunden.",
+    impersonationBack: "Tilbake til admin",
   },
 
   // Oppdelingsplan (Butcher diagram)
@@ -2170,6 +2172,11 @@
     ordersLabel: "Ordrer",
     ltvLabel: "LTV",
     viewProfileButton: "Vis profil",
+    impersonateButton: "Logg inn som kunde",
+    impersonateStartingTitle: "Bytter visning",
+    impersonateStartingDescription: "Åpner Min side som {name}.",
+    impersonateErrorTitle: "Kunne ikke logge inn som kunde",
+    impersonateErrorDescription: "Prøv igjen.",
     emptyResults: "Ingen kunder funnet",
   },
 

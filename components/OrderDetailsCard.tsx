@@ -233,7 +233,10 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
         body: JSON.stringify(modifications),
       });
 
-      if (!response.ok) throw new Error(copy.saveModificationsError);
+      if (!response.ok) {
+        const data = await response.json().catch(() => null);
+        throw new Error(data?.error || copy.saveModificationsError);
+      }
 
       setShowModificationModal(false);
       onRefresh();

@@ -19,9 +19,15 @@ function isPhoneMatch(sessionPhone: string, orderPhone: string) {
   if (!sessionPhone || !orderPhone) return false;
   if (sessionPhone === orderPhone) return true;
 
-  const sessionSuffix = sessionPhone.slice(-8);
-  const orderSuffix = orderPhone.slice(-8);
-  return sessionSuffix.length === 8 && orderSuffix.length === 8 && sessionSuffix === orderSuffix;
+  const sessionSuffix8 = sessionPhone.slice(-8);
+  const orderSuffix8 = orderPhone.slice(-8);
+  if (sessionSuffix8.length === 8 && orderSuffix8.length === 8 && sessionSuffix8 === orderSuffix8) {
+    return true;
+  }
+
+  const sessionSuffix4 = sessionPhone.slice(-4);
+  const orderSuffix4 = orderPhone.slice(-4);
+  return sessionSuffix4.length === 4 && orderSuffix4.length === 4 && sessionSuffix4 === orderSuffix4;
 }
 
 export async function POST(

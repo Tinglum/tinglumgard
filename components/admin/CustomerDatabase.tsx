@@ -4,9 +4,10 @@ import { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Search, Mail, Phone, Calendar, Eye, AlertTriangle } from 'lucide-react';
+import { Search, Mail, Phone, Calendar, Eye, AlertTriangle, LogIn } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { useToast } from '@/hooks/use-toast';
 
 interface Customer {
   email: string;
@@ -23,6 +24,7 @@ interface Customer {
 
 export function CustomerDatabase() {
   const { t, lang } = useLanguage();
+  const { toast } = useToast();
   const copy = t.customerDatabase;
   const locale = lang === 'en' ? 'en-US' : 'nb-NO';
   const currency = t.common.currency;
@@ -61,6 +63,38 @@ export function CustomerDatabase() {
     }
   }
 
+  async function impersonateCustomer(customer: Pick<Customer, 'email' | 'name'>) {
+    try {
+      const response = await fetch('/api/admin/customers/impersonate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customerEmail: customer.email,
+          returnTo: '/min-side',
+        }),
+      });
+
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data?.error || copy.impersonateErrorDescription);
+      }
+
+      toast({
+        title: copy.impersonateStartingTitle,
+        description: copy.impersonateStartingDescription.replace('{name}', customer.name),
+      });
+
+      window.location.href = data?.redirectTo || '/min-side';
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : copy.impersonateErrorDescription;
+      toast({
+        title: copy.impersonateErrorTitle,
+        description: errorMessage,
+        variant: 'destructive',
+      });
+    }
+  }
+
   const filteredCustomers = customers.filter((customer) => {
     const search = searchTerm.toLowerCase();
     return (
@@ -82,9 +116,18 @@ export function CustomerDatabase() {
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <Button onClick={() => setShowProfile(false)} variant="outline">
-            {copy.backToList}
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button onClick={() => setShowProfile(false)} variant="outline">
+              {copy.backToList}
+            </Button>
+            <Button
+              onClick={() => impersonateCustomer({ email: selectedCustomer.email, name: selectedCustomer.name })}
+              variant="outline"
+            >
+              <LogIn className="w-4 h-4 mr-1" />
+              {copy.impersonateButton}
+            </Button>
+          </div>
         </div>
 
         <Card className="p-6">
@@ -266,6 +309,10 @@ export function CustomerDatabase() {
                 <Button onClick={() => viewCustomerProfile(customer.email)} variant="outline" size="sm">
                   <Eye className="w-4 h-4 mr-1" />
                   {copy.viewProfileButton}
+                </Button>
+                <Button onClick={() => impersonateCustomer(customer)} variant="outline" size="sm">
+                  <LogIn className="w-4 h-4 mr-1" />
+                  {copy.impersonateButton}
                 </Button>
               </div>
             </div>

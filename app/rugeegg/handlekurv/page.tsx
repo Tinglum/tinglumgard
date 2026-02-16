@@ -50,7 +50,7 @@ export default function CartPage() {
 
   useEffect(() => {
     if (checkoutStatus.allowed) return
-    if (!['mixed_min_12', 'single_breed_min_10', 'ayam_cemani_min_6'].includes(checkoutStatus.reason || '')) return
+    if (!['mixed_min_10', 'ayam_cemani_min_6'].includes(checkoutStatus.reason || '')) return
     if (items.length === 0) return
     setShowMixModal(true)
   }, [checkoutStatus.allowed, checkoutStatus.reason, items.length])
@@ -91,12 +91,7 @@ export default function CartPage() {
           type: 'warning',
           message: t.eggs.cart.ayamMinimum.replace('{count}', String(totalEggs)),
         }
-      case 'single_breed_min_10':
-        return {
-          type: 'warning',
-          message: t.eggs.cart.singleBreedMinimum.replace('{count}', String(totalEggs)),
-        }
-      case 'mixed_min_12':
+      case 'mixed_min_10':
         return {
           type: 'warning',
           message: t.eggs.cart.mixedMinimum.replace('{count}', String(totalEggs)),
@@ -184,7 +179,7 @@ export default function CartPage() {
                             <div className="flex items-center gap-3">
                               <button
                                 onClick={() => updateQuantity(item.breed.id, item.week.id, item.quantity - 1)}
-                                disabled={item.quantity <= item.breed.minOrderQuantity}
+                                disabled={item.quantity <= 1}
                                 className="w-8 h-8 rounded-full glass-light flex items-center justify-center hover:glass-strong disabled:opacity-40 disabled:cursor-not-allowed transition-all focus-ring"
                               >
                                 <Minus className="w-4 h-4" />
@@ -218,12 +213,6 @@ export default function CartPage() {
                             </button>
                           </div>
 
-                          {item.quantity < item.breed.minOrderQuantity && (
-                            <div className="mt-3 text-xs text-warning-700 bg-warning-50 px-3 py-2 rounded-sm">
-                              {t.eggs.cart.minimum}: {item.breed.minOrderQuantity}{' '}
-                              {t.eggs.common.eggs}
-                            </div>
-                          )}
                         </div>
                       </div>
                     </GlassCard>

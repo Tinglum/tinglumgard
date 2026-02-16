@@ -50,6 +50,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
   // Save cart to localStorage whenever it changes
   useEffect(() => {
     localStorage.setItem('tinglumgard_cart', JSON.stringify(items))
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('tinglum_cart_updated'))
+    }
   }, [items])
 
   const addToCart = (breed: Breed, week: WeekInventory, quantity: number) => {
@@ -104,9 +107,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
       return { allowed: false, reason: 'cart_empty' }
     }
 
-    // Check if it's a pure Ayam Cemani order
-    const isPureAyamCemani =
-      items.length === 1 && items.every((item) => item.breed.slug === 'ayam-cemani')
+    // Pure Ayam Cemani orders have their own lower minimum.
+    const isPureAyamCemani = items.every((item) => item.breed.slug === 'ayam-cemani')
 
     if (isPureAyamCemani) {
       // Ayam Cemani: minimum 6 eggs
@@ -114,16 +116,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
         return { allowed: false, reason: 'ayam_cemani_min_6' }
       }
     } else {
-      // Mixed or other orders: minimum 12 eggs total
-      if (totalEggs < 12) {
-        return { allowed: false, reason: 'mixed_min_12' }
-      }
-    }
-
-    // Check individual breed minimums for each item
-    for (const item of items) {
-      if (item.quantity < item.breed.minOrderQuantity) {
-        return { allowed: false, reason: 'breed_minimum_not_met' }
+      // All other orders: minimum 10 eggs total.
+      if (totalEggs < 10) {
+        return { allowed: false, reason: 'mixed_min_10' }
       }
     }
 

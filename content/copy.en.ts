@@ -515,17 +515,17 @@
       addMoreEggs: "Add more eggs",
       readyForCheckout: "Ready for checkout!",
       mixedInfo:
-        "You can adjust quantities anytime. The order proceeds when all requirements are met.",
+        "You can adjust quantities anytime. Minimum is 10 eggs total, or 6 eggs for pure Ayam Cemani orders.",
       goToCheckout: "Go to checkout",
       continueShopping: "Continue shopping",
       mixedOrderTitle: "Build a mixed order",
-      mixedOrderDescription: "Add eggs from other breeds to reach the 12-egg minimum.",
+      mixedOrderDescription: "Add eggs from other breeds to reach the 10-egg total minimum.",
       leftThisWeek: "Left this week",
       done: "Done",
       ayamMinimum: "Ayam Cemani: minimum 6 eggs (you have {count})",
       singleBreedMinimum: "Minimum 10 eggs for a single breed (you have {count})",
       mixedMinimum:
-        "Minimum 12 eggs total when mixing breeds (unless one breed has 10 eggs, Ayam Cemani 6). You have {count}",
+        "Minimum 10 eggs total. Pure Ayam Cemani orders have a 6-egg minimum. You have {count}",
       mixedWeeks: "Choose eggs from the same week for a single shipment.",
       onlyEggsLeftThisWeek: "Only {count} eggs left this week. We suggested {count} eggs.",
     },
@@ -869,6 +869,8 @@
     deposit: "Deposit",
     remainder: "Balance",
     dueDate: "Pay by",
+    impersonationActive: "You are currently viewing this page as the customer.",
+    impersonationBack: "Back to admin",
   },
 
   // Oppdelingsplan (Butcher diagram)
@@ -2167,6 +2169,11 @@
     ordersLabel: "Orders",
     ltvLabel: "LTV",
     viewProfileButton: "View profile",
+    impersonateButton: "Log in as customer",
+    impersonateStartingTitle: "Switching view",
+    impersonateStartingDescription: "Opening My page as {name}.",
+    impersonateErrorTitle: "Could not log in as customer",
+    impersonateErrorDescription: "Please try again.",
     emptyResults: "No customers found",
   },
 

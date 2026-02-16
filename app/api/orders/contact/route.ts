@@ -1,6 +1,30 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth/session';
 import { sendEmail } from '@/lib/email/client';
+import { supabaseAdmin } from '@/lib/supabase/server';
+
+function normalizeEmail(value?: string | null) {
+  return (value || '').trim().toLowerCase();
+}
+
+function normalizePhone(value?: string | null) {
+  return (value || '').replace(/\D/g, '');
+}
+
+function isPhoneMatch(sessionPhone: string, orderPhone: string) {
+  if (!sessionPhone || !orderPhone) return false;
+  if (sessionPhone === orderPhone) return true;
+
+  const sessionSuffix8 = sessionPhone.slice(-8);
+  const orderSuffix8 = orderPhone.slice(-8);
+  if (sessionSuffix8.length === 8 && orderSuffix8.length === 8 && sessionSuffix8 === orderSuffix8) {
+    return true;
+  }
+
+  const sessionSuffix4 = sessionPhone.slice(-4);
+  const orderSuffix4 = orderPhone.slice(-4);
+  return sessionSuffix4.length === 4 && orderSuffix4.length === 4 && sessionSuffix4 === orderSuffix4;
+}
 
 export async function POST(request: NextRequest) {
   const session = await getSession();
@@ -11,12 +35,61 @@ export async function POST(request: NextRequest) {
 
   try {
     const { orderNumber, orderDetails, message } = await request.json();
+    const trimmedMessage = (message || '').trim();
 
-    if (!message || !orderNumber) {
+    if (!trimmedMessage || !orderNumber) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
-    // Send email to admin
+    if (!session.phoneNumber) {
+      return NextResponse.json({ error: 'Missing phone number in session' }, { status: 400 });
+    }
+
+    let matchedOrder: { id: string } | null = null;
+    const normalizedSessionPhone = normalizePhone(session.phoneNumber);
+    const normalizedSessionEmail = normalizeEmail(session.email as string | undefined);
+
+    const { data: orderCandidates } = await supabaseAdmin
+      .from('orders')
+      .select('id, user_id, customer_phone, customer_email')
+      .eq('order_number', orderNumber)
+      .limit(5);
+
+    if (orderCandidates?.length) {
+      matchedOrder =
+        orderCandidates.find((order: any) => {
+          const ownsByUserId = Boolean(order.user_id) && order.user_id === session.userId;
+          const ownsByPhone = isPhoneMatch(normalizedSessionPhone, normalizePhone(order.customer_phone));
+          const ownsByEmail =
+            Boolean(normalizedSessionEmail) &&
+            Boolean(normalizeEmail(order.customer_email)) &&
+            normalizeEmail(order.customer_email) === normalizedSessionEmail;
+
+          return ownsByUserId || ownsByPhone || ownsByEmail;
+        }) || null;
+    }
+
+    const { data: createdMessage, error: createMessageError } = await supabaseAdmin
+      .from('customer_messages')
+      .insert({
+        order_id: matchedOrder?.id || null,
+        customer_phone: session.phoneNumber,
+        customer_name: session.name || null,
+        customer_email: session.email || null,
+        subject: `Henvendelse om ordre ${orderNumber}`,
+        message: trimmedMessage,
+        message_type: 'support',
+        status: 'open',
+        priority: 'normal',
+      })
+      .select('id')
+      .single();
+
+    if (createMessageError) {
+      console.error('Failed to store customer message thread:', createMessageError);
+      return NextResponse.json({ error: 'Failed to save message' }, { status: 500 });
+    }
+
     const emailHtml = `
       <!DOCTYPE html>
       <html>
@@ -51,7 +124,7 @@ export async function POST(request: NextRequest) {
 
               <div class="message-box">
                 <h3>Melding fra kunde:</h3>
-                <p style="white-space: pre-wrap;">${message}</p>
+                <p style="white-space: pre-wrap;">${trimmedMessage}</p>
               </div>
 
               <p style="margin-top: 20px;">
@@ -67,12 +140,11 @@ export async function POST(request: NextRequest) {
     `;
 
     await sendEmail({
-      to: 'post@tinglum.no', // Admin email
+      to: 'post@tinglum.no',
       subject: `Kundehenvendelse - Ordre ${orderNumber}`,
       html: emailHtml,
     });
 
-    // Also send confirmation to customer if email is available
     if (session.email) {
       const customerEmailHtml = `
         <!DOCTYPE html>
@@ -97,7 +169,7 @@ export async function POST(request: NextRequest) {
 
                 <div class="message-box">
                   <h3>Din melding:</h3>
-                  <p style="white-space: pre-wrap;">${message}</p>
+                  <p style="white-space: pre-wrap;">${trimmedMessage}</p>
                 </div>
 
                 <p>Vi kontakter deg snart på ${session.email} eller ${session.phoneNumber}.</p>
@@ -119,7 +191,10 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({
+      success: true,
+      messageId: createdMessage.id,
+    });
   } catch (error) {
     console.error('Error sending contact message:', error);
     return NextResponse.json(

@@ -48,7 +48,7 @@ interface Order {
 
 export default function CustomerPortalPage() {
   const { t } = useLanguage();
-  const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
 
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
@@ -115,6 +115,22 @@ export default function CustomerPortalPage() {
     window.location.href = `/min-side/ordre/${orderId}/betaling`;
   }
 
+  async function handleExitImpersonation() {
+    try {
+      const response = await fetch('/api/admin/customers/impersonate/stop', {
+        method: 'POST',
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data?.error || 'Failed to exit impersonation');
+      }
+      window.location.href = data?.redirectTo || '/admin';
+    } catch (error) {
+      console.error('Failed to exit impersonation:', error);
+      window.location.href = '/admin';
+    }
+  }
+
   if (loading || authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -154,6 +170,19 @@ export default function CustomerPortalPage() {
             {t.nav.back}
           </Link>
         </div>
+
+        {user?.isImpersonating && (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm text-amber-900">{t.minSide.impersonationActive}</p>
+            <button
+              type="button"
+              onClick={handleExitImpersonation}
+              className="px-3 py-2 text-xs font-semibold uppercase tracking-wide rounded-lg bg-neutral-900 text-white hover:bg-neutral-800 transition-colors"
+            >
+              {t.minSide.impersonationBack}
+            </button>
+          </div>
+        )}
 
         <div className="flex gap-4 border-b border-neutral-200">
           <button
