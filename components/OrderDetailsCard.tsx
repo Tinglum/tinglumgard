@@ -1,6 +1,6 @@
 ﻿'use client';
 
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -91,6 +91,14 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
   const [showTimelineModal, setShowTimelineModal] = useState(false);
   const [addingExtras, setAddingExtras] = useState(false);
   const [reordering, setReordering] = useState(false);
+  const [extrasError, setExtrasError] = useState<string | null>(null);
+  const [contactInfo, setContactInfo] = useState<{
+    email: string;
+    phone: string;
+  }>({
+    email: copy.contactEmail,
+    phone: copy.contactPhone,
+  });
 
   const depositPayment = order.payments?.find((p) => p.payment_type === 'deposit');
   const depositPaid = depositPayment?.status === 'completed';
@@ -111,6 +119,37 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
   const boxName = lang === 'no' ? order.display_box_name_no : order.display_box_name_en;
   const fallbackBoxName = lang === 'en' ? 'Mangalitsa box' : 'Mangalitsa-boks';
   const boxLabel = boxName || fallbackBoxName;
+  const currentExtrasForModal = useMemo(
+    () => order.extra_products?.map((e: any) => ({ slug: e.slug, quantity: Number(e.quantity) })) || [],
+    [order.extra_products]
+  );
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadPublicConfig() {
+      try {
+        const response = await fetch('/api/config', { cache: 'no-store' });
+        const data = await response.json().catch(() => null);
+        if (!response.ok || !data?.contact || !isMounted) {
+          return;
+        }
+
+        setContactInfo({
+          email: data.contact.email || copy.contactEmail,
+          phone: data.contact.phone || copy.contactPhone,
+        });
+      } catch {
+        // Keep fallback contact info from translations.
+      }
+    }
+
+    loadPublicConfig();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [copy.contactEmail, copy.contactPhone]);
 
   // Determine next action
   function getNextAction() {
@@ -167,6 +206,7 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
 
   async function handleAddExtras(selectedExtras: { slug: string; quantity: number }[], proceedToPayment = false) {
     setAddingExtras(true);
+    setExtrasError(null);
     try {
       const response = await fetch(`/api/orders/${order.id}/add-extras`, {
         method: 'POST',
@@ -193,15 +233,11 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
         await onRefresh();
         window.location.href = `/min-side/ordre/${order.id}/betaling`;
       } else {
-        onRefresh();
+        await onRefresh();
       }
     } catch (error: any) {
       console.error('Error adding extras:', error);
-      toast({
-        title: copy.errorTitle,
-        description: error?.message || copy.addExtrasError,
-        variant: 'destructive'
-      });
+      setExtrasError(error?.message || copy.addExtrasError);
     } finally {
       setAddingExtras(false);
     }
@@ -212,11 +248,13 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
   }
 
   function handleExtrasModalClose() {
+    setExtrasError(null);
     setShowExtrasModal(false);
   }
 
   function handleExtrasConfirm(selectedExtras: { slug: string; quantity: number }[]) {
     // For standalone extras button (not payment flow)
+    setExtrasError(null);
     handleAddExtras(selectedExtras, false);
   }
 
@@ -621,11 +659,11 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
             <div className="mt-4 pt-4 border-t border-neutral-200 space-y-2">
               <div className="flex items-center gap-2 text-neutral-700 text-sm">
                 <Mail className="w-4 h-4" />
-                <span>{copy.contactEmail}</span>
+                <span>{contactInfo.email}</span>
               </div>
               <div className="flex items-center gap-2 text-neutral-700 text-sm">
                 <Phone className="w-4 h-4" />
-                <span>{copy.contactPhone}</span>
+                <span>{contactInfo.phone}</span>
               </div>
             </div>
           </div>
@@ -703,12 +741,12 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
         isOpen={showExtrasModal}
         onClose={handleExtrasModalClose}
         onConfirm={(extras) => handleExtrasConfirm(extras)}
-        currentExtras={
-          order.extra_products?.map((e: any) => ({ slug: e.slug, quantity: e.quantity })) || []
-        }
+        currentExtras={currentExtrasForModal}
         loading={addingExtras}
         isPaymentFlow={false}
         baseRemainderAmount={order.remainder_amount}
+        errorMessage={extrasError}
+        onClearError={() => setExtrasError(null)}
       />
 
       {/* Order Modification Modal */}
@@ -734,12 +772,15 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
       <ContactAdminModal
         isOpen={showContactModal}
         onClose={() => setShowContactModal(false)}
+        orderId={order.id}
         orderNumber={order.order_number}
         orderDetails={`${copy.contactDetailsBoxSize}: ${boxLabel}
 ${copy.contactDetailsRibChoice}: ${ribbeChoiceLabels[order.ribbe_choice] || order.ribbe_choice}
 ${copy.contactDetailsDeliveryType}: ${deliveryTypeLabels[order.delivery_type] || order.delivery_type}
 ${copy.contactDetailsStatus}: ${order.status}
 ${copy.contactDetailsTotalAmount}: ${currency} ${order.total_amount.toLocaleString(locale)}`}
+        contactEmail={contactInfo.email}
+        contactPhone={contactInfo.phone}
       />
 
       {/* Order Timeline Modal */}

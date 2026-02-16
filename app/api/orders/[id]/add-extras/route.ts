@@ -7,6 +7,51 @@ interface ExtraProduct {
   quantity: number;
 }
 
+function isMissingColumnError(error: any, columnName: string) {
+  const message = String(error?.message || '').toLowerCase();
+  const details = String(error?.details || '').toLowerCase();
+  const hint = String(error?.hint || '').toLowerCase();
+  const needle = columnName.toLowerCase();
+  return (
+    message.includes(needle) ||
+    details.includes(needle) ||
+    hint.includes(needle)
+  );
+}
+
+async function insertOrderExtrasWithFallback(rows: Array<Record<string, unknown>>) {
+  if (!rows.length) return null;
+
+  let payload = rows;
+  const removableColumns = ['unit_price', 'unit_type', 'quantity', 'total_price', 'price_nok'];
+  const removed = new Set<string>();
+
+  while (true) {
+    const { error } = await supabaseAdmin.from('order_extras').insert(payload);
+    if (!error) {
+      return null;
+    }
+
+    let removedAny = false;
+    for (const column of removableColumns) {
+      if (removed.has(column)) continue;
+      if (!isMissingColumnError(error, column)) continue;
+
+      payload = payload.map((row) => {
+        const next = { ...row };
+        delete next[column];
+        return next;
+      });
+      removed.add(column);
+      removedAny = true;
+    }
+
+    if (!removedAny) {
+      return error;
+    }
+  }
+}
+
 function normalizeEmail(value?: string | null) {
   return (value || '').trim().toLowerCase();
 }
@@ -217,7 +262,7 @@ export async function POST(
     }
 
     if (extraProductsData.length > 0) {
-      const extrasToInsert = extraProductsData
+      const extrasToInsertBase = extraProductsData
         .map((extra) => {
           const catalogItem = extrasCatalog.find((e) => e.slug === extra.slug);
           if (!catalogItem) return null;
@@ -225,7 +270,6 @@ export async function POST(
             order_id: order.id,
             extra_id: catalogItem.id,
             price_nok: catalogItem.price_nok,
-            unit_price: catalogItem.price_nok,
             unit_type: catalogItem.pricing_type === 'per_kg' ? 'kg' : 'unit',
             quantity: extra.quantity,
             total_price: extra.total_price,
@@ -233,10 +277,15 @@ export async function POST(
         })
         .filter(Boolean);
 
-      if (extrasToInsert.length > 0) {
-        const { error: insertExtrasError } = await supabaseAdmin
-          .from('order_extras')
-          .insert(extrasToInsert);
+      if (extrasToInsertBase.length > 0) {
+        const extrasToInsertWithUnitPrice = extrasToInsertBase.map((row: any) => ({
+          ...row,
+          unit_price: row.price_nok,
+        }));
+
+        const insertExtrasError = await insertOrderExtrasWithFallback(
+          extrasToInsertWithUnitPrice as Array<Record<string, unknown>>
+        );
 
         if (insertExtrasError) {
           console.error('Failed to insert order extras:', insertExtrasError);

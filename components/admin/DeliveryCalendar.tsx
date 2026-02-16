@@ -3,18 +3,22 @@
 import { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Calendar, MapPin, Package, Truck, Users, CheckCircle2 } from 'lucide-react';
+import { Calendar, MapPin, Package, Truck, Users, CheckCircle2, Egg } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 interface DeliveryGroup {
   date: string;
-  delivery_type: string;
+  delivery_type: 'pickup' | 'delivery';
   location?: string;
   orders: Array<{
+    id: string;
     order_number: string;
     customer_name: string;
-    box_size: number;
+    product_type: 'pig_box' | 'egg';
+    display_name: string;
+    quantity: number;
+    quantity_unit: 'kg' | 'egg';
     fresh_delivery: boolean;
     marked_collected: boolean;
   }>;
@@ -23,11 +27,13 @@ interface DeliveryGroup {
 export function DeliveryCalendar() {
   const { t, lang } = useLanguage();
   const copy = t.deliveryCalendar;
+  const eggUnit = t.eggs?.common?.eggs || (lang === 'en' ? 'eggs' : 'egg');
   const locale = lang === 'en' ? 'en-US' : 'nb-NO';
 
   const [deliveryGroups, setDeliveryGroups] = useState<DeliveryGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedType, setSelectedType] = useState<'all' | 'pickup' | 'delivery'>('all');
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     loadDeliveryGroups();
@@ -35,23 +41,33 @@ export function DeliveryCalendar() {
 
   async function loadDeliveryGroups() {
     setLoading(true);
+    setLoadError(null);
     try {
       const response = await fetch('/api/admin/delivery-calendar');
-      const data = await response.json();
+      const data = await response.json().catch(() => null);
+      if (!response.ok) {
+        throw new Error(data?.error || 'Failed to fetch delivery calendar');
+      }
       setDeliveryGroups(data.groups || []);
     } catch (error) {
       console.error('Error loading delivery calendar:', error);
+      setDeliveryGroups([]);
+      setLoadError(lang === 'en' ? 'Could not load delivery calendar.' : 'Kunne ikke laste hentekalender.');
     } finally {
       setLoading(false);
     }
   }
 
-  async function markCollected(orderNumber: string) {
+  async function markCollected(orderNumber: string, productType: 'pig_box' | 'egg') {
     try {
       const response = await fetch('/api/admin/delivery-calendar', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'mark_collected', order_number: orderNumber }),
+        body: JSON.stringify({
+          action: 'mark_collected',
+          order_number: orderNumber,
+          product_type: productType,
+        }),
       });
 
       if (response.ok) {
@@ -64,7 +80,7 @@ export function DeliveryCalendar() {
 
   const filteredGroups = deliveryGroups.filter((group) => {
     if (selectedType === 'all') return true;
-    if (selectedType === 'pickup') return group.delivery_type !== 'delivery';
+    if (selectedType === 'pickup') return group.delivery_type === 'pickup';
     return group.delivery_type === 'delivery';
   });
 
@@ -78,6 +94,11 @@ export function DeliveryCalendar() {
 
   return (
     <div className="space-y-6">
+      {loadError && (
+        <Card className="p-4 border-red-200 bg-red-50 text-red-700 text-sm">
+          {loadError}
+        </Card>
+      )}
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold">{copy.title}</h2>
@@ -99,7 +120,7 @@ export function DeliveryCalendar() {
           className={selectedType === 'pickup' ? 'bg-[#2C1810]' : ''}
         >
           <MapPin className="w-4 h-4 mr-2" />
-          {copy.filterPickup} ({deliveryGroups.filter((g) => g.delivery_type !== 'delivery').reduce((sum, g) => sum + g.orders.length, 0)})
+          {copy.filterPickup} ({deliveryGroups.filter((g) => g.delivery_type === 'pickup').reduce((sum, g) => sum + g.orders.length, 0)})
         </Button>
         <Button
           onClick={() => setSelectedType('delivery')}
@@ -144,18 +165,24 @@ export function DeliveryCalendar() {
               <div className="space-y-2">
                 {group.orders.map((order) => (
                   <div
-                    key={order.order_number}
+                    key={`${order.product_type}-${order.order_number}`}
                     className={cn(
                       'flex items-center justify-between p-4 rounded-xl border',
                       order.marked_collected ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-200'
                     )}
                   >
                     <div className="flex items-center gap-4">
-                      <Package className={cn('w-5 h-5', order.marked_collected ? 'text-green-600' : 'text-gray-600')} />
+                      {order.product_type === 'egg' ? (
+                        <Egg className={cn('w-5 h-5', order.marked_collected ? 'text-green-600' : 'text-gray-600')} />
+                      ) : (
+                        <Package className={cn('w-5 h-5', order.marked_collected ? 'text-green-600' : 'text-gray-600')} />
+                      )}
                       <div>
                         <p className="font-medium">{order.customer_name}</p>
                         <p className="text-sm text-gray-600">
-                          {copy.orderPrefix}: {order.order_number} - {order.box_size} {t.common.kg}
+                          {copy.orderPrefix}: {order.order_number} - {order.display_name} -{' '}
+                          {order.quantity.toLocaleString(locale)}{' '}
+                          {order.quantity_unit === 'kg' ? t.common.kg : eggUnit}
                           {order.fresh_delivery ? ` - ${copy.freshTag}` : ''}
                         </p>
                       </div>
@@ -167,7 +194,11 @@ export function DeliveryCalendar() {
                           <span className="font-medium">{copy.collected}</span>
                         </div>
                       ) : (
-                        <Button onClick={() => markCollected(order.order_number)} size="sm" className="bg-green-600 hover:bg-green-700">
+                        <Button
+                          onClick={() => markCollected(order.order_number, order.product_type)}
+                          size="sm"
+                          className="bg-green-600 hover:bg-green-700"
+                        >
                           <CheckCircle2 className="w-4 h-4 mr-2" />
                           {copy.markCollected}
                         </Button>
@@ -185,7 +216,24 @@ export function DeliveryCalendar() {
                 <div className="flex items-center gap-2">
                   <Package className="w-4 h-4" />
                   <span>
-                    {copy.kgTotal.replace('{count}', String(group.orders.reduce((sum, o) => sum + o.box_size, 0)))}
+                    {copy.kgTotal.replace(
+                      '{count}',
+                      String(
+                        group.orders.reduce((sum, o) => {
+                          if (o.quantity_unit !== 'kg') return sum;
+                          return sum + o.quantity;
+                        }, 0)
+                      )
+                    )}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Egg className="w-4 h-4" />
+                  <span>
+                    {group.orders
+                      .reduce((sum, o) => (o.quantity_unit === 'egg' ? sum + o.quantity : sum), 0)
+                      .toLocaleString(locale)}{' '}
+                    {eggUnit}
                   </span>
                 </div>
                 <div className="flex items-center gap-2">

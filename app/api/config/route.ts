@@ -18,6 +18,16 @@ export async function GET() {
       .eq('key', 'box_contents')
       .maybeSingle();
 
+    const { data: contactRows } = await supabaseAdmin
+      .from('app_config')
+      .select('key, value')
+      .in('key', ['contact_email', 'contact_phone']);
+
+    const { data: legacyContactRows } = await supabaseAdmin
+      .from('config')
+      .select('key, value')
+      .in('key', ['contact_email', 'contact_phone']);
+
     if (error) throw error;
 
     // Fetch pricing configuration
@@ -34,9 +44,33 @@ export async function GET() {
       box_contents = null;
     }
 
+    const contactMap = (contactRows || []).reduce((acc, row) => {
+      acc[row.key] = row.value;
+      return acc;
+    }, {} as Record<string, unknown>);
+
+    const legacyContactMap = (legacyContactRows || []).reduce((acc, row) => {
+      acc[row.key] = row.value;
+      return acc;
+    }, {} as Record<string, unknown>);
+
+    const contactEmail =
+      (typeof contactMap.contact_email === 'string' && contactMap.contact_email.trim()) ||
+      (typeof legacyContactMap.contact_email === 'string' && legacyContactMap.contact_email.trim()) ||
+      'post@tinglum.no';
+
+    const contactPhone =
+      (typeof contactMap.contact_phone === 'string' && contactMap.contact_phone.trim()) ||
+      (typeof legacyContactMap.contact_phone === 'string' && legacyContactMap.contact_phone.trim()) ||
+      '+47 123 45 678';
+
     return NextResponse.json({
       cutoff: config?.value || { year: 2026, week: 46 },
       box_contents,
+      contact: {
+        email: contactEmail,
+        phone: contactPhone,
+      },
       pricing: {
         deposit_percentage: 50,
         delivery_fee_pickup_e6: pricing.delivery_fee_pickup_e6,

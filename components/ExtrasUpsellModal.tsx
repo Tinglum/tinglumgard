@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { cn } from '@/lib/utils';
@@ -30,6 +30,8 @@ interface ExtrasUpsellModalProps {
   loading?: boolean;
   isPaymentFlow?: boolean;
   baseRemainderAmount?: number;
+  errorMessage?: string | null;
+  onClearError?: () => void;
 }
 
 export function ExtrasUpsellModal({
@@ -39,6 +41,8 @@ export function ExtrasUpsellModal({
   currentExtras = [],
   loading = false,
   isPaymentFlow = false,
+  errorMessage = null,
+  onClearError,
 }: ExtrasUpsellModalProps) {
   const { getThemeClasses } = useTheme();
   const { lang, t } = useLanguage();
@@ -48,8 +52,8 @@ export function ExtrasUpsellModal({
 
   const [extras, setExtras] = useState<Extra[]>([]);
   const [selectedQuantities, setSelectedQuantities] = useState<Record<string, number>>({});
+  const [initialQuantities, setInitialQuantities] = useState<Record<string, number>>({});
   const [loadingExtras, setLoadingExtras] = useState(true);
-  const initializedRef = useRef(false);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -79,27 +83,33 @@ export function ExtrasUpsellModal({
   }, []);
 
   useEffect(() => {
-    if (isOpen) {
-      setLoadingExtras(true);
-      loadExtras();
-      if (!initializedRef.current) {
-        const initialQuantities: Record<string, number> = {};
-        currentExtras.forEach((extra) => {
-          const parsedQty = Number(extra.quantity);
-          if (Number.isFinite(parsedQty) && parsedQty > 0) {
-            initialQuantities[extra.slug] = parsedQty;
-          }
-        });
-        setSelectedQuantities(initialQuantities);
-        initializedRef.current = true;
-      }
-    } else {
-      initializedRef.current = false;
+    if (!isOpen) return;
+    setLoadingExtras(true);
+    loadExtras();
+  }, [isOpen, loadExtras]);
+
+  useEffect(() => {
+    if (!isOpen) {
       setSelectedQuantities({});
+      setInitialQuantities({});
+      return;
     }
-  }, [currentExtras, isOpen, loadExtras]);
+
+    const initialQuantities: Record<string, number> = {};
+    currentExtras.forEach((extra) => {
+      const parsedQty = Number(extra.quantity);
+      if (Number.isFinite(parsedQty) && parsedQty > 0) {
+        initialQuantities[extra.slug] = parsedQty;
+      }
+    });
+    setSelectedQuantities(initialQuantities);
+    setInitialQuantities(initialQuantities);
+  }, [isOpen, currentExtras]);
 
   function handleQuantityChange(slug: string, quantity: number) {
+    if (errorMessage && onClearError) {
+      onClearError();
+    }
     const normalizedQty = Number(quantity);
     setSelectedQuantities((prev) => {
       if (!Number.isFinite(normalizedQty) || normalizedQty <= 0) {
@@ -176,6 +186,30 @@ export function ExtrasUpsellModal({
     return `${delta > 0 ? '+' : '-'}${t.common.currency} ${formatted}`;
   }
 
+  const hasChanges = useMemo(() => {
+    const initialBySlug = new Map(
+      Object.entries(initialQuantities)
+        .map(([slug, qty]) => [slug, Number(qty)] as const)
+        .filter(([_, qty]) => Number.isFinite(qty) && qty > 0)
+    );
+
+    const selectedEntries = Object.entries(selectedQuantities)
+      .map(([slug, qty]) => [slug, Number(qty)] as const)
+      .filter(([_, qty]) => Number.isFinite(qty) && qty > 0);
+
+    if (selectedEntries.length !== initialBySlug.size) {
+      return true;
+    }
+
+    for (const [slug, qty] of selectedEntries) {
+      if (!initialBySlug.has(slug) || initialBySlug.get(slug) !== qty) {
+        return true;
+      }
+    }
+
+    return false;
+  }, [initialQuantities, selectedQuantities]);
+
   if (!isOpen) return null;
 
   return (
@@ -190,7 +224,10 @@ export function ExtrasUpsellModal({
         <div className={cn('sticky top-0 z-10 px-8 py-6 border-b bg-white', theme.borderSecondary)}>
           <button
             type="button"
-            onClick={onClose}
+            onClick={() => {
+              if (errorMessage && onClearError) onClearError();
+              onClose();
+            }}
             className={cn(
               'absolute top-6 right-6 p-2 rounded-full transition-colors',
               theme.textMuted,
@@ -232,6 +269,11 @@ export function ExtrasUpsellModal({
         </div>
 
         <div className={cn('sticky bottom-0 px-8 py-6 border-t bg-white', theme.borderSecondary)}>
+          {errorMessage && (
+            <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              {errorMessage}
+            </div>
+          )}
           <div className="flex items-center justify-between gap-6">
             <div>
               <p className={cn('text-sm mb-1', theme.textMuted)}>{copy.selectedExtras}</p>
@@ -244,7 +286,16 @@ export function ExtrasUpsellModal({
               <p className={cn('text-xs mt-1', theme.textMuted)}>{copy.addedToRemainder}</p>
             </div>
             <div className="flex gap-4">
-              <Button type="button" variant="outline" onClick={onClose} disabled={loading} className="px-8">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  if (errorMessage && onClearError) onClearError();
+                  onClose();
+                }}
+                disabled={loading}
+                className="px-8"
+              >
                 {copy.cancel}
               </Button>
               {isPaymentFlow ? (
@@ -265,17 +316,17 @@ export function ExtrasUpsellModal({
                   )}
                 </Button>
               ) : (
-                <Button
-                  type="button"
-                  onClick={() => handleConfirm(false)}
-                  disabled={loading || calculateDeltaAmount() === 0}
-                  className="px-8 bg-green-600 hover:bg-green-700 text-white"
-                  aria-disabled={loading || calculateDeltaAmount() === 0}
-                >
-                  {loading ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
-                      {copy.saving}
+              <Button
+                type="button"
+                onClick={() => handleConfirm(false)}
+                disabled={loading || !hasChanges}
+                className="px-8 bg-green-600 hover:bg-green-700 text-white"
+                aria-disabled={loading || !hasChanges}
+              >
+                {loading ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                    {copy.saving}
                     </>
                   ) : (
                     copy.updateExtrasOrder.replace('{delta}', formatDeltaLabel())

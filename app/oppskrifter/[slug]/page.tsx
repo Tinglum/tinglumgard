@@ -75,7 +75,7 @@ export default function RecipeDetailPage() {
         }
         const data = await res.json()
         if (!isActive) return
-        setRecipe(data)
+        setRecipe(data.recipe || data)
       } catch (err: any) {
         if (!isActive) return
         console.error('Failed to load recipe', err)

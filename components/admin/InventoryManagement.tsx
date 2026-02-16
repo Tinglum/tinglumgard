@@ -5,7 +5,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Package, AlertTriangle, TrendingDown, TrendingUp, Save, RefreshCw } from 'lucide-react';
+import { Package, AlertTriangle, TrendingDown, TrendingUp, Save, RefreshCw, Beef, Egg } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -17,6 +17,35 @@ interface InventoryData {
   utilization_rate: number;
   box_counts?: Record<string, number>;
   total_orders: number;
+  preset_stock?: Array<{
+    id: string;
+    slug: string;
+    name_no: string;
+    target_weight_kg: number;
+    active: boolean;
+    order_count: number;
+    limit: number | null;
+    remaining: number | null;
+  }>;
+  extras_stock?: Array<{
+    id: string;
+    slug: string;
+    name_no: string;
+    price_nok: number;
+    pricing_type: string;
+    stock_quantity: number | null;
+    active: boolean;
+    updated_at?: string | null;
+  }>;
+  egg_inventory_summary?: {
+    upcoming_weeks: number;
+    open_weeks: number;
+    locked_weeks: number;
+    closed_weeks: number;
+    total_available: number;
+    total_allocated: number;
+    total_remaining: number;
+  };
 }
 
 export function InventoryManagement() {
@@ -29,6 +58,10 @@ export function InventoryManagement() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [maxKg, setMaxKg] = useState(0);
+  const [extraStockDrafts, setExtraStockDrafts] = useState<Record<string, string>>({});
+  const [presetLimitDrafts, setPresetLimitDrafts] = useState<Record<string, string>>({});
+  const [savingExtraId, setSavingExtraId] = useState<string | null>(null);
+  const [savingPresetSlug, setSavingPresetSlug] = useState<string | null>(null);
 
   useEffect(() => {
     loadInventory();
@@ -41,6 +74,27 @@ export function InventoryManagement() {
       const data = await response.json();
       setInventory(data.inventory);
       setMaxKg(data.inventory.max_kg);
+      const extrasDrafts = (data.inventory.extras_stock || []).reduce(
+        (acc: Record<string, string>, extra: any) => {
+          acc[extra.id] =
+            extra.stock_quantity === null || extra.stock_quantity === undefined
+              ? ''
+              : String(extra.stock_quantity);
+          return acc;
+        },
+        {}
+      );
+      setExtraStockDrafts(extrasDrafts);
+
+      const presetDrafts = (data.inventory.preset_stock || []).reduce(
+        (acc: Record<string, string>, preset: any) => {
+          acc[preset.slug] =
+            preset.limit === null || preset.limit === undefined ? '' : String(preset.limit);
+          return acc;
+        },
+        {}
+      );
+      setPresetLimitDrafts(presetDrafts);
     } catch (error) {
       console.error('Error loading inventory:', error);
     } finally {
@@ -91,6 +145,96 @@ export function InventoryManagement() {
     }
   }
 
+  async function updateExtraStock(extraId: string) {
+    const rawValue = extraStockDrafts[extraId];
+    const parsedValue = rawValue === '' ? null : parseInt(rawValue, 10);
+    if (rawValue !== '' && (parsedValue === null || Number.isNaN(parsedValue) || parsedValue < 0)) {
+      toast({
+        title: copy.invalidValueTitle,
+        description: copy.invalidValueDescription,
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setSavingExtraId(extraId);
+    try {
+      const response = await fetch('/api/admin/inventory', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'update_extras_stock',
+          extra_id: extraId,
+          stock_quantity: parsedValue,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update stock');
+      }
+
+      await loadInventory();
+      toast({
+        title: copy.updatedTitle,
+        description: copy.updatedDescription,
+      });
+    } catch (error) {
+      console.error('Error updating extra stock:', error);
+      toast({
+        title: copy.errorTitle,
+        description: copy.updateErrorDescription,
+        variant: 'destructive',
+      });
+    } finally {
+      setSavingExtraId(null);
+    }
+  }
+
+  async function updatePresetLimit(slug: string) {
+    const rawValue = presetLimitDrafts[slug];
+    const parsedValue = rawValue === '' ? null : parseInt(rawValue, 10);
+    if (rawValue !== '' && (parsedValue === null || Number.isNaN(parsedValue) || parsedValue < 0)) {
+      toast({
+        title: copy.invalidValueTitle,
+        description: copy.invalidValueDescription,
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setSavingPresetSlug(slug);
+    try {
+      const response = await fetch('/api/admin/inventory', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'update_preset_limit',
+          preset_slug: slug,
+          limit: parsedValue,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update box limit');
+      }
+
+      await loadInventory();
+      toast({
+        title: copy.updatedTitle,
+        description: copy.updatedDescription,
+      });
+    } catch (error) {
+      console.error('Error updating preset limit:', error);
+      toast({
+        title: copy.errorTitle,
+        description: copy.updateErrorDescription,
+        variant: 'destructive',
+      });
+    } finally {
+      setSavingPresetSlug(null);
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -119,6 +263,9 @@ export function InventoryManagement() {
     'text-green-600';
   const boxCounts = inventory.box_counts || {};
   const sortedBoxEntries = Object.entries(boxCounts).sort((a, b) => b[1] - a[1]);
+  const presetStock = inventory.preset_stock || [];
+  const extrasStock = inventory.extras_stock || [];
+  const eggSummary = inventory.egg_inventory_summary;
 
   return (
     <div className="space-y-6">
@@ -222,6 +369,132 @@ export function InventoryManagement() {
           ))}
         </div>
       </Card>
+
+      <Card className="p-6">
+        <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
+          <Beef className="w-5 h-5" />
+          {lang === 'no' ? 'Boksstyring (Mangalitsa)' : 'Box management (Mangalitsa)'}
+        </h3>
+        <div className="space-y-3">
+          {presetStock.map((preset) => {
+            const limitDraft = presetLimitDrafts[preset.slug] ?? '';
+            const hasChanged =
+              String(limitDraft) !== (preset.limit === null || preset.limit === undefined ? '' : String(preset.limit));
+            return (
+              <div key={preset.slug} className="grid grid-cols-1 md:grid-cols-[1fr_auto_auto_auto] gap-3 items-center p-3 rounded-xl border border-neutral-200">
+                <div>
+                  <p className="font-medium text-neutral-900">{preset.name_no}</p>
+                  <p className="text-sm text-neutral-600">
+                    {preset.target_weight_kg} {t.common.kg} · {preset.order_count}{' '}
+                    {lang === 'no' ? 'bestillinger' : 'orders'}
+                    {preset.remaining !== null
+                      ? ` · ${lang === 'no' ? 'gjenstår' : 'remaining'}: ${preset.remaining}`
+                      : ''}
+                  </p>
+                </div>
+                <Input
+                  type="number"
+                  min="0"
+                  className="w-36"
+                  placeholder={lang === 'no' ? 'Ingen grense' : 'No limit'}
+                  value={limitDraft}
+                  onChange={(e) =>
+                    setPresetLimitDrafts((prev) => ({ ...prev, [preset.slug]: e.target.value }))
+                  }
+                />
+                <Button
+                  onClick={() => updatePresetLimit(preset.slug)}
+                  disabled={!hasChanged || savingPresetSlug === preset.slug}
+                  variant="outline"
+                >
+                  {savingPresetSlug === preset.slug ? copy.savingButton : copy.updateButton}
+                </Button>
+                <span className={cn('text-xs font-medium', preset.active ? 'text-green-700' : 'text-neutral-500')}>
+                  {preset.active ? (lang === 'no' ? 'Aktiv' : 'Active') : (lang === 'no' ? 'Inaktiv' : 'Inactive')}
+                </span>
+              </div>
+            );
+          })}
+          {presetStock.length === 0 && (
+            <p className="text-sm text-neutral-500">
+              {lang === 'no' ? 'Ingen bokser funnet' : 'No presets found'}
+            </p>
+          )}
+        </div>
+      </Card>
+
+      <Card className="p-6">
+        <h3 className="font-semibold text-lg mb-4">{lang === 'no' ? 'Ekstraprodukter (lager)' : 'Extra products (stock)'}</h3>
+        <div className="space-y-3">
+          {extrasStock.map((extra) => {
+            const stockDraft = extraStockDrafts[extra.id] ?? '';
+            const hasChanged =
+              String(stockDraft) !==
+              (extra.stock_quantity === null || extra.stock_quantity === undefined
+                ? ''
+                : String(extra.stock_quantity));
+            return (
+              <div
+                key={extra.id}
+                className="grid grid-cols-1 md:grid-cols-[1fr_auto_auto] gap-3 items-center p-3 rounded-xl border border-neutral-200"
+              >
+                <div>
+                  <p className="font-medium text-neutral-900">{extra.name_no}</p>
+                  <p className="text-sm text-neutral-600">
+                    {extra.price_nok} {t.common.currency}/{extra.pricing_type === 'per_kg' ? t.common.kg : 'stk'} ·{' '}
+                    {extra.active ? (lang === 'no' ? 'Aktiv' : 'Active') : (lang === 'no' ? 'Inaktiv' : 'Inactive')}
+                  </p>
+                </div>
+                <Input
+                  type="number"
+                  min="0"
+                  className="w-36"
+                  placeholder={lang === 'no' ? 'Ubegrenset' : 'Unlimited'}
+                  value={stockDraft}
+                  onChange={(e) =>
+                    setExtraStockDrafts((prev) => ({ ...prev, [extra.id]: e.target.value }))
+                  }
+                />
+                <Button
+                  onClick={() => updateExtraStock(extra.id)}
+                  disabled={!hasChanged || savingExtraId === extra.id}
+                  variant="outline"
+                >
+                  {savingExtraId === extra.id ? copy.savingButton : copy.updateButton}
+                </Button>
+              </div>
+            );
+          })}
+          {extrasStock.length === 0 && (
+            <p className="text-sm text-neutral-500">
+              {lang === 'no' ? 'Ingen ekstraprodukter funnet' : 'No extras found'}
+            </p>
+          )}
+        </div>
+      </Card>
+
+      {eggSummary && (
+        <Card className="p-6">
+          <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
+            <Egg className="w-5 h-5" />
+            {lang === 'no' ? 'Rugeegg lageroversikt' : 'Hatching egg inventory overview'}
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="p-4 rounded-xl bg-neutral-50 border border-neutral-200">
+              <p className="text-sm text-neutral-600">{lang === 'no' ? 'Uker i salg' : 'Weeks on sale'}</p>
+              <p className="text-2xl font-semibold text-neutral-900">{eggSummary.upcoming_weeks}</p>
+            </div>
+            <div className="p-4 rounded-xl bg-neutral-50 border border-neutral-200">
+              <p className="text-sm text-neutral-600">{lang === 'no' ? 'Tilgjengelig' : 'Available'}</p>
+              <p className="text-2xl font-semibold text-neutral-900">{eggSummary.total_available}</p>
+            </div>
+            <div className="p-4 rounded-xl bg-neutral-50 border border-neutral-200">
+              <p className="text-sm text-neutral-600">{lang === 'no' ? 'Gjenstår' : 'Remaining'}</p>
+              <p className="text-2xl font-semibold text-neutral-900">{eggSummary.total_remaining}</p>
+            </div>
+          </div>
+        </Card>
+      )}
 
       <Card className="p-6">
         <h3 className="font-semibold text-lg mb-4">{copy.updateCapacityTitle}</h3>

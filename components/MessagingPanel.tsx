@@ -111,6 +111,15 @@ export function MessagingPanel({ className, variant = 'light' }: MessagingPanelP
     loadMessages();
   }, [loadMessages]);
 
+  useEffect(() => {
+    const handleMessageCreated = () => {
+      loadMessages();
+    };
+
+    window.addEventListener('tinglum_message_created', handleMessageCreated);
+    return () => window.removeEventListener('tinglum_message_created', handleMessageCreated);
+  }, [loadMessages]);
+
   async function handleReply(messageId: string) {
     const replyText = replyTexts[messageId];
     if (!replyText?.trim()) {

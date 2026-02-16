@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth/session';
 import { sendEmail } from '@/lib/email/client';
 import { supabaseAdmin } from '@/lib/supabase/server';
@@ -24,6 +24,26 @@ function isPhoneMatch(sessionPhone: string, orderPhone: string) {
   const sessionSuffix4 = sessionPhone.slice(-4);
   const orderSuffix4 = orderPhone.slice(-4);
   return sessionSuffix4.length === 4 && orderSuffix4.length === 4 && sessionSuffix4 === orderSuffix4;
+}
+
+async function getConfiguredContactEmail() {
+  const { data: appConfig } = await supabaseAdmin
+    .from('app_config')
+    .select('value')
+    .eq('key', 'contact_email')
+    .maybeSingle();
+
+  const appEmail = typeof appConfig?.value === 'string' ? appConfig.value.trim() : '';
+  if (appEmail) return appEmail;
+
+  const { data: legacyConfig } = await supabaseAdmin
+    .from('config')
+    .select('value')
+    .eq('key', 'contact_email')
+    .maybeSingle();
+
+  const legacyEmail = typeof legacyConfig?.value === 'string' ? legacyConfig.value.trim() : '';
+  return legacyEmail || 'post@tinglum.no';
 }
 
 export async function POST(request: NextRequest) {
@@ -73,9 +93,9 @@ export async function POST(request: NextRequest) {
       .from('customer_messages')
       .insert({
         order_id: matchedOrder?.id || null,
-        customer_phone: session.phoneNumber,
+        customer_phone: (orderCandidates?.find((o: any) => o.id === matchedOrder?.id)?.customer_phone as string) || session.phoneNumber,
         customer_name: session.name || null,
-        customer_email: session.email || null,
+        customer_email: (orderCandidates?.find((o: any) => o.id === matchedOrder?.id)?.customer_email as string) || session.email || null,
         subject: `Henvendelse om ordre ${orderNumber}`,
         message: trimmedMessage,
         message_type: 'support',
@@ -89,6 +109,8 @@ export async function POST(request: NextRequest) {
       console.error('Failed to store customer message thread:', createMessageError);
       return NextResponse.json({ error: 'Failed to save message' }, { status: 500 });
     }
+
+    const contactEmail = await getConfiguredContactEmail();
 
     const emailHtml = `
       <!DOCTYPE html>
@@ -140,7 +162,7 @@ export async function POST(request: NextRequest) {
     `;
 
     await sendEmail({
-      to: 'post@tinglum.no',
+      to: contactEmail,
       subject: `Kundehenvendelse - Ordre ${orderNumber}`,
       html: emailHtml,
     });
@@ -203,3 +225,4 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+

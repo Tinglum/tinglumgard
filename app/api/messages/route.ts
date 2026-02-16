@@ -5,16 +5,66 @@ import { logError } from '@/lib/logger';
 import { sendEmail } from '@/lib/email/client';
 import { getCustomerMessageConfirmationTemplate } from '@/lib/email/templates';
 
+function normalizePhone(value?: string | null) {
+  return (value || '').replace(/\D/g, '');
+}
+
+function normalizeEmail(value?: string | null) {
+  return (value || '').trim().toLowerCase();
+}
+
+function isPhoneMatch(sessionPhone?: string | null, messagePhone?: string | null) {
+  const a = normalizePhone(sessionPhone);
+  const b = normalizePhone(messagePhone);
+  if (!a || !b) return false;
+  if (a === b) return true;
+
+  const a8 = a.slice(-8);
+  const b8 = b.slice(-8);
+  if (a8.length === 8 && b8.length === 8 && a8 === b8) return true;
+
+  const a4 = a.slice(-4);
+  const b4 = b.slice(-4);
+  return a4.length === 4 && b4.length === 4 && a4 === b4;
+}
+
+function isEmailMatch(sessionEmail?: string | null, messageEmail?: string | null) {
+  const a = normalizeEmail(sessionEmail);
+  const b = normalizeEmail(messageEmail);
+  return Boolean(a) && Boolean(b) && a === b;
+}
+
+function buildIdentityOrFilter(sessionPhone?: string | null, sessionEmail?: string | null) {
+  const parts: string[] = [];
+  const rawPhone = (sessionPhone || '').trim();
+  const normalizedPhone = normalizePhone(sessionPhone);
+  const normalizedEmail = normalizeEmail(sessionEmail);
+
+  if (rawPhone) {
+    parts.push(`customer_phone.eq.${rawPhone}`);
+  }
+  if (normalizedPhone.length >= 8) {
+    parts.push(`customer_phone.ilike.%${normalizedPhone.slice(-8)}`);
+  }
+  if (normalizedEmail) {
+    parts.push(`customer_email.ilike.${normalizedEmail}`);
+  }
+
+  return parts.join(',');
+}
+
 // GET /api/messages - Fetch customer's messages
 export async function GET(request: NextRequest) {
   const session = await getSession();
 
-  if (!session?.phoneNumber) {
+  if (!session?.phoneNumber && !session?.email) {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
   }
 
   try {
-    const { data: messages, error } = await supabaseAdmin
+    const identityFilter = buildIdentityOrFilter(session.phoneNumber, session.email as string | undefined);
+
+    let query = supabaseAdmin
       .from('customer_messages')
       .select(`
         *,
@@ -27,15 +77,27 @@ export async function GET(request: NextRequest) {
           created_at
         )
       `)
-      .eq('customer_phone', session.phoneNumber)
       .order('created_at', { ascending: false });
+
+    if (identityFilter) {
+      query = query.or(identityFilter);
+    }
+
+    const { data: messages, error } = await query;
 
     if (error) {
       logError('messages-get', error);
       return NextResponse.json({ error: 'Failed to fetch messages' }, { status: 500 });
     }
 
-    return NextResponse.json({ messages });
+    const ownMessages = (messages || []).filter((message: any) => {
+      return (
+        isPhoneMatch(session.phoneNumber, message.customer_phone) ||
+        isEmailMatch(session.email as string | undefined, message.customer_email)
+      );
+    });
+
+    return NextResponse.json({ messages: ownMessages });
   } catch (error) {
     logError('messages-get-main', error);
     return NextResponse.json({ error: 'Server error' }, { status: 500 });

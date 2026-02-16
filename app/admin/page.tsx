@@ -13,6 +13,7 @@ import {
   ShoppingCart,
   Users,
   BarChart3,
+  Egg,
   Package,
   Settings,
   Search,
@@ -41,9 +42,13 @@ import { RebateCodesManager } from '@/components/admin/RebateCodesManager';
 import { MangalitsaBoxManager } from '@/components/admin/MangalitsaBoxManager';
 import { MangalitsaExtrasManager } from '@/components/admin/MangalitsaExtrasManager';
 import { MangalitsaCutsManager } from '@/components/admin/MangalitsaCutsManager';
+import { EggOrdersWorkbench } from '@/components/admin/EggOrdersWorkbench';
+import { EggInventoryManagement } from '@/components/admin/EggInventoryManagement';
+import { BreedManagement } from '@/components/admin/BreedManagement';
+import { EggAnalytics } from '@/components/admin/EggAnalytics';
 import { RecipeManager } from '@/components/admin/RecipeManager';
 
-type TabType = 'dashboard' | 'orders' | 'mangalitsa' | 'inventory' | 'customers' | 'analytics' | 'rebates' | 'recipes' | 'settings';
+type TabType = 'dashboard' | 'orders' | 'mangalitsa' | 'eggs' | 'inventory' | 'customers' | 'analytics' | 'rebates' | 'recipes' | 'settings';
 
 interface Order {
   id: string;
@@ -103,6 +108,7 @@ export default function AdminPage() {
 
   // Sub-tab state
   const [mangalitsaSubTab, setMangalitsaSubTab] = useState<'boxes' | 'extras' | 'cuts'>('boxes');
+  const [eggsSubTab, setEggsSubTab] = useState<'orders' | 'inventory' | 'breeds' | 'analytics' | 'calendar' | 'messages'>('orders');
   const [customersSubTab, setCustomersSubTab] = useState<'database' | 'messages' | 'communication'>('database');
 
   // Data
@@ -517,6 +523,7 @@ export default function AdminPage() {
     { id: 'dashboard', label: copy.tabs.dashboard, icon: LayoutDashboard },
     { id: 'orders', label: copy.tabs.orders, icon: ShoppingCart },
     { id: 'mangalitsa', label: 'Mangalitsa', icon: Beef },
+    { id: 'eggs', label: copy.tabs.eggs || (lang === 'no' ? 'Rugeegg' : 'Eggs'), icon: Egg },
     { id: 'inventory', label: copy.tabs.inventory, icon: Warehouse },
     { id: 'customers', label: copy.tabs.customers, icon: Users },
     { id: 'analytics', label: copy.tabs.analytics, icon: BarChart3 },
@@ -591,7 +598,7 @@ export default function AdminPage() {
       <div className="bg-white border-b border-neutral-200 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.08)]">
         <div className="max-w-[1800px] mx-auto px-6 py-6">
           <div className="flex items-center justify-between">
-            <h1 className="text-3xl font-light tracking-tight text-neutral-900">Tinglumgard Admin - Mangalitsa</h1>
+            <h1 className="text-3xl font-light tracking-tight text-neutral-900">Tinglumgård Admin</h1>
             <button
               onClick={async () => {
                 await fetch('/api/admin/logout', { method: 'POST' });
@@ -1003,6 +1010,113 @@ export default function AdminPage() {
         )}
 
         {/* ═══════════ INVENTORY TAB ═══════════ */}
+        {activeTab === 'eggs' && (
+          <div className="space-y-6">
+            <div className="flex items-center gap-3 mb-2">
+              <Egg className="w-7 h-7 text-neutral-700" />
+              <h2 className="text-3xl font-light tracking-tight text-neutral-900">
+                {copy.tabs.eggs || (lang === 'no' ? 'Rugeegg' : 'Eggs')}
+              </h2>
+            </div>
+
+            <div className="border-b border-neutral-200">
+              <div className="flex gap-1 overflow-x-auto">
+                <button
+                  onClick={() => setEggsSubTab('orders')}
+                  className={cn(
+                    'px-5 py-3 text-sm font-light transition-all relative whitespace-nowrap',
+                    eggsSubTab === 'orders'
+                      ? 'text-neutral-900'
+                      : 'text-neutral-500 hover:text-neutral-900'
+                  )}
+                >
+                  {lang === 'no' ? 'Bestillinger' : 'Orders'}
+                  {eggsSubTab === 'orders' && (
+                    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-neutral-900" />
+                  )}
+                </button>
+                <button
+                  onClick={() => setEggsSubTab('inventory')}
+                  className={cn(
+                    'px-5 py-3 text-sm font-light transition-all relative whitespace-nowrap',
+                    eggsSubTab === 'inventory'
+                      ? 'text-neutral-900'
+                      : 'text-neutral-500 hover:text-neutral-900'
+                  )}
+                >
+                  {lang === 'no' ? 'Lager' : 'Inventory'}
+                  {eggsSubTab === 'inventory' && (
+                    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-neutral-900" />
+                  )}
+                </button>
+                <button
+                  onClick={() => setEggsSubTab('breeds')}
+                  className={cn(
+                    'px-5 py-3 text-sm font-light transition-all relative whitespace-nowrap',
+                    eggsSubTab === 'breeds'
+                      ? 'text-neutral-900'
+                      : 'text-neutral-500 hover:text-neutral-900'
+                  )}
+                >
+                  {lang === 'no' ? 'Raser' : 'Breeds'}
+                  {eggsSubTab === 'breeds' && (
+                    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-neutral-900" />
+                  )}
+                </button>
+                <button
+                  onClick={() => setEggsSubTab('calendar')}
+                  className={cn(
+                    'px-5 py-3 text-sm font-light transition-all relative whitespace-nowrap',
+                    eggsSubTab === 'calendar'
+                      ? 'text-neutral-900'
+                      : 'text-neutral-500 hover:text-neutral-900'
+                  )}
+                >
+                  {copy.tabs.production}
+                  {eggsSubTab === 'calendar' && (
+                    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-neutral-900" />
+                  )}
+                </button>
+                <button
+                  onClick={() => setEggsSubTab('messages')}
+                  className={cn(
+                    'px-5 py-3 text-sm font-light transition-all relative whitespace-nowrap',
+                    eggsSubTab === 'messages'
+                      ? 'text-neutral-900'
+                      : 'text-neutral-500 hover:text-neutral-900'
+                  )}
+                >
+                  {copy.tabs.messages}
+                  {eggsSubTab === 'messages' && (
+                    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-neutral-900" />
+                  )}
+                </button>
+                <button
+                  onClick={() => setEggsSubTab('analytics')}
+                  className={cn(
+                    'px-5 py-3 text-sm font-light transition-all relative whitespace-nowrap',
+                    eggsSubTab === 'analytics'
+                      ? 'text-neutral-900'
+                      : 'text-neutral-500 hover:text-neutral-900'
+                  )}
+                >
+                  {copy.tabs.analytics}
+                  {eggsSubTab === 'analytics' && (
+                    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-neutral-900" />
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {eggsSubTab === 'orders' && <EggOrdersWorkbench />}
+            {eggsSubTab === 'inventory' && <EggInventoryManagement />}
+            {eggsSubTab === 'breeds' && <BreedManagement />}
+            {eggsSubTab === 'calendar' && <DeliveryCalendar />}
+            {eggsSubTab === 'messages' && <AdminMessagingPanel />}
+            {eggsSubTab === 'analytics' && <EggAnalytics />}
+          </div>
+        )}
+
         {activeTab === 'inventory' && (
           <div className="space-y-8">
             <InventoryManagement />

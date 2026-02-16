@@ -3,6 +3,35 @@ import { getSession } from '@/lib/auth/session';
 import { supabaseAdmin } from '@/lib/supabase/server';
 import { logError } from '@/lib/logger';
 
+function normalizePhone(value?: string | null) {
+  return (value || '').replace(/\D/g, '');
+}
+
+function normalizeEmail(value?: string | null) {
+  return (value || '').trim().toLowerCase();
+}
+
+function isPhoneMatch(sessionPhone?: string | null, messagePhone?: string | null) {
+  const a = normalizePhone(sessionPhone);
+  const b = normalizePhone(messagePhone);
+  if (!a || !b) return false;
+  if (a === b) return true;
+
+  const a8 = a.slice(-8);
+  const b8 = b.slice(-8);
+  if (a8.length === 8 && b8.length === 8 && a8 === b8) return true;
+
+  const a4 = a.slice(-4);
+  const b4 = b.slice(-4);
+  return a4.length === 4 && b4.length === 4 && a4 === b4;
+}
+
+function isEmailMatch(sessionEmail?: string | null, messageEmail?: string | null) {
+  const a = normalizeEmail(sessionEmail);
+  const b = normalizeEmail(messageEmail);
+  return Boolean(a) && Boolean(b) && a === b;
+}
+
 // POST /api/messages/[id]/reply - Customer replies to a message
 export async function POST(
   request: NextRequest,
@@ -10,7 +39,7 @@ export async function POST(
 ) {
   const session = await getSession();
 
-  if (!session?.phoneNumber) {
+  if (!session?.phoneNumber && !session?.email) {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
   }
 
@@ -24,7 +53,7 @@ export async function POST(
     // Verify the message belongs to this customer
     const { data: message, error: messageError } = await supabaseAdmin
       .from('customer_messages')
-      .select('id, customer_phone')
+      .select('id, customer_phone, customer_email')
       .eq('id', params.id)
       .single();
 
@@ -33,7 +62,10 @@ export async function POST(
       return NextResponse.json({ error: 'Message not found' }, { status: 404 });
     }
 
-    if (message.customer_phone !== session.phoneNumber) {
+    if (
+      !isPhoneMatch(session.phoneNumber, message.customer_phone) &&
+      !isEmailMatch(session.email as string | undefined, message.customer_email)
+    ) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
     }
 
@@ -42,7 +74,7 @@ export async function POST(
       .from('message_replies')
       .insert({
         message_id: params.id,
-        admin_name: session.name || session.phoneNumber,
+        admin_name: session.name || session.phoneNumber || session.email || 'Kunde',
         reply_text: reply_text.trim(),
         is_from_customer: true,
         is_internal: false,

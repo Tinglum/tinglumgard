@@ -32,11 +32,13 @@ export function OrderModificationModal({ order, isOpen, onClose, onSave }: Order
   const [availableExtras, setAvailableExtras] = useState<any[]>([]);
   const [extrasLoading, setExtrasLoading] = useState(true);
   const [selectedQuantities, setSelectedQuantities] = useState<Record<string, number>>({});
+  const [saveError, setSaveError] = useState<string | null>(null);
   useEffect(() => {
     if (isOpen) {
       setRibbeChoice(order.ribbe_choice);
       setDeliveryType(order.delivery_type);
       setFreshDelivery(order.fresh_delivery);
+      setSaveError(null);
 
       if (order.extra_products) {
         const quantities: Record<string, number> = {};
@@ -120,6 +122,9 @@ export function OrderModificationModal({ order, isOpen, onClose, onSave }: Order
   const hasChanges = hasCoreChanges || hasExtrasChanges;
 
   function handleQuantityChange(slug: string, quantity: number) {
+    if (saveError) {
+      setSaveError(null);
+    }
     const normalizedQty = Number(quantity);
     setSelectedQuantities((prev) => {
       if (!Number.isFinite(normalizedQty) || normalizedQty <= 0) {
@@ -181,11 +186,7 @@ export function OrderModificationModal({ order, isOpen, onClose, onSave }: Order
       onClose();
     } catch (error: any) {
       console.error('Failed to save modifications:', error);
-      toast({
-        title: copy.saveErrorTitle,
-        description: error.message || copy.saveErrorDescription,
-        variant: 'destructive',
-      });
+      setSaveError(error?.message || copy.saveErrorDescription);
     } finally {
       setSaving(false);
     }
@@ -219,11 +220,7 @@ export function OrderModificationModal({ order, isOpen, onClose, onSave }: Order
             <div className="p-4 rounded-xl border border-gray-300 bg-gray-50">
               <p className="font-semibold text-gray-900">
                 {(lang === 'no' ? order.display_box_name_no : order.display_box_name_en) ||
-                  ((order.box_size || order.effective_box_size)
-                    ? (lang === 'no'
-                      ? `Boks ${order.box_size || order.effective_box_size} kg`
-                      : `Box ${order.box_size || order.effective_box_size} kg`)
-                    : '-')}
+                  (lang === 'no' ? 'Mangalitsa-boks' : 'Mangalitsa box')}
               </p>
               <p className="text-sm text-gray-600 mt-1">Mangalitsa-boksen er låst etter reservasjon.</p>
             </div>
@@ -382,6 +379,12 @@ export function OrderModificationModal({ order, isOpen, onClose, onSave }: Order
               {saving ? copy.saving : copy.saveChanges}
             </Button>
           </div>
+
+          {saveError && (
+            <div className="p-3 rounded-lg border border-red-200 bg-red-50 text-red-700 text-sm">
+              {saveError}
+            </div>
+          )}
 
           {!hasChanges && <p className="text-sm text-gray-600 text-center">{copy.noChanges}</p>}
         </div>

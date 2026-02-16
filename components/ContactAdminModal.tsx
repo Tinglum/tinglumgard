@@ -12,11 +12,22 @@ import { useLanguage } from '@/contexts/LanguageContext';
 interface ContactAdminModalProps {
   isOpen: boolean;
   onClose: () => void;
+  orderId?: string;
   orderNumber: string;
   orderDetails: string;
+  contactEmail?: string;
+  contactPhone?: string;
 }
 
-export function ContactAdminModal({ isOpen, onClose, orderNumber, orderDetails }: ContactAdminModalProps) {
+export function ContactAdminModal({
+  isOpen,
+  onClose,
+  orderId,
+  orderNumber,
+  orderDetails,
+  contactEmail,
+  contactPhone,
+}: ContactAdminModalProps) {
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
   const { toast } = useToast();
@@ -36,13 +47,14 @@ export function ContactAdminModal({ isOpen, onClose, orderNumber, orderDetails }
 
     setSending(true);
     try {
-      const response = await fetch('/api/orders/contact', {
+      const response = await fetch('/api/messages', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          orderNumber,
-          orderDetails,
+          subject: `Henvendelse om ordre ${orderNumber}`,
           message: message.trim(),
+          message_type: 'support',
+          order_id: orderId || null,
         }),
       });
 
@@ -51,6 +63,9 @@ export function ContactAdminModal({ isOpen, onClose, orderNumber, orderDetails }
           title: t.contact.messageSent,
           description: t.contact.responseTime,
         });
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new Event('tinglum_message_created'));
+        }
         setMessage('');
         onClose();
       } else {
@@ -97,11 +112,11 @@ export function ContactAdminModal({ isOpen, onClose, orderNumber, orderDetails }
           <div className="space-y-2">
             <div className="flex items-center gap-2 text-sm text-blue-800">
               <Mail className="w-4 h-4" />
-              <span>{t.contact.email}</span>
+              <span>{contactEmail || t.contact.email}</span>
             </div>
             <div className="flex items-center gap-2 text-sm text-blue-800">
               <Phone className="w-4 h-4" />
-              <span>{t.contact.phone}</span>
+              <span>{contactPhone || t.contact.phone}</span>
             </div>
           </div>
         </div>

@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
@@ -76,6 +76,12 @@ export default function CartPage() {
     startOrder(items)
     router.push('/rugeegg/bestill/levering')
   }
+
+  const isPureAyamCemaniOrder = items.length > 0 && items.every((item) => item.breed.slug === 'ayam-cemani')
+
+  const mixedOrderDescription = isPureAyamCemaniOrder
+    ? t.eggs.cart.ayamOrderDescription
+    : t.eggs.cart.mixedOrderDescription
 
   const getMinimumMessage = () => {
     if (checkoutStatus.allowed) return null
@@ -321,7 +327,7 @@ export default function CartPage() {
                   {t.eggs.cart.mixedOrderTitle}
                 </h2>
                 <p className="text-sm text-neutral-600">
-                  {t.eggs.cart.mixedOrderDescription}
+                  {mixedOrderDescription}
                 </p>
               </div>
               <button
@@ -386,4 +392,5 @@ export default function CartPage() {
     </div>
   )
 }
+
 

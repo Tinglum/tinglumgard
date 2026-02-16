@@ -83,7 +83,7 @@ export default function CustomerPortalPage() {
 
   const loadOrders = useCallback(async () => {
     try {
-      const response = await fetch('/api/orders');
+      const response = await fetch('/api/orders', { cache: 'no-store' });
       const data = await response.json();
       setOrders(data.orders || []);
     } catch (error) {

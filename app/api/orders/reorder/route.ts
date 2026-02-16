@@ -4,6 +4,47 @@ import { supabaseAdmin } from '@/lib/supabase/server';
 import { randomBytes } from 'crypto';
 import { getPricingConfig } from '@/lib/config/pricing';
 
+function isMissingColumnError(error: any, columnName: string) {
+  const message = String(error?.message || '').toLowerCase();
+  const details = String(error?.details || '').toLowerCase();
+  const hint = String(error?.hint || '').toLowerCase();
+  const needle = columnName.toLowerCase();
+  return (
+    message.includes(needle) ||
+    details.includes(needle) ||
+    hint.includes(needle)
+  );
+}
+
+async function insertOrderExtrasWithFallback(rows: Array<Record<string, unknown>>) {
+  if (!rows.length) return null;
+
+  let payload = rows;
+  const removableColumns = ['unit_price', 'unit_type', 'quantity', 'total_price', 'price_nok'];
+  const removed = new Set<string>();
+
+  while (true) {
+    const { error } = await supabaseAdmin.from('order_extras').insert(payload);
+    if (!error) return null;
+
+    let removedAny = false;
+    for (const column of removableColumns) {
+      if (removed.has(column)) continue;
+      if (!isMissingColumnError(error, column)) continue;
+
+      payload = payload.map((row) => {
+        const next = { ...row };
+        delete next[column];
+        return next;
+      });
+      removed.add(column);
+      removedAny = true;
+    }
+
+    if (!removedAny) return error;
+  }
+}
+
 export async function POST(request: NextRequest) {
   const session = await getSession();
 
@@ -90,15 +131,26 @@ export async function POST(request: NextRequest) {
 
     // Copy extras if any
     if (originalOrder.order_extras && originalOrder.order_extras.length > 0) {
-      const extrasToInsert = originalOrder.order_extras.map((extra: any) => ({
+      const extrasToInsertBase = originalOrder.order_extras.map((extra: any) => ({
         order_id: newOrder.id,
         extra_id: extra.extra_id,
+        price_nok: extra.price_nok ?? extra.unit_price ?? 0,
+        unit_type: extra.unit_type ?? 'unit',
         quantity: extra.quantity,
-        unit_price: extra.unit_price,
         total_price: extra.total_price,
       }));
 
-      await supabaseAdmin.from('order_extras').insert(extrasToInsert);
+      const extrasToInsertWithUnitPrice = extrasToInsertBase.map((extra: any) => ({
+        ...extra,
+        unit_price: extra.price_nok,
+      }));
+
+      const insertError = await insertOrderExtrasWithFallback(
+        extrasToInsertWithUnitPrice as Array<Record<string, unknown>>
+      );
+      if (insertError) {
+        throw insertError;
+      }
     }
 
     return NextResponse.json({

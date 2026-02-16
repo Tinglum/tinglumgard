@@ -115,6 +115,9 @@ export function ExtraProductsSelector({
           return (
             <div
               key={extra.slug}
+              role="button"
+              tabIndex={disabled ? -1 : 0}
+              aria-pressed={isSelected}
               className={cn(
                 'group relative p-6 rounded-2xl border-2 transition-all duration-300 cursor-pointer',
                 isSelected
@@ -125,6 +128,17 @@ export function ExtraProductsSelector({
               )}
               onClick={() => {
                 if (!disabled) {
+                  if (isSelected) {
+                    onQuantityChange(extra.slug, 0);
+                  } else {
+                    onQuantityChange(extra.slug, getDefaultQuantity(extra));
+                  }
+                }
+              }}
+              onKeyDown={(event) => {
+                if (disabled) return;
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault();
                   if (isSelected) {
                     onQuantityChange(extra.slug, 0);
                   } else {
@@ -145,12 +159,34 @@ export function ExtraProductsSelector({
               </div>
 
               <div className="pr-8">
-                <h4 className={cn(
-                  'text-lg font-bold mb-2',
-                  theme?.textPrimary ? theme.textPrimary : 'text-gray-900'
-                )}>
-                  {name}
-                </h4>
+                <div className="mb-2 flex items-start justify-between gap-2">
+                  <h4 className={cn(
+                    'text-lg font-bold',
+                    theme?.textPrimary ? theme.textPrimary : 'text-gray-900'
+                  )}>
+                    {name}
+                  </h4>
+                  <Button
+                    type="button"
+                    variant={isSelected ? 'default' : 'outline'}
+                    size="sm"
+                    disabled={disabled}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      if (isSelected) {
+                        onQuantityChange(extra.slug, 0);
+                      } else {
+                        onQuantityChange(extra.slug, getDefaultQuantity(extra));
+                      }
+                    }}
+                    className={cn(
+                      'h-8 px-3 shrink-0',
+                      isSelected ? 'bg-amber-600 hover:bg-amber-700 text-white' : ''
+                    )}
+                  >
+                    {isSelected ? t.common.remove : t.common.add}
+                  </Button>
+                </div>
 
                 {description && (
                   <p className={cn(

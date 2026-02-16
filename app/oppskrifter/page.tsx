@@ -77,7 +77,8 @@ export default function RecipesPage() {
         if (!res.ok) throw new Error('Failed to fetch recipes')
         const data = await res.json()
         if (!isActive) return
-        setRecipes(data.filter((r: Recipe) => r.active).sort((a: Recipe, b: Recipe) => a.display_order - b.display_order))
+        const list = data.recipes || data || []
+        setRecipes(list.filter((r: Recipe) => r.active).sort((a: Recipe, b: Recipe) => a.display_order - b.display_order))
       } catch (err) {
         if (!isActive) return
         console.error('Failed to load recipes', err)

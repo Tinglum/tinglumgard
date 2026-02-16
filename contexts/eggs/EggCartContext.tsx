@@ -31,18 +31,37 @@ export function CartProvider({ children }: { children: ReactNode }) {
     if (stored) {
       try {
         const parsed = JSON.parse(stored)
-        // Convert date strings back to Date objects
-        const cartItems = parsed.map((item: any) => ({
-          ...item,
-          week: {
-            ...item.week,
-            deliveryMonday: new Date(item.week.deliveryMonday),
-            orderCutoffDate: new Date(item.week.orderCutoffDate),
-          },
-        }))
+        if (!Array.isArray(parsed)) {
+          throw new Error('Invalid cart payload')
+        }
+
+        const cartItems = parsed.map((item: any) => {
+          const quantity = Number(item?.quantity)
+          if (!item?.breed || !item?.week || !Number.isFinite(quantity) || quantity <= 0) {
+            throw new Error('Invalid cart item')
+          }
+
+          const deliveryMonday = new Date(item.week.deliveryMonday)
+          const orderCutoffDate = new Date(item.week.orderCutoffDate)
+          if (Number.isNaN(deliveryMonday.getTime()) || Number.isNaN(orderCutoffDate.getTime())) {
+            throw new Error('Invalid cart dates')
+          }
+
+          return {
+            ...item,
+            quantity,
+            week: {
+              ...item.week,
+              deliveryMonday,
+              orderCutoffDate,
+            },
+          }
+        })
         setItems(cartItems)
       } catch (e) {
         console.error('Failed to load cart:', e)
+        localStorage.removeItem('tinglumgard_cart')
+        setItems([])
       }
     }
   }, [])

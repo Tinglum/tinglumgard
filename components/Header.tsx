@@ -81,12 +81,31 @@ export function Header() {
           setEggCartCount(0);
           return;
         }
-        const parsed = JSON.parse(stored) as Array<{ quantity?: number }>;
-        const total = Array.isArray(parsed)
-          ? parsed.reduce((sum, item) => sum + (item.quantity || 0), 0)
-          : 0;
+        const parsed = JSON.parse(stored);
+        if (!Array.isArray(parsed)) {
+          throw new Error('Invalid cart payload');
+        }
+
+        const total = parsed.reduce((sum, item) => {
+          const quantity = Number(item?.quantity);
+          const hasRequiredShape =
+            item &&
+            typeof item === 'object' &&
+            item.breed &&
+            item.week &&
+            item.week.deliveryMonday &&
+            item.week.orderCutoffDate;
+
+          if (!hasRequiredShape || !Number.isFinite(quantity) || quantity < 0) {
+            throw new Error('Invalid cart item');
+          }
+
+          return sum + quantity;
+        }, 0);
+
         setEggCartCount(total);
       } catch (error) {
+        localStorage.removeItem('tinglumgard_cart');
         setEggCartCount(0);
       }
     };
@@ -95,7 +114,7 @@ export function Header() {
     const handler = () => readCartCount();
     window.addEventListener('tinglum_cart_updated', handler);
     return () => window.removeEventListener('tinglum_cart_updated', handler);
-  }, [isEggRoute]);
+  }, [isEggRoute, pathname]);
 
   const handleVippsLogin = () => {
     const returnTo = isEggRoute ? '/rugeegg/mine-bestillinger' : '/min-side';
