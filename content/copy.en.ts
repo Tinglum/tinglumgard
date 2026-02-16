@@ -1477,8 +1477,11 @@
     myPage: "My page",
     step3Title: "The pigs are growing",
     step3Body: "The pigs live on the farm through {year} and are slaughtered locally in December.",
-    step4Title: "Remainder payment and delivery",
-    step4Body: "The remainder is paid at delivery in December {year}.",
+    step4Title: "Pay the remainder before week 46",
+    step4Body:
+      "Pay the remainder as soon as possible to secure your extra selections. Final deadline for remainder payment is week 46.",
+    step5Title: "Boxes are ready for pickup",
+    step5Body: "Boxes are ready for pickup in week 48. Fresh delivery is week 50/51.",
     myOrders: "See my orders",
   },
 

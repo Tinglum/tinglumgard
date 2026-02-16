@@ -343,7 +343,17 @@ export default function ConfirmationPage() {
               <div>
                 <p className="font-light text-neutral-900 mb-1">{copy.step4Title}</p>
                 <p className="text-sm font-light text-neutral-600 leading-relaxed">
-                  {copy.step4Body.replace("{year}", String(deliveryYear))}
+                  {copy.step4Body}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex gap-4 p-6 rounded-xl bg-neutral-50 border border-neutral-200">
+              <div className="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center font-light text-lg bg-neutral-900 text-white shadow-[0_10px_30px_-10px_rgba(0,0,0,0.3)]">5</div>
+              <div>
+                <p className="font-light text-neutral-900 mb-1">{copy.step5Title}</p>
+                <p className="text-sm font-light text-neutral-600 leading-relaxed">
+                  {copy.step5Body}
                 </p>
               </div>
             </div>

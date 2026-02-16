@@ -1480,8 +1480,11 @@
     myPage: "Min side",
     step3Title: "Grisene vokser opp",
     step3Body: "Grisene lever på gården gjennom {year} og blir slaktet lokalt i desember.",
-    step4Title: "Betaling av rest og levering",
-    step4Body: "Restbeløpet betales ved levering i desember {year}.",
+    step4Title: "Betaling av restbeløpet før uke 46",
+    step4Body:
+      "Betal restbeløpet så raskt du kan for å sikre deg ekstravalg. Siste frist for restbetaling er i uke 46.",
+    step5Title: "Kassene er klare for henting",
+    step5Body: "Kassene er klare for henting i uke 48. Ved fersk levering gjelder uke 50/51.",
     myOrders: "Se mine ordrer",
   },
 
