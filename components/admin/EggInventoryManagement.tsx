@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -110,10 +110,11 @@ export function EggInventoryManagement() {
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Inline editing
-  const [editingCell, setEditingCell] = useState<string | null>(null); // "itemId"
-  const [editValue, setEditValue] = useState('');
-  const [savingCell, setSavingCell] = useState<string | null>(null);
+  // Edit panel (appears below the table row)
+  const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
+  const [editCapacity, setEditCapacity] = useState('');
+  const [editStatus, setEditStatus] = useState('');
+  const [savingEdit, setSavingEdit] = useState(false);
 
   // Collapsed months
   const [collapsedMonths, setCollapsedMonths] = useState<Set<string>>(new Set());
@@ -202,55 +203,50 @@ export function EggInventoryManagement() {
     };
   }, [inventory, breeds]);
 
-  /* ── inline edit handlers ─────────────────────────────────────── */
+  /* ── edit panel handlers ─────────────────────────────────────── */
 
-  function startEdit(item: InventoryItem) {
-    setEditingCell(item.id);
-    setEditValue(String(item.eggs_available));
-  }
-
-  function cancelEdit() {
-    setEditingCell(null);
-    setEditValue('');
-  }
-
-  async function saveEdit(item: InventoryItem) {
-    const newVal = parseInt(editValue, 10);
-    if (isNaN(newVal) || newVal < 0) return;
-    if (newVal === item.eggs_available) {
-      cancelEdit();
+  function openEditPanel(item: InventoryItem) {
+    if (editingItem?.id === item.id) {
+      setEditingItem(null);
       return;
     }
-    setSavingCell(item.id);
+    setEditingItem(item);
+    setEditCapacity(String(item.eggs_available));
+    setEditStatus(item.status);
+  }
+
+  function closeEditPanel() {
+    setEditingItem(null);
+    setEditCapacity('');
+    setEditStatus('');
+  }
+
+  async function saveEditPanel() {
+    if (!editingItem) return;
+    const newCapacity = parseInt(editCapacity, 10);
+    if (isNaN(newCapacity) || newCapacity < 0) return;
+
+    const updates: any = {};
+    if (newCapacity !== editingItem.eggs_available) updates.eggs_available = newCapacity;
+    if (editStatus !== editingItem.status) updates.status = editStatus;
+    if (Object.keys(updates).length === 0) {
+      closeEditPanel();
+      return;
+    }
+
+    setSavingEdit(true);
     try {
-      const res = await fetch(`/api/admin/eggs/inventory/${item.id}`, {
+      const res = await fetch(`/api/admin/eggs/inventory/${editingItem.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ eggs_available: newVal }),
+        body: JSON.stringify(updates),
       });
       if (res.ok) await loadData();
     } catch (e) {
       console.error('Failed to save:', e);
     } finally {
-      setSavingCell(null);
-      setEditingCell(null);
-      setEditValue('');
-    }
-  }
-
-  /* ── status toggle ────────────────────────────────────────────── */
-
-  async function toggleStatus(item: InventoryItem) {
-    const next = item.status === 'open' ? 'closed' : 'open';
-    try {
-      await fetch(`/api/admin/eggs/inventory/${item.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: next }),
-      });
-      await loadData();
-    } catch (e) {
-      console.error('Failed to toggle:', e);
+      setSavingEdit(false);
+      closeEditPanel();
     }
   }
 
@@ -702,8 +698,8 @@ export function EggInventoryManagement() {
                           const isPast = new Date(row.delivery_monday) < new Date();
 
                           return (
+                          <React.Fragment key={weekKey}>
                             <tr
-                              key={weekKey}
                               className={cn(
                                 'border-b border-neutral-100 transition-colors',
                                 isSelected && 'bg-blue-50/50',
@@ -748,69 +744,28 @@ export function EggInventoryManagement() {
                                   );
                                 }
 
-                                const isEditing = editingCell === item.id;
-                                const isSaving = savingCell === item.id;
+                                const isActive = editingItem?.id === item.id;
 
                                 return (
                                   <td key={breed.id} className="text-center px-1 py-1.5">
-                                    {isEditing ? (
-                                      <div className="flex items-center justify-center gap-0.5 mx-auto w-[96px]">
-                                        <Input
-                                          type="number"
-                                          min="0"
-                                          value={editValue}
-                                          onChange={(e) => setEditValue(e.target.value)}
-                                          className="w-14 h-7 text-xs text-center p-0"
-                                          autoFocus
-                                          onKeyDown={(e) => {
-                                            if (e.key === 'Enter') saveEdit(item);
-                                            if (e.key === 'Escape') cancelEdit();
-                                          }}
-                                        />
-                                        <button
-                                          onClick={() => saveEdit(item)}
-                                          disabled={isSaving}
-                                          className="p-0.5 rounded hover:bg-green-100 text-green-600"
-                                        >
-                                          <Check className="w-3.5 h-3.5" />
-                                        </button>
-                                        <button
-                                          onClick={cancelEdit}
-                                          className="p-0.5 rounded hover:bg-red-100 text-red-500"
-                                        >
-                                          <X className="w-3.5 h-3.5" />
-                                        </button>
+                                    <button
+                                      onClick={() => !isPast && openEditPanel(item)}
+                                      disabled={isPast}
+                                      className={cn(
+                                        'mx-auto rounded-lg text-xs font-medium py-1.5 px-2 w-[72px] transition-all',
+                                        !isPast && 'hover:ring-2 hover:ring-neutral-300 cursor-pointer',
+                                        isPast && 'cursor-default',
+                                        isActive && 'ring-2 ring-blue-400',
+                                        cellColor(item)
+                                      )}
+                                    >
+                                      <div className="leading-tight">
+                                        <span>{item.eggs_allocated}/{item.eggs_available}</span>
                                       </div>
-                                    ) : (
-                                      <button
-                                        onClick={() => !isPast && startEdit(item)}
-                                        onContextMenu={(e) => {
-                                          e.preventDefault();
-                                          toggleStatus(item);
-                                        }}
-                                        disabled={isPast}
-                                        className={cn(
-                                          'mx-auto rounded-lg text-xs font-medium py-1.5 px-2 w-[72px] transition-all',
-                                          'hover:ring-2 hover:ring-neutral-300 cursor-pointer',
-                                          isPast && 'cursor-default hover:ring-0',
-                                          cellColor(item)
-                                        )}
-                                        title={
-                                          isPast
-                                            ? ''
-                                            : lang === 'no'
-                                            ? 'Klikk for å endre · Høyreklikk for status'
-                                            : 'Click to edit · Right-click for status'
-                                        }
-                                      >
-                                        <div className="leading-tight">
-                                          <span>{item.eggs_allocated}/{item.eggs_available}</span>
-                                        </div>
-                                        <div className="mt-0.5">
-                                          {statusBadge(item.status, copy)}
-                                        </div>
-                                      </button>
-                                    )}
+                                      <div className="mt-0.5">
+                                        {statusBadge(item.status, copy)}
+                                      </div>
+                                    </button>
                                   </td>
                                 );
                               })}
@@ -838,6 +793,73 @@ export function EggInventoryManagement() {
                                 </div>
                               </td>
                             </tr>
+                            {/* Edit panel row */}
+                            {editingItem && Object.values(row.items).some((i) => i.id === editingItem.id) && (
+                              <tr key={`edit-${weekKey}`} className="border-b border-blue-200 bg-blue-50/30">
+                                <td colSpan={3 + breeds.length + 1} className="px-4 py-3">
+                                  <div className="flex items-center gap-4 flex-wrap">
+                                    <div className="flex items-center gap-2">
+                                      <div
+                                        className="w-3 h-3 rounded-full"
+                                        style={{ backgroundColor: editingItem.egg_breeds.accent_color }}
+                                      />
+                                      <span className="text-sm font-semibold text-neutral-800">
+                                        {editingItem.egg_breeds.name}
+                                      </span>
+                                      <span className="text-xs text-neutral-500">
+                                        — {lang === 'no' ? 'Uke' : 'Week'} {editingItem.week_number}
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <Label className="text-xs text-neutral-600">
+                                        {lang === 'no' ? 'Kapasitet:' : 'Capacity:'}
+                                      </Label>
+                                      <Input
+                                        type="number"
+                                        min="0"
+                                        value={editCapacity}
+                                        onChange={(e) => setEditCapacity(e.target.value)}
+                                        className="w-20 h-8 text-sm"
+                                        onKeyDown={(e) => {
+                                          if (e.key === 'Enter') saveEditPanel();
+                                          if (e.key === 'Escape') closeEditPanel();
+                                        }}
+                                      />
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <Label className="text-xs text-neutral-600">
+                                        {copy.statusLabel}:
+                                      </Label>
+                                      <select
+                                        value={editStatus}
+                                        onChange={(e) => setEditStatus(e.target.value)}
+                                        className="border border-neutral-300 rounded-lg px-2 py-1.5 text-xs h-8"
+                                      >
+                                        <option value="open">{copy.statusValues.open}</option>
+                                        <option value="closed">{copy.statusValues.closed}</option>
+                                        <option value="locked">{copy.statusValues.locked}</option>
+                                        <option value="sold_out">{copy.statusValues.soldOut}</option>
+                                      </select>
+                                    </div>
+                                    <div className="flex items-center gap-1 text-xs text-neutral-500">
+                                      <span>{lang === 'no' ? 'Allokert:' : 'Allocated:'} {editingItem.eggs_allocated}</span>
+                                      <span>·</span>
+                                      <span>{lang === 'no' ? 'Gjenstår:' : 'Remaining:'} {editingItem.eggs_remaining}</span>
+                                    </div>
+                                    <div className="flex items-center gap-2 ml-auto">
+                                      <Button size="sm" variant="outline" onClick={closeEditPanel}>
+                                        {lang === 'no' ? 'Avbryt' : 'Cancel'}
+                                      </Button>
+                                      <Button size="sm" onClick={saveEditPanel} disabled={savingEdit}>
+                                        <Check className="w-3.5 h-3.5 mr-1" />
+                                        {savingEdit ? (lang === 'no' ? 'Lagrer...' : 'Saving...') : (lang === 'no' ? 'Lagre' : 'Save')}
+                                      </Button>
+                                    </div>
+                                  </div>
+                                </td>
+                              </tr>
+                            )}
+                          </React.Fragment>
                           );
                         })
                       : []),
@@ -868,7 +890,7 @@ export function EggInventoryManagement() {
           {lang === 'no' ? 'Stengt' : 'Closed'}
         </span>
         <span className="text-neutral-400">·</span>
-        <span>{lang === 'no' ? 'Klikk celle for å endre kapasitet · Høyreklikk for å endre status' : 'Click cell to edit capacity · Right-click to toggle status'}</span>
+        <span>{lang === 'no' ? 'Klikk en celle for å endre kapasitet og status' : 'Click a cell to edit capacity and status'}</span>
       </div>
     </div>
   );
