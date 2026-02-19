@@ -42,6 +42,9 @@ export default function ConfirmationPage() {
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>("pending");
   const [pollCount, setPollCount] = useState(0);
   const [config, setConfig] = useState<ConfigData | null>(null);
+  const [personalReferralCode, setPersonalReferralCode] = useState<string | null>(null);
+  const [referralCodeLoading, setReferralCodeLoading] = useState(false);
+  const [copiedReferralCode, setCopiedReferralCode] = useState(false);
   const [copiedShareLink, setCopiedShareLink] = useState(false);
 
   const copy = t.confirmationPage;
@@ -116,13 +119,15 @@ export default function ConfirmationPage() {
   const deliveryYear = config?.cutoff?.year || 2026;
   const referralGivePercentage = 20;
   const referralEarnPercentage = 10;
+  const shareBaseUrl = "https://tinglumgård.no/bestill";
   const shareUrl = useMemo(() => {
-    if (typeof window !== "undefined") {
-      return `${window.location.origin}/bestill`;
-    }
-    return "/bestill";
-  }, []);
-  const shareMessage = copy.shareMessage;
+    if (!personalReferralCode) return shareBaseUrl;
+    return `${shareBaseUrl}?code=${encodeURIComponent(personalReferralCode)}`;
+  }, [personalReferralCode]);
+  const shareMessage = useMemo(
+    () => copy.shareMessage.replace("{code}", personalReferralCode || ""),
+    [copy.shareMessage, personalReferralCode]
+  );
   const boxDisplay = useMemo(() => {
     if (!order) return '';
     const presetName =
@@ -144,6 +149,46 @@ export default function ConfirmationPage() {
         cancelled: copy.statusCancelled,
       }[order.status] || copy.statusUnknown
     : copy.statusUnknown;
+
+  useEffect(() => {
+    async function ensureReferralCode() {
+      if (!order?.id) return;
+      setReferralCodeLoading(true);
+
+      try {
+        const response = await fetch("/api/referrals", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "ensure_auto",
+            orderId: order.id,
+          }),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data?.code) {
+            setPersonalReferralCode(data.code);
+            return;
+          }
+        }
+
+        const fallbackResponse = await fetch("/api/referrals");
+        if (fallbackResponse.ok) {
+          const fallbackData = await fallbackResponse.json();
+          if (fallbackData?.code) {
+            setPersonalReferralCode(fallbackData.code);
+          }
+        }
+      } catch (error) {
+        console.error("Failed to ensure referral code", error);
+      } finally {
+        setReferralCodeLoading(false);
+      }
+    }
+
+    ensureReferralCode();
+  }, [order?.id]);
 
   if (loading) {
     return (
@@ -171,6 +216,18 @@ export default function ConfirmationPage() {
   }
 
   const depositAmount = order.deposit_amount;
+
+  async function handleCopyReferralCode() {
+    if (!personalReferralCode) return;
+
+    try {
+      await navigator.clipboard.writeText(personalReferralCode);
+      setCopiedReferralCode(true);
+      setTimeout(() => setCopiedReferralCode(false), 1800);
+    } catch (error) {
+      console.error("Failed to copy referral code", error);
+    }
+  }
 
   async function handleCopyShareLink() {
     try {
@@ -364,13 +421,41 @@ export default function ConfirmationPage() {
           <div className="flex items-center gap-3 mb-4">
             <Share2 className="w-5 h-5 text-neutral-600" />
             <h2 className="text-2xl font-light tracking-tight text-neutral-900">
-              {t.checkout.shareTitle}
+              {copy.shareTitle}
             </h2>
           </div>
           <p className="text-sm font-light text-neutral-600 mb-6 leading-relaxed">
-            {t.checkout.shareBody}
+            {copy.shareBody}
           </p>
 
+          <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-4 mb-4">
+            <p className="text-sm font-medium text-neutral-900 mb-2">{copy.shareHowTitle}</p>
+            <ul className="space-y-1 text-sm font-light text-neutral-700">
+              <li>{copy.shareHowStep1.replace("{give}", String(referralGivePercentage))}</li>
+              <li>{copy.shareHowStep2.replace("{earn}", String(referralEarnPercentage))}</li>
+              <li>{copy.shareHowStep3.replace("{myPage}", copy.myPage)}</li>
+            </ul>
+          </div>
+
+          <p className="text-xs uppercase tracking-wide text-neutral-500 mb-2">{copy.shareCodeLabel}</p>
+          <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-4 mb-4 flex items-center justify-between gap-3">
+            <p className="text-sm font-light text-neutral-700 truncate">
+              {referralCodeLoading
+                ? copy.shareCodeLoading
+                : personalReferralCode || copy.shareCodeUnavailable}
+            </p>
+            <button
+              type="button"
+              onClick={handleCopyReferralCode}
+              disabled={!personalReferralCode}
+              className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-neutral-900 text-white text-xs font-semibold uppercase tracking-wide disabled:bg-neutral-300 disabled:cursor-not-allowed"
+            >
+              <Copy className="w-3.5 h-3.5" />
+              {copiedReferralCode ? copy.shareCopied : copy.shareCopyCode}
+            </button>
+          </div>
+
+          <p className="text-xs uppercase tracking-wide text-neutral-500 mb-2">{copy.shareLinkLabel}</p>
           <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-4 mb-4 flex items-center justify-between gap-3">
             <p className="text-sm font-light text-neutral-700 truncate">{shareUrl}</p>
             <button
@@ -380,8 +465,8 @@ export default function ConfirmationPage() {
             >
               <Copy className="w-3.5 h-3.5" />
               {copiedShareLink
-                ? t.checkout.shareCopied
-                : t.checkout.shareCopy}
+                ? copy.shareCopied
+                : copy.shareCopy}
             </button>
           </div>
 

@@ -28,6 +28,88 @@ interface CheckoutRequest {
   rebateDiscount?: number;
 }
 
+function normalizeReferralCodeBase(name?: string | null, phone?: string | null) {
+  const cleanedName = (name || '')
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^A-Za-z0-9]/g, '')
+    .toUpperCase();
+
+  const namePart = cleanedName.slice(0, 4) || 'TG';
+  const phoneDigits = (phone || '').replace(/\D/g, '');
+  const phonePart = (phoneDigits.slice(-4) || '0000').padStart(4, '0');
+
+  return `${namePart}${phonePart}`;
+}
+
+async function ensureAutoReferralCode(options: {
+  ownerPhone?: string | null;
+  ownerName?: string | null;
+  ownerEmail?: string | null;
+  orderId?: string | null;
+}) {
+  const ownerPhone = (options.ownerPhone || '').trim();
+  if (!ownerPhone) return null;
+
+  const { data: existingCode, error: existingCodeError } = await supabaseAdmin
+    .from('referral_codes')
+    .select('code')
+    .eq('owner_phone', ownerPhone)
+    .eq('is_active', true)
+    .order('created_at', { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  if (existingCodeError) {
+    logError('checkout-referral-existing-code', existingCodeError);
+    return null;
+  }
+
+  if (existingCode?.code) {
+    return existingCode.code;
+  }
+
+  const base = normalizeReferralCodeBase(options.ownerName, ownerPhone);
+
+  for (let attempt = 0; attempt < 10; attempt++) {
+    const randomLen = attempt === 0 ? 0 : Math.min(4, attempt + 1);
+    const randomPart = randomLen
+      ? randomBytes(4).toString('hex').toUpperCase().slice(0, randomLen)
+      : '';
+    const candidate = `${base}${randomPart}`.slice(0, 20);
+
+    try {
+      const { data: createdCode, error: createError } = await supabaseAdmin
+        .from('referral_codes')
+        .insert({
+          code: candidate,
+          owner_phone: ownerPhone,
+          owner_name: options.ownerName || null,
+          owner_email: options.ownerEmail || null,
+          order_id: options.orderId || null,
+          max_uses: 5,
+          is_active: true,
+        })
+        .select('code')
+        .single();
+
+      if (createError) {
+        const errorCode = (createError as any)?.code;
+        if (errorCode === '23505') continue;
+        logError('checkout-referral-create-code', createError);
+        return null;
+      }
+
+      return createdCode?.code || null;
+    } catch (error) {
+      logError('checkout-referral-create-code-exception', error);
+      return null;
+    }
+  }
+
+  return null;
+}
+
 export async function POST(request: NextRequest) {
   // Allow anonymous orders - no authentication required
 
@@ -207,6 +289,15 @@ export async function POST(request: NextRequest) {
       throw new Error(`Failed to create order: ${orderError?.message || 'Unknown error'}`);
     }
 
+    // Ensure the customer always has a personal referral code after ordering.
+    // This powers direct sharing from the confirmation page.
+    const personalReferralCode = await ensureAutoReferralCode({
+      ownerPhone: customerPhone || null,
+      ownerName: customerName || null,
+      ownerEmail: customerEmail || null,
+      orderId: order.id,
+    });
+
     // Create referral tracking record if referral code was used
     if (referralCode && referredByPhone && customerPhone) {
       try {
@@ -294,6 +385,7 @@ export async function POST(request: NextRequest) {
       success: true,
       orderId: order.id,
       orderNumber: order.order_number,
+      referralCode: personalReferralCode,
     });
   } catch (error) {
     logError('checkout-main', error);

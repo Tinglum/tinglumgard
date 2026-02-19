@@ -1,6 +1,56 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth/session';
 import { supabaseAdmin } from '@/lib/supabase/server';
+import { randomBytes } from 'crypto';
+
+function buildReferralCodeBase(name?: string | null, phone?: string | null) {
+  const cleanedName = (name || '')
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^A-Za-z0-9]/g, '')
+    .toUpperCase();
+
+  const namePart = cleanedName.slice(0, 4) || 'TG';
+  const phoneDigits = (phone || '').replace(/\D/g, '');
+  const phonePart = (phoneDigits.slice(-4) || '0000').padStart(4, '0');
+  return `${namePart}${phonePart}`;
+}
+
+async function createAutoCode(params: {
+  ownerPhone: string;
+  ownerName?: string | null;
+  ownerEmail?: string | null;
+  orderId?: string | null;
+}) {
+  const base = buildReferralCodeBase(params.ownerName, params.ownerPhone);
+
+  for (let attempt = 0; attempt < 10; attempt++) {
+    const randomLen = attempt === 0 ? 0 : Math.min(4, attempt + 1);
+    const randomPart = randomLen
+      ? randomBytes(4).toString('hex').toUpperCase().slice(0, randomLen)
+      : '';
+    const candidate = `${base}${randomPart}`.slice(0, 20);
+
+    const { data, error } = await supabaseAdmin
+      .from('referral_codes')
+      .insert({
+        code: candidate,
+        owner_phone: params.ownerPhone,
+        owner_name: params.ownerName || null,
+        owner_email: params.ownerEmail || null,
+        order_id: params.orderId || null,
+        max_uses: 5,
+        is_active: true,
+      })
+      .select('code')
+      .single();
+
+    if (!error) return data?.code || null;
+    if ((error as any)?.code !== '23505') throw error;
+  }
+
+  return null;
+}
 
 // GET /api/referrals - Get user's referral code and stats
 export async function GET() {
@@ -81,6 +131,63 @@ export async function POST(request: NextRequest) {
 
   try {
     const { action, code, orderId } = await request.json();
+
+    // ACTION: Ensure user has an auto-generated referral code
+    if (action === 'ensure_auto') {
+      const ownerPhone = (session.phoneNumber || '').trim();
+      if (!ownerPhone) {
+        return NextResponse.json({ error: 'Phone number missing' }, { status: 400 });
+      }
+
+      const { data: existingCode, error: existingCodeError } = await supabaseAdmin
+        .from('referral_codes')
+        .select('code')
+        .eq('owner_phone', ownerPhone)
+        .eq('is_active', true)
+        .order('created_at', { ascending: true })
+        .limit(1)
+        .maybeSingle();
+
+      if (existingCodeError) throw existingCodeError;
+      if (existingCode?.code) {
+        return NextResponse.json({ success: true, code: existingCode.code, created: false });
+      }
+
+      let resolvedOrderId: string | null = null;
+      if (typeof orderId === 'string' && orderId.trim()) {
+        const { data: orderMatch } = await supabaseAdmin
+          .from('orders')
+          .select('id')
+          .eq('id', orderId)
+          .eq('customer_phone', ownerPhone)
+          .maybeSingle();
+        resolvedOrderId = orderMatch?.id || null;
+      }
+
+      if (!resolvedOrderId) {
+        const { data: firstOrder } = await supabaseAdmin
+          .from('orders')
+          .select('id')
+          .eq('customer_phone', ownerPhone)
+          .order('created_at', { ascending: true })
+          .limit(1)
+          .maybeSingle();
+        resolvedOrderId = firstOrder?.id || null;
+      }
+
+      const autoCode = await createAutoCode({
+        ownerPhone,
+        ownerName: session.name as string | null | undefined,
+        ownerEmail: session.email as string | null | undefined,
+        orderId: resolvedOrderId,
+      });
+
+      if (!autoCode) {
+        return NextResponse.json({ error: 'Could not create code' }, { status: 500 });
+      }
+
+      return NextResponse.json({ success: true, code: autoCode, created: true });
+    }
 
     // ACTION: Create a new referral code
     if (action === 'create') {
@@ -192,3 +299,4 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to manage referral code' }, { status: 500 });
   }
 }
+
