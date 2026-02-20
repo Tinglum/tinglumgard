@@ -9,6 +9,7 @@ import { OrderDetailsCard } from '@/components/OrderDetailsCard';
 import { ReferralDashboard } from '@/components/ReferralDashboard';
 import { MessagingPanel } from '@/components/MessagingPanel';
 import { GlassCard } from '@/components/eggs/GlassCard';
+import { ChickenOrderCard } from '@/components/ChickenOrderCard';
 
 interface Payment {
   id: string;
@@ -55,7 +56,9 @@ export default function CustomerPortalPage() {
   const [cutoffWeek, setCutoffWeek] = useState(46);
   const [cutoffYear, setCutoffYear] = useState(2026);
   const [canEdit, setCanEdit] = useState(false);
-  const [activeTab, setActiveTab] = useState<'orders' | 'referrals' | 'messages'>('orders');
+  const [activeTab, setActiveTab] = useState<'orders' | 'chickens' | 'referrals' | 'messages'>('orders');
+  const [chickenOrders, setChickenOrders] = useState<any[]>([]);
+  const [chickenOrdersLoading, setChickenOrdersLoading] = useState(false);
 
   async function handleVippsLogin() {
     window.location.href = '/api/auth/vipps/login?returnTo=/min-side';
@@ -196,6 +199,26 @@ export default function CustomerPortalPage() {
             {t.minSide.myOrders}
           </button>
           <button
+            onClick={() => {
+              setActiveTab('chickens');
+              if (chickenOrders.length === 0 && !chickenOrdersLoading) {
+                setChickenOrdersLoading(true);
+                fetch('/api/chickens/my-orders')
+                  .then(res => res.ok ? res.json() : [])
+                  .then(data => setChickenOrders(Array.isArray(data) ? data : []))
+                  .catch(() => {})
+                  .finally(() => setChickenOrdersLoading(false));
+              }
+            }}
+            className={`px-2 pb-3 text-sm font-normal transition-colors ${
+              activeTab === 'chickens'
+                ? 'text-neutral-900 border-b-2 border-neutral-900'
+                : 'text-neutral-500 hover:text-neutral-900'
+            }`}
+          >
+            Kyllinger
+          </button>
+          <button
             onClick={() => setActiveTab('referrals')}
             className={`px-2 pb-3 text-sm font-normal transition-colors ${
               activeTab === 'referrals'
@@ -252,6 +275,37 @@ export default function CustomerPortalPage() {
                     {t.minSide.newOrder}
                   </Link>
                 </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'chickens' && (
+          <div className="space-y-4">
+            {chickenOrdersLoading ? (
+              <div className="text-center py-8 text-neutral-500">Laster kyllingbestillinger...</div>
+            ) : chickenOrders.length === 0 ? (
+              <div className="rounded-xl border border-neutral-200 bg-white p-12 text-center">
+                <p className="text-neutral-500 mb-4">Ingen kyllingbestillinger enna</p>
+                <a href="/kyllinger" className="text-sm text-neutral-900 underline">Se tilgjengelige kyllinger</a>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {chickenOrders.map((order: any) => (
+                  <ChickenOrderCard
+                    key={order.id}
+                    order={order}
+                    onPayRemainder={async (orderId: string) => {
+                      try {
+                        const res = await fetch(`/api/chickens/orders/${orderId}/remainder`, { method: 'POST' });
+                        if (res.ok) {
+                          const data = await res.json();
+                          if (data.redirectUrl) window.location.href = data.redirectUrl;
+                        }
+                      } catch {}
+                    }}
+                  />
+                ))}
               </div>
             )}
           </div>

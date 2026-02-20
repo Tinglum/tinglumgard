@@ -3014,6 +3014,62 @@
     curingTime: 'Modningstid',
     orderExtra: 'Bestill',
   },
+
+  chickens: {
+    pageTitle: 'Livende kyllinger',
+    pageSubtitle: 'Rasekyllinger og honer fra Tinglum gard. Prisen oker ukentlig etter hvert som kyllingene vokser.',
+    breedsTitle: 'Vare raser',
+    calendarTitle: 'Tilgjengelighetskalender',
+    breedCards: {
+      priceFrom: 'Fra',
+      adultPrice: 'Voksen',
+      ageLabel: 'uker',
+      available: 'tilgjengelig',
+    },
+    calendar: {
+      title: 'Tilgjengelighet',
+      weekLabel: 'Uke',
+      age: 'uker',
+      soldOut: 'Utsolgt',
+    },
+    order: {
+      selectPickupWeek: 'Velg hentingsuke',
+      quantityHens: 'Antall honer',
+      quantityRoosters: 'Antall haner',
+      deliveryMethod: 'Leveringsmate',
+      farmPickup: 'Henting pa gard',
+      delivery: 'Levering Namsos/Trondheim',
+      subtotal: 'Delsum',
+      deliveryFee: 'Leveringsgebyr',
+      total: 'Totalt',
+      deposit: 'Forskudd (30%)',
+      remainder: 'Restbetaling',
+      placeOrder: 'Bestill med Vipps',
+    },
+    confirmation: {
+      title: 'Bestilling bekreftet!',
+      depositReceived: 'Forskuddet ditt er mottatt.',
+      paymentPending: 'Betalingen behandles.',
+      backToChickens: 'Tilbake til kyllinger',
+      myOrders: 'Mine bestillinger',
+    },
+    myOrders: {
+      tabLabel: 'Kyllinger',
+      noOrders: 'Ingen kyllingbestillinger enna',
+      addMore: 'Legg til kyllinger',
+      pickupWeek: 'Hentingsuke',
+      ageAtPickup: 'Alder ved henting',
+      payRemainder: 'Betal restbelop',
+    },
+    admin: {
+      tabLabel: 'Kyllinger',
+      subTabs: {
+        orders: 'Bestillinger',
+        hatches: 'Kull',
+        breeds: 'Raser',
+      },
+    },
+  },
 };
 
 

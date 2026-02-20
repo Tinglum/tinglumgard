@@ -173,6 +173,7 @@ export async function POST(request: NextRequest) {
       .maybeSingle();
 
     let isEggPayment = false;
+    let isChickenPayment = false;
     let resolvedPayment: any = payment;
 
     if (!resolvedPayment) {
@@ -204,6 +205,36 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // --- Chicken payments lookup ---
+    if (!resolvedPayment) {
+      let chickenPayment = null;
+      const { data: chickenPaymentBySession, error: chickenPaymentError } = await supabaseAdmin
+        .from("chicken_payments")
+        .select("*")
+        .eq("vipps_order_id", vippsId)
+        .maybeSingle();
+
+      if (chickenPaymentError) {
+        logError('vipps-webhook-chicken-payment-not-found', chickenPaymentError);
+      }
+
+      chickenPayment = chickenPaymentBySession;
+
+      if (!chickenPayment) {
+        const { data: chickenPaymentByRef } = await supabaseAdmin
+          .from("chicken_payments")
+          .select("*")
+          .eq("idempotency_key", vippsId)
+          .maybeSingle();
+        chickenPayment = chickenPaymentByRef;
+      }
+
+      if (chickenPayment) {
+        resolvedPayment = chickenPayment;
+        isChickenPayment = true;
+      }
+    }
+
     if (!resolvedPayment) {
       logError('vipps-webhook-payment-not-found', paymentError);
       return NextResponse.json(
@@ -212,7 +243,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('Found payment:', resolvedPayment.id, 'type:', resolvedPayment.payment_type, 'egg:', isEggPayment);
+    console.log('Found payment:', resolvedPayment.id, 'type:', resolvedPayment.payment_type, 'egg:', isEggPayment, 'chicken:', isChickenPayment);
 
     const incomingCallbackToken = extractIncomingCallbackToken(request);
     const storedCallbackToken = (resolvedPayment.vipps_callback_token || '').trim();
@@ -257,9 +288,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Mark payment as completed with timestamp
+    const paymentTable = isChickenPayment ? "chicken_payments" : isEggPayment ? "egg_payments" : "payments";
     const { error: updErr } = await supabaseAdmin
-      .from(isEggPayment ? "egg_payments" : "payments")
-      .update({ 
+      .from(paymentTable)
+      .update({
         status: "completed",
         paid_at: new Date().toISOString()
       })
@@ -277,7 +309,15 @@ export async function POST(request: NextRequest) {
     let orderFetchErr: any = null;
     let eggBreedName: string | null = null;
 
-    if (isEggPayment) {
+    if (isChickenPayment) {
+      const result = await supabaseAdmin
+        .from("chicken_orders")
+        .select("*, chicken_breeds(*)")
+        .eq("id", resolvedPayment.chicken_order_id)
+        .single();
+      order = result.data;
+      orderFetchErr = result.error;
+    } else if (isEggPayment) {
       const result = await supabaseAdmin
         .from("egg_orders")
         .select("*")
@@ -311,10 +351,12 @@ export async function POST(request: NextRequest) {
     // If deposit completed, update order status and send confirmation email
     if (resolvedPayment.payment_type === "deposit") {
       console.log('Updating order status to deposit_paid');
+      const orderTable = isChickenPayment ? "chicken_orders" : isEggPayment ? "egg_orders" : "orders";
+      const orderIdField = isChickenPayment ? resolvedPayment.chicken_order_id : isEggPayment ? resolvedPayment.egg_order_id : resolvedPayment.order_id;
       const { error: orderErr } = await supabaseAdmin
-        .from(isEggPayment ? "egg_orders" : "orders")
+        .from(orderTable)
         .update({ status: "deposit_paid" })
-        .eq("id", isEggPayment ? resolvedPayment.egg_order_id : resolvedPayment.order_id);
+        .eq("id", orderIdField);
 
       if (orderErr) {
         logError('vipps-webhook-order-update-failed', orderErr);
@@ -538,10 +580,13 @@ export async function POST(request: NextRequest) {
     // If remainder completed, update order status and send confirmation email
     if (resolvedPayment.payment_type === "remainder") {
       console.log('Updating order status to paid');
+      const remainderOrderTable = isChickenPayment ? "chicken_orders" : isEggPayment ? "egg_orders" : "orders";
+      const remainderOrderId = isChickenPayment ? resolvedPayment.chicken_order_id : isEggPayment ? resolvedPayment.egg_order_id : resolvedPayment.order_id;
+      const remainderStatus = isChickenPayment ? "fully_paid" : isEggPayment ? "fully_paid" : "paid";
       const { error: orderErr } = await supabaseAdmin
-        .from(isEggPayment ? "egg_orders" : "orders")
-        .update({ status: isEggPayment ? "fully_paid" : "paid" })
-        .eq("id", isEggPayment ? resolvedPayment.egg_order_id : resolvedPayment.order_id);
+        .from(remainderOrderTable)
+        .update({ status: remainderStatus })
+        .eq("id", remainderOrderId);
 
       if (orderErr) {
         logError('vipps-webhook-order-update-failed', orderErr);

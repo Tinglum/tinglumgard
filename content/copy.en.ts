@@ -3012,6 +3012,62 @@
     curingTime: 'Curing time',
     orderExtra: 'Order',
   },
+
+  chickens: {
+    pageTitle: 'Live Chickens',
+    pageSubtitle: 'Heritage breed chicks and hens from Tinglum farm. Price increases weekly as chickens grow.',
+    breedsTitle: 'Our Breeds',
+    calendarTitle: 'Availability Calendar',
+    breedCards: {
+      priceFrom: 'From',
+      adultPrice: 'Adult',
+      ageLabel: 'weeks',
+      available: 'available',
+    },
+    calendar: {
+      title: 'Availability',
+      weekLabel: 'Week',
+      age: 'weeks',
+      soldOut: 'Sold out',
+    },
+    order: {
+      selectPickupWeek: 'Select pickup week',
+      quantityHens: 'Number of hens',
+      quantityRoosters: 'Number of roosters',
+      deliveryMethod: 'Delivery method',
+      farmPickup: 'Farm pickup',
+      delivery: 'Delivery Namsos/Trondheim',
+      subtotal: 'Subtotal',
+      deliveryFee: 'Delivery fee',
+      total: 'Total',
+      deposit: 'Deposit (30%)',
+      remainder: 'Remainder',
+      placeOrder: 'Order with Vipps',
+    },
+    confirmation: {
+      title: 'Order Confirmed!',
+      depositReceived: 'Your deposit has been received.',
+      paymentPending: 'Your payment is being processed.',
+      backToChickens: 'Back to chickens',
+      myOrders: 'My orders',
+    },
+    myOrders: {
+      tabLabel: 'Chickens',
+      noOrders: 'No chicken orders yet',
+      addMore: 'Add more chickens',
+      pickupWeek: 'Pickup week',
+      ageAtPickup: 'Age at pickup',
+      payRemainder: 'Pay remainder',
+    },
+    admin: {
+      tabLabel: 'Chickens',
+      subTabs: {
+        orders: 'Orders',
+        hatches: 'Hatches',
+        breeds: 'Breeds',
+      },
+    },
+  },
 };
 
 

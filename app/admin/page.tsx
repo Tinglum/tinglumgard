@@ -27,6 +27,7 @@ import {
   Tag,
   Beef,
   BookOpen,
+  Bird,
 } from 'lucide-react';
 import { DashboardMetrics } from '@/components/admin/DashboardMetrics';
 import { OrderDetailModal } from '@/components/admin/OrderDetailModal';
@@ -47,8 +48,11 @@ import { EggInventoryManagement } from '@/components/admin/EggInventoryManagemen
 import { BreedManagement } from '@/components/admin/BreedManagement';
 import { EggAnalytics } from '@/components/admin/EggAnalytics';
 import { RecipeManager } from '@/components/admin/RecipeManager';
+import { ChickenBreedManager } from '@/components/admin/ChickenBreedManager';
+import { ChickenHatchManager } from '@/components/admin/ChickenHatchManager';
+import { ChickenOrdersManager } from '@/components/admin/ChickenOrdersManager';
 
-type TabType = 'dashboard' | 'orders' | 'mangalitsa' | 'eggs' | 'inventory' | 'customers' | 'analytics' | 'rebates' | 'recipes' | 'settings';
+type TabType = 'dashboard' | 'orders' | 'mangalitsa' | 'eggs' | 'chickens' | 'inventory' | 'customers' | 'analytics' | 'rebates' | 'recipes' | 'settings';
 
 interface Order {
   id: string;
@@ -110,6 +114,7 @@ export default function AdminPage() {
   const [mangalitsaSubTab, setMangalitsaSubTab] = useState<'boxes' | 'extras' | 'cuts'>('boxes');
   const [eggsSubTab, setEggsSubTab] = useState<'orders' | 'inventory' | 'breeds' | 'analytics' | 'calendar' | 'messages'>('orders');
   const [customersSubTab, setCustomersSubTab] = useState<'database' | 'messages' | 'communication'>('database');
+  const [chickensSubTab, setChickensSubTab] = useState<'orders' | 'hatches' | 'breeds'>('orders');
 
   // Data
   const [orders, setOrders] = useState<Order[]>([]);
@@ -528,6 +533,7 @@ export default function AdminPage() {
     { id: 'customers', label: copy.tabs.customers, icon: Users },
     { id: 'analytics', label: copy.tabs.analytics, icon: BarChart3 },
     { id: 'rebates', label: copy.tabs.rebates, icon: Tag },
+    { id: 'chickens', label: 'Kyllinger', icon: Bird },
     { id: 'recipes', label: 'Oppskrifter', icon: BookOpen },
     { id: 'settings', label: copy.tabs.settings, icon: Settings },
   ];
@@ -1352,6 +1358,35 @@ export default function AdminPage() {
 
         {/* ═══════════ REBATES TAB ═══════════ */}
         {activeTab === 'rebates' && <RebateCodesManager />}
+
+        {/* ═══════════ CHICKENS TAB ═══════════ */}
+        {activeTab === 'chickens' && (
+          <div className="space-y-6">
+            <div className="flex gap-2 border-b pb-3">
+              {[
+                { id: 'orders' as const, label: 'Bestillinger' },
+                { id: 'hatches' as const, label: 'Kull' },
+                { id: 'breeds' as const, label: 'Raser' },
+              ].map((sub) => (
+                <button
+                  key={sub.id}
+                  onClick={() => setChickensSubTab(sub.id)}
+                  className={cn(
+                    'px-4 py-2 text-sm rounded-lg transition-colors',
+                    chickensSubTab === sub.id
+                      ? 'bg-neutral-900 text-white'
+                      : 'text-neutral-600 hover:bg-neutral-100'
+                  )}
+                >
+                  {sub.label}
+                </button>
+              ))}
+            </div>
+            {chickensSubTab === 'orders' && <ChickenOrdersManager />}
+            {chickensSubTab === 'hatches' && <ChickenHatchManager />}
+            {chickensSubTab === 'breeds' && <ChickenBreedManager />}
+          </div>
+        )}
 
         {/* ═══════════ RECIPES TAB ═══════════ */}
         {activeTab === 'recipes' && <RecipeManager />}
