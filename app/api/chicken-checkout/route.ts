@@ -73,6 +73,9 @@ export async function POST(request: NextRequest) {
     // Compute age at pickup week
     const pickupMonday = getMondayOfWeek(body.pickupYear, body.pickupWeek)
     const ageWeeksAtPickup = getAgeWeeks(hatch.hatch_date, pickupMonday)
+    if (ageWeeksAtPickup < 1) {
+      return NextResponse.json({ error: 'Chickens can only be reserved from 1 week of age' }, { status: 400 })
+    }
 
     // Compute price
     const pricePerHen = getHenPrice(

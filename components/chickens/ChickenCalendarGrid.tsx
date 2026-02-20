@@ -10,22 +10,38 @@ interface CalendarGridProps {
   selectedWeekKey?: string | null
 }
 
+function toBookableWeek(week: ChickenWeekAvailability): ChickenWeekAvailability {
+  const bookableBreeds = week.breeds
+    .map((breed) => {
+      const bookableHatches = breed.hatches.filter((hatch) => hatch.ageWeeks >= 1 && hatch.availableHens > 0)
+      if (bookableHatches.length === 0) return null
+
+      const prices = bookableHatches.map((hatch) => hatch.pricePerHen)
+      const totalAvailable = bookableHatches.reduce((sum, hatch) => sum + hatch.availableHens, 0)
+
+      return {
+        ...breed,
+        hatches: bookableHatches,
+        totalAvailable,
+        minPrice: Math.min(...prices),
+        maxPrice: Math.max(...prices),
+      }
+    })
+    .filter((breed): breed is ChickenWeekAvailability['breeds'][number] => Boolean(breed))
+
+  return { ...week, breeds: bookableBreeds }
+}
+
 export function ChickenCalendarGrid({ calendar, onSelectWeek, selectedWeekKey }: CalendarGridProps) {
   const { lang } = useLanguage()
+  const locale = lang === 'en' ? 'en-GB' : 'nb-NO'
 
-  // Get all unique breed IDs across calendar
-  const allBreeds = new Map<string, { name: string; slug: string; accentColor: string }>()
-  for (const week of calendar) {
-    for (const breed of week.breeds) {
-      if (!allBreeds.has(breed.breedId)) {
-        allBreeds.set(breed.breedId, { name: breed.breedName, slug: breed.breedSlug, accentColor: breed.accentColor })
-      }
-    }
-  }
+  const weeks = [...calendar]
+    .map(toBookableWeek)
+    .sort((a, b) => a.pickupMonday.localeCompare(b.pickupMonday))
 
-  const breedIds = Array.from(allBreeds.keys())
-
-  if (breedIds.length === 0) {
+  const hasBookableWeeks = weeks.some((week) => week.breeds.length > 0)
+  if (!hasBookableWeeks) {
     return (
       <div className="text-center py-12 text-neutral-500">
         {lang === 'en' ? 'No chickens available at this time.' : 'Ingen kyllinger tilgjengelig for oyeblikket.'}
@@ -33,81 +49,83 @@ export function ChickenCalendarGrid({ calendar, onSelectWeek, selectedWeekKey }:
     )
   }
 
+  const monthMap = new Map<string, { label: string; weeks: ChickenWeekAvailability[] }>()
+  for (const week of weeks) {
+    const date = new Date(`${week.pickupMonday}T12:00:00Z`)
+    const monthKey = `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`
+    const label = date.toLocaleDateString(locale, { month: 'long', year: 'numeric', timeZone: 'UTC' })
+    const month = monthMap.get(monthKey)
+    if (month) {
+      month.weeks.push(week)
+    } else {
+      monthMap.set(monthKey, { label, weeks: [week] })
+    }
+  }
+
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full border-collapse text-sm">
-        <thead>
-          <tr>
-            <th className="text-left p-3 bg-neutral-50 border border-neutral-200 font-medium text-neutral-600 min-w-[100px]">
-              {lang === 'en' ? 'Week' : 'Uke'}
-            </th>
-            {breedIds.map((breedId) => {
-              const breed = allBreeds.get(breedId)!
+    <div className="space-y-6">
+      {Array.from(monthMap.entries()).map(([monthKey, month]) => (
+        <div key={monthKey} className="rounded-xl border border-neutral-200 bg-white p-4">
+          <h3 className="text-base font-medium text-neutral-900">
+            {month.label}
+          </h3>
+          <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+            {month.weeks.map((week) => {
+              const weekKey = `${week.year}-${week.weekNumber}`
+              const isSelected = selectedWeekKey === weekKey
+              const totalAvailable = week.breeds.reduce((sum, breed) => sum + breed.totalAvailable, 0)
+              const allHatches = week.breeds.flatMap((breed) => breed.hatches)
+              const minAge = allHatches.length > 0 ? Math.min(...allHatches.map((hatch) => hatch.ageWeeks)) : 0
+              const maxAge = allHatches.length > 0 ? Math.max(...allHatches.map((hatch) => hatch.ageWeeks)) : 0
+              const ageText = minAge === maxAge ? `${minAge}u` : `${minAge}-${maxAge}u`
+
               return (
-                <th key={breedId} className="p-3 bg-neutral-50 border border-neutral-200 text-center min-w-[120px]">
-                  <div className="flex items-center justify-center gap-1">
-                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: breed.accentColor }} />
-                    <span className="font-medium text-neutral-700 text-xs">{breed.name}</span>
+                <button
+                  key={weekKey}
+                  type="button"
+                  onClick={() => onSelectWeek(week)}
+                  className={cn(
+                    'rounded-lg border p-4 text-left transition-colors',
+                    'border-neutral-200 hover:bg-neutral-50',
+                    isSelected && 'border-neutral-900 bg-neutral-100 ring-1 ring-neutral-900'
+                  )}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="text-lg font-medium text-neutral-900">
+                        {lang === 'en' ? 'Week' : 'Uke'} {week.weekNumber}
+                      </div>
+                      <div className="text-sm text-neutral-500">
+                        {new Date(`${week.pickupMonday}T12:00:00Z`).toLocaleDateString(locale, {
+                          day: '2-digit',
+                          month: '2-digit',
+                          year: 'numeric',
+                          timeZone: 'UTC',
+                        })}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-lg font-semibold text-neutral-900">{totalAvailable}</div>
+                      <div className="text-xs text-neutral-500">
+                        {lang === 'en' ? 'hens' : 'honer'}
+                      </div>
+                    </div>
                   </div>
-                </th>
+                  <div className="mt-3 flex items-center justify-between text-xs text-neutral-600">
+                    <span>
+                      {week.breeds.length} {lang === 'en' ? 'breeds' : 'raser'}
+                    </span>
+                    <span>
+                      {lang === 'en' ? 'Age' : 'Alder'} {ageText}
+                    </span>
+                  </div>
+                </button>
               )
             })}
-          </tr>
-        </thead>
-        <tbody>
-          {calendar.map((week) => (
-            <tr
-              key={`${week.year}-${week.weekNumber}`}
-              className={cn(
-                'cursor-pointer',
-                selectedWeekKey === `${week.year}-${week.weekNumber}` && 'bg-neutral-100/60'
-              )}
-              onClick={() => onSelectWeek(week)}
-            >
-              <td className="p-3 border border-neutral-200 bg-white">
-                <div className="font-medium text-neutral-900">{lang === 'en' ? 'Week' : 'Uke'} {week.weekNumber}</div>
-                <div className="text-xs text-neutral-500">{week.pickupMonday}</div>
-              </td>
-              {breedIds.map((breedId) => {
-                const breedData = week.breeds.find((b) => b.breedId === breedId)
-
-                if (!breedData || breedData.totalAvailable === 0) {
-                  return (
-                    <td key={breedId} className="p-3 border border-neutral-200 bg-neutral-50 text-center">
-                      <span className="text-xs text-neutral-400">{lang === 'en' ? 'Sold out' : 'Utsolgt'}</span>
-                    </td>
-                  )
-                }
-
-                const minAge = Math.min(...breedData.hatches.map((h) => h.ageWeeks))
-                const maxAge = Math.max(...breedData.hatches.map((h) => h.ageWeeks))
-                const ageText = minAge === maxAge ? `${minAge}u` : `${minAge}-${maxAge}u`
-
-                const bgColor = breedData.totalAvailable > 10 ? 'bg-green-50 hover:bg-green-100' :
-                  breedData.totalAvailable > 3 ? 'bg-amber-50 hover:bg-amber-100' : 'bg-red-50 hover:bg-red-100'
-
-                return (
-                  <td key={breedId}
-                    className={cn(
-                      'p-3 border border-neutral-200 text-center transition-colors',
-                      bgColor,
-                      selectedWeekKey === `${week.year}-${week.weekNumber}` && 'ring-2 ring-neutral-900 ring-inset bg-neutral-100'
-                    )}
-                  >
-                    <div className="font-medium text-neutral-900">{breedData.totalAvailable}</div>
-                    <div className="text-xs text-neutral-500">{ageText}</div>
-                    <div className="text-xs font-medium" style={{ color: allBreeds.get(breedId)?.accentColor }}>
-                      {breedData.minPrice === breedData.maxPrice
-                        ? `kr ${breedData.minPrice}`
-                        : `kr ${breedData.minPrice}-${breedData.maxPrice}`}
-                    </div>
-                  </td>
-                )
-              })}
-            </tr>
-          ))}
-        </tbody>
-      </table>
+          </div>
+        </div>
+      ))}
     </div>
   )
 }
+

@@ -95,7 +95,7 @@ export function buildAvailabilityCalendar(
 
       for (const hatch of breedHatches) {
         const ageWeeks = getAgeWeeks(hatch.hatch_date, pickupMonday)
-        if (ageWeeks < 0) continue // Not hatched yet at this pickup week
+        if (ageWeeks < 1) continue // Only bookable from 1 week of age
 
         const hatchBaseCount = Number(
           hatch.actual_hatched_count ??

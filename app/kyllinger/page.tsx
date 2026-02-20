@@ -48,9 +48,28 @@ export default function KyllingerPage() {
     setSelectedOption(null)
   }
 
+  const selectedWeekBookableBreeds = selectedWeek
+    ? selectedWeek.breeds
+      .map((breed) => {
+        const hatches = breed.hatches.filter((hatch) => hatch.ageWeeks >= 1 && hatch.availableHens > 0)
+        if (hatches.length === 0) {
+          return { ...breed, hatches: [], totalAvailable: 0 }
+        }
+        const prices = hatches.map((hatch) => hatch.pricePerHen)
+        return {
+          ...breed,
+          hatches,
+          totalAvailable: hatches.reduce((sum, hatch) => sum + hatch.availableHens, 0),
+          minPrice: Math.min(...prices),
+          maxPrice: Math.max(...prices),
+        }
+      })
+      .filter((breed) => breed.hatches.length > 0)
+    : []
+
   const selectedBreed = selectedOption ? breeds.find((b: any) => b.id === selectedOption.breedId) : null
-  const selectedWeekBreed = selectedOption && selectedWeek
-    ? selectedWeek.breeds.find((b) => b.breedId === selectedOption.breedId)
+  const selectedWeekBreed = selectedOption
+    ? selectedWeekBookableBreeds.find((b) => b.breedId === selectedOption.breedId)
     : null
   const selectedWeekKey = selectedWeek ? `${selectedWeek.year}-${selectedWeek.weekNumber}` : null
 
@@ -97,8 +116,8 @@ export default function KyllingerPage() {
               </h2>
               <p className="text-sm text-neutral-500 mb-6">
                 {lang === 'en'
-                  ? 'Select a week first. Then choose breed and age from available hatches in that week.'
-                  : 'Velg uke forst. Deretter velger du rase og alder fra tilgjengelige kull i den uken.'
+                  ? 'Choose a month/week first. Then choose breed and age from available hatches in that week.'
+                  : 'Velg maned og uke forst. Deretter velger du rase og alder fra tilgjengelige kull i den uken.'
                 }
               </p>
               <ChickenCalendarGrid
@@ -118,19 +137,19 @@ export default function KyllingerPage() {
                 </h2>
                 <p className="text-sm text-neutral-500 mb-6">
                   {lang === 'en'
-                    ? `Pickup week starts ${selectedWeek.pickupMonday}. You can choose from multiple hatches and ages.`
-                    : `Henteuken starter ${selectedWeek.pickupMonday}. Du kan velge mellom flere kull og aldre.`}
+                    ? `Pickup week starts ${selectedWeek.pickupMonday}. You can choose from multiple hatches and ages (minimum age: 1 week).`
+                    : `Henteuken starter ${selectedWeek.pickupMonday}. Du kan velge mellom flere kull og aldre (minimumsalder: 1 uke).`}
                 </p>
 
-                {selectedWeek.breeds.length === 0 ? (
+                {selectedWeekBookableBreeds.length === 0 ? (
                   <div className="rounded-xl border border-neutral-200 bg-white p-6 text-neutral-500 text-sm">
                     {lang === 'en'
-                      ? 'No chickens available in this week. Choose another week.'
-                      : 'Ingen kyllinger tilgjengelig i denne uken. Velg en annen uke.'}
+                      ? 'No bookable chickens in this week. Choose another week.'
+                      : 'Ingen bestillbare kyllinger i denne uken. Velg en annen uke.'}
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {selectedWeek.breeds.map((breed) => (
+                    {selectedWeekBookableBreeds.map((breed) => (
                       <div key={breed.breedId} className="rounded-xl border border-neutral-200 bg-white p-4">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
