@@ -142,18 +142,22 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS chicken_breeds_updated_at ON chicken_breeds;
 CREATE TRIGGER chicken_breeds_updated_at
   BEFORE UPDATE ON chicken_breeds
   FOR EACH ROW EXECUTE FUNCTION update_chicken_updated_at();
 
+DROP TRIGGER IF EXISTS chicken_hatches_updated_at ON chicken_hatches;
 CREATE TRIGGER chicken_hatches_updated_at
   BEFORE UPDATE ON chicken_hatches
   FOR EACH ROW EXECUTE FUNCTION update_chicken_updated_at();
 
+DROP TRIGGER IF EXISTS chicken_orders_updated_at ON chicken_orders;
 CREATE TRIGGER chicken_orders_updated_at
   BEFORE UPDATE ON chicken_orders
   FOR EACH ROW EXECUTE FUNCTION update_chicken_updated_at();
 
+DROP TRIGGER IF EXISTS chicken_payments_updated_at ON chicken_payments;
 CREATE TRIGGER chicken_payments_updated_at
   BEFORE UPDATE ON chicken_payments
   FOR EACH ROW EXECUTE FUNCTION update_chicken_updated_at();
@@ -166,27 +170,33 @@ ALTER TABLE chicken_order_additions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE chicken_payments ENABLE ROW LEVEL SECURITY;
 
 -- Public read for breeds
+DROP POLICY IF EXISTS "Anyone can read active chicken breeds" ON chicken_breeds;
 CREATE POLICY "Anyone can read active chicken breeds"
   ON chicken_breeds FOR SELECT
   USING (true);
 
 -- Service role full access on all tables
+DROP POLICY IF EXISTS "Service role full access chicken_breeds" ON chicken_breeds;
 CREATE POLICY "Service role full access chicken_breeds"
   ON chicken_breeds FOR ALL
   USING (auth.role() = 'service_role');
 
+DROP POLICY IF EXISTS "Service role full access chicken_hatches" ON chicken_hatches;
 CREATE POLICY "Service role full access chicken_hatches"
   ON chicken_hatches FOR ALL
   USING (auth.role() = 'service_role');
 
+DROP POLICY IF EXISTS "Service role full access chicken_orders" ON chicken_orders;
 CREATE POLICY "Service role full access chicken_orders"
   ON chicken_orders FOR ALL
   USING (auth.role() = 'service_role');
 
+DROP POLICY IF EXISTS "Service role full access chicken_order_additions" ON chicken_order_additions;
 CREATE POLICY "Service role full access chicken_order_additions"
   ON chicken_order_additions FOR ALL
   USING (auth.role() = 'service_role');
 
+DROP POLICY IF EXISTS "Service role full access chicken_payments" ON chicken_payments;
 CREATE POLICY "Service role full access chicken_payments"
   ON chicken_payments FOR ALL
   USING (auth.role() = 'service_role');
