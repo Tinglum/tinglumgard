@@ -17,6 +17,8 @@ interface SummaryProps {
   total: number
   deposit: number
   remainder: number
+  maxAvailableHens: number
+  remainingHens: number
 }
 
 export function ChickenOrderSummary(props: SummaryProps) {
@@ -42,11 +44,19 @@ export function ChickenOrderSummary(props: SummaryProps) {
           <span>{lang === 'en' ? 'Age at pickup' : 'Alder ved henting'}</span>
           <span>{props.ageWeeks} {lang === 'en' ? 'weeks' : 'uker'}</span>
         </div>
+        <div className="flex justify-between">
+          <span>{lang === 'en' ? 'Available now' : 'Tilgjengelig nå'}</span>
+          <span>{props.maxAvailableHens}</span>
+        </div>
+        <div className="flex justify-between">
+          <span>{lang === 'en' ? 'Remaining after selection' : 'Igjen etter valg'}</span>
+          <span>{props.remainingHens}</span>
+        </div>
       </div>
 
       <div className="border-t border-neutral-200 pt-3 text-sm space-y-1">
         <div className="flex justify-between">
-          <span>{props.quantityHens} {lang === 'en' ? 'hens' : 'h\u00F8ner'} x kr {props.pricePerHen}</span>
+          <span>{props.quantityHens} {lang === 'en' ? 'hens' : 'høner'} x kr {props.pricePerHen}</span>
           <span>kr {props.quantityHens * props.pricePerHen}</span>
         </div>
         {props.quantityRoosters > 0 && (
