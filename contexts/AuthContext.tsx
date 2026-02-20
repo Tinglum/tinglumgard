@@ -115,10 +115,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Check auth on mount
   useEffect(() => {
-    const navEntry = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined;
-    if (navEntry?.type === 'reload') {
-      logout('reload');
-      return;
+    // Only auto-logout on reload if the user was previously logged in
+    const hadSession = localStorage.getItem(LAST_ACTIVITY_KEY);
+    if (hadSession) {
+      const navEntry = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined;
+      if (navEntry?.type === 'reload') {
+        logout('reload');
+        return;
+      }
     }
     checkAuth();
   }, []);
