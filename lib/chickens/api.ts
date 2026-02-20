@@ -97,6 +97,13 @@ export function buildAvailabilityCalendar(
         const ageWeeks = getAgeWeeks(hatch.hatch_date, pickupMonday)
         if (ageWeeks < 0) continue // Not hatched yet at this pickup week
 
+        const hatchBaseCount = Number(
+          hatch.actual_hatched_count ??
+          hatch.expected_hatch_count ??
+          hatch.initial_count ??
+          0
+        )
+
         const pricePerHen = getHenPrice(
           ageWeeks,
           Number(breed.start_price_nok),
@@ -105,7 +112,7 @@ export function buildAvailabilityCalendar(
         )
 
         const estimatedSurvivors = getEstimatedSurvivors(
-          hatch.initial_count,
+          hatchBaseCount,
           ageWeeks,
           Number(breed.mortality_rate_early_pct),
           Number(breed.mortality_rate_late_pct)
