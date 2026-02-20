@@ -5,7 +5,7 @@ import { useSearchParams } from 'next/navigation'
 import { useLanguage } from '@/contexts/LanguageContext'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
-import { CheckCircle, Clock } from 'lucide-react'
+import { CheckCircle, Clock, RefreshCcw } from 'lucide-react'
 
 export default function ChickenConfirmationPage() {
   const { lang } = useLanguage()
@@ -13,40 +13,63 @@ export default function ChickenConfirmationPage() {
   const orderId = searchParams.get('orderId')
   const [order, setOrder] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [attempts, setAttempts] = useState(0)
 
   useEffect(() => {
     if (!orderId) { setLoading(false); return }
 
-    // Poll for order status (Vipps callback may take a moment)
-    let attempts = 0
-    const maxAttempts = 10
+    let cancelled = false
+    const maxAttempts = 30
 
     const checkOrder = async () => {
+      if (cancelled) return
       try {
-        const res = await fetch('/api/chickens/my-orders')
+        const res = await fetch(`/api/chickens/orders/${orderId}/status`, { cache: 'no-store' })
         if (res.ok) {
-          const orders = await res.json()
-          const found = orders.find((o: any) => o.id === orderId)
-          if (found) {
-            setOrder(found)
-            if (found.status !== 'pending' || attempts >= maxAttempts) {
-              setLoading(false)
-              return
-            }
+          const found = await res.json()
+          setOrder(found)
+
+          if (found.status !== 'pending') {
+            setLoading(false)
+            return
           }
         }
       } catch {}
 
-      attempts++
-      if (attempts < maxAttempts) {
-        setTimeout(checkOrder, 2000)
-      } else {
-        setLoading(false)
-      }
+      setAttempts((prev) => {
+        const next = prev + 1
+        if (next >= maxAttempts) {
+          setLoading(false)
+        } else {
+          setTimeout(checkOrder, 2000)
+        }
+        return next
+      })
     }
 
     checkOrder()
+
+    return () => {
+      cancelled = true
+    }
   }, [orderId])
+
+  const handleManualRefresh = async () => {
+    if (!orderId) return
+    setLoading(true)
+    try {
+      const res = await fetch(`/api/chickens/orders/${orderId}/status`, { cache: 'no-store' })
+      if (res.ok) {
+        const found = await res.json()
+        setOrder(found)
+      }
+    } catch {
+      // ignore
+    } finally {
+      // Never leave user on infinite spinner after manual refresh.
+      setLoading(false)
+    }
+  }
 
   if (!orderId) {
     return (
@@ -85,7 +108,7 @@ export default function ChickenConfirmationPage() {
                 <div className="bg-neutral-50 rounded-lg p-4 text-sm text-left space-y-2 mt-4">
                   <p><strong>{lang === 'en' ? 'Order' : 'Bestilling'}:</strong> {order.order_number}</p>
                   <p><strong>{lang === 'en' ? 'Breed' : 'Rase'}:</strong> {order.chicken_breeds?.name}</p>
-                  <p><strong>{lang === 'en' ? 'Hens' : 'Honer'}:</strong> {order.quantity_hens}</p>
+                  <p><strong>{lang === 'en' ? 'Hens' : 'Høner'}:</strong> {order.quantity_hens}</p>
                   {order.quantity_roosters > 0 && (
                     <p><strong>{lang === 'en' ? 'Roosters' : 'Haner'}:</strong> {order.quantity_roosters}</p>
                   )}
@@ -105,9 +128,18 @@ export default function ChickenConfirmationPage() {
               <p className="text-neutral-500">
                 {lang === 'en'
                   ? 'Your payment is being processed. You will receive an email when confirmed.'
-                  : 'Betalingen din behandles. Du far en e-post nar den er bekreftet.'
+                  : 'Betalingen din behandles. Du får en e-post når den er bekreftet.'
                 }
               </p>
+              <p className="text-xs text-neutral-400">
+                {lang === 'en'
+                  ? `Status checks: ${attempts}`
+                  : `Statussjekker: ${attempts}`}
+              </p>
+              <Button variant="outline" onClick={handleManualRefresh} className="inline-flex items-center gap-2">
+                <RefreshCcw className="h-4 w-4" />
+                {lang === 'en' ? 'Check again' : 'Sjekk igjen'}
+              </Button>
             </div>
           )}
 
