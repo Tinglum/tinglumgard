@@ -6,11 +6,11 @@ import type { ChickenWeekAvailability } from '@/lib/chickens/types'
 
 interface CalendarGridProps {
   calendar: ChickenWeekAvailability[]
-  onSelectCell: (weekNumber: number, year: number, breedId: string, hatchId: string, ageWeeks: number, pricePerHen: number) => void
-  selectedCell?: { weekNumber: number; year: number; breedId: string } | null
+  onSelectWeek: (week: ChickenWeekAvailability) => void
+  selectedWeekKey?: string | null
 }
 
-export function ChickenCalendarGrid({ calendar, onSelectCell, selectedCell }: CalendarGridProps) {
+export function ChickenCalendarGrid({ calendar, onSelectWeek, selectedWeekKey }: CalendarGridProps) {
   const { lang } = useLanguage()
 
   // Get all unique breed IDs across calendar
@@ -56,16 +56,20 @@ export function ChickenCalendarGrid({ calendar, onSelectCell, selectedCell }: Ca
         </thead>
         <tbody>
           {calendar.map((week) => (
-            <tr key={`${week.year}-${week.weekNumber}`}>
+            <tr
+              key={`${week.year}-${week.weekNumber}`}
+              className={cn(
+                'cursor-pointer',
+                selectedWeekKey === `${week.year}-${week.weekNumber}` && 'bg-neutral-100/60'
+              )}
+              onClick={() => onSelectWeek(week)}
+            >
               <td className="p-3 border border-neutral-200 bg-white">
                 <div className="font-medium text-neutral-900">{lang === 'en' ? 'Week' : 'Uke'} {week.weekNumber}</div>
                 <div className="text-xs text-neutral-500">{week.pickupMonday}</div>
               </td>
               {breedIds.map((breedId) => {
                 const breedData = week.breeds.find((b) => b.breedId === breedId)
-                const isSelected = selectedCell?.weekNumber === week.weekNumber &&
-                  selectedCell?.year === week.year &&
-                  selectedCell?.breedId === breedId
 
                 if (!breedData || breedData.totalAvailable === 0) {
                   return (
@@ -75,8 +79,9 @@ export function ChickenCalendarGrid({ calendar, onSelectCell, selectedCell }: Ca
                   )
                 }
 
-                const bestHatch = breedData.hatches.reduce((best, h) =>
-                  h.availableHens > (best?.availableHens || 0) ? h : best, breedData.hatches[0])
+                const minAge = Math.min(...breedData.hatches.map((h) => h.ageWeeks))
+                const maxAge = Math.max(...breedData.hatches.map((h) => h.ageWeeks))
+                const ageText = minAge === maxAge ? `${minAge}u` : `${minAge}-${maxAge}u`
 
                 const bgColor = breedData.totalAvailable > 10 ? 'bg-green-50 hover:bg-green-100' :
                   breedData.totalAvailable > 3 ? 'bg-amber-50 hover:bg-amber-100' : 'bg-red-50 hover:bg-red-100'
@@ -84,16 +89,17 @@ export function ChickenCalendarGrid({ calendar, onSelectCell, selectedCell }: Ca
                 return (
                   <td key={breedId}
                     className={cn(
-                      'p-3 border border-neutral-200 text-center cursor-pointer transition-colors',
+                      'p-3 border border-neutral-200 text-center transition-colors',
                       bgColor,
-                      isSelected && 'ring-2 ring-neutral-900 ring-inset bg-neutral-100'
+                      selectedWeekKey === `${week.year}-${week.weekNumber}` && 'ring-2 ring-neutral-900 ring-inset bg-neutral-100'
                     )}
-                    onClick={() => onSelectCell(week.weekNumber, week.year, breedId, bestHatch.hatchId, bestHatch.ageWeeks, bestHatch.pricePerHen)}
                   >
                     <div className="font-medium text-neutral-900">{breedData.totalAvailable}</div>
-                    <div className="text-xs text-neutral-500">{bestHatch.ageWeeks}u</div>
+                    <div className="text-xs text-neutral-500">{ageText}</div>
                     <div className="text-xs font-medium" style={{ color: allBreeds.get(breedId)?.accentColor }}>
-                      kr {bestHatch.pricePerHen}
+                      {breedData.minPrice === breedData.maxPrice
+                        ? `kr ${breedData.minPrice}`
+                        : `kr ${breedData.minPrice}-${breedData.maxPrice}`}
                     </div>
                   </td>
                 )

@@ -14,7 +14,8 @@ export default function KyllingerPage() {
   const [breeds, setBreeds] = useState<any[]>([])
   const [calendar, setCalendar] = useState<ChickenWeekAvailability[]>([])
   const [loading, setLoading] = useState(true)
-  const [selectedCell, setSelectedCell] = useState<{
+  const [selectedWeek, setSelectedWeek] = useState<ChickenWeekAvailability | null>(null)
+  const [selectedOption, setSelectedOption] = useState<{
     weekNumber: number
     year: number
     breedId: string
@@ -42,11 +43,16 @@ export default function KyllingerPage() {
     loadData()
   }, [])
 
-  const handleSelectCell = (weekNumber: number, year: number, breedId: string, hatchId: string, ageWeeks: number, pricePerHen: number) => {
-    setSelectedCell({ weekNumber, year, breedId, hatchId, ageWeeks, pricePerHen })
+  const handleSelectWeek = (week: ChickenWeekAvailability) => {
+    setSelectedWeek(week)
+    setSelectedOption(null)
   }
 
-  const selectedBreed = selectedCell ? breeds.find((b: any) => b.id === selectedCell.breedId) : null
+  const selectedBreed = selectedOption ? breeds.find((b: any) => b.id === selectedOption.breedId) : null
+  const selectedWeekBreed = selectedOption && selectedWeek
+    ? selectedWeek.breeds.find((b) => b.breedId === selectedOption.breedId)
+    : null
+  const selectedWeekKey = selectedWeek ? `${selectedWeek.year}-${selectedWeek.weekNumber}` : null
 
   return (
     <div className="min-h-screen bg-neutral-50">
@@ -91,35 +97,121 @@ export default function KyllingerPage() {
               </h2>
               <p className="text-sm text-neutral-500 mb-6">
                 {lang === 'en'
-                  ? 'Click a cell to select chickens for that breed and week. Numbers show available hens, age, and price.'
-                  : 'Klikk pa en celle for a velge kyllinger for den rasen og uken. Tallene viser tilgjengelige honer, alder og pris.'
+                  ? 'Select a week first. Then choose breed and age from available hatches in that week.'
+                  : 'Velg uke forst. Deretter velger du rase og alder fra tilgjengelige kull i den uken.'
                 }
               </p>
               <ChickenCalendarGrid
                 calendar={calendar}
-                onSelectCell={handleSelectCell}
-                selectedCell={selectedCell}
+                onSelectWeek={handleSelectWeek}
+                selectedWeekKey={selectedWeekKey}
               />
             </section>
 
+            {/* Week Options */}
+            {selectedWeek && (
+              <section id="week-options">
+                <h2 className="text-2xl font-light text-neutral-900 mb-2">
+                  {lang === 'en'
+                    ? `Choose chickens for week ${selectedWeek.weekNumber}`
+                    : `Velg kyllinger for uke ${selectedWeek.weekNumber}`}
+                </h2>
+                <p className="text-sm text-neutral-500 mb-6">
+                  {lang === 'en'
+                    ? `Pickup week starts ${selectedWeek.pickupMonday}. You can choose from multiple hatches and ages.`
+                    : `Henteuken starter ${selectedWeek.pickupMonday}. Du kan velge mellom flere kull og aldre.`}
+                </p>
+
+                {selectedWeek.breeds.length === 0 ? (
+                  <div className="rounded-xl border border-neutral-200 bg-white p-6 text-neutral-500 text-sm">
+                    {lang === 'en'
+                      ? 'No chickens available in this week. Choose another week.'
+                      : 'Ingen kyllinger tilgjengelig i denne uken. Velg en annen uke.'}
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {selectedWeek.breeds.map((breed) => (
+                      <div key={breed.breedId} className="rounded-xl border border-neutral-200 bg-white p-4">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: breed.accentColor }} />
+                            <h3 className="font-medium text-neutral-900">{breed.breedName}</h3>
+                          </div>
+                          <span className="text-xs text-neutral-500">
+                            {lang === 'en'
+                              ? `${breed.totalAvailable} hens available`
+                              : `${breed.totalAvailable} honer tilgjengelig`}
+                          </span>
+                        </div>
+
+                        <div className="mt-3 space-y-2">
+                          {[...breed.hatches].sort((a, b) => a.ageWeeks - b.ageWeeks).map((hatch) => {
+                            const isSelected =
+                              selectedOption?.weekNumber === selectedWeek.weekNumber &&
+                              selectedOption?.year === selectedWeek.year &&
+                              selectedOption?.breedId === breed.breedId &&
+                              selectedOption?.hatchId === hatch.hatchId
+
+                            return (
+                              <button
+                                key={hatch.hatchId}
+                                type="button"
+                                onClick={() => setSelectedOption({
+                                  weekNumber: selectedWeek.weekNumber,
+                                  year: selectedWeek.year,
+                                  breedId: breed.breedId,
+                                  hatchId: hatch.hatchId,
+                                  ageWeeks: hatch.ageWeeks,
+                                  pricePerHen: hatch.pricePerHen,
+                                })}
+                                className={`w-full rounded-lg border p-3 text-left transition-colors ${
+                                  isSelected
+                                    ? 'border-neutral-900 bg-neutral-100'
+                                    : 'border-neutral-200 hover:bg-neutral-50'
+                                }`}
+                              >
+                                <div className="flex items-center justify-between gap-2">
+                                  <div className="text-sm font-medium text-neutral-900">
+                                    {lang === 'en' ? 'Age' : 'Alder'}: {hatch.ageWeeks}u
+                                  </div>
+                                  <div className="text-sm font-medium text-neutral-900">
+                                    kr {hatch.pricePerHen}
+                                  </div>
+                                </div>
+                                <div className="mt-1 text-xs text-neutral-500">
+                                  {lang === 'en'
+                                    ? `Hatch ${hatch.hatchId.slice(0, 8)} | ${hatch.availableHens} hens available`
+                                    : `Kull ${hatch.hatchId.slice(0, 8)} | ${hatch.availableHens} honer tilgjengelig`}
+                                </div>
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </section>
+            )}
+
             {/* Order Form */}
-            {selectedCell && selectedBreed && (
+            {selectedOption && (selectedBreed || selectedWeekBreed) && (
               <section id="order-form">
                 <ChickenOrderForm
                   selection={{
-                    breedId: selectedCell.breedId,
-                    breedName: selectedBreed.name,
-                    breedSlug: selectedBreed.slug,
-                    accentColor: selectedBreed.accent_color,
-                    hatchId: selectedCell.hatchId,
-                    weekNumber: selectedCell.weekNumber,
-                    year: selectedCell.year,
-                    ageWeeks: selectedCell.ageWeeks,
-                    pricePerHen: selectedCell.pricePerHen,
-                    pricePerRooster: Number(selectedBreed.rooster_price_nok) || 250,
-                    sellRoosters: selectedBreed.sell_roosters,
+                    breedId: selectedOption.breedId,
+                    breedName: selectedBreed?.name || selectedWeekBreed?.breedName || '',
+                    breedSlug: selectedBreed?.slug || selectedWeekBreed?.breedSlug || '',
+                    accentColor: selectedBreed?.accent_color || selectedWeekBreed?.accentColor || '#6B7280',
+                    hatchId: selectedOption.hatchId,
+                    weekNumber: selectedOption.weekNumber,
+                    year: selectedOption.year,
+                    ageWeeks: selectedOption.ageWeeks,
+                    pricePerHen: selectedOption.pricePerHen,
+                    pricePerRooster: Number(selectedBreed?.rooster_price_nok) || 250,
+                    sellRoosters: Boolean(selectedBreed?.sell_roosters),
                   }}
-                  onClose={() => setSelectedCell(null)}
+                  onClose={() => setSelectedOption(null)}
                 />
               </section>
             )}
