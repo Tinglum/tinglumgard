@@ -8,6 +8,17 @@ import { ChickenOrderForm } from '@/components/chickens/ChickenOrderForm'
 import type { ChickenWeekAvailability } from '@/lib/chickens/types'
 import { trackChickenFunnel } from '@/lib/chickens/analytics'
 
+interface SelectedHatchOption {
+  id: string
+  weekNumber: number
+  year: number
+  breedId: string
+  hatchId: string
+  ageWeeks: number
+  pricePerHen: number
+  availableHens: number
+}
+
 export default function KyllingerPage() {
   const { lang, t } = useLanguage()
   const chickens = (t as any).chickens || {}
@@ -18,15 +29,7 @@ export default function KyllingerPage() {
   const [selectedWeek, setSelectedWeek] = useState<ChickenWeekAvailability | null>(null)
   const [activeBreedFilter, setActiveBreedFilter] = useState<string>('all')
   const [hatchSort, setHatchSort] = useState<'age' | 'price'>('age')
-  const [selectedOption, setSelectedOption] = useState<{
-    weekNumber: number
-    year: number
-    breedId: string
-    hatchId: string
-    ageWeeks: number
-    pricePerHen: number
-    availableHens: number
-  } | null>(null)
+  const [selectedOptions, setSelectedOptions] = useState<Record<string, SelectedHatchOption>>({})
 
   useEffect(() => {
     async function loadData() {
@@ -47,9 +50,17 @@ export default function KyllingerPage() {
     loadData()
   }, [])
 
+  const breedById = useMemo(() => {
+    const map = new Map<string, any>()
+    for (const breed of breeds) {
+      map.set(breed.id, breed)
+    }
+    return map
+  }, [breeds])
+
   const handleSelectWeek = (week: ChickenWeekAvailability) => {
     setSelectedWeek(week)
-    setSelectedOption(null)
+    setSelectedOptions({})
 
     const totalAvailable = week.breeds.reduce((sum, breed) => sum + breed.totalAvailable, 0)
     trackChickenFunnel('week_selected', {
@@ -102,28 +113,25 @@ export default function KyllingerPage() {
       }
       return selectedWeekBookableBreeds[0].breedId
     })
-  }, [selectedWeekKey])
+  }, [selectedWeekBookableBreeds, selectedWeekKey])
 
   const visibleBreeds = activeBreedFilter === 'all'
     ? selectedWeekBookableBreeds
     : selectedWeekBookableBreeds.filter((breed) => breed.breedId === activeBreedFilter)
 
-  const selectedBreed = selectedOption ? breeds.find((b: any) => b.id === selectedOption.breedId) : null
-  const selectedWeekBreed = selectedOption
-    ? selectedWeekBookableBreeds.find((b) => b.breedId === selectedOption.breedId)
-    : null
+  const selectedCount = Object.keys(selectedOptions).length
+  const activeStep = !selectedWeek ? 1 : selectedCount === 0 ? 2 : 3
 
-  const activeStep = !selectedWeek ? 1 : !selectedOption ? 2 : 3
   const stepCopy = lang === 'en'
     ? [
         { title: 'Choose week', desc: 'Select pickup week from monthly calendar' },
-        { title: 'Choose breed & age', desc: 'Pick hatch and age for that week' },
-        { title: 'Complete booking', desc: 'Set quantity and pay deposit with Vipps' },
+        { title: 'Select one or more hatches', desc: 'Mark breeds and ages you want in this week' },
+        { title: 'Complete booking', desc: 'Set quantity per selection and pay deposit with Vipps' },
       ]
     : [
-        { title: 'Velg uke', desc: 'Velg henteuke i månedskalenderen' },
-        { title: 'Velg rase og alder', desc: 'Velg kull og alder for valgt uke' },
-        { title: 'Fullfør bestilling', desc: 'Velg antall og betal forskudd med Vipps' },
+        { title: 'Velg uke', desc: 'Velg henteuke i m\u00E5nedskalenderen' },
+        { title: 'Velg ett eller flere kull', desc: 'Marker raser og alder du vil ha i denne uken' },
+        { title: 'Fullf\u00F8r bestilling', desc: 'Velg antall per valg og betal forskudd med Vipps' },
       ]
 
   const handleBreedFilterChange = (breedId: string) => {
@@ -142,32 +150,75 @@ export default function KyllingerPage() {
     })
   }
 
-  const handleSelectHatch = (
+  const handleToggleHatch = (
     week: ChickenWeekAvailability,
     breed: ChickenWeekAvailability['breeds'][number],
     hatch: ChickenWeekAvailability['breeds'][number]['hatches'][number]
   ) => {
-    setSelectedOption({
-      weekNumber: week.weekNumber,
-      year: week.year,
-      breedId: breed.breedId,
-      hatchId: hatch.hatchId,
-      ageWeeks: hatch.ageWeeks,
-      pricePerHen: hatch.pricePerHen,
-      availableHens: hatch.availableHens,
-    })
+    const id = `${breed.breedId}:${hatch.hatchId}`
 
-    trackChickenFunnel('hatch_selected', {
-      weekNumber: week.weekNumber,
-      year: week.year,
-      breedId: breed.breedId,
-      breedName: breed.breedName,
-      hatchId: hatch.hatchId,
-      ageWeeks: hatch.ageWeeks,
-      pricePerHen: hatch.pricePerHen,
-      availableHens: hatch.availableHens,
+    setSelectedOptions((prev) => {
+      const next = { ...prev }
+      const alreadySelected = Boolean(next[id])
+
+      if (alreadySelected) {
+        delete next[id]
+      } else {
+        next[id] = {
+          id,
+          weekNumber: week.weekNumber,
+          year: week.year,
+          breedId: breed.breedId,
+          hatchId: hatch.hatchId,
+          ageWeeks: hatch.ageWeeks,
+          pricePerHen: hatch.pricePerHen,
+          availableHens: hatch.availableHens,
+        }
+      }
+
+      trackChickenFunnel('hatch_selected', {
+        weekNumber: week.weekNumber,
+        year: week.year,
+        breedId: breed.breedId,
+        breedName: breed.breedName,
+        hatchId: hatch.hatchId,
+        ageWeeks: hatch.ageWeeks,
+        pricePerHen: hatch.pricePerHen,
+        availableHens: hatch.availableHens,
+        selected: !alreadySelected,
+      })
+
+      return next
     })
   }
+
+  const removeSelectedLine = (lineId: string) => {
+    setSelectedOptions((prev) => {
+      const next = { ...prev }
+      delete next[lineId]
+      return next
+    })
+  }
+
+  const selectedOrderLines = useMemo(() => {
+    return Object.values(selectedOptions).map((item) => {
+      const breed = breedById.get(item.breedId)
+      const weekBreed = selectedWeekBookableBreeds.find((b) => b.breedId === item.breedId)
+      return {
+        id: item.id,
+        breedId: item.breedId,
+        breedName: breed?.name || weekBreed?.breedName || '',
+        breedSlug: breed?.slug || weekBreed?.breedSlug || '',
+        accentColor: breed?.accent_color || weekBreed?.accentColor || '#6B7280',
+        hatchId: item.hatchId,
+        ageWeeks: item.ageWeeks,
+        pricePerHen: item.pricePerHen,
+        pricePerRooster: Number(breed?.rooster_price_nok) || 250,
+        sellRoosters: Boolean(breed?.sell_roosters),
+        maxAvailableHens: item.availableHens,
+      }
+    })
+  }, [breedById, selectedOptions, selectedWeekBookableBreeds])
 
   return (
     <div className="min-h-screen bg-stone-50">
@@ -179,7 +230,7 @@ export default function KyllingerPage() {
           <p className="text-lg text-neutral-300 max-w-2xl mx-auto">
             {chickens.pageSubtitle || (lang === 'en'
               ? 'Heritage breed chicks and hens from Tinglum farm. Price increases weekly as chickens grow.'
-              : 'Rasekyllinger og høner fra Tinglum gård. Prisen øker ukentlig etter hvert som kyllingene vokser.'
+              : 'Rasekyllinger og h\u00F8ner fra Tinglum g\u00E5rd. Prisen \u00F8ker ukentlig etter hvert som kyllingene vokser.'
             )}
           </p>
         </div>
@@ -256,7 +307,7 @@ export default function KyllingerPage() {
 
             <section>
               <h2 className="text-2xl font-light text-neutral-900 mb-4">
-                {chickens.breedsTitle || (lang === 'en' ? 'Our Breeds' : 'Våre raser')}
+                {chickens.breedsTitle || (lang === 'en' ? 'Our Breeds' : 'V\u00E5re raser')}
               </h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
                 {breeds.map((breed: any) => (
@@ -271,8 +322,8 @@ export default function KyllingerPage() {
               </h2>
               <p className="text-sm text-neutral-500 mb-4">
                 {lang === 'en'
-                  ? 'Choose month and week first. Then choose breed and age in that week.'
-                  : 'Velg måned og uke først. Deretter velger du rase og alder i den uken.'}
+                  ? 'Choose month and week first. Then mark one or more breeds/ages in that week.'
+                  : 'Velg m\u00E5ned og uke f\u00F8rst. Marker deretter en eller flere raser/aldre i den uken.'}
               </p>
 
               <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
@@ -317,8 +368,8 @@ export default function KyllingerPage() {
 
                 <p className="text-sm text-neutral-500 mb-4">
                   {lang === 'en'
-                    ? `Pickup starts ${selectedWeek.pickupMonday}. Multiple hatches and ages are shown for this week.`
-                    : `Henting starter ${selectedWeek.pickupMonday}. Flere kull og aldre vises for denne uken.`}
+                    ? `Pickup starts ${selectedWeek.pickupMonday}. You can mark multiple breeds/hatches and set quantity for each below.`
+                    : `Henting starter ${selectedWeek.pickupMonday}. Du kan markere flere raser/kull og velge antall for hver under.`}
                 </p>
 
                 {selectedWeekBookableBreeds.length === 0 ? (
@@ -329,7 +380,7 @@ export default function KyllingerPage() {
                   </div>
                 ) : (
                   <>
-                    <div className="mb-4 flex flex-wrap gap-2">
+                    <div className="mb-4 flex flex-wrap items-center gap-2">
                       <button
                         type="button"
                         onClick={() => handleBreedFilterChange('all')}
@@ -357,6 +408,16 @@ export default function KyllingerPage() {
                           {breed.breedName}
                         </button>
                       ))}
+
+                      {selectedCount > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setSelectedOptions({})}
+                          className="ml-auto rounded-full border border-red-200 bg-red-50 px-3 py-1.5 text-xs text-red-700"
+                        >
+                          {lang === 'en' ? `Clear selected (${selectedCount})` : `Fjern valgte (${selectedCount})`}
+                        </button>
+                      )}
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -370,23 +431,20 @@ export default function KyllingerPage() {
                             <span className="text-xs text-neutral-500">
                               {lang === 'en'
                                 ? `${breed.totalAvailable} hens available`
-                                : `${breed.totalAvailable} høner tilgjengelig`}
+                                : `${breed.totalAvailable} h\u00F8ner tilgjengelig`}
                             </span>
                           </div>
 
                           <div className="space-y-2">
                             {breed.hatches.map((hatch) => {
-                              const isSelected =
-                                selectedOption?.weekNumber === selectedWeek.weekNumber &&
-                                selectedOption?.year === selectedWeek.year &&
-                                selectedOption?.breedId === breed.breedId &&
-                                selectedOption?.hatchId === hatch.hatchId
+                              const lineId = `${breed.breedId}:${hatch.hatchId}`
+                              const isSelected = Boolean(selectedOptions[lineId])
 
                               return (
                                 <button
                                   key={hatch.hatchId}
                                   type="button"
-                                  onClick={() => handleSelectHatch(selectedWeek, breed, hatch)}
+                                  onClick={() => handleToggleHatch(selectedWeek, breed, hatch)}
                                   className={`w-full rounded-lg border px-3 py-2 text-left transition-colors ${
                                     isSelected
                                       ? 'border-neutral-900 bg-neutral-100'
@@ -402,9 +460,14 @@ export default function KyllingerPage() {
                                   <div className="mt-1 flex items-center justify-between gap-2 text-xs text-neutral-500">
                                     <span>{lang === 'en' ? 'Hatch' : 'Kull'} {hatch.hatchId.slice(0, 8)}</span>
                                     <span>
-                                      {hatch.availableHens} {lang === 'en' ? 'hens available' : 'høner tilgjengelig'}
+                                      {hatch.availableHens} {lang === 'en' ? 'hens available' : 'h\u00F8ner tilgjengelig'}
                                     </span>
                                   </div>
+                                  {isSelected && (
+                                    <div className="mt-1 text-xs font-medium text-neutral-700">
+                                      {lang === 'en' ? 'Selected' : 'Valgt'}
+                                    </div>
+                                  )}
                                 </button>
                               )
                             })}
@@ -417,24 +480,16 @@ export default function KyllingerPage() {
               </section>
             )}
 
-            {selectedOption && (selectedBreed || selectedWeekBreed) && (
+            {selectedWeek && selectedOrderLines.length > 0 && (
               <section id="order-form">
                 <ChickenOrderForm
                   selection={{
-                    breedId: selectedOption.breedId,
-                    breedName: selectedBreed?.name || selectedWeekBreed?.breedName || '',
-                    breedSlug: selectedBreed?.slug || selectedWeekBreed?.breedSlug || '',
-                    accentColor: selectedBreed?.accent_color || selectedWeekBreed?.accentColor || '#6B7280',
-                    hatchId: selectedOption.hatchId,
-                    weekNumber: selectedOption.weekNumber,
-                    year: selectedOption.year,
-                    ageWeeks: selectedOption.ageWeeks,
-                    pricePerHen: selectedOption.pricePerHen,
-                    pricePerRooster: Number(selectedBreed?.rooster_price_nok) || 250,
-                    sellRoosters: Boolean(selectedBreed?.sell_roosters),
-                    maxAvailableHens: selectedOption.availableHens,
+                    weekNumber: selectedWeek.weekNumber,
+                    year: selectedWeek.year,
+                    items: selectedOrderLines,
                   }}
-                  onClose={() => setSelectedOption(null)}
+                  onClose={() => setSelectedOptions({})}
+                  onRemoveLine={removeSelectedLine}
                 />
               </section>
             )}
@@ -444,4 +499,3 @@ export default function KyllingerPage() {
     </div>
   )
 }
-

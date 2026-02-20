@@ -2,38 +2,36 @@
 
 import { useLanguage } from '@/contexts/LanguageContext'
 
-interface SummaryProps {
+export interface ChickenSummaryLine {
+  id: string
   breedName: string
   accentColor: string
-  weekNumber: number
-  year: number
   ageWeeks: number
   quantityHens: number
   quantityRoosters: number
   pricePerHen: number
   pricePerRooster: number
+}
+
+interface SummaryProps {
+  weekNumber: number
+  year: number
+  lines: ChickenSummaryLine[]
   subtotal: number
   deliveryFee: number
   total: number
   deposit: number
   remainder: number
-  maxAvailableHens: number
-  remainingHens: number
 }
 
 export function ChickenOrderSummary(props: SummaryProps) {
   const { lang } = useLanguage()
 
   return (
-    <div className="bg-neutral-50 rounded-xl p-5 space-y-3">
+    <div className="bg-neutral-50 rounded-xl p-5 space-y-4">
       <h4 className="font-medium text-neutral-900">
         {lang === 'en' ? 'Order Summary' : 'Bestillingssammendrag'}
       </h4>
-
-      <div className="flex items-center gap-2">
-        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: props.accentColor }} />
-        <span className="font-medium">{props.breedName}</span>
-      </div>
 
       <div className="text-sm text-neutral-600 space-y-1">
         <div className="flex justify-between">
@@ -41,32 +39,51 @@ export function ChickenOrderSummary(props: SummaryProps) {
           <span>{lang === 'en' ? 'Week' : 'Uke'} {props.weekNumber}, {props.year}</span>
         </div>
         <div className="flex justify-between">
-          <span>{lang === 'en' ? 'Age at pickup' : 'Alder ved henting'}</span>
-          <span>{props.ageWeeks} {lang === 'en' ? 'weeks' : 'uker'}</span>
-        </div>
-        <div className="flex justify-between">
-          <span>{lang === 'en' ? 'Available now' : 'Tilgjengelig nå'}</span>
-          <span>{props.maxAvailableHens}</span>
-        </div>
-        <div className="flex justify-between">
-          <span>{lang === 'en' ? 'Remaining after selection' : 'Igjen etter valg'}</span>
-          <span>{props.remainingHens}</span>
+          <span>{lang === 'en' ? 'Selected lines' : 'Valgte linjer'}</span>
+          <span>{props.lines.length}</span>
         </div>
       </div>
 
-      <div className="border-t border-neutral-200 pt-3 text-sm space-y-1">
-        <div className="flex justify-between">
-          <span>{props.quantityHens} {lang === 'en' ? 'hens' : 'høner'} x kr {props.pricePerHen}</span>
-          <span>kr {props.quantityHens * props.pricePerHen}</span>
-        </div>
-        {props.quantityRoosters > 0 && (
-          <div className="flex justify-between">
-            <span>{props.quantityRoosters} {lang === 'en' ? 'roosters' : 'haner'} x kr {props.pricePerRooster}</span>
-            <span>kr {props.quantityRoosters * props.pricePerRooster}</span>
-          </div>
-        )}
+      <div className="border-t border-neutral-200 pt-3 text-sm space-y-3">
+        {props.lines.map((line) => {
+          const hensSubtotal = line.quantityHens * line.pricePerHen
+          const roostersSubtotal = line.quantityRoosters * line.pricePerRooster
+          const lineTotal = hensSubtotal + roostersSubtotal
+
+          return (
+            <div key={line.id} className="rounded-lg border border-neutral-200 bg-white p-3">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: line.accentColor }} />
+                  <span className="font-medium text-neutral-900">{line.breedName}</span>
+                </div>
+                <span className="text-xs text-neutral-500">
+                  {lang === 'en' ? 'Age' : 'Alder'}: {line.ageWeeks}u
+                </span>
+              </div>
+
+              <div className="mt-2 space-y-1 text-neutral-700">
+                <div className="flex justify-between">
+                  <span>{line.quantityHens} {lang === 'en' ? 'hens' : 'h\u00F8ner'} x kr {line.pricePerHen}</span>
+                  <span>kr {hensSubtotal}</span>
+                </div>
+                {line.quantityRoosters > 0 && (
+                  <div className="flex justify-between">
+                    <span>{line.quantityRoosters} {lang === 'en' ? 'roosters' : 'haner'} x kr {line.pricePerRooster}</span>
+                    <span>kr {roostersSubtotal}</span>
+                  </div>
+                )}
+                <div className="flex justify-between font-medium text-neutral-900 pt-1 border-t border-neutral-100">
+                  <span>{lang === 'en' ? 'Line total' : 'Linjesum'}</span>
+                  <span>kr {lineTotal}</span>
+                </div>
+              </div>
+            </div>
+          )
+        })}
+
         {props.deliveryFee > 0 && (
-          <div className="flex justify-between text-neutral-500">
+          <div className="flex justify-between text-neutral-600">
             <span>{lang === 'en' ? 'Delivery' : 'Levering'}</span>
             <span>kr {props.deliveryFee}</span>
           </div>
@@ -74,7 +91,11 @@ export function ChickenOrderSummary(props: SummaryProps) {
       </div>
 
       <div className="border-t border-neutral-200 pt-3">
-        <div className="flex justify-between font-medium text-lg">
+        <div className="flex justify-between text-sm text-neutral-600">
+          <span>{lang === 'en' ? 'Subtotal' : 'Delsum'}</span>
+          <span>kr {props.subtotal}</span>
+        </div>
+        <div className="mt-1 flex justify-between font-medium text-lg text-neutral-900">
           <span>{lang === 'en' ? 'Total' : 'Totalt'}</span>
           <span>kr {props.total}</span>
         </div>
