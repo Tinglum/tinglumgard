@@ -44,7 +44,7 @@ export function ChickenCalendarGrid({ calendar, onSelectWeek, selectedWeekKey }:
   if (!hasBookableWeeks) {
     return (
       <div className="text-center py-12 text-neutral-500">
-        {lang === 'en' ? 'No chickens available at this time.' : 'Ingen kyllinger tilgjengelig for oyeblikket.'}
+        {lang === 'en' ? 'No chickens available at this time.' : 'Ingen kyllinger tilgjengelig for \u00F8yeblikket.'}
       </div>
     )
   }
@@ -107,7 +107,7 @@ export function ChickenCalendarGrid({ calendar, onSelectWeek, selectedWeekKey }:
                     <div className="text-right">
                       <div className="text-lg font-semibold text-neutral-900">{totalAvailable}</div>
                       <div className="text-xs text-neutral-500">
-                        {lang === 'en' ? 'hens' : 'honer'}
+                        {lang === 'en' ? 'hens' : 'h\u00F8ner'}
                       </div>
                     </div>
                   </div>
@@ -128,4 +128,3 @@ export function ChickenCalendarGrid({ calendar, onSelectWeek, selectedWeekKey }:
     </div>
   )
 }
-

@@ -47,9 +47,9 @@ export function ChickenOrderForm({ selection, onClose }: OrderFormProps) {
 
   const handleSubmit = async () => {
     setError('')
-    if (quantityHens < 1) { setError(lang === 'en' ? 'Select at least 1 hen' : 'Velg minst 1 hone'); return }
-    if (!customerName.trim()) { setError(lang === 'en' ? 'Name is required' : 'Navn er pakrevd'); return }
-    if (!customerEmail.trim()) { setError(lang === 'en' ? 'Email is required' : 'E-post er pakrevd'); return }
+    if (quantityHens < 1) { setError(lang === 'en' ? 'Select at least 1 hen' : 'Velg minst 1 h\u00F8ne'); return }
+    if (!customerName.trim()) { setError(lang === 'en' ? 'Name is required' : 'Navn er p\u00E5krevd'); return }
+    if (!customerEmail.trim()) { setError(lang === 'en' ? 'Email is required' : 'E-post er p\u00E5krevd'); return }
 
     setSubmitting(true)
     try {
@@ -101,7 +101,7 @@ export function ChickenOrderForm({ selection, onClose }: OrderFormProps) {
     <div className="bg-white rounded-xl border border-neutral-200 p-6 animate-in slide-in-from-bottom-4">
       <div className="flex justify-between items-center mb-6">
         <h3 className="text-lg font-medium text-neutral-900">
-          {lang === 'en' ? 'Order' : 'Bestilling'} — {selection.breedName}
+          {lang === 'en' ? 'Order' : 'Bestilling'} - {selection.breedName}
         </h3>
         <button onClick={onClose} className="text-neutral-400 hover:text-neutral-600 text-xl">&times;</button>
       </div>
@@ -109,7 +109,7 @@ export function ChickenOrderForm({ selection, onClose }: OrderFormProps) {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="space-y-4">
           <div>
-            <Label>{lang === 'en' ? 'Number of hens' : 'Antall honer'}</Label>
+            <Label>{lang === 'en' ? 'Number of hens' : 'Antall h\u00F8ner'}</Label>
             <div className="flex items-center gap-3 mt-1">
               <Button variant="outline" size="sm" onClick={() => setQuantityHens(Math.max(1, quantityHens - 1))}>-</Button>
               <span className="text-lg font-medium w-8 text-center">{quantityHens}</span>
@@ -131,13 +131,13 @@ export function ChickenOrderForm({ selection, onClose }: OrderFormProps) {
           )}
 
           <div>
-            <Label>{lang === 'en' ? 'Delivery method' : 'Leveringsmate'}</Label>
+            <Label>{lang === 'en' ? 'Delivery method' : 'Leveringsm\u00E5te'}</Label>
             <div className="mt-2 space-y-2">
               <label className="flex items-center gap-3 p-3 rounded-lg border cursor-pointer hover:bg-neutral-50">
                 <input type="radio" name="delivery" checked={deliveryMethod === 'farm_pickup'}
                   onChange={() => setDeliveryMethod('farm_pickup')} />
                 <div>
-                  <div className="font-medium text-sm">{lang === 'en' ? 'Farm pickup' : 'Henting pa gard'}</div>
+                  <div className="font-medium text-sm">{lang === 'en' ? 'Farm pickup' : 'Henting p\u00E5 g\u00E5rd'}</div>
                   <div className="text-xs text-neutral-500">{lang === 'en' ? 'Free' : 'Gratis'}</div>
                 </div>
               </label>
@@ -204,7 +204,7 @@ export function ChickenOrderForm({ selection, onClose }: OrderFormProps) {
           <p className="text-xs text-neutral-500 text-center mt-2">
             {lang === 'en'
               ? `You pay a 30% deposit (kr ${deposit}) now. Remainder (kr ${remainder}) due before pickup.`
-              : `Du betaler 30% forskudd (kr ${deposit}) na. Rest (kr ${remainder}) betales for henting.`
+              : `Du betaler 30% forskudd (kr ${deposit}) n\u00E5. Rest (kr ${remainder}) betales f\u00F8r henting.`
             }
           </p>
         </div>
@@ -212,3 +212,4 @@ export function ChickenOrderForm({ selection, onClose }: OrderFormProps) {
     </div>
   )
 }
+

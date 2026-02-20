@@ -31,7 +31,7 @@ export function ChickenBreedCard({ breed }: ChickenBreedCardProps) {
       )}
       {!breed.image_url && (
         <div className="h-40 bg-gradient-to-br from-neutral-100 to-neutral-200 flex items-center justify-center">
-          <span className="text-4xl">🐔</span>
+          <span className="text-4xl">{'\uD83D\uDC14'}</span>
         </div>
       )}
       <div className="p-5">
@@ -44,7 +44,7 @@ export function ChickenBreedCard({ breed }: ChickenBreedCardProps) {
           <span className="text-sm text-neutral-500">
             {lang === 'en' ? 'From' : 'Fra'} <span className="font-semibold text-neutral-900">kr {breed.start_price_nok}</span>
           </span>
-          <span className="text-xs text-neutral-400">→</span>
+          <span className="text-xs text-neutral-400">{'->'}</span>
           <span className="text-sm text-neutral-500">
             {lang === 'en' ? 'Adult' : 'Voksen'} <span className="font-semibold text-neutral-900">kr {breed.adult_price_nok}</span>
           </span>
@@ -58,3 +58,4 @@ export function ChickenBreedCard({ breed }: ChickenBreedCardProps) {
     </div>
   )
 }
+

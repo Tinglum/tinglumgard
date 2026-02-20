@@ -79,12 +79,12 @@ export default function KyllingerPage() {
       <div className="bg-gradient-to-b from-neutral-900 to-neutral-800 text-white py-16">
         <div className="max-w-6xl mx-auto px-4 text-center">
           <h1 className="text-4xl md:text-5xl font-light mb-4">
-            {chickens.pageTitle || (lang === 'en' ? 'Live Chickens' : 'Livende kyllinger')}
+            {chickens.pageTitle || (lang === 'en' ? 'Live Chickens' : 'Levende kyllinger')}
           </h1>
           <p className="text-lg text-neutral-300 max-w-2xl mx-auto">
             {chickens.pageSubtitle || (lang === 'en'
               ? 'Heritage breed chicks and hens from Tinglum farm. Price increases weekly as chickens grow.'
-              : 'Rasekyllinger og honer fra Tinglum gard. Prisen oker ukentlig etter hvert som kyllingene vokser.'
+              : 'Rasekyllinger og h\u00F8ner fra Tinglum g\u00E5rd. Prisen \u00F8ker ukentlig etter hvert som kyllingene vokser.'
             )}
           </p>
         </div>
@@ -100,7 +100,7 @@ export default function KyllingerPage() {
             {/* Breed Cards */}
             <section>
               <h2 className="text-2xl font-light text-neutral-900 mb-6">
-                {chickens.breedsTitle || (lang === 'en' ? 'Our Breeds' : 'Vare raser')}
+                {chickens.breedsTitle || (lang === 'en' ? 'Our Breeds' : 'V\u00E5re raser')}
               </h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
                 {breeds.map((breed: any) => (
@@ -117,7 +117,7 @@ export default function KyllingerPage() {
               <p className="text-sm text-neutral-500 mb-6">
                 {lang === 'en'
                   ? 'Choose a month/week first. Then choose breed and age from available hatches in that week.'
-                  : 'Velg maned og uke forst. Deretter velger du rase og alder fra tilgjengelige kull i den uken.'
+                  : 'Velg m\u00E5ned og uke f\u00F8rst. Deretter velger du rase og alder fra tilgjengelige kull i den uken.'
                 }
               </p>
               <ChickenCalendarGrid
@@ -159,7 +159,7 @@ export default function KyllingerPage() {
                           <span className="text-xs text-neutral-500">
                             {lang === 'en'
                               ? `${breed.totalAvailable} hens available`
-                              : `${breed.totalAvailable} honer tilgjengelig`}
+                              : `${breed.totalAvailable} h\u00F8ner tilgjengelig`}
                           </span>
                         </div>
 
@@ -200,7 +200,7 @@ export default function KyllingerPage() {
                                 <div className="mt-1 text-xs text-neutral-500">
                                   {lang === 'en'
                                     ? `Hatch ${hatch.hatchId.slice(0, 8)} | ${hatch.availableHens} hens available`
-                                    : `Kull ${hatch.hatchId.slice(0, 8)} | ${hatch.availableHens} honer tilgjengelig`}
+                                    : `Kull ${hatch.hatchId.slice(0, 8)} | ${hatch.availableHens} h\u00F8ner tilgjengelig`}
                                 </div>
                               </button>
                             )

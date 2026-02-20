@@ -46,7 +46,7 @@ export function ChickenOrderSummary(props: SummaryProps) {
 
       <div className="border-t border-neutral-200 pt-3 text-sm space-y-1">
         <div className="flex justify-between">
-          <span>{props.quantityHens} {lang === 'en' ? 'hens' : 'honer'} x kr {props.pricePerHen}</span>
+          <span>{props.quantityHens} {lang === 'en' ? 'hens' : 'h\u00F8ner'} x kr {props.pricePerHen}</span>
           <span>kr {props.quantityHens * props.pricePerHen}</span>
         </div>
         {props.quantityRoosters > 0 && (
