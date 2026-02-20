@@ -1,12 +1,13 @@
 import { NextResponse } from 'next/server'
-import { supabaseServer } from '@/lib/supabase/server'
+import { supabaseAdmin } from '@/lib/supabase/server'
 import { buildAvailabilityCalendar } from '@/lib/chickens/api'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET() {
   try {
-    const { data: breeds, error: breedsError } = await supabaseServer
+    // Use service role here so public availability works even with strict RLS on chicken_hatches.
+    const { data: breeds, error: breedsError } = await supabaseAdmin
       .from('chicken_breeds')
       .select('*')
       .eq('active', true)
@@ -17,7 +18,7 @@ export async function GET() {
       return NextResponse.json({ error: breedsError.message }, { status: 500 })
     }
 
-    const { data: hatches, error: hatchesError } = await supabaseServer
+    const { data: hatches, error: hatchesError } = await supabaseAdmin
       .from('chicken_hatches')
       .select('*')
       .eq('active', true)
