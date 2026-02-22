@@ -30,19 +30,29 @@ export function StepTimeline({ steps, className }: StepTimelineProps) {
             <div
               key={step.key}
               className={cn(
-                'relative flex items-start gap-3 rounded-lg px-2 py-2 transition-colors',
+                'relative flex items-start gap-3 rounded-lg px-2 py-2 transition-colors md:flex-col md:items-center md:gap-2 md:text-center',
                 isCurrent && 'bg-amber-50 ring-1 ring-amber-200'
               )}
             >
               {index < steps.length - 1 && (
                 <>
-                  <div className={cn('absolute left-5 top-9 bottom-[-10px] border-l border-dashed md:hidden', connectorClass)} />
-                  <div className={cn('absolute left-12 right-[-8px] top-5 hidden border-t border-dashed md:block', connectorClass)} />
+                  <div
+                    className={cn(
+                      'absolute left-5 top-9 bottom-[-10px] z-0 border-l border-dashed md:hidden',
+                      connectorClass
+                    )}
+                  />
+                  <div
+                    className={cn(
+                      'absolute left-[calc(50%+18px)] right-[-18px] top-[16px] z-0 hidden border-t border-dashed md:block',
+                      connectorClass
+                    )}
+                  />
                 </>
               )}
               <div
                 className={cn(
-                  'mt-0.5 flex h-7 w-7 items-center justify-center rounded-full border text-xs',
+                  'relative z-10 mt-0.5 flex h-7 w-7 items-center justify-center rounded-full border text-xs',
                   isDone
                     ? 'border-emerald-500 bg-white text-emerald-600'
                     : isCurrent
@@ -52,7 +62,7 @@ export function StepTimeline({ steps, className }: StepTimelineProps) {
               >
                 {isDone ? <Check className="h-4 w-4" /> : index + 1}
               </div>
-              <div className="min-w-0">
+              <div className="relative z-10 min-w-0">
                 <p
                   className={cn(
                     'text-sm font-medium',

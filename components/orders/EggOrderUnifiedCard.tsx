@@ -252,7 +252,6 @@ export function EggOrderUnifiedCard({ order }: { order: EggOrder }) {
       </div>
 
       <div className="space-y-2">
-        <p className="text-xs uppercase tracking-[0.2em] text-neutral-500">{ordersCopy.timeline}</p>
         <StepTimeline steps={timelineSteps} />
       </div>
     </GlassCard>

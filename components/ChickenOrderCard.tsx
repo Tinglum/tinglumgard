@@ -193,7 +193,6 @@ export function ChickenOrderCard({ order, onPayRemainder }: ChickenOrderCardProp
       </div>
 
       <div className="mt-6 space-y-2">
-        <p className="text-xs uppercase tracking-[0.2em] text-neutral-500">{myOrdersCopy.timeline}</p>
         <StepTimeline steps={timelineSteps} />
       </div>
 

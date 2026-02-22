@@ -445,7 +445,6 @@ export function PigOrderUnifiedCard({ order, canEdit, onPayRemainder, onRefresh 
         </div>
 
         <div className="mt-6 space-y-2">
-          <p className="text-xs uppercase tracking-[0.2em] text-neutral-500">{copy.timelineLabel}</p>
           <StepTimeline steps={timelineSteps} />
         </div>
 
