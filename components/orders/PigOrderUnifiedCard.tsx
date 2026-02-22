@@ -16,7 +16,6 @@ import {
   AlertTriangle,
   ArrowRight,
   Calendar,
-  CheckCircle2,
   CreditCard,
   EllipsisVertical,
   Mail,
@@ -108,6 +107,7 @@ export function PigOrderUnifiedCard({ order, canEdit, onPayRemainder, onRefresh 
     0
   ) || 0
   const baseRemainder = Math.max(0, order.remainder_amount - extrasTotal)
+  const remainderTotal = Math.max(0, order.remainder_amount)
   const remainderDueDate = new Date('2026-11-16')
   const formattedDueDate = remainderDueDate.toLocaleDateString(locale, {
     day: 'numeric',
@@ -349,15 +349,21 @@ export function PigOrderUnifiedCard({ order, canEdit, onPayRemainder, onRefresh 
               <span className="text-neutral-500">{copy.boxRemainder}</span>
               <span className="font-normal text-neutral-900">{currency} {baseRemainder.toLocaleString(locale)}</span>
             </div>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-neutral-500">{copy.extraProducts}</span>
+              <span className="font-normal text-neutral-900">
+                {extrasTotal > 0 ? '+' : ''}{currency} {extrasTotal.toLocaleString(locale)}
+              </span>
+            </div>
             {needsRemainderPayment && (
               <div className="flex items-start gap-2 text-xs text-neutral-600">
                 <AlertTriangle className="w-4 h-4 text-amber-500" />
                 <span>{copy.dueDate}: {formattedDueDate}</span>
               </div>
             )}
-            <div className="flex items-center gap-2 text-xs text-neutral-500">
-              <CheckCircle2 className="w-4 h-4 text-neutral-900" />
-              <span>{copy.total}: {currency} {order.total_amount.toLocaleString(locale)}</span>
+            <div className="pt-2 mt-1 border-t border-neutral-200 flex items-center justify-between text-sm">
+              <span className="text-neutral-500">{copy.remainderTotal}</span>
+              <span className="font-normal text-neutral-900">{currency} {remainderTotal.toLocaleString(locale)}</span>
             </div>
           </div>
 
@@ -452,4 +458,3 @@ ${copy.contactDetailsTotalAmount}: ${currency} ${order.total_amount.toLocaleStri
     </>
   )
 }
-
