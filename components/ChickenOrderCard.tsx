@@ -3,6 +3,7 @@
 import { useLanguage } from '@/contexts/LanguageContext'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { AlertTriangle, CheckCircle2 } from 'lucide-react'
 
 interface ChickenOrderCardProps {
   order: {
@@ -26,105 +27,105 @@ interface ChickenOrderCardProps {
   onPayRemainder?: (orderId: string) => void
 }
 
-const STATUS_LABELS: Record<string, Record<string, string>> = {
-  no: {
-    pending: 'Venter',
-    deposit_paid: 'Forskudd betalt',
-    fully_paid: 'Fullt betalt',
-    ready_for_pickup: 'Klar for henting',
-    picked_up: 'Hentet',
-    cancelled: 'Kansellert',
-  },
-  en: {
-    pending: 'Pending',
-    deposit_paid: 'Deposit paid',
-    fully_paid: 'Fully paid',
-    ready_for_pickup: 'Ready for pickup',
-    picked_up: 'Picked up',
-    cancelled: 'Cancelled',
-  },
-}
-
-const STATUS_COLORS: Record<string, string> = {
-  pending: 'bg-yellow-100 text-yellow-800',
-  deposit_paid: 'bg-blue-100 text-blue-800',
-  fully_paid: 'bg-green-100 text-green-800',
-  ready_for_pickup: 'bg-purple-100 text-purple-800',
-  picked_up: 'bg-gray-100 text-gray-800',
-  cancelled: 'bg-red-100 text-red-700',
-}
-
 export function ChickenOrderCard({ order, onPayRemainder }: ChickenOrderCardProps) {
-  const { lang } = useLanguage()
-  const labels = STATUS_LABELS[lang] || STATUS_LABELS.no
+  const { lang, t } = useLanguage()
+  const myOrdersCopy = (t as any).chickens.myOrders
+  const common = t.common
+  const locale = lang === 'en' ? 'en-US' : 'nb-NO'
+
+  const statusMeta: Record<string, { label: string; className: string }> = {
+    pending: { label: myOrdersCopy.statusPending, className: 'bg-amber-50 text-amber-700' },
+    deposit_paid: { label: myOrdersCopy.statusDepositPaid, className: 'bg-blue-50 text-blue-700' },
+    fully_paid: { label: myOrdersCopy.statusFullyPaid, className: 'bg-emerald-50 text-emerald-700' },
+    ready_for_pickup: { label: myOrdersCopy.statusReadyForPickup, className: 'bg-indigo-50 text-indigo-700' },
+    picked_up: { label: myOrdersCopy.statusPickedUp, className: 'bg-neutral-100 text-neutral-700' },
+    cancelled: { label: myOrdersCopy.statusCancelled, className: 'bg-rose-50 text-rose-700' },
+  }
 
   const depositPaid = order.chicken_payments?.some(
-    (p) => p.payment_type === 'deposit' && p.status === 'completed'
+    (payment) => payment.payment_type === 'deposit' && payment.status === 'completed'
   )
   const remainderPaid = order.chicken_payments?.some(
-    (p) => p.payment_type === 'remainder' && p.status === 'completed'
+    (payment) => payment.payment_type === 'remainder' && payment.status === 'completed'
   )
+
   const showPayRemainder = order.status === 'deposit_paid' && !remainderPaid && onPayRemainder
+  const meta = statusMeta[order.status] || { label: order.status, className: 'bg-neutral-100 text-neutral-700' }
 
   return (
-    <Card className="p-5">
-      <div className="flex justify-between items-start mb-3">
+    <Card className="p-6 border-neutral-200 bg-white shadow-[0_20px_60px_-15px_rgba(0,0,0,0.08)]">
+      <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
         <div>
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: order.chicken_breeds?.accent_color || '#ccc' }} />
-            <span className="font-medium text-neutral-900">{order.chicken_breeds?.name || 'Kylling'}</span>
-          </div>
-          <p className="text-xs text-neutral-500 mt-0.5 font-mono">{order.order_number}</p>
+          <p className="text-xs uppercase tracking-[0.2em] text-neutral-500">{t.minSide.order}</p>
+          <h3 className="text-2xl font-normal text-neutral-900">{order.order_number}</h3>
+          <p className="text-sm text-neutral-600">
+            {order.chicken_breeds?.name || common.defaultChickenName} - {myOrdersCopy.weekLabel} {order.pickup_week}, {order.pickup_year}
+          </p>
         </div>
-        <span className={`text-xs px-2 py-1 rounded ${STATUS_COLORS[order.status] || 'bg-gray-100'}`}>
-          {labels[order.status] || order.status}
+        <span className={`px-3 py-1 rounded-full text-xs font-medium ${meta.className}`}>
+          {meta.label}
         </span>
       </div>
 
-      <div className="grid grid-cols-2 gap-y-2 text-sm">
-        <div>
-          <span className="text-neutral-500">{lang === 'en' ? 'Hens' : 'Honer'}</span>
-          <p className="font-medium">{order.quantity_hens}</p>
-        </div>
-        {order.quantity_roosters > 0 && (
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="space-y-3">
           <div>
-            <span className="text-neutral-500">{lang === 'en' ? 'Roosters' : 'Haner'}</span>
-            <p className="font-medium">{order.quantity_roosters}</p>
+            <p className="text-xs uppercase tracking-[0.2em] text-neutral-500">{myOrdersCopy.hensLabel}</p>
+            <p className="text-2xl font-normal text-neutral-900">{order.quantity_hens}</p>
           </div>
-        )}
-        <div>
-          <span className="text-neutral-500">{lang === 'en' ? 'Pickup' : 'Henting'}</span>
-          <p className="font-medium">{lang === 'en' ? 'Week' : 'Uke'} {order.pickup_week}, {order.pickup_year}</p>
+          {order.quantity_roosters > 0 && (
+            <div>
+              <p className="text-xs uppercase tracking-[0.2em] text-neutral-500">{myOrdersCopy.roostersLabel}</p>
+              <p className="text-lg font-normal text-neutral-900">{order.quantity_roosters}</p>
+            </div>
+          )}
         </div>
-        <div>
-          <span className="text-neutral-500">{lang === 'en' ? 'Age' : 'Alder'}</span>
-          <p className="font-medium">{order.age_weeks_at_pickup} {lang === 'en' ? 'weeks' : 'uker'}</p>
-        </div>
-        <div>
-          <span className="text-neutral-500">{lang === 'en' ? 'Price/hen' : 'Pris/hone'}</span>
-          <p className="font-medium">kr {order.price_per_hen_nok}</p>
-        </div>
-        <div>
-          <span className="text-neutral-500">{lang === 'en' ? 'Total' : 'Totalt'}</span>
-          <p className="font-medium">kr {order.total_amount_nok}</p>
-        </div>
-      </div>
 
-      <div className="mt-3 pt-3 border-t border-neutral-100 flex justify-between text-xs text-neutral-500">
-        <span>
-          {lang === 'en' ? 'Deposit' : 'Forskudd'}: kr {order.deposit_amount_nok}
-          {depositPaid ? ' ✓' : ''}
-        </span>
-        <span>
-          {lang === 'en' ? 'Remainder' : 'Rest'}: kr {order.remainder_amount_nok}
-          {remainderPaid ? ' ✓' : ''}
-        </span>
+        <div className="space-y-3">
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-neutral-500">{myOrdersCopy.depositLabel}</span>
+            <span className="font-normal text-neutral-900">
+              {common.currency} {order.deposit_amount_nok.toLocaleString(locale)}
+            </span>
+          </div>
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-neutral-500">{myOrdersCopy.remainderLabel}</span>
+            <span className="font-normal text-neutral-900">
+              {common.currency} {order.remainder_amount_nok.toLocaleString(locale)}
+            </span>
+          </div>
+          {showPayRemainder && (
+            <div className="flex items-start gap-2 text-xs text-neutral-600">
+              <AlertTriangle className="w-4 h-4 text-amber-500" />
+              <span>{myOrdersCopy.payRemainder}</span>
+            </div>
+          )}
+          <div className="flex items-center gap-2 text-xs text-neutral-500">
+            <CheckCircle2 className="w-4 h-4 text-neutral-900" />
+            <span>{myOrdersCopy.totalLabel}: {common.currency} {order.total_amount_nok.toLocaleString(locale)}</span>
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          <div className="text-sm text-neutral-600">
+            <p className="text-xs uppercase tracking-[0.2em] text-neutral-500">{myOrdersCopy.ageLabel}</p>
+            <p className="font-normal text-neutral-900">
+              {order.age_weeks_at_pickup} {myOrdersCopy.weeksLabel}
+            </p>
+          </div>
+          <div className="text-sm text-neutral-600">
+            <p className="text-xs uppercase tracking-[0.2em] text-neutral-500">{myOrdersCopy.pricePerHenLabel}</p>
+            <p className="font-normal text-neutral-900">{common.currency} {order.price_per_hen_nok.toLocaleString(locale)}</p>
+          </div>
+        </div>
       </div>
 
       {showPayRemainder && (
-        <Button className="w-full mt-3" size="sm" onClick={() => onPayRemainder(order.id)}>
-          {lang === 'en' ? 'Pay remainder' : 'Betal restbelop'}
-        </Button>
+        <div className="mt-5 pt-5 border-t border-neutral-200">
+          <Button className="btn-primary" onClick={() => onPayRemainder?.(order.id)}>
+            {myOrdersCopy.payRemainder}
+          </Button>
+        </div>
       )}
     </Card>
   )

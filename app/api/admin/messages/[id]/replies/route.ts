@@ -69,7 +69,7 @@ export async function POST(
           subject: message.subject,
           replyText: reply_text.trim(),
           adminName,
-          portalUrl: isEggMessage ? `${appUrl}/rugeegg/mine-bestillinger` : `${appUrl}/min-side`,
+          portalUrl: `${appUrl}/min-side`,
           portalLabel: 'Min side',
         });
 

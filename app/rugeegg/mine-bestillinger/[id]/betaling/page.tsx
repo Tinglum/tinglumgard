@@ -267,7 +267,7 @@ export default function EggRemainderPage() {
       <div className="min-h-screen flex items-center justify-center px-6">
         <GlassCard className="p-8 text-center max-w-md">
           <p className="text-sm text-neutral-600 mb-4">{loadError || t.eggs.errors.couldNotFetchOrder}</p>
-          <Link href="/rugeegg/mine-bestillinger" className="btn-secondary inline-flex justify-center">
+          <Link href="/min-side" className="btn-secondary inline-flex justify-center">
             {t.nav.back}
           </Link>
         </GlassCard>
@@ -280,7 +280,7 @@ export default function EggRemainderPage() {
       <div className="min-h-screen flex items-center justify-center px-6">
         <GlassCard className="p-8 text-center max-w-md">
           <p className="text-sm text-neutral-600 mb-4">{remainderCopy.unavailable}</p>
-          <Link href="/rugeegg/mine-bestillinger" className="btn-secondary inline-flex justify-center">
+          <Link href="/min-side" className="btn-secondary inline-flex justify-center">
             {t.nav.back}
           </Link>
         </GlassCard>
@@ -298,7 +298,7 @@ export default function EggRemainderPage() {
               {remainderCopy.orderLabel.replace('{orderNumber}', order.order_number)}
             </p>
           </div>
-          <Link href="/rugeegg/mine-bestillinger" className="text-sm text-neutral-600 hover:text-neutral-900">
+          <Link href="/min-side" className="text-sm text-neutral-600 hover:text-neutral-900">
             {t.nav.back}
           </Link>
         </div>

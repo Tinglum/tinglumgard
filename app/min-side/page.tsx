@@ -5,11 +5,12 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { Package } from 'lucide-react';
 import Link from 'next/link';
-import { OrderDetailsCard } from '@/components/OrderDetailsCard';
 import { ReferralDashboard } from '@/components/ReferralDashboard';
 import { MessagingPanel } from '@/components/MessagingPanel';
 import { GlassCard } from '@/components/eggs/GlassCard';
 import { ChickenOrderCard } from '@/components/ChickenOrderCard';
+import { EggOrderUnifiedCard } from '@/components/orders/EggOrderUnifiedCard';
+import { PigOrderUnifiedCard } from '@/components/orders/PigOrderUnifiedCard';
 
 interface Payment {
   id: string;
@@ -47,17 +48,63 @@ interface Order {
   payments: Payment[];
 }
 
+interface EggOrder {
+  id: string;
+  order_number: string;
+  status: string;
+  quantity: number;
+  total_amount: number;
+  deposit_amount: number;
+  remainder_amount: number;
+  remainder_due_date?: string | null;
+  delivery_monday: string;
+  week_number: number;
+  delivery_method: string;
+  delivery_fee?: number;
+  created_at?: string | null;
+  egg_breeds?: { name?: string; accent_color?: string } | null;
+  egg_payments?: Array<{
+    payment_type: string;
+    status: string;
+    amount_nok?: number;
+    paid_at?: string | null;
+  }>;
+  egg_order_additions?: Array<{ quantity: number; subtotal: number }>;
+}
+
+interface ChickenOrder {
+  id: string;
+  order_number: string;
+  quantity_hens: number;
+  quantity_roosters: number;
+  pickup_year: number;
+  pickup_week: number;
+  age_weeks_at_pickup: number;
+  price_per_hen_nok: number;
+  total_amount_nok: number;
+  deposit_amount_nok: number;
+  remainder_amount_nok: number;
+  delivery_method: string;
+  status: string;
+  created_at: string;
+  chicken_breeds?: { name: string; accent_color: string };
+  chicken_payments?: Array<{ payment_type: string; status: string; amount_nok: number }>;
+}
+
 export default function CustomerPortalPage() {
   const { t } = useLanguage();
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
+  const chickenOrdersCopy = (t as any).chickens.myOrders;
 
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [cutoffWeek, setCutoffWeek] = useState(46);
   const [cutoffYear, setCutoffYear] = useState(2026);
   const [canEdit, setCanEdit] = useState(false);
-  const [activeTab, setActiveTab] = useState<'orders' | 'chickens' | 'referrals' | 'messages'>('orders');
-  const [chickenOrders, setChickenOrders] = useState<any[]>([]);
+  const [activeTab, setActiveTab] = useState<'orders' | 'referrals' | 'messages'>('orders');
+  const [eggOrders, setEggOrders] = useState<EggOrder[]>([]);
+  const [chickenOrders, setChickenOrders] = useState<ChickenOrder[]>([]);
+  const [eggOrdersLoading, setEggOrdersLoading] = useState(false);
   const [chickenOrdersLoading, setChickenOrdersLoading] = useState(false);
 
   async function handleVippsLogin() {
@@ -84,26 +131,72 @@ export default function CustomerPortalPage() {
     }
   }, []);
 
-  const loadOrders = useCallback(async () => {
+  const loadPigOrders = useCallback(async () => {
     try {
       const response = await fetch('/api/orders', { cache: 'no-store' });
       const data = await response.json();
       setOrders(data.orders || []);
     } catch (error) {
-      console.error('Failed to load orders:', error);
-    } finally {
-      setLoading(false);
+      console.error('Failed to load pig orders:', error);
+      setOrders([]);
     }
   }, []);
 
+  const loadEggOrders = useCallback(async () => {
+    setEggOrdersLoading(true);
+    try {
+      const response = await fetch('/api/eggs/my-orders', { cache: 'no-store' });
+      if (response.status === 401) {
+        setEggOrders([]);
+        return;
+      }
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data?.error || 'Failed to load egg orders');
+      }
+      setEggOrders(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error('Failed to load egg orders:', error);
+      setEggOrders([]);
+    } finally {
+      setEggOrdersLoading(false);
+    }
+  }, []);
+
+  const loadChickenOrders = useCallback(async () => {
+    setChickenOrdersLoading(true);
+    try {
+      const response = await fetch('/api/chickens/my-orders', { cache: 'no-store' });
+      if (response.status === 401) {
+        setChickenOrders([]);
+        return;
+      }
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data?.error || 'Failed to load chicken orders');
+      }
+      setChickenOrders(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error('Failed to load chicken orders:', error);
+      setChickenOrders([]);
+    } finally {
+      setChickenOrdersLoading(false);
+    }
+  }, []);
+
+  const loadAllOrders = useCallback(async () => {
+    setLoading(true);
+    await Promise.all([loadPigOrders(), loadEggOrders(), loadChickenOrders(), loadConfig()]);
+    setLoading(false);
+  }, [loadPigOrders, loadEggOrders, loadChickenOrders, loadConfig]);
+
   useEffect(() => {
     if (!authLoading && isAuthenticated) {
-      loadOrders();
-      loadConfig();
+      loadAllOrders();
     } else if (!authLoading && !isAuthenticated) {
       setLoading(false);
     }
-  }, [authLoading, isAuthenticated, loadOrders, loadConfig]);
+  }, [authLoading, isAuthenticated, loadAllOrders]);
 
   function getWeekNumber(date: Date): { year: number; week: number } {
     const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
@@ -116,6 +209,19 @@ export default function CustomerPortalPage() {
 
   async function handlePayRemainder(orderId: string) {
     window.location.href = `/min-side/ordre/${orderId}/betaling`;
+  }
+
+  async function handlePayChickenRemainder(orderId: string) {
+    try {
+      const response = await fetch(`/api/chickens/orders/${orderId}/remainder`, { method: 'POST' });
+      if (!response.ok) return;
+      const data = await response.json();
+      if (data.redirectUrl) {
+        window.location.href = data.redirectUrl;
+      }
+    } catch (error) {
+      console.error('Failed to start chicken remainder payment:', error);
+    }
   }
 
   async function handleExitImpersonation() {
@@ -196,27 +302,7 @@ export default function CustomerPortalPage() {
                 : 'text-neutral-500 hover:text-neutral-900'
             }`}
           >
-            {t.minSide.myOrders}
-          </button>
-          <button
-            onClick={() => {
-              setActiveTab('chickens');
-              if (chickenOrders.length === 0 && !chickenOrdersLoading) {
-                setChickenOrdersLoading(true);
-                fetch('/api/chickens/my-orders')
-                  .then(res => res.ok ? res.json() : [])
-                  .then(data => setChickenOrders(Array.isArray(data) ? data : []))
-                  .catch(() => {})
-                  .finally(() => setChickenOrdersLoading(false));
-              }
-            }}
-            className={`px-2 pb-3 text-sm font-normal transition-colors ${
-              activeTab === 'chickens'
-                ? 'text-neutral-900 border-b-2 border-neutral-900'
-                : 'text-neutral-500 hover:text-neutral-900'
-            }`}
-          >
-            Kyllinger
+            {t.minSide.orders}
           </button>
           <button
             onClick={() => setActiveTab('referrals')}
@@ -248,64 +334,98 @@ export default function CustomerPortalPage() {
                 : t.minSide.editPeriodExpired.replace('{week}', cutoffWeek.toString()).replace('{year}', cutoffYear.toString())}
             </div>
 
-            {orders.length === 0 ? (
+            {orders.length === 0 && eggOrders.length === 0 && chickenOrders.length === 0 ? (
               <div className="rounded-xl border border-neutral-200 bg-white p-12 text-center shadow-[0_20px_60px_-15px_rgba(0,0,0,0.08)]">
                 <Package className="w-12 h-12 mx-auto mb-4 text-neutral-400" />
                 <p className="text-lg font-normal text-neutral-900 mb-2">{t.minSide.noOrders}</p>
                 <p className="text-sm text-neutral-500 mb-6">{t.minSide.noOrdersDesc}</p>
-                <Link href="/bestill" className="btn-primary inline-flex">
-                  {t.minSide.goToOrder}
-                </Link>
-              </div>
-            ) : (
-              <div className="space-y-6">
-                {orders.map((order) => (
-                  <OrderDetailsCard
-                    key={order.id}
-                    order={order}
-                    canEdit={canEdit}
-                    onPayRemainder={handlePayRemainder}
-                    onRefresh={loadOrders}
-                  />
-                ))}
-
-                <div className="text-center pt-4">
-                  <Link href="/bestill" className="btn-secondary inline-flex">
-                    <Package className="w-4 h-4" />
-                    {t.minSide.newOrder}
+                <div className="flex flex-wrap justify-center gap-3">
+                  <Link href="/bestill" className="btn-primary inline-flex">
+                    {t.minSide.goToOrder}
                   </Link>
+                  <Link href="/rugeegg/raser" className="btn-secondary inline-flex">
+                    {t.eggs.common.backToBreeds}
+                  </Link>
+                  <a href="/kyllinger" className="btn-secondary inline-flex">
+                    {chickenOrdersCopy.seeAvailable}
+                  </a>
                 </div>
               </div>
-            )}
-          </div>
-        )}
-
-        {activeTab === 'chickens' && (
-          <div className="space-y-4">
-            {chickenOrdersLoading ? (
-              <div className="text-center py-8 text-neutral-500">Laster kyllingbestillinger...</div>
-            ) : chickenOrders.length === 0 ? (
-              <div className="rounded-xl border border-neutral-200 bg-white p-12 text-center">
-                <p className="text-neutral-500 mb-4">Ingen kyllingbestillinger enna</p>
-                <a href="/kyllinger" className="text-sm text-neutral-900 underline">Se tilgjengelige kyllinger</a>
-              </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {chickenOrders.map((order: any) => (
-                  <ChickenOrderCard
-                    key={order.id}
-                    order={order}
-                    onPayRemainder={async (orderId: string) => {
-                      try {
-                        const res = await fetch(`/api/chickens/orders/${orderId}/remainder`, { method: 'POST' });
-                        if (res.ok) {
-                          const data = await res.json();
-                          if (data.redirectUrl) window.location.href = data.redirectUrl;
-                        }
-                      } catch {}
-                    }}
-                  />
-                ))}
+              <div className="space-y-10">
+                <section className="space-y-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <h2 className="text-2xl font-normal text-neutral-900">{t.minSide.sectionEggOrders}</h2>
+                    <Link href="/rugeegg/raser" className="text-sm text-neutral-600 hover:text-neutral-900">
+                      {t.eggs.common.backToBreeds}
+                    </Link>
+                  </div>
+                  {eggOrdersLoading ? (
+                    <div className="text-center py-8 text-neutral-500">{t.minSide.loadingEggOrders}</div>
+                  ) : eggOrders.length === 0 ? (
+                    <div className="rounded-xl border border-neutral-200 bg-white p-8 text-sm text-neutral-500">
+                      {t.minSide.noEggOrders}
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {eggOrders.map((order) => (
+                        <EggOrderUnifiedCard key={order.id} order={order} />
+                      ))}
+                    </div>
+                  )}
+                </section>
+
+                <section className="space-y-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <h2 className="text-2xl font-normal text-neutral-900">{t.minSide.sectionPigOrders}</h2>
+                    <Link href="/bestill" className="text-sm text-neutral-600 hover:text-neutral-900">
+                      {t.minSide.newOrder}
+                    </Link>
+                  </div>
+                  {orders.length === 0 ? (
+                    <div className="rounded-xl border border-neutral-200 bg-white p-8 text-sm text-neutral-500">
+                      {t.minSide.noPigOrders}
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {orders.map((order) => (
+                        <PigOrderUnifiedCard
+                          key={order.id}
+                          order={order}
+                          canEdit={canEdit}
+                          onPayRemainder={handlePayRemainder}
+                          onRefresh={loadAllOrders}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </section>
+
+                <section className="space-y-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <h2 className="text-2xl font-normal text-neutral-900">{t.minSide.sectionChickenOrders}</h2>
+                    <a href="/kyllinger" className="text-sm text-neutral-600 hover:text-neutral-900">
+                      {chickenOrdersCopy.seeAvailable}
+                    </a>
+                  </div>
+                  {chickenOrdersLoading ? (
+                    <div className="text-center py-8 text-neutral-500">{t.minSide.loadingChickenOrders}</div>
+                  ) : chickenOrders.length === 0 ? (
+                    <div className="rounded-xl border border-neutral-200 bg-white p-8 text-sm text-neutral-500">
+                      {t.minSide.noChickenOrders}
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {chickenOrders.map((order) => (
+                        <ChickenOrderCard
+                          key={order.id}
+                          order={order}
+                          onPayRemainder={handlePayChickenRemainder}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </section>
               </div>
             )}
           </div>

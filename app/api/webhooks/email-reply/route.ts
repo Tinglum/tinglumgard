@@ -135,7 +135,7 @@ export async function POST(request: NextRequest) {
           subject: message.subject,
           replyText,
           adminName: 'Tinglum Gård',
-          portalUrl: isEggMessage ? appUrl + '/rugeegg/mine-bestillinger' : appUrl + '/min-side',
+          portalUrl: appUrl + '/min-side',
           portalLabel: 'Min side',
         });
 

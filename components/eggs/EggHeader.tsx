@@ -46,7 +46,7 @@ export function Header() {
               {t.nav.breeds}
             </Link>
             <Link
-              href="/rugeegg/mine-bestillinger"
+              href="/min-side"
               className="text-sm font-medium text-neutral-700 hover:text-neutral-900 transition-colors"
             >
               {t.nav.myOrders}

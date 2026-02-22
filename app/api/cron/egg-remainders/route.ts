@@ -49,7 +49,7 @@ function buildReminderHtml(params: {
       <div class="amount">Restbeløp: kr ${params.remainderNok}</div>
       <p>Vennligst betal innen ${params.dueDate} for å beholde bestillingen.</p>
       <p>
-        <a class="button" href="${params.appUrl}/rugeegg/mine-bestillinger">Betal restbeløp</a>
+        <a class="button" href="${params.appUrl}/min-side">Betal restbeløp</a>
       </p>
     </div>
   </div>
@@ -360,4 +360,3 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to run reminders' }, { status: 500 })
   }
 }
-

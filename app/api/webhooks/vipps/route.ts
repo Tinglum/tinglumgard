@@ -404,7 +404,7 @@ export async function POST(request: NextRequest) {
       <div class="amount">Totalt: kr ${totalNok}</div>
       <div class="amount" style="font-size: 15px;">Forskudd betalt: kr ${depositNok}</div>
       <div class="amount" style="font-size: 15px;">Restbetaling: kr ${remainderNok}</div>
-      <p>Du kan se bestillingen din på <a href="${appUrl}/rugeegg/mine-bestillinger">Min side</a>.</p>
+      <p>Du kan se bestillingen din på <a href="${appUrl}/min-side">Min side</a>.</p>
       <p>Vennlig hilsen,<br><strong>Tinglum Gård</strong></p>
     </div>
   </div>
@@ -623,7 +623,7 @@ export async function POST(request: NextRequest) {
       <p>Vi har mottatt restbetalingen for bestilling <strong>${order.order_number}</strong>.</p>
       <div class="amount">Totalt betalt: kr ${totalNok}</div>
       <div class="amount" style="font-size: 15px;">Restbetaling: kr ${remainderNok}</div>
-      <p>Du kan se bestillingen din på <a href="${appUrl}/rugeegg/mine-bestillinger">Min side</a>.</p>
+      <p>Du kan se bestillingen din på <a href="${appUrl}/min-side">Min side</a>.</p>
       <p>Vennlig hilsen,<br>Tinglum Gård</p>
     </div>
   </div>

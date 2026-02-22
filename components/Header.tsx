@@ -117,7 +117,7 @@ export function Header() {
   }, [isEggRoute, pathname]);
 
   const handleVippsLogin = () => {
-    const returnTo = isEggRoute ? '/rugeegg/mine-bestillinger' : '/min-side';
+    const returnTo = '/min-side';
     window.location.href = `/api/auth/vipps/login?returnTo=${encodeURIComponent(returnTo)}`;
   };
 
@@ -195,7 +195,7 @@ export function Header() {
                 </>
               )}
               <Link
-                href={isEggRoute ? "/rugeegg/mine-bestillinger" : "/min-side"}
+                href="/min-side"
                 className="relative px-5 py-2.5 text-sm font-light rounded-xl transition-all duration-300 text-neutral-600 hover:text-neutral-900 hover:bg-neutral-50 hover:-translate-y-0.5"
               >
                 {t.nav.myOrders}
@@ -252,7 +252,7 @@ export function Header() {
                     <div className="absolute right-0 mt-2 w-48 rounded-xl shadow-[0_20px_60px_-15px_rgba(0,0,0,0.2)] z-50 overflow-hidden backdrop-blur-xl bg-white border border-neutral-200">
                       <div className="py-2">
                         <Link
-                          href={isEggRoute ? "/rugeegg/mine-bestillinger" : "/min-side"}
+                          href="/min-side"
                           onClick={() => setShowDropdown(false)}
                           className="relative flex items-center justify-between px-4 py-3 text-sm font-light transition-all duration-200 text-neutral-900 hover:bg-neutral-50"
                         >
