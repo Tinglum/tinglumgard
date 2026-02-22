@@ -120,7 +120,7 @@ export default function ConfirmationPage() {
   const deliveryYear = config?.cutoff?.year || 2026;
   const referralGivePercentage = 20;
   const referralEarnPercentage = 10;
-  const shareBaseUrl = "https://tinglumgård.no/bestill";
+  const shareBaseUrl = "https://tinglumgÃ¥rd.no/bestill";
   const shareUrl = useMemo(() => {
     if (!personalReferralCode) return shareBaseUrl;
     return `${shareBaseUrl}?code=${encodeURIComponent(personalReferralCode)}`;
