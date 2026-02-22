@@ -220,9 +220,9 @@ export function OrderModificationModal({ order, isOpen, onClose, onSave }: Order
             <div className="p-4 rounded-xl border border-gray-300 bg-gray-50">
               <p className="font-semibold text-gray-900">
                 {(lang === 'no' ? order.display_box_name_no : order.display_box_name_en) ||
-                  (lang === 'no' ? 'Mangalitsa-boks' : 'Mangalitsa box')}
+                  t.common.defaultBoxName}
               </p>
-              <p className="text-sm text-gray-600 mt-1">Mangalitsa-boksen er låst etter reservasjon.</p>
+              <p className="text-sm text-gray-600 mt-1">{copy.boxLockedAfterReservation}</p>
             </div>
           </div>
 

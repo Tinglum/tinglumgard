@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { CheckCircle, Package, Clock, CreditCard, Share2, Copy, ExternalLink } from "lucide-react";
+import { CheckCircle, Package, Clock, CreditCard, Share2, Copy, ExternalLink, XCircle } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 
 type PaymentStatus = "pending" | "completed" | "failed";
@@ -46,6 +46,7 @@ export default function ConfirmationPage() {
   const [referralCodeLoading, setReferralCodeLoading] = useState(false);
   const [copiedReferralCode, setCopiedReferralCode] = useState(false);
   const [copiedShareLink, setCopiedShareLink] = useState(false);
+  const [showCompletedState, setShowCompletedState] = useState(false);
 
   const copy = t.confirmationPage;
 
@@ -119,7 +120,7 @@ export default function ConfirmationPage() {
   const deliveryYear = config?.cutoff?.year || 2026;
   const referralGivePercentage = 20;
   const referralEarnPercentage = 10;
-  const shareBaseUrl = "https://tinglumgÃ¥rd.no/bestill";
+  const shareBaseUrl = "https://tinglumgård.no/bestill";
   const shareUrl = useMemo(() => {
     if (!personalReferralCode) return shareBaseUrl;
     return `${shareBaseUrl}?code=${encodeURIComponent(personalReferralCode)}`;
@@ -136,7 +137,7 @@ export default function ConfirmationPage() {
       order.display_box_name_no ||
       order.display_box_name_en;
     if (presetName) return presetName;
-    return lang === 'no' ? 'Mangalitsa-boks' : 'Mangalitsa box';
+    return t.common.defaultBoxName;
   }, [order, lang]);
 
   const statusTextByOrder = order
@@ -149,6 +150,40 @@ export default function ConfirmationPage() {
         cancelled: copy.statusCancelled,
       }[order.status] || copy.statusUnknown
     : copy.statusUnknown;
+
+  useEffect(() => {
+    if (paymentStatus !== "completed") {
+      setShowCompletedState(false);
+      return;
+    }
+
+    setShowCompletedState(false);
+    const timeoutId = setTimeout(() => setShowCompletedState(true), 2000);
+    return () => clearTimeout(timeoutId);
+  }, [paymentStatus]);
+
+  const displayPaymentState: PaymentStatus =
+    paymentStatus === "failed"
+      ? "failed"
+      : paymentStatus === "completed" && showCompletedState
+        ? "completed"
+        : "pending";
+
+  const statusTitle =
+    displayPaymentState === "completed"
+      ? copy.paymentReceivedTitle
+      : displayPaymentState === "failed"
+        ? copy.paymentFailed
+        : copy.paymentHandlingTitle;
+
+  const statusLead =
+    displayPaymentState === "completed"
+      ? copy.paymentReceivedLead
+      : displayPaymentState === "failed"
+        ? copy.paymentFailedLead
+        : copy.paymentHandlingLead;
+
+  const StatusIcon = displayPaymentState === "completed" ? CheckCircle : displayPaymentState === "failed" ? XCircle : Clock;
 
   useEffect(() => {
     async function ensureReferralCode() {
@@ -263,12 +298,25 @@ export default function ConfirmationPage() {
 
       <div className="max-w-4xl mx-auto px-6">
         <div className="text-center mb-12">
-          <div className="inline-flex items-center justify-center w-24 h-24 rounded-full mb-6 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.15)] bg-neutral-50 border-2 border-neutral-900">
-            <CheckCircle className="w-14 h-14 text-neutral-900" />
+          <div
+            className={cn(
+              "inline-flex items-center justify-center w-24 h-24 rounded-full mb-6 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.15)] border-2",
+              displayPaymentState === "completed" && "bg-green-50 border-green-500",
+              displayPaymentState === "pending" && "bg-amber-50 border-amber-500",
+              displayPaymentState === "failed" && "bg-red-50 border-red-500"
+            )}
+          >
+            <StatusIcon
+              className={cn(
+                "w-14 h-14",
+                displayPaymentState === "completed" && "text-green-600",
+                displayPaymentState === "pending" && "text-amber-600",
+                displayPaymentState === "failed" && "text-red-600"
+              )}
+            />
           </div>
-          <h1 className="text-5xl font-light tracking-tight text-neutral-900 mb-3">
-            {paymentStatus === "completed" ? copy.paymentReceived : paymentStatus === "failed" ? copy.paymentFailed : copy.paymentWaiting}
-          </h1>
+          <h1 className="text-5xl font-light tracking-tight text-neutral-900 mb-3">{statusTitle}</h1>
+          <p className="text-base font-light text-neutral-600 mb-3">{statusLead}</p>
           <p className="text-base font-light text-neutral-600">
             {copy.orderNumberLabel}: <span className="font-mono font-normal text-neutral-900">{order.order_number}</span>
           </p>
@@ -308,7 +356,7 @@ export default function ConfirmationPage() {
           <h2 className="text-3xl font-light tracking-tight text-neutral-900 mb-8">{copy.nextStepsTitle}</h2>
 
           <div className="space-y-4">
-            {paymentStatus === "pending" && (
+            {displayPaymentState === "pending" && (
               <div className={cn("p-4 rounded-xl border-2 border-yellow-500 bg-yellow-50")}>
                 <p className="text-yellow-900 font-semibold mb-2">{copy.pendingTitle}</p>
                 <p className="text-sm text-yellow-800 mt-1">
@@ -326,7 +374,7 @@ export default function ConfirmationPage() {
               </div>
             )}
 
-            {paymentStatus === "failed" && (
+            {displayPaymentState === "failed" && (
               <div className={cn("p-4 rounded-xl border-2 border-red-500 bg-red-50")}>
                 <p className="text-red-900 font-semibold mb-2">{copy.failedBannerTitle}</p>
                 <p className="text-sm text-red-800 mt-1">
@@ -336,21 +384,21 @@ export default function ConfirmationPage() {
               </div>
             )}
 
-            {order.status === "draft" && paymentStatus === "completed" && (
+            {order.status === "draft" && displayPaymentState === "completed" && (
               <div className={cn("p-4 rounded-xl border-2 border-blue-500 bg-blue-50")}>
                 <p className="text-blue-900 font-semibold">{copy.syncingTitle}</p>
                 <p className="text-sm text-blue-800 mt-1">{copy.syncingBody}</p>
               </div>
             )}
 
-            {order.status === "deposit_paid" && (
+            {displayPaymentState === "completed" && order.status === "deposit_paid" && (
               <div className={cn("p-4 rounded-xl border-2 border-neutral-900 bg-neutral-50")}>
                 <p className="text-neutral-900 font-semibold">{copy.depositConfirmedTitle}</p>
                 <p className="text-sm text-neutral-900 mt-1">{copy.depositConfirmedBody}</p>
               </div>
             )}
 
-            {order.status === "paid" && (
+            {displayPaymentState === "completed" && order.status === "paid" && (
               <div className={cn("p-4 rounded-xl border-2 border-neutral-900 bg-neutral-50")}>
                 <p className="text-neutral-900 font-semibold">{copy.fullyPaidTitle}</p>
                 <p className="text-sm text-neutral-900 mt-1">{copy.fullyPaidBody}</p>
@@ -508,3 +556,4 @@ export default function ConfirmationPage() {
     </div>
   );
 }
+

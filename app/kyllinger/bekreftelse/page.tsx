@@ -5,7 +5,7 @@ import { useSearchParams } from 'next/navigation'
 import { useLanguage } from '@/contexts/LanguageContext'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
-import { CheckCircle, Clock, RefreshCcw } from 'lucide-react'
+import { CheckCircle, Clock, RefreshCcw, XCircle } from 'lucide-react'
 
 export default function ChickenConfirmationPage() {
   const { t } = useLanguage()
@@ -19,6 +19,7 @@ export default function ChickenConfirmationPage() {
   const [order, setOrder] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [attempts, setAttempts] = useState(0)
+  const [showCompletedState, setShowCompletedState] = useState(false)
 
   const formatCopy = (template: string, values: Record<string, string | number>) =>
     Object.entries(values).reduce(
@@ -71,6 +72,27 @@ export default function ChickenConfirmationPage() {
     }
   }, [orderId])
 
+  const isPaid = order?.status === 'deposit_paid' || order?.status === 'fully_paid'
+  const rawPaymentState = order?.status === 'cancelled' ? 'failed' : isPaid ? 'completed' : 'pending'
+
+  useEffect(() => {
+    if (rawPaymentState !== 'completed') {
+      setShowCompletedState(false)
+      return
+    }
+
+    setShowCompletedState(false)
+    const timeoutId = setTimeout(() => setShowCompletedState(true), 2000)
+    return () => clearTimeout(timeoutId)
+  }, [rawPaymentState])
+
+  const displayPaymentState =
+    rawPaymentState === 'completed' && showCompletedState
+      ? 'completed'
+      : rawPaymentState === 'failed'
+        ? 'failed'
+        : 'pending'
+
   const handleManualRefresh = async () => {
     if (!orderId) return
 
@@ -97,19 +119,28 @@ export default function ChickenConfirmationPage() {
     )
   }
 
-  const isPaid = order?.status === 'deposit_paid' || order?.status === 'fully_paid'
-
   return (
     <div className="min-h-screen bg-neutral-50 py-16">
       <div className="max-w-lg mx-auto px-4">
         <div className="bg-white rounded-xl shadow-sm border p-8 text-center">
-          {loading ? (
+          {displayPaymentState === 'pending' ? (
             <div className="space-y-4">
               <Clock className="w-12 h-12 text-amber-500 mx-auto animate-pulse" />
               <h1 className="text-2xl font-light text-neutral-900">{confirmationCopy.processingTitle}</h1>
-              <p className="text-neutral-500">{confirmationCopy.processingBody}</p>
+              <p className="text-neutral-500">{loading ? confirmationCopy.processingBody : confirmationCopy.pendingBody}</p>
+              {!loading && (
+                <>
+                  <p className="text-xs text-neutral-400">
+                    {formatCopy(confirmationCopy.statusChecks, { count: attempts })}
+                  </p>
+                  <Button variant="outline" onClick={handleManualRefresh} className="inline-flex items-center gap-2">
+                    <RefreshCcw className="h-4 w-4" />
+                    {confirmationCopy.checkAgain}
+                  </Button>
+                </>
+              )}
             </div>
-          ) : isPaid ? (
+          ) : displayPaymentState === 'completed' ? (
             <div className="space-y-4">
               <CheckCircle className="w-16 h-16 text-green-500 mx-auto" />
               <h1 className="text-2xl font-light text-neutral-900">{confirmationCopy.confirmedTitle}</h1>
@@ -131,16 +162,9 @@ export default function ChickenConfirmationPage() {
             </div>
           ) : (
             <div className="space-y-4">
-              <Clock className="w-12 h-12 text-amber-500 mx-auto" />
-              <h1 className="text-2xl font-light text-neutral-900">{confirmationCopy.pendingTitle}</h1>
-              <p className="text-neutral-500">{confirmationCopy.pendingBody}</p>
-              <p className="text-xs text-neutral-400">
-                {formatCopy(confirmationCopy.statusChecks, { count: attempts })}
-              </p>
-              <Button variant="outline" onClick={handleManualRefresh} className="inline-flex items-center gap-2">
-                <RefreshCcw className="h-4 w-4" />
-                {confirmationCopy.checkAgain}
-              </Button>
+              <XCircle className="w-12 h-12 text-red-500 mx-auto" />
+              <h1 className="text-2xl font-light text-neutral-900">{confirmationCopy.failedTitle}</h1>
+              <p className="text-neutral-500">{confirmationCopy.failedBody}</p>
             </div>
           )}
 

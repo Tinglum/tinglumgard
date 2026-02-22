@@ -85,7 +85,7 @@ export function MobileMinSide(props: MobileMinSideProps) {
   const getBoxLabel = (order: Order) => {
     const name = lang === 'no' ? order.display_box_name_no : order.display_box_name_en;
     if (name) return name;
-    return lang === 'no' ? 'Mangalitsa-boks' : 'Mangalitsa box';
+    return t.common.defaultBoxName;
   };
 
   return (

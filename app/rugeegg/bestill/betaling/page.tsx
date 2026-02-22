@@ -192,6 +192,10 @@ export default function EggPaymentPage() {
                     <span>{t.eggs.common.total}</span>
                     <span className="font-normal">{formatPrice(currentDraft.totalAmount, language)}</span>
                   </div>
+                  <div className="flex justify-between text-blue-700 text-sm font-medium pt-1">
+                    <span>{copy.dueNowSummary}</span>
+                    <span>{formatPrice(currentDraft.depositAmount, language)}</span>
+                  </div>
                 </div>
 
                 <button

@@ -117,7 +117,7 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
     year: 'numeric',
   });
   const boxName = lang === 'no' ? order.display_box_name_no : order.display_box_name_en;
-  const fallbackBoxName = lang === 'en' ? 'Mangalitsa box' : 'Mangalitsa-boks';
+  const fallbackBoxName = t.common.defaultBoxName;
   const boxLabel = boxName || fallbackBoxName;
   const currentExtrasForModal = useMemo(
     () => order.extra_products?.map((e: any) => ({ slug: e.slug, quantity: Number(e.quantity) })) || [],
