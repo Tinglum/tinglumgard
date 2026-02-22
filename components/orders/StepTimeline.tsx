@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { cn } from '@/lib/utils'
-import { Check } from 'lucide-react'
+import { Check, ChevronDown, ChevronUp } from 'lucide-react'
 
 type TimelineStep = {
   key: string
@@ -34,14 +34,15 @@ export function StepTimeline({ steps, expandLabel, collapseLabel, className }: S
   }
 
   return (
-    <div className={cn('rounded-xl border border-neutral-200 bg-neutral-50 p-4', className)}>
+    <div className={cn('rounded-xl border border-neutral-200 bg-neutral-50/50 p-4 md:p-5', className)}>
       {hasExpandedDetails && (
         <div className="mb-3 flex justify-end">
           <button
             type="button"
             onClick={() => setExpanded((prev) => !prev)}
-            className="text-xs font-medium text-neutral-600 underline-offset-2 hover:text-neutral-900 hover:underline"
+            className="inline-flex items-center gap-1 rounded-md border border-neutral-200 bg-white px-2 py-1 text-xs font-medium text-neutral-600 transition-colors hover:border-neutral-300 hover:text-neutral-900"
           >
+            {expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
             {expanded ? collapseLabel : expandLabel}
           </button>
         </div>
@@ -64,10 +65,10 @@ export function StepTimeline({ steps, expandLabel, collapseLabel, className }: S
               className={cn(
                 'relative flex items-start gap-3 rounded-lg border px-3 py-3 transition-colors',
                 isDone
-                  ? 'border-emerald-200 bg-emerald-50/30'
+                  ? 'border-emerald-200 bg-emerald-50/40'
                   : isCurrent
-                  ? 'border-amber-300 bg-amber-50'
-                  : 'border-neutral-200 bg-white'
+                  ? 'border-amber-300 bg-amber-50/70'
+                  : 'border-neutral-200 bg-white/90'
               )}
             >
               {index < steps.length - 1 && (
@@ -82,7 +83,7 @@ export function StepTimeline({ steps, expandLabel, collapseLabel, className }: S
                 className={cn(
                   'relative z-10 mt-0.5 flex h-7 w-7 items-center justify-center rounded-full border text-xs',
                   isDone
-                    ? 'border-emerald-500 bg-white text-emerald-600'
+                    ? 'border-emerald-600 bg-emerald-600 text-white'
                     : isCurrent
                     ? 'border-amber-500 bg-amber-100 text-amber-700'
                     : 'border-neutral-300 bg-white text-neutral-400'
@@ -94,7 +95,7 @@ export function StepTimeline({ steps, expandLabel, collapseLabel, className }: S
                 <p
                   className={cn(
                     'text-sm font-medium',
-                    isDone ? 'text-neutral-900' : isCurrent ? 'text-amber-900' : 'text-neutral-500'
+                    isDone ? 'text-neutral-900' : isCurrent ? 'text-amber-900' : 'text-neutral-600'
                   )}
                 >
                   {step.label}
@@ -113,7 +114,7 @@ export function StepTimeline({ steps, expandLabel, collapseLabel, className }: S
         })}
       </div>
 
-      <div className="hidden grid-cols-4 gap-4 md:grid">
+      <div className="hidden grid-cols-4 gap-3 md:grid lg:gap-4">
         {steps.map((step, index) => {
           const stepState = getStepState(index)
           const isDone = stepState === 'done'
@@ -128,12 +129,12 @@ export function StepTimeline({ steps, expandLabel, collapseLabel, className }: S
             <div
               key={step.key}
               className={cn(
-                'relative flex min-h-[120px] flex-col items-center rounded-lg border px-3 py-3 text-center transition-colors',
+                'relative flex min-h-[128px] flex-col rounded-lg border px-3 py-3 transition-colors',
                 isDone
-                  ? 'border-emerald-200 bg-emerald-50/30'
+                  ? 'border-emerald-200 bg-white'
                   : isCurrent
-                  ? 'border-amber-300 bg-amber-50'
-                  : 'border-neutral-200 bg-white'
+                  ? 'border-amber-300 bg-amber-50/70 shadow-sm'
+                  : 'border-neutral-200 bg-white/90'
               )}
             >
               <div className="mb-2 flex w-full items-center">
@@ -141,7 +142,7 @@ export function StepTimeline({ steps, expandLabel, collapseLabel, className }: S
                   className={cn(
                     'relative z-10 flex h-7 w-7 items-center justify-center rounded-full border text-xs',
                     isDone
-                      ? 'border-emerald-500 bg-white text-emerald-600'
+                      ? 'border-emerald-600 bg-emerald-600 text-white'
                       : isCurrent
                       ? 'border-amber-500 bg-amber-100 text-amber-700'
                       : 'border-neutral-300 bg-white text-neutral-400'
@@ -160,19 +161,19 @@ export function StepTimeline({ steps, expandLabel, collapseLabel, className }: S
               </div>
               <p
                 className={cn(
-                  'text-sm font-medium',
-                  isDone ? 'text-neutral-900' : isCurrent ? 'text-amber-900' : 'text-neutral-500'
+                  'text-left text-sm font-medium',
+                  isDone ? 'text-neutral-900' : isCurrent ? 'text-amber-900' : 'text-neutral-600'
                 )}
               >
                 {step.label}
               </p>
               {step.summary && (
-                <p className={cn('mt-0.5 text-xs', isCurrent ? 'text-amber-800' : 'text-neutral-500')}>
+                <p className={cn('mt-0.5 text-left text-xs', isCurrent ? 'text-amber-800' : 'text-neutral-500')}>
                   {step.summary}
                 </p>
               )}
               {expanded && step.detail && step.detail !== step.summary && (
-                <p className="mt-1 text-xs text-neutral-600">{step.detail}</p>
+                <p className="mt-1 text-left text-xs text-neutral-600">{step.detail}</p>
               )}
             </div>
           )
