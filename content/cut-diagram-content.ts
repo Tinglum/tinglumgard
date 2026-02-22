@@ -32,7 +32,7 @@ export const cutDiagramContent = {
       { id: 'ribbe', name: 'Ribbe', part: 'buk', kg8Box: 2.5, kg12Box: 4, description: 'Norsk juleribbe med god fettbalanse', usage: 'Steke, rull', category: 'main' },
       { id: 'nakkekoteletter', name: 'Nakkekoteletter', part: 'nakke', kg8Box: 1.5, kg12Box: 2.5, description: 'Saftige koteletter med naturlig fettmarmorering', usage: 'Steke, grille', category: 'main' },
       { id: 'bacon', name: 'Bacon/Sideflesk', part: 'buk', kg8Box: 1, kg12Box: 1.5, description: 'Bacon og stekeflesk', usage: 'Steke', category: 'main' },
-      { id: 'skinkesteik', name: 'Skinkesteik', part: 'skinke', kg8Box: 2, kg12Box: 3.5, description: 'Mør steik fra låret', usage: 'Steke, gryte', category: 'main' },
+      { id: 'skinkesteik', name: 'Grytekjøtt', part: 'skinke', kg8Box: 2, kg12Box: 3.5, description: 'Mørt kjøtt fra låret, godt til gryteretter', usage: 'Gryte, langtidskoking', category: 'main' },
       { id: 'polse', name: 'Grillpølse', part: 'diverse', kg8Box: 1, kg12Box: 1.5, description: 'Hjemmelaget pølse', usage: 'Grille', category: 'main' },
       { id: 'bogstykke', name: 'Bogstykke', part: 'bog', kg8Box: 0, kg12Box: 0, description: 'Perfekt til pulled pork og gryter', usage: 'Langtidsstekt, gryte', category: 'extra' },
       { id: 'ryggkoteletter', name: 'Ryggkoteletter', part: 'kam', kg8Box: 0, kg12Box: 0, description: 'Møre koteletter fra ryggen', usage: 'Steke, grille', category: 'extra' },

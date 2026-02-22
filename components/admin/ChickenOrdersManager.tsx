@@ -115,7 +115,7 @@ export function ChickenOrdersManager() {
       <div className="flex flex-wrap gap-3 items-center">
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-          <Input className="pl-10" placeholder="Sok bestilling, kunde..." value={searchTerm}
+          <Input className="pl-10" placeholder="Søk bestilling, kunde..." value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)} />
         </div>
         <select className="rounded-md border px-3 py-2 text-sm" value={statusFilter}
