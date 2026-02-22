@@ -189,7 +189,9 @@ export default function EggDeliveryPage() {
                     <div className="flex-1">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                          <h3 className="text-lg font-normal">{getTitleByMethod(option.id)}</h3>
+                          <h3 className={`text-lg font-normal ${active ? 'text-white' : 'text-neutral-900'}`}>
+                            {getTitleByMethod(option.id)}
+                          </h3>
                           {isRecommended && (
                             <span
                               className={`text-[11px] px-2 py-0.5 rounded-full ${
@@ -202,11 +204,11 @@ export default function EggDeliveryPage() {
                             </span>
                           )}
                         </div>
-                        <span className="text-sm font-normal">
+                        <span className={`text-sm font-normal ${active ? 'text-white' : 'text-neutral-900'}`}>
                           {option.fee === 0 ? t.common.free : formatPrice(option.fee, language)}
                         </span>
                       </div>
-                      <p className={`text-sm ${active ? 'text-white/80' : 'text-neutral-600'}`}>
+                      <p className={`text-sm ${active ? 'text-white/85' : 'text-neutral-600'}`}>
                         {getDescriptionByMethod(option.id)}
                       </p>
                       {disabled && (
