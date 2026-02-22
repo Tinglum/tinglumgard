@@ -48,6 +48,8 @@
     defaultBoxName: "Mangalitsa-boks",
     defaultChickenName: "Kylling",
     checkmark: "✓",
+    sessionExpiredTitle: "Sesjonen er utløpt",
+    sessionExpiredDescription: "Logg inn igjen for å fortsette.",
   },
 
   boxContentsCard: {

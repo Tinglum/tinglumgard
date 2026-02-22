@@ -48,6 +48,8 @@
     defaultBoxName: "Mangalitsa box",
     defaultChickenName: "Chicken",
     checkmark: "✓",
+    sessionExpiredTitle: "Session expired",
+    sessionExpiredDescription: "Please log in again to continue.",
   },
 
   boxContentsCard: {
