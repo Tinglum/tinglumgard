@@ -97,7 +97,7 @@ export function ChickenOrderCard({ order, onPayRemainder }: ChickenOrderCardProp
     Boolean(depositPaid) || ['deposit_paid', 'fully_paid', 'ready_for_pickup', 'picked_up'].includes(order.status)
   const remainderDone =
     Boolean(remainderPaid) || ['fully_paid', 'ready_for_pickup', 'picked_up'].includes(order.status)
-  const pickupDone = ['ready_for_pickup', 'picked_up'].includes(order.status)
+  const pickupDone = ['picked_up'].includes(order.status)
   const timelineSteps = [
     {
       key: 'reserved',

@@ -207,7 +207,9 @@ export function PigOrderUnifiedCard({ order, canEdit, onPayRemainder, onRefresh 
 
   const growingDone = Boolean(depositPaid) || ['deposit_paid', 'paid', 'ready_for_pickup', 'completed'].includes(order.status)
   const slaughterDone = Boolean(order.locked_at) || ['paid', 'ready_for_pickup', 'completed'].includes(order.status)
-  const deliveryDone = Boolean(order.marked_delivered_at) || ['ready_for_pickup', 'completed'].includes(order.status)
+  const deliveryDone = Boolean(order.marked_delivered_at) || ['completed'].includes(order.status)
+  const deliveryTimelineHint =
+    order.status === 'ready_for_pickup' ? `${copy.timelinePickupPrefix} ${timelineDeliveryText}` : statusTimelineCopy.deliveryHint
   const timelineSteps = [
     {
       key: 'ordered',
@@ -236,7 +238,7 @@ export function PigOrderUnifiedCard({ order, canEdit, onPayRemainder, onRefresh 
     {
       key: 'delivery',
       label: statusTimelineCopy.delivery,
-      hint: deliveryDone ? `${copy.timelinePickupPrefix} ${timelineDeliveryText}` : statusTimelineCopy.deliveryHint,
+      hint: deliveryDone ? `${copy.timelinePickupPrefix} ${timelineDeliveryText}` : deliveryTimelineHint,
       done: deliveryDone,
     },
   ]
