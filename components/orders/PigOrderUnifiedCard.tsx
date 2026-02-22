@@ -13,10 +13,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import {
-  AlertTriangle,
   ArrowRight,
   Calendar,
-  CheckCircle2,
   CreditCard,
   EllipsisVertical,
   Mail,
@@ -31,6 +29,7 @@ import { OrderModificationModal } from '@/components/OrderModificationModal'
 import { PaymentHistoryModal } from '@/components/PaymentHistoryModal'
 import { ContactAdminModal } from '@/components/ContactAdminModal'
 import { OrderTimelineModal } from '@/components/OrderTimelineModal'
+import { StepTimeline } from '@/components/orders/StepTimeline'
 
 interface Payment {
   id: string
@@ -90,6 +89,7 @@ export function PigOrderUnifiedCard({ order, canEdit, onPayRemainder, onRefresh 
   const { lang, t } = useLanguage()
   const locale = lang === 'en' ? 'en-US' : 'nb-NO'
   const copy = t.orderDetailsCard
+  const statusTimelineCopy = t.orderStatusTimeline
   const currency = t.common.currency
   const daysLeftLabel = t.eggs.common.daysLeft
 
@@ -204,6 +204,42 @@ export function PigOrderUnifiedCard({ order, canEdit, onPayRemainder, onRefresh 
         return { label: copy.statusWaitingDeposit, className: 'bg-neutral-100 text-neutral-700' }
     }
   })()
+
+  const growingDone = Boolean(depositPaid) || ['deposit_paid', 'paid', 'ready_for_pickup', 'completed'].includes(order.status)
+  const slaughterDone = Boolean(order.locked_at) || ['paid', 'ready_for_pickup', 'completed'].includes(order.status)
+  const deliveryDone = Boolean(order.marked_delivered_at) || ['ready_for_pickup', 'completed'].includes(order.status)
+  const timelineSteps = [
+    {
+      key: 'ordered',
+      label: statusTimelineCopy.ordered,
+      hint: new Date(order.created_at).toLocaleDateString(locale, {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+      }),
+      done: true,
+    },
+    {
+      key: 'growing',
+      label: statusTimelineCopy.growing,
+      hint: statusTimelineCopy.growingHint,
+      done: growingDone,
+    },
+    {
+      key: 'slaughter',
+      label: statusTimelineCopy.slaughter,
+      hint: needsRemainderPayment
+        ? `${copy.dueDate}: ${formattedDueDate}${daysToDue >= 0 ? ` - ${daysToDueLabel} ${daysLeftLabel}` : ''}`
+        : statusTimelineCopy.slaughterHint,
+      done: slaughterDone,
+    },
+    {
+      key: 'delivery',
+      label: statusTimelineCopy.delivery,
+      hint: deliveryDone ? `${copy.timelinePickupPrefix} ${timelineDeliveryText}` : statusTimelineCopy.deliveryHint,
+      done: deliveryDone,
+    },
+  ]
 
   async function handleAddExtras(selectedExtras: { slug: string; quantity: number }[], proceedToPayment = false) {
     setAddingExtras(true)
@@ -381,27 +417,6 @@ export function PigOrderUnifiedCard({ order, canEdit, onPayRemainder, onRefresh 
                 {extrasTotal > 0 ? '+' : ''}{currency} {extrasTotal.toLocaleString(locale)}
               </span>
             </div>
-            <p className="text-xs uppercase tracking-[0.2em] text-neutral-500">{copy.timelineLabel}</p>
-            {needsRemainderPayment ? (
-              <div className="flex items-start gap-2 text-xs text-neutral-600">
-                <AlertTriangle className="w-4 h-4 text-amber-500" />
-                <span>
-                  {copy.dueDate}: {formattedDueDate}
-                  {daysToDue >= 0 ? ` - ${daysToDueLabel} ${daysLeftLabel}` : ''}
-                </span>
-              </div>
-            ) : (
-              <div className="flex items-center gap-2 text-xs text-neutral-500">
-                <CheckCircle2 className="w-4 h-4 text-neutral-900" />
-                <span>{copy.timelineRemainderPaid}</span>
-              </div>
-            )}
-            <div className="flex items-center gap-2 text-xs text-neutral-500">
-              <CheckCircle2 className="w-4 h-4 text-neutral-900" />
-              <span>
-                {copy.timelinePickupPrefix} {timelineDeliveryText}
-              </span>
-            </div>
             <div className="pt-2 mt-1 border-t border-neutral-200 flex items-center justify-between text-sm">
               <span className="text-neutral-500">{copy.remainderTotal}</span>
               <span className="font-normal text-neutral-900">{currency} {remainderTotal.toLocaleString(locale)}</span>
@@ -425,6 +440,11 @@ export function PigOrderUnifiedCard({ order, canEdit, onPayRemainder, onRefresh 
               <span>{contactInfo.phone}</span>
             </div>
           </div>
+        </div>
+
+        <div className="mt-6 space-y-2">
+          <p className="text-xs uppercase tracking-[0.2em] text-neutral-500">{copy.timelineLabel}</p>
+          <StepTimeline steps={timelineSteps} />
         </div>
 
         <div className="mt-5 pt-5 border-t border-neutral-200 flex flex-wrap gap-2">

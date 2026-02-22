@@ -4,7 +4,7 @@ import { useMemo } from 'react'
 import { useLanguage } from '@/contexts/LanguageContext'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { AlertTriangle, CheckCircle2 } from 'lucide-react'
+import { StepTimeline } from '@/components/orders/StepTimeline'
 
 interface ChickenOrderCardProps {
   order: {
@@ -93,6 +93,46 @@ export function ChickenOrderCard({ order, onPayRemainder }: ChickenOrderCardProp
     : null
   const daysToDue = dueDate ? daysBetween(dueDate, today) : null
   const daysToDueLabel = daysToDue !== null ? Math.max(daysToDue, 0) : null
+  const depositDone =
+    Boolean(depositPaid) || ['deposit_paid', 'fully_paid', 'ready_for_pickup', 'picked_up'].includes(order.status)
+  const remainderDone =
+    Boolean(remainderPaid) || ['fully_paid', 'ready_for_pickup', 'picked_up'].includes(order.status)
+  const pickupDone = ['ready_for_pickup', 'picked_up'].includes(order.status)
+  const timelineSteps = [
+    {
+      key: 'reserved',
+      label: myOrdersCopy.stepReserved,
+      hint: `${myOrdersCopy.weekLabel} ${order.pickup_week}, ${order.pickup_year}`,
+      done: true,
+    },
+    {
+      key: 'deposit',
+      label: myOrdersCopy.stepDeposit,
+      hint: depositDone ? myOrdersCopy.statusDepositPaid : myOrdersCopy.statusPending,
+      done: depositDone,
+    },
+    {
+      key: 'remainder',
+      label: myOrdersCopy.stepRemainder,
+      hint:
+        dueDateLabel && !remainderDone
+          ? `${myOrdersCopy.duePrefix} ${dueDateLabel}${
+              daysToDueLabel !== null && daysToDue !== null && daysToDue >= 0
+                ? ` - ${daysToDueLabel} ${myOrdersCopy.daysLeftLabel}`
+                : ''
+            }`
+          : myOrdersCopy.remainderPaidPrefix,
+      done: remainderDone,
+    },
+    {
+      key: 'pickup',
+      label: myOrdersCopy.stepPickup,
+      hint: `${myOrdersCopy.pickupPrefix} ${pickupDateLabel}${
+        daysToPickup >= 0 ? ` - ${daysToPickupLabel} ${myOrdersCopy.daysLeftLabel}` : ''
+      }`,
+      done: pickupDone,
+    },
+  ]
 
   return (
     <Card className="p-6 border-neutral-200 bg-white shadow-[0_20px_60px_-15px_rgba(0,0,0,0.08)]">
@@ -136,30 +176,6 @@ export function ChickenOrderCard({ order, onPayRemainder }: ChickenOrderCardProp
               {common.currency} {order.remainder_amount_nok.toLocaleString(locale)}
             </span>
           </div>
-          <p className="text-xs uppercase tracking-[0.2em] text-neutral-500">{myOrdersCopy.timeline}</p>
-          {showPayRemainder && dueDateLabel ? (
-            <div className="flex items-start gap-2 text-xs text-neutral-600">
-              <AlertTriangle className="w-4 h-4 text-amber-500" />
-              <span>
-                {myOrdersCopy.duePrefix} {dueDateLabel}
-                {daysToDueLabel !== null && daysToDue !== null && daysToDue >= 0
-                  ? ` - ${daysToDueLabel} ${myOrdersCopy.daysLeftLabel}`
-                  : ''}
-              </span>
-            </div>
-          ) : (
-            <div className="flex items-center gap-2 text-xs text-neutral-500">
-              <CheckCircle2 className="w-4 h-4 text-neutral-900" />
-              <span>{myOrdersCopy.remainderPaidPrefix}</span>
-            </div>
-          )}
-          <div className="flex items-center gap-2 text-xs text-neutral-500">
-            <CheckCircle2 className="w-4 h-4 text-neutral-900" />
-            <span>
-              {myOrdersCopy.pickupPrefix} {pickupDateLabel}
-              {daysToPickup >= 0 ? ` - ${daysToPickupLabel} ${myOrdersCopy.daysLeftLabel}` : ''}
-            </span>
-          </div>
         </div>
 
         <div className="space-y-3">
@@ -174,6 +190,11 @@ export function ChickenOrderCard({ order, onPayRemainder }: ChickenOrderCardProp
             <p className="font-normal text-neutral-900">{common.currency} {order.price_per_hen_nok.toLocaleString(locale)}</p>
           </div>
         </div>
+      </div>
+
+      <div className="mt-6 space-y-2">
+        <p className="text-xs uppercase tracking-[0.2em] text-neutral-500">{myOrdersCopy.timeline}</p>
+        <StepTimeline steps={timelineSteps} />
       </div>
 
       {showPayRemainder && (

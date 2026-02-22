@@ -5,7 +5,8 @@ import { useMemo } from 'react'
 import { useLanguage } from '@/contexts/LanguageContext'
 import { GlassCard } from '@/components/eggs/GlassCard'
 import { formatDateFull, formatPrice } from '@/lib/eggs/utils'
-import { ArrowRight, AlertTriangle, CheckCircle2 } from 'lucide-react'
+import { ArrowRight } from 'lucide-react'
+import { StepTimeline } from '@/components/orders/StepTimeline'
 
 type EggPayment = {
   payment_type: string
@@ -72,6 +73,10 @@ export function EggOrderUnifiedCard({ order }: { order: EggOrder }) {
       if (payment.payment_type !== 'remainder' || payment.status !== 'completed') return sum
       return sum + (payment.amount_nok || 0) * 100
     }, 0) || 0
+  const depositPaid =
+    (order.egg_payments || []).some(
+      (payment) => payment.payment_type === 'deposit' && payment.status === 'completed'
+    ) || ['deposit_paid', 'fully_paid', 'preparing', 'shipped', 'delivered'].includes(order.status)
   const remainderDue = Math.max(0, order.remainder_amount - remainderPaidOre)
   const dueDate = order.remainder_due_date ? toDateOnly(order.remainder_due_date) : null
   const deliveryDate = toDateOnly(order.delivery_monday)
@@ -80,6 +85,43 @@ export function EggOrderUnifiedCard({ order }: { order: EggOrder }) {
   const daysToDue = dueDate ? daysBetween(dueDate, today) : null
   const daysToDueLabel = daysToDue !== null ? Math.max(daysToDue, 0) : null
   const daysToDelivery = daysBetween(deliveryDate, today)
+  const remainderPaid =
+    remainderDue <= 0 || ['fully_paid', 'preparing', 'shipped', 'delivered'].includes(order.status)
+  const shipmentDone = ['shipped', 'delivered'].includes(order.status)
+
+  const timelineSteps = [
+    {
+      key: 'placed',
+      label: ordersCopy.stepPlaced,
+      hint: order.created_at ? formatDateFull(new Date(order.created_at), lang) : `${common.week} ${order.week_number}`,
+      done: true,
+    },
+    {
+      key: 'deposit',
+      label: ordersCopy.stepDeposit,
+      hint: depositPaid ? ordersCopy.statusDepositPaid : ordersCopy.statusPending,
+      done: depositPaid,
+    },
+    {
+      key: 'remainder',
+      label: ordersCopy.stepRemainder,
+      hint:
+        dueDate && !remainderPaid
+          ? `${ordersCopy.duePrefix} ${formatDateFull(dueDate, lang)}${
+              daysToDueLabel !== null ? ` - ${daysToDueLabel} ${common.daysLeft}` : ''
+            }`
+          : ordersCopy.statusPaid,
+      done: remainderPaid,
+    },
+    {
+      key: 'shipment',
+      label: ordersCopy.stepShipment,
+      hint: `${ordersCopy.shipmentPrefix} ${formatDateFull(deliveryDate, lang)}${
+        daysToDelivery >= 0 ? ` - ${daysToDelivery} ${common.daysLeft}` : ''
+      }`,
+      done: shipmentDone,
+    },
+  ]
 
   const statusMeta = (() => {
     switch (order.status) {
@@ -183,23 +225,6 @@ export function EggOrderUnifiedCard({ order }: { order: EggOrder }) {
               {formatPrice(remainderDue, lang)}
             </span>
           </div>
-          <p className="text-xs uppercase tracking-[0.2em] text-neutral-500">{ordersCopy.timeline}</p>
-          {dueDate && remainderDue > 0 && (
-            <div className="flex items-start gap-2 text-xs text-neutral-600">
-              <AlertTriangle className="w-4 h-4 text-amber-500" />
-              <span>
-                {ordersCopy.duePrefix} {formatDateFull(dueDate, lang)}
-                {daysToDueLabel !== null && ` - ${daysToDueLabel} ${common.daysLeft}`}
-              </span>
-            </div>
-          )}
-          <div className="flex items-center gap-2 text-xs text-neutral-500">
-            <CheckCircle2 className="w-4 h-4 text-neutral-900" />
-            <span>
-              {ordersCopy.shipmentPrefix} {formatDateFull(deliveryDate, lang)}
-              {daysToDelivery >= 0 && ` - ${daysToDelivery} ${common.daysLeft}`}
-            </span>
-          </div>
         </div>
 
         <div className="space-y-3">
@@ -224,6 +249,11 @@ export function EggOrderUnifiedCard({ order }: { order: EggOrder }) {
             )}
           </div>
         </div>
+      </div>
+
+      <div className="space-y-2">
+        <p className="text-xs uppercase tracking-[0.2em] text-neutral-500">{ordersCopy.timeline}</p>
+        <StepTimeline steps={timelineSteps} />
       </div>
     </GlassCard>
   )
