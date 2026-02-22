@@ -33,6 +33,7 @@ export default function EggDeliveryPage() {
   const { lang: language, t } = useLanguage()
   const { currentDraft, setDeliveryMethod, setShippingDetails } = useOrder()
   const [showAddressError, setShowAddressError] = useState(false)
+  const [showMethodError, setShowMethodError] = useState(false)
   const copy = t.eggs.delivery
 
   useEffect(() => {
@@ -40,6 +41,12 @@ export default function EggDeliveryPage() {
       router.replace('/rugeegg/handlekurv')
     }
   }, [currentDraft, router])
+
+  useEffect(() => {
+    if (!currentDraft) return
+    if (currentDraft.deliveryMethod) return
+    setDeliveryMethod('posten')
+  }, [currentDraft, setDeliveryMethod])
 
   useEffect(() => {
     if (!currentDraft) return
@@ -63,6 +70,13 @@ export default function EggDeliveryPage() {
       setShowAddressError(false)
     }
   }, [showAddressError, currentDraft])
+
+  useEffect(() => {
+    if (!showMethodError) return
+    if (currentDraft?.deliveryMethod) {
+      setShowMethodError(false)
+    }
+  }, [showMethodError, currentDraft?.deliveryMethod])
 
   if (!currentDraft) {
     return (
@@ -118,7 +132,10 @@ export default function EggDeliveryPage() {
   }
 
   const handleContinue = () => {
-    if (!selectedMethod) return
+    if (!selectedMethod) {
+      setShowMethodError(true)
+      return
+    }
     if (isPosten && !shippingComplete) {
       setShowAddressError(true)
       return
@@ -200,6 +217,10 @@ export default function EggDeliveryPage() {
                 </button>
               )
             })}
+
+            {showMethodError && !selectedMethod && (
+              <p className="text-xs text-red-600">{copy.selectMethodRequired}</p>
+            )}
 
             {selectedMethod === 'posten' && (
               <div className="rounded-xl border border-neutral-200 bg-white p-6 space-y-4">
@@ -320,12 +341,16 @@ export default function EggDeliveryPage() {
                 <button
                   type="button"
                   onClick={handleContinue}
-                  disabled={!selectedMethod}
                   className="btn-primary w-full"
                 >
                   {t.eggs.common.continueToPayment}
                   <ArrowRight className="w-5 h-5" />
                 </button>
+                {showMethodError && !selectedMethod && (
+                  <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                    {copy.selectMethodRequired}
+                  </p>
+                )}
                 {showShippingValidationError && (
                   <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
                     {copy.addressRequired}

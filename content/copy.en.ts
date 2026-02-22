@@ -556,6 +556,7 @@
       cityPlaceholder: "City",
       country: "Country",
       countryPlaceholder: "Norway",
+      selectMethodRequired: "Select a delivery method to continue.",
       addressRequired: "Fill in all address fields to continue.",
       methodInfo:
         "Farm pickup and E6 Namsos-Trondheim delivery are wishes that may be arranged after the deposit is paid. Send a message after the deposit, and we will see if it can be arranged.",

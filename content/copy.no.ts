@@ -557,6 +557,7 @@
       cityPlaceholder: "Poststed",
       country: "Land",
       countryPlaceholder: "Norge",
+      selectMethodRequired: "Velg forsendelsesmetode for å fortsette.",
       addressRequired: "Fyll ut alle adressefeltene for å fortsette.",
       methodInfo:
         "Henting på gården og levering langs E6 Namsos-Trondheim er ønskeløsninger som kan avtales etter at forskuddet er betalt. Send en melding etter innbetalt forskudd, så ser vi om det er mulig å ordne.",
