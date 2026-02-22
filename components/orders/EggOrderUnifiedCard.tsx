@@ -183,6 +183,7 @@ export function EggOrderUnifiedCard({ order }: { order: EggOrder }) {
               {formatPrice(remainderDue, lang)}
             </span>
           </div>
+          <p className="text-xs uppercase tracking-[0.2em] text-neutral-500">{ordersCopy.timeline}</p>
           {dueDate && remainderDue > 0 && (
             <div className="flex items-start gap-2 text-xs text-neutral-600">
               <AlertTriangle className="w-4 h-4 text-amber-500" />
@@ -227,4 +228,3 @@ export function EggOrderUnifiedCard({ order }: { order: EggOrder }) {
     </GlassCard>
   )
 }
-

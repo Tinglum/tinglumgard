@@ -1,5 +1,6 @@
 'use client'
 
+import { useMemo } from 'react'
 import { useLanguage } from '@/contexts/LanguageContext'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -18,6 +19,7 @@ interface ChickenOrderCardProps {
     total_amount_nok: number
     deposit_amount_nok: number
     remainder_amount_nok: number
+    remainder_due_date?: string | null
     delivery_method: string
     status: string
     created_at: string
@@ -27,11 +29,33 @@ interface ChickenOrderCardProps {
   onPayRemainder?: (orderId: string) => void
 }
 
+const toDateOnly = (value: string | Date) => {
+  const date = new Date(value)
+  return new Date(date.toISOString().split('T')[0])
+}
+
+const daysBetween = (future: Date, today: Date) => {
+  const diffMs = future.getTime() - today.getTime()
+  return Math.round(diffMs / (1000 * 60 * 60 * 24))
+}
+
+const getIsoWeekMondayDate = (year: number, week: number) => {
+  const simple = new Date(Date.UTC(year, 0, 1 + (week - 1) * 7))
+  const day = simple.getUTCDay() || 7
+  if (day <= 4) {
+    simple.setUTCDate(simple.getUTCDate() - day + 1)
+  } else {
+    simple.setUTCDate(simple.getUTCDate() + 8 - day)
+  }
+  return toDateOnly(simple)
+}
+
 export function ChickenOrderCard({ order, onPayRemainder }: ChickenOrderCardProps) {
   const { lang, t } = useLanguage()
   const myOrdersCopy = (t as any).chickens.myOrders
   const common = t.common
   const locale = lang === 'en' ? 'en-US' : 'nb-NO'
+  const today = useMemo(() => toDateOnly(new Date()), [])
 
   const statusMeta: Record<string, { label: string; className: string }> = {
     pending: { label: myOrdersCopy.statusPending, className: 'bg-amber-50 text-amber-700' },
@@ -51,6 +75,24 @@ export function ChickenOrderCard({ order, onPayRemainder }: ChickenOrderCardProp
 
   const showPayRemainder = order.status === 'deposit_paid' && !remainderPaid && onPayRemainder
   const meta = statusMeta[order.status] || { label: order.status, className: 'bg-neutral-100 text-neutral-700' }
+  const pickupDate = getIsoWeekMondayDate(order.pickup_year, order.pickup_week)
+  const daysToPickup = daysBetween(pickupDate, today)
+  const daysToPickupLabel = Math.max(daysToPickup, 0)
+  const pickupDateLabel = pickupDate.toLocaleDateString(locale, {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  })
+  const dueDate = order.remainder_due_date ? toDateOnly(order.remainder_due_date) : null
+  const dueDateLabel = dueDate
+    ? dueDate.toLocaleDateString(locale, {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+      })
+    : null
+  const daysToDue = dueDate ? daysBetween(dueDate, today) : null
+  const daysToDueLabel = daysToDue !== null ? Math.max(daysToDue, 0) : null
 
   return (
     <Card className="p-6 border-neutral-200 bg-white shadow-[0_20px_60px_-15px_rgba(0,0,0,0.08)]">
@@ -94,15 +136,29 @@ export function ChickenOrderCard({ order, onPayRemainder }: ChickenOrderCardProp
               {common.currency} {order.remainder_amount_nok.toLocaleString(locale)}
             </span>
           </div>
-          {showPayRemainder && (
+          <p className="text-xs uppercase tracking-[0.2em] text-neutral-500">{myOrdersCopy.timeline}</p>
+          {showPayRemainder && dueDateLabel ? (
             <div className="flex items-start gap-2 text-xs text-neutral-600">
               <AlertTriangle className="w-4 h-4 text-amber-500" />
-              <span>{myOrdersCopy.payRemainder}</span>
+              <span>
+                {myOrdersCopy.duePrefix} {dueDateLabel}
+                {daysToDueLabel !== null && daysToDue !== null && daysToDue >= 0
+                  ? ` - ${daysToDueLabel} ${myOrdersCopy.daysLeftLabel}`
+                  : ''}
+              </span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 text-xs text-neutral-500">
+              <CheckCircle2 className="w-4 h-4 text-neutral-900" />
+              <span>{myOrdersCopy.remainderPaidPrefix}</span>
             </div>
           )}
           <div className="flex items-center gap-2 text-xs text-neutral-500">
             <CheckCircle2 className="w-4 h-4 text-neutral-900" />
-            <span>{myOrdersCopy.totalLabel}: {common.currency} {order.total_amount_nok.toLocaleString(locale)}</span>
+            <span>
+              {myOrdersCopy.pickupPrefix} {pickupDateLabel}
+              {daysToPickup >= 0 ? ` - ${daysToPickupLabel} ${myOrdersCopy.daysLeftLabel}` : ''}
+            </span>
           </div>
         </div>
 

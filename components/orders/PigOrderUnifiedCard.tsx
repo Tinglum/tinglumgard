@@ -16,6 +16,7 @@ import {
   AlertTriangle,
   ArrowRight,
   Calendar,
+  CheckCircle2,
   CreditCard,
   EllipsisVertical,
   Mail,
@@ -74,12 +75,23 @@ interface PigOrderUnifiedCardProps {
   onRefresh: () => void
 }
 
+const toDateOnly = (value: string | Date) => {
+  const date = new Date(value)
+  return new Date(date.toISOString().split('T')[0])
+}
+
+const daysBetween = (future: Date, today: Date) => {
+  const diffMs = future.getTime() - today.getTime()
+  return Math.round(diffMs / (1000 * 60 * 60 * 24))
+}
+
 export function PigOrderUnifiedCard({ order, canEdit, onPayRemainder, onRefresh }: PigOrderUnifiedCardProps) {
   const { toast } = useToast()
   const { lang, t } = useLanguage()
   const locale = lang === 'en' ? 'en-US' : 'nb-NO'
   const copy = t.orderDetailsCard
   const currency = t.common.currency
+  const daysLeftLabel = t.eggs.common.daysLeft
 
   const [showExtrasModal, setShowExtrasModal] = useState(false)
   const [showModificationModal, setShowModificationModal] = useState(false)
@@ -109,11 +121,25 @@ export function PigOrderUnifiedCard({ order, canEdit, onPayRemainder, onRefresh 
   const baseRemainder = Math.max(0, order.remainder_amount - extrasTotal)
   const remainderTotal = Math.max(0, order.remainder_amount)
   const remainderDueDate = new Date('2026-11-16')
+  const today = useMemo(() => toDateOnly(new Date()), [])
+  const dueDate = toDateOnly(remainderDueDate)
+  const daysToDue = daysBetween(dueDate, today)
+  const daysToDueLabel = Math.max(daysToDue, 0)
   const formattedDueDate = remainderDueDate.toLocaleDateString(locale, {
     day: 'numeric',
     month: 'long',
     year: 'numeric',
   })
+  const deliveredDate = order.marked_delivered_at ? new Date(order.marked_delivered_at) : null
+  const timelineDeliveryText = deliveredDate
+    ? deliveredDate.toLocaleDateString(locale, {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+      })
+    : order.status === 'ready_for_pickup' || order.status === 'completed'
+    ? copy.estimatedReadyNow
+    : copy.estimatedWeekRange
   const boxName = lang === 'no' ? order.display_box_name_no : order.display_box_name_en
   const boxLabel = boxName || t.common.defaultBoxName
 
@@ -355,12 +381,27 @@ export function PigOrderUnifiedCard({ order, canEdit, onPayRemainder, onRefresh 
                 {extrasTotal > 0 ? '+' : ''}{currency} {extrasTotal.toLocaleString(locale)}
               </span>
             </div>
-            {needsRemainderPayment && (
+            <p className="text-xs uppercase tracking-[0.2em] text-neutral-500">{copy.timelineLabel}</p>
+            {needsRemainderPayment ? (
               <div className="flex items-start gap-2 text-xs text-neutral-600">
                 <AlertTriangle className="w-4 h-4 text-amber-500" />
-                <span>{copy.dueDate}: {formattedDueDate}</span>
+                <span>
+                  {copy.dueDate}: {formattedDueDate}
+                  {daysToDue >= 0 ? ` - ${daysToDueLabel} ${daysLeftLabel}` : ''}
+                </span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 text-xs text-neutral-500">
+                <CheckCircle2 className="w-4 h-4 text-neutral-900" />
+                <span>{copy.timelineRemainderPaid}</span>
               </div>
             )}
+            <div className="flex items-center gap-2 text-xs text-neutral-500">
+              <CheckCircle2 className="w-4 h-4 text-neutral-900" />
+              <span>
+                {copy.timelinePickupPrefix} {timelineDeliveryText}
+              </span>
+            </div>
             <div className="pt-2 mt-1 border-t border-neutral-200 flex items-center justify-between text-sm">
               <span className="text-neutral-500">{copy.remainderTotal}</span>
               <span className="font-normal text-neutral-900">{currency} {remainderTotal.toLocaleString(locale)}</span>
