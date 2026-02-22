@@ -14,6 +14,7 @@
     order: "Bestill",
     goToEggs: "Gå til Rugeegg",
     goToPigs: "Gå til Ullgris",
+    goToChickens: "Gå til Kyllinger",
     back: "Tilbake",
     backToHome: "Tilbake til forsiden",
   },
@@ -864,6 +865,10 @@
     sectionChickenOrders: "Kyllinger",
     loadingChickenOrders: "Laster kyllingbestillinger...",
     noChickenOrders: "Ingen kyllingbestillinger ennå.",
+    orderViewLabel: "Visning",
+    orderViewChronological: "Kronologisk",
+    orderViewNextStep: "Neste steg-dato",
+    orderViewByType: "Type",
 
     // Order status
     completed: "Fullført",

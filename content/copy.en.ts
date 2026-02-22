@@ -14,6 +14,7 @@
     order: "Order",
     goToEggs: "Go to Eggs",
     goToPigs: "Go to Pork",
+    goToChickens: "Go to Chickens",
     back: "Back",
     backToHome: "Back to home",
   },
@@ -863,6 +864,10 @@
     sectionChickenOrders: "Chickens",
     loadingChickenOrders: "Loading chicken orders...",
     noChickenOrders: "No chicken orders yet.",
+    orderViewLabel: "View",
+    orderViewChronological: "Chronological",
+    orderViewNextStep: "Next-step date",
+    orderViewByType: "Type",
 
     // Order status
     completed: "Completed",

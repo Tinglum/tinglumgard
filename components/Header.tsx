@@ -16,6 +16,8 @@ export function Header() {
   const themeClasses = getThemeClasses();
   const pathname = usePathname();
   const isEggRoute = pathname?.startsWith('/rugeegg');
+  const isChickenRoute = pathname?.startsWith('/kyllinger');
+  const isPigRoute = !isEggRoute && !isChickenRoute;
   const [showDropdown, setShowDropdown] = useState(false);
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
   const [scrolled, setScrolled] = useState(false);
@@ -221,12 +223,41 @@ export function Header() {
                   </span>
                 </Link>
               )}
-              <Link
-                href={isEggRoute ? "/" : "/rugeegg"}
-                className="hidden md:inline-flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all duration-300 text-neutral-700 bg-white border border-neutral-200 hover:text-neutral-900 hover:shadow-[0_6px_16px_rgba(0,0,0,0.1)] hover:-translate-y-0.5"
-              >
-                {isEggRoute ? t.nav.goToPigs : t.nav.goToEggs}
-              </Link>
+              <div className="hidden lg:flex items-center gap-2">
+                <Link
+                  href="/"
+                  className={cn(
+                    "inline-flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all duration-300 border hover:shadow-[0_6px_16px_rgba(0,0,0,0.1)] hover:-translate-y-0.5",
+                    isPigRoute
+                      ? "text-neutral-900 bg-neutral-100 border-neutral-300"
+                      : "text-neutral-700 bg-white border-neutral-200 hover:text-neutral-900"
+                  )}
+                >
+                  {t.nav.goToPigs}
+                </Link>
+                <Link
+                  href="/rugeegg/raser"
+                  className={cn(
+                    "inline-flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all duration-300 border hover:shadow-[0_6px_16px_rgba(0,0,0,0.1)] hover:-translate-y-0.5",
+                    isEggRoute
+                      ? "text-neutral-900 bg-neutral-100 border-neutral-300"
+                      : "text-neutral-700 bg-white border-neutral-200 hover:text-neutral-900"
+                  )}
+                >
+                  {t.nav.goToEggs}
+                </Link>
+                <Link
+                  href="/kyllinger"
+                  className={cn(
+                    "inline-flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all duration-300 border hover:shadow-[0_6px_16px_rgba(0,0,0,0.1)] hover:-translate-y-0.5",
+                    isChickenRoute
+                      ? "text-neutral-900 bg-neutral-100 border-neutral-300"
+                      : "text-neutral-700 bg-white border-neutral-200 hover:text-neutral-900"
+                  )}
+                >
+                  {t.nav.goToChickens}
+                </Link>
+              </div>
               {/* Language toggle - Minimalist */}
               <button
                 onClick={() => setLang(lang === "no" ? "en" : "no")}

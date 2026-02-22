@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { Package } from 'lucide-react';
@@ -84,11 +84,39 @@ interface ChickenOrder {
   total_amount_nok: number;
   deposit_amount_nok: number;
   remainder_amount_nok: number;
+  remainder_due_date?: string | null;
   delivery_method: string;
   status: string;
   created_at: string;
   chicken_breeds?: { name: string; accent_color: string };
   chicken_payments?: Array<{ payment_type: string; status: string; amount_nok: number }>;
+}
+
+type UnifiedOrderType = 'egg' | 'pig' | 'chicken';
+type OrderViewMode = 'chronological' | 'next_step' | 'type';
+
+interface UnifiedOrderItem {
+  type: UnifiedOrderType;
+  id: string;
+  createdAt: number;
+  nextStepAt: number;
+}
+
+function toTimestamp(value?: string | null, fallback: number = Number.POSITIVE_INFINITY): number {
+  if (!value) return fallback;
+  const parsed = new Date(value).getTime();
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function getIsoWeekMondayTimestamp(year: number, week: number): number {
+  const simple = new Date(Date.UTC(year, 0, 1 + (week - 1) * 7));
+  const day = simple.getUTCDay() || 7;
+  if (day <= 4) {
+    simple.setUTCDate(simple.getUTCDate() - day + 1);
+  } else {
+    simple.setUTCDate(simple.getUTCDate() + 8 - day);
+  }
+  return simple.getTime();
 }
 
 export default function CustomerPortalPage() {
@@ -102,6 +130,7 @@ export default function CustomerPortalPage() {
   const [cutoffYear, setCutoffYear] = useState(2026);
   const [canEdit, setCanEdit] = useState(false);
   const [activeTab, setActiveTab] = useState<'orders' | 'referrals' | 'messages'>('orders');
+  const [orderViewMode, setOrderViewMode] = useState<OrderViewMode>('chronological');
   const [eggOrders, setEggOrders] = useState<EggOrder[]>([]);
   const [chickenOrders, setChickenOrders] = useState<ChickenOrder[]>([]);
   const [eggOrdersLoading, setEggOrdersLoading] = useState(false);
@@ -240,6 +269,89 @@ export default function CustomerPortalPage() {
     }
   }
 
+  const unifiedOrders = useMemo<UnifiedOrderItem[]>(() => {
+    const eggItems: UnifiedOrderItem[] = eggOrders.map((order) => {
+      const remainderPaid = (order.egg_payments || []).some(
+        (payment) => payment.payment_type === 'remainder' && payment.status === 'completed'
+      );
+      const nextStepAt = order.status === 'deposit_paid' && !remainderPaid
+        ? toTimestamp(order.remainder_due_date, toTimestamp(order.delivery_monday))
+        : toTimestamp(order.delivery_monday, toTimestamp(order.created_at));
+
+      return {
+        type: 'egg',
+        id: order.id,
+        createdAt: toTimestamp(order.created_at, toTimestamp(order.delivery_monday, 0)),
+        nextStepAt,
+      };
+    });
+
+    const pigItems: UnifiedOrderItem[] = orders.map((order) => {
+      const depositPaid = (order.payments || []).some(
+        (payment) => payment.payment_type === 'deposit' && payment.status === 'completed'
+      );
+      const remainderPaid = (order.payments || []).some(
+        (payment) => payment.payment_type === 'remainder' && payment.status === 'completed'
+      );
+
+      const nextStepAt = depositPaid && !remainderPaid
+        ? toTimestamp(order.locked_at, toTimestamp(order.last_modified_at, toTimestamp(order.created_at)))
+        : toTimestamp(order.marked_delivered_at, toTimestamp(order.last_modified_at, toTimestamp(order.created_at)));
+
+      return {
+        type: 'pig',
+        id: order.id,
+        createdAt: toTimestamp(order.created_at, 0),
+        nextStepAt,
+      };
+    });
+
+    const chickenItems: UnifiedOrderItem[] = chickenOrders.map((order) => {
+      const remainderPaid = (order.chicken_payments || []).some(
+        (payment) => payment.payment_type === 'remainder' && payment.status === 'completed'
+      );
+      const pickupAt = getIsoWeekMondayTimestamp(order.pickup_year, order.pickup_week);
+      const nextStepAt = order.status === 'deposit_paid' && !remainderPaid
+        ? toTimestamp(order.remainder_due_date, pickupAt)
+        : pickupAt;
+
+      return {
+        type: 'chicken',
+        id: order.id,
+        createdAt: toTimestamp(order.created_at, pickupAt),
+        nextStepAt,
+      };
+    });
+
+    const allItems = [...eggItems, ...pigItems, ...chickenItems];
+    if (orderViewMode === 'chronological') {
+      return allItems.sort((a, b) => b.createdAt - a.createdAt);
+    }
+    if (orderViewMode === 'next_step') {
+      return allItems.sort((a, b) => a.nextStepAt - b.nextStepAt || b.createdAt - a.createdAt);
+    }
+    return allItems;
+  }, [eggOrders, orders, chickenOrders, orderViewMode]);
+
+  const orderTypeLabel: Record<UnifiedOrderType, string> = {
+    egg: t.minSide.sectionEggOrders,
+    pig: t.minSide.sectionPigOrders,
+    chicken: t.minSide.sectionChickenOrders,
+  };
+
+  const orderTypeBadgeClass: Record<UnifiedOrderType, string> = {
+    egg: 'bg-sky-50 text-sky-700',
+    pig: 'bg-neutral-100 text-neutral-700',
+    chicken: 'bg-amber-50 text-amber-700',
+  };
+
+  const eggOrdersById = useMemo(() => new Map(eggOrders.map((order) => [order.id, order])), [eggOrders]);
+  const pigOrdersById = useMemo(() => new Map(orders.map((order) => [order.id, order])), [orders]);
+  const chickenOrdersById = useMemo(
+    () => new Map(chickenOrders.map((order) => [order.id, order])),
+    [chickenOrders]
+  );
+
   if (loading || authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -334,6 +446,45 @@ export default function CustomerPortalPage() {
                 : t.minSide.editPeriodExpired.replace('{week}', cutoffWeek.toString()).replace('{year}', cutoffYear.toString())}
             </div>
 
+            <div className="rounded-xl border border-neutral-200 bg-white p-4 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.08)]">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-sm text-neutral-600">{t.minSide.orderViewLabel}</span>
+                <button
+                  type="button"
+                  onClick={() => setOrderViewMode('chronological')}
+                  className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                    orderViewMode === 'chronological'
+                      ? 'bg-neutral-900 text-white'
+                      : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'
+                  }`}
+                >
+                  {t.minSide.orderViewChronological}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setOrderViewMode('next_step')}
+                  className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                    orderViewMode === 'next_step'
+                      ? 'bg-neutral-900 text-white'
+                      : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'
+                  }`}
+                >
+                  {t.minSide.orderViewNextStep}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setOrderViewMode('type')}
+                  className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                    orderViewMode === 'type'
+                      ? 'bg-neutral-900 text-white'
+                      : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'
+                  }`}
+                >
+                  {t.minSide.orderViewByType}
+                </button>
+              </div>
+            </div>
+
             {orders.length === 0 && eggOrders.length === 0 && chickenOrders.length === 0 ? (
               <div className="rounded-xl border border-neutral-200 bg-white p-12 text-center shadow-[0_20px_60px_-15px_rgba(0,0,0,0.08)]">
                 <Package className="w-12 h-12 mx-auto mb-4 text-neutral-400" />
@@ -351,7 +502,7 @@ export default function CustomerPortalPage() {
                   </a>
                 </div>
               </div>
-            ) : (
+            ) : orderViewMode === 'type' ? (
               <div className="space-y-10">
                 <section className="space-y-4">
                   <div className="flex items-center justify-between gap-3">
@@ -426,6 +577,41 @@ export default function CustomerPortalPage() {
                     </div>
                   )}
                 </section>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {unifiedOrders.map((item) => (
+                  <div key={`${item.type}-${item.id}`} className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${orderTypeBadgeClass[item.type]}`}>
+                        {orderTypeLabel[item.type]}
+                      </span>
+                    </div>
+                    {item.type === 'egg' && (
+                      eggOrdersById.get(item.id) ? (
+                        <EggOrderUnifiedCard order={eggOrdersById.get(item.id)!} />
+                      ) : null
+                    )}
+                    {item.type === 'pig' && (
+                      pigOrdersById.get(item.id) ? (
+                        <PigOrderUnifiedCard
+                          order={pigOrdersById.get(item.id)!}
+                          canEdit={canEdit}
+                          onPayRemainder={handlePayRemainder}
+                          onRefresh={loadAllOrders}
+                        />
+                      ) : null
+                    )}
+                    {item.type === 'chicken' && (
+                      chickenOrdersById.get(item.id) ? (
+                        <ChickenOrderCard
+                          order={chickenOrdersById.get(item.id)!}
+                          onPayRemainder={handlePayChickenRemainder}
+                        />
+                      ) : null
+                    )}
+                  </div>
+                ))}
               </div>
             )}
           </div>
