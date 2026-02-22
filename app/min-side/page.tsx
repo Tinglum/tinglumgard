@@ -126,8 +126,6 @@ export default function CustomerPortalPage() {
 
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
-  const [cutoffWeek, setCutoffWeek] = useState(46);
-  const [cutoffYear, setCutoffYear] = useState(2026);
   const [canEdit, setCanEdit] = useState(false);
   const [activeTab, setActiveTab] = useState<'orders' | 'referrals' | 'messages'>('orders');
   const [orderViewMode, setOrderViewMode] = useState<OrderViewMode>('chronological');
@@ -145,9 +143,6 @@ export default function CustomerPortalPage() {
       const response = await fetch('/api/config');
       const data = await response.json();
       if (data.cutoff) {
-        setCutoffWeek(data.cutoff.week);
-        setCutoffYear(data.cutoff.year);
-
         const currentDate = new Date();
         const currentWeek = getWeekNumber(currentDate);
         setCanEdit(
@@ -440,12 +435,6 @@ export default function CustomerPortalPage() {
 
         {activeTab === 'orders' && (
           <div className="space-y-6">
-            <div className="rounded-xl border border-neutral-200 bg-white p-4 text-sm text-neutral-600 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.08)]">
-              {canEdit
-                ? t.minSide.canEditUntil.replace('{week}', cutoffWeek.toString()).replace('{year}', cutoffYear.toString())
-                : t.minSide.editPeriodExpired.replace('{week}', cutoffWeek.toString()).replace('{year}', cutoffYear.toString())}
-            </div>
-
             <div className="rounded-xl border border-neutral-200 bg-white p-4 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.08)]">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-sm text-neutral-600">{t.minSide.orderViewLabel}</span>
