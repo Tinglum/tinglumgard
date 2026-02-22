@@ -7,6 +7,7 @@ import { GlassCard } from '@/components/eggs/GlassCard'
 import { formatDateFull, formatPrice } from '@/lib/eggs/utils'
 import { ArrowRight } from 'lucide-react'
 import { StepTimeline } from '@/components/orders/StepTimeline'
+import { cn } from '@/lib/utils'
 
 type EggPayment = {
   payment_type: string
@@ -87,41 +88,89 @@ export function EggOrderUnifiedCard({ order }: { order: EggOrder }) {
   const daysToDelivery = daysBetween(deliveryDate, today)
   const remainderPaid =
     remainderDue <= 0 || ['fully_paid', 'preparing', 'shipped', 'delivered'].includes(order.status)
-  const shipmentDone = ['shipped', 'delivered'].includes(order.status)
+  const shipmentStarted = ['shipped', 'delivered'].includes(order.status)
+  const shipmentDone = order.status === 'delivered'
 
   const timelineSteps = [
     {
       key: 'placed',
       label: ordersCopy.stepPlaced,
-      hint: order.created_at ? formatDateFull(new Date(order.created_at), lang) : `${common.week} ${order.week_number}`,
+      summary: order.created_at
+        ? formatDateFull(new Date(order.created_at), lang)
+        : `${common.week} ${order.week_number}`,
+      detail: `${common.week} ${order.week_number}`,
       done: true,
     },
     {
       key: 'deposit',
       label: ordersCopy.stepDeposit,
-      hint: depositPaid ? ordersCopy.statusDepositPaid : ordersCopy.statusPending,
+      summary: depositPaid ? ordersCopy.statusDepositPaid : ordersCopy.statusPending,
+      detail: `${common.deposit}: ${formatPrice(order.deposit_amount, lang)}`,
       done: depositPaid,
     },
     {
       key: 'remainder',
       label: ordersCopy.stepRemainder,
-      hint:
+      summary:
         dueDate && !remainderPaid
           ? `${ordersCopy.duePrefix} ${formatDateFull(dueDate, lang)}${
               daysToDueLabel !== null ? ` - ${daysToDueLabel} ${common.daysLeft}` : ''
             }`
           : ordersCopy.statusPaid,
+      detail:
+        dueDate && !remainderPaid
+          ? `${formatPrice(remainderDue, lang)} - ${ordersCopy.duePrefix} ${formatDateFull(dueDate, lang)}`
+          : `${ordersCopy.statusPaid}: ${formatPrice(order.remainder_amount, lang)}`,
       done: remainderPaid,
     },
     {
       key: 'shipment',
       label: ordersCopy.stepShipment,
-      hint: `${ordersCopy.shipmentPrefix} ${formatDateFull(deliveryDate, lang)}${
+      summary: shipmentDone
+        ? ordersCopy.statusDelivered
+        : shipmentStarted
+        ? ordersCopy.statusShipped
+        : ordersCopy.statusPreparing,
+      detail: `${ordersCopy.shipmentPrefix} ${formatDateFull(deliveryDate, lang)}${
         daysToDelivery >= 0 ? ` - ${daysToDelivery} ${common.daysLeft}` : ''
       }`,
       done: shipmentDone,
     },
   ]
+
+  const nextAction = (() => {
+    if (order.status === 'delivered') {
+      return { text: ordersCopy.nextActionDelivered, tone: 'success' as const }
+    }
+    if (order.status === 'shipped') {
+      return { text: ordersCopy.nextActionShipped, tone: 'info' as const }
+    }
+    if (order.status === 'forfeited') {
+      return { text: ordersCopy.nextActionForfeited, tone: 'neutral' as const }
+    }
+    if (order.status === 'cancelled') {
+      return { text: ordersCopy.nextActionCancelled, tone: 'neutral' as const }
+    }
+    if (order.status === 'deposit_paid' && remainderDue > 0) {
+      const dueText = dueDate
+        ? ordersCopy.nextActionRemainderDue
+            .replace('{amount}', formatPrice(remainderDue, lang))
+            .replace('{date}', formatDateFull(dueDate, lang))
+        : ordersCopy.nextActionRemainderDueNoDate.replace('{amount}', formatPrice(remainderDue, lang))
+      return { text: dueText, tone: 'warning' as const }
+    }
+    if (order.status === 'fully_paid' || order.status === 'preparing') {
+      return { text: ordersCopy.nextActionPreparing, tone: 'info' as const }
+    }
+    return { text: ordersCopy.nextActionPendingDeposit, tone: 'neutral' as const }
+  })()
+
+  const nextActionClass = {
+    success: 'border-emerald-200 bg-emerald-50 text-emerald-900',
+    warning: 'border-amber-300 bg-amber-50 text-amber-900',
+    info: 'border-blue-200 bg-blue-50 text-blue-900',
+    neutral: 'border-neutral-200 bg-white text-neutral-700',
+  }[nextAction.tone]
 
   const statusMeta = (() => {
     switch (order.status) {
@@ -251,8 +300,16 @@ export function EggOrderUnifiedCard({ order }: { order: EggOrder }) {
         </div>
       </div>
 
+      <div className={cn('rounded-lg border px-3 py-2 text-sm', nextActionClass)}>
+        <p className="font-medium">{nextAction.text}</p>
+      </div>
+
       <div className="space-y-2">
-        <StepTimeline steps={timelineSteps} />
+        <StepTimeline
+          steps={timelineSteps}
+          expandLabel={ordersCopy.timelineExpand}
+          collapseLabel={ordersCopy.timelineCollapse}
+        />
       </div>
     </GlassCard>
   )

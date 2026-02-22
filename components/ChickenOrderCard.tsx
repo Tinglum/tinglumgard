@@ -5,6 +5,7 @@ import { useLanguage } from '@/contexts/LanguageContext'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { StepTimeline } from '@/components/orders/StepTimeline'
+import { cn } from '@/lib/utils'
 
 interface ChickenOrderCardProps {
   order: {
@@ -72,8 +73,14 @@ export function ChickenOrderCard({ order, onPayRemainder }: ChickenOrderCardProp
   const remainderPaid = order.chicken_payments?.some(
     (payment) => payment.payment_type === 'remainder' && payment.status === 'completed'
   )
+  const remainderPaidNok =
+    order.chicken_payments?.reduce((sum, payment) => {
+      if (payment.payment_type !== 'remainder' || payment.status !== 'completed') return sum
+      return sum + (payment.amount_nok || 0)
+    }, 0) || 0
+  const remainderDueNok = Math.max(0, order.remainder_amount_nok - remainderPaidNok)
 
-  const showPayRemainder = order.status === 'deposit_paid' && !remainderPaid && onPayRemainder
+  const showPayRemainder = order.status === 'deposit_paid' && remainderDueNok > 0 && onPayRemainder
   const meta = statusMeta[order.status] || { label: order.status, className: 'bg-neutral-100 text-neutral-700' }
   const pickupDate = getIsoWeekMondayDate(order.pickup_year, order.pickup_week)
   const daysToPickup = daysBetween(pickupDate, today)
@@ -102,19 +109,21 @@ export function ChickenOrderCard({ order, onPayRemainder }: ChickenOrderCardProp
     {
       key: 'reserved',
       label: myOrdersCopy.stepReserved,
-      hint: `${myOrdersCopy.weekLabel} ${order.pickup_week}, ${order.pickup_year}`,
+      summary: `${myOrdersCopy.weekLabel} ${order.pickup_week}, ${order.pickup_year}`,
+      detail: `${myOrdersCopy.pickupPrefix} ${pickupDateLabel}`,
       done: true,
     },
     {
       key: 'deposit',
       label: myOrdersCopy.stepDeposit,
-      hint: depositDone ? myOrdersCopy.statusDepositPaid : myOrdersCopy.statusPending,
+      summary: depositDone ? myOrdersCopy.statusDepositPaid : myOrdersCopy.statusPending,
+      detail: `${myOrdersCopy.depositLabel}: ${common.currency} ${order.deposit_amount_nok.toLocaleString(locale)}`,
       done: depositDone,
     },
     {
       key: 'remainder',
       label: myOrdersCopy.stepRemainder,
-      hint:
+      summary:
         dueDateLabel && !remainderDone
           ? `${myOrdersCopy.duePrefix} ${dueDateLabel}${
               daysToDueLabel !== null && daysToDue !== null && daysToDue >= 0
@@ -122,17 +131,62 @@ export function ChickenOrderCard({ order, onPayRemainder }: ChickenOrderCardProp
                 : ''
             }`
           : myOrdersCopy.remainderPaidPrefix,
+      detail: remainderDone
+        ? `${myOrdersCopy.remainderPaidPrefix}`
+        : `${myOrdersCopy.remainderLabel}: ${common.currency} ${remainderDueNok.toLocaleString(locale)}`,
       done: remainderDone,
     },
     {
       key: 'pickup',
       label: myOrdersCopy.stepPickup,
-      hint: `${myOrdersCopy.pickupPrefix} ${pickupDateLabel}${
+      summary: pickupDone
+        ? myOrdersCopy.statusPickedUp
+        : order.status === 'ready_for_pickup'
+        ? myOrdersCopy.statusReadyForPickup
+        : `${myOrdersCopy.pickupPrefix} ${pickupDateLabel}`,
+      detail: `${myOrdersCopy.pickupPrefix} ${pickupDateLabel}${
         daysToPickup >= 0 ? ` - ${daysToPickupLabel} ${myOrdersCopy.daysLeftLabel}` : ''
       }`,
       done: pickupDone,
     },
   ]
+
+  const nextAction = (() => {
+    if (order.status === 'picked_up') {
+      return { text: myOrdersCopy.nextActionPickedUp, tone: 'success' as const }
+    }
+    if (order.status === 'ready_for_pickup') {
+      return { text: myOrdersCopy.nextActionReadyForPickup, tone: 'warning' as const }
+    }
+    if (order.status === 'deposit_paid' && remainderDueNok > 0) {
+      const dueText = dueDateLabel
+        ? myOrdersCopy.nextActionRemainderDue
+            .replace('{amount}', `${common.currency} ${remainderDueNok.toLocaleString(locale)}`)
+            .replace('{date}', dueDateLabel)
+        : myOrdersCopy.nextActionRemainderDueNoDate.replace(
+            '{amount}',
+            `${common.currency} ${remainderDueNok.toLocaleString(locale)}`
+          )
+      return { text: dueText, tone: 'warning' as const }
+    }
+    if (order.status === 'fully_paid') {
+      return { text: myOrdersCopy.nextActionFullyPaid, tone: 'info' as const }
+    }
+    if (order.status === 'cancelled') {
+      return { text: myOrdersCopy.statusCancelled, tone: 'neutral' as const }
+    }
+    if (order.status === 'pending') {
+      return { text: myOrdersCopy.nextActionPendingDeposit, tone: 'neutral' as const }
+    }
+    return { text: myOrdersCopy.nextActionProcessing, tone: 'info' as const }
+  })()
+
+  const nextActionClass = {
+    success: 'border-emerald-200 bg-emerald-50 text-emerald-900',
+    warning: 'border-amber-300 bg-amber-50 text-amber-900',
+    info: 'border-blue-200 bg-blue-50 text-blue-900',
+    neutral: 'border-neutral-200 bg-white text-neutral-700',
+  }[nextAction.tone]
 
   return (
     <Card className="p-6 border-neutral-200 bg-white shadow-[0_20px_60px_-15px_rgba(0,0,0,0.08)]">
@@ -173,7 +227,7 @@ export function ChickenOrderCard({ order, onPayRemainder }: ChickenOrderCardProp
           <div className="flex items-center justify-between text-sm">
             <span className="text-neutral-500">{myOrdersCopy.remainderLabel}</span>
             <span className="font-normal text-neutral-900">
-              {common.currency} {order.remainder_amount_nok.toLocaleString(locale)}
+              {common.currency} {remainderDueNok.toLocaleString(locale)}
             </span>
           </div>
         </div>
@@ -193,7 +247,14 @@ export function ChickenOrderCard({ order, onPayRemainder }: ChickenOrderCardProp
       </div>
 
       <div className="mt-6 space-y-2">
-        <StepTimeline steps={timelineSteps} />
+        <div className={cn('rounded-lg border px-3 py-2 text-sm', nextActionClass)}>
+          <p className="font-medium">{nextAction.text}</p>
+        </div>
+        <StepTimeline
+          steps={timelineSteps}
+          expandLabel={myOrdersCopy.timelineExpand}
+          collapseLabel={myOrdersCopy.timelineCollapse}
+        />
       </div>
 
       {showPayRemainder && (

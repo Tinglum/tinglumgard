@@ -208,40 +208,82 @@ export function PigOrderUnifiedCard({ order, canEdit, onPayRemainder, onRefresh 
   const growingDone = Boolean(depositPaid) || ['deposit_paid', 'paid', 'ready_for_pickup', 'completed'].includes(order.status)
   const slaughterDone = Boolean(order.locked_at) || ['paid', 'ready_for_pickup', 'completed'].includes(order.status)
   const deliveryDone = Boolean(order.marked_delivered_at) || ['completed'].includes(order.status)
-  const deliveryTimelineHint =
+  const deliveryTimelineSummary =
     order.status === 'ready_for_pickup' ? `${copy.timelinePickupPrefix} ${timelineDeliveryText}` : statusTimelineCopy.deliveryHint
   const timelineSteps = [
     {
       key: 'ordered',
       label: statusTimelineCopy.ordered,
-      hint: new Date(order.created_at).toLocaleDateString(locale, {
+      summary: new Date(order.created_at).toLocaleDateString(locale, {
         day: 'numeric',
         month: 'long',
         year: 'numeric',
       }),
+      detail: statusTimelineCopy.orderedHint,
       done: true,
     },
     {
       key: 'growing',
       label: statusTimelineCopy.growing,
-      hint: statusTimelineCopy.growingHint,
+      summary: growingDone ? copy.statusDepositPaid : copy.statusWaitingDeposit,
+      detail: statusTimelineCopy.growingHint,
       done: growingDone,
     },
     {
       key: 'slaughter',
       label: statusTimelineCopy.slaughter,
-      hint: needsRemainderPayment
+      summary: needsRemainderPayment
         ? `${copy.dueDate}: ${formattedDueDate}${daysToDue >= 0 ? ` - ${daysToDueLabel} ${daysLeftLabel}` : ''}`
+        : slaughterDone
+        ? copy.timelineRemainderPaid
+        : statusTimelineCopy.slaughterHint,
+      detail: needsRemainderPayment
+        ? `${currency} ${remainderTotal.toLocaleString(locale)}`
         : statusTimelineCopy.slaughterHint,
       done: slaughterDone,
     },
     {
       key: 'delivery',
       label: statusTimelineCopy.delivery,
-      hint: deliveryDone ? `${copy.timelinePickupPrefix} ${timelineDeliveryText}` : deliveryTimelineHint,
+      summary: deliveryDone ? `${copy.timelinePickupPrefix} ${timelineDeliveryText}` : deliveryTimelineSummary,
+      detail: deliveryDone ? `${copy.timelinePickupPrefix} ${timelineDeliveryText}` : statusTimelineCopy.deliveryHint,
       done: deliveryDone,
     },
   ]
+
+  const nextAction = (() => {
+    if (order.status === 'completed') {
+      return { text: copy.nextActionCompleted, tone: 'success' as const }
+    }
+    if (order.status === 'ready_for_pickup') {
+      return { text: copy.nextActionReady, tone: 'warning' as const }
+    }
+    if (needsRemainderPayment) {
+      return {
+        text: copy.nextActionPaymentDue
+          .replace('{currency}', currency)
+          .replace('{amount}', remainderTotal.toLocaleString(locale)),
+        tone: 'warning' as const,
+      }
+    }
+    if (order.locked_at && !remainderPaid) {
+      return { text: copy.nextActionLocked, tone: 'warning' as const }
+    }
+    if (!depositPaid) {
+      return { text: copy.nextActionWaitingDeposit, tone: 'neutral' as const }
+    }
+    if (order.status === 'cancelled') {
+      return { text: copy.statusCancelled, tone: 'neutral' as const }
+    }
+    return { text: copy.nextActionProcessing, tone: 'info' as const }
+  })()
+
+  const nextActionClass = {
+    success: 'border-emerald-200 bg-emerald-50 text-emerald-900',
+    warning: 'border-amber-300 bg-amber-50 text-amber-900',
+    info: 'border-blue-200 bg-blue-50 text-blue-900',
+    neutral: 'border-neutral-200 bg-white text-neutral-700',
+  }[nextAction.tone]
 
   async function handleAddExtras(selectedExtras: { slug: string; quantity: number }[], proceedToPayment = false) {
     setAddingExtras(true)
@@ -445,7 +487,14 @@ export function PigOrderUnifiedCard({ order, canEdit, onPayRemainder, onRefresh 
         </div>
 
         <div className="mt-6 space-y-2">
-          <StepTimeline steps={timelineSteps} />
+          <div className={cn('rounded-lg border px-3 py-2 text-sm', nextActionClass)}>
+            <p className="font-medium">{nextAction.text}</p>
+          </div>
+          <StepTimeline
+            steps={timelineSteps}
+            expandLabel={copy.timelineExpand}
+            collapseLabel={copy.timelineCollapse}
+          />
         </div>
 
         <div className="mt-5 pt-5 border-t border-neutral-200 flex flex-wrap gap-2">
