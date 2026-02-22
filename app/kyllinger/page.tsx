@@ -21,7 +21,23 @@ interface SelectedHatchOption {
 
 export default function KyllingerPage() {
   const { lang, t } = useLanguage()
-  const chickens = (t as any).chickens || {}
+  const chickens = (t as any).chickens
+  const commonCopy = chickens.common
+  const locale = lang === 'en' ? 'en-GB' : 'nb-NO'
+
+  const formatCopy = (template: string, values: Record<string, string | number>) =>
+    Object.entries(values).reduce(
+      (result, [key, value]) => result.replaceAll(`{${key}}`, String(value)),
+      template
+    )
+
+  const formatPickupDate = (date: string) =>
+    new Date(`${date}T12:00:00Z`).toLocaleDateString(locale, {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      timeZone: 'UTC',
+    })
 
   const [breeds, setBreeds] = useState<any[]>([])
   const [calendar, setCalendar] = useState<ChickenWeekAvailability[]>([])
@@ -122,17 +138,11 @@ export default function KyllingerPage() {
   const selectedCount = Object.keys(selectedOptions).length
   const activeStep = !selectedWeek ? 1 : selectedCount === 0 ? 2 : 3
 
-  const stepCopy = lang === 'en'
-    ? [
-        { title: 'Choose week', desc: 'Select pickup week from monthly calendar' },
-        { title: 'Select one or more hatches', desc: 'Mark breeds and ages you want in this week' },
-        { title: 'Complete booking', desc: 'Set quantity per selection and pay deposit with Vipps' },
-      ]
-    : [
-        { title: 'Velg uke', desc: 'Velg henteuke i m\u00E5nedskalenderen' },
-        { title: 'Velg ett eller flere kull', desc: 'Marker raser og alder du vil ha i denne uken' },
-        { title: 'Fullf\u00F8r bestilling', desc: 'Velg antall per valg og betal forskudd med Vipps' },
-      ]
+  const stepCopy = [
+    { title: chickens.stepCards.chooseWeekTitle, desc: chickens.stepCards.chooseWeekDesc },
+    { title: chickens.stepCards.chooseHatchesTitle, desc: chickens.stepCards.chooseHatchesDesc },
+    { title: chickens.stepCards.completeBookingTitle, desc: chickens.stepCards.completeBookingDesc },
+  ]
 
   const handleBreedFilterChange = (breedId: string) => {
     setActiveBreedFilter(breedId)
@@ -225,13 +235,10 @@ export default function KyllingerPage() {
       <div className="bg-gradient-to-b from-neutral-900 to-neutral-800 text-white py-16">
         <div className="max-w-6xl mx-auto px-4 text-center">
           <h1 className="text-4xl md:text-5xl font-light mb-4">
-            {chickens.pageTitle || (lang === 'en' ? 'Live Chickens' : 'Levende kyllinger')}
+            {chickens.pageTitle}
           </h1>
           <p className="text-lg text-neutral-300 max-w-2xl mx-auto">
-            {chickens.pageSubtitle || (lang === 'en'
-              ? 'Heritage breed chicks and hens from Tinglum farm. Price increases weekly as chickens grow.'
-              : 'Rasekyllinger og h\u00F8ner fra Tinglum g\u00E5rd. Prisen \u00F8ker ukentlig etter hvert som kyllingene vokser.'
-            )}
+            {chickens.pageSubtitle}
           </p>
         </div>
       </div>
@@ -307,7 +314,7 @@ export default function KyllingerPage() {
 
             <section>
               <h2 className="text-2xl font-light text-neutral-900 mb-4">
-                {chickens.breedsTitle || (lang === 'en' ? 'Our Breeds' : 'V\u00E5re raser')}
+                {chickens.breedsTitle}
               </h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
                 {breeds.map((breed: any) => (
@@ -318,18 +325,14 @@ export default function KyllingerPage() {
 
             <section>
               <h2 className="text-2xl font-light text-neutral-900 mb-2">
-                {chickens.calendarTitle || (lang === 'en' ? 'Availability Calendar' : 'Tilgjengelighetskalender')}
+                {chickens.calendarTitle}
               </h2>
               <p className="text-sm text-neutral-500 mb-4">
-                {lang === 'en'
-                  ? 'Choose month and week first. Then mark one or more breeds/ages in that week.'
-                  : 'Velg m\u00E5ned og uke f\u00F8rst. Marker deretter en eller flere raser/aldre i den uken.'}
+                {chickens.page.chooseMonthWeekHint}
               </p>
 
               <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
-                {lang === 'en'
-                  ? 'Booking opens from age 1 week. Week 0 is never bookable.'
-                  : 'Bestilling er mulig fra og med 1 ukes alder. Uke 0 er aldri bestillbar.'}
+                {chickens.page.bookingAgeNote}
               </div>
 
               <ChickenCalendarGrid
@@ -343,9 +346,7 @@ export default function KyllingerPage() {
               <section id="week-options">
                 <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
                   <h2 className="text-2xl font-light text-neutral-900">
-                    {lang === 'en'
-                      ? `Choose chickens for week ${selectedWeek.weekNumber}`
-                      : `Velg kyllinger for uke ${selectedWeek.weekNumber}`}
+                    {formatCopy(chickens.page.chooseForWeek, { week: selectedWeek.weekNumber })}
                   </h2>
 
                   <div className="inline-flex rounded-lg border border-neutral-200 bg-white p-1 text-xs">
@@ -354,29 +355,25 @@ export default function KyllingerPage() {
                       onClick={() => setHatchSort('age')}
                       className={`rounded px-2 py-1 ${hatchSort === 'age' ? 'bg-neutral-900 text-white' : 'text-neutral-600'}`}
                     >
-                      {lang === 'en' ? 'Sort: age' : 'Sorter: alder'}
+                      {chickens.page.sortByAge}
                     </button>
                     <button
                       type="button"
                       onClick={() => setHatchSort('price')}
                       className={`rounded px-2 py-1 ${hatchSort === 'price' ? 'bg-neutral-900 text-white' : 'text-neutral-600'}`}
                     >
-                      {lang === 'en' ? 'Sort: price' : 'Sorter: pris'}
+                      {chickens.page.sortByPrice}
                     </button>
                   </div>
                 </div>
 
                 <p className="text-sm text-neutral-500 mb-4">
-                  {lang === 'en'
-                    ? `Pickup starts ${selectedWeek.pickupMonday}. You can mark multiple breeds/hatches and set quantity for each below.`
-                    : `Henting starter ${selectedWeek.pickupMonday}. Du kan markere flere raser/kull og velge antall for hver under.`}
+                  {formatCopy(chickens.page.pickupStartsHint, { date: formatPickupDate(selectedWeek.pickupMonday) })}
                 </p>
 
                 {selectedWeekBookableBreeds.length === 0 ? (
                   <div className="rounded-xl border border-neutral-200 bg-white p-6 text-neutral-500 text-sm">
-                    {lang === 'en'
-                      ? 'No bookable chickens in this week. Choose another week.'
-                      : 'Ingen bestillbare kyllinger i denne uken. Velg en annen uke.'}
+                    {chickens.page.noBookableThisWeek}
                   </div>
                 ) : (
                   <>
@@ -390,7 +387,7 @@ export default function KyllingerPage() {
                             : 'border-neutral-200 bg-white text-neutral-700'
                         }`}
                       >
-                        {lang === 'en' ? 'All breeds' : 'Alle raser'}
+                        {chickens.page.allBreeds}
                       </button>
 
                       {selectedWeekBookableBreeds.map((breed) => (
@@ -415,7 +412,7 @@ export default function KyllingerPage() {
                           onClick={() => setSelectedOptions({})}
                           className="ml-auto rounded-full border border-red-200 bg-red-50 px-3 py-1.5 text-xs text-red-700"
                         >
-                          {lang === 'en' ? `Clear selected (${selectedCount})` : `Fjern valgte (${selectedCount})`}
+                          {formatCopy(chickens.page.clearSelected, { count: selectedCount })}
                         </button>
                       )}
                     </div>
@@ -429,9 +426,7 @@ export default function KyllingerPage() {
                               <h3 className="font-medium text-neutral-900">{breed.breedName}</h3>
                             </div>
                             <span className="text-xs text-neutral-500">
-                              {lang === 'en'
-                                ? `${breed.totalAvailable} hens available`
-                                : `${breed.totalAvailable} h\u00F8ner tilgjengelig`}
+                              {formatCopy(chickens.page.hensAvailableCount, { count: breed.totalAvailable })}
                             </span>
                           </div>
 
@@ -453,19 +448,19 @@ export default function KyllingerPage() {
                                 >
                                   <div className="flex items-center justify-between gap-2 text-sm">
                                     <span className="font-medium text-neutral-900">
-                                      {lang === 'en' ? 'Age' : 'Alder'}: {hatch.ageWeeks}u
+                                      {chickens.page.age}: {hatch.ageWeeks}{commonCopy.ageWeekShort}
                                     </span>
-                                    <span className="font-medium text-neutral-900">kr {hatch.pricePerHen}</span>
+                                    <span className="font-medium text-neutral-900">{commonCopy.currency} {hatch.pricePerHen}</span>
                                   </div>
                                   <div className="mt-1 flex items-center justify-between gap-2 text-xs text-neutral-500">
-                                    <span>{lang === 'en' ? 'Hatch' : 'Kull'} {hatch.hatchId.slice(0, 8)}</span>
+                                    <span>{chickens.page.hatch} {hatch.hatchId.slice(0, 8)}</span>
                                     <span>
-                                      {hatch.availableHens} {lang === 'en' ? 'hens available' : 'h\u00F8ner tilgjengelig'}
+                                      {formatCopy(chickens.page.hensAvailableCount, { count: hatch.availableHens })}
                                     </span>
                                   </div>
                                   {isSelected && (
                                     <div className="mt-1 text-xs font-medium text-neutral-700">
-                                      {lang === 'en' ? 'Selected' : 'Valgt'}
+                                      {chickens.page.selected}
                                     </div>
                                   )}
                                 </button>

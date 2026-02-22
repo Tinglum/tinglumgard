@@ -19,7 +19,10 @@ interface ChickenBreedCardProps {
 }
 
 export function ChickenBreedCard({ breed }: ChickenBreedCardProps) {
-  const { lang } = useLanguage()
+  const { lang, t } = useLanguage()
+  const chickens = (t as any).chickens
+  const commonCopy = chickens.common
+  const breedCardCopy = chickens.breedCards
   const description = lang === 'en' ? breed.description_en : breed.description_no
 
   return (
@@ -42,16 +45,16 @@ export function ChickenBreedCard({ breed }: ChickenBreedCardProps) {
         <p className="text-sm text-neutral-600 mb-3 line-clamp-2">{description}</p>
         <div className="flex items-baseline gap-2">
           <span className="text-sm text-neutral-500">
-            {lang === 'en' ? 'From' : 'Fra'} <span className="font-semibold text-neutral-900">kr {breed.start_price_nok}</span>
+            {breedCardCopy.priceFrom} <span className="font-semibold text-neutral-900">{commonCopy.currency} {breed.start_price_nok}</span>
           </span>
           <span className="text-xs text-neutral-400">{'->'}</span>
           <span className="text-sm text-neutral-500">
-            {lang === 'en' ? 'Adult' : 'Voksen'} <span className="font-semibold text-neutral-900">kr {breed.adult_price_nok}</span>
+            {breedCardCopy.adultPrice} <span className="font-semibold text-neutral-900">{commonCopy.currency} {breed.adult_price_nok}</span>
           </span>
         </div>
         {breed.sell_roosters && (
           <p className="text-xs text-amber-600 mt-1">
-            {lang === 'en' ? 'Roosters available' : 'Haner tilgjengelig'}: kr {breed.rooster_price_nok}
+            {breedCardCopy.roostersAvailable}: {commonCopy.currency} {breed.rooster_price_nok}
           </p>
         )}
       </div>

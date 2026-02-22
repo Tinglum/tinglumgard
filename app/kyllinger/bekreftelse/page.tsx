@@ -8,21 +8,36 @@ import Link from 'next/link'
 import { CheckCircle, Clock, RefreshCcw } from 'lucide-react'
 
 export default function ChickenConfirmationPage() {
-  const { lang } = useLanguage()
+  const { t } = useLanguage()
+  const chickens = (t as any).chickens
+  const commonCopy = chickens.common
+  const confirmationCopy = chickens.confirmation
+  const summaryCopy = chickens.orderSummary
+
   const searchParams = useSearchParams()
   const orderId = searchParams.get('orderId')
   const [order, setOrder] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [attempts, setAttempts] = useState(0)
 
+  const formatCopy = (template: string, values: Record<string, string | number>) =>
+    Object.entries(values).reduce(
+      (result, [key, value]) => result.replaceAll(`{${key}}`, String(value)),
+      template
+    )
+
   useEffect(() => {
-    if (!orderId) { setLoading(false); return }
+    if (!orderId) {
+      setLoading(false)
+      return
+    }
 
     let cancelled = false
     const maxAttempts = 30
 
     const checkOrder = async () => {
       if (cancelled) return
+
       try {
         const res = await fetch(`/api/chickens/orders/${orderId}/status`, { cache: 'no-store' })
         if (res.ok) {
@@ -34,7 +49,9 @@ export default function ChickenConfirmationPage() {
             return
           }
         }
-      } catch {}
+      } catch {
+        // Ignore transient polling errors.
+      }
 
       setAttempts((prev) => {
         const next = prev + 1
@@ -56,6 +73,7 @@ export default function ChickenConfirmationPage() {
 
   const handleManualRefresh = async () => {
     if (!orderId) return
+
     setLoading(true)
     try {
       const res = await fetch(`/api/chickens/orders/${orderId}/status`, { cache: 'no-store' })
@@ -64,7 +82,7 @@ export default function ChickenConfirmationPage() {
         setOrder(found)
       }
     } catch {
-      // ignore
+      // Ignore manual refresh errors and keep page responsive.
     } finally {
       // Never leave user on infinite spinner after manual refresh.
       setLoading(false)
@@ -74,7 +92,7 @@ export default function ChickenConfirmationPage() {
   if (!orderId) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-neutral-50">
-        <p className="text-neutral-500">{lang === 'en' ? 'No order found' : 'Ingen bestilling funnet'}</p>
+        <p className="text-neutral-500">{confirmationCopy.noOrderFound}</p>
       </div>
     )
   }
@@ -88,67 +106,50 @@ export default function ChickenConfirmationPage() {
           {loading ? (
             <div className="space-y-4">
               <Clock className="w-12 h-12 text-amber-500 mx-auto animate-pulse" />
-              <h1 className="text-2xl font-light text-neutral-900">
-                {lang === 'en' ? 'Processing payment...' : 'Behandler betaling...'}
-              </h1>
-              <p className="text-neutral-500">
-                {lang === 'en' ? 'Please wait while we confirm your payment.' : 'Vennligst vent mens vi bekrefter betalingen din.'}
-              </p>
+              <h1 className="text-2xl font-light text-neutral-900">{confirmationCopy.processingTitle}</h1>
+              <p className="text-neutral-500">{confirmationCopy.processingBody}</p>
             </div>
           ) : isPaid ? (
             <div className="space-y-4">
               <CheckCircle className="w-16 h-16 text-green-500 mx-auto" />
-              <h1 className="text-2xl font-light text-neutral-900">
-                {lang === 'en' ? 'Order Confirmed!' : 'Bestilling bekreftet!'}
-              </h1>
-              <p className="text-neutral-600">
-                {lang === 'en' ? 'Your deposit has been received.' : 'Forskuddet ditt er mottatt.'}
-              </p>
+              <h1 className="text-2xl font-light text-neutral-900">{confirmationCopy.confirmedTitle}</h1>
+              <p className="text-neutral-600">{confirmationCopy.depositReceived}</p>
               {order && (
                 <div className="bg-neutral-50 rounded-lg p-4 text-sm text-left space-y-2 mt-4">
-                  <p><strong>{lang === 'en' ? 'Order' : 'Bestilling'}:</strong> {order.order_number}</p>
-                  <p><strong>{lang === 'en' ? 'Breed' : 'Rase'}:</strong> {order.chicken_breeds?.name}</p>
-                  <p><strong>{lang === 'en' ? 'Hens' : 'Høner'}:</strong> {order.quantity_hens}</p>
+                  <p><strong>{confirmationCopy.orderLabel}:</strong> {order.order_number}</p>
+                  <p><strong>{confirmationCopy.breedLabel}:</strong> {order.chicken_breeds?.name || confirmationCopy.unknownBreed}</p>
+                  <p><strong>{confirmationCopy.hensLabel}:</strong> {order.quantity_hens}</p>
                   {order.quantity_roosters > 0 && (
-                    <p><strong>{lang === 'en' ? 'Roosters' : 'Haner'}:</strong> {order.quantity_roosters}</p>
+                    <p><strong>{confirmationCopy.roostersLabel}:</strong> {order.quantity_roosters}</p>
                   )}
-                  <p><strong>{lang === 'en' ? 'Pickup week' : 'Hentingsuke'}:</strong> {lang === 'en' ? 'Week' : 'Uke'} {order.pickup_week}, {order.pickup_year}</p>
-                  <p><strong>{lang === 'en' ? 'Total' : 'Totalt'}:</strong> kr {order.total_amount_nok}</p>
-                  <p><strong>{lang === 'en' ? 'Deposit paid' : 'Forskudd betalt'}:</strong> kr {order.deposit_amount_nok}</p>
-                  <p><strong>{lang === 'en' ? 'Remainder' : 'Restbetaling'}:</strong> kr {order.remainder_amount_nok}</p>
+                  <p><strong>{confirmationCopy.pickupWeekLabel}:</strong> {summaryCopy.week} {order.pickup_week}, {order.pickup_year}</p>
+                  <p><strong>{confirmationCopy.totalLabel}:</strong> {commonCopy.currency} {order.total_amount_nok}</p>
+                  <p><strong>{confirmationCopy.depositPaidLabel}:</strong> {commonCopy.currency} {order.deposit_amount_nok}</p>
+                  <p><strong>{confirmationCopy.remainderLabel}:</strong> {commonCopy.currency} {order.remainder_amount_nok}</p>
                 </div>
               )}
             </div>
           ) : (
             <div className="space-y-4">
               <Clock className="w-12 h-12 text-amber-500 mx-auto" />
-              <h1 className="text-2xl font-light text-neutral-900">
-                {lang === 'en' ? 'Payment Pending' : 'Betaling venter'}
-              </h1>
-              <p className="text-neutral-500">
-                {lang === 'en'
-                  ? 'Your payment is being processed. You will receive an email when confirmed.'
-                  : 'Betalingen din behandles. Du får en e-post når den er bekreftet.'
-                }
-              </p>
+              <h1 className="text-2xl font-light text-neutral-900">{confirmationCopy.pendingTitle}</h1>
+              <p className="text-neutral-500">{confirmationCopy.pendingBody}</p>
               <p className="text-xs text-neutral-400">
-                {lang === 'en'
-                  ? `Status checks: ${attempts}`
-                  : `Statussjekker: ${attempts}`}
+                {formatCopy(confirmationCopy.statusChecks, { count: attempts })}
               </p>
               <Button variant="outline" onClick={handleManualRefresh} className="inline-flex items-center gap-2">
                 <RefreshCcw className="h-4 w-4" />
-                {lang === 'en' ? 'Check again' : 'Sjekk igjen'}
+                {confirmationCopy.checkAgain}
               </Button>
             </div>
           )}
 
           <div className="mt-8 flex gap-3 justify-center">
             <Link href="/kyllinger">
-              <Button variant="outline">{lang === 'en' ? 'Back to chickens' : 'Tilbake til kyllinger'}</Button>
+              <Button variant="outline">{confirmationCopy.backToChickens}</Button>
             </Link>
             <Link href="/min-side">
-              <Button>{lang === 'en' ? 'My orders' : 'Mine bestillinger'}</Button>
+              <Button>{confirmationCopy.myOrders}</Button>
             </Link>
           </div>
         </div>

@@ -28,7 +28,7 @@ interface MonthBucket {
   weeks: WeekCard[]
 }
 
-function toWeekCard(week: ChickenWeekAvailability, lang: 'en' | 'no'): WeekCard {
+function toWeekCard(week: ChickenWeekAvailability, noBookableReason: string): WeekCard {
   const filteredBreeds = week.breeds
     .map((breed) => {
       const hatches = breed.hatches.filter((hatch) => hatch.ageWeeks >= 1 && hatch.availableHens > 0)
@@ -58,9 +58,7 @@ function toWeekCard(week: ChickenWeekAvailability, lang: 'en' | 'no'): WeekCard 
       totalAvailable: 0,
       minAge,
       maxAge,
-      reason: lang === 'en'
-        ? 'No bookable chickens this week (minimum booking age is 1 week).'
-        : 'Ingen bestillbare kyllinger denne uken (minimumsalder for bestilling er 1 uke).',
+      reason: noBookableReason,
     }
   }
 
@@ -92,13 +90,16 @@ function chunkIntoPages<T>(items: T[], size: number): T[][] {
 }
 
 export function ChickenCalendarGrid({ calendar, onSelectWeek, selectedWeekKey }: CalendarGridProps) {
-  const { lang } = useLanguage()
+  const { lang, t } = useLanguage()
+  const chickens = (t as any).chickens
+  const calendarCopy = chickens.calendar
+  const commonCopy = chickens.common
   const locale = lang === 'en' ? 'en-GB' : 'nb-NO'
 
   const monthBuckets = useMemo<MonthBucket[]>(() => {
     const weeks = [...calendar]
       .sort((a, b) => a.pickupMonday.localeCompare(b.pickupMonday))
-      .map((week) => toWeekCard(week, lang as 'en' | 'no'))
+      .map((week) => toWeekCard(week, calendarCopy.noBookableReason))
 
     const buckets = new Map<string, MonthBucket>()
     for (const weekCard of weeks) {
@@ -115,7 +116,7 @@ export function ChickenCalendarGrid({ calendar, onSelectWeek, selectedWeekKey }:
     }
 
     return Array.from(buckets.values()).sort((a, b) => a.key.localeCompare(b.key))
-  }, [calendar, lang, locale])
+  }, [calendar, calendarCopy.noBookableReason, locale])
 
   const [activeMonthKey, setActiveMonthKey] = useState<string>(monthBuckets[0]?.key || '')
   const [activePage, setActivePage] = useState(0)
@@ -131,7 +132,7 @@ export function ChickenCalendarGrid({ calendar, onSelectWeek, selectedWeekKey }:
   if (!hasAnyBookable) {
     return (
       <div className="text-center py-12 text-neutral-500">
-        {lang === 'en' ? 'No chickens available at this time.' : 'Ingen kyllinger tilgjengelig for \u00F8yeblikket.'}
+        {calendarCopy.emptyState}
       </div>
     )
   }
@@ -142,14 +143,9 @@ export function ChickenCalendarGrid({ calendar, onSelectWeek, selectedWeekKey }:
   const currentWeeks = pages[clampedPage] || []
 
   const statusLabel = (status: WeekStatus) => {
-    if (lang === 'en') {
-      if (status === 'bookable') return 'Bookable'
-      if (status === 'nearly_full') return 'Nearly full'
-      return 'Sold out'
-    }
-    if (status === 'bookable') return 'Bestillbar'
-    if (status === 'nearly_full') return 'Nesten full'
-    return 'Utsolgt'
+    if (status === 'bookable') return calendarCopy.statusBookable
+    if (status === 'nearly_full') return calendarCopy.statusNearlyFull
+    return calendarCopy.statusSoldOut
   }
 
   const statusBadgeClass = (status: WeekStatus) => {
@@ -193,7 +189,7 @@ export function ChickenCalendarGrid({ calendar, onSelectWeek, selectedWeekKey }:
               disabled={clampedPage === 0}
               className="rounded border border-neutral-200 px-2 py-1 text-neutral-600 disabled:opacity-40"
             >
-              {lang === 'en' ? 'Prev' : 'Forrige'}
+              {calendarCopy.prev}
             </button>
             <span className="text-neutral-500">
               {Math.min(clampedPage + 1, Math.max(1, pages.length))}/{Math.max(1, pages.length)}
@@ -204,7 +200,7 @@ export function ChickenCalendarGrid({ calendar, onSelectWeek, selectedWeekKey }:
               disabled={clampedPage >= pages.length - 1}
               className="rounded border border-neutral-200 px-2 py-1 text-neutral-600 disabled:opacity-40"
             >
-              {lang === 'en' ? 'Next' : 'Neste'}
+              {calendarCopy.next}
             </button>
           </div>
         </div>
@@ -218,8 +214,8 @@ export function ChickenCalendarGrid({ calendar, onSelectWeek, selectedWeekKey }:
             const ageText = weekCard.minAge == null || weekCard.maxAge == null
               ? '-'
               : weekCard.minAge === weekCard.maxAge
-                ? `${weekCard.minAge}u`
-                : `${weekCard.minAge}-${weekCard.maxAge}u`
+                ? `${weekCard.minAge}${commonCopy.ageWeekShort}`
+                : `${weekCard.minAge}-${weekCard.maxAge}${commonCopy.ageWeekShort}`
 
             return (
               <button
@@ -239,7 +235,7 @@ export function ChickenCalendarGrid({ calendar, onSelectWeek, selectedWeekKey }:
                 <div className="mb-3 flex items-start justify-between gap-2">
                   <div>
                     <div className="text-base font-semibold text-neutral-900">
-                      {lang === 'en' ? 'Week' : 'Uke'} {week.weekNumber}
+                      {calendarCopy.weekLabel} {week.weekNumber}
                     </div>
                     <div className="text-xs text-neutral-500">
                       {new Date(`${week.pickupMonday}T12:00:00Z`).toLocaleDateString(locale, {
@@ -257,15 +253,15 @@ export function ChickenCalendarGrid({ calendar, onSelectWeek, selectedWeekKey }:
 
                 <div className="grid grid-cols-3 gap-2 text-xs">
                   <div>
-                    <div className="text-neutral-500">{lang === 'en' ? 'Hens' : 'H\u00F8ner'}</div>
+                    <div className="text-neutral-500">{calendarCopy.hensLabel}</div>
                     <div className="text-sm font-semibold text-neutral-900">{weekCard.totalAvailable}</div>
                   </div>
                   <div>
-                    <div className="text-neutral-500">{lang === 'en' ? 'Breeds' : 'Raser'}</div>
+                    <div className="text-neutral-500">{calendarCopy.breedsLabel}</div>
                     <div className="text-sm font-semibold text-neutral-900">{week.breeds.length}</div>
                   </div>
                   <div>
-                    <div className="text-neutral-500">{lang === 'en' ? 'Age' : 'Alder'}</div>
+                    <div className="text-neutral-500">{calendarCopy.ageLabel}</div>
                     <div className="text-sm font-semibold text-neutral-900">{ageText}</div>
                   </div>
                 </div>
@@ -281,4 +277,3 @@ export function ChickenCalendarGrid({ calendar, onSelectWeek, selectedWeekKey }:
     </div>
   )
 }
-

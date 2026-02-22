@@ -39,8 +39,17 @@ interface QuantityState {
 }
 
 export function ChickenOrderForm({ selection, onClose, onRemoveLine }: OrderFormProps) {
-  const { lang } = useLanguage()
+  const { t } = useLanguage()
+  const chickens = (t as any).chickens
+  const commonCopy = chickens.common
+  const formCopy = chickens.orderForm
   const cart = useChickenCart()
+
+  const formatCopy = (template: string, values: Record<string, string | number>) =>
+    Object.entries(values).reduce(
+      (result, [key, value]) => result.replaceAll(`{${key}}`, String(value)),
+      template
+    )
 
   const [quantitiesByLine, setQuantitiesByLine] = useState<Record<string, QuantityState>>({})
   const [deliveryMethod, setDeliveryMethod] = useState<ChickenDeliveryMethod>('farm_pickup')
@@ -112,33 +121,29 @@ export function ChickenOrderForm({ selection, onClose, onRemoveLine }: OrderForm
     setError('')
 
     if (selectedLines.length === 0) {
-      setError(lang === 'en' ? 'Select at least one hatch' : 'Velg minst ett kull')
+      setError(formCopy.selectAtLeastOneHatch)
       return
     }
 
     for (const line of selectedLines) {
       if (line.quantityHens < 1) {
-        setError(lang === 'en' ? 'Each selected line must have at least 1 hen' : 'Hver valgt linje m\u00E5 ha minst 1 h\u00F8ne')
+        setError(formCopy.eachLineMinOneHen)
         return
       }
 
       if (line.quantityHens > line.maxAvailableHens) {
-        setError(
-          lang === 'en'
-            ? `Maximum for ${line.breedName} is ${line.maxAvailableHens}`
-            : `Maks for ${line.breedName} er ${line.maxAvailableHens}`
-        )
+        setError(formatCopy(formCopy.maxForBreed, { breed: line.breedName, max: line.maxAvailableHens }))
         return
       }
     }
 
     if (!customerName.trim()) {
-      setError(lang === 'en' ? 'Name is required' : 'Navn er p\u00E5krevd')
+      setError(formCopy.nameRequired)
       return
     }
 
     if (!customerEmail.trim()) {
-      setError(lang === 'en' ? 'Email is required' : 'E-post er p\u00E5krevd')
+      setError(formCopy.emailRequired)
       return
     }
 
@@ -175,14 +180,14 @@ export function ChickenOrderForm({ selection, onClose, onRemoveLine }: OrderForm
 
       if (!res.ok) {
         const data = await res.json()
-        throw new Error(data.error || 'Checkout failed')
+        throw new Error(data.error || formCopy.checkoutFailed)
       }
 
       const data = await res.json()
 
       const depositRes = await fetch(`/api/chickens/orders/${data.orderId}/deposit`, { method: 'POST' })
       if (!depositRes.ok) {
-        throw new Error('Failed to initiate payment')
+        throw new Error(formCopy.failedToStartPayment)
       }
 
       const depositData = await depositRes.json()
@@ -200,7 +205,7 @@ export function ChickenOrderForm({ selection, onClose, onRemoveLine }: OrderForm
         window.location.href = depositData.redirectUrl
       }
     } catch (err: any) {
-      setError(err.message || 'Something went wrong')
+      setError(err.message || formCopy.genericError)
     } finally {
       setSubmitting(false)
     }
@@ -210,9 +215,7 @@ export function ChickenOrderForm({ selection, onClose, onRemoveLine }: OrderForm
     <div className="bg-white rounded-xl border border-neutral-200 p-6 animate-in slide-in-from-bottom-4">
       <div className="flex justify-between items-center mb-6">
         <h3 className="text-lg font-medium text-neutral-900">
-          {lang === 'en'
-            ? `Order - ${selectedLines.length} selected lines`
-            : `Bestilling - ${selectedLines.length} valgte linjer`}
+          {formatCopy(formCopy.title, { count: selectedLines.length })}
         </h3>
         <button onClick={onClose} className="text-neutral-400 hover:text-neutral-600 text-xl">&times;</button>
       </div>
@@ -225,26 +228,26 @@ export function ChickenOrderForm({ selection, onClose, onRemoveLine }: OrderForm
             return (
               <div key={line.id} className="rounded-lg border border-neutral-200 p-4 space-y-3">
                 <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: line.accentColor }} />
-                    <span className="font-medium text-neutral-900">{line.breedName}</span>
-                    <span className="text-xs text-neutral-500">{lang === 'en' ? 'Age' : 'Alder'}: {line.ageWeeks}u</span>
-                  </div>
+                <div className="flex items-center gap-2">
+                  <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: line.accentColor }} />
+                  <span className="font-medium text-neutral-900">{line.breedName}</span>
+                  <span className="text-xs text-neutral-500">{formCopy.age}: {line.ageWeeks}{commonCopy.ageWeekShort}</span>
+                </div>
                   {onRemoveLine && (
                     <button
                       type="button"
                       onClick={() => onRemoveLine(line.id)}
                       className="text-xs text-neutral-500 hover:text-red-600"
                     >
-                      {lang === 'en' ? 'Remove' : 'Fjern'}
+                      {formCopy.removeLine}
                     </button>
                   )}
                 </div>
 
                 <div>
                   <div className="flex items-center justify-between">
-                    <Label>{lang === 'en' ? 'Number of hens' : 'Antall h\u00F8ner'}</Label>
-                    <span className="text-xs text-neutral-500">{remainingHens} {lang === 'en' ? 'left' : 'igjen'}</span>
+                    <Label>{formCopy.numberOfHens}</Label>
+                    <span className="text-xs text-neutral-500">{remainingHens} {formCopy.left}</span>
                   </div>
                   <div className="flex items-center gap-3 mt-1">
                     <Button
@@ -262,18 +265,18 @@ export function ChickenOrderForm({ selection, onClose, onRemoveLine }: OrderForm
                     >
                       +
                     </Button>
-                    <span className="text-sm text-neutral-500">x kr {line.pricePerHen}</span>
+                    <span className="text-sm text-neutral-500">
+                      {commonCopy.timesSymbol} {commonCopy.currency} {line.pricePerHen}
+                    </span>
                   </div>
                   <p className="text-xs text-neutral-500 mt-1">
-                    {lang === 'en'
-                      ? `Max available in this hatch: ${line.maxAvailableHens}`
-                      : `Maks tilgjengelig i dette kullet: ${line.maxAvailableHens}`}
+                    {formatCopy(formCopy.maxAvailableInHatch, { count: line.maxAvailableHens })}
                   </p>
                 </div>
 
                 {line.sellRoosters && (
                   <div>
-                    <Label>{lang === 'en' ? 'Number of roosters' : 'Antall haner'} ({lang === 'en' ? 'optional' : 'valgfritt'})</Label>
+                    <Label>{formCopy.numberOfRoosters} ({formCopy.optional})</Label>
                     <div className="flex items-center gap-3 mt-1">
                       <Button
                         variant="outline"
@@ -290,7 +293,9 @@ export function ChickenOrderForm({ selection, onClose, onRemoveLine }: OrderForm
                       >
                         +
                       </Button>
-                      <span className="text-sm text-neutral-500">x kr {line.pricePerRooster}</span>
+                      <span className="text-sm text-neutral-500">
+                        {commonCopy.timesSymbol} {commonCopy.currency} {line.pricePerRooster}
+                      </span>
                     </div>
                   </div>
                 )}
@@ -299,7 +304,7 @@ export function ChickenOrderForm({ selection, onClose, onRemoveLine }: OrderForm
           })}
 
           <div>
-            <Label>{lang === 'en' ? 'Delivery method' : 'Leveringsm\u00E5te'}</Label>
+            <Label>{formCopy.deliveryMethod}</Label>
             <div className="mt-2 space-y-2">
               <label className="flex items-center gap-3 p-3 rounded-lg border cursor-pointer hover:bg-neutral-50">
                 <input
@@ -309,8 +314,8 @@ export function ChickenOrderForm({ selection, onClose, onRemoveLine }: OrderForm
                   onChange={() => setDeliveryMethod('farm_pickup')}
                 />
                 <div>
-                  <div className="font-medium text-sm">{lang === 'en' ? 'Farm pickup' : 'Henting p\u00E5 g\u00E5rd'}</div>
-                  <div className="text-xs text-neutral-500">{lang === 'en' ? 'Free' : 'Gratis'}</div>
+                  <div className="font-medium text-sm">{formCopy.farmPickup}</div>
+                  <div className="text-xs text-neutral-500">{formCopy.free}</div>
                 </div>
               </label>
               <label className="flex items-center gap-3 p-3 rounded-lg border cursor-pointer hover:bg-neutral-50">
@@ -321,27 +326,27 @@ export function ChickenOrderForm({ selection, onClose, onRemoveLine }: OrderForm
                   onChange={() => setDeliveryMethod('delivery_namsos_trondheim')}
                 />
                 <div>
-                  <div className="font-medium text-sm">{lang === 'en' ? 'Delivery Namsos/Trondheim' : 'Levering Namsos/Trondheim'}</div>
-                  <div className="text-xs text-neutral-500">kr 300</div>
+                  <div className="font-medium text-sm">{formCopy.deliveryNamsosTrondheim}</div>
+                  <div className="text-xs text-neutral-500">{commonCopy.currency} 300</div>
                 </div>
               </label>
             </div>
           </div>
 
           <div>
-            <Label>{lang === 'en' ? 'Name' : 'Navn'} *</Label>
+            <Label>{formCopy.name} *</Label>
             <Input value={customerName} onChange={(e) => setCustomerName(e.target.value)} className="mt-1" />
           </div>
           <div>
-            <Label>{lang === 'en' ? 'Email' : 'E-post'} *</Label>
+            <Label>{formCopy.email} *</Label>
             <Input type="email" value={customerEmail} onChange={(e) => setCustomerEmail(e.target.value)} className="mt-1" />
           </div>
           <div>
-            <Label>{lang === 'en' ? 'Phone' : 'Telefon'}</Label>
+            <Label>{formCopy.phone}</Label>
             <Input value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} className="mt-1" />
           </div>
           <div>
-            <Label>{lang === 'en' ? 'Notes' : 'Notater'}</Label>
+            <Label>{formCopy.notes}</Label>
             <textarea
               className="w-full rounded-md border p-2 text-sm mt-1"
               rows={2}
@@ -358,8 +363,8 @@ export function ChickenOrderForm({ selection, onClose, onRemoveLine }: OrderForm
             className="md:hidden mb-3 w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-700"
           >
             {summaryOpen
-              ? (lang === 'en' ? 'Hide summary' : 'Skjul sammendrag')
-              : (lang === 'en' ? 'Show summary' : 'Vis sammendrag')}
+              ? formCopy.hideSummary
+              : formCopy.showSummary}
           </button>
 
           <div className={`${summaryOpen ? 'block' : 'hidden'} md:block`}>
@@ -383,13 +388,11 @@ export function ChickenOrderForm({ selection, onClose, onRemoveLine }: OrderForm
             disabled={submitting || selectedLines.length === 0}
           >
             {submitting
-              ? (lang === 'en' ? 'Processing...' : 'Behandler...')
-              : (lang === 'en' ? 'Order with Vipps' : 'Bestill med Vipps')}
+              ? formCopy.processing
+              : formCopy.orderWithVipps}
           </Button>
           <p className="text-xs text-neutral-500 text-center mt-2">
-            {lang === 'en'
-              ? `You pay a 30% deposit (kr ${deposit}) now. Remainder (kr ${remainder}) due before pickup.`
-              : `Du betaler 30% forskudd (kr ${deposit}) n\u00E5. Rest (kr ${remainder}) betales f\u00F8r henting.`}
+            {formatCopy(formCopy.depositInfo, { deposit, remainder })}
           </p>
         </div>
       </div>
