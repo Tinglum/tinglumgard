@@ -42,6 +42,13 @@ export default function EggDeliveryPage() {
   }, [currentDraft, router])
 
   useEffect(() => {
+    if (!currentDraft) return
+    if (currentDraft.deliveryMethod !== 'posten') return
+    if ((currentDraft.shippingCountry || '').trim()) return
+    setShippingDetails({ shippingCountry: copy.countryPlaceholder })
+  }, [currentDraft, setShippingDetails, copy.countryPlaceholder])
+
+  useEffect(() => {
     if (!showAddressError || !currentDraft) return
 
     const postenSelected = currentDraft.deliveryMethod === 'posten'
@@ -78,6 +85,7 @@ export default function EggDeliveryPage() {
     shippingCity.trim() &&
     shippingCountry.trim()
   )
+  const showShippingValidationError = showAddressError && isPosten && !shippingComplete
   const totalEggs = currentDraft.items.reduce((sum, item) => sum + item.quantity, 0)
   const itemSummary = currentDraft.items
     .map((item) => `${item.breed.name} (${item.quantity})`)
@@ -200,13 +208,14 @@ export default function EggDeliveryPage() {
                   <p className="text-sm text-neutral-600">{copy.shippingAddressDescription}</p>
                 </div>
 
-                <div className="grid grid-cols-1 gap-4">
+                <form autoComplete="on" onSubmit={(event) => event.preventDefault()} className="grid grid-cols-1 gap-4">
                   <div>
-                    <label className="text-sm text-neutral-600">{copy.address}</label>
+                    <label htmlFor="shipping-address" className="text-sm text-neutral-600">{copy.address}</label>
                     <input
+                      id="shipping-address"
                       type="text"
                       name="shippingAddress"
-                      autoComplete="address-line1"
+                      autoComplete="shipping street-address"
                       value={shippingAddress}
                       onChange={(event) => setShippingDetails({ shippingAddress: event.target.value })}
                       className="mt-1 w-full rounded-xl border border-neutral-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900/20"
@@ -217,11 +226,14 @@ export default function EggDeliveryPage() {
 
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div>
-                      <label className="text-sm text-neutral-600">{copy.postalCode}</label>
+                      <label htmlFor="shipping-postal-code" className="text-sm text-neutral-600">{copy.postalCode}</label>
                       <input
+                        id="shipping-postal-code"
                         type="text"
                         name="shippingPostalCode"
-                        autoComplete="postal-code"
+                        autoComplete="shipping postal-code"
+                        inputMode="numeric"
+                        pattern="[0-9]{4}"
                         value={shippingPostalCode}
                         onChange={(event) => setShippingDetails({ shippingPostalCode: event.target.value })}
                         className="mt-1 w-full rounded-xl border border-neutral-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900/20"
@@ -230,11 +242,12 @@ export default function EggDeliveryPage() {
                       />
                     </div>
                     <div className="sm:col-span-2">
-                      <label className="text-sm text-neutral-600">{copy.city}</label>
+                      <label htmlFor="shipping-city" className="text-sm text-neutral-600">{copy.city}</label>
                       <input
+                        id="shipping-city"
                         type="text"
                         name="shippingCity"
-                        autoComplete="address-level2"
+                        autoComplete="shipping address-level2"
                         value={shippingCity}
                         onChange={(event) => setShippingDetails({ shippingCity: event.target.value })}
                         className="mt-1 w-full rounded-xl border border-neutral-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900/20"
@@ -245,11 +258,12 @@ export default function EggDeliveryPage() {
                   </div>
 
                   <div>
-                    <label className="text-sm text-neutral-600">{copy.country}</label>
+                    <label htmlFor="shipping-country" className="text-sm text-neutral-600">{copy.country}</label>
                     <input
+                      id="shipping-country"
                       type="text"
                       name="shippingCountry"
-                      autoComplete="country"
+                      autoComplete="shipping country-name"
                       value={shippingCountry}
                       onChange={(event) => setShippingDetails({ shippingCountry: event.target.value })}
                       className="mt-1 w-full rounded-xl border border-neutral-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900/20"
@@ -257,9 +271,9 @@ export default function EggDeliveryPage() {
                       required
                     />
                   </div>
-                </div>
+                </form>
 
-                {showAddressError && !shippingComplete && (
+                {showShippingValidationError && (
                   <p className="text-xs text-red-600">{copy.addressRequired}</p>
                 )}
               </div>
@@ -312,6 +326,11 @@ export default function EggDeliveryPage() {
                   {t.eggs.common.continueToPayment}
                   <ArrowRight className="w-5 h-5" />
                 </button>
+                {showShippingValidationError && (
+                  <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                    {copy.addressRequired}
+                  </p>
+                )}
               </GlassCard>
             </div>
           </div>
