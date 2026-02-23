@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { useLanguage } from '@/contexts/LanguageContext'
 import { ArrowRight, Clock, Users, ChefHat } from 'lucide-react'
+import { no as copyNo } from '@/content/copy.no'
+import { resolveRecipeImage } from '@/lib/recipes/imageOverrides'
 
 interface Recipe {
   id: string
@@ -63,7 +64,7 @@ function RecipeCardSkeleton() {
 }
 
 export default function RecipesPage() {
-  const { lang, t } = useLanguage()
+  const t = copyNo
   const [recipes, setRecipes] = useState<Recipe[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -89,7 +90,7 @@ export default function RecipesPage() {
     }
     loadRecipes()
     return () => { isActive = false }
-  }, [lang])
+  }, [])
 
   return (
     <div className="min-h-screen bg-neutral-50">
@@ -139,7 +140,7 @@ export default function RecipesPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {recipes.map((recipe) => {
-              const title = lang === 'en' ? recipe.title_en : recipe.title_no
+              const title = recipe.title_no
               const totalTime = recipe.prep_time_minutes + recipe.cook_time_minutes
 
               return (
@@ -152,7 +153,7 @@ export default function RecipesPage() {
                     {/* Image */}
                     <div className="relative h-56 overflow-hidden">
                       <img
-                        src={recipe.image_url}
+                        src={resolveRecipeImage(recipe.slug, recipe.image_url)}
                         alt={title}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                       />

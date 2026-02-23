@@ -3,8 +3,11 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
-import { useLanguage } from '@/contexts/LanguageContext'
 import { ArrowLeft, Clock, Users, ChefHat, Flame } from 'lucide-react'
+import { no as copyNo } from '@/content/copy.no'
+import { resolveRecipeImage } from '@/lib/recipes/imageOverrides'
+import { applyPaleoIngredients } from '@/lib/recipes/paleo'
+import { recipePaleoNo } from '@/content/recipePaleoCopy'
 
 interface Recipe {
   id: string
@@ -58,10 +61,11 @@ function DifficultyBadge({ difficulty, t }: { difficulty: string; t: any }) {
 export default function RecipeDetailPage() {
   const params = useParams()
   const slug = params.slug as string
-  const { lang, t } = useLanguage()
+  const t = copyNo
   const [recipe, setRecipe] = useState<Recipe | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [showPaleo, setShowPaleo] = useState(false)
 
   useEffect(() => {
     let isActive = true
@@ -86,7 +90,7 @@ export default function RecipeDetailPage() {
     }
     if (slug) loadRecipe()
     return () => { isActive = false }
-  }, [slug, lang])
+  }, [slug])
 
   // Loading state
   if (isLoading) {
@@ -114,7 +118,7 @@ export default function RecipeDetailPage() {
         <div className="text-center">
           <ChefHat className="w-16 h-16 text-neutral-300 mx-auto mb-6" />
           <h1 className="text-2xl font-normal text-neutral-900 mb-2">
-            {error === 'not_found' ? 'Recipe not found' : 'Something went wrong'}
+            {error === 'not_found' ? recipePaleoNo.errorNotFoundTitle : recipePaleoNo.errorLoadTitle}
           </h1>
           <Link
             href="/oppskrifter"
@@ -128,13 +132,17 @@ export default function RecipeDetailPage() {
     )
   }
 
-  const title = lang === 'en' ? recipe.title_en : recipe.title_no
-  const intro = lang === 'en' ? recipe.intro_en : recipe.intro_no
-  const ingredients = lang === 'en' ? recipe.ingredients_en : recipe.ingredients_no
-  const steps = lang === 'en' ? recipe.steps_en : recipe.steps_no
-  const tips = lang === 'en' ? recipe.tips_en : recipe.tips_no
-  const mangalitsaTip = lang === 'en' ? recipe.mangalitsa_tip_en : recipe.mangalitsa_tip_no
+  const title = recipe.title_no
+  const intro = recipe.intro_no
+  const ingredients = recipe.ingredients_no
+  const steps = recipe.steps_no
+  const tips = recipe.tips_no
+  const mangalitsaTip = recipe.mangalitsa_tip_no
   const totalTime = recipe.prep_time_minutes + recipe.cook_time_minutes
+  const paleoResult = showPaleo
+    ? applyPaleoIngredients(ingredients, recipePaleoNo.replacements)
+    : { ingredients, appliedKeys: [] }
+  const stepsToShow = showPaleo ? [...steps, recipePaleoNo.stepNote] : steps
 
   return (
     <div className="min-h-screen bg-neutral-50">
@@ -154,7 +162,7 @@ export default function RecipeDetailPage() {
       {/* Hero Image */}
       <div className="relative h-[300px] sm:h-[400px] overflow-hidden">
         <img
-          src={recipe.image_url}
+          src={resolveRecipeImage(recipe.slug, recipe.image_url)}
           alt={title}
           className="w-full h-full object-cover"
         />
@@ -167,7 +175,24 @@ export default function RecipeDetailPage() {
         <div className="relative -mt-16 bg-white rounded-xl border border-neutral-100 shadow-sm p-8 sm:p-10 mb-8">
           <div className="flex flex-wrap items-center gap-3 mb-4">
             <DifficultyBadge difficulty={recipe.difficulty} t={t} />
+            <button
+              type="button"
+              onClick={() => setShowPaleo((prev) => !prev)}
+              className={`text-[11px] uppercase tracking-wider font-medium px-2.5 py-1 rounded-full border transition-colors ${
+                showPaleo
+                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                  : 'bg-neutral-50 text-neutral-700 border-neutral-200 hover:bg-neutral-100'
+              }`}
+              aria-pressed={showPaleo}
+            >
+              {showPaleo ? recipePaleoNo.toggleOn : recipePaleoNo.toggleOff}
+            </button>
           </div>
+          {showPaleo && (
+            <p className="text-sm font-light text-emerald-800 mb-6">
+              {recipePaleoNo.modeHelp}
+            </p>
+          )}
 
           <h1 className="text-3xl sm:text-4xl font-normal tracking-tight text-neutral-900 mb-4 leading-tight">
             {title}
@@ -219,7 +244,7 @@ export default function RecipeDetailPage() {
                 {t.recipes.ingredients}
               </h2>
               <ul className="space-y-3">
-                {ingredients.map((ing, i) => (
+                {paleoResult.ingredients.map((ing, i) => (
                   <li key={i} className="flex gap-3 text-sm font-light text-neutral-700 leading-relaxed">
                     <span className="font-medium text-neutral-900 whitespace-nowrap min-w-[4rem]">
                       {ing.amount}
@@ -238,7 +263,7 @@ export default function RecipeDetailPage() {
                 {t.recipes.steps}
               </h2>
               <ol className="space-y-8">
-                {steps.map((step, i) => (
+                {stepsToShow.map((step, i) => (
                   <li key={i} className="flex gap-5">
                     <div className="flex-shrink-0 w-8 h-8 rounded-full bg-neutral-100 text-neutral-500 text-sm font-medium flex items-center justify-center mt-0.5">
                       {i + 1}
@@ -250,6 +275,26 @@ export default function RecipeDetailPage() {
                 ))}
               </ol>
             </div>
+
+            {/* Paleo substitutions */}
+            {showPaleo && (
+              <div className="bg-emerald-50/70 rounded-xl border border-emerald-200/60 p-8 sm:p-10">
+                <h2 className="text-[11px] uppercase tracking-[0.3em] text-emerald-800 font-semibold mb-4">
+                  {recipePaleoNo.appliedTitle}
+                </h2>
+                {paleoResult.appliedKeys.length === 0 ? (
+                  <p className="text-sm font-light text-emerald-900/80 leading-relaxed">
+                    {recipePaleoNo.appliedNone}
+                  </p>
+                ) : (
+                  <ul className="space-y-2 text-sm font-light text-emerald-900/80 leading-relaxed">
+                    {paleoResult.appliedKeys.map((key) => (
+                      <li key={key}>• {recipePaleoNo.replacements[key]}</li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
 
             {/* Tips */}
             {tips && (
