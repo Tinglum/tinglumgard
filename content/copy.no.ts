@@ -715,26 +715,27 @@
         {
           title: "Før ruging",
           items: [
-            "Oppbevar eggene kjølig (12-16°C) og med spissen ned.",
-            "Rugg helst innen 7 dager etter lagt egg for best resultat.",
-            "La eggene hvile i romtemperatur 6-8 timer før de legges i rugemaskin.",
-            "Vask ikke egg - rengjør bare lett med tørr klut ved behov.",
+            "Vi sender alltid egg fra forrige uke - vanligvis 0-7 dager gamle ved utsending.",
+            "Egg har som regel best klekkbarhet de første 10-14 dagene, deretter faller den gradvis.",
+            "Når eggene er mottatt: pakk ut, la dem hvile over natten, og forvarm rugemaskinen med dobbeltsjekket temperatur.",
+            "Ikke vask egg med såpe og vann. Ved behov kan de desinfiseres med egnet eggdesinfeksjon.",
           ],
         },
         {
           title: "Under ruging",
           items: [
             "Stabil temperatur: 37,5°C for de fleste raser.",
-            "Hold riktig fuktighet (ca. 50-55% dag 1-18).",
-            "Vend eggene 3-5 ganger daglig (automatisk vending er best).",
+            "Du kan velge tørruging (fuktigheten i rom/met maskin) eller våtruging med 45-55% fuktighet.",
+            "Både tørruging og våtruging brukes med gode resultater - mange erfarne oppdrettere sverger til hver sin metode.",
+            "Vend eggene 3-5 ganger daglig frem til dag 18 (automatisk vending er best).",
             "Luft rugemaskinen kort daglig etter uke 2.",
           ],
         },
         {
           title: "Klekking (dag 19-21)",
           items: [
-            "Øk fuktigheten til 65-70% fra dag 19.",
-            "Stopp vending når klekking starter.",
+            "Fra dag 18: stopp vending og gå til klekkemodus (lockdown).",
+            "Ved våtruging kan fuktigheten økes i klekkefasen for å støtte klekking.",
             "Ikke åpne rugemaskinen unødvendig.",
             "La kyllingene tørke helt før de flyttes.",
           ],
@@ -742,9 +743,9 @@
         {
           title: "Etter klekking",
           items: [
-            "Hold kyllingene varmt (32-35°C første uke).",
+            "Kyllingene trenger ekstern varme: i klekkeren, under varmeplate (\"hønemor\") eller med varmelampe.",
             "Gi tilgang til vann og startfôr umiddelbart.",
-            "Senk temperaturen gradvis 2-3°C per uke.",
+            "Varmebehovet varer til de er fullfjæret, vanligvis rundt uke 10-12.",
             "Observer aktivitet og appetitt - det er beste helsesignal.",
           ],
         },

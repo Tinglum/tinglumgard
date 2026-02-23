@@ -714,26 +714,27 @@
         {
           title: "Before incubation",
           items: [
-            "Store eggs cool (12-16C) with the point down.",
-            "Incubate within 7 days of lay for best results.",
-            "Let eggs rest at room temperature 6-8 hours before setting.",
-            "Do not wash eggs - dry clean only if needed.",
+            "We always ship eggs from the previous week - typically 0-7 days old when sent.",
+            "Eggs usually have the best hatchability during the first 10-14 days, then it gradually drops.",
+            "When eggs arrive: unpack, let them rest overnight, and preheat your incubator while double-checking temperature.",
+            "Do not clean eggs with soap and water. If preferred, disinfect with an appropriate egg disinfectant.",
           ],
         },
         {
           title: "During incubation",
           items: [
             "Stable temperature: 37.5C for most breeds.",
-            "Keep humidity around 50-55% days 1-18.",
-            "Turn eggs 3-5 times daily (automatic turning preferred).",
+            "You can choose dry incubation (ambient room/incubator humidity) or wet incubation at 45-55% humidity.",
+            "Both dry and wet incubation are used successfully - experienced breeders often swear by different methods.",
+            "Turn eggs 3-5 times daily until day 18 (automatic turning preferred).",
             "Vent the incubator briefly after week 2.",
           ],
         },
         {
           title: "Hatching (days 19-21)",
           items: [
-            "Increase humidity to 65-70% from day 19.",
-            "Stop turning when hatch begins.",
+            "From day 18: stop turning and enter hatch mode (lockdown).",
+            "For wet incubation, humidity can be increased during hatch to support pipping and hatch.",
             "Avoid opening the incubator unnecessarily.",
             "Let chicks dry fully before moving.",
           ],
@@ -741,9 +742,9 @@
         {
           title: "After hatch",
           items: [
-            "Keep chicks warm (32-35C first week).",
+            "Chicks need external heat: in the hatcher, under a heat plate (brooder hen), or with a heat lamp.",
             "Provide water and starter feed immediately.",
-            "Lower temperature by 2-3C per week.",
+            "They need supplemental heat until fully feathered, typically around week 10-12.",
             "Monitor activity and appetite - best health indicators.",
           ],
         },
