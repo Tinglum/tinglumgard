@@ -3436,7 +3436,7 @@
     orderExtraHint: 'Choose the cut/ingredient used in this recipe.',
     suggestedBoxHint: 'Recommended box containing this cut: {box}.',
     orderFlowTitle: 'Do you already have an order?',
-    orderFlowDescription: 'If yes, sign in with Vipps and add {piece} as an extra to your existing order. If no, we open checkout with a matching box preselected.',
+    orderFlowDescription: 'If yes, sign in with Vipps and add {piece} as an extra to your existing order. If no, we open checkout with a matching box preselected. You can also choose another box and add {piece} as an extra afterwards.',
     orderFlowHasOrder: 'Yes, I have an order',
     orderFlowNoOrder: 'No, start a new order',
     fallbackPieceName: 'this cut',

@@ -3438,7 +3438,7 @@
     orderExtraHint: 'Velg stykket/ingrediensen fra denne oppskriften.',
     suggestedBoxHint: 'Anbefalt boks med dette stykket: {box}.',
     orderFlowTitle: 'Har du allerede en bestilling?',
-    orderFlowDescription: 'Hvis ja, logger du inn med Vipps og legger til {piece} som ekstra på eksisterende ordre. Hvis nei, åpner vi bestillingssiden med riktig boks forhåndsvalgt.',
+    orderFlowDescription: 'Hvis ja, logger du inn med Vipps og legger til {piece} som ekstra på eksisterende ordre. Hvis nei, åpner vi bestillingssiden med riktig boks forhåndsvalgt. Du kan også velge en annen boks og legge til {piece} som ekstra etterpå.',
     orderFlowHasOrder: 'Ja, jeg har bestilling',
     orderFlowNoOrder: 'Nei, start ny bestilling',
     fallbackPieceName: 'dette stykket',
