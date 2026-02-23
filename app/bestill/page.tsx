@@ -446,19 +446,25 @@ export default function CheckoutPage() {
   }, [availableExtras, mangalitsaPreset, presetIncludesExtra, requestedExtraSlugs]);
 
   function recipeTagsForExtra(extra: any): Array<{ title: string; slug: string | null }> {
-    const suggestions = Array.isArray(extra.recipe_suggestions)
-      ? extra.recipe_suggestions
+    type RecipeSuggestion = {
+      title_no?: string | null;
+      title_en?: string | null;
+      future_slug?: string | null;
+      slug?: string | null;
+    };
+    const suggestions: RecipeSuggestion[] = Array.isArray(extra.recipe_suggestions)
+      ? (extra.recipe_suggestions as RecipeSuggestion[])
       : [];
 
     return suggestions
-      .map((recipe: any) => {
+      .map((recipe) => {
         const rawTitle = lang === 'no' ? recipe.title_no : recipe.title_en;
         const title = formatRecipeTitle(fixMojibake(String(rawTitle || '')), lang);
         const slug = String(recipe.future_slug || recipe.slug || '').trim() || null;
         if (!title) return null;
         return { title, slug };
       })
-      .filter((item): item is { title: string; slug: string | null } => Boolean(item));
+      .filter((item): item is { title: string; slug: string | null } => item !== null);
   }
 
   function formatRecipeTitle(title: string, language: 'no' | 'en'): string {
