@@ -2,6 +2,61 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/server';
 import { logError } from '@/lib/logger';
 
+export const dynamic = 'force-dynamic';
+
+type PartKey = 'nakke' | 'svinebog' | 'kotelettkam' | 'ribbeside' | 'skinke' | 'knoke';
+
+const PART_META: Record<PartKey, { no: string; en: string }> = {
+  nakke: { no: 'Nakke', en: 'Neck' },
+  svinebog: { no: 'Svinebog', en: 'Shoulder' },
+  kotelettkam: { no: 'Kotelettkam', en: 'Loin' },
+  ribbeside: { no: 'Ribbeside', en: 'Belly / Ribs' },
+  skinke: { no: 'Skinke', en: 'Ham' },
+  knoke: { no: 'Knoke', en: 'Hock / Knuckle' },
+};
+
+// Fallback mapping so "Fra del av grisen" still works even if cut joins are missing.
+const EXTRA_SLUG_TO_PART_KEY: Record<string, PartKey> = {
+  // Nakke
+  'extra-guanciale': 'nakke',
+  'extra-coppa': 'nakke',
+  'extra-secreto-presa-pluma': 'nakke',
+
+  // Kotelettkam
+  'indrefilet': 'kotelettkam',
+  'ytrefilet': 'kotelettkam',
+  'extra-tomahawk': 'kotelettkam',
+  'extra-svine-entrecote': 'kotelettkam',
+  'koteletter': 'kotelettkam',
+  'svinekam': 'kotelettkam',
+  'extra-spekk': 'kotelettkam',
+  'kamsteik': 'kotelettkam',
+
+  // Ribbeside
+  'ekstra_ribbe': 'ribbeside',
+  'bacon': 'ribbeside',
+  'pinnekjott': 'ribbeside',
+  'pinnekjÃ¸tt': 'ribbeside',
+  'extra-pancetta': 'ribbeside',
+  'extra-smult': 'ribbeside',
+
+  // Svinebog
+  'bogsteik': 'svinebog',
+  'kjottdeig': 'svinebog',
+  'kjottbiter': 'svinebog',
+  'polser': 'svinebog',
+  'medisterpolse': 'svinebog',
+  'medisterpÃ¸lse': 'svinebog',
+
+  // Knoke
+  'svinelabb': 'knoke',
+  'extra-knoke': 'knoke',
+
+  // Skinke
+  'spekeskinke': 'skinke',
+  'extra-skinke-speking': 'skinke',
+};
+
 export async function GET() {
   try {
     const { data: extras, error } = await supabaseAdmin
@@ -61,14 +116,16 @@ export async function GET() {
     const normalizedExtras = extraRows.map((extra) => {
       const cut = extra.cut_id ? cutsById.get(extra.cut_id) || null : null;
       const part = cut?.part_id ? partsById.get(cut.part_id) || null : null;
+      const fallbackPartKey = EXTRA_SLUG_TO_PART_KEY[String(extra.slug || '')] || null;
+      const fallbackPartMeta = fallbackPartKey ? PART_META[fallbackPartKey] : null;
 
       return ({
       ...extra,
       cut_id: extra.cut_id ?? null,
       cut_slug: cut?.slug ?? null,
-      part_key: part?.key ?? null,
-      part_name_no: part?.name_no ?? null,
-      part_name_en: part?.name_en ?? null,
+      part_key: part?.key ?? fallbackPartKey ?? null,
+      part_name_no: part?.name_no ?? fallbackPartMeta?.no ?? null,
+      part_name_en: part?.name_en ?? fallbackPartMeta?.en ?? null,
       cut_description_no: cut?.description_no ?? null,
       cut_description_en: cut?.description_en ?? null,
       cut_size_from_kg: cut?.size_from_kg ?? null,
