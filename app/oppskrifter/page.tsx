@@ -21,6 +21,14 @@ interface Recipe {
   display_order: number
 }
 
+const DIY_RECIPE_SLUGS = new Set([
+  'coppa-project',
+  'lardo-crostini',
+  'rendered-lard',
+  'pancetta-project',
+  'cure-ham',
+])
+
 function formatTime(minutes: number, t: any): string {
   if (minutes >= 60) {
     const hours = Math.floor(minutes / 60)
@@ -91,6 +99,63 @@ export default function RecipesPage() {
     return () => { isActive = false }
   }, [])
 
+  const mainRecipes = recipes.filter((recipe) => !DIY_RECIPE_SLUGS.has(recipe.slug))
+  const diyRecipes = recipes.filter((recipe) => DIY_RECIPE_SLUGS.has(recipe.slug))
+
+  const renderRecipeGrid = (items: Recipe[]) => (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+      {items.map((recipe) => {
+        const title = recipe.title_no
+        const totalTime = recipe.prep_time_minutes + recipe.cook_time_minutes
+
+        return (
+          <Link
+            key={recipe.id}
+            href={`/oppskrifter/${recipe.slug}`}
+            className="group"
+          >
+            <article className="rounded-xl overflow-hidden bg-white border border-neutral-100 hover:border-neutral-200 hover:shadow-lg transition-all duration-300">
+              <div className="relative h-56 overflow-hidden">
+                <img
+                  src={recipe.image_url || '/recipes/carbonara-guanciale.jpg'}
+                  alt={title}
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                />
+                <div className="absolute top-4 left-4">
+                  <DifficultyBadge difficulty={recipe.difficulty} t={t} />
+                </div>
+              </div>
+
+              <div className="p-6">
+                <h2 className="text-xl font-normal text-neutral-900 mb-3 group-hover:text-neutral-700 transition-colors leading-snug">
+                  {title}
+                </h2>
+
+                <div className="flex flex-wrap items-center gap-4 text-sm font-light text-neutral-500">
+                  <span className="flex items-center gap-1.5">
+                    <Clock className="w-3.5 h-3.5" />
+                    {formatTime(totalTime, t)}
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <Users className="w-3.5 h-3.5" />
+                    {recipe.servings} {t.recipes.servings.toLowerCase()}
+                  </span>
+                </div>
+
+                <div className="mt-4 pt-4 border-t border-neutral-50 flex items-center justify-between">
+                  <span className="text-sm font-light text-neutral-500 group-hover:text-neutral-800 transition-colors">
+                    {t.recipes.viewRecipe}
+                  </span>
+                  <ArrowRight className="w-4 h-4 text-neutral-400 group-hover:text-neutral-700 group-hover:translate-x-1 transition-all" />
+                </div>
+              </div>
+            </article>
+          </Link>
+        )
+      })}
+    </div>
+  )
+
   return (
     <div className="min-h-screen bg-neutral-50">
       {/* Header */}
@@ -137,60 +202,26 @@ export default function RecipesPage() {
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {recipes.map((recipe) => {
-              const title = recipe.title_no
-              const totalTime = recipe.prep_time_minutes + recipe.cook_time_minutes
+          <div className="space-y-14">
+            {mainRecipes.length > 0 && (
+              <section>
+                <div className="mb-6">
+                  <h2 className="text-2xl font-normal text-neutral-900">{t.recipes.mainSectionTitle}</h2>
+                  <p className="text-sm font-light text-neutral-500 mt-1">{t.recipes.mainSectionSubtitle}</p>
+                </div>
+                {renderRecipeGrid(mainRecipes)}
+              </section>
+            )}
 
-              return (
-                <Link
-                  key={recipe.id}
-                  href={`/oppskrifter/${recipe.slug}`}
-                  className="group"
-                >
-                  <article className="rounded-xl overflow-hidden bg-white border border-neutral-100 hover:border-neutral-200 hover:shadow-lg transition-all duration-300">
-                    {/* Image */}
-                    <div className="relative h-56 overflow-hidden">
-                      <img
-                        src={recipe.image_url || '/recipes/carbonara-guanciale.jpg'}
-                        alt={title}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                      />
-                      <div className="absolute top-4 left-4">
-                        <DifficultyBadge difficulty={recipe.difficulty} t={t} />
-                      </div>
-                    </div>
-
-                    {/* Content */}
-                    <div className="p-6">
-                      <h2 className="text-xl font-normal text-neutral-900 mb-3 group-hover:text-neutral-700 transition-colors leading-snug">
-                        {title}
-                      </h2>
-
-                      {/* Meta */}
-                      <div className="flex flex-wrap items-center gap-4 text-sm font-light text-neutral-500">
-                        <span className="flex items-center gap-1.5">
-                          <Clock className="w-3.5 h-3.5" />
-                          {formatTime(totalTime, t)}
-                        </span>
-                        <span className="flex items-center gap-1.5">
-                          <Users className="w-3.5 h-3.5" />
-                          {recipe.servings} {t.recipes.servings.toLowerCase()}
-                        </span>
-                      </div>
-
-                      {/* View link */}
-                      <div className="mt-4 pt-4 border-t border-neutral-50 flex items-center justify-between">
-                        <span className="text-sm font-light text-neutral-500 group-hover:text-neutral-800 transition-colors">
-                          {t.recipes.viewRecipe}
-                        </span>
-                        <ArrowRight className="w-4 h-4 text-neutral-400 group-hover:text-neutral-700 group-hover:translate-x-1 transition-all" />
-                      </div>
-                    </div>
-                  </article>
-                </Link>
-              )
-            })}
+            {diyRecipes.length > 0 && (
+              <section className="pt-10 border-t border-neutral-200">
+                <div className="mb-6">
+                  <h2 className="text-2xl font-normal text-neutral-900">{t.recipes.diySectionTitle}</h2>
+                  <p className="text-sm font-light text-neutral-500 mt-1">{t.recipes.diySectionSubtitle}</p>
+                </div>
+                {renderRecipeGrid(diyRecipes)}
+              </section>
+            )}
           </div>
         )}
       </div>

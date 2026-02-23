@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AlertCircle, CheckCircle2, Edit, X } from 'lucide-react';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface PigPart {
   id: string;
@@ -32,6 +33,8 @@ interface Cut {
 type ToastType = { message: string; type: 'success' | 'error' } | null;
 
 export function MangalitsaCutsManager() {
+  const { t, lang } = useLanguage();
+  const copy = (t as any).admin.mangalitsaCuts;
   const [cuts, setCuts] = useState<Cut[]>([]);
   const [parts, setParts] = useState<PigPart[]>([]);
   const [editingCut, setEditingCut] = useState<Cut | null>(null);
@@ -63,11 +66,11 @@ export function MangalitsaCutsManager() {
       }
     } catch (error) {
       console.error('Failed to load cuts/parts:', error);
-      showToast('Kunne ikke laste stykker/deler', 'error');
+      showToast(copy.errorLoadTitle, 'error');
     } finally {
       setLoading(false);
     }
-  }, [showToast]);
+  }, [copy.errorLoadTitle, showToast]);
 
   useEffect(() => {
     loadAll();
@@ -94,14 +97,14 @@ export function MangalitsaCutsManager() {
       }
       await loadAll();
       setEditingCut(null);
-      showToast('Stykket er oppdatert', 'success');
+      showToast(copy.updateToastTitle, 'success');
     } catch (error: any) {
       console.error('Failed to update cut:', error);
-      showToast(error.message || 'Lagring feilet', 'error');
+      showToast(error.message || copy.errorUpdateTitle, 'error');
     }
   }
 
-  if (loading) return <div className="py-8 text-center text-neutral-500">Laster stykker...</div>;
+  if (loading) return <div className="py-8 text-center text-neutral-500">{copy.loading}</div>;
 
   return (
     <div className="space-y-8">
@@ -117,8 +120,8 @@ export function MangalitsaCutsManager() {
       )}
 
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-light text-neutral-900">Stykker (katalog)</h2>
-        <div className="text-sm font-light text-neutral-600">{cuts.length} stykker</div>
+        <h2 className="text-2xl font-light text-neutral-900">{copy.title}</h2>
+        <div className="text-sm font-light text-neutral-600">{copy.countLabel.replace('{count}', String(cuts.length))}</div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -137,22 +140,22 @@ export function MangalitsaCutsManager() {
                     )}
                     {!cut.active && (
                       <span className="text-xs px-3 py-1 bg-neutral-100 border border-neutral-200 rounded-full text-neutral-500">
-                        Inaktiv
+                        {copy.badgeInactive}
                       </span>
                     )}
                   </div>
                   <p className="text-xs text-neutral-500 mb-3">
-                    Slug: <span className="font-mono">{cut.slug}</span>
+                    {copy.labelSlug} <span className="font-mono">{cut.slug}</span>
                   </p>
                   <p className="text-sm font-light text-neutral-700">
-                    Fra del av gris:{' '}
+                    {copy.labelPartOf}{' '}
                     <span className="font-normal text-neutral-900">
-                      {part?.name_no || 'Ukjent del'}
+                      {part ? (lang === 'no' ? part.name_no : part.name_en) : copy.labelUnknownPart}
                     </span>
                   </p>
                   {formatSizeRange(cut.size_from_kg, cut.size_to_kg) && (
                     <p className="text-sm font-light text-neutral-700 mt-1">
-                      Vektintervall:{' '}
+                      {copy.labelWeightRange}{' '}
                       <span className="font-normal text-neutral-900">
                         {formatSizeRange(cut.size_from_kg, cut.size_to_kg)}
                       </span>
@@ -162,7 +165,7 @@ export function MangalitsaCutsManager() {
                 <button
                   onClick={() => setEditingCut(cut)}
                   className="p-2 hover:bg-neutral-50 rounded-xl transition-all"
-                  title="Rediger"
+                  title={copy.buttonEdit}
                 >
                   <Edit className="w-5 h-5 text-neutral-600" />
                 </button>
@@ -201,6 +204,8 @@ function EditCutModal({
   onClose: () => void;
   onSave: (updates: Record<string, unknown>) => Promise<void>;
 }) {
+  const { t } = useLanguage();
+  const copy = (t as any).admin.mangalitsaCuts;
   const [saving, setSaving] = useState(false);
   const [nameNo, setNameNo] = useState(cut.name_no || '');
   const [nameEn, setNameEn] = useState(cut.name_en || '');
@@ -221,12 +226,12 @@ function EditCutModal({
       const parsedTo = sizeToKg ? parseFloat(sizeToKg) : null;
 
       if ((parsedFrom == null) !== (parsedTo == null)) {
-        window.alert('Du må fylle inn både fra-vekt og til-vekt, eller la begge stå tomme.');
+        window.alert(copy.modalAlertWeightBoth);
         return;
       }
 
       if (parsedFrom != null && parsedTo != null && parsedTo < parsedFrom) {
-        window.alert('Til-vekt må være større enn eller lik fra-vekt.');
+        window.alert(copy.modalAlertWeightOrder);
         return;
       }
 
@@ -363,18 +368,17 @@ function EditCutModal({
             disabled={saving}
             className="flex-1 py-3 bg-neutral-900 hover:bg-neutral-800 text-white rounded-xl font-normal transition-all disabled:opacity-60"
           >
-            {saving ? 'Lagrer...' : 'Lagre'}
+            {saving ? t.common.processing : t.common.save}
           </button>
           <button
             onClick={onClose}
             disabled={saving}
             className="px-6 py-3 border border-neutral-200 hover:border-neutral-300 rounded-xl font-normal transition-all disabled:opacity-60"
           >
-            Avbryt
+            {copy.modalButtonClose}
           </button>
         </div>
       </div>
     </div>
   );
 }
-

@@ -1,12 +1,21 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { useParams } from 'next/navigation'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, Clock, Users, ChefHat, Flame } from 'lucide-react'
 import { no as copyNo } from '@/content/copy.no'
 import { applyPaleoIngredients } from '@/lib/recipes/paleo'
 import { recipePaleoNo } from '@/content/recipePaleoCopy'
+import { useAuth } from '@/contexts/AuthContext'
+import { useToast } from '@/hooks/use-toast'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 
 interface Recipe {
   id: string
@@ -31,6 +40,34 @@ interface Recipe {
   related_extra_slugs: string[]
   active: boolean
   display_order: number
+}
+
+interface ExtraCatalogItem {
+  slug: string
+  name_no: string
+  name_en?: string | null
+  cut_id?: string | null
+  cut_slug?: string | null
+  pricing_type?: 'per_kg' | 'per_piece'
+  default_quantity?: number | null
+}
+
+interface PresetItem {
+  slug: string
+  name_no: string
+  name_en: string
+  contents?: Array<{
+    cut_id?: string | null
+    cut_slug?: string | null
+  }>
+}
+
+interface OrderItem {
+  id: string
+  order_number: string
+  display_box_name_no?: string | null
+  display_box_name_en?: string | null
+  extra_products?: Array<{ slug?: string; quantity?: number }>
 }
 
 function formatTime(minutes: number, t: any): string {
@@ -59,12 +96,23 @@ function DifficultyBadge({ difficulty, t }: { difficulty: string; t: any }) {
 
 export default function RecipeDetailPage() {
   const params = useParams()
+  const router = useRouter()
+  const searchParams = useSearchParams()
   const slug = params.slug as string
   const t = copyNo
+  const { toast } = useToast()
+  const { isAuthenticated, isLoading: authLoading } = useAuth()
   const [recipe, setRecipe] = useState<Recipe | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [showPaleo, setShowPaleo] = useState(false)
+  const [extrasCatalog, setExtrasCatalog] = useState<ExtraCatalogItem[]>([])
+  const [presets, setPresets] = useState<PresetItem[]>([])
+  const [orderFlowOpen, setOrderFlowOpen] = useState(false)
+  const [orderPickerOpen, setOrderPickerOpen] = useState(false)
+  const [candidateOrders, setCandidateOrders] = useState<OrderItem[]>([])
+  const [isOrderFlowBusy, setIsOrderFlowBusy] = useState(false)
+  const [autoAddHandled, setAutoAddHandled] = useState(false)
 
   useEffect(() => {
     let isActive = true
@@ -90,6 +138,220 @@ export default function RecipeDetailPage() {
     if (slug) loadRecipe()
     return () => { isActive = false }
   }, [slug])
+
+  useEffect(() => {
+    let isActive = true
+
+    async function loadOrderingContext() {
+      try {
+        const [extrasRes, presetsRes] = await Promise.all([
+          fetch('/api/extras'),
+          fetch('/api/mangalitsa/presets'),
+        ])
+
+        if (!isActive) return
+
+        if (extrasRes.ok) {
+          const extrasData = await extrasRes.json()
+          setExtrasCatalog(extrasData.extras || [])
+        }
+
+        if (presetsRes.ok) {
+          const presetsData = await presetsRes.json()
+          setPresets(presetsData.presets || [])
+        }
+      } catch (loadError) {
+        console.error('Failed to load recipe ordering context', loadError)
+      }
+    }
+
+    loadOrderingContext()
+    return () => { isActive = false }
+  }, [])
+
+  const relatedExtraSlugs = useMemo(
+    () => (recipe?.related_extra_slugs || []).filter(Boolean),
+    [recipe?.related_extra_slugs]
+  )
+
+  const relatedExtras: ExtraCatalogItem[] = useMemo(() => {
+    if (!relatedExtraSlugs.length) return []
+    return relatedExtraSlugs
+      .map((relatedSlug) => extrasCatalog.find((extra) => extra.slug === relatedSlug))
+      .filter((extra): extra is ExtraCatalogItem => Boolean(extra))
+  }, [extrasCatalog, relatedExtraSlugs])
+
+  const resolvedExtraSlugs = useMemo(() => {
+    if (relatedExtras.length > 0) return relatedExtras.map((extra) => extra.slug)
+    return relatedExtraSlugs
+  }, [relatedExtraSlugs, relatedExtras])
+
+  const primaryExtra = relatedExtras[0] || null
+  const primaryPieceName = primaryExtra
+    ? (primaryExtra.name_no || primaryExtra.slug)
+    : (resolvedExtraSlugs[0] || '')
+
+  const suggestedPreset = useMemo(() => {
+    if (!presets.length || !relatedExtras.length) return null
+
+    for (const extra of relatedExtras) {
+      const match = presets.find((preset) =>
+        (preset.contents || []).some((content) =>
+          (extra.cut_id && content.cut_id === extra.cut_id) ||
+          (extra.cut_slug && content.cut_slug === extra.cut_slug)
+        )
+      )
+      if (match) return match
+    }
+
+    return null
+  }, [presets, relatedExtras])
+
+  const buildCheckoutHref = useCallback(() => {
+    const query = new URLSearchParams()
+    if (suggestedPreset?.slug) {
+      query.set('preset', suggestedPreset.slug)
+    } else {
+      query.set('chooseBox', '1')
+    }
+
+    for (const extraSlug of resolvedExtraSlugs) {
+      query.append('extra', extraSlug)
+    }
+
+    query.set('fromRecipe', '1')
+    query.set('recipeSlug', recipe?.slug || '')
+    if (primaryPieceName) {
+      query.set('recipePiece', primaryPieceName)
+    }
+
+    return `/bestill?${query.toString()}`
+  }, [primaryPieceName, recipe?.slug, resolvedExtraSlugs, suggestedPreset?.slug])
+
+  const addExtrasToOrder = useCallback(async (order: OrderItem) => {
+    if (!recipe || !resolvedExtraSlugs.length) return
+
+    setIsOrderFlowBusy(true)
+    try {
+      const existingExtras = Array.isArray(order.extra_products) ? order.extra_products : []
+      const merged = existingExtras
+        .filter((item) => item?.slug)
+        .map((item) => ({
+          slug: String(item.slug),
+          quantity: Number(item.quantity) > 0 ? Number(item.quantity) : 1,
+        }))
+
+      for (const extraSlug of resolvedExtraSlugs) {
+        const catalogExtra = extrasCatalog.find((extra) => extra.slug === extraSlug)
+        const step = catalogExtra?.pricing_type === 'per_kg' ? 0.5 : 1
+        const defaultQty = Number(catalogExtra?.default_quantity) > 0
+          ? Number(catalogExtra?.default_quantity)
+          : step
+        const idx = merged.findIndex((item) => item.slug === extraSlug)
+
+        if (idx >= 0) {
+          const nextQty = Math.round((merged[idx].quantity + step) * 10) / 10
+          merged[idx] = { ...merged[idx], quantity: nextQty }
+        } else {
+          merged.push({ slug: extraSlug, quantity: defaultQty })
+        }
+      }
+
+      const response = await fetch(`/api/orders/${order.id}/add-extras`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ extras: merged }),
+      })
+
+      const result = await response.json()
+      if (!response.ok) {
+        throw new Error(result?.error || 'Failed to add extras')
+      }
+
+      toast({
+        title: t.recipes.addToOrderSuccessTitle,
+        description: t.recipes.addToOrderSuccessBody.replace('{piece}', primaryPieceName || t.recipes.fallbackPieceName),
+      })
+
+      setOrderFlowOpen(false)
+      setOrderPickerOpen(false)
+      router.push('/min-side')
+    } catch (addError) {
+      console.error('Failed to add recipe extras to order', addError)
+      toast({
+        title: t.recipes.addToOrderErrorTitle,
+        description: t.recipes.addToOrderErrorBody,
+        variant: 'destructive',
+      })
+    } finally {
+      setIsOrderFlowBusy(false)
+    }
+  }, [extrasCatalog, primaryPieceName, recipe, resolvedExtraSlugs, router, t.recipes.addToOrderErrorBody, t.recipes.addToOrderErrorTitle, t.recipes.addToOrderSuccessBody, t.recipes.addToOrderSuccessTitle, t.recipes.fallbackPieceName, toast])
+
+  const handleExistingOrderFlow = useCallback(async () => {
+    if (!recipe || !resolvedExtraSlugs.length) return
+
+    if (authLoading) return
+    if (!isAuthenticated) {
+      const returnTo = `/oppskrifter/${slug}?recipeAdd=1`
+      window.location.href = `/api/auth/vipps/login?returnTo=${encodeURIComponent(returnTo)}`
+      return
+    }
+
+    setIsOrderFlowBusy(true)
+    try {
+      const response = await fetch('/api/orders')
+      const result = await response.json()
+      if (!response.ok) {
+        throw new Error(result?.error || 'Failed to load orders')
+      }
+
+      const orders: OrderItem[] = result.orders || []
+      if (!orders.length) {
+        toast({
+          title: t.recipes.noOrdersFoundTitle,
+          description: t.recipes.noOrdersFoundBody,
+        })
+        setOrderFlowOpen(false)
+        router.push(buildCheckoutHref())
+        return
+      }
+
+      if (orders.length === 1) {
+        await addExtrasToOrder(orders[0])
+        return
+      }
+
+      setCandidateOrders(orders)
+      setOrderFlowOpen(false)
+      setOrderPickerOpen(true)
+    } catch (ordersError) {
+      console.error('Failed to load orders for recipe flow', ordersError)
+      toast({
+        title: t.recipes.addToOrderErrorTitle,
+        description: t.recipes.addToOrderErrorBody,
+        variant: 'destructive',
+      })
+    } finally {
+      setIsOrderFlowBusy(false)
+    }
+  }, [addExtrasToOrder, authLoading, buildCheckoutHref, isAuthenticated, recipe, resolvedExtraSlugs.length, router, slug, t.recipes.addToOrderErrorBody, t.recipes.addToOrderErrorTitle, t.recipes.noOrdersFoundBody, t.recipes.noOrdersFoundTitle, toast])
+
+  const handleNewOrderFlow = useCallback(() => {
+    if (!recipe || !resolvedExtraSlugs.length) return
+    setOrderFlowOpen(false)
+    router.push(buildCheckoutHref())
+  }, [buildCheckoutHref, recipe, resolvedExtraSlugs.length, router])
+
+  useEffect(() => {
+    const shouldAutoAdd = searchParams.get('recipeAdd') === '1'
+    if (!shouldAutoAdd || autoAddHandled) return
+    if (!recipe || authLoading || !isAuthenticated || !resolvedExtraSlugs.length) return
+
+    setAutoAddHandled(true)
+    void handleExistingOrderFlow()
+    router.replace(`/oppskrifter/${slug}`)
+  }, [authLoading, autoAddHandled, handleExistingOrderFlow, isAuthenticated, recipe, resolvedExtraSlugs.length, router, searchParams, slug])
 
   // Loading state
   if (isLoading) {
@@ -322,27 +584,116 @@ export default function RecipeDetailPage() {
         </div>
 
         {/* Related Products */}
-        {recipe.related_extra_slugs && recipe.related_extra_slugs.length > 0 && (
+        {resolvedExtraSlugs.length > 0 && (
           <div className="bg-white rounded-xl border border-neutral-100 p-8 sm:p-10 mb-16">
             <h2 className="text-[11px] uppercase tracking-[0.3em] text-neutral-500 font-semibold mb-4">
               {t.recipes.relatedProducts}
             </h2>
             <p className="text-sm font-light text-neutral-600 mb-6">
-              {t.recipes.orderExtra}
+              {t.recipes.orderExtraHint}
             </p>
-            <Link
-              href="/bestill"
+
+            {resolvedExtraSlugs.length > 0 && (
+              <div className="mb-6 flex flex-wrap gap-2">
+                {relatedExtras.length > 0
+                  ? relatedExtras.map((extra) => (
+                    <span
+                      key={`recipe-extra-${extra.slug}`}
+                      className="text-xs px-2.5 py-1 rounded-full border border-neutral-200 bg-neutral-50 text-neutral-700"
+                    >
+                      {extra.name_no || extra.slug}
+                    </span>
+                  ))
+                  : resolvedExtraSlugs.map((extraSlug) => (
+                    <span
+                      key={`recipe-extra-${extraSlug}`}
+                      className="text-xs px-2.5 py-1 rounded-full border border-neutral-200 bg-neutral-50 text-neutral-700"
+                    >
+                      {extraSlug}
+                    </span>
+                  ))}
+              </div>
+            )}
+
+            {suggestedPreset && (
+              <p className="text-xs font-light text-neutral-500 mb-5">
+                {t.recipes.suggestedBoxHint.replace('{box}', suggestedPreset.name_no)}
+              </p>
+            )}
+
+            <button
+              type="button"
+              onClick={() => setOrderFlowOpen(true)}
               className="inline-flex items-center gap-2 px-6 py-3 bg-neutral-900 text-white text-sm font-light rounded-lg hover:bg-neutral-800 transition-colors"
             >
               {t.recipes.relatedProducts}
               <ArrowLeft className="w-3.5 h-3.5 rotate-180" />
-            </Link>
+            </button>
           </div>
         )}
       </div>
 
       {/* Bottom spacer */}
       <div className="h-8" />
+
+      <Dialog open={orderFlowOpen} onOpenChange={setOrderFlowOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="font-normal text-neutral-900">
+              {t.recipes.orderFlowTitle}
+            </DialogTitle>
+            <DialogDescription className="text-neutral-600 font-light">
+              {t.recipes.orderFlowDescription.replace('{piece}', primaryPieceName || t.recipes.fallbackPieceName)}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+            <button
+              type="button"
+              onClick={() => { void handleExistingOrderFlow() }}
+              disabled={isOrderFlowBusy}
+              className="inline-flex items-center justify-center rounded-lg bg-neutral-900 px-4 py-2.5 text-sm text-white hover:bg-neutral-800 disabled:opacity-60 transition-colors"
+            >
+              {t.recipes.orderFlowHasOrder}
+            </button>
+            <button
+              type="button"
+              onClick={handleNewOrderFlow}
+              className="inline-flex items-center justify-center rounded-lg border border-neutral-200 bg-white px-4 py-2.5 text-sm text-neutral-900 hover:bg-neutral-50 transition-colors"
+            >
+              {t.recipes.orderFlowNoOrder}
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={orderPickerOpen} onOpenChange={setOrderPickerOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="font-normal text-neutral-900">
+              {t.recipes.chooseOrderTitle}
+            </DialogTitle>
+            <DialogDescription className="text-neutral-600 font-light">
+              {t.recipes.chooseOrderDescription}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            {candidateOrders.map((order) => (
+              <button
+                key={`recipe-order-${order.id}`}
+                type="button"
+                onClick={() => { void addExtrasToOrder(order) }}
+                disabled={isOrderFlowBusy}
+                className="w-full text-left rounded-lg border border-neutral-200 bg-white px-4 py-3 hover:bg-neutral-50 transition-colors disabled:opacity-60"
+              >
+                <div className="text-sm font-medium text-neutral-900">#{order.order_number}</div>
+                <div className="text-xs text-neutral-500 mt-1">
+                  {order.display_box_name_no || t.recipes.unknownOrderBox}
+                </div>
+              </button>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

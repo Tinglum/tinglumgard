@@ -93,6 +93,13 @@ export default function CheckoutPage() {
   const [showDiscountCodes, setShowDiscountCodes] = useState(false);
   const [summaryOffset, setSummaryOffset] = useState(0);
   const [prefillReferralCode, setPrefillReferralCode] = useState<string | null>(null);
+  const cameFromRecipe = searchParams.get('fromRecipe') === '1' || Boolean(searchParams.get('recipeSlug'));
+  const recipePiece = fixMojibake(searchParams.get('recipePiece') || '').trim();
+  const recipeCheckoutHint = cameFromRecipe
+    ? (recipePiece
+      ? t.checkout.recipeCheckoutHintWithPiece.replace('{piece}', recipePiece)
+      : t.checkout.recipeCheckoutHintGeneric)
+    : '';
 
   const selectableExtras = useMemo(() => {
     return [...availableExtras]
@@ -903,6 +910,11 @@ export default function CheckoutPage() {
             <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-[#6A6258]">{t.checkout.title}</p>
             <h1 className="mt-2 text-3xl font-semibold text-[#1E1B16] font-[family:var(--font-playfair)]">{t.checkout.pageTitle}</h1>
             <p className="mt-3 text-sm text-[#5E5A50]">{t.mangalitsa.hero.subtitle}</p>
+            {cameFromRecipe && (
+              <div className="mt-4 rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3">
+                <p className="text-xs font-light text-neutral-700">{recipeCheckoutHint}</p>
+              </div>
+            )}
           </div>
 
           <MobileCheckout
@@ -989,6 +1001,11 @@ export default function CheckoutPage() {
           <p className="text-base leading-relaxed text-neutral-600 max-w-2xl font-light">
             {t.checkout.selectSize}
           </p>
+          {cameFromRecipe && (
+            <div className="mt-5 max-w-2xl rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3">
+              <p className="text-sm font-light text-neutral-700">{recipeCheckoutHint}</p>
+            </div>
+          )}
         </div>
 
         {/* Progress Steps - Enhanced with shadow and animation */}
@@ -1548,16 +1565,12 @@ export default function CheckoutPage() {
                           </p>
                           {prefillReferralCode && !referralData && !rebateData && (
                             <p className="mt-1 text-xs text-emerald-700">
-                              {lang === 'no'
-                                ? `Henvisningskode oppdaget: ${prefillReferralCode}`
-                                : `Referral code detected: ${prefillReferralCode}`}
+                              {t.checkout.referralCodeDetected.replace('{code}', prefillReferralCode)}
                             </p>
                           )}
                           {(referralData || rebateData) && (
                             <p className="mt-1 text-xs text-emerald-700">
-                              {lang === 'no'
-                                ? `Rabatt aktiv: -${totalDiscount.toLocaleString(locale)} ${t.common.currency}`
-                                : `Discount active: -${totalDiscount.toLocaleString(locale)} ${t.common.currency}`}
+                              {t.checkout.discountActive.replace('{amount}', totalDiscount.toLocaleString(locale)).replace('{currency}', t.common.currency)}
                             </p>
                           )}
                         </div>
