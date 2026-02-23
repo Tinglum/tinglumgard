@@ -7,6 +7,7 @@ import { Calendar, Save, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface SeasonConfig {
   cutoff_year: number;
@@ -22,6 +23,8 @@ export function SeasonSettings() {
   const { getThemeClasses } = useTheme();
   const theme = getThemeClasses();
   const { toast } = useToast();
+  const { t } = useLanguage();
+  const copy = (t as any).admin.seasonSettings;
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -82,14 +85,14 @@ export function SeasonSettings() {
       if (!response.ok) throw new Error('Failed to save');
 
       toast({
-        title: 'Lagret',
-        description: 'Sesonginnstillinger ble lagret'
+        title: t.common.save,
+        description: copy.title
       });
     } catch (error) {
       console.error('Error saving config:', error);
       toast({
-        title: 'Feil',
-        description: 'Kunne ikke lagre innstillinger',
+        title: t.common.error,
+        description: copy.title,
         variant: 'destructive'
       });
     } finally {
@@ -109,10 +112,10 @@ export function SeasonSettings() {
     <div className="space-y-6">
       <div>
         <h2 className={cn('text-2xl font-bold', theme.textPrimary)}>
-          Sesonginnstillinger
+          {copy.title}
         </h2>
         <p className={cn('text-sm mt-1', theme.textSecondary)}>
-          Konfigurer viktige datoer og frister for sesongen
+          {copy.subtitle}
         </p>
       </div>
 
@@ -122,17 +125,17 @@ export function SeasonSettings() {
           <div className="col-span-2">
             <h3 className={cn('text-lg font-semibold mb-4 flex items-center gap-2', theme.textPrimary)}>
               <Calendar className="w-5 h-5" />
-              Frist for endringer
+              {copy.sectionCutoffTitle}
             </h3>
             <div className={cn('p-4 rounded-xl bg-amber-50 border border-amber-200 mb-4')}>
               <div className="flex items-start gap-2">
                 <AlertCircle className="w-5 h-5 text-amber-600 mt-0.5" />
                 <div>
                   <p className="text-sm font-medium text-amber-900">
-                    Dette er fristen for når kunder kan endre bestillinger
+                    {copy.cutoffInfoTitle}
                   </p>
                   <p className="text-xs text-amber-700 mt-1">
-                    Etter uke {config.cutoff_week}, {config.cutoff_year} vil bestillinger bli låst
+                    {copy.cutoffInfoDescription.replace('{week}', String(config.cutoff_week)).replace('{year}', String(config.cutoff_year))}
                   </p>
                 </div>
               </div>
@@ -140,7 +143,7 @@ export function SeasonSettings() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className={cn('text-sm font-medium mb-1 block', theme.textPrimary)}>
-                  År
+                  {copy.labelYear}
                 </label>
                 <Input
                   type="number"
@@ -150,7 +153,7 @@ export function SeasonSettings() {
               </div>
               <div>
                 <label className={cn('text-sm font-medium mb-1 block', theme.textPrimary)}>
-                  Uke nummer
+                  {copy.labelWeekNumber}
                 </label>
                 <Input
                   type="number"
@@ -166,12 +169,12 @@ export function SeasonSettings() {
           {/* Delivery Window */}
           <div className="col-span-2">
             <h3 className={cn('text-lg font-semibold mb-4', theme.textPrimary)}>
-              Leveringsvindu
+              {copy.sectionDeliveryWindow}
             </h3>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className={cn('text-sm font-medium mb-1 block', theme.textPrimary)}>
-                  Start uke
+                  {copy.labelStartWeek}
                 </label>
                 <Input
                   type="number"
@@ -183,7 +186,7 @@ export function SeasonSettings() {
               </div>
               <div>
                 <label className={cn('text-sm font-medium mb-1 block', theme.textPrimary)}>
-                  Slutt uke
+                  {copy.labelEndWeek}
                 </label>
                 <Input
                   type="number"
@@ -195,19 +198,22 @@ export function SeasonSettings() {
               </div>
             </div>
             <p className={cn('text-xs mt-2', theme.textMuted)}>
-              Kunder vil se: &quot;Estimert levering: Uke {config.delivery_week_start}-{config.delivery_week_end}, {config.cutoff_year}&quot;
+              {copy.deliveryWindowPreview
+                .replace('{startWeek}', String(config.delivery_week_start))
+                .replace('{endWeek}', String(config.delivery_week_end))
+                .replace('{year}', String(config.cutoff_year))}
             </p>
           </div>
 
           {/* Order Period */}
           <div className="col-span-2">
             <h3 className={cn('text-lg font-semibold mb-4', theme.textPrimary)}>
-              Bestillingsperiode (valgfritt)
+              {copy.sectionOrderPeriod}
             </h3>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className={cn('text-sm font-medium mb-1 block', theme.textPrimary)}>
-                  Startdato
+                  {copy.labelStartDate}
                 </label>
                 <Input
                   type="date"
@@ -217,7 +223,7 @@ export function SeasonSettings() {
               </div>
               <div>
                 <label className={cn('text-sm font-medium mb-1 block', theme.textPrimary)}>
-                  Sluttdato
+                  {copy.labelEndDate}
                 </label>
                 <Input
                   type="date"
@@ -233,10 +239,10 @@ export function SeasonSettings() {
             <div className="flex items-center justify-between p-4 rounded-xl border border-neutral-200">
               <div>
                 <p className={cn('font-medium', theme.textPrimary)}>
-                  Ta imot nye bestillinger
+                  {copy.toggleAcceptOrders}
                 </p>
                 <p className={cn('text-sm', theme.textMuted)}>
-                  Slå av for å stenge for nye bestillinger
+                  {copy.toggleAcceptOrdersDescription}
                 </p>
               </div>
               <label className="relative inline-flex items-center cursor-pointer">
@@ -261,12 +267,12 @@ export function SeasonSettings() {
             {saving ? (
               <>
                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
-                Lagrer...
+                {t.common.processing}
               </>
             ) : (
               <>
                 <Save className="w-4 h-4 mr-2" />
-                Lagre endringer
+                {t.common.save}
               </>
             )}
           </Button>

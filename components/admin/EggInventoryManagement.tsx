@@ -104,6 +104,7 @@ function statusBadge(status: string, copy: any) {
 export function EggInventoryManagement() {
   const { t, lang } = useLanguage();
   const copy = t.eggInventoryManagement;
+  const ei = (t as any).admin.eggInventory;
   const locale = lang === 'en' ? 'en-US' : 'nb-NO';
 
   const [breeds, setBreeds] = useState<Breed[]>([]);
@@ -400,7 +401,7 @@ export function EggInventoryManagement() {
           </Button>
           <Button size="sm" variant="outline" onClick={cloneLastWeek} disabled={weekRows.length === 0}>
             <Copy className="w-4 h-4 mr-1.5" />
-            {lang === 'no' ? 'Kopier siste uke' : 'Clone last week'}
+            {ei.cloneLastWeek}
           </Button>
           <Button size="sm" onClick={() => setShowAddForm(!showAddForm)}>
             <Plus className="w-4 h-4 mr-1.5" />
@@ -413,13 +414,13 @@ export function EggInventoryManagement() {
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         <div className="rounded-xl border border-neutral-200 bg-white p-4">
           <p className="text-[11px] uppercase tracking-[0.2em] text-neutral-500 mb-1">
-            {lang === 'no' ? 'Aktive uker' : 'Active weeks'}
+            {ei.labelActiveWeeks}
           </p>
           <p className="text-2xl font-bold text-neutral-900">{summary.activeWeeks}</p>
         </div>
         <div className="rounded-xl border border-neutral-200 bg-white p-4">
           <p className="text-[11px] uppercase tracking-[0.2em] text-neutral-500 mb-1">
-            {lang === 'no' ? 'Tilgjengelig' : 'Available'}
+            {ei.labelAvailable}
           </p>
           <p className="text-2xl font-bold text-neutral-900">{summary.totalAvailable}</p>
         </div>
@@ -431,7 +432,7 @@ export function EggInventoryManagement() {
         </div>
         <div className={cn('rounded-xl border p-4', summary.totalRemaining <= 20 ? 'border-red-200 bg-red-50' : 'border-neutral-200 bg-white')}>
           <p className="text-[11px] uppercase tracking-[0.2em] text-neutral-500 mb-1">
-            {lang === 'no' ? 'Gjenstår' : 'Remaining'}
+            {ei.labelRemaining}
           </p>
           <p className={cn('text-2xl font-bold', summary.totalRemaining <= 20 ? 'text-red-700' : 'text-neutral-900')}>
             {summary.totalRemaining}
@@ -439,7 +440,7 @@ export function EggInventoryManagement() {
         </div>
         <div className={cn('rounded-xl border p-4', summary.soldOutCount > 0 ? 'border-amber-200 bg-amber-50' : 'border-neutral-200 bg-white')}>
           <p className="text-[11px] uppercase tracking-[0.2em] text-neutral-500 mb-1">
-            {lang === 'no' ? 'Utsolgt' : 'Sold out'}
+            {ei.labelSoldOut}
           </p>
           <p className={cn('text-2xl font-bold', summary.soldOutCount > 0 ? 'text-amber-700' : 'text-neutral-900')}>
             {summary.soldOutCount}
@@ -452,8 +453,8 @@ export function EggInventoryManagement() {
         <div className="flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
           <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0" />
           <p className="text-sm text-amber-800">
-            <span className="font-semibold">{lang === 'no' ? 'Lavt lager: ' : 'Low stock: '}</span>
-            {summary.lowStockBreeds.map((b) => `${b.breed.name} (${b.remaining} ${lang === 'no' ? 'egg' : 'eggs'})`).join(', ')}
+            <span className="font-semibold">{ei.warningLowStock}</span>
+            {summary.lowStockBreeds.map((b) => `${b.breed.name} (${b.remaining} ${ei.warningEggsLabel})`).join(', ')}
           </p>
         </div>
       )}
@@ -462,16 +463,16 @@ export function EggInventoryManagement() {
       {selectedWeeks.size > 0 && (
         <div className="flex items-center gap-3 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3">
           <p className="text-sm font-medium text-blue-800">
-            {selectedWeeks.size} {lang === 'no' ? 'uker valgt' : 'weeks selected'}
+            {ei.bulkSelectedWeeks.replace('{count}', String(selectedWeeks.size))}
           </p>
           <div className="flex gap-2 ml-auto">
             <Button size="sm" variant="outline" onClick={() => bulkSetStatus('closed')}>
               <Lock className="w-3.5 h-3.5 mr-1" />
-              {lang === 'no' ? 'Steng alle' : 'Close all'}
+              {ei.bulkCloseAll}
             </Button>
             <Button size="sm" variant="outline" onClick={() => bulkSetStatus('open')}>
               <Unlock className="w-3.5 h-3.5 mr-1" />
-              {lang === 'no' ? 'Åpne alle' : 'Open all'}
+              {ei.bulkOpenAll}
             </Button>
             <Button size="sm" variant="ghost" onClick={() => setSelectedWeeks(new Set())}>
               <X className="w-3.5 h-3.5" />
@@ -524,7 +525,7 @@ export function EggInventoryManagement() {
             </div>
 
             <div>
-              <Label className="text-xs mb-2 block">{lang === 'no' ? 'Egg per rase' : 'Eggs per breed'}</Label>
+              <Label className="text-xs mb-2 block">{ei.labelEggsPerBreed}</Label>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                 {breeds.map((breed) => (
                   <div key={breed.id} className="flex items-center gap-2">
@@ -556,7 +557,7 @@ export function EggInventoryManagement() {
 
             <div className="flex justify-end gap-2">
               <Button type="button" variant="outline" size="sm" onClick={() => setShowAddForm(false)}>
-                {lang === 'no' ? 'Avbryt' : 'Cancel'}
+                {ei.buttonCancel}
               </Button>
               <Button type="submit" size="sm">
                 {copy.createWeekButton}
@@ -588,10 +589,10 @@ export function EggInventoryManagement() {
                     {/* checkbox col */}
                   </th>
                   <th className="text-left px-3 py-3 text-[11px] uppercase tracking-[0.15em] text-neutral-500 font-semibold whitespace-nowrap">
-                    {lang === 'no' ? 'Uke' : 'Week'}
+                    {ei.tableHeaderWeek}
                   </th>
                   <th className="text-left px-3 py-3 text-[11px] uppercase tracking-[0.15em] text-neutral-500 font-semibold whitespace-nowrap">
-                    {lang === 'no' ? 'Levering' : 'Delivery'}
+                    {ei.tableHeaderDelivery}
                   </th>
                   {breeds.map((breed) => (
                     <th
@@ -608,7 +609,7 @@ export function EggInventoryManagement() {
                     </th>
                   ))}
                   <th className="text-center px-3 py-3 text-[11px] uppercase tracking-[0.15em] text-neutral-500 font-semibold whitespace-nowrap">
-                    {lang === 'no' ? 'Totalt' : 'Total'}
+                    {ei.tableHeaderTotal}
                   </th>
                 </tr>
               </thead>
@@ -617,7 +618,7 @@ export function EggInventoryManagement() {
                 <tr className="bg-neutral-50/50 border-b border-neutral-100">
                   <td className="px-3 py-2" />
                   <td className="px-3 py-2 text-[11px] uppercase tracking-[0.15em] text-neutral-400 font-semibold" colSpan={2}>
-                    {lang === 'no' ? 'Gjenstår totalt' : 'Total remaining'}
+                    {ei.tableHeaderRemainingTotal}
                   </td>
                   {breeds.map((breed) => {
                     const total = inventory
@@ -672,7 +673,7 @@ export function EggInventoryManagement() {
                             {monthLabel}
                           </span>
                           <span className="text-xs text-neutral-400">
-                            {rows.length} {lang === 'no' ? 'uker' : 'weeks'} · {monthTotal} {lang === 'no' ? 'egg gjenstår' : 'eggs left'}
+                            {ei.monthWeeksLabel.replace('{count}', String(rows.length))} · {ei.monthEggsLeft.replace('{count}', String(monthTotal))}
                           </span>
                         </div>
                       </td>
@@ -719,7 +720,7 @@ export function EggInventoryManagement() {
                               {/* week */}
                               <td className="px-3 py-2 whitespace-nowrap">
                                 <span className="font-medium text-neutral-900">
-                                  {lang === 'no' ? 'Uke' : 'Wk'} {row.week_number}
+                                  {ei.weekAbbrev} {row.week_number}
                                 </span>
                               </td>
                               {/* delivery date */}
@@ -807,12 +808,12 @@ export function EggInventoryManagement() {
                                         {editingItem.egg_breeds.name}
                                       </span>
                                       <span className="text-xs text-neutral-500">
-                                        — {lang === 'no' ? 'Uke' : 'Week'} {editingItem.week_number}
+                                        — {ei.weekLabel} {editingItem.week_number}
                                       </span>
                                     </div>
                                     <div className="flex items-center gap-2">
                                       <Label className="text-xs text-neutral-600">
-                                        {lang === 'no' ? 'Kapasitet:' : 'Capacity:'}
+                                        {ei.editPanelCapacity}
                                       </Label>
                                       <Input
                                         type="number"
@@ -842,17 +843,17 @@ export function EggInventoryManagement() {
                                       </select>
                                     </div>
                                     <div className="flex items-center gap-1 text-xs text-neutral-500">
-                                      <span>{lang === 'no' ? 'Allokert:' : 'Allocated:'} {editingItem.eggs_allocated}</span>
+                                      <span>{ei.editPanelAllocated.replace('{count}', String(editingItem.eggs_allocated))}</span>
                                       <span>·</span>
-                                      <span>{lang === 'no' ? 'Gjenstår:' : 'Remaining:'} {editingItem.eggs_remaining}</span>
+                                      <span>{ei.editPanelRemaining.replace('{count}', String(editingItem.eggs_remaining))}</span>
                                     </div>
                                     <div className="flex items-center gap-2 ml-auto">
                                       <Button size="sm" variant="outline" onClick={closeEditPanel}>
-                                        {lang === 'no' ? 'Avbryt' : 'Cancel'}
+                                        {ei.buttonCancel}
                                       </Button>
                                       <Button size="sm" onClick={saveEditPanel} disabled={savingEdit}>
                                         <Check className="w-3.5 h-3.5 mr-1" />
-                                        {savingEdit ? (lang === 'no' ? 'Lagrer...' : 'Saving...') : (lang === 'no' ? 'Lagre' : 'Save')}
+                                        {savingEdit ? ei.buttonSaving : ei.buttonSave}
                                       </Button>
                                     </div>
                                   </div>
@@ -875,22 +876,22 @@ export function EggInventoryManagement() {
       <div className="flex flex-wrap items-center gap-4 text-[11px] text-neutral-500 px-1">
         <span className="flex items-center gap-1.5">
           <div className="w-3 h-3 rounded bg-green-50 border border-green-200" />
-          {lang === 'no' ? 'Ledig' : 'Available'}
+          {ei.legendAvailable}
         </span>
         <span className="flex items-center gap-1.5">
           <div className="w-3 h-3 rounded bg-amber-50 border border-amber-200" />
-          {lang === 'no' ? 'Nesten fullt (80%+)' : 'Almost full (80%+)'}
+          {ei.legendAlmostFull}
         </span>
         <span className="flex items-center gap-1.5">
           <div className="w-3 h-3 rounded bg-red-50 border border-red-200" />
-          {lang === 'no' ? 'Utsolgt' : 'Sold out'}
+          {ei.legendSoldOut}
         </span>
         <span className="flex items-center gap-1.5">
           <div className="w-3 h-3 rounded bg-neutral-100 border border-neutral-200" />
-          {lang === 'no' ? 'Stengt' : 'Closed'}
+          {ei.legendClosed}
         </span>
         <span className="text-neutral-400">·</span>
-        <span>{lang === 'no' ? 'Klikk en celle for å endre kapasitet og status' : 'Click a cell to edit capacity and status'}</span>
+        <span>{ei.legendHelp}</span>
       </div>
     </div>
   );

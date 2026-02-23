@@ -8,6 +8,7 @@ import { Card } from '@/components/ui/card'
 import { useToast } from '@/hooks/use-toast'
 import { Plus, Save, X } from 'lucide-react'
 import { getAgeWeeks, getHenPrice } from '@/lib/chickens/pricing'
+import { useLanguage } from '@/contexts/LanguageContext'
 
 interface IncubationBatch {
   id: string
@@ -88,10 +89,10 @@ function formatDate(isoDate?: string | null): string {
   return new Date(`${isoDate}T00:00:00`).toLocaleDateString('nb-NO')
 }
 
-function batchStage(batch: IncubationBatch | null, rows: Hatch[]): { label: string; className: string } {
+function batchStage(batch: IncubationBatch | null, rows: Hatch[]): { labelKey: string; className: string } {
   if (!batch) {
     return {
-      label: 'Legacy',
+      labelKey: 'badgeLegacy',
       className: 'bg-neutral-100 text-neutral-700',
     }
   }
@@ -101,27 +102,27 @@ function batchStage(batch: IncubationBatch | null, rows: Hatch[]): { label: stri
 
   if (allActualKnown) {
     return {
-      label: 'Klekket',
+      labelKey: 'badgeHatched',
       className: 'bg-emerald-100 text-emerald-700',
     }
   }
 
   if (todayIso >= batch.hatch_due_date) {
     return {
-      label: 'Klekking',
+      labelKey: 'badgeHatching',
       className: 'bg-orange-100 text-orange-700',
     }
   }
 
   if (todayIso >= batch.lock_down_date) {
     return {
-      label: 'Dag 18 lockdown',
+      labelKey: 'badgeLockdown',
       className: 'bg-amber-100 text-amber-700',
     }
   }
 
   return {
-    label: 'Inkubering',
+    labelKey: 'badgeIncubating',
     className: 'bg-blue-100 text-blue-700',
   }
 }
@@ -134,6 +135,8 @@ function sortGroupsDesc(a: BatchGroup, b: BatchGroup): number {
 
 export function ChickenHatchManager() {
   const { toast } = useToast()
+  const { t } = useLanguage()
+  const ch = (t as any).admin.chickenHatches
   const [hatches, setHatches] = useState<Hatch[]>([])
   const [breeds, setBreeds] = useState<Breed[]>([])
   const [loading, setLoading] = useState(true)
@@ -170,8 +173,8 @@ export function ChickenHatchManager() {
       }
     } catch {
       toast({
-        title: 'Feil',
-        description: 'Kunne ikke hente data',
+        title: ch.errorFetchTitle,
+        description: ch.errorFetchDescription,
         variant: 'destructive',
       })
     } finally {
@@ -261,8 +264,8 @@ export function ChickenHatchManager() {
   const handleCreate = async () => {
     if (!newBatch.eggs_set_date) {
       toast({
-        title: 'Mangler dato',
-        description: 'Velg dato for egg inn i maskinen.',
+        title: ch.errorMissingDate,
+        description: ch.errorMissingDateDescription,
         variant: 'destructive',
       })
       return
@@ -290,8 +293,8 @@ export function ChickenHatchManager() {
 
     if (lines.length === 0) {
       toast({
-        title: 'Ingen raser lagt inn',
-        description: 'Legg inn antall egg for minst en rase.',
+        title: ch.errorNoBreeds,
+        description: ch.errorNoBreedsDescription,
         variant: 'destructive',
       })
       return
@@ -314,8 +317,8 @@ export function ChickenHatchManager() {
       }
 
       toast({
-        title: 'Opprettet',
-        description: 'Nytt kull med flere raser er lagret.',
+        title: ch.createToastTitle,
+        description: ch.createToastDescription,
       })
 
       setShowAddForm(false)
@@ -323,8 +326,8 @@ export function ChickenHatchManager() {
       await fetchData()
     } catch (error: any) {
       toast({
-        title: 'Feil',
-        description: error?.message || 'Kunne ikke opprette kull',
+        title: ch.errorCreateTitle,
+        description: error?.message || ch.errorCreateDescription,
         variant: 'destructive',
       })
     }
@@ -370,16 +373,16 @@ export function ChickenHatchManager() {
       }
 
       toast({
-        title: 'Oppdatert',
-        description: 'Kull-raden ble oppdatert.',
+        title: ch.updateToastTitle,
+        description: ch.updateToastDescription,
       })
 
       handleCancelEdit()
       await fetchData()
     } catch (error: any) {
       toast({
-        title: 'Feil',
-        description: error?.message || 'Kunne ikke oppdatere',
+        title: ch.errorUpdateTitle,
+        description: error?.message || ch.errorUpdateDescription,
         variant: 'destructive',
       })
     }
@@ -397,39 +400,39 @@ export function ChickenHatchManager() {
       }
 
       toast({
-        title: 'Deaktivert',
-        description: 'Raden er satt inaktiv.',
+        title: ch.deactivateToastTitle,
+        description: ch.deactivateToastDescription,
       })
       await fetchData()
     } catch (error: any) {
       toast({
-        title: 'Feil',
-        description: error?.message || 'Kunne ikke deaktivere',
+        title: ch.errorDeactivateTitle,
+        description: error?.message || ch.errorDeactivateDescription,
         variant: 'destructive',
       })
     }
   }
 
   if (loading) {
-    return <div className="py-8 text-center text-gray-500">Laster kull...</div>
+    return <div className="py-8 text-center text-gray-500">{ch.loading}</div>
   }
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h3 className="text-lg font-semibold">Kyllingkull ({groupedBatches.length})</h3>
+        <h3 className="text-lg font-semibold">{ch.title} ({groupedBatches.length})</h3>
         <Button size="sm" onClick={() => setShowAddForm((prev) => !prev)}>
-          <Plus className="w-4 h-4 mr-1" /> Nytt kull
+          <Plus className="w-4 h-4 mr-1" /> {ch.buttonNewHatch}
         </Button>
       </div>
 
       {showAddForm && (
         <Card className="p-4 space-y-4">
-          <h4 className="font-medium">Legg til nytt kull (flere raser samtidig)</h4>
+          <h4 className="font-medium">{ch.formTitle}</h4>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <div>
-              <Label>Egg inn dato</Label>
+              <Label>{ch.labelEggSetDate}</Label>
               <Input
                 type="date"
                 value={newBatch.eggs_set_date}
@@ -438,11 +441,11 @@ export function ChickenHatchManager() {
             </div>
 
             <div className="md:col-span-2">
-              <Label>Batch-notat</Label>
+              <Label>{ch.labelBatchNote}</Label>
               <Input
                 value={newBatch.notes}
                 onChange={(e) => setNewBatch((prev) => ({ ...prev, notes: e.target.value }))}
-                placeholder="Valgfri notat for hele kullet"
+                placeholder={ch.placeholderBatchNote}
               />
             </div>
           </div>
@@ -451,10 +454,10 @@ export function ChickenHatchManager() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-neutral-50 border-b text-left text-neutral-600">
-                  <th className="p-2">Rase</th>
-                  <th className="p-2">Egg inn</th>
-                  <th className="p-2">Est. klekk (50%)</th>
-                  <th className="p-2">Faktisk klekket</th>
+                  <th className="p-2">{ch.tableHeaderBreed}</th>
+                  <th className="p-2">{ch.tableHeaderEggsIn}</th>
+                  <th className="p-2">{ch.tableHeaderEstimatedHatch}</th>
+                  <th className="p-2">{ch.tableHeaderActualHatched}</th>
                 </tr>
               </thead>
               <tbody>
@@ -484,7 +487,7 @@ export function ChickenHatchManager() {
                           min={0}
                           value={draft?.actual_hatched_count || ''}
                           onChange={(e) => updateDraftLine(breed.id, { actual_hatched_count: e.target.value })}
-                          placeholder="Valgfritt"
+                          placeholder={ch.placeholderActualOptional}
                         />
                       </td>
                     </tr>
@@ -495,15 +498,15 @@ export function ChickenHatchManager() {
           </div>
 
           <div className="text-sm text-neutral-600">
-            Totalt egg inn: <span className="font-semibold">{createTotals.totalEggsSet}</span> | Estimert klekk: <span className="font-semibold">{createTotals.totalExpected}</span>
+            {ch.summaryTotalEggsIn.split('{total}')[0]}<span className="font-semibold">{createTotals.totalEggsSet}</span> | {ch.summaryEstimatedHatch.split('{total}')[0]}<span className="font-semibold">{createTotals.totalExpected}</span>
           </div>
 
           <div className="flex gap-2">
             <Button size="sm" onClick={handleCreate}>
-              <Save className="w-3 h-3 mr-1" /> Opprett kull
+              <Save className="w-3 h-3 mr-1" /> {ch.buttonCreateHatch}
             </Button>
             <Button size="sm" variant="outline" onClick={() => { setShowAddForm(false); resetNewBatchForm() }}>
-              <X className="w-3 h-3 mr-1" /> Avbryt
+              <X className="w-3 h-3 mr-1" /> {t.common.cancel}
             </Button>
           </div>
         </Card>
@@ -511,7 +514,7 @@ export function ChickenHatchManager() {
 
       {groupedBatches.length === 0 && (
         <Card className="p-6 text-center text-neutral-500">
-          Ingen kyllingkull enda.
+          {ch.emptyState}
         </Card>
       )}
 
@@ -530,52 +533,52 @@ export function ChickenHatchManager() {
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h4 className="font-semibold">
-                  {group.batch ? `Kull ${group.batch.batch_code}` : 'Legacy kull'}
+                  {group.batch ? ch.cardTitleBatch.replace('{batchCode}', group.batch.batch_code) : ch.cardTitleLegacy}
                 </h4>
                 <p className="text-sm text-neutral-500">
                   {group.batch
-                    ? `Egg inn ${formatDate(group.batch.eggs_set_date)}`
-                    : `Klekkedato ${formatDate(group.rows[0]?.hatch_date)}`}
+                    ? ch.cardSubtitleEggDate.replace('{date}', formatDate(group.batch.eggs_set_date))
+                    : ch.cardSubtitleHatchDate.replace('{date}', formatDate(group.rows[0]?.hatch_date))}
                 </p>
               </div>
               <span className={`text-xs px-2 py-1 rounded ${stage.className}`}>
-                {stage.label}
+                {ch[stage.labelKey]}
               </span>
             </div>
 
             {group.batch && (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-sm">
                 <div className="rounded border p-2">
-                  Dag 0: <span className="font-medium">{formatDate(group.batch.eggs_set_date)}</span>
+                  {ch.infoDay0.replace('{date}', formatDate(group.batch.eggs_set_date))}
                 </div>
                 <div className="rounded border p-2">
-                  Dag 18 lockdown: <span className="font-medium">{formatDate(group.batch.lock_down_date)}</span>
+                  {ch.infoDay18.replace('{date}', formatDate(group.batch.lock_down_date))}
                 </div>
                 <div className="rounded border p-2">
-                  Dag 21 klekk: <span className="font-medium">{formatDate(group.batch.hatch_due_date)}</span>
+                  {ch.infoDay21.replace('{date}', formatDate(group.batch.hatch_due_date))}
                 </div>
               </div>
             )}
 
             <div className="text-sm text-neutral-600">
-              Egg inn: <span className="font-semibold">{totalEggsSet}</span> | Est. klekk: <span className="font-semibold">{totalExpected}</span> | Faktisk klekket: <span className="font-semibold">{totalActual}</span>
-              {hatchRate !== null && <> | Klekkerate: <span className="font-semibold">{hatchRate}%</span></>}
+              {ch.summaryEggsIn.split('{total}')[0]}<span className="font-semibold">{totalEggsSet}</span> | {ch.summaryEstClekk.split('{total}')[0]}<span className="font-semibold">{totalExpected}</span> | {ch.summaryActualHatched.split('{total}')[0]}<span className="font-semibold">{totalActual}</span>
+              {hatchRate !== null && <> | {ch.summaryHatchRate.split('{rate}')[0]}<span className="font-semibold">{hatchRate}%</span></>}
             </div>
 
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="text-left text-gray-500 border-b">
-                    <th className="pb-2 pr-3">Rase</th>
-                    <th className="pb-2 pr-3">Egg inn</th>
-                    <th className="pb-2 pr-3">Est. klekk</th>
-                    <th className="pb-2 pr-3">Faktisk klekket</th>
-                    <th className="pb-2 pr-3">Tilgj. høner</th>
-                    <th className="pb-2 pr-3">Tilgj. haner</th>
-                    <th className="pb-2 pr-3">Alder nå</th>
-                    <th className="pb-2 pr-3">Pris nå</th>
-                    <th className="pb-2 pr-3">Status</th>
-                    <th className="pb-2">Handlinger</th>
+                    <th className="pb-2 pr-3">{ch.tableHeaderRase}</th>
+                    <th className="pb-2 pr-3">{ch.tableHeaderEggInn}</th>
+                    <th className="pb-2 pr-3">{ch.tableHeaderEstKlekk}</th>
+                    <th className="pb-2 pr-3">{ch.tableHeaderFactualHatched}</th>
+                    <th className="pb-2 pr-3">{ch.tableHeaderAvailableHens}</th>
+                    <th className="pb-2 pr-3">{ch.tableHeaderAvailableRoosters}</th>
+                    <th className="pb-2 pr-3">{ch.tableHeaderAgeNow}</th>
+                    <th className="pb-2 pr-3">{ch.tableHeaderPriceNow}</th>
+                    <th className="pb-2 pr-3">{ch.tableHeaderStatus}</th>
+                    <th className="pb-2">{ch.tableHeaderActions}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -594,7 +597,7 @@ export function ChickenHatchManager() {
 
                     return (
                       <tr key={hatch.id} className="border-b last:border-0">
-                        <td className="py-2 pr-3">{breed?.name || 'Ukjent'}</td>
+                        <td className="py-2 pr-3">{breed?.name || ch.labelUnknownBreed}</td>
                         <td className="py-2 pr-3">
                           {isEditing ? (
                             <Input
@@ -656,13 +659,13 @@ export function ChickenHatchManager() {
                             hatch.available_roosters
                           )}
                         </td>
-                        <td className="py-2 pr-3">{ageWeeks} uker</td>
-                        <td className="py-2 pr-3">kr {price}</td>
+                        <td className="py-2 pr-3">{ch.labelAgeWeeks.replace('{weeks}', String(ageWeeks))}</td>
+                        <td className="py-2 pr-3">{ch.labelPrice.replace('{price}', String(price))}</td>
                         <td className="py-2 pr-3">
                           {hatch.active ? (
-                            <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">Aktiv</span>
+                            <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">{ch.badgeActive}</span>
                           ) : (
-                            <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded">Inaktiv</span>
+                            <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded">{ch.badgeInactive}</span>
                           )}
                         </td>
                         <td className="py-2">
@@ -693,7 +696,7 @@ export function ChickenHatchManager() {
                                 className="h-7 px-2 text-xs"
                                 onClick={() => handleStartEdit(hatch)}
                               >
-                                Rediger
+                                {ch.buttonEdit}
                               </Button>
                               <Button
                                 size="sm"
@@ -701,7 +704,7 @@ export function ChickenHatchManager() {
                                 className="h-7 px-2 text-xs text-red-600"
                                 onClick={() => handleDeactivate(hatch.id)}
                               >
-                                Deaktiver
+                                {ch.buttonDeactivate}
                               </Button>
                             </div>
                           )}

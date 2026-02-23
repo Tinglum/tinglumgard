@@ -391,35 +391,7 @@ export default function Page() {
   const minPrice = minPresetPrice;
   const minDeposit = minPresetPrice ? Math.floor(minPresetPrice * 0.5) : null;
   const locale = lang === 'no' ? 'nb-NO' : 'en-US';
-  const pageCopy = lang === 'no'
-    ? {
-        updatedToday: 'Oppdatert i dag',
-        instagram: 'Instagram',
-        followInstagram: 'Følg oss på Instagram',
-        instagramDescription: 'Se hverdagen på gården og oppdateringer gjennom sesongen.',
-        reserveBox: 'Reserver kasse',
-        fromPrice: 'Fra',
-        depositFrom: 'Forskudd fra',
-        deliveryWindow: 'Levering uke 46-48',
-        timelineDate1: 'Jan 26',
-        timelineDate2: 'Uke 46',
-        timelineDate3: 'Uke 48',
-        timelineDate4: 'Uke 50/51',
-      }
-    : {
-        updatedToday: 'Updated today',
-        instagram: 'Instagram',
-        followInstagram: 'Follow us on Instagram',
-        instagramDescription: 'See everyday life on the farm and season updates.',
-        reserveBox: 'Reserve box',
-        fromPrice: 'From',
-        depositFrom: 'Deposit from',
-        deliveryWindow: 'Delivery weeks 46-48',
-        timelineDate1: 'Jan 26',
-        timelineDate2: 'Week 46',
-        timelineDate3: 'Week 48',
-        timelineDate4: 'Week 50/51',
-      };
+  const pageCopy = (t as any).homepage;
   const sortedPresets = [...presets].sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
 
   async function handleWaitlistSubmit(event: React.FormEvent<HTMLFormElement>) {

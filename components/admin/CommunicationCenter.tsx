@@ -38,6 +38,7 @@ export function CommunicationCenter() {
   const { toast } = useToast();
   const { t, lang } = useLanguage();
   const copy = t.communicationCenter;
+  const cc = (t as any).admin.communicationCenter;
 
   const [templates, setTemplates] = useState<EmailTemplate[]>([]);
   const [selectedTemplate, setSelectedTemplate] = useState<EmailTemplate | null>(null);
@@ -127,10 +128,8 @@ export function CommunicationCenter() {
       }
 
       toast({
-        title: lang === 'no' ? 'Mal lagret' : 'Template saved',
-        description: lang === 'no'
-          ? 'Flytmalen ble oppdatert.'
-          : 'The flow template was updated.',
+        title: cc.flowSavedTitle,
+        description: cc.flowSavedDescription,
       });
 
       await loadTemplates();
@@ -329,16 +328,14 @@ export function CommunicationCenter() {
         <div className="flex items-center justify-between gap-4 mb-4">
           <div>
             <h3 className="font-semibold text-lg">
-              {lang === 'no' ? 'Ordre-flyt maler (egg + Mangalitsa)' : 'Order flow templates (eggs + Mangalitsa)'}
+              {cc.flowTemplatesTitle}
             </h3>
             <p className="text-sm text-gray-600">
-              {lang === 'no'
-                ? 'Brukes til ordrebekreftelse, sesongoppdatering, slakte-/pakkeuke, levering og tilbakemelding.'
-                : 'Used for confirmation, season updates, slaughter/packing week, delivery, and feedback.'}
+              {cc.flowTemplatesSubtitle}
             </p>
           </div>
           <Button variant="outline" onClick={applyFlowToComposer} disabled={!selectedFlowTemplate}>
-            {lang === 'no' ? 'Bruk i utsendelse' : 'Use in composer'}
+            {cc.flowUseInComposer}
           </Button>
         </div>
 
@@ -360,12 +357,10 @@ export function CommunicationCenter() {
                     {template.product_type} · {template.flow_stage}
                   </p>
                   <p className="font-medium text-sm mt-1">
-                    {lang === 'no' ? template.name_no : template.name_en}
+                    {lang === 'no' ? template.name_no : template.name_en /* data field selection */}
                   </p>
                   <p className="text-xs text-gray-500 mt-1">
-                    {template.active
-                      ? (lang === 'no' ? 'Aktiv' : 'Active')
-                      : (lang === 'no' ? 'Inaktiv' : 'Inactive')}
+                    {template.active ? cc.flowLabelActive : cc.flowLabelInactive}
                   </p>
                 </button>
               );
@@ -376,7 +371,7 @@ export function CommunicationCenter() {
             <div className="lg:col-span-2 space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label>Navn (NO)</Label>
+                  <Label>{cc.flowLabelNameNo}</Label>
                   <Input
                     value={selectedFlowTemplate.name_no}
                     onChange={(event) =>
@@ -389,7 +384,7 @@ export function CommunicationCenter() {
                   />
                 </div>
                 <div>
-                  <Label>Name (EN)</Label>
+                  <Label>{cc.flowLabelNameEn}</Label>
                   <Input
                     value={selectedFlowTemplate.name_en}
                     onChange={(event) =>
@@ -405,7 +400,7 @@ export function CommunicationCenter() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label>Emne (NO)</Label>
+                  <Label>{cc.flowLabelSubjectNo}</Label>
                   <Input
                     value={selectedFlowTemplate.subject_no}
                     onChange={(event) =>
@@ -418,7 +413,7 @@ export function CommunicationCenter() {
                   />
                 </div>
                 <div>
-                  <Label>Subject (EN)</Label>
+                  <Label>{cc.flowLabelSubjectEn}</Label>
                   <Input
                     value={selectedFlowTemplate.subject_en}
                     onChange={(event) =>
@@ -434,7 +429,7 @@ export function CommunicationCenter() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label>Melding (NO)</Label>
+                  <Label>{cc.flowLabelMessageNo}</Label>
                   <Textarea
                     rows={8}
                     value={selectedFlowTemplate.body_no}
@@ -448,7 +443,7 @@ export function CommunicationCenter() {
                   />
                 </div>
                 <div>
-                  <Label>Message (EN)</Label>
+                  <Label>{cc.flowLabelMessageEn}</Label>
                   <Textarea
                     rows={8}
                     value={selectedFlowTemplate.body_en}
@@ -475,12 +470,10 @@ export function CommunicationCenter() {
                       })
                     }
                   />
-                  {lang === 'no' ? 'Aktiv mal' : 'Template active'}
+                  {cc.flowCheckboxActive}
                 </label>
                 <Button onClick={saveSelectedFlowTemplate} disabled={savingFlowTemplate}>
-                  {savingFlowTemplate
-                    ? (lang === 'no' ? 'Lagrer...' : 'Saving...')
-                    : (lang === 'no' ? 'Lagre flytmal' : 'Save flow template')}
+                  {savingFlowTemplate ? cc.flowButtonSaving : cc.flowButtonSave}
                 </Button>
               </div>
             </div>

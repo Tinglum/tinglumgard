@@ -373,7 +373,7 @@ export function InventoryManagement() {
       <Card className="p-6">
         <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
           <Beef className="w-5 h-5" />
-          {lang === 'no' ? 'Boksstyring (Mangalitsa)' : 'Box management (Mangalitsa)'}
+          {copy.boxManagementTitle}
         </h3>
         <div className="space-y-3">
           {presetStock.map((preset) => {
@@ -386,9 +386,9 @@ export function InventoryManagement() {
                   <p className="font-medium text-neutral-900">{preset.name_no}</p>
                   <p className="text-sm text-neutral-600">
                     {preset.target_weight_kg} {t.common.kg} · {preset.order_count}{' '}
-                    {lang === 'no' ? 'bestillinger' : 'orders'}
+                    {copy.labelOrders}
                     {preset.remaining !== null
-                      ? ` · ${lang === 'no' ? 'gjenstår' : 'remaining'}: ${preset.remaining}`
+                      ? ` · ${copy.labelRemaining}: ${preset.remaining}`
                       : ''}
                   </p>
                 </div>
@@ -396,7 +396,7 @@ export function InventoryManagement() {
                   type="number"
                   min="0"
                   className="w-36"
-                  placeholder={lang === 'no' ? 'Ingen grense' : 'No limit'}
+                  placeholder={copy.placeholderNoLimit}
                   value={limitDraft}
                   onChange={(e) =>
                     setPresetLimitDrafts((prev) => ({ ...prev, [preset.slug]: e.target.value }))
@@ -410,21 +410,21 @@ export function InventoryManagement() {
                   {savingPresetSlug === preset.slug ? copy.savingButton : copy.updateButton}
                 </Button>
                 <span className={cn('text-xs font-medium', preset.active ? 'text-green-700' : 'text-neutral-500')}>
-                  {preset.active ? (lang === 'no' ? 'Aktiv' : 'Active') : (lang === 'no' ? 'Inaktiv' : 'Inactive')}
+                  {preset.active ? copy.labelActive : copy.labelInactive}
                 </span>
               </div>
             );
           })}
           {presetStock.length === 0 && (
             <p className="text-sm text-neutral-500">
-              {lang === 'no' ? 'Ingen bokser funnet' : 'No presets found'}
+              {copy.emptyPresets}
             </p>
           )}
         </div>
       </Card>
 
       <Card className="p-6">
-        <h3 className="font-semibold text-lg mb-4">{lang === 'no' ? 'Ekstraprodukter (lager)' : 'Extra products (stock)'}</h3>
+        <h3 className="font-semibold text-lg mb-4">{copy.extrasTitle}</h3>
         <div className="space-y-3">
           {extrasStock.map((extra) => {
             const stockDraft = extraStockDrafts[extra.id] ?? '';
@@ -442,14 +442,14 @@ export function InventoryManagement() {
                   <p className="font-medium text-neutral-900">{extra.name_no}</p>
                   <p className="text-sm text-neutral-600">
                     {extra.price_nok} {t.common.currency}/{extra.pricing_type === 'per_kg' ? t.common.kg : 'stk'} ·{' '}
-                    {extra.active ? (lang === 'no' ? 'Aktiv' : 'Active') : (lang === 'no' ? 'Inaktiv' : 'Inactive')}
+                    {extra.active ? copy.labelActive : copy.labelInactive}
                   </p>
                 </div>
                 <Input
                   type="number"
                   min="0"
                   className="w-36"
-                  placeholder={lang === 'no' ? 'Ubegrenset' : 'Unlimited'}
+                  placeholder={copy.placeholderUnlimited}
                   value={stockDraft}
                   onChange={(e) =>
                     setExtraStockDrafts((prev) => ({ ...prev, [extra.id]: e.target.value }))
@@ -467,7 +467,7 @@ export function InventoryManagement() {
           })}
           {extrasStock.length === 0 && (
             <p className="text-sm text-neutral-500">
-              {lang === 'no' ? 'Ingen ekstraprodukter funnet' : 'No extras found'}
+              {copy.emptyExtras}
             </p>
           )}
         </div>
@@ -477,19 +477,19 @@ export function InventoryManagement() {
         <Card className="p-6">
           <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
             <Egg className="w-5 h-5" />
-            {lang === 'no' ? 'Rugeegg lageroversikt' : 'Hatching egg inventory overview'}
+            {copy.eggOverviewTitle}
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="p-4 rounded-xl bg-neutral-50 border border-neutral-200">
-              <p className="text-sm text-neutral-600">{lang === 'no' ? 'Uker i salg' : 'Weeks on sale'}</p>
+              <p className="text-sm text-neutral-600">{copy.eggWeeksOnSale}</p>
               <p className="text-2xl font-semibold text-neutral-900">{eggSummary.upcoming_weeks}</p>
             </div>
             <div className="p-4 rounded-xl bg-neutral-50 border border-neutral-200">
-              <p className="text-sm text-neutral-600">{lang === 'no' ? 'Tilgjengelig' : 'Available'}</p>
+              <p className="text-sm text-neutral-600">{copy.eggAvailable}</p>
               <p className="text-2xl font-semibold text-neutral-900">{eggSummary.total_available}</p>
             </div>
             <div className="p-4 rounded-xl bg-neutral-50 border border-neutral-200">
-              <p className="text-sm text-neutral-600">{lang === 'no' ? 'Gjenstår' : 'Remaining'}</p>
+              <p className="text-sm text-neutral-600">{copy.eggRemaining}</p>
               <p className="text-2xl font-semibold text-neutral-900">{eggSummary.total_remaining}</p>
             </div>
           </div>

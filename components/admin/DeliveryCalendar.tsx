@@ -52,7 +52,7 @@ export function DeliveryCalendar() {
     } catch (error) {
       console.error('Error loading delivery calendar:', error);
       setDeliveryGroups([]);
-      setLoadError(lang === 'en' ? 'Could not load delivery calendar.' : 'Kunne ikke laste hentekalender.');
+      setLoadError(copy.loadError);
     } finally {
       setLoading(false);
     }

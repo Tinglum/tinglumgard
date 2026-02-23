@@ -14,6 +14,7 @@ import {
   Users,
   Image as ImageIcon,
 } from 'lucide-react';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface Ingredient {
   amount: string;
@@ -79,13 +80,10 @@ const difficultyColors: Record<string, string> = {
   hard: 'bg-red-100 text-red-800 border-red-200',
 };
 
-const difficultyLabels: Record<string, string> = {
-  easy: 'Enkel',
-  medium: 'Middels',
-  hard: 'Vanskelig',
-};
 
 export function RecipeManager() {
+  const { t } = useLanguage();
+  const copy = (t as any).admin.recipes;
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [editingRecipe, setEditingRecipe] = useState<Recipe | (Omit<Recipe, 'id'> & { id?: undefined }) | null>(null);
   const [loading, setLoading] = useState(true);
@@ -108,7 +106,7 @@ export function RecipeManager() {
       setRecipes(data.recipes || []);
     } catch (error) {
       console.error('Failed to load recipes:', error);
-      showToast('Kunne ikke laste oppskrifter', 'error');
+      showToast(copy.errorLoadTitle, 'error');
     } finally {
       setLoading(false);
     }
@@ -127,10 +125,10 @@ export function RecipeManager() {
       }
       await loadRecipes();
       setEditingRecipe(null);
-      showToast('Oppskrift oppdatert', 'success');
+      showToast(copy.updateToastTitle, 'success');
     } catch (error: any) {
       console.error('Failed to update recipe:', error);
-      showToast(error.message || 'Lagring feilet', 'error');
+      showToast(error.message || copy.errorSaveTitle, 'error');
     }
   }
 
@@ -147,15 +145,15 @@ export function RecipeManager() {
       }
       await loadRecipes();
       setEditingRecipe(null);
-      showToast('Oppskrift opprettet', 'success');
+      showToast(copy.createToastTitle, 'success');
     } catch (error: any) {
       console.error('Failed to create recipe:', error);
-      showToast(error.message || 'Oppretting feilet', 'error');
+      showToast(error.message || copy.errorCreateTitle, 'error');
     }
   }
 
   async function deleteRecipe(recipeId: string) {
-    if (!confirm('Er du sikker på at du vil slette denne oppskriften?')) return;
+    if (!confirm(copy.deleteConfirm)) return;
     try {
       const res = await fetch(`/api/admin/recipes/${recipeId}`, {
         method: 'DELETE',
@@ -165,14 +163,14 @@ export function RecipeManager() {
         throw new Error(err.error || `HTTP ${res.status}`);
       }
       await loadRecipes();
-      showToast('Oppskrift slettet', 'success');
+      showToast(copy.deleteToastTitle, 'success');
     } catch (error: any) {
       console.error('Failed to delete recipe:', error);
-      showToast(error.message || 'Sletting feilet', 'error');
+      showToast(error.message || copy.errorDeleteTitle, 'error');
     }
   }
 
-  if (loading) return <div className="py-8 text-center text-neutral-500">Laster oppskrifter...</div>;
+  if (loading) return <div className="py-8 text-center text-neutral-500">{copy.loading}</div>;
 
   return (
     <div className="space-y-8">
@@ -186,19 +184,19 @@ export function RecipeManager() {
       )}
 
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-light text-neutral-900">Oppskrifter</h2>
+        <h2 className="text-2xl font-light text-neutral-900">{copy.title}</h2>
         <button
           onClick={() => setEditingRecipe(emptyRecipe())}
           className="flex items-center gap-2 px-4 py-2 bg-neutral-900 hover:bg-neutral-800 text-white rounded-xl text-sm font-normal transition-all"
         >
           <Plus className="w-4 h-4" />
-          Ny oppskrift
+          {copy.buttonNewRecipe}
         </button>
       </div>
 
       {recipes.length === 0 && (
         <div className="text-center py-12 text-neutral-500 font-light">
-          Ingen oppskrifter ennå. Klikk &quot;Ny oppskrift&quot; for å opprette en.
+          {copy.emptyState}
         </div>
       )}
 
@@ -225,14 +223,14 @@ export function RecipeManager() {
                 <p className="text-sm font-light text-neutral-400 truncate">{recipe.slug}</p>
                 <div className="flex items-center gap-2 mt-2 flex-wrap">
                   <span className={`text-xs px-2.5 py-0.5 rounded-full border ${difficultyColors[recipe.difficulty]}`}>
-                    {difficultyLabels[recipe.difficulty]}
+                    {{ easy: copy.difficultyEasy, medium: copy.difficultyMedium, hard: copy.difficultyHard }[recipe.difficulty]}
                   </span>
                   <span className={`text-xs px-2.5 py-0.5 rounded-full border ${
                     recipe.active
                       ? 'bg-green-100 text-green-800 border-green-200'
                       : 'bg-neutral-100 text-neutral-500 border-neutral-200'
                   }`}>
-                    {recipe.active ? 'Aktiv' : 'Inaktiv'}
+                    {recipe.active ? copy.badgeActive : copy.badgeInactive}
                   </span>
                 </div>
               </div>
@@ -241,15 +239,15 @@ export function RecipeManager() {
             <div className="flex items-center gap-4 mt-4 text-xs text-neutral-500">
               <span className="flex items-center gap-1">
                 <Clock className="w-3.5 h-3.5" />
-                {recipe.prep_time_minutes + recipe.cook_time_minutes} min
+                {copy.labelMinutes.replace('{minutes}', String(recipe.prep_time_minutes + recipe.cook_time_minutes))}
               </span>
               <span className="flex items-center gap-1">
                 <Users className="w-3.5 h-3.5" />
-                {recipe.servings} porsjoner
+                {copy.labelServings.replace('{servings}', String(recipe.servings))}
               </span>
               <span className="flex items-center gap-1">
                 <ChefHat className="w-3.5 h-3.5" />
-                #{recipe.display_order}
+                {copy.labelOrder.replace('{order}', String(recipe.display_order))}
               </span>
             </div>
 
@@ -259,14 +257,14 @@ export function RecipeManager() {
                 className="flex items-center gap-1.5 px-3 py-1.5 text-sm hover:bg-neutral-50 rounded-lg transition-all text-neutral-600"
               >
                 <Edit className="w-4 h-4" />
-                Rediger
+                {copy.buttonEdit}
               </button>
               <button
                 onClick={() => deleteRecipe(recipe.id)}
                 className="flex items-center gap-1.5 px-3 py-1.5 text-sm hover:bg-red-50 rounded-lg transition-all text-red-600"
               >
                 <Trash2 className="w-4 h-4" />
-                Slett
+                {copy.buttonDelete}
               </button>
             </div>
           </div>
@@ -295,6 +293,8 @@ function EditRecipeModal({ recipe, onSave, onClose }: {
   onSave: (data: Record<string, unknown>) => Promise<void>;
   onClose: () => void;
 }) {
+  const { t } = useLanguage();
+  const copy = (t as any).admin.recipes;
   const isNew = !recipe.id;
   const [saving, setSaving] = useState(false);
 
@@ -413,7 +413,7 @@ function EditRecipeModal({ recipe, onSave, onClose }: {
       <div className="bg-white rounded-xl p-8 max-w-4xl w-full shadow-xl my-8">
         <div className="flex items-center justify-between mb-6">
           <h3 className="text-2xl font-normal">
-            {isNew ? 'Ny oppskrift' : `Rediger: ${recipe.title_no}`}
+            {isNew ? copy.modalTitleNew : copy.modalTitleEdit.replace('{title}', recipe.title_no)}
           </h3>
           <button onClick={onClose} className="p-2 hover:bg-neutral-50 rounded-xl">
             <X className="w-5 h-5" />
@@ -424,66 +424,66 @@ function EditRecipeModal({ recipe, onSave, onClose }: {
           {/* Titles */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className={labelCls}>Tittel (NO)</label>
+              <label className={labelCls}>{copy.labelTitleNo}</label>
               <input
                 type="text"
                 value={titleNo}
                 onChange={(e) => setTitleNo(e.target.value)}
                 className={inputCls}
-                placeholder="Oppskriftstittel på norsk"
+                placeholder={copy.placeholderTitleNo}
               />
             </div>
             <div>
-              <label className={labelCls}>Title (EN)</label>
+              <label className={labelCls}>{copy.labelTitleEn}</label>
               <input
                 type="text"
                 value={titleEn}
                 onChange={(e) => setTitleEn(e.target.value)}
                 className={inputCls}
-                placeholder="Recipe title in English"
+                placeholder={copy.placeholderTitleEn}
               />
             </div>
           </div>
 
           {/* Slug */}
           <div>
-            <label className={labelCls}>Slug</label>
+            <label className={labelCls}>{copy.labelSlug}</label>
             <input
               type="text"
               value={slug}
               onChange={(e) => setSlug(e.target.value)}
               className={inputCls}
-              placeholder="f.eks. carbonara-guanciale"
+              placeholder={copy.placeholderSlug}
             />
           </div>
 
           {/* Intros */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className={labelCls}>Intro (NO)</label>
+              <label className={labelCls}>{copy.labelIntroNo}</label>
               <textarea
                 value={introNo}
                 onChange={(e) => setIntroNo(e.target.value)}
                 rows={3}
                 className={inputCls}
-                placeholder="Kort introduksjon til oppskriften"
+                placeholder={copy.placeholderIntroNo}
               />
             </div>
             <div>
-              <label className={labelCls}>Intro (EN)</label>
+              <label className={labelCls}>{copy.labelIntroEn}</label>
               <textarea
                 value={introEn}
                 onChange={(e) => setIntroEn(e.target.value)}
                 rows={3}
                 className={inputCls}
-                placeholder="Short recipe introduction"
+                placeholder={copy.placeholderIntroEn}
               />
             </div>
           </div>
 
           {/* Ingredients NO */}
           <div className="pt-4 border-t border-neutral-200">
-            <p className="text-sm font-light text-neutral-600 mb-3">Ingredienser (NO)</p>
+            <p className="text-sm font-light text-neutral-600 mb-3">{copy.sectionIngredientsNo}</p>
             <div className="space-y-2">
               {ingredientsNo.map((ing, idx) => (
                 <div key={idx} className="flex items-center gap-2">
@@ -492,7 +492,7 @@ function EditRecipeModal({ recipe, onSave, onClose }: {
                     value={ing.amount}
                     onChange={(e) => updateIngredient('no', idx, 'amount', e.target.value)}
                     className={smallInputCls}
-                    placeholder="Mengde"
+                    placeholder={copy.placeholderAmount}
                     style={{ maxWidth: '120px' }}
                   />
                   <input
@@ -500,12 +500,12 @@ function EditRecipeModal({ recipe, onSave, onClose }: {
                     value={ing.item}
                     onChange={(e) => updateIngredient('no', idx, 'item', e.target.value)}
                     className={`${smallInputCls} flex-1`}
-                    placeholder="Ingrediens"
+                    placeholder={copy.placeholderIngredient}
                   />
                   <button
                     onClick={() => removeIngredient('no', idx)}
                     className="p-1.5 hover:bg-red-50 rounded-lg transition-all flex-shrink-0"
-                    title="Fjern"
+                    title={copy.buttonRemove}
                   >
                     <Trash2 className="w-3.5 h-3.5 text-red-500" />
                   </button>
@@ -517,13 +517,13 @@ function EditRecipeModal({ recipe, onSave, onClose }: {
               className="w-full mt-2 py-2 border-2 border-dashed border-neutral-300 hover:border-neutral-400 rounded-lg text-xs font-light text-neutral-600 flex items-center justify-center gap-1.5 transition-all"
             >
               <Plus className="w-3.5 h-3.5" />
-              Legg til ingrediens
+              {copy.buttonAddIngredient}
             </button>
           </div>
 
           {/* Ingredients EN */}
           <div className="pt-4 border-t border-neutral-200">
-            <p className="text-sm font-light text-neutral-600 mb-3">Ingredients (EN)</p>
+            <p className="text-sm font-light text-neutral-600 mb-3">{copy.sectionIngredientsEn}</p>
             <div className="space-y-2">
               {ingredientsEn.map((ing, idx) => (
                 <div key={idx} className="flex items-center gap-2">
@@ -532,7 +532,7 @@ function EditRecipeModal({ recipe, onSave, onClose }: {
                     value={ing.amount}
                     onChange={(e) => updateIngredient('en', idx, 'amount', e.target.value)}
                     className={smallInputCls}
-                    placeholder="Amount"
+                    placeholder={copy.placeholderAmountEn}
                     style={{ maxWidth: '120px' }}
                   />
                   <input
@@ -540,12 +540,12 @@ function EditRecipeModal({ recipe, onSave, onClose }: {
                     value={ing.item}
                     onChange={(e) => updateIngredient('en', idx, 'item', e.target.value)}
                     className={`${smallInputCls} flex-1`}
-                    placeholder="Ingredient"
+                    placeholder={copy.placeholderIngredientEn}
                   />
                   <button
                     onClick={() => removeIngredient('en', idx)}
                     className="p-1.5 hover:bg-red-50 rounded-lg transition-all flex-shrink-0"
-                    title="Remove"
+                    title={copy.buttonRemove}
                   >
                     <Trash2 className="w-3.5 h-3.5 text-red-500" />
                   </button>
@@ -557,13 +557,13 @@ function EditRecipeModal({ recipe, onSave, onClose }: {
               className="w-full mt-2 py-2 border-2 border-dashed border-neutral-300 hover:border-neutral-400 rounded-lg text-xs font-light text-neutral-600 flex items-center justify-center gap-1.5 transition-all"
             >
               <Plus className="w-3.5 h-3.5" />
-              Add ingredient
+              {copy.buttonAddIngredientEn}
             </button>
           </div>
 
           {/* Steps NO */}
           <div className="pt-4 border-t border-neutral-200">
-            <p className="text-sm font-light text-neutral-600 mb-3">Steg (NO)</p>
+            <p className="text-sm font-light text-neutral-600 mb-3">{copy.sectionStepsNo}</p>
             <div className="space-y-2">
               {stepsNo.map((step, idx) => (
                 <div key={idx} className="flex items-start gap-2">
@@ -573,12 +573,12 @@ function EditRecipeModal({ recipe, onSave, onClose }: {
                     onChange={(e) => updateStep('no', idx, e.target.value)}
                     rows={2}
                     className={`${smallInputCls} flex-1`}
-                    placeholder={`Steg ${idx + 1}`}
+                    placeholder={copy.placeholderStep.replace('{number}', String(idx + 1))}
                   />
                   <button
                     onClick={() => removeStep('no', idx)}
                     className="p-1.5 hover:bg-red-50 rounded-lg transition-all flex-shrink-0 mt-1"
-                    title="Fjern steg"
+                    title={copy.buttonRemoveStep}
                   >
                     <Trash2 className="w-3.5 h-3.5 text-red-500" />
                   </button>
@@ -590,13 +590,13 @@ function EditRecipeModal({ recipe, onSave, onClose }: {
               className="w-full mt-2 py-2 border-2 border-dashed border-neutral-300 hover:border-neutral-400 rounded-lg text-xs font-light text-neutral-600 flex items-center justify-center gap-1.5 transition-all"
             >
               <Plus className="w-3.5 h-3.5" />
-              Legg til steg
+              {copy.buttonAddStep}
             </button>
           </div>
 
           {/* Steps EN */}
           <div className="pt-4 border-t border-neutral-200">
-            <p className="text-sm font-light text-neutral-600 mb-3">Steps (EN)</p>
+            <p className="text-sm font-light text-neutral-600 mb-3">{copy.sectionStepsEn}</p>
             <div className="space-y-2">
               {stepsEn.map((step, idx) => (
                 <div key={idx} className="flex items-start gap-2">
@@ -606,12 +606,12 @@ function EditRecipeModal({ recipe, onSave, onClose }: {
                     onChange={(e) => updateStep('en', idx, e.target.value)}
                     rows={2}
                     className={`${smallInputCls} flex-1`}
-                    placeholder={`Step ${idx + 1}`}
+                    placeholder={copy.placeholderStepEn.replace('{number}', String(idx + 1))}
                   />
                   <button
                     onClick={() => removeStep('en', idx)}
                     className="p-1.5 hover:bg-red-50 rounded-lg transition-all flex-shrink-0 mt-1"
-                    title="Remove step"
+                    title={copy.buttonRemoveStepEn}
                   >
                     <Trash2 className="w-3.5 h-3.5 text-red-500" />
                   </button>
@@ -623,30 +623,30 @@ function EditRecipeModal({ recipe, onSave, onClose }: {
               className="w-full mt-2 py-2 border-2 border-dashed border-neutral-300 hover:border-neutral-400 rounded-lg text-xs font-light text-neutral-600 flex items-center justify-center gap-1.5 transition-all"
             >
               <Plus className="w-3.5 h-3.5" />
-              Add step
+              {copy.buttonAddStepEn}
             </button>
           </div>
 
           {/* Tips */}
           <div className="grid grid-cols-2 gap-4 pt-4 border-t border-neutral-200">
             <div>
-              <label className={labelCls}>Tips (NO)</label>
+              <label className={labelCls}>{copy.labelTipsNo}</label>
               <textarea
                 value={tipsNo}
                 onChange={(e) => setTipsNo(e.target.value)}
                 rows={3}
                 className={inputCls}
-                placeholder="Generelle tips"
+                placeholder={copy.placeholderTipsNo}
               />
             </div>
             <div>
-              <label className={labelCls}>Tips (EN)</label>
+              <label className={labelCls}>{copy.labelTipsEn}</label>
               <textarea
                 value={tipsEn}
                 onChange={(e) => setTipsEn(e.target.value)}
                 rows={3}
                 className={inputCls}
-                placeholder="General tips"
+                placeholder={copy.placeholderTipsEn}
               />
             </div>
           </div>
@@ -654,23 +654,23 @@ function EditRecipeModal({ recipe, onSave, onClose }: {
           {/* Mangalitsa tips */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className={labelCls}>Mangalitsa-tips (NO)</label>
+              <label className={labelCls}>{copy.labelMangalitsaTipNo}</label>
               <textarea
                 value={mangalitsaTipNo}
                 onChange={(e) => setMangalitsaTipNo(e.target.value)}
                 rows={3}
                 className={inputCls}
-                placeholder="Tips spesifikt for mangalitsa"
+                placeholder={copy.placeholderMangalitsaTipNo}
               />
             </div>
             <div>
-              <label className={labelCls}>Mangalitsa tip (EN)</label>
+              <label className={labelCls}>{copy.labelMangalitsaTipEn}</label>
               <textarea
                 value={mangalitsaTipEn}
                 onChange={(e) => setMangalitsaTipEn(e.target.value)}
                 rows={3}
                 className={inputCls}
-                placeholder="Mangalitsa-specific tip"
+                placeholder={copy.placeholderMangalitsaTipEn}
               />
             </div>
           </div>
@@ -678,19 +678,19 @@ function EditRecipeModal({ recipe, onSave, onClose }: {
           {/* Metadata row */}
           <div className="grid grid-cols-4 gap-4 pt-4 border-t border-neutral-200">
             <div>
-              <label className={labelCls}>Vanskelighetsgrad</label>
+              <label className={labelCls}>{copy.labelDifficulty}</label>
               <select
                 value={difficulty}
                 onChange={(e) => setDifficulty(e.target.value as 'easy' | 'medium' | 'hard')}
                 className={inputCls}
               >
-                <option value="easy">Enkel</option>
-                <option value="medium">Middels</option>
-                <option value="hard">Vanskelig</option>
+                <option value="easy">{copy.difficultyEasy}</option>
+                <option value="medium">{copy.difficultyMedium}</option>
+                <option value="hard">{copy.difficultyHard}</option>
               </select>
             </div>
             <div>
-              <label className={labelCls}>Forberedelse (min)</label>
+              <label className={labelCls}>{copy.labelPrepTime}</label>
               <input
                 type="number"
                 value={prepTime}
@@ -700,7 +700,7 @@ function EditRecipeModal({ recipe, onSave, onClose }: {
               />
             </div>
             <div>
-              <label className={labelCls}>Tilberedning (min)</label>
+              <label className={labelCls}>{copy.labelCookTime}</label>
               <input
                 type="number"
                 value={cookTime}
@@ -710,7 +710,7 @@ function EditRecipeModal({ recipe, onSave, onClose }: {
               />
             </div>
             <div>
-              <label className={labelCls}>Porsjoner</label>
+              <label className={labelCls}>{copy.labelServingsInput}</label>
               <input
                 type="number"
                 value={servings}
@@ -723,13 +723,13 @@ function EditRecipeModal({ recipe, onSave, onClose }: {
 
           {/* Image URL */}
           <div className="pt-4 border-t border-neutral-200">
-            <label className={labelCls}>Bilde-URL</label>
+            <label className={labelCls}>{copy.labelImageUrl}</label>
             <input
               type="text"
               value={imageUrl}
               onChange={(e) => setImageUrl(e.target.value)}
               className={inputCls}
-              placeholder="https://..."
+              placeholder={copy.placeholderImageUrl}
             />
             {imageUrl && (
               <div className="mt-3 flex items-center gap-3">
@@ -741,20 +741,20 @@ function EditRecipeModal({ recipe, onSave, onClose }: {
                     (e.target as HTMLImageElement).style.display = 'none';
                   }}
                 />
-                <span className="text-xs text-neutral-400">Forhåndsvisning</span>
+                <span className="text-xs text-neutral-400">{copy.imagePreview}</span>
               </div>
             )}
           </div>
 
           {/* Related extras */}
           <div>
-            <label className={labelCls}>Relaterte ekstraprodukter (slugs, kommaseparert)</label>
+            <label className={labelCls}>{copy.labelRelatedExtras}</label>
             <input
               type="text"
               value={relatedExtraSlugs}
               onChange={(e) => setRelatedExtraSlugs(e.target.value)}
               className={inputCls}
-              placeholder="f.eks. guanciale, pancetta, lardo"
+              placeholder={copy.placeholderRelatedExtras}
             />
           </div>
 
@@ -769,11 +769,11 @@ function EditRecipeModal({ recipe, onSave, onClose }: {
                 className="w-4 h-4 rounded border-neutral-300 text-neutral-900 focus:ring-neutral-900"
               />
               <label htmlFor="recipe-active" className="text-sm font-light text-neutral-600">
-                Aktiv (synlig for kunder)
+                {copy.checkboxActive}
               </label>
             </div>
             <div>
-              <label className={labelCls}>Visningsrekkefølge</label>
+              <label className={labelCls}>{copy.labelDisplayOrder}</label>
               <input
                 type="number"
                 value={displayOrder}
@@ -792,14 +792,14 @@ function EditRecipeModal({ recipe, onSave, onClose }: {
             className="flex-1 py-3 bg-neutral-900 hover:bg-neutral-800 disabled:bg-neutral-400 text-white rounded-xl font-normal transition-all flex items-center justify-center gap-2"
           >
             <Save className="w-4 h-4" />
-            {saving ? 'Lagrer...' : isNew ? 'Opprett' : 'Lagre'}
+            {saving ? copy.buttonSaving : isNew ? copy.buttonCreate : copy.buttonSave}
           </button>
           <button
             onClick={onClose}
             disabled={saving}
             className="px-6 py-3 border border-neutral-200 hover:border-neutral-300 rounded-xl font-normal transition-all"
           >
-            Avbryt
+            {copy.buttonCancel}
           </button>
         </div>
       </div>

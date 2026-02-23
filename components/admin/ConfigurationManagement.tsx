@@ -133,10 +133,8 @@ export function ConfigurationManagement() {
     );
   }
 
-  const depositInfo =
-    lang === 'no'
-      ? 'Innskudd er fast 50% av valgt Mangalitsa-bokspris.'
-      : 'Deposit is fixed at 50% of the selected Mangalitsa box price.';
+  const cfg = (t as any).admin.configuration;
+  const depositInfo = cfg.depositInfo;
 
   return (
     <div className="space-y-6">

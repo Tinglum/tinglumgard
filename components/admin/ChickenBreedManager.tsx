@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label'
 import { Card } from '@/components/ui/card'
 import { useToast } from '@/hooks/use-toast'
 import { Plus, Save, X, Edit2, Trash2 } from 'lucide-react'
+import { useLanguage } from '@/contexts/LanguageContext'
 
 interface Breed {
   id: string
@@ -36,6 +37,8 @@ const emptyBreed: Partial<Breed> = {
 
 export function ChickenBreedManager() {
   const { toast } = useToast()
+  const { t } = useLanguage()
+  const cb = (t as any).admin.chickenBreeds
   const [breeds, setBreeds] = useState<Breed[]>([])
   const [loading, setLoading] = useState(true)
   const [editing, setEditing] = useState<Partial<Breed> | null>(null)
@@ -49,7 +52,7 @@ export function ChickenBreedManager() {
       const data = await res.json()
       setBreeds(data)
     } catch {
-      toast({ title: 'Feil', description: 'Kunne ikke hente raser', variant: 'destructive' })
+      toast({ title: cb.errorFetchTitle, description: cb.errorFetchDescription, variant: 'destructive' })
     } finally {
       setLoading(false)
     }
@@ -68,12 +71,12 @@ export function ChickenBreedManager() {
         body: JSON.stringify(editing),
       })
       if (!res.ok) throw new Error('Failed to save')
-      toast({ title: 'Lagret', description: `${editing.name} ${isNew ? 'opprettet' : 'oppdatert'}` })
+      toast({ title: cb.saveToastTitle, description: `${editing.name} ${isNew ? cb.saveToastCreated : cb.saveToastUpdated}` })
       setEditing(null)
       setIsNew(false)
       fetchBreeds()
     } catch {
-      toast({ title: 'Feil', description: 'Kunne ikke lagre', variant: 'destructive' })
+      toast({ title: cb.errorSaveTitle, description: cb.errorSaveDescription, variant: 'destructive' })
     }
   }
 
@@ -81,89 +84,89 @@ export function ChickenBreedManager() {
     try {
       const res = await fetch(`/api/admin/chickens/breeds/${id}`, { method: 'DELETE' })
       if (!res.ok) throw new Error('Failed')
-      toast({ title: 'Deaktivert', description: 'Rasen er deaktivert' })
+      toast({ title: cb.deactivateToastTitle, description: cb.deactivateToastDescription })
       fetchBreeds()
     } catch {
-      toast({ title: 'Feil', description: 'Kunne ikke deaktivere', variant: 'destructive' })
+      toast({ title: cb.errorDeactivateTitle, description: cb.errorDeactivateDescription, variant: 'destructive' })
     }
   }
 
-  if (loading) return <div className="py-8 text-center text-gray-500">Laster raser...</div>
+  if (loading) return <div className="py-8 text-center text-gray-500">{cb.loading}</div>
 
   if (editing) {
     return (
       <Card className="p-6">
         <div className="flex justify-between items-center mb-6">
-          <h3 className="text-lg font-semibold">{isNew ? 'Ny rase' : `Rediger ${editing.name}`}</h3>
+          <h3 className="text-lg font-semibold">{isNew ? cb.newBreed : cb.editBreed.replace('{name}', editing.name || '')}</h3>
           <Button variant="ghost" size="sm" onClick={() => { setEditing(null); setIsNew(false) }}><X className="w-4 h-4" /></Button>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <Label>Navn</Label>
+            <Label>{cb.labelName}</Label>
             <Input value={editing.name || ''} onChange={(e) => setEditing({ ...editing, name: e.target.value })} />
           </div>
           <div>
-            <Label>Slug</Label>
+            <Label>{cb.labelSlug}</Label>
             <Input value={editing.slug || ''} onChange={(e) => setEditing({ ...editing, slug: e.target.value })} />
           </div>
           <div>
-            <Label>Farge</Label>
+            <Label>{cb.labelColor}</Label>
             <Input type="color" value={editing.accent_color || '#6B7280'} onChange={(e) => setEditing({ ...editing, accent_color: e.target.value })} />
           </div>
           <div>
-            <Label>Bilde URL</Label>
+            <Label>{cb.labelImageUrl}</Label>
             <Input value={editing.image_url || ''} onChange={(e) => setEditing({ ...editing, image_url: e.target.value })} />
           </div>
           <div className="md:col-span-2">
-            <Label>Beskrivelse (NO)</Label>
+            <Label>{cb.labelDescriptionNo}</Label>
             <textarea className="w-full rounded-md border p-2 text-sm" rows={2} value={editing.description_no || ''} onChange={(e) => setEditing({ ...editing, description_no: e.target.value })} />
           </div>
           <div className="md:col-span-2">
-            <Label>Description (EN)</Label>
+            <Label>{cb.labelDescriptionEn}</Label>
             <textarea className="w-full rounded-md border p-2 text-sm" rows={2} value={editing.description_en || ''} onChange={(e) => setEditing({ ...editing, description_en: e.target.value })} />
           </div>
           <div>
-            <Label>Startpris (kr)</Label>
+            <Label>{cb.labelStartPrice}</Label>
             <Input type="number" value={editing.start_price_nok || 0} onChange={(e) => setEditing({ ...editing, start_price_nok: Number(e.target.value) })} />
           </div>
           <div>
-            <Label>Ukentlig okning (kr)</Label>
+            <Label>{cb.labelWeeklyIncrease}</Label>
             <Input type="number" value={editing.weekly_increase_nok || 0} onChange={(e) => setEditing({ ...editing, weekly_increase_nok: Number(e.target.value) })} />
           </div>
           <div>
-            <Label>Voksenpris (kr)</Label>
+            <Label>{cb.labelAdultPrice}</Label>
             <Input type="number" value={editing.adult_price_nok || 0} onChange={(e) => setEditing({ ...editing, adult_price_nok: Number(e.target.value) })} />
           </div>
           <div>
-            <Label>Hanepris (kr)</Label>
+            <Label>{cb.labelRoosterPrice}</Label>
             <Input type="number" value={editing.rooster_price_nok || 250} onChange={(e) => setEditing({ ...editing, rooster_price_nok: Number(e.target.value) })} />
           </div>
           <div>
-            <Label>Dodelighet tidlig % (uke 0-4)</Label>
+            <Label>{cb.labelMortalityEarly}</Label>
             <Input type="number" step="0.1" value={editing.mortality_rate_early_pct || 5} onChange={(e) => setEditing({ ...editing, mortality_rate_early_pct: Number(e.target.value) })} />
           </div>
           <div>
-            <Label>Dodelighet sen % (uke 4+)</Label>
+            <Label>{cb.labelMortalityLate}</Label>
             <Input type="number" step="0.1" value={editing.mortality_rate_late_pct || 2} onChange={(e) => setEditing({ ...editing, mortality_rate_late_pct: Number(e.target.value) })} />
           </div>
           <div>
-            <Label>Rekkfolge</Label>
+            <Label>{cb.labelDisplayOrder}</Label>
             <Input type="number" value={editing.display_order || 0} onChange={(e) => setEditing({ ...editing, display_order: Number(e.target.value) })} />
           </div>
           <div className="flex items-center gap-4">
             <label className="flex items-center gap-2">
               <input type="checkbox" checked={editing.sell_roosters || false} onChange={(e) => setEditing({ ...editing, sell_roosters: e.target.checked })} />
-              <span className="text-sm">Selg haner</span>
+              <span className="text-sm">{cb.checkboxSellRoosters}</span>
             </label>
             <label className="flex items-center gap-2">
               <input type="checkbox" checked={editing.active !== false} onChange={(e) => setEditing({ ...editing, active: e.target.checked })} />
-              <span className="text-sm">Aktiv</span>
+              <span className="text-sm">{cb.checkboxActive}</span>
             </label>
           </div>
         </div>
         <div className="mt-6 flex gap-2">
-          <Button onClick={handleSave}><Save className="w-4 h-4 mr-1" /> Lagre</Button>
-          <Button variant="outline" onClick={() => { setEditing(null); setIsNew(false) }}>Avbryt</Button>
+          <Button onClick={handleSave}><Save className="w-4 h-4 mr-1" /> {t.common.save}</Button>
+          <Button variant="outline" onClick={() => { setEditing(null); setIsNew(false) }}>{t.common.cancel}</Button>
         </div>
       </Card>
     )
@@ -172,9 +175,9 @@ export function ChickenBreedManager() {
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
-        <h3 className="text-lg font-semibold">Kyllingraser ({breeds.length})</h3>
+        <h3 className="text-lg font-semibold">{cb.title} ({breeds.length})</h3>
         <Button size="sm" onClick={() => { setEditing({ ...emptyBreed }); setIsNew(true) }}>
-          <Plus className="w-4 h-4 mr-1" /> Ny rase
+          <Plus className="w-4 h-4 mr-1" /> {cb.newBreed}
         </Button>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -183,20 +186,20 @@ export function ChickenBreedManager() {
             <div className="flex items-center gap-3 mb-2">
               <div className="w-4 h-4 rounded-full" style={{ backgroundColor: breed.accent_color }} />
               <span className="font-medium">{breed.name}</span>
-              {!breed.active && <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded">Inaktiv</span>}
+              {!breed.active && <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded">{cb.badgeInactive}</span>}
             </div>
             <div className="text-sm text-gray-600 space-y-1">
-              <p>Kylling: kr {breed.start_price_nok} | Voksen: kr {breed.adult_price_nok}</p>
-              <p>Okning: +{breed.weekly_increase_nok} kr/uke</p>
-              <p>Dodelighet: {breed.mortality_rate_early_pct}% / {breed.mortality_rate_late_pct}%</p>
-              {breed.sell_roosters && <p className="text-amber-600">Haner: kr {breed.rooster_price_nok}</p>}
+              <p>{cb.labelStartPrice.replace(' (kr)', '')}: kr {breed.start_price_nok} | {cb.labelAdultPrice.replace(' (kr)', '')}: kr {breed.adult_price_nok}</p>
+              <p>{cb.labelWeeklyIncrease.replace(' (kr)', '')}: +{breed.weekly_increase_nok} kr/{t.common.week}</p>
+              <p>{cb.labelMortalityEarly.split(' %')[0]}: {breed.mortality_rate_early_pct}% / {breed.mortality_rate_late_pct}%</p>
+              {breed.sell_roosters && <p className="text-amber-600">{cb.labelRoosterPrice.replace(' (kr)', '')}: kr {breed.rooster_price_nok}</p>}
             </div>
             <div className="mt-3 flex gap-2">
               <Button variant="outline" size="sm" onClick={() => { setEditing(breed); setIsNew(false) }}>
-                <Edit2 className="w-3 h-3 mr-1" /> Rediger
+                <Edit2 className="w-3 h-3 mr-1" /> {cb.buttonEdit}
               </Button>
               <Button variant="ghost" size="sm" className="text-red-600" onClick={() => handleDelete(breed.id)}>
-                <Trash2 className="w-3 h-3 mr-1" /> Deaktiver
+                <Trash2 className="w-3 h-3 mr-1" /> {cb.buttonDeactivate}
               </Button>
             </div>
           </Card>
