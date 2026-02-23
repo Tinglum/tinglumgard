@@ -8,6 +8,7 @@ import { fixMojibake } from '@/lib/utils/text';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
 import { ExtraProductDetails } from '@/components/ExtraProductDetails';
+import { RecipeQuickViewModal } from '@/components/RecipeQuickViewModal';
 import { ReferralCodeInput } from '@/components/ReferralCodeInput';
 import { RebateCodeInput } from '@/components/RebateCodeInput';
 
@@ -97,6 +98,7 @@ export function MobileCheckout(props: MobileCheckoutProps) {
   const { t, lang } = useLanguage();
   const [expandedBox, setExpandedBox] = useState<string | null>(null);
   const [showDiscountCodes, setShowDiscountCodes] = useState(false);
+  const [recipeModalTarget, setRecipeModalTarget] = useState<{ slug: string; title: string } | null>(null);
   const stepRef = useRef<HTMLDivElement>(null);
 
   const mobileCopy = t.checkout.mobile;
@@ -256,15 +258,18 @@ export function MobileCheckout(props: MobileCheckoutProps) {
     return `${t.common.approx} ${formattedFrom}-${formattedTo} ${t.common.kg}`;
   };
 
-  const recipeTagsForExtra = (extra: any) => {
+  const recipeTagsForExtra = (extra: any): Array<{ title: string; slug: string | null }> => {
     const suggestions = Array.isArray(extra.recipe_suggestions) ? extra.recipe_suggestions : [];
     return suggestions
       .slice(0, 2)
       .map((recipe: any) => {
         const raw = lang === 'en' ? recipe.title_en : recipe.title_no;
-        return formatRecipeTitle(String(raw || ''));
+        const title = formatRecipeTitle(String(raw || ''));
+        const slug = String(recipe.future_slug || recipe.slug || '').trim() || null;
+        if (!title) return null;
+        return { title, slug };
       })
-      .filter(Boolean);
+      .filter((item): item is { title: string; slug: string | null } => Boolean(item));
   };
 
   const splitExtraName = (rawName: string) => {
@@ -375,13 +380,22 @@ export function MobileCheckout(props: MobileCheckoutProps) {
           )}
           {recipeTags.length > 0 && (
             <div className="mt-2 flex flex-wrap gap-1">
-              {recipeTags.map((tag: string) => (
-                <span
-                  key={`${extra.slug}-${tag}`}
-                  className="rounded-full border border-[#D7CEC1] px-2 py-0.5 text-[10px] text-[#5E5A50]"
+              {recipeTags.map((tag) => (
+                <button
+                  type="button"
+                  key={`${extra.slug}-${tag.title}`}
+                  onClick={() => {
+                    if (!tag.slug) return;
+                    setRecipeModalTarget({ slug: tag.slug, title: tag.title });
+                  }}
+                  disabled={!tag.slug}
+                  className={cn(
+                    "rounded-full border border-[#D7CEC1] px-2 py-0.5 text-[10px]",
+                    tag.slug ? "text-[#5E5A50]" : "text-[#9A958A]"
+                  )}
                 >
-                  {tag}
-                </span>
+                  {tag.title}
+                </button>
               ))}
             </div>
           )}
@@ -993,6 +1007,14 @@ export function MobileCheckout(props: MobileCheckoutProps) {
           <p className="text-center text-xs text-[#5E5A50]">{t.checkout.securePayment}</p>
         </div>
       </div>
+
+      {recipeModalTarget && (
+        <RecipeQuickViewModal
+          slug={recipeModalTarget.slug}
+          fallbackTitle={recipeModalTarget.title}
+          onClose={() => setRecipeModalTarget(null)}
+        />
+      )}
     </div>
   );
 }

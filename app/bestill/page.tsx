@@ -17,6 +17,7 @@ import { RebateCodeInput } from '@/components/RebateCodeInput';
 import { MobileCheckout } from '@/components/MobileCheckout';
 import { ExtraProductDetails } from '@/components/ExtraProductDetails';
 import { ExtraProductModal } from '@/components/ExtraProductModal';
+import { RecipeQuickViewModal } from '@/components/RecipeQuickViewModal';
 import { useToast } from '@/hooks/use-toast';
 
 interface MangalitsaPreset {
@@ -83,6 +84,7 @@ export default function CheckoutPage() {
   const [extraQuantities, setExtraQuantities] = useState<Record<string, number>>({});
   const [availableExtras, setAvailableExtras] = useState<any[]>([]);
   const [infoModalExtra, setInfoModalExtra] = useState<any | null>(null);
+  const [recipeModalTarget, setRecipeModalTarget] = useState<{ slug: string; title: string } | null>(null);
   const [deliveryType, setDeliveryType] = useState<'farm' | 'trondheim' | 'e6'>('farm');
   const [freshDelivery, setFreshDelivery] = useState(false);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
@@ -443,7 +445,7 @@ export default function CheckoutPage() {
     });
   }, [availableExtras, mangalitsaPreset, presetIncludesExtra, requestedExtraSlugs]);
 
-  function recipeTagsForExtra(extra: any): string[] {
+  function recipeTagsForExtra(extra: any): Array<{ title: string; slug: string | null }> {
     const suggestions = Array.isArray(extra.recipe_suggestions)
       ? extra.recipe_suggestions
       : [];
@@ -451,9 +453,12 @@ export default function CheckoutPage() {
     return suggestions
       .map((recipe: any) => {
         const rawTitle = lang === 'no' ? recipe.title_no : recipe.title_en;
-        return formatRecipeTitle(fixMojibake(String(rawTitle || '')), lang);
+        const title = formatRecipeTitle(fixMojibake(String(rawTitle || '')), lang);
+        const slug = String(recipe.future_slug || recipe.slug || '').trim() || null;
+        if (!title) return null;
+        return { title, slug };
       })
-      .filter(Boolean);
+      .filter((item): item is { title: string; slug: string | null } => Boolean(item));
   }
 
   function formatRecipeTitle(title: string, language: 'no' | 'en'): string {
@@ -635,12 +640,23 @@ export default function CheckoutPage() {
         {visibleRecipeTags.length > 0 && (
           <div className="mt-4 flex flex-wrap gap-2">
             {visibleRecipeTags.map((tag) => (
-              <span
-                key={`${extra.slug}-${tag}`}
-                className="text-[11px] px-2 py-1 rounded-full border border-neutral-200 bg-white text-neutral-600"
+              <button
+                type="button"
+                key={`${extra.slug}-${tag.title}`}
+                onClick={() => {
+                  if (!tag.slug) return;
+                  setRecipeModalTarget({ slug: tag.slug, title: tag.title });
+                }}
+                disabled={!tag.slug}
+                className={cn(
+                  "text-[11px] px-2 py-1 rounded-full border border-neutral-200 bg-white transition-colors",
+                  tag.slug
+                    ? "text-neutral-700 hover:text-neutral-900 hover:border-neutral-300"
+                    : "text-neutral-500 cursor-default"
+                )}
               >
-                {tag}
-              </span>
+                {tag.title}
+              </button>
             ))}
             {remainingRecipeCount > 0 && (
               <span className="text-[11px] px-2 py-1 rounded-full border border-neutral-200 bg-white text-neutral-500">
@@ -981,6 +997,14 @@ export default function CheckoutPage() {
     />
   ) : null;
 
+  const recipeModal = recipeModalTarget ? (
+    <RecipeQuickViewModal
+      slug={recipeModalTarget.slug}
+      fallbackTitle={recipeModalTarget.title}
+      onClose={() => setRecipeModalTarget(null)}
+    />
+  ) : null;
+
   // Mobile version - Keep existing design unchanged
   if (isMobile) {
     return (
@@ -1055,6 +1079,7 @@ export default function CheckoutPage() {
           />
         </div>
         {infoModal}
+        {recipeModal}
       </div>
     );
   }
@@ -1766,6 +1791,7 @@ export default function CheckoutPage() {
         </div>
       </div>
       {infoModal}
+      {recipeModal}
     </div>
   );
 }
