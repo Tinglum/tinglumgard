@@ -734,7 +734,7 @@
           title: "Hatching (days 19-21)",
           items: [
             "From day 18: stop turning and enter hatch mode (lockdown).",
-            "For wet incubation, humidity can be increased during hatch to support pipping and hatch.",
+            "From day 18, increase humidity to about 65% - this applies to both dry and wet incubation.",
             "Avoid opening the incubator unnecessarily.",
             "Let chicks dry fully before moving.",
           ],
@@ -2333,6 +2333,7 @@
   },
 
   deliveryCalendar: {
+    loadError: "Could not load delivery calendar.",
     title: "Pickup calendar",
     subtitle: "Overview of pickups and deliveries",
     filterAll: "All",

@@ -735,7 +735,7 @@
           title: "Klekking (dag 19-21)",
           items: [
             "Fra dag 18: stopp vending og gå til klekkemodus (lockdown).",
-            "Ved våtruging kan fuktigheten økes i klekkefasen for å støtte klekking.",
+            "Fra dag 18 økes fuktigheten til ca. 65% - dette gjelder både tørruging og våtruging.",
             "Ikke åpne rugemaskinen unødvendig.",
             "La kyllingene tørke helt før de flyttes.",
           ],
@@ -2336,6 +2336,7 @@
   },
 
   deliveryCalendar: {
+    loadError: "Kunne ikke laste hentekalender.",
     title: "Hentekalender",
     subtitle: "Oversikt over henting og leveringer",
     filterAll: "Alle",
