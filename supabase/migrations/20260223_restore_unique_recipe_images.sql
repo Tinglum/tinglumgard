@@ -1,4 +1,4 @@
--- ============================================================
+﻿-- ============================================================
 -- Restore unique image per recipe slug
 -- Date: 2026-02-23
 -- ============================================================
@@ -12,7 +12,7 @@ SET image_url = CASE slug
   WHEN 'secreto-plancha' THEN '/recipes/secreto-plancha.jpg'
   WHEN 'presa-herbs' THEN '/recipes/presa-herbs.jpg'
   WHEN 'lardo-crostini' THEN '/recipes/lardo-crostini.jpg'
-  WHEN 'rendered-lard' THEN '/recipes/rendered-lard.jpg'
+  WHEN 'rendered-lard' THEN '/recipes/rendered-lard.webp'
   WHEN 'tomahawk-grill' THEN '/recipes/tomahawk-grill.jpg'
   WHEN 'pork-ribeye-pan' THEN '/recipes/pork-ribeye-pan.jpg'
   WHEN 'pancetta-project' THEN '/recipes/pancetta-project.jpg'
@@ -33,4 +33,5 @@ WHERE slug IN (
   'pancetta-project',
   'cure-ham'
 );
+
 
