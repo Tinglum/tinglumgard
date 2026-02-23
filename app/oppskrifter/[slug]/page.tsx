@@ -190,6 +190,8 @@ export default function RecipeDetailPage() {
   const primaryPieceName = primaryExtra
     ? (primaryExtra.name_no || primaryExtra.slug)
     : (resolvedExtraSlugs[0] || '')
+  const pieceLabel = primaryPieceName || t.recipes.fallbackPieceName
+  const orderFlowDescription = t.recipes.orderFlowDescription.split('{piece}').join(pieceLabel)
 
   const suggestedPreset = useMemo(() => {
     if (!presets.length || !relatedExtras.length) return null
@@ -270,7 +272,7 @@ export default function RecipeDetailPage() {
 
       toast({
         title: t.recipes.addToOrderSuccessTitle,
-        description: t.recipes.addToOrderSuccessBody.replace('{piece}', primaryPieceName || t.recipes.fallbackPieceName),
+        description: t.recipes.addToOrderSuccessBody.replace('{piece}', pieceLabel),
       })
 
       setOrderFlowOpen(false)
@@ -286,7 +288,7 @@ export default function RecipeDetailPage() {
     } finally {
       setIsOrderFlowBusy(false)
     }
-  }, [extrasCatalog, primaryPieceName, recipe, resolvedExtraSlugs, router, t.recipes.addToOrderErrorBody, t.recipes.addToOrderErrorTitle, t.recipes.addToOrderSuccessBody, t.recipes.addToOrderSuccessTitle, t.recipes.fallbackPieceName, toast])
+  }, [extrasCatalog, pieceLabel, recipe, resolvedExtraSlugs, router, t.recipes.addToOrderErrorBody, t.recipes.addToOrderErrorTitle, t.recipes.addToOrderSuccessBody, t.recipes.addToOrderSuccessTitle, toast])
 
   const handleExistingOrderFlow = useCallback(async () => {
     if (!recipe || !resolvedExtraSlugs.length) return
@@ -637,13 +639,13 @@ export default function RecipeDetailPage() {
       <div className="h-8" />
 
       <Dialog open={orderFlowOpen} onOpenChange={setOrderFlowOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg border-neutral-200 bg-white text-neutral-900 shadow-2xl">
           <DialogHeader>
             <DialogTitle className="font-normal text-neutral-900">
               {t.recipes.orderFlowTitle}
             </DialogTitle>
-            <DialogDescription className="text-neutral-600 font-light">
-              {t.recipes.orderFlowDescription.replace('{piece}', primaryPieceName || t.recipes.fallbackPieceName)}
+            <DialogDescription className="text-neutral-700 font-light leading-relaxed">
+              {orderFlowDescription}
             </DialogDescription>
           </DialogHeader>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
@@ -667,12 +669,12 @@ export default function RecipeDetailPage() {
       </Dialog>
 
       <Dialog open={orderPickerOpen} onOpenChange={setOrderPickerOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg border-neutral-200 bg-white text-neutral-900 shadow-2xl">
           <DialogHeader>
             <DialogTitle className="font-normal text-neutral-900">
               {t.recipes.chooseOrderTitle}
             </DialogTitle>
-            <DialogDescription className="text-neutral-600 font-light">
+            <DialogDescription className="text-neutral-700 font-light leading-relaxed">
               {t.recipes.chooseOrderDescription}
             </DialogDescription>
           </DialogHeader>
