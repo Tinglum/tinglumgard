@@ -134,7 +134,7 @@ export function MobileCheckout(props: MobileCheckoutProps) {
       desc: t.checkout.tynnribbeDesc,
       serves: t.checkout.ribbeMeta.tynnribbe.serves,
       difficulty: t.checkout.ribbeMeta.tynnribbe.difficulty,
-      recipeSlug: 'tynnribbe',
+      recipeSlug: 'ullgris-ribbe-langstekt',
     },
     {
       id: 'familieribbe',
@@ -142,7 +142,7 @@ export function MobileCheckout(props: MobileCheckoutProps) {
       desc: t.checkout.familieribbeDesc,
       serves: t.checkout.ribbeMeta.familieribbe.serves,
       difficulty: t.checkout.ribbeMeta.familieribbe.difficulty,
-      recipeSlug: 'familieribbe',
+      recipeSlug: 'ullgris-ribbe-rask',
     },
     {
       id: 'porchetta',
@@ -150,7 +150,7 @@ export function MobileCheckout(props: MobileCheckoutProps) {
       desc: t.checkout.porchettaDesc,
       serves: t.checkout.ribbeMeta.porchetta.serves,
       difficulty: t.checkout.ribbeMeta.porchetta.difficulty,
-      recipeSlug: 'porchetta',
+      recipeSlug: 'asiatisk-ribbe-glaze',
     },
     {
       id: 'butchers_choice',
@@ -158,7 +158,7 @@ export function MobileCheckout(props: MobileCheckoutProps) {
       desc: t.checkout.butchersChoiceDescEnhanced,
       serves: t.checkout.ribbeMeta.butchersChoice.serves,
       difficulty: t.checkout.ribbeMeta.butchersChoice.difficulty,
-      recipeSlug: 'butchers-choice-ribbe',
+      recipeSlug: 'ullgris-ribbe-langstekt',
       recommended: true,
     },
   ];
