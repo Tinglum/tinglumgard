@@ -305,6 +305,8 @@
     showProductInfoAria: "Show product info",
     recipeCheckoutHintWithPiece: "This box is preselected because it matches the recipe. You can also choose another box and add {piece} as an extra.",
     recipeCheckoutHintGeneric: "This box is preselected because it matches the recipe. You can also choose another box and add the cut you want as an extra.",
+    recipeCheckoutHintNoBoxMatchWithPiece: "The cut you are trying to add ({piece}) does not belong to any fixed box. Feel free to choose the box you want, and we will add that cut as an extra.",
+    recipeCheckoutHintNoBoxMatchGeneric: "The cut you are trying to add does not belong to any fixed box. Feel free to choose the box you want, and we will add that cut as an extra.",
     recipeLabel: "Recipe",
     recipeMakeYourOwn: "Make your own {item}",
     recipeMakeYourOwnHam: "Make your own cured ham",

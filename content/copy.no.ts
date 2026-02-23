@@ -306,6 +306,8 @@
     showProductInfoAria: "Vis produktinfo",
     recipeCheckoutHintWithPiece: "Denne boksen er forhåndsvalgt fordi den matcher oppskriften. Du kan også velge en annen boks og legge til {piece} som ekstra.",
     recipeCheckoutHintGeneric: "Denne boksen er forhåndsvalgt fordi den matcher oppskriften. Du kan også velge en annen boks og legge til ønsket stykke som ekstra.",
+    recipeCheckoutHintNoBoxMatchWithPiece: "Stykket du prøver å legge til ({piece}) hører ikke til i noen fast boks. Velg gjerne boksen du ønsker, så legger vi til stykket som ekstra.",
+    recipeCheckoutHintNoBoxMatchGeneric: "Stykket du prøver å legge til hører ikke til i noen fast boks. Velg gjerne boksen du ønsker, så legger vi til stykket som ekstra.",
     recipeLabel: "Oppskrift",
     recipeMakeYourOwn: "Lag din egen {item}",
     recipeMakeYourOwnHam: "Lag din egen spekeskinke",

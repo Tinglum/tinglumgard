@@ -32,6 +32,9 @@ interface MangalitsaPreset {
   scarcity_message_en?: string | null;
   contents?: Array<{
     id: string;
+    cut_id?: string | null;
+    cut_slug?: string | null;
+    part_key?: string | null;
     content_name_no: string;
     content_name_en: string;
     cut_size_from_kg?: number | null;
@@ -41,6 +44,15 @@ interface MangalitsaPreset {
     is_hero: boolean;
   }>;
 }
+
+type ExtraProductLike = {
+  slug: string;
+  cut_id?: string | null;
+  cut_slug?: string | null;
+  part_key?: string | null;
+  default_quantity?: number | null;
+  pricing_type?: 'per_kg' | 'fixed' | string | null;
+};
 
 // Reusable Components for Nordic Minimal Design
 function MetaLabel({ children }: { children: React.ReactNode }) {
@@ -93,13 +105,54 @@ export default function CheckoutPage() {
   const [showDiscountCodes, setShowDiscountCodes] = useState(false);
   const [summaryOffset, setSummaryOffset] = useState(0);
   const [prefillReferralCode, setPrefillReferralCode] = useState<string | null>(null);
+  const [recipeHintMode, setRecipeHintMode] = useState<'matched_box' | 'no_box_match'>('matched_box');
   const cameFromRecipe = searchParams.get('fromRecipe') === '1' || Boolean(searchParams.get('recipeSlug'));
   const recipePiece = fixMojibake(searchParams.get('recipePiece') || '').trim();
-  const recipeCheckoutHint = cameFromRecipe
-    ? (recipePiece
+  const requestedExtraSlugs = useMemo(() => {
+    const rawExtras = searchParams.getAll('extra');
+    const commaSeparated = searchParams.get('extras');
+    return [
+      ...rawExtras.flatMap((value) => value.split(',')),
+      ...(commaSeparated ? commaSeparated.split(',') : []),
+    ]
+      .map((value) => value.trim())
+      .filter(Boolean);
+  }, [searchParams]);
+
+  const recipeCheckoutHint = useMemo(() => {
+    if (!cameFromRecipe) return '';
+
+    if (recipeHintMode === 'no_box_match') {
+      return recipePiece
+        ? t.checkout.recipeCheckoutHintNoBoxMatchWithPiece.replace('{piece}', recipePiece)
+        : t.checkout.recipeCheckoutHintNoBoxMatchGeneric;
+    }
+
+    return recipePiece
       ? t.checkout.recipeCheckoutHintWithPiece.replace('{piece}', recipePiece)
-      : t.checkout.recipeCheckoutHintGeneric)
-    : '';
+      : t.checkout.recipeCheckoutHintGeneric;
+  }, [cameFromRecipe, recipeHintMode, recipePiece, t.checkout]);
+
+  const presetIncludesExtra = useCallback((preset: MangalitsaPreset | null, extra: ExtraProductLike | null) => {
+    if (!preset || !extra) return false;
+    const contents = Array.isArray(preset.contents) ? preset.contents : [];
+    if (contents.length === 0) return false;
+
+    const extraCutId = String(extra.cut_id || '').trim();
+    const extraCutSlug = fixMojibake(String(extra.cut_slug || '')).trim().toLowerCase();
+    const extraPartKey = fixMojibake(String(extra.part_key || '')).trim().toLowerCase();
+
+    return contents.some((content) => {
+      const contentCutId = String(content.cut_id || '').trim();
+      const contentCutSlug = fixMojibake(String(content.cut_slug || '')).trim().toLowerCase();
+      const contentPartKey = fixMojibake(String(content.part_key || '')).trim().toLowerCase();
+
+      if (extraCutId && contentCutId && extraCutId === contentCutId) return true;
+      if (extraCutSlug && contentCutSlug && extraCutSlug === contentCutSlug) return true;
+      if (extraPartKey && contentPartKey && extraPartKey === contentPartKey) return true;
+      return false;
+    });
+  }, []);
 
   const selectableExtras = useMemo(() => {
     return [...availableExtras]
@@ -193,10 +246,59 @@ export default function CheckoutPage() {
     const presetParam = searchParams.get('preset');
     const sizeParam = searchParams.get('size');
     const forceChooseBox = searchParams.get('chooseBox') === '1' || searchParams.get('choose') === '1';
+    const hasExplicitPresetSelection = Boolean(presetParam || sizeParam);
+    const hasRequestedExtras = requestedExtraSlugs.length > 0;
+
+    if (!hasExplicitPresetSelection && hasRequestedExtras && availableExtras.length === 0) {
+      return;
+    }
+
+    const requestedExtras = requestedExtraSlugs
+      .map((slug) => availableExtras.find((extra) => extra.slug === slug) || null)
+      .filter((extra): extra is ExtraProductLike => Boolean(extra));
+
+    let matchedByRecipeExtra: MangalitsaPreset | null = null;
+    if (!hasExplicitPresetSelection && requestedExtras.length > 0) {
+      let bestMatch: MangalitsaPreset | null = null;
+      let bestScore = 0;
+
+      for (const preset of mangalitsaPresets) {
+        const score = requestedExtras.reduce((count, extra) => (
+          presetIncludesExtra(preset, extra) ? count + 1 : count
+        ), 0);
+        if (score > bestScore) {
+          bestScore = score;
+          bestMatch = preset;
+        }
+      }
+
+      matchedByRecipeExtra = bestScore > 0 ? bestMatch : null;
+    }
 
     // When coming from oppdelingsplan with extras but without a box, we want the user
     // to actively pick a box instead of auto-selecting the first preset.
     if (!presetParam && !sizeParam && forceChooseBox) {
+      if (matchedByRecipeExtra) {
+        setRecipeHintMode('matched_box');
+        setMangalitsaPreset(matchedByRecipeExtra);
+        setBoxSize(String(matchedByRecipeExtra.target_weight_kg) as '8' | '9' | '10' | '12');
+        setStep(1);
+        return;
+      }
+
+      if (cameFromRecipe && requestedExtras.length > 0) {
+        setRecipeHintMode('no_box_match');
+      } else {
+        setRecipeHintMode('matched_box');
+      }
+      setMangalitsaPreset(null);
+      setBoxSize('');
+      setStep(1);
+      return;
+    }
+
+    if (!presetParam && !sizeParam && cameFromRecipe && requestedExtras.length > 0 && !matchedByRecipeExtra) {
+      setRecipeHintMode('no_box_match');
       setMangalitsaPreset(null);
       setBoxSize('');
       setStep(1);
@@ -210,15 +312,16 @@ export default function CheckoutPage() {
       ? mangalitsaPresets.find((preset) => String(preset.target_weight_kg) === sizeParam)
       : null;
 
-    const selected = matchedBySlug || matchedByWeight || mangalitsaPresets[0] || null;
+    const selected = matchedBySlug || matchedByWeight || matchedByRecipeExtra || mangalitsaPresets[0] || null;
     if (!selected) return;
 
+    setRecipeHintMode('matched_box');
     setMangalitsaPreset(selected);
     setBoxSize(String(selected.target_weight_kg) as '8' | '9' | '10' | '12');
     if (matchedBySlug || matchedByWeight) {
       setStep(2);
     }
-  }, [searchParams, mangalitsaPresets]);
+  }, [availableExtras, cameFromRecipe, mangalitsaPresets, presetIncludesExtra, requestedExtraSlugs, searchParams]);
 
   // URL discount/referral prefill
   useEffect(() => {
@@ -314,27 +417,23 @@ export default function CheckoutPage() {
   }, []);
 
   // URL preselection of extras from other pages (supports ?extra=a,b and repeated ?extra=a&extra=b)
+  // Only preselect extras that are NOT already included in the selected box.
   useEffect(() => {
     if (availableExtras.length === 0) return;
+    if (!mangalitsaPreset) return;
+    if (requestedExtraSlugs.length === 0) return;
 
-    const rawExtras = searchParams.getAll('extra');
-    const commaSeparated = searchParams.get('extras');
-    const merged = [
-      ...rawExtras.flatMap((value) => value.split(',')),
-      ...(commaSeparated ? commaSeparated.split(',') : []),
-    ]
-      .map((value) => value.trim())
-      .filter(Boolean);
+    const validExtras = requestedExtraSlugs.filter((slug) => availableExtras.some((extra) => extra.slug === slug));
+    const extrasToPrefill = validExtras.filter((slug) => {
+      const extra = availableExtras.find((candidate) => candidate.slug === slug) as ExtraProductLike | undefined;
+      return !presetIncludesExtra(mangalitsaPreset, extra || null);
+    });
+    if (extrasToPrefill.length === 0) return;
 
-    if (merged.length === 0) return;
-
-    const validExtras = merged.filter((slug) => availableExtras.some((extra) => extra.slug === slug));
-    if (validExtras.length === 0) return;
-
-    setExtraProducts((previous) => Array.from(new Set([...previous, ...validExtras])));
+    setExtraProducts((previous) => Array.from(new Set([...previous, ...extrasToPrefill])));
     setExtraQuantities((previous) => {
       const next = { ...previous };
-      validExtras.forEach((slug) => {
+      extrasToPrefill.forEach((slug) => {
         if (!next[slug]) {
           const extra = availableExtras.find((candidate) => candidate.slug === slug);
           next[slug] = extra?.default_quantity || (extra?.pricing_type === 'per_kg' ? 0.5 : 1);
@@ -342,7 +441,7 @@ export default function CheckoutPage() {
       });
       return next;
     });
-  }, [availableExtras, searchParams]);
+  }, [availableExtras, mangalitsaPreset, presetIncludesExtra, requestedExtraSlugs]);
 
   function recipeTagsForExtra(extra: any): string[] {
     const suggestions = Array.isArray(extra.recipe_suggestions)
