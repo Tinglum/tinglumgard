@@ -47,12 +47,9 @@ export default function BreedsPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
         >
-          <h1 className="text-4xl md:text-5xl font-normal tracking-tight text-neutral-900 mb-4 leading-tight">
+          <h1 className="text-4xl md:text-5xl font-normal tracking-tight text-neutral-900 mb-12 leading-tight">
             {t.nav.breeds}
           </h1>
-          <p className="text-lg text-neutral-600 mb-12 leading-normal max-w-prose">
-            {t.eggs.breedsPage.subtitle}
-          </p>
 
           {error && <div className="text-sm text-red-600 mb-6">{error}</div>}
 
