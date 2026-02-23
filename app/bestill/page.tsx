@@ -859,7 +859,6 @@ export default function CheckoutPage() {
       id: 'tynnribbe',
       name: t.checkout.tynnribbe,
       desc: t.checkout.tynnribbeDesc,
-      image: '🔥',
       serves: t.checkout.ribbeMeta.tynnribbe.serves,
       difficulty: t.checkout.ribbeMeta.tynnribbe.difficulty,
       recipeSlug: 'tynnribbe',
@@ -869,7 +868,6 @@ export default function CheckoutPage() {
       id: 'familieribbe',
       name: t.checkout.familieribbe,
       desc: t.checkout.familieribbeDesc,
-      image: '🍽️',
       serves: t.checkout.ribbeMeta.familieribbe.serves,
       difficulty: t.checkout.ribbeMeta.familieribbe.difficulty,
       recipeSlug: 'familieribbe',
@@ -879,7 +877,6 @@ export default function CheckoutPage() {
       id: 'porchetta',
       name: t.checkout.porchetta,
       desc: t.checkout.porchettaDesc,
-      image: '🇮🇹',
       serves: t.checkout.ribbeMeta.porchetta.serves,
       difficulty: t.checkout.ribbeMeta.porchetta.difficulty,
       recipeSlug: 'porchetta',
@@ -889,7 +886,6 @@ export default function CheckoutPage() {
       id: 'butchers_choice',
       name: t.checkout.butchersChoice,
       desc: t.checkout.butchersChoiceDescEnhanced,
-      image: '🔪',
       serves: t.checkout.ribbeMeta.butchersChoice.serves,
       difficulty: t.checkout.ribbeMeta.butchersChoice.difficulty,
       recipeSlug: 'butchers-choice-ribbe',
@@ -1316,9 +1312,6 @@ export default function CheckoutPage() {
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-2">
-                            <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-neutral-900 text-sm text-white">
-                              {option.image}
-                            </span>
                             <p className="font-normal text-neutral-900">{option.name}</p>
                             {option.isRecommended && (
                               <span className="text-[10px] px-2 py-0.5 bg-neutral-900 text-white rounded-full uppercase tracking-wide">

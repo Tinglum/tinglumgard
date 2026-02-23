@@ -132,7 +132,6 @@ export function MobileCheckout(props: MobileCheckoutProps) {
       id: 'tynnribbe',
       name: t.checkout.tynnribbe,
       desc: t.checkout.tynnribbeDesc,
-      image: '🔥',
       serves: t.checkout.ribbeMeta.tynnribbe.serves,
       difficulty: t.checkout.ribbeMeta.tynnribbe.difficulty,
       recipeSlug: 'tynnribbe',
@@ -141,7 +140,6 @@ export function MobileCheckout(props: MobileCheckoutProps) {
       id: 'familieribbe',
       name: t.checkout.familieribbe,
       desc: t.checkout.familieribbeDesc,
-      image: '🍽️',
       serves: t.checkout.ribbeMeta.familieribbe.serves,
       difficulty: t.checkout.ribbeMeta.familieribbe.difficulty,
       recipeSlug: 'familieribbe',
@@ -150,7 +148,6 @@ export function MobileCheckout(props: MobileCheckoutProps) {
       id: 'porchetta',
       name: t.checkout.porchetta,
       desc: t.checkout.porchettaDesc,
-      image: '🇮🇹',
       serves: t.checkout.ribbeMeta.porchetta.serves,
       difficulty: t.checkout.ribbeMeta.porchetta.difficulty,
       recipeSlug: 'porchetta',
@@ -159,7 +156,6 @@ export function MobileCheckout(props: MobileCheckoutProps) {
       id: 'butchers_choice',
       name: t.checkout.butchersChoice,
       desc: t.checkout.butchersChoiceDescEnhanced,
-      image: '🔪',
       serves: t.checkout.ribbeMeta.butchersChoice.serves,
       difficulty: t.checkout.ribbeMeta.butchersChoice.difficulty,
       recipeSlug: 'butchers-choice-ribbe',
@@ -636,9 +632,6 @@ export function MobileCheckout(props: MobileCheckoutProps) {
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="font-semibold flex items-center gap-2">
-                      <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-white/20 text-xs">
-                        {option.image}
-                      </span>
                       {option.name}
                       {option.recommended && (
                         <span className="ml-2 rounded-full bg-[#B35A2A] px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.2em] text-white">
