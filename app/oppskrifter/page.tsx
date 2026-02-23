@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { ArrowRight, Clock, Users, ChefHat } from 'lucide-react'
 import { no as copyNo } from '@/content/copy.no'
-import { resolveRecipeImage } from '@/lib/recipes/imageOverrides'
 
 interface Recipe {
   id: string
@@ -153,7 +152,7 @@ export default function RecipesPage() {
                     {/* Image */}
                     <div className="relative h-56 overflow-hidden">
                       <img
-                        src={resolveRecipeImage(recipe.slug, recipe.image_url)}
+                        src={recipe.image_url || '/recipes/carbonara-guanciale.jpg'}
                         alt={title}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                       />

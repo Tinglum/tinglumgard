@@ -5,7 +5,6 @@ import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, Clock, Users, ChefHat, Flame } from 'lucide-react'
 import { no as copyNo } from '@/content/copy.no'
-import { resolveRecipeImage } from '@/lib/recipes/imageOverrides'
 import { applyPaleoIngredients } from '@/lib/recipes/paleo'
 import { recipePaleoNo } from '@/content/recipePaleoCopy'
 
@@ -162,7 +161,7 @@ export default function RecipeDetailPage() {
       {/* Hero Image */}
       <div className="relative h-[300px] sm:h-[400px] overflow-hidden">
         <img
-          src={resolveRecipeImage(recipe.slug, recipe.image_url)}
+          src={recipe.image_url || '/recipes/carbonara-guanciale.jpg'}
           alt={title}
           className="w-full h-full object-cover"
         />
@@ -289,7 +288,7 @@ export default function RecipeDetailPage() {
                 ) : (
                   <ul className="space-y-2 text-sm font-light text-emerald-900/80 leading-relaxed">
                     {paleoResult.appliedKeys.map((key) => (
-                      <li key={key}>• {recipePaleoNo.replacements[key]}</li>
+                      <li key={key}>- {recipePaleoNo.replacements[key]}</li>
                     ))}
                   </ul>
                 )}
@@ -347,3 +346,4 @@ export default function RecipeDetailPage() {
     </div>
   )
 }
+
