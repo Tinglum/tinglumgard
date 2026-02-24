@@ -15,9 +15,10 @@ interface OrderModificationModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (modifications: any) => Promise<void>;
+  onManageExtras?: () => void;
 }
 
-export function OrderModificationModal({ order, isOpen, onClose, onSave }: OrderModificationModalProps) {
+export function OrderModificationModal({ order, isOpen, onClose, onSave, onManageExtras }: OrderModificationModalProps) {
   const { toast } = useToast();
   const { lang, t } = useLanguage();
   const locale = lang === 'en' ? 'en-US' : 'nb-NO';
@@ -75,7 +76,7 @@ export function OrderModificationModal({ order, isOpen, onClose, onSave }: Order
   }, []);
 
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen || onManageExtras) return;
 
     const loadExtras = async () => {
       setExtrasLoading(true);
@@ -93,7 +94,7 @@ export function OrderModificationModal({ order, isOpen, onClose, onSave }: Order
     };
 
     loadExtras();
-  }, [isOpen]);
+  }, [isOpen, onManageExtras]);
 
   const isFreshAllowed = deliveryType === 'pickup_farm';
   const freshFee = pricing?.fresh_delivery_fee;
@@ -339,7 +340,21 @@ export function OrderModificationModal({ order, isOpen, onClose, onSave }: Order
             </div>
           </div>
 
-          {!extrasLoading && availableExtras.length > 0 && (
+          {onManageExtras ? (
+            <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-4">
+              <p className="text-sm text-neutral-700 mb-3">{copy.extrasManagedInPicker}</p>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  onClose();
+                  onManageExtras();
+                }}
+              >
+                {copy.openExtrasPicker}
+              </Button>
+            </div>
+          ) : !extrasLoading && availableExtras.length > 0 ? (
             <div>
               <Label className="text-lg font-semibold mb-4 flex items-center gap-2 text-gray-900">
                 <ShoppingCart className="w-5 h-5" />
@@ -364,7 +379,7 @@ export function OrderModificationModal({ order, isOpen, onClose, onSave }: Order
                 </div>
               )}
             </div>
-          )}
+          ) : null}
 
           <div className="flex gap-3 pt-4 border-t">
             <Button onClick={onClose} variant="outline" className="flex-1" disabled={saving}>

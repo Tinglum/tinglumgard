@@ -1991,6 +1991,9 @@
     freshPickupNote: "Pickup at farm week 50/51",
     freshOnlyFarm: "Available only for farm pickup",
     extrasTitle: "Add extra products (optional)",
+    extrasManagedInPicker:
+      "Extra products are now handled in the same picker as the other add-extras options.",
+    openExtrasPicker: "Open extras picker",
     extrasWarning:
       'You changed extra products. Changes are saved when you click "Save changes".',
     cancel: "Cancel",

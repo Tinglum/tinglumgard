@@ -756,6 +756,10 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
           isOpen={showModificationModal}
           onClose={() => setShowModificationModal(false)}
           onSave={handleSaveModifications}
+          onManageExtras={() => {
+            setShowModificationModal(false);
+            setShowExtrasModal(true);
+          }}
         />
       )}
 

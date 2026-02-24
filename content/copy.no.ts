@@ -1994,6 +1994,9 @@
     freshPickupNote: "Henting på gården uke 50/51",
     freshOnlyFarm: "Kun tilgjengelig ved henting på gården",
     extrasTitle: "Legg til ekstra produkter (valgfritt)",
+    extrasManagedInPicker:
+      "Ekstraprodukter håndteres nå i samme velger som de andre alternativene for å legge til ekstra.",
+    openExtrasPicker: "Åpne ekstra-velger",
     extrasWarning:
       'Du har endret ekstra produkter. Endringene vil bli lagret når du klikker "Lagre endringer".',
     cancel: "Avbryt",
