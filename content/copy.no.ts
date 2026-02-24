@@ -988,7 +988,8 @@
 
     addedToOrderTitle: "Oppdatert bestilling",
     addedToOrderDesc: "La til {item}",
-    addingToOrderLabel: "Legger til...",
+    addingToOrderLabel: "Legger til i nåværende bestilling...",
+    addingToOrderOrderLine: "Bestilling #{orderNumber} • {box}",
     loadingOrdersTitle: "Henter bestillinger...",
 
     couldNotAddTitle: "Kunne ikke legge til",

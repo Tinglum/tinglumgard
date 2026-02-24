@@ -987,7 +987,8 @@
 
     addedToOrderTitle: "Order updated",
     addedToOrderDesc: "Added {item}",
-    addingToOrderLabel: "Adding...",
+    addingToOrderLabel: "Adding to current order...",
+    addingToOrderOrderLine: "Order #{orderNumber} • {box}",
     loadingOrdersTitle: "Loading orders...",
 
     couldNotAddTitle: "Could not add",

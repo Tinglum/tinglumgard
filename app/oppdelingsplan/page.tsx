@@ -327,6 +327,31 @@ export default function OppdelingsplanPage() {
     return orders.find((order) => order.id === activeOrderId) || null;
   }, [activeOrderId, orders]);
 
+  useEffect(() => {
+    if (!orders || orders.length === 0) {
+      if (activeOrderId !== null) setActiveOrderId(null);
+      return;
+    }
+
+    const selectedOrderStillExists = activeOrderId
+      ? orders.some((order) => order.id === activeOrderId)
+      : false;
+
+    if (!selectedOrderStillExists) {
+      setActiveOrderId(orders[0].id);
+    }
+  }, [orders, activeOrderId]);
+
+  const activeOrderLine = activeOrder
+    ? t.oppdelingsplan.addingToOrderOrderLine
+      .replace('{orderNumber}', activeOrder.order_number)
+      .replace(
+        '{box}',
+        (lang === 'en' ? activeOrder.display_box_name_en : activeOrder.display_box_name_no) ||
+          t.oppdelingsplan.unknownBoxName
+      )
+    : t.oppdelingsplan.chooseOrderPrompt;
+
   const hasMultipleOrders = orders.length > 1;
   const draftPresetDisplayName = useMemo(() => {
     if (!draftPresetSlug) return null;
@@ -759,9 +784,7 @@ export default function OppdelingsplanPage() {
                     {t.oppdelingsplan.addingToOrderLabel}
                   </p>
                   <p className="text-sm font-light text-neutral-700 truncate">
-                    {activeOrder
-                      ? `#${activeOrder.order_number} \u2022 ${(lang === 'en' ? activeOrder.display_box_name_en : activeOrder.display_box_name_no) || t.oppdelingsplan.unknownBoxName}`
-                      : t.oppdelingsplan.chooseOrderPrompt}
+                    {activeOrderLine}
                   </p>
                 </div>
 
@@ -1300,9 +1323,7 @@ export default function OppdelingsplanPage() {
                   {t.oppdelingsplan.addingToOrderLabel}
                 </p>
                 <p className="text-sm font-light text-neutral-700 truncate">
-                  {activeOrder
-                    ? `#${activeOrder.order_number} \u2022 ${(lang === 'en' ? activeOrder.display_box_name_en : activeOrder.display_box_name_no) || t.oppdelingsplan.unknownBoxName}`
-                    : t.oppdelingsplan.chooseOrderPrompt}
+                  {activeOrderLine}
                 </p>
               </div>
 
