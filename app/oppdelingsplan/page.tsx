@@ -14,7 +14,7 @@ import { PIG_CUT_POLYGONS } from '@/lib/constants/pig-diagram';
 import { useOppdelingsplanData } from '@/hooks/useOppdelingsplanData';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import type { CutBoxOption, CutOverview, PartKey, PendingAddAction } from '@/lib/oppdelingsplan/types';
+import type { CutBoxOption, CutOverview, CutRecipeSuggestion, PartKey, PendingAddAction } from '@/lib/oppdelingsplan/types';
 
 const PART_BY_POLYGON_ID: Record<number, PartKey> = {
   3: 'nakke',
@@ -92,6 +92,61 @@ function formatSizeRange(
   const formattedFrom = fromValue.toLocaleString(locale, { maximumFractionDigits: 2 });
   const formattedTo = toValue.toLocaleString(locale, { maximumFractionDigits: 2 });
   return `${approxLabel} ${formattedFrom}-${formattedTo} kg`;
+}
+
+function normalizeDashes(value: string): string {
+  return value.replace(/[\u2013\u2014]/g, '-');
+}
+
+function sanitizeRecipeSuggestions(value: unknown): CutRecipeSuggestion[] {
+  if (!Array.isArray(value)) return [];
+
+  const recipesBySlug = new Map<string, CutRecipeSuggestion>();
+
+  for (const raw of value) {
+    if (!raw || typeof raw !== 'object') continue;
+    const recipe = raw as Partial<CutRecipeSuggestion>;
+    const futureSlug = String(recipe.future_slug || '').trim();
+    if (!futureSlug || recipesBySlug.has(futureSlug)) continue;
+
+    recipesBySlug.set(futureSlug, {
+      title_no: recipe.title_no ?? null,
+      title_en: recipe.title_en ?? null,
+      description_no: recipe.description_no ?? null,
+      description_en: recipe.description_en ?? null,
+      future_slug: futureSlug,
+    });
+  }
+
+  return Array.from(recipesBySlug.values());
+}
+
+function mergeRecipeSuggestions(
+  existing: CutRecipeSuggestion[] | undefined,
+  incoming: CutRecipeSuggestion[]
+): CutRecipeSuggestion[] {
+  const merged = new Map<string, CutRecipeSuggestion>();
+
+  for (const recipe of existing || []) {
+    if (recipe.future_slug) {
+      merged.set(recipe.future_slug, recipe);
+    }
+  }
+
+  for (const recipe of incoming) {
+    if (recipe.future_slug && !merged.has(recipe.future_slug)) {
+      merged.set(recipe.future_slug, recipe);
+    }
+  }
+
+  return Array.from(merged.values());
+}
+
+function getRecipeTitle(recipe: CutRecipeSuggestion, lang: 'no' | 'en'): string {
+  const preferred = lang === 'en' ? recipe.title_en : recipe.title_no;
+  const fallback = lang === 'en' ? recipe.title_no : recipe.title_en;
+  const title = String(preferred || fallback || recipe.future_slug || '').trim();
+  return normalizeDashes(title);
 }
 
 export default function OppdelingsplanPage() {
@@ -239,6 +294,7 @@ export default function OppdelingsplanPage() {
             partKey,
             partName,
             boxOptions: [boxOption],
+            recipeSuggestions: [],
           });
           continue;
         }
@@ -280,6 +336,7 @@ export default function OppdelingsplanPage() {
       const extraDescription = lang === 'en'
         ? extra.description_en || extra.cut_description_en || ''
         : extra.description_no || extra.cut_description_no || '';
+      const recipeSuggestions = sanitizeRecipeSuggestions(extra.recipe_suggestions);
       const normalizedExtraName = String(extraName || '').trim() || extra.slug;
       const existingKey = map.has(preferredKey)
         ? preferredKey
@@ -298,6 +355,7 @@ export default function OppdelingsplanPage() {
           partKey,
           partName,
           boxOptions: [],
+          recipeSuggestions,
         });
         continue;
       }
@@ -317,6 +375,9 @@ export default function OppdelingsplanPage() {
       if (existing.partKey === 'unknown' && partKey !== 'unknown') {
         existing.partKey = partKey;
         existing.partName = partName;
+      }
+      if (recipeSuggestions.length > 0) {
+        existing.recipeSuggestions = mergeRecipeSuggestions(existing.recipeSuggestions, recipeSuggestions);
       }
     }
 
@@ -442,6 +503,32 @@ export default function OppdelingsplanPage() {
 
   function getBoxPresetSlugsForCut(cut: CutOverview): string[] {
     return Array.from(new Set(cut.boxOptions.map((option) => option.preset_slug).filter(Boolean)));
+  }
+
+  function renderRecipeLinks(cut: CutOverview, keyPrefix: string, className?: string) {
+    const recipeSuggestions = cut.recipeSuggestions || [];
+    if (recipeSuggestions.length === 0) return null;
+
+    return (
+      <div className={cn(className)}>
+        <p className="text-xs font-light uppercase tracking-wider text-neutral-600 mb-2">
+          {t.oppdelingsplan.recipesShort}
+        </p>
+        <div className="flex flex-wrap gap-1.5">
+          {recipeSuggestions.map((recipe) => (
+            <Link
+              key={`${keyPrefix}-${recipe.future_slug}`}
+              href={`/oppskrifter/${recipe.future_slug}`}
+              onClick={(event) => event.stopPropagation()}
+              onKeyDown={(event) => event.stopPropagation()}
+              className="inline-flex items-center rounded-lg border border-neutral-200 bg-white px-2 py-1 text-xs font-light text-neutral-700 transition-colors hover:border-neutral-300 hover:text-neutral-900"
+            >
+              {getRecipeTitle(recipe, lang)}
+            </Link>
+          ))}
+        </div>
+      </div>
+    );
   }
 
   function addCutToDraft(cut: CutOverview) {
@@ -1045,7 +1132,7 @@ export default function OppdelingsplanPage() {
                             <button
                               type="button"
                               onClick={() => handleAddCut(cut)}
-                              className="shrink-0 inline-flex items-center gap-2 rounded-lg bg-neutral-900 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-white hover:bg-neutral-800 transition-colors"
+                              className="shrink-0 inline-flex w-full sm:w-auto justify-center items-center gap-2 rounded-lg bg-neutral-900 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-white hover:bg-neutral-800 transition-colors"
                             >
                               <Plus className="w-4 h-4" />
                               {t.oppdelingsplan.addToOrder}
@@ -1065,6 +1152,7 @@ export default function OppdelingsplanPage() {
                               </span>
                             )}
                           </div>
+                          {renderRecipeLinks(cut, `selected-${cut.key}`, 'mt-3')}
                         </li>
                       ))}
                     </ul>
@@ -1139,15 +1227,15 @@ export default function OppdelingsplanPage() {
                         : 'border-neutral-200 hover:border-neutral-300 hover:shadow-[0_10px_30px_-10px_rgba(0,0,0,0.1)] hover:-translate-y-1'
                     )}
                   >
-                    <div className="flex items-start justify-between gap-3">
-                      <h3 className="text-xl font-normal text-neutral-900 mb-2">{cut.name}</h3>
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
+                      <h3 className="min-w-0 text-xl font-normal text-neutral-900">{cut.name}</h3>
                       <button
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation();
                           handleAddCut(cut);
                         }}
-                        className="shrink-0 inline-flex items-center gap-2 rounded-lg bg-neutral-900 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-white hover:bg-neutral-800 transition-colors"
+                        className="shrink-0 inline-flex w-full sm:w-auto justify-center items-center gap-2 rounded-lg bg-neutral-900 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-white hover:bg-neutral-800 transition-colors"
                       >
                         <Plus className="w-4 h-4" />
                         {t.oppdelingsplan.addToOrder}
@@ -1183,6 +1271,7 @@ export default function OppdelingsplanPage() {
                           <p className="text-sm font-light text-neutral-700">{t.oppdelingsplan.onlyAsExtra}</p>
                         </div>
                       )}
+                      {renderRecipeLinks(cut, `allcuts-${cut.key}`)}
                     </div>
                   </div>
                 );

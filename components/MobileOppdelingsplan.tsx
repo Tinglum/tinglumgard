@@ -1,11 +1,12 @@
 ﻿"use client";
 
 import { useMemo, useState } from 'react';
+import Link from 'next/link';
 import Image from 'next/image';
 import { Check, Plus } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { PIG_CUT_POLYGONS } from '@/lib/constants/pig-diagram';
-import type { CutOverview, PartKey } from '@/lib/oppdelingsplan/types';
+import type { CutOverview, CutRecipeSuggestion, PartKey } from '@/lib/oppdelingsplan/types';
 
 type ExtraSummary = {
   slug: string;
@@ -64,6 +65,17 @@ function formatSizeRange(
   const from = fromValue.toLocaleString(locale, { maximumFractionDigits: 2 });
   const to = toValue.toLocaleString(locale, { maximumFractionDigits: 2 });
   return `${approxLabel} ${from}-${to} kg`;
+}
+
+function normalizeDashes(value: string): string {
+  return value.replace(/[\u2013\u2014]/g, '-');
+}
+
+function getRecipeTitle(recipe: CutRecipeSuggestion, lang: 'no' | 'en'): string {
+  const preferred = lang === 'en' ? recipe.title_en : recipe.title_no;
+  const fallback = lang === 'en' ? recipe.title_no : recipe.title_en;
+  const title = String(preferred || fallback || recipe.future_slug || '').trim();
+  return normalizeDashes(title);
 }
 
 export function MobileOppdelingsplan({
@@ -257,6 +269,7 @@ export function MobileOppdelingsplan({
             filteredCuts.map((cut) => {
               const polygonId = cut.partKey !== 'unknown' ? POLYGON_ID_BY_PART[cut.partKey] : null;
               const boxLabels = cut.boxOptions.map((option) => option.label);
+              const recipeSuggestions = cut.recipeSuggestions || [];
 
               return (
                 <div
@@ -266,7 +279,7 @@ export function MobileOppdelingsplan({
                     if (polygonId) setSelectedPolygonId(polygonId);
                   }}
                 >
-                  <div className="flex items-start justify-between gap-3">
+                  <div className="space-y-3">
                     <div className="min-w-0">
                       <p className="text-base font-semibold text-[#1E1B16]">{cut.name}</p>
                       {cut.description ? <p className="mt-1 text-sm text-[#5E5A50]">{cut.description}</p> : null}
@@ -290,11 +303,31 @@ export function MobileOppdelingsplan({
                         event.stopPropagation();
                         onAddCut(cut);
                       }}
-                      className="shrink-0 inline-flex items-center gap-2 rounded-lg bg-[#1E1B16] px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.25em] text-white"
+                      className="inline-flex w-full justify-center items-center gap-2 rounded-lg bg-[#1E1B16] px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.25em] text-white"
                     >
                       <Plus className="h-4 w-4" />
                       {t.oppdelingsplan.addToOrder}
                     </button>
+
+                    {recipeSuggestions.length > 0 ? (
+                      <div>
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#6A6258]">
+                          {t.oppdelingsplan.recipesShort}
+                        </p>
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          {recipeSuggestions.map((recipe) => (
+                            <Link
+                              key={`${cut.key}-${recipe.future_slug}`}
+                              href={`/oppskrifter/${recipe.future_slug}`}
+                              onClick={(event) => event.stopPropagation()}
+                              className="inline-flex items-center rounded-lg border border-[#E4DED5] bg-[#FBFAF7] px-2 py-1 text-xs text-[#5E5A50]"
+                            >
+                              {getRecipeTitle(recipe, lang)}
+                            </Link>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
                   </div>
                 </div>
               );

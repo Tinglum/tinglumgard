@@ -15,6 +15,14 @@ export interface CutBoxOption {
   label: string;
 }
 
+export interface CutRecipeSuggestion {
+  title_no?: string | null;
+  title_en?: string | null;
+  description_no?: string | null;
+  description_en?: string | null;
+  future_slug: string;
+}
+
 export interface CutOverview {
   key: string;
   cut_id: string | null;
@@ -27,6 +35,7 @@ export interface CutOverview {
   partKey: PartKey;
   partName: string;
   boxOptions: CutBoxOption[];
+  recipeSuggestions?: CutRecipeSuggestion[];
 }
 
 export type PendingAddAction =
