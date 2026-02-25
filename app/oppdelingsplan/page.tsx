@@ -1132,9 +1132,9 @@ export default function OppdelingsplanPage() {
                             <button
                               type="button"
                               onClick={() => handleAddCut(cut)}
-                              className="shrink-0 inline-flex w-full sm:w-auto justify-center items-center gap-2 rounded-lg bg-neutral-900 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-white hover:bg-neutral-800 transition-colors"
+                              className="shrink-0 inline-flex w-full sm:w-auto justify-center items-center gap-1.5 rounded-md bg-neutral-900 px-2 py-1 text-[9px] font-semibold uppercase tracking-[0.08em] text-white hover:bg-neutral-800 transition-colors"
                             >
-                              <Plus className="w-4 h-4" />
+                              <Plus className="w-3 h-3" />
                               {t.oppdelingsplan.addToOrder}
                             </button>
                           </div>
@@ -1235,9 +1235,9 @@ export default function OppdelingsplanPage() {
                           e.stopPropagation();
                           handleAddCut(cut);
                         }}
-                        className="shrink-0 inline-flex w-full sm:w-auto justify-center items-center gap-2 rounded-lg bg-neutral-900 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-white hover:bg-neutral-800 transition-colors"
+                        className="shrink-0 inline-flex w-full sm:w-auto justify-center items-center gap-1.5 rounded-md bg-neutral-900 px-2 py-1 text-[9px] font-semibold uppercase tracking-[0.08em] text-white hover:bg-neutral-800 transition-colors"
                       >
-                        <Plus className="w-4 h-4" />
+                        <Plus className="w-3 h-3" />
                         {t.oppdelingsplan.addToOrder}
                       </button>
                     </div>
