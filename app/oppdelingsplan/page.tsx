@@ -150,6 +150,14 @@ function getRecipeTitle(recipe: CutRecipeSuggestion, lang: 'no' | 'en'): string 
 }
 
 function splitButtonLabel(label: string): [string, string] {
+  const normalized = label.trim().toLowerCase();
+  if (normalized === 'legg til i bestilling') {
+    return ['Legg til i', 'Bestilling'];
+  }
+  if (normalized === 'add to order') {
+    return ['Add to', 'Order'];
+  }
+
   const words = label.trim().split(/\s+/).filter(Boolean);
   if (words.length <= 1) return [label, ''];
   const midpoint = Math.ceil(words.length / 2);
@@ -1143,12 +1151,12 @@ export default function OppdelingsplanPage() {
                             <button
                               type="button"
                               onClick={() => handleAddCut(cut)}
-                              className="shrink-0 inline-flex w-full sm:h-16 sm:w-16 justify-center items-center gap-1.5 rounded-md bg-neutral-900 px-2 py-1.5 text-[8px] font-semibold uppercase tracking-[0.06em] text-white hover:bg-neutral-800 transition-colors"
+                              className="shrink-0 inline-flex h-12 w-full items-center justify-center gap-2 rounded-md bg-neutral-900 px-3 py-2 text-white transition-colors hover:bg-neutral-800 sm:h-20 sm:w-20 sm:flex-col sm:gap-1.5 sm:px-2"
                             >
-                              <Plus className="w-3 h-3" />
-                              <span className="text-center leading-[1.1]">
-                                <span className="block">{addToOrderLine1}</span>
-                                {addToOrderLine2 && <span className="block">{addToOrderLine2}</span>}
+                              <Plus className="h-3.5 w-3.5 shrink-0" />
+                              <span className="text-center text-[9px] font-bold uppercase leading-[1.05] tracking-[0.08em]">
+                                <span className="block whitespace-nowrap">{addToOrderLine1}</span>
+                                {addToOrderLine2 && <span className="block whitespace-nowrap">{addToOrderLine2}</span>}
                               </span>
                             </button>
                           </div>
@@ -1249,12 +1257,12 @@ export default function OppdelingsplanPage() {
                           e.stopPropagation();
                           handleAddCut(cut);
                         }}
-                        className="shrink-0 inline-flex w-full sm:h-16 sm:w-16 justify-center items-center gap-1.5 rounded-md bg-neutral-900 px-2 py-1.5 text-[8px] font-semibold uppercase tracking-[0.06em] text-white hover:bg-neutral-800 transition-colors"
+                        className="shrink-0 inline-flex h-12 w-full items-center justify-center gap-2 rounded-md bg-neutral-900 px-3 py-2 text-white transition-colors hover:bg-neutral-800 sm:h-20 sm:w-20 sm:flex-col sm:gap-1.5 sm:px-2"
                       >
-                        <Plus className="w-3 h-3" />
-                        <span className="text-center leading-[1.1]">
-                          <span className="block">{addToOrderLine1}</span>
-                          {addToOrderLine2 && <span className="block">{addToOrderLine2}</span>}
+                        <Plus className="h-3.5 w-3.5 shrink-0" />
+                        <span className="text-center text-[9px] font-bold uppercase leading-[1.05] tracking-[0.08em]">
+                          <span className="block whitespace-nowrap">{addToOrderLine1}</span>
+                          {addToOrderLine2 && <span className="block whitespace-nowrap">{addToOrderLine2}</span>}
                         </span>
                       </button>
                     </div>
