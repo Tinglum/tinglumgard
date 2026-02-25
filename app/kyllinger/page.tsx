@@ -77,6 +77,7 @@ export default function KyllingerPage() {
   const handleSelectWeek = (week: ChickenWeekAvailability) => {
     setSelectedWeek(week)
     setSelectedOptions({})
+    setActiveBreedFilter('all')
 
     const totalAvailable = week.breeds.reduce((sum, breed) => sum + breed.totalAvailable, 0)
     trackChickenFunnel('week_selected', {
@@ -124,10 +125,13 @@ export default function KyllingerPage() {
       return
     }
     setActiveBreedFilter((prev) => {
-      if (prev !== 'all' && selectedWeekBookableBreeds.some((breed) => breed.breedId === prev)) {
+      if (prev === 'all') {
+        return 'all'
+      }
+      if (selectedWeekBookableBreeds.some((breed) => breed.breedId === prev)) {
         return prev
       }
-      return selectedWeekBookableBreeds[0].breedId
+      return 'all'
     })
   }, [selectedWeekBookableBreeds, selectedWeekKey])
 
