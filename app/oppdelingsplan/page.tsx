@@ -149,6 +149,13 @@ function getRecipeTitle(recipe: CutRecipeSuggestion, lang: 'no' | 'en'): string 
   return normalizeDashes(title);
 }
 
+function splitButtonLabel(label: string): [string, string] {
+  const words = label.trim().split(/\s+/).filter(Boolean);
+  if (words.length <= 1) return [label, ''];
+  const midpoint = Math.ceil(words.length / 2);
+  return [words.slice(0, midpoint).join(' '), words.slice(midpoint).join(' ')];
+}
+
 export default function OppdelingsplanPage() {
   const { t, lang } = useLanguage();
   const isMobile = useIsMobile();
@@ -465,6 +472,10 @@ export default function OppdelingsplanPage() {
     if (!preset) return draftPresetSlug;
     return lang === 'en' ? preset.name_en : preset.name_no;
   }, [draftPresetSlug, lang, presets]);
+  const [addToOrderLine1, addToOrderLine2] = useMemo(
+    () => splitButtonLabel(t.oppdelingsplan.addToOrder),
+    [t.oppdelingsplan.addToOrder]
+  );
 
   function resolveExtraSlugForCut(cut: Pick<CutOverview, 'cut_slug' | 'name'>): string | null {
     const cutSlug = (cut.cut_slug || '').trim();
@@ -1116,7 +1127,7 @@ export default function OppdelingsplanPage() {
                     <ul className="space-y-4">
                       {selectedPartCuts.map((cut) => (
                         <li key={`selected-cut-detail-${cut.key}`} className="rounded-xl border border-neutral-200 bg-neutral-50 p-4">
-                          <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
                             <div className="min-w-0">
                               <p className="text-base font-normal text-neutral-900 mb-1">{cut.name}</p>
                               {cut.description && (
@@ -1132,10 +1143,13 @@ export default function OppdelingsplanPage() {
                             <button
                               type="button"
                               onClick={() => handleAddCut(cut)}
-                              className="shrink-0 inline-flex w-full sm:w-auto justify-center items-center gap-1.5 rounded-md bg-neutral-900 px-2 py-1 text-[9px] font-semibold uppercase tracking-[0.08em] text-white hover:bg-neutral-800 transition-colors"
+                              className="shrink-0 inline-flex w-full sm:h-16 sm:w-16 justify-center items-center gap-1.5 rounded-md bg-neutral-900 px-2 py-1.5 text-[8px] font-semibold uppercase tracking-[0.06em] text-white hover:bg-neutral-800 transition-colors"
                             >
                               <Plus className="w-3 h-3" />
-                              {t.oppdelingsplan.addToOrder}
+                              <span className="text-center leading-[1.1]">
+                                <span className="block">{addToOrderLine1}</span>
+                                {addToOrderLine2 && <span className="block">{addToOrderLine2}</span>}
+                              </span>
                             </button>
                           </div>
 
@@ -1235,10 +1249,13 @@ export default function OppdelingsplanPage() {
                           e.stopPropagation();
                           handleAddCut(cut);
                         }}
-                        className="shrink-0 inline-flex w-full sm:w-auto justify-center items-center gap-1.5 rounded-md bg-neutral-900 px-2 py-1 text-[9px] font-semibold uppercase tracking-[0.08em] text-white hover:bg-neutral-800 transition-colors"
+                        className="shrink-0 inline-flex w-full sm:h-16 sm:w-16 justify-center items-center gap-1.5 rounded-md bg-neutral-900 px-2 py-1.5 text-[8px] font-semibold uppercase tracking-[0.06em] text-white hover:bg-neutral-800 transition-colors"
                       >
                         <Plus className="w-3 h-3" />
-                        {t.oppdelingsplan.addToOrder}
+                        <span className="text-center leading-[1.1]">
+                          <span className="block">{addToOrderLine1}</span>
+                          {addToOrderLine2 && <span className="block">{addToOrderLine2}</span>}
+                        </span>
                       </button>
                     </div>
 
