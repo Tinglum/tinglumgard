@@ -154,6 +154,43 @@ export default function OppdelingsplanPage() {
   const allCutsOverview = useMemo<CutOverview[]>(() => {
     const map = new Map<string, CutOverview>();
 
+    const getNormalizedCutName = (value: string): string =>
+      normalizeTextForMatch(stripCutNameNoise(String(value || '')));
+
+    const findExistingKey = (
+      candidateCutId: string | null,
+      candidateCutSlug: string | null,
+      candidateName: string,
+      candidatePartKey: PartKey
+    ): string | null => {
+      const entries = Array.from(map.entries());
+
+      if (candidateCutId) {
+        for (const [entryKey, entry] of entries) {
+          if (entry.cut_id && entry.cut_id === candidateCutId) return entryKey;
+        }
+      }
+
+      if (candidateCutSlug) {
+        for (const [entryKey, entry] of entries) {
+          if (entry.cut_slug && entry.cut_slug === candidateCutSlug) return entryKey;
+        }
+      }
+
+      const normalizedCandidateName = getNormalizedCutName(candidateName);
+      if (!normalizedCandidateName) return null;
+
+      for (const [entryKey, entry] of entries) {
+        if (entry.partKey !== candidatePartKey) continue;
+        const normalizedExistingName = getNormalizedCutName(entry.name);
+        if (normalizedExistingName && normalizedExistingName === normalizedCandidateName) {
+          return entryKey;
+        }
+      }
+
+      return null;
+    };
+
     for (const preset of presets) {
       const presetName = lang === 'en' ? preset.name_en : preset.name_no;
       const contents = (preset.contents || []).slice().sort((a, b) => a.display_order - b.display_order);
@@ -162,7 +199,6 @@ export default function OppdelingsplanPage() {
         const cutName = lang === 'en' ? content.content_name_en : content.content_name_no;
         if (!cutName) continue;
 
-        const key = content.cut_slug || content.cut_id || cutName;
         const cutId = content.cut_id || null;
         const cutSlug = content.cut_slug || null;
         const rawPartKey = (content.part_key || 'unknown') as PartKey;
@@ -173,6 +209,10 @@ export default function OppdelingsplanPage() {
         const cutDescription = lang === 'en'
           ? content.cut_description_en || ''
           : content.cut_description_no || '';
+        const preferredKey = cutId || cutSlug || cutName;
+        const existingKey = map.has(preferredKey)
+          ? preferredKey
+          : findExistingKey(cutId, cutSlug, cutName, partKey);
 
         const boxLabel = content.target_weight_kg
           ? `${presetName} (${content.target_weight_kg} kg)`
@@ -186,9 +226,9 @@ export default function OppdelingsplanPage() {
           label: boxLabel,
         };
 
-        if (!map.has(key)) {
-          map.set(key, {
-            key,
+        if (!existingKey) {
+          map.set(preferredKey, {
+            key: preferredKey,
             cut_id: cutId,
             cut_slug: cutSlug,
             extra_slug: null,
@@ -203,7 +243,7 @@ export default function OppdelingsplanPage() {
           continue;
         }
 
-        const existing = map.get(key)!;
+        const existing = map.get(existingKey)!;
         if (!existing.cut_id && cutId) {
           existing.cut_id = cutId;
         }
@@ -227,8 +267,8 @@ export default function OppdelingsplanPage() {
     for (const extra of extras as any[]) {
       const cutSlug = (extra.cut_slug || '').trim() || null;
       const cutId = extra.cut_id || null;
-      const key = cutSlug || cutId || extra.slug;
-      if (!key) continue;
+      const preferredKey = cutId || cutSlug || extra.slug;
+      if (!preferredKey) continue;
 
       const rawPartKey = (extra.part_key || 'unknown') as PartKey;
       const partKey: PartKey = rawPartKey in PART_ORDER ? rawPartKey : 'unknown';
@@ -240,14 +280,18 @@ export default function OppdelingsplanPage() {
       const extraDescription = lang === 'en'
         ? extra.description_en || extra.cut_description_en || ''
         : extra.description_no || extra.cut_description_no || '';
+      const normalizedExtraName = String(extraName || '').trim() || extra.slug;
+      const existingKey = map.has(preferredKey)
+        ? preferredKey
+        : findExistingKey(cutId, cutSlug, normalizedExtraName, partKey);
 
-      if (!map.has(key)) {
-        map.set(key, {
-          key,
+      if (!existingKey) {
+        map.set(preferredKey, {
+          key: preferredKey,
           cut_id: cutId,
           cut_slug: cutSlug,
           extra_slug: extra.slug,
-          name: String(extraName || '').trim() || extra.slug,
+          name: normalizedExtraName,
           description: String(extraDescription || '').trim(),
           sizeFromKg: extra.cut_size_from_kg ?? null,
           sizeToKg: extra.cut_size_to_kg ?? null,
@@ -258,10 +302,11 @@ export default function OppdelingsplanPage() {
         continue;
       }
 
-      const existing = map.get(key)!;
+      const existing = map.get(existingKey)!;
       if (!existing.cut_id && cutId) existing.cut_id = cutId;
       if (!existing.cut_slug && cutSlug) existing.cut_slug = cutSlug;
       if (!existing.extra_slug) existing.extra_slug = extra.slug;
+      if (!existing.name && normalizedExtraName) existing.name = normalizedExtraName;
       if (!existing.description && extraDescription) existing.description = String(extraDescription || '').trim();
       if (existing.sizeFromKg == null && extra.cut_size_from_kg != null) {
         existing.sizeFromKg = extra.cut_size_from_kg;
