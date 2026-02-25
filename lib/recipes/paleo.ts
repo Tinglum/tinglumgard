@@ -1,3 +1,5 @@
+import { fixMojibake } from '@/lib/utils/text';
+
 export interface RecipeIngredient {
   amount: string;
   item: string;
@@ -18,24 +20,140 @@ export type PaleoReplacementMap = Record<PaleoReplacementKey, string>;
 
 interface PaleoRule {
   key: PaleoReplacementKey;
-  pattern: RegExp;
+  match: (normalizedTokens: string[]) => boolean;
 }
 
 const PALEO_RULES: PaleoRule[] = [
-  { key: "pasta", pattern: /\b(pasta|spaghetti|rigatoni|bucatini)\b/i },
-  { key: "cheese", pattern: /\b(pecorino|parmesan|cheddar|ost|cheese)\b/i },
-  { key: "wine", pattern: /\b(hvitvin|white wine|vin)\b/i },
-  { key: "butter", pattern: /\b(sm(?:\u00f8|o)r|butter)\b/i },
-  { key: "bread", pattern: /\b(br(?:\u00f8|o)d|baguette|crostini|bread)\b/i },
-  { key: "sugar", pattern: /\b(sukker|sugar)\b/i },
-  { key: "flour", pattern: /\b(hvetemel|mel|flour)\b/i },
-  { key: "breadcrumbs", pattern: /\b(br(?:\u00f8|o)dsmuler|breadcrumbs)\b/i },
-  { key: "milk", pattern: /\b(melk|milk|fl(?:\u00f8|o)te|cream)\b/i },
+  {
+    key: "pasta",
+    match: (tokens) =>
+      tokens.some((token) =>
+        token === 'pasta' ||
+        token === 'spaghetti' ||
+        token === 'rigatoni' ||
+        token === 'bucatini' ||
+        token === 'macaroni' ||
+        token === 'noodles' ||
+        token === 'nudler'
+      ),
+  },
+  {
+    key: "cheese",
+    match: (tokens) =>
+      tokens.some((token) =>
+        token === 'cheese' ||
+        token.includes('cheese') ||
+        token === 'pecorino' ||
+        token === 'parmesan' ||
+        token === 'cheddar' ||
+        token === 'mozzarella' ||
+        token === 'gouda' ||
+        token === 'ost' ||
+        token.endsWith('ost')
+      ),
+  },
+  {
+    key: "wine",
+    match: (tokens) =>
+      tokens.some((token) =>
+        token === 'vin' ||
+        token === 'hvitvin' ||
+        token === 'rodvin' ||
+        token === 'redvin' ||
+        token === 'wine' ||
+        token === 'whitewine' ||
+        token === 'redwine'
+      ),
+  },
+  {
+    key: "butter",
+    match: (tokens) =>
+      tokens.some((token) =>
+        (token === 'smor' || token.endsWith('smor')) ||
+        token === 'butter' ||
+        token.endsWith('butter')
+      ) && !tokens.some((token) => token === 'ghee' || token === 'talg'),
+  },
+  {
+    key: "bread",
+    match: (tokens) =>
+      tokens.some((token) =>
+        token === 'brod' ||
+        token.endsWith('brod') ||
+        token === 'bread' ||
+        token.endsWith('bread') ||
+        token === 'baguette' ||
+        token === 'crostini' ||
+        token === 'toast'
+      ),
+  },
+  {
+    key: "sugar",
+    match: (tokens) =>
+      tokens.some((token) =>
+        token === 'sukker' ||
+        token.endsWith('sukker') ||
+        token === 'sugar' ||
+        token.endsWith('sugar') ||
+        token.endsWith('sirup') ||
+        token.endsWith('syrup')
+      ),
+  },
+  {
+    key: "flour",
+    match: (tokens) =>
+      tokens.some((token) =>
+        token === 'hvetemel' ||
+        token === 'flour' ||
+        token.endsWith('flour') ||
+        token.endsWith('mel')
+      ) && !tokens.some((token) => token === 'mandelmel'),
+  },
+  {
+    key: "breadcrumbs",
+    match: (tokens) =>
+      tokens.some((token) =>
+        token === 'brodsmuler' ||
+        token === 'breadcrumbs' ||
+        token === 'breadcrumb' ||
+        token === 'panko'
+      ),
+  },
+  {
+    key: "milk",
+    match: (tokens) =>
+      tokens.some((token) =>
+        token === 'melk' ||
+        token.endsWith('melk') ||
+        token === 'milk' ||
+        token.endsWith('milk') ||
+        token === 'flote' ||
+        token.endsWith('flote') ||
+        token === 'cream' ||
+        token.endsWith('cream') ||
+        token === 'cremefraiche'
+      ) && !tokens.some((token) => token === 'kokosmelk'),
+  },
 ];
 
+export interface PaleoIngredient extends RecipeIngredient {
+  replacementLabels: string[];
+}
+
 export interface PaleoIngredientsResult {
-  ingredients: RecipeIngredient[];
+  ingredients: PaleoIngredient[];
   appliedKeys: PaleoReplacementKey[];
+}
+
+function normalizeIngredientTokens(value: string): string[] {
+  return fixMojibake(value)
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
 }
 
 export function applyPaleoIngredients(
@@ -45,21 +163,24 @@ export function applyPaleoIngredients(
   const appliedKeys = new Set<PaleoReplacementKey>();
 
   const nextIngredients = ingredients.map((ingredient) => {
+    const cleanItem = fixMojibake(String(ingredient.item || ''));
+    const normalizedTokens = normalizeIngredientTokens(cleanItem);
     const replacementLabels: string[] = [];
 
     for (const rule of PALEO_RULES) {
-      if (rule.pattern.test(ingredient.item)) {
+      if (rule.match(normalizedTokens)) {
         appliedKeys.add(rule.key);
         const label = replacements[rule.key];
-        if (label) replacementLabels.push(label);
+        if (label && !replacementLabels.includes(label)) {
+          replacementLabels.push(label);
+        }
       }
     }
 
-    if (replacementLabels.length === 0) return ingredient;
-
     return {
       ...ingredient,
-      item: `${ingredient.item} (${replacementLabels.join(", ")})`,
+      item: cleanItem,
+      replacementLabels,
     };
   });
 
@@ -68,4 +189,3 @@ export function applyPaleoIngredients(
     appliedKeys: Array.from(appliedKeys),
   };
 }
-

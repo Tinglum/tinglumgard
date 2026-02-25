@@ -64,7 +64,7 @@ function normalizeTextForMatch(value: string): string {
   return value
     .toLowerCase()
     .normalize('NFD')
-    // Remove accents/diacritics for robust matching (e.g., ø/æ/å in various encodings).
+    // Remove accents/diacritics for robust matching across localized text.
     .replace(/\p{Diacritic}/gu, '')
     .replace(/[^a-z0-9]+/g, ' ')
     .trim();
@@ -162,6 +162,22 @@ function splitButtonLabel(label: string): [string, string] {
   if (words.length <= 1) return [label, ''];
   const midpoint = Math.ceil(words.length / 2);
   return [words.slice(0, midpoint).join(' '), words.slice(midpoint).join(' ')];
+}
+
+function buildRichCutDescription(baseDescription: string | null | undefined, usageHint: string | null | undefined): string {
+  const base = normalizeDashes(String(baseDescription || '').trim());
+  const hint = normalizeDashes(String(usageHint || '').trim());
+
+  if (!base) return hint;
+  if (!hint || base.length >= 140) return base;
+
+  const normalizedBase = normalizeTextForMatch(base);
+  const normalizedHint = normalizeTextForMatch(hint);
+  if (normalizedBase.includes(normalizedHint) || normalizedHint.includes(normalizedBase)) {
+    return base;
+  }
+
+  return `${base} ${hint}`;
 }
 
 export default function OppdelingsplanPage() {
@@ -349,8 +365,8 @@ export default function OppdelingsplanPage() {
 
       const extraName = lang === 'en' && extra.name_en ? extra.name_en : extra.name_no;
       const extraDescription = lang === 'en'
-        ? extra.description_en || extra.cut_description_en || ''
-        : extra.description_no || extra.cut_description_no || '';
+        ? extra.description_premium_en || extra.description_en || extra.cut_description_en || ''
+        : extra.description_premium_no || extra.description_no || extra.cut_description_no || '';
       const recipeSuggestions = sanitizeRecipeSuggestions(extra.recipe_suggestions);
       const normalizedExtraName = String(extraName || '').trim() || extra.slug;
       const existingKey = map.has(preferredKey)
@@ -380,7 +396,10 @@ export default function OppdelingsplanPage() {
       if (!existing.cut_slug && cutSlug) existing.cut_slug = cutSlug;
       if (!existing.extra_slug) existing.extra_slug = extra.slug;
       if (!existing.name && normalizedExtraName) existing.name = normalizedExtraName;
-      if (!existing.description && extraDescription) existing.description = String(extraDescription || '').trim();
+      const normalizedExtraDescription = String(extraDescription || '').trim();
+      if (normalizedExtraDescription && normalizedExtraDescription.length > String(existing.description || '').trim().length) {
+        existing.description = normalizedExtraDescription;
+      }
       if (existing.sizeFromKg == null && extra.cut_size_from_kg != null) {
         existing.sizeFromKg = extra.cut_size_from_kg;
       }
@@ -1133,50 +1152,55 @@ export default function OppdelingsplanPage() {
                 {selectedPartCuts.length > 0 ? (
                   <div className="space-y-6">
                     <ul className="space-y-4">
-                      {selectedPartCuts.map((cut) => (
-                        <li key={`selected-cut-detail-${cut.key}`} className="rounded-xl border border-neutral-200 bg-neutral-50 p-4">
-                          <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
-                            <div className="min-w-0">
-                              <p className="text-base font-normal text-neutral-900 mb-1">{cut.name}</p>
-                              {cut.description && (
-                                <p className="text-sm font-light text-neutral-600 mb-2 leading-relaxed">{cut.description}</p>
-                              )}
-                              {formatSizeRange(cut.sizeFromKg, cut.sizeToKg, lang, t.common.approx) && (
-                                <p className="text-xs font-light text-neutral-500">
-                                  {formatSizeRange(cut.sizeFromKg, cut.sizeToKg, lang, t.common.approx)}
-                                </p>
-                              )}
+                      {selectedPartCuts.map((cut) => {
+                        const selectedDescription = buildRichCutDescription(
+                          cut.description,
+                          partMeta[cut.partKey]?.description || ''
+                        );
+
+                        return (
+                          <li key={`selected-cut-detail-${cut.key}`} className="rounded-xl border border-neutral-200 bg-neutral-50 p-4">
+                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
+                              <div className="min-w-0">
+                                <p className="text-base font-normal text-neutral-900 mb-1">{cut.name}</p>
+                                <p className="text-sm font-light text-neutral-600 mb-2 leading-relaxed">{selectedDescription}</p>
+                                {formatSizeRange(cut.sizeFromKg, cut.sizeToKg, lang, t.common.approx) && (
+                                  <p className="text-xs font-light text-neutral-500">
+                                    {formatSizeRange(cut.sizeFromKg, cut.sizeToKg, lang, t.common.approx)}
+                                  </p>
+                                )}
+                              </div>
+
+                              <button
+                                type="button"
+                                onClick={() => handleAddCut(cut)}
+                                className="shrink-0 inline-flex h-12 w-full items-center justify-center gap-2 rounded-md bg-neutral-900 px-3 py-2 text-white transition-colors hover:bg-neutral-800 sm:h-20 sm:w-20 sm:flex-col sm:gap-1.5 sm:px-2"
+                              >
+                                <Plus className="h-3.5 w-3.5 shrink-0" />
+                                <span className="text-center text-[9px] font-bold uppercase leading-[1.05] tracking-[0.08em]">
+                                  <span className="block whitespace-nowrap">{addToOrderLine1}</span>
+                                  {addToOrderLine2 && <span className="block whitespace-nowrap">{addToOrderLine2}</span>}
+                                </span>
+                              </button>
                             </div>
 
-                            <button
-                              type="button"
-                              onClick={() => handleAddCut(cut)}
-                              className="shrink-0 inline-flex h-12 w-full items-center justify-center gap-2 rounded-md bg-neutral-900 px-3 py-2 text-white transition-colors hover:bg-neutral-800 sm:h-20 sm:w-20 sm:flex-col sm:gap-1.5 sm:px-2"
-                            >
-                              <Plus className="h-3.5 w-3.5 shrink-0" />
-                              <span className="text-center text-[9px] font-bold uppercase leading-[1.05] tracking-[0.08em]">
-                                <span className="block whitespace-nowrap">{addToOrderLine1}</span>
-                                {addToOrderLine2 && <span className="block whitespace-nowrap">{addToOrderLine2}</span>}
-                              </span>
-                            </button>
-                          </div>
-
-                          <div className="flex flex-wrap gap-1.5 mt-3">
-                            {cut.boxOptions.length > 0 ? (
-                              cut.boxOptions.map((option, idx) => (
-                                <span key={`${cut.key}-box-${idx}`} className="text-xs bg-white text-neutral-700 px-2 py-1 rounded-lg border border-neutral-200 font-light">
-                                  {option.label}
+                            <div className="flex flex-wrap gap-1.5 mt-3">
+                              {cut.boxOptions.length > 0 ? (
+                                cut.boxOptions.map((option, idx) => (
+                                  <span key={`${cut.key}-box-${idx}`} className="text-xs bg-white text-neutral-700 px-2 py-1 rounded-lg border border-neutral-200 font-light">
+                                    {option.label}
+                                  </span>
+                                ))
+                              ) : (
+                                <span className="text-xs bg-white text-neutral-700 px-2 py-1 rounded-lg border border-neutral-200 font-light">
+                                  {t.oppdelingsplan.onlyAsExtra}
                                 </span>
-                              ))
-                            ) : (
-                              <span className="text-xs bg-white text-neutral-700 px-2 py-1 rounded-lg border border-neutral-200 font-light">
-                                {t.oppdelingsplan.onlyAsExtra}
-                              </span>
-                            )}
-                          </div>
-                          {renderRecipeLinks(cut, `selected-${cut.key}`, 'mt-3')}
-                        </li>
-                      ))}
+                              )}
+                            </div>
+                            {renderRecipeLinks(cut, `selected-${cut.key}`, 'mt-3')}
+                          </li>
+                        );
+                      })}
                     </ul>
                   </div>
                 ) : (
@@ -1221,6 +1245,10 @@ export default function OppdelingsplanPage() {
               {filteredCutsOverview.map((cut) => {
                 const isDraftSelected = draftSelectedCutKeys.includes(cut.key);
                 const polygonId = cut.partKey !== 'unknown' ? POLYGON_ID_BY_PART[cut.partKey] : null;
+                const cardDescription = buildRichCutDescription(
+                  cut.description,
+                  partMeta[cut.partKey]?.description || ''
+                );
 
                 return (
                   <div
@@ -1243,7 +1271,7 @@ export default function OppdelingsplanPage() {
                       }
                     }}
                     className={cn(
-                      'p-6 rounded-xl border-2 text-left transition-all duration-300 cursor-pointer',
+                      'h-full p-6 rounded-xl border-2 text-left transition-all duration-300 cursor-pointer flex flex-col',
                       isDraftSelected
                         ? 'border-neutral-900 bg-neutral-50 shadow-[0_15px_40px_-12px_rgba(0,0,0,0.12)]'
                         : 'border-neutral-200 hover:border-neutral-300 hover:shadow-[0_10px_30px_-10px_rgba(0,0,0,0.1)] hover:-translate-y-1'
@@ -1267,18 +1295,21 @@ export default function OppdelingsplanPage() {
                       </button>
                     </div>
 
-                    {cut.description && (
-                      <p className="text-sm font-light text-neutral-700 mb-3 leading-relaxed">{cut.description}</p>
-                    )}
-                    <p className="text-xs font-light text-neutral-500 mb-4">
-                      {t.oppdelingsplan.fromPigPartLabel} {cut.partName}
-                    </p>
-                    {formatSizeRange(cut.sizeFromKg, cut.sizeToKg, lang, t.common.approx) && (
-                      <p className="text-xs font-light text-neutral-500 mb-4">
-                        {formatSizeRange(cut.sizeFromKg, cut.sizeToKg, lang, t.common.approx)}
+                    <div className="mt-3 space-y-2.5">
+                      {cardDescription && (
+                        <p className="text-sm font-light text-neutral-700 leading-relaxed">{cardDescription}</p>
+                      )}
+                      <p className="text-xs font-light text-neutral-500">
+                        {t.oppdelingsplan.fromPigPartLabel} {cut.partName}
                       </p>
-                    )}
-                    <div className="space-y-3">
+                      {formatSizeRange(cut.sizeFromKg, cut.sizeToKg, lang, t.common.approx) && (
+                        <p className="text-xs font-light text-neutral-500">
+                          {formatSizeRange(cut.sizeFromKg, cut.sizeToKg, lang, t.common.approx)}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="mt-auto border-t border-neutral-200 pt-4 space-y-3">
                       {cut.boxOptions.length > 0 ? (
                         <div>
                           <p className="text-xs font-light uppercase tracking-wider text-neutral-600 mb-2">{t.oppdelingsplan.inBoxShort}</p>

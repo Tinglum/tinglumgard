@@ -78,6 +78,31 @@ function getRecipeTitle(recipe: CutRecipeSuggestion, lang: 'no' | 'en'): string 
   return normalizeDashes(title);
 }
 
+function normalizeTextForMatch(value: string): string {
+  return value
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+}
+
+function buildRichCutDescription(baseDescription: string | null | undefined, usageHint: string | null | undefined): string {
+  const base = normalizeDashes(String(baseDescription || '').trim());
+  const hint = normalizeDashes(String(usageHint || '').trim());
+
+  if (!base) return hint;
+  if (!hint || base.length >= 140) return base;
+
+  const normalizedBase = normalizeTextForMatch(base);
+  const normalizedHint = normalizeTextForMatch(hint);
+  if (normalizedBase.includes(normalizedHint) || normalizedHint.includes(normalizedBase)) {
+    return base;
+  }
+
+  return `${base} ${hint}`;
+}
+
 export function MobileOppdelingsplan({
   inBoxSummary,
   canOrderSummary,
@@ -270,6 +295,10 @@ export function MobileOppdelingsplan({
               const polygonId = cut.partKey !== 'unknown' ? POLYGON_ID_BY_PART[cut.partKey] : null;
               const boxLabels = cut.boxOptions.map((option) => option.label);
               const recipeSuggestions = cut.recipeSuggestions || [];
+              const cardDescription = buildRichCutDescription(
+                cut.description,
+                partMeta[cut.partKey]?.description || ''
+              );
 
               return (
                 <div
@@ -282,7 +311,7 @@ export function MobileOppdelingsplan({
                   <div className="space-y-3">
                     <div className="min-w-0">
                       <p className="text-base font-semibold text-[#1E1B16]">{cut.name}</p>
-                      {cut.description ? <p className="mt-1 text-sm text-[#5E5A50]">{cut.description}</p> : null}
+                      {cardDescription ? <p className="mt-1 text-sm text-[#5E5A50]">{cardDescription}</p> : null}
                       <p className="mt-2 text-xs text-[#6A6258]">
                         {t.oppdelingsplan.fromPigPartLabel} {cut.partName}
                       </p>

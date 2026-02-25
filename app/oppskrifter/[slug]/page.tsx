@@ -404,7 +404,13 @@ export default function RecipeDetailPage() {
   const totalTime = recipe.prep_time_minutes + recipe.cook_time_minutes
   const paleoResult = showPaleo
     ? applyPaleoIngredients(ingredients, recipePaleoNo.replacements)
-    : { ingredients, appliedKeys: [] }
+    : {
+      ingredients: ingredients.map((ingredient) => ({
+        ...ingredient,
+        replacementLabels: [],
+      })),
+      appliedKeys: [],
+    }
   const stepsToShow = showPaleo ? [...steps, recipePaleoNo.stepNote] : steps
 
   return (
@@ -512,7 +518,14 @@ export default function RecipeDetailPage() {
                     <span className="font-medium text-neutral-900 whitespace-nowrap min-w-[4rem]">
                       {ing.amount}
                     </span>
-                    <span>{ing.item}</span>
+                    <span className={showPaleo && ing.replacementLabels.length > 0 ? 'text-emerald-950' : 'text-neutral-700'}>
+                      {ing.item}
+                      {showPaleo && ing.replacementLabels.length > 0 && (
+                        <span className="ml-1 text-emerald-700 font-medium">
+                          ({ing.replacementLabels.join(', ')})
+                        </span>
+                      )}
+                    </span>
                   </li>
                 ))}
               </ul>
