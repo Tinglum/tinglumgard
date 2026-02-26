@@ -1,42 +1,44 @@
 export const mangalitsaStory = {
   no: {
     whyExpensive: {
-      title: 'Hvorfor er Mangalitsa dyrere enn vanlig gris?',
+      title: 'Hva gjør Mangalitsa så unik?',
+      subtitle:
+        'Mangalitsa er en sjelden arverase verdsatt av kokker for marmorering, fettkvalitet og dyp, vedvarende smak.',
       reasons: [
         {
-          title: 'Begrenset',
-          body: 'Kun 4 bokser per gris, og slaktes én gang i året. Når det er tomt, er det tomt.',
+          title: 'Arverase',
+          body: 'Mangalitsa er en ungarsk arverase med tydelig identitet i kjøttet: mørkere farge, mer struktur og mer personlighet på tallerkenen.',
         },
         {
-          title: 'Lang oppvekst',
-          body: 'Mangalitsa vokser saktere. Mer tid gir mer kostnad, men bygger smak og marmorering.',
-        },
-        {
-          title: 'Dyrevelferd',
-          body: 'Mer plass, mer aktivitet og mer tid ute gir en bedre råvare, men høyere kostnad per dyr.',
-        },
-        {
-          title: 'Håndverk',
-          body: 'Hver boks skjæres, porsjoneres, vakuumpakkes og merkes for hånd. Det tar tid, og det gir kvalitet.',
+          title: 'Marmorering',
+          body: 'Fettet ligger inne i muskelen og gjør kjøttet saftig, silkemykt og fullt av smak i stedet for bare magert.',
         },
         {
           title: 'Fettkvalitet',
-          body: 'Ullgris har mer fettmarmorering enn vanlig gris. Det gir saftighet, dybde og en tekstur du faktisk husker.',
+          body: 'Den kremete fettkappen smelter lett under varme og gir både sprø stekeskorpe og saftig kjerne.',
         },
         {
-          title: 'Småskala',
-          body: 'Små volum gjør slakt, pakking og kjølekjede dyrere. Vi prioriterer kvalitet fremfor volum.',
+          title: 'Kokkefavoritt',
+          body: 'Mangalitsa brukes av håndverksslaktere og kokker når bacon, coppa og andre spekede produkter skal bli virkelig gode.',
+        },
+        {
+          title: 'Langsom modning',
+          body: 'Rasen vokser og modnes saktere, noe som gir mer utviklet smak og en fyldigere munnfølelse.',
+        },
+        {
+          title: 'Begrenset tilgang',
+          body: 'Små partier og få slakt i året gjør at hver levering føles som en sesongråvare, ikke en standardvare.',
         },
       ],
     },
     contrast: {
-      standard: 'Butikkgris er "magert og likt"',
-      mangalitsa: 'Ullgris er "marmorering, fettkappe, dybde"',
+      standard: 'Vanlig svin er ofte magert og forutsigbart.',
+      mangalitsa: 'Mangalitsa er marmorering, fettkappe og tydelig karakter.',
     },
     threeRules: [
-      'Kun 4 bokser per gris',
-      'Slaktes én gang i året',
-      'Ribbe til jul, og kjøtt du faktisk husker',
+      'Arverase med naturlig marmorering',
+      'Fett som smelter og bærer smak',
+      'Skapt for både steking og speking',
     ],
     labels: {
       standard: 'Standard',
@@ -45,42 +47,44 @@ export const mangalitsaStory = {
   },
   en: {
     whyExpensive: {
-      title: 'Why is Mangalitsa more expensive than normal pigs?',
+      title: 'What makes Mangalitsa truly premium?',
+      subtitle:
+        'A rare heritage breed prized by chefs for marbling, fat quality, and deep, lasting flavor.',
       reasons: [
         {
-          title: 'Limited',
-          body: 'Only 4 boxes per pig, slaughtered once a year. When it\'s gone, it\'s gone.',
+          title: 'Heritage breed',
+          body: 'Mangalitsa is a Hungarian heritage breed with a distinct identity in the meat: deeper color, richer structure, and more personality on the plate.',
         },
         {
-          title: 'Slow-grown',
-          body: 'Mangalitsa grows more slowly. More time costs more, but builds flavor and marbling.',
-        },
-        {
-          title: 'Animal welfare',
-          body: 'More space, more outdoor time, and better feed cost more per animal.',
-        },
-        {
-          title: 'Handcrafted',
-          body: 'Each box is cut, portioned, vacuum packed, and labeled by hand. It takes time and shows in quality.',
+          title: 'Marbling',
+          body: 'The fat is inside the muscle, giving juicy texture and layered flavor instead of lean uniformity.',
         },
         {
           title: 'Fat quality',
-          body: 'Woolly pig has deeper marbling and a richer fat profile than standard pork.',
+          body: 'Its creamy fat cap melts quickly under heat, creating both a crisp surface and a succulent center.',
         },
         {
-          title: 'Small batch',
-          body: 'Small volumes mean higher slaughter, packing and cold-chain costs. We choose quality over scale.',
+          title: 'Chef favorite',
+          body: 'Chefs and artisan butchers choose Mangalitsa for bacon, coppa, and cured cuts where fat quality defines the final result.',
+        },
+        {
+          title: 'Slow maturity',
+          body: 'The breed matures slowly, building deeper flavor and a fuller mouthfeel over time.',
+        },
+        {
+          title: 'Limited availability',
+          body: 'Small batches and few annual slaughters make each delivery feel seasonal rather than industrial.',
         },
       ],
     },
     contrast: {
-      standard: 'Store pork is "lean and similar"',
-      mangalitsa: 'Woolly pig is "marbling, fat cap, depth"',
+      standard: 'Standard pork is often lean and predictable.',
+      mangalitsa: 'Mangalitsa is marbling, fat cap, and unmistakable depth.',
     },
     threeRules: [
-      'Only 4 boxes per pig',
-      'Slaughtered once a year',
-      'Ribs for Christmas, and meat you actually remember',
+      'Heritage breed with natural marbling',
+      'Fat that melts and carries flavor',
+      'Built for both roasting and curing',
     ],
     labels: {
       standard: 'Standard',

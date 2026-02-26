@@ -11,11 +11,16 @@ export function MangalitsaPremiumStory() {
   return (
     <section className="py-20 bg-[#F7F5F2]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Why expensive */}
+        {/* Premium positioning */}
         <div className="text-center mb-12">
           <h2 className="text-3xl sm:text-4xl font-light tracking-tight text-neutral-900 font-[family:var(--font-playfair)]">
             {story.whyExpensive.title}
           </h2>
+          {story.whyExpensive.subtitle && (
+            <p className="max-w-3xl mx-auto mt-4 text-base sm:text-lg font-light text-neutral-600 leading-relaxed">
+              {story.whyExpensive.subtitle}
+            </p>
+          )}
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
