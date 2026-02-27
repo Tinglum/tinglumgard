@@ -143,15 +143,21 @@ export default function CheckoutPage() {
     const extraCutId = String(extra.cut_id || '').trim();
     const extraCutSlug = fixMojibake(String(extra.cut_slug || '')).trim().toLowerCase();
     const extraPartKey = fixMojibake(String(extra.part_key || '')).trim().toLowerCase();
+    const extraHasConcreteCut = Boolean(extraCutId || extraCutSlug);
 
     return contents.some((content) => {
       const contentCutId = String(content.cut_id || '').trim();
       const contentCutSlug = fixMojibake(String(content.cut_slug || '')).trim().toLowerCase();
       const contentPartKey = fixMojibake(String(content.part_key || '')).trim().toLowerCase();
+      const contentHasConcreteCut = Boolean(contentCutId || contentCutSlug);
 
       if (extraCutId && contentCutId && extraCutId === contentCutId) return true;
       if (extraCutSlug && contentCutSlug && extraCutSlug === contentCutSlug) return true;
-      if (extraPartKey && contentPartKey && extraPartKey === contentPartKey) return true;
+      // Part-key matching is a coarse fallback and should only run when neither side has
+      // canonical cut identifiers; otherwise extras like "Ekstra ribbe" get treated as in-box.
+      if (!extraHasConcreteCut && !contentHasConcreteCut && extraPartKey && contentPartKey && extraPartKey === contentPartKey) {
+        return true;
+      }
       return false;
     });
   }, []);
