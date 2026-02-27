@@ -44,6 +44,23 @@ interface MangalitsaPreset {
   }>;
 }
 
+function formatTodayTimelineDate(locale: string): string {
+  const now = new Date();
+  const month = new Intl.DateTimeFormat(locale, {
+    month: 'short',
+    timeZone: 'Europe/Oslo',
+  })
+    .format(now)
+    .replace('.', '')
+    .toLocaleUpperCase(locale);
+  const day = new Intl.DateTimeFormat(locale, {
+    day: 'numeric',
+    timeZone: 'Europe/Oslo',
+  }).format(now);
+
+  return `${month} ${day}`;
+}
+
 // Meta Label Component
 function MetaLabel({ children }: { children: React.ReactNode }) {
   return (
@@ -391,8 +408,13 @@ export default function Page() {
   const minPrice = minPresetPrice;
   const minDeposit = minPresetPrice ? Math.floor(minPresetPrice * 0.5) : null;
   const locale = lang === 'no' ? 'nb-NO' : 'en-US';
+  const [todayTimelineDate, setTodayTimelineDate] = useState(() => formatTodayTimelineDate(locale));
   const pageCopy = (t as any).homepage;
   const sortedPresets = [...presets].sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
+
+  useEffect(() => {
+    setTodayTimelineDate(formatTodayTimelineDate(locale));
+  }, [locale]);
 
   async function handleWaitlistSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -893,7 +915,7 @@ export default function Page() {
 
             <div className="space-y-12">
               <TimelineStep
-                date={pageCopy.timelineDate1}
+                date={todayTimelineDate}
                 title={t.timeline.step1Title}
                 description={t.timeline.step1Desc}
                 time={t.timeline.step1Time}
