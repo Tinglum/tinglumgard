@@ -15,6 +15,7 @@ import { useOppdelingsplanData } from '@/hooks/useOppdelingsplanData';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import type { CutBoxOption, CutOverview, CutRecipeSuggestion, PartKey, PendingAddAction } from '@/lib/oppdelingsplan/types';
+import { getDefaultExtraQuantity, getExtraStep, getFixedExtraQuantity } from '@/lib/extras/fixedQuantities';
 
 const PART_BY_POLYGON_ID: Record<number, PartKey> = {
   3: 'nakke',
@@ -632,17 +633,18 @@ export default function OppdelingsplanPage() {
     const existing = existingExtras.find((item: any) => item?.slug === extraSlug);
 
     const extraCatalogItem = extras.find((extra) => extra.slug === extraSlug) as any;
-    const step = extraCatalogItem?.pricing_type === 'per_kg' ? 0.5 : 1;
-    const defaultQty = Number(extraCatalogItem?.default_quantity) > 0 ? Number(extraCatalogItem.default_quantity) : step;
+    const fixedQty = getFixedExtraQuantity(extraCatalogItem || { slug: extraSlug });
+    const step = getExtraStep(extraCatalogItem?.pricing_type || null);
+    const defaultQty = getDefaultExtraQuantity(extraCatalogItem || { slug: extraSlug, pricing_type: extraCatalogItem?.pricing_type || null });
     const nextQty = existing?.quantity
-      ? Math.round((Number(existing.quantity) + step) * 10) / 10
+      ? (fixedQty ?? Math.round((Number(existing.quantity) + step) * 10) / 10)
       : defaultQty;
 
     const merged: Array<{ slug: string; quantity: number }> = existingExtras
       .filter((item: any) => item?.slug)
       .map((item: any) => ({
         slug: String(item.slug),
-        quantity: Number(item.quantity) > 0 ? Number(item.quantity) : 1,
+        quantity: Number(item.quantity) > 0 ? Number(item.quantity) : getDefaultExtraQuantity({ slug: String(item.slug) }),
       }));
 
     const mergedIndex = merged.findIndex((item) => item.slug === extraSlug);

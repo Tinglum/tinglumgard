@@ -5,6 +5,7 @@ import { sendEmail } from '@/lib/email/client';
 import { getOrderConfirmationTemplate } from '@/lib/email/templates';
 import { getPricingConfig } from '@/lib/config/pricing';
 import { logError } from '@/lib/logger';
+import { getFixedExtraQuantityForSlug } from '@/lib/extras/fixedQuantities';
 
 interface ExtraProduct {
   slug: string;
@@ -117,6 +118,18 @@ export async function POST(request: NextRequest) {
     const body: CheckoutRequest = await request.json();
     const { mangalitsaPresetId, ribbeChoice, extraProducts, deliveryType, freshDelivery, notes, customerName, customerEmail, customerPhone, referralCode, referralDiscount, referredByPhone, rebateCode, rebateDiscount } = body;
 
+    const normalizedExtraProducts: ExtraProduct[] = Array.isArray(extraProducts)
+      ? extraProducts
+          .map((extra) => {
+            const slug = String(extra?.slug || '').trim();
+            const fixedQuantity = getFixedExtraQuantityForSlug(slug);
+            const parsedQuantity = Number(extra?.quantity);
+            const quantity = fixedQuantity ?? parsedQuantity;
+            return { slug, quantity };
+          })
+          .filter((extra) => extra.slug && Number.isFinite(extra.quantity) && extra.quantity > 0)
+      : [];
+
     if (!mangalitsaPresetId) {
       return NextResponse.json({ error: 'Mangalitsa preset is required' }, { status: 400 });
     }
@@ -164,12 +177,12 @@ export async function POST(request: NextRequest) {
     const extraProductsData: any[] = [];
     const cutRangesById = new Map<string, { size_from_kg: number | null; size_to_kg: number | null }>();
 
-    if (extraProducts && extraProducts.length > 0) {
+    if (normalizedExtraProducts.length > 0) {
       // Fetch extras from database
       const { data: extras, error: extrasError } = await supabaseAdmin
         .from('extras_catalog')
         .select('*')
-        .in('slug', extraProducts.map(e => e.slug));
+        .in('slug', normalizedExtraProducts.map((e) => e.slug));
 
       if (!extrasError && extras) {
         const cutIds = Array.from(new Set(extras.map((row: any) => row.cut_id).filter(Boolean)));
@@ -191,7 +204,7 @@ export async function POST(request: NextRequest) {
           }
         }
 
-        for (const extra of extraProducts) {
+        for (const extra of normalizedExtraProducts) {
           const catalogItem = extras.find(e => e.slug === extra.slug);
           if (catalogItem) {
             const cutRange = catalogItem.cut_id ? cutRangesById.get(catalogItem.cut_id) : null;

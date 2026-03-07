@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Check, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { getDefaultExtraQuantity, getExtraStep, getFixedExtraQuantity } from '@/lib/extras/fixedQuantities';
 
 interface Extra {
   slug: string;
@@ -18,6 +19,7 @@ interface Extra {
   price_nok: number;
   pricing_type: 'per_unit' | 'per_kg';
   default_quantity?: number | null;
+  fixed_quantity?: number | null;
   stock_quantity?: number | null;
   active: boolean;
 }
@@ -57,12 +59,7 @@ export function ExtraProductsSelector({
   };
 
   function getDefaultQuantity(extra: Extra): number {
-    const fallback = extra.pricing_type === 'per_kg' ? 0.5 : 1;
-    const parsed = Number(extra.default_quantity);
-    if (Number.isFinite(parsed) && parsed > 0) {
-      return parsed;
-    }
-    return fallback;
+    return getDefaultExtraQuantity(extra);
   }
 
   function normalizeDashes(value?: string | null) {
@@ -103,9 +100,13 @@ export function ExtraProductsSelector({
 
       <div className="grid md:grid-cols-2 gap-6">
         {availableExtras.map((extra) => {
+          const fixedQuantity = getFixedExtraQuantity(extra);
           const quantityRaw = selectedQuantities[extra.slug];
-          const quantity = Number.isFinite(Number(quantityRaw)) ? Number(quantityRaw) : 0;
-          const isSelected = quantity > 0;
+          const selectedQuantity = Number.isFinite(Number(quantityRaw)) ? Number(quantityRaw) : 0;
+          const isSelected = selectedQuantity > 0;
+          const quantity = isSelected && fixedQuantity !== null ? fixedQuantity : selectedQuantity;
+          const step = getExtraStep(extra.pricing_type);
+          const isFixedQuantity = fixedQuantity !== null;
           const nameRaw = lang === 'en' && extra.name_en ? extra.name_en : extra.name_no;
           const descriptionRaw = lang === 'en' && extra.description_en ? extra.description_en : extra.description_no;
           const name = normalizeDashes(nameRaw);
@@ -241,61 +242,62 @@ export function ExtraProductsSelector({
                       {copy.quantity}
                     </label>
 
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        if (extra.pricing_type === 'per_kg') {
-                          const nextQty = Number(Math.max(0, quantity - 0.5).toFixed(1));
-                          onQuantityChange(extra.slug, nextQty);
-                        } else {
-                          const newQty = quantity - 1;
-                          onQuantityChange(extra.slug, newQty);
-                        }
-                      }}
-                      disabled={disabled}
-                      className="h-10 w-10 p-0 font-bold text-lg"
-                    >
-                      -
-                    </Button>
-
-                    <Input
-                      type="number"
-                      min={extra.pricing_type === 'per_kg' ? '0.1' : '1'}
-                      step={extra.pricing_type === 'per_kg' ? '0.1' : '1'}
-                      value={quantity}
-                      onChange={(event) => {
-                        const value = parseFloat(event.target.value);
-                        if (!isNaN(value) && value > 0) {
-                          onQuantityChange(extra.slug, value);
-                        }
-                      }}
-                      disabled={disabled}
-                      className={cn(
-                        'w-20 text-center font-bold text-lg border-2 border-amber-300 focus:border-amber-500',
+                    {isFixedQuantity ? (
+                      <span className={cn(
+                        'inline-flex min-h-[40px] items-center rounded-xl border-2 border-amber-300 px-3 text-sm font-bold',
                         theme?.textPrimary ? theme.textPrimary : 'text-gray-900'
-                      )}
-                    />
+                      )}>
+                        {fixedQuantity}
+                      </span>
+                    ) : (
+                      <>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            const nextQty = Number(Math.max(0, quantity - step).toFixed(1));
+                            onQuantityChange(extra.slug, nextQty);
+                          }}
+                          disabled={disabled}
+                          className="h-10 w-10 p-0 font-bold text-lg"
+                        >
+                          -
+                        </Button>
 
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        if (extra.pricing_type === 'per_kg') {
-                          const nextQty = Number((quantity + 0.5).toFixed(1));
-                          onQuantityChange(extra.slug, nextQty);
-                        } else {
-                          const newQty = quantity + 1;
-                          onQuantityChange(extra.slug, newQty);
-                        }
-                      }}
-                      disabled={disabled}
-                      className="h-10 w-10 p-0 font-bold text-lg"
-                    >
-                      +
-                    </Button>
+                        <Input
+                          type="number"
+                          min={extra.pricing_type === 'per_kg' ? '0.1' : '1'}
+                          step={extra.pricing_type === 'per_kg' ? '0.1' : '1'}
+                          value={quantity}
+                          onChange={(event) => {
+                            const value = parseFloat(event.target.value);
+                            if (!isNaN(value) && value > 0) {
+                              onQuantityChange(extra.slug, value);
+                            }
+                          }}
+                          disabled={disabled}
+                          className={cn(
+                            'w-20 text-center font-bold text-lg border-2 border-amber-300 focus:border-amber-500',
+                            theme?.textPrimary ? theme.textPrimary : 'text-gray-900'
+                          )}
+                        />
+
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            const nextQty = Number((quantity + step).toFixed(1));
+                            onQuantityChange(extra.slug, nextQty);
+                          }}
+                          disabled={disabled}
+                          className="h-10 w-10 p-0 font-bold text-lg"
+                        >
+                          +
+                        </Button>
+                      </>
+                    )}
 
                     <span className={cn(
                       'text-sm font-medium',

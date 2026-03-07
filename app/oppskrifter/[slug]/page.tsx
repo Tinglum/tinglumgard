@@ -9,6 +9,7 @@ import { applyPaleoIngredients } from '@/lib/recipes/paleo'
 import { recipePaleoNo } from '@/content/recipePaleoCopy'
 import { useAuth } from '@/contexts/AuthContext'
 import { useToast } from '@/hooks/use-toast'
+import { getDefaultExtraQuantity, getExtraStep, getFixedExtraQuantity } from '@/lib/extras/fixedQuantities'
 import {
   Dialog,
   DialogContent,
@@ -240,19 +241,19 @@ export default function RecipeDetailPage() {
         .filter((item) => item?.slug)
         .map((item) => ({
           slug: String(item.slug),
-          quantity: Number(item.quantity) > 0 ? Number(item.quantity) : 1,
+          quantity: Number(item.quantity) > 0 ? Number(item.quantity) : getDefaultExtraQuantity({ slug: String(item.slug) }),
         }))
 
       for (const extraSlug of resolvedExtraSlugs) {
-        const catalogExtra = extrasCatalog.find((extra) => extra.slug === extraSlug)
-        const step = catalogExtra?.pricing_type === 'per_kg' ? 0.5 : 1
-        const defaultQty = Number(catalogExtra?.default_quantity) > 0
-          ? Number(catalogExtra?.default_quantity)
-          : step
+        const catalogExtra = extrasCatalog.find((extra) => extra.slug === extraSlug) as ExtraCatalogItem | undefined
+        const fixedQty = getFixedExtraQuantity(catalogExtra || { slug: extraSlug })
+        const pricingType = catalogExtra?.pricing_type || null
+        const step = getExtraStep(pricingType)
+        const defaultQty = getDefaultExtraQuantity(catalogExtra || { slug: extraSlug, pricing_type: pricingType })
         const idx = merged.findIndex((item) => item.slug === extraSlug)
 
         if (idx >= 0) {
-          const nextQty = Math.round((merged[idx].quantity + step) * 10) / 10
+          const nextQty = fixedQty ?? Math.round((merged[idx].quantity + step) * 10) / 10
           merged[idx] = { ...merged[idx], quantity: nextQty }
         } else {
           merged.push({ slug: extraSlug, quantity: defaultQty })

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth/session';
 import { supabaseAdmin } from '@/lib/supabase/server';
+import { getFixedExtraQuantityForSlug } from '@/lib/extras/fixedQuantities';
 
 interface ExtraProduct {
   slug: string;
@@ -93,10 +94,15 @@ export async function POST(
       return NextResponse.json({ error: 'Invalid extras data' }, { status: 400 });
     }
 
-    const normalizedExtras: ExtraProduct[] = extras.map((extra) => ({
-      slug: String(extra.slug || '').trim(),
-      quantity: Number(extra.quantity),
-    }));
+    const normalizedExtras: ExtraProduct[] = extras.map((extra) => {
+      const slug = String(extra.slug || '').trim();
+      const fixedQuantity = getFixedExtraQuantityForSlug(slug);
+      const parsedQuantity = Number(extra.quantity);
+      return {
+        slug,
+        quantity: fixedQuantity ?? parsedQuantity,
+      };
+    });
 
     const hasInvalidExtras = normalizedExtras.some(
       (extra) => !extra.slug || !Number.isFinite(extra.quantity) || extra.quantity <= 0

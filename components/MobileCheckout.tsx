@@ -11,6 +11,12 @@ import { ExtraProductDetails } from '@/components/ExtraProductDetails';
 import { RecipeQuickViewModal } from '@/components/RecipeQuickViewModal';
 import { ReferralCodeInput } from '@/components/ReferralCodeInput';
 import { RebateCodeInput } from '@/components/RebateCodeInput';
+import {
+  getDefaultExtraQuantity,
+  getExtraStep,
+  getFixedExtraQuantity,
+  normalizeExtraQuantity,
+} from '@/lib/extras/fixedQuantities';
 
 interface MobileCheckoutProps {
   step: number;
@@ -194,7 +200,7 @@ export function MobileCheckout(props: MobileCheckoutProps) {
     if (!extra) return total;
     const quantity = extraQuantities[slug] !== undefined
       ? extraQuantities[slug]
-      : (extra.default_quantity || (extra.pricing_type === 'per_kg' ? 0.5 : 1));
+      : getDefaultExtraQuantity(extra);
     return total + (extra.price_nok * quantity);
   }, 0);
   const getExtraName = (extra: any) => fixMojibake(lang === 'en' && extra.name_en ? extra.name_en : extra.name_no);
@@ -290,13 +296,15 @@ export function MobileCheckout(props: MobileCheckoutProps) {
     const isSelected = extraProducts.includes(extra.slug);
     const quantity = extraQuantities[extra.slug] !== undefined
       ? extraQuantities[extra.slug]
-      : (extra.default_quantity || (extra.pricing_type === 'per_kg' ? 0.5 : 1));
-    const stepValue = extra.pricing_type === 'per_kg' ? 0.5 : 1;
+      : getDefaultExtraQuantity(extra);
+    const fixedQuantity = getFixedExtraQuantity(extra);
+    const isFixedQuantity = fixedQuantity !== null;
+    const stepValue = getExtraStep(extra.pricing_type);
     const unitLabel = extra.pricing_type === 'per_kg' ? t.common.kg : t.common.stk;
     const formattedQty = extra.pricing_type === 'per_kg'
       ? quantity.toLocaleString(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 })
       : quantity.toLocaleString(locale);
-    const defaultQty = extra.default_quantity || (extra.pricing_type === 'per_kg' ? 0.5 : 1);
+    const defaultQty = getDefaultExtraQuantity(extra);
 
     const recipeTags = recipeTagsForExtra(extra);
     const rawName = getExtraName(extra);
@@ -426,44 +434,52 @@ export function MobileCheckout(props: MobileCheckoutProps) {
             </button>
           ) : (
             <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  const newQty = Math.round((quantity - stepValue) * 10) / 10;
-                  if (newQty <= 0) {
-                    setExtraProducts(extraProducts.filter((slug) => slug !== extra.slug));
-                    const next = { ...extraQuantities };
-                    delete next[extra.slug];
-                    setExtraQuantities(next);
-                    return;
-                  }
-                  setExtraQuantities({
-                    ...extraQuantities,
-                    [extra.slug]: newQty,
-                  });
-                }}
-                className="h-9 w-9 rounded-full border border-[#D7CEC1] bg-white text-[#1E1B16] flex items-center justify-center"
-                aria-label={`${t.common.remove} ${stepValue} ${unitLabel}`}
-              >
-                <Minus className="h-4 w-4" />
-              </button>
-              <div className="text-[11px] font-semibold text-[#1E1B16] tabular-nums">
-                {formattedQty} {unitLabel}
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  const newQty = Math.round((quantity + stepValue) * 10) / 10;
-                  setExtraQuantities({
-                    ...extraQuantities,
-                    [extra.slug]: newQty,
-                  });
-                }}
-                className="h-9 w-9 rounded-full border border-[#D7CEC1] bg-white text-[#1E1B16] flex items-center justify-center"
-                aria-label={`${t.common.add} ${stepValue} ${unitLabel}`}
-              >
-                <Plus className="h-4 w-4" />
-              </button>
+              {isFixedQuantity ? (
+                <div className="text-[11px] font-semibold text-[#1E1B16] tabular-nums">
+                  {fixedQuantity} {unitLabel}
+                </div>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const newQty = Math.round((quantity - stepValue) * 10) / 10;
+                      if (newQty <= 0) {
+                        setExtraProducts(extraProducts.filter((slug) => slug !== extra.slug));
+                        const next = { ...extraQuantities };
+                        delete next[extra.slug];
+                        setExtraQuantities(next);
+                        return;
+                      }
+                      setExtraQuantities({
+                        ...extraQuantities,
+                        [extra.slug]: newQty,
+                      });
+                    }}
+                    className="h-9 w-9 rounded-full border border-[#D7CEC1] bg-white text-[#1E1B16] flex items-center justify-center"
+                    aria-label={`${t.common.remove} ${stepValue} ${unitLabel}`}
+                  >
+                    <Minus className="h-4 w-4" />
+                  </button>
+                  <div className="text-[11px] font-semibold text-[#1E1B16] tabular-nums">
+                    {formattedQty} {unitLabel}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const newQty = Math.round((quantity + stepValue) * 10) / 10;
+                      setExtraQuantities({
+                        ...extraQuantities,
+                        [extra.slug]: newQty,
+                      });
+                    }}
+                    className="h-9 w-9 rounded-full border border-[#D7CEC1] bg-white text-[#1E1B16] flex items-center justify-center"
+                    aria-label={`${t.common.add} ${stepValue} ${unitLabel}`}
+                  >
+                    <Plus className="h-4 w-4" />
+                  </button>
+                </>
+              )}
             </div>
           )}
         </div>
@@ -846,8 +862,8 @@ export function MobileCheckout(props: MobileCheckoutProps) {
 
               {extraProducts.length > 0 && extraProducts.map(slug => {
                 const extra = availableExtras.find(e => e.slug === slug);
-                const quantity = extraQuantities[slug] || 1;
                 if (!extra) return null;
+                const quantity = extraQuantities[slug] || getDefaultExtraQuantity(extra);
                 const sizeRange = formatCutSizeRange(extra.cut_size_from_kg, extra.cut_size_to_kg);
                 return (
                   <div key={slug} className="mt-2 flex items-center justify-between text-xs text-[#5E5A50]">

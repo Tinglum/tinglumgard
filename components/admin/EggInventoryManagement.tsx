@@ -106,6 +106,7 @@ export function EggInventoryManagement() {
   const copy = t.eggInventoryManagement;
   const ei = (t as any).admin.eggInventory;
   const locale = lang === 'en' ? 'en-US' : 'nb-NO';
+  const saveFailedCopy = lang === 'en' ? 'Failed to save changes.' : 'Kunne ikke lagre endringer.';
 
   const [breeds, setBreeds] = useState<Breed[]>([]);
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
@@ -116,6 +117,7 @@ export function EggInventoryManagement() {
   const [editCapacity, setEditCapacity] = useState('');
   const [editStatus, setEditStatus] = useState('');
   const [savingEdit, setSavingEdit] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   // Collapsed months
   const [collapsedMonths, setCollapsedMonths] = useState<Set<string>>(new Set());
@@ -211,6 +213,7 @@ export function EggInventoryManagement() {
       setEditingItem(null);
       return;
     }
+    setSaveError(null);
     setEditingItem(item);
     setEditCapacity(String(item.eggs_available));
     setEditStatus(item.status);
@@ -220,6 +223,7 @@ export function EggInventoryManagement() {
     setEditingItem(null);
     setEditCapacity('');
     setEditStatus('');
+    setSaveError(null);
   }
 
   async function saveEditPanel() {
@@ -236,18 +240,27 @@ export function EggInventoryManagement() {
     }
 
     setSavingEdit(true);
+    setSaveError(null);
     try {
       const res = await fetch(`/api/admin/eggs/inventory/${editingItem.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updates),
       });
-      if (res.ok) await loadData();
+
+      if (!res.ok) {
+        const errorBody = await res.json().catch(() => null);
+        const message = errorBody?.error || saveFailedCopy;
+        throw new Error(message);
+      }
+
+      await loadData();
+      closeEditPanel();
     } catch (e) {
       console.error('Failed to save:', e);
+      setSaveError(e instanceof Error ? e.message : saveFailedCopy);
     } finally {
       setSavingEdit(false);
-      closeEditPanel();
     }
   }
 
@@ -856,6 +869,9 @@ export function EggInventoryManagement() {
                                         {savingEdit ? ei.buttonSaving : ei.buttonSave}
                                       </Button>
                                     </div>
+                                    {saveError && (
+                                      <p className="w-full text-xs text-red-600">{saveError}</p>
+                                    )}
                                   </div>
                                 </td>
                               </tr>

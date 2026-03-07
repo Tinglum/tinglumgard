@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
+const ALLOWED_STATUSES = new Set(['open', 'closed', 'locked', 'sold_out']);
 
 // Update inventory item
 export async function PATCH(
@@ -13,21 +14,28 @@ export async function PATCH(
     const { id } = params;
 
     const updateData: any = {};
-    if (body.eggs_available !== undefined) updateData.eggs_available = body.eggs_available;
-    if (body.status !== undefined) updateData.status = body.status;
-    if (body.delivery_monday !== undefined) updateData.delivery_monday = body.delivery_monday;
 
-    // Recalculate eggs_remaining if eggs_available changes
     if (body.eggs_available !== undefined) {
-      const { data: current } = await supabaseAdmin
-        .from('egg_inventory')
-        .select('eggs_allocated')
-        .eq('id', id)
-        .single();
-
-      if (current) {
-        updateData.eggs_remaining = body.eggs_available - current.eggs_allocated;
+      const parsedCapacity = Number(body.eggs_available);
+      if (!Number.isInteger(parsedCapacity) || parsedCapacity < 0) {
+        return NextResponse.json({ error: 'Invalid eggs_available value' }, { status: 400 });
       }
+      updateData.eggs_available = parsedCapacity;
+    }
+
+    if (body.status !== undefined) {
+      if (!ALLOWED_STATUSES.has(body.status)) {
+        return NextResponse.json({ error: 'Invalid status value' }, { status: 400 });
+      }
+      updateData.status = body.status;
+    }
+
+    if (body.delivery_monday !== undefined) {
+      updateData.delivery_monday = body.delivery_monday;
+    }
+
+    if (Object.keys(updateData).length === 0) {
+      return NextResponse.json({ error: 'No changes provided' }, { status: 400 });
     }
 
     const { data, error } = await supabaseAdmin

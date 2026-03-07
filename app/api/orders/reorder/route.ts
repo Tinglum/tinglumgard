@@ -3,6 +3,7 @@ import { getSession } from '@/lib/auth/session';
 import { supabaseAdmin } from '@/lib/supabase/server';
 import { randomBytes } from 'crypto';
 import { getPricingConfig } from '@/lib/config/pricing';
+import { getFixedExtraQuantityForSlug } from '@/lib/extras/fixedQuantities';
 
 function isMissingColumnError(error: any, columnName: string) {
   const message = String(error?.message || '').toLowerCase();
@@ -131,14 +132,20 @@ export async function POST(request: NextRequest) {
 
     // Copy extras if any
     if (originalOrder.order_extras && originalOrder.order_extras.length > 0) {
-      const extrasToInsertBase = originalOrder.order_extras.map((extra: any) => ({
-        order_id: newOrder.id,
-        extra_id: extra.extra_id,
-        price_nok: extra.price_nok ?? extra.unit_price ?? 0,
-        unit_type: extra.unit_type ?? 'unit',
-        quantity: extra.quantity,
-        total_price: extra.total_price,
-      }));
+      const extrasToInsertBase = originalOrder.order_extras.map((extra: any) => {
+        const fixedQuantity = getFixedExtraQuantityForSlug(extra?.extras_catalog?.slug || null);
+        const parsedQuantity = Number(extra.quantity);
+        const quantity = fixedQuantity ?? (Number.isFinite(parsedQuantity) && parsedQuantity > 0 ? parsedQuantity : 1);
+
+        return {
+          order_id: newOrder.id,
+          extra_id: extra.extra_id,
+          price_nok: extra.price_nok ?? extra.unit_price ?? 0,
+          unit_type: extra.unit_type ?? 'unit',
+          quantity,
+          total_price: Math.round((extra.price_nok ?? extra.unit_price ?? 0) * quantity),
+        };
+      });
 
       const extrasToInsertWithUnitPrice = extrasToInsertBase.map((extra: any) => ({
         ...extra,

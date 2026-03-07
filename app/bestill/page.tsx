@@ -19,6 +19,12 @@ import { ExtraProductDetails } from '@/components/ExtraProductDetails';
 import { ExtraProductModal } from '@/components/ExtraProductModal';
 import { RecipeQuickViewModal } from '@/components/RecipeQuickViewModal';
 import { useToast } from '@/hooks/use-toast';
+import {
+  getDefaultExtraQuantity,
+  getExtraStep,
+  getFixedExtraQuantity,
+  normalizeExtraQuantity,
+} from '@/lib/extras/fixedQuantities';
 
 interface MangalitsaPreset {
   id: string;
@@ -52,6 +58,7 @@ type ExtraProductLike = {
   cut_slug?: string | null;
   part_key?: string | null;
   default_quantity?: number | null;
+  fixed_quantity?: number | null;
   pricing_type?: 'per_kg' | 'fixed' | string | null;
 };
 
@@ -191,7 +198,7 @@ export default function CheckoutPage() {
     return extraProducts.reduce((total, slug) => {
       const extra = availableExtras.find((candidate) => candidate.slug === slug);
       if (!extra) return total;
-      const quantity = extraQuantities[slug] || extra.default_quantity || (extra.pricing_type === 'per_kg' ? 0.5 : 1);
+      const quantity = extraQuantities[slug] || getDefaultExtraQuantity(extra);
       return total + (extra.price_nok * quantity);
     }, 0);
   }, [availableExtras, extraProducts, extraQuantities]);
@@ -444,7 +451,7 @@ export default function CheckoutPage() {
       extrasToPrefill.forEach((slug) => {
         if (!next[slug]) {
           const extra = availableExtras.find((candidate) => candidate.slug === slug);
-          next[slug] = extra?.default_quantity || (extra?.pricing_type === 'per_kg' ? 0.5 : 1);
+          next[slug] = getDefaultExtraQuantity(extra || { slug });
         }
       });
       return next;
@@ -545,8 +552,9 @@ export default function CheckoutPage() {
   }
 
   function getExtraQuantity(extra: any): number {
-    const defaultQty = extra.default_quantity || (extra.pricing_type === 'per_kg' ? 0.5 : 1);
-    return extraQuantities[extra.slug] || defaultQty;
+    const quantity = extraQuantities[extra.slug];
+    if (Number.isFinite(quantity) && quantity > 0) return quantity;
+    return getDefaultExtraQuantity(extra);
   }
 
   function toggleExtraSelection(extra: any) {
@@ -558,7 +566,7 @@ export default function CheckoutPage() {
     );
 
     if (!isSelected && !extraQuantities[extra.slug]) {
-      const defaultQty = extra.default_quantity || (extra.pricing_type === 'per_kg' ? 0.5 : 1);
+      const defaultQty = getDefaultExtraQuantity(extra);
       setExtraQuantities((previous) => ({
         ...previous,
         [extra.slug]: defaultQty,
@@ -569,7 +577,9 @@ export default function CheckoutPage() {
   function renderExtraCard(extra: any, emphasized = false) {
     const isSelected = extraProducts.includes(extra.slug);
     const quantity = getExtraQuantity(extra);
-    const stepSize = extra.pricing_type === 'per_kg' ? 0.5 : 1;
+    const fixedQuantity = getFixedExtraQuantity(extra);
+    const isFixedQuantity = fixedQuantity !== null;
+    const stepSize = getExtraStep(extra.pricing_type);
     const unitLabel = extra.pricing_type === 'per_kg' ? t.common.kg : t.common.stk;
 
     const rawName = fixMojibake(lang === 'no' ? extra.name_no : (extra.name_en || extra.name_no));
@@ -700,67 +710,78 @@ export default function CheckoutPage() {
           {isSelected && (
             <div className="mt-4 flex justify-end">
               <div className="flex items-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => {
-                    const newQty = Math.round((quantity - stepSize) * 10) / 10;
-                    if (newQty <= 0) {
-                      setExtraProducts((previous) => previous.filter((item) => item !== extra.slug));
-                      setExtraQuantities((previous) => {
-                        const next = { ...previous };
-                        delete next[extra.slug];
-                        return next;
-                      });
-                      return;
-                    }
+                {isFixedQuantity ? (
+                  <div className="inline-flex items-center gap-2 rounded-xl border border-neutral-200 bg-white px-3 py-2 tabular-nums">
+                    <span className="font-semibold text-neutral-900">{fixedQuantity}</span>
+                    <span className="text-[10px] uppercase tracking-wide text-neutral-500">
+                      {unitLabel}
+                    </span>
+                  </div>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const newQty = Math.round((quantity - stepSize) * 10) / 10;
+                        if (newQty <= 0) {
+                          setExtraProducts((previous) => previous.filter((item) => item !== extra.slug));
+                          setExtraQuantities((previous) => {
+                            const next = { ...previous };
+                            delete next[extra.slug];
+                            return next;
+                          });
+                          return;
+                        }
 
-                    setExtraQuantities((previous) => ({
-                      ...previous,
-                      [extra.slug]: newQty,
-                    }));
-                  }}
-                  className="h-9 w-9 rounded-full border border-neutral-200 bg-white text-neutral-700 flex items-center justify-center hover:bg-neutral-50 hover:border-neutral-300 transition-colors"
-                  aria-label={`${t.common.remove} ${stepSize} ${unitLabel}`}
-                >
-                  <Minus className="w-4 h-4" />
-                </button>
-
-                <div className="flex flex-col items-center">
-                  <Input
-                    type="number"
-                    min={extra.pricing_type === 'per_kg' ? '0.5' : '1'}
-                    step={String(stepSize)}
-                    value={quantity}
-                    onChange={(e) => {
-                      const value = parseFloat(e.target.value);
-                      if (!Number.isNaN(value) && value > 0) {
                         setExtraQuantities((previous) => ({
                           ...previous,
-                          [extra.slug]: value,
+                          [extra.slug]: newQty,
                         }));
-                      }
-                    }}
-                    className="w-16 text-center border border-neutral-200 rounded-xl px-2 py-2 tabular-nums"
-                  />
-                  <span className="mt-1 text-[10px] uppercase tracking-wide text-neutral-500">
-                    {unitLabel}
-                  </span>
-                </div>
+                      }}
+                      className="h-9 w-9 rounded-full border border-neutral-200 bg-white text-neutral-700 flex items-center justify-center hover:bg-neutral-50 hover:border-neutral-300 transition-colors"
+                      aria-label={`${t.common.remove} ${stepSize} ${unitLabel}`}
+                    >
+                      <Minus className="w-4 h-4" />
+                    </button>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    const newQty = Math.round((quantity + stepSize) * 10) / 10;
-                    setExtraQuantities((previous) => ({
-                      ...previous,
-                      [extra.slug]: newQty,
-                    }));
-                  }}
-                  className="h-9 w-9 rounded-full border border-neutral-200 bg-white text-neutral-700 flex items-center justify-center hover:bg-neutral-50 hover:border-neutral-300 transition-colors"
-                  aria-label={`${t.common.add} ${stepSize} ${unitLabel}`}
-                >
-                  <Plus className="w-4 h-4" />
-                </button>
+                    <div className="flex flex-col items-center">
+                      <Input
+                        type="number"
+                        min={extra.pricing_type === 'per_kg' ? '0.5' : '1'}
+                        step={String(stepSize)}
+                        value={quantity}
+                        onChange={(e) => {
+                          const value = parseFloat(e.target.value);
+                          if (!Number.isNaN(value) && value > 0) {
+                            setExtraQuantities((previous) => ({
+                              ...previous,
+                              [extra.slug]: value,
+                            }));
+                          }
+                        }}
+                        className="w-16 text-center border border-neutral-200 rounded-xl px-2 py-2 tabular-nums"
+                      />
+                      <span className="mt-1 text-[10px] uppercase tracking-wide text-neutral-500">
+                        {unitLabel}
+                      </span>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const newQty = Math.round((quantity + stepSize) * 10) / 10;
+                        setExtraQuantities((previous) => ({
+                          ...previous,
+                          [extra.slug]: newQty,
+                        }));
+                      }}
+                      className="h-9 w-9 rounded-full border border-neutral-200 bg-white text-neutral-700 flex items-center justify-center hover:bg-neutral-50 hover:border-neutral-300 transition-colors"
+                      aria-label={`${t.common.add} ${stepSize} ${unitLabel}`}
+                    >
+                      <Plus className="w-4 h-4" />
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           )}
@@ -781,10 +802,14 @@ export default function CheckoutPage() {
       }
 
       // Build extras array with quantities
-      const extrasWithQuantities = extraProducts.map(slug => ({
-        slug,
-        quantity: extraQuantities[slug] || 1
-      }));
+      const extrasWithQuantities = extraProducts
+        .map((slug) => {
+          const extra = availableExtras.find((candidate) => candidate.slug === slug);
+          const fallback = getDefaultExtraQuantity(extra || { slug });
+          const quantity = normalizeExtraQuantity(extra || { slug }, extraQuantities[slug] || fallback);
+          return { slug, quantity };
+        })
+        .filter((extra) => Number.isFinite(extra.quantity) && extra.quantity > 0);
 
       // Prepare order details for Vipps login
       if (!mangalitsaPreset) {
@@ -860,7 +885,7 @@ export default function CheckoutPage() {
   const extrasTotal = extraProducts.reduce((total, slug) => {
     const extra = availableExtras.find(e => e.slug === slug);
     if (!extra) return total;
-    const quantity = extraQuantities[slug] || extra.default_quantity || (extra.pricing_type === 'per_kg' ? 0.5 : 1);
+    const quantity = extraQuantities[slug] || getDefaultExtraQuantity(extra);
     return total + (extra.price_nok * quantity);
   }, 0);
 
@@ -1638,7 +1663,7 @@ export default function CheckoutPage() {
                   {extraProducts.length > 0 && extraProducts.map(slug => {
                     const extra = availableExtras.find(e => e.slug === slug);
                     if (!extra) return null;
-                    const quantity = extraQuantities[slug] || 1;
+                    const quantity = extraQuantities[slug] || getDefaultExtraQuantity(extra);
                     const itemTotal = extra.price_nok * quantity;
                     const sizeRange = formatCutSizeRange(extra.cut_size_from_kg, extra.cut_size_to_kg);
                     return (

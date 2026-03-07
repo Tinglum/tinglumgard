@@ -9,6 +9,7 @@ import { useAsyncAction } from '@/hooks/useAsyncAction';
 import { ExtraProductsSelector } from '@/components/ExtraProductsSelector';
 import { ShoppingCart, Check } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { getFixedExtraQuantity, normalizeExtraQuantity } from '@/lib/extras/fixedQuantities';
 
 interface OrderData {
   id: string;
@@ -35,6 +36,7 @@ interface ExtrasCatalogItem {
   price_nok: number;
   pricing_type: 'per_unit' | 'per_kg';
   default_quantity?: number | null;
+  fixed_quantity?: number | null;
   stock_quantity: number | null;
   active: boolean;
 }
@@ -169,7 +171,8 @@ export default function RemainderPaymentSummaryPage() {
     return Object.entries(selectedQuantities).reduce((sum, [slug, qty]) => {
       if (qty === 0) return sum;
       const extra = availableExtras.find(e => e.slug === slug);
-      return sum + (extra ? extra.price_nok * qty : 0);
+      const normalizedQty = normalizeExtraQuantity(extra || { slug }, qty);
+      return sum + (extra ? extra.price_nok * normalizedQty : 0);
     }, 0);
   }, [selectedQuantities, availableExtras]);
 
@@ -239,11 +242,14 @@ export default function RemainderPaymentSummaryPage() {
     // Different items or quantities?
     for (const [slug, qty] of selectedEntries) {
       const saved = savedExtras.find(e => e.slug === slug);
-      if (!saved || saved.quantity !== qty) return true;
+      const extra = availableExtras.find((item) => item.slug === slug);
+      const normalizedSelectedQty = normalizeExtraQuantity(extra || { slug }, qty);
+      const normalizedSavedQty = normalizeExtraQuantity(extra || { slug }, Number(saved?.quantity || 0));
+      if (!saved || normalizedSavedQty !== normalizedSelectedQty) return true;
     }
 
     return false;
-  }, [selectedQuantities, order]);
+  }, [selectedQuantities, order, availableExtras]);
 
   // Check if delivery has changed from saved state
   const hasDeliveryChanges = useMemo(() => {
@@ -253,6 +259,10 @@ export default function RemainderPaymentSummaryPage() {
 
   function handleQuantityChange(slug: string, quantity: number) {
     const normalizedQty = Number(quantity);
+    const catalogItem = availableExtras.find((extra) => extra.slug === slug);
+    const fixedQuantity = getFixedExtraQuantity(catalogItem || { slug });
+    const nextQuantity = fixedQuantity ?? normalizedQty;
+
     setSelectedQuantities(prev => {
       // If quantity is 0 or less, remove the item entirely (deselect)
       if (!Number.isFinite(normalizedQty) || normalizedQty <= 0) {
@@ -263,7 +273,7 @@ export default function RemainderPaymentSummaryPage() {
 
       return {
         ...prev,
-        [slug]: normalizedQty
+        [slug]: nextQuantity
       };
     });
   }
@@ -355,7 +365,13 @@ export default function RemainderPaymentSummaryPage() {
   function getSelectedExtras() {
     return Object.entries(selectedQuantities)
       .filter(([_, qty]) => qty > 0)
-      .map(([slug, quantity]) => ({ slug, quantity }));
+      .map(([slug, quantity]) => {
+        const extra = availableExtras.find((item) => item.slug === slug);
+        return {
+          slug,
+          quantity: normalizeExtraQuantity(extra || { slug }, quantity),
+        };
+      });
   }
 
   const [isPaying, executePayment] = useAsyncAction(

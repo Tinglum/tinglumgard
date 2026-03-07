@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/server';
 import { logError } from '@/lib/logger';
+import { getFixedExtraQuantityForSlug } from '@/lib/extras/fixedQuantities';
 
 export const dynamic = 'force-dynamic';
 
@@ -114,6 +115,7 @@ export async function GET() {
     }
 
     const normalizedExtras = extraRows.map((extra) => {
+      const fixedQuantity = getFixedExtraQuantityForSlug(extra.slug);
       const cut = extra.cut_id ? cutsById.get(extra.cut_id) || null : null;
       const part = cut?.part_id ? partsById.get(cut.part_id) || null : null;
       const fallbackPartKey = EXTRA_SLUG_TO_PART_KEY[String(extra.slug || '')] || null;
@@ -121,6 +123,8 @@ export async function GET() {
 
       return ({
       ...extra,
+      default_quantity: fixedQuantity ?? extra.default_quantity ?? null,
+      fixed_quantity: fixedQuantity,
       cut_id: extra.cut_id ?? null,
       cut_slug: cut?.slug ?? null,
       part_key: part?.key ?? fallbackPartKey ?? null,

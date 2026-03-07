@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 import { X, ShoppingCart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ExtraProductsSelector } from '@/components/ExtraProductsSelector';
+import { getFixedExtraQuantity, normalizeExtraQuantity } from '@/lib/extras/fixedQuantities';
 
 interface Extra {
   id: string;
@@ -19,6 +20,7 @@ interface Extra {
   pricing_type: 'per_unit' | 'per_kg';
   stock_quantity: number | null;
   default_quantity?: number | null;
+  fixed_quantity?: number | null;
   active: boolean;
 }
 
@@ -111,6 +113,10 @@ export function ExtrasUpsellModal({
       onClearError();
     }
     const normalizedQty = Number(quantity);
+    const extra = extras.find((item) => item.slug === slug);
+    const fixedQuantity = getFixedExtraQuantity(extra || { slug });
+    const nextQuantity = fixedQuantity ?? normalizedQty;
+
     setSelectedQuantities((prev) => {
       if (!Number.isFinite(normalizedQty) || normalizedQty <= 0) {
         const next = { ...prev };
@@ -120,7 +126,7 @@ export function ExtrasUpsellModal({
 
       return {
         ...prev,
-        [slug]: normalizedQty,
+        [slug]: nextQuantity,
       };
     });
   }
@@ -128,10 +134,14 @@ export function ExtrasUpsellModal({
   function handleConfirm(proceedToPayment = false) {
     const selectedExtras = Object.entries(selectedQuantities)
       .filter(([_, quantity]) => quantity > 0)
-      .map(([slug, quantity]) => ({ slug, quantity }));
+      .map(([slug, quantity]) => {
+        const extra = extras.find((item) => item.slug === slug);
+        return { slug, quantity: normalizeExtraQuantity(extra || { slug }, quantity) };
+      });
 
     const removedItems = currentExtras.filter((current) => {
-      const newQty = selectedQuantities[current.slug] || 0;
+      const extra = extras.find((item) => item.slug === current.slug);
+      const newQty = normalizeExtraQuantity(extra || { slug: current.slug }, selectedQuantities[current.slug] || 0);
       return newQty < current.quantity;
     });
 
@@ -159,7 +169,8 @@ export function ExtrasUpsellModal({
   function calculateTotal() {
     return extras.reduce((total, extra) => {
       const quantity = selectedQuantities[extra.slug] || 0;
-      return total + extra.price_nok * quantity;
+      const normalizedQty = normalizeExtraQuantity(extra, quantity);
+      return total + extra.price_nok * normalizedQty;
     }, 0);
   }
 
@@ -171,7 +182,8 @@ export function ExtrasUpsellModal({
     return currentExtras.reduce((total, extra) => {
       const catalogItem = extras.find((e) => e.slug === extra.slug);
       if (!catalogItem) return total;
-      return total + catalogItem.price_nok * extra.quantity;
+      const normalizedQty = normalizeExtraQuantity(catalogItem, extra.quantity);
+      return total + catalogItem.price_nok * normalizedQty;
     }, 0);
   }
 
@@ -202,13 +214,19 @@ export function ExtrasUpsellModal({
     }
 
     for (const [slug, qty] of selectedEntries) {
-      if (!initialBySlug.has(slug) || initialBySlug.get(slug) !== qty) {
+      const extra = extras.find((item) => item.slug === slug);
+      const normalizedSelectedQty = normalizeExtraQuantity(extra || { slug }, qty);
+      const normalizedInitialQty = normalizeExtraQuantity(
+        extra || { slug },
+        Number(initialBySlug.get(slug) || 0)
+      );
+      if (!initialBySlug.has(slug) || normalizedInitialQty !== normalizedSelectedQty) {
         return true;
       }
     }
 
     return false;
-  }, [initialQuantities, selectedQuantities]);
+  }, [initialQuantities, selectedQuantities, extras]);
 
   if (!isOpen) return null;
 
