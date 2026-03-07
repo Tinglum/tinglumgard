@@ -7,6 +7,7 @@ import { Breed, WeekInventory } from '@/lib/eggs/types'
 import { formatPrice, formatDate, clamp } from '@/lib/eggs/utils'
 import { GlassCard } from './GlassCard'
 import { X, Minus, Plus, Calendar, Info } from 'lucide-react'
+import { getSingleBreedMinimumEggs } from '@/lib/eggs/minimums'
 
 interface QuantitySelectorProps {
   breed: Breed
@@ -20,10 +21,13 @@ export function QuantitySelector({ breed, week, initialQuantity, onClose, onCont
   const { language, t } = useLanguage()
   const maxQuantity = Math.min(week.eggsAvailable, breed.maxOrderQuantity)
   const minQuantity = 1
-  const baseMinimum = breed.slug === 'ayam-cemani' ? 6 : 10
+  const baseMinimum = getSingleBreedMinimumEggs({
+    slug: breed.slug,
+    minOrderQuantity: breed.minOrderQuantity,
+  })
   const defaultQuantity = maxQuantity < baseMinimum
     ? maxQuantity
-    : Math.max(10, breed.minOrderQuantity)
+    : Math.max(baseMinimum, breed.minOrderQuantity)
   const [quantity, setQuantity] = useState(
     clamp(
       initialQuantity ?? defaultQuantity,

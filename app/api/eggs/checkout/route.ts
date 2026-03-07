@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase/server'
 import { logError } from '@/lib/logger'
+import { markWaitlistPurchase } from '@/lib/eggs/waitlist'
 
 interface EggCheckoutRequest {
   productType?: 'eggs'
@@ -211,6 +212,18 @@ export async function POST(request: NextRequest) {
 
       if (additionsError) {
         logError('egg-checkout-additions-insert', additionsError)
+      }
+    }
+
+    const customerEmail = (body.customerEmail || '').trim().toLowerCase()
+    if (customerEmail && customerEmail !== 'pending@vipps.no') {
+      const uniqueInventoryIds = Array.from(new Set(items.map((item) => item.inventoryId)))
+      for (const inventoryId of uniqueInventoryIds) {
+        await markWaitlistPurchase({
+          inventoryId,
+          email: customerEmail,
+          orderId: order.id,
+        })
       }
     }
 

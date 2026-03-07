@@ -558,6 +558,21 @@
       mixedWeeks: "Choose eggs from the same week for a single shipment.",
       onlyEggsLeftThisWeek: "Only {count} eggs left this week. We suggested {count} eggs.",
     },
+    waitlist: {
+      title: "Add to waitlist",
+      description: "There are too few eggs left to meet the minimum order of {min} eggs. Join the waitlist and we will email you when more eggs are released.",
+      emailLabel: "Email",
+      emailPlaceholder: "name@email.com",
+      nameLabel: "Name (optional)",
+      phoneLabel: "Phone (optional)",
+      addButton: "Add to waitlist",
+      successTitle: "You are on the waitlist",
+      successDescription: "We will email you when enough eggs are available to order.",
+      closeButton: "Done",
+      alreadyJoined: "You are already on the waitlist for this week.",
+      unavailableNow: "This week has enough eggs now. You can order directly.",
+      genericError: "Could not join waitlist. Please try again.",
+    },
     delivery: {
       title: "Shipment",
       subtitle: "Choose how the eggs will be shipped or picked up.",
@@ -646,6 +661,7 @@
       nextActionCancelled: "Your order has been cancelled.",
       nextActionForfeited: "Your order has been forfeited.",
       additionsSuffix: "+{count} additions",
+      quantityBreakdown: "Base {base} + additions {additions} = total {total} eggs",
       statusPending: "Pending",
       statusRemainderDue: "Remainder due",
       statusDepositPaid: "Deposit paid",
@@ -2355,6 +2371,7 @@
     markCollected: "Mark as collected",
     ordersCount: "{count} orders",
     kgTotal: "{count} kg total",
+    eggQuantityBreakdown: "{base} + {additions} additions = {total} eggs",
     collectedCount: "{count} collected",
     tipsTitle: "Tips for pickup and delivery",
     tips: [
@@ -3003,6 +3020,7 @@
       amount: "Amount",
       action: "Action",
       breedEggsValue: "{breed} | {quantity} eggs",
+      quantityBreakdownValue: "{base} + {additions} = {total} eggs",
       weekValue: "Week {week}/{year}",
       riskBadge: "Risk",
       shippingBadge: "Shipping data",
@@ -3014,6 +3032,7 @@
     panel: {
       fallbackTitle: "Egg order",
       summaryValue: "{breed} | {quantity} eggs | Week {week}/{year}",
+      quantityBreakdownValue: "{base} + {additions} = {total} eggs",
       closeButton: "Close",
       quickActionsTitle: "Quick actions",
       actions: {

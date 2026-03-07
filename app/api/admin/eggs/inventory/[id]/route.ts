@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/server';
+import { processEggWaitlistQueue, reactivatePausedWaitlistEntries } from '@/lib/eggs/waitlist';
 
 export const dynamic = 'force-dynamic';
 const ALLOWED_STATUSES = new Set(['open', 'closed', 'locked', 'sold_out']);
@@ -12,6 +13,16 @@ export async function PATCH(
   try {
     const body = await request.json();
     const { id } = params;
+
+    const { data: existing, error: existingError } = await supabaseAdmin
+      .from('egg_inventory')
+      .select('id, eggs_available, eggs_allocated, status')
+      .eq('id', id)
+      .single();
+
+    if (existingError || !existing) {
+      return NextResponse.json({ error: 'Inventory item not found' }, { status: 404 });
+    }
 
     const updateData: any = {};
 
@@ -46,6 +57,16 @@ export async function PATCH(
       .single();
 
     if (error) throw error;
+
+    const capacityIncreased =
+      body.eggs_available !== undefined && Number(data.eggs_available) > Number(existing.eggs_available);
+    const statusReopened =
+      body.status !== undefined && existing.status !== 'open' && data.status === 'open';
+
+    if (capacityIncreased || statusReopened) {
+      await reactivatePausedWaitlistEntries(id);
+      await processEggWaitlistQueue({ inventoryIds: [id] });
+    }
 
     return NextResponse.json(data);
   } catch (error: any) {

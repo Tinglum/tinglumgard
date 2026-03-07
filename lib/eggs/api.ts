@@ -1,5 +1,6 @@
 import type { Breed, WeekAvailability, WeekInventory } from './types'
 import { getWeekNumber } from './utils'
+import { getSingleBreedMinimumEggs } from './minimums'
 
 type EggBreedRow = {
   id: string
@@ -61,14 +62,14 @@ export function mapBreed(row: EggBreedRow): Breed {
 function resolveInventoryStatus(
   status: EggInventoryRow['status'],
   eggsAvailable: number,
-  minOrderQuantity: number
+  breed?: { slug?: string | null; minOrderQuantity?: number | null }
 ): WeekInventory['status'] {
   if (status === 'locked') return 'locked'
   if (status === 'closed') return 'closed'
   if (status === 'sold_out') return 'sold_out'
 
   if (eggsAvailable <= 0) return 'sold_out'
-  if (eggsAvailable < Math.max(minOrderQuantity, 10)) return 'low_stock'
+  if (eggsAvailable < getSingleBreedMinimumEggs(breed || {})) return 'low_stock'
   return 'available'
 }
 
@@ -81,8 +82,6 @@ export function mapInventory(row: EggInventoryRow, breed?: Breed): WeekInventory
     row.eggs_remaining !== undefined && row.eggs_remaining !== null
       ? row.eggs_remaining
       : row.eggs_available - row.eggs_allocated
-
-  const minOrderQuantity = breed?.minOrderQuantity || 0
 
   return {
     id: row.id,
@@ -100,7 +99,7 @@ export function mapInventory(row: EggInventoryRow, breed?: Breed): WeekInventory
     isOpen: row.status === 'open',
     isLocked: row.status === 'locked',
     e6PickupAvailable: true,
-    status: resolveInventoryStatus(row.status, eggsRemaining, minOrderQuantity),
+    status: resolveInventoryStatus(row.status, eggsRemaining, breed),
   }
 }
 

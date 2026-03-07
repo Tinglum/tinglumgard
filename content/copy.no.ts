@@ -559,6 +559,21 @@
       mixedWeeks: "Velg egg fra samme uke for en samlet forsendelse.",
       onlyEggsLeftThisWeek: "Kun {count} egg igjen denne uken. Vi har foreslått {count} egg.",
     },
+    waitlist: {
+      title: "Legg til venteliste",
+      description: "Det er for få egg igjen til minimumsbestilling på {min} egg. Legg deg på venteliste så sender vi e-post når flere egg slippes.",
+      emailLabel: "E-post",
+      emailPlaceholder: "navn@epost.no",
+      nameLabel: "Navn (valgfritt)",
+      phoneLabel: "Telefon (valgfritt)",
+      addButton: "Legg til venteliste",
+      successTitle: "Du står på ventelisten",
+      successDescription: "Vi sender e-post når det åpnes nok egg til bestilling.",
+      closeButton: "Ferdig",
+      alreadyJoined: "Du står allerede på ventelisten for denne uken.",
+      unavailableNow: "Denne uken har nok egg nå. Du kan bestille direkte.",
+      genericError: "Kunne ikke legge deg til på ventelisten. Prøv igjen.",
+    },
     delivery: {
       title: "Forsendelse",
       subtitle: "Velg hvordan rugeeggene skal sendes eller hentes.",
@@ -647,6 +662,7 @@
       nextActionCancelled: "Bestillingen er kansellert.",
       nextActionForfeited: "Bestillingen er forfalt.",
       additionsSuffix: "+{count} tillegg",
+      quantityBreakdown: "Grunnordre {base} + tillegg {additions} = totalt {total} egg",
       statusPending: "Venter",
       statusRemainderDue: "Restbetaling",
       statusDepositPaid: "Forskudd betalt",
@@ -2358,6 +2374,7 @@
     markCollected: "Merk som hentet",
     ordersCount: "{count} ordrer",
     kgTotal: "{count} kg totalt",
+    eggQuantityBreakdown: "{base} + {additions} tillegg = {total} egg",
     collectedCount: "{count} hentet",
     tipsTitle: "Tips for henting og levering",
     tips: [
@@ -3006,6 +3023,7 @@
       amount: "Beløp",
       action: "Handling",
       breedEggsValue: "{breed} | {quantity} egg",
+      quantityBreakdownValue: "{base} + {additions} = {total} egg",
       weekValue: "Uke {week}/{year}",
       riskBadge: "Risiko",
       shippingBadge: "Fraktdata",
@@ -3017,6 +3035,7 @@
     panel: {
       fallbackTitle: "Eggordre",
       summaryValue: "{breed} | {quantity} egg | Uke {week}/{year}",
+      quantityBreakdownValue: "{base} + {additions} = {total} egg",
       closeButton: "Lukk",
       quickActionsTitle: "Hurtighandlinger",
       actions: {
