@@ -61,6 +61,17 @@ const CUT_SLUG_TO_EXTRA_SLUG_OVERRIDES: Record<string, string> = {
   'labb': 'svinelabb',
 };
 
+const BACON_FAMILY_SLUGS = new Set([
+  'bacon',
+  'bacon-sideflesk',
+  'extra-pancetta',
+]);
+
+const LARD_FAMILY_SLUGS = new Set([
+  'kokkefett-smult',
+  'extra-smult',
+]);
+
 function normalizeTextForMatch(value: string): string {
   return value
     .toLowerCase()
@@ -77,6 +88,58 @@ function stripCutNameNoise(value: string): string {
     .replace(/,\s*\d+(\.\d+)?\s*\w+.*$/i, '')
     .replace(/\s+/g, ' ')
     .trim();
+}
+
+function normalizeSlugLikeValue(value: string | null | undefined): string {
+  return normalizeTextForMatch(String(value || '')).replace(/\s+/g, '-');
+}
+
+function resolveCanonicalCutFamily(params: {
+  cutSlug?: string | null;
+  extraSlug?: string | null;
+  name?: string | null;
+  partKey?: PartKey | null;
+}): string | null {
+  const slugCandidates = [
+    normalizeSlugLikeValue(params.cutSlug || null),
+    normalizeSlugLikeValue(params.extraSlug || null),
+  ].filter(Boolean);
+
+  if (slugCandidates.some((slug) => BACON_FAMILY_SLUGS.has(slug))) {
+    return 'ribbeside:bacon-sideflesk';
+  }
+
+  if (slugCandidates.some((slug) => LARD_FAMILY_SLUGS.has(slug))) {
+    return 'ribbeside:kokkefett-smult';
+  }
+
+  const normalizedName = normalizeTextForMatch(stripCutNameNoise(String(params.name || '')));
+  if (!normalizedName) return null;
+
+  const partKey = params.partKey || 'unknown';
+  const isRibbeside = partKey === 'ribbeside' || partKey === 'unknown';
+
+  if (isRibbeside) {
+    if (
+      normalizedName.includes('bacon') ||
+      normalizedName.includes('sideflesk') ||
+      normalizedName.includes('pancetta') ||
+      normalizedName.includes('buklist')
+    ) {
+      return 'ribbeside:bacon-sideflesk';
+    }
+
+    if (
+      normalizedName.includes('kokkefett') ||
+      normalizedName.includes('smult') ||
+      normalizedName.includes('cooking fat') ||
+      normalizedName.includes('lard')
+    ) {
+      return 'ribbeside:kokkefett-smult';
+    }
+  }
+
+  return null;
 }
 
 function formatSizeRange(
@@ -247,10 +310,17 @@ export default function OppdelingsplanPage() {
     const findExistingKey = (
       candidateCutId: string | null,
       candidateCutSlug: string | null,
+      candidateExtraSlug: string | null,
       candidateName: string,
       candidatePartKey: PartKey
     ): string | null => {
       const entries = Array.from(map.entries());
+      const canonicalFamily = resolveCanonicalCutFamily({
+        cutSlug: candidateCutSlug,
+        extraSlug: candidateExtraSlug,
+        name: candidateName,
+        partKey: candidatePartKey,
+      });
 
       if (candidateCutId) {
         for (const [entryKey, entry] of entries) {
@@ -261,6 +331,20 @@ export default function OppdelingsplanPage() {
       if (candidateCutSlug) {
         for (const [entryKey, entry] of entries) {
           if (entry.cut_slug && entry.cut_slug === candidateCutSlug) return entryKey;
+        }
+      }
+
+      if (canonicalFamily) {
+        for (const [entryKey, entry] of entries) {
+          const entryCanonicalFamily = resolveCanonicalCutFamily({
+            cutSlug: entry.cut_slug,
+            extraSlug: entry.extra_slug,
+            name: entry.name,
+            partKey: entry.partKey,
+          });
+          if (entryCanonicalFamily && entryCanonicalFamily === canonicalFamily) {
+            return entryKey;
+          }
         }
       }
 
@@ -299,7 +383,7 @@ export default function OppdelingsplanPage() {
         const preferredKey = cutId || cutSlug || cutName;
         const existingKey = map.has(preferredKey)
           ? preferredKey
-          : findExistingKey(cutId, cutSlug, cutName, partKey);
+          : findExistingKey(cutId, cutSlug, null, cutName, partKey);
 
         const boxLabel = content.target_weight_kg
           ? `${presetName} (${content.target_weight_kg} kg)`
@@ -372,7 +456,7 @@ export default function OppdelingsplanPage() {
       const normalizedExtraName = String(extraName || '').trim() || extra.slug;
       const existingKey = map.has(preferredKey)
         ? preferredKey
-        : findExistingKey(cutId, cutSlug, normalizedExtraName, partKey);
+        : findExistingKey(cutId, cutSlug, extra.slug, normalizedExtraName, partKey);
 
       if (!existingKey) {
         map.set(preferredKey, {
@@ -449,17 +533,41 @@ export default function OppdelingsplanPage() {
     )
   );
 
-  const canOrderSummary: Array<{ slug: string; name: string; sizeFromKg?: number | null; sizeToKg?: number | null }> = extras.length > 0
-    ? extras.map((extra) => {
-        const englishName = (extra as any).name_en;
-        return {
-          slug: extra.slug,
-          name: lang === 'en' && englishName ? englishName : extra.name_no,
-          sizeFromKg: (extra as any).cut_size_from_kg ?? null,
-          sizeToKg: (extra as any).cut_size_to_kg ?? null,
-        };
-      })
-    : [];
+  const canOrderSummary: Array<{ slug: string; name: string; sizeFromKg?: number | null; sizeToKg?: number | null }> = useMemo(() => {
+    if (extras.length === 0) return [];
+
+    const deduped = new Map<string, { slug: string; name: string; sizeFromKg?: number | null; sizeToKg?: number | null }>();
+
+    for (const extra of extras as any[]) {
+      const englishName = extra.name_en;
+      const name = lang === 'en' && englishName ? englishName : extra.name_no;
+      const partKey = (extra.part_key || 'unknown') as PartKey;
+      const canonicalFamily = resolveCanonicalCutFamily({
+        cutSlug: extra.cut_slug || null,
+        extraSlug: extra.slug,
+        name,
+        partKey,
+      });
+      const dedupeKey = canonicalFamily || `extra:${extra.slug}`;
+      const candidate = {
+        slug: extra.slug,
+        name,
+        sizeFromKg: extra.cut_size_from_kg ?? null,
+        sizeToKg: extra.cut_size_to_kg ?? null,
+      };
+
+      if (!deduped.has(dedupeKey)) {
+        deduped.set(dedupeKey, candidate);
+        continue;
+      }
+
+      const existing = deduped.get(dedupeKey)!;
+      if (existing.sizeFromKg == null && candidate.sizeFromKg != null) existing.sizeFromKg = candidate.sizeFromKg;
+      if (existing.sizeToKg == null && candidate.sizeToKg != null) existing.sizeToKg = candidate.sizeToKg;
+    }
+
+    return Array.from(deduped.values());
+  }, [extras, lang]);
 
   const activeOrder = useMemo(() => {
     if (!orders || orders.length === 0) return null;
@@ -704,7 +812,7 @@ export default function OppdelingsplanPage() {
         return;
       }
 
-      const extraSlug = resolveExtraSlugForCut(cut);
+      const extraSlug = cut.extra_slug || resolveExtraSlugForCut(cut);
       if (!extraSlug) {
         toast({
           title: t.oppdelingsplan.couldNotAddTitle,
@@ -815,12 +923,22 @@ export default function OppdelingsplanPage() {
     if (extra) {
       handleAddExtra(extra.slug, extra.name);
       router.replace('/oppdelingsplan');
+      return;
+    }
+
+    const rawExtra = extras.find((candidate) => candidate.slug === decoded);
+    if (rawExtra) {
+      const rawExtraName = lang === 'en' && (rawExtra as any).name_en ? (rawExtra as any).name_en : rawExtra.name_no;
+      handleAddExtra(rawExtra.slug, rawExtraName);
+      router.replace('/oppdelingsplan');
     }
   }, [
     allCutsOverview,
     authLoading,
     canOrderSummary,
+    extras,
     isAuthenticated,
+    lang,
     ordersLoading,
     router,
     searchParams,
