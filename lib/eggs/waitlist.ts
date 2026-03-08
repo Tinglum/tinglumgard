@@ -404,7 +404,7 @@ export async function processEggWaitlistQueue(options?: { inventoryIds?: string[
   }
 
   const now = new Date()
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://tinglum.no'
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://xn--tinglumgrd-85a.no'
   const inventoryRows = (inventories || []) as unknown as InventoryWithBreed[]
 
   for (const inventory of inventoryRows) {

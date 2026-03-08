@@ -11,30 +11,35 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Validate required secrets
-        env:
-          APP_BASE_URL: ${{ secrets.APP_BASE_URL }}
-          CRON_SECRET: ${{ secrets.CRON_SECRET }}
-        run: |
-          if [ -z "$APP_BASE_URL" ]; then
-            echo "Missing required secret: APP_BASE_URL"
-            exit 1
-          fi
-
-          if [ -z "$CRON_SECRET" ]; then
-            echo "Missing required secret: CRON_SECRET"
-            exit 1
-          fi
-
       - name: Trigger egg waitlist processor
         env:
-          APP_BASE_URL: ${{ secrets.APP_BASE_URL }}
-          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          APP_BASE_URL: ${{ secrets.APP_BASE_URL || vars.APP_BASE_URL || 'https://xn--tinglumgrd-85a.no' }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET || vars.CRON_SECRET }}
         run: |
-          curl --fail --silent --show-error \
-            -H "x-cron-secret: $CRON_SECRET" \
-            "${APP_BASE_URL%/}/api/cron/egg-waitlist" \
-            | tee /tmp/egg-waitlist-response.json
+          set -euo pipefail
 
+          URL="${APP_BASE_URL%/}/api/cron/egg-waitlist"
+          RESPONSE_FILE=/tmp/egg-waitlist-response.json
+
+          if [ -n "${CRON_SECRET:-}" ]; then
+            HTTP_CODE=$(curl --silent --show-error \
+              -H "x-cron-secret: $CRON_SECRET" \
+              --output "$RESPONSE_FILE" \
+              --write-out "%{http_code}" \
+              "$URL")
+          else
+            echo "CRON_SECRET not set in GitHub; calling endpoint without auth header."
+            HTTP_CODE=$(curl --silent --show-error \
+              --output "$RESPONSE_FILE" \
+              --write-out "%{http_code}" \
+              "$URL")
+          fi
+
+          echo "HTTP status: $HTTP_CODE"
           echo "Cron response:"
-          cat /tmp/egg-waitlist-response.json
+          cat "$RESPONSE_FILE"
+
+          if [ "$HTTP_CODE" -ge 400 ]; then
+            echo "::error::Egg waitlist cron endpoint failed with HTTP $HTTP_CODE"
+            exit 1
+          fi
