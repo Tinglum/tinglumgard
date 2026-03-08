@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Check, Plus } from 'lucide-react';
@@ -13,6 +13,12 @@ type ExtraSummary = {
   name: string;
   sizeFromKg?: number | null;
   sizeToKg?: number | null;
+};
+
+type InBoxGroup = {
+  key: string;
+  presetName: string;
+  items: string[];
 };
 
 interface MobileOppdelingsplanProps {
@@ -113,6 +119,7 @@ export function MobileOppdelingsplan({
   const { t, lang } = useLanguage();
   const [selectedPolygonId, setSelectedPolygonId] = useState<number | null>(null);
   const [hoveredPolygonId, setHoveredPolygonId] = useState<number | null>(null);
+  const [selectedInBoxGroupKey, setSelectedInBoxGroupKey] = useState<string>('');
 
   const partMeta = useMemo(
     () => ({
@@ -165,6 +172,50 @@ export function MobileOppdelingsplan({
   }, [cuts, selectedPartKey]);
 
   const hoveredPartName = hoveredPolygonId ? partMeta[PART_BY_POLYGON_ID[hoveredPolygonId] || 'unknown'].name : null;
+
+  const inBoxGroups = useMemo<InBoxGroup[]>(() => {
+    const groups = new Map<string, string[]>();
+
+    for (const item of inBoxSummary) {
+      const separatorIndex = item.indexOf(':');
+      const hasPresetPrefix = separatorIndex > -1;
+      const presetName = hasPresetPrefix ? item.slice(0, separatorIndex).trim() : (lang === 'en' ? 'Box' : 'Boks');
+      const cutName = hasPresetPrefix ? item.slice(separatorIndex + 1).trim() : item.trim();
+      if (!cutName) continue;
+
+      const existing = groups.get(presetName) || [];
+      if (!existing.includes(cutName)) {
+        existing.push(cutName);
+      }
+      groups.set(presetName, existing);
+    }
+
+    return Array.from(groups.entries()).map(([presetName, items]) => ({
+      key: normalizeTextForMatch(presetName).replace(/\s+/g, '-') || presetName,
+      presetName,
+      items,
+    }));
+  }, [inBoxSummary, lang]);
+
+  useEffect(() => {
+    if (inBoxGroups.length === 0) {
+      if (selectedInBoxGroupKey !== '') {
+        setSelectedInBoxGroupKey('');
+      }
+      return;
+    }
+
+    if (!selectedInBoxGroupKey || !inBoxGroups.some((group) => group.key === selectedInBoxGroupKey)) {
+      setSelectedInBoxGroupKey(inBoxGroups[0].key);
+    }
+  }, [inBoxGroups, selectedInBoxGroupKey]);
+
+  const selectedInBoxGroup = useMemo(
+    () => inBoxGroups.find((group) => group.key === selectedInBoxGroupKey) || inBoxGroups[0] || null,
+    [inBoxGroups, selectedInBoxGroupKey]
+  );
+
+  const visibleInBoxItems = selectedInBoxGroup?.items || inBoxSummary;
 
   return (
     <div className="space-y-6 pb-24 text-[#1E1B16] font-[family:var(--font-manrope)]">
@@ -242,9 +293,31 @@ export function MobileOppdelingsplan({
             <Check className="h-4 w-4 text-[#0F6C6F]" />
             {t.oppdelingsplan.inBox}
           </div>
+          {inBoxGroups.length > 1 ? (
+            <div className="mt-3">
+              <label
+                htmlFor="mobile-in-box-select"
+                className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.2em] text-[#6A6258]"
+              >
+                {lang === 'en' ? 'Select box' : 'Velg boks'}
+              </label>
+              <select
+                id="mobile-in-box-select"
+                value={selectedInBoxGroupKey}
+                onChange={(event) => setSelectedInBoxGroupKey(event.target.value)}
+                className="w-full rounded-xl border border-[#E4DED5] bg-[#FBFAF7] px-3 py-2 text-sm text-[#1E1B16] focus:border-[#C9C2B7] focus:outline-none"
+              >
+                {inBoxGroups.map((group) => (
+                  <option key={group.key} value={group.key}>
+                    {group.presetName}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : null}
           <ul className="mt-3 space-y-2 text-sm text-[#5E5A50]">
-            {inBoxSummary.map((item) => (
-              <li key={item} className="flex items-start gap-2">
+            {visibleInBoxItems.map((item, index) => (
+              <li key={`${selectedInBoxGroup?.key || 'all'}-${index}-${item}`} className="flex items-start gap-2">
                 <span className="mt-2 h-1.5 w-1.5 rounded-full bg-[#0F6C6F]" />
                 <span>{item}</span>
               </li>

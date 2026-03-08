@@ -45,6 +45,12 @@ const PART_ORDER: Record<PartKey, number> = {
   unknown: 99,
 };
 
+type InBoxPresetSummary = {
+  slug: string;
+  name: string;
+  items: string[];
+};
+
 const CUT_SLUG_TO_EXTRA_SLUG_OVERRIDES: Record<string, string> = {
   // Cuts whose extra slugs don't follow a simple convention.
   'nakkekam-coppa': 'extra-coppa',
@@ -260,6 +266,7 @@ export default function OppdelingsplanPage() {
   const [activeOrderId, setActiveOrderId] = useState<string | null>(null);
   const [orderPickerOpen, setOrderPickerOpen] = useState(false);
   const [pendingAddAction, setPendingAddAction] = useState<PendingAddAction | null>(null);
+  const [selectedInBoxPresetSlug, setSelectedInBoxPresetSlug] = useState<string>('');
 
   const [draftPresetSlug, setDraftPresetSlug] = useState<string | null>(null);
   const [draftExtras, setDraftExtras] = useState<string[]>([]);
@@ -532,6 +539,55 @@ export default function OppdelingsplanPage() {
         )
     )
   );
+
+  const inBoxPresetSummaries = useMemo<InBoxPresetSummary[]>(
+    () =>
+      presets
+        .map((preset) => {
+          const presetName = lang === 'en' ? preset.name_en : preset.name_no;
+          const items = Array.from(
+            new Set(
+              (preset.contents || [])
+                .map((content) => (lang === 'en' ? content.content_name_en : content.content_name_no))
+                .filter(Boolean)
+            )
+          );
+
+          return {
+            slug: preset.slug,
+            name: presetName,
+            items,
+          };
+        })
+        .filter((preset) => preset.items.length > 0),
+    [lang, presets]
+  );
+
+  useEffect(() => {
+    if (inBoxPresetSummaries.length === 0) {
+      if (selectedInBoxPresetSlug !== '') {
+        setSelectedInBoxPresetSlug('');
+      }
+      return;
+    }
+
+    if (
+      !selectedInBoxPresetSlug ||
+      !inBoxPresetSummaries.some((preset) => preset.slug === selectedInBoxPresetSlug)
+    ) {
+      setSelectedInBoxPresetSlug(inBoxPresetSummaries[0].slug);
+    }
+  }, [inBoxPresetSummaries, selectedInBoxPresetSlug]);
+
+  const selectedInBoxPreset = useMemo(
+    () =>
+      inBoxPresetSummaries.find((preset) => preset.slug === selectedInBoxPresetSlug) ||
+      inBoxPresetSummaries[0] ||
+      null,
+    [inBoxPresetSummaries, selectedInBoxPresetSlug]
+  );
+
+  const visibleInBoxItems = selectedInBoxPreset?.items || inBoxSummary;
 
   const canOrderSummary: Array<{ slug: string; name: string; sizeFromKg?: number | null; sizeToKg?: number | null }> = useMemo(() => {
     if (extras.length === 0) return [];
@@ -1470,9 +1526,31 @@ export default function OppdelingsplanPage() {
                 {t.oppdelingsplan.inBox}
               </h3>
               <p className="text-sm font-light text-neutral-600 mb-6">{t.oppdelingsplan.inBoxDesc}</p>
+              {inBoxPresetSummaries.length > 1 && (
+                <div className="mb-4">
+                  <label
+                    htmlFor="in-box-preset-select"
+                    className="mb-2 block text-xs font-semibold uppercase tracking-[0.15em] text-neutral-600"
+                  >
+                    {lang === 'en' ? 'Select box' : 'Velg boks'}
+                  </label>
+                  <select
+                    id="in-box-preset-select"
+                    value={selectedInBoxPresetSlug}
+                    onChange={(event) => setSelectedInBoxPresetSlug(event.target.value)}
+                    className="w-full rounded-xl border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 focus:border-neutral-500 focus:outline-none"
+                  >
+                    {inBoxPresetSummaries.map((preset) => (
+                      <option key={preset.slug} value={preset.slug}>
+                        {preset.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
               <div className="space-y-3">
-                {inBoxSummary.map((product) => (
-                  <div key={product} className="flex items-center gap-4 p-4 bg-neutral-50 rounded-xl border border-neutral-200 hover:border-neutral-300 hover:shadow-[0_10px_30px_-10px_rgba(0,0,0,0.1)] hover:-translate-y-0.5 transition-all duration-300">
+                {visibleInBoxItems.map((product, index) => (
+                  <div key={`${selectedInBoxPreset?.slug || 'all'}-${index}-${product}`} className="flex items-center gap-4 p-4 bg-neutral-50 rounded-xl border border-neutral-200 hover:border-neutral-300 hover:shadow-[0_10px_30px_-10px_rgba(0,0,0,0.1)] hover:-translate-y-0.5 transition-all duration-300">
                     <svg className="w-5 h-5 text-neutral-600 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                     </svg>
