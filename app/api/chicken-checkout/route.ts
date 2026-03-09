@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase/server'
 import { logError } from '@/lib/logger'
 import { getAgeWeeks, getHenPrice, getDepositAmount, getMondayOfWeek } from '@/lib/chickens/pricing'
+import { createOrderAccessToken } from '@/lib/auth/order-access'
 
 interface ChickenCheckoutLineItem {
   hatchId: string
@@ -263,10 +264,16 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    const orderAccessToken = await createOrderAccessToken({
+      scope: 'chickens',
+      orderId: order.id,
+    })
+
     return NextResponse.json({
       success: true,
       orderId: order.id,
       orderNumber: order.order_number,
+      orderAccessToken,
       totalAmount,
       depositAmount,
       lineCount: computedLines.length,

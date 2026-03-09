@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth/session';
 import { supabaseAdmin } from '@/lib/supabase/server';
 import { logError } from '@/lib/logger';
-import { sendEmail } from '@/lib/email/client';
-import { getAdminReplyNotificationTemplate } from '@/lib/email/templates';
+import { dispatchEmail } from '@/lib/email/dispatch';
+import { renderManagedTemplate } from '@/lib/email/render';
 
 // POST /api/admin/messages/[id]/replies - Add reply to a message
 export async function POST(
@@ -24,13 +24,14 @@ export async function POST(
     }
 
     const adminName = session.email || 'Admin';
+    const trimmedReply = reply_text.trim();
 
     const { data: reply, error: replyError } = await supabaseAdmin
       .from('message_replies')
       .insert({
         message_id: params.id,
         admin_name: adminName,
-        reply_text: reply_text.trim(),
+        reply_text: trimmedReply,
         created_at: new Date().toISOString(),
       })
       .select()
@@ -51,43 +52,45 @@ export async function POST(
       logError('admin-message-reply-update-status', updateError);
     }
 
-    // Send email notification to customer
     try {
-      // Get message details with customer email
       const { data: message } = await supabaseAdmin
         .from('customer_messages')
-        .select('customer_email, customer_name, subject, email_thread_id, id, message_type')
+        .select('customer_email, customer_name, subject, id')
         .eq('id', params.id)
         .single();
 
       if (message && message.customer_email) {
-        const isEggMessage = typeof message.message_type === 'string' && message.message_type.startsWith('egg');
         const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://tinglumgard.no';
-        const emailTemplate = getAdminReplyNotificationTemplate({
-          customerName: message.customer_name || 'Kunde',
-          messageId: message.id,
-          subject: message.subject,
-          replyText: reply_text.trim(),
-          adminName,
-          portalUrl: `${appUrl}/min-side`,
-          portalLabel: 'Min side',
+        const rendered = await renderManagedTemplate({
+          templateKey: 'support.reply.customer.notification',
+          locale: 'no',
+          variables: {
+            customer_name: message.customer_name || 'Kunde',
+            thread_id: `msg_${message.id}`,
+            subject_line: message.subject,
+            reply_text: trimmedReply,
+            admin_name: adminName,
+            portal_url: `${appUrl}/min-side`,
+            portal_label: 'Min side',
+          },
         });
 
-        const emailResult = await sendEmail({
-          to: message.customer_email,
-          subject: emailTemplate.subject,
-          html: emailTemplate.html,
-        });
-
-        if (emailResult.success) {
-          console.log('Admin reply notification sent to:', message.customer_email, 'ID:', emailResult.id);
-        } else {
-          console.error('Failed to send admin reply notification:', emailResult.error);
+        if (!rendered) {
+          throw new Error('Missing template support.reply.customer.notification');
         }
+
+        await dispatchEmail({
+          to: message.customer_email,
+          subject: rendered.subject,
+          html: rendered.html,
+          classification: 'support',
+          templateKey: rendered.templateKey,
+          sourcePath: '/api/admin/messages/[id]/replies',
+          customerMessageId: message.id,
+        });
       }
     } catch (emailError) {
       logError('admin-message-reply-email', emailError);
-      // Don't fail the reply if email fails
     }
 
     return NextResponse.json({ reply, success: true });

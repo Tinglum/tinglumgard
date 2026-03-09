@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { getSession } from '@/lib/auth/session'
 import { supabaseAdmin } from '@/lib/supabase/server'
 import { vippsClient } from '@/lib/vipps/api-client'
 
@@ -6,6 +7,11 @@ export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  const session = await getSession()
+  if (!session) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   try {
     const { data: order, error: orderError } = await supabaseAdmin
       .from('egg_orders')
@@ -15,6 +21,15 @@ export async function POST(
 
     if (orderError || !order) {
       return NextResponse.json({ error: 'Order not found' }, { status: 404 })
+    }
+
+    const matchesPhone = Boolean(session.phoneNumber) && order.customer_phone === session.phoneNumber
+    const matchesEmail = Boolean(session.email) && order.customer_email === session.email
+    const isOwner = order.user_id === session.userId
+    const isAuthorized = Boolean(session.isAdmin) || isOwner || matchesPhone || matchesEmail
+
+    if (!isAuthorized) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
     }
 
     const depositPayment = order.egg_payments?.find(

@@ -68,7 +68,14 @@ export function EggOrderUnifiedCard({ order }: { order: EggOrder }) {
     (sum, addition) => sum + (addition.quantity || 0),
     0
   )
+  const baseEggs = order.quantity || 0
   const totalEggs = order.quantity + additionsEggs
+  const quantityBreakdownTemplate =
+    ordersCopy.quantityBreakdown || 'Base {base} + additions {additions} = total {total}'
+  const quantityBreakdown = quantityBreakdownTemplate
+    .replace('{base}', String(baseEggs))
+    .replace('{additions}', String(additionsEggs))
+    .replace('{total}', String(totalEggs))
   const remainderPaidOre =
     order.egg_payments?.reduce((sum, payment) => {
       if (payment.payment_type !== 'remainder' || payment.status !== 'completed') return sum
@@ -247,11 +254,7 @@ export function EggOrderUnifiedCard({ order }: { order: EggOrder }) {
             <p className="text-2xl font-normal text-neutral-900">
               {totalEggs} {common.eggs}
             </p>
-            {additionsEggs > 0 && (
-              <p className="text-xs text-neutral-500">
-                {ordersCopy.additionsSuffix.replace('{count}', String(additionsEggs))}
-              </p>
-            )}
+            <p className="text-xs text-neutral-500">{quantityBreakdown}</p>
           </div>
           <div>
             <p className="text-xs uppercase tracking-[0.2em] text-neutral-500">{ordersCopy.total}</p>

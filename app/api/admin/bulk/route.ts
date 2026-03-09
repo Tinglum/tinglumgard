@@ -1,8 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth/session';
 import { supabaseAdmin } from '@/lib/supabase/server';
-import { sendEmail } from '@/lib/email/client';
+import { dispatchEmail } from '@/lib/email/dispatch';
+import { renderManagedTemplate } from '@/lib/email/render';
 import { getEffectiveBoxSize } from '@/lib/orders/display';
+
+function getDeliveryLabel(deliveryType: string) {
+  if (deliveryType === 'pickup_farm') return 'Henting pa gard';
+  if (deliveryType === 'pickup_e6') return 'Henting ved E6';
+  if (deliveryType === 'delivery_trondheim') return 'Levering i Trondheim';
+  return deliveryType || 'Henting';
+}
 
 export async function POST(request: NextRequest) {
   const session = await getSession();
@@ -18,21 +26,16 @@ export async function POST(request: NextRequest) {
     switch (action) {
       case 'update_status':
         return await bulkUpdateStatus(orderIds, data.status);
-
       case 'send_email':
         return await bulkSendEmail(orderIds, data.subject, data.message);
-
       case 'lock_orders':
         return await bulkLockOrders(orderIds);
-
       case 'export_production':
         return await exportProductionList(orderIds);
-
       default:
         return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
     }
   } catch (error) {
-    console.error('Bulk operation error:', error);
     return NextResponse.json(
       { error: 'Bulk operation failed' },
       { status: 500 }
@@ -49,50 +52,36 @@ async function bulkUpdateStatus(orderIds: string[], newStatus: string) {
 
   if (error) throw error;
 
-  // If marking as ready_for_pickup, send notification emails
   if (newStatus === 'ready_for_pickup') {
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://tinglum.no';
+
     for (const order of data) {
       if (order.customer_email && order.customer_email !== 'pending@vipps.no') {
         try {
-          const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://tinglum.no';
-          await sendEmail({
-            to: order.customer_email,
-            subject: `Din bestilling ${order.order_number} er klar for henting`,
-            html: `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <style>
-    body { font-family: -apple-system, sans-serif; line-height: 1.6; color: #333; }
-    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-    .header { background: #2C1810; color: white; padding: 30px 20px; text-align: center; }
-    .content { background: #ffffff; padding: 30px 20px; }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <div class="header"><h1>Tinglumgård</h1></div>
-    <div class="content">
-      <h2>Din bestilling er klar! 🎉</h2>
-      <p>Hei ${order.customer_name},</p>
-      <p>Din bestilling <strong>${order.order_number}</strong> er nå klar for henting!</p>
-      <p><strong>Neste steg:</strong></p>
-      <ul>
-        <li>Ta med kjølebag eller kjøleboks</li>
-        <li>Hent ordren din i henhold til avtalt tid og sted</li>
-        <li>Se detaljer på <a href="${appUrl}/min-side">Min Side</a></li>
-      </ul>
-      <p>Vi gleder oss til å se deg!</p>
-      <p>Vennlig hilsen,<br>Tinglumgård</p>
-    </div>
-  </div>
-</body>
-</html>
-            `,
+          const rendered = await renderManagedTemplate({
+            templateKey: 'pig.order.ready_for_pickup',
+            locale: 'no',
+            variables: {
+              customer_name: order.customer_name || 'Kunde',
+              order_number: order.order_number,
+              delivery_label: getDeliveryLabel(order.delivery_type),
+              order_url: `${appUrl}/min-side?orderId=${order.id}`,
+            },
           });
-        } catch (emailError) {
-          console.error(`Failed to send ready email to ${order.customer_email}:`, emailError);
+
+          if (!rendered) continue;
+
+          await dispatchEmail({
+            to: order.customer_email,
+            subject: rendered.subject,
+            html: rendered.html,
+            classification: 'transactional',
+            templateKey: rendered.templateKey,
+            sourcePath: '/api/admin/bulk',
+            orderId: order.id,
+          });
+        } catch {
+          // Continue sending to next recipient
         }
       }
     }
@@ -108,7 +97,7 @@ async function bulkUpdateStatus(orderIds: string[], newStatus: string) {
 async function bulkSendEmail(orderIds: string[], subject: string, message: string) {
   const { data: orders, error } = await supabaseAdmin
     .from('orders')
-    .select('customer_name, customer_email, order_number')
+    .select('id, customer_name, customer_email, order_number')
     .in('id', orderIds);
 
   if (error) throw error;
@@ -117,7 +106,7 @@ async function bulkSendEmail(orderIds: string[], subject: string, message: strin
   for (const order of orders) {
     if (order.customer_email && order.customer_email !== 'pending@vipps.no') {
       try {
-        await sendEmail({
+        await dispatchEmail({
           to: order.customer_email,
           subject: subject.replace('{ORDER_NUMBER}', order.order_number),
           html: `
@@ -134,20 +123,22 @@ async function bulkSendEmail(orderIds: string[], subject: string, message: strin
 </head>
 <body>
   <div class="container">
-    <div class="header"><h1>Tinglumgård</h1></div>
+    <div class="header"><h1>Tinglumgard</h1></div>
     <div class="content">
       <p>Hei ${order.customer_name},</p>
       ${message.replace('{ORDER_NUMBER}', order.order_number).replace('{CUSTOMER_NAME}', order.customer_name)}
-      <p>Vennlig hilsen,<br>Tinglumgård</p>
+      <p>Vennlig hilsen,<br>Tinglumgard</p>
     </div>
   </div>
 </body>
 </html>
           `,
+          classification: 'support',
+          sourcePath: '/api/admin/bulk',
+          orderId: order.id,
         });
         results.push({ order_number: order.order_number, success: true });
       } catch (emailError) {
-        console.error(`Failed to send email to ${order.customer_email}:`, emailError);
         results.push({ order_number: order.order_number, success: false, error: emailError });
       }
     }
@@ -173,45 +164,34 @@ async function bulkLockOrders(orderIds: string[]) {
 
   if (error) throw error;
 
-  // Send lock notification emails
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://tinglum.no';
+
   for (const order of data) {
     if (order.customer_email && order.customer_email !== 'pending@vipps.no') {
       try {
-        const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://tinglum.no';
-        await sendEmail({
-          to: order.customer_email,
-          subject: `Ordre ${order.order_number} låst - Ferdigstilt`,
-          html: `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <style>
-    body { font-family: -apple-system, sans-serif; line-height: 1.6; color: #333; }
-    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-    .header { background: #2C1810; color: white; padding: 30px 20px; text-align: center; }
-    .content { background: #ffffff; padding: 30px 20px; }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <div class="header"><h1>Tinglumgård</h1></div>
-    <div class="content">
-      <h2>Ordre låst og ferdigstilt</h2>
-      <p>Hei ${order.customer_name},</p>
-      <p>Din ordre <strong>${order.order_number}</strong> er nå låst og ferdigstilt.</p>
-      <p>Ingen flere endringer kan gjøres. Vi klargjør okseboksen din for henting/levering.</p>
-      <p>Du vil motta beskjed når bestillingen din er klar.</p>
-      <p>Takk for din bestilling!</p>
-      <p>Vennlig hilsen,<br>Tinglumgård</p>
-    </div>
-  </div>
-</body>
-</html>
-          `,
+        const rendered = await renderManagedTemplate({
+          templateKey: 'pig.order.locked.finalized',
+          locale: 'no',
+          variables: {
+            customer_name: order.customer_name || 'Kunde',
+            order_number: order.order_number,
+            order_url: `${appUrl}/min-side?orderId=${order.id}`,
+          },
         });
-      } catch (emailError) {
-        console.error(`Failed to send lock email to ${order.customer_email}:`, emailError);
+
+        if (!rendered) continue;
+
+        await dispatchEmail({
+          to: order.customer_email,
+          subject: rendered.subject,
+          html: rendered.html,
+          classification: 'transactional',
+          templateKey: rendered.templateKey,
+          sourcePath: '/api/admin/bulk',
+          orderId: order.id,
+        });
+      } catch {
+        // Continue sending to next recipient
       }
     }
   }
@@ -236,7 +216,6 @@ async function exportProductionList(orderIds: string[]) {
     effective_box_size: getEffectiveBoxSize(order),
   }));
 
-  // Aggregate production data
   const production = {
     boxes: {
       '8kg': normalizedOrders.filter((o) => o.effective_box_size === 8).length,

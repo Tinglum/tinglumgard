@@ -5,6 +5,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Users, Gift, Copy, CheckCircle2, AlertCircle, Loader2, Share2 } from 'lucide-react';
+import Link from 'next/link';
 import { format } from 'date-fns';
 import { nb, enUS } from 'date-fns/locale';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -36,6 +37,7 @@ export function ReferralDashboard() {
 
   const [loading, setLoading] = useState(true);
   const [hasCode, setHasCode] = useState(false);
+  const [hasPlacedOrder, setHasPlacedOrder] = useState(false);
   const [code, setCode] = useState<string | null>(null);
   const [stats, setStats] = useState<ReferralStats | null>(null);
   const [referrals, setReferrals] = useState<Referral[]>([]);
@@ -54,6 +56,7 @@ export function ReferralDashboard() {
       const data = await response.json();
 
       setHasCode(data.hasCode);
+      setHasPlacedOrder(Boolean(data.hasPlacedOrder));
       setCode(data.code);
       setStats(data.stats);
       setReferrals(data.referrals || []);
@@ -128,6 +131,22 @@ export function ReferralDashboard() {
     return (
       <Card className="p-12 text-center">
         <Loader2 className="h-8 w-8 animate-spin mx-auto text-gray-400" />
+      </Card>
+    );
+  }
+
+  if (!hasPlacedOrder) {
+    return (
+      <Card className="p-8">
+        <div className="max-w-xl mx-auto text-center">
+          <Gift className="h-10 w-10 mx-auto mb-4 text-green-600" />
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">{t.referrals.createCode}</h2>
+          <p className="text-gray-700 mb-2">{t.referrals.availableAfterFirstOrder}</p>
+          <p className="text-sm text-gray-600 mb-6">{t.referrals.firstOrderRequiredHelp}</p>
+          <Link href="/bestill" className="inline-flex items-center justify-center px-5 py-2.5 rounded-md bg-neutral-900 text-white text-sm font-medium hover:bg-neutral-800 transition-colors">
+            {t.referrals.goToOrder}
+          </Link>
+        </div>
       </Card>
     );
   }

@@ -1,0 +1,66 @@
+name: Email Dispatch Cron
+
+on:
+  schedule:
+    - cron: "* * * * *"
+  workflow_dispatch:
+
+jobs:
+  dispatch-email-queue:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Trigger email flow runner and dispatch worker
+        env:
+          APP_BASE_URL: ${{ secrets.APP_BASE_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${CRON_SECRET:-}" ]; then
+            echo "::error::CRON_SECRET is required for email dispatch cron."
+            exit 1
+          fi
+
+          if [ -z "${APP_BASE_URL:-}" ]; then
+            echo "::error::APP_BASE_URL is required for email dispatch cron."
+            exit 1
+          fi
+
+          FLOW_URL="${APP_BASE_URL%/}/api/cron/email-flow-runner"
+          FLOW_RESPONSE_FILE=/tmp/email-flow-runner-response.json
+
+          FLOW_HTTP_CODE=$(curl --silent --show-error \
+            --request POST \
+            -H "x-cron-secret: $CRON_SECRET" \
+            --output "$FLOW_RESPONSE_FILE" \
+            --write-out "%{http_code}" \
+            "$FLOW_URL")
+
+          echo "Flow runner HTTP status: $FLOW_HTTP_CODE"
+          echo "Flow runner response:"
+          cat "$FLOW_RESPONSE_FILE"
+
+          if [ "$FLOW_HTTP_CODE" -ge 400 ]; then
+            echo "::error::Email flow runner endpoint failed with HTTP $FLOW_HTTP_CODE"
+            exit 1
+          fi
+
+          DISPATCH_URL="${APP_BASE_URL%/}/api/cron/email-dispatch"
+          DISPATCH_RESPONSE_FILE=/tmp/email-dispatch-response.json
+
+          DISPATCH_HTTP_CODE=$(curl --silent --show-error \
+            --request POST \
+            -H "x-cron-secret: $CRON_SECRET" \
+            --output "$DISPATCH_RESPONSE_FILE" \
+            --write-out "%{http_code}" \
+            "$DISPATCH_URL")
+
+          echo "Dispatch HTTP status: $DISPATCH_HTTP_CODE"
+          echo "Dispatch response:"
+          cat "$DISPATCH_RESPONSE_FILE"
+
+          if [ "$DISPATCH_HTTP_CODE" -ge 400 ]; then
+            echo "::error::Email dispatch cron endpoint failed with HTTP $DISPATCH_HTTP_CODE"
+            exit 1
+          fi

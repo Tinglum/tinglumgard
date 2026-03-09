@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth/session';
 import { supabaseAdmin } from '@/lib/supabase/server';
-import { logError } from '@/lib/logger';
 import { getEffectiveBoxSize } from '@/lib/orders/display';
 
 type BroadcastFilters = {
@@ -11,208 +10,193 @@ type BroadcastFilters = {
   extraIds?: string[];
 };
 
-const uniqueByPhone = (items: Array<{ phone: string; name?: string | null; email?: string | null }>) => {
-  const map = new Map<string, { phone: string; name?: string | null; email?: string | null }>();
-  items.forEach((item) => {
-    if (!map.has(item.phone)) map.set(item.phone, item);
-  });
-  return Array.from(map.values());
+type CandidateRecipient = {
+  email: string;
+  phone?: string | null;
+  name?: string | null;
 };
+
+function normalizeEmail(value: string): string {
+  return value.trim().toLowerCase();
+}
+
+function uniqueByEmail(items: CandidateRecipient[]) {
+  const map = new Map<string, CandidateRecipient>();
+  for (const item of items) {
+    const email = normalizeEmail(item.email);
+    if (!email) continue;
+    if (!map.has(email)) {
+      map.set(email, {
+        email,
+        phone: item.phone || null,
+        name: item.name || null,
+      });
+    }
+  }
+  return Array.from(map.values());
+}
+
+async function getRecipientsFromUsers(excludePhones: string[] = []): Promise<CandidateRecipient[]> {
+  const excluded = new Set(excludePhones);
+  const { data: users } = await supabaseAdmin
+    .from('vipps_users')
+    .select('phone_number, name, email')
+    .not('email', 'is', null);
+
+  return uniqueByEmail(
+    (users || [])
+      .filter((row) => !row.phone_number || !excluded.has(row.phone_number))
+      .map((row) => ({
+        email: String(row.email || ''),
+        phone: row.phone_number || null,
+        name: row.name || null,
+      }))
+  );
+}
+
+async function getRecipientsFromManualPhones(phones: string[], excludePhones: string[] = []) {
+  const excluded = new Set(excludePhones);
+  const selectedPhones = phones.filter((phone) => !excluded.has(phone));
+  if (selectedPhones.length === 0) return [];
+
+  const { data: users } = await supabaseAdmin
+    .from('vipps_users')
+    .select('phone_number, name, email')
+    .in('phone_number', selectedPhones)
+    .not('email', 'is', null);
+
+  return uniqueByEmail(
+    (users || []).map((row) => ({
+      email: String(row.email || ''),
+      phone: row.phone_number || null,
+      name: row.name || null,
+    }))
+  );
+}
 
 async function getRecipientsFromOrders(filters: BroadcastFilters, excludePhones: string[] = []) {
   const excluded = new Set(excludePhones);
 
-  let orderIds: string[] | null = null;
-  if (filters.hasExtras || (filters.extraIds && filters.extraIds.length > 0)) {
-    // Get all extras_catalog entries first to map IDs to slugs
-    let extrasQuery = supabaseAdmin
-      .from('extras_catalog')
-      .select('id, slug');
-    
-    const { data: extrasMap, error: mapError } = await extrasQuery;
-    if (mapError) throw mapError;
-    
-    // Build a map of ID -> slug
-    const idToSlug = new Map<string, string>();
-    extrasMap?.forEach((e: any) => {
-      idToSlug.set(e.id, e.slug);
+  const extraIds = Array.isArray(filters.extraIds) ? filters.extraIds : [];
+  const hasExtras = filters.hasExtras === true;
+  const boxSize = typeof filters.boxSize === 'number' ? filters.boxSize : null;
+  const awaitingFinalPayment = filters.awaitingFinalPayment === true;
+
+  let matchingExtraSlugs = new Set<string>();
+  if (extraIds.length > 0) {
+    const { data: extras } = await supabaseAdmin.from('extras_catalog').select('id, slug').in('id', extraIds);
+    matchingExtraSlugs = new Set((extras || []).map((row) => String(row.slug || '')).filter(Boolean));
+  }
+
+  let query = supabaseAdmin.from('orders').select(
+    'id, customer_phone, customer_name, customer_email, box_size, status, extra_products, mangalitsa_preset:mangalitsa_box_presets(target_weight_kg)'
+  );
+  if (awaitingFinalPayment) {
+    query = query.eq('status', 'deposit_paid');
+  }
+
+  const { data: orders } = await query;
+  const recipients: CandidateRecipient[] = [];
+
+  for (const order of orders || []) {
+    if (order.customer_phone && excluded.has(order.customer_phone)) continue;
+    const email = normalizeEmail(String(order.customer_email || ''));
+    if (!email || email === 'pending@vipps.no') continue;
+    if (boxSize && getEffectiveBoxSize(order as any) !== boxSize) continue;
+
+    const extras = Array.isArray(order.extra_products) ? order.extra_products : [];
+    if (hasExtras && extras.length === 0) continue;
+
+    if (matchingExtraSlugs.size > 0) {
+      const hasMatchingExtra = extras.some((item: any) => matchingExtraSlugs.has(String(item?.slug || '')));
+      if (!hasMatchingExtra) continue;
+    }
+
+    recipients.push({
+      email,
+      phone: order.customer_phone || null,
+      name: order.customer_name || null,
     });
-
-    // Convert extra IDs to slugs
-    let targetSlugs: string[] = [];
-    if (filters.extraIds && filters.extraIds.length > 0) {
-      targetSlugs = filters.extraIds
-        .map((id: string) => idToSlug.get(id))
-        .filter((slug: string | undefined) => slug !== undefined) as string[];
-    }
-
-    // Query orders where extra_products JSON contains any of these slugs
-    if (targetSlugs.length > 0) {
-      const { data: matchedOrders, error: ordersError } = await supabaseAdmin
-        .from('orders')
-        .select('id, extra_products')
-        .not('extra_products', 'is', null);
-
-      if (ordersError) throw ordersError;
-
-      orderIds = (matchedOrders || [])
-        .filter((order: any) => {
-          if (!Array.isArray(order.extra_products)) return false;
-          return order.extra_products.some((extra: any) =>
-            targetSlugs.includes(extra.slug)
-          );
-        })
-        .map((order: any) => order.id);
-
-      if (orderIds.length === 0) return [];
-    } else if (filters.hasExtras) {
-      // Just filter for any orders with extras (non-empty extra_products)
-      const { data: matchedOrders, error: ordersError } = await supabaseAdmin
-        .from('orders')
-        .select('id')
-        .not('extra_products', 'is', null);
-
-      if (ordersError) throw ordersError;
-
-      orderIds = (matchedOrders || [])
-        .filter((order: any) =>
-          Array.isArray(order.extra_products) && order.extra_products.length > 0
-        )
-        .map((order: any) => order.id);
-
-      if (orderIds.length === 0) return [];
-    }
   }
 
-  let ordersQuery = supabaseAdmin
-    .from('orders')
-    .select('id, customer_phone, customer_name, customer_email, box_size, status, mangalitsa_preset:mangalitsa_box_presets(target_weight_kg)');
-
-  if (filters.awaitingFinalPayment) {
-    ordersQuery = ordersQuery.eq('status', 'deposit_paid');
-  }
-  if (orderIds) {
-    ordersQuery = ordersQuery.in('id', orderIds);
-  }
-
-  const { data: fetchedOrders, error: ordersError } = await ordersQuery;
-  if (ordersError) throw ordersError;
-
-  const orders = (fetchedOrders || []).filter((order) => {
-    if (!filters.boxSize) return true;
-    return getEffectiveBoxSize(order as any) === filters.boxSize;
-  });
-
-  const recipients = orders
-    .filter((o) => o.customer_phone && !excluded.has(o.customer_phone))
-    .map((o) => ({
-      phone: o.customer_phone as string,
-      name: o.customer_name || null,
-      email: o.customer_email || null,
-    }));
-
-  return uniqueByPhone(recipients);
+  return uniqueByEmail(recipients);
 }
 
-async function getRecipientsFromUsers(excludePhones: string[] = []) {
-  const excluded = new Set(excludePhones);
-  const { data: users, error } = await supabaseAdmin
-    .from('vipps_users')
-    .select('phone_number, name, email')
-    .not('phone_number', 'is', null);
-
-  if (error) throw error;
-
-  const recipients = (users || [])
-    .filter((u) => u.phone_number && !excluded.has(u.phone_number))
-    .map((u) => ({
-      phone: u.phone_number as string,
-      name: u.name || null,
-      email: u.email || null,
-    }));
-
-  return uniqueByPhone(recipients);
-}
-
-// POST /api/admin/messages/broadcast - Send messages to selected clients
 export async function POST(request: NextRequest) {
   const session = await getSession();
-
   if (!session?.isAdmin) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   try {
-    const { subject, message, message_type, mode, recipients, excludedPhones, filters } = await request.json();
+    const { subject, message, mode, recipients, excludedPhones, filters } = await request.json();
 
-    if (!subject || !message || !message_type) {
-      return NextResponse.json(
-        { error: 'Subject, message, and message_type are required' },
-        { status: 400 }
+    if (!subject || !message) {
+      return NextResponse.json({ error: 'Subject and message are required' }, { status: 400 });
+    }
+
+    const exclude = Array.isArray(excludedPhones) ? excludedPhones.map(String) : [];
+    const recipientMode: 'all' | 'manual' | 'filters' = ['manual', 'filters'].includes(mode) ? mode : 'all';
+    const parsedFilters: BroadcastFilters = filters || {};
+
+    let resolved: CandidateRecipient[] = [];
+    if (recipientMode === 'manual') {
+      resolved = await getRecipientsFromManualPhones(
+        Array.isArray(recipients) ? recipients.map(String) : [],
+        exclude
       );
-    }
-
-    const exclude = Array.isArray(excludedPhones) ? excludedPhones : [];
-    const broadcastFilters: BroadcastFilters = filters || {};
-
-    let targetRecipients: Array<{ phone: string; name?: string | null; email?: string | null }> = [];
-
-    if (mode === 'manual') {
-      const phoneList: string[] = Array.isArray(recipients) ? recipients : [];
-      if (phoneList.length === 0) {
-        return NextResponse.json({ error: 'No recipients selected' }, { status: 400 });
-      }
-      const { data: users, error: usersError } = await supabaseAdmin
-        .from('vipps_users')
-        .select('phone_number, name, email')
-        .in('phone_number', phoneList);
-
-      if (usersError) throw usersError;
-
-      const existing = (users || []).map((u) => ({
-        phone: u.phone_number as string,
-        name: u.name || null,
-        email: u.email || null,
-      }));
-
-      const fallback = phoneList
-        .filter((phone) => !existing.find((u) => u.phone === phone))
-        .map((phone) => ({ phone, name: null, email: null }));
-
-      targetRecipients = uniqueByPhone([...existing, ...fallback]).filter((r) => !exclude.includes(r.phone));
-    } else if (mode === 'filters') {
-      targetRecipients = await getRecipientsFromOrders(broadcastFilters, exclude);
+    } else if (recipientMode === 'filters') {
+      resolved = await getRecipientsFromOrders(parsedFilters, exclude);
     } else {
-      targetRecipients = await getRecipientsFromUsers(exclude);
+      resolved = await getRecipientsFromUsers(exclude);
     }
 
-    if (targetRecipients.length === 0) {
+    if (resolved.length === 0) {
       return NextResponse.json({ error: 'No recipients found' }, { status: 400 });
     }
 
-    const records = targetRecipients.map((u) => ({
-      customer_phone: u.phone,
-      customer_name: u.name || null,
-      customer_email: u.email || null,
-      subject,
-      message,
-      message_type,
-      status: 'open',
-      priority: 'normal',
-    }));
+    const { data: campaign, error: campaignError } = await supabaseAdmin
+      .from('email_campaigns')
+      .insert({
+        name: `Legacy broadcast ${new Date().toISOString()}`,
+        classification: 'promotional',
+        status: 'ready',
+        subject_no: String(subject),
+        subject_en: String(subject),
+        body_no: String(message),
+        body_en: String(message),
+        recipient_mode: recipientMode,
+        recipient_filter: parsedFilters,
+        total_recipients: resolved.length,
+        created_by: session.email || session.name || 'admin',
+      })
+      .select('id')
+      .single();
 
-    const { error: insertError } = await supabaseAdmin
-      .from('customer_messages')
-      .insert(records);
-
-    if (insertError) {
-      logError('admin-messages-broadcast-insert', insertError);
-      return NextResponse.json({ error: 'Failed to create broadcast messages' }, { status: 500 });
+    if (campaignError || !campaign) {
+      return NextResponse.json({ error: 'Failed to create campaign' }, { status: 500 });
     }
 
-    return NextResponse.json({ count: records.length });
+    const rows = resolved.map((recipient) => ({
+      campaign_id: campaign.id,
+      email: recipient.email,
+      phone: recipient.phone || null,
+      name: recipient.name || null,
+      status: 'planned',
+    }));
+
+    await supabaseAdmin.from('email_campaign_recipients').upsert(rows, {
+      onConflict: 'campaign_id,email',
+    });
+
+    return NextResponse.json({
+      count: rows.length,
+      campaignId: campaign.id,
+      requiresApproval: false,
+      queuedByCron: true,
+    });
   } catch (error) {
-    logError('admin-messages-broadcast-main', error);
+    console.error('admin messages broadcast compatibility route failed', error);
     return NextResponse.json({ error: 'Server error' }, { status: 500 });
   }
 }

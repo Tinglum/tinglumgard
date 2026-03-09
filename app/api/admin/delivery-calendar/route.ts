@@ -24,6 +24,8 @@ type DeliveryGroup = {
     product_type: 'pig_box' | 'egg';
     display_name: string;
     quantity: number;
+    base_quantity?: number;
+    additions_quantity?: number;
     quantity_unit: 'kg' | 'egg';
     fresh_delivery: boolean;
     marked_collected: boolean;
@@ -99,7 +101,9 @@ export async function GET(request: NextRequest) {
 
     const eggPrimary = await supabaseAdmin
       .from('egg_orders')
-      .select('id, order_number, customer_name, delivery_method, status, delivery_monday, marked_delivered_at, quantity, egg_breeds(name)')
+      .select(
+        'id, order_number, customer_name, delivery_method, status, delivery_monday, marked_delivered_at, quantity, egg_breeds(name), egg_order_additions(quantity)'
+      )
       .not('status', 'in', '(cancelled,forfeited,pending)');
 
     eggOrders = eggPrimary.data || [];
@@ -170,6 +174,13 @@ export async function GET(request: NextRequest) {
 
       const breedRelation = order.egg_breeds as { name?: string } | { name?: string }[] | null;
       const breedName = (Array.isArray(breedRelation) ? breedRelation[0]?.name : breedRelation?.name) || 'Rugeegg';
+      const additionsQuantity = Array.isArray(order.egg_order_additions)
+        ? order.egg_order_additions.reduce((sum: number, addition: { quantity?: number }) => {
+            return sum + Number(addition?.quantity || 0);
+          }, 0)
+        : 0;
+      const baseQuantity = Number(order.quantity || 0);
+      const totalQuantity = baseQuantity + additionsQuantity;
 
       groups[key].orders.push({
         id: order.id,
@@ -177,7 +188,9 @@ export async function GET(request: NextRequest) {
         customer_name: order.customer_name,
         product_type: 'egg',
         display_name: breedName,
-        quantity: order.quantity || 0,
+        quantity: totalQuantity,
+        base_quantity: baseQuantity,
+        additions_quantity: additionsQuantity,
         quantity_unit: 'egg',
         fresh_delivery: false,
         marked_collected: !!order.marked_delivered_at,

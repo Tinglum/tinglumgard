@@ -7,6 +7,7 @@ import { ChickenCalendarGrid } from '@/components/chickens/ChickenCalendarGrid'
 import { ChickenOrderForm } from '@/components/chickens/ChickenOrderForm'
 import type { ChickenWeekAvailability } from '@/lib/chickens/types'
 import { trackChickenFunnel } from '@/lib/chickens/analytics'
+import { useToast } from '@/hooks/use-toast'
 
 interface SelectedHatchOption {
   id: string
@@ -21,6 +22,7 @@ interface SelectedHatchOption {
 
 export default function KyllingerPage() {
   const { lang, t } = useLanguage()
+  const { toast } = useToast()
   const chickens = (t as any).chickens
   const commonCopy = chickens.common
   const locale = lang === 'en' ? 'en-GB' : 'nb-NO'
@@ -59,6 +61,11 @@ export default function KyllingerPage() {
         if (calendarRes.ok) setCalendar(await calendarRes.json())
       } catch (err) {
         console.error('Failed to load chicken data:', err)
+        toast({
+          title: chickens.pageTitle,
+          description: lang === 'no' ? 'Kunne ikke laste data. Prøv å laste siden på nytt.' : 'Could not load data. Try reloading the page.',
+          variant: 'destructive',
+        })
       } finally {
         setLoading(false)
       }

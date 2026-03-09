@@ -1,4 +1,5 @@
-import { sendEmail } from '@/lib/email/client'
+import { dispatchEmail } from '@/lib/email/dispatch'
+import { renderManagedTemplate } from '@/lib/email/render'
 import { logError } from '@/lib/logger'
 import { supabaseAdmin } from '@/lib/supabase/server'
 import { getSingleBreedMinimumEggs } from './minimums'
@@ -54,41 +55,6 @@ function toDateLabel(dateValue: string): string {
     month: 'long',
     year: 'numeric',
   })
-}
-
-function buildWaitlistEmailHtml(params: {
-  customerName: string
-  breedName: string
-  weekNumber: number
-  deliveryDate: string
-  inventoryUrl: string
-}) {
-  return `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; line-height: 1.6; color: #111827; }
-    .container { max-width: 620px; margin: 0 auto; padding: 24px; }
-    .card { border: 1px solid #e5e7eb; border-radius: 14px; padding: 24px; background: #ffffff; }
-    .title { font-size: 22px; font-weight: 700; margin-bottom: 10px; }
-    .muted { color: #6b7280; font-size: 14px; margin: 0; }
-    .button { display: inline-block; background: #111827; color: #ffffff; text-decoration: none; padding: 12px 18px; border-radius: 10px; font-weight: 600; margin-top: 18px; }
-    .note { margin-top: 14px; color: #374151; font-size: 14px; }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <div class="card">
-      <div class="title">Egg er frigitt for bestilling</div>
-      <p>Hei ${params.customerName},</p>
-      <p class="muted">${params.breedName} - Uke ${params.weekNumber} - Levering ${params.deliveryDate}</p>
-      <p class="note">Du star forst i koen na. Vi holder varselet aktivt i 10 minutter for neste person pa ventelisten far melding.</p>
-      <a class="button" href="${params.inventoryUrl}">Ga til bestilling</a>
-    </div>
-  </div>
-</body>
-</html>`
 }
 
 function toSingleRelation<T>(value: T | T[] | null | undefined): T | null {
@@ -298,19 +264,41 @@ async function notifyNextInQueue(inventory: InventoryWithBreed, now: Date, appUr
   const slug = breed?.slug
   const inventoryUrl = slug ? `${appUrl}/rugeegg/raser/${slug}` : `${appUrl}/rugeegg/raser`
   const customerName = next.name?.trim() || 'der'
-  const subject = `Rugeegg tilgjengelig: ${breedName} uke ${inventory.week_number}`
-  const html = buildWaitlistEmailHtml({
-    customerName,
-    breedName,
-    weekNumber: inventory.week_number,
-    deliveryDate: toDateLabel(inventory.delivery_monday),
-    inventoryUrl,
+  const rendered = await renderManagedTemplate({
+    templateKey: 'egg.waitlist.available',
+    locale: 'no',
+    variables: {
+      customer_name: customerName,
+      breed_name: breedName,
+      week_number: inventory.week_number,
+      delivery_date: toDateLabel(inventory.delivery_monday),
+      reservation_window_minutes: WAITLIST_EMAIL_INTERVAL_MINUTES,
+      inventory_url: inventoryUrl,
+    },
   })
 
-  const sendResult = await sendEmail({
+  if (!rendered) {
+    logError('egg-waitlist-template-missing', { templateKey: 'egg.waitlist.available' })
+    return { notified: 0, expired: expiredCount, waitingWindowOpen: 0, noQueue: 0 }
+  }
+
+  const sendResult = await dispatchEmail({
     to: next.email,
-    subject,
-    html,
+    subject: rendered.subject,
+    html: rendered.html,
+    classification: 'transactional',
+    templateKey: rendered.templateKey,
+    sourcePath: 'lib/eggs/waitlist',
+    metadata: {
+      inventory_id: inventory.id,
+      waitlist_entry_id: next.id,
+    },
+    idempotency: {
+      source: 'egg.waitlist',
+      entity: 'waitlist_entry',
+      id: next.id,
+      template: 'egg_waitlist_release',
+    },
   })
 
   const nextAttempt = (next.notify_attempts || 0) + 1
@@ -342,7 +330,7 @@ async function notifyNextInQueue(inventory: InventoryWithBreed, now: Date, appUr
       notify_attempts: nextAttempt,
       notified_at: now.toISOString(),
       reservation_expires_at: expiresAt.toISOString(),
-      last_email_message_id: sendResult.id || null,
+      last_email_message_id: sendResult.id || sendResult.queueId || null,
       updated_at: now.toISOString(),
     })
     .eq('id', next.id)

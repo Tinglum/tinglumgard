@@ -209,9 +209,16 @@ export default function HomePage() {
                             <span className="badge badge-neutral">{t.browse.soldOut}</span>
                           ) : (
                             <div className="flex items-center gap-2">
-                              <span className="text-sm text-neutral-600">
-                                {breed.eggsAvailable} {t.browse.eggsAvailable}
-                              </span>
+                              <div className="text-right">
+                                <div className="text-sm text-neutral-600">
+                                  {breed.eggsAvailable} {t.browse.eggsAvailable}
+                                </div>
+                                {breed.status === 'low_stock' && (
+                                  <div className="text-xs font-medium text-amber-700">
+                                    {t.browse.waitlistCta}
+                                  </div>
+                                )}
+                              </div>
                               <ArrowRight className="w-4 h-4 text-neutral-400 group-hover:text-neutral-900 group-hover:translate-x-0.5 transition-all" />
                             </div>
                           )}

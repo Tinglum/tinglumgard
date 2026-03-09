@@ -23,6 +23,7 @@ import {
   Eye,
   RefreshCw,
   MessageSquare,
+  Mail,
   Warehouse,
   Tag,
   Beef,
@@ -33,10 +34,9 @@ import { DashboardMetrics } from '@/components/admin/DashboardMetrics';
 import { OrderDetailModal } from '@/components/admin/OrderDetailModal';
 import { CustomerDatabase } from '@/components/admin/CustomerDatabase';
 import { SystemHealth } from '@/components/admin/SystemHealth';
-import { CommunicationCenter } from '@/components/admin/CommunicationCenter';
-import { CommunicationHistory } from '@/components/admin/CommunicationHistory';
 import { InventoryManagement } from '@/components/admin/InventoryManagement';
 import { AdminMessagingPanel } from '@/components/admin/AdminMessagingPanel';
+import { EmailControlCenter } from '@/components/admin/EmailControlCenter';
 import { ConfigurationManagement } from '@/components/admin/ConfigurationManagement';
 import { DeliveryCalendar } from '@/components/admin/DeliveryCalendar';
 import { RebateCodesManager } from '@/components/admin/RebateCodesManager';
@@ -52,7 +52,19 @@ import { ChickenBreedManager } from '@/components/admin/ChickenBreedManager';
 import { ChickenHatchManager } from '@/components/admin/ChickenHatchManager';
 import { ChickenOrdersManager } from '@/components/admin/ChickenOrdersManager';
 
-type TabType = 'dashboard' | 'orders' | 'mangalitsa' | 'eggs' | 'chickens' | 'inventory' | 'customers' | 'analytics' | 'rebates' | 'recipes' | 'settings';
+type TabType =
+  | 'dashboard'
+  | 'orders'
+  | 'mangalitsa'
+  | 'eggs'
+  | 'email'
+  | 'chickens'
+  | 'inventory'
+  | 'customers'
+  | 'analytics'
+  | 'rebates'
+  | 'recipes'
+  | 'settings';
 
 interface Order {
   id: string;
@@ -113,7 +125,7 @@ export default function AdminPage() {
   // Sub-tab state
   const [mangalitsaSubTab, setMangalitsaSubTab] = useState<'boxes' | 'extras' | 'cuts'>('boxes');
   const [eggsSubTab, setEggsSubTab] = useState<'orders' | 'inventory' | 'breeds' | 'analytics' | 'calendar' | 'messages'>('orders');
-  const [customersSubTab, setCustomersSubTab] = useState<'database' | 'messages' | 'communication'>('database');
+  const [customersSubTab, setCustomersSubTab] = useState<'database' | 'messages'>('database');
   const [chickensSubTab, setChickensSubTab] = useState<'orders' | 'hatches' | 'breeds'>('orders');
 
   // Data
@@ -529,6 +541,7 @@ export default function AdminPage() {
     { id: 'orders', label: copy.tabs.orders, icon: ShoppingCart },
     { id: 'mangalitsa', label: 'Mangalitsa', icon: Beef },
     { id: 'eggs', label: copy.tabs.eggs || (lang === 'no' ? 'Rugeegg' : 'Eggs'), icon: Egg },
+    { id: 'email', label: 'E-post', icon: Mail },
     { id: 'inventory', label: copy.tabs.inventory, icon: Warehouse },
     { id: 'customers', label: copy.tabs.customers, icon: Users },
     { id: 'analytics', label: copy.tabs.analytics, icon: BarChart3 },
@@ -1123,6 +1136,12 @@ export default function AdminPage() {
           </div>
         )}
 
+        {activeTab === 'email' && (
+          <div className="space-y-8">
+            <EmailControlCenter />
+          </div>
+        )}
+
         {activeTab === 'inventory' && (
           <div className="space-y-8">
             <InventoryManagement />
@@ -1172,31 +1191,11 @@ export default function AdminPage() {
                     <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-neutral-900" />
                   )}
                 </button>
-                <button
-                  onClick={() => setCustomersSubTab('communication')}
-                  className={cn(
-                    'px-5 py-3 text-sm font-light transition-all relative',
-                    customersSubTab === 'communication'
-                      ? 'text-neutral-900'
-                      : 'text-neutral-500 hover:text-neutral-900'
-                  )}
-                >
-                  Utsendelser
-                  {customersSubTab === 'communication' && (
-                    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-neutral-900" />
-                  )}
-                </button>
               </div>
             </div>
 
             {customersSubTab === 'database' && <CustomerDatabase />}
             {customersSubTab === 'messages' && <AdminMessagingPanel />}
-            {customersSubTab === 'communication' && (
-              <div className="space-y-6">
-                <CommunicationCenter />
-                <CommunicationHistory />
-              </div>
-            )}
           </div>
         )}
 

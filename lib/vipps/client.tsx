@@ -126,10 +126,17 @@ export default function CheckoutPage() {
         const orderId = data.orderId;
 
         try {
+          const paymentHeaders: HeadersInit = {
+            'Content-Type': 'application/json',
+          };
+          if (data.orderAccessToken) {
+            paymentHeaders['x-order-access-token'] = data.orderAccessToken;
+          }
+
           // Create deposit payment session with Vipps
           const paymentResponse = await fetch(`/api/orders/${orderId}/deposit`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: paymentHeaders,
           });
 
           const paymentData = await paymentResponse.json();

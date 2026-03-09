@@ -1,14 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'node:crypto';
 import { supabaseAdmin } from '@/lib/supabase/server';
-import { sendEmail } from '@/lib/email/client';
-import { getAdminReplyNotificationTemplate } from '@/lib/email/templates';
+import { dispatchEmail } from '@/lib/email/dispatch';
+import { renderManagedTemplate } from '@/lib/email/render';
 import { logError } from '@/lib/logger';
-
-/**
- * Webhook endpoint for handling inbound email replies from Mailgun
- * Mailgun inbound webhook is sent as form-data.
- */
 
 function verifyMailgunSignature(timestamp: string, token: string, signature: string): boolean {
   const signingKey = process.env.MAILGUN_WEBHOOK_SIGNING_KEY;
@@ -22,16 +17,12 @@ function verifyMailgunSignature(timestamp: string, token: string, signature: str
   return hmac === signature;
 }
 
-// Extract thread ID from email subject
 function extractThreadId(subject: string): string | null {
   const match = subject.match(/\[msg_([^\]]+)\]/);
-  if (match) {
-    return `msg_${match[1]}`;
-  }
+  if (match) return `msg_${match[1]}`;
   return null;
 }
 
-// Extract clean email address from "Name <email@example.com>" format
 function extractEmail(emailString: string): string {
   const match = emailString.match(/<([^>]+)>/);
   return match ? match[1] : emailString;
@@ -39,16 +30,14 @@ function extractEmail(emailString: string): string {
 
 function getPlainText(html: string | null, text: string | null): string {
   if (text) return text;
-  if (html) {
-    return html
-      .replace(/<[^>]*>/g, '')
-      .replace(/&nbsp;/g, ' ')
-      .replace(/&amp;/g, '&')
-      .replace(/&lt;/g, '<')
-      .replace(/&gt;/g, '>')
-      .trim();
-  }
-  return '';
+  if (!html) return '';
+  return html
+    .replace(/<[^>]*>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .trim();
 }
 
 export async function POST(request: NextRequest) {
@@ -71,8 +60,6 @@ export async function POST(request: NextRequest) {
     const text = formData.get('stripped-text')?.toString() || null;
     const messageId = formData.get('Message-Id')?.toString() || formData.get('message-id')?.toString() || null;
 
-    console.log('Mailgun webhook received:', { sender, subject });
-
     const threadId = extractThreadId(subject);
     if (!threadId) {
       return NextResponse.json({ success: true, message: 'No thread ID found' });
@@ -91,7 +78,6 @@ export async function POST(request: NextRequest) {
 
     const senderEmail = extractEmail(sender);
     const replyText = getPlainText(html, text);
-
     if (!replyText.trim()) {
       return NextResponse.json({ error: 'Empty reply' }, { status: 400 });
     }
@@ -127,22 +113,33 @@ export async function POST(request: NextRequest) {
 
     if (isFromAdmin && message.customer_email) {
       try {
-        const isEggMessage = typeof message.message_type === 'string' && message.message_type.startsWith('egg');
         const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://tinglumgard.no';
-        const emailTemplate = getAdminReplyNotificationTemplate({
-          customerName: message.customer_name || 'Kunde',
-          messageId: message.id,
-          subject: message.subject,
-          replyText,
-          adminName: 'Tinglum Gård',
-          portalUrl: appUrl + '/min-side',
-          portalLabel: 'Min side',
+        const rendered = await renderManagedTemplate({
+          templateKey: 'support.reply.customer.notification',
+          locale: 'no',
+          variables: {
+            customer_name: message.customer_name || 'Kunde',
+            thread_id: `msg_${message.id}`,
+            subject_line: message.subject,
+            reply_text: replyText,
+            admin_name: 'Tinglum Gard',
+            portal_url: `${appUrl}/min-side`,
+            portal_label: 'Min side',
+          },
         });
 
-        await sendEmail({
+        if (!rendered) {
+          throw new Error('Missing template support.reply.customer.notification');
+        }
+
+        await dispatchEmail({
           to: message.customer_email,
-          subject: emailTemplate.subject,
-          html: emailTemplate.html,
+          subject: rendered.subject,
+          html: rendered.html,
+          classification: 'support',
+          templateKey: rendered.templateKey,
+          sourcePath: '/api/webhooks/email-reply',
+          customerMessageId: message.id,
         });
       } catch (emailError) {
         logError('mailgun-webhook-customer-notification', emailError);
@@ -150,48 +147,32 @@ export async function POST(request: NextRequest) {
     } else if (!isFromAdmin && adminEmail) {
       try {
         const orderNumber = message.orders?.order_number || null;
-        const adminNotificationHtml = `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <style>
-    body { font-family: -apple-system, sans-serif; line-height: 1.6; color: #333; }
-    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-    .header { background: #2C1810; color: white; padding: 20px; text-align: center; }
-    .content { background: #ffffff; padding: 30px; }
-    .reply-box { background: #e3f2fd; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #2196f3; }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <div class="header">
-      <h1>Kundesvar (via e-post)</h1>
-    </div>
-    <div class="content">
-      <p><strong>Fra:</strong> ${message.customer_name} (${message.customer_phone})</p>
-      <p><strong>E-post:</strong> ${message.customer_email}</p>
-      ${orderNumber ? `<p><strong>Ordre:</strong> ${orderNumber}</p>` : ''}
-      <p><strong>Melding:</strong> ${message.subject}</p>
-      
-      <div class="reply-box">
-        <p><strong>Kundens svar:</strong></p>
-        <p style="white-space: pre-wrap;">${replyText}</p>
-      </div>
+        const rendered = await renderManagedTemplate({
+          templateKey: 'support.reply.admin.notification',
+          locale: 'no',
+          variables: {
+            thread_id: `msg_${message.id}`,
+            customer_name: message.customer_name || 'Kunde',
+            customer_phone: message.customer_phone || '',
+            customer_email: message.customer_email || '',
+            order_number: orderNumber ? `Ordre: ${orderNumber}` : '',
+            subject_line: message.subject,
+            reply_text: replyText,
+          },
+        });
 
-      <p style="margin-top: 20px;">
-        <strong>Svar på denne e-posten direkte for å svare kunden.</strong>
-      </p>
-    </div>
-  </div>
-</body>
-</html>
-        `;
+        if (!rendered) {
+          throw new Error('Missing template support.reply.admin.notification');
+        }
 
-        await sendEmail({
+        await dispatchEmail({
           to: adminEmail,
-          subject: `[${threadId}] Svar fra ${message.customer_name}: ${message.subject}`,
-          html: adminNotificationHtml,
+          subject: rendered.subject,
+          html: rendered.html,
+          classification: 'support',
+          templateKey: rendered.templateKey,
+          sourcePath: '/api/webhooks/email-reply',
+          customerMessageId: message.id,
         });
       } catch (emailError) {
         logError('mailgun-webhook-admin-notification', emailError);
@@ -217,5 +198,3 @@ export async function GET() {
     description: 'Handles inbound email replies from Mailgun',
   });
 }
-
-

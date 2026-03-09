@@ -127,6 +127,16 @@ Deno.serve(async (req: Request) => {
     return new Response(null, { status: 200, headers: corsHeaders });
   }
 
+  // Verify authorization
+  const authHeader = req.headers.get('Authorization') || '';
+  const expectedKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
+  if (!expectedKey || !authHeader.includes(expectedKey)) {
+    return new Response(
+      JSON.stringify({ error: 'Unauthorized' }),
+      { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
@@ -28,6 +28,9 @@ interface ChickenOrder {
   delivery_method: string
   status: string
   admin_notes: string
+  remainder_collected_at?: string | null
+  remainder_collected_by?: string | null
+  remainder_collection_note?: string | null
   created_at: string
   chicken_breeds?: { name: string; slug: string; accent_color: string }
   chicken_hatches?: { hatch_date: string }
@@ -71,7 +74,7 @@ export function ChickenOrdersManager() {
     { value: 'cancelled', label: co.statusCancelled },
   ]
 
-  const fetchOrders = async () => {
+  const fetchOrders = useCallback(async () => {
     setLoading(true)
     try {
       const res = await fetch('/api/admin/chickens/orders')
@@ -83,9 +86,9 @@ export function ChickenOrdersManager() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [co.errorFetchDescription, co.errorFetchTitle, toast])
 
-  useEffect(() => { fetchOrders() }, [])
+  useEffect(() => { fetchOrders() }, [fetchOrders])
 
   const handleStatusChange = async (orderId: string, newStatus: string) => {
     try {
@@ -99,6 +102,37 @@ export function ChickenOrdersManager() {
       fetchOrders()
     } catch {
       toast({ title: co.errorUpdateTitle, description: co.errorUpdateDescription, variant: 'destructive' })
+    }
+  }
+
+  const handleCollectRemainder = async (order: ChickenOrder) => {
+    const defaultAmount = Math.max(0, Math.round(Number(order.remainder_amount_nok || 0)))
+    const amountInput = window.prompt('Beløp registrert (NOK)', String(defaultAmount))
+    if (amountInput === null) return
+    const amountNok = Number.parseInt(amountInput, 10)
+    if (!Number.isFinite(amountNok) || amountNok < 0) {
+      toast({ title: co.errorUpdateTitle, description: 'Ugyldig beløp', variant: 'destructive' })
+      return
+    }
+
+    const note = window.prompt('Notat (valgfritt)', order.remainder_collection_note || '') || ''
+
+    try {
+      const res = await fetch(`/api/admin/chickens/orders/${order.id}/collect-remainder`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          amountNok,
+          note,
+          sendReceipt: true,
+          locale: 'no',
+        }),
+      })
+      if (!res.ok) throw new Error('Failed')
+      toast({ title: 'Restbetaling registrert', description: `kr ${amountNok} ble registrert` })
+      fetchOrders()
+    } catch {
+      toast({ title: co.errorUpdateTitle, description: 'Kunne ikke registrere restbetaling', variant: 'destructive' })
     }
   }
 
@@ -176,15 +210,22 @@ export function ChickenOrdersManager() {
                     </span>
                   </td>
                   <td className="py-2">
-                    {transitions.length > 0 && (
-                      <select className="text-xs border rounded px-1 py-0.5"
-                        defaultValue="" onChange={(e) => { if (e.target.value) handleStatusChange(order.id, e.target.value) }}>
-                        <option value="" disabled>{co.actionDropdownDefault}</option>
-                        {transitions.map((s) => (
-                          <option key={s} value={s}>{statusOptions.find(o => o.value === s)?.label || s}</option>
-                        ))}
-                      </select>
-                    )}
+                    <div className="flex items-center gap-2">
+                      {transitions.length > 0 && (
+                        <select className="text-xs border rounded px-1 py-0.5"
+                          defaultValue="" onChange={(e) => { if (e.target.value) handleStatusChange(order.id, e.target.value) }}>
+                          <option value="" disabled>{co.actionDropdownDefault}</option>
+                          {transitions.map((s) => (
+                            <option key={s} value={s}>{statusOptions.find(o => o.value === s)?.label || s}</option>
+                          ))}
+                        </select>
+                      )}
+                      {!order.remainder_collected_at && order.status !== 'cancelled' && order.status !== 'picked_up' && Number(order.remainder_amount_nok || 0) > 0 && (
+                        <Button size="sm" variant="outline" onClick={() => handleCollectRemainder(order)}>
+                          Registrer rest
+                        </Button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               )

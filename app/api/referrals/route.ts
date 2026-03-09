@@ -52,6 +52,20 @@ async function createAutoCode(params: {
   return null;
 }
 
+async function getFirstEligibleOrderId(ownerPhone: string): Promise<string | null> {
+  const { data: order, error } = await supabaseAdmin
+    .from('orders')
+    .select('id')
+    .eq('customer_phone', ownerPhone)
+    .neq('status', 'cancelled')
+    .order('created_at', { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) throw error;
+  return order?.id || null;
+}
+
 // GET /api/referrals - Get user's referral code and stats
 export async function GET() {
   const session = await getSession();
@@ -61,23 +75,28 @@ export async function GET() {
   }
 
   try {
+    const ownerPhone = (session.phoneNumber || '').trim();
+    const firstEligibleOrderId = ownerPhone ? await getFirstEligibleOrderId(ownerPhone) : null;
+    const hasPlacedOrder = Boolean(firstEligibleOrderId);
+
     // Get user's referral code
     const { data: referralCode, error: codeError } = await supabaseAdmin
       .from('referral_codes')
       .select('*')
-      .eq('owner_phone', session.phoneNumber)
+      .eq('owner_phone', ownerPhone)
       .eq('is_active', true)
       .maybeSingle();
 
     if (codeError) throw codeError;
 
     // If no code exists, return null
-    if (!referralCode) {
+    if (!referralCode || !hasPlacedOrder) {
       return NextResponse.json({
         hasCode: false,
         code: null,
         stats: null,
         referrals: [],
+        hasPlacedOrder,
       });
     }
 
@@ -85,7 +104,7 @@ export async function GET() {
     const { data: referrals, error: referralsError } = await supabaseAdmin
       .from('referrals')
       .select('*')
-      .eq('referrer_phone', session.phoneNumber)
+      .eq('referrer_phone', ownerPhone)
       .order('created_at', { ascending: false });
 
     if (referralsError) throw referralsError;
@@ -114,6 +133,7 @@ export async function GET() {
         creditAmount: r.credit_amount_nok,
         creditApplied: r.credit_applied,
       })),
+      hasPlacedOrder,
     });
   } catch (error) {
     console.error('Error fetching referral data:', error);
@@ -139,9 +159,32 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Phone number missing' }, { status: 400 });
       }
 
+      let resolvedOrderId: string | null = null;
+      if (typeof orderId === 'string' && orderId.trim()) {
+        const { data: orderMatch } = await supabaseAdmin
+          .from('orders')
+          .select('id')
+          .eq('id', orderId)
+          .eq('customer_phone', ownerPhone)
+          .neq('status', 'cancelled')
+          .maybeSingle();
+        resolvedOrderId = orderMatch?.id || null;
+      }
+
+      if (!resolvedOrderId) {
+        resolvedOrderId = await getFirstEligibleOrderId(ownerPhone);
+      }
+
+      if (!resolvedOrderId) {
+        return NextResponse.json(
+          { error: 'Vennerabattkoden blir aktiv etter at du har lagt inn din første bestilling.' },
+          { status: 400 }
+        );
+      }
+
       const { data: existingCode, error: existingCodeError } = await supabaseAdmin
         .from('referral_codes')
-        .select('code')
+        .select('id, code, order_id')
         .eq('owner_phone', ownerPhone)
         .eq('is_active', true)
         .order('created_at', { ascending: true })
@@ -150,29 +193,13 @@ export async function POST(request: NextRequest) {
 
       if (existingCodeError) throw existingCodeError;
       if (existingCode?.code) {
+        if (!existingCode.order_id) {
+          await supabaseAdmin
+            .from('referral_codes')
+            .update({ order_id: resolvedOrderId })
+            .eq('id', existingCode.id);
+        }
         return NextResponse.json({ success: true, code: existingCode.code, created: false });
-      }
-
-      let resolvedOrderId: string | null = null;
-      if (typeof orderId === 'string' && orderId.trim()) {
-        const { data: orderMatch } = await supabaseAdmin
-          .from('orders')
-          .select('id')
-          .eq('id', orderId)
-          .eq('customer_phone', ownerPhone)
-          .maybeSingle();
-        resolvedOrderId = orderMatch?.id || null;
-      }
-
-      if (!resolvedOrderId) {
-        const { data: firstOrder } = await supabaseAdmin
-          .from('orders')
-          .select('id')
-          .eq('customer_phone', ownerPhone)
-          .order('created_at', { ascending: true })
-          .limit(1)
-          .maybeSingle();
-        resolvedOrderId = firstOrder?.id || null;
       }
 
       const autoCode = await createAutoCode({
@@ -220,9 +247,17 @@ export async function POST(request: NextRequest) {
         .from('orders')
         .select('id')
         .eq('customer_phone', session.phoneNumber)
+        .neq('status', 'cancelled')
         .order('created_at', { ascending: true })
         .limit(1)
         .maybeSingle();
+
+      if (!userOrder?.id) {
+        return NextResponse.json(
+          { error: 'Vennerabattkoden blir aktiv etter at du har lagt inn din første bestilling.' },
+          { status: 400 }
+        );
+      }
 
       // Create the referral code
       const { data: newCode, error: createError } = await supabaseAdmin
@@ -232,7 +267,7 @@ export async function POST(request: NextRequest) {
           owner_phone: session.phoneNumber,
           owner_name: session.name,
           owner_email: session.email,
-          order_id: userOrder?.id || null,
+          order_id: userOrder.id,
           max_uses: 5,
           is_active: true,
         })

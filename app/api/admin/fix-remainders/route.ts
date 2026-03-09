@@ -1,11 +1,17 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/server';
+import { getSession } from '@/lib/auth/session';
 
 /**
  * Admin endpoint to fix remainder_amount for all orders
  * remainder_amount should always equal total_amount - deposit_amount
  */
 export async function POST() {
+  const session = await getSession();
+  if (!session?.isAdmin) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
+  }
+
   try {
     // Fetch all orders
     const { data: orders, error: fetchError } = await supabaseAdmin

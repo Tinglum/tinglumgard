@@ -184,8 +184,15 @@ export function ChickenOrderForm({ selection, onClose, onRemoveLine }: OrderForm
       }
 
       const data = await res.json()
+      const depositHeaders: HeadersInit = {}
+      if (data.orderAccessToken) {
+        depositHeaders['x-order-access-token'] = data.orderAccessToken
+      }
 
-      const depositRes = await fetch(`/api/chickens/orders/${data.orderId}/deposit`, { method: 'POST' })
+      const depositRes = await fetch(`/api/chickens/orders/${data.orderId}/deposit`, {
+        method: 'POST',
+        headers: depositHeaders,
+      })
       if (!depositRes.ok) {
         throw new Error(formCopy.failedToStartPayment)
       }

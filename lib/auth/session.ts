@@ -1,9 +1,13 @@
 import { SignJWT, jwtVerify } from 'jose';
 import { cookies } from 'next/headers';
 
-const SECRET_KEY = new TextEncoder().encode(
-  process.env.JWT_SECRET || 'tinglum-secret-key-change-in-production'
-);
+function getSecretKey() {
+  const jwtSecret = process.env.JWT_SECRET;
+  if (!jwtSecret) {
+    throw new Error('Missing required environment variable: JWT_SECRET');
+  }
+  return new TextEncoder().encode(jwtSecret);
+}
 
 export interface SessionData {
   userId: string;
@@ -16,16 +20,18 @@ export interface SessionData {
 }
 
 export async function createSession(data: SessionData): Promise<string> {
+  const secretKey = getSecretKey();
   return new SignJWT(data)
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
     .setExpirationTime('7d')
-    .sign(SECRET_KEY);
+    .sign(secretKey);
 }
 
 export async function verifySession(token: string): Promise<SessionData | null> {
+  const secretKey = getSecretKey();
   try {
-    const { payload } = await jwtVerify(token, SECRET_KEY);
+    const { payload } = await jwtVerify(token, secretKey);
     return payload as unknown as SessionData;
   } catch {
     return null;
@@ -50,8 +56,6 @@ export async function setSessionCookie(token: string) {
     maxAge: 60 * 60 * 24 * 7, // 7 days
     path: '/',
   });
-
-  console.log('Session cookie set with token:', token.substring(0, 20) + '...');
 }
 
 export async function clearSessionCookie() {

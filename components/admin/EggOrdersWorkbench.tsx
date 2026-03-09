@@ -14,6 +14,7 @@ import {
   CheckCircle2,
   Download,
   Loader2,
+  Package,
   RefreshCw,
   Search,
   Settings,
@@ -21,6 +22,14 @@ import {
   Truck,
   X,
 } from 'lucide-react'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog'
 
 type PaymentState = 'deposit_pending' | 'remainder_due' | 'fully_paid' | 'refunded' | 'failed'
 
@@ -85,6 +94,7 @@ interface EggOrder {
   admin_notes: string | null
   locked_at: string | null
   marked_delivered_at: string | null
+  tracking_number: string | null
   created_at: string
   egg_breeds?: EggBreed | null
   egg_inventory?: EggInventory | null
@@ -246,6 +256,16 @@ function hasMissingShipping(order: EggOrder): boolean {
   )
 }
 
+function getEggQuantities(order: Pick<EggOrder, 'quantity' | 'egg_order_additions'>) {
+  const base = Number(order.quantity || 0)
+  const additions = (order.egg_order_additions || []).reduce(
+    (sum, addition) => sum + Number(addition.quantity || 0),
+    0
+  )
+  const total = base + additions
+  return { base, additions, total }
+}
+
 function toFormState(order: EggOrder, defaultCountry: string): EggOrderFormState {
   return {
     customerName: order.customer_name || '',
@@ -311,6 +331,11 @@ export function EggOrdersWorkbench() {
   const [manualStatus, setManualStatus] = useState('deposit_paid')
   const [deliveryActionMethod, setDeliveryActionMethod] = useState('posten')
   const [deliveryActionFee, setDeliveryActionFee] = useState('30000')
+
+  const [trackingModalOpen, setTrackingModalOpen] = useState(false)
+  const [trackingModalOrderId, setTrackingModalOrderId] = useState<string | null>(null)
+  const [trackingNumberInput, setTrackingNumberInput] = useState('')
+  const [markShippedLoading, setMarkShippedLoading] = useState(false)
 
   const statusOptions = useMemo(
     () =>
@@ -392,6 +417,59 @@ export function EggOrdersWorkbench() {
     }, 250)
     return () => window.clearTimeout(timeout)
   }, [searchInput])
+
+  async function handleMarkAsSent(order: EggOrder) {
+    if (order.tracking_number) {
+      setMarkShippedLoading(true)
+      try {
+        const response = await fetch(`/api/admin/eggs/orders/${order.id}/actions`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'mark_shipped', data: { trackingNumber: order.tracking_number } }),
+        })
+        const result = await response.json().catch(() => ({}))
+        if (!response.ok) throw new Error(result?.error || copy.errors.orderActionFailed)
+        toast({ title: copy.toast.updatedTitle, description: copy.markSent.successToast })
+        await fetchOrders(true)
+      } catch (err: any) {
+        toast({ title: copy.toast.errorTitle, description: err?.message || copy.errors.orderActionFailed, variant: 'destructive' })
+      } finally {
+        setMarkShippedLoading(false)
+      }
+      return
+    }
+    setTrackingModalOrderId(order.id)
+    setTrackingNumberInput('')
+    setTrackingModalOpen(true)
+  }
+
+  async function submitTrackingNumber() {
+    if (!trackingModalOrderId) return
+    const trimmed = trackingNumberInput.trim()
+    if (!/^\d{18}$/.test(trimmed)) {
+      toast({ title: copy.toast.errorTitle, description: copy.markSent.invalidFormat, variant: 'destructive' })
+      return
+    }
+    setMarkShippedLoading(true)
+    try {
+      const response = await fetch(`/api/admin/eggs/orders/${trackingModalOrderId}/actions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'mark_shipped', data: { trackingNumber: trimmed } }),
+      })
+      const result = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(result?.error || copy.errors.orderActionFailed)
+      toast({ title: copy.toast.updatedTitle, description: copy.markSent.successToast })
+      setTrackingModalOpen(false)
+      setTrackingModalOrderId(null)
+      setTrackingNumberInput('')
+      await fetchOrders(true)
+    } catch (err: any) {
+      toast({ title: copy.toast.errorTitle, description: err?.message || copy.errors.orderActionFailed, variant: 'destructive' })
+    } finally {
+      setMarkShippedLoading(false)
+    }
+  }
 
   const fetchOrders = useCallback(
     async (isBackgroundRefresh = false) => {
@@ -998,6 +1076,7 @@ export function EggOrdersWorkbench() {
                   const orderAtRisk = isAtRiskOrder(order)
                   const shippingMissing = hasMissingShipping(order)
                   const statusLabel = getStatusLabel(order.status)
+                  const eggQuantities = getEggQuantities(order)
 
                   return (
                     <tr key={order.id} className="hover:bg-neutral-50/60 transition-colors">
@@ -1020,9 +1099,18 @@ export function EggOrdersWorkbench() {
                           <p className="text-xs text-neutral-500 mt-1">
                             {replaceTokens(copy.table.breedEggsValue, {
                               breed: order.egg_breeds?.name || copy.fallbackBreed,
-                              quantity: order.quantity,
+                              quantity: eggQuantities.total,
                             })}
                           </p>
+                          {eggQuantities.additions > 0 && (
+                            <p className="text-xs text-neutral-500">
+                              {replaceTokens(copy.table.quantityBreakdownValue || '{base} + {additions} = {total}', {
+                                base: eggQuantities.base,
+                                additions: eggQuantities.additions,
+                                total: eggQuantities.total,
+                              })}
+                            </p>
+                          )}
                         </div>
                       </td>
                       <td className="px-4 py-3 text-sm">
@@ -1083,6 +1171,22 @@ export function EggOrdersWorkbench() {
                       </td>
                       <td className="px-4 py-3 text-right">
                         <div className="inline-flex items-center gap-2">
+                          {order.delivery_method === 'posten' &&
+                            ['fully_paid', 'preparing'].includes(order.status) && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                disabled={markShippedLoading}
+                                onClick={() => handleMarkAsSent(order)}
+                              >
+                                {markShippedLoading ? (
+                                  <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                                ) : (
+                                  <Package className="w-4 h-4 mr-1" />
+                                )}
+                                {copy.markSent.button}
+                              </Button>
+                            )}
                           <Button size="sm" variant="outline" onClick={() => fetchOrderDetail(order.id)}>
                             <Settings className="w-4 h-4 mr-1" />
                             {copy.table.manageButton}
@@ -1107,14 +1211,29 @@ export function EggOrdersWorkbench() {
                   {selectedOrder ? selectedOrder.order_number : copy.panel.fallbackTitle}
                 </h3>
                 {selectedOrder && (
-                  <p className="text-sm text-neutral-600 mt-1">
-                    {replaceTokens(copy.panel.summaryValue, {
-                      breed: selectedOrder.egg_breeds?.name || copy.fallbackBreedShort,
-                      quantity: selectedOrder.quantity,
-                      week: selectedOrder.week_number,
-                      year: selectedOrder.year,
-                    })}
-                  </p>
+                  (() => {
+                    const selectedQuantities = getEggQuantities(selectedOrder)
+                    return (
+                      <p className="text-sm text-neutral-600 mt-1">
+                        {replaceTokens(copy.panel.summaryValue, {
+                          breed: selectedOrder.egg_breeds?.name || copy.fallbackBreedShort,
+                          quantity: selectedQuantities.total,
+                          week: selectedOrder.week_number,
+                          year: selectedOrder.year,
+                        })}
+                        {selectedQuantities.additions > 0
+                          ? ` (${replaceTokens(
+                              copy.panel.quantityBreakdownValue || '{base} + {additions} = {total}',
+                              {
+                                base: selectedQuantities.base,
+                                additions: selectedQuantities.additions,
+                                total: selectedQuantities.total,
+                              }
+                            )})`
+                          : ''}
+                      </p>
+                    )
+                  })()
                 )}
               </div>
               <Button variant="outline" onClick={() => setPanelOpen(false)} className="gap-2">
@@ -1612,6 +1731,37 @@ export function EggOrdersWorkbench() {
           </div>
         </div>
       )}
+
+      <Dialog open={trackingModalOpen} onOpenChange={setTrackingModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{copy.markSent.modalTitle}</DialogTitle>
+            <DialogDescription>{copy.markSent.modalDescription}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <Label>{copy.markSent.trackingLabel}</Label>
+            <Input
+              value={trackingNumberInput}
+              onChange={(e) => setTrackingNumberInput(e.target.value.replace(/\D/g, '').slice(0, 18))}
+              placeholder={copy.markSent.trackingPlaceholder}
+              maxLength={18}
+            />
+            <p className="text-xs text-neutral-500">{copy.markSent.formatHint}</p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setTrackingModalOpen(false)}>
+              {copy.markSent.cancelButton}
+            </Button>
+            <Button
+              onClick={submitTrackingNumber}
+              disabled={markShippedLoading || trackingNumberInput.length !== 18}
+            >
+              {markShippedLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              {copy.markSent.confirmButton}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

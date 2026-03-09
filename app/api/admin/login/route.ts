@@ -6,9 +6,15 @@ import { logError } from '@/lib/logger';
 export async function POST(request: NextRequest) {
   try {
     const { password } = await request.json();
+    const adminPassword = process.env.ADMIN_PASSWORD;
+
+    if (!adminPassword) {
+      logError('admin-login-missing-password', new Error('ADMIN_PASSWORD is not configured'));
+      return NextResponse.json({ error: 'Admin login not configured' }, { status: 500 });
+    }
 
     // Check admin password
-    if (password !== 'Pnei2792') {
+    if (password !== adminPassword) {
       return NextResponse.json({ error: 'Invalid password' }, { status: 401 });
     }
 

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase/server'
 import { logError } from '@/lib/logger'
 import { markWaitlistPurchase } from '@/lib/eggs/waitlist'
+import { createOrderAccessToken } from '@/lib/auth/order-access'
 
 interface EggCheckoutRequest {
   productType?: 'eggs'
@@ -227,7 +228,17 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    return NextResponse.json({ success: true, orderId: order.id, orderNumber: order.order_number })
+    const orderAccessToken = await createOrderAccessToken({
+      scope: 'eggs',
+      orderId: order.id,
+    })
+
+    return NextResponse.json({
+      success: true,
+      orderId: order.id,
+      orderNumber: order.order_number,
+      orderAccessToken,
+    })
   } catch (error) {
     logError('egg-checkout-main', error)
     const errorMessage = error instanceof Error ? error.message : 'Failed to process checkout'

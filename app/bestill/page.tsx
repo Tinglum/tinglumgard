@@ -246,6 +246,13 @@ export default function CheckoutPage() {
         }
       } catch (error) {
         console.error('Failed to load presets:', error);
+        if (active) {
+          toast({
+            title: t.checkout.title,
+            description: lang === 'no' ? 'Kunne ikke laste produkter. Prøv å laste siden på nytt.' : 'Could not load products. Try reloading the page.',
+            variant: 'destructive',
+          });
+        }
       }
     })();
 

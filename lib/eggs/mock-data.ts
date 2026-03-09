@@ -7,9 +7,9 @@ export const breeds: Breed[] = [
     id: '1',
     name: 'Ayam Cemani',
     slug: 'ayam-cemani',
-    description: 'Eksotisk indonesisk rase med helt svart fjærdrakt, hud og kjøtt. Høyt verdsatt av samlere.',
+    description: 'Sjelden indonesisk rase med helsvart uttrykk. Eggene er kremfargede til lysebrune (ikke svarte).',
     detailedDescription:
-      'Ayam Cemani er en av de mest unike hønserasene, kjent for sitt helt sorte utseende - fra fjær til kjøtt og til og med bein. Denne fascinerende rasen er høyt verdsatt av samlere og hønseentusiaster, og er utrolig koselige dyr å ha med å gjøre. Våre høner kommer fra en frisk og nøye sammensatt flokk med fem ulike blodslinjer, for å gi best mulig utgangspunkt for sterke og sunne kyllinger. Viktig å vite: Ayam Cemani kan være krevende å klekke, og de er ekstra følsomme for endringer i temperatur og fuktighet under ruging.',
+      'Ayam Cemani er verdsatt for sitt helsvarte uttrykk og er en rase mange entusiaster har venteliste på. Eggfargen er kremfarget til lys brun, ikke svart. Vi avler selektivt for stabil type, god eggstørrelse og sterke kyllinger som ligger nært rasestandarden. Rasen kan være mer krevende i ruging enn flere andre raser, så stabil temperatur og fuktighet er ekstra viktig.',
     pricePerEgg: 8000, // 80 kr
     minOrderQuantity: 6,
     maxOrderQuantity: 24,
@@ -31,9 +31,9 @@ export const breeds: Breed[] = [
     id: '2',
     name: 'Jersey Giant',
     slug: 'jersey-giant',
-    description: 'Amerikas største hønerase med rolig gemytt og store brune egg.',
+    description: 'Stor og rolig rase som legger store brune egg.',
     detailedDescription:
-      'Jersey Giant er kjent for sin imponerende størrelse, rolige gemytt og gode produksjonsevne. Denne amerikanske hønserasen legger store, brune egg og trives godt i det norske klimaet. På grunn av sin størrelse trenger de litt mer plass enn gjennomsnittshøna, men til gjengjeld får du en robust og hardfør flokk som gir store egg. Eggene veier minimum 60 gram og regnes som store. Våre høner er ikke perfekte, men vi streber etter å hver sesong bli enda nærmere standarden.',
+      'Jersey Giant er en robust rase med rolig temperament og god størrelse på eggene. Vi prioriterer avlsdyr som gir god eggstørrelse, jevn kvalitet og høner som ligger nært rasestandarden. Målet er sterke og funksjonelle kyllinger med et stabilt uttrykk over tid.',
     pricePerEgg: 4500, // 45 kr
     minOrderQuantity: 10,
     maxOrderQuantity: 24,
@@ -55,9 +55,9 @@ export const breeds: Breed[] = [
     id: '3',
     name: "Silverudd's Blå",
     slug: 'silverudds-bla',
-    description: 'Svensk autosex-rase med vakre grønne egg. Kommer i fargene splash, blå og svart.',
+    description: 'Svensk rase kjent for grønne til olivengrønne egg.',
     detailedDescription:
-      "Våre Silverudd's Blå høner, som kommer i fargene splash, blå, og svart, produserer rugeegg i en rekke vakre grønntoner. Denne svenske hønserasen er kjent for sin robusthet, for å være gode eggleggere og ikke minst for sine kule grønne egg. De er meget gode egghøner som legger ca 250 egg årlig, med en eggstørrelse på minimum 55g (gjennomsnittet ligger på 59-60 gram). Våre høner er ikke perfekte, men vi streber etter å hver sesong bli enda nærmere standarden. Genetikk og standard er kompliserte elementer.",
+      "Silverudd's Blå er en aktiv og hardfør rase med karakteristiske grønn-toner i eggene. Vi avler for tydelig eggfarge, god eggstørrelse og høner som ligger nært standarden. Genetikken bak eggfarge er kompleks, så nyanse og intensitet kan variere noe mellom individer og sesonger.",
     pricePerEgg: 4500, // 45 kr
     minOrderQuantity: 10,
     maxOrderQuantity: 24,
@@ -79,9 +79,9 @@ export const breeds: Breed[] = [
     id: '4',
     name: 'Cream Legbar',
     slug: 'cream-legbar',
-    description: 'Britisk autosex-rase med fantastiske turkise/blå egg. Lette å kjønnsbestemme ved klekking.',
+    description: 'Autosexing-rase med lyseblå egg og tydelig kjønnsvisning ved klekking.',
     detailedDescription:
-      'Cream Legbar høner er kjent for sine fantastiske turkise/blå egg og er en fryd for ethvert hønsehold. Denne spennende rasen er nysgjerrige, gode eggleggere av store turkise/lyseblå egg og kule å ha med å gjøre. Det som er spesielt med Cream Legbar er at de er lette å kjønnsbestemme ved klekking, i motsetning til de fleste andre raser. De er imponerende produsenter som legger omkring 200 egg årlig, med en ideell størrelse på ca 60+ gram. Cream Legbar er ikke en godkjent rase i Norge. Vi har fokusert på eggstørrelse, farge på eggene og kjønnsvisende kyllinger.',
+      'Cream Legbar er populær fordi kyllingene ofte kan kjønnsbestemmes tidlig (autosexing), samtidig som rasen legger lyseblå egg. I vårt avlsarbeid prioriterer vi tydelig kjønnsvisning, jevn eggfarge og god eggstørrelse. Rasen er ettertraktet blant hobbyavlere som vil bygge flokk med mest mulig forutsigbarhet.',
     pricePerEgg: 4000, // 40 kr
     minOrderQuantity: 10,
     maxOrderQuantity: 24,
@@ -103,9 +103,9 @@ export const breeds: Breed[] = [
     id: '5',
     name: 'Maran',
     slug: 'maran',
-    description: 'Fransk rase med vakker kobberhalset fjærdrakt og dype sjokoladebrune egg.',
+    description: 'Fransk rase kjent for mørkebrune egg og klassisk kobberhalset uttrykk.',
     detailedDescription:
-      'Våre kobberhalset Maran-høner er verdsatt for sin vakre fjærdrakt, rolige lynne og ikke minst de dype sjokoladebrune eggene. Dette er en fransk hønserase kjent for sin hardførhet og store egg, en veldig populær rase! En voksen kobberhalset Maran-høne legger i snitt 180-220 egg i året, ofte med en vekt på rundt 70 gram (minstevekt 65). Eggfargen er karakteristisk mørkebrun til rødlig. Våre høner er ikke perfekte, men vi streber etter å hver sesong bli enda nærmere standarden. Genetikk og standard er kompliserte elementer.',
+      'Kobberhalset Maran er verdsatt for dype bruntoner i eggene og et elegant rasepreg. Vi avler for jevn eggfarge, god eggstørrelse og høner som ligger nært rasestandarden. Mørkhetsgrad i eggfargen kan variere mellom sesonger og enkeltindivider.',
     pricePerEgg: 4500, // 45 kr
     minOrderQuantity: 6,
     maxOrderQuantity: 24,

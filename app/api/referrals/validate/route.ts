@@ -26,6 +26,47 @@ export async function POST(request: NextRequest) {
 
     if (error) throw error;
 
+    if (data?.valid && data?.code_id) {
+      const { data: referralCode } = await supabaseAdmin
+        .from('referral_codes')
+        .select('id, owner_phone, order_id')
+        .eq('id', data.code_id)
+        .eq('is_active', true)
+        .maybeSingle();
+
+      if (!referralCode) {
+        return NextResponse.json({ valid: false, error: 'Ugyldig kode' });
+      }
+
+      let firstOrderId = referralCode.order_id || null;
+      if (!firstOrderId) {
+        const { data: firstOrder } = await supabaseAdmin
+          .from('orders')
+          .select('id')
+          .eq('customer_phone', referralCode.owner_phone)
+          .neq('status', 'cancelled')
+          .order('created_at', { ascending: true })
+          .limit(1)
+          .maybeSingle();
+
+        firstOrderId = firstOrder?.id || null;
+      }
+
+      if (!firstOrderId) {
+        return NextResponse.json({
+          valid: false,
+          error: 'Koden blir aktiv etter at eieren har lagt inn sin første bestilling',
+        });
+      }
+
+      if (!referralCode.order_id) {
+        await supabaseAdmin
+          .from('referral_codes')
+          .update({ order_id: firstOrderId })
+          .eq('id', referralCode.id);
+      }
+    }
+
     return NextResponse.json(data);
   } catch (error) {
     console.error('Error validating referral code:', error);

@@ -5,8 +5,11 @@ import { logError } from '@/lib/logger'
 export async function GET(request: NextRequest) {
   try {
     const secret = process.env.CRON_SECRET
+    if (!secret) {
+      return NextResponse.json({ error: 'CRON_SECRET not configured' }, { status: 500 })
+    }
     const token = request.headers.get('x-cron-secret') || request.nextUrl.searchParams.get('token')
-    if (secret && token !== secret) {
+    if (token !== secret) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 

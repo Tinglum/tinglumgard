@@ -1,10 +1,16 @@
 import { NextResponse } from 'next/server';
+import { getSession } from '@/lib/auth/session';
 import { supabaseAdmin } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
 
 // Get all inventory
 export async function GET() {
+  const session = await getSession();
+  if (!session?.isAdmin) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
+  }
+
   try {
     const { data, error } = await supabaseAdmin
       .from('egg_inventory')
@@ -31,6 +37,11 @@ export async function GET() {
 
 // Create new inventory week
 export async function POST(request: Request) {
+  const session = await getSession();
+  if (!session?.isAdmin) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
+  }
+
   try {
     const body = await request.json();
 

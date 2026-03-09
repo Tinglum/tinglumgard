@@ -418,7 +418,15 @@ interface AdminEggOrderNotificationParams {
   breedName: string;
   weekNumber: number;
   deliveryMonday: string;
-  quantity: number;
+  baseQuantity: number;
+  additionsQuantity: number;
+  totalQuantity: number;
+  additions?: Array<{
+    breedName: string;
+    quantity: number;
+    pricePerEgg: number;
+    subtotal: number;
+  }>;
   pricePerEgg: number;
   deliveryMethod: string;
   depositAmount: number;
@@ -444,6 +452,18 @@ export function getAdminEggOrderNotificationTemplate(
     month: 'long',
     year: 'numeric',
   });
+  const additions = (params.additions || []).filter((item) => item.quantity > 0);
+  const additionsList =
+    additions.length > 0
+      ? `<p><strong>Tilleggslinjer:</strong></p><ul>${additions
+          .map(
+            (item) =>
+              `<li>${item.breedName}: ${item.quantity} egg x kr ${formatNok(item.pricePerEgg)} = kr ${formatNok(
+                item.subtotal
+              )}</li>`
+          )
+          .join('')}</ul>`
+      : '<p><strong>Tilleggslinjer:</strong> Ingen</p>';
 
   return {
     subject: `Ny rugeegg-ordre mottatt - ${params.orderNumber}`,
@@ -482,8 +502,11 @@ export function getAdminEggOrderNotificationTemplate(
         <p><strong>Rase:</strong> ${params.breedName}</p>
         <p><strong>Uke:</strong> ${params.weekNumber}</p>
         <p><strong>Levering:</strong> ${deliveryDate}</p>
-        <p><strong>Antall:</strong> ${params.quantity} egg</p>
+        <p><strong>Grunnordre:</strong> ${params.baseQuantity} egg</p>
+        <p><strong>Tillegg:</strong> ${params.additionsQuantity} egg</p>
+        <p><strong>Totalt antall:</strong> ${params.totalQuantity} egg</p>
         <p><strong>Pris per egg:</strong> kr ${formatNok(params.pricePerEgg)}</p>
+        ${additionsList}
         <p><strong>Leveringsmåte:</strong> ${deliveryLabel}</p>
       </div>
 

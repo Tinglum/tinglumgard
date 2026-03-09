@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/server';
 import { randomBytes } from 'crypto';
-import { sendEmail } from '@/lib/email/client';
-import { getOrderConfirmationTemplate } from '@/lib/email/templates';
 import { getPricingConfig } from '@/lib/config/pricing';
 import { logError } from '@/lib/logger';
 import { getFixedExtraQuantityForSlug } from '@/lib/extras/fixedQuantities';
+import { createOrderAccessToken } from '@/lib/auth/order-access';
 
 interface ExtraProduct {
   slug: string;
@@ -394,10 +393,16 @@ export async function POST(request: NextRequest) {
     // Note: Order confirmation email is sent AFTER payment completes in the Vipps webhook
     // Not sending email here because the customer hasn't paid yet
 
+    const orderAccessToken = await createOrderAccessToken({
+      scope: 'orders',
+      orderId: order.id,
+    });
+
     return NextResponse.json({
       success: true,
       orderId: order.id,
       orderNumber: order.order_number,
+      orderAccessToken,
       referralCode: personalReferralCode,
     });
   } catch (error) {

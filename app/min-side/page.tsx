@@ -235,19 +235,6 @@ export default function CustomerPortalPage() {
     window.location.href = `/min-side/ordre/${orderId}/betaling`;
   }
 
-  async function handlePayChickenRemainder(orderId: string) {
-    try {
-      const response = await fetch(`/api/chickens/orders/${orderId}/remainder`, { method: 'POST' });
-      if (!response.ok) return;
-      const data = await response.json();
-      if (data.redirectUrl) {
-        window.location.href = data.redirectUrl;
-      }
-    } catch (error) {
-      console.error('Failed to start chicken remainder payment:', error);
-    }
-  }
-
   async function handleExitImpersonation() {
     try {
       const response = await fetch('/api/admin/customers/impersonate/stop', {
@@ -560,7 +547,6 @@ export default function CustomerPortalPage() {
                         <ChickenOrderCard
                           key={order.id}
                           order={order}
-                          onPayRemainder={handlePayChickenRemainder}
                         />
                       ))}
                     </div>
@@ -595,7 +581,6 @@ export default function CustomerPortalPage() {
                       chickenOrdersById.get(item.id) ? (
                         <ChickenOrderCard
                           order={chickenOrdersById.get(item.id)!}
-                          onPayRemainder={handlePayChickenRemainder}
                         />
                       ) : null
                     )}

@@ -80,7 +80,7 @@ export function ChickenOrderCard({ order, onPayRemainder }: ChickenOrderCardProp
     }, 0) || 0
   const remainderDueNok = Math.max(0, order.remainder_amount_nok - remainderPaidNok)
 
-  const showPayRemainder = order.status === 'deposit_paid' && remainderDueNok > 0 && onPayRemainder
+  const showPayRemainder = false
   const meta = statusMeta[order.status] || { label: order.status, className: 'bg-neutral-100 text-neutral-700' }
   const pickupDate = getIsoWeekMondayDate(order.pickup_year, order.pickup_week)
   const daysToPickup = daysBetween(pickupDate, today)
@@ -159,15 +159,10 @@ export function ChickenOrderCard({ order, onPayRemainder }: ChickenOrderCardProp
       return { text: myOrdersCopy.nextActionReadyForPickup, tone: 'warning' as const }
     }
     if (order.status === 'deposit_paid' && remainderDueNok > 0) {
-      const dueText = dueDateLabel
-        ? myOrdersCopy.nextActionRemainderDue
-            .replace('{amount}', `${common.currency} ${remainderDueNok.toLocaleString(locale)}`)
-            .replace('{date}', dueDateLabel)
-        : myOrdersCopy.nextActionRemainderDueNoDate.replace(
-            '{amount}',
-            `${common.currency} ${remainderDueNok.toLocaleString(locale)}`
-          )
-      return { text: dueText, tone: 'warning' as const }
+      const pickupPaymentText =
+        myOrdersCopy.nextActionRemainderAtPickup ||
+        `Restbetaling (${common.currency} ${remainderDueNok.toLocaleString(locale)}) betales ved henting.`
+      return { text: pickupPaymentText, tone: 'warning' as const }
     }
     if (order.status === 'fully_paid') {
       return { text: myOrdersCopy.nextActionFullyPaid, tone: 'info' as const }

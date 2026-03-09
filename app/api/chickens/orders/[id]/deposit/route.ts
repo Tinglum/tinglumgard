@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { getSession } from '@/lib/auth/session'
+import { verifyOrderAccessToken } from '@/lib/auth/order-access'
 import { supabaseAdmin } from '@/lib/supabase/server'
 import { vippsClient } from '@/lib/vipps/api-client'
 
@@ -6,6 +8,13 @@ export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  const session = await getSession()
+  const orderAccessToken = request.headers.get('x-order-access-token')
+
+  if (!session && !orderAccessToken) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   try {
     const { data: order, error: orderError } = await supabaseAdmin
       .from('chicken_orders')
@@ -15,6 +24,24 @@ export async function POST(
 
     if (orderError || !order) {
       return NextResponse.json({ error: 'Order not found' }, { status: 404 })
+    }
+
+    const hasTokenAccess = await verifyOrderAccessToken(orderAccessToken, {
+      scope: 'chickens',
+      orderId: order.id,
+    })
+
+    if (session) {
+      const matchesPhone = Boolean(session.phoneNumber) && order.customer_phone === session.phoneNumber
+      const matchesEmail = Boolean(session.email) && order.customer_email === session.email
+      const isOwner = order.user_id === session.userId
+      const isAuthorized = Boolean(session.isAdmin) || isOwner || matchesPhone || matchesEmail || hasTokenAccess
+
+      if (!isAuthorized) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
+      }
+    } else if (!hasTokenAccess) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
     }
 
     // Check for existing completed deposit

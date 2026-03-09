@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { vippsClient } from '@/lib/vipps/api-client';
-import { createSession, setSessionCookie } from '@/lib/auth/session';
+import { createSession } from '@/lib/auth/session';
 import { supabaseAdmin } from '@/lib/supabase/server';
 import { cookies } from 'next/headers';
 
@@ -96,6 +96,7 @@ export async function GET(request: NextRequest) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          Cookie: `tinglum_session=${sessionToken}`,
         },
         body: JSON.stringify({
           ...orderData,
@@ -121,12 +122,19 @@ export async function GET(request: NextRequest) {
       }
 
       const orderResult = await createOrderResponse.json();
+      const depositHeaders: HeadersInit = {
+        Cookie: `tinglum_session=${sessionToken}`,
+      };
+      if (orderResult.orderAccessToken) {
+        depositHeaders['x-order-access-token'] = orderResult.orderAccessToken;
+      }
 
       // Immediately redirect to deposit payment
       const depositResponse = await fetch(
         `${appUrl}${isEggOrder ? '/api/eggs/orders' : '/api/orders'}/${orderResult.orderId}/deposit`,
         {
         method: 'POST',
+        headers: depositHeaders,
       });
 
       if (!depositResponse.ok) {

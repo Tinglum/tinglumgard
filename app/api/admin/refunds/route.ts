@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth/session';
 import { supabaseAdmin } from '@/lib/supabase/server';
-import { sendEmail } from '@/lib/email/client';
+import { dispatchEmail } from '@/lib/email/dispatch';
+import { renderManagedTemplate } from '@/lib/email/render';
 import { initiateVippsRefund } from '@/lib/vipps/refund';
 import { logError } from '@/lib/logger';
 
@@ -19,30 +20,22 @@ export async function POST(request: NextRequest) {
     switch (action) {
       case 'cancel_order':
         return await cancelOrder(orderId, data.reason, data.restoreInventory);
-
       case 'delete_order':
         return await deleteOrder(orderId, data.processVippsRefund);
-
       case 'issue_refund':
         return await issueRefund(orderId, data.amount, data.type, data.reason);
-
       case 'get_refund_history':
         return await getRefundHistory(orderId);
-
       default:
         return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
     }
   } catch (error) {
     logError('admin-refunds-main', error);
-    return NextResponse.json(
-      { error: 'Refund operation failed' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Refund operation failed' }, { status: 500 });
   }
 }
 
 async function cancelOrder(orderId: string, reason: string, restoreInventory: boolean) {
-  // Fetch order details
   const { data: order, error: orderError } = await supabaseAdmin
     .from('orders')
     .select('*')
@@ -55,7 +48,6 @@ async function cancelOrder(orderId: string, reason: string, restoreInventory: bo
     return NextResponse.json({ error: 'Order already cancelled' }, { status: 400 });
   }
 
-  // Update order status
   const { error: updateError } = await supabaseAdmin
     .from('orders')
     .update({
@@ -67,7 +59,6 @@ async function cancelOrder(orderId: string, reason: string, restoreInventory: bo
 
   if (updateError) throw updateError;
 
-  // Restore inventory if requested
   if (restoreInventory) {
     const { data: config } = await supabaseAdmin
       .from('config')
@@ -76,9 +67,8 @@ async function cancelOrder(orderId: string, reason: string, restoreInventory: bo
       .single();
 
     if (config) {
-      const currentMaxKg = parseInt(config.value);
+      const currentMaxKg = parseInt(config.value, 10);
       const newMaxKg = currentMaxKg + order.box_size;
-
       await supabaseAdmin
         .from('config')
         .update({ value: newMaxKg.toString() })
@@ -86,7 +76,6 @@ async function cancelOrder(orderId: string, reason: string, restoreInventory: bo
     }
   }
 
-  // Log cancellation
   await supabaseAdmin.from('order_history').insert({
     order_id: orderId,
     action: 'cancelled',
@@ -94,41 +83,33 @@ async function cancelOrder(orderId: string, reason: string, restoreInventory: bo
     created_at: new Date().toISOString(),
   });
 
-  // Send cancellation email
   if (order.customer_email && order.customer_email !== 'pending@vipps.no') {
     try {
-      await sendEmail({
-        to: order.customer_email,
-        subject: `Ordre ${order.order_number} kansellert`,
-        html: `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <style>
-    body { font-family: -apple-system, sans-serif; line-height: 1.6; color: #333; }
-    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-    .header { background: #2C1810; color: white; padding: 30px 20px; text-align: center; }
-    .content { background: #ffffff; padding: 30px 20px; }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <div class="header"><h1>Tinglum Gård</h1></div>
-    <div class="content">
-      <h2>Ordre kansellert</h2>
-      <p>Hei ${order.customer_name},</p>
-      <p>Din ordre <strong>${order.order_number}</strong> har blitt kansellert.</p>
-      ${reason ? `<p><strong>Årsak:</strong> ${reason}</p>` : ''}
-      <p>Dersom du har betalt forskudd eller restbeløp, vil refundering bli behandlet innen 5-7 virkedager.</p>
-      <p>Ta kontakt med oss hvis du har spørsmål.</p>
-      <p>Vennlig hilsen,<br>Tinglum Gård</p>
-    </div>
-  </div>
-</body>
-</html>
-        `,
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://tinglum.no';
+      const rendered = await renderManagedTemplate({
+        templateKey: 'pig.order.cancelled',
+        locale: 'no',
+        variables: {
+          customer_name: order.customer_name || 'Kunde',
+          order_number: order.order_number,
+          cancel_reason: reason ? `Arsak: ${reason}` : '',
+          refund_text:
+            'Dersom du har betalt forskudd eller restbelop, vil refundering bli behandlet innen 5-7 virkedager.',
+          order_url: `${appUrl}/min-side?orderId=${order.id}`,
+        },
       });
+
+      if (rendered) {
+        await dispatchEmail({
+          to: order.customer_email,
+          subject: rendered.subject,
+          html: rendered.html,
+          classification: 'transactional',
+          templateKey: rendered.templateKey,
+          sourcePath: '/api/admin/refunds',
+          orderId,
+        });
+      }
     } catch (emailError) {
       logError('admin-refunds-cancellation-email', emailError);
     }
@@ -142,7 +123,6 @@ async function cancelOrder(orderId: string, reason: string, restoreInventory: bo
 }
 
 async function deleteOrder(orderId: string, processVippsRefund: boolean) {
-  // Fetch order with payments
   const { data: order, error: orderError } = await supabaseAdmin
     .from('orders')
     .select(`
@@ -154,12 +134,10 @@ async function deleteOrder(orderId: string, processVippsRefund: boolean) {
 
   if (orderError) throw orderError;
 
-  // Process Vipps refund if requested and there are completed payments
   const completedPayments = order.payments?.filter((p: any) => p.status === 'completed') || [];
   const totalPaid = completedPayments.reduce((sum: number, p: any) => sum + p.amount_nok, 0);
 
   if (processVippsRefund && totalPaid > 0) {
-    // Attempt Vipps refund for each completed payment
     for (const payment of completedPayments) {
       if (payment.vipps_order_id) {
         const refundResult = await initiateVippsRefund(
@@ -169,14 +147,15 @@ async function deleteOrder(orderId: string, processVippsRefund: boolean) {
         );
 
         if (!refundResult.success) {
-          // Log but don't fail - admin can process manually
-          logError('admin-refunds-vipps-refund', new Error(`Vipps refund failed for payment ${payment.id}: ${refundResult.error}`));
+          logError(
+            'admin-refunds-vipps-refund',
+            new Error(`Vipps refund failed for payment ${payment.id}: ${refundResult.error}`)
+          );
         }
       }
     }
   }
 
-  // Restore inventory
   const { data: config } = await supabaseAdmin
     .from('config')
     .select('value')
@@ -184,21 +163,18 @@ async function deleteOrder(orderId: string, processVippsRefund: boolean) {
     .single();
 
   if (config) {
-    const currentMaxKg = parseInt(config.value);
+    const currentMaxKg = parseInt(config.value, 10);
     const newMaxKg = currentMaxKg + order.box_size;
-
     await supabaseAdmin
       .from('config')
       .update({ value: newMaxKg.toString() })
       .eq('key', 'max_kg_available');
   }
 
-  // Delete related records (cascade delete should handle most, but be explicit)
   await supabaseAdmin.from('payments').delete().eq('order_id', orderId);
   await supabaseAdmin.from('order_extras').delete().eq('order_id', orderId);
   await supabaseAdmin.from('order_history').delete().eq('order_id', orderId);
 
-  // Delete the order
   const { error: deleteError } = await supabaseAdmin
     .from('orders')
     .delete()
@@ -214,8 +190,12 @@ async function deleteOrder(orderId: string, processVippsRefund: boolean) {
   });
 }
 
-async function issueRefund(orderId: string, amount: number, type: 'full' | 'partial' | 'deposit' | 'remainder', reason: string) {
-  // Fetch order and payment details
+async function issueRefund(
+  orderId: string,
+  amount: number,
+  type: 'full' | 'partial' | 'deposit' | 'remainder',
+  reason: string
+) {
   const { data: order, error: orderError } = await supabaseAdmin
     .from('orders')
     .select(`
@@ -227,20 +207,22 @@ async function issueRefund(orderId: string, amount: number, type: 'full' | 'part
 
   if (orderError) throw orderError;
 
-  // Calculate refund amount
   let refundAmount = amount;
   if (type === 'full') {
     const completedPayments = order.payments?.filter((p: any) => p.status === 'completed') || [];
     refundAmount = completedPayments.reduce((sum: number, p: any) => sum + p.amount_nok, 0);
   } else if (type === 'deposit') {
-    const depositPayment = order.payments?.find((p: any) => p.payment_type === 'deposit' && p.status === 'completed');
+    const depositPayment = order.payments?.find(
+      (p: any) => p.payment_type === 'deposit' && p.status === 'completed'
+    );
     refundAmount = depositPayment?.amount_nok || 0;
   } else if (type === 'remainder') {
-    const remainderPayment = order.payments?.find((p: any) => p.payment_type === 'remainder' && p.status === 'completed');
+    const remainderPayment = order.payments?.find(
+      (p: any) => p.payment_type === 'remainder' && p.status === 'completed'
+    );
     refundAmount = remainderPayment?.amount_nok || 0;
   }
 
-  // Record refund
   const { error: refundError } = await supabaseAdmin.from('refunds').insert({
     order_id: orderId,
     amount: refundAmount,
@@ -252,7 +234,6 @@ async function issueRefund(orderId: string, amount: number, type: 'full' | 'part
 
   if (refundError) throw refundError;
 
-  // Log refund request
   await supabaseAdmin.from('order_history').insert({
     order_id: orderId,
     action: 'refund_requested',
@@ -260,41 +241,41 @@ async function issueRefund(orderId: string, amount: number, type: 'full' | 'part
     created_at: new Date().toISOString(),
   });
 
-  // Send refund notification email
   if (order.customer_email && order.customer_email !== 'pending@vipps.no') {
     try {
-      await sendEmail({
-        to: order.customer_email,
-        subject: `Refundering for ordre ${order.order_number}`,
-        html: `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <style>
-    body { font-family: -apple-system, sans-serif; line-height: 1.6; color: #333; }
-    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-    .header { background: #2C1810; color: white; padding: 30px 20px; text-align: center; }
-    .content { background: #ffffff; padding: 30px 20px; }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <div class="header"><h1>Tinglum Gård</h1></div>
-    <div class="content">
-      <h2>Refundering behandles</h2>
-      <p>Hei ${order.customer_name},</p>
-      <p>Vi har mottatt din refunderingsforespørsel for ordre <strong>${order.order_number}</strong>.</p>
-      <p><strong>Beløp:</strong> kr ${refundAmount.toLocaleString('nb-NO')}</p>
-      <p><strong>Type:</strong> ${type === 'full' ? 'Full refundering' : type === 'deposit' ? 'Forskudd' : type === 'remainder' ? 'Restbeløp' : 'Delvis refundering'}</p>
-      <p>Refunderingen vil bli behandlet innen 5-7 virkedager og vil bli kreditert til samme betalingsmetode som ble brukt ved kjøp.</p>
-      <p>Vennlig hilsen,<br>Tinglum Gård</p>
-    </div>
-  </div>
-</body>
-</html>
-        `,
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://tinglum.no';
+      const refundTypeLabel =
+        type === 'full'
+          ? 'Full refundering'
+          : type === 'deposit'
+            ? 'Forskudd'
+            : type === 'remainder'
+              ? 'Restbelop'
+              : 'Delvis refundering';
+
+      const rendered = await renderManagedTemplate({
+        templateKey: 'pig.order.refund.requested',
+        locale: 'no',
+        variables: {
+          customer_name: order.customer_name || 'Kunde',
+          order_number: order.order_number,
+          refund_amount_nok: `kr ${refundAmount.toLocaleString('nb-NO')}`,
+          refund_type_label: refundTypeLabel,
+          order_url: `${appUrl}/min-side?orderId=${order.id}`,
+        },
       });
+
+      if (rendered) {
+        await dispatchEmail({
+          to: order.customer_email,
+          subject: rendered.subject,
+          html: rendered.html,
+          classification: 'transactional',
+          templateKey: rendered.templateKey,
+          sourcePath: '/api/admin/refunds',
+          orderId,
+        });
+      }
     } catch (emailError) {
       logError('admin-refunds-refund-email', emailError);
     }

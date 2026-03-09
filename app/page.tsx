@@ -367,6 +367,11 @@ export default function Page() {
         }
       } catch (error) {
         console.error('Failed to fetch inventory:', error);
+        toast({
+          title: 'Tinglum Gård',
+          description: lang === 'no' ? 'Kunne ikke laste lagerstatus.' : 'Could not load inventory status.',
+          variant: 'destructive',
+        });
       } finally {
         setLoading(false);
       }

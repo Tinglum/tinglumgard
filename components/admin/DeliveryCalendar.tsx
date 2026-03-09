@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Calendar, MapPin, Package, Truck, Users, CheckCircle2, Egg } from 'lucide-react';
@@ -18,6 +18,8 @@ interface DeliveryGroup {
     product_type: 'pig_box' | 'egg';
     display_name: string;
     quantity: number;
+    base_quantity?: number;
+    additions_quantity?: number;
     quantity_unit: 'kg' | 'egg';
     fresh_delivery: boolean;
     marked_collected: boolean;
@@ -35,11 +37,7 @@ export function DeliveryCalendar() {
   const [selectedType, setSelectedType] = useState<'all' | 'pickup' | 'delivery'>('all');
   const [loadError, setLoadError] = useState<string | null>(null);
 
-  useEffect(() => {
-    loadDeliveryGroups();
-  }, []);
-
-  async function loadDeliveryGroups() {
+  const loadDeliveryGroups = useCallback(async () => {
     setLoading(true);
     setLoadError(null);
     try {
@@ -56,7 +54,11 @@ export function DeliveryCalendar() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [copy.loadError]);
+
+  useEffect(() => {
+    void loadDeliveryGroups();
+  }, [loadDeliveryGroups]);
 
   async function markCollected(orderNumber: string, productType: 'pig_box' | 'egg') {
     try {
@@ -163,7 +165,13 @@ export function DeliveryCalendar() {
               </div>
 
               <div className="space-y-2">
-                {group.orders.map((order) => (
+                {group.orders.map((order) => {
+                  const isEggOrder = order.quantity_unit === 'egg';
+                  const baseEggs = order.base_quantity ?? order.quantity;
+                  const additionsEggs = order.additions_quantity ?? 0;
+                  const showEggBreakdown = isEggOrder && additionsEggs > 0;
+
+                  return (
                   <div
                     key={`${order.product_type}-${order.order_number}`}
                     className={cn(
@@ -181,8 +189,12 @@ export function DeliveryCalendar() {
                         <p className="font-medium">{order.customer_name}</p>
                         <p className="text-sm text-gray-600">
                           {copy.orderPrefix}: {order.order_number} - {order.display_name} -{' '}
-                          {order.quantity.toLocaleString(locale)}{' '}
-                          {order.quantity_unit === 'kg' ? t.common.kg : eggUnit}
+                          {showEggBreakdown
+                            ? copy.eggQuantityBreakdown
+                                .replace('{base}', baseEggs.toLocaleString(locale))
+                                .replace('{additions}', additionsEggs.toLocaleString(locale))
+                                .replace('{total}', order.quantity.toLocaleString(locale))
+                            : `${order.quantity.toLocaleString(locale)} ${order.quantity_unit === 'kg' ? t.common.kg : eggUnit}`}
                           {order.fresh_delivery ? ` - ${copy.freshTag}` : ''}
                         </p>
                       </div>
@@ -205,7 +217,8 @@ export function DeliveryCalendar() {
                       )}
                     </div>
                   </div>
-                ))}
+                  )
+                })}
               </div>
 
               <div className="mt-4 pt-4 border-t flex items-center gap-6 text-sm text-gray-600">

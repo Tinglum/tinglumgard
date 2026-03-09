@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth/session'
 import { supabaseAdmin } from '@/lib/supabase/server'
 import { initiateVippsRefund } from '@/lib/vipps/refund'
+import { dispatchEmail } from '@/lib/email/dispatch'
 import { logError } from '@/lib/logger'
 
 interface EggOrderAddition {
@@ -630,6 +631,76 @@ async function updateEggDelivery(
   return NextResponse.json({ success: true })
 }
 
+async function markEggOrderShipped(
+  orderId: string,
+  trackingNumber: string | undefined,
+  reason: string | undefined
+) {
+  const { data: order, error } = await supabaseAdmin
+    .from('egg_orders')
+    .select('id, order_number, customer_name, customer_email, status, delivery_method, admin_notes, tracking_number')
+    .eq('id', orderId)
+    .single()
+
+  if (error || !order) {
+    return NextResponse.json({ error: 'Order not found' }, { status: 404 })
+  }
+
+  if (order.delivery_method !== 'posten') {
+    return NextResponse.json({ error: 'Only available for Posten orders' }, { status: 400 })
+  }
+
+  if (!['fully_paid', 'preparing'].includes(order.status)) {
+    return NextResponse.json({ error: 'Order must be fully paid or preparing' }, { status: 400 })
+  }
+
+  const effective = trackingNumber || order.tracking_number
+  if (!effective) {
+    return NextResponse.json({ error: 'Tracking number required' }, { status: 400 })
+  }
+  if (!/^\d{18}$/.test(effective)) {
+    return NextResponse.json({ error: 'Must be 18 digits' }, { status: 400 })
+  }
+
+  const { error: updErr } = await supabaseAdmin
+    .from('egg_orders')
+    .update({ status: 'shipped', tracking_number: effective })
+    .eq('id', orderId)
+
+  if (updErr) {
+    return NextResponse.json({ error: 'Update failed' }, { status: 500 })
+  }
+
+  await appendAdminNote(
+    orderId,
+    order.admin_notes,
+    `Admin: marked shipped, tracking: ${effective}${reason ? ` — ${reason}` : ''}`
+  )
+
+  const trackingUrl = `https://sporing.posten.no/sporing/${effective}`
+  try {
+    await dispatchEmail({
+      to: order.customer_email,
+      subject: `Eggene dine er sendt — ${order.order_number}`,
+      html: `<h2>Eggene dine er sendt!</h2>
+        <p>Hei ${order.customer_name},</p>
+        <p>Bestilling <strong>${order.order_number}</strong> er nå sendt med Posten.</p>
+        <p><strong>Sporingsnummer:</strong> ${effective}</p>
+        <p><a href="${trackingUrl}" style="display:inline-block;padding:12px 24px;background:#0f172a;color:#fff;text-decoration:none;border-radius:8px;font-weight:bold;">Spor forsendelsen</a></p>
+        <p>Eller spor direkte: <a href="${trackingUrl}">${trackingUrl}</a></p>`,
+      classification: 'transactional',
+      locale: 'no',
+      sourcePath: '/api/admin/eggs/orders/[id]/actions',
+      eggOrderId: orderId,
+      templateKey: 'egg_order_shipped',
+    })
+  } catch (e) {
+    logError('admin-egg-mark-shipped-email', e)
+  }
+
+  return NextResponse.json({ success: true, trackingNumber: effective })
+}
+
 export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -677,6 +748,8 @@ export async function POST(
         return await syncEggOrderStatus(params.id, data?.reason)
       case 'set_status':
         return await setEggOrderStatus(params.id, data?.status, data?.reason)
+      case 'mark_shipped':
+        return await markEggOrderShipped(params.id, data?.trackingNumber, data?.reason)
       default:
         return NextResponse.json({ error: 'Unknown action' }, { status: 400 })
     }

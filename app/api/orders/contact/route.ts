@@ -1,6 +1,7 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth/session';
-import { sendEmail } from '@/lib/email/client';
+import { dispatchEmail } from '@/lib/email/dispatch';
+import { renderManagedTemplate } from '@/lib/email/render';
 import { supabaseAdmin } from '@/lib/supabase/server';
 
 function normalizeEmail(value?: string | null) {
@@ -89,13 +90,14 @@ export async function POST(request: NextRequest) {
         }) || null;
     }
 
+    const matchedOrderData = orderCandidates?.find((o: any) => o.id === matchedOrder?.id);
     const { data: createdMessage, error: createMessageError } = await supabaseAdmin
       .from('customer_messages')
       .insert({
         order_id: matchedOrder?.id || null,
-        customer_phone: (orderCandidates?.find((o: any) => o.id === matchedOrder?.id)?.customer_phone as string) || session.phoneNumber,
+        customer_phone: (matchedOrderData?.customer_phone as string) || session.phoneNumber,
         customer_name: session.name || null,
-        customer_email: (orderCandidates?.find((o: any) => o.id === matchedOrder?.id)?.customer_email as string) || session.email || null,
+        customer_email: (matchedOrderData?.customer_email as string) || session.email || null,
         subject: `Henvendelse om ordre ${orderNumber}`,
         message: trimmedMessage,
         message_type: 'support',
@@ -106,111 +108,59 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (createMessageError) {
-      console.error('Failed to store customer message thread:', createMessageError);
       return NextResponse.json({ error: 'Failed to save message' }, { status: 500 });
     }
 
     const contactEmail = await getConfiguredContactEmail();
-
-    const emailHtml = `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <style>
-            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-            .header { background-color: #2C1810; color: white; padding: 20px; border-radius: 8px 8px 0 0; }
-            .content { background-color: #f9f9f9; padding: 20px; border: 1px solid #ddd; border-top: none; }
-            .order-details { background-color: #e8f4f8; padding: 15px; border-radius: 5px; margin: 15px 0; }
-            .message-box { background-color: white; padding: 15px; border-radius: 5px; border-left: 4px solid #2C1810; margin: 15px 0; }
-            .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; }
-          </style>
-        </head>
-        <body>
-          <div class="container">
-            <div class="header">
-              <h1 style="margin: 0;">Kundehenvendelse</h1>
-              <p style="margin: 5px 0 0 0;">Ordre ${orderNumber}</p>
-            </div>
-            <div class="content">
-              <h2>Kunde: ${session.name}</h2>
-              <p>
-                <strong>E-post:</strong> ${session.email}<br>
-                <strong>Telefon:</strong> ${session.phoneNumber}
-              </p>
-
-              <div class="order-details">
-                <h3>Ordredetaljer:</h3>
-                <p style="white-space: pre-wrap;">${orderDetails}</p>
-              </div>
-
-              <div class="message-box">
-                <h3>Melding fra kunde:</h3>
-                <p style="white-space: pre-wrap;">${trimmedMessage}</p>
-              </div>
-
-              <p style="margin-top: 20px;">
-                <strong>Svar kunden på:</strong> ${session.email}
-              </p>
-            </div>
-            <div class="footer">
-              <p>Tinglum Gård - Administrasjonspanel</p>
-            </div>
-          </div>
-        </body>
-      </html>
-    `;
-
-    await sendEmail({
-      to: contactEmail,
-      subject: `Kundehenvendelse - Ordre ${orderNumber}`,
-      html: emailHtml,
+    const adminRendered = await renderManagedTemplate({
+      templateKey: 'support.contact.admin.new',
+      locale: 'no',
+      variables: {
+        customer_name: session.name || 'Kunde',
+        customer_email: session.email || 'Ikke oppgitt',
+        customer_phone: session.phoneNumber || '',
+        order_number: orderNumber,
+        order_details: orderDetails || '',
+        message_text: trimmedMessage,
+      },
     });
 
-    if (session.email) {
-      const customerEmailHtml = `
-        <!DOCTYPE html>
-        <html>
-          <head>
-            <style>
-              body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-              .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-              .header { background-color: #2C1810; color: white; padding: 20px; border-radius: 8px 8px 0 0; }
-              .content { background-color: #f9f9f9; padding: 20px; border: 1px solid #ddd; border-top: none; }
-              .message-box { background-color: white; padding: 15px; border-radius: 5px; margin: 15px 0; }
-            </style>
-          </head>
-          <body>
-            <div class="container">
-              <div class="header">
-                <h1 style="margin: 0;">Melding mottatt</h1>
-              </div>
-              <div class="content">
-                <p>Hei ${session.name},</p>
-                <p>Vi har mottatt din henvendelse angående ordre <strong>${orderNumber}</strong>.</p>
-
-                <div class="message-box">
-                  <h3>Din melding:</h3>
-                  <p style="white-space: pre-wrap;">${trimmedMessage}</p>
-                </div>
-
-                <p>Vi kontakter deg snart på ${session.email} eller ${session.phoneNumber}.</p>
-
-                <p style="margin-top: 30px;">
-                  Med vennlig hilsen,<br>
-                  <strong>Tinglum Gård</strong>
-                </p>
-              </div>
-            </div>
-          </body>
-        </html>
-      `;
-
-      await sendEmail({
-        to: session.email,
-        subject: `Bekreftelse: Din henvendelse om ordre ${orderNumber}`,
-        html: customerEmailHtml,
+    if (adminRendered) {
+      await dispatchEmail({
+        to: contactEmail,
+        subject: adminRendered.subject,
+        html: adminRendered.html,
+        classification: 'support',
+        templateKey: adminRendered.templateKey,
+        sourcePath: '/api/orders/contact',
+        customerMessageId: createdMessage.id,
       });
+    }
+
+    if (session.email) {
+      const customerRendered = await renderManagedTemplate({
+        templateKey: 'support.contact.customer.confirmation',
+        locale: 'no',
+        variables: {
+          customer_name: session.name || 'Kunde',
+          order_number: orderNumber,
+          message_text: trimmedMessage,
+          customer_email: session.email || '',
+          customer_phone: session.phoneNumber || '',
+        },
+      });
+
+      if (customerRendered) {
+        await dispatchEmail({
+          to: session.email,
+          subject: customerRendered.subject,
+          html: customerRendered.html,
+          classification: 'support',
+          templateKey: customerRendered.templateKey,
+          sourcePath: '/api/orders/contact',
+          customerMessageId: createdMessage.id,
+        });
+      }
     }
 
     return NextResponse.json({
@@ -218,11 +168,9 @@ export async function POST(request: NextRequest) {
       messageId: createdMessage.id,
     });
   } catch (error) {
-    console.error('Error sending contact message:', error);
     return NextResponse.json(
       { error: 'Failed to send message' },
       { status: 500 }
     );
   }
 }
-

@@ -594,23 +594,23 @@ export function EggInventoryManagement() {
       ) : (
         <div className="border border-neutral-200 rounded-xl overflow-hidden bg-white">
           {/* Sticky header */}
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto overflow-y-visible">
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-neutral-50 border-b border-neutral-200">
-                  <th className="text-left px-3 py-3 text-[11px] uppercase tracking-[0.15em] text-neutral-500 font-semibold w-10">
+                  <th className="sticky top-20 z-20 bg-neutral-50 text-left px-3 py-3 text-[11px] uppercase tracking-[0.15em] text-neutral-500 font-semibold w-10">
                     {/* checkbox col */}
                   </th>
-                  <th className="text-left px-3 py-3 text-[11px] uppercase tracking-[0.15em] text-neutral-500 font-semibold whitespace-nowrap">
+                  <th className="sticky top-20 z-20 bg-neutral-50 text-left px-3 py-3 text-[11px] uppercase tracking-[0.15em] text-neutral-500 font-semibold whitespace-nowrap">
                     {ei.tableHeaderWeek}
                   </th>
-                  <th className="text-left px-3 py-3 text-[11px] uppercase tracking-[0.15em] text-neutral-500 font-semibold whitespace-nowrap">
+                  <th className="sticky top-20 z-20 bg-neutral-50 text-left px-3 py-3 text-[11px] uppercase tracking-[0.15em] text-neutral-500 font-semibold whitespace-nowrap">
                     {ei.tableHeaderDelivery}
                   </th>
                   {breeds.map((breed) => (
                     <th
                       key={breed.id}
-                      className="text-center px-3 py-3 text-[11px] uppercase tracking-[0.15em] font-semibold whitespace-nowrap"
+                      className="sticky top-20 z-20 bg-neutral-50 text-center px-3 py-3 text-[11px] uppercase tracking-[0.15em] font-semibold whitespace-nowrap"
                     >
                       <div className="flex items-center justify-center gap-1.5">
                         <div
@@ -621,7 +621,7 @@ export function EggInventoryManagement() {
                       </div>
                     </th>
                   ))}
-                  <th className="text-center px-3 py-3 text-[11px] uppercase tracking-[0.15em] text-neutral-500 font-semibold whitespace-nowrap">
+                  <th className="sticky top-20 z-20 bg-neutral-50 text-center px-3 py-3 text-[11px] uppercase tracking-[0.15em] text-neutral-500 font-semibold whitespace-nowrap">
                     {ei.tableHeaderTotal}
                   </th>
                 </tr>
