@@ -19,6 +19,7 @@ type PigExtraRow = {
 
 type PigOrderRow = {
   id: string;
+  user_id: string | null;
   order_number: string;
   customer_name: string | null;
   customer_email: string | null;
@@ -34,6 +35,7 @@ type PigOrderRow = {
 
 type EggOrderRow = {
   id: string;
+  user_id: string | null;
   order_number: string;
   customer_name: string | null;
   customer_email: string | null;
@@ -51,6 +53,7 @@ type EggOrderRow = {
 
 type ChickenOrderRow = {
   id: string;
+  user_id: string | null;
   order_number: string;
   customer_name: string | null;
   customer_email: string | null;
@@ -69,15 +72,30 @@ type ChickenOrderRow = {
 type UnifiedOrder = {
   source: 'pig' | 'egg' | 'chicken';
   id: string;
+  userId: string;
   orderNumber: string;
   customerName: string;
   customerEmail: string;
   customerPhone: string;
+  phoneDigits: string;
   status: string;
   createdAt: string;
   paidAmountNok: number;
   displayAmountNok: number;
   metadata: Record<string, unknown>;
+};
+
+type ResolvedCustomerIdentity = {
+  customerId: string;
+  email: string;
+  phone: string;
+};
+
+type ParsedCustomerId = {
+  email: string;
+  phoneDigits: string;
+  userId: string;
+  orderKey: string;
 };
 
 const NON_CUSTOMER_EMAILS = new Set(['pending@vipps.no']);
@@ -100,6 +118,14 @@ function isUsableEmail(email: string): boolean {
   return !NON_CUSTOMER_EMAILS.has(email);
 }
 
+function isMissingColumnOrRelationError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false;
+  const candidate = error as { code?: string; message?: string };
+  if (candidate.code === '42703' || candidate.code === '42P01') return true;
+  if (typeof candidate.message === 'string' && candidate.message.includes('does not exist')) return true;
+  return false;
+}
+
 function sumCompletedPayments(payments: PaymentRow[] | null | undefined): number {
   return (payments || []).reduce((sum, payment) => {
     if (payment?.status !== 'completed') return sum;
@@ -111,10 +137,12 @@ function toPigUnified(row: PigOrderRow): UnifiedOrder {
   return {
     source: 'pig',
     id: row.id,
+    userId: String(row.user_id || ''),
     orderNumber: row.order_number,
     customerName: String(row.customer_name || 'Kunde').trim() || 'Kunde',
     customerEmail: normalizeEmail(row.customer_email),
     customerPhone: normalizePhone(row.customer_phone),
+    phoneDigits: phoneDigits(row.customer_phone),
     status: String(row.status || ''),
     createdAt: String(row.created_at || ''),
     paidAmountNok: sumCompletedPayments(row.payments),
@@ -131,10 +159,12 @@ function toEggUnified(row: EggOrderRow): UnifiedOrder {
   return {
     source: 'egg',
     id: row.id,
+    userId: String(row.user_id || ''),
     orderNumber: row.order_number,
     customerName: String(row.customer_name || 'Kunde').trim() || 'Kunde',
     customerEmail: normalizeEmail(row.customer_email),
     customerPhone: normalizePhone(row.customer_phone),
+    phoneDigits: phoneDigits(row.customer_phone),
     status: String(row.status || ''),
     createdAt: String(row.created_at || ''),
     paidAmountNok: sumCompletedPayments(row.egg_payments),
@@ -154,10 +184,12 @@ function toChickenUnified(row: ChickenOrderRow): UnifiedOrder {
   return {
     source: 'chicken',
     id: row.id,
+    userId: String(row.user_id || ''),
     orderNumber: row.order_number,
     customerName: String(row.customer_name || 'Kunde').trim() || 'Kunde',
     customerEmail: normalizeEmail(row.customer_email),
     customerPhone: normalizePhone(row.customer_phone),
+    phoneDigits: phoneDigits(row.customer_phone),
     status: String(row.status || ''),
     createdAt: String(row.created_at || ''),
     paidAmountNok: sumCompletedPayments(row.chicken_payments),
@@ -199,182 +231,186 @@ function getPreferenceLabel(order: UnifiedOrder): string {
   return chickenBreed ? `Kyllinger (${chickenBreed})` : 'Kyllinger';
 }
 
-function resolveCustomerIdentity(email: string, phone: string) {
-  if (isUsableEmail(email)) {
+function resolveCustomerIdentity(order: UnifiedOrder): ResolvedCustomerIdentity {
+  if (isUsableEmail(order.customerEmail)) {
     return {
-      customerId: `email:${email}`,
-      email,
-      phone,
+      customerId: `email:${order.customerEmail}`,
+      email: order.customerEmail,
+      phone: order.customerPhone,
     };
   }
 
-  const digits = phoneDigits(phone);
-  if (digits) {
+  if (order.phoneDigits) {
     return {
-      customerId: `phone:${digits}`,
+      customerId: `phone:${order.phoneDigits}`,
       email: '',
-      phone,
+      phone: order.customerPhone,
     };
   }
 
-  return null;
+  if (order.userId) {
+    return {
+      customerId: `user:${order.userId}`,
+      email: '',
+      phone: '',
+    };
+  }
+
+  // Last-resort identity so orders are never hidden from admin customer view.
+  return {
+    customerId: `order:${order.source}:${order.id}`,
+    email: '',
+    phone: '',
+  };
 }
 
-function parseCustomerId(customerId: string): { email: string; phoneDigits: string } {
+function parseCustomerId(customerId: string): ParsedCustomerId {
   const raw = String(customerId || '').trim();
-  if (!raw) return { email: '', phoneDigits: '' };
+  if (!raw) return { email: '', phoneDigits: '', userId: '', orderKey: '' };
 
   if (raw.startsWith('email:')) {
-    return { email: normalizeEmail(raw.slice(6)), phoneDigits: '' };
+    return { email: normalizeEmail(raw.slice(6)), phoneDigits: '', userId: '', orderKey: '' };
   }
 
   if (raw.startsWith('phone:')) {
-    return { email: '', phoneDigits: phoneDigits(raw.slice(6)) };
+    return { email: '', phoneDigits: phoneDigits(raw.slice(6)), userId: '', orderKey: '' };
+  }
+
+  if (raw.startsWith('user:')) {
+    return { email: '', phoneDigits: '', userId: raw.slice(5), orderKey: '' };
+  }
+
+  if (raw.startsWith('order:')) {
+    return { email: '', phoneDigits: '', userId: '', orderKey: raw.slice(6) };
   }
 
   const fallbackEmail = normalizeEmail(raw);
   if (isUsableEmail(fallbackEmail)) {
-    return { email: fallbackEmail, phoneDigits: '' };
+    return { email: fallbackEmail, phoneDigits: '', userId: '', orderKey: '' };
   }
 
-  return { email: '', phoneDigits: phoneDigits(raw) };
+  return { email: '', phoneDigits: phoneDigits(raw), userId: '', orderKey: '' };
 }
 
-function mergeById<T extends { id: string }>(rows: T[][]): T[] {
-  const map = new Map<string, T>();
-  for (const group of rows) {
-    for (const row of group) {
-      map.set(row.id, row);
-    }
+function orderMatchesCustomer(order: UnifiedOrder, parsed: ParsedCustomerId): boolean {
+  if (parsed.userId && order.userId === parsed.userId) return true;
+  if (parsed.email && normalizeEmail(order.customerEmail) === parsed.email) return true;
+  if (parsed.phoneDigits && order.phoneDigits === parsed.phoneDigits) return true;
+  if (parsed.orderKey && `${order.source}:${order.id}` === parsed.orderKey) return true;
+  return false;
+}
+
+async function fetchPigOrdersRows(): Promise<PigOrderRow[]> {
+  const detailed = await supabaseAdmin
+    .from('orders')
+    .select(
+      'id, user_id, order_number, customer_name, customer_email, customer_phone, status, created_at, total_amount, box_size, ribbe_choice, payments(amount_nok, status), order_extras(quantity, price_nok, total_price, unit_price, extras_catalog(name_no))'
+    );
+
+  if (!detailed.error) {
+    return (detailed.data || []) as PigOrderRow[];
   }
-  return Array.from(map.values());
+
+  if (!isMissingColumnOrRelationError(detailed.error)) {
+    throw detailed.error;
+  }
+
+  const fallback = await supabaseAdmin
+    .from('orders')
+    .select(
+      'id, user_id, order_number, customer_name, customer_email, customer_phone, status, created_at, total_amount, box_size, ribbe_choice, payments(amount_nok, status)'
+    );
+
+  if (fallback.error) throw fallback.error;
+
+  return ((fallback.data || []) as PigOrderRow[]).map((row) => ({
+    ...row,
+    order_extras: [],
+  }));
+}
+
+async function fetchEggOrdersRows(): Promise<EggOrderRow[]> {
+  const detailed = await supabaseAdmin
+    .from('egg_orders')
+    .select(
+      'id, user_id, order_number, customer_name, customer_email, customer_phone, status, created_at, total_amount, quantity, delivery_method, week_number, year, egg_breeds(name), egg_payments(amount_nok, status)'
+    );
+
+  if (!detailed.error) {
+    return (detailed.data || []) as EggOrderRow[];
+  }
+
+  if (detailed.error.code === '42P01') {
+    return [];
+  }
+
+  if (!isMissingColumnOrRelationError(detailed.error)) {
+    throw detailed.error;
+  }
+
+  const fallback = await supabaseAdmin
+    .from('egg_orders')
+    .select(
+      'id, user_id, order_number, customer_name, customer_email, customer_phone, status, created_at, total_amount, quantity, delivery_method, week_number, year'
+    );
+
+  if (fallback.error) throw fallback.error;
+
+  return ((fallback.data || []) as EggOrderRow[]).map((row) => ({
+    ...row,
+    egg_breeds: null,
+    egg_payments: [],
+  }));
+}
+
+async function fetchChickenOrdersRows(): Promise<ChickenOrderRow[]> {
+  const detailed = await supabaseAdmin
+    .from('chicken_orders')
+    .select(
+      'id, user_id, order_number, customer_name, customer_email, customer_phone, status, created_at, total_amount_nok, quantity_hens, quantity_roosters, pickup_week, pickup_year, chicken_breeds(name), chicken_payments(amount_nok, status)'
+    );
+
+  if (!detailed.error) {
+    return (detailed.data || []) as ChickenOrderRow[];
+  }
+
+  if (detailed.error.code === '42P01') {
+    return [];
+  }
+
+  if (!isMissingColumnOrRelationError(detailed.error)) {
+    throw detailed.error;
+  }
+
+  const fallback = await supabaseAdmin
+    .from('chicken_orders')
+    .select(
+      'id, user_id, order_number, customer_name, customer_email, customer_phone, status, created_at, total_amount_nok, quantity_hens, quantity_roosters, pickup_week, pickup_year'
+    );
+
+  if (fallback.error) throw fallback.error;
+
+  return ((fallback.data || []) as ChickenOrderRow[]).map((row) => ({
+    ...row,
+    chicken_breeds: null,
+    chicken_payments: [],
+  }));
 }
 
 async function fetchAllUnifiedOrders(): Promise<UnifiedOrder[]> {
-  const [pigResult, eggResult, chickenResult] = await Promise.all([
-    supabaseAdmin
-      .from('orders')
-      .select('id, order_number, customer_name, customer_email, customer_phone, status, created_at, total_amount, box_size, ribbe_choice, payments(amount_nok, status), order_extras(quantity, price_nok, total_price, unit_price, extras_catalog(name_no))'),
-    supabaseAdmin
-      .from('egg_orders')
-      .select('id, order_number, customer_name, customer_email, customer_phone, status, created_at, total_amount, quantity, delivery_method, week_number, year, egg_breeds(name), egg_payments(amount_nok, status)'),
-    supabaseAdmin
-      .from('chicken_orders')
-      .select('id, order_number, customer_name, customer_email, customer_phone, status, created_at, total_amount_nok, quantity_hens, quantity_roosters, pickup_week, pickup_year, chicken_breeds(name), chicken_payments(amount_nok, status)'),
+  const [pigRows, eggRows, chickenRows] = await Promise.all([
+    fetchPigOrdersRows(),
+    fetchEggOrdersRows(),
+    fetchChickenOrdersRows(),
   ]);
 
-  if (pigResult.error) throw pigResult.error;
-  if (eggResult.error) throw eggResult.error;
-  if (chickenResult.error) throw chickenResult.error;
-
-  const pigOrders = (pigResult.data || []).map((row) => toPigUnified(row as PigOrderRow));
-  const eggOrders = (eggResult.data || []).map((row) => toEggUnified(row as EggOrderRow));
-  const chickenOrders = (chickenResult.data || []).map((row) => toChickenUnified(row as ChickenOrderRow));
+  const pigOrders = pigRows.map(toPigUnified);
+  const eggOrders = eggRows.map(toEggUnified);
+  const chickenOrders = chickenRows.map(toChickenUnified);
 
   return [...pigOrders, ...eggOrders, ...chickenOrders].sort((a, b) => {
     return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
   });
-}
-
-async function fetchProfileOrders(customerId: string): Promise<UnifiedOrder[]> {
-  const identity = parseCustomerId(customerId);
-  const hasEmail = isUsableEmail(identity.email);
-  const hasPhone = Boolean(identity.phoneDigits);
-
-  if (!hasEmail && !hasPhone) {
-    return [];
-  }
-
-  const pigEmailPromise = hasEmail
-    ? supabaseAdmin
-        .from('orders')
-        .select('id, order_number, customer_name, customer_email, customer_phone, status, created_at, total_amount, box_size, ribbe_choice, payments(amount_nok, status), order_extras(quantity, price_nok, total_price, unit_price, extras_catalog(name_no))')
-        .eq('customer_email', identity.email)
-    : Promise.resolve({ data: [] as unknown[], error: null });
-
-  const eggEmailPromise = hasEmail
-    ? supabaseAdmin
-        .from('egg_orders')
-        .select('id, order_number, customer_name, customer_email, customer_phone, status, created_at, total_amount, quantity, delivery_method, week_number, year, egg_breeds(name), egg_payments(amount_nok, status)')
-        .eq('customer_email', identity.email)
-    : Promise.resolve({ data: [] as unknown[], error: null });
-
-  const chickenEmailPromise = hasEmail
-    ? supabaseAdmin
-        .from('chicken_orders')
-        .select('id, order_number, customer_name, customer_email, customer_phone, status, created_at, total_amount_nok, quantity_hens, quantity_roosters, pickup_week, pickup_year, chicken_breeds(name), chicken_payments(amount_nok, status)')
-        .eq('customer_email', identity.email)
-    : Promise.resolve({ data: [] as unknown[], error: null });
-
-  const pigPhonePromise = hasPhone
-    ? supabaseAdmin
-        .from('orders')
-        .select('id, order_number, customer_name, customer_email, customer_phone, status, created_at, total_amount, box_size, ribbe_choice, payments(amount_nok, status), order_extras(quantity, price_nok, total_price, unit_price, extras_catalog(name_no))')
-        .not('customer_phone', 'is', null)
-    : Promise.resolve({ data: [] as unknown[], error: null });
-
-  const eggPhonePromise = hasPhone
-    ? supabaseAdmin
-        .from('egg_orders')
-        .select('id, order_number, customer_name, customer_email, customer_phone, status, created_at, total_amount, quantity, delivery_method, week_number, year, egg_breeds(name), egg_payments(amount_nok, status)')
-        .not('customer_phone', 'is', null)
-    : Promise.resolve({ data: [] as unknown[], error: null });
-
-  const chickenPhonePromise = hasPhone
-    ? supabaseAdmin
-        .from('chicken_orders')
-        .select('id, order_number, customer_name, customer_email, customer_phone, status, created_at, total_amount_nok, quantity_hens, quantity_roosters, pickup_week, pickup_year, chicken_breeds(name), chicken_payments(amount_nok, status)')
-        .not('customer_phone', 'is', null)
-    : Promise.resolve({ data: [] as unknown[], error: null });
-
-  const [
-    pigEmailResult,
-    eggEmailResult,
-    chickenEmailResult,
-    pigPhoneResult,
-    eggPhoneResult,
-    chickenPhoneResult,
-  ] = await Promise.all([
-    pigEmailPromise,
-    eggEmailPromise,
-    chickenEmailPromise,
-    pigPhonePromise,
-    eggPhonePromise,
-    chickenPhonePromise,
-  ]);
-
-  if (pigEmailResult.error) throw pigEmailResult.error;
-  if (eggEmailResult.error) throw eggEmailResult.error;
-  if (chickenEmailResult.error) throw chickenEmailResult.error;
-  if (pigPhoneResult.error) throw pigPhoneResult.error;
-  if (eggPhoneResult.error) throw eggPhoneResult.error;
-  if (chickenPhoneResult.error) throw chickenPhoneResult.error;
-
-  const samePhone = (rawPhone: string | null | undefined) => {
-    if (!identity.phoneDigits) return false;
-    return phoneDigits(rawPhone) === identity.phoneDigits;
-  };
-
-  const pigRows = mergeById<PigOrderRow>([
-    (pigEmailResult.data || []) as PigOrderRow[],
-    ((pigPhoneResult.data || []) as PigOrderRow[]).filter((row) => samePhone(row.customer_phone)),
-  ]);
-  const eggRows = mergeById<EggOrderRow>([
-    (eggEmailResult.data || []) as EggOrderRow[],
-    ((eggPhoneResult.data || []) as EggOrderRow[]).filter((row) => samePhone(row.customer_phone)),
-  ]);
-  const chickenRows = mergeById<ChickenOrderRow>([
-    (chickenEmailResult.data || []) as ChickenOrderRow[],
-    ((chickenPhoneResult.data || []) as ChickenOrderRow[]).filter((row) => samePhone(row.customer_phone)),
-  ]);
-
-  const unified = [
-    ...pigRows.map(toPigUnified),
-    ...eggRows.map(toEggUnified),
-    ...chickenRows.map(toChickenUnified),
-  ];
-
-  return unified.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 }
 
 export async function GET(request: NextRequest) {
@@ -419,8 +455,7 @@ async function getCustomerList() {
   const customerMap = new Map<string, any>();
 
   for (const order of unifiedOrders) {
-    const identity = resolveCustomerIdentity(order.customerEmail, order.customerPhone);
-    if (!identity) continue;
+    const identity = resolveCustomerIdentity(order);
 
     if (!customerMap.has(identity.customerId)) {
       customerMap.set(identity.customerId, {
@@ -474,7 +509,9 @@ async function getCustomerList() {
 }
 
 async function getCustomerProfile(customerId: string) {
-  const orders = await fetchProfileOrders(customerId);
+  const parsed = parseCustomerId(customerId);
+  const allOrders = await fetchAllUnifiedOrders();
+  const orders = allOrders.filter((order) => orderMatchesCustomer(order, parsed));
 
   if (!orders || orders.length === 0) {
     return NextResponse.json({ error: 'Customer not found' }, { status: 404 });
@@ -563,9 +600,7 @@ async function getCustomerStats() {
 
   let totalRevenue = 0;
   for (const order of unifiedOrders) {
-    const identity = resolveCustomerIdentity(order.customerEmail, order.customerPhone);
-    if (!identity) continue;
-
+    const identity = resolveCustomerIdentity(order);
     customerKeys.add(identity.customerId);
     customerOrderCount.set(identity.customerId, (customerOrderCount.get(identity.customerId) || 0) + 1);
     totalRevenue += order.paidAmountNok;

@@ -44,10 +44,20 @@ export function CustomerDatabase() {
     setLoading(true);
     try {
       const response = await fetch('/api/admin/customers?action=list');
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        throw new Error(body?.error || 'Failed to load customers');
+      }
       const data = await response.json();
       setCustomers(data.customers || []);
     } catch (error) {
       console.error('Error loading customers:', error);
+      setCustomers([]);
+      toast({
+        title: copy.impersonateErrorTitle,
+        description: error instanceof Error ? error.message : 'Failed to load customers',
+        variant: 'destructive',
+      });
     } finally {
       setLoading(false);
     }
@@ -56,20 +66,30 @@ export function CustomerDatabase() {
   async function viewCustomerProfile(customerId: string) {
     try {
       const response = await fetch(`/api/admin/customers?action=profile&customerId=${encodeURIComponent(customerId)}`);
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        throw new Error(body?.error || 'Failed to load customer profile');
+      }
       const data = await response.json();
       setSelectedCustomer(data.profile);
       setShowProfile(true);
     } catch (error) {
       console.error('Error loading customer profile:', error);
+      toast({
+        title: copy.impersonateErrorTitle,
+        description: error instanceof Error ? error.message : 'Failed to load customer profile',
+        variant: 'destructive',
+      });
     }
   }
 
-  async function impersonateCustomer(customer: Pick<Customer, 'email' | 'phone' | 'name'>) {
+  async function impersonateCustomer(customer: Pick<Customer, 'customer_id' | 'email' | 'phone' | 'name'>) {
     try {
       const response = await fetch('/api/admin/customers/impersonate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          customerId: customer.customer_id,
           customerEmail: customer.email,
           customerPhone: customer.phone || undefined,
           returnTo: '/min-side',
@@ -163,6 +183,7 @@ export function CustomerDatabase() {
             <Button
               onClick={() =>
                 impersonateCustomer({
+                  customer_id: selectedCustomer.customer_id,
                   email: selectedCustomer.email,
                   phone: selectedCustomer.phone,
                   name: selectedCustomer.name,
