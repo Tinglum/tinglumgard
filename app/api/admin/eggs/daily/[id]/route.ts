@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth/session'
-import { canAccessEggOps } from '@/lib/auth/roles'
 import { EggCollectionError, patchEggDailyCollectionById } from '@/lib/eggs/collection'
 import { recomputeForecastForBreed } from '@/lib/eggs/forecast'
 
@@ -8,9 +7,6 @@ export const dynamic = 'force-dynamic'
 
 export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
   const session = await getSession()
-  if (!session || !canAccessEggOps(session)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
-  }
 
   try {
     const body = await request.json()

@@ -26,8 +26,9 @@ export class EggCollectionError extends Error {
   }
 }
 
-function getActor(session: SessionData): string {
-  return session.email || session.name || session.userId || 'unknown'
+function getActor(session: SessionData | null | undefined): string {
+  if (!session) return 'eggops-public'
+  return session.email || session.name || session.userId || 'eggops-public'
 }
 
 function numberOrZero(value: unknown): number {
@@ -57,7 +58,7 @@ function daysOld(dateString: string): number {
   return Math.floor(diff / (1000 * 60 * 60 * 24))
 }
 
-function ensureWithinCorrectionWindow(session: SessionData, dateString: string, reason?: string | null) {
+function ensureWithinCorrectionWindow(session: SessionData | null | undefined, dateString: string, reason?: string | null) {
   const age = daysOld(dateString)
   const role = getSessionRole(session)
 
@@ -207,7 +208,7 @@ export async function getEggDailyCollections(date?: string) {
   }
 }
 
-export async function upsertEggDailyCollection(input: EggDailyInput, session: SessionData) {
+export async function upsertEggDailyCollection(input: EggDailyInput, session?: SessionData | null) {
   const normalized = validateDailyPayload(input)
   ensureWithinCorrectionWindow(session, input.collection_date, input.reason)
   const actor = getActor(session)
@@ -258,7 +259,7 @@ export async function upsertEggDailyCollection(input: EggDailyInput, session: Se
 export async function patchEggDailyCollectionById(
   id: string,
   patch: Partial<EggDailyInput>,
-  session: SessionData
+  session?: SessionData | null
 ) {
   const { data: existing, error: existingError } = await supabaseAdmin
     .from('egg_daily_collections')

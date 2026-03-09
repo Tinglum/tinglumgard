@@ -1,15 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth/session'
-import { canAccessEggOps } from '@/lib/auth/roles'
 import { recomputeForecastForBreed, recomputeForecastsForAllBreeds } from '@/lib/eggs/forecast'
 
 export const dynamic = 'force-dynamic'
 
 export async function POST(request: NextRequest) {
-  const session = await getSession()
-  if (!session || !canAccessEggOps(session)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
-  }
+  await getSession()
 
   try {
     const body = await request.json().catch(() => ({}))

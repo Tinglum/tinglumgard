@@ -188,6 +188,7 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
   const [pageError, setPageError] = useState<string | null>(null)
   const [rowStates, setRowStates] = useState<Record<string, RowSaveState>>({})
   const [recomputing, setRecomputing] = useState(false)
+  const [canManualOverride, setCanManualOverride] = useState(false)
   const [overrideDraft, setOverrideDraft] = useState<Record<string, string>>({})
   const [overrideSaving, setOverrideSaving] = useState<Record<string, boolean>>({})
 
@@ -211,10 +212,11 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
     setPageError(null)
 
     try {
-      const [dailyRes, forecastRes, alertsRes] = await Promise.all([
+      const [dailyRes, forecastRes, alertsRes, sessionRes] = await Promise.all([
         fetch(`/api/admin/eggs/daily?date=${encodeURIComponent(date)}`),
         fetch('/api/admin/eggs/forecast?weeks=4'),
         fetch('/api/admin/eggs/alerts?limit=25'),
+        fetch('/api/auth/session'),
       ])
 
       if (!dailyRes.ok) throw new Error(copy.failedDaily)
@@ -234,6 +236,15 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
         setAlerts(alertsData.rows || [])
       } else {
         setAlerts([])
+      }
+
+      if (sessionRes.ok) {
+        const sessionData = await sessionRes.json()
+        const role = sessionData?.user?.role
+        const isAdmin = Boolean(sessionData?.user?.isAdmin)
+        setCanManualOverride(Boolean(sessionData?.authenticated && (isAdmin || role === 'admin')))
+      } else {
+        setCanManualOverride(false)
       }
     } catch (error: any) {
       setPageError(error?.message || 'Failed to load data')
@@ -614,37 +625,41 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
                         <span className={cn('text-xs', row.manual_override ? 'text-orange-700' : 'text-neutral-600')}>
                           {row.manual_override ? copy.manual : copy.auto}
                         </span>
-                        <Input
-                          className="h-8 w-24 text-xs"
-                          value={overrideDraft[row.inventory_id] ?? String(row.eggs_available ?? row.forecast_eggs)}
-                          onChange={(event) =>
-                            setOverrideDraft((prev) => ({
-                              ...prev,
-                              [row.inventory_id as string]: event.target.value,
-                            }))
-                          }
-                          inputMode="numeric"
-                          aria-label={copy.manualEggs}
-                        />
-                        {row.manual_override ? (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-8 text-xs"
-                            disabled={Boolean(overrideSaving[row.inventory_id])}
-                            onClick={() => setInventoryOverride(row, false)}
-                          >
-                            {copy.setAuto}
-                          </Button>
-                        ) : (
-                          <Button
-                            size="sm"
-                            className="h-8 text-xs"
-                            disabled={Boolean(overrideSaving[row.inventory_id])}
-                            onClick={() => setInventoryOverride(row, true)}
-                          >
-                            {copy.setManual}
-                          </Button>
+                        {canManualOverride && (
+                          <>
+                            <Input
+                              className="h-8 w-24 text-xs"
+                              value={overrideDraft[row.inventory_id] ?? String(row.eggs_available ?? row.forecast_eggs)}
+                              onChange={(event) =>
+                                setOverrideDraft((prev) => ({
+                                  ...prev,
+                                  [row.inventory_id as string]: event.target.value,
+                                }))
+                              }
+                              inputMode="numeric"
+                              aria-label={copy.manualEggs}
+                            />
+                            {row.manual_override ? (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-8 text-xs"
+                                disabled={Boolean(overrideSaving[row.inventory_id])}
+                                onClick={() => setInventoryOverride(row, false)}
+                              >
+                                {copy.setAuto}
+                              </Button>
+                            ) : (
+                              <Button
+                                size="sm"
+                                className="h-8 text-xs"
+                                disabled={Boolean(overrideSaving[row.inventory_id])}
+                                onClick={() => setInventoryOverride(row, true)}
+                              >
+                                {copy.setManual}
+                              </Button>
+                            )}
+                          </>
                         )}
                       </div>
                     )}
