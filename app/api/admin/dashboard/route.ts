@@ -11,27 +11,351 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // Fetch all orders with payments
-    const { data: orders, error: ordersError } = await supabaseAdmin
-      .from('orders')
-      .select(`
-        *,
-        mangalitsa_preset:mangalitsa_box_presets(id, slug, name_no, name_en, target_weight_kg),
-        payments (*)
-      `);
+    const { searchParams } = new URL(request.url);
+    const lastLogin = searchParams.get('lastLogin');
 
-    if (ordersError) throw ordersError;
+    // Fetch all data in parallel
+    const [
+      pigResult,
+      eggResult,
+      chickenResult,
+      messageResult,
+      healthResult,
+      calendarResult,
+    ] = await Promise.all([
+      fetchPigData(),
+      fetchEggData(),
+      fetchChickenData(),
+      fetchMessageStats(),
+      fetchHealthAlerts(),
+      fetchUpcomingDates(),
+    ]);
 
-    // Calculate dashboard metrics
-    const metrics = calculateDashboardMetrics((orders || []).map((order) => normalizeOrderForDisplay(order)));
+    // Build unified response
+    const pigMetrics = calculateDashboardMetrics(pigResult);
 
-    return NextResponse.json(metrics);
+    // Egg summary
+    const eggOrders = eggResult;
+    const eggActiveOrders = eggOrders.filter(
+      (o: any) => !['cancelled', 'forfeited'].includes(o.status)
+    );
+    const eggFullyPaid = eggOrders.filter((o: any) => {
+      const hasDeposit = (o.egg_payments || []).some(
+        (p: any) => p.payment_type === 'deposit' && p.status === 'completed'
+      );
+      if (!hasDeposit) return false;
+      const remainderPaid = (o.egg_payments || []).reduce((sum: number, p: any) => {
+        if (p.payment_type !== 'remainder' || p.status !== 'completed') return sum;
+        return sum + (p.amount_nok || 0) * 100;
+      }, 0);
+      return remainderPaid >= (o.remainder_amount || 0);
+    });
+    const eggUnpaidDeposits = eggOrders.filter((o: any) => {
+      if (['cancelled', 'forfeited'].includes(o.status)) return false;
+      return !(o.egg_payments || []).some(
+        (p: any) => p.payment_type === 'deposit' && p.status === 'completed'
+      );
+    });
+    const eggUnpaidRemainders = eggOrders.filter((o: any) => {
+      if (['cancelled', 'forfeited'].includes(o.status)) return false;
+      const hasDeposit = (o.egg_payments || []).some(
+        (p: any) => p.payment_type === 'deposit' && p.status === 'completed'
+      );
+      if (!hasDeposit) return false;
+      const remainderPaid = (o.egg_payments || []).reduce((sum: number, p: any) => {
+        if (p.payment_type !== 'remainder' || p.status !== 'completed') return sum;
+        return sum + (p.amount_nok || 0) * 100;
+      }, 0);
+      return remainderPaid < (o.remainder_amount || 0) && (o.remainder_amount || 0) > 0;
+    });
+    const eggRevenue = eggOrders.reduce((sum: number, o: any) => {
+      return sum + (o.egg_payments || []).reduce((pSum: number, p: any) => {
+        if (p.status !== 'completed') return pSum;
+        return pSum + (p.amount_nok || 0);
+      }, 0);
+    }, 0);
+
+    // Egg shipping missing (Posten orders not in terminal status missing fields)
+    const eggShippingMissing = eggOrders.filter((o: any) => {
+      if (o.delivery_method !== 'posten') return false;
+      if (['shipped', 'delivered', 'cancelled', 'forfeited'].includes(o.status)) return false;
+      return !(o.shipping_name && o.shipping_phone && o.shipping_address && o.shipping_postal_code && o.shipping_city);
+    });
+
+    // Egg ready-to-ship (fully paid + Posten delivery + not shipped/delivered)
+    const eggReadyToShip = eggFullyPaid.filter((o: any) => {
+      return o.delivery_method === 'posten' && !['shipped', 'delivered'].includes(o.status);
+    });
+
+    // Chicken summary
+    const chickenOrders = chickenResult;
+    const chickenActiveOrders = chickenOrders.filter(
+      (o: any) => !['cancelled', 'forfeited'].includes(o.status)
+    );
+
+    // Action items
+    const pigUnpaidDeposits = pigMetrics.outstanding_deposits;
+    const pigUnpaidRemainders = pigMetrics.outstanding_remainders;
+    const totalUnpaidCount = pigUnpaidDeposits.length + pigUnpaidRemainders.length +
+      eggUnpaidDeposits.length + eggUnpaidRemainders.length;
+    const totalUnpaidValue =
+      pigMetrics.summary.outstanding_deposits_value +
+      pigMetrics.summary.outstanding_remainders_value +
+      eggUnpaidDeposits.reduce((sum: number, o: any) => sum + (o.deposit_amount || 0), 0) +
+      eggUnpaidRemainders.reduce((sum: number, o: any) => {
+        const remainderPaid = (o.egg_payments || []).reduce((pSum: number, p: any) => {
+          if (p.payment_type !== 'remainder' || p.status !== 'completed') return pSum;
+          return pSum + (p.amount_nok || 0) * 100;
+        }, 0);
+        return sum + Math.max(0, (o.remainder_amount || 0) - remainderPaid);
+      }, 0);
+
+    const actionItems = {
+      unpaid: {
+        count: totalUnpaidCount,
+        value: totalUnpaidValue,
+      },
+      readyToShip: {
+        count: eggReadyToShip.length,
+      },
+      unreadMessages: {
+        count: messageResult.open + messageResult.in_progress,
+      },
+      shippingMissing: {
+        count: eggShippingMissing.length,
+      },
+    };
+
+    // Key metrics
+    const totalOrders = pigMetrics.summary.total_orders + eggActiveOrders.length + chickenActiveOrders.length;
+    const totalRevenue = pigMetrics.summary.total_revenue + eggRevenue;
+
+    const keyMetrics = {
+      totalOrders,
+      totalRevenue,
+      avgOrderValue: pigMetrics.summary.avg_order_value,
+      totalKgSold: pigMetrics.product_breakdown.total_kg,
+    };
+
+    // New orders since last login
+    let newOrders: any[] = [];
+    if (lastLogin) {
+      const since = new Date(lastLogin);
+      const recentPig = pigResult
+        .filter((o: any) => new Date(o.created_at) > since)
+        .map((o: any) => ({
+          order_number: o.order_number,
+          customer_name: o.customer_name,
+          product_type: 'pig',
+          amount: o.total_amount,
+          created_at: o.created_at,
+        }));
+      const recentEgg = eggOrders
+        .filter((o: any) => new Date(o.created_at) > since)
+        .map((o: any) => ({
+          order_number: o.order_number,
+          customer_name: o.customer_name,
+          product_type: 'egg',
+          amount: o.total_amount,
+          created_at: o.created_at,
+        }));
+      const recentChicken = chickenOrders
+        .filter((o: any) => new Date(o.created_at) > since)
+        .map((o: any) => ({
+          order_number: o.order_number,
+          customer_name: o.customer_name,
+          product_type: 'chicken',
+          amount: o.total_amount,
+          created_at: o.created_at,
+        }));
+      newOrders = [...recentPig, ...recentEgg, ...recentChicken]
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+        .slice(0, 10);
+    }
+
+    return NextResponse.json({
+      pig: pigMetrics,
+      egg: {
+        total_orders: eggActiveOrders.length,
+        revenue: eggRevenue,
+        fully_paid: eggFullyPaid.length,
+        unpaid_deposits: eggUnpaidDeposits.length,
+        unpaid_remainders: eggUnpaidRemainders.length,
+        shipping_missing: eggShippingMissing.length,
+        ready_to_ship: eggReadyToShip.length,
+      },
+      chicken: {
+        total_orders: chickenActiveOrders.length,
+        active_hatches: chickenOrders.filter((o: any) => o.status === 'confirmed' || o.status === 'pending').length,
+      },
+      actionItems,
+      keyMetrics,
+      upcomingDates: calendarResult,
+      newOrders,
+      messages: messageResult,
+      healthAlerts: healthResult,
+    });
   } catch (error) {
     console.error('Error fetching dashboard data:', error);
     return NextResponse.json(
       { error: 'Failed to fetch dashboard data' },
       { status: 500 }
     );
+  }
+}
+
+async function fetchPigData() {
+  const { data: orders, error } = await supabaseAdmin
+    .from('orders')
+    .select(`
+      *,
+      mangalitsa_preset:mangalitsa_box_presets(id, slug, name_no, name_en, target_weight_kg),
+      payments (*)
+    `);
+
+  if (error) throw error;
+  return (orders || []).map((order) => normalizeOrderForDisplay(order));
+}
+
+async function fetchEggData() {
+  const { data, error } = await supabaseAdmin
+    .from('egg_orders')
+    .select('*, egg_breeds(*), egg_payments(*), egg_order_additions(subtotal)')
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+  return data || [];
+}
+
+async function fetchChickenData() {
+  const { data, error } = await supabaseAdmin
+    .from('chicken_orders')
+    .select('*, chicken_breeds(name), chicken_hatches(hatch_date), chicken_payments(*)')
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+  return data || [];
+}
+
+async function fetchMessageStats() {
+  const { data, error } = await supabaseAdmin
+    .from('customer_messages')
+    .select('id, status');
+
+  if (error) {
+    console.warn('Could not fetch messages:', error.message);
+    return { total: 0, open: 0, in_progress: 0, resolved: 0 };
+  }
+
+  const messages = data || [];
+  return {
+    total: messages.length,
+    open: messages.filter((m) => m.status === 'open').length,
+    in_progress: messages.filter((m) => m.status === 'in_progress').length,
+    resolved: messages.filter((m) => m.status === 'resolved').length,
+  };
+}
+
+async function fetchHealthAlerts() {
+  const alerts: Array<{ level: 'warning' | 'error'; message: string }> = [];
+
+  try {
+    // Check inventory utilization
+    const { data: config } = await supabaseAdmin
+      .from('config')
+      .select('key, value')
+      .in('key', ['max_kg_available']);
+
+    const maxKg = parseInt(config?.find((c) => c.key === 'max_kg_available')?.value || '0');
+
+    if (maxKg > 0) {
+      const { data: orders } = await supabaseAdmin
+        .from('orders')
+        .select('box_size, status, mangalitsa_preset:mangalitsa_box_presets(target_weight_kg)')
+        .not('status', 'eq', 'cancelled');
+
+      const allocatedKg = orders?.reduce((sum, o) => sum + getEffectiveBoxSize(o), 0) || 0;
+      const remaining = maxKg - allocatedKg;
+
+      if (remaining <= 0) {
+        alerts.push({ level: 'error', message: 'Grislager er fullt – lukk bestillinger' });
+      } else if (remaining < 100) {
+        alerts.push({ level: 'warning', message: `Kun ${remaining} kg gris igjen` });
+      }
+    }
+
+    // Check for stuck payments (older than 7 days)
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    const { data: stuckOrders } = await supabaseAdmin
+      .from('orders')
+      .select('id')
+      .eq('status', 'draft')
+      .lt('created_at', sevenDaysAgo);
+
+    if (stuckOrders && stuckOrders.length > 0) {
+      alerts.push({
+        level: 'warning',
+        message: `${stuckOrders.length} grisbestilling(er) venter på forskudd i over 7 dager`,
+      });
+    }
+  } catch {
+    // Health alerts are non-critical
+  }
+
+  return alerts;
+}
+
+async function fetchUpcomingDates() {
+  const today = new Date().toISOString().split('T')[0];
+
+  try {
+    // Upcoming pig pickups
+    const { data: pigOrders } = await supabaseAdmin
+      .from('orders')
+      .select('id, order_number, delivery_type, marked_delivered_at')
+      .not('status', 'in', '(cancelled,forfeited,draft,pending)')
+      .is('marked_delivered_at', null);
+
+    // Upcoming egg deliveries (Posten)
+    const { data: eggPostenOrders } = await supabaseAdmin
+      .from('egg_orders')
+      .select('id, order_number, delivery_method, delivery_monday, status')
+      .eq('delivery_method', 'posten')
+      .not('status', 'in', '(cancelled,forfeited,shipped,delivered)')
+      .gte('delivery_monday', today)
+      .order('delivery_monday', { ascending: true })
+      .limit(5);
+
+    // Upcoming egg pickups
+    const { data: eggPickupOrders } = await supabaseAdmin
+      .from('egg_orders')
+      .select('id, order_number, delivery_method, delivery_monday, status')
+      .neq('delivery_method', 'posten')
+      .not('status', 'in', '(cancelled,forfeited,delivered)')
+      .gte('delivery_monday', today)
+      .order('delivery_monday', { ascending: true })
+      .limit(5);
+
+    const nextPickup = eggPickupOrders?.[0]?.delivery_monday || null;
+    const nextSendout = eggPostenOrders?.[0]?.delivery_monday || null;
+
+    return {
+      nextPickup: nextPickup
+        ? {
+            date: nextPickup,
+            orderCount: eggPickupOrders?.filter((o: any) => o.delivery_monday === nextPickup).length || 0,
+          }
+        : null,
+      nextSendout: nextSendout
+        ? {
+            date: nextSendout,
+            orderCount: eggPostenOrders?.filter((o: any) => o.delivery_monday === nextSendout).length || 0,
+          }
+        : null,
+      pendingPigPickups: pigOrders?.length || 0,
+    };
+  } catch {
+    return { nextPickup: null, nextSendout: null, pendingPigPickups: 0 };
   }
 }
 
@@ -68,14 +392,13 @@ function calculateDashboardMetrics(orders: any[]) {
     return acc;
   }, {} as Record<string, number>);
 
-  // Product breakdown - use preset names as keys instead of raw kg
+  // Product breakdown
   const boxCounts: Record<string, number> = {};
   let totalKg = 0;
   for (const order of orders) {
     const size = getEffectiveBoxSize(order);
     if (!size) continue;
     totalKg += size;
-    // Use display name (preset name) if available, otherwise fall back to "Xkg"
     const presetName = order.display_box_name_no || order.mangalitsa_preset?.name_no;
     const key = presetName ? `${presetName} (${size} kg)` : `${size} kg`;
     boxCounts[key] = (boxCounts[key] || 0) + 1;
