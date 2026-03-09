@@ -10,6 +10,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { useToast } from '@/hooks/use-toast';
 
 interface Customer {
+  customer_id: string;
   email: string;
   name: string;
   phone: string | null;
@@ -52,9 +53,9 @@ export function CustomerDatabase() {
     }
   }
 
-  async function viewCustomerProfile(email: string) {
+  async function viewCustomerProfile(customerId: string) {
     try {
-      const response = await fetch(`/api/admin/customers?action=profile&customerId=${encodeURIComponent(email)}`);
+      const response = await fetch(`/api/admin/customers?action=profile&customerId=${encodeURIComponent(customerId)}`);
       const data = await response.json();
       setSelectedCustomer(data.profile);
       setShowProfile(true);
@@ -63,13 +64,14 @@ export function CustomerDatabase() {
     }
   }
 
-  async function impersonateCustomer(customer: Pick<Customer, 'email' | 'name'>) {
+  async function impersonateCustomer(customer: Pick<Customer, 'email' | 'phone' | 'name'>) {
     try {
       const response = await fetch('/api/admin/customers/impersonate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           customerEmail: customer.email,
+          customerPhone: customer.phone || undefined,
           returnTo: '/min-side',
         }),
       });
@@ -104,6 +106,44 @@ export function CustomerDatabase() {
     );
   });
 
+  function formatOrderDetails(order: any): string {
+    const details = order?.details || {};
+
+    if (order?.source === 'pig') {
+      const boxSize = Number(details?.box_size || 0);
+      if (boxSize > 0) return `${boxSize} kg`;
+      return '';
+    }
+
+    if (order?.source === 'egg') {
+      const breed = String(details?.breed_name || '').trim();
+      const quantity = Number(details?.quantity || 0);
+      const week = Number(details?.week_number || 0);
+      const year = Number(details?.year || 0);
+      const parts = [];
+      if (breed) parts.push(breed);
+      if (quantity > 0) parts.push(`${quantity} egg`);
+      if (week > 0 && year > 0) parts.push(`uke ${week}/${year}`);
+      return parts.join(' | ');
+    }
+
+    if (order?.source === 'chicken') {
+      const breed = String(details?.breed_name || '').trim();
+      const hens = Number(details?.quantity_hens || 0);
+      const roosters = Number(details?.quantity_roosters || 0);
+      const week = Number(details?.pickup_week || 0);
+      const year = Number(details?.pickup_year || 0);
+      const parts = [];
+      if (breed) parts.push(breed);
+      if (hens > 0) parts.push(`${hens} høner`);
+      if (roosters > 0) parts.push(`${roosters} haner`);
+      if (week > 0 && year > 0) parts.push(`uke ${week}/${year}`);
+      return parts.join(' | ');
+    }
+
+    return '';
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -121,7 +161,13 @@ export function CustomerDatabase() {
               {copy.backToList}
             </Button>
             <Button
-              onClick={() => impersonateCustomer({ email: selectedCustomer.email, name: selectedCustomer.name })}
+              onClick={() =>
+                impersonateCustomer({
+                  email: selectedCustomer.email,
+                  phone: selectedCustomer.phone,
+                  name: selectedCustomer.name,
+                })
+              }
               variant="outline"
             >
               <LogIn className="w-4 h-4 mr-1" />
@@ -212,10 +258,18 @@ export function CustomerDatabase() {
             <h3 className="font-semibold text-lg mb-3">{copy.orderHistoryTitle}</h3>
             <div className="space-y-2">
               {selectedCustomer.orders.map((order: any) => (
-                <div key={order.order_number} className="flex items-center justify-between p-3 rounded-xl bg-gray-50">
+                <div key={`${order.source || 'order'}-${order.order_id || order.order_number}`} className="flex items-center justify-between p-3 rounded-xl bg-gray-50">
                   <div>
                     <span className="font-medium">{order.order_number}</span>
+                    {order.source_label && (
+                      <span className="ml-2 px-2 py-0.5 rounded-full bg-neutral-200 text-neutral-700 text-xs font-medium">
+                        {order.source_label}
+                      </span>
+                    )}
                     <span className="text-sm text-gray-600 ml-3">{new Date(order.created_at).toLocaleDateString(locale)}</span>
+                    {formatOrderDetails(order) && (
+                      <p className="text-xs text-gray-500 mt-1">{formatOrderDetails(order)}</p>
+                    )}
                   </div>
                   <div className="flex items-center gap-3">
                     <span className="text-gray-900 font-semibold">
@@ -265,7 +319,7 @@ export function CustomerDatabase() {
         <div className="space-y-2">
           {filteredCustomers.map((customer) => (
             <div
-              key={customer.email}
+              key={customer.customer_id || customer.email}
               className="flex items-center justify-between p-4 rounded-xl border hover:bg-gray-50 transition-colors"
             >
               <div className="flex-1">
@@ -306,7 +360,7 @@ export function CustomerDatabase() {
                   <p className="text-sm text-gray-600">{copy.ltvLabel}</p>
                   <p className="font-bold text-lg text-green-600">{currency} {customer.lifetime_value.toLocaleString(locale)}</p>
                 </div>
-                <Button onClick={() => viewCustomerProfile(customer.email)} variant="outline" size="sm">
+                <Button onClick={() => viewCustomerProfile(customer.customer_id || customer.email)} variant="outline" size="sm">
                   <Eye className="w-4 h-4 mr-1" />
                   {copy.viewProfileButton}
                 </Button>

@@ -16,6 +16,15 @@ function toRecipient(row: any): CampaignRecipient {
   };
 }
 
+function isMissingRelationError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false;
+  const candidate = error as { code?: string; message?: string };
+  return (
+    candidate.code === '42P01' ||
+    (typeof candidate.message === 'string' && candidate.message.includes('does not exist'))
+  );
+}
+
 export async function POST(
   _request: Request,
   { params }: { params: { id: string } }
@@ -29,25 +38,51 @@ export async function POST(
     .eq('id', params.id)
     .single();
 
+  if (isMissingRelationError(campaignError)) {
+    return NextResponse.json(
+      { error: 'Campaign tables are not migrated yet in this environment' },
+      { status: 503 }
+    );
+  }
+
   if (campaignError || !campaign) {
     return NextResponse.json({ error: 'Campaign not found' }, { status: 404 });
   }
 
-  let { data: recipientRows } = await supabaseAdmin
+  const recipientsResult = await supabaseAdmin
     .from('email_campaign_recipients')
     .select('email, phone, name')
     .eq('campaign_id', campaign.id);
+  if (isMissingRelationError(recipientsResult.error)) {
+    return NextResponse.json(
+      { error: 'Campaign recipient tables are not migrated yet in this environment' },
+      { status: 503 }
+    );
+  }
+  let recipientRows = recipientsResult.data || [];
 
   if (!recipientRows || recipientRows.length === 0) {
     const resolved = await resolveCampaignRecipients({
       recipientMode: campaign.recipient_mode,
       recipientFilter: (campaign.recipient_filter || {}) as Record<string, unknown>,
     });
-    await upsertCampaignRecipients(campaign.id, resolved);
+    const inserted = await upsertCampaignRecipients(campaign.id, resolved);
+    if (resolved.length > 0 && inserted === 0) {
+      return NextResponse.json(
+        { error: 'Campaign recipient tables are not migrated yet in this environment' },
+        { status: 503 }
+      );
+    }
     const refreshed = await supabaseAdmin
       .from('email_campaign_recipients')
       .select('email, phone, name')
       .eq('campaign_id', campaign.id);
+    if (isMissingRelationError(refreshed.error)) {
+      return NextResponse.json(
+        { error: 'Campaign recipient tables are not migrated yet in this environment' },
+        { status: 503 }
+      );
+    }
     recipientRows = refreshed.data || [];
   }
 

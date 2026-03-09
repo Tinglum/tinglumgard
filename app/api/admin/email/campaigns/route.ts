@@ -20,6 +20,15 @@ const ALLOWED_STATUSES = new Set([
   'cancelled',
 ]);
 
+function isMissingRelationError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false;
+  const candidate = error as { code?: string; message?: string };
+  return (
+    candidate.code === '42P01' ||
+    (typeof candidate.message === 'string' && candidate.message.includes('does not exist'))
+  );
+}
+
 export async function GET() {
   const admin = await requireAdminAccess();
   if (!admin.ok) return admin.response;
@@ -31,6 +40,14 @@ export async function GET() {
     .limit(100);
 
   if (error) {
+    if (isMissingRelationError(error)) {
+      return NextResponse.json({
+        campaigns: [],
+        legacyFallback: true,
+        unavailableReason: 'email_campaigns table is not available in this environment yet',
+      });
+    }
+
     return NextResponse.json({ error: 'Failed to fetch campaigns' }, { status: 500 });
   }
 
@@ -88,6 +105,13 @@ export async function POST(request: NextRequest) {
     .single();
 
   if (campaignError || !campaign) {
+    if (isMissingRelationError(campaignError)) {
+      return NextResponse.json(
+        { error: 'Campaign tables are not migrated yet in this environment' },
+        { status: 503 }
+      );
+    }
+
     return NextResponse.json({ error: 'Failed to create campaign' }, { status: 500 });
   }
 
@@ -97,6 +121,13 @@ export async function POST(request: NextRequest) {
     manualRecipients,
   });
   const totalRecipients = await upsertCampaignRecipients(campaign.id, recipients);
+
+  if (recipients.length > 0 && totalRecipients === 0) {
+    return NextResponse.json(
+      { error: 'Campaign recipients table is not available in this environment' },
+      { status: 503 }
+    );
+  }
 
   await supabaseAdmin
     .from('email_campaigns')

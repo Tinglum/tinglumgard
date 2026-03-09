@@ -133,6 +133,23 @@ function sortGroupsDesc(a: BatchGroup, b: BatchGroup): number {
   return aDate < bDate ? 1 : aDate > bDate ? -1 : 0
 }
 
+function mergeBreed(
+  current: Hatch['chicken_breeds'],
+  incoming: Partial<NonNullable<Hatch['chicken_breeds']>> | undefined
+): Hatch['chicken_breeds'] {
+  if (!current) return current
+  if (!incoming) return current
+
+  return {
+    name: incoming.name ?? current.name,
+    slug: incoming.slug ?? current.slug,
+    accent_color: incoming.accent_color ?? current.accent_color,
+    start_price_nok: incoming.start_price_nok ?? current.start_price_nok,
+    weekly_increase_nok: incoming.weekly_increase_nok ?? current.weekly_increase_nok,
+    adult_price_nok: incoming.adult_price_nok ?? current.adult_price_nok,
+  }
+}
+
 export function ChickenHatchManager() {
   const { toast } = useToast()
   const { t } = useLanguage()
@@ -142,6 +159,7 @@ export function ChickenHatchManager() {
   const [loading, setLoading] = useState(true)
   const [showAddForm, setShowAddForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [savingId, setSavingId] = useState<string | null>(null)
   const [editValues, setEditValues] = useState<Record<string, string>>({})
   const [newBatch, setNewBatch] = useState<NewBatchForm>({
     eggs_set_date: '',
@@ -352,6 +370,7 @@ export function ChickenHatchManager() {
 
   const handleInlineUpdate = async (id: string) => {
     try {
+      setSavingId(id)
       const payload = {
         eggs_set_count: toNonNegativeInt(editValues.eggs_set_count),
         expected_hatch_count: toNonNegativeInt(editValues.expected_hatch_count),
@@ -372,19 +391,38 @@ export function ChickenHatchManager() {
         throw new Error(body?.error || 'Failed to update hatch')
       }
 
+      const updatedRow = (await res.json()) as Partial<Hatch> | null
+      if (updatedRow && typeof updatedRow === 'object') {
+        setHatches((prev) =>
+          prev.map((row) => {
+            if (row.id !== id) return row
+            const incomingBreed =
+              (updatedRow.chicken_breeds as Partial<NonNullable<Hatch['chicken_breeds']>> | undefined) || undefined
+            return {
+              ...row,
+              ...updatedRow,
+              chicken_breeds: mergeBreed(row.chicken_breeds, incomingBreed),
+              chicken_incubation_batches:
+                updatedRow.chicken_incubation_batches ?? row.chicken_incubation_batches ?? null,
+            }
+          })
+        )
+      }
+
       toast({
         title: ch.updateToastTitle,
         description: ch.updateToastDescription,
       })
 
       handleCancelEdit()
-      await fetchData()
     } catch (error: any) {
       toast({
         title: ch.errorUpdateTitle,
         description: error?.message || ch.errorUpdateDescription,
         variant: 'destructive',
       })
+    } finally {
+      setSavingId((current) => (current === id ? null : current))
     }
   }
 
@@ -594,6 +632,7 @@ export function ChickenHatchManager() {
                         )
                       : 0
                     const isEditing = editingId === hatch.id
+                    const isSaving = savingId === hatch.id
 
                     return (
                       <tr key={hatch.id} className="border-b last:border-0">
@@ -676,6 +715,7 @@ export function ChickenHatchManager() {
                                 variant="ghost"
                                 className="h-7 px-2"
                                 onClick={() => handleInlineUpdate(hatch.id)}
+                                disabled={isSaving}
                               >
                                 <Save className="w-3 h-3" />
                               </Button>
@@ -684,6 +724,7 @@ export function ChickenHatchManager() {
                                 variant="ghost"
                                 className="h-7 px-2"
                                 onClick={handleCancelEdit}
+                                disabled={isSaving}
                               >
                                 <X className="w-3 h-3" />
                               </Button>

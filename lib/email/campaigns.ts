@@ -29,6 +29,15 @@ type RecipientRow = {
   name: string | null;
 };
 
+function isMissingRelationError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false;
+  const candidate = error as { code?: string; message?: string };
+  return (
+    candidate.code === '42P01' ||
+    (typeof candidate.message === 'string' && candidate.message.includes('does not exist'))
+  );
+}
+
 function normalizeEmail(value: string): string {
   return value.trim().toLowerCase();
 }
@@ -247,6 +256,14 @@ export async function enqueueCampaignById(params: {
     .eq('id', params.campaignId)
     .single();
 
+  if (isMissingRelationError(campaignError)) {
+    return {
+      ok: false,
+      statusCode: 503,
+      payload: { error: 'Campaign tables are not migrated yet in this environment' },
+    };
+  }
+
   if (campaignError || !campaign) {
     return {
       ok: false,
@@ -264,21 +281,43 @@ export async function enqueueCampaignById(params: {
     };
   }
 
-  let { data: recipientRows } = await supabaseAdmin
+  const recipientsResult = await supabaseAdmin
     .from('email_campaign_recipients')
     .select('id, email, phone, name')
     .eq('campaign_id', typedCampaign.id);
+  if (isMissingRelationError(recipientsResult.error)) {
+    return {
+      ok: false,
+      statusCode: 503,
+      payload: { error: 'Campaign recipient tables are not migrated yet in this environment' },
+    };
+  }
+  let recipientRows = recipientsResult.data || [];
 
   if (!recipientRows || recipientRows.length === 0) {
     const resolved = await resolveCampaignRecipients({
       recipientMode: typedCampaign.recipient_mode,
       recipientFilter: (typedCampaign.recipient_filter || {}) as Record<string, unknown>,
     });
-    await upsertCampaignRecipients(typedCampaign.id, resolved);
+    const inserted = await upsertCampaignRecipients(typedCampaign.id, resolved);
+    if (resolved.length > 0 && inserted === 0) {
+      return {
+        ok: false,
+        statusCode: 503,
+        payload: { error: 'Campaign recipient tables are not migrated yet in this environment' },
+      };
+    }
     const refreshed = await supabaseAdmin
       .from('email_campaign_recipients')
       .select('id, email, phone, name')
       .eq('campaign_id', typedCampaign.id);
+    if (isMissingRelationError(refreshed.error)) {
+      return {
+        ok: false,
+        statusCode: 503,
+        payload: { error: 'Campaign recipient tables are not migrated yet in this environment' },
+      };
+    }
     recipientRows = (refreshed.data || []) as RecipientRow[];
   }
 

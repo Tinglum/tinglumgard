@@ -2,6 +2,15 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/server';
 import { requireAdminAccess } from '@/app/api/admin/email/_shared';
 
+function isMissingRelationError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false;
+  const candidate = error as { code?: string; message?: string };
+  return (
+    candidate.code === '42P01' ||
+    (typeof candidate.message === 'string' && candidate.message.includes('does not exist'))
+  );
+}
+
 export async function POST(
   _request: Request,
   { params }: { params: { id: string } }
@@ -23,6 +32,13 @@ export async function POST(
     .in('status', ['draft', 'ready_for_approval', 'approved'])
     .select('*')
     .single();
+
+  if (isMissingRelationError(error)) {
+    return NextResponse.json(
+      { error: 'Campaign tables are not migrated yet in this environment' },
+      { status: 503 }
+    );
+  }
 
   if (error || !data) {
     return NextResponse.json(
