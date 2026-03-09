@@ -101,6 +101,10 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Inventory not found' }, { status: 404 })
       }
 
+      if (inventory.status !== 'open') {
+        return NextResponse.json({ error: 'Inventory is not open for ordering' }, { status: 400 })
+      }
+
       if (inventory.breed_id !== item.breedId) {
         return NextResponse.json({ error: 'Inventory mismatch' }, { status: 400 })
       }

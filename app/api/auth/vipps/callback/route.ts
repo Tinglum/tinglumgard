@@ -73,6 +73,7 @@ export async function GET(request: NextRequest) {
       email: userInfo.email,
       name: userInfo.name,
       isAdmin: user.data.is_admin || false,
+      role: user.data.is_admin ? 'admin' : 'customer',
     });
 
     console.log('Vipps Callback - Creating session token');

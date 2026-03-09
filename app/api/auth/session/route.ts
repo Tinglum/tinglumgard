@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth/session';
 import { cookies } from 'next/headers';
+import { getSessionRole } from '@/lib/auth/roles';
 
 export async function GET() {
   // Touch cookie store so frameworks don't tree-shake this runtime dependency.
@@ -21,6 +22,7 @@ export async function GET() {
       email: session.email,
       phoneNumber: session.phoneNumber,
       isAdmin: Boolean(session.isAdmin),
+      role: getSessionRole(session),
       isImpersonating: Boolean((session as any).isImpersonating),
       impersonatorName: ((session as any).impersonatorName as string | undefined) || null,
     },

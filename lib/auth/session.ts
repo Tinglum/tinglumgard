@@ -16,6 +16,7 @@ export interface SessionData {
   email?: string;
   name?: string;
   isAdmin?: boolean;
+  role?: 'admin' | 'operations' | 'customer';
   [key: string]: unknown;
 }
 

@@ -38,6 +38,7 @@ import { RecipeManager } from '@/components/admin/RecipeManager';
 import { ChickenBreedManager } from '@/components/admin/ChickenBreedManager';
 import { ChickenHatchManager } from '@/components/admin/ChickenHatchManager';
 import { ChickenOrdersManager } from '@/components/admin/ChickenOrdersManager';
+import { EggOpsDailyCollection } from '@/components/eggops/EggOpsDailyCollection';
 
 type TabType = 'dashboard' | 'orders' | 'products' | 'customers' | 'settings';
 
@@ -49,7 +50,7 @@ type ProductsL1 = 'mangalitsa' | 'eggs' | 'chickens';
 
 // Products L2 sub-tabs
 type MangalitsaL2 = 'boxes' | 'extras' | 'cuts' | 'recipes' | 'inventory';
-type EggsL2 = 'inventory' | 'breeds' | 'analytics';
+type EggsL2 = 'daily' | 'inventory' | 'breeds' | 'analytics';
 type ChickensL2 = 'hatches' | 'breeds';
 
 // Customers sub-tabs
@@ -73,7 +74,7 @@ export default function AdminPage() {
   const [ordersSubTab, setOrdersSubTab] = useState<OrdersSubTab>('pig');
   const [productsL1, setProductsL1] = useState<ProductsL1>('mangalitsa');
   const [mangalitsaL2, setMangalitsaL2] = useState<MangalitsaL2>('boxes');
-  const [eggsL2, setEggsL2] = useState<EggsL2>('inventory');
+  const [eggsL2, setEggsL2] = useState<EggsL2>('daily');
   const [chickensL2, setChickensL2] = useState<ChickensL2>('hatches');
   const [customersSubTab, setCustomersSubTab] = useState<CustomersSubTab>('database');
   const [settingsSubTab, setSettingsSubTab] = useState<SettingsSubTab>('config');
@@ -345,6 +346,7 @@ export default function AdminPage() {
               <div className="space-y-6">
                 <SubTabBar
                   tabs={[
+                    { id: 'daily', label: lang === 'no' ? 'Daglig innsamling' : 'Daily collection' },
                     { id: 'inventory', label: lang === 'no' ? 'Lager' : 'Inventory' },
                     { id: 'breeds', label: lang === 'no' ? 'Raser' : 'Breeds' },
                     { id: 'analytics', label: lang === 'no' ? 'Analyse' : 'Analytics' },
@@ -352,6 +354,7 @@ export default function AdminPage() {
                   active={eggsL2}
                   onChange={(id) => setEggsL2(id as EggsL2)}
                 />
+                {eggsL2 === 'daily' && <EggOpsDailyCollection embedded />}
                 {eggsL2 === 'inventory' && <EggInventoryManagement />}
                 {eggsL2 === 'breeds' && <BreedManagement />}
                 {eggsL2 === 'analytics' && <EggAnalytics />}

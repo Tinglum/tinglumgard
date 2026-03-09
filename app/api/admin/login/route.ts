@@ -23,6 +23,7 @@ export async function POST(request: NextRequest) {
       userId: 'admin',
       vippsSub: 'admin',
       isAdmin: true,
+      role: 'admin' as const,
       name: 'Administrator',
     };
 
