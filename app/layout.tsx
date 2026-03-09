@@ -4,10 +4,7 @@ import type { Metadata } from 'next';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { AuthProvider } from '@/contexts/AuthContext';
-import { Header } from '@/components/Header';
-import { Footer } from '@/components/Footer';
-import { BackgroundLayer } from '@/components/BackgroundLayer';
-import { Toaster } from '@/components/ui/toaster';
+import { AppShell } from '@/components/AppShell';
 
 export const metadata: Metadata = {
   title: {
@@ -42,15 +39,7 @@ export default function RootLayout({
         <ThemeProvider>
           <LanguageProvider>
             <AuthProvider>
-              <BackgroundLayer />
-              <Header />
-
-              <main className="relative min-h-screen pt-20">
-                {children}
-              </main>
-
-              <Footer />
-              <Toaster />
+              <AppShell>{children}</AppShell>
             </AuthProvider>
           </LanguageProvider>
         </ThemeProvider>
