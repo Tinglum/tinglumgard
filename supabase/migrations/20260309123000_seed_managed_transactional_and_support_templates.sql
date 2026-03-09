@@ -2,6 +2,43 @@
 -- Seed managed transactional/support templates for remaining hardcoded sends
 -- =============================================================================
 
+DO $$
+BEGIN
+  CREATE TYPE email_classification AS ENUM ('transactional', 'support', 'promotional', 'system');
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
+
+CREATE TABLE IF NOT EXISTS email_templates (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  template_key TEXT UNIQUE NOT NULL,
+  classification email_classification NOT NULL,
+  product_scope TEXT NOT NULL,
+  subject_no TEXT NOT NULL,
+  subject_en TEXT NOT NULL,
+  body_no TEXT NOT NULL,
+  body_en TEXT NOT NULL,
+  variables JSONB NOT NULL DEFAULT '[]'::jsonb,
+  active BOOLEAN NOT NULL DEFAULT true,
+  current_version INTEGER NOT NULL DEFAULT 1,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS email_template_versions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  template_id UUID NOT NULL REFERENCES email_templates(id) ON DELETE CASCADE,
+  version INTEGER NOT NULL,
+  subject_no TEXT NOT NULL,
+  subject_en TEXT NOT NULL,
+  body_no TEXT NOT NULL,
+  body_en TEXT NOT NULL,
+  change_note TEXT,
+  changed_by TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE(template_id, version)
+);
+
 INSERT INTO email_templates (
   template_key,
   classification,
