@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
     const token = await createSession(sessionData);
 
     // Set cookie
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     cookieStore.set('tinglum_session', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',

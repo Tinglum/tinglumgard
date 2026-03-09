@@ -114,6 +114,7 @@ function isAtRisk(order: EggOrderRow): boolean {
 
 function isShippingMissing(order: EggOrderRow): boolean {
   if (order.delivery_method !== 'posten') return false
+  if (['shipped', 'delivered', 'cancelled', 'forfeited'].includes(order.status)) return false
   return !(
     order.shipping_name &&
     order.shipping_phone &&
@@ -366,7 +367,9 @@ export async function GET(request: NextRequest) {
       failedPayments: allOrders.filter((order) => getPaymentState(order) === 'failed').length,
       atRisk: allOrders.filter((order) => isAtRisk(order)).length,
       shippingMissing: allOrders.filter((order) => isShippingMissing(order)).length,
-      revenueOre: allOrders.reduce((sum, order) => sum + (order.total_amount || 0), 0),
+      revenueOre: allOrders
+        .filter((order) => getPaymentState(order) === 'fully_paid')
+        .reduce((sum, order) => sum + (order.total_amount || 0), 0),
       outstandingOre: allOrders.reduce((sum, order) => sum + getAmountDueOre(order), 0),
     }
 
