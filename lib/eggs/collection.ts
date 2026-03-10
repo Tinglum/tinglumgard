@@ -27,6 +27,17 @@ export class EggCollectionError extends Error {
   }
 }
 
+function isMissingRelationError(error: any): boolean {
+  const code = String(error?.code || '')
+  const message = String(error?.message || '').toLowerCase()
+  return code === '42P01' || message.includes('does not exist')
+}
+
+function isMissingColumnError(error: any): boolean {
+  const code = String(error?.code || '')
+  return code === '42703'
+}
+
 export type EggOpsDayStatus = 'open' | 'in_progress' | 'closed'
 
 export type EggOpsBulkAction =
@@ -96,7 +107,23 @@ async function getDayState(dateString: string) {
     .eq('collection_date', dateString)
     .maybeSingle()
 
-  if (error) throw error
+  if (error) {
+    if (isMissingRelationError(error)) {
+      return {
+        id: null,
+        collection_date: dateString,
+        status: 'open' as EggOpsDayStatus,
+        closed_at: null,
+        closed_by: null,
+        reopened_at: null,
+        reopened_by: null,
+        reopen_reason: null,
+        created_at: null,
+        updated_at: null,
+      }
+    }
+    throw error
+  }
 
   if (data) return data
 
@@ -245,7 +272,7 @@ export async function getEggDailyCollections(date?: string) {
   trendStart.setDate(trendStart.getDate() - 13)
   const trendStartDate = trendStart.toISOString().split('T')[0]
 
-  const [breedsResult, dayRowsResult, trendRowsResult, forecastResult, dayStateResult] = await Promise.all([
+  const [breedsResult, dayRowsResult, trendRowsResult, forecastResult] = await Promise.all([
     supabaseAdmin
       .from('egg_breeds')
       .select('id, name, slug, accent_color')
@@ -266,18 +293,34 @@ export async function getEggDailyCollections(date?: string) {
       .gte('delivery_monday', targetDate)
       .order('delivery_monday', { ascending: true })
       .limit(80),
-    supabaseAdmin
-      .from('egg_ops_day_states')
-      .select('*')
-      .eq('collection_date', targetDate)
-      .maybeSingle(),
   ])
 
   if (breedsResult.error) throw breedsResult.error
   if (dayRowsResult.error) throw dayRowsResult.error
   if (trendRowsResult.error) throw trendRowsResult.error
   if (forecastResult.error) throw forecastResult.error
-  if (dayStateResult.error) throw dayStateResult.error
+
+  let dayState: any = {
+    collection_date: targetDate,
+    status: 'open',
+    closed_at: null,
+    closed_by: null,
+    reopened_at: null,
+    reopened_by: null,
+    reopen_reason: null,
+  }
+
+  const dayStateResult = await supabaseAdmin
+    .from('egg_ops_day_states')
+    .select('*')
+    .eq('collection_date', targetDate)
+    .maybeSingle()
+
+  if (!dayStateResult.error) {
+    dayState = dayStateResult.data || dayState
+  } else if (!isMissingRelationError(dayStateResult.error)) {
+    throw dayStateResult.error
+  }
 
   const dailyMap = new Map((dayRowsResult.data || []).map((row) => [row.breed_id, row]))
   const trendMap = new Map<string, Array<{ date: string; sellable: number }>>()
@@ -331,15 +374,7 @@ export async function getEggDailyCollections(date?: string) {
 
   return {
     date: targetDate,
-    day_state: dayStateResult.data || {
-      collection_date: targetDate,
-      status: 'open',
-      closed_at: null,
-      closed_by: null,
-      reopened_at: null,
-      reopened_by: null,
-      reopen_reason: null,
-    },
+    day_state: dayState,
     rows,
     kpi: {
       total_collected: totals.total_collected,
@@ -870,14 +905,38 @@ export async function getEggOpsDashboardData(days = 30) {
 }
 
 export async function getOpenEggOpsAlerts(limit = 200) {
-  const { data, error } = await supabaseAdmin
+  const maxLimit = Math.max(1, Math.min(1000, limit))
+  let { data, error } = await supabaseAdmin
     .from('egg_ops_alerts')
     .select(
       'id, alert_type, severity, acknowledged_at, acknowledged_by, snoozed_until, breed_id, year, week_number, message, metadata, created_at, egg_breeds(name, slug)'
     )
     .is('resolved_at', null)
     .order('created_at', { ascending: false })
-    .limit(Math.max(1, Math.min(1000, limit)))
+    .limit(maxLimit)
+
+  if (error && isMissingColumnError(error)) {
+    const legacy = await supabaseAdmin
+      .from('egg_ops_alerts')
+      .select('id, alert_type, breed_id, year, week_number, message, metadata, created_at, egg_breeds(name, slug)')
+      .is('resolved_at', null)
+      .order('created_at', { ascending: false })
+      .limit(maxLimit)
+
+    data = (legacy.data || []).map((row: any) => ({
+      ...row,
+      severity:
+        row.alert_type === 'deficit'
+          ? 'critical'
+          : row.alert_type === 'low_stock'
+            ? 'warning'
+            : 'info',
+      acknowledged_at: null,
+      acknowledged_by: null,
+      snoozed_until: null,
+    }))
+    error = legacy.error
+  }
 
   if (error) throw error
 
