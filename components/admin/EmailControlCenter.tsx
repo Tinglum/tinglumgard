@@ -110,6 +110,13 @@ export function EmailControlCenter() {
   const [suppressionList, setSuppressionList] = useState<Array<{ email: string; reason: string; source: string }>>(
     []
   );
+  const [schemaStatus, setSchemaStatus] = useState<{
+    ready: boolean;
+    checkedTables: string[];
+    missingTables: string[];
+  } | null>(null);
+  const [envStatus, setEnvStatus] = useState<Record<string, boolean> | null>(null);
+  const [suppressionUnavailable, setSuppressionUnavailable] = useState(false);
 
   const [newTemplate, setNewTemplate] = useState({
     templateKey: '',
@@ -228,6 +235,9 @@ export function EmailControlCenter() {
       });
     }
     setSuppressionList(data?.suppressionList || []);
+    setSchemaStatus(data?.schemaStatus || null);
+    setEnvStatus(data?.envStatus || null);
+    setSuppressionUnavailable(Boolean(data?.suppressionUnavailable));
   }, []);
 
   async function refreshCurrentTab() {
@@ -270,6 +280,12 @@ export function EmailControlCenter() {
     };
     run();
   }, [activeTab, loadCampaigns, loadFlows, loadHistory, loadLifecycle, loadOverview, loadQueue, loadSetup, loadTemplates]);
+
+  useEffect(() => {
+    loadSetup().catch(() => {
+      // setup endpoint errors are surfaced in tab loads where relevant
+    });
+  }, [loadSetup]);
 
   useEffect(() => {
     if (!selectedTemplate) return;
@@ -386,14 +402,15 @@ export function EmailControlCenter() {
     setCampaignPreview(data);
   }
 
-  async function handleCampaignEnqueue(campaignId: string) {
+  async function handleCampaignEnqueue(campaignId: string, force = false) {
     await callApi(`/api/admin/email/campaigns/${campaignId}/enqueue`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ locale: 'no' }),
+      body: JSON.stringify({ locale: 'no', force }),
     });
     await loadCampaigns();
     await loadQueue();
+    await loadHistory();
   }
 
   async function handleRetryQueue(id: string) {
@@ -519,6 +536,18 @@ export function EmailControlCenter() {
       {error && (
         <Card className="p-4 border border-red-200 bg-red-50">
           <p className="text-sm text-red-700">{error}</p>
+        </Card>
+      )}
+
+      {schemaStatus && !schemaStatus.ready && (
+        <Card className="p-4 border border-amber-300 bg-amber-50">
+          <p className="text-sm font-medium text-amber-900">Email schema is incomplete in this environment.</p>
+          <p className="text-xs text-amber-800 mt-1">
+            Missing tables: {schemaStatus.missingTables.join(', ')}
+          </p>
+          <p className="text-xs text-amber-800 mt-1">
+            Run the unified email migrations in Supabase before using all features.
+          </p>
         </Card>
       )}
 
@@ -849,8 +878,15 @@ export function EmailControlCenter() {
                     </Button>
                     {!lifecycleConfig.campaignSendViaApiCronOnly ? (
                       <Button onClick={() => handleCampaignEnqueue(campaign.id)}>Enqueue</Button>
-                    ) : (
-                      <span className="text-xs text-neutral-500 self-center">Sent by cron when status is ready</span>
+                    ) : null}
+                    <Button
+                      variant={lifecycleConfig.campaignSendViaApiCronOnly ? 'outline' : 'default'}
+                      onClick={() => handleCampaignEnqueue(campaign.id, true)}
+                    >
+                      {lifecycleConfig.campaignSendViaApiCronOnly ? 'Send now (admin override)' : 'Send now'}
+                    </Button>
+                    {lifecycleConfig.campaignSendViaApiCronOnly && (
+                      <span className="text-xs text-neutral-500 self-center">Policy: cron/API-only enabled</span>
                     )}
                   </div>
                 </div>
@@ -915,6 +951,15 @@ export function EmailControlCenter() {
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
           <Card className="p-4 space-y-2">
             <h3 className="text-lg font-medium">Dispatch Settings</h3>
+            {envStatus && (
+              <div className="text-xs text-neutral-600 rounded-md border border-neutral-200 bg-neutral-50 p-2 space-y-1">
+                <p>MAILGUN_API_KEY: {envStatus.mailgunApiKey ? 'ok' : 'missing'}</p>
+                <p>MAILGUN_DOMAIN: {envStatus.mailgunDomain ? 'ok' : 'missing'}</p>
+                <p>MAILGUN_WEBHOOK_SIGNING_KEY: {envStatus.mailgunWebhookSigningKey ? 'ok' : 'missing'}</p>
+                <p>CRON_SECRET: {envStatus.cronSecret ? 'ok' : 'missing'}</p>
+                <p>NEXT_PUBLIC_APP_URL: {envStatus.nextPublicAppUrl ? 'ok' : 'missing'}</p>
+              </div>
+            )}
             <Label>Mode</Label>
             <select
               value={setup.mode}
@@ -957,6 +1002,11 @@ export function EmailControlCenter() {
           </Card>
           <Card className="p-4 space-y-2">
             <h3 className="text-lg font-medium">Suppression List</h3>
+            {suppressionUnavailable && (
+              <p className="text-xs text-amber-700">
+                Suppression list table is unavailable in this environment.
+              </p>
+            )}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
               <Input
                 placeholder="email@example.com"

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/server';
 import { requireAdminAccess } from '@/app/api/admin/email/_shared';
 import type { EmailClassification } from '@/lib/email/types';
+import { isMissingEmailRelationError } from '@/lib/email/schema';
 
 const ALLOWED_CLASSIFICATIONS: EmailClassification[] = [
   'transactional',
@@ -52,6 +53,13 @@ export async function PATCH(
     .single();
 
   if (error || !data) {
+    if (isMissingEmailRelationError(error)) {
+      return NextResponse.json(
+        { error: 'Template tables are not migrated yet in this environment' },
+        { status: 503 }
+      );
+    }
+
     return NextResponse.json({ error: 'Failed to update template' }, { status: 500 });
   }
 

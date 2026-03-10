@@ -29,6 +29,16 @@ function isMissingRelationError(error: unknown): boolean {
   );
 }
 
+function isInvalidCampaignStatusError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false;
+  const candidate = error as { code?: string; message?: string };
+  return (
+    candidate.code === '22P02' &&
+    typeof candidate.message === 'string' &&
+    candidate.message.includes('email_campaign_status')
+  );
+}
+
 export async function GET() {
   const admin = await requireAdminAccess();
   if (!admin.ok) return admin.response;
@@ -87,22 +97,37 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid recipient mode' }, { status: 400 });
   }
 
-  const { data: campaign, error: campaignError } = await supabaseAdmin
+  const basePayload = {
+    name,
+    classification,
+    status,
+    subject_no: subjectNo,
+    subject_en: subjectEn,
+    body_no: bodyNo,
+    body_en: bodyEn,
+    recipient_mode: recipientMode,
+    recipient_filter: recipientFilter,
+    created_by: admin.session?.email || admin.session?.name || 'admin',
+  };
+
+  let { data: campaign, error: campaignError } = await supabaseAdmin
     .from('email_campaigns')
-    .insert({
-      name,
-      classification,
-      status,
-      subject_no: subjectNo,
-      subject_en: subjectEn,
-      body_no: bodyNo,
-      body_en: bodyEn,
-      recipient_mode: recipientMode,
-      recipient_filter: recipientFilter,
-      created_by: admin.session?.email || admin.session?.name || 'admin',
-    })
+    .insert(basePayload)
     .select('*')
     .single();
+
+  if (campaignError && isInvalidCampaignStatusError(campaignError) && status === 'ready') {
+    const legacyFallbackInsert = await supabaseAdmin
+      .from('email_campaigns')
+      .insert({
+        ...basePayload,
+        status: 'approved',
+      })
+      .select('*')
+      .single();
+    campaign = legacyFallbackInsert.data;
+    campaignError = legacyFallbackInsert.error;
+  }
 
   if (campaignError || !campaign) {
     if (isMissingRelationError(campaignError)) {

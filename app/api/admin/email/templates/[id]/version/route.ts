@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/server';
 import { requireAdminAccess } from '@/app/api/admin/email/_shared';
+import { isMissingEmailRelationError } from '@/lib/email/schema';
 
 export async function POST(
   request: NextRequest,
@@ -27,6 +28,13 @@ export async function POST(
     .single();
 
   if (templateError || !template) {
+    if (isMissingEmailRelationError(templateError)) {
+      return NextResponse.json(
+        { error: 'Template tables are not migrated yet in this environment' },
+        { status: 503 }
+      );
+    }
+
     return NextResponse.json({ error: 'Template not found' }, { status: 404 });
   }
 
@@ -49,6 +57,13 @@ export async function POST(
     .single();
 
   if (versionError || !version) {
+    if (isMissingEmailRelationError(versionError)) {
+      return NextResponse.json(
+        { error: 'Template version table is not migrated yet in this environment' },
+        { status: 503 }
+      );
+    }
+
     return NextResponse.json({ error: 'Failed to create template version' }, { status: 500 });
   }
 

@@ -54,6 +54,15 @@ type CommunicationHistoryItem = {
   status: string;
   subject: string;
   templateKey: string | null;
+  toEmail?: string | null;
+  sourcePath?: string | null;
+  lastError?: string | null;
+  orderRefs?: {
+    orderId?: string | null;
+    eggOrderId?: string | null;
+    chickenOrderId?: string | null;
+    campaignId?: string | null;
+  };
   sentAt: string | null;
   createdAt: string | null;
 };
@@ -71,6 +80,20 @@ type CustomerProfile = {
   lifetime_value: number;
   orders: CustomerOrderSummary[];
   communications?: CommunicationHistoryItem[];
+  email_controls?: {
+    email: string | null;
+    suppressed: boolean;
+    suppression_reason: string | null;
+    suppression_source: string | null;
+    suppression_created_at: string | null;
+    totals: {
+      total: number;
+      sent: number;
+      failed: number;
+      cancelled: number;
+      byClassification: Record<string, number>;
+    };
+  };
 };
 
 const toNumber = (value: unknown, fallback = 0) => {
@@ -148,6 +171,7 @@ export function CustomerDatabase() {
   const [orderDrafts, setOrderDrafts] = useState<Record<string, Record<string, unknown>>>({});
   const [loadingOrder, setLoadingOrder] = useState<string | null>(null);
   const [savingOrder, setSavingOrder] = useState<string | null>(null);
+  const [emailActionLoading, setEmailActionLoading] = useState<string | null>(null);
 
   const loadCustomers = useCallback(async () => {
     setLoading(true);
@@ -359,6 +383,103 @@ export function CustomerDatabase() {
     }
   }
 
+  async function toggleSuppression(shouldSuppress: boolean) {
+    if (!selectedCustomer?.email) {
+      toast({
+        title: copy.orderSaveErrorTitle,
+        description: copy.notProvided,
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const actionKey = shouldSuppress ? 'suppress' : 'unsuppress';
+
+    try {
+      setEmailActionLoading(actionKey);
+      const response = await fetch('/api/admin/customers/email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: actionKey,
+          email: selectedCustomer.email,
+        }),
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(body?.error || copy.orderSaveErrorDescription);
+      }
+
+      toast({
+        title: shouldSuppress
+          ? ((copy as any).emailSuppressedTitle || (lang === 'en' ? 'Email suppressed' : 'E-post blokkert'))
+          : ((copy as any).emailUnsuppressedTitle || (lang === 'en' ? 'Email enabled' : 'E-post aktivert')),
+        description: shouldSuppress
+          ? ((copy as any).emailSuppressedDescription ||
+            (lang === 'en'
+              ? 'Automatic emails are now blocked for this recipient.'
+              : 'Automatiske e-poster er na blokkert for denne mottakeren.'))
+          : ((copy as any).emailUnsuppressedDescription ||
+            (lang === 'en'
+              ? 'Automatic emails are now allowed for this recipient.'
+              : 'Automatiske e-poster er na tillatt for denne mottakeren.')),
+      });
+
+      await viewCustomerProfile(selectedCustomer.customer_id);
+    } catch (error) {
+      toast({
+        title: copy.orderSaveErrorTitle,
+        description: error instanceof Error ? error.message : copy.orderSaveErrorDescription,
+        variant: 'destructive',
+      });
+    } finally {
+      setEmailActionLoading((current) => (current === actionKey ? null : current));
+    }
+  }
+
+  async function resendCommunication(entry: CommunicationHistoryItem) {
+    if (entry.source !== 'email_dispatch_queue') return;
+
+    const actionKey = `resend:${entry.id}`;
+    try {
+      setEmailActionLoading(actionKey);
+      const response = await fetch('/api/admin/customers/email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'resend',
+          queueId: entry.id,
+        }),
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(body?.error || copy.orderSaveErrorDescription);
+      }
+
+      toast({
+        title:
+          (copy as any).communicationResentTitle || (lang === 'en' ? 'Email resent' : 'E-post sendt pa nytt'),
+        description:
+          (copy as any).communicationResentDescription ||
+          (lang === 'en'
+            ? 'The email was re-enqueued successfully.'
+            : 'E-posten ble lagt i ko pa nytt.'),
+      });
+
+      if (selectedCustomer) {
+        await viewCustomerProfile(selectedCustomer.customer_id);
+      }
+    } catch (error) {
+      toast({
+        title: copy.orderSaveErrorTitle,
+        description: error instanceof Error ? error.message : copy.orderSaveErrorDescription,
+        variant: 'destructive',
+      });
+    } finally {
+      setEmailActionLoading((current) => (current === actionKey ? null : current));
+    }
+  }
+
   const filteredCustomers = useMemo(() => {
     const search = searchTerm.toLowerCase().trim();
     if (!search) return customers;
@@ -403,6 +524,15 @@ export function CustomerDatabase() {
         : order.source === 'chicken'
           ? ((detail.chicken_payments as Array<Record<string, unknown>> | undefined) || [])
           : ((detail.payments as Array<Record<string, unknown>> | undefined) || []);
+
+    const additions =
+      order.source === 'egg'
+        ? ((detail.egg_order_additions as Array<Record<string, unknown>> | undefined) || [])
+        : order.source === 'chicken'
+          ? ((detail.chicken_order_additions as Array<Record<string, unknown>> | undefined) || [])
+          : [];
+
+    const hasBaseLine = order.source === 'egg' || order.source === 'chicken';
 
     return (
       <div className="mt-3 space-y-3 rounded-xl border border-neutral-200 bg-white p-4">
@@ -483,6 +613,57 @@ export function CustomerDatabase() {
             </div>
           )}
         </div>
+
+        {(hasBaseLine || additions.length > 0) && (
+          <div>
+            <h4 className="font-semibold text-neutral-900">{copy.additionsInfoTitle}</h4>
+            <div className="mt-2 space-y-1 text-sm">
+              {order.source === 'egg' && (
+                <div className="rounded border p-2">
+                  {String((detail.egg_breeds as Record<string, unknown> | null | undefined)?.name || copy.notProvided)} •{' '}
+                  {toNumber(detail.quantity).toLocaleString(locale)} {copy.fieldLabels.quantity}
+                </div>
+              )}
+              {order.source === 'chicken' && (
+                <div className="rounded border p-2">
+                  {String((detail.chicken_breeds as Record<string, unknown> | null | undefined)?.name || copy.notProvided)} •{' '}
+                  {toNumber(detail.quantity_hens).toLocaleString(locale)} {copy.fieldLabels.hens}
+                  {toNumber(detail.quantity_roosters) > 0
+                    ? ` + ${toNumber(detail.quantity_roosters).toLocaleString(locale)} ${copy.fieldLabels.roosters}`
+                    : ''}
+                </div>
+              )}
+              {additions.length === 0 ? (
+                <p className="text-sm text-neutral-500">{copy.noAdditions}</p>
+              ) : (
+                additions.map((addition, index) => {
+                  if (order.source === 'egg') {
+                    const breedName = String(
+                      (addition.egg_breeds as Record<string, unknown> | null | undefined)?.name || copy.notProvided
+                    );
+                    return (
+                      <div key={`${String(addition.id || index)}-${index}`} className="rounded border p-2">
+                        {breedName} • {toNumber(addition.quantity).toLocaleString(locale)} {copy.fieldLabels.quantity}
+                      </div>
+                    );
+                  }
+
+                  const breedName = String(
+                    (addition.chicken_breeds as Record<string, unknown> | null | undefined)?.name || copy.notProvided
+                  );
+                  const hens = toNumber(addition.quantity_hens);
+                  const roosters = toNumber(addition.quantity_roosters);
+                  return (
+                    <div key={`${String(addition.id || index)}-${index}`} className="rounded border p-2">
+                      {breedName} • {hens.toLocaleString(locale)} {copy.fieldLabels.hens}
+                      {roosters > 0 ? ` + ${roosters.toLocaleString(locale)} ${copy.fieldLabels.roosters}` : ''}
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -586,23 +767,104 @@ export function CustomerDatabase() {
           <div>
             <h3 className="text-lg font-semibold">{copy.communicationTitle}</h3>
             <p className="mb-3 text-sm text-neutral-600">{copy.communicationSubtitle}</p>
+            <div className="mb-4 rounded-lg border border-neutral-200 bg-neutral-50 p-3">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-medium text-neutral-900">
+                    {(copy as any).emailControlTitle || (lang === 'en' ? 'Email control' : 'E-postkontroll')}
+                  </p>
+                  <p className="text-xs text-neutral-600">
+                    {selectedCustomer.email_controls?.suppressed
+                      ? `${(copy as any).emailControlStatusSuppressed || (lang === 'en' ? 'Suppressed' : 'Blokkert')}${
+                          selectedCustomer.email_controls?.suppression_reason
+                            ? ` - ${selectedCustomer.email_controls.suppression_reason}`
+                            : ''
+                        }`
+                      : (copy as any).emailControlStatusActive || (lang === 'en' ? 'Active' : 'Aktiv')}
+                  </p>
+                  <p className="text-xs text-neutral-500">
+                    {(copy as any).emailControlTotalsLabel || (lang === 'en' ? 'Emails' : 'E-poster')}:&nbsp;
+                    {selectedCustomer.email_controls?.totals?.total ?? selectedCustomer.communications?.length ?? 0}
+                    &nbsp;|&nbsp;
+                    {(copy as any).emailControlSentLabel || (lang === 'en' ? 'sent' : 'sendt')}:&nbsp;
+                    {selectedCustomer.email_controls?.totals?.sent ?? 0}
+                    &nbsp;|&nbsp;
+                    {(copy as any).emailControlFailedLabel || (lang === 'en' ? 'failed' : 'feilet')}:&nbsp;
+                    {selectedCustomer.email_controls?.totals?.failed ?? 0}
+                  </p>
+                </div>
+                {selectedCustomer.email && (
+                  <Button
+                    variant="outline"
+                    onClick={() => toggleSuppression(!Boolean(selectedCustomer.email_controls?.suppressed))}
+                    disabled={Boolean(emailActionLoading === 'suppress' || emailActionLoading === 'unsuppress')}
+                  >
+                    {selectedCustomer.email_controls?.suppressed
+                      ? ((copy as any).emailAllowButton || (lang === 'en' ? 'Allow email' : 'Tillat e-post'))
+                      : ((copy as any).emailSuppressButton || (lang === 'en' ? 'Suppress email' : 'Blokker e-post'))}
+                  </Button>
+                )}
+              </div>
+            </div>
             {selectedCustomer.communications && selectedCustomer.communications.length > 0 ? (
               <div className="space-y-2">
                 {selectedCustomer.communications.map((entry) => (
                   <div key={`${entry.source}-${entry.id}`} className="rounded-lg border p-3">
-                    <p className="font-medium">{entry.subject || copy.communicationNoSubject}</p>
-                    <p className="text-xs text-neutral-600">
-                      {copy.communicationTypeLabel}: {entry.classification}
-                    </p>
-                    {entry.templateKey && (
-                      <p className="text-xs text-neutral-600">
-                        {copy.communicationTemplateLabel}: {entry.templateKey}
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <p className="font-medium">{entry.subject || copy.communicationNoSubject}</p>
+                        <p className="text-xs text-neutral-600">
+                          {copy.communicationTypeLabel}: {entry.classification}
+                        </p>
+                        <p className="text-xs text-neutral-600">
+                          {(copy as any).communicationStatusLabel || (lang === 'en' ? 'Status' : 'Status')}:{' '}
+                          {entry.status}
+                        </p>
+                        {entry.templateKey && (
+                          <p className="text-xs text-neutral-600">
+                            {copy.communicationTemplateLabel}: {entry.templateKey}
+                          </p>
+                        )}
+                        {entry.sourcePath && (
+                          <p className="text-xs text-neutral-600">
+                            {(copy as any).communicationSourcePathLabel || 'Source'}: {entry.sourcePath}
+                          </p>
+                        )}
+                        {entry.lastError && (
+                          <p className="text-xs text-red-600">
+                            {(copy as any).communicationErrorLabel || (lang === 'en' ? 'Error' : 'Feil')}:{' '}
+                            {entry.lastError}
+                          </p>
+                        )}
+                        <p className="text-xs text-neutral-600">
+                          {(entry.sentAt ? copy.communicationSentAtLabel : copy.communicationCreatedAtLabel)}:{' '}
+                          {new Date(String(entry.sentAt || entry.createdAt || '')).toLocaleString(locale)}
+                        </p>
+                      </div>
+                      {entry.source === 'email_dispatch_queue' && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => resendCommunication(entry)}
+                          disabled={emailActionLoading === `resend:${entry.id}`}
+                        >
+                          {emailActionLoading === `resend:${entry.id}`
+                            ? copy.savingOrderButton
+                            : ((copy as any).resendEmailButton ||
+                              (lang === 'en' ? 'Resend' : 'Send pa nytt'))}
+                        </Button>
+                      )}
+                    </div>
+                    {entry.templateKey && entry.orderRefs && (
+                      <p className="mt-1 text-xs text-neutral-500">
+                        {(copy as any).communicationOrderRefsLabel ||
+                          (lang === 'en' ? 'Order refs' : 'Ordre-referanser')}
+                        :{' '}
+                        {[entry.orderRefs.orderId, entry.orderRefs.eggOrderId, entry.orderRefs.chickenOrderId]
+                          .filter(Boolean)
+                          .join(', ') || copy.notProvided}
                       </p>
                     )}
-                    <p className="text-xs text-neutral-600">
-                      {(entry.sentAt ? copy.communicationSentAtLabel : copy.communicationCreatedAtLabel)}:{' '}
-                      {new Date(String(entry.sentAt || entry.createdAt || '')).toLocaleString(locale)}
-                    </p>
                   </div>
                 ))}
               </div>

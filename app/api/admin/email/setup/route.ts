@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/server';
 import { requireAdminAccess } from '@/app/api/admin/email/_shared';
 import { getEmailDispatchSettings } from '@/lib/email/queue';
-import { getEmailSchemaStatus } from '@/lib/email/schema';
+import { getEmailSchemaStatus, isMissingEmailRelationError } from '@/lib/email/schema';
 
 export async function GET() {
   const admin = await requireAdminAccess();
@@ -10,11 +10,18 @@ export async function GET() {
 
   const settings = await getEmailDispatchSettings(true);
   const schemaStatus = await getEmailSchemaStatus();
-  const { data: suppressions } = await supabaseAdmin
+  const { data: suppressions, error: suppressionsError } = await supabaseAdmin
     .from('email_suppression_list')
     .select('*')
     .order('created_at', { ascending: false })
     .limit(200);
+  const suppressionUnavailable = Boolean(
+    suppressionsError && isMissingEmailRelationError(suppressionsError)
+  );
+
+  if (suppressionsError && !suppressionUnavailable) {
+    return NextResponse.json({ error: 'Failed to fetch suppression list' }, { status: 500 });
+  }
 
   const envStatus = {
     mailgunApiKey: Boolean(process.env.MAILGUN_API_KEY),
@@ -29,6 +36,7 @@ export async function GET() {
     envStatus,
     schemaStatus,
     suppressionList: suppressions || [],
+    suppressionUnavailable,
   });
 }
 
@@ -87,10 +95,16 @@ export async function PATCH(request: NextRequest) {
   }
 
   if (typeof body?.removeSuppressionEmail === 'string' && body.removeSuppressionEmail.trim()) {
-    await supabaseAdmin
+    const { error } = await supabaseAdmin
       .from('email_suppression_list')
       .delete()
       .ilike('email', body.removeSuppressionEmail.trim().toLowerCase());
+    if (error && isMissingEmailRelationError(error)) {
+      return NextResponse.json(
+        { error: 'Suppression list table is not available in this environment yet' },
+        { status: 503 }
+      );
+    }
   }
 
   if (typeof body?.addSuppressionEmail === 'string' && body.addSuppressionEmail.trim()) {
@@ -101,7 +115,7 @@ export async function PATCH(request: NextRequest) {
       : 'manual_unsubscribe';
     const source = String(body?.suppressionSource || 'admin');
 
-    await supabaseAdmin.from('email_suppression_list').upsert(
+    const { error } = await supabaseAdmin.from('email_suppression_list').upsert(
       {
         email,
         reason,
@@ -109,6 +123,12 @@ export async function PATCH(request: NextRequest) {
       },
       { onConflict: 'email' }
     );
+    if (error && isMissingEmailRelationError(error)) {
+      return NextResponse.json(
+        { error: 'Suppression list table is not available in this environment yet' },
+        { status: 503 }
+      );
+    }
   }
 
   const settings = await getEmailDispatchSettings(true);

@@ -38,6 +38,16 @@ function isMissingRelationError(error: unknown): boolean {
   );
 }
 
+function isInvalidCampaignStatusError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false;
+  const candidate = error as { code?: string; message?: string };
+  return (
+    candidate.code === '22P02' &&
+    typeof candidate.message === 'string' &&
+    candidate.message.includes('email_campaign_status')
+  );
+}
+
 function normalizeEmail(value: string): string {
   return value.trim().toLowerCase();
 }
@@ -273,11 +283,11 @@ export async function enqueueCampaignById(params: {
   }
 
   const typedCampaign = campaign as unknown as CampaignRecord;
-  if (!['ready', 'queued'].includes(typedCampaign.status)) {
+  if (!['ready', 'queued', 'approved'].includes(typedCampaign.status)) {
     return {
       ok: false,
       statusCode: 400,
-      payload: { error: 'Campaign must be in ready/queued status before enqueue' },
+      payload: { error: 'Campaign must be in ready/approved/queued status before enqueue' },
     };
   }
 
@@ -453,12 +463,29 @@ export async function processScheduledCampaigns(params?: {
     }
   }
 
-  const { data: campaigns } = await supabaseAdmin
+  let campaigns: Array<{ id: string; status: string; scheduled_at: string | null }> = [];
+  const primary = await supabaseAdmin
     .from('email_campaigns')
     .select('id, status, scheduled_at')
-    .eq('status', 'ready')
+    .in('status', ['ready', 'approved'])
     .order('created_at', { ascending: true })
     .limit(100);
+
+  if (!primary.error) {
+    campaigns = (primary.data || []) as Array<{ id: string; status: string; scheduled_at: string | null }>;
+  } else if (isInvalidCampaignStatusError(primary.error)) {
+    const legacyReady = await supabaseAdmin
+      .from('email_campaigns')
+      .select('id, status, scheduled_at')
+      .eq('status', 'approved')
+      .order('created_at', { ascending: true })
+      .limit(100);
+    campaigns = (legacyReady.data || []) as Array<{ id: string; status: string; scheduled_at: string | null }>;
+  } else if (isMissingRelationError(primary.error)) {
+    campaigns = [];
+  } else {
+    throw primary.error;
+  }
 
   const nowMs = Date.now();
 

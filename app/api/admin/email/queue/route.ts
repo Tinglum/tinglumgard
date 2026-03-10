@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/server';
 import { requireAdminAccess } from '@/app/api/admin/email/_shared';
+import { isMissingEmailRelationError } from '@/lib/email/schema';
 
 export async function GET(request: NextRequest) {
   const admin = await requireAdminAccess();
@@ -24,6 +25,14 @@ export async function GET(request: NextRequest) {
 
   const { data, error } = await query;
   if (error) {
+    if (isMissingEmailRelationError(error)) {
+      return NextResponse.json({
+        queue: [],
+        legacyFallback: true,
+        unavailableReason: 'email_dispatch_queue table is not available in this environment yet',
+      });
+    }
+
     return NextResponse.json({ error: 'Failed to fetch queue' }, { status: 500 });
   }
 

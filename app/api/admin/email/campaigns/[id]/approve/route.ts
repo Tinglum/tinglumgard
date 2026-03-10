@@ -11,6 +11,16 @@ function isMissingRelationError(error: unknown): boolean {
   );
 }
 
+function isInvalidCampaignStatusError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false;
+  const candidate = error as { code?: string; message?: string };
+  return (
+    candidate.code === '22P02' &&
+    typeof candidate.message === 'string' &&
+    candidate.message.includes('email_campaign_status')
+  );
+}
+
 export async function POST(
   _request: Request,
   { params }: { params: { id: string } }
@@ -21,7 +31,7 @@ export async function POST(
   const approvedBy = admin.session?.email || admin.session?.name || 'admin';
   const nowIso = new Date().toISOString();
 
-  const { data, error } = await supabaseAdmin
+  let { data, error } = await supabaseAdmin
     .from('email_campaigns')
     .update({
       status: 'ready',
@@ -32,6 +42,22 @@ export async function POST(
     .in('status', ['draft', 'ready_for_approval', 'approved'])
     .select('*')
     .single();
+
+  if (error && isInvalidCampaignStatusError(error)) {
+    const legacyUpdate = await supabaseAdmin
+      .from('email_campaigns')
+      .update({
+        status: 'approved',
+        approved_by: approvedBy,
+        approved_at: nowIso,
+      })
+      .eq('id', params.id)
+      .in('status', ['draft', 'ready_for_approval', 'approved'])
+      .select('*')
+      .single();
+    data = legacyUpdate.data;
+    error = legacyUpdate.error;
+  }
 
   if (isMissingRelationError(error)) {
     return NextResponse.json(

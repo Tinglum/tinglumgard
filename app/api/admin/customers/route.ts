@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth/session';
 import { supabaseAdmin } from '@/lib/supabase/server';
 import { fetchCommunicationHistory } from '@/lib/email/history';
+import { isMissingEmailRelationError } from '@/lib/email/schema';
 
 type PaymentRow = {
   amount_nok: number | null;
@@ -623,6 +624,55 @@ async function getCustomerProfile(customerId: string) {
     limit: 300,
   });
 
+  let suppression: {
+    email: string;
+    reason: string;
+    source: string;
+    created_at: string;
+  } | null = null;
+
+  if (bestEmail) {
+    const { data: suppressionData, error: suppressionError } = await supabaseAdmin
+      .from('email_suppression_list')
+      .select('email, reason, source, created_at')
+      .ilike('email', bestEmail)
+      .maybeSingle();
+
+    if (suppressionError) {
+      if (
+        !isMissingColumnOrRelationError(suppressionError) &&
+        !isMissingEmailRelationError(suppressionError)
+      ) {
+        throw suppressionError;
+      }
+    } else {
+      suppression = suppressionData as typeof suppression;
+    }
+  }
+
+  const communicationStats = communications.reduce(
+    (acc, entry) => {
+      acc.total += 1;
+      if (entry.status === 'sent') acc.sent += 1;
+      if (entry.status === 'failed' || entry.status === 'dead') acc.failed += 1;
+      if (entry.status === 'cancelled') acc.cancelled += 1;
+
+      const key = String(entry.classification || 'system');
+      acc.byClassification[key] = (acc.byClassification[key] || 0) + 1;
+      return acc;
+    },
+    {
+      total: 0,
+      sent: 0,
+      failed: 0,
+      cancelled: 0,
+      byClassification: {} as Record<string, number>,
+    }
+  );
+  const suppressionEntry = suppression as
+    | { reason?: string | null; source?: string | null; created_at?: string | null }
+    | null;
+
   const profile = {
     customer_id: customerId,
     name: bestName,
@@ -653,6 +703,14 @@ async function getCustomerProfile(customerId: string) {
       details: order.metadata,
     })),
     communications,
+    email_controls: {
+      email: bestEmail || null,
+      suppressed: Boolean(suppressionEntry),
+      suppression_reason: suppressionEntry?.reason || null,
+      suppression_source: suppressionEntry?.source || null,
+      suppression_created_at: suppressionEntry?.created_at || null,
+      totals: communicationStats,
+    },
   };
 
   return NextResponse.json({ profile });

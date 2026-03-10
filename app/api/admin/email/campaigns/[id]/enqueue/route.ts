@@ -28,26 +28,38 @@ export async function POST(
 ) {
   const body = await request.json().catch(() => ({}));
   const locale: 'no' | 'en' = body?.locale === 'en' ? 'en' : 'no';
+  const force = body?.force === true;
 
   const cronOnly = await campaignCronOnlyEnabled();
   const cronAuthorized = isCronAuthorized(request);
+  let adminAuthorized = false;
 
   if (!cronAuthorized) {
     const admin = await requireAdminAccess();
     if (!admin.ok) return admin.response;
+    adminAuthorized = true;
   }
 
-  if (cronOnly && !cronAuthorized) {
+  if (cronOnly && !cronAuthorized && !force) {
     return NextResponse.json(
-      { error: 'Campaign sending is restricted to API/cron execution in current policy' },
+      {
+        error:
+          'Campaign sending is restricted to API/cron execution in current policy. Set force=true for admin override.',
+      },
       { status: 403 }
     );
+  }
+
+  if (force && !cronAuthorized && !adminAuthorized) {
+    return NextResponse.json({ error: 'Admin override requires admin access' }, { status: 403 });
   }
 
   const result = await enqueueCampaignById({
     campaignId: params.id,
     locale,
-    sourcePath: '/api/admin/email/campaigns/[id]/enqueue',
+    sourcePath: force
+      ? '/api/admin/email/campaigns/[id]/enqueue?force=true'
+      : '/api/admin/email/campaigns/[id]/enqueue',
   });
 
   return NextResponse.json(result.payload, { status: result.statusCode });
