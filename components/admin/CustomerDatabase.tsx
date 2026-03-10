@@ -480,6 +480,132 @@ export function CustomerDatabase() {
     }
   }
 
+  function findQueueCommunicationForOrder(order: CustomerOrderSummary) {
+    if (!selectedCustomer?.communications?.length) return null;
+
+    return (
+      selectedCustomer.communications.find((entry) => {
+        if (entry.source !== 'email_dispatch_queue') return false;
+        if (!entry.orderRefs) return false;
+
+        if (order.source === 'pig') return entry.orderRefs.orderId === order.order_id;
+        if (order.source === 'egg') return entry.orderRefs.eggOrderId === order.order_id;
+        return entry.orderRefs.chickenOrderId === order.order_id;
+      }) || null
+    );
+  }
+
+  async function resendOrderConfirmation(order: CustomerOrderSummary) {
+    const key = orderKey(order);
+    const actionKey = `order-resend:${key}`;
+
+    try {
+      setEmailActionLoading(actionKey);
+
+      if (order.source === 'chicken') {
+        const response = await fetch(`/api/admin/chickens/orders/${order.order_id}/resend-confirmation`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ includeAdmin: true }),
+        });
+        const body = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new Error(body?.error || copy.orderSaveErrorDescription);
+        }
+      } else {
+        const queueEntry = findQueueCommunicationForOrder(order);
+        if (!queueEntry) {
+          throw new Error(
+            (copy as any).resendConfirmationMissingDescription ||
+              (lang === 'en'
+                ? 'No previous email was found for this order yet.'
+                : 'Fant ingen tidligere e-post pa denne ordren enda.')
+          );
+        }
+
+        const response = await fetch('/api/admin/customers/email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'resend',
+            queueId: queueEntry.id,
+          }),
+        });
+        const body = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new Error(body?.error || copy.orderSaveErrorDescription);
+        }
+      }
+
+      toast({
+        title:
+          (copy as any).resendConfirmationSuccessTitle ||
+          (lang === 'en' ? 'Confirmation resent' : 'Bekreftelse sendt pa nytt'),
+        description:
+          (copy as any).resendConfirmationSuccessDescription ||
+          (lang === 'en'
+            ? 'The confirmation email was queued successfully.'
+            : 'Bekreftelseseposten ble lagt i ko.'),
+      });
+
+      if (selectedCustomer) {
+        await viewCustomerProfile(selectedCustomer.customer_id);
+      }
+    } catch (error) {
+      toast({
+        title:
+          (copy as any).resendConfirmationErrorTitle ||
+          (lang === 'en' ? 'Could not resend confirmation' : 'Kunne ikke sende bekreftelse pa nytt'),
+        description: error instanceof Error ? error.message : copy.orderSaveErrorDescription,
+        variant: 'destructive',
+      });
+    } finally {
+      setEmailActionLoading((current) => (current === actionKey ? null : current));
+    }
+  }
+
+  function getOrderItemSummary(order: CustomerOrderSummary) {
+    const details = (order.details || {}) as Record<string, unknown>;
+
+    if (order.source === 'egg') {
+      const quantity = toNumber(details.quantity);
+      const breed = String(details.breed_name || '').trim();
+      return {
+        primary: quantity > 0 ? `${quantity} ${copy.fieldLabels.quantity}` : copy.notProvided,
+        secondary: breed || null,
+      };
+    }
+
+    if (order.source === 'chicken') {
+      const baseHens = toNumber(details.quantity_hens);
+      const baseRoosters = toNumber(details.quantity_roosters);
+      const additions = Array.isArray(details.additions)
+        ? (details.additions as Array<Record<string, unknown>>)
+        : [];
+
+      const extraHens = additions.reduce((sum, item) => sum + toNumber(item.quantity_hens), 0);
+      const extraRoosters = additions.reduce((sum, item) => sum + toNumber(item.quantity_roosters), 0);
+
+      const hens = baseHens + extraHens;
+      const roosters = baseRoosters + extraRoosters;
+      const breed = String(details.breed_name || '').trim();
+
+      return {
+        primary:
+          roosters > 0
+            ? `${hens.toLocaleString(locale)} ${copy.fieldLabels.hens} + ${roosters.toLocaleString(locale)} ${copy.fieldLabels.roosters}`
+            : `${hens.toLocaleString(locale)} ${copy.fieldLabels.hens}`,
+        secondary: breed || null,
+      };
+    }
+
+    const boxSize = toNumber(details.box_size);
+    return {
+      primary: boxSize > 0 ? `${boxSize.toLocaleString(locale)} kg` : copy.notProvided,
+      secondary: String(details.ribbe_choice || '').trim() || null,
+    };
+  }
+
   const filteredCustomers = useMemo(() => {
     const search = searchTerm.toLowerCase().trim();
     if (!search) return customers;
@@ -700,24 +826,65 @@ export function CustomerDatabase() {
         </div>
 
         <Card className="space-y-6 p-6">
-          <h2 className="text-2xl font-bold">{selectedCustomer.name}</h2>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h2 className="text-2xl font-bold">{selectedCustomer.name}</h2>
+              <p className="text-sm text-neutral-600">
+                {(copy as any).profileSubtitle ||
+                  (lang === 'en' ? 'Unified customer profile across all products.' : 'Samlet kundeprofil pa tvers av alle produkter.')}
+              </p>
+            </div>
+            {Boolean(customers.find((entry) => entry.customer_id === selectedCustomer.customer_id)?.at_risk) && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-3 py-1 text-xs font-medium text-red-700">
+                <AlertTriangle className="h-3 w-3" />
+                {copy.atRiskTag}
+              </span>
+            )}
+          </div>
 
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-            <div className="flex items-center gap-3">
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-3">
+              <p className="text-xs uppercase tracking-wide text-neutral-500">{copy.totalOrdersLabel}</p>
+              <p className="mt-1 text-xl font-semibold text-neutral-900">
+                {toNumber(selectedCustomer.total_orders).toLocaleString(locale)}
+              </p>
+            </div>
+            <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-3">
+              <p className="text-xs uppercase tracking-wide text-neutral-500">{copy.completedLabel}</p>
+              <p className="mt-1 text-xl font-semibold text-neutral-900">
+                {toNumber(selectedCustomer.completed_orders).toLocaleString(locale)}
+              </p>
+            </div>
+            <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-3">
+              <p className="text-xs uppercase tracking-wide text-neutral-500">{copy.totalSpentLabel}</p>
+              <p className="mt-1 text-xl font-semibold text-neutral-900">
+                {currency} {toNumber(selectedCustomer.total_spent).toLocaleString(locale)}
+              </p>
+            </div>
+            <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-3">
+              <p className="text-xs uppercase tracking-wide text-neutral-500">{copy.averagePerOrderLabel}</p>
+              <p className="mt-1 text-xl font-semibold text-neutral-900">
+                {currency} {toNumber(selectedCustomer.avg_order_value).toLocaleString(locale)}
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+            <div className="flex items-center gap-3 rounded-xl border border-neutral-200 bg-white p-3">
               <Mail className="h-5 w-5 text-gray-500" />
               <div>
                 <p className="text-sm text-gray-600">{copy.emailLabel}</p>
-                <p className="font-semibold">{selectedCustomer.email}</p>
+                <p className="font-semibold">{selectedCustomer.email || copy.notProvided}</p>
               </div>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 rounded-xl border border-neutral-200 bg-white p-3">
               <Phone className="h-5 w-5 text-gray-500" />
               <div>
                 <p className="text-sm text-gray-600">{copy.phoneLabel}</p>
                 <p className="font-semibold">{selectedCustomer.phone || copy.notProvided}</p>
               </div>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 rounded-xl border border-neutral-200 bg-white p-3">
               <Calendar className="h-5 w-5 text-gray-500" />
               <div>
                 <p className="text-sm text-gray-600">{copy.firstOrderLabel}</p>
@@ -727,41 +894,126 @@ export function CustomerDatabase() {
           </div>
 
           <div>
-            <h3 className="mb-3 text-lg font-semibold">{copy.orderHistoryTitle}</h3>
-            <div className="space-y-2">
-              {selectedCustomer.orders.map((order) => {
-                const key = orderKey(order);
-                const expanded = expandedOrder === key;
-                return (
-                  <div key={key} className="rounded-xl border p-3">
-                    <div className="flex items-center justify-between gap-3">
-                      <div>
-                        <p className="font-semibold">{order.order_number}</p>
-                        <p className="text-sm text-neutral-600">
-                          {new Date(order.created_at).toLocaleDateString(locale)} - {currency}{' '}
-                          {toNumber(order.total_amount).toLocaleString(locale)} -{' '}
-                          {copy.statusLabels[order.status as keyof typeof copy.statusLabels] || order.status}
-                        </p>
-                      </div>
-                      <Button variant="outline" size="sm" onClick={() => toggleOrder(order)}>
-                        {expanded ? (
-                          <>
-                            <ChevronUp className="mr-1 h-4 w-4" />
-                            {copy.orderDetailsHideButton}
-                          </>
-                        ) : (
-                          <>
-                            <ChevronDown className="mr-1 h-4 w-4" />
-                            {copy.orderDetailsButton}
-                          </>
-                        )}
-                      </Button>
-                    </div>
-                    {expanded && renderOrderDetails(order)}
-                  </div>
-                );
-              })}
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <h3 className="text-lg font-semibold">{copy.orderHistoryTitle}</h3>
+              <p className="text-xs text-neutral-500">
+                {(copy as any).orderHistoryHint ||
+                  (lang === 'en'
+                    ? 'Quick actions: details, resend confirmation, edit.'
+                    : 'Hurtighandlinger: detaljer, send bekreftelse pa nytt, rediger.')}
+              </p>
             </div>
+            {selectedCustomer.orders.length === 0 ? (
+              <p className="text-sm text-neutral-500">
+                {(copy as any).noOrdersForCustomer ||
+                  (lang === 'en' ? 'No orders registered for this customer.' : 'Ingen ordrer registrert for denne kunden.')}
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {selectedCustomer.orders.map((order) => {
+                  const key = orderKey(order);
+                  const expanded = expandedOrder === key;
+                  const orderStatus =
+                    copy.statusLabels[order.status as keyof typeof copy.statusLabels] || order.status;
+                  const sourceLabel =
+                    copy.sourceLabels[order.source as keyof typeof copy.sourceLabels] || order.source;
+                  const total = toNumber(order.total_amount);
+                  const paid = toNumber(order.paid_amount);
+                  const remaining = Math.max(0, total - paid);
+                  const itemSummary = getOrderItemSummary(order);
+                  const isResending = emailActionLoading === `order-resend:${key}`;
+                  return (
+                    <div key={key} className="rounded-2xl border border-neutral-200 bg-white p-4">
+                      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                        <div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="text-base font-semibold text-neutral-900">{order.order_number}</p>
+                            <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs font-medium text-neutral-700">
+                              {sourceLabel}
+                            </span>
+                            <span className="rounded-full bg-neutral-900 px-2 py-0.5 text-xs font-medium text-white">
+                              {orderStatus}
+                            </span>
+                          </div>
+                          <p className="mt-1 text-sm text-neutral-600">
+                            {new Date(order.created_at).toLocaleDateString(locale)}
+                          </p>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Button variant="outline" size="sm" onClick={() => toggleOrder(order)}>
+                            {expanded ? (
+                              <>
+                                <ChevronUp className="mr-1 h-4 w-4" />
+                                {copy.orderDetailsHideButton}
+                              </>
+                            ) : (
+                              <>
+                                <ChevronDown className="mr-1 h-4 w-4" />
+                                {copy.orderDetailsButton}
+                              </>
+                            )}
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => resendOrderConfirmation(order)}
+                            disabled={isResending}
+                          >
+                            {isResending ? (
+                              <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                            ) : (
+                              <Mail className="mr-1 h-4 w-4" />
+                            )}
+                            {isResending
+                              ? ((copy as any).resendConfirmationLoading ||
+                                (lang === 'en' ? 'Sending...' : 'Sender...'))
+                              : ((copy as any).resendConfirmationButton ||
+                                (lang === 'en' ? 'Resend confirmation' : 'Send bekreftelse pa nytt'))}
+                          </Button>
+                        </div>
+                      </div>
+
+                      <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                        <div className="rounded-xl border border-neutral-200 p-3">
+                          <p className="text-xs uppercase tracking-wide text-neutral-500">
+                            {(copy as any).orderCardTotalLabel || (lang === 'en' ? 'Total' : 'Total')}
+                          </p>
+                          <p className="mt-1 text-base font-semibold text-neutral-900">
+                            {currency} {total.toLocaleString(locale)}
+                          </p>
+                        </div>
+                        <div className="rounded-xl border border-neutral-200 p-3">
+                          <p className="text-xs uppercase tracking-wide text-neutral-500">
+                            {(copy as any).orderCardPaidLabel || (lang === 'en' ? 'Paid' : 'Betalt')}
+                          </p>
+                          <p className="mt-1 text-base font-semibold text-neutral-900">
+                            {currency} {paid.toLocaleString(locale)}
+                          </p>
+                        </div>
+                        <div className="rounded-xl border border-neutral-200 p-3">
+                          <p className="text-xs uppercase tracking-wide text-neutral-500">
+                            {(copy as any).orderCardRemainingLabel || (lang === 'en' ? 'Remaining' : 'Rest')}
+                          </p>
+                          <p className="mt-1 text-base font-semibold text-neutral-900">
+                            {currency} {remaining.toLocaleString(locale)}
+                          </p>
+                        </div>
+                        <div className="rounded-xl border border-neutral-200 p-3">
+                          <p className="text-xs uppercase tracking-wide text-neutral-500">
+                            {(copy as any).orderCardItemsLabel || (lang === 'en' ? 'Items' : 'Innhold')}
+                          </p>
+                          <p className="mt-1 text-sm font-semibold text-neutral-900">{itemSummary.primary}</p>
+                          {itemSummary.secondary && (
+                            <p className="text-xs text-neutral-600">{itemSummary.secondary}</p>
+                          )}
+                        </div>
+                      </div>
+                      {expanded && renderOrderDetails(order)}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           <div>
