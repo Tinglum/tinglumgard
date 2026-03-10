@@ -150,6 +150,15 @@ function todayDateOslo(): string {
   }).format(new Date())
 }
 
+function shiftDateIso(dateString: string, dayDelta: number): string {
+  const base = new Date(`${dateString}T00:00:00`)
+  base.setDate(base.getDate() + dayDelta)
+  const yyyy = base.getFullYear()
+  const mm = String(base.getMonth() + 1).padStart(2, '0')
+  const dd = String(base.getDate()).padStart(2, '0')
+  return `${yyyy}-${mm}-${dd}`
+}
+
 function numberOrZero(value: unknown): number {
   if (typeof value === 'number' && Number.isFinite(value)) return Math.round(value)
   if (typeof value === 'string' && value.trim().length > 0) {
@@ -290,6 +299,11 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
             lineSellable: 'Sellable',
             rowStored: 'Stored',
             rowPending: 'Pending',
+            clearRow: 'Clear row',
+            clearDay: 'Clear all today',
+            clearDayConfirm: 'Clear all breed inputs for this date?',
+            prevDay: 'Prev day',
+            nextDay: 'Next day',
             easySaveBack: 'Save and back',
             easyFinish: 'Complete day',
             easyCompleteTitle: 'Complete day',
@@ -411,6 +425,11 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
             lineSellable: 'Til salg',
             rowStored: 'Lagret',
             rowPending: 'Ikke lagret',
+            clearRow: 'Tomm rad',
+            clearDay: 'Tomm alle i dag',
+            clearDayConfirm: 'Tomme alle rase-inputer for denne datoen?',
+            prevDay: 'Forrige dag',
+            nextDay: 'Neste dag',
             easySaveBack: 'Lagre og tilbake',
             easyFinish: 'FullfÃ¸r dag',
             easyCompleteTitle: 'FullfÃ¸r dag',
@@ -479,6 +498,7 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
   const [activeFastField, setActiveFastField] = useState<keyof DailyRow | null>(null)
   const [bulkMode, setBulkMode] = useState(false)
   const [bulkNote, setBulkNote] = useState('')
+  const [clearingDay, setClearingDay] = useState(false)
   const [offlineQueue, setOfflineQueue] = useState<OfflineQueueItem[]>([])
   const [syncingOffline, setSyncingOffline] = useState(false)
   const [miscState, setMiscState] = useState<RowSaveState>(DEFAULT_SAVE_STATE)
@@ -1007,6 +1027,82 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
     setActiveFastField(order[nextIndex])
   }
 
+  function clearRowDraft(breedId: string) {
+    setRows((prev) =>
+      prev.map((item) =>
+        item.breed_id === breedId
+          ? {
+              ...item,
+              total_collected: 0,
+              sellable_standard: 0,
+              too_small: 0,
+              dirty: 0,
+              cracked: 0,
+              shell_defect: 0,
+              other_unsellable: 0,
+              notes: '',
+            }
+          : item
+      )
+    )
+    setRowState(breedId, { success: false, error: null })
+  }
+
+  async function clearAllInputsForDay() {
+    if (rows.length === 0) return
+    if (typeof window !== 'undefined' && !window.confirm(copy.clearDayConfirm)) return
+
+    setClearingDay(true)
+    try {
+      const clearedRows = rows.map((row) => ({
+        collection_date: selectedDate,
+        breed_id: row.breed_id,
+        total_collected: 0,
+        sellable_standard: 0,
+        too_small: 0,
+        dirty: 0,
+        cracked: 0,
+        shell_defect: 0,
+        other_unsellable: 0,
+        notes: null,
+      }))
+
+      const response = await fetch('/api/admin/eggs/daily/bulk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rows: clearedRows }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => null)
+        throw new Error(error?.error || copy.failedSave)
+      }
+
+      setRows((prev) =>
+        prev.map((item) => ({
+          ...item,
+          total_collected: 0,
+          sellable_standard: 0,
+          too_small: 0,
+          dirty: 0,
+          cracked: 0,
+          shell_defect: 0,
+          other_unsellable: 0,
+          notes: '',
+        }))
+      )
+      setRowStates({})
+
+      await Promise.all([loadForecastOnly(), loadAlertsOnly(), loadDashboardOnly(), loadAuditOnly(selectedDate)])
+    } catch (error: any) {
+      const message = error?.message || copy.failedSave
+      setNonBlockingErrors((prev) => [message, ...prev].slice(0, 6))
+      if (embedded) setAlertsOpen(true)
+    } finally {
+      setClearingDay(false)
+    }
+  }
+
   function schedulePostSaveRefresh(date: string) {
     if (postSaveRefreshTimerRef.current) {
       clearTimeout(postSaveRefreshTimerRef.current)
@@ -1302,6 +1398,22 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
 
   return (
     <div className={cn('relative space-y-6', embedded ? '' : 'max-w-7xl mx-auto px-4 py-6')}>
+      <div
+        className={cn(
+          'fixed right-4 z-40',
+          embedded ? 'top-4' : 'top-4'
+        )}
+      >
+        <Button
+          size="sm"
+          variant="outline"
+          className="h-9 border-neutral-300 bg-white px-3 text-xs font-semibold shadow-sm"
+          onClick={() => setEasyInputMode((prev) => !prev)}
+        >
+          {easyInputMode ? copy.detailedMode : copy.easyMode}
+        </Button>
+      </div>
+
       {embedded && (
       <Sheet open={alertsOpen} onOpenChange={setAlertsOpen}>
         <SheetTrigger asChild>
@@ -1309,7 +1421,7 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
             type="button"
             className={cn(
               'fixed right-4 z-40 flex h-12 w-12 items-center justify-center rounded-full border border-amber-500 bg-amber-300 text-amber-900 shadow-lg transition hover:scale-105',
-              embedded ? 'top-4' : 'top-20'
+              embedded ? 'top-16' : 'top-20'
             )}
             aria-label={copy.openAlerts}
           >
@@ -1448,13 +1560,6 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
                   <RefreshCw className={cn('h-4 w-4', recomputing && 'animate-spin')} />
                   {copy.recalc}
                 </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => setEasyInputMode(true)}
-                  className="gap-2 border-neutral-300 bg-white"
-                >
-                  {copy.easyMode}
-                </Button>
               </div>
             </div>
           </div>
@@ -1492,10 +1597,37 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
                   ? copy.dayClosed
                   : dayState?.status === 'in_progress'
                     ? copy.dayInProgress
-                    : copy.dayOpen}
+                  : copy.dayOpen}
               </span>
-              <Button size="sm" variant="outline" className="h-8 border-neutral-300 bg-white px-2 text-xs" onClick={() => setEasyInputMode(false)}>
-                {copy.detailedMode}
+            </div>
+
+            <div className="mt-2 flex items-end gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="h-9 border-neutral-300 bg-white px-2 text-xs"
+                onClick={() => setSelectedDate((prev) => shiftDateIso(prev, -1))}
+              >
+                {copy.prevDay}
+              </Button>
+              <div className="flex-1">
+                <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-neutral-600">{copy.date}</label>
+                <Input
+                  type="date"
+                  value={selectedDate}
+                  onChange={(event) => setSelectedDate(event.target.value)}
+                  className="h-9 border-neutral-300 bg-white text-sm"
+                />
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="h-9 border-neutral-300 bg-white px-2 text-xs"
+                onClick={() => setSelectedDate((prev) => shiftDateIso(prev, 1))}
+              >
+                {copy.nextDay}
               </Button>
             </div>
 
@@ -1558,57 +1690,72 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
             {rows.length === 0 ? (
               <p className="text-sm text-neutral-500">{copy.noBreed}</p>
             ) : (
-              <div className="grid h-[calc(100dvh-300px)] auto-rows-fr gap-2">
-                {rows.map((row) => {
-                  const state = rowStates[row.breed_id] || DEFAULT_SAVE_STATE
-                  const valid = rowIsValid(row)
-                  const isStored = Boolean(state.success || row.updated_at)
-                  const qualityRate =
-                    row.total_collected > 0
-                      ? Math.round((row.sellable_standard / Math.max(1, row.total_collected)) * 100)
-                      : 0
+              <div className="space-y-2">
+                <div className="flex items-center justify-end">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="h-8 border-red-300 bg-white px-2 text-xs text-red-700"
+                    onClick={clearAllInputsForDay}
+                    disabled={clearingDay || dayState?.status === 'closed'}
+                  >
+                    {clearingDay ? copy.saving : copy.clearDay}
+                  </Button>
+                </div>
 
-                  return (
-                    <button
-                      key={row.breed_id}
-                      type="button"
-                      onClick={() => {
-                        setSelectedBreedId(row.breed_id)
-                        setEasyModalBreedId(row.breed_id)
-                      }}
-                      className={cn(
-                        'flex min-h-[84px] items-center justify-between rounded-2xl border px-4 py-3 text-left shadow-sm transition active:scale-[0.99]',
-                        isStored
-                          ? 'border-emerald-300 bg-emerald-50'
-                          : valid
-                            ? 'border-sky-200 bg-sky-50'
-                            : 'border-amber-300 bg-amber-50'
-                      )}
-                    >
-                      <div className="min-w-0">
-                        <p className="truncate text-lg font-semibold text-neutral-900">{row.breed_name}</p>
-                        <p className="mt-0.5 text-xs font-medium text-neutral-700">
-                          {copy.lineTotal}: {row.total_collected} - {copy.lineSellable}: {row.sellable_standard}
-                        </p>
-                        <p className="mt-0.5 text-[11px] text-neutral-500">
-                          {isStored ? copy.rowStored : copy.easyTapHint}
-                        </p>
-                      </div>
+                <div className="grid h-[calc(100dvh-340px)] auto-rows-fr gap-2">
+                  {rows.map((row) => {
+                    const state = rowStates[row.breed_id] || DEFAULT_SAVE_STATE
+                    const valid = rowIsValid(row)
+                    const isStored = Boolean(state.success || row.updated_at)
+                    const qualityRate =
+                      row.total_collected > 0
+                        ? Math.round((row.sellable_standard / Math.max(1, row.total_collected)) * 100)
+                        : 0
 
-                      <div className="ml-2 flex flex-col items-end gap-1">
-                        <span
-                          className={cn(
-                            'rounded-full px-2 py-1 text-[11px] font-semibold',
-                            isStored ? 'bg-emerald-100 text-emerald-800' : 'bg-white text-neutral-600'
-                          )}
-                        >
-                          {isStored ? copy.rowStored : copy.rowPending}
-                        </span>
-                        <span className="text-xs font-semibold text-neutral-700">{qualityRate}%</span>
-                      </div>
-                    </button>
-                  )
-                })}
+                    return (
+                      <button
+                        key={row.breed_id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedBreedId(row.breed_id)
+                          setEasyModalBreedId(row.breed_id)
+                        }}
+                        className={cn(
+                          'flex min-h-[84px] items-center justify-between rounded-2xl border px-4 py-3 text-left shadow-sm transition active:scale-[0.99]',
+                          isStored
+                            ? 'border-emerald-300 bg-emerald-50'
+                            : valid
+                              ? 'border-sky-200 bg-sky-50'
+                              : 'border-amber-300 bg-amber-50'
+                        )}
+                      >
+                        <div className="min-w-0">
+                          <p className="truncate text-lg font-semibold text-neutral-900">{row.breed_name}</p>
+                          <p className="mt-0.5 text-xs font-medium text-neutral-700">
+                            {copy.lineTotal}: {row.total_collected} - {copy.lineSellable}: {row.sellable_standard}
+                          </p>
+                          <p className="mt-0.5 text-[11px] text-neutral-500">
+                            {isStored ? copy.rowStored : copy.easyTapHint}
+                          </p>
+                        </div>
+
+                        <div className="ml-2 flex flex-col items-end gap-1">
+                          <span
+                            className={cn(
+                              'rounded-full px-2 py-1 text-[11px] font-semibold',
+                              isStored ? 'bg-emerald-100 text-emerald-800' : 'bg-white text-neutral-600'
+                            )}
+                          >
+                            {isStored ? copy.rowStored : copy.rowPending}
+                          </span>
+                          <span className="text-xs font-semibold text-neutral-700">{qualityRate}%</span>
+                        </div>
+                      </button>
+                    )
+                  })}
+                </div>
               </div>
             )}
           </Card>
@@ -1699,15 +1846,27 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
                       <span className="rounded-full bg-red-100 px-2 py-1 text-xs font-semibold text-red-700">{copy.mismatchTitle}</span>
                     )}
                   </div>
-                  <Button
-                    size="lg"
-                    className="h-12 w-full gap-2 bg-emerald-700 text-base font-semibold text-white hover:bg-emerald-600"
-                    onClick={saveEasyModalRow}
-                    disabled={!rowIsValid(easyModalRow) || (rowStates[easyModalRow.breed_id]?.saving ?? false) || dayState?.status === 'closed'}
-                  >
-                    <CheckCircle2 className="h-5 w-5" />
-                    {copy.easySaveBack}
-                  </Button>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button
+                      type="button"
+                      size="lg"
+                      variant="outline"
+                      className="h-12 border-red-300 bg-white text-sm font-semibold text-red-700 hover:bg-red-50"
+                      onClick={() => clearRowDraft(easyModalRow.breed_id)}
+                      disabled={(rowStates[easyModalRow.breed_id]?.saving ?? false) || dayState?.status === 'closed'}
+                    >
+                      {copy.clearRow}
+                    </Button>
+                    <Button
+                      size="lg"
+                      className="h-12 gap-2 bg-emerald-700 text-base font-semibold text-white hover:bg-emerald-600"
+                      onClick={saveEasyModalRow}
+                      disabled={!rowIsValid(easyModalRow) || (rowStates[easyModalRow.breed_id]?.saving ?? false) || dayState?.status === 'closed'}
+                    >
+                      <CheckCircle2 className="h-5 w-5" />
+                      {copy.easySaveBack}
+                    </Button>
+                  </div>
                 </div>
               </div>
             </div>
