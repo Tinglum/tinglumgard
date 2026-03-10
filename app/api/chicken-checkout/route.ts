@@ -209,7 +209,7 @@ export async function POST(request: NextRequest) {
       .from('chicken_orders')
       .insert({
         order_number: orderNumber,
-        user_id: null,
+        user_id: session?.userId || null,
         customer_name: customerName,
         customer_email: customerEmail,
         customer_phone: customerPhone,

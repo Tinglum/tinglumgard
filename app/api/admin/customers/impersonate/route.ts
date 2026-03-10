@@ -253,17 +253,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Customer not found' }, { status: 404 });
     }
 
-    // Preserve identity from selected customer card when vipps_users lacks contact fields.
-    const payloadEmail = normalizeEmail(sessionPayload.email);
-    const fallbackEmail = normalizeEmail(customerEmail || parsed.email);
-    if (!payloadEmail && fallbackEmail) {
-      sessionPayload.email = fallbackEmail;
+    // Always prefer explicit identity from selected customer card.
+    // This avoids impersonation misses when vipps_users has stale contact info.
+    const explicitEmail = normalizeEmail(customerEmail || parsed.email);
+    if (explicitEmail) {
+      sessionPayload.email = explicitEmail;
     }
 
-    const payloadPhoneDigits = phoneDigits(sessionPayload.phoneNumber);
-    const fallbackPhone = normalizePhone(customerPhone);
-    if (!payloadPhoneDigits && fallbackPhone) {
-      sessionPayload.phoneNumber = fallbackPhone;
+    const explicitPhone = normalizePhone(customerPhone);
+    if (explicitPhone) {
+      sessionPayload.phoneNumber = explicitPhone;
     }
 
     const impersonatedToken = await createSession({

@@ -91,7 +91,7 @@ export async function GET() {
           supabaseAdmin
             .from('chicken_orders')
             .select(columns)
-            .ilike('customer_email', normalizedSessionEmail)
+            .ilike('customer_email', `%${normalizedSessionEmail}%`)
         )
       }
       if (sessionPhoneTail) {
@@ -147,8 +147,8 @@ export async function GET() {
       }
     }
 
-    // Extra safety for impersonation sessions where email/phone formatting differs.
-    if (combined.size === 0 && isImpersonating && (normalizedSessionEmail || normalizedSessionPhone)) {
+    // Extra safety where existing rows may have inconsistent formatting/casing.
+    if (combined.size === 0 && (normalizedSessionEmail || normalizedSessionPhone)) {
       const { data: recentOrders, error: recentError } = await supabaseAdmin
         .from('chicken_orders')
         .select('*')
@@ -158,7 +158,7 @@ export async function GET() {
       if (!recentError) {
         for (const order of (recentOrders as Array<any>) || []) {
           const ownsByEmail = isEmailMatch(normalizedSessionEmail, order.customer_email)
-          const ownsByPhone = isPhoneMatch(normalizedSessionPhone, order.customer_phone, true)
+          const ownsByPhone = isPhoneMatch(normalizedSessionPhone, order.customer_phone, isImpersonating)
           if (ownsByEmail || ownsByPhone) {
             combined.set(order.id, order)
           }
