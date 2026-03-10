@@ -46,6 +46,21 @@ export type EggOpsBulkAction =
   | 'reset_unsellable'
   | 'set_same_totals'
 
+type EggOpsDayStateRecord = {
+  id: string | null
+  collection_date: string
+  status: EggOpsDayStatus
+  duck_eggs: number
+  other_eggs: number
+  closed_at: string | null
+  closed_by: string | null
+  reopened_at: string | null
+  reopened_by: string | null
+  reopen_reason: string | null
+  created_at: string | null
+  updated_at: string | null
+}
+
 type AnomalyCheckResult = {
   flagged: boolean
   averageRate: number
@@ -65,6 +80,47 @@ function numberOrZero(value: unknown): number {
     if (Number.isFinite(parsed)) return parsed
   }
   return 0
+}
+
+function defaultDayState(dateString: string): EggOpsDayStateRecord {
+  return {
+    id: null,
+    collection_date: dateString,
+    status: 'open',
+    duck_eggs: 0,
+    other_eggs: 0,
+    closed_at: null,
+    closed_by: null,
+    reopened_at: null,
+    reopened_by: null,
+    reopen_reason: null,
+    created_at: null,
+    updated_at: null,
+  }
+}
+
+function normalizeDayState(dateString: string, value?: Record<string, unknown> | null): EggOpsDayStateRecord {
+  const fallback = defaultDayState(dateString)
+  if (!value) return fallback
+
+  const status = String(value.status || 'open')
+  const normalizedStatus: EggOpsDayStatus =
+    status === 'closed' || status === 'in_progress' ? status : 'open'
+
+  return {
+    id: typeof value.id === 'string' ? value.id : fallback.id,
+    collection_date: typeof value.collection_date === 'string' ? value.collection_date : fallback.collection_date,
+    status: normalizedStatus,
+    duck_eggs: Math.max(0, numberOrZero(value.duck_eggs)),
+    other_eggs: Math.max(0, numberOrZero(value.other_eggs)),
+    closed_at: typeof value.closed_at === 'string' ? value.closed_at : fallback.closed_at,
+    closed_by: typeof value.closed_by === 'string' ? value.closed_by : fallback.closed_by,
+    reopened_at: typeof value.reopened_at === 'string' ? value.reopened_at : fallback.reopened_at,
+    reopened_by: typeof value.reopened_by === 'string' ? value.reopened_by : fallback.reopened_by,
+    reopen_reason: typeof value.reopen_reason === 'string' ? value.reopen_reason : fallback.reopen_reason,
+    created_at: typeof value.created_at === 'string' ? value.created_at : fallback.created_at,
+    updated_at: typeof value.updated_at === 'string' ? value.updated_at : fallback.updated_at,
+  }
 }
 
 function getOsloDateString(date?: Date): string {
@@ -109,36 +165,14 @@ async function getDayState(dateString: string) {
 
   if (error) {
     if (isMissingRelationError(error)) {
-      return {
-        id: null,
-        collection_date: dateString,
-        status: 'open' as EggOpsDayStatus,
-        closed_at: null,
-        closed_by: null,
-        reopened_at: null,
-        reopened_by: null,
-        reopen_reason: null,
-        created_at: null,
-        updated_at: null,
-      }
+      return defaultDayState(dateString)
     }
     throw error
   }
 
-  if (data) return data
+  if (data) return normalizeDayState(dateString, data as Record<string, unknown>)
 
-  return {
-    id: null,
-    collection_date: dateString,
-    status: 'open' as EggOpsDayStatus,
-    closed_at: null,
-    closed_by: null,
-    reopened_at: null,
-    reopened_by: null,
-    reopen_reason: null,
-    created_at: null,
-    updated_at: null,
-  }
+  return defaultDayState(dateString)
 }
 
 async function ensureDayWritable(
@@ -300,15 +334,7 @@ export async function getEggDailyCollections(date?: string) {
   if (trendRowsResult.error) throw trendRowsResult.error
   if (forecastResult.error) throw forecastResult.error
 
-  let dayState: any = {
-    collection_date: targetDate,
-    status: 'open',
-    closed_at: null,
-    closed_by: null,
-    reopened_at: null,
-    reopened_by: null,
-    reopen_reason: null,
-  }
+  let dayState: EggOpsDayStateRecord = defaultDayState(targetDate)
 
   const dayStateResult = await supabaseAdmin
     .from('egg_ops_day_states')
@@ -317,7 +343,7 @@ export async function getEggDailyCollections(date?: string) {
     .maybeSingle()
 
   if (!dayStateResult.error) {
-    dayState = dayStateResult.data || dayState
+    dayState = normalizeDayState(targetDate, (dayStateResult.data || null) as Record<string, unknown> | null)
   } else if (!isMissingRelationError(dayStateResult.error)) {
     throw dayStateResult.error
   }
@@ -528,6 +554,8 @@ export async function setEggOpsDayStatus(params: {
   const payload: Record<string, unknown> = {
     collection_date: params.collectionDate,
     status: params.status,
+    duck_eggs: numberOrZero(existing.duck_eggs),
+    other_eggs: numberOrZero(existing.other_eggs),
   }
 
   if (params.status === 'closed') {
@@ -551,8 +579,60 @@ export async function setEggOpsDayStatus(params: {
     .select('*')
     .single()
 
-  if (error || !data) throw error
-  return data
+  if (error || !data) {
+    if (isMissingColumnError(error)) {
+      throw new EggCollectionError(
+        'Missing day-state columns. Run migration 20260310130000_add_egg_ops_misc_categories.sql',
+        500
+      )
+    }
+    throw error
+  }
+  return normalizeDayState(params.collectionDate, data as Record<string, unknown>)
+}
+
+export async function upsertEggOpsDayMiscCounts(params: {
+  collectionDate: string
+  duckEggs: number
+  otherEggs: number
+  session?: SessionData | null
+  reason?: string | null
+}) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(params.collectionDate)) {
+    throw new EggCollectionError('Invalid collection date', 400)
+  }
+
+  const duckEggs = Math.max(0, numberOrZero(params.duckEggs))
+  const otherEggs = Math.max(0, numberOrZero(params.otherEggs))
+
+  ensureWithinCorrectionWindow(params.session, params.collectionDate, params.reason)
+  await ensureDayWritable(params.session, params.collectionDate, params.reason)
+
+  const existing = await getDayState(params.collectionDate)
+  const payload = {
+    collection_date: params.collectionDate,
+    status: existing.status || 'open',
+    duck_eggs: duckEggs,
+    other_eggs: otherEggs,
+  }
+
+  const { data, error } = await supabaseAdmin
+    .from('egg_ops_day_states')
+    .upsert(payload, { onConflict: 'collection_date' })
+    .select('*')
+    .single()
+
+  if (error || !data) {
+    if (isMissingRelationError(error) || isMissingColumnError(error)) {
+      throw new EggCollectionError(
+        'Missing day-state columns. Run migration 20260310130000_add_egg_ops_misc_categories.sql',
+        500
+      )
+    }
+    throw error
+  }
+
+  return normalizeDayState(params.collectionDate, data as Record<string, unknown>)
 }
 
 export async function prefillEggDailyFromPreviousDay(
