@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getSession } from '@/lib/auth/session'
+import { enforceEggOpsAccess } from '@/lib/auth/egg-ops-access'
 import { EggCollectionError, getEggDailyCollections, upsertEggDailyCollection } from '@/lib/eggs/collection'
 import { recomputeForecastForBreed } from '@/lib/eggs/forecast'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET(request: NextRequest) {
+  const access = await enforceEggOpsAccess(request, { allowUnauthenticatedWhenDisabled: true })
+  if (!access.ok) return access.response
+
   try {
     const date = request.nextUrl.searchParams.get('date') || undefined
     const data = await getEggDailyCollections(date)
@@ -16,11 +19,12 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const session = await getSession()
+  const access = await enforceEggOpsAccess(request, { allowUnauthenticatedWhenDisabled: true })
+  if (!access.ok) return access.response
 
   try {
     const body = await request.json()
-    const row = await upsertEggDailyCollection(body, session)
+    const row = await upsertEggDailyCollection(body, access.session)
     const forecast = await recomputeForecastForBreed({ breedId: row.breed_id, date: row.collection_date })
 
     return NextResponse.json({ row, forecast })

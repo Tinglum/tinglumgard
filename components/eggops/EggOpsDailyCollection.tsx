@@ -48,20 +48,36 @@ type ForecastRow = {
   manual_override: boolean
   inventory_id: string | null
   eggs_available: number | null
+  eggs_allocated?: number | null
   inventory_status: string | null
 }
 
 type AlertRow = {
   id: string
   alert_type: string
+  severity?: 'critical' | 'warning' | 'info'
+  acknowledged_at?: string | null
+  acknowledged_by?: string | null
+  snoozed_until?: string | null
   message: string
   created_at: string
   year?: number
   week_number?: number
 }
 
+type DayState = {
+  collection_date: string
+  status: 'open' | 'in_progress' | 'closed'
+  closed_at?: string | null
+  closed_by?: string | null
+  reopened_at?: string | null
+  reopened_by?: string | null
+  reopen_reason?: string | null
+}
+
 type DailyResponse = {
   date: string
+  day_state?: DayState
   rows: DailyRow[]
   kpi: {
     total_collected: number
@@ -70,6 +86,45 @@ type DailyResponse = {
     next_week_estimate: number
     low_stock_breeds: number
   }
+}
+
+type OpsDashboardResponse = {
+  start_date: string
+  end_date: string
+  days: number
+  summary: Array<{
+    breed_id: string
+    breed_name: string
+    accent_color: string
+    avg_daily_sellable: number
+    sellable_rate: number
+    total_collected: number
+    total_sellable: number
+  }>
+  windows: {
+    d7: Array<{ breed_id: string; avg_sellable: number; sellable_rate: number }>
+    d14: Array<{ breed_id: string; avg_sellable: number; sellable_rate: number }>
+    d30: Array<{ breed_id: string; avg_sellable: number; sellable_rate: number }>
+  }
+  heatmap: Array<{
+    date: string
+    breed_id: string
+    sellable: number
+    total: number
+    sellable_rate: number
+  }>
+}
+
+type AuditRow = {
+  id: string
+  changed_by: string | null
+  change_reason: string | null
+  changed_at: string
+  egg_daily_collections?: {
+    collection_date: string
+    breed_id: string
+    egg_breeds?: { name?: string | null } | Array<{ name?: string | null }>
+  } | null
 }
 
 type RowSaveState = {
@@ -106,6 +161,17 @@ function withAlpha(color: string | undefined, alphaHex: string): string | undefi
   if (!color) return undefined
   if (!/^#[0-9a-fA-F]{6}$/.test(color)) return undefined
   return `${color}${alphaHex}`
+}
+
+const OFFLINE_QUEUE_KEY = 'eggops.offline.queue.v1'
+
+type OfflineQueueItem = {
+  id: string
+  endpoint: string
+  method: 'POST' | 'PATCH'
+  body: Record<string, unknown>
+  breedId: string
+  queuedAt: string
 }
 
 interface EggOpsDailyCollectionProps {
@@ -177,6 +243,42 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
             kpiRate: 'Sellable rate',
             kpiForecast: 'Next week estimate',
             kpiLow: 'Breeds low stock',
+            dayOpen: 'Open',
+            dayInProgress: 'In progress',
+            dayClosed: 'Closed',
+            setInProgress: 'Set in progress',
+            closeDay: 'Close day',
+            reopenDay: 'Reopen day',
+            reopenReason: 'Reopen reason',
+            copyYesterday: 'Copy yesterday',
+            fastEntry: 'Fast entry',
+            bulkMode: 'Bulk mode',
+            selectAll: 'Select all',
+            clearSelection: 'Clear',
+            selectedRows: 'selected',
+            bulkResetBad: 'Reset bad categories',
+            bulkSetNotes: 'Set note',
+            bulkClearNotes: 'Clear notes',
+            bulkApply: 'Apply bulk',
+            reason: 'Reason',
+            reasonPlaceholder: 'Required for anomalies or reopening closed day',
+            reportCsv: 'Export CSV',
+            reportPdf: 'Print/PDF',
+            offlineQueued: 'Offline queue',
+            syncNow: 'Sync now',
+            dashboardTitle: 'Ops dashboard',
+            trendTitle: '7/14/30 day trends',
+            heatmapTitle: 'Sellable-rate heatmap',
+            auditTitle: 'Recent audit changes',
+            forecastVsReserved: 'Forecast vs reserved',
+            suggestLock: 'Suggest lock',
+            suggestOpen: 'Suggest reopen',
+            alertAck: 'Acknowledge',
+            alertSnooze: 'Snooze 60m',
+            alertResolve: 'Resolve',
+            severityCritical: 'Critical',
+            severityWarning: 'Warning',
+            severityInfo: 'Info',
           }
         : {
             title: 'EggOps innsamling',
@@ -237,15 +339,54 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
             kpiRate: 'Salgbar rate',
             kpiForecast: 'Estimat neste uke',
             kpiLow: 'Raser med lav beholdning',
+            dayOpen: 'Apen',
+            dayInProgress: 'Pagar',
+            dayClosed: 'Lukket',
+            setInProgress: 'Sett pagar',
+            closeDay: 'Lukk dag',
+            reopenDay: 'Apne dag',
+            reopenReason: 'Arsak for gjenapning',
+            copyYesterday: 'Kopier i gar',
+            fastEntry: 'Rask innlegging',
+            bulkMode: 'Bulkmodus',
+            selectAll: 'Velg alle',
+            clearSelection: 'Fjern',
+            selectedRows: 'valgt',
+            bulkResetBad: 'Nullstill usalgbare',
+            bulkSetNotes: 'Sett notat',
+            bulkClearNotes: 'Fjern notater',
+            bulkApply: 'Kjor bulk',
+            reason: 'Arsak',
+            reasonPlaceholder: 'Kreves ved avvik eller gjenapning av lukket dag',
+            reportCsv: 'Eksporter CSV',
+            reportPdf: 'Print/PDF',
+            offlineQueued: 'Offline-ko',
+            syncNow: 'Synk na',
+            dashboardTitle: 'Driftsdashboard',
+            trendTitle: '7/14/30 dagers trend',
+            heatmapTitle: 'Heatmap salgbar-rate',
+            auditTitle: 'Siste endringer',
+            forecastVsReserved: 'Prognose vs reservert',
+            suggestLock: 'Forsla las',
+            suggestOpen: 'Forsla gjenapning',
+            alertAck: 'Bekreft',
+            alertSnooze: 'Slumre 60m',
+            alertResolve: 'Lukk varsel',
+            severityCritical: 'Kritisk',
+            severityWarning: 'Advarsel',
+            severityInfo: 'Info',
           },
     [lang]
   )
 
   const [selectedDate, setSelectedDate] = useState(todayDateOslo())
   const [daily, setDaily] = useState<DailyResponse | null>(null)
+  const [dayState, setDayState] = useState<DayState | null>(null)
   const [rows, setRows] = useState<DailyRow[]>([])
   const [forecastRows, setForecastRows] = useState<ForecastRow[]>([])
   const [alerts, setAlerts] = useState<AlertRow[]>([])
+  const [dashboard, setDashboard] = useState<OpsDashboardResponse | null>(null)
+  const [auditRows, setAuditRows] = useState<AuditRow[]>([])
   const [loading, setLoading] = useState(true)
   const [pageError, setPageError] = useState<string | null>(null)
   const [nonBlockingErrors, setNonBlockingErrors] = useState<string[]>([])
@@ -255,12 +396,58 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
   const [overrideDraft, setOverrideDraft] = useState<Record<string, string>>({})
   const [overrideSaving, setOverrideSaving] = useState<Record<string, boolean>>({})
   const [selectedBreedId, setSelectedBreedId] = useState<string | null>(null)
+  const [selectedBreedIds, setSelectedBreedIds] = useState<string[]>([])
   const [alertsOpen, setAlertsOpen] = useState(false)
+  const [fastEntryMode, setFastEntryMode] = useState(false)
+  const [activeFastField, setActiveFastField] = useState<keyof DailyRow | null>(null)
+  const [bulkMode, setBulkMode] = useState(false)
+  const [bulkNote, setBulkNote] = useState('')
+  const [rowReason, setRowReason] = useState('')
+  const [dayReason, setDayReason] = useState('')
+  const [offlineQueue, setOfflineQueue] = useState<OfflineQueueItem[]>([])
+  const [syncingOffline, setSyncingOffline] = useState(false)
 
   useEffect(() => {
     loadAll(selectedDate)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDate])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    try {
+      const raw = window.localStorage.getItem(OFFLINE_QUEUE_KEY)
+      if (!raw) return
+      const parsed = JSON.parse(raw)
+      if (Array.isArray(parsed)) {
+        setOfflineQueue(parsed)
+      }
+    } catch {
+      // ignore local parse issues
+    }
+  }, [])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    window.localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(offlineQueue))
+  }, [offlineQueue])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const onOnline = () => {
+      void flushOfflineQueue()
+    }
+    window.addEventListener('online', onOnline)
+    return () => window.removeEventListener('online', onOnline)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [offlineQueue.length])
+
+  useEffect(() => {
+    if (typeof navigator === 'undefined') return
+    if (!navigator.onLine) return
+    if (offlineQueue.length === 0) return
+    void flushOfflineQueue()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [offlineQueue.length])
 
   useEffect(() => {
     if (rows.length === 0) {
@@ -271,6 +458,21 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
       setSelectedBreedId(rows[0].breed_id)
     }
   }, [rows, selectedBreedId])
+
+  useEffect(() => {
+    if (!fastEntryMode) {
+      setActiveFastField(null)
+      return
+    }
+    if (!activeFastField) {
+      setActiveFastField('total_collected')
+    }
+  }, [fastEntryMode, activeFastField])
+
+  useEffect(() => {
+    const valid = new Set(rows.map((row) => row.breed_id))
+    setSelectedBreedIds((prev) => prev.filter((id) => valid.has(id)))
+  }, [rows])
 
   const selectedRow = useMemo(
     () => rows.find((row) => row.breed_id === selectedBreedId) || null,
@@ -294,22 +496,65 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
     }))
   }
 
+  function enqueueOffline(item: Omit<OfflineQueueItem, 'id' | 'queuedAt'>) {
+    const queued: OfflineQueueItem = {
+      ...item,
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      queuedAt: new Date().toISOString(),
+    }
+    setOfflineQueue((prev) => [...prev, queued])
+  }
+
+  async function flushOfflineQueue() {
+    if (syncingOffline || offlineQueue.length === 0) return
+    if (typeof navigator !== 'undefined' && !navigator.onLine) return
+
+    setSyncingOffline(true)
+    try {
+      const queueSnapshot = [...offlineQueue]
+      const failed: OfflineQueueItem[] = []
+
+      for (const item of queueSnapshot) {
+        try {
+          const res = await fetch(item.endpoint, {
+            method: item.method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(item.body),
+          })
+          if (!res.ok) {
+            failed.push(item)
+          }
+        } catch {
+          failed.push(item)
+        }
+      }
+
+      setOfflineQueue(failed)
+      await Promise.all([loadAll(selectedDate), loadForecastOnly(), loadAlertsOnly(), loadDashboardOnly(), loadAuditOnly(selectedDate)])
+    } finally {
+      setSyncingOffline(false)
+    }
+  }
+
   async function loadAll(date: string) {
     setLoading(true)
     setPageError(null)
     setNonBlockingErrors([])
 
     try {
-      const [dailyRes, forecastRes, alertsRes, sessionRes] = await Promise.all([
+      const [dailyRes, forecastRes, alertsRes, sessionRes, dashboardRes, auditRes] = await Promise.all([
         fetch(`/api/admin/eggs/daily?date=${encodeURIComponent(date)}`),
         fetch('/api/admin/eggs/forecast?weeks=4'),
         fetch('/api/admin/eggs/alerts?limit=25'),
         fetch('/api/auth/session'),
+        fetch('/api/admin/eggs/ops-dashboard?days=30'),
+        fetch(`/api/admin/eggs/audit?date=${encodeURIComponent(date)}&limit=25`),
       ])
 
       if (!dailyRes.ok) throw new Error(copy.failedDaily)
       const dailyData: DailyResponse = await dailyRes.json()
       setDaily(dailyData)
+      setDayState(dailyData.day_state || null)
       setRows(dailyData.rows || [])
 
       const softErrors: string[] = []
@@ -328,6 +573,20 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
       } else {
         setAlerts([])
         softErrors.push(copy.failedAlerts)
+      }
+
+      if (dashboardRes.ok) {
+        const dashboardData: OpsDashboardResponse = await dashboardRes.json()
+        setDashboard(dashboardData)
+      } else {
+        setDashboard(null)
+      }
+
+      if (auditRes.ok) {
+        const auditData = await auditRes.json()
+        setAuditRows(auditData.rows || [])
+      } else {
+        setAuditRows([])
       }
 
       if (sessionRes.ok) {
@@ -419,6 +678,156 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
     setRowState(row.breed_id, { success: false, error: null })
   }
 
+  async function setDayStatus(status: 'open' | 'in_progress' | 'closed', reason?: string) {
+    try {
+      const response = await fetch('/api/admin/eggs/day-status', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          collection_date: selectedDate,
+          status,
+          reason: reason || null,
+        }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => null)
+        throw new Error(error?.error || 'Failed to update day status')
+      }
+
+      const data = await response.json()
+      setDayState(data.day_state || null)
+      return true
+    } catch (error: any) {
+      const message = error?.message || 'Failed to update day status'
+      setNonBlockingErrors((prev) => [message, ...prev].slice(0, 6))
+      setAlertsOpen(true)
+      return false
+    }
+  }
+
+  async function copyFromYesterday() {
+    try {
+      const response = await fetch('/api/admin/eggs/daily/prefill', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ collection_date: selectedDate }),
+      })
+      if (!response.ok) {
+        const error = await response.json().catch(() => null)
+        throw new Error(error?.error || 'Failed to copy yesterday')
+      }
+      await loadAll(selectedDate)
+    } catch (error: any) {
+      const message = error?.message || 'Failed to copy yesterday'
+      setNonBlockingErrors((prev) => [message, ...prev].slice(0, 6))
+      setAlertsOpen(true)
+    }
+  }
+
+  function toggleBreedSelected(breedId: string) {
+    setSelectedBreedIds((prev) =>
+      prev.includes(breedId) ? prev.filter((item) => item !== breedId) : [...prev, breedId]
+    )
+  }
+
+  async function applyBulkAction(action: 'reset_unsellable' | 'set_notes' | 'clear_notes') {
+    if (selectedBreedIds.length === 0) return
+    try {
+      const response = await fetch('/api/admin/eggs/daily/bulk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          collection_date: selectedDate,
+          breed_ids: selectedBreedIds,
+          action,
+          value: action === 'set_notes' ? bulkNote : null,
+          reason: dayReason || rowReason || null,
+        }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => null)
+        throw new Error(error?.error || 'Failed to apply bulk action')
+      }
+
+      await Promise.all([loadAll(selectedDate), loadForecastOnly(), loadAlertsOnly(), loadDashboardOnly(), loadAuditOnly(selectedDate)])
+      setSelectedBreedIds([])
+      setBulkMode(false)
+    } catch (error: any) {
+      const message = error?.message || 'Failed to apply bulk action'
+      setNonBlockingErrors((prev) => [message, ...prev].slice(0, 6))
+      setAlertsOpen(true)
+    }
+  }
+
+  function downloadReportCsv() {
+    const url = `/api/admin/eggs/daily/report?date=${encodeURIComponent(selectedDate)}&format=csv`
+    window.open(url, '_blank')
+  }
+
+  function printReportPdf() {
+    const url = `/api/admin/eggs/daily/report?date=${encodeURIComponent(selectedDate)}&format=pdf`
+    window.open(url, '_blank')
+  }
+
+  async function updateAlert(alertId: string, action: 'acknowledge' | 'snooze' | 'resolve') {
+    try {
+      const response = await fetch(`/api/admin/eggs/alerts/${alertId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action,
+          snooze_minutes: action === 'snooze' ? 60 : undefined,
+        }),
+      })
+      if (!response.ok) {
+        const error = await response.json().catch(() => null)
+        throw new Error(error?.error || 'Failed to update alert')
+      }
+      await loadAlertsOnly()
+    } catch (error: any) {
+      const message = error?.message || 'Failed to update alert'
+      setNonBlockingErrors((prev) => [message, ...prev].slice(0, 6))
+    }
+  }
+
+  function writeFastFieldValue(field: keyof DailyRow, value: number) {
+    if (!selectedRow) return
+    updateRowField(selectedRow.breed_id, field, String(Math.max(0, value)))
+  }
+
+  function appendFastDigit(digit: string) {
+    if (!selectedRow || !activeFastField) return
+    const current = numberOrZero(selectedRow[activeFastField])
+    const next = Number.parseInt(`${current}${digit}`, 10)
+    writeFastFieldValue(activeFastField, Number.isFinite(next) ? next : current)
+  }
+
+  function backspaceFastDigit() {
+    if (!selectedRow || !activeFastField) return
+    const current = String(numberOrZero(selectedRow[activeFastField]))
+    const next = current.length <= 1 ? 0 : Number.parseInt(current.slice(0, -1), 10)
+    writeFastFieldValue(activeFastField, Number.isFinite(next) ? next : 0)
+  }
+
+  function moveFastField(offset: 1 | -1) {
+    if (!activeFastField) return
+    const order: Array<keyof DailyRow> = [
+      'total_collected',
+      'sellable_standard',
+      'too_small',
+      'dirty',
+      'cracked',
+      'shell_defect',
+      'other_unsellable',
+    ]
+    const index = order.indexOf(activeFastField)
+    if (index < 0) return
+    const nextIndex = Math.min(order.length - 1, Math.max(0, index + offset))
+    setActiveFastField(order[nextIndex])
+  }
+
   async function saveRow(row: DailyRow) {
     if (!rowIsValid(row)) {
       setRowState(row.breed_id, { error: `${copy.mismatchTitle}. ${copy.mismatchBody}`, success: false })
@@ -439,19 +848,30 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
         shell_defect: row.shell_defect,
         other_unsellable: row.other_unsellable,
         notes: row.notes || null,
+        reason: rowReason || null,
       }
 
-      const response = row.id
-        ? await fetch(`/api/admin/eggs/daily/${row.id}`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload),
-          })
-        : await fetch('/api/admin/eggs/daily', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload),
-          })
+      const endpoint = row.id ? `/api/admin/eggs/daily/${row.id}` : '/api/admin/eggs/daily'
+      const method = row.id ? 'PATCH' : 'POST'
+
+      let response: Response
+      try {
+        response = await fetch(endpoint, {
+          method,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        })
+      } catch (networkError) {
+        enqueueOffline({
+          endpoint,
+          method: method as 'POST' | 'PATCH',
+          body: payload,
+          breedId: row.breed_id,
+        })
+        setNonBlockingErrors((prev) => [`Saved offline for ${row.breed_name}`, ...prev].slice(0, 6))
+        setRowState(row.breed_id, { saving: false, success: true, error: null })
+        return
+      }
 
       if (!response.ok) {
         const err = await response.json().catch(() => null)
@@ -481,7 +901,11 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
         return nextRows
       })
 
-      await Promise.all([loadForecastOnly(), loadAlertsOnly()])
+      if (dayState?.status === 'open') {
+        await setDayStatus('in_progress')
+      }
+
+      await Promise.all([loadForecastOnly(), loadAlertsOnly(), loadDashboardOnly(), loadAuditOnly(selectedDate)])
       setRowState(row.breed_id, { saving: false, success: true })
       window.setTimeout(() => setRowState(row.breed_id, { success: false }), 2500)
     } catch (error: any) {
@@ -514,6 +938,20 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
     setAlerts(data.rows || [])
   }
 
+  async function loadDashboardOnly() {
+    const res = await fetch('/api/admin/eggs/ops-dashboard?days=30')
+    if (!res.ok) return
+    const data: OpsDashboardResponse = await res.json()
+    setDashboard(data)
+  }
+
+  async function loadAuditOnly(date: string) {
+    const res = await fetch(`/api/admin/eggs/audit?date=${encodeURIComponent(date)}&limit=25`)
+    if (!res.ok) return
+    const data = await res.json()
+    setAuditRows(data.rows || [])
+  }
+
   async function recomputeAll() {
     setRecomputing(true)
     try {
@@ -527,7 +965,7 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
         throw new Error(copy.failedForecast)
       }
 
-      await Promise.all([loadForecastOnly(), loadAlertsOnly()])
+      await Promise.all([loadForecastOnly(), loadAlertsOnly(), loadDashboardOnly()])
     } catch (error: any) {
       const message = error?.message || copy.failedForecast
       setNonBlockingErrors((prev) => [message, ...prev].slice(0, 6))
@@ -559,9 +997,32 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
         throw new Error(error?.error || 'Failed override update')
       }
 
-      await Promise.all([loadForecastOnly(), loadAlertsOnly()])
+      await Promise.all([loadForecastOnly(), loadAlertsOnly(), loadDashboardOnly()])
     } catch (error: any) {
       const message = error?.message || 'Failed to update override'
+      setNonBlockingErrors((prev) => [message, ...prev].slice(0, 6))
+      setAlertsOpen(true)
+    } finally {
+      setOverrideSaving((prev) => ({ ...prev, [row.inventory_id as string]: false }))
+    }
+  }
+
+  async function setInventoryStatus(row: ForecastRow, status: 'open' | 'locked') {
+    if (!row.inventory_id) return
+    setOverrideSaving((prev) => ({ ...prev, [row.inventory_id as string]: true }))
+    try {
+      const response = await fetch(`/api/admin/eggs/inventory/${row.inventory_id}/override`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+      })
+      if (!response.ok) {
+        const error = await response.json().catch(() => null)
+        throw new Error(error?.error || 'Failed to update status')
+      }
+      await Promise.all([loadForecastOnly(), loadAlertsOnly(), loadDashboardOnly()])
+    } catch (error: any) {
+      const message = error?.message || 'Failed to update status'
       setNonBlockingErrors((prev) => [message, ...prev].slice(0, 6))
       setAlertsOpen(true)
     } finally {
@@ -595,6 +1056,25 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
     selectedRow && selectedRow.total_collected > 0
       ? Math.round((selectedRow.sellable_standard / selectedRow.total_collected) * 1000) / 10
       : 0
+  const trend7 = dashboard?.windows.d7.find((row) => row.breed_id === selectedBreedId) || null
+  const trend14 = dashboard?.windows.d14.find((row) => row.breed_id === selectedBreedId) || null
+  const trend30 = dashboard?.windows.d30.find((row) => row.breed_id === selectedBreedId) || null
+
+  const heatmapDates = Array.from(
+    new Set((dashboard?.heatmap || []).map((item) => item.date))
+  )
+    .sort()
+    .slice(-14)
+
+  const heatmapByBreedDate = new Map(
+    (dashboard?.heatmap || []).map((item) => [`${item.breed_id}:${item.date}`, item])
+  )
+
+  function dayStatusClass(status: string | undefined) {
+    if (status === 'closed') return 'bg-red-100 text-red-700 border-red-200'
+    if (status === 'in_progress') return 'bg-amber-100 text-amber-800 border-amber-200'
+    return 'bg-emerald-100 text-emerald-700 border-emerald-200'
+  }
 
   return (
     <div className={cn('relative space-y-6', embedded ? '' : 'max-w-7xl mx-auto px-4 py-6')}>
@@ -646,10 +1126,40 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
                 <div className="space-y-2">
                   {alerts.map((alert) => (
                     <div key={alert.id} className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                      <div className="mb-1 flex items-center justify-between gap-2">
+                        <span
+                          className={cn(
+                            'rounded-full px-2 py-0.5 text-[11px] font-semibold',
+                            alert.severity === 'critical'
+                              ? 'bg-red-100 text-red-700'
+                              : alert.severity === 'info'
+                                ? 'bg-sky-100 text-sky-700'
+                                : 'bg-amber-100 text-amber-800'
+                          )}
+                        >
+                          {alert.severity === 'critical'
+                            ? copy.severityCritical
+                            : alert.severity === 'info'
+                              ? copy.severityInfo
+                              : copy.severityWarning}
+                        </span>
+                        {alert.acknowledged_at && <span className="text-[11px] text-neutral-600">ACK</span>}
+                      </div>
                       <p className="font-medium">{alert.message}</p>
                       <p className="mt-1 text-xs text-amber-800">
                         {new Date(alert.created_at).toLocaleString(lang === 'en' ? 'en-GB' : 'nb-NO')}
                       </p>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        <Button size="sm" variant="outline" className="h-7 border-amber-300 bg-white text-xs" onClick={() => updateAlert(alert.id, 'acknowledge')}>
+                          {copy.alertAck}
+                        </Button>
+                        <Button size="sm" variant="outline" className="h-7 border-amber-300 bg-white text-xs" onClick={() => updateAlert(alert.id, 'snooze')}>
+                          {copy.alertSnooze}
+                        </Button>
+                        <Button size="sm" className="h-7 bg-neutral-900 px-2 text-xs text-white" onClick={() => updateAlert(alert.id, 'resolve')}>
+                          {copy.alertResolve}
+                        </Button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -689,6 +1199,78 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
         </div>
       </Card>
 
+      <Card className="border-neutral-200 p-4">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className={cn('rounded-full border px-2.5 py-1 text-xs font-semibold', dayStatusClass(dayState?.status))}>
+              {dayState?.status === 'closed'
+                ? copy.dayClosed
+                : dayState?.status === 'in_progress'
+                  ? copy.dayInProgress
+                  : copy.dayOpen}
+            </span>
+            <Button size="sm" variant="outline" className="border-neutral-300 bg-white" onClick={() => setDayStatus('in_progress')}>
+              {copy.setInProgress}
+            </Button>
+            <Button size="sm" variant="outline" className="border-neutral-300 bg-white" onClick={() => setDayStatus('closed')}>
+              {copy.closeDay}
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="border-neutral-300 bg-white"
+              onClick={() => setDayStatus('open', dayReason)}
+            >
+              {copy.reopenDay}
+            </Button>
+            <Input
+              placeholder={copy.reopenReason}
+              value={dayReason}
+              onChange={(event) => setDayReason(event.target.value)}
+              className="h-9 w-[250px]"
+            />
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button size="sm" variant="outline" className="border-neutral-300 bg-white" onClick={copyFromYesterday}>
+              {copy.copyYesterday}
+            </Button>
+            <Button size="sm" variant="outline" className="border-neutral-300 bg-white" onClick={downloadReportCsv}>
+              {copy.reportCsv}
+            </Button>
+            <Button size="sm" variant="outline" className="border-neutral-300 bg-white" onClick={printReportPdf}>
+              {copy.reportPdf}
+            </Button>
+            <Button
+              size="sm"
+              variant={fastEntryMode ? 'default' : 'outline'}
+              className={cn(fastEntryMode ? 'bg-neutral-900 text-white' : 'border-neutral-300 bg-white')}
+              onClick={() => setFastEntryMode((prev) => !prev)}
+            >
+              {copy.fastEntry}
+            </Button>
+            <Button
+              size="sm"
+              variant={bulkMode ? 'default' : 'outline'}
+              className={cn(bulkMode ? 'bg-neutral-900 text-white' : 'border-neutral-300 bg-white')}
+              onClick={() => setBulkMode((prev) => !prev)}
+            >
+              {copy.bulkMode}
+            </Button>
+          </div>
+        </div>
+
+        {(offlineQueue.length > 0 || syncingOffline) && (
+          <div className="mt-3 flex items-center justify-between rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+            <span>
+              {copy.offlineQueued}: {offlineQueue.length}
+            </span>
+            <Button size="sm" variant="outline" className="h-7 border-amber-300 bg-white text-xs" onClick={flushOfflineQueue} disabled={syncingOffline}>
+              {syncingOffline ? '...' : copy.syncNow}
+            </Button>
+          </div>
+        )}
+      </Card>
+
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
         <KpiTile label={copy.kpiCollected} value={`${daily?.kpi.total_collected || 0}`} colorClass="border-sky-200 bg-sky-50" />
         <KpiTile label={copy.kpiSellable} value={`${daily?.kpi.total_sellable || 0}`} colorClass="border-emerald-200 bg-emerald-50" />
@@ -703,12 +1285,44 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
           <p className="mt-1 text-xs text-neutral-600">{copy.pickBreedHint}</p>
         </div>
 
+        {bulkMode && rows.length > 0 && (
+          <div className="mb-3 rounded-xl border border-neutral-200 bg-neutral-50 p-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <Button size="sm" variant="outline" className="h-8 border-neutral-300 bg-white text-xs" onClick={() => setSelectedBreedIds(rows.map((row) => row.breed_id))}>
+                {copy.selectAll}
+              </Button>
+              <Button size="sm" variant="outline" className="h-8 border-neutral-300 bg-white text-xs" onClick={() => setSelectedBreedIds([])}>
+                {copy.clearSelection}
+              </Button>
+              <span className="text-xs text-neutral-600">
+                {selectedBreedIds.length} {copy.selectedRows}
+              </span>
+              <Input
+                value={bulkNote}
+                onChange={(event) => setBulkNote(event.target.value)}
+                placeholder={copy.notes}
+                className="h-8 w-[240px] bg-white text-xs"
+              />
+              <Button size="sm" variant="outline" className="h-8 border-neutral-300 bg-white text-xs" onClick={() => applyBulkAction('set_notes')}>
+                {copy.bulkSetNotes}
+              </Button>
+              <Button size="sm" variant="outline" className="h-8 border-neutral-300 bg-white text-xs" onClick={() => applyBulkAction('clear_notes')}>
+                {copy.bulkClearNotes}
+              </Button>
+              <Button size="sm" className="h-8 bg-neutral-900 px-3 text-xs text-white" onClick={() => applyBulkAction('reset_unsellable')}>
+                {copy.bulkResetBad}
+              </Button>
+            </div>
+          </div>
+        )}
+
         {rows.length === 0 ? (
           <p className="text-sm text-neutral-500">{copy.noBreed}</p>
         ) : (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {rows.map((row) => {
               const isSelected = row.breed_id === selectedBreedId
+              const isBulkSelected = selectedBreedIds.includes(row.breed_id)
               const qualityRate =
                 row.total_collected > 0
                   ? Math.round((row.sellable_standard / Math.max(1, row.total_collected)) * 1000) / 10
@@ -722,16 +1336,34 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
                 <button
                   key={row.breed_id}
                   type="button"
-                  onClick={() => setSelectedBreedId(row.breed_id)}
+                  onClick={() => {
+                    if (bulkMode) {
+                      toggleBreedSelected(row.breed_id)
+                      return
+                    }
+                    setSelectedBreedId(row.breed_id)
+                  }}
                   className={cn(
                     'rounded-xl border p-4 text-left transition-all',
-                    isSelected ? 'ring-2 ring-neutral-400 shadow-md' : 'hover:shadow-sm'
+                    bulkMode
+                      ? isBulkSelected
+                        ? 'ring-2 ring-neutral-800 shadow-md'
+                        : 'hover:shadow-sm'
+                      : isSelected
+                        ? 'ring-2 ring-neutral-400 shadow-md'
+                        : 'hover:shadow-sm'
                   )}
                   style={{ borderColor, backgroundColor }}
                 >
                   <div className="flex items-center justify-between gap-3">
                     <p className="truncate text-base font-semibold text-neutral-900">{row.breed_name}</p>
-                    {isSelected && <span className="text-xs font-semibold text-neutral-700">{copy.active}</span>}
+                    {bulkMode ? (
+                      <span className={cn('text-xs font-semibold', isBulkSelected ? 'text-neutral-900' : 'text-neutral-500')}>
+                        {isBulkSelected ? '✓' : '○'}
+                      </span>
+                    ) : (
+                      isSelected && <span className="text-xs font-semibold text-neutral-700">{copy.active}</span>
+                    )}
                   </div>
                   <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
                     <div>
@@ -800,12 +1432,14 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
                   value={selectedRow.total_collected}
                   onChange={(value) => updateRowField(selectedRow.breed_id, 'total_collected', value)}
                   colorClass="from-sky-100 to-cyan-50"
+                  onFocus={() => fastEntryMode && setActiveFastField('total_collected')}
                 />
                 <LargeEggInput
                   label={copy.keepEggs}
                   value={selectedRow.sellable_standard}
                   onChange={(value) => updateRowField(selectedRow.breed_id, 'sellable_standard', value)}
                   colorClass="from-emerald-100 to-lime-50"
+                  onFocus={() => fastEntryMode && setActiveFastField('sellable_standard')}
                 />
               </div>
             </Card>
@@ -819,6 +1453,7 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
                   onIncrement={() => stepField(selectedRow.breed_id, 'too_small', 1)}
                   onDecrement={() => stepField(selectedRow.breed_id, 'too_small', -1)}
                   onChange={(value) => updateRowField(selectedRow.breed_id, 'too_small', value)}
+                  onFocus={() => fastEntryMode && setActiveFastField('too_small')}
                 />
                 <StepperField
                   label={copy.dirty}
@@ -826,6 +1461,7 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
                   onIncrement={() => stepField(selectedRow.breed_id, 'dirty', 1)}
                   onDecrement={() => stepField(selectedRow.breed_id, 'dirty', -1)}
                   onChange={(value) => updateRowField(selectedRow.breed_id, 'dirty', value)}
+                  onFocus={() => fastEntryMode && setActiveFastField('dirty')}
                 />
                 <StepperField
                   label={copy.cracked}
@@ -833,6 +1469,7 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
                   onIncrement={() => stepField(selectedRow.breed_id, 'cracked', 1)}
                   onDecrement={() => stepField(selectedRow.breed_id, 'cracked', -1)}
                   onChange={(value) => updateRowField(selectedRow.breed_id, 'cracked', value)}
+                  onFocus={() => fastEntryMode && setActiveFastField('cracked')}
                 />
                 <StepperField
                   label={copy.shellDefect}
@@ -840,6 +1477,7 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
                   onIncrement={() => stepField(selectedRow.breed_id, 'shell_defect', 1)}
                   onDecrement={() => stepField(selectedRow.breed_id, 'shell_defect', -1)}
                   onChange={(value) => updateRowField(selectedRow.breed_id, 'shell_defect', value)}
+                  onFocus={() => fastEntryMode && setActiveFastField('shell_defect')}
                 />
                 <StepperField
                   label={copy.other}
@@ -847,6 +1485,7 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
                   onIncrement={() => stepField(selectedRow.breed_id, 'other_unsellable', 1)}
                   onDecrement={() => stepField(selectedRow.breed_id, 'other_unsellable', -1)}
                   onChange={(value) => updateRowField(selectedRow.breed_id, 'other_unsellable', value)}
+                  onFocus={() => fastEntryMode && setActiveFastField('other_unsellable')}
                 />
               </div>
 
@@ -881,6 +1520,59 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
               </div>
             </Card>
 
+            {fastEntryMode && (
+              <Card className="border-neutral-200 p-4">
+                <div className="mb-3 flex flex-wrap items-center gap-2">
+                  {(
+                    [
+                      ['total_collected', copy.totalEggs],
+                      ['sellable_standard', copy.keepEggs],
+                      ['too_small', copy.tooSmall],
+                      ['dirty', copy.dirty],
+                      ['cracked', copy.cracked],
+                      ['shell_defect', copy.shellDefect],
+                      ['other_unsellable', copy.other],
+                    ] as Array<[keyof DailyRow, string]>
+                  ).map(([field, label]) => (
+                    <Button
+                      key={field}
+                      size="sm"
+                      variant={activeFastField === field ? 'default' : 'outline'}
+                      className={cn(
+                        'h-8 text-xs',
+                        activeFastField === field ? 'bg-neutral-900 text-white' : 'border-neutral-300 bg-white'
+                      )}
+                      onClick={() => setActiveFastField(field)}
+                    >
+                      {label}
+                    </Button>
+                  ))}
+                </div>
+                <div className="grid grid-cols-3 gap-2 sm:max-w-sm">
+                  {['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'].map((digit) => (
+                    <Button
+                      key={digit}
+                      type="button"
+                      className="h-12 bg-neutral-900 text-lg text-white hover:bg-neutral-800"
+                      onClick={() => appendFastDigit(digit)}
+                      disabled={!activeFastField}
+                    >
+                      {digit}
+                    </Button>
+                  ))}
+                  <Button type="button" variant="outline" className="h-12 border-neutral-300 bg-white" onClick={backspaceFastDigit} disabled={!activeFastField}>
+                    ←
+                  </Button>
+                  <Button type="button" variant="outline" className="h-12 border-neutral-300 bg-white" onClick={() => moveFastField(-1)} disabled={!activeFastField}>
+                    Prev
+                  </Button>
+                  <Button type="button" variant="outline" className="h-12 border-neutral-300 bg-white" onClick={() => moveFastField(1)} disabled={!activeFastField}>
+                    Next
+                  </Button>
+                </div>
+              </Card>
+            )}
+
             <Card className="border-neutral-200 p-4">
               <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-neutral-600">{copy.notes}</label>
               <Textarea
@@ -888,6 +1580,14 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
                 onChange={(event) => updateRowField(selectedRow.breed_id, 'notes', event.target.value)}
                 rows={3}
                 className="text-sm"
+              />
+
+              <label className="mb-2 mt-3 block text-xs font-semibold uppercase tracking-wide text-neutral-600">{copy.reason}</label>
+              <Input
+                value={rowReason}
+                onChange={(event) => setRowReason(event.target.value)}
+                placeholder={copy.reasonPlaceholder}
+                className="h-10"
               />
 
               <div className="mt-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -901,6 +1601,9 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
                       {copy.mismatchTitle}. {copy.mismatchBody}
                     </p>
                   )}
+                  {dayState?.status === 'closed' && (
+                    <p className="mt-1 text-sm text-red-700">Day is closed. Reopen day before saving.</p>
+                  )}
                   {selectedState.error && <p className="mt-1 text-sm text-red-700">{selectedState.error}</p>}
                 </div>
 
@@ -908,7 +1611,7 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
                   size="lg"
                   className="gap-2 bg-neutral-900 px-6 text-white hover:bg-neutral-800"
                   onClick={() => saveRow(selectedRow)}
-                  disabled={!rowIsValid(selectedRow) || selectedState.saving}
+                  disabled={!rowIsValid(selectedRow) || selectedState.saving || dayState?.status === 'closed'}
                 >
                   <Save className="h-4 w-4" />
                   {selectedState.saving ? copy.saving : copy.save}
@@ -962,6 +1665,36 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
                   </div>
                 </div>
 
+                <div className="mt-2 rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2 text-xs text-neutral-700">
+                  {copy.forecastVsReserved}: {row.forecast_eggs} / {row.eggs_allocated ?? 0}
+                </div>
+
+                {row.inventory_id && canManualOverride && (
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {row.forecast_eggs < (row.eggs_allocated ?? 0) ? (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 border-red-300 bg-white text-xs text-red-700"
+                        onClick={() => setInventoryStatus(row, 'locked')}
+                        disabled={Boolean(overrideSaving[row.inventory_id])}
+                      >
+                        {copy.suggestLock}
+                      </Button>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 border-emerald-300 bg-white text-xs text-emerald-700"
+                        onClick={() => setInventoryStatus(row, 'open')}
+                        disabled={Boolean(overrideSaving[row.inventory_id])}
+                      >
+                        {copy.suggestOpen}
+                      </Button>
+                    )}
+                  </div>
+                )}
+
                 {row.inventory_id && canManualOverride && (
                   <div className="mt-3 rounded-lg border border-neutral-200 bg-neutral-50 p-3">
                     <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-neutral-500">
@@ -1005,6 +1738,73 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
           </div>
         )}
       </Card>
+
+      <Card className="border-neutral-200 p-4 md:p-5">
+        <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-neutral-800">{copy.dashboardTitle}</h3>
+        <div className="grid gap-3 md:grid-cols-3">
+          <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-3">
+            <p className="text-xs uppercase tracking-wide text-neutral-500">7d</p>
+            <p className="mt-1 text-lg font-semibold text-neutral-900">{trend7?.avg_sellable ?? 0}</p>
+            <p className="text-xs text-neutral-600">{trend7?.sellable_rate ?? 0}%</p>
+          </div>
+          <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-3">
+            <p className="text-xs uppercase tracking-wide text-neutral-500">14d</p>
+            <p className="mt-1 text-lg font-semibold text-neutral-900">{trend14?.avg_sellable ?? 0}</p>
+            <p className="text-xs text-neutral-600">{trend14?.sellable_rate ?? 0}%</p>
+          </div>
+          <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-3">
+            <p className="text-xs uppercase tracking-wide text-neutral-500">30d</p>
+            <p className="mt-1 text-lg font-semibold text-neutral-900">{trend30?.avg_sellable ?? 0}</p>
+            <p className="text-xs text-neutral-600">{trend30?.sellable_rate ?? 0}%</p>
+          </div>
+        </div>
+
+        <div className="mt-4">
+          <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-neutral-600">{copy.heatmapTitle}</h4>
+          <div className="overflow-x-auto">
+            <div className="min-w-[760px] space-y-1">
+              {(dashboard?.summary || []).map((breed) => (
+                <div key={breed.breed_id} className="grid grid-cols-[180px_repeat(14,minmax(0,1fr))] items-center gap-1">
+                  <div className="truncate text-xs font-medium text-neutral-700">{breed.breed_name}</div>
+                  {heatmapDates.map((date) => {
+                    const point = heatmapByBreedDate.get(`${breed.breed_id}:${date}`)
+                    const rate = point?.sellable_rate ?? 0
+                    const level =
+                      rate >= 90 ? 'bg-emerald-500' : rate >= 75 ? 'bg-emerald-300' : rate >= 60 ? 'bg-amber-300' : 'bg-red-300'
+                    return <div key={`${breed.breed_id}-${date}`} title={`${date}: ${rate}%`} className={cn('h-5 rounded', level)} />
+                  })}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </Card>
+
+      <Card className="border-neutral-200 p-4 md:p-5">
+        <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-neutral-800">{copy.auditTitle}</h3>
+        <div className="space-y-2">
+          {auditRows.length === 0 ? (
+            <p className="text-sm text-neutral-500">No audit rows.</p>
+          ) : (
+            auditRows.map((row) => {
+              const relation = row.egg_daily_collections
+              const breedRelation = relation?.egg_breeds
+              const breedName = Array.isArray(breedRelation) ? breedRelation[0]?.name : breedRelation?.name
+              return (
+                <div key={row.id} className="rounded-lg border border-neutral-200 bg-neutral-50 p-2 text-xs text-neutral-700">
+                  <p className="font-medium">
+                    {breedName || 'Breed'} · {relation?.collection_date || '-'}
+                  </p>
+                  <p>
+                    {row.change_reason || 'Updated'} · {row.changed_by || 'unknown'} ·{' '}
+                    {new Date(row.changed_at).toLocaleString(lang === 'en' ? 'en-GB' : 'nb-NO')}
+                  </p>
+                </div>
+              )
+            })
+          )}
+        </div>
+      </Card>
     </div>
   )
 }
@@ -1031,11 +1831,13 @@ function LargeEggInput({
   value,
   onChange,
   colorClass,
+  onFocus,
 }: {
   label: string
   value: number
   onChange: (value: string) => void
   colorClass: string
+  onFocus?: () => void
 }) {
   return (
     <div className={cn('rounded-xl border border-neutral-200 bg-gradient-to-br p-4', colorClass)}>
@@ -1044,6 +1846,7 @@ function LargeEggInput({
         inputMode="numeric"
         value={String(value)}
         onChange={(event) => onChange(event.target.value)}
+        onFocus={onFocus}
         className="h-20 border-neutral-300 bg-white text-center text-4xl font-semibold tracking-tight md:text-5xl"
       />
     </div>
@@ -1056,12 +1859,14 @@ function StepperField({
   onIncrement,
   onDecrement,
   onChange,
+  onFocus,
 }: {
   label: string
   value: number
   onIncrement: () => void
   onDecrement: () => void
   onChange: (value: string) => void
+  onFocus?: () => void
 }) {
   return (
     <div className="rounded-xl border border-neutral-200 bg-white p-3">
@@ -1074,6 +1879,7 @@ function StepperField({
           inputMode="numeric"
           value={String(value)}
           onChange={(event) => onChange(event.target.value)}
+          onFocus={onFocus}
           className="h-12 border-neutral-300 text-center text-2xl font-semibold"
         />
         <Button type="button" size="icon" variant="outline" onClick={onIncrement} className="h-10 w-10 border-neutral-300">

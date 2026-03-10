@@ -64,6 +64,51 @@ function numberOrZero(value: unknown): number {
   return 0
 }
 
+async function ensureDataGapAlert(params: {
+  breedId: string
+  message: string
+  metadata?: Record<string, unknown>
+}) {
+  const { data: existing } = await supabaseAdmin
+    .from('egg_ops_alerts')
+    .select('id')
+    .eq('alert_type', 'data_gap')
+    .eq('breed_id', params.breedId)
+    .is('resolved_at', null)
+    .limit(1)
+
+  if (existing && existing.length > 0) {
+    await supabaseAdmin
+      .from('egg_ops_alerts')
+      .update({
+        severity: 'info',
+        message: params.message,
+        metadata: params.metadata || {},
+      })
+      .eq('id', existing[0].id)
+    return
+  }
+
+  await supabaseAdmin
+    .from('egg_ops_alerts')
+    .insert({
+      alert_type: 'data_gap',
+      severity: 'info',
+      breed_id: params.breedId,
+      message: params.message,
+      metadata: params.metadata || {},
+    })
+}
+
+async function resolveDataGapAlert(breedId: string) {
+  await supabaseAdmin
+    .from('egg_ops_alerts')
+    .update({ resolved_at: new Date().toISOString() })
+    .eq('alert_type', 'data_gap')
+    .eq('breed_id', breedId)
+    .is('resolved_at', null)
+}
+
 async function getActiveEggBreeds(): Promise<EggBreed[]> {
   const { data, error } = await supabaseAdmin
     .from('egg_breeds')
@@ -135,6 +180,28 @@ export async function recomputeForecastForBreed(params: {
   const avg14d = await computeRollingAverageSellable(params.breedId, asOfDate, config.forecastWindowDays)
   const forecastEggs = Math.max(0, Math.round(avg14d * 7))
   const threshold = getLowStockThresholdForBreed(breed.id, breed.slug, config)
+
+  const twoDaysAgo = addDays(new Date(`${asOfDate}T00:00:00`), -2)
+  const twoDaysAgoDate = toDateString(twoDaysAgo)
+  const { data: recentRows } = await supabaseAdmin
+    .from('egg_daily_collections')
+    .select('collection_date')
+    .eq('breed_id', params.breedId)
+    .gte('collection_date', twoDaysAgoDate)
+    .lte('collection_date', asOfDate)
+
+  if (!recentRows || recentRows.length === 0) {
+    await ensureDataGapAlert({
+      breedId: params.breedId,
+      message: `No collection rows in the last 2 days for ${breed.name}. Forecast uses historical data.`,
+      metadata: {
+        as_of_date: asOfDate,
+        lookback_start: twoDaysAgoDate,
+      },
+    })
+  } else {
+    await resolveDataGapAlert(params.breedId)
+  }
 
   const nowIso = new Date().toISOString()
   const startMonday = addDays(startOfIsoWeek(new Date(`${asOfDate}T00:00:00`)), 7)

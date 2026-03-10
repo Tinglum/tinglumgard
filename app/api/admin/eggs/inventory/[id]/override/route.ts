@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getSession } from '@/lib/auth/session'
-import { isAdminSession } from '@/lib/auth/roles'
+import { enforceEggOpsAccess } from '@/lib/auth/egg-ops-access'
 import { supabaseAdmin } from '@/lib/supabase/server'
 
 const ALLOWED_STATUSES = new Set(['open', 'closed', 'locked', 'sold_out'])
@@ -8,10 +7,8 @@ const ALLOWED_STATUSES = new Set(['open', 'closed', 'locked', 'sold_out'])
 export const dynamic = 'force-dynamic'
 
 export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
-  const session = await getSession()
-  if (!isAdminSession(session)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
-  }
+  const access = await enforceEggOpsAccess(request, { requireAdmin: true })
+  if (!access.ok) return access.response
 
   try {
     const body = await request.json()
@@ -22,8 +19,6 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     if (typeof body.manual_override === 'boolean') {
       updateData.manual_override = body.manual_override
       updateData.forecast_source = body.manual_override ? 'manual' : 'auto'
-    } else {
-      return NextResponse.json({ error: 'manual_override must be boolean' }, { status: 400 })
     }
 
     if (body.eggs_available !== undefined) {
@@ -39,6 +34,10 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
         return NextResponse.json({ error: 'Invalid status value' }, { status: 400 })
       }
       updateData.status = body.status
+    }
+
+    if (Object.keys(updateData).length === 1) {
+      return NextResponse.json({ error: 'No valid fields provided' }, { status: 400 })
     }
 
     const { data, error } = await supabaseAdmin

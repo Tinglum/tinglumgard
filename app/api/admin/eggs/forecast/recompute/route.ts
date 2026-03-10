@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getSession } from '@/lib/auth/session'
+import { enforceEggOpsAccess } from '@/lib/auth/egg-ops-access'
 import { recomputeForecastForBreed, recomputeForecastsForAllBreeds } from '@/lib/eggs/forecast'
 
 export const dynamic = 'force-dynamic'
 
 export async function POST(request: NextRequest) {
-  await getSession()
+  const access = await enforceEggOpsAccess(request, { allowUnauthenticatedWhenDisabled: true })
+  if (!access.ok) return access.response
 
   try {
     const body = await request.json().catch(() => ({}))

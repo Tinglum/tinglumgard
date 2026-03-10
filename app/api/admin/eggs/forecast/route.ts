@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getSession } from '@/lib/auth/session'
+import { enforceEggOpsAccess } from '@/lib/auth/egg-ops-access'
 import { getForecastRows } from '@/lib/eggs/forecast'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET(request: NextRequest) {
-  await getSession()
+  const access = await enforceEggOpsAccess(request, { allowUnauthenticatedWhenDisabled: true })
+  if (!access.ok) return access.response
 
   try {
     const weeksParam = request.nextUrl.searchParams.get('weeks')

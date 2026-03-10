@@ -40,6 +40,7 @@ async function ensureAlert(params: {
   year: number
   weekNumber: number
   message: string
+  severity: 'critical' | 'warning' | 'info'
   metadata?: Record<string, unknown>
 }) {
   const { data: existing } = await supabaseAdmin
@@ -53,6 +54,14 @@ async function ensureAlert(params: {
     .limit(1)
 
   if (existing && existing.length > 0) {
+    await supabaseAdmin
+      .from('egg_ops_alerts')
+      .update({
+        message: params.message,
+        severity: params.severity,
+        metadata: params.metadata || {},
+      })
+      .eq('id', existing[0].id)
     return
   }
 
@@ -60,6 +69,7 @@ async function ensureAlert(params: {
     .from('egg_ops_alerts')
     .insert({
       alert_type: params.alertType,
+      severity: params.severity,
       breed_id: params.breedId,
       year: params.year,
       week_number: params.weekNumber,
@@ -105,6 +115,7 @@ async function reconcileAlerts(params: {
   if (params.lowStock) {
     await ensureAlert({
       alertType: 'low_stock',
+      severity: 'warning',
       breedId: params.breedId,
       year: params.year,
       weekNumber: params.weekNumber,
@@ -126,6 +137,7 @@ async function reconcileAlerts(params: {
   if (params.deficit) {
     await ensureAlert({
       alertType: 'deficit',
+      severity: 'critical',
       breedId: params.breedId,
       year: params.year,
       weekNumber: params.weekNumber,

@@ -6,6 +6,12 @@ const DEFAULT_FORECAST_SYNC_ENABLED = true
 const DEFAULT_FORECAST_TIMEZONE = 'Europe/Oslo'
 const DEFAULT_LANG = 'no'
 const DEFAULT_LOW_STOCK_THRESHOLD = 24
+const DEFAULT_REQUIRE_AUTH = false
+const DEFAULT_IP_ALLOWLIST: string[] = []
+const DEFAULT_SUMMARY_ENABLED = false
+const DEFAULT_SUMMARY_RECIPIENTS: string[] = []
+const DEFAULT_ANOMALY_DROP_THRESHOLD_PERCENT = 25
+const DEFAULT_ANOMALY_SPIKE_THRESHOLD_PERCENT = 25
 
 type JsonMap = Record<string, unknown>
 
@@ -16,6 +22,12 @@ export interface EggOpsConfig {
   timezone: string
   defaultLanguage: 'no' | 'en'
   lowStockThresholds: JsonMap
+  requireAuth: boolean
+  ipAllowlist: string[]
+  summaryEnabled: boolean
+  summaryRecipients: string[]
+  anomalyDropThresholdPercent: number
+  anomalySpikeThresholdPercent: number
 }
 
 function asInt(value: unknown, fallback: number): number {
@@ -51,6 +63,23 @@ function asObject(value: unknown): JsonMap {
   return {}
 }
 
+function asStringArray(value: unknown, fallback: string[]): string[] {
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => (typeof item === 'string' ? item.trim() : ''))
+      .filter((item) => item.length > 0)
+  }
+
+  if (typeof value === 'string' && value.trim().length > 0) {
+    return value
+      .split(',')
+      .map((item) => item.trim())
+      .filter((item) => item.length > 0)
+  }
+
+  return fallback
+}
+
 export async function getEggOpsConfig(): Promise<EggOpsConfig> {
   const keys = [
     'egg_forecast_window_days',
@@ -59,6 +88,12 @@ export async function getEggOpsConfig(): Promise<EggOpsConfig> {
     'egg_forecast_timezone',
     'egg_low_stock_thresholds',
     'egg_ops_default_language',
+    'egg_ops_require_auth',
+    'egg_ops_ip_allowlist',
+    'egg_ops_summary_enabled',
+    'egg_ops_summary_recipients',
+    'egg_ops_anomaly_drop_threshold_percent',
+    'egg_ops_anomaly_spike_threshold_percent',
   ]
 
   const { data } = await supabaseAdmin
@@ -76,6 +111,18 @@ export async function getEggOpsConfig(): Promise<EggOpsConfig> {
     timezone: asString(map.get('egg_forecast_timezone'), DEFAULT_FORECAST_TIMEZONE),
     lowStockThresholds: asObject(map.get('egg_low_stock_thresholds')),
     defaultLanguage: languageRaw === 'en' ? 'en' : 'no',
+    requireAuth: asBool(map.get('egg_ops_require_auth'), DEFAULT_REQUIRE_AUTH),
+    ipAllowlist: asStringArray(map.get('egg_ops_ip_allowlist'), DEFAULT_IP_ALLOWLIST),
+    summaryEnabled: asBool(map.get('egg_ops_summary_enabled'), DEFAULT_SUMMARY_ENABLED),
+    summaryRecipients: asStringArray(map.get('egg_ops_summary_recipients'), DEFAULT_SUMMARY_RECIPIENTS),
+    anomalyDropThresholdPercent: Math.max(
+      1,
+      asInt(map.get('egg_ops_anomaly_drop_threshold_percent'), DEFAULT_ANOMALY_DROP_THRESHOLD_PERCENT)
+    ),
+    anomalySpikeThresholdPercent: Math.max(
+      1,
+      asInt(map.get('egg_ops_anomaly_spike_threshold_percent'), DEFAULT_ANOMALY_SPIKE_THRESHOLD_PERCENT)
+    ),
   }
 }
 

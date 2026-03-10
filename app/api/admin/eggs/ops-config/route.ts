@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getSession } from '@/lib/auth/session'
-import { isAdminSession } from '@/lib/auth/roles'
+import { enforceEggOpsAccess } from '@/lib/auth/egg-ops-access'
 import { supabaseAdmin } from '@/lib/supabase/server'
 import { getEggOpsConfig } from '@/lib/eggs/ops-config'
 
@@ -11,15 +10,19 @@ const KEYS = [
   'egg_forecast_timezone',
   'egg_low_stock_thresholds',
   'egg_ops_default_language',
+  'egg_ops_require_auth',
+  'egg_ops_ip_allowlist',
+  'egg_ops_summary_enabled',
+  'egg_ops_summary_recipients',
+  'egg_ops_anomaly_drop_threshold_percent',
+  'egg_ops_anomaly_spike_threshold_percent',
 ]
 
 export const dynamic = 'force-dynamic'
 
-export async function GET() {
-  const session = await getSession()
-  if (!isAdminSession(session)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
-  }
+export async function GET(request: NextRequest) {
+  const access = await enforceEggOpsAccess(request, { requireAdmin: true })
+  if (!access.ok) return access.response
 
   try {
     const config = await getEggOpsConfig()
@@ -30,10 +33,8 @@ export async function GET() {
 }
 
 export async function PATCH(request: NextRequest) {
-  const session = await getSession()
-  if (!isAdminSession(session)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
-  }
+  const access = await enforceEggOpsAccess(request, { requireAdmin: true })
+  if (!access.ok) return access.response
 
   try {
     const body = await request.json()

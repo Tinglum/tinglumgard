@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { enforceEggOpsAccess } from '@/lib/auth/egg-ops-access'
-import { getOpenEggOpsAlerts } from '@/lib/eggs/collection'
+import { getEggOpsDashboardData } from '@/lib/eggs/collection'
 
 export const dynamic = 'force-dynamic'
 
@@ -9,11 +9,11 @@ export async function GET(request: NextRequest) {
   if (!access.ok) return access.response
 
   try {
-    const limitParam = request.nextUrl.searchParams.get('limit')
-    const limit = limitParam ? Number.parseInt(limitParam, 10) : 200
-    const rows = await getOpenEggOpsAlerts(limit)
-    return NextResponse.json({ rows })
+    const daysParam = request.nextUrl.searchParams.get('days')
+    const days = daysParam ? Number.parseInt(daysParam, 10) : 30
+    const data = await getEggOpsDashboardData(days)
+    return NextResponse.json(data)
   } catch (error: any) {
-    return NextResponse.json({ error: error?.message || 'Failed to fetch alerts' }, { status: 500 })
+    return NextResponse.json({ error: error?.message || 'Failed to fetch dashboard' }, { status: 500 })
   }
 }
