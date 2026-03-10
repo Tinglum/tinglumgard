@@ -1,6 +1,6 @@
-'use client'
+﻿'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { AlertTriangle, CheckCircle2, Minus, Plus, RefreshCw, Save } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -284,6 +284,12 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
             detailedMode: 'Detailed mode',
             easyModeHint: 'Large controls only. No forecast/reporting panels.',
             easyPickBreed: 'Tap a breed to enter eggs',
+            easyTapHint: 'Tap to edit',
+            easyProgress: 'Stored rows',
+            lineTotal: 'Total',
+            lineSellable: 'Sellable',
+            rowStored: 'Stored',
+            rowPending: 'Pending',
             easySaveBack: 'Save and back',
             easyFinish: 'Complete day',
             easyCompleteTitle: 'Complete day',
@@ -304,6 +310,7 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
             dashboardTitle: 'Ops dashboard',
             trendTitle: '7/14/30 day trends',
             heatmapTitle: 'Sellable-rate heatmap',
+            heatmapHelp: 'Each square is one day. Green is high sellable rate, yellow is medium, red is low.',
             auditTitle: 'Recent audit changes',
             forecastVsReserved: 'Forecast vs reserved',
             suggestLock: 'Suggest lock',
@@ -318,43 +325,45 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
             duckEggs: 'Duck eggs',
             otherEggsExtra: 'Other eggs',
             saveMisc: 'Save duck/other',
+            editMisc: 'Edit',
+            miscNotInTotals: 'Duck/Other are tracked separately and are not included in Total/Sellable.',
             noBreedSelected: 'Select a breed to register eggs.',
           }
         : {
             title: 'EggOps innsamling',
             subtitle: 'Velg rase, legg inn total og beholdning, sorter deretter usalgbare.',
             date: 'Dato',
-            language: 'Språk',
+            language: 'SprÃ¥k',
             langNo: 'NO',
             langEn: 'EN',
-            reload: 'Last på nytt',
+            reload: 'Last pÃ¥ nytt',
             recalc: 'Reberegn prognoser',
             pickBreed: '1. Velg rase',
-            pickBreedHint: 'Trykk på rasen først, fyll deretter inn i store kort.',
+            pickBreedHint: 'Trykk pÃ¥ rasen fÃ¸rst, fyll deretter inn i store kort.',
             noBreed: 'Ingen aktive raser funnet.',
             stepMain: '2. Registrer total og behold',
             stepBad: '3. Kategoriser under standard',
             totalEggs: 'Totalt innsamlede egg',
-            keepEggs: 'Egg å beholde (salgbare)',
+            keepEggs: 'Egg Ã¥ beholde (salgbare)',
             notes: 'Notater',
             save: 'Lagre rad',
             saving: 'Lagrer...',
             saved: 'Lagret',
             lastUpdated: 'Sist oppdatert',
             mismatchTitle: 'Tall stemmer ikke',
-            mismatchBody: 'Summen må stemme med totalen for lagring.',
+            mismatchBody: 'Summen mÃ¥ stemme med totalen for lagring.',
             classified: 'Kategorisert under standard',
-            remaining: 'Gjenstår å kategorisere',
+            remaining: 'GjenstÃ¥r Ã¥ kategorisere',
             autoFillOther: 'Autofyll Andre',
-            tooSmall: 'For små',
+            tooSmall: 'For smÃ¥',
             dirty: 'Skitne',
             cracked: 'Sprukne',
             shellDefect: 'Skalldefekt',
             other: 'Andre',
             qualityRate: 'Salgbar rate',
             loading: 'Laster EggOps-data...',
-            openAlerts: 'Åpne varsler og feil',
-            noAlerts: 'Ingen åpne varsler eller feil.',
+            openAlerts: 'Ã…pne varsler og feil',
+            noAlerts: 'Ingen Ã¥pne varsler eller feil.',
             alertsTitle: 'Varsler og feil',
             systemErrors: 'Systemfeil',
             flowAlerts: 'Driftsvarsler',
@@ -382,23 +391,29 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
             kpiRate: 'Salgbar rate',
             kpiForecast: 'Estimat neste uke',
             kpiLow: 'Raser med lav beholdning',
-            dayOpen: 'Åpen',
-            dayInProgress: 'Pågår',
+            dayOpen: 'Ã…pen',
+            dayInProgress: 'PÃ¥gÃ¥r',
             dayClosed: 'Lukket',
-            setInProgress: 'Sett pågår',
+            setInProgress: 'Sett pÃ¥gÃ¥r',
             closeDay: 'Lukk dag',
-            reopenDay: 'Åpne dag',
-            reopenReason: 'Årsak for gjenåpning',
-            copyYesterday: 'Kopier i går',
+            reopenDay: 'Ã…pne dag',
+            reopenReason: 'Ã…rsak for gjenÃ¥pning',
+            copyYesterday: 'Kopier i gÃ¥r',
             fastEntry: 'Rask innlegging',
             bulkMode: 'Bulkmodus',
             easyMode: 'Enkel stor input',
             detailedMode: 'Detaljmodus',
             easyModeHint: 'Kun store kontroller. Skjuler prognose og rapportering.',
-            easyPickBreed: 'Trykk en rase for å legge inn egg',
+            easyPickBreed: 'Trykk en rase for Ã¥ legge inn egg',
+            easyTapHint: 'Trykk for a redigere',
+            easyProgress: 'Lagrede rader',
+            lineTotal: 'Totalt',
+            lineSellable: 'Til salg',
+            rowStored: 'Lagret',
+            rowPending: 'Ikke lagret',
             easySaveBack: 'Lagre og tilbake',
-            easyFinish: 'Fullfør dag',
-            easyCompleteTitle: 'Fullfør dag',
+            easyFinish: 'FullfÃ¸r dag',
+            easyCompleteTitle: 'FullfÃ¸r dag',
             close: 'Lukk',
             selectAll: 'Velg alle',
             clearSelection: 'Fjern',
@@ -406,20 +421,21 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
             bulkResetBad: 'Nullstill usalgbare',
             bulkSetNotes: 'Sett notat',
             bulkClearNotes: 'Fjern notater',
-            bulkApply: 'Kjør bulk',
-            reason: 'Årsak',
-            reasonPlaceholder: 'Kreves ved avvik eller gjenåpning av lukket dag',
+            bulkApply: 'KjÃ¸r bulk',
+            reason: 'Ã…rsak',
+            reasonPlaceholder: 'Kreves ved avvik eller gjenÃ¥pning av lukket dag',
             reportCsv: 'Eksporter CSV',
             reportPdf: 'Print/PDF',
             offlineQueued: 'Offline-ko',
-            syncNow: 'Synk nå',
+            syncNow: 'Synk nÃ¥',
             dashboardTitle: 'Driftsdashboard',
             trendTitle: '7/14/30 dagers trend',
             heatmapTitle: 'Heatmap salgbar-rate',
+            heatmapHelp: 'Hver rute er en dag. Gronn er hoy salgbar-rate, gul er medium, rod er lav.',
             auditTitle: 'Siste endringer',
             forecastVsReserved: 'Prognose vs reservert',
-            suggestLock: 'Foreslå lås',
-            suggestOpen: 'Foreslå gjenåpning',
+            suggestLock: 'ForeslÃ¥ lÃ¥s',
+            suggestOpen: 'ForeslÃ¥ gjenÃ¥pning',
             alertAck: 'Bekreft',
             alertSnooze: 'Slumre 60m',
             alertResolve: 'Lukk varsel',
@@ -430,7 +446,9 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
             duckEggs: 'Andeegg',
             otherEggsExtra: 'Andre egg',
             saveMisc: 'Lagre ande/andre',
-            noBreedSelected: 'Velg en rase for å registrere egg.',
+            editMisc: 'Rediger',
+            miscNotInTotals: 'Andeegg/andre spores separat og er ikke med i Totalt/Til salg.',
+            noBreedSelected: 'Velg en rase for Ã¥ registrere egg.',
           },
     [lang]
   )
@@ -461,11 +479,10 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
   const [activeFastField, setActiveFastField] = useState<keyof DailyRow | null>(null)
   const [bulkMode, setBulkMode] = useState(false)
   const [bulkNote, setBulkNote] = useState('')
-  const [rowReason, setRowReason] = useState('')
-  const [dayReason, setDayReason] = useState('')
   const [offlineQueue, setOfflineQueue] = useState<OfflineQueueItem[]>([])
   const [syncingOffline, setSyncingOffline] = useState(false)
   const [miscState, setMiscState] = useState<RowSaveState>(DEFAULT_SAVE_STATE)
+  const postSaveRefreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     loadAll(selectedDate)
@@ -541,6 +558,15 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
     }
   }, [easyInputMode])
 
+  useEffect(() => {
+    return () => {
+      if (postSaveRefreshTimerRef.current) {
+        clearTimeout(postSaveRefreshTimerRef.current)
+        postSaveRefreshTimerRef.current = null
+      }
+    }
+  }, [])
+
   const selectedRow = useMemo(
     () => rows.find((row) => row.breed_id === selectedBreedId) || null,
     [rows, selectedBreedId]
@@ -549,6 +575,28 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
   const easyModalRow = useMemo(
     () => rows.find((row) => row.breed_id === easyModalBreedId) || null,
     [rows, easyModalBreedId]
+  )
+
+  const easyStoredRows = useMemo(
+    () =>
+      rows.filter((row) => {
+        const state = rowStates[row.breed_id]
+        return Boolean(row.updated_at) || Boolean(state?.success)
+      }).length,
+    [rows, rowStates]
+  )
+
+  const easyTotals = useMemo(
+    () =>
+      rows.reduce(
+        (acc, row) => {
+          acc.total += row.total_collected
+          acc.sellable += row.sellable_standard
+          return acc
+        },
+        { total: 0, sellable: 0 }
+      ),
+    [rows]
   )
 
   const selectedForecastRows = useMemo(
@@ -774,7 +822,7 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
     setRowState(row.breed_id, { success: false, error: null })
   }
 
-  async function setDayStatus(status: 'open' | 'in_progress' | 'closed', reason?: string) {
+  async function setDayStatus(status: 'open' | 'in_progress' | 'closed') {
     try {
       const response = await fetch('/api/admin/eggs/day-status', {
         method: 'PATCH',
@@ -782,7 +830,6 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
         body: JSON.stringify({
           collection_date: selectedDate,
           status,
-          reason: reason || null,
         }),
       })
 
@@ -814,7 +861,6 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
           collection_date: selectedDate,
           duck_eggs: current.duck_eggs,
           other_eggs: current.other_eggs,
-          reason: rowReason || null,
         }),
       })
 
@@ -876,7 +922,6 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
           breed_ids: selectedBreedIds,
           action,
           value: action === 'set_notes' ? bulkNote : null,
-          reason: dayReason || rowReason || null,
         }),
       })
 
@@ -962,7 +1007,24 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
     setActiveFastField(order[nextIndex])
   }
 
-  async function saveRow(row: DailyRow): Promise<boolean> {
+  function schedulePostSaveRefresh(date: string) {
+    if (postSaveRefreshTimerRef.current) {
+      clearTimeout(postSaveRefreshTimerRef.current)
+    }
+
+    postSaveRefreshTimerRef.current = setTimeout(() => {
+      postSaveRefreshTimerRef.current = null
+      void Promise.all([loadForecastOnly(), loadAlertsOnly(), loadDashboardOnly(), loadAuditOnly(date)]).catch(
+        () => {
+          setNonBlockingErrors((prev) => [copy.reload, ...prev].slice(0, 6))
+          setAlertsOpen(true)
+        }
+      )
+    }, 250)
+  }
+
+  async function saveRow(row: DailyRow, options?: { fastReturn?: boolean }): Promise<boolean> {
+    const fastReturn = Boolean(options?.fastReturn)
     if (!rowIsValid(row)) {
       setRowState(row.breed_id, { error: `${copy.mismatchTitle}. ${copy.mismatchBody}`, success: false })
       return false
@@ -982,7 +1044,6 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
         shell_defect: row.shell_defect,
         other_unsellable: row.other_unsellable,
         notes: row.notes || null,
-        reason: rowReason || null,
       }
 
       const endpoint = row.id ? `/api/admin/eggs/daily/${row.id}` : '/api/admin/eggs/daily'
@@ -1036,12 +1097,22 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
       })
 
       if (dayState?.status === 'open') {
-        await setDayStatus('in_progress')
+        if (fastReturn) {
+          void setDayStatus('in_progress')
+        } else {
+          await setDayStatus('in_progress')
+        }
+      }
+
+      setRowState(row.breed_id, { saving: false, success: true })
+      window.setTimeout(() => setRowState(row.breed_id, { success: false }), 2500)
+
+      if (fastReturn) {
+        schedulePostSaveRefresh(selectedDate)
+        return true
       }
 
       await Promise.all([loadForecastOnly(), loadAlertsOnly(), loadDashboardOnly(), loadAuditOnly(selectedDate)])
-      setRowState(row.breed_id, { saving: false, success: true })
-      window.setTimeout(() => setRowState(row.breed_id, { success: false }), 2500)
       return true
     } catch (error: any) {
       const message = error?.message || copy.failedSave
@@ -1054,7 +1125,7 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
 
   async function saveEasyModalRow() {
     if (!easyModalRow) return
-    const ok = await saveRow(easyModalRow)
+    const ok = await saveRow(easyModalRow, { fastReturn: true })
     if (ok) {
       setEasyModalBreedId(null)
     }
@@ -1231,6 +1302,7 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
 
   return (
     <div className={cn('relative space-y-6', embedded ? '' : 'max-w-7xl mx-auto px-4 py-6')}>
+      {embedded && (
       <Sheet open={alertsOpen} onOpenChange={setAlertsOpen}>
         <SheetTrigger asChild>
           <button
@@ -1321,6 +1393,7 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
           </div>
         </SheetContent>
       </Sheet>
+      )}
 
       {!easyInputMode && (
         <Card className="overflow-hidden border-neutral-200 p-0">
@@ -1390,7 +1463,7 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
 
       {easyInputMode ? (
         <>
-          <Card className="border-amber-200 bg-gradient-to-br from-amber-50 via-orange-50 to-sky-50 p-2">
+          <Card className="border-amber-300 bg-gradient-to-br from-amber-100 via-orange-50 to-emerald-50 p-3 shadow-sm">
             <div className="flex items-center justify-between gap-2">
               <div className="inline-flex items-center rounded-lg border border-neutral-300 bg-white p-1">
                 <button
@@ -1425,7 +1498,50 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
                 {copy.detailedMode}
               </Button>
             </div>
-            <p className="mt-1 text-xs font-medium text-neutral-700">{copy.easyPickBreed}</p>
+
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              <div className="rounded-xl border border-white/80 bg-white/85 px-3 py-2 shadow-sm">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-neutral-600">{copy.easyProgress}</p>
+                <p className="text-lg font-bold tracking-tight text-neutral-900">
+                  {easyStoredRows}/{rows.length}
+                </p>
+              </div>
+              <div className="rounded-xl border border-white/80 bg-white/85 px-3 py-2 text-right shadow-sm">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-neutral-600">
+                  {copy.lineTotal}/{copy.lineSellable}
+                </p>
+                <p className="text-lg font-bold tracking-tight text-neutral-900">
+                  {easyTotals.total}/{easyTotals.sellable}
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-2 rounded-xl border border-sky-200 bg-white/90 p-2">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-neutral-700">{copy.miscEggs}</p>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 border-neutral-300 bg-white px-2 text-xs"
+                  onClick={() => setEasyCompleteOpen(true)}
+                >
+                  {copy.editMisc}
+                </Button>
+              </div>
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                <div className="rounded-lg border border-neutral-200 bg-neutral-50 px-2 py-1.5">
+                  <p className="text-[11px] text-neutral-500">{copy.duckEggs}</p>
+                  <p className="text-base font-semibold text-neutral-900">{dayState?.duck_eggs || 0}</p>
+                </div>
+                <div className="rounded-lg border border-neutral-200 bg-neutral-50 px-2 py-1.5">
+                  <p className="text-[11px] text-neutral-500">{copy.otherEggsExtra}</p>
+                  <p className="text-base font-semibold text-neutral-900">{dayState?.other_eggs || 0}</p>
+                </div>
+              </div>
+              <p className="mt-1 text-[11px] text-neutral-600">{copy.miscNotInTotals}</p>
+            </div>
+
+            <p className="mt-2 text-xs font-medium text-neutral-700">{copy.easyPickBreed}</p>
             {(offlineQueue.length > 0 || syncingOffline) && (
               <div className="mt-1 flex items-center justify-between rounded-lg border border-amber-200 bg-amber-100 px-2 py-1.5 text-xs text-amber-900">
                 <span>
@@ -1438,14 +1554,20 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
             )}
           </Card>
 
-          <Card className="border-neutral-200 p-3">
+          <Card className="border-amber-200 bg-white/90 p-2">
             {rows.length === 0 ? (
               <p className="text-sm text-neutral-500">{copy.noBreed}</p>
             ) : (
-              <div className="grid h-[calc(100dvh-250px)] auto-rows-fr gap-2">
+              <div className="grid h-[calc(100dvh-300px)] auto-rows-fr gap-2">
                 {rows.map((row) => {
                   const state = rowStates[row.breed_id] || DEFAULT_SAVE_STATE
                   const valid = rowIsValid(row)
+                  const isStored = Boolean(state.success || row.updated_at)
+                  const qualityRate =
+                    row.total_collected > 0
+                      ? Math.round((row.sellable_standard / Math.max(1, row.total_collected)) * 100)
+                      : 0
+
                   return (
                     <button
                       key={row.breed_id}
@@ -1454,19 +1576,42 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
                         setSelectedBreedId(row.breed_id)
                         setEasyModalBreedId(row.breed_id)
                       }}
-                      className="flex h-16 items-center justify-between rounded-xl border border-neutral-300 bg-white px-4 text-left"
+                      className={cn(
+                        'flex min-h-[84px] items-center justify-between rounded-2xl border px-4 py-3 text-left shadow-sm transition active:scale-[0.99]',
+                        isStored
+                          ? 'border-emerald-300 bg-emerald-50'
+                          : valid
+                            ? 'border-sky-200 bg-sky-50'
+                            : 'border-amber-300 bg-amber-50'
+                      )}
                     >
-                      <span className="truncate text-lg font-semibold text-neutral-900">{row.breed_name}</span>
-                      <span className={cn('text-lg font-bold', valid ? 'text-green-700' : 'text-amber-700')}>
-                        {state.success || (valid && row.updated_at) ? '✓' : '○'}
-                      </span>
+                      <div className="min-w-0">
+                        <p className="truncate text-lg font-semibold text-neutral-900">{row.breed_name}</p>
+                        <p className="mt-0.5 text-xs font-medium text-neutral-700">
+                          {copy.lineTotal}: {row.total_collected} - {copy.lineSellable}: {row.sellable_standard}
+                        </p>
+                        <p className="mt-0.5 text-[11px] text-neutral-500">
+                          {isStored ? copy.rowStored : copy.easyTapHint}
+                        </p>
+                      </div>
+
+                      <div className="ml-2 flex flex-col items-end gap-1">
+                        <span
+                          className={cn(
+                            'rounded-full px-2 py-1 text-[11px] font-semibold',
+                            isStored ? 'bg-emerald-100 text-emerald-800' : 'bg-white text-neutral-600'
+                          )}
+                        >
+                          {isStored ? copy.rowStored : copy.rowPending}
+                        </span>
+                        <span className="text-xs font-semibold text-neutral-700">{qualityRate}%</span>
+                      </div>
                     </button>
                   )
                 })}
               </div>
             )}
           </Card>
-
           <div className="sticky bottom-3 z-20">
             <Button
               size="lg"
@@ -1480,15 +1625,20 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
 
           {easyModalRow && (
             <div className="fixed inset-0 z-50 bg-black/50 p-2">
-              <div className="mx-auto grid h-[calc(100dvh-1rem)] w-full max-w-md grid-rows-[auto_1fr_auto] overflow-hidden rounded-2xl border border-neutral-300 bg-white shadow-2xl">
-                <div className="flex items-center justify-between border-b border-neutral-200 px-3 py-2">
-                  <h3 className="text-lg font-semibold text-neutral-900">{easyModalRow.breed_name}</h3>
+              <div className="mx-auto grid h-[calc(100dvh-1rem)] w-full max-w-md grid-rows-[auto_1fr_auto] overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-2xl">
+                <div className="flex items-center justify-between gap-2 border-b border-neutral-200 bg-gradient-to-r from-sky-100 via-white to-emerald-100 px-3 py-2">
+                  <div className="min-w-0">
+                    <h3 className="truncate text-lg font-semibold text-neutral-900">{easyModalRow.breed_name}</h3>
+                    <p className="text-xs font-medium text-neutral-600">
+                      {copy.lineTotal}: {easyModalRow.total_collected} - {copy.lineSellable}: {easyModalRow.sellable_standard}
+                    </p>
+                  </div>
                   <Button size="sm" variant="outline" className="border-neutral-300 bg-white" onClick={() => setEasyModalBreedId(null)}>
                     {copy.close}
                   </Button>
                 </div>
 
-                <div className="grid gap-2 p-2 [grid-template-columns:repeat(2,minmax(0,1fr))]">
+                <div className="grid gap-2.5 p-2.5 [grid-template-columns:repeat(2,minmax(0,1fr))]">
                   <PhoneEggStepperField
                     label={copy.totalEggs}
                     value={easyModalRow.total_collected}
@@ -1540,22 +1690,18 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
                   />
                 </div>
 
-                <div className="border-t border-neutral-200 p-2">
+                <div className="border-t border-neutral-200 bg-neutral-50/70 p-2.5">
                   <div className="mb-2 flex items-center justify-between text-sm">
-                    <span className="text-neutral-600">
+                    <span className="rounded-full bg-white px-2 py-1 text-xs font-semibold text-neutral-700">
                       {rowBreakdownTotal(easyModalRow)} / {easyModalRow.total_collected}
                     </span>
-                    {!rowIsValid(easyModalRow) && <span className="font-semibold text-red-700">{copy.mismatchTitle}</span>}
+                    {!rowIsValid(easyModalRow) && (
+                      <span className="rounded-full bg-red-100 px-2 py-1 text-xs font-semibold text-red-700">{copy.mismatchTitle}</span>
+                    )}
                   </div>
-                  <Input
-                    value={rowReason}
-                    onChange={(event) => setRowReason(event.target.value)}
-                    placeholder={copy.reason}
-                    className="mb-2 h-10 border-neutral-300 bg-white text-sm"
-                  />
                   <Button
                     size="lg"
-                    className="h-12 w-full gap-2 bg-neutral-900 text-base font-semibold text-white hover:bg-neutral-800"
+                    className="h-12 w-full gap-2 bg-emerald-700 text-base font-semibold text-white hover:bg-emerald-600"
                     onClick={saveEasyModalRow}
                     disabled={!rowIsValid(easyModalRow) || (rowStates[easyModalRow.breed_id]?.saving ?? false) || dayState?.status === 'closed'}
                   >
@@ -1569,14 +1715,14 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
 
           {easyCompleteOpen && (
             <div className="fixed inset-0 z-50 bg-black/50 p-2">
-              <div className="mx-auto grid h-[calc(100dvh-1rem)] w-full max-w-md grid-rows-[auto_1fr_auto] overflow-hidden rounded-2xl border border-neutral-300 bg-white shadow-2xl">
-                <div className="flex items-center justify-between border-b border-neutral-200 px-3 py-2">
+              <div className="mx-auto grid h-[calc(100dvh-1rem)] w-full max-w-md grid-rows-[auto_1fr_auto] overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-2xl">
+                <div className="flex items-center justify-between border-b border-neutral-200 bg-gradient-to-r from-amber-100 via-white to-emerald-100 px-3 py-2">
                   <h3 className="text-lg font-semibold text-neutral-900">{copy.easyCompleteTitle}</h3>
                   <Button size="sm" variant="outline" className="border-neutral-300 bg-white" onClick={() => setEasyCompleteOpen(false)}>
                     {copy.close}
                   </Button>
                 </div>
-                <div className="grid gap-2 p-2 [grid-template-columns:repeat(2,minmax(0,1fr))]">
+                <div className="grid gap-2.5 p-2.5 [grid-template-columns:repeat(2,minmax(0,1fr))]">
                   <PhoneEggStepperField
                     label={copy.duckEggs}
                     value={dayState?.duck_eggs || 0}
@@ -1592,7 +1738,7 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
                     onChange={(value) => setDayMiscField('other_eggs', value)}
                   />
                 </div>
-                <div className="border-t border-neutral-200 p-2">
+                <div className="border-t border-neutral-200 bg-neutral-50/70 p-2.5">
                   {miscState.error && <p className="mb-2 text-sm font-medium text-red-700">{miscState.error}</p>}
                   <Button
                     size="lg"
@@ -1630,16 +1776,10 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
               size="sm"
               variant="outline"
               className="border-neutral-300 bg-white"
-              onClick={() => setDayStatus('open', dayReason)}
+              onClick={() => setDayStatus('open')}
             >
               {copy.reopenDay}
             </Button>
-            <Input
-              placeholder={copy.reopenReason}
-              value={dayReason}
-              onChange={(event) => setDayReason(event.target.value)}
-              className="h-9 w-[250px]"
-            />
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <Button size="sm" variant="outline" className="border-neutral-300 bg-white" onClick={copyFromYesterday}>
@@ -1689,6 +1829,42 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
         <KpiTile label={copy.kpiForecast} value={`${daily?.kpi.next_week_estimate || 0}`} colorClass="border-amber-200 bg-amber-50" />
         <KpiTile label={copy.kpiLow} value={`${daily?.kpi.low_stock_breeds || 0}`} colorClass="border-rose-200 bg-rose-50" />
       </div>
+
+      <Card className="border-neutral-200 p-4 md:p-5">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h3 className="text-sm font-semibold uppercase tracking-wide text-neutral-800">{copy.miscEggs}</h3>
+          <Button
+            size="sm"
+            className="h-8 bg-neutral-900 px-3 text-xs text-white hover:bg-neutral-800"
+            onClick={saveDayMisc}
+            disabled={miscState.saving || dayState?.status === 'closed'}
+          >
+            {miscState.saving ? copy.saving : copy.saveMisc}
+          </Button>
+        </div>
+        <p className="mt-1 text-xs text-neutral-600">{copy.miscNotInTotals}</p>
+
+        <div className="mt-3 grid gap-3 md:grid-cols-2">
+          <StepperField
+            label={copy.duckEggs}
+            value={dayState?.duck_eggs || 0}
+            onIncrement={() => stepDayMiscField('duck_eggs', 1)}
+            onDecrement={() => stepDayMiscField('duck_eggs', -1)}
+            onChange={(value) => setDayMiscField('duck_eggs', value)}
+          />
+          <StepperField
+            label={copy.otherEggsExtra}
+            value={dayState?.other_eggs || 0}
+            onIncrement={() => stepDayMiscField('other_eggs', 1)}
+            onDecrement={() => stepDayMiscField('other_eggs', -1)}
+            onChange={(value) => setDayMiscField('other_eggs', value)}
+          />
+        </div>
+
+        {miscState.error && <p className="mt-2 text-sm text-red-700">{miscState.error}</p>}
+        {miscState.success && <p className="mt-2 text-sm text-emerald-700">{copy.saved}</p>}
+        {dayState?.status === 'closed' && <p className="mt-2 text-sm text-red-700">Day is closed. Reopen day before saving.</p>}
+      </Card>
 
       <Card className="border-neutral-200 p-4 md:p-5">
         <div className="mb-3">
@@ -1769,9 +1945,11 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
                   <div className="flex items-center justify-between gap-3">
                     <p className="truncate text-base font-semibold text-neutral-900">{row.breed_name}</p>
                     {bulkMode ? (
-                      <span className={cn('text-xs font-semibold', isBulkSelected ? 'text-neutral-900' : 'text-neutral-500')}>
-                        {isBulkSelected ? '✓' : '○'}
-                      </span>
+                      isBulkSelected ? (
+                        <CheckCircle2 className="h-4 w-4 text-neutral-900" />
+                      ) : (
+                        <span className="text-xs font-semibold text-neutral-500">O</span>
+                      )
                     ) : (
                       isSelected && <span className="text-xs font-semibold text-neutral-700">{copy.active}</span>
                     )}
@@ -1976,7 +2154,7 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
                     </Button>
                   ))}
                   <Button type="button" variant="outline" className="h-12 border-neutral-300 bg-white" onClick={backspaceFastDigit} disabled={!activeFastField}>
-                    ←
+                    Back
                   </Button>
                   <Button type="button" variant="outline" className="h-12 border-neutral-300 bg-white" onClick={() => moveFastField(-1)} disabled={!activeFastField}>
                     Prev
@@ -1995,14 +2173,6 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
                 onChange={(event) => updateRowField(selectedRow.breed_id, 'notes', event.target.value)}
                 rows={3}
                 className="text-sm"
-              />
-
-              <label className="mb-2 mt-3 block text-xs font-semibold uppercase tracking-wide text-neutral-600">{copy.reason}</label>
-              <Input
-                value={rowReason}
-                onChange={(event) => setRowReason(event.target.value)}
-                placeholder={copy.reasonPlaceholder}
-                className="h-10"
               />
 
               <div className="mt-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -2176,6 +2346,7 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
 
         <div className="mt-4">
           <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-neutral-600">{copy.heatmapTitle}</h4>
+          <p className="mb-2 text-xs text-neutral-600">{copy.heatmapHelp}</p>
           <div className="overflow-x-auto">
             <div className="min-w-[760px] space-y-1">
               {(dashboard?.summary || []).map((breed) => (
@@ -2208,10 +2379,10 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
               return (
                 <div key={row.id} className="rounded-lg border border-neutral-200 bg-neutral-50 p-2 text-xs text-neutral-700">
                   <p className="font-medium">
-                    {breedName || 'Breed'} · {relation?.collection_date || '-'}
+                    {breedName || 'Breed'} Â· {relation?.collection_date || '-'}
                   </p>
                   <p>
-                    {row.change_reason || 'Updated'} · {row.changed_by || 'unknown'} ·{' '}
+                    {row.change_reason || 'Updated'} Â· {row.changed_by || 'unknown'} Â·{' '}
                     {new Date(row.changed_at).toLocaleString(lang === 'en' ? 'en-GB' : 'nb-NO')}
                   </p>
                 </div>
@@ -2343,11 +2514,17 @@ function PhoneEggStepperField({
   onChange: (value: string) => void
 }) {
   return (
-    <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-2">
-      <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-neutral-700">{label}</label>
-      <div className="grid grid-cols-[40px_minmax(0,1fr)_40px] items-center gap-1.5">
-        <Button type="button" size="icon" variant="outline" onClick={onDecrement} className="h-10 w-10 border-neutral-300 bg-white">
-          <Minus className="h-4 w-4" />
+    <div className="rounded-xl border border-neutral-300 bg-gradient-to-br from-white to-neutral-50 p-2 shadow-sm">
+      <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-neutral-700">{label}</label>
+      <div className="grid grid-cols-[48px_minmax(0,1fr)_48px] items-center gap-2">
+        <Button
+          type="button"
+          size="icon"
+          variant="outline"
+          onClick={onDecrement}
+          className="h-12 w-12 border-neutral-300 bg-neutral-900 text-white hover:bg-neutral-800"
+        >
+          <Minus className="h-5 w-5" />
         </Button>
         <Input
           inputMode="numeric"
@@ -2355,10 +2532,16 @@ function PhoneEggStepperField({
           onChange={(event) => onChange(event.target.value)}
           onFocus={(event) => event.currentTarget.select()}
           placeholder="0"
-          className="h-10 border-neutral-300 bg-white text-center text-xl font-semibold"
+          className="h-12 border-neutral-300 bg-white text-center text-2xl font-semibold"
         />
-        <Button type="button" size="icon" variant="outline" onClick={onIncrement} className="h-10 w-10 border-neutral-300 bg-white">
-          <Plus className="h-4 w-4" />
+        <Button
+          type="button"
+          size="icon"
+          variant="outline"
+          onClick={onIncrement}
+          className="h-12 w-12 border-neutral-300 bg-neutral-900 text-white hover:bg-neutral-800"
+        >
+          <Plus className="h-5 w-5" />
         </Button>
       </div>
     </div>
@@ -2414,3 +2597,4 @@ function HugeStepperField({
     </div>
   )
 }
+

@@ -1,6 +1,5 @@
 import type { SessionData } from '@/lib/auth/session'
 import { getSessionRole } from '@/lib/auth/roles'
-import { getEggOpsConfig } from '@/lib/eggs/ops-config'
 import { logError } from '@/lib/logger'
 import { supabaseAdmin } from '@/lib/supabase/server'
 
@@ -59,13 +58,6 @@ type EggOpsDayStateRecord = {
   reopen_reason: string | null
   created_at: string | null
   updated_at: string | null
-}
-
-type AnomalyCheckResult = {
-  flagged: boolean
-  averageRate: number
-  currentRate: number
-  sampleSize: number
 }
 
 function getActor(session: SessionData | null | undefined): string {
@@ -141,17 +133,12 @@ function daysOld(dateString: string): number {
   return Math.floor(diff / (1000 * 60 * 60 * 24))
 }
 
-function ensureWithinCorrectionWindow(session: SessionData | null | undefined, dateString: string, reason?: string | null) {
+function ensureWithinCorrectionWindow(session: SessionData | null | undefined, dateString: string) {
   const age = daysOld(dateString)
   const role = getSessionRole(session)
 
   if (age <= 3) return
-  if (role === 'admin') {
-    if (!reason || reason.trim().length < 3) {
-      throw new EggCollectionError('Reason is required when editing entries older than 3 days', 400)
-    }
-    return
-  }
+  if (role === 'admin') return
 
   throw new EggCollectionError('Only admin can edit entries older than 3 days', 403)
 }
@@ -177,89 +164,15 @@ async function getDayState(dateString: string) {
 
 async function ensureDayWritable(
   session: SessionData | null | undefined,
-  dateString: string,
-  reason?: string | null
+  dateString: string
 ) {
   const dayState = await getDayState(dateString)
   if (dayState.status !== 'closed') return
 
   const role = getSessionRole(session)
-  if (role === 'admin' && reason && reason.trim().length >= 3) return
+  if (role === 'admin') return
 
   throw new EggCollectionError('Day is closed. Reopen day before changing rows.', 409)
-}
-
-function roundPercent(value: number): number {
-  return Math.round(value * 1000) / 10
-}
-
-async function evaluateAnomalyForRow(input: EggDailyInput): Promise<AnomalyCheckResult> {
-  const config = await getEggOpsConfig()
-  const targetDate = new Date(`${input.collection_date}T00:00:00`)
-  const start = new Date(targetDate)
-  start.setDate(start.getDate() - 14)
-  const startDate = start.toISOString().split('T')[0]
-
-  const { data, error } = await supabaseAdmin
-    .from('egg_daily_collections')
-    .select('collection_date, total_collected, sellable_standard')
-    .eq('breed_id', input.breed_id)
-    .gte('collection_date', startDate)
-    .lt('collection_date', input.collection_date)
-
-  if (error) throw error
-
-  const validRates = (data || [])
-    .map((row) => {
-      const total = numberOrZero(row.total_collected)
-      const sellable = numberOrZero(row.sellable_standard)
-      if (total <= 0) return null
-      return sellable / total
-    })
-    .filter((value): value is number => typeof value === 'number')
-
-  const currentTotal = numberOrZero(input.total_collected)
-  const currentSellable = numberOrZero(input.sellable_standard)
-  const currentRate = currentTotal > 0 ? currentSellable / currentTotal : 0
-
-  if (validRates.length < 3) {
-    return {
-      flagged: false,
-      averageRate: currentRate,
-      currentRate,
-      sampleSize: validRates.length,
-    }
-  }
-
-  const averageRate = validRates.reduce((sum, value) => sum + value, 0) / validRates.length
-  const dropThreshold = Math.max(0.01, config.anomalyDropThresholdPercent / 100)
-  const spikeThreshold = Math.max(0.01, config.anomalySpikeThresholdPercent / 100)
-
-  const isDrop = currentRate < averageRate * (1 - dropThreshold)
-  const isSpike = currentRate > averageRate * (1 + spikeThreshold)
-  const absoluteChange = Math.abs(currentRate - averageRate)
-
-  return {
-    flagged: (isDrop || isSpike) && absoluteChange >= 0.08,
-    averageRate,
-    currentRate,
-    sampleSize: validRates.length,
-  }
-}
-
-async function ensureAnomalyReasonIfNeeded(input: EggDailyInput) {
-  const reason = input.reason?.trim()
-  if (reason && reason.length >= 3) return
-
-  const anomaly = await evaluateAnomalyForRow(input)
-  if (!anomaly.flagged) return
-
-  throw new EggCollectionError(
-    `Anomaly detected in sellable rate (${roundPercent(anomaly.currentRate)}% vs ${roundPercent(
-      anomaly.averageRate
-    )}% avg). Add a reason before saving.`,
-    400
-  )
 }
 
 function validateDailyPayload(input: EggDailyInput) {
@@ -414,9 +327,8 @@ export async function getEggDailyCollections(date?: string) {
 
 export async function upsertEggDailyCollection(input: EggDailyInput, session?: SessionData | null) {
   const normalized = validateDailyPayload(input)
-  ensureWithinCorrectionWindow(session, input.collection_date, input.reason)
-  await ensureDayWritable(session, input.collection_date, input.reason)
-  await ensureAnomalyReasonIfNeeded(input)
+  ensureWithinCorrectionWindow(session, input.collection_date)
+  await ensureDayWritable(session, input.collection_date)
   const actor = getActor(session)
 
   const { data: existing, error: existingError } = await supabaseAdmin
@@ -493,9 +405,8 @@ export async function patchEggDailyCollectionById(
   }
 
   const normalized = validateDailyPayload(next)
-  ensureWithinCorrectionWindow(session, next.collection_date, next.reason)
-  await ensureDayWritable(session, next.collection_date, next.reason)
-  await ensureAnomalyReasonIfNeeded(next)
+  ensureWithinCorrectionWindow(session, next.collection_date)
+  await ensureDayWritable(session, next.collection_date)
   const actor = getActor(session)
 
   const updatePayload = {
@@ -546,10 +457,6 @@ export async function setEggOpsDayStatus(params: {
   const existing = await getDayState(params.collectionDate)
   const nowIso = new Date().toISOString()
   const reason = params.reason?.trim() || null
-
-  if (existing.status === 'closed' && params.status === 'open' && (!reason || reason.length < 3)) {
-    throw new EggCollectionError('Reason is required when reopening a closed day', 400)
-  }
 
   const payload: Record<string, unknown> = {
     collection_date: params.collectionDate,
@@ -619,8 +526,8 @@ export async function upsertEggOpsDayMiscCounts(params: {
   const duckEggs = Math.max(0, numberOrZero(params.duckEggs))
   const otherEggs = Math.max(0, numberOrZero(params.otherEggs))
 
-  ensureWithinCorrectionWindow(params.session, params.collectionDate, params.reason)
-  await ensureDayWritable(params.session, params.collectionDate, params.reason)
+  ensureWithinCorrectionWindow(params.session, params.collectionDate)
+  await ensureDayWritable(params.session, params.collectionDate)
 
   const existing = await getDayState(params.collectionDate)
   const payload = {
@@ -787,8 +694,8 @@ export async function applyEggDailyBulkAction(params: {
     throw new EggCollectionError('No breeds selected', 400)
   }
 
-  await ensureDayWritable(params.session, params.collectionDate, params.reason)
-  ensureWithinCorrectionWindow(params.session, params.collectionDate, params.reason)
+  await ensureDayWritable(params.session, params.collectionDate)
+  ensureWithinCorrectionWindow(params.session, params.collectionDate)
 
   const actor = getActor(params.session)
   const { data: rows, error: fetchError } = await supabaseAdmin
