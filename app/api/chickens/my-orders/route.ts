@@ -50,17 +50,29 @@ function isPhoneMatch(
   return false
 }
 
-function isMissingRelationError(error: any): boolean {
-  const message = String(error?.message || '').toLowerCase()
-  const details = String(error?.details || '').toLowerCase()
-  const hint = String(error?.hint || '').toLowerCase()
-  const combined = `${message} ${details} ${hint}`
-  return (
-    combined.includes('chicken_order_additions') ||
-    combined.includes('chicken_payments') ||
-    combined.includes('schema cache') ||
-    combined.includes('does not exist')
+function toNumber(value: unknown): number {
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : 0
+}
+
+function normalizeChickenOrderFinancials<T extends Record<string, any>>(order: T): T {
+  const additionsSubtotal = ((order.chicken_order_additions as Array<any> | undefined) || []).reduce(
+    (sum, row) => sum + toNumber(row?.subtotal_nok),
+    0
   )
+  const baseByPricing =
+    toNumber(order.quantity_hens) * toNumber(order.price_per_hen_nok) +
+    toNumber(order.quantity_roosters) * toNumber(order.price_per_rooster_nok)
+  const deliveryFee = toNumber(order.delivery_fee_nok)
+  const totalAmount = toNumber(order.total_amount_nok)
+  const expectedBaseFromTotal = Math.max(0, totalAmount - deliveryFee - additionsSubtotal)
+  const shouldReconcile =
+    totalAmount > 0 && Math.abs(baseByPricing + additionsSubtotal + deliveryFee - totalAmount) > 1
+
+  return {
+    ...order,
+    subtotal_nok: shouldReconcile ? expectedBaseFromTotal : baseByPricing,
+  }
 }
 
 export async function GET() {
@@ -78,16 +90,14 @@ export async function GET() {
     const sessionPhoneTail = sessionPhoneDigits.length >= 8
       ? sessionPhoneDigits.slice(-8)
       : (isImpersonating && sessionPhoneDigits.length >= 4 ? sessionPhoneDigits : '')
-    const selectColumns = '*, chicken_breeds(*), chicken_payments(*), chicken_order_additions(*)'
-
-    const buildQueries = (columns: string) => {
+    const buildQueries = () => {
       const queries = []
 
       if (isUuid(session.userId)) {
         queries.push(
           supabaseAdmin
             .from('chicken_orders')
-            .select(columns)
+            .select('*')
             .eq('user_id', session.userId)
         )
       }
@@ -95,7 +105,7 @@ export async function GET() {
         queries.push(
           supabaseAdmin
             .from('chicken_orders')
-            .select(columns)
+            .select('*')
             .ilike('customer_email', `%${normalizedSessionEmail}%`)
         )
       }
@@ -103,7 +113,7 @@ export async function GET() {
         queries.push(
           supabaseAdmin
             .from('chicken_orders')
-            .select(columns)
+            .select('*')
             .ilike('customer_phone', `%${sessionPhoneTail}`)
         )
       }
@@ -111,30 +121,17 @@ export async function GET() {
       return queries
     }
 
-    let queries = buildQueries(selectColumns)
+    const queries = buildQueries()
 
     if (queries.length === 0) {
       return NextResponse.json([])
     }
 
-    let results = await Promise.all(queries)
-    const hasQueryError = results.some((result) => Boolean(result.error))
-
-    if (hasQueryError) {
-      const canFallback = results.every((result) => !result.error || isMissingRelationError(result.error))
-      if (!canFallback) {
-        const firstError = results.find((result) => result.error)?.error
-        console.error('Error fetching chicken orders:', firstError)
-        return NextResponse.json({ error: firstError?.message || 'Failed to load chicken orders' }, { status: 500 })
-      }
-
-      queries = buildQueries('*')
-      results = await Promise.all(queries)
-      const fallbackError = results.find((result) => result.error)?.error
-      if (fallbackError) {
-        console.error('Error fetching chicken orders (fallback):', fallbackError)
-        return NextResponse.json({ error: fallbackError.message }, { status: 500 })
-      }
+    const results = await Promise.all(queries)
+    const firstError = results.find((result) => result.error)?.error
+    if (firstError) {
+      console.error('Error fetching chicken orders:', firstError)
+      return NextResponse.json({ error: firstError.message || 'Failed to load chicken orders' }, { status: 500 })
     }
 
     const combined = new Map<string, any>()
@@ -173,8 +170,91 @@ export async function GET() {
 
     const data = Array.from(combined.values())
 
+    const orderIds = data
+      .map((order) => String(order.id || '').trim())
+      .filter((id) => Boolean(id))
+
+    const paymentsByOrder = new Map<string, any[]>()
+    const additionsByOrder = new Map<string, any[]>()
+    const breedById = new Map<string, any>()
+
+    if (orderIds.length > 0) {
+      const [{ data: paymentRows, error: paymentError }, { data: additionRows, error: additionError }] =
+        await Promise.all([
+          supabaseAdmin.from('chicken_payments').select('*').in('chicken_order_id', orderIds),
+          supabaseAdmin.from('chicken_order_additions').select('*').in('chicken_order_id', orderIds),
+        ])
+
+      if (paymentError) {
+        console.error('Error fetching chicken payments for my-orders:', paymentError)
+      } else {
+        for (const row of (paymentRows as Array<any>) || []) {
+          const key = String(row.chicken_order_id || '')
+          if (!paymentsByOrder.has(key)) paymentsByOrder.set(key, [])
+          paymentsByOrder.get(key)!.push(row)
+        }
+      }
+
+      if (additionError) {
+        console.error('Error fetching chicken additions for my-orders:', additionError)
+      } else {
+        for (const row of (additionRows as Array<any>) || []) {
+          const key = String(row.chicken_order_id || '')
+          if (!additionsByOrder.has(key)) additionsByOrder.set(key, [])
+          additionsByOrder.get(key)!.push(row)
+        }
+      }
+
+      const breedIds = new Set<string>()
+      for (const order of data) {
+        const breedId = String(order.breed_id || '').trim()
+        if (breedId) breedIds.add(breedId)
+      }
+      for (const rows of Array.from(additionsByOrder.values())) {
+        for (const row of rows) {
+          const breedId = String(row.breed_id || '').trim()
+          if (breedId) breedIds.add(breedId)
+        }
+      }
+
+      if (breedIds.size > 0) {
+        const { data: breedRows, error: breedError } = await supabaseAdmin
+          .from('chicken_breeds')
+          .select('*')
+          .in('id', Array.from(breedIds))
+
+        if (breedError) {
+          console.error('Error fetching chicken breeds for my-orders:', breedError)
+        } else {
+          for (const breed of (breedRows as Array<any>) || []) {
+            breedById.set(String(breed.id), breed)
+          }
+        }
+      }
+    }
+
+    const enriched = data.map((order) => {
+      const orderId = String(order.id || '')
+      const additions = (additionsByOrder.get(orderId) || []).map((addition) => {
+        const breedId = String(addition.breed_id || '')
+        return {
+          ...addition,
+          chicken_breeds: breedById.get(breedId) || null,
+        }
+      })
+      const baseBreed = breedById.get(String(order.breed_id || '')) || null
+      return {
+        ...order,
+        chicken_breeds: baseBreed,
+        chicken_payments: paymentsByOrder.get(orderId) || [],
+        chicken_order_additions: additions,
+      }
+    })
+
+    const normalized = enriched.map((order) => normalizeChickenOrderFinancials(order))
+
     // Link anonymous orders once we have a trusted match on email/phone.
-    const anonymousMatches = data.filter((order) => !order.user_id).map((order) => order.id)
+    const anonymousMatches = normalized.filter((order) => !order.user_id).map((order) => order.id)
     if (isUuid(session.userId) && anonymousMatches.length > 0) {
       const { error: linkError } = await supabaseAdmin
         .from('chicken_orders')
@@ -184,18 +264,18 @@ export async function GET() {
       if (linkError) {
         console.warn('Could not link anonymous chicken orders to user:', linkError.message)
       } else {
-        for (const order of data) {
+        for (const order of normalized) {
           if (!order.user_id) order.user_id = session.userId
         }
       }
     }
 
-    data.sort((a, b) => {
+    normalized.sort((a, b) => {
       if (!a.created_at || !b.created_at) return 0
       return b.created_at.localeCompare(a.created_at)
     })
 
-    return NextResponse.json(data)
+    return NextResponse.json(normalized)
   } catch (error: any) {
     console.error('Unexpected error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

@@ -223,7 +223,8 @@ export async function POST(request: NextRequest) {
         age_weeks_at_pickup: primaryLine.ageWeeksAtPickup,
         price_per_hen_nok: primaryLine.pricePerHen,
         price_per_rooster_nok: primaryLine.pricePerRooster,
-        subtotal_nok: subtotal,
+        // Keep subtotal as base line only; additional lines live in chicken_order_additions.
+        subtotal_nok: primaryLine.subtotal,
         delivery_method: body.deliveryMethod,
         delivery_fee_nok: deliveryFee,
         total_amount_nok: totalAmount,

@@ -108,6 +108,36 @@ const toNumber = (value: unknown, fallback = 0) => {
   return Number.isFinite(parsed) ? parsed : fallback;
 };
 
+const getChickenAdditionSubtotal = (addition: Record<string, unknown>) => {
+  const hens = toNumber(addition.quantity_hens);
+  const roosters = toNumber(addition.quantity_roosters);
+  const pricePerHen = toNumber(addition.price_per_hen_nok);
+  const roosterFromAddition = toNumber(addition.price_per_rooster_nok);
+  const roosterFromBreed = toNumber(
+    (addition.chicken_breeds as Record<string, unknown> | undefined)?.rooster_price_nok
+  );
+  const computed = hens * pricePerHen + roosters * (roosterFromAddition || roosterFromBreed);
+  if (computed > 0) return computed;
+  return toNumber(addition.subtotal_nok);
+};
+
+const getChickenBaseSubtotal = (args: {
+  baseHens: number;
+  baseRoosters: number;
+  pricePerHen: number;
+  pricePerRooster: number;
+  totalAmount: number;
+  deliveryFee: number;
+  additionsSubtotal: number;
+}) => {
+  const baseByPricing = args.baseHens * args.pricePerHen + args.baseRoosters * args.pricePerRooster;
+  const baseByTotal = Math.max(0, args.totalAmount - args.deliveryFee - args.additionsSubtotal);
+  const shouldReconcile =
+    args.totalAmount > 0 &&
+    Math.abs(baseByPricing + args.additionsSubtotal + args.deliveryFee - args.totalAmount) > 1;
+  return shouldReconcile ? baseByTotal : baseByPricing;
+};
+
 const orderKey = (order: Pick<CustomerOrderSummary, 'source' | 'order_id'>) =>
   `${order.source}:${order.order_id}`;
 
@@ -523,7 +553,8 @@ export function CustomerDatabase() {
         });
         const body = await response.json().catch(() => ({}));
         if (!response.ok) {
-          throw new Error(body?.error || copy.orderSaveErrorDescription);
+          const details = typeof body?.details === 'string' && body.details.trim() ? `: ${body.details}` : '';
+          throw new Error(`${body?.error || copy.orderSaveErrorDescription}${details}`);
         }
       } else {
         const queueEntry = findQueueCommunicationForOrder(order);
@@ -691,16 +722,27 @@ export function CustomerDatabase() {
           ? `${hens.toLocaleString(locale)} ${copy.fieldLabels.hens} + ${roosters.toLocaleString(locale)} ${copy.fieldLabels.roosters}`
           : `${hens.toLocaleString(locale)} ${copy.fieldLabels.hens}`;
 
+      const additions = ((detail.chicken_order_additions as Array<Record<string, unknown>> | undefined) ||
+        (detail.additions as Array<Record<string, unknown>> | undefined) ||
+        []) as Array<Record<string, unknown>>;
+
+      const additionsSubtotal = additions.reduce((sum, addition) => sum + getChickenAdditionSubtotal(addition), 0);
+      const baseSubtotal = getChickenBaseSubtotal({
+        baseHens,
+        baseRoosters,
+        pricePerHen: toNumber(detail.price_per_hen_nok),
+        pricePerRooster: toNumber(detail.price_per_rooster_nok),
+        totalAmount: toNumber(order.total_amount),
+        deliveryFee: toNumber(detail.delivery_fee_nok),
+        additionsSubtotal,
+      });
+
       lines.push({
         key: `${key}:base`,
         label: baseBreed,
         quantity: formatBirds(baseHens, baseRoosters),
-        amount: toNumber(detail.subtotal_nok) > 0 ? `${currency} ${toNumber(detail.subtotal_nok).toLocaleString(locale)}` : null,
+        amount: baseSubtotal > 0 ? `${currency} ${baseSubtotal.toLocaleString(locale)}` : null,
       });
-
-      const additions = ((detail.chicken_order_additions as Array<Record<string, unknown>> | undefined) ||
-        (detail.additions as Array<Record<string, unknown>> | undefined) ||
-        []) as Array<Record<string, unknown>>;
 
       additions.forEach((addition, index) => {
         const additionBreed = String(
@@ -708,14 +750,12 @@ export function CustomerDatabase() {
         );
         const hens = toNumber(addition.quantity_hens);
         const roosters = toNumber(addition.quantity_roosters);
+        const additionSubtotal = getChickenAdditionSubtotal(addition);
         lines.push({
           key: `${key}:addition:${index}`,
           label: additionBreed,
           quantity: formatBirds(hens, roosters),
-          amount:
-            toNumber(addition.subtotal_nok) > 0
-              ? `${currency} ${toNumber(addition.subtotal_nok).toLocaleString(locale)}`
-              : null,
+          amount: additionSubtotal > 0 ? `${currency} ${additionSubtotal.toLocaleString(locale)}` : null,
         });
       });
 

@@ -3,8 +3,8 @@ import { dispatchEmail } from '@/lib/email/dispatch';
 import { renderManagedTemplate } from '@/lib/email/render';
 
 type ChickenBreedRelation =
-  | { name_no?: string | null; name_en?: string | null }
-  | Array<{ name_no?: string | null; name_en?: string | null }>
+  | { name?: string | null; name_no?: string | null; name_en?: string | null }
+  | Array<{ name?: string | null; name_no?: string | null; name_en?: string | null }>
   | null;
 
 type ChickenAdditionRelation = {
@@ -30,7 +30,7 @@ function getChickenDeliveryLabel(deliveryMethod: string): string {
 
 function pickBreedName(relation: ChickenBreedRelation): string {
   const breed = Array.isArray(relation) ? relation[0] : relation;
-  return breed?.name_no || breed?.name_en || 'Kyllinger';
+  return breed?.name_no || breed?.name_en || breed?.name || 'Kyllinger';
 }
 
 function summarizeOrder(order: any): { breedLabel: string; hens: number; roosters: number } {
@@ -70,18 +70,45 @@ export async function sendChickenDepositConfirmationEmails(params: {
     process.env.APP_BASE_URL ||
     'https://tinglumgard.no';
 
-  const { data: order, error } = await supabaseAdmin
+  const selectClause =
+    '*, chicken_breeds(*), chicken_order_additions(quantity_hens, quantity_roosters, chicken_breeds(*))';
+
+  const { data: byId, error: byIdError } = await supabaseAdmin
     .from('chicken_orders')
-    .select(
-      '*, chicken_breeds(name_no, name_en), chicken_order_additions(quantity_hens, quantity_roosters, chicken_breeds(name_no, name_en))'
-    )
-    .eq('id', params.orderId)
+    .select(selectClause)
+    .eq('id', String(params.orderId).trim())
     .maybeSingle();
 
-  if (error || !order) {
+  let order = byId;
+  let queryError = byIdError;
+
+  if (!order && !queryError) {
+    const { data: byOrderNumber, error: byOrderNumberError } = await supabaseAdmin
+      .from('chicken_orders')
+      .select(selectClause)
+      .eq('order_number', String(params.orderId).trim())
+      .maybeSingle();
+    order = byOrderNumber;
+    queryError = byOrderNumberError;
+  }
+
+  if (queryError) {
+    return {
+      ok: false as const,
+      reason: 'order_query_failed' as const,
+      errorMessage: String(queryError?.message || 'Unknown query error'),
+      customerSent: false,
+      adminSent: false,
+      customerReason: null,
+      adminReason: null,
+    };
+  }
+
+  if (!order) {
     return {
       ok: false as const,
       reason: 'order_not_found' as const,
+      errorMessage: null,
       customerSent: false,
       adminSent: false,
       customerReason: null,

@@ -20,6 +20,31 @@ function toNumber(value: unknown): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+function toFinite(value: unknown): number {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function normalizeChickenOrderFinancials<T extends Record<string, any>>(order: T): T {
+  const additionsSubtotal = ((order.chicken_order_additions as Array<any> | undefined) || []).reduce(
+    (sum, row) => sum + toFinite(row?.subtotal_nok),
+    0
+  );
+  const baseByPricing =
+    toFinite(order.quantity_hens) * toFinite(order.price_per_hen_nok) +
+    toFinite(order.quantity_roosters) * toFinite(order.price_per_rooster_nok);
+  const deliveryFee = toFinite(order.delivery_fee_nok);
+  const totalAmount = toFinite(order.total_amount_nok);
+  const expectedBaseFromTotal = Math.max(0, totalAmount - deliveryFee - additionsSubtotal);
+  const shouldReconcile =
+    totalAmount > 0 && Math.abs(baseByPricing + additionsSubtotal + deliveryFee - totalAmount) > 1;
+
+  return {
+    ...order,
+    subtotal_nok: shouldReconcile ? expectedBaseFromTotal : baseByPricing,
+  };
+}
+
 function toNonNegativeNumber(value: unknown): number | null {
   const parsed = toNumber(value);
   if (parsed === null || parsed < 0) return null;
@@ -56,7 +81,7 @@ export async function GET(_request: NextRequest, { params }: { params: { id: str
       return NextResponse.json({ error: 'Order not found' }, { status: 404 });
     }
 
-    return NextResponse.json(data);
+    return NextResponse.json(normalizeChickenOrderFinancials(data));
   } catch (error) {
     logError('admin-chicken-order-get-unexpected', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
@@ -226,7 +251,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     }
 
     if (Object.keys(updates).length === 0) {
-      return NextResponse.json(existingOrder);
+      return NextResponse.json(normalizeChickenOrderFinancials(existingOrder));
     }
 
     const { error: updateError } = await supabaseAdmin
@@ -244,7 +269,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       return NextResponse.json({ error: 'Order updated but could not be reloaded' }, { status: 500 });
     }
 
-    return NextResponse.json(updatedOrder);
+    return NextResponse.json(normalizeChickenOrderFinancials(updatedOrder));
   } catch (error) {
     logError('admin-chicken-order-update-unexpected', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

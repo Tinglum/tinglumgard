@@ -23,6 +23,12 @@ export async function POST(
   });
 
   if (!result.ok) {
+    if (result.reason === 'order_query_failed') {
+      return NextResponse.json(
+        { error: 'Could not load order for resend', details: result.errorMessage || null },
+        { status: 500 }
+      );
+    }
     return NextResponse.json({ error: 'Order not found' }, { status: 404 });
   }
 

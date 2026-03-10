@@ -21,10 +21,12 @@ interface ChickenOrderAddition {
   id: string
   quantity_hens: number
   quantity_roosters: number
+  price_per_hen_nok?: number
+  price_per_rooster_nok?: number
   subtotal_nok: number
   status: string
   created_at: string
-  chicken_breeds?: { name: string; slug: string; accent_color: string }
+  chicken_breeds?: { name: string; slug: string; accent_color: string; rooster_price_nok?: number }
 }
 
 interface ChickenOrder {
@@ -150,6 +152,17 @@ export function ChickenOrdersManager() {
     [co.notAvailable, locale]
   )
 
+  const getAdditionSubtotal = useCallback((addition: ChickenOrderAddition) => {
+    const hens = Number(addition.quantity_hens || 0)
+    const roosters = Number(addition.quantity_roosters || 0)
+    const pricePerHen = Number(addition.price_per_hen_nok || 0)
+    const pricePerRooster =
+      Number(addition.price_per_rooster_nok || 0) || Number(addition.chicken_breeds?.rooster_price_nok || 0)
+    const computed = hens * pricePerHen + roosters * pricePerRooster
+    if (computed > 0) return computed
+    return Number(addition.subtotal_nok || 0)
+  }, [])
+
   const getOrderBirdTotals = useCallback((order: ChickenOrder) => {
     const additionsHens = (order.chicken_order_additions || []).reduce(
       (sum, row) => sum + Number(row.quantity_hens || 0),
@@ -175,19 +188,26 @@ export function ChickenOrdersManager() {
 
   const getOrderFinancialTotals = useCallback((order: ChickenOrder) => {
     const additionsSubtotal = (order.chicken_order_additions || []).reduce(
-      (sum, row) => sum + Number(row.subtotal_nok || 0),
+      (sum, row) => sum + getAdditionSubtotal(row),
       0
     )
-    const baseSubtotal = Number(order.subtotal_nok || 0)
+    const baseSubtotalByPricing =
+      Number(order.quantity_hens || 0) * Number(order.price_per_hen_nok || 0) +
+      Number(order.quantity_roosters || 0) * Number(order.price_per_rooster_nok || 0)
     const deliveryFee = Number(order.delivery_fee_nok || 0)
     const grandTotal = Number(order.total_amount_nok || 0)
+    const reconciledBaseFromTotal = Math.max(0, grandTotal - deliveryFee - additionsSubtotal)
+    const shouldReconcileBase =
+      grandTotal > 0 &&
+      Math.abs(baseSubtotalByPricing + additionsSubtotal + deliveryFee - grandTotal) > 1
+    const baseSubtotal = shouldReconcileBase ? reconciledBaseFromTotal : baseSubtotalByPricing
     const paidTotal = (order.chicken_payments || []).reduce((sum, payment) => {
       if (payment.status !== 'completed') return sum
       return sum + Number(payment.amount_nok || 0)
     }, 0)
     const remaining = Math.max(0, grandTotal - paidTotal)
     return { baseSubtotal, additionsSubtotal, deliveryFee, grandTotal, paidTotal, remaining }
-  }, [])
+  }, [getAdditionSubtotal])
 
   const fetchOrders = useCallback(async () => {
     setLoading(true)
@@ -286,7 +306,10 @@ export function ChickenOrdersManager() {
         body: JSON.stringify({ includeAdmin: true }),
       })
       const body = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(body?.error || 'Failed to resend confirmation')
+      if (!res.ok) {
+        const details = typeof body?.details === 'string' && body.details.trim() ? `: ${body.details}` : ''
+        throw new Error(`${body?.error || 'Failed to resend confirmation'}${details}`)
+      }
       toast({
         title:
           co.resendSuccessTitle ||
@@ -594,6 +617,9 @@ export function ChickenOrdersManager() {
               </div>
 
               <CardSection title={co.detailAdditionsTitle}>
+                {(() => {
+                  const financial = getOrderFinancialTotals(selectedOrder)
+                  return (
                 <div className="rounded-lg border border-neutral-200 bg-white p-3">
                   <h5 className="mb-2 text-sm font-semibold text-neutral-900">
                     {co.detailOrderLinesTitle || (lang === 'en' ? 'Order lines' : 'Ordrelinjer')}
@@ -605,7 +631,7 @@ export function ChickenOrdersManager() {
                         label={co.labelAdditionQuantity}
                         value={`${co.labelHens}: ${selectedOrder.quantity_hens}, ${co.labelRoosters}: ${selectedOrder.quantity_roosters}`}
                       />
-                      <DetailRow label={co.labelAdditionSubtotal} value={formatMoney(selectedOrder.subtotal_nok)} />
+                      <DetailRow label={co.labelAdditionSubtotal} value={formatMoney(financial.baseSubtotal)} />
                     </div>
                     {(selectedOrder.chicken_order_additions || []).map((addition) => (
                       <div key={addition.id} className="rounded border border-neutral-200 bg-neutral-50 p-3 text-sm">
@@ -614,11 +640,13 @@ export function ChickenOrdersManager() {
                           label={co.labelAdditionQuantity}
                           value={`${co.labelHens}: ${addition.quantity_hens}, ${co.labelRoosters}: ${addition.quantity_roosters}`}
                         />
-                        <DetailRow label={co.labelAdditionSubtotal} value={formatMoney(addition.subtotal_nok)} />
+                        <DetailRow label={co.labelAdditionSubtotal} value={formatMoney(getAdditionSubtotal(addition))} />
                       </div>
                     ))}
                   </div>
                 </div>
+                  )
+                })()}
 
                 {(selectedOrder.chicken_order_additions || []).length === 0 && (
                   <p className="text-sm text-gray-500">{co.detailNoAdditions}</p>
