@@ -1,9 +1,9 @@
-const STATIC_CACHE = 'eggops-static-v1';
+const STATIC_CACHE = 'eggops-static-v2';
 const API_CACHE = 'eggops-api-v1';
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(STATIC_CACHE).then((cache) => cache.addAll(['/drift/egg-ops']))
+    caches.open(STATIC_CACHE).then((cache) => cache.addAll(['/egg']))
   );
   self.skipWaiting();
 });
@@ -40,7 +40,11 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  if (url.pathname.startsWith('/drift/egg-ops')) {
+  if (
+    url.pathname === '/egg' ||
+    url.pathname.startsWith('/egg/') ||
+    url.pathname.startsWith('/drift/egg-ops')
+  ) {
     event.respondWith(
       caches.match(request).then((cached) => {
         const networkFetch = fetch(request)

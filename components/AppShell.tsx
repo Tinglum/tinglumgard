@@ -9,7 +9,8 @@ import { Toaster } from '@/components/ui/toaster'
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname() || ''
-  const isEggOpsApp = pathname.startsWith('/drift/egg-ops')
+  const isEggOpsApp =
+    pathname === '/egg' || pathname.startsWith('/egg/') || pathname.startsWith('/drift/egg-ops')
 
   if (isEggOpsApp) {
     return (

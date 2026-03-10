@@ -36,7 +36,12 @@ function ipMatches(rule: string, ip: string): boolean {
 }
 
 function isEggOpsPath(pathname: string): boolean {
-  return pathname.startsWith('/drift/egg-ops') || pathname.startsWith('/api/admin/eggs')
+  return (
+    pathname === '/egg' ||
+    pathname.startsWith('/egg/') ||
+    pathname.startsWith('/drift/egg-ops') ||
+    pathname.startsWith('/api/admin/eggs')
+  )
 }
 
 export function middleware(request: NextRequest) {
@@ -62,7 +67,7 @@ export function middleware(request: NextRequest) {
 
   if (eggOpsHost && request.nextUrl.pathname === '/') {
     const url = request.nextUrl.clone()
-    url.pathname = '/drift/egg-ops'
+    url.pathname = '/egg'
     return NextResponse.rewrite(url)
   }
 
