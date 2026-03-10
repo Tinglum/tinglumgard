@@ -285,11 +285,27 @@ export function ChickenOrdersManager() {
             {filtered.map((order) => {
               const transitions = STATUS_TRANSITIONS[order.status] || []
               return (
-                <tr key={order.id} className="border-b last:border-0 hover:bg-gray-50">
+                <tr
+                  key={order.id}
+                  className="border-b last:border-0 hover:bg-gray-50 cursor-pointer focus:outline-none focus:ring-2 focus:ring-neutral-300"
+                  role="button"
+                  tabIndex={0}
+                  aria-label={co.detailTitle.replace('{order}', order.order_number)}
+                  onClick={() => void openOrderDetails(order.id)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault()
+                      void openOrderDetails(order.id)
+                    }
+                  }}
+                >
                   <td className="py-2 pr-3">
                     <button
                       type="button"
-                      onClick={() => void openOrderDetails(order.id)}
+                      onClick={(event) => {
+                        event.stopPropagation()
+                        void openOrderDetails(order.id)
+                      }}
                       className="font-mono text-xs text-left underline-offset-2 hover:underline"
                     >
                       {order.order_number}
@@ -318,7 +334,7 @@ export function ChickenOrdersManager() {
                       {statusLabelMap[order.status] || order.status}
                     </span>
                   </td>
-                  <td className="py-2">
+                  <td className="py-2" onClick={(event) => event.stopPropagation()}>
                     <div className="flex items-center gap-2">
                       <Button size="sm" variant="ghost" onClick={() => void openOrderDetails(order.id)}>
                         {co.viewDetailsButton}
