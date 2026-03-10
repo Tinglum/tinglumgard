@@ -554,8 +554,6 @@ export async function setEggOpsDayStatus(params: {
   const payload: Record<string, unknown> = {
     collection_date: params.collectionDate,
     status: params.status,
-    duck_eggs: numberOrZero(existing.duck_eggs),
-    other_eggs: numberOrZero(existing.other_eggs),
   }
 
   if (params.status === 'closed') {
@@ -573,22 +571,38 @@ export async function setEggOpsDayStatus(params: {
     payload.reopen_reason = null
   }
 
-  const { data, error } = await supabaseAdmin
+  const payloadWithMisc: Record<string, unknown> = {
+    ...payload,
+    duck_eggs: numberOrZero(existing.duck_eggs),
+    other_eggs: numberOrZero(existing.other_eggs),
+  }
+
+  const withMiscResult = await supabaseAdmin
+    .from('egg_ops_day_states')
+    .upsert(payloadWithMisc, { onConflict: 'collection_date' })
+    .select('*')
+    .single()
+
+  if (!withMiscResult.error && withMiscResult.data) {
+    return normalizeDayState(params.collectionDate, withMiscResult.data as Record<string, unknown>)
+  }
+
+  if (!isMissingColumnError(withMiscResult.error)) {
+    throw withMiscResult.error
+  }
+
+  // Backward-compatible fallback when schema cache does not include duck_eggs/other_eggs yet.
+  const fallbackResult = await supabaseAdmin
     .from('egg_ops_day_states')
     .upsert(payload, { onConflict: 'collection_date' })
     .select('*')
     .single()
 
-  if (error || !data) {
-    if (isMissingColumnError(error)) {
-      throw new EggCollectionError(
-        'Missing day-state columns. Run migration 20260310130000_add_egg_ops_misc_categories.sql',
-        500
-      )
-    }
-    throw error
+  if (fallbackResult.error || !fallbackResult.data) {
+    throw fallbackResult.error
   }
-  return normalizeDayState(params.collectionDate, data as Record<string, unknown>)
+
+  return normalizeDayState(params.collectionDate, fallbackResult.data as Record<string, unknown>)
 }
 
 export async function upsertEggOpsDayMiscCounts(params: {
@@ -625,7 +639,7 @@ export async function upsertEggOpsDayMiscCounts(params: {
   if (error || !data) {
     if (isMissingRelationError(error) || isMissingColumnError(error)) {
       throw new EggCollectionError(
-        'Missing day-state columns. Run migration 20260310130000_add_egg_ops_misc_categories.sql',
+        "Missing day-state columns or stale schema cache. Run migration 20260310130000_add_egg_ops_misc_categories.sql and then NOTIFY pgrst, 'reload schema';",
         500
       )
     }

@@ -283,6 +283,11 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
             easyMode: 'Easy huge input',
             detailedMode: 'Detailed mode',
             easyModeHint: 'Large controls only. No forecast/reporting panels.',
+            easyPickBreed: 'Tap a breed to enter eggs',
+            easySaveBack: 'Save and back',
+            easyFinish: 'Complete day',
+            easyCompleteTitle: 'Complete day',
+            close: 'Close',
             selectAll: 'Select all',
             clearSelection: 'Clear',
             selectedRows: 'selected',
@@ -390,6 +395,11 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
             easyMode: 'Enkel stor input',
             detailedMode: 'Detaljmodus',
             easyModeHint: 'Kun store kontroller. Skjuler prognose og rapportering.',
+            easyPickBreed: 'Trykk en rase for å legge inn egg',
+            easySaveBack: 'Lagre og tilbake',
+            easyFinish: 'Fullfør dag',
+            easyCompleteTitle: 'Fullfør dag',
+            close: 'Lukk',
             selectAll: 'Velg alle',
             clearSelection: 'Fjern',
             selectedRows: 'valgt',
@@ -444,7 +454,9 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
   const [selectedBreedId, setSelectedBreedId] = useState<string | null>(null)
   const [selectedBreedIds, setSelectedBreedIds] = useState<string[]>([])
   const [alertsOpen, setAlertsOpen] = useState(false)
-  const [easyInputMode, setEasyInputMode] = useState(true)
+  const [easyInputMode, setEasyInputMode] = useState(false)
+  const [easyModalBreedId, setEasyModalBreedId] = useState<string | null>(null)
+  const [easyCompleteOpen, setEasyCompleteOpen] = useState(false)
   const [fastEntryMode, setFastEntryMode] = useState(false)
   const [activeFastField, setActiveFastField] = useState<keyof DailyRow | null>(null)
   const [bulkMode, setBulkMode] = useState(false)
@@ -522,9 +534,21 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
     setSelectedBreedIds((prev) => prev.filter((id) => valid.has(id)))
   }, [rows])
 
+  useEffect(() => {
+    if (!easyInputMode) {
+      setEasyModalBreedId(null)
+      setEasyCompleteOpen(false)
+    }
+  }, [easyInputMode])
+
   const selectedRow = useMemo(
     () => rows.find((row) => row.breed_id === selectedBreedId) || null,
     [rows, selectedBreedId]
+  )
+
+  const easyModalRow = useMemo(
+    () => rows.find((row) => row.breed_id === easyModalBreedId) || null,
+    [rows, easyModalBreedId]
   )
 
   const selectedForecastRows = useMemo(
@@ -778,7 +802,7 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
     }
   }
 
-  async function saveDayMisc() {
+  async function saveDayMisc(): Promise<boolean> {
     const current = normalizeDayState(selectedDate, dayState || null)
     setMiscState({ saving: true, error: null, success: false })
 
@@ -806,11 +830,13 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
       }
       setMiscState({ saving: false, error: null, success: true })
       window.setTimeout(() => setMiscState({ saving: false, error: null, success: false }), 2500)
+      return true
     } catch (error: any) {
       const message = error?.message || copy.failedSave
       setMiscState({ saving: false, error: message, success: false })
       setNonBlockingErrors((prev) => [message, ...prev].slice(0, 6))
       setAlertsOpen(true)
+      return false
     }
   }
 
@@ -936,10 +962,10 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
     setActiveFastField(order[nextIndex])
   }
 
-  async function saveRow(row: DailyRow) {
+  async function saveRow(row: DailyRow): Promise<boolean> {
     if (!rowIsValid(row)) {
       setRowState(row.breed_id, { error: `${copy.mismatchTitle}. ${copy.mismatchBody}`, success: false })
-      return
+      return false
     }
 
     setRowState(row.breed_id, { saving: true, error: null, success: false })
@@ -978,7 +1004,7 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
         })
         setNonBlockingErrors((prev) => [`Saved offline for ${row.breed_name}`, ...prev].slice(0, 6))
         setRowState(row.breed_id, { saving: false, success: true, error: null })
-        return
+        return true
       }
 
       if (!response.ok) {
@@ -1016,11 +1042,30 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
       await Promise.all([loadForecastOnly(), loadAlertsOnly(), loadDashboardOnly(), loadAuditOnly(selectedDate)])
       setRowState(row.breed_id, { saving: false, success: true })
       window.setTimeout(() => setRowState(row.breed_id, { success: false }), 2500)
+      return true
     } catch (error: any) {
       const message = error?.message || copy.failedSave
       setRowState(row.breed_id, { saving: false, success: false, error: message })
       setNonBlockingErrors((prev) => [message, ...prev].slice(0, 6))
       setAlertsOpen(true)
+      return false
+    }
+  }
+
+  async function saveEasyModalRow() {
+    if (!easyModalRow) return
+    const ok = await saveRow(easyModalRow)
+    if (ok) {
+      setEasyModalBreedId(null)
+    }
+  }
+
+  async function completeEasyDay() {
+    const miscOk = await saveDayMisc()
+    if (!miscOk) return
+    const statusOk = await setDayStatus('closed')
+    if (statusOk) {
+      setEasyCompleteOpen(false)
     }
   }
 
@@ -1277,361 +1322,292 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
         </SheetContent>
       </Sheet>
 
-      <Card className="overflow-hidden border-neutral-200 p-0">
-        <div className="bg-gradient-to-br from-amber-100 via-orange-50 to-sky-100 p-5 md:p-6">
-          <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-            <div>
-              <h2 className="text-2xl font-semibold tracking-tight text-neutral-900">{copy.title}</h2>
-              <p className="mt-1 text-sm text-neutral-700">{copy.subtitle}</p>
-            </div>
-            <div className="flex flex-wrap items-end gap-2">
+      {!easyInputMode && (
+        <Card className="overflow-hidden border-neutral-200 p-0">
+          <div className="bg-gradient-to-br from-amber-100 via-orange-50 to-sky-100 p-5 md:p-6">
+            <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
               <div>
-                <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-neutral-600">{copy.language}</label>
-                <div className="inline-flex h-10 items-center rounded-lg border border-neutral-300 bg-white p-1">
-                  <button
-                    type="button"
-                    onClick={() => setLang('no')}
-                    className={cn(
-                      'rounded px-3 py-1.5 text-xs font-semibold transition',
-                      lang === 'no' ? 'bg-neutral-900 text-white' : 'text-neutral-700 hover:text-neutral-900'
-                    )}
-                    aria-label="Switch language to Norwegian"
-                  >
-                    {copy.langNo}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setLang('en')}
-                    className={cn(
-                      'rounded px-3 py-1.5 text-xs font-semibold transition',
-                      lang === 'en' ? 'bg-neutral-900 text-white' : 'text-neutral-700 hover:text-neutral-900'
-                    )}
-                    aria-label="Switch language to English"
-                  >
-                    {copy.langEn}
-                  </button>
+                <h2 className="text-2xl font-semibold tracking-tight text-neutral-900">{copy.title}</h2>
+                <p className="mt-1 text-sm text-neutral-700">{copy.subtitle}</p>
+              </div>
+              <div className="flex flex-wrap items-end gap-2">
+                <div>
+                  <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-neutral-600">{copy.language}</label>
+                  <div className="inline-flex h-10 items-center rounded-lg border border-neutral-300 bg-white p-1">
+                    <button
+                      type="button"
+                      onClick={() => setLang('no')}
+                      className={cn(
+                        'rounded px-3 py-1.5 text-xs font-semibold transition',
+                        lang === 'no' ? 'bg-neutral-900 text-white' : 'text-neutral-700 hover:text-neutral-900'
+                      )}
+                      aria-label="Switch language to Norwegian"
+                    >
+                      {copy.langNo}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setLang('en')}
+                      className={cn(
+                        'rounded px-3 py-1.5 text-xs font-semibold transition',
+                        lang === 'en' ? 'bg-neutral-900 text-white' : 'text-neutral-700 hover:text-neutral-900'
+                      )}
+                      aria-label="Switch language to English"
+                    >
+                      {copy.langEn}
+                    </button>
+                  </div>
                 </div>
+                <div>
+                  <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-neutral-600">{copy.date}</label>
+                  <Input
+                    type="date"
+                    value={selectedDate}
+                    onChange={(e) => setSelectedDate(e.target.value)}
+                    className="w-[170px] border-neutral-300 bg-white"
+                  />
+                </div>
+                <Button variant="outline" onClick={() => loadAll(selectedDate)} className="gap-2 border-neutral-300 bg-white">
+                  <RefreshCw className="h-4 w-4" />
+                  {copy.reload}
+                </Button>
+                <Button onClick={recomputeAll} disabled={recomputing} className="gap-2 bg-neutral-900 text-white hover:bg-neutral-800">
+                  <RefreshCw className={cn('h-4 w-4', recomputing && 'animate-spin')} />
+                  {copy.recalc}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setEasyInputMode(true)}
+                  className="gap-2 border-neutral-300 bg-white"
+                >
+                  {copy.easyMode}
+                </Button>
               </div>
-              <div>
-                <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-neutral-600">{copy.date}</label>
-                <Input
-                  type="date"
-                  value={selectedDate}
-                  onChange={(e) => setSelectedDate(e.target.value)}
-                  className="w-[170px] border-neutral-300 bg-white"
-                />
-              </div>
-              <Button variant="outline" onClick={() => loadAll(selectedDate)} className="gap-2 border-neutral-300 bg-white">
-                <RefreshCw className="h-4 w-4" />
-                {copy.reload}
-              </Button>
-              <Button onClick={recomputeAll} disabled={recomputing} className="gap-2 bg-neutral-900 text-white hover:bg-neutral-800">
-                <RefreshCw className={cn('h-4 w-4', recomputing && 'animate-spin')} />
-                {copy.recalc}
-              </Button>
-              <Button
-                variant={easyInputMode ? 'default' : 'outline'}
-                onClick={() => setEasyInputMode((prev) => !prev)}
-                className={cn(
-                  'gap-2',
-                  easyInputMode ? 'bg-amber-600 text-white hover:bg-amber-500' : 'border-neutral-300 bg-white'
-                )}
-              >
-                {easyInputMode ? copy.detailedMode : copy.easyMode}
-              </Button>
             </div>
           </div>
-        </div>
-      </Card>
+        </Card>
+      )}
 
       {easyInputMode ? (
-        <Card className="border-amber-200 bg-gradient-to-br from-amber-50 via-orange-50 to-sky-50 p-4 md:p-5">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <div className="flex flex-wrap items-center gap-2">
-                <span className={cn('rounded-full border px-2.5 py-1 text-xs font-semibold', dayStatusClass(dayState?.status))}>
-                  {dayState?.status === 'closed'
-                    ? copy.dayClosed
-                    : dayState?.status === 'in_progress'
-                      ? copy.dayInProgress
-                      : copy.dayOpen}
-                </span>
-                <p className="text-sm font-medium text-neutral-800">{copy.easyMode}</p>
+        <>
+          <Card className="border-amber-200 bg-gradient-to-br from-amber-50 via-orange-50 to-sky-50 p-2">
+            <div className="flex items-center justify-between gap-2">
+              <div className="inline-flex items-center rounded-lg border border-neutral-300 bg-white p-1">
+                <button
+                  type="button"
+                  onClick={() => setLang('no')}
+                  className={cn(
+                    'rounded px-2.5 py-1 text-xs font-semibold transition',
+                    lang === 'no' ? 'bg-neutral-900 text-white' : 'text-neutral-700'
+                  )}
+                >
+                  {copy.langNo}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setLang('en')}
+                  className={cn(
+                    'rounded px-2.5 py-1 text-xs font-semibold transition',
+                    lang === 'en' ? 'bg-neutral-900 text-white' : 'text-neutral-700'
+                  )}
+                >
+                  {copy.langEn}
+                </button>
               </div>
-              <p className="mt-1 text-sm text-neutral-600">{copy.easyModeHint}</p>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <Button size="sm" variant="outline" className="border-neutral-300 bg-white" onClick={copyFromYesterday}>
-                {copy.copyYesterday}
-              </Button>
-              <Button size="sm" variant="outline" className="border-neutral-300 bg-white" onClick={() => setDayStatus('in_progress')}>
-                {copy.setInProgress}
-              </Button>
-              <Button size="sm" variant="outline" className="border-neutral-300 bg-white" onClick={() => setDayStatus('closed')}>
-                {copy.closeDay}
-              </Button>
-              <Button size="sm" variant="outline" className="border-neutral-300 bg-white" onClick={() => setDayStatus('open', dayReason)}>
-                {copy.reopenDay}
-              </Button>
-            </div>
-          </div>
-          <Input
-            placeholder={copy.reopenReason}
-            value={dayReason}
-            onChange={(event) => setDayReason(event.target.value)}
-            className="mt-3 h-11 border-neutral-300 bg-white"
-          />
-
-          {(offlineQueue.length > 0 || syncingOffline) && (
-            <div className="mt-3 flex items-center justify-between rounded-lg border border-amber-200 bg-amber-100 px-3 py-2 text-sm text-amber-900">
-              <span>
-                {copy.offlineQueued}: {offlineQueue.length}
+              <span className={cn('rounded-full border px-2 py-1 text-[11px] font-semibold', dayStatusClass(dayState?.status))}>
+                {dayState?.status === 'closed'
+                  ? copy.dayClosed
+                  : dayState?.status === 'in_progress'
+                    ? copy.dayInProgress
+                    : copy.dayOpen}
               </span>
-              <Button
-                size="sm"
-                variant="outline"
-                className="h-7 border-amber-300 bg-white text-xs"
-                onClick={flushOfflineQueue}
-                disabled={syncingOffline}
-              >
-                {syncingOffline ? '...' : copy.syncNow}
+              <Button size="sm" variant="outline" className="h-8 border-neutral-300 bg-white px-2 text-xs" onClick={() => setEasyInputMode(false)}>
+                {copy.detailedMode}
               </Button>
+            </div>
+            <p className="mt-1 text-xs font-medium text-neutral-700">{copy.easyPickBreed}</p>
+            {(offlineQueue.length > 0 || syncingOffline) && (
+              <div className="mt-1 flex items-center justify-between rounded-lg border border-amber-200 bg-amber-100 px-2 py-1.5 text-xs text-amber-900">
+                <span>
+                  {copy.offlineQueued}: {offlineQueue.length}
+                </span>
+                <Button size="sm" variant="outline" className="h-7 border-amber-300 bg-white text-xs" onClick={flushOfflineQueue} disabled={syncingOffline}>
+                  {syncingOffline ? '...' : copy.syncNow}
+                </Button>
+              </div>
+            )}
+          </Card>
+
+          <Card className="border-neutral-200 p-3">
+            {rows.length === 0 ? (
+              <p className="text-sm text-neutral-500">{copy.noBreed}</p>
+            ) : (
+              <div className="grid h-[calc(100dvh-250px)] auto-rows-fr gap-2">
+                {rows.map((row) => {
+                  const state = rowStates[row.breed_id] || DEFAULT_SAVE_STATE
+                  const valid = rowIsValid(row)
+                  return (
+                    <button
+                      key={row.breed_id}
+                      type="button"
+                      onClick={() => {
+                        setSelectedBreedId(row.breed_id)
+                        setEasyModalBreedId(row.breed_id)
+                      }}
+                      className="flex h-16 items-center justify-between rounded-xl border border-neutral-300 bg-white px-4 text-left"
+                    >
+                      <span className="truncate text-lg font-semibold text-neutral-900">{row.breed_name}</span>
+                      <span className={cn('text-lg font-bold', valid ? 'text-green-700' : 'text-amber-700')}>
+                        {state.success || (valid && row.updated_at) ? '✓' : '○'}
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+          </Card>
+
+          <div className="sticky bottom-3 z-20">
+            <Button
+              size="lg"
+              className="h-14 w-full gap-2 bg-emerald-700 text-lg font-semibold text-white hover:bg-emerald-600"
+              onClick={() => setEasyCompleteOpen(true)}
+            >
+              <CheckCircle2 className="h-6 w-6" />
+              {copy.easyFinish}
+            </Button>
+          </div>
+
+          {easyModalRow && (
+            <div className="fixed inset-0 z-50 bg-black/50 p-2">
+              <div className="mx-auto grid h-[calc(100dvh-1rem)] w-full max-w-md grid-rows-[auto_1fr_auto] overflow-hidden rounded-2xl border border-neutral-300 bg-white shadow-2xl">
+                <div className="flex items-center justify-between border-b border-neutral-200 px-3 py-2">
+                  <h3 className="text-lg font-semibold text-neutral-900">{easyModalRow.breed_name}</h3>
+                  <Button size="sm" variant="outline" className="border-neutral-300 bg-white" onClick={() => setEasyModalBreedId(null)}>
+                    {copy.close}
+                  </Button>
+                </div>
+
+                <div className="grid gap-2 p-2 [grid-template-columns:repeat(2,minmax(0,1fr))]">
+                  <PhoneEggStepperField
+                    label={copy.totalEggs}
+                    value={easyModalRow.total_collected}
+                    onIncrement={() => stepField(easyModalRow.breed_id, 'total_collected', 1)}
+                    onDecrement={() => stepField(easyModalRow.breed_id, 'total_collected', -1)}
+                    onChange={(value) => updateRowField(easyModalRow.breed_id, 'total_collected', value)}
+                  />
+                  <PhoneEggStepperField
+                    label={copy.keepEggs}
+                    value={easyModalRow.sellable_standard}
+                    onIncrement={() => stepField(easyModalRow.breed_id, 'sellable_standard', 1)}
+                    onDecrement={() => stepField(easyModalRow.breed_id, 'sellable_standard', -1)}
+                    onChange={(value) => updateRowField(easyModalRow.breed_id, 'sellable_standard', value)}
+                  />
+                  <PhoneEggStepperField
+                    label={copy.tooSmall}
+                    value={easyModalRow.too_small}
+                    onIncrement={() => stepField(easyModalRow.breed_id, 'too_small', 1)}
+                    onDecrement={() => stepField(easyModalRow.breed_id, 'too_small', -1)}
+                    onChange={(value) => updateRowField(easyModalRow.breed_id, 'too_small', value)}
+                  />
+                  <PhoneEggStepperField
+                    label={copy.dirty}
+                    value={easyModalRow.dirty}
+                    onIncrement={() => stepField(easyModalRow.breed_id, 'dirty', 1)}
+                    onDecrement={() => stepField(easyModalRow.breed_id, 'dirty', -1)}
+                    onChange={(value) => updateRowField(easyModalRow.breed_id, 'dirty', value)}
+                  />
+                  <PhoneEggStepperField
+                    label={copy.cracked}
+                    value={easyModalRow.cracked}
+                    onIncrement={() => stepField(easyModalRow.breed_id, 'cracked', 1)}
+                    onDecrement={() => stepField(easyModalRow.breed_id, 'cracked', -1)}
+                    onChange={(value) => updateRowField(easyModalRow.breed_id, 'cracked', value)}
+                  />
+                  <PhoneEggStepperField
+                    label={copy.shellDefect}
+                    value={easyModalRow.shell_defect}
+                    onIncrement={() => stepField(easyModalRow.breed_id, 'shell_defect', 1)}
+                    onDecrement={() => stepField(easyModalRow.breed_id, 'shell_defect', -1)}
+                    onChange={(value) => updateRowField(easyModalRow.breed_id, 'shell_defect', value)}
+                  />
+                  <PhoneEggStepperField
+                    label={copy.other}
+                    value={easyModalRow.other_unsellable}
+                    onIncrement={() => stepField(easyModalRow.breed_id, 'other_unsellable', 1)}
+                    onDecrement={() => stepField(easyModalRow.breed_id, 'other_unsellable', -1)}
+                    onChange={(value) => updateRowField(easyModalRow.breed_id, 'other_unsellable', value)}
+                  />
+                </div>
+
+                <div className="border-t border-neutral-200 p-2">
+                  <div className="mb-2 flex items-center justify-between text-sm">
+                    <span className="text-neutral-600">
+                      {rowBreakdownTotal(easyModalRow)} / {easyModalRow.total_collected}
+                    </span>
+                    {!rowIsValid(easyModalRow) && <span className="font-semibold text-red-700">{copy.mismatchTitle}</span>}
+                  </div>
+                  <Input
+                    value={rowReason}
+                    onChange={(event) => setRowReason(event.target.value)}
+                    placeholder={copy.reason}
+                    className="mb-2 h-10 border-neutral-300 bg-white text-sm"
+                  />
+                  <Button
+                    size="lg"
+                    className="h-12 w-full gap-2 bg-neutral-900 text-base font-semibold text-white hover:bg-neutral-800"
+                    onClick={saveEasyModalRow}
+                    disabled={!rowIsValid(easyModalRow) || (rowStates[easyModalRow.breed_id]?.saving ?? false) || dayState?.status === 'closed'}
+                  >
+                    <CheckCircle2 className="h-5 w-5" />
+                    {copy.easySaveBack}
+                  </Button>
+                </div>
+              </div>
             </div>
           )}
 
-          <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
-            <Card className="border-neutral-200 p-3 md:p-4">
-              <div className="mb-2">
-                <h3 className="text-sm font-semibold uppercase tracking-wide text-neutral-800">{copy.pickBreed}</h3>
-                <p className="mt-1 text-xs text-neutral-600">{copy.pickBreedHint}</p>
-              </div>
-              {rows.length === 0 ? (
-                <p className="text-sm text-neutral-500">{copy.noBreed}</p>
-              ) : (
-                <div className="grid grid-cols-2 gap-2">
-                  {rows.map((row) => {
-                    const isSelected = row.breed_id === selectedBreedId
-                    const borderColor = withAlpha(row.accent_color, '99') || '#404040'
-                    const backgroundColor = isSelected
-                      ? withAlpha(row.accent_color, '2A') || '#f5f5f5'
-                      : withAlpha(row.accent_color, '0A') || '#ffffff'
-                    return (
-                      <button
-                        key={row.breed_id}
-                        type="button"
-                        onClick={() => setSelectedBreedId(row.breed_id)}
-                        className={cn(
-                          'rounded-xl border px-3 py-4 text-left text-base font-semibold transition-all',
-                          isSelected ? 'ring-2 ring-neutral-800 shadow-md' : 'hover:shadow-sm'
-                        )}
-                        style={{ borderColor, backgroundColor }}
-                      >
-                        <p className="truncate">{row.breed_name}</p>
-                        <p className="mt-1 text-xs font-medium text-neutral-600">
-                          {copy.keepEggs}: {row.sellable_standard}
-                        </p>
-                      </button>
-                    )
-                  })}
+          {easyCompleteOpen && (
+            <div className="fixed inset-0 z-50 bg-black/50 p-2">
+              <div className="mx-auto grid h-[calc(100dvh-1rem)] w-full max-w-md grid-rows-[auto_1fr_auto] overflow-hidden rounded-2xl border border-neutral-300 bg-white shadow-2xl">
+                <div className="flex items-center justify-between border-b border-neutral-200 px-3 py-2">
+                  <h3 className="text-lg font-semibold text-neutral-900">{copy.easyCompleteTitle}</h3>
+                  <Button size="sm" variant="outline" className="border-neutral-300 bg-white" onClick={() => setEasyCompleteOpen(false)}>
+                    {copy.close}
+                  </Button>
                 </div>
-              )}
-
-              <Card className="mt-3 border-amber-200 bg-amber-50 p-3">
-                <h4 className="mb-2 text-sm font-semibold uppercase tracking-wide text-neutral-800">{copy.miscEggs}</h4>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <HugeStepperField
+                <div className="grid gap-2 p-2 [grid-template-columns:repeat(2,minmax(0,1fr))]">
+                  <PhoneEggStepperField
                     label={copy.duckEggs}
                     value={dayState?.duck_eggs || 0}
                     onIncrement={() => stepDayMiscField('duck_eggs', 1)}
                     onDecrement={() => stepDayMiscField('duck_eggs', -1)}
                     onChange={(value) => setDayMiscField('duck_eggs', value)}
-                    colorClass="from-amber-100 to-orange-50"
                   />
-                  <HugeStepperField
+                  <PhoneEggStepperField
                     label={copy.otherEggsExtra}
                     value={dayState?.other_eggs || 0}
                     onIncrement={() => stepDayMiscField('other_eggs', 1)}
                     onDecrement={() => stepDayMiscField('other_eggs', -1)}
                     onChange={(value) => setDayMiscField('other_eggs', value)}
-                    colorClass="from-yellow-100 to-amber-50"
                   />
                 </div>
-                <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="text-sm">
-                    {miscState.success ? (
-                      <span className="inline-flex items-center gap-1.5 font-medium text-green-700">
-                        <CheckCircle2 className="h-4 w-4" />
-                        {copy.saved}
-                      </span>
-                    ) : miscState.error ? (
-                      <span className="font-medium text-red-700">{miscState.error}</span>
-                    ) : (
-                      <span className="text-neutral-600">{copy.saveMisc}</span>
-                    )}
-                  </div>
+                <div className="border-t border-neutral-200 p-2">
+                  {miscState.error && <p className="mb-2 text-sm font-medium text-red-700">{miscState.error}</p>}
                   <Button
                     size="lg"
-                    className="h-12 bg-amber-600 px-6 text-base font-semibold text-white hover:bg-amber-500"
-                    onClick={saveDayMisc}
-                    disabled={miscState.saving || dayState?.status === 'closed'}
+                    className="h-12 w-full gap-2 bg-emerald-700 text-base font-semibold text-white hover:bg-emerald-600"
+                    onClick={completeEasyDay}
+                    disabled={miscState.saving}
                   >
-                    {miscState.saving ? copy.saving : copy.saveMisc}
+                    <CheckCircle2 className="h-5 w-5" />
+                    {copy.easyFinish}
                   </Button>
                 </div>
-              </Card>
-            </Card>
-
-            <Card className="border-neutral-200 p-3 md:p-4">
-              {!selectedRow ? (
-                <p className="text-sm text-neutral-500">{copy.noBreedSelected}</p>
-              ) : (
-                <div className="space-y-3">
-                  <div
-                    className="rounded-xl border p-3"
-                    style={{
-                      backgroundColor: selectedAccentSoft || '#f5f5f5',
-                      borderColor: selectedAccentLine || '#d4d4d4',
-                    }}
-                  >
-                    <div className="flex items-center justify-between gap-3">
-                      <h3 className="text-xl font-semibold text-neutral-900">{selectedRow.breed_name}</h3>
-                      <p className="text-sm font-medium text-neutral-700">
-                        {copy.qualityRate}: {selectedQualityRate}%
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <LargeEggInput
-                      label={copy.totalEggs}
-                      value={selectedRow.total_collected}
-                      onChange={(value) => updateRowField(selectedRow.breed_id, 'total_collected', value)}
-                      colorClass="from-sky-100 to-cyan-50"
-                    />
-                    <LargeEggInput
-                      label={copy.keepEggs}
-                      value={selectedRow.sellable_standard}
-                      onChange={(value) => updateRowField(selectedRow.breed_id, 'sellable_standard', value)}
-                      colorClass="from-emerald-100 to-lime-50"
-                    />
-                  </div>
-
-                  <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                    <HugeStepperField
-                      label={copy.tooSmall}
-                      value={selectedRow.too_small}
-                      onIncrement={() => stepField(selectedRow.breed_id, 'too_small', 1)}
-                      onDecrement={() => stepField(selectedRow.breed_id, 'too_small', -1)}
-                      onChange={(value) => updateRowField(selectedRow.breed_id, 'too_small', value)}
-                      colorClass="from-rose-100 to-red-50"
-                    />
-                    <HugeStepperField
-                      label={copy.dirty}
-                      value={selectedRow.dirty}
-                      onIncrement={() => stepField(selectedRow.breed_id, 'dirty', 1)}
-                      onDecrement={() => stepField(selectedRow.breed_id, 'dirty', -1)}
-                      onChange={(value) => updateRowField(selectedRow.breed_id, 'dirty', value)}
-                      colorClass="from-amber-100 to-orange-50"
-                    />
-                    <HugeStepperField
-                      label={copy.cracked}
-                      value={selectedRow.cracked}
-                      onIncrement={() => stepField(selectedRow.breed_id, 'cracked', 1)}
-                      onDecrement={() => stepField(selectedRow.breed_id, 'cracked', -1)}
-                      onChange={(value) => updateRowField(selectedRow.breed_id, 'cracked', value)}
-                      colorClass="from-violet-100 to-purple-50"
-                    />
-                    <HugeStepperField
-                      label={copy.shellDefect}
-                      value={selectedRow.shell_defect}
-                      onIncrement={() => stepField(selectedRow.breed_id, 'shell_defect', 1)}
-                      onDecrement={() => stepField(selectedRow.breed_id, 'shell_defect', -1)}
-                      onChange={(value) => updateRowField(selectedRow.breed_id, 'shell_defect', value)}
-                      colorClass="from-fuchsia-100 to-pink-50"
-                    />
-                    <HugeStepperField
-                      label={copy.other}
-                      value={selectedRow.other_unsellable}
-                      onIncrement={() => stepField(selectedRow.breed_id, 'other_unsellable', 1)}
-                      onDecrement={() => stepField(selectedRow.breed_id, 'other_unsellable', -1)}
-                      onChange={(value) => updateRowField(selectedRow.breed_id, 'other_unsellable', value)}
-                      colorClass="from-slate-100 to-neutral-50"
-                    />
-                  </div>
-
-                  <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-3">
-                    <div className="flex items-center justify-between gap-2 text-sm">
-                      <span className="text-neutral-600">{copy.classified}</span>
-                      <span className="font-semibold text-neutral-900">{rowRejectedTotal(selectedRow)}</span>
-                    </div>
-                    <div className="mt-1 flex items-center justify-between gap-2 text-sm">
-                      <span className="text-neutral-600">{copy.remaining}</span>
-                      <span
-                        className={cn(
-                          'font-semibold',
-                          rowRemainingRejected(selectedRow) === 0
-                            ? 'text-green-700'
-                            : rowRemainingRejected(selectedRow) > 0
-                              ? 'text-amber-700'
-                              : 'text-red-700'
-                        )}
-                      >
-                        {rowRemainingRejected(selectedRow)}
-                      </span>
-                    </div>
-                    {rowRemainingRejected(selectedRow) !== 0 && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="mt-2 border-neutral-300 bg-white"
-                        onClick={() => autoFillOther(selectedRow)}
-                      >
-                        {copy.autoFillOther}
-                      </Button>
-                    )}
-                  </div>
-
-                  <Input
-                    value={rowReason}
-                    onChange={(event) => setRowReason(event.target.value)}
-                    placeholder={copy.reasonPlaceholder}
-                    className="h-12 border-neutral-300 bg-white text-base"
-                  />
-
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="text-sm">
-                      {selectedState.success ? (
-                        <span className="inline-flex items-center gap-1.5 font-medium text-green-700">
-                          <CheckCircle2 className="h-4 w-4" />
-                          {copy.saved}
-                        </span>
-                      ) : selectedState.error ? (
-                        <span className="font-medium text-red-700">{selectedState.error}</span>
-                      ) : rowIsValid(selectedRow) ? (
-                        <span className="text-neutral-600">
-                          {rowBreakdownTotal(selectedRow)} / {selectedRow.total_collected}
-                        </span>
-                      ) : (
-                        <span className="font-medium text-red-700">
-                          {copy.mismatchTitle}. {copy.mismatchBody}
-                        </span>
-                      )}
-                    </div>
-                    <Button
-                      size="lg"
-                      className="h-14 gap-2 bg-neutral-900 px-8 text-lg font-semibold text-white hover:bg-neutral-800"
-                      onClick={() => saveRow(selectedRow)}
-                      disabled={!rowIsValid(selectedRow) || selectedState.saving || dayState?.status === 'closed'}
-                    >
-                      <Save className="h-5 w-5" />
-                      {selectedState.saving ? copy.saving : copy.save}
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </Card>
-          </div>
-        </Card>
+              </div>
+            </div>
+          )}
+        </>
       ) : (
         <>
       <Card className="border-neutral-200 p-4">
@@ -1866,6 +1842,8 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
                   label={copy.totalEggs}
                   value={selectedRow.total_collected}
                   onChange={(value) => updateRowField(selectedRow.breed_id, 'total_collected', value)}
+                  onIncrement={() => stepField(selectedRow.breed_id, 'total_collected', 1)}
+                  onDecrement={() => stepField(selectedRow.breed_id, 'total_collected', -1)}
                   colorClass="from-sky-100 to-cyan-50"
                   onFocus={() => fastEntryMode && setActiveFastField('total_collected')}
                 />
@@ -1873,6 +1851,8 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
                   label={copy.keepEggs}
                   value={selectedRow.sellable_standard}
                   onChange={(value) => updateRowField(selectedRow.breed_id, 'sellable_standard', value)}
+                  onIncrement={() => stepField(selectedRow.breed_id, 'sellable_standard', 1)}
+                  onDecrement={() => stepField(selectedRow.breed_id, 'sellable_standard', -1)}
                   colorClass="from-emerald-100 to-lime-50"
                   onFocus={() => fastEntryMode && setActiveFastField('sellable_standard')}
                 />
@@ -2267,12 +2247,16 @@ function LargeEggInput({
   label,
   value,
   onChange,
+  onIncrement,
+  onDecrement,
   colorClass,
   onFocus,
 }: {
   label: string
   value: number
   onChange: (value: string) => void
+  onIncrement?: () => void
+  onDecrement?: () => void
   colorClass: string
   onFocus?: () => void
 }) {
@@ -2290,6 +2274,16 @@ function LargeEggInput({
         placeholder="0"
         className="h-20 border-neutral-300 bg-white text-center text-4xl font-semibold tracking-tight md:text-5xl"
       />
+      {onIncrement && onDecrement && (
+        <div className="mt-2 grid grid-cols-2 gap-2">
+          <Button type="button" variant="outline" className="h-10 border-neutral-300 bg-white" onClick={onDecrement}>
+            <Minus className="mr-1 h-4 w-4" />
+          </Button>
+          <Button type="button" variant="outline" className="h-10 border-neutral-300 bg-white" onClick={onIncrement}>
+            <Plus className="mr-1 h-4 w-4" />
+          </Button>
+        </div>
+      )}
     </div>
   )
 }
@@ -2328,6 +2322,42 @@ function StepperField({
           className="h-12 border-neutral-300 text-center text-2xl font-semibold"
         />
         <Button type="button" size="icon" variant="outline" onClick={onIncrement} className="h-10 w-10 border-neutral-300">
+          <Plus className="h-4 w-4" />
+        </Button>
+      </div>
+    </div>
+  )
+}
+
+function PhoneEggStepperField({
+  label,
+  value,
+  onIncrement,
+  onDecrement,
+  onChange,
+}: {
+  label: string
+  value: number
+  onIncrement: () => void
+  onDecrement: () => void
+  onChange: (value: string) => void
+}) {
+  return (
+    <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-2">
+      <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-neutral-700">{label}</label>
+      <div className="grid grid-cols-[40px_minmax(0,1fr)_40px] items-center gap-1.5">
+        <Button type="button" size="icon" variant="outline" onClick={onDecrement} className="h-10 w-10 border-neutral-300 bg-white">
+          <Minus className="h-4 w-4" />
+        </Button>
+        <Input
+          inputMode="numeric"
+          value={inputDisplayValue(value)}
+          onChange={(event) => onChange(event.target.value)}
+          onFocus={(event) => event.currentTarget.select()}
+          placeholder="0"
+          className="h-10 border-neutral-300 bg-white text-center text-xl font-semibold"
+        />
+        <Button type="button" size="icon" variant="outline" onClick={onIncrement} className="h-10 w-10 border-neutral-300 bg-white">
           <Plus className="h-4 w-4" />
         </Button>
       </div>
