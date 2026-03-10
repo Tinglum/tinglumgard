@@ -85,7 +85,15 @@ const STATUS_TRANSITIONS: Record<string, string[]> = {
   cancelled: [],
 }
 
-export function ChickenOrdersManager() {
+type ChickenOrdersManagerProps = {
+  initialOrderId?: string | null
+  onInitialOrderHandled?: () => void
+}
+
+export function ChickenOrdersManager({
+  initialOrderId = null,
+  onInitialOrderHandled,
+}: ChickenOrdersManagerProps = {}) {
   const { toast } = useToast()
   const { t, lang } = useLanguage()
   const co = (t as any).admin.chickenOrders
@@ -97,6 +105,7 @@ export function ChickenOrdersManager() {
   const [detailLoading, setDetailLoading] = useState(false)
   const [selectedOrder, setSelectedOrder] = useState<ChickenOrder | null>(null)
   const [resendingOrderId, setResendingOrderId] = useState<string | null>(null)
+  const [initialOrderHandled, setInitialOrderHandled] = useState(false)
   const locale = lang === 'en' ? 'en-US' : 'nb-NO'
 
   const statusOptions = useMemo(
@@ -227,6 +236,10 @@ export function ChickenOrdersManager() {
     fetchOrders()
   }, [fetchOrders])
 
+  useEffect(() => {
+    setInitialOrderHandled(false)
+  }, [initialOrderId])
+
   const openOrderDetails = useCallback(
     async (orderId: string) => {
       const listOrder = orders.find((entry) => entry.id === orderId) || null
@@ -246,6 +259,14 @@ export function ChickenOrdersManager() {
     },
     [co.errorFetchDetailDescription, co.errorFetchTitle, orders, toast]
   )
+
+  useEffect(() => {
+    if (!initialOrderId || initialOrderHandled || loading) return
+    setInitialOrderHandled(true)
+    void openOrderDetails(initialOrderId).finally(() => {
+      onInitialOrderHandled?.()
+    })
+  }, [initialOrderHandled, initialOrderId, loading, onInitialOrderHandled, openOrderDetails])
 
   const handleStatusChange = async (orderId: string, newStatus: string) => {
     try {

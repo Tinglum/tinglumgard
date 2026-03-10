@@ -51,7 +51,13 @@ interface Order {
   payments: any[];
 }
 
-export function PigOrdersTable() {
+export function PigOrdersTable({
+  initialOrderId = null,
+  onInitialOrderHandled,
+}: {
+  initialOrderId?: string | null;
+  onInitialOrderHandled?: () => void;
+} = {}) {
   const { t, lang } = useLanguage();
   const copy = t.adminPage;
   const locale = lang === 'en' ? 'en-US' : 'nb-NO';
@@ -67,6 +73,7 @@ export function PigOrdersTable() {
   const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set());
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [showOrderDetail, setShowOrderDetail] = useState(false);
+  const [initialOrderHandled, setInitialOrderHandled] = useState(false);
 
   const loadOrders = useCallback(async () => {
     setOrdersLoading(true);
@@ -95,6 +102,10 @@ export function PigOrdersTable() {
     loadOrders();
   }, [loadOrders]);
 
+  useEffect(() => {
+    setInitialOrderHandled(false);
+  }, [initialOrderId]);
+
   const filteredOrders = orders.filter((order) => {
     const matchesSearch =
       order.order_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -104,6 +115,23 @@ export function PigOrdersTable() {
     const matchesDelivery = deliveryFilter === 'all' || order.delivery_type === deliveryFilter;
     return matchesSearch && matchesStatus && matchesDelivery;
   });
+
+  useEffect(() => {
+    if (!initialOrderId || initialOrderHandled || ordersLoading) return;
+
+    const targetOrder =
+      orders.find((order) => order.id === initialOrderId) ||
+      orders.find((order) => order.order_number === initialOrderId) ||
+      null;
+
+    setInitialOrderHandled(true);
+    onInitialOrderHandled?.();
+
+    if (targetOrder) {
+      setSelectedOrder(targetOrder);
+      setShowOrderDetail(true);
+    }
+  }, [initialOrderHandled, initialOrderId, onInitialOrderHandled, orders, ordersLoading]);
 
   function getPigProductLabel(order: Order): string {
     const presetName = lang === 'no' ? order.display_box_name_no : order.display_box_name_en;

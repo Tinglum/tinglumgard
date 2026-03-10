@@ -3,7 +3,7 @@ import { supabaseAdmin } from '@/lib/supabase/server';
 import { requireAdminAccess } from '@/app/api/admin/email/_shared';
 import { resolveCampaignRecipients, upsertCampaignRecipients } from '@/lib/email/campaigns';
 import type { EmailClassification } from '@/lib/email/types';
-import { isMissingEmailRelationError } from '@/lib/email/schema';
+import { getEmailSchemaStatus, isMissingEmailRelationError } from '@/lib/email/schema';
 
 const ALLOWED_CLASSIFICATIONS: EmailClassification[] = [
   'transactional',
@@ -35,6 +35,18 @@ export async function GET() {
   const admin = await requireAdminAccess();
   if (!admin.ok) return admin.response;
 
+  const schemaStatus = await getEmailSchemaStatus(['email_campaigns']);
+  if (!schemaStatus.ready) {
+    return NextResponse.json(
+      {
+        error: `Missing email schema tables: ${schemaStatus.missingTables.join(', ')}`,
+        missingTables: schemaStatus.missingTables,
+        hint: 'Run migration 20260310210000_repair_unified_email_schema.sql',
+      },
+      { status: 503 }
+    );
+  }
+
   const { data, error } = await supabaseAdmin
     .from('email_campaigns')
     .select('*')
@@ -43,11 +55,13 @@ export async function GET() {
 
   if (error) {
     if (isMissingEmailRelationError(error)) {
-      return NextResponse.json({
-        campaigns: [],
-        legacyFallback: true,
-        unavailableReason: 'email_campaigns table is not available in this environment yet',
-      });
+      return NextResponse.json(
+        {
+          error: 'Email schema mismatch while fetching campaigns',
+          hint: 'Run migration 20260310210000_repair_unified_email_schema.sql',
+        },
+        { status: 503 }
+      );
     }
 
     return NextResponse.json({ error: 'Failed to fetch campaigns' }, { status: 500 });
@@ -59,6 +73,18 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   const admin = await requireAdminAccess();
   if (!admin.ok) return admin.response;
+
+  const schemaStatus = await getEmailSchemaStatus(['email_campaigns', 'email_campaign_recipients']);
+  if (!schemaStatus.ready) {
+    return NextResponse.json(
+      {
+        error: `Missing email schema tables: ${schemaStatus.missingTables.join(', ')}`,
+        missingTables: schemaStatus.missingTables,
+        hint: 'Run migration 20260310210000_repair_unified_email_schema.sql',
+      },
+      { status: 503 }
+    );
+  }
 
   const body = await request.json();
   const name = String(body?.name || '').trim();

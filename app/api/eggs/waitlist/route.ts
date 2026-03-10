@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Inventory not found' }, { status: 404 })
     }
 
-    if (!['open', 'sold_out'].includes(inventory.status)) {
+    if (!['open', 'sold_out', 'locked'].includes(inventory.status)) {
       return NextResponse.json({ error: 'This week is not open for waitlist' }, { status: 400 })
     }
 

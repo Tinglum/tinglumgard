@@ -56,6 +56,24 @@ function sanitizeClassification(value: unknown): EmailClassification {
   return 'system';
 }
 
+function escapeHtml(value: string): string {
+  return value
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+}
+
+function wrapPlainTextAsHtml(value: string): string {
+  const safe = escapeHtml(String(value || ''));
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1" /></head><body style="font-family:Arial,sans-serif;line-height:1.5;padding:16px;white-space:pre-wrap;">${safe}</body></html>`;
+}
+
+function looksLikeHtml(value: string): boolean {
+  return /<\/?[a-z][\s\S]*>/i.test(String(value || ''));
+}
+
 async function requireAdmin() {
   const session = await getSession();
   if (!session?.isAdmin) {
@@ -96,6 +114,105 @@ export async function GET(request: NextRequest) {
   if (!admin.ok) return admin.response;
 
   const { searchParams } = new URL(request.url);
+  const action = String(searchParams.get('action') || '').trim();
+
+  if (action === 'preview') {
+    const source = String(searchParams.get('source') || '').trim();
+    const id = String(searchParams.get('id') || '').trim();
+    if (!id || (source !== 'email_dispatch_queue' && source !== 'legacy_email_log')) {
+      return NextResponse.json({ error: 'Valid source and id are required' }, { status: 400 });
+    }
+
+    if (source === 'email_dispatch_queue') {
+      const { data, error } = await supabaseAdmin
+        .from('email_dispatch_queue')
+        .select(
+          'id, subject, html, classification, status, to_email, template_key, source_path, sent_at, created_at, last_error, order_id, egg_order_id, chicken_order_id, campaign_id'
+        )
+        .eq('id', id)
+        .maybeSingle();
+
+      if (error) {
+        if (isMissingEmailRelationError(error)) {
+          return NextResponse.json(
+            { error: 'Email queue table is not available in this environment yet' },
+            { status: 503 }
+          );
+        }
+        return NextResponse.json({ error: 'Failed to fetch email preview' }, { status: 500 });
+      }
+      if (!data) {
+        return NextResponse.json({ error: 'Email not found' }, { status: 404 });
+      }
+
+      return NextResponse.json({
+        preview: {
+          id: String(data.id),
+          source: 'email_dispatch_queue',
+          subject: String(data.subject || ''),
+          html: String(data.html || ''),
+          classification: String(data.classification || 'system'),
+          status: String(data.status || 'unknown'),
+          toEmail: data.to_email ? String(data.to_email) : null,
+          templateKey: data.template_key ? String(data.template_key) : null,
+          sourcePath: data.source_path ? String(data.source_path) : null,
+          sentAt: data.sent_at ? String(data.sent_at) : null,
+          createdAt: data.created_at ? String(data.created_at) : null,
+          lastError: data.last_error ? String(data.last_error) : null,
+          orderRefs: {
+            orderId: data.order_id ? String(data.order_id) : null,
+            eggOrderId: data.egg_order_id ? String(data.egg_order_id) : null,
+            chickenOrderId: data.chicken_order_id ? String(data.chicken_order_id) : null,
+            campaignId: data.campaign_id ? String(data.campaign_id) : null,
+          },
+        },
+      });
+    }
+
+    const { data, error } = await supabaseAdmin
+      .from('email_log')
+      .select('id, recipient, subject, message, sent_at, created_at, order_id')
+      .eq('id', id)
+      .maybeSingle();
+
+    if (error) {
+      if (isMissingEmailRelationError(error)) {
+        return NextResponse.json(
+          { error: 'Legacy email_log table is not available in this environment' },
+          { status: 503 }
+        );
+      }
+      return NextResponse.json({ error: 'Failed to fetch email preview' }, { status: 500 });
+    }
+    if (!data) {
+      return NextResponse.json({ error: 'Email not found' }, { status: 404 });
+    }
+
+    const legacyMessage = String(data.message || '');
+    return NextResponse.json({
+      preview: {
+        id: String(data.id),
+        source: 'legacy_email_log',
+        subject: String(data.subject || ''),
+        html: looksLikeHtml(legacyMessage) ? legacyMessage : wrapPlainTextAsHtml(legacyMessage),
+        classification: 'system',
+        status: 'sent',
+        toEmail: data.recipient ? String(data.recipient) : null,
+        templateKey: null,
+        sourcePath: 'legacy.email_log',
+        sentAt: data.sent_at ? String(data.sent_at) : null,
+        createdAt: data.created_at ? String(data.created_at) : null,
+        lastError: null,
+        orderRefs: {
+          orderId: data.order_id ? String(data.order_id) : null,
+          eggOrderId: null,
+          chickenOrderId: null,
+          campaignId: null,
+        },
+      },
+    });
+  }
+
   const inputEmail = normalizeEmail(searchParams.get('email'));
   const inputPhone = normalizePhone(searchParams.get('phone'));
   const inputUserId = String(searchParams.get('userId') || '').trim();

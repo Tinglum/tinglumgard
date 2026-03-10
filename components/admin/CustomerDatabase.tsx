@@ -74,6 +74,27 @@ type CommunicationHistoryItem = {
   createdAt: string | null;
 };
 
+type CommunicationPreviewItem = {
+  id: string;
+  source: 'email_dispatch_queue' | 'legacy_email_log';
+  classification: string;
+  status: string;
+  subject: string;
+  templateKey: string | null;
+  toEmail: string | null;
+  sourcePath: string | null;
+  lastError: string | null;
+  sentAt: string | null;
+  createdAt: string | null;
+  html: string;
+  orderRefs?: {
+    orderId?: string | null;
+    eggOrderId?: string | null;
+    chickenOrderId?: string | null;
+    campaignId?: string | null;
+  };
+};
+
 type CustomerProfile = {
   customer_id: string;
   email: string;
@@ -212,6 +233,9 @@ export function CustomerDatabase() {
   const [contentModalOpen, setContentModalOpen] = useState(false);
   const [contentModalOrder, setContentModalOrder] = useState<CustomerOrderSummary | null>(null);
   const [contentModalLoadingKey, setContentModalLoadingKey] = useState<string | null>(null);
+  const [communicationModalOpen, setCommunicationModalOpen] = useState(false);
+  const [communicationPreview, setCommunicationPreview] = useState<CommunicationPreviewItem | null>(null);
+  const [communicationPreviewLoading, setCommunicationPreviewLoading] = useState<string | null>(null);
 
   const loadCustomers = useCallback(async () => {
     setLoading(true);
@@ -256,6 +280,9 @@ export function CustomerDatabase() {
       setContentModalOpen(false);
       setContentModalOrder(null);
       setContentModalLoadingKey(null);
+      setCommunicationModalOpen(false);
+      setCommunicationPreview(null);
+      setCommunicationPreviewLoading(null);
     } catch (error) {
       toast({
         title: copy.impersonateErrorTitle,
@@ -520,6 +547,39 @@ export function CustomerDatabase() {
       });
     } finally {
       setEmailActionLoading((current) => (current === actionKey ? null : current));
+    }
+  }
+
+  async function openCommunicationPreview(entry: CommunicationHistoryItem) {
+    const previewKey = `${entry.source}:${entry.id}`;
+    try {
+      setCommunicationPreviewLoading(previewKey);
+      setCommunicationModalOpen(true);
+
+      const response = await fetch(
+        `/api/admin/customers/email?action=preview&source=${encodeURIComponent(entry.source)}&id=${encodeURIComponent(entry.id)}`,
+        { cache: 'no-store' }
+      );
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(body?.error || copy.orderSaveErrorDescription);
+      }
+
+      const preview = body?.preview as CommunicationPreviewItem | undefined;
+      if (!preview) {
+        throw new Error(copy.orderSaveErrorDescription);
+      }
+      setCommunicationPreview(preview);
+    } catch (error) {
+      setCommunicationModalOpen(false);
+      setCommunicationPreview(null);
+      toast({
+        title: copy.orderSaveErrorTitle,
+        description: error instanceof Error ? error.message : copy.orderSaveErrorDescription,
+        variant: 'destructive',
+      });
+    } finally {
+      setCommunicationPreviewLoading((current) => (current === previewKey ? null : current));
     }
   }
 
@@ -1281,7 +1341,19 @@ export function CustomerDatabase() {
             {selectedCustomer.communications && selectedCustomer.communications.length > 0 ? (
               <div className="space-y-2">
                 {selectedCustomer.communications.map((entry) => (
-                  <div key={`${entry.source}-${entry.id}`} className="rounded-lg border p-3">
+                  <div
+                    key={`${entry.source}-${entry.id}`}
+                    className="cursor-pointer rounded-lg border p-3 transition-colors hover:bg-neutral-50"
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => void openCommunicationPreview(entry)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        void openCommunicationPreview(entry);
+                      }
+                    }}
+                  >
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div>
                         <p className="font-medium">{entry.subject || copy.communicationNoSubject}</p>
@@ -1312,12 +1384,19 @@ export function CustomerDatabase() {
                           {(entry.sentAt ? copy.communicationSentAtLabel : copy.communicationCreatedAtLabel)}:{' '}
                           {new Date(String(entry.sentAt || entry.createdAt || '')).toLocaleString(locale)}
                         </p>
+                        <p className="mt-1 text-xs text-neutral-500">
+                          {(copy as any).communicationOpenPreviewHint ||
+                            (lang === 'en' ? 'Click to open email preview' : 'Klikk for e-postforhandsvisning')}
+                        </p>
                       </div>
                       {entry.source === 'email_dispatch_queue' && (
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => resendCommunication(entry)}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            void resendCommunication(entry);
+                          }}
                           disabled={emailActionLoading === `resend:${entry.id}`}
                         >
                           {emailActionLoading === `resend:${entry.id}`
@@ -1448,6 +1527,108 @@ export function CustomerDatabase() {
                 </div>
               );
             })()}
+          </DialogContent>
+        </Dialog>
+
+        <Dialog
+          open={communicationModalOpen}
+          onOpenChange={(open) => {
+            setCommunicationModalOpen(open);
+            if (!open) {
+              setCommunicationPreview(null);
+              setCommunicationPreviewLoading(null);
+            }
+          }}
+        >
+          <DialogContent className="max-h-[90vh] max-w-5xl overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>
+                {(copy as any).communicationModalTitle ||
+                  (lang === 'en' ? 'Email preview' : 'E-postforhandsvisning')}
+              </DialogTitle>
+              <DialogDescription>
+                {(copy as any).communicationModalDescription ||
+                  (lang === 'en'
+                    ? 'Preview of the email exactly as stored in the dispatch history.'
+                    : 'Forhandsvisning av e-posten slik den er lagret i utsendingshistorikken.')}
+              </DialogDescription>
+            </DialogHeader>
+
+            {communicationPreviewLoading ? (
+              <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-600">
+                <span className="inline-flex items-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  {(copy as any).communicationModalLoading ||
+                    (lang === 'en' ? 'Loading email preview...' : 'Laster e-postforhandsvisning...')}
+                </span>
+              </div>
+            ) : communicationPreview ? (
+              <div className="space-y-3">
+                <div className="grid grid-cols-1 gap-2 rounded-lg border border-neutral-200 bg-neutral-50 p-3 text-xs text-neutral-700 sm:grid-cols-2">
+                  <p>
+                    <span className="font-medium">
+                      {(copy as any).communicationModalSubjectLabel ||
+                        (lang === 'en' ? 'Subject' : 'Emne')}
+                      :
+                    </span>{' '}
+                    {communicationPreview.subject || copy.communicationNoSubject}
+                  </p>
+                  <p>
+                    <span className="font-medium">
+                      {(copy as any).communicationStatusLabel || (lang === 'en' ? 'Status' : 'Status')}
+                      :
+                    </span>{' '}
+                    {communicationPreview.status}
+                  </p>
+                  <p>
+                    <span className="font-medium">
+                      {(copy as any).communicationTypeLabel || (lang === 'en' ? 'Type' : 'Type')}
+                      :
+                    </span>{' '}
+                    {communicationPreview.classification}
+                  </p>
+                  <p>
+                    <span className="font-medium">
+                      {(copy as any).communicationTemplateLabel || (lang === 'en' ? 'Template' : 'Mal')}
+                      :
+                    </span>{' '}
+                    {communicationPreview.templateKey || copy.notProvided}
+                  </p>
+                  <p>
+                    <span className="font-medium">
+                      {(copy as any).communicationSentAtLabel || (lang === 'en' ? 'Sent' : 'Sendt')}
+                      :
+                    </span>{' '}
+                    {communicationPreview.sentAt
+                      ? new Date(communicationPreview.sentAt).toLocaleString(locale)
+                      : copy.notProvided}
+                  </p>
+                  <p>
+                    <span className="font-medium">
+                      {(copy as any).communicationCreatedAtLabel || (lang === 'en' ? 'Created' : 'Opprettet')}
+                      :
+                    </span>{' '}
+                    {communicationPreview.createdAt
+                      ? new Date(communicationPreview.createdAt).toLocaleString(locale)
+                      : copy.notProvided}
+                  </p>
+                </div>
+
+                <div className="rounded-lg border border-neutral-200">
+                  <iframe
+                    title={communicationPreview.subject || 'Email preview'}
+                    srcDoc={communicationPreview.html || ''}
+                    sandbox=""
+                    className="h-[60vh] w-full rounded-lg bg-white"
+                  />
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm text-neutral-500">
+                {(copy as any).communicationModalEmpty ||
+                  (lang === 'en' ? 'No preview available.' : 'Ingen forhandsvisning tilgjengelig.')}
+              </p>
+            )}
           </DialogContent>
         </Dialog>
       </div>

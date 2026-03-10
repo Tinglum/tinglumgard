@@ -122,7 +122,7 @@ export async function POST(request: NextRequest) {
             thread_id: `msg_${message.id}`,
             subject_line: message.subject,
             reply_text: replyText,
-            admin_name: 'Tinglum Gard',
+            admin_name: 'Tinglum Gård',
             portal_url: `${appUrl}/min-side`,
             portal_label: 'Min side',
           },

@@ -150,12 +150,18 @@ export function buildWeekAvailability(inventory: WeekInventory[]): WeekAvailabil
 
     const entry = map.get(key)!
     entry.breeds.push({
+      inventoryId: inv.id,
       breedId: inv.breedId,
       breedName: inv.breedName,
       breedSlug: inv.breedSlug,
       accentColor: inv.breedAccentColor || '#1F2937',
       eggsAvailable: inv.eggsAvailable,
-      status: inv.status === 'sold_out' ? 'sold_out' : inv.status === 'low_stock' ? 'low_stock' : 'available',
+      status:
+        inv.status === 'sold_out' || inv.status === 'locked' || inv.status === 'closed'
+          ? 'sold_out'
+          : inv.status === 'low_stock'
+            ? 'low_stock'
+            : 'available',
     })
   })
 

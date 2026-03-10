@@ -21,15 +21,55 @@ export function interpolateTemplate(input: string, variables: Record<string, unk
   return output;
 }
 
+function normalizeNorwegianCopy(text: string): string {
+  const replacements: Array<[RegExp, string]> = [
+    [/Aapne/g, 'Åpne'],
+    [/Ga til/g, 'Gå til'],
+    [/Paminnelse/g, 'Påminnelse'],
+    [/Hentepaminnelse/g, 'Hentepåminnelse'],
+    [/Honer/g, 'Høner'],
+    [/Belop/g, 'Beløp'],
+    [/gjenstar/g, 'gjenstår'],
+    [/fullfort/g, 'fullført'],
+    [/Tinglum Gard/g, 'Tinglum Gård'],
+    [/Se detaljer pa Min side/g, 'Se detaljer på Min side'],
+    [/Se bestillingen pa Min side/g, 'Se bestillingen på Min side'],
+    [/Se ordren pa Min side/g, 'Se ordren på Min side'],
+    [/Apne bestillingen pa Min side/g, 'Åpne bestillingen på Min side'],
+    [/ na klar /g, ' nå klar '],
+    [/ na låst /g, ' nå låst '],
+    [/ na last /g, ' nå låst '],
+    [/ na /g, ' nå '],
+    [/ na\./g, ' nå.'],
+    [/ na,/g, ' nå,'],
+    [/naer/g, 'når'],
+    [/gjores/g, 'gjøres'],
+    [/fatt/g, 'fått'],
+    [/Leveringsmate/g, 'Leveringsmåte'],
+    [/Forhandsvisning/g, 'Forhåndsvisning'],
+    [/bestillinga/g, 'bestillingen'],
+    [/GÃ¥/g, 'Gå'],
+    [/GÃ¥rd/g, 'Gård'],
+    [/pÃ¥/g, 'på'],
+    [/fÃ¥/g, 'få'],
+    [/Ã¦/g, 'æ'],
+    [/Ã¸/g, 'ø'],
+    [/Ã¥/g, 'å'],
+  ];
+
+  return replacements.reduce((value, [pattern, next]) => value.replace(pattern, next), text);
+}
+
 export function ensureHtmlDocument(html: string, locale: EmailLocale = 'no'): string {
   if (html.trim().toLowerCase().includes('<html')) {
     return html;
   }
 
-  const brand = 'Tinglum Gard';
+  const brand = 'Tinglum Gård';
   const greeting = locale === 'en' ? 'Best regards' : 'Vennlig hilsen';
   const supportLabel = locale === 'en' ? 'Need help?' : 'Trenger du hjelp?';
-  const supportText = locale === 'en' ? 'Reply to this email and we will help you.' : 'Svar på denne e-posten, så hjelper vi deg.';
+  const supportText =
+    locale === 'en' ? 'Reply to this email and we will help you.' : 'Svar på denne e-posten, så hjelper vi deg.';
 
   return `<!DOCTYPE html>
 <html lang="${locale}">
@@ -87,8 +127,8 @@ export async function renderManagedTemplate(options: {
     return null;
   }
 
-  const subjectRaw = locale === 'en' ? data.subject_en : data.subject_no;
-  const bodyRaw = locale === 'en' ? data.body_en : data.body_no;
+  const subjectRaw = locale === 'en' ? String(data.subject_en || '') : normalizeNorwegianCopy(String(data.subject_no || ''));
+  const bodyRaw = locale === 'en' ? String(data.body_en || '') : normalizeNorwegianCopy(String(data.body_no || ''));
 
   return {
     subject: interpolateTemplate(subjectRaw, vars),

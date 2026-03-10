@@ -267,6 +267,7 @@ export function generateWeekAvailability(): WeekAvailability[] {
     const breed = breeds.find((b) => b.id === inv.breedId)!
 
     week.breeds.push({
+      inventoryId: inv.id,
       breedId: inv.breedId,
       breedName: inv.breedName,
       breedSlug: inv.breedSlug,

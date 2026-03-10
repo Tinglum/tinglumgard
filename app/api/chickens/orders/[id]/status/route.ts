@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase/server'
 import { vippsClient } from '@/lib/vipps/api-client'
 import { logError } from '@/lib/logger'
+import { sendChickenDepositConfirmationEmails } from '@/lib/chickens/notifications'
 
 function isUuid(value: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
@@ -26,6 +27,8 @@ export async function GET(
     if (orderError || !order) {
       return NextResponse.json({ error: 'Order not found' }, { status: 404 })
     }
+
+    let reconciledDeposit = false
 
     // If still pending, try to reconcile from Vipps session to avoid waiting for webhook only.
     if (order.status === 'pending') {
@@ -57,6 +60,8 @@ export async function GET(
               .from('chicken_orders')
               .update({ status: 'deposit_paid' })
               .eq('id', orderId)
+
+            reconciledDeposit = true
           }
         } catch (vippsError) {
           // Keep endpoint resilient even if Vipps lookup fails.
@@ -73,6 +78,19 @@ export async function GET(
 
     if (refreshedError || !refreshedOrder) {
       return NextResponse.json({ error: 'Order not found' }, { status: 404 })
+    }
+
+    // If this endpoint reconciled the deposit before webhook, send the same confirmations here.
+    if (reconciledDeposit && refreshedOrder.status === 'deposit_paid') {
+      try {
+        await sendChickenDepositConfirmationEmails({
+          orderId,
+          sourcePath: '/api/chickens/orders/[id]/status',
+          includeAdmin: true,
+        })
+      } catch (notifyError) {
+        logError('chicken-order-status-reconcile-notification', notifyError)
+      }
     }
 
     return NextResponse.json(refreshedOrder)

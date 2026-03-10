@@ -163,12 +163,14 @@ export async function GET() {
   }
 
   try {
+    const selectColumns =
+      '*, egg_breeds(*), egg_payments(*), egg_order_additions(*, egg_breeds(*), egg_inventory(*))'
     const queries = []
     if (isUuid(session.userId)) {
       queries.push(
         supabaseAdmin
           .from('egg_orders')
-          .select('*, egg_breeds(*), egg_payments(*), egg_order_additions(*)')
+          .select(selectColumns)
           .eq('user_id', session.userId)
       )
     }
@@ -176,7 +178,7 @@ export async function GET() {
       queries.push(
         supabaseAdmin
           .from('egg_orders')
-          .select('*, egg_breeds(*), egg_payments(*), egg_order_additions(*)')
+          .select(selectColumns)
           .eq('customer_email', session.email)
       )
     }
@@ -184,7 +186,7 @@ export async function GET() {
       queries.push(
         supabaseAdmin
           .from('egg_orders')
-          .select('*, egg_breeds(*), egg_payments(*), egg_order_additions(*)')
+          .select(selectColumns)
           .eq('customer_phone', session.phoneNumber)
       )
     }

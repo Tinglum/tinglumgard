@@ -115,13 +115,12 @@ function isAtRisk(order: EggOrderRow): boolean {
 function isShippingMissing(order: EggOrderRow): boolean {
   if (order.delivery_method !== 'posten') return false
   if (['shipped', 'delivered', 'cancelled', 'forfeited'].includes(order.status)) return false
-  return !(
-    order.shipping_name &&
-    order.shipping_phone &&
-    order.shipping_address &&
-    order.shipping_postal_code &&
-    order.shipping_city
-  )
+  const hasShippingName = Boolean(String(order.shipping_name || order.customer_name || '').trim())
+  const hasShippingPhone = Boolean(String(order.shipping_phone || order.customer_phone || '').trim())
+  const hasShippingAddress = Boolean(String(order.shipping_address || '').trim())
+  const hasShippingPostalCode = Boolean(String(order.shipping_postal_code || '').trim())
+  const hasShippingCity = Boolean(String(order.shipping_city || '').trim())
+  return !(hasShippingName && hasShippingPhone && hasShippingAddress && hasShippingPostalCode && hasShippingCity)
 }
 
 function csvSafe(value: unknown): string {

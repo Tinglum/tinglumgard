@@ -1,6 +1,6 @@
 'use client'
 
-import { useParams, useRouter } from 'next/navigation'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { FormEvent, useEffect, useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
@@ -28,6 +28,7 @@ function isSameDeliveryWeek(a: WeekInventory, b: WeekInventory): boolean {
 export default function BreedDetailPage() {
   const params = useParams()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const slug = params.slug as string
   const { lang: language, t } = useLanguage()
   const loadBreedError = t.eggs.errors.loadBreed
@@ -47,6 +48,7 @@ export default function BreedDetailPage() {
   const [waitlistSubmitting, setWaitlistSubmitting] = useState(false)
   const [waitlistError, setWaitlistError] = useState<string | null>(null)
   const [waitlistSuccess, setWaitlistSuccess] = useState(false)
+  const [waitlistPrefillHandled, setWaitlistPrefillHandled] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -92,6 +94,46 @@ export default function BreedDetailPage() {
 
     setShowActiveOrderPrompt(true)
   }, [inventory, items, selectedWeek, showQuantityModal, showActiveOrderPrompt, skipAutoWeek])
+
+  useEffect(() => {
+    if (waitlistPrefillHandled) return
+    if (inventory.length === 0) return
+
+    const wantsWaitlist = searchParams.get('waitlist') === '1'
+    if (!wantsWaitlist) {
+      setWaitlistPrefillHandled(true)
+      return
+    }
+
+    const inventoryId = (searchParams.get('inventoryId') || '').trim()
+    const year = Number(searchParams.get('year'))
+    const weekNumber = Number(searchParams.get('week'))
+
+    let targetWeek: WeekInventory | null = null
+
+    if (inventoryId) {
+      targetWeek = inventory.find((week) => week.id === inventoryId) || null
+    }
+
+    if (!targetWeek && Number.isFinite(year) && Number.isFinite(weekNumber)) {
+      targetWeek =
+        inventory.find((week) => week.year === year && week.weekNumber === weekNumber) || null
+    }
+
+    if (!targetWeek) {
+      targetWeek =
+        inventory.find((week) => week.status === 'sold_out' || week.eggsAvailable < minimumPurchase) || null
+    }
+
+    if (targetWeek) {
+      setSelectedWeek(targetWeek)
+      setShowWaitlistModal(true)
+      setWaitlistError(null)
+      setWaitlistSuccess(false)
+    }
+
+    setWaitlistPrefillHandled(true)
+  }, [inventory, minimumPurchase, searchParams, waitlistPrefillHandled])
 
   if (isLoading) {
     return (

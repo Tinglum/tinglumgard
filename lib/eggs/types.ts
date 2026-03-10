@@ -132,6 +132,7 @@ export interface WeekAvailability {
   year: number
   deliveryMonday: Date
   breeds: Array<{
+    inventoryId: string
     breedId: string
     breedName: string
     breedSlug: string

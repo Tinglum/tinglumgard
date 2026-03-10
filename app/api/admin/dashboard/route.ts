@@ -79,7 +79,12 @@ export async function GET(request: NextRequest) {
     const eggShippingMissing = eggOrders.filter((o: any) => {
       if (o.delivery_method !== 'posten') return false;
       if (['shipped', 'delivered', 'cancelled', 'forfeited'].includes(o.status)) return false;
-      return !(o.shipping_name && o.shipping_phone && o.shipping_address && o.shipping_postal_code && o.shipping_city);
+      const hasShippingName = Boolean(String(o.shipping_name || o.customer_name || '').trim());
+      const hasShippingPhone = Boolean(String(o.shipping_phone || o.customer_phone || '').trim());
+      const hasShippingAddress = Boolean(String(o.shipping_address || '').trim());
+      const hasShippingPostalCode = Boolean(String(o.shipping_postal_code || '').trim());
+      const hasShippingCity = Boolean(String(o.shipping_city || '').trim());
+      return !(hasShippingName && hasShippingPhone && hasShippingAddress && hasShippingPostalCode && hasShippingCity);
     });
 
     // Egg ready-to-ship (fully paid + Posten delivery + not shipped/delivered)

@@ -160,7 +160,18 @@ export function EmailControlCenter() {
     const response = await fetch(url, init);
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
-      throw new Error(data?.error || `Request failed (${response.status})`);
+      const missingTables = Array.isArray(data?.missingTables) ? data.missingTables.join(', ') : '';
+      const detail = typeof data?.detail === 'string' ? data.detail : '';
+      const hint = typeof data?.hint === 'string' ? data.hint : '';
+      const message = [
+        data?.error || `Request failed (${response.status})`,
+        missingTables ? `Missing tables: ${missingTables}` : '',
+        detail,
+        hint,
+      ]
+        .filter(Boolean)
+        .join(' | ');
+      throw new Error(message);
     }
     return data as T;
   }

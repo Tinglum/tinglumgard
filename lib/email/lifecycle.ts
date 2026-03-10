@@ -2,6 +2,7 @@ import { dispatchEmail } from '@/lib/email/dispatch';
 import { processScheduledCampaigns } from '@/lib/email/campaigns';
 import { enqueueEmailRecord } from '@/lib/email/queue';
 import { renderManagedTemplate } from '@/lib/email/render';
+import { getEmailSchemaStatus } from '@/lib/email/schema';
 import { supabaseAdmin } from '@/lib/supabase/server';
 
 type Ymd = { year: number; month: number; day: number };
@@ -53,6 +54,27 @@ type FlowRunSummary = {
   campaignsQueued: number;
 };
 
+type LifecycleTemplateSeed = {
+  templateKey: string;
+  classification: 'transactional' | 'support' | 'promotional' | 'system';
+  productScope: 'pig' | 'eggs' | 'chickens' | 'shared';
+  subjectNo: string;
+  subjectEn: string;
+  bodyNo: string;
+  bodyEn: string;
+  variables: string[];
+};
+
+type LifecycleFlowSeed = {
+  flowKey: string;
+  eventType: string;
+  productScope: 'pig' | 'eggs' | 'chickens' | 'shared';
+  templateKey: string;
+  mode: 'shadow' | 'active' | 'disabled';
+  active: boolean;
+  sendOffsetMinutes: number;
+};
+
 const DEFAULT_LIFECYCLE_CONFIG: LifecycleConfig = {
   timezone: 'Europe/Oslo',
   pigRemainderDueDate: '2026-11-16',
@@ -63,8 +85,194 @@ const DEFAULT_LIFECYCLE_CONFIG: LifecycleConfig = {
   chickenPickupReminderDays: [3, 1],
   chickenAutoReadyDaysBefore: 4,
   campaignSendViaApiCronOnly: true,
-  appBaseUrl: process.env.NEXT_PUBLIC_APP_URL || 'https://tinglum.no',
+  appBaseUrl: process.env.NEXT_PUBLIC_APP_URL || 'https://tinglumgard.no',
 };
+
+const LIFECYCLE_TEMPLATE_SEEDS: LifecycleTemplateSeed[] = [
+  {
+    templateKey: 'pig.remainder.explainer.full',
+    classification: 'transactional',
+    productScope: 'pig',
+    subjectNo: 'Slik fungerer restbetalingen for {{order_number}}',
+    subjectEn: 'How remainder payment works for {{order_number}}',
+    bodyNo:
+      '<p>Hei {{customer_name}},</p><p>Takk for bestillingen din. Restbetalingen for <strong>{{order_number}}</strong> er <strong>{{remainder_amount_nok}}</strong>, med forfall <strong>{{due_date}}</strong>.</p><p>Du finner full oversikt og neste steg på Min side.</p><p><a href="{{order_url}}">Gå til Min side</a></p>',
+    bodyEn:
+      '<p>Hi {{customer_name}},</p><p>The remainder for <strong>{{order_number}}</strong> is <strong>{{remainder_amount_nok}}</strong>, due on <strong>{{due_date}}</strong>.</p><p><a href="{{order_url}}">Go to My Page</a></p>',
+    variables: ['customer_name', 'order_number', 'remainder_amount_nok', 'due_date', 'order_url'],
+  },
+  {
+    templateKey: 'pig.remainder.explainer.reduced',
+    classification: 'transactional',
+    productScope: 'pig',
+    subjectNo: 'Oppdatering for {{order_number}}',
+    subjectEn: 'Update for {{order_number}}',
+    bodyNo:
+      '<p>Hei {{customer_name}},</p><p>Vi har registrert at restbetalingen for <strong>{{order_number}}</strong> allerede er betalt.</p><p>Du finner ordredetaljene på Min side.</p><p><a href="{{order_url}}">Gå til Min side</a></p>',
+    bodyEn:
+      '<p>Hi {{customer_name}},</p><p>The remainder is already registered for <strong>{{order_number}}</strong>.</p><p><a href="{{order_url}}">Go to My Page</a></p>',
+    variables: ['customer_name', 'order_number', 'order_url'],
+  },
+  {
+    templateKey: 'pig.remainder.reminder',
+    classification: 'transactional',
+    productScope: 'pig',
+    subjectNo: 'Påminnelse om restbetaling ({{days_left}} dager) – {{order_number}}',
+    subjectEn: 'Remainder reminder ({{days_left}} days) - {{order_number}}',
+    bodyNo:
+      '<p>Hei {{customer_name}},</p><p>Dette er en vennlig påminnelse om restbetaling for <strong>{{order_number}}</strong>.</p><p><strong>Beløp:</strong> {{remainder_amount_nok}}<br/><strong>Forfall:</strong> {{due_date}} ({{days_left}} dager igjen)</p><p><a href="{{order_url}}">Gå til Min side</a></p>',
+    bodyEn:
+      '<p>Hi {{customer_name}},</p><p>Remainder for <strong>{{order_number}}</strong>: <strong>{{remainder_amount_nok}}</strong>.</p><p>Due date: <strong>{{due_date}}</strong> ({{days_left}} days left).</p><p><a href="{{order_url}}">Go to My Page</a></p>',
+    variables: ['customer_name', 'order_number', 'remainder_amount_nok', 'due_date', 'days_left', 'order_url'],
+  },
+  {
+    templateKey: 'egg.remainder.reminder',
+    classification: 'transactional',
+    productScope: 'eggs',
+    subjectNo: 'Påminnelse om restbetaling ({{days_left}} dager) – {{order_number}}',
+    subjectEn: 'Remainder reminder ({{days_left}} days) - {{order_number}}',
+    bodyNo:
+      '<p>Hei {{customer_name}},</p><p>Restbetalingen for rugeeggordren <strong>{{order_number}}</strong> gjenstår.</p><p><strong>Beløp:</strong> {{remainder_amount_nok}}<br/><strong>Forfall:</strong> {{due_date}}</p><p><a href="{{order_url}}">Åpne bestillingen på Min side</a></p>',
+    bodyEn:
+      '<p>Hi {{customer_name}},</p><p>The remainder for hatching egg order <strong>{{order_number}}</strong> is still outstanding.</p><p>Amount: <strong>{{remainder_amount_nok}}</strong><br/>Due date: <strong>{{due_date}}</strong></p><p><a href="{{order_url}}">Open your order on My Page</a></p>',
+    variables: ['customer_name', 'order_number', 'remainder_amount_nok', 'due_date', 'days_left', 'order_url'],
+  },
+  {
+    templateKey: 'egg.delivery.day_before',
+    classification: 'transactional',
+    productScope: 'eggs',
+    subjectNo: 'Levering i morgen - {{order_number}}',
+    subjectEn: 'Delivery tomorrow - {{order_number}}',
+    bodyNo:
+      '<p>Hei {{customer_name}},</p><p>Rugeeggordren <strong>{{order_number}}</strong> sendes i morgen.</p><p>Om du ønsker å legge til flere egg før utsendelse, kan du gjøre det i dag.</p><p><a href="{{upsell_url}}">Legg til ekstra i dag</a></p>',
+    bodyEn:
+      '<p>Hi {{customer_name}},</p><p>Your hatching egg order <strong>{{order_number}}</strong> ships tomorrow.</p><p><a href="{{upsell_url}}">Add extras today</a></p>',
+    variables: ['customer_name', 'order_number', 'upsell_url'],
+  },
+  {
+    templateKey: 'egg.order.forfeited',
+    classification: 'transactional',
+    productScope: 'eggs',
+    subjectNo: 'Bestillingen er kansellert - {{order_number}}',
+    subjectEn: 'Order cancelled - {{order_number}}',
+    bodyNo:
+      '<p>Hei {{customer_name}},</p><p>Bestillingen <strong>{{order_number}}</strong> er kansellert fordi restbetalingen ikke ble registrert innen fristen.</p><p><a href="{{order_url}}">Se detaljer på Min side</a></p>',
+    bodyEn:
+      '<p>Hi {{customer_name}},</p><p>Order <strong>{{order_number}}</strong> was cancelled because the remainder was not registered before the deadline.</p><p><a href="{{order_url}}">View details on My Page</a></p>',
+    variables: ['customer_name', 'order_number', 'order_url'],
+  },
+  {
+    templateKey: 'chicken.ready_for_pickup',
+    classification: 'transactional',
+    productScope: 'chickens',
+    subjectNo: 'Kyllingene er klare for henting - {{order_number}}',
+    subjectEn: 'Chickens ready for pickup - {{order_number}}',
+    bodyNo:
+      '<p>Hei {{customer_name}},</p><p>Bestilling <strong>{{order_number}}</strong> er klar for henting.</p><p>Du finner alle detaljer på Min side.</p><p><a href="{{order_url}}">Se detaljer på Min side</a></p>',
+    bodyEn:
+      '<p>Hi {{customer_name}},</p><p>Order <strong>{{order_number}}</strong> is ready for pickup.</p><p><a href="{{order_url}}">View details on My Page</a></p>',
+    variables: ['customer_name', 'order_number', 'order_url'],
+  },
+  {
+    templateKey: 'chicken.pickup.reminder',
+    classification: 'transactional',
+    productScope: 'chickens',
+    subjectNo: 'Påminnelse om henting ({{days_left}} dager) – {{order_number}}',
+    subjectEn: 'Pickup reminder ({{days_left}} days) - {{order_number}}',
+    bodyNo:
+      '<p>Hei {{customer_name}},</p><p>Dette er en påminnelse om henting for <strong>{{order_number}}</strong>.</p><p><strong>Hentedato:</strong> {{pickup_date}} ({{days_left}} dager igjen)</p><p><a href="{{order_url}}">Se detaljer på Min side</a></p>',
+    bodyEn:
+      '<p>Hi {{customer_name}},</p><p>Pickup reminder for <strong>{{order_number}}</strong>.</p><p>Pickup date: <strong>{{pickup_date}}</strong> ({{days_left}} days left).</p><p><a href="{{order_url}}">View details on My Page</a></p>',
+    variables: ['customer_name', 'order_number', 'pickup_date', 'days_left', 'order_url'],
+  },
+  {
+    templateKey: 'chicken.remainder.collected',
+    classification: 'transactional',
+    productScope: 'chickens',
+    subjectNo: 'Kvittering for restbetaling - {{order_number}}',
+    subjectEn: 'Receipt for remainder payment - {{order_number}}',
+    bodyNo:
+      '<p>Hei {{customer_name}},</p><p>Restbetalingen for <strong>{{order_number}}</strong> er registrert ved henting.</p><p><strong>Beløp:</strong> {{remainder_amount_nok}}</p><p><a href="{{order_url}}">Se bestillingen på Min side</a></p>',
+    bodyEn:
+      '<p>Hi {{customer_name}},</p><p>The remainder payment for <strong>{{order_number}}</strong> was registered at pickup.</p><p>Amount: <strong>{{remainder_amount_nok}}</strong>.</p><p><a href="{{order_url}}">View your order on My Page</a></p>',
+    variables: ['customer_name', 'order_number', 'remainder_amount_nok', 'order_url'],
+  },
+];
+
+const LIFECYCLE_FLOW_SEEDS: LifecycleFlowSeed[] = [
+  {
+    flowKey: 'pig.remainder.explainer',
+    eventType: 'pig.deposit_paid',
+    productScope: 'pig',
+    templateKey: 'pig.remainder.explainer.full',
+    mode: 'active',
+    active: true,
+    sendOffsetMinutes: 0,
+  },
+  {
+    flowKey: 'pig.remainder.reminder',
+    eventType: 'pig.deposit_paid',
+    productScope: 'pig',
+    templateKey: 'pig.remainder.reminder',
+    mode: 'active',
+    active: true,
+    sendOffsetMinutes: 0,
+  },
+  {
+    flowKey: 'egg.remainder.reminder',
+    eventType: 'egg.deposit_paid',
+    productScope: 'eggs',
+    templateKey: 'egg.remainder.reminder',
+    mode: 'active',
+    active: true,
+    sendOffsetMinutes: 0,
+  },
+  {
+    flowKey: 'egg.delivery.day_before',
+    eventType: 'egg.delivery_upcoming',
+    productScope: 'eggs',
+    templateKey: 'egg.delivery.day_before',
+    mode: 'active',
+    active: true,
+    sendOffsetMinutes: 0,
+  },
+  {
+    flowKey: 'egg.order.forfeited',
+    eventType: 'egg.overdue_forfeit',
+    productScope: 'eggs',
+    templateKey: 'egg.order.forfeited',
+    mode: 'active',
+    active: true,
+    sendOffsetMinutes: 0,
+  },
+  {
+    flowKey: 'chicken.ready_for_pickup',
+    eventType: 'chicken.auto_ready_for_pickup',
+    productScope: 'chickens',
+    templateKey: 'chicken.ready_for_pickup',
+    mode: 'active',
+    active: true,
+    sendOffsetMinutes: 0,
+  },
+  {
+    flowKey: 'chicken.pickup.reminder',
+    eventType: 'chicken.pickup_reminder',
+    productScope: 'chickens',
+    templateKey: 'chicken.pickup.reminder',
+    mode: 'active',
+    active: true,
+    sendOffsetMinutes: 0,
+  },
+  {
+    flowKey: 'chicken.remainder.collected',
+    eventType: 'chicken.remainder_collected',
+    productScope: 'chickens',
+    templateKey: 'chicken.remainder.collected',
+    mode: 'active',
+    active: true,
+    sendOffsetMinutes: 0,
+  },
+];
 
 function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' ? (value as Record<string, unknown>) : {};
@@ -248,7 +456,63 @@ async function getLifecycleConfig(): Promise<LifecycleConfig> {
       map.campaign_send_via_api_cron_only,
       DEFAULT_LIFECYCLE_CONFIG.campaignSendViaApiCronOnly
     ),
-    appBaseUrl: process.env.NEXT_PUBLIC_APP_URL || DEFAULT_LIFECYCLE_CONFIG.appBaseUrl,
+    appBaseUrl: process.env.NEXT_PUBLIC_APP_URL || process.env.APP_BASE_URL || DEFAULT_LIFECYCLE_CONFIG.appBaseUrl,
+  };
+}
+
+export async function ensureLifecycleSeedData(): Promise<{
+  ok: boolean;
+  missingTables: string[];
+  seededTemplateKeys: string[];
+  seededFlowKeys: string[];
+}> {
+  const schema = await getEmailSchemaStatus(['email_templates', 'email_flows']);
+  if (!schema.ready) {
+    return {
+      ok: false,
+      missingTables: schema.missingTables,
+      seededTemplateKeys: [],
+      seededFlowKeys: [],
+    };
+  }
+
+  const templateRows = LIFECYCLE_TEMPLATE_SEEDS.map((seed) => ({
+    template_key: seed.templateKey,
+    classification: seed.classification,
+    product_scope: seed.productScope,
+    subject_no: seed.subjectNo,
+    subject_en: seed.subjectEn,
+    body_no: seed.bodyNo,
+    body_en: seed.bodyEn,
+    variables: seed.variables,
+    active: true,
+  }));
+
+  const { error: templateError } = await supabaseAdmin
+    .from('email_templates')
+    .upsert(templateRows, { onConflict: 'template_key' });
+  if (templateError) throw templateError;
+
+  const flowRows = LIFECYCLE_FLOW_SEEDS.map((seed) => ({
+    flow_key: seed.flowKey,
+    event_type: seed.eventType,
+    product_scope: seed.productScope,
+    template_key: seed.templateKey,
+    mode: seed.mode,
+    active: seed.active,
+    send_offset_minutes: seed.sendOffsetMinutes,
+  }));
+
+  const { error: flowError } = await supabaseAdmin
+    .from('email_flows')
+    .upsert(flowRows, { onConflict: 'flow_key' });
+  if (flowError) throw flowError;
+
+  return {
+    ok: true,
+    missingTables: [],
+    seededTemplateKeys: LIFECYCLE_TEMPLATE_SEEDS.map((entry) => entry.templateKey),
+    seededFlowKeys: LIFECYCLE_FLOW_SEEDS.map((entry) => entry.flowKey),
   };
 }
 
@@ -1028,8 +1292,6 @@ export async function runEmailFlowRunner(): Promise<{
   error?: string;
 }> {
   const config = await getLifecycleConfig();
-  const flowMap = await getFlowMap();
-
   const summary: FlowRunSummary = {
     scanned: 0,
     due: 0,
@@ -1040,6 +1302,21 @@ export async function runEmailFlowRunner(): Promise<{
     missingEmail: 0,
     campaignsQueued: 0,
   };
+
+  const seedStatus = await ensureLifecycleSeedData();
+  if (!seedStatus.ok) {
+    return {
+      ok: false,
+      runId: null,
+      summary,
+      config,
+      error: `Missing email schema tables: ${seedStatus.missingTables.join(
+        ', '
+      )}. Run migration 20260310210000_repair_unified_email_schema.sql.`,
+    };
+  }
+
+  const flowMap = await getFlowMap();
 
   const { data: run } = await supabaseAdmin
     .from('email_flow_runs')
@@ -1135,6 +1412,21 @@ export async function runEmailFlowRunner(): Promise<{
 
 export async function getLifecycleOverview() {
   const config = await getLifecycleConfig();
+  const seedStatus = await ensureLifecycleSeedData();
+  if (!seedStatus.ok) {
+    return {
+      config,
+      flows: [],
+      instances: [],
+      statusCounts: {},
+      missingAlerts: [],
+      runs: [],
+      schemaStatus: {
+        ready: false,
+        missingTables: seedStatus.missingTables,
+      },
+    };
+  }
 
   const [flowRows, instanceRows, missingRows, runRows] = await Promise.all([
     supabaseAdmin
@@ -1177,6 +1469,10 @@ export async function getLifecycleOverview() {
     statusCounts,
     missingAlerts,
     runs: runRows.data || [],
+    schemaStatus: {
+      ready: true,
+      missingTables: [],
+    },
   };
 }
 

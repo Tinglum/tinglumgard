@@ -194,40 +194,62 @@ export default function HomePage() {
                       </h3>
                     </div>
                     <div className="space-y-3">
-                      {week.breeds.map((breed) => (
-                        <Link
-                          key={breed.breedId}
-                          href={`/rugeegg/raser/${breed.breedSlug}`}
-                          className="flex items-center justify-between py-2 px-3 rounded hover:bg-neutral-50 transition-colors group"
-                        >
-                          <div className="flex items-center gap-3">
-                            <div
-                              className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-normal text-white"
-                              style={{ backgroundColor: breed.accentColor }}
-                            >
-                              {breed.breedName.charAt(0)}
-                            </div>
-                            <span className="font-medium text-neutral-900">{breed.breedName}</span>
-                          </div>
-                          {breed.status === 'sold_out' ? (
-                            <span className="badge badge-neutral">{t.browse.soldOut}</span>
-                          ) : (
+                      {week.breeds.map((breed) => {
+                        const breedHref = `/rugeegg/raser/${breed.breedSlug}`
+                        const waitlistHref = `${breedHref}?waitlist=1&inventoryId=${encodeURIComponent(
+                          breed.inventoryId
+                        )}&year=${week.year}&week=${week.weekNumber}`
+
+                        return (
+                          <div
+                            key={breed.breedId}
+                            className="flex items-center justify-between py-2 px-3 rounded hover:bg-neutral-50 transition-colors group"
+                          >
+                            <Link href={breedHref} className="flex items-center gap-3 min-w-0">
+                              <div
+                                className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-normal text-white"
+                                style={{ backgroundColor: breed.accentColor }}
+                              >
+                                {breed.breedName.charAt(0)}
+                              </div>
+                              <span className="font-medium text-neutral-900 truncate">{breed.breedName}</span>
+                            </Link>
+
                             <div className="flex items-center gap-2">
                               <div className="text-right">
-                                <div className="text-sm text-neutral-600">
-                                  {breed.eggsAvailable} {t.browse.eggsAvailable}
-                                </div>
-                                {breed.status === 'low_stock' && (
-                                  <div className="text-xs font-medium text-amber-700">
-                                    {t.browse.waitlistCta}
-                                  </div>
+                                {breed.status === 'sold_out' ? (
+                                  <>
+                                    <div className="text-sm font-medium text-neutral-500">{t.browse.soldOut}</div>
+                                    <Link
+                                      href={waitlistHref}
+                                      className="text-xs font-medium text-amber-700 hover:underline"
+                                    >
+                                      {t.browse.waitlistCta}
+                                    </Link>
+                                  </>
+                                ) : (
+                                  <>
+                                    <div className="text-sm text-neutral-600">
+                                      {breed.eggsAvailable} {t.browse.eggsAvailable}
+                                    </div>
+                                    {breed.status === 'low_stock' && (
+                                      <Link
+                                        href={waitlistHref}
+                                        className="text-xs font-medium text-amber-700 hover:underline"
+                                      >
+                                        {t.browse.waitlistCta}
+                                      </Link>
+                                    )}
+                                  </>
                                 )}
                               </div>
-                              <ArrowRight className="w-4 h-4 text-neutral-400 group-hover:text-neutral-900 group-hover:translate-x-0.5 transition-all" />
+                              <Link href={breedHref} className="flex items-center">
+                                <ArrowRight className="w-4 h-4 text-neutral-400 group-hover:text-neutral-900 group-hover:translate-x-0.5 transition-all" />
+                              </Link>
                             </div>
-                          )}
-                        </Link>
-                      ))}
+                          </div>
+                        )
+                      })}
                     </div>
                   </GlassCard>
                 </motion.div>

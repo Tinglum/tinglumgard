@@ -13,7 +13,7 @@ export async function GET(request: Request) {
     let query = supabaseServer
       .from('egg_inventory')
       .select('*, egg_breeds(*)')
-      .in('status', ['open', 'sold_out'])
+      .in('status', ['open', 'sold_out', 'locked'])
       .gte('delivery_monday', new Date().toISOString().split('T')[0])
       .order('delivery_monday')
 

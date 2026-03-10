@@ -1,11 +1,40 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/server';
 import { requireAdminAccess } from '@/app/api/admin/email/_shared';
-import { isMissingEmailRelationError } from '@/lib/email/schema';
+import { ensureLifecycleSeedData } from '@/lib/email/lifecycle';
+import { getEmailSchemaStatus, isMissingEmailRelationError } from '@/lib/email/schema';
 
 export async function GET() {
   const admin = await requireAdminAccess();
   if (!admin.ok) return admin.response;
+
+  const schemaStatus = await getEmailSchemaStatus(['email_flows', 'email_templates']);
+  if (!schemaStatus.ready) {
+    return NextResponse.json(
+      {
+        error: `Missing email schema tables: ${schemaStatus.missingTables.join(', ')}`,
+        missingTables: schemaStatus.missingTables,
+        hint: 'Run migration 20260310210000_repair_unified_email_schema.sql',
+      },
+      { status: 503 }
+    );
+  }
+
+  // Keep core lifecycle flows/templates self-healed in environments where rows were never seeded.
+  try {
+    await ensureLifecycleSeedData();
+  } catch (error) {
+    if (isMissingEmailRelationError(error)) {
+      return NextResponse.json(
+        {
+          error: 'Email schema mismatch while seeding lifecycle flows',
+          hint: 'Run migration 20260310210000_repair_unified_email_schema.sql',
+        },
+        { status: 503 }
+      );
+    }
+    return NextResponse.json({ error: 'Failed to seed lifecycle flows' }, { status: 500 });
+  }
 
   const { data, error } = await supabaseAdmin
     .from('email_flows')
@@ -16,47 +45,15 @@ export async function GET() {
     return NextResponse.json({ flows: data || [] });
   }
 
-  if (!isMissingEmailRelationError(error)) {
-    return NextResponse.json({ error: 'Failed to fetch flows' }, { status: 500 });
+  if (isMissingEmailRelationError(error)) {
+    return NextResponse.json(
+      {
+        error: 'Email schema mismatch while fetching flows',
+        hint: 'Run migration 20260310210000_repair_unified_email_schema.sql',
+      },
+      { status: 503 }
+    );
   }
 
-  // Legacy fallback for environments where unified email tables are not migrated yet.
-  const { data: legacyFlows, error: legacyError } = await supabaseAdmin
-    .from('communication_flow_templates')
-    .select(
-      'id, slug, product_type, flow_stage, trigger_event, send_offset_days, active, subject_no, subject_en'
-    )
-    .order('display_order', { ascending: true });
-
-  if (legacyError) {
-    if (isMissingEmailRelationError(legacyError)) {
-      return NextResponse.json({
-        flows: [],
-        legacyFallback: true,
-        unavailableReason:
-          'Neither unified email_flows nor legacy communication_flow_templates are available',
-      });
-    }
-
-    return NextResponse.json({ error: 'Failed to fetch flows' }, { status: 500 });
-  }
-
-  const mapped = (legacyFlows || []).map((flow: any) => ({
-    id: flow.id,
-    flow_key: flow.slug,
-    event_type: flow.trigger_event || flow.flow_stage,
-    mode: flow.active ? 'active' : 'disabled',
-    active: Boolean(flow.active),
-    send_offset_minutes: Math.round(Number(flow.send_offset_days || 0) * 1440),
-    template_key: flow.slug,
-    email_templates: {
-      template_key: flow.slug,
-      subject_no: flow.subject_no || '',
-      subject_en: flow.subject_en || '',
-      classification: 'system',
-      active: Boolean(flow.active),
-    },
-  }));
-
-  return NextResponse.json({ flows: mapped, legacyFallback: true });
+  return NextResponse.json({ error: 'Failed to fetch flows' }, { status: 500 });
 }

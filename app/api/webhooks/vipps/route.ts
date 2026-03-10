@@ -121,6 +121,79 @@ type EggAdditionsSummary = {
   }>;
 };
 
+type ChickenOrderLine = {
+  breedName: string;
+  hens: number;
+  roosters: number;
+};
+
+function pickChickenBreedName(
+  relation: { name_no?: string | null; name_en?: string | null; name?: string | null } | Array<{ name_no?: string | null; name_en?: string | null; name?: string | null }> | null
+): string {
+  const breed = Array.isArray(relation) ? relation[0] : relation;
+  return breed?.name_no || breed?.name_en || breed?.name || 'Kyllinger';
+}
+
+function summarizeChickenOrderLines(order: any): { lines: ChickenOrderLine[]; breedLabel: string; hens: number; roosters: number } {
+  const aggregate = new Map<string, ChickenOrderLine>();
+  const addLine = (breedName: string, hens: number, roosters: number) => {
+    const key = (breedName || 'Kyllinger').trim() || 'Kyllinger';
+    const current = aggregate.get(key) || { breedName: key, hens: 0, roosters: 0 };
+    current.hens += Number(hens || 0);
+    current.roosters += Number(roosters || 0);
+    aggregate.set(key, current);
+  };
+
+  addLine(
+    pickChickenBreedName(order?.chicken_breeds as any),
+    Number(order?.quantity_hens || 0),
+    Number(order?.quantity_roosters || 0)
+  );
+
+  const additions = Array.isArray(order?.chicken_order_additions) ? order.chicken_order_additions : [];
+  for (const addition of additions) {
+    addLine(
+      pickChickenBreedName(addition?.chicken_breeds as any),
+      Number(addition?.quantity_hens || 0),
+      Number(addition?.quantity_roosters || 0)
+    );
+  }
+
+  const lines = Array.from(aggregate.values()).filter((line) => line.hens > 0 || line.roosters > 0);
+  return {
+    lines,
+    breedLabel: lines.map((line) => line.breedName).join(' + '),
+    hens: lines.reduce((sum, line) => sum + line.hens, 0),
+    roosters: lines.reduce((sum, line) => sum + line.roosters, 0),
+  };
+}
+
+function buildChickenOrderLinesHtml(lines: ChickenOrderLine[], locale: 'no' | 'en' = 'no'): string {
+  if (!lines.length) {
+    return locale === 'en' ? '<p>No order lines registered.</p>' : '<p>Ingen ordrelinjer registrert.</p>';
+  }
+
+  const li = lines
+    .map((line) => {
+      if (locale === 'en') {
+        if (line.roosters > 0) return `<li>${line.breedName}: ${line.hens} hens, ${line.roosters} roosters</li>`;
+        return `<li>${line.breedName}: ${line.hens} hens</li>`;
+      }
+      if (line.roosters > 0) return `<li>${line.breedName}: ${line.hens} høner, ${line.roosters} haner</li>`;
+      return `<li>${line.breedName}: ${line.hens} høner</li>`;
+    })
+    .join('');
+
+  return `<ul>${li}</ul>`;
+}
+
+function buildTotalBirdsLabel(hens: number, roosters: number, locale: 'no' | 'en' = 'no'): string {
+  if (locale === 'en') {
+    return `${hens} hens, ${roosters} roosters`;
+  }
+  return `${hens} høner, ${roosters} haner`;
+}
+
 function summarizeEggAdditions(order: any): EggAdditionsSummary {
   const relation: EggAdditionRelation[] = Array.isArray(order?.egg_order_additions)
     ? order.egg_order_additions
@@ -163,7 +236,7 @@ function formatOreToNokWithPrefix(amountOre: number): string {
 }
 
 function getPigDeliveryLabel(deliveryType: string): string {
-  if (deliveryType === 'pickup_farm') return 'Henting pa gard';
+  if (deliveryType === 'pickup_farm') return 'Henting på gården';
   if (deliveryType === 'pickup_e6') return 'Henting ved E6';
   if (deliveryType === 'delivery_trondheim') return 'Levering i Trondheim';
   return deliveryType || 'Henting';
@@ -171,13 +244,13 @@ function getPigDeliveryLabel(deliveryType: string): string {
 
 function getEggDeliveryLabel(deliveryMethod: string): string {
   if (deliveryMethod === 'posten') return 'Posten';
-  if (deliveryMethod === 'e6_pickup') return 'E6 motepunkt';
-  if (deliveryMethod === 'farm_pickup') return 'Henting pa gard';
+  if (deliveryMethod === 'e6_pickup') return 'E6 møtepunkt';
+  if (deliveryMethod === 'farm_pickup') return 'Henting på gården';
   return deliveryMethod || 'Levering';
 }
 
 function getChickenDeliveryLabel(deliveryMethod: string): string {
-  if (deliveryMethod === 'farm_pickup') return 'Henting pa gard';
+  if (deliveryMethod === 'farm_pickup') return 'Henting på gården';
   if (deliveryMethod === 'delivery_namsos_trondheim') return 'Levering Namsos/Trondheim';
   return deliveryMethod || 'Henting';
 }
@@ -546,7 +619,7 @@ export async function POST(request: NextRequest) {
     if (isChickenPayment) {
       const result = await supabaseAdmin
         .from("chicken_orders")
-        .select("*, chicken_breeds(*)")
+        .select("*, chicken_breeds(*), chicken_order_additions(quantity_hens, quantity_roosters, chicken_breeds(name_no, name_en, name))")
         .eq("id", resolvedPayment.chicken_order_id)
         .single();
       order = result.data;
@@ -625,7 +698,7 @@ export async function POST(request: NextRequest) {
       const customerEmailForSend = normalizeEmail(order?.customer_email);
       if (order && customerEmailForSend && customerEmailForSend !== 'pending@vipps.no') {
         try {
-          const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://tinglum.no';
+          const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_BASE_URL || 'https://tinglumgard.no';
 
           if (isEggPayment) {
             const breedName = eggBreedName || order.breed_name || 'Rugeegg';
@@ -663,17 +736,19 @@ export async function POST(request: NextRequest) {
               });
             }
           } else if (isChickenPayment) {
-            const breedRelation = order?.chicken_breeds as any[] | { name_no?: string; name_en?: string } | null;
-            const breed = Array.isArray(breedRelation) ? breedRelation[0] : breedRelation;
+            const chickenSummary = summarizeChickenOrderLines(order);
             const rendered = await renderManagedTemplate({
               templateKey: 'chicken.order.deposit.confirmed.customer',
               locale: 'no',
               variables: {
                 customer_name: order.customer_name || 'Kunde',
                 order_number: order.order_number,
-                breed_name: breed?.name_no || breed?.name_en || 'Kyllinger',
-                quantity_hens: Number(order.quantity_hens || 0),
-                quantity_roosters: Number(order.quantity_roosters || 0),
+                breed_name: chickenSummary.breedLabel || 'Kyllinger',
+                quantity_hens: chickenSummary.hens,
+                quantity_roosters: chickenSummary.roosters,
+                total_birds_label: buildTotalBirdsLabel(chickenSummary.hens, chickenSummary.roosters, 'no'),
+                total_birds_label_en: buildTotalBirdsLabel(chickenSummary.hens, chickenSummary.roosters, 'en'),
+                order_lines_html: buildChickenOrderLinesHtml(chickenSummary.lines, 'no'),
                 pickup_date: new Date(`${order.pickup_monday}T00:00:00`).toLocaleDateString('nb-NO'),
                 delivery_label: getChickenDeliveryLabel(String(order.delivery_method || '')),
                 total_amount_nok: formatNok(order.total_amount_nok),
@@ -740,7 +815,7 @@ export async function POST(request: NextRequest) {
       const adminEmail = process.env.EMAIL_FROM || 'post@tinglum.com';
       if (order && adminEmail) {
         try {
-          const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://tinglum.no';
+          const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_BASE_URL || 'https://tinglumgard.no';
           let templateKey = 'admin.order.deposit.confirmed.pig';
           let entityScope: 'order' | 'egg_order' | 'chicken_order' = 'order';
           let variables: Record<string, unknown>;
@@ -773,16 +848,18 @@ export async function POST(request: NextRequest) {
           } else if (isChickenPayment) {
             templateKey = 'admin.order.deposit.confirmed.chicken';
             entityScope = 'chicken_order';
-            const breedRelation = order?.chicken_breeds as any[] | { name_no?: string; name_en?: string } | null;
-            const breed = Array.isArray(breedRelation) ? breedRelation[0] : breedRelation;
+            const chickenSummary = summarizeChickenOrderLines(order);
             variables = {
               order_number: order.order_number,
               customer_name: order.customer_name || 'Kunde',
               customer_email: order.customer_email || '',
               customer_phone: order.customer_phone || 'Ikke oppgitt',
-              breed_name: breed?.name_no || breed?.name_en || 'Kyllinger',
-              quantity_hens: Number(order.quantity_hens || 0),
-              quantity_roosters: Number(order.quantity_roosters || 0),
+              breed_name: chickenSummary.breedLabel || 'Kyllinger',
+              quantity_hens: chickenSummary.hens,
+              quantity_roosters: chickenSummary.roosters,
+              total_birds_label: buildTotalBirdsLabel(chickenSummary.hens, chickenSummary.roosters, 'no'),
+              total_birds_label_en: buildTotalBirdsLabel(chickenSummary.hens, chickenSummary.roosters, 'en'),
+              order_lines_html: buildChickenOrderLinesHtml(chickenSummary.lines, 'no'),
               pickup_week: order.pickup_week,
               pickup_date: new Date(`${order.pickup_monday}T00:00:00`).toLocaleDateString('nb-NO'),
               deposit_amount_nok: formatNok(order.deposit_amount_nok),
@@ -864,7 +941,7 @@ export async function POST(request: NextRequest) {
       const customerEmailForSend = normalizeEmail(order?.customer_email);
       if (order && customerEmailForSend && customerEmailForSend !== 'pending@vipps.no') {
         try {
-          const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://tinglum.no';
+          const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_BASE_URL || 'https://tinglumgard.no';
 
           if (isEggPayment) {
             const baseQuantity = eggSummary?.baseQuantity ?? Number(order.quantity || 0);

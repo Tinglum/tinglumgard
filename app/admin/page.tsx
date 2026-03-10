@@ -38,12 +38,13 @@ import { RecipeManager } from '@/components/admin/RecipeManager';
 import { ChickenBreedManager } from '@/components/admin/ChickenBreedManager';
 import { ChickenHatchManager } from '@/components/admin/ChickenHatchManager';
 import { ChickenOrdersManager } from '@/components/admin/ChickenOrdersManager';
+import { UnifiedEggChickenOrdersManager } from '@/components/admin/UnifiedEggChickenOrdersManager';
 import { EggOpsDailyCollection } from '@/components/eggops/EggOpsDailyCollection';
 
 type TabType = 'dashboard' | 'orders' | 'products' | 'customers' | 'settings';
 
 // Orders sub-tabs
-type OrdersSubTab = 'pig' | 'egg' | 'chicken' | 'calendar';
+type OrdersSubTab = 'pig' | 'unified' | 'egg' | 'chicken' | 'calendar';
 
 // Products L1 sub-tabs
 type ProductsL1 = 'mangalitsa' | 'eggs' | 'chickens';
@@ -71,13 +72,17 @@ export default function AdminPage() {
 
   // Tab state
   const [activeTab, setActiveTab] = useState<TabType>('dashboard');
-  const [ordersSubTab, setOrdersSubTab] = useState<OrdersSubTab>('pig');
+  const [ordersSubTab, setOrdersSubTab] = useState<OrdersSubTab>('unified');
   const [productsL1, setProductsL1] = useState<ProductsL1>('mangalitsa');
   const [mangalitsaL2, setMangalitsaL2] = useState<MangalitsaL2>('boxes');
   const [eggsL2, setEggsL2] = useState<EggsL2>('daily');
   const [chickensL2, setChickensL2] = useState<ChickensL2>('hatches');
   const [customersSubTab, setCustomersSubTab] = useState<CustomersSubTab>('database');
   const [settingsSubTab, setSettingsSubTab] = useState<SettingsSubTab>('config');
+  const [deepLinkParsed, setDeepLinkParsed] = useState(false);
+  const [deepLinkPigOrderId, setDeepLinkPigOrderId] = useState<string | null>(null);
+  const [deepLinkEggOrderId, setDeepLinkEggOrderId] = useState<string | null>(null);
+  const [deepLinkChickenOrderId, setDeepLinkChickenOrderId] = useState<string | null>(null);
 
   // Message badge
   const [unresolvedCount, setUnresolvedCount] = useState(0);
@@ -85,6 +90,57 @@ export default function AdminPage() {
   useEffect(() => {
     setLoading(false);
   }, []);
+
+  useEffect(() => {
+    if (!isAuthenticated || deepLinkParsed || typeof window === 'undefined') return;
+
+    const params = new URLSearchParams(window.location.search);
+    const rawTab = (params.get('tab') || '').trim().toLowerCase();
+    const orderId = (params.get('orderId') || '').trim();
+    const hasParams = rawTab.length > 0 || orderId.length > 0;
+
+    if (!hasParams) {
+      setDeepLinkParsed(true);
+      return;
+    }
+
+    const resolveFromOrderId = (): OrdersSubTab => {
+      if (/^CHICK/i.test(orderId)) return 'chicken';
+      if (/^EGG/i.test(orderId)) return 'egg';
+      return 'pig';
+    };
+
+    let targetOrdersSubTab: OrdersSubTab | null = null;
+
+    if (rawTab === 'pig' || rawTab === 'orders' || rawTab === 'pig-orders') {
+      targetOrdersSubTab = 'pig';
+    } else if (rawTab === 'egg' || rawTab === 'egg-orders') {
+      targetOrdersSubTab = 'egg';
+    } else if (rawTab === 'chicken' || rawTab === 'chicken-orders') {
+      targetOrdersSubTab = 'chicken';
+    } else if (rawTab === 'unified') {
+      targetOrdersSubTab = 'unified';
+    } else if (orderId) {
+      targetOrdersSubTab = resolveFromOrderId();
+    }
+
+    if (targetOrdersSubTab) {
+      setActiveTab('orders');
+      setOrdersSubTab(targetOrdersSubTab);
+
+      if (orderId) {
+        if (targetOrdersSubTab === 'pig') {
+          setDeepLinkPigOrderId(orderId);
+        } else if (targetOrdersSubTab === 'egg') {
+          setDeepLinkEggOrderId(orderId);
+        } else if (targetOrdersSubTab === 'chicken') {
+          setDeepLinkChickenOrderId(orderId);
+        }
+      }
+    }
+
+    setDeepLinkParsed(true);
+  }, [deepLinkParsed, isAuthenticated]);
 
   // Load message stats for badge
   useEffect(() => {
@@ -137,7 +193,7 @@ export default function AdminPage() {
   function handleDashboardNavigate(tab: string, subTab?: string) {
     if (tab === 'orders') {
       setActiveTab('orders');
-      if (subTab === 'pig' || subTab === 'egg' || subTab === 'chicken' || subTab === 'calendar') {
+      if (subTab === 'pig' || subTab === 'unified' || subTab === 'egg' || subTab === 'chicken' || subTab === 'calendar') {
         setOrdersSubTab(subTab);
       }
     } else if (tab === 'customers') {
@@ -217,6 +273,10 @@ export default function AdminPage() {
               onClick={async () => {
                 await fetch('/api/admin/logout', { method: 'POST' });
                 setIsAuthenticated(false);
+                setDeepLinkParsed(false);
+                setDeepLinkPigOrderId(null);
+                setDeepLinkEggOrderId(null);
+                setDeepLinkChickenOrderId(null);
               }}
               className="px-6 py-3 border-2 border-neutral-200 text-neutral-900 rounded-xl text-sm font-light hover:bg-neutral-50 hover:border-neutral-300 hover:-translate-y-0.5 hover:shadow-[0_10px_30px_-10px_rgba(0,0,0,0.1)] transition-all duration-300"
             >
@@ -275,6 +335,7 @@ export default function AdminPage() {
             <SubTabBar
               tabs={[
                 { id: 'pig', label: lang === 'no' ? 'Gris' : 'Pig', icon: Beef },
+                { id: 'unified', label: lang === 'no' ? 'Rugeegg + Kylling' : 'Egg + Chicken', icon: Package },
                 { id: 'egg', label: lang === 'no' ? 'Egg' : 'Eggs', icon: Egg },
                 { id: 'chicken', label: lang === 'no' ? 'Kylling' : 'Chicken', icon: Bird },
                 { id: 'calendar', label: lang === 'no' ? 'Kalender' : 'Calendar', icon: LayoutDashboard },
@@ -283,9 +344,25 @@ export default function AdminPage() {
               onChange={(id) => setOrdersSubTab(id as OrdersSubTab)}
             />
 
-            {ordersSubTab === 'pig' && <PigOrdersTable />}
-            {ordersSubTab === 'egg' && <EggOrdersWorkbench />}
-            {ordersSubTab === 'chicken' && <ChickenOrdersManager />}
+            {ordersSubTab === 'pig' && (
+              <PigOrdersTable
+                initialOrderId={deepLinkPigOrderId}
+                onInitialOrderHandled={() => setDeepLinkPigOrderId(null)}
+              />
+            )}
+            {ordersSubTab === 'unified' && <UnifiedEggChickenOrdersManager />}
+            {ordersSubTab === 'egg' && (
+              <EggOrdersWorkbench
+                initialOrderId={deepLinkEggOrderId}
+                onInitialOrderHandled={() => setDeepLinkEggOrderId(null)}
+              />
+            )}
+            {ordersSubTab === 'chicken' && (
+              <ChickenOrdersManager
+                initialOrderId={deepLinkChickenOrderId}
+                onInitialOrderHandled={() => setDeepLinkChickenOrderId(null)}
+              />
+            )}
             {ordersSubTab === 'calendar' && <DeliveryCalendar />}
           </div>
         )}

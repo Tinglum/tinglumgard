@@ -17,13 +17,16 @@ type EggPayment = {
 }
 
 type EggOrderAddition = {
+  breed_id?: string | null
   quantity: number
   subtotal: number
+  egg_breeds?: { name?: string } | null
 }
 
 type EggOrder = {
   id: string
   order_number: string
+  breed_id?: string | null
   status: string
   quantity: number
   total_amount: number
@@ -70,6 +73,35 @@ export function EggOrderUnifiedCard({ order }: { order: EggOrder }) {
   )
   const baseEggs = order.quantity || 0
   const totalEggs = order.quantity + additionsEggs
+  const orderLines = useMemo(() => {
+    const baseBreedName = order.egg_breeds?.name || common.fallbackBreed
+    const baseLine = {
+      key: String(order.breed_id || baseBreedName),
+      breedName: order.egg_breeds?.name || common.fallbackBreed,
+      quantity: Number(order.quantity || 0),
+    }
+
+    const grouped = new Map<string, { key: string; breedName: string; quantity: number }>()
+    grouped.set(baseLine.key, baseLine)
+    for (const addition of order.egg_order_additions || []) {
+      const breedName = addition.egg_breeds?.name || common.fallbackBreed
+      const key = String(addition.breed_id || breedName)
+      const current = grouped.get(key) || {
+        key,
+        breedName,
+        quantity: 0,
+      }
+      current.quantity += Number(addition.quantity || 0)
+      grouped.set(key, current)
+    }
+
+    return Array.from(grouped.values())
+  }, [common.fallbackBreed, order.breed_id, order.egg_breeds?.name, order.egg_order_additions, order.quantity])
+  const breedSummary = useMemo(() => {
+    const uniqueBreeds = Array.from(new Set(orderLines.map((line) => line.breedName)))
+    if (uniqueBreeds.length <= 2) return uniqueBreeds.join(', ')
+    return `${uniqueBreeds.slice(0, 2).join(', ')} +${uniqueBreeds.length - 2}`
+  }, [orderLines])
   const quantityBreakdownTemplate =
     ordersCopy.quantityBreakdown || 'Base {base} + additions {additions} = total {total}'
   const quantityBreakdown = quantityBreakdownTemplate
@@ -238,7 +270,7 @@ export function EggOrderUnifiedCard({ order }: { order: EggOrder }) {
           <p className="text-xs uppercase tracking-[0.2em] text-neutral-500">{common.order}</p>
           <h3 className="text-2xl font-normal text-neutral-900">{order.order_number}</h3>
           <p className="text-sm text-neutral-600">
-            {(order.egg_breeds?.name || common.fallbackBreed)} - {common.week} {order.week_number} -{' '}
+            {(breedSummary || common.fallbackBreed)} - {common.week} {order.week_number} -{' '}
             {formatDateFull(new Date(order.delivery_monday), lang)}
           </p>
         </div>
@@ -255,6 +287,21 @@ export function EggOrderUnifiedCard({ order }: { order: EggOrder }) {
               {totalEggs} {common.eggs}
             </p>
             <p className="text-xs text-neutral-500">{quantityBreakdown}</p>
+            {orderLines.length > 1 && (
+              <div className="mt-2 space-y-1">
+                {orderLines.map((line) => (
+                  <div
+                    key={line.key}
+                    className="flex items-center justify-between rounded-md border border-neutral-200 bg-neutral-50 px-2 py-1 text-xs text-neutral-700"
+                  >
+                    <span>{line.breedName}</span>
+                    <span>
+                      {line.quantity} {common.eggs}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
           <div>
             <p className="text-xs uppercase tracking-[0.2em] text-neutral-500">{ordersCopy.total}</p>

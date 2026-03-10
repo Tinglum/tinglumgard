@@ -58,6 +58,7 @@ export async function POST(request: NextRequest) {
       {
         error: 'Email schema is not fully migrated',
         missingTables: schema.missingTables,
+        hint: 'Run migration 20260310210000_repair_unified_email_schema.sql',
       },
       { status: 503 }
     );

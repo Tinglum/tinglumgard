@@ -161,7 +161,7 @@ export async function GET(
 
   const { data: order, error } = await supabaseAdmin
     .from('egg_orders')
-    .select('*, egg_breeds(*), egg_payments(*), egg_order_additions(*)')
+    .select('*, egg_breeds(*), egg_payments(*), egg_order_additions(*, egg_breeds(*), egg_inventory(*))')
     .eq('id', params.id)
     .maybeSingle()
 

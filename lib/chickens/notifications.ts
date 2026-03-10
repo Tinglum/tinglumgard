@@ -13,6 +13,12 @@ type ChickenAdditionRelation = {
   chicken_breeds?: ChickenBreedRelation;
 };
 
+type ChickenOrderLine = {
+  breedName: string;
+  hens: number;
+  roosters: number;
+};
+
 function normalizeEmail(value: unknown): string {
   if (typeof value !== 'string') return '';
   return value.trim().toLowerCase();
@@ -23,7 +29,7 @@ function formatNok(amount: unknown): string {
 }
 
 function getChickenDeliveryLabel(deliveryMethod: string): string {
-  if (deliveryMethod === 'farm_pickup') return 'Henting pa gard';
+  if (deliveryMethod === 'farm_pickup') return 'Henting på gården';
   if (deliveryMethod === 'delivery_namsos_trondheim') return 'Levering Namsos/Trondheim';
   return deliveryMethod || 'Henting';
 }
@@ -33,29 +39,81 @@ function pickBreedName(relation: ChickenBreedRelation): string {
   return breed?.name_no || breed?.name_en || breed?.name || 'Kyllinger';
 }
 
-function summarizeOrder(order: any): { breedLabel: string; hens: number; roosters: number } {
-  const baseBreed = pickBreedName(order?.chicken_breeds || null);
-  const breedSet = new Set<string>([baseBreed]);
+function escapeHtml(value: string): string {
+  return value
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+}
+
+function summarizeOrder(order: any): { breedLabel: string; hens: number; roosters: number; lines: ChickenOrderLine[] } {
+  const aggregate = new Map<string, ChickenOrderLine>();
+  const addLine = (breedName: string, hens: number, roosters: number) => {
+    const key = (breedName || 'Kyllinger').trim() || 'Kyllinger';
+    const existing = aggregate.get(key) || { breedName: key, hens: 0, roosters: 0 };
+    existing.hens += Number(hens || 0);
+    existing.roosters += Number(roosters || 0);
+    aggregate.set(key, existing);
+  };
+
+  addLine(pickBreedName(order?.chicken_breeds || null), Number(order?.quantity_hens || 0), Number(order?.quantity_roosters || 0));
 
   const additions: ChickenAdditionRelation[] = Array.isArray(order?.chicken_order_additions)
     ? order.chicken_order_additions
     : [];
 
-  let hens = Number(order?.quantity_hens || 0);
-  let roosters = Number(order?.quantity_roosters || 0);
-
   for (const addition of additions) {
-    hens += Number(addition?.quantity_hens || 0);
-    roosters += Number(addition?.quantity_roosters || 0);
-    const breedName = pickBreedName(addition?.chicken_breeds || null);
-    if (breedName) breedSet.add(breedName);
+    addLine(
+      pickBreedName(addition?.chicken_breeds || null),
+      Number(addition?.quantity_hens || 0),
+      Number(addition?.quantity_roosters || 0)
+    );
   }
 
+  const lines = Array.from(aggregate.values()).filter((line) => line.hens > 0 || line.roosters > 0);
+  const hens = lines.reduce((sum, line) => sum + line.hens, 0);
+  const roosters = lines.reduce((sum, line) => sum + line.roosters, 0);
+
   return {
-    breedLabel: Array.from(breedSet).join(' + '),
+    breedLabel: lines.map((line) => line.breedName).join(' + '),
     hens,
     roosters,
+    lines,
   };
+}
+
+function buildOrderLinesHtml(lines: ChickenOrderLine[], locale: 'no' | 'en'): string {
+  if (!lines.length) {
+    return locale === 'en' ? '<p>No order lines registered.</p>' : '<p>Ingen ordrelinjer registrert.</p>';
+  }
+
+  const lineItems = lines
+    .map((line) => {
+      const breed = escapeHtml(line.breedName);
+      if (locale === 'en') {
+        if (line.roosters > 0) {
+          return `<li>${breed}: ${line.hens} hens, ${line.roosters} roosters</li>`;
+        }
+        return `<li>${breed}: ${line.hens} hens</li>`;
+      }
+
+      if (line.roosters > 0) {
+        return `<li>${breed}: ${line.hens} høner, ${line.roosters} haner</li>`;
+      }
+      return `<li>${breed}: ${line.hens} høner</li>`;
+    })
+    .join('');
+
+  return `<ul>${lineItems}</ul>`;
+}
+
+function buildTotalBirdsLabel(hens: number, roosters: number, locale: 'no' | 'en'): string {
+  if (locale === 'en') {
+    return `${hens} hens, ${roosters} roosters`;
+  }
+  return `${hens} høner, ${roosters} haner`;
 }
 
 export async function sendChickenDepositConfirmationEmails(params: {
@@ -65,10 +123,7 @@ export async function sendChickenDepositConfirmationEmails(params: {
   idempotencySuffix?: string;
 }) {
   const includeAdmin = params.includeAdmin !== false;
-  const appUrl =
-    process.env.NEXT_PUBLIC_APP_URL ||
-    process.env.APP_BASE_URL ||
-    'https://tinglumgard.no';
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_BASE_URL || 'https://tinglumgard.no';
 
   const selectClause =
     '*, chicken_breeds(*), chicken_order_additions(quantity_hens, quantity_roosters, chicken_breeds(*))';
@@ -117,9 +172,9 @@ export async function sendChickenDepositConfirmationEmails(params: {
   }
 
   const summary = summarizeOrder(order);
-  const pickupDate = order.pickup_monday
-    ? new Date(`${order.pickup_monday}T00:00:00`).toLocaleDateString('nb-NO')
-    : '';
+  const pickupDate = order.pickup_monday ? new Date(`${order.pickup_monday}T00:00:00`).toLocaleDateString('nb-NO') : '';
+  const orderLinesHtmlNo = buildOrderLinesHtml(summary.lines, 'no');
+  const orderLinesHtmlEn = buildOrderLinesHtml(summary.lines, 'en');
 
   const customerEmail = normalizeEmail(order.customer_email);
   let customerSent = false;
@@ -135,6 +190,10 @@ export async function sendChickenDepositConfirmationEmails(params: {
         breed_name: summary.breedLabel,
         quantity_hens: summary.hens,
         quantity_roosters: summary.roosters,
+        total_birds_label: buildTotalBirdsLabel(summary.hens, summary.roosters, 'no'),
+        total_birds_label_en: buildTotalBirdsLabel(summary.hens, summary.roosters, 'en'),
+        order_lines_html: orderLinesHtmlNo,
+        order_lines_html_en: orderLinesHtmlEn,
         pickup_date: pickupDate,
         delivery_label: getChickenDeliveryLabel(String(order.delivery_method || '')),
         total_amount_nok: formatNok(order.total_amount_nok),
@@ -188,6 +247,10 @@ export async function sendChickenDepositConfirmationEmails(params: {
           breed_name: summary.breedLabel,
           quantity_hens: summary.hens,
           quantity_roosters: summary.roosters,
+          total_birds_label: buildTotalBirdsLabel(summary.hens, summary.roosters, 'no'),
+          total_birds_label_en: buildTotalBirdsLabel(summary.hens, summary.roosters, 'en'),
+          order_lines_html: orderLinesHtmlNo,
+          order_lines_html_en: orderLinesHtmlEn,
           pickup_week: order.pickup_week,
           pickup_date: pickupDate,
           deposit_amount_nok: formatNok(order.deposit_amount_nok),

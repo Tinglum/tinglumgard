@@ -147,6 +147,11 @@ interface EggOrderFormState {
   lockOrder: boolean
 }
 
+type EggOrdersWorkbenchProps = {
+  initialOrderId?: string | null
+  onInitialOrderHandled?: () => void
+}
+
 const STATUS_OPTIONS = [
   'pending',
   'deposit_paid',
@@ -247,13 +252,13 @@ function isAtRiskOrder(order: EggOrder): boolean {
 
 function hasMissingShipping(order: EggOrder): boolean {
   if (order.delivery_method !== 'posten') return false
-  return !(
-    order.shipping_name &&
-    order.shipping_phone &&
-    order.shipping_address &&
-    order.shipping_postal_code &&
-    order.shipping_city
-  )
+  if (['shipped', 'delivered', 'cancelled', 'forfeited'].includes(order.status)) return false
+  const hasShippingName = Boolean(String(order.shipping_name || order.customer_name || '').trim())
+  const hasShippingPhone = Boolean(String(order.shipping_phone || order.customer_phone || '').trim())
+  const hasShippingAddress = Boolean(String(order.shipping_address || '').trim())
+  const hasShippingPostalCode = Boolean(String(order.shipping_postal_code || '').trim())
+  const hasShippingCity = Boolean(String(order.shipping_city || '').trim())
+  return !(hasShippingName && hasShippingPhone && hasShippingAddress && hasShippingPostalCode && hasShippingCity)
 }
 
 function getEggQuantities(order: Pick<EggOrder, 'quantity' | 'egg_order_additions'>) {
@@ -292,7 +297,10 @@ function toFormState(order: EggOrder, defaultCountry: string): EggOrderFormState
   }
 }
 
-export function EggOrdersWorkbench() {
+export function EggOrdersWorkbench({
+  initialOrderId = null,
+  onInitialOrderHandled,
+}: EggOrdersWorkbenchProps = {}) {
   const { toast } = useToast()
   const { t } = useLanguage()
   const copy = t.eggOrdersWorkbench
@@ -336,6 +344,7 @@ export function EggOrdersWorkbench() {
   const [trackingModalOrderId, setTrackingModalOrderId] = useState<string | null>(null)
   const [trackingNumberInput, setTrackingNumberInput] = useState('')
   const [markShippedLoading, setMarkShippedLoading] = useState(false)
+  const [initialOrderHandled, setInitialOrderHandled] = useState(false)
 
   const statusOptions = useMemo(
     () =>
@@ -517,6 +526,10 @@ export function EggOrdersWorkbench() {
   }, [fetchOrders])
 
   useEffect(() => {
+    setInitialOrderHandled(false)
+  }, [initialOrderId])
+
+  useEffect(() => {
     setSelectedIds((prev) => {
       const next = new Set<string>()
       for (const id of Array.from(prev)) {
@@ -582,6 +595,14 @@ export function EggOrdersWorkbench() {
       setPanelLoading(false)
     }
   }
+
+  useEffect(() => {
+    if (!initialOrderId || initialOrderHandled || loading) return
+    setInitialOrderHandled(true)
+    void fetchOrderDetail(initialOrderId).finally(() => {
+      onInitialOrderHandled?.()
+    })
+  }, [initialOrderHandled, initialOrderId, loading, onInitialOrderHandled])
 
   async function refreshSelectedOrder() {
     if (!selectedOrder) return
