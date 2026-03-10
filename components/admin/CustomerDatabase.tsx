@@ -19,6 +19,13 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 type OrderSource = 'pig' | 'egg' | 'chicken';
 
@@ -172,6 +179,9 @@ export function CustomerDatabase() {
   const [loadingOrder, setLoadingOrder] = useState<string | null>(null);
   const [savingOrder, setSavingOrder] = useState<string | null>(null);
   const [emailActionLoading, setEmailActionLoading] = useState<string | null>(null);
+  const [contentModalOpen, setContentModalOpen] = useState(false);
+  const [contentModalOrder, setContentModalOrder] = useState<CustomerOrderSummary | null>(null);
+  const [contentModalLoadingKey, setContentModalLoadingKey] = useState<string | null>(null);
 
   const loadCustomers = useCallback(async () => {
     setLoading(true);
@@ -213,6 +223,9 @@ export function CustomerDatabase() {
       setExpandedOrder(null);
       setOrderDetails({});
       setOrderDrafts({});
+      setContentModalOpen(false);
+      setContentModalOrder(null);
+      setContentModalLoadingKey(null);
     } catch (error) {
       toast({
         title: copy.impersonateErrorTitle,
@@ -606,6 +619,161 @@ export function CustomerDatabase() {
     };
   }
 
+  async function openOrderContentModal(order: CustomerOrderSummary) {
+    const key = orderKey(order);
+    setContentModalOrder(order);
+    setContentModalOpen(true);
+
+    if (orderDetails[key]) return;
+    try {
+      setContentModalLoadingKey(key);
+      await loadOrderDetail(order);
+    } finally {
+      setContentModalLoadingKey((current) => (current === key ? null : current));
+    }
+  }
+
+  function getOrderContentModalData(order: CustomerOrderSummary) {
+    const key = orderKey(order);
+    const detail = (orderDetails[key] || order.details || {}) as Record<string, unknown>;
+    const lines: Array<{ key: string; label: string; quantity: string; amount?: string | null }> = [];
+
+    if (order.source === 'egg') {
+      const baseBreed = String(
+        (detail.egg_breeds as Record<string, unknown> | undefined)?.name || detail.breed_name || copy.notProvided
+      );
+      const baseQty = toNumber(detail.quantity);
+      lines.push({
+        key: `${key}:base`,
+        label: baseBreed,
+        quantity: `${baseQty.toLocaleString(locale)} ${copy.fieldLabels.quantity}`,
+      });
+
+      const additions = ((detail.egg_order_additions as Array<Record<string, unknown>> | undefined) ||
+        (detail.additions as Array<Record<string, unknown>> | undefined) ||
+        []) as Array<Record<string, unknown>>;
+
+      additions.forEach((addition, index) => {
+        const additionBreed = String(
+          (addition.egg_breeds as Record<string, unknown> | undefined)?.name || copy.notProvided
+        );
+        const qty = toNumber(addition.quantity);
+        const subtotalOre = toNumber(addition.subtotal);
+        lines.push({
+          key: `${key}:addition:${index}`,
+          label: additionBreed,
+          quantity: `${qty.toLocaleString(locale)} ${copy.fieldLabels.quantity}`,
+          amount: subtotalOre > 0 ? `${currency} ${(subtotalOre / 100).toLocaleString(locale)}` : null,
+        });
+      });
+
+      const totalQty = lines.reduce((sum, line) => {
+        const parsed = Number(String(line.quantity).split(' ')[0].replace(/[^0-9]/g, ''));
+        return sum + (Number.isFinite(parsed) ? parsed : 0);
+      }, 0);
+
+      return {
+        summary: `${totalQty.toLocaleString(locale)} ${copy.fieldLabels.quantity}`,
+        lines,
+      };
+    }
+
+    if (order.source === 'chicken') {
+      const baseBreed = String(
+        (detail.chicken_breeds as Record<string, unknown> | undefined)?.name ||
+          detail.breed_name ||
+          copy.notProvided
+      );
+      const baseHens = toNumber(detail.quantity_hens);
+      const baseRoosters = toNumber(detail.quantity_roosters);
+      const formatBirds = (hens: number, roosters: number) =>
+        roosters > 0
+          ? `${hens.toLocaleString(locale)} ${copy.fieldLabels.hens} + ${roosters.toLocaleString(locale)} ${copy.fieldLabels.roosters}`
+          : `${hens.toLocaleString(locale)} ${copy.fieldLabels.hens}`;
+
+      lines.push({
+        key: `${key}:base`,
+        label: baseBreed,
+        quantity: formatBirds(baseHens, baseRoosters),
+        amount: toNumber(detail.subtotal_nok) > 0 ? `${currency} ${toNumber(detail.subtotal_nok).toLocaleString(locale)}` : null,
+      });
+
+      const additions = ((detail.chicken_order_additions as Array<Record<string, unknown>> | undefined) ||
+        (detail.additions as Array<Record<string, unknown>> | undefined) ||
+        []) as Array<Record<string, unknown>>;
+
+      additions.forEach((addition, index) => {
+        const additionBreed = String(
+          (addition.chicken_breeds as Record<string, unknown> | undefined)?.name || copy.notProvided
+        );
+        const hens = toNumber(addition.quantity_hens);
+        const roosters = toNumber(addition.quantity_roosters);
+        lines.push({
+          key: `${key}:addition:${index}`,
+          label: additionBreed,
+          quantity: formatBirds(hens, roosters),
+          amount:
+            toNumber(addition.subtotal_nok) > 0
+              ? `${currency} ${toNumber(addition.subtotal_nok).toLocaleString(locale)}`
+              : null,
+        });
+      });
+
+      const totals = lines.reduce(
+        (acc, line) => {
+          if (line.quantity.includes(copy.fieldLabels.roosters)) {
+            const parts = line.quantity.split('+');
+            const hens = Number(parts[0]?.replace(/[^0-9]/g, '') || 0);
+            const roosters = Number(parts[1]?.replace(/[^0-9]/g, '') || 0);
+            acc.hens += Number.isFinite(hens) ? hens : 0;
+            acc.roosters += Number.isFinite(roosters) ? roosters : 0;
+          } else {
+            const hens = Number(line.quantity.replace(/[^0-9]/g, '') || 0);
+            acc.hens += Number.isFinite(hens) ? hens : 0;
+          }
+          return acc;
+        },
+        { hens: 0, roosters: 0 }
+      );
+
+      return {
+        summary:
+          totals.roosters > 0
+            ? `${totals.hens.toLocaleString(locale)} ${copy.fieldLabels.hens} + ${totals.roosters.toLocaleString(locale)} ${copy.fieldLabels.roosters}`
+            : `${totals.hens.toLocaleString(locale)} ${copy.fieldLabels.hens}`,
+        lines,
+      };
+    }
+
+    const boxSize = toNumber(detail.box_size);
+    const boxLabel = boxSize > 0 ? `${boxSize.toLocaleString(locale)} kg` : copy.notProvided;
+    lines.push({
+      key: `${key}:base`,
+      label: (copy as any).orderCardItemsLabel || (lang === 'en' ? 'Items' : 'Innhold'),
+      quantity: boxLabel,
+    });
+
+    const extras = (detail.order_extras as Array<Record<string, unknown>> | undefined) || [];
+    extras.forEach((extra, index) => {
+      const name = String(
+        (extra.extras_catalog as Record<string, unknown> | undefined)?.name_no || copy.notProvided
+      );
+      const qty = toNumber(extra.quantity);
+      const totalPrice = toNumber(extra.total_price || extra.price_nok);
+      lines.push({
+        key: `${key}:extra:${index}`,
+        label: name,
+        quantity: `${qty.toLocaleString(locale)}x`,
+        amount: totalPrice > 0 ? `${currency} ${totalPrice.toLocaleString(locale)}` : null,
+      });
+    });
+
+    return {
+      summary: boxLabel,
+      lines,
+    };
+  }
+
   const filteredCustomers = useMemo(() => {
     const search = searchTerm.toLowerCase().trim();
     if (!search) return customers;
@@ -922,6 +1090,7 @@ export function CustomerDatabase() {
                   const remaining = Math.max(0, total - paid);
                   const itemSummary = getOrderItemSummary(order);
                   const isResending = emailActionLoading === `order-resend:${key}`;
+                  const isOpeningContents = contentModalLoadingKey === key;
                   return (
                     <div key={key} className="rounded-2xl border border-neutral-200 bg-white p-4">
                       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
@@ -998,7 +1167,11 @@ export function CustomerDatabase() {
                             {currency} {remaining.toLocaleString(locale)}
                           </p>
                         </div>
-                        <div className="rounded-xl border border-neutral-200 p-3">
+                        <button
+                          type="button"
+                          className="rounded-xl border border-neutral-200 p-3 text-left transition-colors hover:bg-neutral-50"
+                          onClick={() => void openOrderContentModal(order)}
+                        >
                           <p className="text-xs uppercase tracking-wide text-neutral-500">
                             {(copy as any).orderCardItemsLabel || (lang === 'en' ? 'Items' : 'Innhold')}
                           </p>
@@ -1006,7 +1179,14 @@ export function CustomerDatabase() {
                           {itemSummary.secondary && (
                             <p className="text-xs text-neutral-600">{itemSummary.secondary}</p>
                           )}
-                        </div>
+                          <p className="mt-2 text-xs text-neutral-500">
+                            {isOpeningContents
+                              ? ((copy as any).orderCardItemsLoading ||
+                                (lang === 'en' ? 'Loading full contents...' : 'Laster fullt innhold...'))
+                              : ((copy as any).orderCardItemsOpen ||
+                                (lang === 'en' ? 'Open full contents' : 'Se fullt innhold'))}
+                          </p>
+                        </button>
                       </div>
                       {expanded && renderOrderDetails(order)}
                     </div>
@@ -1125,6 +1305,111 @@ export function CustomerDatabase() {
             )}
           </div>
         </Card>
+
+        <Dialog
+          open={contentModalOpen}
+          onOpenChange={(open) => {
+            setContentModalOpen(open);
+            if (!open) {
+              setContentModalOrder(null);
+              setContentModalLoadingKey(null);
+            }
+          }}
+        >
+          <DialogContent className="max-h-[86vh] max-w-3xl overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>
+                {(copy as any).orderCardItemsLabel || (lang === 'en' ? 'Items' : 'Innhold')}
+                {contentModalOrder ? (
+                  <span className="ml-2 text-sm font-normal text-neutral-500">
+                    {contentModalOrder.order_number}
+                  </span>
+                ) : null}
+              </DialogTitle>
+              <DialogDescription>
+                {(copy as any).orderContentModalDescription ||
+                  (lang === 'en'
+                    ? 'Full order contents, including base line and additions.'
+                    : 'Fullt ordreinnhold, inkludert grunnlinje og tillegg.')}
+              </DialogDescription>
+            </DialogHeader>
+
+            {!contentModalOrder ? null : (() => {
+              const key = orderKey(contentModalOrder);
+              const isLoadingContent = contentModalLoadingKey === key && !orderDetails[key];
+              const content = getOrderContentModalData(contentModalOrder);
+              const total = toNumber(contentModalOrder.total_amount);
+              const paid = toNumber(contentModalOrder.paid_amount);
+              const remaining = Math.max(0, total - paid);
+
+              if (isLoadingContent) {
+                return (
+                  <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-600">
+                    <span className="inline-flex items-center gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      {copy.orderDetailsLoading}
+                    </span>
+                  </div>
+                );
+              }
+
+              return (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                    <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-3">
+                      <p className="text-xs uppercase tracking-wide text-neutral-500">
+                        {(copy as any).orderCardTotalLabel || (lang === 'en' ? 'Total' : 'Total')}
+                      </p>
+                      <p className="mt-1 text-sm font-semibold text-neutral-900">
+                        {currency} {total.toLocaleString(locale)}
+                      </p>
+                    </div>
+                    <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-3">
+                      <p className="text-xs uppercase tracking-wide text-neutral-500">
+                        {(copy as any).orderCardPaidLabel || (lang === 'en' ? 'Paid' : 'Betalt')}
+                      </p>
+                      <p className="mt-1 text-sm font-semibold text-neutral-900">
+                        {currency} {paid.toLocaleString(locale)}
+                      </p>
+                    </div>
+                    <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-3">
+                      <p className="text-xs uppercase tracking-wide text-neutral-500">
+                        {(copy as any).orderCardRemainingLabel || (lang === 'en' ? 'Remaining' : 'Rest')}
+                      </p>
+                      <p className="mt-1 text-sm font-semibold text-neutral-900">
+                        {currency} {remaining.toLocaleString(locale)}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="rounded-lg border border-neutral-200">
+                    <div className="flex items-center justify-between border-b border-neutral-200 bg-neutral-50 px-3 py-2">
+                      <p className="text-sm font-medium text-neutral-900">
+                        {(copy as any).orderCardItemsLabel || (lang === 'en' ? 'Items' : 'Innhold')}
+                      </p>
+                      <p className="text-xs text-neutral-600">{content.summary}</p>
+                    </div>
+                    <div className="divide-y divide-neutral-200">
+                      {content.lines.map((line) => (
+                        <div key={line.key} className="flex items-center justify-between gap-3 px-3 py-2">
+                          <div>
+                            <p className="text-sm font-medium text-neutral-900">{line.label}</p>
+                            <p className="text-xs text-neutral-600">{line.quantity}</p>
+                          </div>
+                          {line.amount ? (
+                            <p className="text-sm font-semibold text-neutral-900">{line.amount}</p>
+                          ) : (
+                            <span />
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+          </DialogContent>
+        </Dialog>
       </div>
     );
   }

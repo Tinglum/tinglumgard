@@ -98,17 +98,26 @@ export async function GET(request: NextRequest) {
     const pigUnpaidRemainders = pigMetrics.outstanding_remainders;
     const totalUnpaidCount = pigUnpaidDeposits.length + pigUnpaidRemainders.length +
       eggUnpaidDeposits.length + eggUnpaidRemainders.length;
+    // NOTE: Pig amounts are stored in NOK, egg amounts are stored in ore.
+    // Convert egg values to NOK before summing to avoid 100x inflated totals.
+    const eggUnpaidDepositsNok = eggUnpaidDeposits.reduce(
+      (sum: number, o: any) => sum + Number(o.deposit_amount || 0) / 100,
+      0
+    );
+    const eggUnpaidRemaindersNok = eggUnpaidRemainders.reduce((sum: number, o: any) => {
+      const remainderPaidOre = (o.egg_payments || []).reduce((pSum: number, p: any) => {
+        if (p.payment_type !== 'remainder' || p.status !== 'completed') return pSum;
+        return pSum + (p.amount_nok || 0) * 100;
+      }, 0);
+      const remainingOre = Math.max(0, Number(o.remainder_amount || 0) - remainderPaidOre);
+      return sum + remainingOre / 100;
+    }, 0);
+
     const totalUnpaidValue =
       pigMetrics.summary.outstanding_deposits_value +
       pigMetrics.summary.outstanding_remainders_value +
-      eggUnpaidDeposits.reduce((sum: number, o: any) => sum + (o.deposit_amount || 0), 0) +
-      eggUnpaidRemainders.reduce((sum: number, o: any) => {
-        const remainderPaid = (o.egg_payments || []).reduce((pSum: number, p: any) => {
-          if (p.payment_type !== 'remainder' || p.status !== 'completed') return pSum;
-          return pSum + (p.amount_nok || 0) * 100;
-        }, 0);
-        return sum + Math.max(0, (o.remainder_amount || 0) - remainderPaid);
-      }, 0);
+      eggUnpaidDepositsNok +
+      eggUnpaidRemaindersNok;
 
     const actionItems = {
       unpaid: {
@@ -156,7 +165,8 @@ export async function GET(request: NextRequest) {
           order_number: o.order_number,
           customer_name: o.customer_name,
           product_type: 'egg',
-          amount: o.total_amount,
+          // egg order amounts are stored in ore
+          amount: Number(o.total_amount || 0) / 100,
           created_at: o.created_at,
         }));
       const recentChicken = chickenOrders
@@ -165,7 +175,7 @@ export async function GET(request: NextRequest) {
           order_number: o.order_number,
           customer_name: o.customer_name,
           product_type: 'chicken',
-          amount: o.total_amount,
+          amount: o.total_amount_nok,
           created_at: o.created_at,
         }));
       newOrders = [...recentPig, ...recentEgg, ...recentChicken]

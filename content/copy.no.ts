@@ -2864,6 +2864,9 @@ export const no = {
     orderCardPaidLabel: "Betalt",
     orderCardRemainingLabel: "Rest",
     orderCardItemsLabel: "Innhold",
+    orderCardItemsOpen: "Se fullt innhold",
+    orderCardItemsLoading: "Laster fullt innhold...",
+    orderContentModalDescription: "Fullt ordreinnhold, inkludert grunnlinje og tillegg.",
     emptyResults: "Ingen kunder funnet",
   },
 

@@ -2861,6 +2861,9 @@ export const en = {
     orderCardPaidLabel: "Paid",
     orderCardRemainingLabel: "Remaining",
     orderCardItemsLabel: "Items",
+    orderCardItemsOpen: "Open full contents",
+    orderCardItemsLoading: "Loading full contents...",
+    orderContentModalDescription: "Full order contents, including base line and additions.",
     emptyResults: "No customers found",
   },
 

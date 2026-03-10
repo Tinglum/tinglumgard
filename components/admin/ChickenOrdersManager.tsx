@@ -94,6 +94,7 @@ export function ChickenOrdersManager() {
   const [detailOpen, setDetailOpen] = useState(false)
   const [detailLoading, setDetailLoading] = useState(false)
   const [selectedOrder, setSelectedOrder] = useState<ChickenOrder | null>(null)
+  const [resendingOrderId, setResendingOrderId] = useState<string | null>(null)
   const locale = lang === 'en' ? 'en-US' : 'nb-NO'
 
   const statusOptions = useMemo(
@@ -148,6 +149,45 @@ export function ChickenOrdersManager() {
     },
     [co.notAvailable, locale]
   )
+
+  const getOrderBirdTotals = useCallback((order: ChickenOrder) => {
+    const additionsHens = (order.chicken_order_additions || []).reduce(
+      (sum, row) => sum + Number(row.quantity_hens || 0),
+      0
+    )
+    const additionsRoosters = (order.chicken_order_additions || []).reduce(
+      (sum, row) => sum + Number(row.quantity_roosters || 0),
+      0
+    )
+
+    const baseHens = Number(order.quantity_hens || 0)
+    const baseRoosters = Number(order.quantity_roosters || 0)
+
+    return {
+      baseHens,
+      baseRoosters,
+      additionsHens,
+      additionsRoosters,
+      totalHens: baseHens + additionsHens,
+      totalRoosters: baseRoosters + additionsRoosters,
+    }
+  }, [])
+
+  const getOrderFinancialTotals = useCallback((order: ChickenOrder) => {
+    const additionsSubtotal = (order.chicken_order_additions || []).reduce(
+      (sum, row) => sum + Number(row.subtotal_nok || 0),
+      0
+    )
+    const baseSubtotal = Number(order.subtotal_nok || 0)
+    const deliveryFee = Number(order.delivery_fee_nok || 0)
+    const grandTotal = Number(order.total_amount_nok || 0)
+    const paidTotal = (order.chicken_payments || []).reduce((sum, payment) => {
+      if (payment.status !== 'completed') return sum
+      return sum + Number(payment.amount_nok || 0)
+    }, 0)
+    const remaining = Math.max(0, grandTotal - paidTotal)
+    return { baseSubtotal, additionsSubtotal, deliveryFee, grandTotal, paidTotal, remaining }
+  }, [])
 
   const fetchOrders = useCallback(async () => {
     setLoading(true)
@@ -237,6 +277,40 @@ export function ChickenOrdersManager() {
     }
   }
 
+  const resendConfirmation = async (orderId: string) => {
+    try {
+      setResendingOrderId(orderId)
+      const res = await fetch(`/api/admin/chickens/orders/${orderId}/resend-confirmation`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ includeAdmin: true }),
+      })
+      const body = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(body?.error || 'Failed to resend confirmation')
+      toast({
+        title:
+          co.resendSuccessTitle ||
+          (lang === 'en' ? 'Confirmation resent' : 'Bekreftelse sendt på nytt'),
+        description:
+          co.resendSuccessDescription ||
+          (lang === 'en'
+            ? 'The confirmation email was queued.'
+            : 'Bekreftelseseposten ble lagt i kø.'),
+      })
+    } catch (error: any) {
+      toast({
+        title: co.errorUpdateTitle,
+        description:
+          error?.message ||
+          co.resendFailedDescription ||
+          (lang === 'en' ? 'Could not resend confirmation.' : 'Kunne ikke sende bekreftelse på nytt.'),
+        variant: 'destructive',
+      })
+    } finally {
+      setResendingOrderId((current) => (current === orderId ? null : current))
+    }
+  }
+
   const filtered = orders.filter((order) => {
     const matchesSearch = !searchTerm ||
       order.order_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -284,6 +358,8 @@ export function ChickenOrdersManager() {
           <tbody>
             {filtered.map((order) => {
               const transitions = STATUS_TRANSITIONS[order.status] || []
+              const totals = getOrderBirdTotals(order)
+              const isResending = resendingOrderId === order.id
               return (
                 <tr
                   key={order.id}
@@ -322,8 +398,13 @@ export function ChickenOrdersManager() {
                     </div>
                   </td>
                   <td className="py-2 pr-3">
-                    {order.quantity_hens}H
-                    {order.quantity_roosters > 0 && <span className="text-gray-500"> +{order.quantity_roosters}R</span>}
+                    {totals.totalHens}H
+                    {totals.totalRoosters > 0 && <span className="text-gray-500"> +{totals.totalRoosters}R</span>}
+                    {(totals.additionsHens > 0 || totals.additionsRoosters > 0) && (
+                      <div className="text-xs text-gray-500">
+                        +{totals.additionsHens}H{totals.additionsRoosters > 0 ? ` +${totals.additionsRoosters}R` : ''} {co.detailAdditionsTitle}
+                      </div>
+                    )}
                   </td>
                   <td className="py-2 pr-3">{co.pickupWeekLabel.replace('{week}', String(order.pickup_week)).replace('{year}', String(order.pickup_year))}</td>
                   <td className="py-2 pr-3">{co.ageWeeksLabel.replace('{weeks}', String(order.age_weeks_at_pickup))}</td>
@@ -353,6 +434,14 @@ export function ChickenOrdersManager() {
                           {co.collectRemainderButton}
                         </Button>
                       )}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => void resendConfirmation(order.id)}
+                        disabled={isResending}
+                      >
+                        {isResending ? co.resendSending || (lang === 'en' ? 'Sending...' : 'Sender...') : (co.resendButton || (lang === 'en' ? 'Resend email' : 'Send e-post på nytt'))}
+                      </Button>
                     </div>
                   </td>
                 </tr>
@@ -363,9 +452,11 @@ export function ChickenOrdersManager() {
       </div>
 
       <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
-        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-h-[90vh] max-w-6xl overflow-y-auto !bg-white !text-neutral-900 shadow-2xl ring-1 ring-neutral-200">
           <DialogHeader>
-            <DialogTitle>{co.detailTitle.replace('{order}', selectedOrder?.order_number || co.notAvailable)}</DialogTitle>
+            <DialogTitle className="text-xl font-semibold text-neutral-900">
+              {co.detailTitle.replace('{order}', selectedOrder?.order_number || co.notAvailable)}
+            </DialogTitle>
             <DialogDescription>{co.detailDescription}</DialogDescription>
           </DialogHeader>
 
@@ -379,6 +470,31 @@ export function ChickenOrdersManager() {
 
           {!detailLoading && selectedOrder && (
             <div className="space-y-4">
+              {(() => {
+                const totals = getOrderBirdTotals(selectedOrder)
+                const financial = getOrderFinancialTotals(selectedOrder)
+                return (
+                  <div className="grid gap-3 md:grid-cols-4">
+                    <MetricCard
+                      label={co.summaryBirdsLabel || (lang === 'en' ? 'Total birds' : 'Totalt fugler')}
+                      value={`${totals.totalHens}H${totals.totalRoosters > 0 ? ` + ${totals.totalRoosters}R` : ''}`}
+                    />
+                    <MetricCard
+                      label={co.summaryPaidLabel || (lang === 'en' ? 'Paid' : 'Betalt')}
+                      value={formatMoney(financial.paidTotal)}
+                    />
+                    <MetricCard
+                      label={co.summaryRemainingLabel || (lang === 'en' ? 'Remaining' : 'Rest')}
+                      value={formatMoney(financial.remaining)}
+                    />
+                    <MetricCard
+                      label={co.summaryTotalLabel || (lang === 'en' ? 'Order total' : 'Ordretotal')}
+                      value={formatMoney(financial.grandTotal)}
+                    />
+                  </div>
+                )
+              })()}
+
               <div className="grid gap-4 md:grid-cols-2">
                 <CardSection title={co.detailCustomerTitle}>
                   <DetailRow label={co.labelCustomerName} value={selectedOrder.customer_name} />
@@ -399,12 +515,40 @@ export function ChickenOrdersManager() {
                   />
                   <DetailRow label={co.labelPickupMonday} value={formatDate(selectedOrder.pickup_monday || null)} />
                   <DetailRow label={co.labelAgeWeeks} value={co.ageWeeksLabel.replace('{weeks}', String(selectedOrder.age_weeks_at_pickup))} />
+                  {(() => {
+                    const totals = getOrderBirdTotals(selectedOrder)
+                    return (
+                      <>
+                        <DetailRow
+                          label={co.summaryBirdsLabel || (lang === 'en' ? 'Total birds' : 'Totalt fugler')}
+                          value={`${totals.totalHens}H${totals.totalRoosters > 0 ? ` + ${totals.totalRoosters}R` : ''}`}
+                        />
+                        {(totals.additionsHens > 0 || totals.additionsRoosters > 0) && (
+                          <DetailRow
+                            label={co.detailAdditionsTitle}
+                            value={`+${totals.additionsHens}H${totals.additionsRoosters > 0 ? ` + ${totals.additionsRoosters}R` : ''}`}
+                          />
+                        )}
+                      </>
+                    )
+                  })()}
                 </CardSection>
               </div>
 
               <div className="grid gap-4 md:grid-cols-2">
                 <CardSection title={co.detailFinancialTitle}>
-                  <DetailRow label={co.labelSubtotal} value={formatMoney(selectedOrder.subtotal_nok)} />
+                  {(() => {
+                    const financial = getOrderFinancialTotals(selectedOrder)
+                    return (
+                      <>
+                        <DetailRow label={co.labelSubtotal} value={formatMoney(financial.baseSubtotal)} />
+                        <DetailRow
+                          label={co.detailAdditionsTitle}
+                          value={formatMoney(financial.additionsSubtotal)}
+                        />
+                      </>
+                    )
+                  })()}
                   <DetailRow label={co.labelDeliveryFee} value={formatMoney(selectedOrder.delivery_fee_nok)} />
                   <DetailRow label={co.labelTotal} value={formatMoney(selectedOrder.total_amount_nok)} />
                   <DetailRow label={co.labelDeposit} value={formatMoney(selectedOrder.deposit_amount_nok)} />
@@ -450,22 +594,56 @@ export function ChickenOrdersManager() {
               </div>
 
               <CardSection title={co.detailAdditionsTitle}>
+                <div className="rounded-lg border border-neutral-200 bg-white p-3">
+                  <h5 className="mb-2 text-sm font-semibold text-neutral-900">
+                    {co.detailOrderLinesTitle || (lang === 'en' ? 'Order lines' : 'Ordrelinjer')}
+                  </h5>
+                  <div className="space-y-2">
+                    <div className="rounded border border-neutral-200 bg-neutral-50 p-3 text-sm">
+                      <DetailRow label={co.labelBreed} value={selectedOrder.chicken_breeds?.name || co.unknownBreed} />
+                      <DetailRow
+                        label={co.labelAdditionQuantity}
+                        value={`${co.labelHens}: ${selectedOrder.quantity_hens}, ${co.labelRoosters}: ${selectedOrder.quantity_roosters}`}
+                      />
+                      <DetailRow label={co.labelAdditionSubtotal} value={formatMoney(selectedOrder.subtotal_nok)} />
+                    </div>
+                    {(selectedOrder.chicken_order_additions || []).map((addition) => (
+                      <div key={addition.id} className="rounded border border-neutral-200 bg-neutral-50 p-3 text-sm">
+                        <DetailRow label={co.labelBreed} value={addition.chicken_breeds?.name || co.unknownBreed} />
+                        <DetailRow
+                          label={co.labelAdditionQuantity}
+                          value={`${co.labelHens}: ${addition.quantity_hens}, ${co.labelRoosters}: ${addition.quantity_roosters}`}
+                        />
+                        <DetailRow label={co.labelAdditionSubtotal} value={formatMoney(addition.subtotal_nok)} />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
                 {(selectedOrder.chicken_order_additions || []).length === 0 && (
                   <p className="text-sm text-gray-500">{co.detailNoAdditions}</p>
                 )}
-                <div className="space-y-2">
-                  {(selectedOrder.chicken_order_additions || []).map((addition) => (
-                    <div key={addition.id} className="rounded border border-gray-200 p-3 text-sm grid gap-1 md:grid-cols-3">
-                      <DetailRow label={co.labelBreed} value={addition.chicken_breeds?.name || co.unknownBreed} />
-                      <DetailRow
-                        label={co.labelAdditionQuantity}
-                        value={`${co.labelHens}: ${addition.quantity_hens}, ${co.labelRoosters}: ${addition.quantity_roosters}`}
-                      />
-                      <DetailRow label={co.labelAdditionSubtotal} value={formatMoney(addition.subtotal_nok)} />
-                    </div>
-                  ))}
-                </div>
               </CardSection>
+
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                {!selectedOrder.remainder_collected_at &&
+                  selectedOrder.status !== 'cancelled' &&
+                  selectedOrder.status !== 'picked_up' &&
+                  Number(selectedOrder.remainder_amount_nok || 0) > 0 && (
+                    <Button variant="outline" onClick={() => handleCollectRemainder(selectedOrder)}>
+                      {co.collectRemainderButton}
+                    </Button>
+                  )}
+                <Button
+                  variant="outline"
+                  onClick={() => void resendConfirmation(selectedOrder.id)}
+                  disabled={resendingOrderId === selectedOrder.id}
+                >
+                  {resendingOrderId === selectedOrder.id
+                    ? co.resendSending || (lang === 'en' ? 'Sending...' : 'Sender...')
+                    : (co.resendButton || (lang === 'en' ? 'Resend confirmation' : 'Send bekreftelse på nytt'))}
+                </Button>
+              </div>
             </div>
           )}
         </DialogContent>
@@ -476,10 +654,19 @@ export function ChickenOrdersManager() {
 
 function CardSection({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <section className="rounded border border-gray-200 p-4 space-y-2">
-      <h4 className="font-semibold text-sm text-gray-900">{title}</h4>
+    <section className="rounded-lg border border-neutral-200 bg-white p-4 space-y-2 shadow-sm">
+      <h4 className="font-semibold text-sm text-neutral-900">{title}</h4>
       {children}
     </section>
+  )
+}
+
+function MetricCard({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg border border-neutral-200 bg-white p-4 shadow-sm">
+      <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">{label}</p>
+      <p className="mt-1 text-lg font-semibold text-neutral-900">{value}</p>
+    </div>
   )
 }
 
@@ -494,8 +681,8 @@ function DetailRow({
 }) {
   return (
     <div className={`grid grid-cols-[150px_1fr] gap-2 text-sm ${multiline ? 'items-start' : 'items-center'}`}>
-      <span className="text-gray-500">{label}</span>
-      <span className={multiline ? 'whitespace-pre-wrap' : ''}>{value}</span>
+      <span className="text-neutral-600">{label}</span>
+      <span className={`${multiline ? 'whitespace-pre-wrap' : ''} text-neutral-900`}>{value}</span>
     </div>
   )
 }
