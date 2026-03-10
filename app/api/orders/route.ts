@@ -5,6 +5,11 @@ import { vippsClient } from '@/lib/vipps/api-client';
 import { POST as checkoutPost } from '@/app/api/checkout/route';
 import { normalizeOrderForDisplay } from '@/lib/orders/display';
 
+function isUuid(value?: string | null): boolean {
+  if (!value) return false;
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
+
 function buildShippingUpdate(details: any) {
   if (!details || typeof details !== 'object') return null;
 
@@ -162,15 +167,17 @@ export async function GET() {
 
   try {
     // Fetch orders that belong to the user by user_id
-    const { data: userOrders, error: userOrdersError } = await supabaseAdmin
-      .from('orders')
-      .select(`
-        *,
-        mangalitsa_preset:mangalitsa_box_presets(id, slug, name_no, name_en, target_weight_kg),
-        payments (*)
-      `)
-      .eq('user_id', session.userId)
-      .order('created_at', { ascending: false });
+    const { data: userOrders, error: userOrdersError } = isUuid(session.userId)
+      ? await supabaseAdmin
+          .from('orders')
+          .select(`
+            *,
+            mangalitsa_preset:mangalitsa_box_presets(id, slug, name_no, name_en, target_weight_kg),
+            payments (*)
+          `)
+          .eq('user_id', session.userId)
+          .order('created_at', { ascending: false })
+      : { data: [], error: null };
 
     if (userOrdersError) throw userOrdersError;
 
@@ -190,7 +197,7 @@ export async function GET() {
     if (anonymousError) throw anonymousError;
 
     // Link matching anonymous orders to the current user
-    if (anonymousOrders && anonymousOrders.length > 0) {
+    if (isUuid(session.userId) && anonymousOrders && anonymousOrders.length > 0) {
       console.log(`Linking ${anonymousOrders.length} anonymous orders to user ${session.userId} by phone/email match`);
 
       const { error: updateError } = await supabaseAdmin

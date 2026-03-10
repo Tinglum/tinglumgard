@@ -4,6 +4,11 @@ import { supabaseAdmin } from '@/lib/supabase/server'
 
 export const dynamic = 'force-dynamic'
 
+function isUuid(value?: string | null): boolean {
+  if (!value) return false
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
+}
+
 function normalizeEmail(value?: string | null): string {
   return String(value || '').trim().toLowerCase()
 }
@@ -78,7 +83,7 @@ export async function GET() {
     const buildQueries = (columns: string) => {
       const queries = []
 
-      if (session.userId) {
+      if (isUuid(session.userId)) {
         queries.push(
           supabaseAdmin
             .from('chicken_orders')
@@ -170,7 +175,7 @@ export async function GET() {
 
     // Link anonymous orders once we have a trusted match on email/phone.
     const anonymousMatches = data.filter((order) => !order.user_id).map((order) => order.id)
-    if (session.userId && anonymousMatches.length > 0) {
+    if (isUuid(session.userId) && anonymousMatches.length > 0) {
       const { error: linkError } = await supabaseAdmin
         .from('chicken_orders')
         .update({ user_id: session.userId })
