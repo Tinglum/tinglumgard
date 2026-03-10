@@ -48,12 +48,19 @@ export async function POST(request: NextRequest) {
     // Get the pending order data from the request body
     const body = await request.json();
     const { orderDetails } = body;
+    const productType = String(orderDetails?.productType || '').toLowerCase();
+    const returnTo =
+      productType === 'eggs'
+        ? '/rugeegg/bestill'
+        : productType === 'chickens' || productType === 'chicken'
+          ? '/kyllinger'
+          : '/bestill';
 
     // Create state data that includes the pending order
     const stateData = {
       nonce: randomBytes(16).toString('hex'),
       pendingOrder: orderDetails,
-      returnTo: '/bestill',
+      returnTo,
     };
 
     // Encode state as base64

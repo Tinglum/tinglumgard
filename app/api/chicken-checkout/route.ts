@@ -3,6 +3,7 @@ import { supabaseAdmin } from '@/lib/supabase/server'
 import { logError } from '@/lib/logger'
 import { getAgeWeeks, getHenPrice, getDepositAmount, getMondayOfWeek } from '@/lib/chickens/pricing'
 import { createOrderAccessToken } from '@/lib/auth/order-access'
+import { getSession } from '@/lib/auth/session'
 
 interface ChickenCheckoutLineItem {
   hatchId: string
@@ -34,6 +35,14 @@ interface NormalizedLineItem {
   breedId: string
   quantityHens: number
   quantityRoosters: number
+}
+
+function normalizeEmail(value?: string | null): string {
+  return String(value || '').trim().toLowerCase()
+}
+
+function normalizePhone(value?: string | null): string {
+  return String(value || '').trim()
 }
 
 function normalizeLineItems(body: ChickenCheckoutRequest): NormalizedLineItem[] {
@@ -74,6 +83,7 @@ function normalizeLineItems(body: ChickenCheckoutRequest): NormalizedLineItem[] 
 export async function POST(request: NextRequest) {
   try {
     const body: ChickenCheckoutRequest = await request.json()
+    const session = await getSession()
 
     if (!body.pickupYear || !body.pickupWeek || !body.deliveryMethod) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
@@ -188,15 +198,21 @@ export async function POST(request: NextRequest) {
 
     const orderNumber = `CHICK${Date.now().toString().slice(-8)}`
     const primaryLine = computedLines[0]
+    const normalizedBodyEmail = normalizeEmail(body.customerEmail)
+    const normalizedSessionEmail = normalizeEmail(session?.email as string | undefined)
+    const customerEmail = normalizedBodyEmail || normalizedSessionEmail || 'pending@vipps.no'
+    const customerPhone =
+      normalizePhone(body.customerPhone) || normalizePhone(session?.phoneNumber as string | undefined) || null
+    const customerName = String(body.customerName || session?.name || '').trim() || 'Vipps kunde'
 
     const { data: order, error: orderError } = await supabaseAdmin
       .from('chicken_orders')
       .insert({
         order_number: orderNumber,
         user_id: null,
-        customer_name: body.customerName || 'Vipps kunde',
-        customer_email: body.customerEmail || 'pending@vipps.no',
-        customer_phone: body.customerPhone || null,
+        customer_name: customerName,
+        customer_email: customerEmail,
+        customer_phone: customerPhone,
         hatch_id: primaryLine.hatchId,
         breed_id: primaryLine.breedId,
         quantity_hens: primaryLine.quantityHens,

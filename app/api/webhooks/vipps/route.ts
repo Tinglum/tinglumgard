@@ -5,6 +5,7 @@ import { supabaseAdmin } from "@/lib/supabase/server";
 import { dispatchEmail } from "@/lib/email/dispatch";
 import { renderManagedTemplate } from "@/lib/email/render";
 import { logError } from "@/lib/logger";
+import { vippsClient } from "@/lib/vipps/api-client";
 
 /**
  * Vipps Webhooks API uses HMAC verification.
@@ -195,6 +196,129 @@ function buildOrderUrl(appUrl: string, scope: 'order' | 'egg_order' | 'chicken_o
   if (scope === 'egg_order') return `${appUrl}/min-side?eggOrderId=${id}`;
   if (scope === 'chicken_order') return `${appUrl}/min-side?chickenOrderId=${id}`;
   return `${appUrl}/min-side?orderId=${id}`;
+}
+
+function normalizeEmail(value: unknown): string {
+  if (typeof value !== 'string') return '';
+  return value.trim().toLowerCase();
+}
+
+function normalizePhone(value: unknown): string {
+  if (typeof value !== 'string') return '';
+  return value.trim();
+}
+
+function buildVippsContactUpdate(details: any): Record<string, string> {
+  if (!details || typeof details !== 'object') return {};
+
+  const firstName = String(details.firstName || details.first_name || '').trim();
+  const lastName = String(details.lastName || details.last_name || '').trim();
+  const fullName = [firstName, lastName].filter(Boolean).join(' ').trim();
+  const email = normalizeEmail(details.email || details.emailAddress || details.email_address);
+  const phone = normalizePhone(details.phoneNumber || details.phone_number || details.mobileNumber);
+  const address = String(details.streetAddress || details.addressLine1 || details.address || '').trim();
+  const postalCode = String(details.postalCode || details.zipCode || '').trim();
+  const city = String(details.city || '').trim();
+
+  const update: Record<string, string> = {};
+  if (fullName) update.customer_name = fullName;
+  if (email && email !== 'pending@vipps.no') update.customer_email = email;
+  if (phone) update.customer_phone = phone;
+  if (address) update.shipping_address = address;
+  if (postalCode) update.shipping_postal_code = postalCode;
+  if (city) update.shipping_city = city;
+  return update;
+}
+
+async function getVippsCheckoutSessionFromPayment(payment: any): Promise<any | null> {
+  const candidates = [payment?.vipps_order_id, payment?.idempotency_key]
+    .map((value: unknown) => String(value || '').trim())
+    .filter(Boolean);
+
+  const seen = new Set<string>();
+  for (const candidate of candidates) {
+    if (seen.has(candidate)) continue;
+    seen.add(candidate);
+    try {
+      return await vippsClient.getCheckoutSession(candidate);
+    } catch {
+      // Ignore candidate mismatch and continue to next.
+    }
+  }
+
+  return null;
+}
+
+async function enrichChickenOrderContact(order: any, payment: any): Promise<any> {
+  if (!order) return order;
+
+  const currentEmail = normalizeEmail(order.customer_email);
+  const currentPhone = normalizePhone(order.customer_phone);
+  const needsContactUpdate =
+    !currentEmail || currentEmail === 'pending@vipps.no' || !currentPhone || !String(order.customer_name || '').trim();
+
+  if (!needsContactUpdate) return order;
+
+  const checkoutSession = await getVippsCheckoutSessionFromPayment(payment);
+  const details = checkoutSession?.shippingDetails || checkoutSession?.billingDetails || checkoutSession?.customerDetails;
+  const patch = buildVippsContactUpdate(details);
+
+  if (Object.keys(patch).length === 0) return order;
+
+  const { data: updatedOrder, error } = await supabaseAdmin
+    .from('chicken_orders')
+    .update(patch)
+    .eq('id', order.id)
+    .select('*, chicken_breeds(*)')
+    .maybeSingle();
+
+  if (error) {
+    logError('vipps-webhook-chicken-contact-update', error);
+    return { ...order, ...patch };
+  }
+
+  return updatedOrder || { ...order, ...patch };
+}
+
+async function attachChickenOrderToVippsUser(order: any): Promise<any> {
+  if (!order || order.user_id) return order;
+
+  const email = normalizeEmail(order.customer_email);
+  const phone = normalizePhone(order.customer_phone);
+  let resolvedUserId: string | null = null;
+
+  if (email && email !== 'pending@vipps.no') {
+    const { data: userByEmail } = await supabaseAdmin
+      .from('vipps_users')
+      .select('id')
+      .ilike('email', email)
+      .maybeSingle();
+    resolvedUserId = userByEmail?.id || null;
+  }
+
+  if (!resolvedUserId && phone) {
+    const { data: userByPhone } = await supabaseAdmin
+      .from('vipps_users')
+      .select('id')
+      .eq('phone_number', phone)
+      .maybeSingle();
+    resolvedUserId = userByPhone?.id || null;
+  }
+
+  if (!resolvedUserId) return order;
+
+  const { error } = await supabaseAdmin
+    .from('chicken_orders')
+    .update({ user_id: resolvedUserId })
+    .eq('id', order.id)
+    .is('user_id', null);
+
+  if (error) {
+    logError('vipps-webhook-chicken-link-user', error);
+    return order;
+  }
+
+  return { ...order, user_id: resolvedUserId };
 }
 
 export async function POST(request: NextRequest) {
@@ -461,6 +585,11 @@ export async function POST(request: NextRequest) {
       logError('vipps-webhook-fetch-order', orderFetchErr);
     }
 
+    if (isChickenPayment && order) {
+      order = await enrichChickenOrderContact(order, resolvedPayment);
+      order = await attachChickenOrderToVippsUser(order);
+    }
+
     const formatOreToNok = (amountOre: number) =>
       Math.round((Number(amountOre) || 0) / 100).toLocaleString('nb-NO');
     const eggSummary = isEggPayment ? summarizeEggAdditions(order) : null;
@@ -493,7 +622,8 @@ export async function POST(request: NextRequest) {
 
       console.log('Order status updated successfully');
 
-      if (order && order.customer_email && order.customer_email !== 'pending@vipps.no') {
+      const customerEmailForSend = normalizeEmail(order?.customer_email);
+      if (order && customerEmailForSend && customerEmailForSend !== 'pending@vipps.no') {
         try {
           const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://tinglum.no';
 
@@ -523,7 +653,7 @@ export async function POST(request: NextRequest) {
 
             if (rendered) {
               await dispatchEmail({
-                to: order.customer_email,
+                to: customerEmailForSend,
                 subject: rendered.subject,
                 html: rendered.html,
                 classification: 'transactional',
@@ -555,7 +685,7 @@ export async function POST(request: NextRequest) {
 
             if (rendered) {
               await dispatchEmail({
-                to: order.customer_email,
+                to: customerEmailForSend,
                 subject: rendered.subject,
                 html: rendered.html,
                 classification: 'transactional',
@@ -592,7 +722,7 @@ export async function POST(request: NextRequest) {
 
             if (rendered) {
               await dispatchEmail({
-                to: order.customer_email,
+                to: customerEmailForSend,
                 subject: rendered.subject,
                 html: rendered.html,
                 classification: 'transactional',
@@ -731,7 +861,8 @@ export async function POST(request: NextRequest) {
 
       console.log('Order status updated to paid');
 
-      if (order && order.customer_email && order.customer_email !== 'pending@vipps.no') {
+      const customerEmailForSend = normalizeEmail(order?.customer_email);
+      if (order && customerEmailForSend && customerEmailForSend !== 'pending@vipps.no') {
         try {
           const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://tinglum.no';
 
@@ -757,7 +888,7 @@ export async function POST(request: NextRequest) {
 
             if (rendered) {
               await dispatchEmail({
-                to: order.customer_email,
+                to: customerEmailForSend,
                 subject: rendered.subject,
                 html: rendered.html,
                 classification: 'transactional',
@@ -781,7 +912,7 @@ export async function POST(request: NextRequest) {
 
             if (rendered) {
               await dispatchEmail({
-                to: order.customer_email,
+                to: customerEmailForSend,
                 subject: rendered.subject,
                 html: rendered.html,
                 classification: 'transactional',
@@ -812,7 +943,7 @@ export async function POST(request: NextRequest) {
 
             if (rendered) {
               await dispatchEmail({
-                to: order.customer_email,
+                to: customerEmailForSend,
                 subject: rendered.subject,
                 html: rendered.html,
                 classification: 'transactional',

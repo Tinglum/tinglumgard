@@ -87,12 +87,25 @@ export async function GET(request: NextRequest) {
     // If there's a pending order, create it with customer details and redirect to payment
     if (stateData.pendingOrder) {
       const orderData = stateData.pendingOrder;
-      const isEggOrder = orderData.productType === 'eggs';
+      const productType = String(orderData.productType || '').toLowerCase();
+      const isEggOrder = productType === 'eggs';
+      const isChickenOrder = productType === 'chickens' || productType === 'chicken';
+      const orderPagePath = isEggOrder ? '/rugeegg/bestill' : isChickenOrder ? '/kyllinger' : '/bestill';
+      const createOrderPath = isEggOrder
+        ? '/api/eggs/checkout'
+        : isChickenOrder
+          ? '/api/chicken-checkout'
+          : '/api/checkout';
+      const depositOrderPath = isEggOrder
+        ? '/api/eggs/orders'
+        : isChickenOrder
+          ? '/api/chickens/orders'
+          : '/api/orders';
 
       // Create the order with customer details from Vipps
       const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
       const createOrderResponse = await fetch(
-        `${appUrl}${isEggOrder ? '/api/eggs/checkout' : '/api/checkout'}`,
+        `${appUrl}${createOrderPath}`,
         {
         method: 'POST',
         headers: {
@@ -110,7 +123,7 @@ export async function GET(request: NextRequest) {
       if (!createOrderResponse.ok) {
         console.error('Failed to create order', { status: createOrderResponse.status });
         const errorRedirect = NextResponse.redirect(
-          new URL(isEggOrder ? '/rugeegg/bestill?error=order_creation_failed' : '/bestill?error=order_creation_failed', request.url)
+          new URL(`${orderPagePath}?error=order_creation_failed`, request.url)
         );
         errorRedirect.cookies.set('tinglum_session', sessionToken, {
           httpOnly: true,
@@ -132,7 +145,7 @@ export async function GET(request: NextRequest) {
 
       // Immediately redirect to deposit payment
       const depositResponse = await fetch(
-        `${appUrl}${isEggOrder ? '/api/eggs/orders' : '/api/orders'}/${orderResult.orderId}/deposit`,
+        `${appUrl}${depositOrderPath}/${orderResult.orderId}/deposit`,
         {
         method: 'POST',
         headers: depositHeaders,
@@ -142,9 +155,7 @@ export async function GET(request: NextRequest) {
         console.error('Failed to create deposit payment', { status: depositResponse.status });
         const errorRedirect = NextResponse.redirect(
           new URL(
-            isEggOrder
-              ? `/rugeegg/bestill?error=payment_failed&orderId=${orderResult.orderId}`
-              : `/bestill?error=payment_failed&orderId=${orderResult.orderId}`,
+            `${orderPagePath}?error=payment_failed&orderId=${orderResult.orderId}`,
             request.url
           )
         );

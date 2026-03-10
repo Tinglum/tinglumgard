@@ -74,6 +74,58 @@ function buildDispatchMetadata(input: DispatchEmailInput): Record<string, unknow
   };
 }
 
+function normalizeErrorMessage(error: unknown): string {
+  if (!error) return '';
+  if (typeof error === 'string') return error;
+  if (typeof error === 'object') {
+    const message = (error as { message?: unknown }).message;
+    if (typeof message === 'string') return message;
+  }
+  return String(error);
+}
+
+function isMissingEmailSchemaError(error: unknown): boolean {
+  const message = normalizeErrorMessage(error).toLowerCase();
+  const code = String((error as { code?: unknown })?.code || '').toLowerCase();
+
+  return (
+    code === '42p01' ||
+    code === 'pgrst205' ||
+    message.includes("could not find the table 'public.email_") ||
+    message.includes('relation') && message.includes('does not exist')
+  );
+}
+
+async function sendLegacyDirect(input: {
+  to: string;
+  subject: string;
+  html: string;
+  settings: { defaultFrom: string; defaultReplyTo: string };
+}): Promise<DispatchEmailResult> {
+  const sendResult = await sendViaMailgun({
+    to: input.to,
+    subject: input.subject,
+    html: input.html,
+    text: htmlToPlainText(input.html),
+    from: input.settings.defaultFrom,
+    replyTo: input.settings.defaultReplyTo,
+  });
+
+  if (sendResult.success) {
+    return {
+      success: true,
+      mode: 'legacy',
+      id: sendResult.id,
+    };
+  }
+
+  return {
+    success: false,
+    mode: 'legacy',
+    error: sendResult.error || 'Failed to send email',
+  };
+}
+
 export async function dispatchEmail(input: DispatchEmailInput): Promise<DispatchEmailResult> {
   const classification = input.classification || 'transactional';
   const locale = input.locale || 'no';
@@ -99,37 +151,46 @@ export async function dispatchEmail(input: DispatchEmailInput): Promise<Dispatch
   });
 
   if (!consent.allowed) {
-    const queue = await enqueueEmailRecord({
-      idempotencyKey,
-      classification,
-      toEmail: input.to,
-      toPhone: input.toPhone || null,
-      locale,
-      templateKey: input.templateKey,
-      subject: input.subject,
-      html,
-      metadata: {
-        ...metadata,
-        consent_blocked: true,
-        consent_reason: consent.reason || null,
-      },
-      sourcePath: input.sourcePath,
-      campaignId: input.campaignId,
-      orderId: input.orderId,
-      eggOrderId: input.eggOrderId,
-      chickenOrderId: input.chickenOrderId,
-      customerMessageId: input.customerMessageId,
-      priority: input.priority,
-      maxAttempts: input.maxAttempts || 6,
-      status: 'cancelled',
-      lastError: `Consent blocked: ${consent.reason || 'unknown'}`,
-      nextAttemptAt: new Date().toISOString(),
-    });
+    let queueId: string | undefined;
+    try {
+      const queue = await enqueueEmailRecord({
+        idempotencyKey,
+        classification,
+        toEmail: input.to,
+        toPhone: input.toPhone || null,
+        locale,
+        templateKey: input.templateKey,
+        subject: input.subject,
+        html,
+        metadata: {
+          ...metadata,
+          consent_blocked: true,
+          consent_reason: consent.reason || null,
+        },
+        sourcePath: input.sourcePath,
+        campaignId: input.campaignId,
+        orderId: input.orderId,
+        eggOrderId: input.eggOrderId,
+        chickenOrderId: input.chickenOrderId,
+        customerMessageId: input.customerMessageId,
+        priority: input.priority,
+        maxAttempts: input.maxAttempts || 6,
+        status: 'cancelled',
+        lastError: `Consent blocked: ${consent.reason || 'unknown'}`,
+        nextAttemptAt: new Date().toISOString(),
+      });
+      queueId = queue.record.id;
+    } catch (error) {
+      if (!isMissingEmailSchemaError(error)) {
+        throw error;
+      }
+      // Legacy projects without the unified email schema still need consent-safe behavior.
+    }
 
     return {
       success: true,
       mode: settings.mode,
-      queueId: queue.record.id,
+      queueId,
       skipped: true,
       skipReason: consent.reason || 'consent_blocked',
     };
@@ -201,28 +262,43 @@ export async function dispatchEmail(input: DispatchEmailInput): Promise<Dispatch
     };
   }
 
-  const queued = await enqueueEmailRecord({
-    idempotencyKey,
-    classification,
-    toEmail: input.to,
-    toPhone: input.toPhone || null,
-    locale,
-    templateKey: input.templateKey,
-    subject: input.subject,
-    html,
-    metadata,
-    sourcePath: input.sourcePath,
-    campaignId: input.campaignId,
-    orderId: input.orderId,
-    eggOrderId: input.eggOrderId,
-    chickenOrderId: input.chickenOrderId,
-    customerMessageId: input.customerMessageId,
-    priority: input.priority,
-    maxAttempts: input.maxAttempts || 6,
-    status: 'processing',
-    lockedAt: new Date().toISOString(),
-    lockedBy: 'legacy-sync-dispatch',
-  });
+  let queued: Awaited<ReturnType<typeof enqueueEmailRecord>> | null = null;
+  try {
+    queued = await enqueueEmailRecord({
+      idempotencyKey,
+      classification,
+      toEmail: input.to,
+      toPhone: input.toPhone || null,
+      locale,
+      templateKey: input.templateKey,
+      subject: input.subject,
+      html,
+      metadata,
+      sourcePath: input.sourcePath,
+      campaignId: input.campaignId,
+      orderId: input.orderId,
+      eggOrderId: input.eggOrderId,
+      chickenOrderId: input.chickenOrderId,
+      customerMessageId: input.customerMessageId,
+      priority: input.priority,
+      maxAttempts: input.maxAttempts || 6,
+      status: 'processing',
+      lockedAt: new Date().toISOString(),
+      lockedBy: 'legacy-sync-dispatch',
+    });
+  } catch (error) {
+    if (!isMissingEmailSchemaError(error)) {
+      throw error;
+    }
+
+    // Fallback for environments where unified email tables are not migrated yet.
+    return sendLegacyDirect({
+      to: input.to,
+      subject: input.subject,
+      html,
+      settings,
+    });
+  }
 
   if (!queued.inserted && queued.record.status === 'sent') {
     return {

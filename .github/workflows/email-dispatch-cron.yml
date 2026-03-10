@@ -35,7 +35,7 @@ jobs:
             -H "x-cron-secret: $CRON_SECRET" \
             --output "$FLOW_RESPONSE_FILE" \
             --write-out "%{http_code}" \
-            "$FLOW_URL")
+            "${FLOW_URL}?token=${CRON_SECRET}")
 
           echo "Flow runner HTTP status: $FLOW_HTTP_CODE"
           echo "Flow runner response:"
@@ -54,7 +54,7 @@ jobs:
             -H "x-cron-secret: $CRON_SECRET" \
             --output "$DISPATCH_RESPONSE_FILE" \
             --write-out "%{http_code}" \
-            "$DISPATCH_URL")
+            "${DISPATCH_URL}?token=${CRON_SECRET}")
 
           echo "Dispatch HTTP status: $DISPATCH_HTTP_CODE"
           echo "Dispatch response:"
