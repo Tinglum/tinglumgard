@@ -13,7 +13,7 @@ jobs:
     steps:
       - name: Trigger egg waitlist processor
         env:
-          APP_BASE_URL: ${{ secrets.APP_BASE_URL || vars.APP_BASE_URL || 'https://xn--tinglumgrd-85a.no' }}
+          APP_BASE_URL: ${{ secrets.APP_BASE_URL || vars.APP_BASE_URL || 'https://tinglumgard.no' }}
           CRON_SECRET: ${{ secrets.CRON_SECRET || vars.CRON_SECRET }}
         run: |
           set -euo pipefail
@@ -26,7 +26,7 @@ jobs:
               -H "x-cron-secret: $CRON_SECRET" \
               --output "$RESPONSE_FILE" \
               --write-out "%{http_code}" \
-              "$URL")
+              "${URL}?token=${CRON_SECRET}")
           else
             echo "CRON_SECRET not set in GitHub; calling endpoint without auth header."
             HTTP_CODE=$(curl --silent --show-error \

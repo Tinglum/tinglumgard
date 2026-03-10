@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth/session';
 import { supabaseAdmin } from '@/lib/supabase/server';
+import { fetchCommunicationHistory } from '@/lib/email/history';
 
 type PaymentRow = {
   amount_nok: number | null;
@@ -65,7 +66,30 @@ type ChickenOrderRow = {
   quantity_roosters?: number | null;
   pickup_week?: number | null;
   pickup_year?: number | null;
+  pickup_monday?: string | null;
+  age_weeks_at_pickup?: number | null;
+  delivery_method?: string | null;
+  delivery_fee_nok?: number | null;
+  deposit_amount_nok?: number | null;
+  remainder_amount_nok?: number | null;
+  remainder_due_date?: string | null;
+  price_per_hen_nok?: number | null;
+  price_per_rooster_nok?: number | null;
+  subtotal_nok?: number | null;
+  notes?: string | null;
+  admin_notes?: string | null;
+  shipping_address?: string | null;
+  shipping_postal_code?: string | null;
+  shipping_city?: string | null;
+  shipping_country?: string | null;
   chicken_breeds?: { name?: string | null } | null;
+  chicken_order_additions?: Array<{
+    id?: string | null;
+    quantity_hens?: number | null;
+    quantity_roosters?: number | null;
+    subtotal_nok?: number | null;
+    price_per_hen_nok?: number | null;
+  }> | null;
   chicken_payments?: PaymentRow[] | null;
 };
 
@@ -199,6 +223,23 @@ function toChickenUnified(row: ChickenOrderRow): UnifiedOrder {
       quantity_roosters: row.quantity_roosters ?? null,
       pickup_week: row.pickup_week ?? null,
       pickup_year: row.pickup_year ?? null,
+      pickup_monday: row.pickup_monday ?? null,
+      age_weeks_at_pickup: row.age_weeks_at_pickup ?? null,
+      delivery_method: row.delivery_method ?? null,
+      delivery_fee_nok: row.delivery_fee_nok ?? null,
+      deposit_amount_nok: row.deposit_amount_nok ?? null,
+      remainder_amount_nok: row.remainder_amount_nok ?? null,
+      remainder_due_date: row.remainder_due_date ?? null,
+      price_per_hen_nok: row.price_per_hen_nok ?? null,
+      price_per_rooster_nok: row.price_per_rooster_nok ?? null,
+      subtotal_nok: row.subtotal_nok ?? null,
+      notes: row.notes ?? null,
+      admin_notes: row.admin_notes ?? null,
+      shipping_address: row.shipping_address ?? null,
+      shipping_postal_code: row.shipping_postal_code ?? null,
+      shipping_city: row.shipping_city ?? null,
+      shipping_country: row.shipping_country ?? null,
+      additions: row.chicken_order_additions || [],
       breed_name: row.chicken_breeds?.name || null,
     },
   };
@@ -367,7 +408,7 @@ async function fetchChickenOrdersRows(): Promise<ChickenOrderRow[]> {
   const detailed = await supabaseAdmin
     .from('chicken_orders')
     .select(
-      'id, user_id, order_number, customer_name, customer_email, customer_phone, status, created_at, total_amount_nok, quantity_hens, quantity_roosters, pickup_week, pickup_year, chicken_breeds(name), chicken_payments(amount_nok, status)'
+      'id, user_id, order_number, customer_name, customer_email, customer_phone, status, created_at, total_amount_nok, quantity_hens, quantity_roosters, pickup_week, pickup_year, pickup_monday, age_weeks_at_pickup, delivery_method, delivery_fee_nok, deposit_amount_nok, remainder_amount_nok, remainder_due_date, price_per_hen_nok, price_per_rooster_nok, subtotal_nok, notes, admin_notes, shipping_address, shipping_postal_code, shipping_city, shipping_country, chicken_breeds(name), chicken_payments(amount_nok, status), chicken_order_additions(id, quantity_hens, quantity_roosters, subtotal_nok, price_per_hen_nok)'
     );
 
   if (!detailed.error) {
@@ -393,6 +434,7 @@ async function fetchChickenOrdersRows(): Promise<ChickenOrderRow[]> {
   return ((fallback.data || []) as ChickenOrderRow[]).map((row) => ({
     ...row,
     chicken_breeds: null,
+    chicken_order_additions: [],
     chicken_payments: [],
   }));
 }
@@ -424,6 +466,8 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const action = searchParams.get('action');
     const customerId = searchParams.get('customerId');
+    const source = searchParams.get('source');
+    const orderId = searchParams.get('orderId');
 
     switch (action) {
       case 'list':
@@ -437,6 +481,15 @@ export async function GET(request: NextRequest) {
 
       case 'stats':
         return await getCustomerStats();
+
+      case 'order-detail':
+        if (!source || !orderId) {
+          return NextResponse.json({ error: 'Source and orderId are required' }, { status: 400 });
+        }
+        if (!['pig', 'egg', 'chicken'].includes(source)) {
+          return NextResponse.json({ error: 'Invalid source' }, { status: 400 });
+        }
+        return await getOrderDetail(source as 'pig' | 'egg' | 'chicken', orderId);
 
       default:
         return await getCustomerList();
@@ -558,6 +611,17 @@ async function getCustomerProfile(customerId: string) {
   const bestName = sortedOrders.find((order) => order.customerName)?.customerName || 'Kunde';
   const bestEmail = sortedOrders.find((order) => isUsableEmail(order.customerEmail))?.customerEmail || '';
   const bestPhone = sortedOrders.find((order) => order.customerPhone)?.customerPhone || null;
+  const pigOrderIds = sortedOrders.filter((order) => order.source === 'pig').map((order) => order.id);
+  const eggOrderIds = sortedOrders.filter((order) => order.source === 'egg').map((order) => order.id);
+  const chickenOrderIds = sortedOrders.filter((order) => order.source === 'chicken').map((order) => order.id);
+  const communications = await fetchCommunicationHistory({
+    email: bestEmail || undefined,
+    phone: bestPhone || undefined,
+    pigOrderIds,
+    eggOrderIds,
+    chickenOrderIds,
+    limit: 300,
+  });
 
   const profile = {
     customer_id: customerId,
@@ -588,9 +652,54 @@ async function getCustomerProfile(customerId: string) {
       created_at: order.createdAt,
       details: order.metadata,
     })),
+    communications,
   };
 
   return NextResponse.json({ profile });
+}
+
+async function getOrderDetail(source: 'pig' | 'egg' | 'chicken', orderId: string) {
+  if (source === 'pig') {
+    const { data, error } = await supabaseAdmin
+      .from('orders')
+      .select(
+        '*, mangalitsa_preset:mangalitsa_box_presets(*), payments(*), order_extras(*, extras_catalog(*))'
+      )
+      .eq('id', orderId)
+      .maybeSingle();
+    if (error || !data) {
+      return NextResponse.json({ error: 'Order not found' }, { status: 404 });
+    }
+    return NextResponse.json({ source, order: data });
+  }
+
+  if (source === 'egg') {
+    const { data, error } = await supabaseAdmin
+      .from('egg_orders')
+      .select(
+        '*, egg_breeds(*), egg_inventory(*), egg_payments(*), egg_order_additions(*, egg_breeds(*), egg_inventory(*))'
+      )
+      .eq('id', orderId)
+      .maybeSingle();
+    if (error || !data) {
+      return NextResponse.json({ error: 'Order not found' }, { status: 404 });
+    }
+    return NextResponse.json({ source, order: data });
+  }
+
+  const { data, error } = await supabaseAdmin
+    .from('chicken_orders')
+    .select(
+      '*, chicken_breeds(*), chicken_hatches(*), chicken_payments(*), chicken_order_additions(*, chicken_breeds(*), chicken_hatches(*))'
+    )
+    .eq('id', orderId)
+    .maybeSingle();
+
+  if (error || !data) {
+    return NextResponse.json({ error: 'Order not found' }, { status: 404 });
+  }
+
+  return NextResponse.json({ source, order: data });
 }
 
 async function getCustomerStats() {

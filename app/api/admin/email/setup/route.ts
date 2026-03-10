@@ -2,12 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/server';
 import { requireAdminAccess } from '@/app/api/admin/email/_shared';
 import { getEmailDispatchSettings } from '@/lib/email/queue';
+import { getEmailSchemaStatus } from '@/lib/email/schema';
 
 export async function GET() {
   const admin = await requireAdminAccess();
   if (!admin.ok) return admin.response;
 
   const settings = await getEmailDispatchSettings(true);
+  const schemaStatus = await getEmailSchemaStatus();
   const { data: suppressions } = await supabaseAdmin
     .from('email_suppression_list')
     .select('*')
@@ -19,11 +21,13 @@ export async function GET() {
     mailgunDomain: Boolean(process.env.MAILGUN_DOMAIN),
     mailgunWebhookSigningKey: Boolean(process.env.MAILGUN_WEBHOOK_SIGNING_KEY),
     cronSecret: Boolean(process.env.CRON_SECRET),
+    nextPublicAppUrl: Boolean(process.env.NEXT_PUBLIC_APP_URL),
   };
 
   return NextResponse.json({
     settings,
     envStatus,
+    schemaStatus,
     suppressionList: suppressions || [],
   });
 }

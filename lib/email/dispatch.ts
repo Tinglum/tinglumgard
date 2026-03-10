@@ -12,6 +12,7 @@ import {
   recoverStaleProcessingLocks,
 } from '@/lib/email/queue';
 import { ensureHtmlDocument, htmlToPlainText } from '@/lib/email/render';
+import { isMissingEmailRelationError } from '@/lib/email/schema';
 import type { DispatchEmailInput, DispatchEmailResult } from '@/lib/email/types';
 
 function inferIdempotency(input: DispatchEmailInput): {
@@ -72,28 +73,6 @@ function buildDispatchMetadata(input: DispatchEmailInput): Record<string, unknow
     missing_email_alert: false,
     ...(input.metadata || {}),
   };
-}
-
-function normalizeErrorMessage(error: unknown): string {
-  if (!error) return '';
-  if (typeof error === 'string') return error;
-  if (typeof error === 'object') {
-    const message = (error as { message?: unknown }).message;
-    if (typeof message === 'string') return message;
-  }
-  return String(error);
-}
-
-function isMissingEmailSchemaError(error: unknown): boolean {
-  const message = normalizeErrorMessage(error).toLowerCase();
-  const code = String((error as { code?: unknown })?.code || '').toLowerCase();
-
-  return (
-    code === '42p01' ||
-    code === 'pgrst205' ||
-    message.includes("could not find the table 'public.email_") ||
-    message.includes('relation') && message.includes('does not exist')
-  );
 }
 
 async function sendLegacyDirect(input: {
@@ -181,7 +160,7 @@ export async function dispatchEmail(input: DispatchEmailInput): Promise<Dispatch
       });
       queueId = queue.record.id;
     } catch (error) {
-      if (!isMissingEmailSchemaError(error)) {
+      if (!isMissingEmailRelationError(error)) {
         throw error;
       }
       // Legacy projects without the unified email schema still need consent-safe behavior.
@@ -197,69 +176,104 @@ export async function dispatchEmail(input: DispatchEmailInput): Promise<Dispatch
   }
 
   if (settings.mode === 'active' || (settings.mode === 'legacy' && settings.paused)) {
-    const queue = await enqueueEmailRecord({
-      idempotencyKey,
-      classification,
-      toEmail: input.to,
-      toPhone: input.toPhone || null,
-      locale,
-      templateKey: input.templateKey,
-      subject: input.subject,
-      html,
-      metadata,
-      sourcePath: input.sourcePath,
-      campaignId: input.campaignId,
-      orderId: input.orderId,
-      eggOrderId: input.eggOrderId,
-      chickenOrderId: input.chickenOrderId,
-      customerMessageId: input.customerMessageId,
-      priority: input.priority,
-      maxAttempts: input.maxAttempts || 6,
-      status: 'pending',
-    });
+    try {
+      const queue = await enqueueEmailRecord({
+        idempotencyKey,
+        classification,
+        toEmail: input.to,
+        toPhone: input.toPhone || null,
+        locale,
+        templateKey: input.templateKey,
+        subject: input.subject,
+        html,
+        metadata,
+        sourcePath: input.sourcePath,
+        campaignId: input.campaignId,
+        orderId: input.orderId,
+        eggOrderId: input.eggOrderId,
+        chickenOrderId: input.chickenOrderId,
+        customerMessageId: input.customerMessageId,
+        priority: input.priority,
+        maxAttempts: input.maxAttempts || 6,
+        status: 'pending',
+      });
 
-    return {
-      success: true,
-      mode: settings.mode,
-      queueId: queue.record.id,
-    };
+      return {
+        success: true,
+        mode: settings.mode,
+        queueId: queue.record.id,
+      };
+    } catch (error) {
+      if (!isMissingEmailRelationError(error)) {
+        throw error;
+      }
+
+      if (settings.mode === 'legacy' && settings.paused) {
+        return {
+          success: true,
+          mode: settings.mode,
+          skipped: true,
+          skipReason: 'queue_schema_missing',
+        };
+      }
+
+      return sendLegacyDirect({
+        to: input.to,
+        subject: input.subject,
+        html,
+        settings,
+      });
+    }
   }
 
   if (settings.mode === 'shadow') {
-    const queue = await enqueueEmailRecord({
-      idempotencyKey,
-      classification,
-      toEmail: input.to,
-      toPhone: input.toPhone || null,
-      locale,
-      templateKey: input.templateKey,
-      subject: input.subject,
-      html,
-      metadata: {
-        ...metadata,
-        dispatch_mode: 'shadow',
-        would_send: true,
-      },
-      sourcePath: input.sourcePath,
-      campaignId: input.campaignId,
-      orderId: input.orderId,
-      eggOrderId: input.eggOrderId,
-      chickenOrderId: input.chickenOrderId,
-      customerMessageId: input.customerMessageId,
-      priority: input.priority,
-      maxAttempts: input.maxAttempts || 6,
-      status: 'sent',
-      sentAt: new Date().toISOString(),
-      providerMessageId: 'shadow:would_send',
-    });
+    try {
+      const queue = await enqueueEmailRecord({
+        idempotencyKey,
+        classification,
+        toEmail: input.to,
+        toPhone: input.toPhone || null,
+        locale,
+        templateKey: input.templateKey,
+        subject: input.subject,
+        html,
+        metadata: {
+          ...metadata,
+          dispatch_mode: 'shadow',
+          would_send: true,
+        },
+        sourcePath: input.sourcePath,
+        campaignId: input.campaignId,
+        orderId: input.orderId,
+        eggOrderId: input.eggOrderId,
+        chickenOrderId: input.chickenOrderId,
+        customerMessageId: input.customerMessageId,
+        priority: input.priority,
+        maxAttempts: input.maxAttempts || 6,
+        status: 'sent',
+        sentAt: new Date().toISOString(),
+        providerMessageId: 'shadow:would_send',
+      });
 
-    return {
-      success: true,
-      mode: settings.mode,
-      queueId: queue.record.id,
-      skipped: true,
-      skipReason: 'shadow_mode',
-    };
+      return {
+        success: true,
+        mode: settings.mode,
+        queueId: queue.record.id,
+        skipped: true,
+        skipReason: 'shadow_mode',
+      };
+    } catch (error) {
+      if (!isMissingEmailRelationError(error)) {
+        throw error;
+      }
+
+      return {
+        success: true,
+        mode: settings.mode,
+        skipped: true,
+        skipReason: 'shadow_schema_missing',
+      };
+    }
   }
 
   let queued: Awaited<ReturnType<typeof enqueueEmailRecord>> | null = null;
@@ -287,7 +301,7 @@ export async function dispatchEmail(input: DispatchEmailInput): Promise<Dispatch
       lockedBy: 'legacy-sync-dispatch',
     });
   } catch (error) {
-    if (!isMissingEmailSchemaError(error)) {
+    if (!isMissingEmailRelationError(error)) {
       throw error;
     }
 

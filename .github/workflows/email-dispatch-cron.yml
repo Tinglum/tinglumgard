@@ -12,8 +12,8 @@ jobs:
     steps:
       - name: Trigger email flow runner and dispatch worker
         env:
-          APP_BASE_URL: ${{ secrets.APP_BASE_URL }}
-          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          APP_BASE_URL: ${{ secrets.APP_BASE_URL || vars.APP_BASE_URL || 'https://tinglumgard.no' }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET || vars.CRON_SECRET }}
         run: |
           set -euo pipefail
 
@@ -22,10 +22,7 @@ jobs:
             exit 1
           fi
 
-          if [ -z "${APP_BASE_URL:-}" ]; then
-            echo "::error::APP_BASE_URL is required for email dispatch cron."
-            exit 1
-          fi
+          echo "Using APP_BASE_URL=${APP_BASE_URL}"
 
           FLOW_URL="${APP_BASE_URL%/}/api/cron/email-flow-runner"
           FLOW_RESPONSE_FILE=/tmp/email-flow-runner-response.json

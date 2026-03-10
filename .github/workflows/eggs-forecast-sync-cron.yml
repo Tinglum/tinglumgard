@@ -12,8 +12,8 @@ jobs:
     steps:
       - name: Trigger eggs forecast sync
         env:
-          APP_BASE_URL: ${{ secrets.APP_BASE_URL }}
-          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          APP_BASE_URL: ${{ secrets.APP_BASE_URL || vars.APP_BASE_URL || 'https://tinglumgard.no' }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET || vars.CRON_SECRET }}
         run: |
           set -euo pipefail
 
@@ -22,10 +22,7 @@ jobs:
             exit 1
           fi
 
-          if [ -z "${APP_BASE_URL:-}" ]; then
-            echo "::error::APP_BASE_URL is required for eggs forecast sync cron."
-            exit 1
-          fi
+          echo "Using APP_BASE_URL=${APP_BASE_URL}"
 
           URL="${APP_BASE_URL%/}/api/cron/eggs-forecast-sync"
           RESPONSE_FILE=/tmp/eggs-forecast-sync-response.json
@@ -35,7 +32,7 @@ jobs:
             -H "x-cron-secret: $CRON_SECRET" \
             --output "$RESPONSE_FILE" \
             --write-out "%{http_code}" \
-            "$URL")
+            "${URL}?token=${CRON_SECRET}")
 
           echo "HTTP status: $HTTP_CODE"
           echo "Cron response:"

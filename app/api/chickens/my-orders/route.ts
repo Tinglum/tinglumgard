@@ -23,7 +23,11 @@ function isEmailMatch(sessionEmail?: string | null, orderEmail?: string | null):
   return a === b
 }
 
-function isPhoneMatch(sessionPhone?: string | null, orderPhone?: string | null): boolean {
+function isPhoneMatch(
+  sessionPhone?: string | null,
+  orderPhone?: string | null,
+  allowShortSuffix = false
+): boolean {
   const a = phoneDigits(sessionPhone)
   const b = phoneDigits(orderPhone)
   if (!a || !b) return false
@@ -31,7 +35,27 @@ function isPhoneMatch(sessionPhone?: string | null, orderPhone?: string | null):
   if (a.length >= 8 && b.length >= 8) {
     return a.slice(-8) === b.slice(-8)
   }
+  if (allowShortSuffix) {
+    const shorter = a.length <= b.length ? a : b
+    const longer = a.length > b.length ? a : b
+    if (shorter.length >= 4 && longer.endsWith(shorter)) {
+      return true
+    }
+  }
   return false
+}
+
+function isMissingRelationError(error: any): boolean {
+  const message = String(error?.message || '').toLowerCase()
+  const details = String(error?.details || '').toLowerCase()
+  const hint = String(error?.hint || '').toLowerCase()
+  const combined = `${message} ${details} ${hint}`
+  return (
+    combined.includes('chicken_order_additions') ||
+    combined.includes('chicken_payments') ||
+    combined.includes('schema cache') ||
+    combined.includes('does not exist')
+  )
 }
 
 export async function GET() {
@@ -44,59 +68,101 @@ export async function GET() {
   try {
     const normalizedSessionEmail = normalizeEmail(session.email as string | undefined)
     const normalizedSessionPhone = normalizePhone(session.phoneNumber as string | undefined)
-    const sessionPhoneTail = phoneDigits(normalizedSessionPhone).slice(-8)
+    const isImpersonating = Boolean((session as any).isImpersonating)
+    const sessionPhoneDigits = phoneDigits(normalizedSessionPhone)
+    const sessionPhoneTail = sessionPhoneDigits.length >= 8
+      ? sessionPhoneDigits.slice(-8)
+      : (isImpersonating && sessionPhoneDigits.length >= 4 ? sessionPhoneDigits : '')
     const selectColumns = '*, chicken_breeds(*), chicken_payments(*), chicken_order_additions(*)'
-    const queries = []
 
-    if (session.userId) {
-      queries.push(
-        supabaseAdmin
-          .from('chicken_orders')
-          .select(selectColumns)
-          .eq('user_id', session.userId)
-      )
+    const buildQueries = (columns: string) => {
+      const queries = []
+
+      if (session.userId) {
+        queries.push(
+          supabaseAdmin
+            .from('chicken_orders')
+            .select(columns)
+            .eq('user_id', session.userId)
+        )
+      }
+      if (normalizedSessionEmail) {
+        queries.push(
+          supabaseAdmin
+            .from('chicken_orders')
+            .select(columns)
+            .ilike('customer_email', normalizedSessionEmail)
+        )
+      }
+      if (sessionPhoneTail) {
+        queries.push(
+          supabaseAdmin
+            .from('chicken_orders')
+            .select(columns)
+            .ilike('customer_phone', `%${sessionPhoneTail}`)
+        )
+      }
+
+      return queries
     }
-    if (normalizedSessionEmail) {
-      queries.push(
-        supabaseAdmin
-          .from('chicken_orders')
-          .select(selectColumns)
-          .ilike('customer_email', normalizedSessionEmail)
-      )
-    }
-    if (sessionPhoneTail) {
-      queries.push(
-        supabaseAdmin
-          .from('chicken_orders')
-          .select(selectColumns)
-          .ilike('customer_phone', `%${sessionPhoneTail}`)
-      )
-    }
+
+    let queries = buildQueries(selectColumns)
 
     if (queries.length === 0) {
       return NextResponse.json([])
     }
 
-    const results = await Promise.all(queries)
-    for (const result of results) {
-      if (result.error) {
-        console.error('Error fetching chicken orders:', result.error)
-        return NextResponse.json({ error: result.error.message }, { status: 500 })
+    let results = await Promise.all(queries)
+    const hasQueryError = results.some((result) => Boolean(result.error))
+
+    if (hasQueryError) {
+      const canFallback = results.every((result) => !result.error || isMissingRelationError(result.error))
+      if (!canFallback) {
+        const firstError = results.find((result) => result.error)?.error
+        console.error('Error fetching chicken orders:', firstError)
+        return NextResponse.json({ error: firstError?.message || 'Failed to load chicken orders' }, { status: 500 })
+      }
+
+      queries = buildQueries('*')
+      results = await Promise.all(queries)
+      const fallbackError = results.find((result) => result.error)?.error
+      if (fallbackError) {
+        console.error('Error fetching chicken orders (fallback):', fallbackError)
+        return NextResponse.json({ error: fallbackError.message }, { status: 500 })
       }
     }
 
     const combined = new Map<string, any>()
     for (const result of results) {
-      for (const order of result.data || []) {
+      for (const order of (result.data as Array<any>) || []) {
         const ownsByUserId = Boolean(session.userId) && order.user_id === session.userId
         const ownsByEmail = isEmailMatch(normalizedSessionEmail, order.customer_email)
-        const ownsByPhone = isPhoneMatch(normalizedSessionPhone, order.customer_phone)
+        const ownsByPhone = isPhoneMatch(normalizedSessionPhone, order.customer_phone, isImpersonating)
 
         if (!ownsByUserId && !ownsByEmail && !ownsByPhone) {
           continue
         }
 
         combined.set(order.id, order)
+      }
+    }
+
+    // Extra safety for impersonation sessions where email/phone formatting differs.
+    if (combined.size === 0 && isImpersonating && (normalizedSessionEmail || normalizedSessionPhone)) {
+      const { data: recentOrders, error: recentError } = await supabaseAdmin
+        .from('chicken_orders')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(500)
+
+      if (!recentError) {
+        for (const order of (recentOrders as Array<any>) || []) {
+          const ownsByEmail = isEmailMatch(normalizedSessionEmail, order.customer_email)
+          const ownsByPhone = isPhoneMatch(normalizedSessionPhone, order.customer_phone, true)
+          if (ownsByEmail || ownsByPhone) {
+            combined.set(order.id, order)
+          }
+        }
       }
     }
 

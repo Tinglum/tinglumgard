@@ -15,6 +15,29 @@ interface MessagingPanelProps {
 }
 
 type CustomerMessageWithReplies = CustomerMessage & { message_replies?: MessageReply[] };
+type CommunicationHistoryItem = {
+  id: string;
+  source: 'email_dispatch_queue' | 'legacy_email_log';
+  channel: 'email';
+  classification: string;
+  status: string;
+  subject: string;
+  templateKey: string | null;
+  toEmail: string | null;
+  sentAt: string | null;
+  createdAt: string | null;
+  sourcePath: string | null;
+  providerMessageId: string | null;
+  lastError: string | null;
+  metadata: Record<string, unknown>;
+  orderRefs: {
+    orderId: string | null;
+    eggOrderId: string | null;
+    chickenOrderId: string | null;
+    campaignId: string | null;
+    customerMessageId: string | null;
+  };
+};
 
 export function MessagingPanel({ className, variant = 'light' }: MessagingPanelProps) {
   const { toast } = useToast();
@@ -50,6 +73,36 @@ export function MessagingPanel({ className, variant = 'light' }: MessagingPanelP
     fromYou: t.customerMessagingPanel.fromYou,
     fromFarm: t.customerMessagingPanel.fromFarm,
     replyPlaceholder: t.customerMessagingPanel.replyPlaceholder,
+    communicationsTitle: (t as any).customerMessagingPanel.communicationsTitle || 'Systemkommunikasjon',
+    communicationsSubtitle:
+      (t as any).customerMessagingPanel.communicationsSubtitle ||
+      'Automatiske e-poster og oppdateringer fra systemet.',
+    communicationsLoading: (t as any).customerMessagingPanel.communicationsLoading || 'Laster kommunikasjon...',
+    communicationsEmpty: (t as any).customerMessagingPanel.communicationsEmpty || 'Ingen e-poster registrert ennå',
+    communicationsLoadError:
+      (t as any).customerMessagingPanel.communicationsLoadError || 'Kunne ikke laste kommunikasjonshistorikk',
+    communicationsSentAt: (t as any).customerMessagingPanel.communicationsSentAt || 'Sendt',
+    communicationsCreatedAt: (t as any).customerMessagingPanel.communicationsCreatedAt || 'Opprettet',
+    communicationsClassification: (t as any).customerMessagingPanel.communicationsClassification || 'Type',
+    communicationsTemplate: (t as any).customerMessagingPanel.communicationsTemplate || 'Mal',
+    communicationsNoSubject: (t as any).customerMessagingPanel.communicationsNoSubject || '(Uten emne)',
+    communicationStatus: {
+      sent: (t as any).customerMessagingPanel.communicationStatusSent || 'Sendt',
+      pending: (t as any).customerMessagingPanel.communicationStatusPending || 'Venter',
+      processing: (t as any).customerMessagingPanel.communicationStatusProcessing || 'Behandles',
+      failed: (t as any).customerMessagingPanel.communicationStatusFailed || 'Feilet',
+      dead: (t as any).customerMessagingPanel.communicationStatusDead || 'Stoppet',
+      cancelled: (t as any).customerMessagingPanel.communicationStatusCancelled || 'Kansellert',
+      unknown: (t as any).customerMessagingPanel.communicationStatusUnknown || 'Ukjent',
+    },
+    communicationClassification: {
+      transactional:
+        (t as any).customerMessagingPanel.communicationClassificationTransactional || 'Transaksjonell',
+      support: (t as any).customerMessagingPanel.communicationClassificationSupport || 'Support',
+      promotional: (t as any).customerMessagingPanel.communicationClassificationPromotional || 'Kampanje',
+      system: (t as any).customerMessagingPanel.communicationClassificationSystem || 'System',
+      unknown: (t as any).customerMessagingPanel.communicationClassificationUnknown || 'Ukjent',
+    },
     categories: {
       support: t.customerMessagingPanel.categorySupport,
       inquiry: t.customerMessagingPanel.categoryInquiry,
@@ -75,6 +128,8 @@ export function MessagingPanel({ className, variant = 'light' }: MessagingPanelP
   const [success, setSuccess] = useState(false);
   const [replyTexts, setReplyTexts] = useState<Record<string, string>>({});
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
+  const [communications, setCommunications] = useState<CommunicationHistoryItem[]>([]);
+  const [communicationsLoading, setCommunicationsLoading] = useState(true);
 
   const markMessagesAsViewed = useCallback(async (messageIds: string[]) => {
     try {
@@ -107,9 +162,30 @@ export function MessagingPanel({ className, variant = 'light' }: MessagingPanelP
     }
   }, [copy.loadError, markMessagesAsViewed]);
 
+  const loadCommunicationHistory = useCallback(async () => {
+    try {
+      setCommunicationsLoading(true);
+      const res = await fetch('/api/messages/history', { cache: 'no-store' });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data?.error || copy.communicationsLoadError);
+      }
+      setCommunications(Array.isArray(data.communications) ? data.communications : []);
+    } catch (historyError) {
+      console.error('Failed to load communication history:', historyError);
+      setCommunications([]);
+    } finally {
+      setCommunicationsLoading(false);
+    }
+  }, [copy.communicationsLoadError]);
+
   useEffect(() => {
     loadMessages();
   }, [loadMessages]);
+
+  useEffect(() => {
+    loadCommunicationHistory();
+  }, [loadCommunicationHistory]);
 
   useEffect(() => {
     const handleMessageCreated = () => {
@@ -204,6 +280,7 @@ export function MessagingPanel({ className, variant = 'light' }: MessagingPanelP
       setMessageText('');
       setSuccess(true);
       setMessages((prev) => [data.message, ...prev]);
+      loadCommunicationHistory();
     } catch (submitError) {
       toast({
         title: copy.sendFailedTitle,
@@ -230,6 +307,16 @@ export function MessagingPanel({ className, variant = 'light' }: MessagingPanelP
   };
 
   const isDark = variant === 'dark';
+
+  const communicationStatusClass: Record<string, string> = {
+    sent: 'bg-green-100 text-green-800',
+    pending: 'bg-amber-100 text-amber-800',
+    processing: 'bg-blue-100 text-blue-800',
+    failed: 'bg-red-100 text-red-800',
+    dead: 'bg-red-100 text-red-800',
+    cancelled: 'bg-gray-100 text-gray-700',
+    unknown: 'bg-gray-100 text-gray-700',
+  };
 
   return (
     <div className={cn('space-y-6', className)}>
@@ -348,6 +435,85 @@ export function MessagingPanel({ className, variant = 'light' }: MessagingPanelP
             )}
           </Button>
         </form>
+      </div>
+
+      <div
+        className={cn(
+          'rounded-2xl p-6 border',
+          isDark ? 'glass-mobile border-white/20' : 'bg-white border-gray-200'
+        )}
+      >
+        <h3 className={cn('text-xl font-semibold', isDark ? 'text-white' : 'text-gray-900')}>
+          {copy.communicationsTitle}
+        </h3>
+        <p className={cn('text-sm mt-1 mb-4', isDark ? 'text-white/70' : 'text-gray-600')}>
+          {copy.communicationsSubtitle}
+        </p>
+
+        {communicationsLoading ? (
+          <div className={cn('text-sm py-4', isDark ? 'text-white/70' : 'text-gray-600')}>
+            {copy.communicationsLoading}
+          </div>
+        ) : communications.length === 0 ? (
+          <div className={cn('text-sm py-4', isDark ? 'text-white/70' : 'text-gray-600')}>
+            {copy.communicationsEmpty}
+          </div>
+        ) : (
+          <div className="space-y-2 max-h-[360px] overflow-auto pr-1">
+            {communications.map((entry) => {
+              const status = String(entry.status || 'unknown').toLowerCase();
+              const statusLabel =
+                copy.communicationStatus[status as keyof typeof copy.communicationStatus] ||
+                copy.communicationStatus.unknown;
+              const classification = String(entry.classification || 'unknown').toLowerCase();
+              const classificationLabel =
+                copy.communicationClassification[
+                  classification as keyof typeof copy.communicationClassification
+                ] || copy.communicationClassification.unknown;
+              const eventTs = entry.sentAt || entry.createdAt;
+              const eventLabel = eventTs ? new Date(eventTs).toLocaleString(locale) : '-';
+
+              return (
+                <div
+                  key={`${entry.source}-${entry.id}`}
+                  className={cn(
+                    'rounded-lg border p-3',
+                    isDark ? 'border-white/20 bg-white/5' : 'border-gray-200 bg-gray-50'
+                  )}
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <p className={cn('font-medium text-sm', isDark ? 'text-white' : 'text-gray-900')}>
+                      {entry.subject || copy.communicationsNoSubject}
+                    </p>
+                    <span
+                      className={cn(
+                        'text-xs px-2 py-0.5 rounded',
+                        communicationStatusClass[status] || communicationStatusClass.unknown
+                      )}
+                    >
+                      {statusLabel}
+                    </span>
+                  </div>
+
+                  <div className={cn('text-xs mt-2 flex flex-wrap gap-x-4 gap-y-1', isDark ? 'text-white/70' : 'text-gray-600')}>
+                    <span>
+                      {copy.communicationsClassification}: {classificationLabel}
+                    </span>
+                    {entry.templateKey && (
+                      <span>
+                        {copy.communicationsTemplate}: {entry.templateKey}
+                      </span>
+                    )}
+                    <span>
+                      {(entry.sentAt ? copy.communicationsSentAt : copy.communicationsCreatedAt)}:{' '}
+                      {eventLabel}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       <div className="space-y-4">

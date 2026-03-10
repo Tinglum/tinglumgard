@@ -237,8 +237,33 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    if (!sessionPayload && customerEmail) {
+      // Final fallback: allow safe impersonation by known customer email even without vipps_users match.
+      const fallbackIdentity = customerEmail;
+      sessionPayload = {
+        userId: `impersonated:${fallbackIdentity}`,
+        vippsSub: `impersonated:${fallbackIdentity}`,
+        email: customerEmail,
+        phoneNumber: customerPhone || undefined,
+        name: 'Kunde',
+      };
+    }
+
     if (!sessionPayload) {
       return NextResponse.json({ error: 'Customer not found' }, { status: 404 });
+    }
+
+    // Preserve identity from selected customer card when vipps_users lacks contact fields.
+    const payloadEmail = normalizeEmail(sessionPayload.email);
+    const fallbackEmail = normalizeEmail(customerEmail || parsed.email);
+    if (!payloadEmail && fallbackEmail) {
+      sessionPayload.email = fallbackEmail;
+    }
+
+    const payloadPhoneDigits = phoneDigits(sessionPayload.phoneNumber);
+    const fallbackPhone = normalizePhone(customerPhone);
+    if (!payloadPhoneDigits && fallbackPhone) {
+      sessionPayload.phoneNumber = fallbackPhone;
     }
 
     const impersonatedToken = await createSession({
