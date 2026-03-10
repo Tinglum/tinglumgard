@@ -51,6 +51,7 @@ interface Order {
 interface EggOrder {
   id: string;
   order_number: string;
+  breed_id?: string | null;
   status: string;
   quantity: number;
   total_amount: number;
@@ -69,12 +70,13 @@ interface EggOrder {
     amount_nok?: number;
     paid_at?: string | null;
   }>;
-  egg_order_additions?: Array<{ quantity: number; subtotal: number }>;
+  egg_order_additions?: Array<{ breed_id?: string | null; quantity: number; subtotal: number }>;
 }
 
 interface ChickenOrder {
   id: string;
   order_number: string;
+  breed_id?: string | null;
   quantity_hens: number;
   quantity_roosters: number;
   pickup_year: number;
@@ -88,7 +90,16 @@ interface ChickenOrder {
   delivery_method: string;
   status: string;
   created_at: string;
-  chicken_breeds?: { name: string; accent_color: string };
+  chicken_breeds?: { name?: string; accent_color?: string } | null;
+  chicken_order_additions?: Array<{
+    id: string;
+    hatch_id?: string | null;
+    breed_id?: string | null;
+    quantity_hens: number;
+    quantity_roosters: number;
+    subtotal_nok: number;
+    chicken_breeds?: { name?: string; accent_color?: string } | null;
+  }>;
   chicken_payments?: Array<{ payment_type: string; status: string; amount_nok: number }>;
 }
 
@@ -547,6 +558,7 @@ export default function CustomerPortalPage() {
                         <ChickenOrderCard
                           key={order.id}
                           order={order}
+                          onRefresh={loadAllOrders}
                         />
                       ))}
                     </div>
@@ -581,6 +593,7 @@ export default function CustomerPortalPage() {
                       chickenOrdersById.get(item.id) ? (
                         <ChickenOrderCard
                           order={chickenOrdersById.get(item.id)!}
+                          onRefresh={loadAllOrders}
                         />
                       ) : null
                     )}
