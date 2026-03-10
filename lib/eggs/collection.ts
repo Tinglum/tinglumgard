@@ -34,7 +34,13 @@ function isMissingRelationError(error: any): boolean {
 
 function isMissingColumnError(error: any): boolean {
   const code = String(error?.code || '')
-  return code === '42703'
+  const message = String(error?.message || '').toLowerCase()
+  return (
+    code === '42703' ||
+    code.toUpperCase() === 'PGRST204' ||
+    message.includes("could not find the 'duck_eggs' column") ||
+    message.includes("could not find the 'other_eggs' column")
+  )
 }
 
 export type EggOpsDayStatus = 'open' | 'in_progress' | 'closed'

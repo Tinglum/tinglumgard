@@ -1078,6 +1078,21 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
         throw new Error(error?.error || copy.failedSave)
       }
 
+      const miscResponse = await fetch('/api/admin/eggs/daily/misc', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          collection_date: selectedDate,
+          duck_eggs: 0,
+          other_eggs: 0,
+        }),
+      })
+
+      if (!miscResponse.ok) {
+        const error = await miscResponse.json().catch(() => null)
+        throw new Error(error?.error || copy.failedSave)
+      }
+
       setRows((prev) =>
         prev.map((item) => ({
           ...item,
@@ -1091,6 +1106,7 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
           notes: '',
         }))
       )
+      setDayState((prev) => normalizeDayState(selectedDate, { ...(prev || {}), duck_eggs: 0, other_eggs: 0 }))
       setRowStates({})
 
       await Promise.all([loadForecastOnly(), loadAlertsOnly(), loadDashboardOnly(), loadAuditOnly(selectedDate)])
@@ -1103,19 +1119,31 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
     }
   }
 
-  function schedulePostSaveRefresh(date: string) {
+  function schedulePostSaveRefresh(date: string, breedId?: string) {
     if (postSaveRefreshTimerRef.current) {
       clearTimeout(postSaveRefreshTimerRef.current)
     }
 
     postSaveRefreshTimerRef.current = setTimeout(() => {
       postSaveRefreshTimerRef.current = null
-      void Promise.all([loadForecastOnly(), loadAlertsOnly(), loadDashboardOnly(), loadAuditOnly(date)]).catch(
-        () => {
-          setNonBlockingErrors((prev) => [copy.reload, ...prev].slice(0, 6))
-          setAlertsOpen(true)
+
+      void (async () => {
+        if (breedId) {
+          await fetch('/api/admin/eggs/forecast/recompute', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              breed_id: breedId,
+              date,
+            }),
+          }).catch(() => null)
         }
-      )
+
+        await Promise.all([loadForecastOnly(), loadAlertsOnly(), loadDashboardOnly(), loadAuditOnly(date)])
+      })().catch(() => {
+        setNonBlockingErrors((prev) => [copy.reload, ...prev].slice(0, 6))
+        if (embedded) setAlertsOpen(true)
+      })
     }, 250)
   }
 
@@ -1140,6 +1168,7 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
         shell_defect: row.shell_defect,
         other_unsellable: row.other_unsellable,
         notes: row.notes || null,
+        skip_recompute: fastReturn,
       }
 
       const endpoint = row.id ? `/api/admin/eggs/daily/${row.id}` : '/api/admin/eggs/daily'
@@ -1204,7 +1233,7 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
       window.setTimeout(() => setRowState(row.breed_id, { success: false }), 2500)
 
       if (fastReturn) {
-        schedulePostSaveRefresh(selectedDate)
+        schedulePostSaveRefresh(selectedDate, row.breed_id)
         return true
       }
 
@@ -1648,6 +1677,19 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
               </div>
             </div>
 
+            <div className="mt-2 flex items-center justify-end">
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="h-8 border-red-300 bg-white px-2 text-xs text-red-700"
+                onClick={clearAllInputsForDay}
+                disabled={clearingDay || dayState?.status === 'closed'}
+              >
+                {clearingDay ? copy.saving : copy.clearDay}
+              </Button>
+            </div>
+
             <div className="mt-2 rounded-xl border border-sky-200 bg-white/90 p-2">
               <div className="flex items-center justify-between gap-2">
                 <p className="text-[11px] font-semibold uppercase tracking-wide text-neutral-700">{copy.miscEggs}</p>
@@ -1661,14 +1703,24 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
                 </Button>
               </div>
               <div className="mt-2 grid grid-cols-2 gap-2">
-                <div className="rounded-lg border border-neutral-200 bg-neutral-50 px-2 py-1.5">
+                <button
+                  type="button"
+                  onClick={() => setEasyCompleteOpen(true)}
+                  className="rounded-lg border border-neutral-200 bg-neutral-50 px-2 py-1.5 text-left transition hover:border-neutral-300 hover:bg-white"
+                >
                   <p className="text-[11px] text-neutral-500">{copy.duckEggs}</p>
                   <p className="text-base font-semibold text-neutral-900">{dayState?.duck_eggs || 0}</p>
-                </div>
-                <div className="rounded-lg border border-neutral-200 bg-neutral-50 px-2 py-1.5">
+                  <p className="mt-1 text-[10px] text-neutral-500">{copy.easyTapHint}</p>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEasyCompleteOpen(true)}
+                  className="rounded-lg border border-neutral-200 bg-neutral-50 px-2 py-1.5 text-left transition hover:border-neutral-300 hover:bg-white"
+                >
                   <p className="text-[11px] text-neutral-500">{copy.otherEggsExtra}</p>
                   <p className="text-base font-semibold text-neutral-900">{dayState?.other_eggs || 0}</p>
-                </div>
+                  <p className="mt-1 text-[10px] text-neutral-500">{copy.easyTapHint}</p>
+                </button>
               </div>
               <p className="mt-1 text-[11px] text-neutral-600">{copy.miscNotInTotals}</p>
             </div>
@@ -1691,19 +1743,6 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
               <p className="text-sm text-neutral-500">{copy.noBreed}</p>
             ) : (
               <div className="space-y-2">
-                <div className="flex items-center justify-end">
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    className="h-8 border-red-300 bg-white px-2 text-xs text-red-700"
-                    onClick={clearAllInputsForDay}
-                    disabled={clearingDay || dayState?.status === 'closed'}
-                  >
-                    {clearingDay ? copy.saving : copy.clearDay}
-                  </Button>
-                </div>
-
                 <div className="grid h-[calc(100dvh-340px)] auto-rows-fr gap-2">
                   {rows.map((row) => {
                     const state = rowStates[row.breed_id] || DEFAULT_SAVE_STATE

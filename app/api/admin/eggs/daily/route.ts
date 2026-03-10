@@ -25,7 +25,10 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     const row = await upsertEggDailyCollection(body, access.session)
-    const forecast = await recomputeForecastForBreed({ breedId: row.breed_id, date: row.collection_date })
+    const skipRecompute = Boolean(body?.skip_recompute)
+    const forecast = skipRecompute
+      ? null
+      : await recomputeForecastForBreed({ breedId: row.breed_id, date: row.collection_date })
 
     return NextResponse.json({ row, forecast })
   } catch (error: any) {
