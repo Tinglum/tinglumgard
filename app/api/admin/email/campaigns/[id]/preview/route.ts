@@ -7,6 +7,7 @@ import {
   upsertCampaignRecipients,
   type CampaignRecipient,
 } from '@/lib/email/campaigns';
+import { isMissingEmailRelationError } from '@/lib/email/schema';
 
 function toRecipient(row: any): CampaignRecipient {
   return {
@@ -14,15 +15,6 @@ function toRecipient(row: any): CampaignRecipient {
     phone: row.phone || null,
     name: row.name || null,
   };
-}
-
-function isMissingRelationError(error: unknown): boolean {
-  if (!error || typeof error !== 'object') return false;
-  const candidate = error as { code?: string; message?: string };
-  return (
-    candidate.code === '42P01' ||
-    (typeof candidate.message === 'string' && candidate.message.includes('does not exist'))
-  );
 }
 
 export async function POST(
@@ -38,7 +30,7 @@ export async function POST(
     .eq('id', params.id)
     .single();
 
-  if (isMissingRelationError(campaignError)) {
+  if (isMissingEmailRelationError(campaignError)) {
     return NextResponse.json(
       { error: 'Campaign tables are not migrated yet in this environment' },
       { status: 503 }
@@ -53,7 +45,7 @@ export async function POST(
     .from('email_campaign_recipients')
     .select('email, phone, name')
     .eq('campaign_id', campaign.id);
-  if (isMissingRelationError(recipientsResult.error)) {
+  if (isMissingEmailRelationError(recipientsResult.error)) {
     return NextResponse.json(
       { error: 'Campaign recipient tables are not migrated yet in this environment' },
       { status: 503 }
@@ -77,7 +69,7 @@ export async function POST(
       .from('email_campaign_recipients')
       .select('email, phone, name')
       .eq('campaign_id', campaign.id);
-    if (isMissingRelationError(refreshed.error)) {
+    if (isMissingEmailRelationError(refreshed.error)) {
       return NextResponse.json(
         { error: 'Campaign recipient tables are not migrated yet in this environment' },
         { status: 503 }

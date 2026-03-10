@@ -3,6 +3,7 @@ import { supabaseAdmin } from '@/lib/supabase/server';
 import { requireAdminAccess } from '@/app/api/admin/email/_shared';
 import { resolveCampaignRecipients, upsertCampaignRecipients } from '@/lib/email/campaigns';
 import type { EmailClassification } from '@/lib/email/types';
+import { isMissingEmailRelationError } from '@/lib/email/schema';
 
 const ALLOWED_CLASSIFICATIONS: EmailClassification[] = [
   'transactional',
@@ -19,15 +20,6 @@ const ALLOWED_STATUSES = new Set([
   'completed',
   'cancelled',
 ]);
-
-function isMissingRelationError(error: unknown): boolean {
-  if (!error || typeof error !== 'object') return false;
-  const candidate = error as { code?: string; message?: string };
-  return (
-    candidate.code === '42P01' ||
-    (typeof candidate.message === 'string' && candidate.message.includes('does not exist'))
-  );
-}
 
 function isInvalidCampaignStatusError(error: unknown): boolean {
   if (!error || typeof error !== 'object') return false;
@@ -50,7 +42,7 @@ export async function GET() {
     .limit(100);
 
   if (error) {
-    if (isMissingRelationError(error)) {
+    if (isMissingEmailRelationError(error)) {
       return NextResponse.json({
         campaigns: [],
         legacyFallback: true,
@@ -130,7 +122,7 @@ export async function POST(request: NextRequest) {
   }
 
   if (campaignError || !campaign) {
-    if (isMissingRelationError(campaignError)) {
+    if (isMissingEmailRelationError(campaignError)) {
       return NextResponse.json(
         { error: 'Campaign tables are not migrated yet in this environment' },
         { status: 503 }

@@ -1,15 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/server';
 import { requireAdminAccess } from '@/app/api/admin/email/_shared';
-
-function isMissingRelationError(error: unknown): boolean {
-  if (!error || typeof error !== 'object') return false;
-  const candidate = error as { code?: string; message?: string };
-  return (
-    candidate.code === '42P01' ||
-    typeof candidate.message === 'string' && candidate.message.includes('does not exist')
-  );
-}
+import { isMissingEmailRelationError } from '@/lib/email/schema';
 
 export async function GET() {
   const admin = await requireAdminAccess();
@@ -24,7 +16,7 @@ export async function GET() {
     return NextResponse.json({ flows: data || [] });
   }
 
-  if (!isMissingRelationError(error)) {
+  if (!isMissingEmailRelationError(error)) {
     return NextResponse.json({ error: 'Failed to fetch flows' }, { status: 500 });
   }
 
@@ -37,6 +29,15 @@ export async function GET() {
     .order('display_order', { ascending: true });
 
   if (legacyError) {
+    if (isMissingEmailRelationError(legacyError)) {
+      return NextResponse.json({
+        flows: [],
+        legacyFallback: true,
+        unavailableReason:
+          'Neither unified email_flows nor legacy communication_flow_templates are available',
+      });
+    }
+
     return NextResponse.json({ error: 'Failed to fetch flows' }, { status: 500 });
   }
 

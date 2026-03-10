@@ -2,17 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/server';
 import { requireAdminAccess } from '@/app/api/admin/email/_shared';
 import type { EmailFlowMode } from '@/lib/email/types';
+import { isMissingEmailRelationError } from '@/lib/email/schema';
 
 const ALLOWED_MODES: EmailFlowMode[] = ['shadow', 'active', 'disabled'];
-
-function isMissingRelationError(error: unknown): boolean {
-  if (!error || typeof error !== 'object') return false;
-  const candidate = error as { code?: string; message?: string };
-  return (
-    candidate.code === '42P01' ||
-    typeof candidate.message === 'string' && candidate.message.includes('does not exist')
-  );
-}
 
 export async function PATCH(
   request: NextRequest,
@@ -63,7 +55,7 @@ export async function PATCH(
     return NextResponse.json({ flow: data });
   }
 
-  if (!isMissingRelationError(error)) {
+  if (!isMissingEmailRelationError(error)) {
     return NextResponse.json({ error: 'Failed to update flow' }, { status: 500 });
   }
 
@@ -106,6 +98,13 @@ export async function PATCH(
     .single();
 
   if (legacyError || !legacyFlow) {
+    if (isMissingEmailRelationError(legacyError)) {
+      return NextResponse.json(
+        { error: 'Flow tables are not available in this environment yet' },
+        { status: 503 }
+      );
+    }
+
     return NextResponse.json({ error: 'Failed to update flow' }, { status: 500 });
   }
 
