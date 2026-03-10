@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
@@ -20,7 +20,6 @@ export function Header() {
     <header className="sticky top-0 z-20 glass-strong">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-screen-xl">
         <div className="flex items-center justify-between h-20">
-          {/* Logo */}
           <Link href="/" className="flex items-center gap-3 group">
             <div className="relative">
               <div className="w-10 h-10 rounded-full bg-gradient-to-br from-neutral-900 to-neutral-700 flex items-center justify-center transition-transform duration-200 group-hover:scale-105">
@@ -29,15 +28,14 @@ export function Header() {
             </div>
             <div>
               <div className="font-display text-lg font-semibold text-neutral-900 tracking-tight">
-                Tinglumgård
+                {t.hero.farmName}
               </div>
               <div className="text-xs text-neutral-500 uppercase tracking-widest -mt-0.5">
-                Rugeegg
+                {t.nav.goToEggs}
               </div>
             </div>
           </Link>
 
-          {/* Navigation */}
           <nav className="hidden md:flex items-center gap-8">
             <Link
               href="/rugeegg/raser"
@@ -53,9 +51,7 @@ export function Header() {
             </Link>
           </nav>
 
-          {/* Right side actions */}
           <div className="flex items-center gap-2">
-            {/* Cart indicator */}
             <Link
               href="/rugeegg/handlekurv"
               className="relative p-2 text-neutral-700 hover:text-neutral-900 rounded hover:bg-neutral-100 transition-all focus-ring"
@@ -69,7 +65,6 @@ export function Header() {
               )}
             </Link>
 
-            {/* Language toggle */}
             <button
               onClick={() => setLanguage(language === 'no' ? 'en' : 'no')}
               className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-neutral-700 hover:text-neutral-900 rounded hover:bg-neutral-100 transition-all focus-ring"

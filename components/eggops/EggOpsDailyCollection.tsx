@@ -212,265 +212,9 @@ interface EggOpsDailyCollectionProps {
 }
 
 export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectionProps) {
-  const { lang, setLang } = useLanguage()
+  const { lang, setLang, t } = useLanguage()
 
-  const copy = useMemo(
-    () =>
-      lang === 'en'
-        ? {
-            title: 'EggOps Collection',
-            subtitle: 'Tap a breed, enter totals, then classify eggs below standard.',
-            date: 'Date',
-            language: 'Language',
-            langNo: 'NO',
-            langEn: 'EN',
-            reload: 'Reload',
-            recalc: 'Recompute forecasts',
-            pickBreed: '1. Pick breed',
-            pickBreedHint: 'Choose the breed first, then register in large cards.',
-            noBreed: 'No active breeds found.',
-            stepMain: '2. Register total and keep',
-            stepBad: '3. Classify eggs below standard',
-            totalEggs: 'Total eggs collected',
-            keepEggs: 'Eggs to keep (sellable)',
-            notes: 'Notes',
-            save: 'Save row',
-            saving: 'Saving...',
-            saved: 'Saved',
-            lastUpdated: 'Last updated',
-            mismatchTitle: 'Count mismatch',
-            mismatchBody: 'The sum must match total eggs before save.',
-            classified: 'Classified below standard',
-            remaining: 'Remaining to classify',
-            autoFillOther: 'Auto-fill Other',
-            tooSmall: 'Too small',
-            dirty: 'Dirty',
-            cracked: 'Cracked',
-            shellDefect: 'Shell defect',
-            other: 'Other',
-            qualityRate: 'Sellable rate',
-            loading: 'Loading EggOps data...',
-            openAlerts: 'Open alerts and errors',
-            noAlerts: 'No open alerts or errors.',
-            alertsTitle: 'Alerts and errors',
-            systemErrors: 'System errors',
-            flowAlerts: 'Operational alerts',
-            failedDaily: 'Failed to fetch daily rows',
-            failedForecast: 'Failed to fetch forecast',
-            failedAlerts: 'Failed to fetch alerts',
-            failedSave: 'Failed to save row',
-            forecastTitle: '4-week forecast for selected breed',
-            forecastEmpty: 'No forecast rows for selected breed yet.',
-            week: 'Week',
-            monday: 'Monday',
-            forecastEggs: 'Forecast eggs',
-            status: 'Status',
-            manual: 'Manual',
-            auto: 'Auto',
-            setManual: 'Set manual',
-            setAuto: 'Set auto',
-            manualEggs: 'Manual eggs',
-            lowStock: 'Low stock',
-            deficit: 'Deficit',
-            ok: 'OK',
-            active: 'Active',
-            kpiCollected: 'Collected today',
-            kpiSellable: 'Sellable today',
-            kpiRate: 'Sellable rate',
-            kpiForecast: 'Next week estimate',
-            kpiLow: 'Breeds low stock',
-            dayOpen: 'Open',
-            dayInProgress: 'In progress',
-            dayClosed: 'Closed',
-            setInProgress: 'Set in progress',
-            closeDay: 'Close day',
-            reopenDay: 'Reopen day',
-            reopenReason: 'Reopen reason',
-            copyYesterday: 'Copy yesterday',
-            fastEntry: 'Fast entry',
-            bulkMode: 'Bulk mode',
-            easyMode: 'Easy huge input',
-            detailedMode: 'Detailed mode',
-            easyModeHint: 'Large controls only. No forecast/reporting panels.',
-            easyPickBreed: 'Tap a breed to enter eggs',
-            easyTapHint: 'Tap to edit',
-            easyProgress: 'Stored rows',
-            lineTotal: 'Total',
-            lineSellable: 'Sellable',
-            rowStored: 'Stored',
-            rowPending: 'Pending',
-            clearRow: 'Clear row',
-            clearDay: 'Clear all today',
-            clearDayConfirm: 'Clear all breed inputs for this date?',
-            prevDay: 'Prev day',
-            nextDay: 'Next day',
-            easySaveBack: 'Save and back',
-            easyFinish: 'Complete day',
-            easyCompleteTitle: 'Complete day',
-            close: 'Close',
-            selectAll: 'Select all',
-            clearSelection: 'Clear',
-            selectedRows: 'selected',
-            bulkResetBad: 'Reset bad categories',
-            bulkSetNotes: 'Set note',
-            bulkClearNotes: 'Clear notes',
-            bulkApply: 'Apply bulk',
-            reason: 'Reason',
-            reasonPlaceholder: 'Required for anomalies or reopening closed day',
-            reportCsv: 'Export CSV',
-            reportPdf: 'Print/PDF',
-            offlineQueued: 'Offline queue',
-            syncNow: 'Sync now',
-            dashboardTitle: 'Ops dashboard',
-            trendTitle: '7/14/30 day trends',
-            heatmapTitle: 'Sellable-rate heatmap',
-            heatmapHelp: 'Each square is one day. Green is high sellable rate, yellow is medium, red is low.',
-            auditTitle: 'Recent audit changes',
-            forecastVsReserved: 'Forecast vs reserved',
-            suggestLock: 'Suggest lock',
-            suggestOpen: 'Suggest reopen',
-            alertAck: 'Acknowledge',
-            alertSnooze: 'Snooze 60m',
-            alertResolve: 'Resolve',
-            severityCritical: 'Critical',
-            severityWarning: 'Warning',
-            severityInfo: 'Info',
-            miscEggs: 'Duck and other eggs',
-            duckEggs: 'Duck eggs',
-            otherEggsExtra: 'Other eggs',
-            saveMisc: 'Save duck/other',
-            editMisc: 'Edit',
-            miscNotInTotals: 'Duck/Other are tracked separately and are not included in Total/Sellable.',
-            noBreedSelected: 'Select a breed to register eggs.',
-          }
-        : {
-            title: 'EggOps innsamling',
-            subtitle: 'Velg rase, legg inn total og beholdning, sorter deretter usalgbare.',
-            date: 'Dato',
-            language: 'Språk',
-            langNo: 'NO',
-            langEn: 'EN',
-            reload: 'Last på nytt',
-            recalc: 'Reberegn prognoser',
-            pickBreed: '1. Velg rase',
-            pickBreedHint: 'Trykk på rasen først, fyll deretter inn i store kort.',
-            noBreed: 'Ingen aktive raser funnet.',
-            stepMain: '2. Registrer total og behold',
-            stepBad: '3. Kategoriser under standard',
-            totalEggs: 'Totalt innsamlede egg',
-            keepEggs: 'Egg å beholde (salgbare)',
-            notes: 'Notater',
-            save: 'Lagre rad',
-            saving: 'Lagrer...',
-            saved: 'Lagret',
-            lastUpdated: 'Sist oppdatert',
-            mismatchTitle: 'Tall stemmer ikke',
-            mismatchBody: 'Summen må stemme med totalen for lagring.',
-            classified: 'Kategorisert under standard',
-            remaining: 'Gjenstår å kategorisere',
-            autoFillOther: 'Autofyll Andre',
-            tooSmall: 'For små',
-            dirty: 'Skitne',
-            cracked: 'Sprukne',
-            shellDefect: 'Skalldefekt',
-            other: 'Andre',
-            qualityRate: 'Salgbar rate',
-            loading: 'Laster EggOps-data...',
-            openAlerts: 'Åpne varsler og feil',
-            noAlerts: 'Ingen åpne varsler eller feil.',
-            alertsTitle: 'Varsler og feil',
-            systemErrors: 'Systemfeil',
-            flowAlerts: 'Driftsvarsler',
-            failedDaily: 'Kunne ikke hente dagsrader',
-            failedForecast: 'Kunne ikke hente prognose',
-            failedAlerts: 'Kunne ikke hente varsler',
-            failedSave: 'Kunne ikke lagre raden',
-            forecastTitle: '4-ukers prognose for valgt rase',
-            forecastEmpty: 'Ingen prognoser for valgt rase enda.',
-            week: 'Uke',
-            monday: 'Mandag',
-            forecastEggs: 'Prognose egg',
-            status: 'Status',
-            manual: 'Manuell',
-            auto: 'Auto',
-            setManual: 'Sett manuell',
-            setAuto: 'Sett auto',
-            manualEggs: 'Manuelle egg',
-            lowStock: 'Lav lager',
-            deficit: 'Underskudd',
-            ok: 'OK',
-            active: 'Valgt',
-            kpiCollected: 'Innsamlet i dag',
-            kpiSellable: 'Salgbare i dag',
-            kpiRate: 'Salgbar rate',
-            kpiForecast: 'Estimat neste uke',
-            kpiLow: 'Raser med lav beholdning',
-            dayOpen: 'Åpen',
-            dayInProgress: 'Pågår',
-            dayClosed: 'Lukket',
-            setInProgress: 'Sett pågår',
-            closeDay: 'Lukk dag',
-            reopenDay: 'Åpne dag',
-            reopenReason: 'Årsak for gjenåpning',
-            copyYesterday: 'Kopier i går',
-            fastEntry: 'Rask innlegging',
-            bulkMode: 'Bulkmodus',
-            easyMode: 'Enkel stor input',
-            detailedMode: 'Detaljmodus',
-            easyModeHint: 'Kun store kontroller. Skjuler prognose og rapportering.',
-            easyPickBreed: 'Trykk en rase for å legge inn egg',
-            easyTapHint: 'Trykk for å redigere',
-            easyProgress: 'Lagrede rader',
-            lineTotal: 'Totalt',
-            lineSellable: 'Til salg',
-            rowStored: 'Lagret',
-            rowPending: 'Ikke lagret',
-            clearRow: 'Tomm rad',
-            clearDay: 'Tomm alle i dag',
-            clearDayConfirm: 'Tomme alle rase-inputer for denne datoen?',
-            prevDay: 'Forrige dag',
-            nextDay: 'Neste dag',
-            easySaveBack: 'Lagre og tilbake',
-            easyFinish: 'Fullfør dag',
-            easyCompleteTitle: 'Fullfør dag',
-            close: 'Lukk',
-            selectAll: 'Velg alle',
-            clearSelection: 'Fjern',
-            selectedRows: 'valgt',
-            bulkResetBad: 'Nullstill usalgbare',
-            bulkSetNotes: 'Sett notat',
-            bulkClearNotes: 'Fjern notater',
-            bulkApply: 'Kjør bulk',
-            reason: 'Årsak',
-            reasonPlaceholder: 'Kreves ved avvik eller gjenåpning av lukket dag',
-            reportCsv: 'Eksporter CSV',
-            reportPdf: 'Print/PDF',
-            offlineQueued: 'Offline-ko',
-            syncNow: 'Synk nå',
-            dashboardTitle: 'Driftsdashboard',
-            trendTitle: '7/14/30 dagers trend',
-            heatmapTitle: 'Heatmap salgbar-rate',
-            heatmapHelp: 'Hver rute er en dag. Grønn er høy salgbar-rate, gul er medium, rød er lav.',
-            auditTitle: 'Siste endringer',
-            forecastVsReserved: 'Prognose vs reservert',
-            suggestLock: 'Foreslå lås',
-            suggestOpen: 'Foreslå gjenåpning',
-            alertAck: 'Bekreft',
-            alertSnooze: 'Slumre 60m',
-            alertResolve: 'Lukk varsel',
-            severityCritical: 'Kritisk',
-            severityWarning: 'Advarsel',
-            severityInfo: 'Info',
-            miscEggs: 'Andeegg og andre egg',
-            duckEggs: 'Andeegg',
-            otherEggsExtra: 'Andre egg',
-            saveMisc: 'Lagre ande/andre',
-            editMisc: 'Rediger',
-            miscNotInTotals: 'Andeegg/andre spores separat og er ikke med i Totalt/Til salg.',
-            noBreedSelected: 'Velg en rase for å registrere egg.',
-          },
-    [lang]
-  )
+  const copy = t.eggOps
 
   const [selectedDate, setSelectedDate] = useState(todayDateOslo())
   const [daily, setDaily] = useState<DailyResponse | null>(null)
@@ -1509,7 +1253,7 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
                               ? copy.severityInfo
                               : copy.severityWarning}
                         </span>
-                        {alert.acknowledged_at && <span className="text-[11px] text-neutral-600">ACK</span>}
+                        {alert.acknowledged_at && <span className="text-[11px] text-neutral-600">{copy.ackTag}</span>}
                       </div>
                       <p className="font-medium">{alert.message}</p>
                       <p className="mt-1 text-xs text-amber-800">
@@ -1732,7 +1476,7 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
                   {copy.offlineQueued}: {offlineQueue.length}
                 </span>
                 <Button size="sm" variant="outline" className="h-7 border-amber-300 bg-white text-xs" onClick={flushOfflineQueue} disabled={syncingOffline}>
-                  {syncingOffline ? '...' : copy.syncNow}
+                  {syncingOffline ? copy.syncing : copy.syncNow}
                 </Button>
               </div>
             )}
@@ -2014,7 +1758,7 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
               {copy.offlineQueued}: {offlineQueue.length}
             </span>
             <Button size="sm" variant="outline" className="h-7 border-amber-300 bg-white text-xs" onClick={flushOfflineQueue} disabled={syncingOffline}>
-              {syncingOffline ? '...' : copy.syncNow}
+              {syncingOffline ? copy.syncing : copy.syncNow}
             </Button>
           </div>
         )}
@@ -2061,7 +1805,7 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
 
         {miscState.error && <p className="mt-2 text-sm text-red-700">{miscState.error}</p>}
         {miscState.success && <p className="mt-2 text-sm text-emerald-700">{copy.saved}</p>}
-        {dayState?.status === 'closed' && <p className="mt-2 text-sm text-red-700">Day is closed. Reopen day before saving.</p>}
+        {dayState?.status === 'closed' && <p className="mt-2 text-sm text-red-700">{copy.dayClosedSaveHint}</p>}
       </Card>
 
       <Card className="border-neutral-200 p-4 md:p-5">
@@ -2352,13 +2096,13 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
                     </Button>
                   ))}
                   <Button type="button" variant="outline" className="h-12 border-neutral-300 bg-white" onClick={backspaceFastDigit} disabled={!activeFastField}>
-                    Back
+                    {copy.keypadBack}
                   </Button>
                   <Button type="button" variant="outline" className="h-12 border-neutral-300 bg-white" onClick={() => moveFastField(-1)} disabled={!activeFastField}>
-                    Prev
+                    {copy.keypadPrev}
                   </Button>
                   <Button type="button" variant="outline" className="h-12 border-neutral-300 bg-white" onClick={() => moveFastField(1)} disabled={!activeFastField}>
-                    Next
+                    {copy.keypadNext}
                   </Button>
                 </div>
               </Card>
@@ -2385,7 +2129,7 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
                     </p>
                   )}
                   {dayState?.status === 'closed' && (
-                    <p className="mt-1 text-sm text-red-700">Day is closed. Reopen day before saving.</p>
+                    <p className="mt-1 text-sm text-red-700">{copy.dayClosedSaveHint}</p>
                   )}
                   {selectedState.error && <p className="mt-1 text-sm text-red-700">{selectedState.error}</p>}
                 </div>
@@ -2526,17 +2270,17 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
         <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-neutral-800">{copy.dashboardTitle}</h3>
         <div className="grid gap-3 md:grid-cols-3">
           <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-3">
-            <p className="text-xs uppercase tracking-wide text-neutral-500">7d</p>
+            <p className="text-xs uppercase tracking-wide text-neutral-500">{copy.trend7d}</p>
             <p className="mt-1 text-lg font-semibold text-neutral-900">{trend7?.avg_sellable ?? 0}</p>
             <p className="text-xs text-neutral-600">{trend7?.sellable_rate ?? 0}%</p>
           </div>
           <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-3">
-            <p className="text-xs uppercase tracking-wide text-neutral-500">14d</p>
+            <p className="text-xs uppercase tracking-wide text-neutral-500">{copy.trend14d}</p>
             <p className="mt-1 text-lg font-semibold text-neutral-900">{trend14?.avg_sellable ?? 0}</p>
             <p className="text-xs text-neutral-600">{trend14?.sellable_rate ?? 0}%</p>
           </div>
           <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-3">
-            <p className="text-xs uppercase tracking-wide text-neutral-500">30d</p>
+            <p className="text-xs uppercase tracking-wide text-neutral-500">{copy.trend30d}</p>
             <p className="mt-1 text-lg font-semibold text-neutral-900">{trend30?.avg_sellable ?? 0}</p>
             <p className="text-xs text-neutral-600">{trend30?.sellable_rate ?? 0}%</p>
           </div>
@@ -2568,7 +2312,7 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
         <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-neutral-800">{copy.auditTitle}</h3>
         <div className="space-y-2">
           {auditRows.length === 0 ? (
-            <p className="text-sm text-neutral-500">No audit rows.</p>
+            <p className="text-sm text-neutral-500">{copy.noAuditRows}</p>
           ) : (
             auditRows.map((row) => {
               const relation = row.egg_daily_collections
@@ -2577,10 +2321,10 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
               return (
                 <div key={row.id} className="rounded-lg border border-neutral-200 bg-neutral-50 p-2 text-xs text-neutral-700">
                   <p className="font-medium">
-                    {breedName || 'Breed'} · {relation?.collection_date || '-'}
+                    {breedName || copy.auditFallbackBreed} - {relation?.collection_date || '-'}
                   </p>
                   <p>
-                    {row.change_reason || 'Updated'} · {row.changed_by || 'unknown'} ·{' '}
+                    {row.change_reason || copy.auditFallbackUpdated} - {row.changed_by || copy.auditFallbackUnknown} -{' '}
                     {new Date(row.changed_at).toLocaleString(lang === 'en' ? 'en-GB' : 'nb-NO')}
                   </p>
                 </div>

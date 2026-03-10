@@ -2,7 +2,7 @@
 
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { FormEvent, useEffect, useState } from 'react'
+import { FormEvent, useEffect, useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
 import { useLanguage } from '@/contexts/LanguageContext'
 import { useOrder } from '@/contexts/eggs/EggOrderContext'
@@ -15,6 +15,7 @@ import { ArrowLeft, Info, AlertTriangle, Loader2, Mail } from 'lucide-react'
 import { Breed, WeekInventory } from '@/lib/eggs/types'
 import { fetchBreedBySlug, fetchInventory } from '@/lib/eggs/api'
 import { getSingleBreedMinimumEggs } from '@/lib/eggs/minimums'
+import { localizeBreed } from '@/lib/eggs/localize'
 
 function getWeekKey(week: WeekInventory): string {
   return `${week.year}-${week.weekNumber}-${week.deliveryMonday.toISOString().slice(0, 10)}`
@@ -53,6 +54,10 @@ export default function BreedDetailPage() {
     slug: breed?.slug,
     minOrderQuantity: breed?.minOrderQuantity,
   })
+  const localizedBreed = useMemo(
+    () => (breed ? localizeBreed(breed, t.eggs.breedDetails) : null),
+    [breed, t.eggs.breedDetails]
+  )
 
   useEffect(() => {
     let isActive = true
@@ -98,7 +103,7 @@ export default function BreedDetailPage() {
     )
   }
 
-  if (error || !breed) {
+  if (error || !localizedBreed) {
     return (
       <div className="min-h-screen py-12 flex items-center justify-center">
         <div className="text-center">
@@ -177,8 +182,8 @@ export default function BreedDetailPage() {
   }
 
   const handleQuantityContinue = (quantity: number) => {
-    if (selectedWeek) {
-      addToCart(breed, selectedWeek, quantity)
+    if (selectedWeek && localizedBreed) {
+      addToCart(localizedBreed, selectedWeek, quantity)
       setShowQuantityModal(false)
       setSelectedWeek(null)
       router.push('/rugeegg/handlekurv')
@@ -245,7 +250,7 @@ export default function BreedDetailPage() {
   }
 
   const existingItem = selectedWeek
-    ? items.find((item) => item.breed.id === breed.id && item.week.id === selectedWeek.id)
+    ? items.find((item) => item.breed.id === localizedBreed.id && item.week.id === selectedWeek.id)
     : null
 
   return (
@@ -271,21 +276,21 @@ export default function BreedDetailPage() {
             <div className="flex items-center gap-4 mb-6">
               <div
                 className="w-20 h-20 rounded-full flex items-center justify-center text-3xl font-normal text-white flex-shrink-0"
-                style={{ backgroundColor: breed.accentColor }}
+                style={{ backgroundColor: localizedBreed.accentColor }}
               >
-                {breed.name.charAt(0)}
+                {localizedBreed.name.charAt(0)}
               </div>
               <div>
                 <h1 className="text-4xl font-normal tracking-tight text-neutral-900 leading-tight">
-                  {breed.name}
+                  {localizedBreed.name}
                 </h1>
-                <p className="text-lg text-neutral-600">{breed.description}</p>
+                <p className="text-lg text-neutral-600">{localizedBreed.description}</p>
               </div>
             </div>
 
             {/* Detailed description */}
             <GlassCard className="p-6 mb-6">
-              <p className="text-base text-neutral-700 leading-relaxed">{breed.detailedDescription}</p>
+              <p className="text-base text-neutral-700 leading-relaxed">{localizedBreed.detailedDescription}</p>
             </GlassCard>
 
             {/* Pricing */}
@@ -294,18 +299,18 @@ export default function BreedDetailPage() {
                 <div>
                   <div className="text-sm text-neutral-600 mb-1">{t.eggs.breedsPage.pricePerEgg}</div>
                   <div className="text-3xl font-normal text-neutral-900">
-                    {formatPrice(breed.pricePerEgg, language)}
+                    {formatPrice(localizedBreed.pricePerEgg, language)}
                   </div>
                 </div>
                 <div className="text-right text-sm text-neutral-600">
                   <div>{t.breed.minOrder}:</div>
                   <div className="font-normal text-neutral-900">
-                    {breed.minOrderQuantity} {t.breed.eggs}
+                    {localizedBreed.minOrderQuantity} {t.breed.eggs}
                   </div>
                 </div>
               </div>
               <div className="text-xs text-neutral-500">
-                {t.breed.deliveryFrom} 300 {t.breed.pricePerEgg} · {t.breed.calculatedAtCheckout}
+                {t.breed.deliveryFrom} 300 {t.breed.pricePerEgg} - {t.breed.calculatedAtCheckout}
               </div>
             </GlassCard>
 
@@ -317,27 +322,27 @@ export default function BreedDetailPage() {
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
                   <div className="text-neutral-600 mb-1">{t.breed.eggColor}</div>
-                  <div className="font-normal text-neutral-900">{breed.eggColor}</div>
+                  <div className="font-normal text-neutral-900">{localizedBreed.eggColor}</div>
                 </div>
                 <div>
                   <div className="text-neutral-600 mb-1">{t.breed.size}</div>
-                  <div className="font-normal text-neutral-900">{breed.sizeRange}</div>
+                  <div className="font-normal text-neutral-900">{localizedBreed.sizeRange}</div>
                 </div>
-                {breed.minEggWeightGrams ? (
+                {localizedBreed.minEggWeightGrams ? (
                   <div>
                     <div className="text-neutral-600 mb-1">{t.breed.minEggWeight}</div>
                     <div className="font-normal text-neutral-900">
-                      {breed.minEggWeightGrams} g+
+                      {localizedBreed.minEggWeightGrams} g+
                     </div>
                   </div>
                 ) : null}
                 <div>
                   <div className="text-neutral-600 mb-1">{t.breed.temperament}</div>
-                  <div className="font-normal text-neutral-900">{breed.temperament}</div>
+                  <div className="font-normal text-neutral-900">{localizedBreed.temperament}</div>
                 </div>
                 <div>
                   <div className="text-neutral-600 mb-1">{t.breed.production}</div>
-                  <div className="font-normal text-neutral-900">{breed.annualProduction}</div>
+                  <div className="font-normal text-neutral-900">{localizedBreed.annualProduction}</div>
                 </div>
               </div>
             </GlassCard>
@@ -351,16 +356,16 @@ export default function BreedDetailPage() {
                 <div className="flex justify-between">
                   <span className="text-neutral-600">{t.breed.incubation}:</span>
                   <span className="font-normal text-neutral-900">
-                    {breed.incubationDays} {t.breed.days}
+                    {localizedBreed.incubationDays} {t.breed.days}
                   </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-neutral-600">{t.breed.temperature}:</span>
-                  <span className="font-normal text-neutral-900">{breed.temperature}</span>
+                  <span className="font-normal text-neutral-900">{localizedBreed.temperature}</span>
                 </div>
                 <div className="flex justify-between items-start">
                   <span className="text-neutral-600">{t.breed.humidity}:</span>
-                  <span className="font-normal text-neutral-900 text-right">{breed.humidity}</span>
+                  <span className="font-normal text-neutral-900 text-right">{localizedBreed.humidity}</span>
                 </div>
               </div>
             </GlassCard>
@@ -381,7 +386,7 @@ export default function BreedDetailPage() {
             transition={{ duration: 0.6, delay: 0.1 }}
             className="lg:sticky lg:top-24 lg:self-start"
           >
-            <WeekSelector inventory={inventory} accentColor={breed.accentColor} onSelectWeek={handleWeekSelect} />
+            <WeekSelector inventory={inventory} accentColor={localizedBreed.accentColor} onSelectWeek={handleWeekSelect} />
           </motion.div>
         </div>
       </div>
@@ -407,7 +412,7 @@ export default function BreedDetailPage() {
               <div className="mb-5 rounded-xl border border-neutral-200 bg-white/70 p-4 text-sm text-neutral-700">
                 <div className="font-medium text-neutral-900 mb-2">
                   {t.eggs.activeOrderPrompt.activeWeek}:{' '}
-                  {items[0].week.weekNumber} · {formatDate(items[0].week.deliveryMonday, language)}
+                  {items[0].week.weekNumber} - {formatDate(items[0].week.deliveryMonday, language)}
                 </div>
                 <div className="space-y-1">
                   {items.map((item) => (
@@ -437,7 +442,7 @@ export default function BreedDetailPage() {
 
       {showQuantityModal && selectedWeek && (
         <QuantitySelector
-          breed={breed}
+          breed={localizedBreed}
           week={selectedWeek}
           initialQuantity={existingItem?.quantity}
           onClose={() => {

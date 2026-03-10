@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { useLanguage } from '@/contexts/LanguageContext'
@@ -9,6 +9,7 @@ import { formatPrice, formatDate } from '@/lib/eggs/utils'
 import { GlassCard } from '@/components/eggs/GlassCard'
 import { ArrowRight } from 'lucide-react'
 import { buildWeekAvailability, fetchBreeds, fetchInventory } from '@/lib/eggs/api'
+import { localizeBreeds } from '@/lib/eggs/localize'
 import type { Breed, WeekAvailability } from '@/lib/eggs/types'
 
 export default function HomePage() {
@@ -19,6 +20,10 @@ export default function HomePage() {
   const [weekAvailability, setWeekAvailability] = useState<WeekAvailability[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const localizedBreeds = useMemo(
+    () => localizeBreeds(breeds, t.eggs.breedDetails),
+    [breeds, t.eggs.breedDetails]
+  )
 
   useEffect(() => {
     let isActive = true
@@ -104,7 +109,7 @@ export default function HomePage() {
                   {t.eggs.common.loadingBreeds}
                 </div>
               )}
-              {breeds.map((breed, index) => (
+              {localizedBreeds.map((breed, index) => (
                 <motion.div
                   key={breed.id}
                   initial={{ opacity: 0, y: 20 }}
@@ -136,8 +141,7 @@ export default function HomePage() {
 
                       <div className="flex items-center justify-between text-sm text-neutral-600 mb-4">
                         <div>
-                          <span className="font-medium">{breed.eggColor}</span> •{' '}
-                          {breed.annualProduction}
+                          <span className="font-medium">{breed.eggColor}</span> - {breed.annualProduction}
                         </div>
                       </div>
 
@@ -147,7 +151,7 @@ export default function HomePage() {
                             {formatPrice(breed.pricePerEgg, language)}
                           </div>
                           <div className="text-xs text-neutral-500">
-                            {t.breed.deliveryFrom} 300 {t.breed.pricePerEgg} · {t.breed.calculatedAtCheckout}
+                            {t.breed.deliveryFrom} 300 {t.breed.pricePerEgg} - {t.breed.calculatedAtCheckout}
                           </div>
                         </div>
                         <div className="text-neutral-700 flex items-center gap-1">
@@ -186,7 +190,7 @@ export default function HomePage() {
                   <GlassCard className="p-6">
                     <div className="mb-4 pb-4 border-b border-neutral-200">
                       <h3 className="text-lg font-normal text-neutral-900">
-                        {t.browse.week} {week.weekNumber} · {formatDate(week.deliveryMonday, language)}
+                        {t.browse.week} {week.weekNumber} - {formatDate(week.deliveryMonday, language)}
                       </h3>
                     </div>
                     <div className="space-y-3">

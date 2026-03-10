@@ -2,12 +2,13 @@
 
 import Link from 'next/link'
 import { motion } from 'framer-motion'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useLanguage } from '@/contexts/LanguageContext'
 import { formatPrice } from '@/lib/eggs/utils'
 import { GlassCard } from '@/components/eggs/GlassCard'
 import { ArrowRight } from 'lucide-react'
 import { fetchBreeds } from '@/lib/eggs/api'
+import { localizeBreeds } from '@/lib/eggs/localize'
 import type { Breed } from '@/lib/eggs/types'
 
 export default function BreedsPage() {
@@ -16,6 +17,10 @@ export default function BreedsPage() {
   const [breeds, setBreeds] = useState<Breed[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const localizedBreeds = useMemo(
+    () => localizeBreeds(breeds, t.eggs.breedDetails),
+    [breeds, t.eggs.breedDetails]
+  )
 
   useEffect(() => {
     let isActive = true
@@ -59,7 +64,7 @@ export default function BreedsPage() {
                 {t.eggs.common.loadingBreeds}
               </div>
             )}
-            {breeds.map((breed, index) => (
+            {localizedBreeds.map((breed, index) => (
               <motion.div
                 key={breed.id}
                 initial={{ opacity: 0, y: 20 }}
