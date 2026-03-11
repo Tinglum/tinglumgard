@@ -1,5 +1,6 @@
 'use client'
 
+import { useMemo, useState } from 'react'
 import { useLanguage } from '@/contexts/LanguageContext'
 
 interface ChickenBreedCardProps {
@@ -23,42 +24,163 @@ export function ChickenBreedCard({ breed }: ChickenBreedCardProps) {
   const chickens = (t as any).chickens
   const commonCopy = chickens.common
   const breedCardCopy = chickens.breedCards
+  const locale = lang === 'en' ? 'en-GB' : 'nb-NO'
   const description = lang === 'en' ? breed.description_en : breed.description_no
 
+  const visualProfile = resolveBreedVisualProfile(breed)
+  const [imageErrored, setImageErrored] = useState(false)
+
+  const imageSrc = useMemo(() => {
+    if (breed.image_url?.trim()) return breed.image_url.trim()
+    return visualProfile.placeholderImageUrl
+  }, [breed.image_url, visualProfile.placeholderImageUrl])
+
+  const showImage = Boolean(imageSrc) && !imageErrored
+
   return (
-    <div className="bg-white rounded-xl border border-neutral-200 overflow-hidden hover:shadow-md transition-shadow">
-      {breed.image_url && (
-        <div className="h-40 bg-neutral-100 overflow-hidden">
-          <img src={breed.image_url} alt={breed.name} className="w-full h-full object-cover" />
+    <article
+      className="group overflow-hidden rounded-2xl border border-neutral-200 bg-white transition-all hover:-translate-y-0.5 hover:border-neutral-300 hover:shadow-lg"
+      style={{
+        boxShadow: `0 1px 0 ${withAlpha(visualProfile.accentColor, 14)}`,
+      }}
+    >
+      {showImage ? (
+        <div className="relative h-44 overflow-hidden bg-neutral-100">
+          <img
+            src={imageSrc}
+            alt={breed.name}
+            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+            loading="lazy"
+            onError={() => setImageErrored(true)}
+          />
+          <div
+            className="pointer-events-none absolute inset-x-0 bottom-0 h-20"
+            style={{
+              background: `linear-gradient(180deg, transparent 0%, ${withAlpha(visualProfile.accentColor, 30)} 100%)`,
+            }}
+          />
+        </div>
+      ) : (
+        <div
+          className="flex h-44 items-center justify-center"
+          style={{
+            background: `linear-gradient(135deg, ${withAlpha(visualProfile.accentColor, 40)} 0%, ${withAlpha(visualProfile.accentColor, 18)} 100%)`,
+          }}
+        >
+          <span className="text-4xl font-semibold" style={{ color: visualProfile.accentColor }}>
+            {breed.name.charAt(0)}
+          </span>
         </div>
       )}
-      {!breed.image_url && (
-        <div className="h-40 bg-gradient-to-br from-neutral-100 to-neutral-200 flex items-center justify-center">
-          <span className="text-4xl">{'\uD83D\uDC14'}</span>
-        </div>
-      )}
-      <div className="p-5">
-        <div className="flex items-center gap-2 mb-2">
-          <div className="w-3 h-3 rounded-full" style={{ backgroundColor: breed.accent_color }} />
-          <h3 className="text-lg font-medium text-neutral-900">{breed.name}</h3>
-        </div>
-        <p className="text-sm text-neutral-600 mb-3 line-clamp-2">{description}</p>
-        <div className="flex items-baseline gap-2">
-          <span className="text-sm text-neutral-500">
-            {breedCardCopy.priceFrom} <span className="font-semibold text-neutral-900">{commonCopy.currency} {breed.start_price_nok}</span>
+
+      <div className="space-y-4 p-5">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="mb-1 flex items-center gap-2">
+              <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: visualProfile.accentColor }} />
+              <h3 className="truncate text-lg font-medium text-neutral-900">{breed.name}</h3>
+            </div>
+            <p className="line-clamp-3 text-sm leading-relaxed text-neutral-600">{description}</p>
+          </div>
+
+          <span
+            className="rounded-full border px-2.5 py-1 text-[11px] font-medium tracking-wide"
+            style={{
+              borderColor: withAlpha(visualProfile.accentColor, 30),
+              color: withAlpha(visualProfile.accentColor, 95),
+              backgroundColor: withAlpha(visualProfile.accentColor, 10),
+            }}
+          >
+            {breed.slug?.toUpperCase() || 'BREED'}
           </span>
-          <span className="text-xs text-neutral-400">{'->'}</span>
-          <span className="text-sm text-neutral-500">
-            {breedCardCopy.adultPrice} <span className="font-semibold text-neutral-900">{commonCopy.currency} {breed.adult_price_nok}</span>
-          </span>
         </div>
+
+        <div className="grid grid-cols-2 gap-2">
+          <div className="rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2">
+            <p className="text-[11px] uppercase tracking-wide text-neutral-500">{breedCardCopy.priceFrom}</p>
+            <p className="text-base font-semibold text-neutral-900">
+              {commonCopy.currency} {formatPrice(breed.start_price_nok, locale)}
+            </p>
+          </div>
+          <div className="rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2">
+            <p className="text-[11px] uppercase tracking-wide text-neutral-500">{breedCardCopy.adultPrice}</p>
+            <p className="text-base font-semibold text-neutral-900">
+              {commonCopy.currency} {formatPrice(breed.adult_price_nok, locale)}
+            </p>
+          </div>
+        </div>
+
         {breed.sell_roosters && (
-          <p className="text-xs text-amber-600 mt-1">
-            {breedCardCopy.roostersAvailable}: {commonCopy.currency} {breed.rooster_price_nok}
+          <p className="rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-2 text-xs text-amber-800">
+            {breedCardCopy.roostersAvailable}: {commonCopy.currency}{' '}
+            {formatPrice(breed.rooster_price_nok, locale)}
           </p>
         )}
       </div>
-    </div>
+    </article>
   )
 }
 
+type BreedVisualProfile = {
+  accentColor: string
+  placeholderImageUrl: string
+}
+
+const RUGE_EGG_BREED_COLORS: Record<string, string> = {
+  'ayam-cemani': '#1A1A1A',
+  'jersey-giant': '#C8A26A',
+  silverudds: '#6B7F3A',
+  'silverudds-bla': '#6B7F3A',
+  'silverudds-blue': '#6B7F3A',
+  'cream-legbar': '#8FD9D6',
+  maran: '#5A2A1D',
+}
+
+const BREED_PLACEHOLDER_IMAGES: Record<string, string> = {
+  'ayam-cemani': 'https://images.pexels.com/photos/2403392/pexels-photo-2403392.jpeg?auto=compress&cs=tinysrgb&w=1400',
+  'jersey-giant': 'https://images.pexels.com/photos/1769279/pexels-photo-1769279.jpeg?auto=compress&cs=tinysrgb&w=1400',
+  silverudds: 'https://images.pexels.com/photos/2255441/pexels-photo-2255441.jpeg?auto=compress&cs=tinysrgb&w=1400',
+  'silverudds-bla': 'https://images.pexels.com/photos/2255441/pexels-photo-2255441.jpeg?auto=compress&cs=tinysrgb&w=1400',
+  'silverudds-blue': 'https://images.pexels.com/photos/2255441/pexels-photo-2255441.jpeg?auto=compress&cs=tinysrgb&w=1400',
+  'cream-legbar': 'https://images.pexels.com/photos/375510/pexels-photo-375510.jpeg?auto=compress&cs=tinysrgb&w=1400',
+  maran: 'https://images.pexels.com/photos/1300375/pexels-photo-1300375.jpeg?auto=compress&cs=tinysrgb&w=1400',
+}
+
+const DEFAULT_PLACEHOLDER_IMAGE =
+  'https://images.pexels.com/photos/1216482/pexels-photo-1216482.jpeg?auto=compress&cs=tinysrgb&w=1400'
+
+function normalizeBreedKey(value: string): string {
+  return value
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/['\u2019]/g, '')
+    .replace(/\s+/g, '-')
+}
+
+function resolveBreedVisualProfile(breed: ChickenBreedCardProps['breed']): BreedVisualProfile {
+  const slugKey = normalizeBreedKey(breed.slug || '')
+  const nameKey = normalizeBreedKey(breed.name || '')
+
+  const key = RUGE_EGG_BREED_COLORS[slugKey]
+    ? slugKey
+    : RUGE_EGG_BREED_COLORS[nameKey]
+      ? nameKey
+      : slugKey
+
+  return {
+    accentColor: RUGE_EGG_BREED_COLORS[key] || breed.accent_color || '#6B7280',
+    placeholderImageUrl: BREED_PLACEHOLDER_IMAGES[key] || DEFAULT_PLACEHOLDER_IMAGE,
+  }
+}
+
+function withAlpha(hex: string, alphaPercent: number): string {
+  const safeHex = (hex || '').replace('#', '')
+  if (safeHex.length !== 6) return hex
+  const alpha = Math.round((Math.max(0, Math.min(100, alphaPercent)) / 100) * 255)
+  return `#${safeHex}${alpha.toString(16).padStart(2, '0')}`
+}
+
+function formatPrice(value: number, locale: string): string {
+  return Math.round(Number(value) || 0).toLocaleString(locale)
+}
