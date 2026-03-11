@@ -80,6 +80,7 @@ export function EmailControlCenter() {
   const [activeTab, setActiveTab] = useState<EmailSubTab>('overview');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [warning, setWarning] = useState<string | null>(null);
 
   const [overview, setOverview] = useState<any>(null);
   const [templates, setTemplates] = useState<EmailTemplate[]>([]);
@@ -179,11 +180,13 @@ export function EmailControlCenter() {
   const loadOverview = useCallback(async () => {
     const data = await callApi('/api/admin/email/overview');
     setOverview(data);
+    setWarning(typeof (data as any)?.warning === 'string' ? (data as any).warning : null);
   }, []);
 
   const loadTemplates = useCallback(async () => {
     const data = await callApi<{ templates: EmailTemplate[] }>('/api/admin/email/templates');
     setTemplates(data.templates || []);
+    setWarning(typeof (data as any)?.warning === 'string' ? (data as any).warning : null);
     if (!selectedTemplateId && data.templates?.length) {
       setSelectedTemplateId(data.templates[0].id);
     }
@@ -192,11 +195,17 @@ export function EmailControlCenter() {
   const loadFlows = useCallback(async () => {
     const data = await callApi<{ flows: EmailFlow[] }>('/api/admin/email/flows');
     setFlows(data.flows || []);
+    setWarning(typeof (data as any)?.warning === 'string' ? (data as any).warning : null);
   }, []);
 
   const loadLifecycle = useCallback(async () => {
     const data = await callApi<any>('/api/admin/email/lifecycle');
     setLifecycle(data);
+    if (typeof data?.materializeError === 'string' && data.materializeError.trim()) {
+      setWarning(data.materializeError);
+    } else {
+      setWarning(typeof data?.warning === 'string' ? data.warning : null);
+    }
     if (data?.config) {
       setLifecycleConfig({
         timezone: String(data.config.timezone || 'Europe/Oslo'),
@@ -221,16 +230,19 @@ export function EmailControlCenter() {
   const loadCampaigns = useCallback(async () => {
     const data = await callApi<{ campaigns: EmailCampaign[] }>('/api/admin/email/campaigns');
     setCampaigns(data.campaigns || []);
+    setWarning(typeof (data as any)?.warning === 'string' ? (data as any).warning : null);
   }, []);
 
   const loadQueue = useCallback(async () => {
     const data = await callApi<{ queue: QueueEntry[] }>('/api/admin/email/queue?limit=200');
     setQueue(data.queue || []);
+    setWarning(typeof (data as any)?.warning === 'string' ? (data as any).warning : null);
   }, []);
 
   const loadHistory = useCallback(async () => {
     const data = await callApi<{ history: HistoryEntry[] }>('/api/admin/email/history?limit=200');
     setHistory(data.history || []);
+    setWarning(typeof (data as any)?.warning === 'string' ? (data as any).warning : null);
   }, []);
 
   const loadSetup = useCallback(async () => {
@@ -249,11 +261,13 @@ export function EmailControlCenter() {
     setSchemaStatus(data?.schemaStatus || null);
     setEnvStatus(data?.envStatus || null);
     setSuppressionUnavailable(Boolean(data?.suppressionUnavailable));
+    setWarning(typeof data?.warning === 'string' ? data.warning : null);
   }, []);
 
   async function refreshCurrentTab() {
     setLoading(true);
     setError(null);
+    setWarning(null);
     try {
       if (activeTab === 'overview') await loadOverview();
       if (activeTab === 'templates') await loadTemplates();
@@ -273,6 +287,7 @@ export function EmailControlCenter() {
   useEffect(() => {
     setLoading(true);
     setError(null);
+    setWarning(null);
     const run = async () => {
       try {
         if (activeTab === 'overview') await loadOverview();
@@ -550,6 +565,12 @@ export function EmailControlCenter() {
         </Card>
       )}
 
+      {!error && warning && (
+        <Card className="p-4 border border-amber-200 bg-amber-50">
+          <p className="text-sm text-amber-800">{warning}</p>
+        </Card>
+      )}
+
       {schemaStatus && !schemaStatus.ready && (
         <Card className="p-4 border border-amber-300 bg-amber-50">
           <p className="text-sm font-medium text-amber-900">Email schema is incomplete in this environment.</p>
@@ -802,6 +823,9 @@ export function EmailControlCenter() {
               <p className="text-sm text-neutral-600">
                 Scheduled: {lifecycle?.statusCounts?.scheduled || 0} · Enqueued:{' '}
                 {lifecycle?.statusCounts?.enqueued || 0} · Failed: {lifecycle?.statusCounts?.failed || 0}
+              </p>
+              <p className="text-sm text-neutral-600">
+                Materialized this refresh: {Number(lifecycle?.materializedInserted || 0)}
               </p>
               <p className="text-sm text-neutral-600">
                 Missing email alerts: {Array.isArray(lifecycle?.missingAlerts) ? lifecycle.missingAlerts.length : 0}

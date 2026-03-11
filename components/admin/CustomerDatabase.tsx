@@ -95,6 +95,25 @@ type CommunicationPreviewItem = {
   };
 };
 
+type ScheduledCommunicationItem = {
+  id: string;
+  flow_key: string;
+  template_key?: string | null;
+  event_type?: string | null;
+  product_scope?: string | null;
+  entity_type: string;
+  entity_id: string;
+  order_number?: string | null;
+  order_source?: OrderSource | null;
+  trigger_date_key: string;
+  status: string;
+  to_email?: string | null;
+  scheduled_for?: string | null;
+  created_at?: string | null;
+  last_error?: string | null;
+  queue_id?: string | null;
+};
+
 type CustomerProfile = {
   customer_id: string;
   email: string;
@@ -108,6 +127,13 @@ type CustomerProfile = {
   lifetime_value: number;
   orders: CustomerOrderSummary[];
   communications?: CommunicationHistoryItem[];
+  scheduled_communications?: ScheduledCommunicationItem[];
+  lifecycle_materialization?: {
+    ok: boolean;
+    inserted: number;
+    error?: string | null;
+    missing_tables?: string[];
+  };
   email_controls?: {
     email: string | null;
     suppressed: boolean;
@@ -488,11 +514,11 @@ export function CustomerDatabase() {
           ? ((copy as any).emailSuppressedDescription ||
             (lang === 'en'
               ? 'Automatic emails are now blocked for this recipient.'
-              : 'Automatiske e-poster er na blokkert for denne mottakeren.'))
+              : 'Automatiske e-poster er nå blokkert for denne mottakeren.'))
           : ((copy as any).emailUnsuppressedDescription ||
             (lang === 'en'
               ? 'Automatic emails are now allowed for this recipient.'
-              : 'Automatiske e-poster er na tillatt for denne mottakeren.')),
+              : 'Automatiske e-poster er nå tillatt for denne mottakeren.')),
       });
 
       await viewCustomerProfile(selectedCustomer.customer_id);
@@ -528,12 +554,12 @@ export function CustomerDatabase() {
 
       toast({
         title:
-          (copy as any).communicationResentTitle || (lang === 'en' ? 'Email resent' : 'E-post sendt pa nytt'),
+          (copy as any).communicationResentTitle || (lang === 'en' ? 'Email resent' : 'E-post sendt på nytt'),
         description:
           (copy as any).communicationResentDescription ||
           (lang === 'en'
             ? 'The email was re-enqueued successfully.'
-            : 'E-posten ble lagt i ko pa nytt.'),
+            : 'E-posten ble lagt i kø på nytt.'),
       });
 
       if (selectedCustomer) {
@@ -644,12 +670,12 @@ export function CustomerDatabase() {
       toast({
         title:
           (copy as any).resendConfirmationSuccessTitle ||
-          (lang === 'en' ? 'Confirmation resent' : 'Bekreftelse sendt pa nytt'),
+          (lang === 'en' ? 'Confirmation resent' : 'Bekreftelse sendt på nytt'),
         description:
           (copy as any).resendConfirmationSuccessDescription ||
           (lang === 'en'
             ? 'The confirmation email was queued successfully.'
-            : 'Bekreftelseseposten ble lagt i ko.'),
+            : 'Bekreftelseseposten ble lagt i kø.'),
       });
 
       if (selectedCustomer) {
@@ -659,7 +685,7 @@ export function CustomerDatabase() {
       toast({
         title:
           (copy as any).resendConfirmationErrorTitle ||
-          (lang === 'en' ? 'Could not resend confirmation' : 'Kunne ikke sende bekreftelse pa nytt'),
+          (lang === 'en' ? 'Could not resend confirmation' : 'Kunne ikke sende bekreftelse på nytt'),
         description: error instanceof Error ? error.message : copy.orderSaveErrorDescription,
         variant: 'destructive',
       });
@@ -1168,7 +1194,7 @@ export function CustomerDatabase() {
                 {(copy as any).orderHistoryHint ||
                   (lang === 'en'
                     ? 'Quick actions: details, resend confirmation, edit.'
-                    : 'Hurtighandlinger: detaljer, send bekreftelse pa nytt, rediger.')}
+                    : 'Hurtighandlinger: detaljer, send bekreftelse på nytt, rediger.')}
               </p>
             </div>
             {selectedCustomer.orders.length === 0 ? (
@@ -1237,7 +1263,7 @@ export function CustomerDatabase() {
                               ? ((copy as any).resendConfirmationLoading ||
                                 (lang === 'en' ? 'Sending...' : 'Sender...'))
                               : ((copy as any).resendConfirmationButton ||
-                                (lang === 'en' ? 'Resend confirmation' : 'Send bekreftelse pa nytt'))}
+                                (lang === 'en' ? 'Resend confirmation' : 'Send bekreftelse på nytt'))}
                           </Button>
                         </div>
                       </div>
@@ -1338,6 +1364,49 @@ export function CustomerDatabase() {
                 )}
               </div>
             </div>
+            {selectedCustomer.scheduled_communications &&
+            selectedCustomer.scheduled_communications.length > 0 ? (
+              <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50/50 p-3">
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <p className="text-sm font-medium text-blue-900">
+                    {(copy as any).scheduledEmailsTitle ||
+                      (lang === 'en'
+                        ? 'Upcoming automated emails'
+                        : 'Planlagte automatiske e-poster')}
+                  </p>
+                  <p className="text-xs text-blue-700">
+                    {selectedCustomer.scheduled_communications.length}
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  {selectedCustomer.scheduled_communications.slice(0, 12).map((entry) => (
+                    <div
+                      key={entry.id}
+                      className="rounded-md border border-blue-200 bg-white/80 px-3 py-2 text-xs text-neutral-700"
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <p className="font-medium text-neutral-900">{entry.flow_key}</p>
+                        <p className="text-neutral-600">
+                          {entry.scheduled_for
+                            ? new Date(entry.scheduled_for).toLocaleString(locale)
+                            : copy.notProvided}
+                        </p>
+                      </div>
+                      <p className="mt-1 text-neutral-600">
+                        {entry.order_number
+                          ? `${entry.order_number} (${entry.order_source || entry.entity_type})`
+                          : `${entry.entity_type} ${entry.entity_id}`}
+                      </p>
+                      <p className="mt-1 text-neutral-600">
+                        {(copy as any).communicationStatusLabel || (lang === 'en' ? 'Status' : 'Status')}:{' '}
+                        {entry.status}
+                        {entry.template_key ? ` · ${entry.template_key}` : ''}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
             {selectedCustomer.communications && selectedCustomer.communications.length > 0 ? (
               <div className="space-y-2">
                 {selectedCustomer.communications.map((entry) => (
@@ -1386,7 +1455,7 @@ export function CustomerDatabase() {
                         </p>
                         <p className="mt-1 text-xs text-neutral-500">
                           {(copy as any).communicationOpenPreviewHint ||
-                            (lang === 'en' ? 'Click to open email preview' : 'Klikk for e-postforhandsvisning')}
+                            (lang === 'en' ? 'Click to open email preview' : 'Klikk for e-postforhåndsvisning')}
                         </p>
                       </div>
                       {entry.source === 'email_dispatch_queue' && (
@@ -1402,7 +1471,7 @@ export function CustomerDatabase() {
                           {emailActionLoading === `resend:${entry.id}`
                             ? copy.savingOrderButton
                             : ((copy as any).resendEmailButton ||
-                              (lang === 'en' ? 'Resend' : 'Send pa nytt'))}
+                              (lang === 'en' ? 'Resend' : 'Send på nytt'))}
                         </Button>
                       )}
                     </div>
@@ -1544,7 +1613,7 @@ export function CustomerDatabase() {
             <DialogHeader>
               <DialogTitle>
                 {(copy as any).communicationModalTitle ||
-                  (lang === 'en' ? 'Email preview' : 'E-postforhandsvisning')}
+                  (lang === 'en' ? 'Email preview' : 'E-postforhåndsvisning')}
               </DialogTitle>
               <DialogDescription>
                 {(copy as any).communicationModalDescription ||
@@ -1559,7 +1628,7 @@ export function CustomerDatabase() {
                 <span className="inline-flex items-center gap-2">
                   <Loader2 className="h-4 w-4 animate-spin" />
                   {(copy as any).communicationModalLoading ||
-                    (lang === 'en' ? 'Loading email preview...' : 'Laster e-postforhandsvisning...')}
+                    (lang === 'en' ? 'Loading email preview...' : 'Laster e-postforhåndsvisning...')}
                 </span>
               </div>
             ) : communicationPreview ? (
@@ -1626,7 +1695,7 @@ export function CustomerDatabase() {
             ) : (
               <p className="text-sm text-neutral-500">
                 {(copy as any).communicationModalEmpty ||
-                  (lang === 'en' ? 'No preview available.' : 'Ingen forhandsvisning tilgjengelig.')}
+                  (lang === 'en' ? 'No preview available.' : 'Ingen forhåndsvisning tilgjengelig.')}
               </p>
             )}
           </DialogContent>

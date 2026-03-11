@@ -31,6 +31,26 @@ export type ResolvedOrderIds = {
   chickenOrderIds: string[];
 };
 
+export type ScheduledCommunicationEntry = {
+  id: string;
+  flowKey: string;
+  entityType: string;
+  entityId: string;
+  triggerDateKey: string;
+  status: string;
+  toEmail: string | null;
+  scheduledFor: string | null;
+  createdAt: string | null;
+  lastError: string | null;
+  queueId: string | null;
+  metadata: Record<string, unknown>;
+  flow?: {
+    templateKey: string | null;
+    eventType: string | null;
+    productScope: string | null;
+  };
+};
+
 function normalizeEmail(value?: string | null): string {
   return String(value || '')
     .trim()
@@ -344,6 +364,133 @@ export async function fetchCommunicationHistory(params: {
       const aTs = new Date(a.sentAt || a.createdAt || 0).getTime();
       const bTs = new Date(b.sentAt || b.createdAt || 0).getTime();
       return bTs - aTs;
+    })
+    .slice(0, limit);
+}
+
+export async function fetchScheduledCommunications(params: {
+  pigOrderIds?: string[];
+  eggOrderIds?: string[];
+  chickenOrderIds?: string[];
+  statuses?: string[];
+  limit?: number;
+}): Promise<ScheduledCommunicationEntry[]> {
+  const pigOrderIds = uniqueStrings(params.pigOrderIds || []);
+  const eggOrderIds = uniqueStrings(params.eggOrderIds || []);
+  const chickenOrderIds = uniqueStrings(params.chickenOrderIds || []);
+  const statuses = (params.statuses || ['scheduled', 'enqueued']).map((status) => String(status));
+  const limit = Math.max(20, Math.min(500, Math.round(params.limit || 200)));
+
+  const queries = [];
+  if (pigOrderIds.length > 0) {
+    queries.push(
+      supabaseAdmin
+        .from('email_flow_instances')
+        .select(
+          'id, flow_key, entity_type, entity_id, trigger_date_key, status, to_email, scheduled_for, created_at, last_error, queue_id, metadata'
+        )
+        .eq('entity_type', 'order')
+        .in('entity_id', pigOrderIds)
+        .in('status', statuses)
+        .order('scheduled_for', { ascending: true })
+        .limit(limit)
+    );
+  }
+  if (eggOrderIds.length > 0) {
+    queries.push(
+      supabaseAdmin
+        .from('email_flow_instances')
+        .select(
+          'id, flow_key, entity_type, entity_id, trigger_date_key, status, to_email, scheduled_for, created_at, last_error, queue_id, metadata'
+        )
+        .eq('entity_type', 'egg_order')
+        .in('entity_id', eggOrderIds)
+        .in('status', statuses)
+        .order('scheduled_for', { ascending: true })
+        .limit(limit)
+    );
+  }
+  if (chickenOrderIds.length > 0) {
+    queries.push(
+      supabaseAdmin
+        .from('email_flow_instances')
+        .select(
+          'id, flow_key, entity_type, entity_id, trigger_date_key, status, to_email, scheduled_for, created_at, last_error, queue_id, metadata'
+        )
+        .eq('entity_type', 'chicken_order')
+        .in('entity_id', chickenOrderIds)
+        .in('status', statuses)
+        .order('scheduled_for', { ascending: true })
+        .limit(limit)
+    );
+  }
+
+  if (queries.length === 0) return [];
+
+  const results = await Promise.all(queries);
+  const instanceMap = new Map<string, ScheduledCommunicationEntry>();
+  const flowKeys = new Set<string>();
+
+  for (const result of results) {
+    if (result.error) {
+      if (isMissingEmailRelationError(result.error)) continue;
+      throw result.error;
+    }
+
+    for (const row of result.data || []) {
+      const key = String(row.id || '');
+      if (!key) continue;
+      const flowKey = String(row.flow_key || '');
+      if (flowKey) flowKeys.add(flowKey);
+
+      instanceMap.set(key, {
+        id: key,
+        flowKey,
+        entityType: String(row.entity_type || ''),
+        entityId: String(row.entity_id || ''),
+        triggerDateKey: String(row.trigger_date_key || ''),
+        status: String(row.status || 'unknown'),
+        toEmail: row.to_email ? String(row.to_email) : null,
+        scheduledFor: row.scheduled_for ? String(row.scheduled_for) : null,
+        createdAt: row.created_at ? String(row.created_at) : null,
+        lastError: row.last_error ? String(row.last_error) : null,
+        queueId: row.queue_id ? String(row.queue_id) : null,
+        metadata: asRecord(row.metadata),
+      });
+    }
+  }
+
+  const flowMap = new Map<string, { templateKey: string | null; eventType: string | null; productScope: string | null }>();
+  if (flowKeys.size > 0) {
+    const flowResult = await supabaseAdmin
+      .from('email_flows')
+      .select('flow_key, template_key, event_type, product_scope')
+      .in('flow_key', Array.from(flowKeys));
+
+    if (!flowResult.error) {
+      for (const row of flowResult.data || []) {
+        const flowKey = String(row.flow_key || '');
+        if (!flowKey) continue;
+        flowMap.set(flowKey, {
+          templateKey: row.template_key ? String(row.template_key) : null,
+          eventType: row.event_type ? String(row.event_type) : null,
+          productScope: row.product_scope ? String(row.product_scope) : null,
+        });
+      }
+    } else if (!isMissingEmailRelationError(flowResult.error)) {
+      throw flowResult.error;
+    }
+  }
+
+  return Array.from(instanceMap.values())
+    .map((entry) => ({
+      ...entry,
+      flow: flowMap.get(entry.flowKey),
+    }))
+    .sort((a, b) => {
+      const aTs = new Date(a.scheduledFor || a.createdAt || 0).getTime();
+      const bTs = new Date(b.scheduledFor || b.createdAt || 0).getTime();
+      return aTs - bTs;
     })
     .slice(0, limit);
 }

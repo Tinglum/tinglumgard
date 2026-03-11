@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth/session';
 import { supabaseAdmin } from '@/lib/supabase/server';
-import { fetchCommunicationHistory } from '@/lib/email/history';
+import { fetchCommunicationHistory, fetchScheduledCommunications } from '@/lib/email/history';
 import { isMissingEmailRelationError } from '@/lib/email/schema';
+import { materializeLifecycleInstancesOnly } from '@/lib/email/lifecycle';
 
 type PaymentRow = {
   amount_nok: number | null;
@@ -623,6 +624,14 @@ async function getCustomerProfile(customerId: string) {
     chickenOrderIds,
     limit: 300,
   });
+  const lifecycleMaterialize = await materializeLifecycleInstancesOnly();
+  const scheduledCommunications = await fetchScheduledCommunications({
+    pigOrderIds,
+    eggOrderIds,
+    chickenOrderIds,
+    statuses: ['scheduled', 'enqueued'],
+    limit: 300,
+  });
 
   let suppression: {
     email: string;
@@ -703,6 +712,39 @@ async function getCustomerProfile(customerId: string) {
       details: order.metadata,
     })),
     communications,
+    scheduled_communications: scheduledCommunications.map((entry) => {
+      const matchedOrder = sortedOrders.find((order) => {
+        if (entry.entityType === 'order') return order.source === 'pig' && order.id === entry.entityId;
+        if (entry.entityType === 'egg_order') return order.source === 'egg' && order.id === entry.entityId;
+        if (entry.entityType === 'chicken_order') return order.source === 'chicken' && order.id === entry.entityId;
+        return false;
+      });
+
+      return {
+        id: entry.id,
+        flow_key: entry.flowKey,
+        template_key: entry.flow?.templateKey || null,
+        event_type: entry.flow?.eventType || null,
+        product_scope: entry.flow?.productScope || null,
+        entity_type: entry.entityType,
+        entity_id: entry.entityId,
+        order_number: matchedOrder?.orderNumber || null,
+        order_source: matchedOrder?.source || null,
+        trigger_date_key: entry.triggerDateKey,
+        status: entry.status,
+        to_email: entry.toEmail,
+        scheduled_for: entry.scheduledFor,
+        created_at: entry.createdAt,
+        last_error: entry.lastError,
+        queue_id: entry.queueId,
+      };
+    }),
+    lifecycle_materialization: {
+      ok: lifecycleMaterialize.ok,
+      inserted: lifecycleMaterialize.inserted,
+      error: lifecycleMaterialize.error || null,
+      missing_tables: lifecycleMaterialize.missingTables,
+    },
     email_controls: {
       email: bestEmail || null,
       suppressed: Boolean(suppressionEntry),

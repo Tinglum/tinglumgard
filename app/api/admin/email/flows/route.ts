@@ -4,6 +4,28 @@ import { requireAdminAccess } from '@/app/api/admin/email/_shared';
 import { ensureLifecycleSeedData } from '@/lib/email/lifecycle';
 import { getEmailSchemaStatus, isMissingEmailRelationError } from '@/lib/email/schema';
 
+const FALLBACK_FLOWS = [
+  'pig.remainder.explainer',
+  'pig.remainder.reminder',
+  'egg.remainder.reminder',
+  'egg.delivery.day_before',
+  'egg.order.forfeited',
+  'chicken.ready_for_pickup',
+  'chicken.pickup.reminder',
+  'chicken.remainder.collected',
+].map((flowKey) => ({
+  id: `fallback:${flowKey}`,
+  flow_key: flowKey,
+  event_type: 'fallback',
+  mode: 'active',
+  active: true,
+  product_scope: 'shared',
+  template_key: null,
+  send_offset_minutes: 0,
+  email_templates: null,
+  fallback: true,
+}));
+
 export async function GET() {
   const admin = await requireAdminAccess();
   if (!admin.ok) return admin.response;
@@ -12,11 +34,13 @@ export async function GET() {
   if (!schemaStatus.ready) {
     return NextResponse.json(
       {
-        error: `Missing email schema tables: ${schemaStatus.missingTables.join(', ')}`,
+        flows: FALLBACK_FLOWS,
+        warning: `Missing email schema tables: ${schemaStatus.missingTables.join(', ')}`,
         missingTables: schemaStatus.missingTables,
         hint: 'Run migration 20260310210000_repair_unified_email_schema.sql',
+        degradedMode: true,
       },
-      { status: 503 }
+      { status: 200 }
     );
   }
 
@@ -27,13 +51,18 @@ export async function GET() {
     if (isMissingEmailRelationError(error)) {
       return NextResponse.json(
         {
-          error: 'Email schema mismatch while seeding lifecycle flows',
+          flows: FALLBACK_FLOWS,
+          warning: 'Email schema mismatch while seeding lifecycle flows',
           hint: 'Run migration 20260310210000_repair_unified_email_schema.sql',
+          degradedMode: true,
         },
-        { status: 503 }
+        { status: 200 }
       );
     }
-    return NextResponse.json({ error: 'Failed to seed lifecycle flows' }, { status: 500 });
+    return NextResponse.json(
+      { flows: FALLBACK_FLOWS, warning: 'Failed to seed lifecycle flows', degradedMode: true },
+      { status: 200 }
+    );
   }
 
   const { data, error } = await supabaseAdmin
@@ -48,12 +77,17 @@ export async function GET() {
   if (isMissingEmailRelationError(error)) {
     return NextResponse.json(
       {
-        error: 'Email schema mismatch while fetching flows',
+        flows: FALLBACK_FLOWS,
+        warning: 'Email schema mismatch while fetching flows',
         hint: 'Run migration 20260310210000_repair_unified_email_schema.sql',
+        degradedMode: true,
       },
-      { status: 503 }
+      { status: 200 }
     );
   }
 
-  return NextResponse.json({ error: 'Failed to fetch flows' }, { status: 500 });
+  return NextResponse.json(
+    { flows: FALLBACK_FLOWS, warning: 'Failed to fetch flows', degradedMode: true },
+    { status: 200 }
+  );
 }

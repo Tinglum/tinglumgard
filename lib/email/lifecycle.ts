@@ -1410,6 +1410,45 @@ export async function runEmailFlowRunner(): Promise<{
   }
 }
 
+export async function materializeLifecycleInstancesOnly(): Promise<{
+  ok: boolean;
+  inserted: number;
+  config: LifecycleConfig;
+  missingTables: string[];
+  error?: string;
+}> {
+  const config = await getLifecycleConfig();
+  const seedStatus = await ensureLifecycleSeedData();
+  if (!seedStatus.ok) {
+    return {
+      ok: false,
+      inserted: 0,
+      config,
+      missingTables: seedStatus.missingTables,
+      error: `Missing email schema tables: ${seedStatus.missingTables.join(', ')}`,
+    };
+  }
+
+  try {
+    const flowMap = await getFlowMap();
+    const inserted = await materializeAllInstances(flowMap, config);
+    return {
+      ok: true,
+      inserted,
+      config,
+      missingTables: [],
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      inserted: 0,
+      config,
+      missingTables: [],
+      error: error instanceof Error ? error.message : 'Failed to materialize lifecycle instances',
+    };
+  }
+}
+
 export async function getLifecycleOverview() {
   const config = await getLifecycleConfig();
   const seedStatus = await ensureLifecycleSeedData();
@@ -1427,6 +1466,8 @@ export async function getLifecycleOverview() {
       },
     };
   }
+
+  const materializeResult = await materializeLifecycleInstancesOnly();
 
   const [flowRows, instanceRows, missingRows, runRows] = await Promise.all([
     supabaseAdmin
@@ -1469,6 +1510,8 @@ export async function getLifecycleOverview() {
     statusCounts,
     missingAlerts,
     runs: runRows.data || [],
+    materializedInserted: materializeResult.inserted,
+    materializeError: materializeResult.ok ? null : materializeResult.error || null,
     schemaStatus: {
       ready: true,
       missingTables: [],

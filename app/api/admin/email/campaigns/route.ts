@@ -39,11 +39,13 @@ export async function GET() {
   if (!schemaStatus.ready) {
     return NextResponse.json(
       {
-        error: `Missing email schema tables: ${schemaStatus.missingTables.join(', ')}`,
+        campaigns: [],
+        warning: `Missing email schema tables: ${schemaStatus.missingTables.join(', ')}`,
         missingTables: schemaStatus.missingTables,
         hint: 'Run migration 20260310210000_repair_unified_email_schema.sql',
+        degradedMode: true,
       },
-      { status: 503 }
+      { status: 200 }
     );
   }
 
@@ -57,14 +59,19 @@ export async function GET() {
     if (isMissingEmailRelationError(error)) {
       return NextResponse.json(
         {
-          error: 'Email schema mismatch while fetching campaigns',
+          campaigns: [],
+          warning: 'Email schema mismatch while fetching campaigns',
           hint: 'Run migration 20260310210000_repair_unified_email_schema.sql',
+          degradedMode: true,
         },
-        { status: 503 }
+        { status: 200 }
       );
     }
 
-    return NextResponse.json({ error: 'Failed to fetch campaigns' }, { status: 500 });
+    return NextResponse.json(
+      { campaigns: [], warning: 'Failed to fetch campaigns', degradedMode: true },
+      { status: 200 }
+    );
   }
 
   return NextResponse.json({ campaigns: data || [] });
