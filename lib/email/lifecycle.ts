@@ -88,6 +88,9 @@ const DEFAULT_LIFECYCLE_CONFIG: LifecycleConfig = {
   appBaseUrl: process.env.NEXT_PUBLIC_APP_URL || 'https://tinglumgard.no',
 };
 
+const EGG_HATCH_FOLLOWUP_DELAY_DAYS = 5;
+const EGG_HATCH_PIG_DEPOSIT_DISCOUNT_CODE = 'HATCH10';
+
 const LIFECYCLE_TEMPLATE_SEEDS: LifecycleTemplateSeed[] = [
   {
     templateKey: 'pig.remainder.explainer.full',
@@ -148,6 +151,18 @@ const LIFECYCLE_TEMPLATE_SEEDS: LifecycleTemplateSeed[] = [
     bodyEn:
       '<p>Hi {{customer_name}},</p><p>Your hatching egg order <strong>{{order_number}}</strong> ships tomorrow.</p><p><a href="{{upsell_url}}">Add extras today</a></p>',
     variables: ['customer_name', 'order_number', 'upsell_url'],
+  },
+  {
+    templateKey: 'egg.hatch.followup',
+    classification: 'transactional',
+    productScope: 'eggs',
+    subjectNo: 'Lykke til med klekkingen - {{order_number}}',
+    subjectEn: 'Happy hatching - {{order_number}}',
+    bodyNo:
+      '<p>Hei {{customer_name}},</p><p>Vi h&aring;per klekkingen g&aring;r fint for <strong>{{order_number}}</strong>.</p><p>Har du sp&oslash;rsm&aring;l underveis, send oss gjerne en melding via nettsiden.</p><p><a href="{{message_url}}">Send melding p&aring; Min side</a></p><hr/><p><strong>Tilbud fra Tinglum G&aring;rd:</strong> Du f&aring;r <strong>10% rabatt p&aring; forskuddet</strong> p&aring; valgfri Mangalitsa-kasse med koden <strong>{{deposit_discount_code}}</strong>.</p><p><a href="{{pork_url}}">Se Mangalitsa-kasser</a></p><p><strong>Vennerrabatt:</strong> Del vennerrabattkoden din. Venner f&aring;r rabatt, og du kan tjene kreditt tilsvarende opptil <strong>50% av forskuddet</strong> n&aring;r de bestiller.</p>',
+    bodyEn:
+      '<p>Hi {{customer_name}},</p><p>We hope your hatch is going well for <strong>{{order_number}}</strong>.</p><p>If you have any questions, send us a message through the website.</p><p><a href="{{message_url}}">Send a message on My Page</a></p><hr/><p><strong>Special offer from Tinglum Gard:</strong> Get <strong>10% off your deposit</strong> on any Mangalitsa box with code <strong>{{deposit_discount_code}}</strong>.</p><p><a href="{{pork_url}}">Explore Mangalitsa boxes</a></p><p><strong>Referral bonus:</strong> Share your referral code. Your friends get a discount, and you can earn credit worth up to <strong>50% of your deposit</strong> as they order.</p>',
+    variables: ['customer_name', 'order_number', 'message_url', 'pork_url', 'deposit_discount_code'],
   },
   {
     templateKey: 'egg.order.forfeited',
@@ -232,6 +247,15 @@ const LIFECYCLE_FLOW_SEEDS: LifecycleFlowSeed[] = [
     eventType: 'egg.delivery_upcoming',
     productScope: 'eggs',
     templateKey: 'egg.delivery.day_before',
+    mode: 'active',
+    active: true,
+    sendOffsetMinutes: 0,
+  },
+  {
+    flowKey: 'egg.hatch.followup',
+    eventType: 'egg.order.shipped',
+    productScope: 'eggs',
+    templateKey: 'egg.hatch.followup',
     mode: 'active',
     active: true,
     sendOffsetMinutes: 0,
@@ -525,6 +549,7 @@ async function getFlowMap(): Promise<Map<string, FlowDefinition>> {
       'pig.remainder.reminder',
       'egg.remainder.reminder',
       'egg.delivery.day_before',
+      'egg.hatch.followup',
       'egg.order.forfeited',
       'chicken.ready_for_pickup',
       'chicken.pickup.reminder',
@@ -762,15 +787,16 @@ async function materializePigFlowInstances(flowMap: Map<string, FlowDefinition>,
 async function materializeEggFlowInstances(flowMap: Map<string, FlowDefinition>, config: LifecycleConfig): Promise<number> {
   const reminderFlow = flowMap.get('egg.remainder.reminder');
   const dayBeforeFlow = flowMap.get('egg.delivery.day_before');
+  const hatchFollowupFlow = flowMap.get('egg.hatch.followup');
   const forfeitFlow = flowMap.get('egg.order.forfeited');
   if (!reminderFlow || !dayBeforeFlow || !forfeitFlow) return 0;
 
   const { data: orders } = await supabaseAdmin
     .from('egg_orders')
     .select(
-      'id, order_number, customer_name, customer_email, status, week_number, delivery_monday, remainder_due_date, remainder_amount'
+      'id, order_number, customer_name, customer_email, status, week_number, delivery_monday, remainder_due_date, remainder_amount, marked_shipped_at, updated_at'
     )
-    .in('status', ['deposit_paid', 'fully_paid', 'preparing']);
+    .in('status', ['deposit_paid', 'fully_paid', 'preparing', 'shipped', 'delivered']);
 
   let inserted = 0;
 
@@ -873,6 +899,41 @@ async function materializeEggFlowInstances(flowMap: Map<string, FlowDefinition>,
         },
       });
       if (dayBeforeInserted) inserted += 1;
+    }
+
+    if (hatchFollowupFlow && (String(order.status) === 'shipped' || String(order.status) === 'delivered')) {
+      const shippedAtRaw = String(order.marked_shipped_at || order.updated_at || '');
+      const shippedAt = shippedAtRaw ? new Date(shippedAtRaw) : null;
+      if (shippedAt && !Number.isNaN(shippedAt.getTime())) {
+        const followupAt = new Date(
+          shippedAt.getTime() + EGG_HATCH_FOLLOWUP_DELAY_DAYS * 24 * 60 * 60 * 1000
+        );
+        const hatchFollowupInserted = await insertFlowInstance({
+          flowId: hatchFollowupFlow.id,
+          flowKey: hatchFollowupFlow.flow_key,
+          productScope: hatchFollowupFlow.product_scope,
+          entityType: 'egg_order',
+          entityId: orderId,
+          triggerDateKey: `hatch-followup:${shippedAt.toISOString().slice(0, 10)}`,
+          scheduledFor: followupAt.toISOString(),
+          toEmail: toEmail || null,
+          locale,
+          payload: {
+            customer_name: String(order.customer_name || 'Kunde'),
+            order_number: String(order.order_number || ''),
+            message_url: `${config.appBaseUrl}/min-side`,
+            pork_url: `${config.appBaseUrl}/produkt`,
+            deposit_discount_code: EGG_HATCH_PIG_DEPOSIT_DISCOUNT_CODE,
+            order_url: orderUrl,
+          },
+          metadata: {
+            product_scope: 'eggs',
+            flow_key: hatchFollowupFlow.flow_key,
+            trigger_offset_days: EGG_HATCH_FOLLOWUP_DELAY_DAYS,
+          },
+        });
+        if (hatchFollowupInserted) inserted += 1;
+      }
     }
   }
 

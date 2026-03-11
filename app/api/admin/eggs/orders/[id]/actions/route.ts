@@ -348,7 +348,7 @@ async function setEggOrderStatus(orderId: string, nextStatus: string, reason: st
 
   const { data: order, error } = await supabaseAdmin
     .from('egg_orders')
-    .select('id, admin_notes')
+    .select('id, admin_notes, marked_shipped_at')
     .eq('id', orderId)
     .single()
 
@@ -359,6 +359,9 @@ async function setEggOrderStatus(orderId: string, nextStatus: string, reason: st
   const updatePayload: Record<string, unknown> = { status: nextStatus }
   if (nextStatus === 'delivered') {
     updatePayload.marked_delivered_at = new Date().toISOString()
+  }
+  if (nextStatus === 'shipped' && !order.marked_shipped_at) {
+    updatePayload.marked_shipped_at = new Date().toISOString()
   }
 
   const { error: updateError } = await supabaseAdmin
@@ -662,9 +665,10 @@ async function markEggOrderShipped(
     return NextResponse.json({ error: 'Must be 18 digits' }, { status: 400 })
   }
 
+  const markedShippedAt = new Date().toISOString()
   const { error: updErr } = await supabaseAdmin
     .from('egg_orders')
-    .update({ status: 'shipped', tracking_number: effective })
+    .update({ status: 'shipped', tracking_number: effective, marked_shipped_at: markedShippedAt })
     .eq('id', orderId)
 
   if (updErr) {
