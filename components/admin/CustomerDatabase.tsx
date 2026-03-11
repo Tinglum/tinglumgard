@@ -76,7 +76,7 @@ type CommunicationHistoryItem = {
 
 type CommunicationPreviewItem = {
   id: string;
-  source: 'email_dispatch_queue' | 'legacy_email_log';
+  source: 'email_dispatch_queue' | 'legacy_email_log' | 'email_flow_instance';
   classification: string;
   status: string;
   subject: string;
@@ -85,6 +85,7 @@ type CommunicationPreviewItem = {
   sourcePath: string | null;
   lastError: string | null;
   sentAt: string | null;
+  scheduledFor?: string | null;
   createdAt: string | null;
   html: string;
   orderRefs?: {
@@ -584,6 +585,39 @@ export function CustomerDatabase() {
 
       const response = await fetch(
         `/api/admin/customers/email?action=preview&source=${encodeURIComponent(entry.source)}&id=${encodeURIComponent(entry.id)}`,
+        { cache: 'no-store' }
+      );
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(body?.error || copy.orderSaveErrorDescription);
+      }
+
+      const preview = body?.preview as CommunicationPreviewItem | undefined;
+      if (!preview) {
+        throw new Error(copy.orderSaveErrorDescription);
+      }
+      setCommunicationPreview(preview);
+    } catch (error) {
+      setCommunicationModalOpen(false);
+      setCommunicationPreview(null);
+      toast({
+        title: copy.orderSaveErrorTitle,
+        description: error instanceof Error ? error.message : copy.orderSaveErrorDescription,
+        variant: 'destructive',
+      });
+    } finally {
+      setCommunicationPreviewLoading((current) => (current === previewKey ? null : current));
+    }
+  }
+
+  async function openScheduledCommunicationPreview(entry: ScheduledCommunicationItem) {
+    const previewKey = `scheduled:${entry.id}`;
+    try {
+      setCommunicationPreviewLoading(previewKey);
+      setCommunicationModalOpen(true);
+
+      const response = await fetch(
+        `/api/admin/customers/email?action=preview-scheduled&id=${encodeURIComponent(entry.id)}`,
         { cache: 'no-store' }
       );
       const body = await response.json().catch(() => ({}));
@@ -1382,7 +1416,16 @@ export function CustomerDatabase() {
                   {selectedCustomer.scheduled_communications.slice(0, 12).map((entry) => (
                     <div
                       key={entry.id}
-                      className="rounded-md border border-blue-200 bg-white/80 px-3 py-2 text-xs text-neutral-700"
+                      className="cursor-pointer rounded-md border border-blue-200 bg-white/80 px-3 py-2 text-xs text-neutral-700 transition-colors hover:bg-blue-50"
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => void openScheduledCommunicationPreview(entry)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault();
+                          void openScheduledCommunicationPreview(entry);
+                        }
+                      }}
                     >
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <p className="font-medium text-neutral-900">{entry.flow_key}</p>
@@ -1665,11 +1708,15 @@ export function CustomerDatabase() {
                   </p>
                   <p>
                     <span className="font-medium">
-                      {(copy as any).communicationSentAtLabel || (lang === 'en' ? 'Sent' : 'Sendt')}
+                      {communicationPreview.scheduledFor
+                        ? (lang === 'en' ? 'Planned send' : 'Planlagt sending')
+                        : (copy as any).communicationSentAtLabel || (lang === 'en' ? 'Sent' : 'Sendt')}
                       :
                     </span>{' '}
-                    {communicationPreview.sentAt
-                      ? new Date(communicationPreview.sentAt).toLocaleString(locale)
+                    {(communicationPreview.scheduledFor || communicationPreview.sentAt)
+                      ? new Date(String(communicationPreview.scheduledFor || communicationPreview.sentAt)).toLocaleString(
+                          locale
+                        )
                       : copy.notProvided}
                   </p>
                   <p>

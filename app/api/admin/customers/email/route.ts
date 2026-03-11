@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth/session';
 import { supabaseAdmin } from '@/lib/supabase/server';
 import { dispatchEmail } from '@/lib/email/dispatch';
+import { renderManagedTemplate } from '@/lib/email/render';
 import { fetchCommunicationHistory, resolveOrderIdsForIdentity } from '@/lib/email/history';
 import { isMissingEmailRelationError } from '@/lib/email/schema';
 import type { EmailClassification } from '@/lib/email/types';
@@ -74,6 +75,11 @@ function looksLikeHtml(value: string): boolean {
   return /<\/?[a-z][\s\S]*>/i.test(String(value || ''));
 }
 
+function asRecord(value: unknown): Record<string, unknown> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  return value as Record<string, unknown>;
+}
+
 async function requireAdmin() {
   const session = await getSession();
   if (!session?.isAdmin) {
@@ -115,6 +121,111 @@ export async function GET(request: NextRequest) {
 
   const { searchParams } = new URL(request.url);
   const action = String(searchParams.get('action') || '').trim();
+
+  if (action === 'preview-scheduled') {
+    const id = String(searchParams.get('id') || '').trim();
+    if (!id) {
+      return NextResponse.json({ error: 'id is required' }, { status: 400 });
+    }
+
+    const { data: instance, error: instanceError } = await supabaseAdmin
+      .from('email_flow_instances')
+      .select(
+        'id, flow_key, entity_type, entity_id, trigger_date_key, status, locale, to_email, payload, metadata, scheduled_for, created_at, last_error'
+      )
+      .eq('id', id)
+      .maybeSingle();
+
+    if (instanceError) {
+      if (isMissingEmailRelationError(instanceError)) {
+        return NextResponse.json(
+          { error: 'Email flow tables are not available in this environment yet' },
+          { status: 503 }
+        );
+      }
+      return NextResponse.json({ error: 'Failed to fetch scheduled email preview' }, { status: 500 });
+    }
+    if (!instance) {
+      return NextResponse.json({ error: 'Scheduled email not found' }, { status: 404 });
+    }
+
+    let templateKey: string | null = null;
+    const { data: flow, error: flowError } = await supabaseAdmin
+      .from('email_flows')
+      .select('template_key')
+      .eq('flow_key', String(instance.flow_key || ''))
+      .maybeSingle();
+
+    if (flowError && !isMissingEmailRelationError(flowError)) {
+      return NextResponse.json({ error: 'Failed to resolve flow template for preview' }, { status: 500 });
+    }
+
+    if (flow?.template_key) {
+      templateKey = String(flow.template_key);
+    } else {
+      const metadata = asRecord(instance.metadata);
+      if (metadata.template_key) {
+        templateKey = String(metadata.template_key);
+      }
+    }
+
+    const locale: 'no' | 'en' = String(instance.locale || 'no') === 'en' ? 'en' : 'no';
+    const variables = asRecord(instance.payload);
+
+    const rendered = templateKey
+      ? await renderManagedTemplate({
+          templateKey,
+          locale,
+          variables,
+        })
+      : null;
+
+    const fallbackSubject =
+      locale === 'en'
+        ? `Planned email: ${String(instance.flow_key || '')}`
+        : `Planlagt e-post: ${String(instance.flow_key || '')}`;
+
+    const fallbackBody = [
+      locale === 'en'
+        ? 'This is a preview of a scheduled automated email.'
+        : 'Dette er en forhåndsvisning av en planlagt automatisk e-post.',
+      '',
+      `Flow: ${String(instance.flow_key || '')}`,
+      `Status: ${String(instance.status || 'scheduled')}`,
+      `Template: ${templateKey || 'n/a'}`,
+      `Scheduled: ${String(instance.scheduled_for || '')}`,
+      '',
+      locale === 'en' ? 'Payload variables:' : 'Variabler:',
+      JSON.stringify(variables, null, 2),
+    ].join('\n');
+
+    const entityType = String(instance.entity_type || '');
+    const entityId = String(instance.entity_id || '');
+
+    return NextResponse.json({
+      preview: {
+        id: String(instance.id),
+        source: 'email_flow_instance',
+        subject: rendered?.subject || fallbackSubject,
+        html: rendered?.html || wrapPlainTextAsHtml(fallbackBody),
+        classification: String(rendered?.classification || 'system'),
+        status: String(instance.status || 'scheduled'),
+        toEmail: instance.to_email ? String(instance.to_email) : null,
+        templateKey: rendered?.templateKey || templateKey,
+        sourcePath: '/api/cron/email-flow-runner',
+        sentAt: null,
+        scheduledFor: instance.scheduled_for ? String(instance.scheduled_for) : null,
+        createdAt: instance.created_at ? String(instance.created_at) : null,
+        lastError: instance.last_error ? String(instance.last_error) : null,
+        orderRefs: {
+          orderId: entityType === 'order' ? entityId : null,
+          eggOrderId: entityType === 'egg_order' ? entityId : null,
+          chickenOrderId: entityType === 'chicken_order' ? entityId : null,
+          campaignId: null,
+        },
+      },
+    });
+  }
 
   if (action === 'preview') {
     const source = String(searchParams.get('source') || '').trim();
