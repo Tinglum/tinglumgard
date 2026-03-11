@@ -1,4 +1,4 @@
-export const en = {
+﻿export const en = {
   // Navigation & Common
   nav: {
     products: "Boxes",
@@ -47,7 +47,7 @@ export const en = {
     languageCodeEn: "EN",
     defaultBoxName: "Mangalitsa box",
     defaultChickenName: "Chicken",
-    checkmark: "✓",
+    checkmark: "âœ“",
     sessionExpiredTitle: "Session expired",
     sessionExpiredDescription: "Please log in again to continue.",
   },
@@ -64,8 +64,8 @@ export const en = {
     porkFrom: "Woolly Pig from",
     headline: "Woolly Pig from",
     title: "Woolly Pig from Tinglum Farm",
-    farmName: "Tinglum Gård",
-    subtitle: "Pork from Tinglum Gård in Namdalseid. The pigs grow up on the farm throughout 2026, are slaughtered locally in December, and delivered fresh to your door.",
+    farmName: "Tinglum GÃ¥rd",
+    subtitle: "Pork from Tinglum GÃ¥rd in Namdalseid. The pigs grow up on the farm throughout 2026, are slaughtered locally in December, and delivered fresh to your door.",
     cta: "Reserve now",
     reserveNow: "Reserve now",
     watchVideo: "Watch video",
@@ -74,7 +74,7 @@ export const en = {
     qualityHeadline: "Norwegian quality",
     tagline: "Vacuum packed, freezer-ready, delivered week 48.",
     reserveBeforeLate: "Reserve your box before it's too late",
-    description: "Pork from Tinglum Gård in Namdalseid. The pigs grow up on the farm throughout 2026, are slaughtered locally in December, and delivered fresh to your door.",
+    description: "Pork from Tinglum GÃ¥rd in Namdalseid. The pigs grow up on the farm throughout 2026, are slaughtered locally in December, and delivered fresh to your door.",
     localRaised: "Locally raised",
     qualityGuarantee: "Quality guarantee",
     limitedOffer: "Limited offer",
@@ -86,7 +86,7 @@ export const en = {
   eggsHero: {
     title: "Hatching eggs from Tinglum Farm",
     subtitle:
-      "Hatching eggs from Tinglum Gård in Namdalseid. Our focus is breeding quality: strong chicks, reliable egg size, and egg colors that stay close to breed standards.",
+      "Hatching eggs from Tinglum GÃ¥rd in Namdalseid. Our focus is breeding quality: strong chicks, reliable egg size, and egg colors that stay close to breed standards.",
   },
 
   // Eggs browse
@@ -226,7 +226,7 @@ export const en = {
   timeline: {
     title: "How it works",
     subtitle: "From order to delivery",
-    tagline: "The pigs grow throughout 2026 • Fresh delivery in December",
+    tagline: "The pigs grow throughout 2026 â€¢ Fresh delivery in December",
     reserveNow: "Reserve your box now",
     howItWorks: "How it works",
     fromOrderToDelivery: "From order to delivery",
@@ -264,7 +264,7 @@ export const en = {
     q3: "Can I change my order?",
     a3: "Yes, until week 46. After the deadline the order is locked so we can plan production and packing.",
     q4: "How do I pick up or get delivery?",
-    a4: "You can choose delivery along E6 between Stjørdal and Namsos, or Trondheim city center, or farm pickup in Namdalseid. Price is shown in checkout before you confirm.",
+    a4: "You can choose delivery along E6 between StjÃ¸rdal and Namsos, or Trondheim city center, or farm pickup in Namdalseid. Price is shown in checkout before you confirm.",
     q5: "What is Mangalitsa?",
     a5: "Mangalitsa is an ancient Hungarian woolly pig breed known for extraordinary meat quality. The pigs grow slowly, live outdoors, and develop a deep, nutty flavour completely unlike regular pork. We are one of very few producers in Norway.",
     q6: "What is so special about the Mangalitsa fat?",
@@ -277,8 +277,8 @@ export const en = {
     a9: "You pay 50% at the time of order as a deposit via Vipps. The remaining balance is invoiced before delivery in week 46. The deposit secures your spot and kicks off production.",
     q10: "Can I share a box with someone?",
     a10: "Absolutely! Many customers share a larger box with family or friends. Choose a bigger box and divide it yourselves, everything is already portioned and labeled, making it easy to split.",
-    q11: "Do you deliver outside Trøndelag?",
-    a11: "Currently we offer farm pickup, selected points along the E6 between Stjørdal and Namsos, and Trondheim city centre. We're working on expanding, but cannot promise delivery outside these areas yet.",
+    q11: "Do you deliver outside TrÃ¸ndelag?",
+    a11: "Currently we offer farm pickup, selected points along the E6 between StjÃ¸rdal and Namsos, and Trondheim city centre. We're working on expanding, but cannot promise delivery outside these areas yet.",
     q12: "What if I have allergies or special requests?",
     a12: "Our products are pure pork with no additives. Sausages and bacon contain spices and salt, a full ingredient list is included. Get in touch if you have specific needs and we'll find a solution.",
   },
@@ -413,7 +413,7 @@ export const en = {
     pickupTrondheim: "Pickup in Trondheim",
     pickupTrondheimAddress: "Veita Mat AS, Jomfrugata",
     deliveryE6: "Delivery along E6",
-    deliveryE6Address: "Stjørdal-Namsos",
+    deliveryE6Address: "StjÃ¸rdal-Namsos",
     freshDelivery: "Fresh delivery (week 50/51)",
     freshDeliveryDesc: "Receive the box fresh instead of frozen - only at the farm",
 
@@ -449,8 +449,8 @@ export const en = {
     orderNumber: "Order number",
     nextSteps: "Next steps:",
     step1: "You will receive a Vipps payment request for the advance payment (50% of total amount)",
-    step2: "You'll get a confirmation email when the advance payment is received",
-    step3: "Remaining amount is paid at delivery",
+    step2: "Friends get 20% off the deposit when they use your code on Mangalitsa boxes",
+    step3: "You get 20% discount per friend on the remainder amount for your own box",
     seeMyOrders: "See my orders",
     shareTitle: "Share with a friend",
     shareBody:
@@ -532,7 +532,7 @@ export const en = {
         sizeRange: '2-2.5 kg',
         temperament: 'Calm, curious',
         annualProduction: '60-90 eggs/year',
-        temperature: '37.5°C',
+        temperature: '37.5Â°C',
         humidity: '50-55% (day 1-18), 65-70% (day 19-21)',
       },
       'jersey-giant': {
@@ -543,7 +543,7 @@ export const en = {
         sizeRange: '4-5 kg',
         temperament: 'Calm, patient',
         annualProduction: '180-220 eggs/year',
-        temperature: '37.5°C',
+        temperature: '37.5Â°C',
         humidity: '50-55% (day 1-18), 65-70% (day 19-21)',
       },
       'silverudds-bla': {
@@ -554,7 +554,7 @@ export const en = {
         sizeRange: '2.5-3 kg',
         temperament: 'Active, hardy',
         annualProduction: '220-250 eggs/year',
-        temperature: '37.5°C',
+        temperature: '37.5Â°C',
         humidity: '50-55% (day 1-18), 65-70% (day 19-21)',
       },
       'cream-legbar': {
@@ -565,7 +565,7 @@ export const en = {
         sizeRange: '2-2.5 kg',
         temperament: 'Curious, active',
         annualProduction: '180-220 eggs/year',
-        temperature: '37.5°C',
+        temperature: '37.5Â°C',
         humidity: '50-55% (day 1-18), 65-70% (day 19-21)',
       },
       maran: {
@@ -576,7 +576,7 @@ export const en = {
         sizeRange: '2.5-3 kg',
         temperament: 'Calm, friendly',
         annualProduction: '180-220 eggs/year',
-        temperature: '37.5°C',
+        temperature: '37.5Â°C',
         humidity: '50-55% (day 1-18), 65-70% (day 19-21)',
       },
     },
@@ -584,7 +584,7 @@ export const en = {
       title: "You have an active order",
       description: "Do you want to add more eggs to the same order and week?",
       activeWeek: "Active week",
-      eggsInOrderAndLeft: "{inOrder} eggs in order · {left} left",
+      eggsInOrderAndLeft: "{inOrder} eggs in order Â· {left} left",
       yesContinue: "Yes, continue",
       noNewOrder: "No, new order",
     },
@@ -828,9 +828,9 @@ export const en = {
 
   terms: {
     back: "Back",
-    title: "Terms and Conditions - Tinglum Gård",
+    title: "Terms and Conditions - Tinglum GÃ¥rd",
     intro:
-      "These terms apply to purchases of goods from Tinglum Gård through our website. By completing a purchase, you confirm that you have read and accepted these terms.",
+      "These terms apply to purchases of goods from Tinglum GÃ¥rd through our website. By completing a purchase, you confirm that you have read and accepted these terms.",
     sellerLabel: "Seller:",
     buyerParagraph:
       "The buyer is the person who completes the order and is referred to as \"customer\".",
@@ -838,7 +838,7 @@ export const en = {
       {
         title: "1. Parties",
         bullets: [
-          "Tinglum Gård",
+          "Tinglum GÃ¥rd",
           "Organization number: 995 752 328",
           "Address: Tinglemsvegen 91, 7750 NAMDALSEID, Norway",
           "Email: post@tinglum.com",
@@ -871,8 +871,8 @@ export const en = {
       {
         title: "4. Right of Withdrawal",
         paragraphs: [
-          "In accordance with Norwegian consumer law § 22, the right of withdrawal does not apply to goods that:",
-          "Purchases of meat and meat products from Tinglum Gård are therefore not covered by the right of withdrawal.",
+          "In accordance with Norwegian consumer law Â§ 22, the right of withdrawal does not apply to goods that:",
+          "Purchases of meat and meat products from Tinglum GÃ¥rd are therefore not covered by the right of withdrawal.",
         ],
         bullets: [
           "are produced according to customer specifications, or",
@@ -884,7 +884,7 @@ export const en = {
         title: "5. Returns",
         paragraphs: [
           "Return of goods is not possible, as these are food items delivered frozen or fresh upon order.",
-          "If Tinglum Gård is unable to deliver as agreed, the paid amount will be refunded in full.",
+          "If Tinglum GÃ¥rd is unable to deliver as agreed, the paid amount will be refunded in full.",
         ],
       },
       {
@@ -1063,7 +1063,7 @@ export const en = {
     addedToOrderTitle: "Order updated",
     addedToOrderDesc: "Added {item}",
     addingToOrderLabel: "Adding to current order...",
-    addingToOrderOrderLine: "Order #{orderNumber} • {box}",
+    addingToOrderOrderLine: "Order #{orderNumber} â€¢ {box}",
     loadingOrdersTitle: "Loading orders...",
 
     couldNotAddTitle: "Could not add",
@@ -1093,27 +1093,27 @@ export const en = {
 
   // Referrals
   referrals: {
-    createCode: "Create friend discount code",
-    getCredit: "Get 10% credit when a friend completes an order with your code",
+    createCode: "Create friend discount for Mangalitsa woolly pig boxes",
+    getCredit: "Give friends 20% off the deposit and earn up to 50% off your own box",
     howItWorks: "How it works:",
     step1: "Your code becomes active after you place your first order",
-    step2: "Friends get 20% off the deposit when they use your code",
-    step3: "You get 10% credit once your friend's order is paid",
-    step4: "Maximum 5 friends per order can give you credit",
+    step2: "Friends get 20% off the deposit when they use your code on Mangalitsa boxes",
+    step3: "You get 20% discount per friend on the remainder amount for your own box",
+    step4: "You can earn up to 50% total discount on your box",
     chooseCode: "Choose your unique code (4-20 characters, letters and numbers only)",
     exampleCode: "e.g. KENNETH2026",
     creating: "Creating...",
     createButton: "Create code",
     yourCode: "Your friend discount code",
-    shareCode: "Share this code with friends and family after your first order is registered",
-    availableAfterFirstOrder: "Friend discount becomes active only after you have placed an order.",
-    firstOrderRequiredHelp: "When your first order is registered, your personal code appears automatically on My page.",
-    goToOrder: "Go to order",
+    shareCode: "Share this code with friends and family who want Mangalitsa woolly pig boxes",
+    availableAfterFirstOrder: "Friend discount for Mangalitsa woolly pig boxes becomes active only after your first order.",
+    firstOrderRequiredHelp: "When your first order is registered, your personal code appears automatically on My Page. Friends get 20% off the deposit, and you get 20% per friend on your box remainder (up to 50% total).",
+    goToOrder: "Go to woolly pig boxes",
     code: "Your code:",
     copied: "Copied!",
     copyCode: "Copy code",
     shareButton: "Share code",
-    friendsGet20: "Friends get 20% off the deposit • You get 10% credit per referral after your first order",
+    friendsGet20: "Friends get 20% off the deposit • You get 20% per friend on your box remainder (up to 50% total)",
     totalReferrals: "Total referrals",
     availableCredit: "Available credit",
     creditRemaining: "Credit remaining",
@@ -1131,7 +1131,7 @@ export const en = {
     enterCode: "Enter code",
     checking: "Checking...",
     useCode: "Use code",
-    newCustomersGet20: "New customers get 20% off the deposit. The code is valid when the owner has placed at least one order.",
+    newCustomersGet20: "New customers get 20% off the deposit on Mangalitsa woolly pig boxes. The code is valid after the owner has placed at least one order.",
     codeActivated: "Code activated: {code}",
     youGet20Off: "You get 20% off the deposit ({amount} NOK)",
     youSave: "You save {amount} NOK",
@@ -1142,12 +1142,12 @@ export const en = {
     couldNotCreate: "Could not create code",
 
     // Share message
-    shareMessage: "Order Woolly Pig from Tinglum Gård and get 20% off the deposit with my friend discount code: {code}",
+    shareMessage: "Order a Mangalitsa woolly pig box from Tinglum Gard and get 20% off the deposit with my friend discount code: {code}",
   },
 
   // Admin
   admin: {
-    title: "Tinglumgård - Admin",
+    title: "TinglumgÃ¥rd - Admin",
     login: "Admin login",
     password: "Password",
     wrongPassword: "Wrong password. Try again.",
@@ -1618,8 +1618,8 @@ export const en = {
 
   // Footer
   footer: {
-    farm: "Tinglum Gård",
-    location: "Namdalseid, Trøndelag",
+    farm: "Tinglum GÃ¥rd",
+    location: "Namdalseid, TrÃ¸ndelag",
     quality: "Quality from Namdalseid",
     description: "We deliver Norwegian pork of the highest quality, raised on the farm and treated with care from start to finish.",
     localRaised: "Locally raised",
@@ -1973,8 +1973,8 @@ export const en = {
       "Your personal friend discount code is ready now. Share the code or link directly from this page.",
     shareHowTitle: "How the friend discount works",
     shareHowStep1: "Your friend gets {give}% off the deposit using your code.",
-    shareHowStep2: "You earn {earn}% credit after your friend has paid.",
-    shareHowStep3: "This code and link are tied to your order, and are also available on {myPage}.",
+    shareHowStep2: "You get {earn}% discount per friend on your box remainder.",
+    shareHowStep3: "You can earn up to 50% total discount. Code and link are also available on {myPage}.",
     shareCodeLabel: "Your friend discount code",
     shareCodeLoading: "Generating code...",
     shareCodeUnavailable: "Your code will be ready shortly. You can also find it on My page.",
@@ -1982,8 +1982,7 @@ export const en = {
     shareLinkLabel: "Shareable order link",
     shareCopy: "Copy",
     shareCopied: "Copied",
-    shareMessage:
-      "I just reserved a Mangalitsa box from Tinglum Gard. Use my code {code} at tinglumgård.no/bestill.",
+    shareMessage: "Order a Mangalitsa woolly pig box from Tinglum Gard and get 20% off the deposit with my friend discount code: {code}",
     orderNumberLabel: "Order number",
     detailsTitle: "Order details",
     boxSizeLabel: "Box",
@@ -2407,8 +2406,8 @@ export const en = {
     nextStepsTitle: "Next steps:",
     nextStep1:
       "You will receive a Vipps payment request for the deposit (50% of the total amount).",
-    nextStep2: "You will receive an email confirmation when the deposit is received.",
-    nextStep3: "The remaining amount is paid on delivery.",
+    nextStep2: "You will receive an email confirmation when the deposit is registered.",
+    nextStep3: "The remaining amount is paid at delivery.",
     backToHome: "Back to home",
     viewOrders: "See my orders",
     back: "Back",
@@ -2453,7 +2452,7 @@ export const en = {
     pickupTrondheimTitle: "Pickup in Trondheim",
     pickupTrondheimAddress: "Veita Mat AS, Jomfrugata",
     deliveryE6Title: "Delivery along E6",
-    deliveryE6Address: "Stjørdal-Namsos",
+    deliveryE6Address: "StjÃ¸rdal-Namsos",
     extraOptionsTitle: "Extra options",
     freshDeliveryTitle: "Fresh delivery (week 50/51)",
     freshDeliveryDesc:
@@ -3041,7 +3040,7 @@ export const en = {
     discountPercentageValue: "{value}% off",
     discountFixedValue: "{value} {currency} off",
     usesValue: "{current}/{max} used",
-    infinity: "∞",
+    infinity: "âˆž",
     validUntilPrefix: "Until",
     minimumPrefix: "Minimum:",
   },
@@ -3512,7 +3511,7 @@ export const en = {
     },
     loginTitle: "Admin login",
     passwordLabel: "Password",
-    passwordPlaceholder: "••••••••",
+    passwordPlaceholder: "â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢",
     passwordError: "Wrong password. Try again.",
     loginButton: "Log in",
     headerTitle: "Tinglumgard Admin",
@@ -4054,5 +4053,17 @@ export const en = {
     keypadNext: 'Next',
   },
 };
+
+
+
+
+
+
+
+
+
+
+
+
 
 

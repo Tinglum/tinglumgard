@@ -112,7 +112,7 @@ export function ReferralDashboard() {
 
   function handleShareCode() {
     if (code) {
-      const shareText = `${t.referrals.shareMessage.replace('{code}', code)}\n\n${window.location.origin}/bestill`;
+      const shareText = `${t.referrals.shareMessage.replace('{code}', code)}\n\n${window.location.origin}/produkt`;
 
       if (navigator.share) {
         navigator.share({
@@ -143,7 +143,7 @@ export function ReferralDashboard() {
           <h2 className="text-2xl font-bold text-gray-900 mb-2">{t.referrals.createCode}</h2>
           <p className="text-gray-700 mb-2">{t.referrals.availableAfterFirstOrder}</p>
           <p className="text-sm text-gray-600 mb-6">{t.referrals.firstOrderRequiredHelp}</p>
-          <Link href="/bestill" className="inline-flex items-center justify-center px-5 py-2.5 rounded-md bg-neutral-900 text-white text-sm font-medium hover:bg-neutral-800 transition-colors">
+          <Link href="/produkt" className="inline-flex items-center justify-center px-5 py-2.5 rounded-md bg-neutral-900 text-white text-sm font-medium hover:bg-neutral-800 transition-colors">
             {t.referrals.goToOrder}
           </Link>
         </div>
