@@ -1,4 +1,4 @@
-﻿export const en = {
+export const en = {
   // Navigation & Common
   nav: {
     products: "Boxes",
@@ -47,7 +47,7 @@
     languageCodeEn: "EN",
     defaultBoxName: "Mangalitsa box",
     defaultChickenName: "Chicken",
-    checkmark: "âœ“",
+    checkmark: "✓",
     sessionExpiredTitle: "Session expired",
     sessionExpiredDescription: "Please log in again to continue.",
   },
@@ -64,8 +64,8 @@
     porkFrom: "Woolly Pig from",
     headline: "Woolly Pig from",
     title: "Woolly Pig from Tinglum Farm",
-    farmName: "Tinglum GÃ¥rd",
-    subtitle: "Pork from Tinglum GÃ¥rd in Namdalseid. The pigs grow up on the farm throughout 2026, are slaughtered locally in December, and delivered fresh to your door.",
+    farmName: "Tinglum Gård",
+    subtitle: "Pork from Tinglum Gård in Namdalseid. The pigs grow up on the farm throughout 2026, are slaughtered locally in December, and delivered fresh to your door.",
     cta: "Reserve now",
     reserveNow: "Reserve now",
     watchVideo: "Watch video",
@@ -74,7 +74,7 @@
     qualityHeadline: "Norwegian quality",
     tagline: "Vacuum packed, freezer-ready, delivered week 48.",
     reserveBeforeLate: "Reserve your box before it's too late",
-    description: "Pork from Tinglum GÃ¥rd in Namdalseid. The pigs grow up on the farm throughout 2026, are slaughtered locally in December, and delivered fresh to your door.",
+    description: "Pork from Tinglum Gård in Namdalseid. The pigs grow up on the farm throughout 2026, are slaughtered locally in December, and delivered fresh to your door.",
     localRaised: "Locally raised",
     qualityGuarantee: "Quality guarantee",
     limitedOffer: "Limited offer",
@@ -86,7 +86,7 @@
   eggsHero: {
     title: "Hatching eggs from Tinglum Farm",
     subtitle:
-      "Hatching eggs from Tinglum GÃ¥rd in Namdalseid. Our focus is breeding quality: strong chicks, reliable egg size, and egg colors that stay close to breed standards.",
+      "Hatching eggs from Tinglum Gård in Namdalseid. Our focus is breeding quality: strong chicks, reliable egg size, and egg colors that stay close to breed standards.",
   },
 
   // Eggs browse
@@ -226,7 +226,7 @@
   timeline: {
     title: "How it works",
     subtitle: "From order to delivery",
-    tagline: "The pigs grow throughout 2026 â€¢ Fresh delivery in December",
+    tagline: "The pigs grow throughout 2026 • Fresh delivery in December",
     reserveNow: "Reserve your box now",
     howItWorks: "How it works",
     fromOrderToDelivery: "From order to delivery",
@@ -264,7 +264,7 @@
     q3: "Can I change my order?",
     a3: "Yes, until week 46. After the deadline the order is locked so we can plan production and packing.",
     q4: "How do I pick up or get delivery?",
-    a4: "You can choose delivery along E6 between StjÃ¸rdal and Namsos, or Trondheim city center, or farm pickup in Namdalseid. Price is shown in checkout before you confirm.",
+    a4: "You can choose delivery along E6 between Stjørdal and Namsos, or Trondheim city center, or farm pickup in Namdalseid. Price is shown in checkout before you confirm.",
     q5: "What is Mangalitsa?",
     a5: "Mangalitsa is an ancient Hungarian woolly pig breed known for extraordinary meat quality. The pigs grow slowly, live outdoors, and develop a deep, nutty flavour completely unlike regular pork. We are one of very few producers in Norway.",
     q6: "What is so special about the Mangalitsa fat?",
@@ -277,8 +277,8 @@
     a9: "You pay 50% at the time of order as a deposit via Vipps. The remaining balance is invoiced before delivery in week 46. The deposit secures your spot and kicks off production.",
     q10: "Can I share a box with someone?",
     a10: "Absolutely! Many customers share a larger box with family or friends. Choose a bigger box and divide it yourselves, everything is already portioned and labeled, making it easy to split.",
-    q11: "Do you deliver outside TrÃ¸ndelag?",
-    a11: "Currently we offer farm pickup, selected points along the E6 between StjÃ¸rdal and Namsos, and Trondheim city centre. We're working on expanding, but cannot promise delivery outside these areas yet.",
+    q11: "Do you deliver outside Trøndelag?",
+    a11: "Currently we offer farm pickup, selected points along the E6 between Stjørdal and Namsos, and Trondheim city centre. We're working on expanding, but cannot promise delivery outside these areas yet.",
     q12: "What if I have allergies or special requests?",
     a12: "Our products are pure pork with no additives. Sausages and bacon contain spices and salt, a full ingredient list is included. Get in touch if you have specific needs and we'll find a solution.",
   },
@@ -413,7 +413,7 @@
     pickupTrondheim: "Pickup in Trondheim",
     pickupTrondheimAddress: "Veita Mat AS, Jomfrugata",
     deliveryE6: "Delivery along E6",
-    deliveryE6Address: "StjÃ¸rdal-Namsos",
+    deliveryE6Address: "Stjørdal-Namsos",
     freshDelivery: "Fresh delivery (week 50/51)",
     freshDeliveryDesc: "Receive the box fresh instead of frozen - only at the farm",
 
@@ -449,8 +449,8 @@
     orderNumber: "Order number",
     nextSteps: "Next steps:",
     step1: "You will receive a Vipps payment request for the advance payment (50% of total amount)",
-    step2: "Friends get 20% off the deposit when they use your code on Mangalitsa boxes",
-    step3: "You get 20% discount per friend on the remainder amount for your own box",
+    step2: "You'll get a confirmation email when the advance payment is received",
+    step3: "Remaining amount is paid at delivery",
     seeMyOrders: "See my orders",
     shareTitle: "Share with a friend",
     shareBody:
@@ -532,7 +532,7 @@
         sizeRange: '2-2.5 kg',
         temperament: 'Calm, curious',
         annualProduction: '60-90 eggs/year',
-        temperature: '37.5Â°C',
+        temperature: '37.5°C',
         humidity: '50-55% (day 1-18), 65-70% (day 19-21)',
       },
       'jersey-giant': {
@@ -543,7 +543,7 @@
         sizeRange: '4-5 kg',
         temperament: 'Calm, patient',
         annualProduction: '180-220 eggs/year',
-        temperature: '37.5Â°C',
+        temperature: '37.5°C',
         humidity: '50-55% (day 1-18), 65-70% (day 19-21)',
       },
       'silverudds-bla': {
@@ -554,7 +554,7 @@
         sizeRange: '2.5-3 kg',
         temperament: 'Active, hardy',
         annualProduction: '220-250 eggs/year',
-        temperature: '37.5Â°C',
+        temperature: '37.5°C',
         humidity: '50-55% (day 1-18), 65-70% (day 19-21)',
       },
       'cream-legbar': {
@@ -565,7 +565,7 @@
         sizeRange: '2-2.5 kg',
         temperament: 'Curious, active',
         annualProduction: '180-220 eggs/year',
-        temperature: '37.5Â°C',
+        temperature: '37.5°C',
         humidity: '50-55% (day 1-18), 65-70% (day 19-21)',
       },
       maran: {
@@ -576,7 +576,7 @@
         sizeRange: '2.5-3 kg',
         temperament: 'Calm, friendly',
         annualProduction: '180-220 eggs/year',
-        temperature: '37.5Â°C',
+        temperature: '37.5°C',
         humidity: '50-55% (day 1-18), 65-70% (day 19-21)',
       },
     },
@@ -584,7 +584,7 @@
       title: "You have an active order",
       description: "Do you want to add more eggs to the same order and week?",
       activeWeek: "Active week",
-      eggsInOrderAndLeft: "{inOrder} eggs in order Â· {left} left",
+      eggsInOrderAndLeft: "{inOrder} eggs in order · {left} left",
       yesContinue: "Yes, continue",
       noNewOrder: "No, new order",
     },
@@ -828,9 +828,9 @@
 
   terms: {
     back: "Back",
-    title: "Terms and Conditions - Tinglum GÃ¥rd",
+    title: "Terms and Conditions - Tinglum Gård",
     intro:
-      "These terms apply to purchases of goods from Tinglum GÃ¥rd through our website. By completing a purchase, you confirm that you have read and accepted these terms.",
+      "These terms apply to purchases of goods from Tinglum Gård through our website. By completing a purchase, you confirm that you have read and accepted these terms.",
     sellerLabel: "Seller:",
     buyerParagraph:
       "The buyer is the person who completes the order and is referred to as \"customer\".",
@@ -838,7 +838,7 @@
       {
         title: "1. Parties",
         bullets: [
-          "Tinglum GÃ¥rd",
+          "Tinglum Gård",
           "Organization number: 995 752 328",
           "Address: Tinglemsvegen 91, 7750 NAMDALSEID, Norway",
           "Email: post@tinglum.com",
@@ -871,8 +871,8 @@
       {
         title: "4. Right of Withdrawal",
         paragraphs: [
-          "In accordance with Norwegian consumer law Â§ 22, the right of withdrawal does not apply to goods that:",
-          "Purchases of meat and meat products from Tinglum GÃ¥rd are therefore not covered by the right of withdrawal.",
+          "In accordance with Norwegian consumer law § 22, the right of withdrawal does not apply to goods that:",
+          "Purchases of meat and meat products from Tinglum Gård are therefore not covered by the right of withdrawal.",
         ],
         bullets: [
           "are produced according to customer specifications, or",
@@ -884,7 +884,7 @@
         title: "5. Returns",
         paragraphs: [
           "Return of goods is not possible, as these are food items delivered frozen or fresh upon order.",
-          "If Tinglum GÃ¥rd is unable to deliver as agreed, the paid amount will be refunded in full.",
+          "If Tinglum Gård is unable to deliver as agreed, the paid amount will be refunded in full.",
         ],
       },
       {
@@ -1063,7 +1063,7 @@
     addedToOrderTitle: "Order updated",
     addedToOrderDesc: "Added {item}",
     addingToOrderLabel: "Adding to current order...",
-    addingToOrderOrderLine: "Order #{orderNumber} â€¢ {box}",
+    addingToOrderOrderLine: "Order #{orderNumber} • {box}",
     loadingOrdersTitle: "Loading orders...",
 
     couldNotAddTitle: "Could not add",
@@ -1147,7 +1147,7 @@
 
   // Admin
   admin: {
-    title: "TinglumgÃ¥rd - Admin",
+    title: "Tinglumgård - Admin",
     login: "Admin login",
     password: "Password",
     wrongPassword: "Wrong password. Try again.",
@@ -1618,8 +1618,8 @@
 
   // Footer
   footer: {
-    farm: "Tinglum GÃ¥rd",
-    location: "Namdalseid, TrÃ¸ndelag",
+    farm: "Tinglum Gård",
+    location: "Namdalseid, Trøndelag",
     quality: "Quality from Namdalseid",
     description: "We deliver Norwegian pork of the highest quality, raised on the farm and treated with care from start to finish.",
     localRaised: "Locally raised",
@@ -1982,7 +1982,8 @@
     shareLinkLabel: "Shareable order link",
     shareCopy: "Copy",
     shareCopied: "Copied",
-    shareMessage: "Order a Mangalitsa woolly pig box from Tinglum Gard and get 20% off the deposit with my friend discount code: {code}",
+    shareMessage:
+      "Order a Mangalitsa woolly pig box from Tinglum Gard and get 20% off the deposit with my friend discount code: {code}",
     orderNumberLabel: "Order number",
     detailsTitle: "Order details",
     boxSizeLabel: "Box",
@@ -2406,8 +2407,8 @@
     nextStepsTitle: "Next steps:",
     nextStep1:
       "You will receive a Vipps payment request for the deposit (50% of the total amount).",
-    nextStep2: "You will receive an email confirmation when the deposit is registered.",
-    nextStep3: "The remaining amount is paid at delivery.",
+    nextStep2: "You will receive an email confirmation when the deposit is received.",
+    nextStep3: "The remaining amount is paid on delivery.",
     backToHome: "Back to home",
     viewOrders: "See my orders",
     back: "Back",
@@ -2452,7 +2453,7 @@
     pickupTrondheimTitle: "Pickup in Trondheim",
     pickupTrondheimAddress: "Veita Mat AS, Jomfrugata",
     deliveryE6Title: "Delivery along E6",
-    deliveryE6Address: "StjÃ¸rdal-Namsos",
+    deliveryE6Address: "Stjørdal-Namsos",
     extraOptionsTitle: "Extra options",
     freshDeliveryTitle: "Fresh delivery (week 50/51)",
     freshDeliveryDesc:
@@ -3040,7 +3041,7 @@
     discountPercentageValue: "{value}% off",
     discountFixedValue: "{value} {currency} off",
     usesValue: "{current}/{max} used",
-    infinity: "âˆž",
+    infinity: "∞",
     validUntilPrefix: "Until",
     minimumPrefix: "Minimum:",
   },
@@ -3511,7 +3512,7 @@
     },
     loginTitle: "Admin login",
     passwordLabel: "Password",
-    passwordPlaceholder: "â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢",
+    passwordPlaceholder: "••••••••",
     passwordError: "Wrong password. Try again.",
     loginButton: "Log in",
     headerTitle: "Tinglumgard Admin",
@@ -4053,17 +4054,5 @@
     keypadNext: 'Next',
   },
 };
-
-
-
-
-
-
-
-
-
-
-
-
 
 

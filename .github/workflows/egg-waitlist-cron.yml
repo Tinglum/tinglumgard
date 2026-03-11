@@ -18,22 +18,22 @@ jobs:
         run: |
           set -euo pipefail
 
+          if [ -z "${CRON_SECRET:-}" ]; then
+            echo "::error::CRON_SECRET is required for egg waitlist cron."
+            exit 1
+          fi
+
+          echo "Using APP_BASE_URL=${APP_BASE_URL}"
+
           URL="${APP_BASE_URL%/}/api/cron/egg-waitlist"
           RESPONSE_FILE=/tmp/egg-waitlist-response.json
 
-          if [ -n "${CRON_SECRET:-}" ]; then
-            HTTP_CODE=$(curl --silent --show-error \
-              -H "x-cron-secret: $CRON_SECRET" \
-              --output "$RESPONSE_FILE" \
-              --write-out "%{http_code}" \
-              "${URL}?token=${CRON_SECRET}")
-          else
-            echo "CRON_SECRET not set in GitHub; calling endpoint without auth header."
-            HTTP_CODE=$(curl --silent --show-error \
-              --output "$RESPONSE_FILE" \
-              --write-out "%{http_code}" \
-              "$URL")
-          fi
+          HTTP_CODE=$(curl --silent --show-error \
+            --request POST \
+            -H "x-cron-secret: $CRON_SECRET" \
+            --output "$RESPONSE_FILE" \
+            --write-out "%{http_code}" \
+            "${URL}?token=${CRON_SECRET}")
 
           echo "HTTP status: $HTTP_CODE"
           echo "Cron response:"

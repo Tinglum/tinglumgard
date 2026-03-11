@@ -39,8 +39,12 @@ jobs:
           cat "$FLOW_RESPONSE_FILE"
 
           if [ "$FLOW_HTTP_CODE" -ge 400 ]; then
-            echo "::error::Email flow runner endpoint failed with HTTP $FLOW_HTTP_CODE"
-            exit 1
+            if [ "$FLOW_HTTP_CODE" = "503" ] && grep -q "Email schema is not fully migrated" "$FLOW_RESPONSE_FILE"; then
+              echo "::warning::Email flow runner skipped because flow schema is not fully migrated. Continuing to dispatch queue."
+            else
+              echo "::error::Email flow runner endpoint failed with HTTP $FLOW_HTTP_CODE"
+              exit 1
+            fi
           fi
 
           DISPATCH_URL="${APP_BASE_URL%/}/api/cron/email-dispatch"
