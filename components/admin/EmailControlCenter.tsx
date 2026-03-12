@@ -41,6 +41,14 @@ type EmailFlow = {
   active: boolean;
   send_offset_minutes: number;
   template_key: string;
+  email_templates?: {
+    template_key?: string;
+    classification?: string;
+    subject_no?: string;
+    subject_en?: string;
+    body_no?: string;
+    body_en?: string;
+  } | null;
 };
 
 type EmailCampaign = {
@@ -50,6 +58,10 @@ type EmailCampaign = {
   status: string;
   recipient_mode: 'all' | 'manual' | 'filters';
   total_recipients: number;
+  subject_no?: string;
+  subject_en?: string;
+  body_no?: string;
+  body_en?: string;
 };
 
 type QueueEntry = {
@@ -648,13 +660,67 @@ export function EmailControlCenter() {
     await loadSetup();
   }
 
+  function buildFallbackPreviewHtml(entry: QueueEntry | HistoryEntry): string {
+    return `
+      <html>
+        <body style="font-family:Arial,sans-serif;padding:24px;color:#111827;">
+          <h2 style="margin:0 0 12px 0;">${entry.subject || 'Email'}</h2>
+          <p style="margin:0 0 8px 0;"><strong>To:</strong> ${entry.to_email || '-'}</p>
+          <p style="margin:0 0 8px 0;"><strong>Status:</strong> ${entry.status || '-'}</p>
+          <p style="margin:0 0 8px 0;"><strong>Template:</strong> ${entry.template_key || '-'}</p>
+          <p style="margin:0 0 8px 0;"><strong>Created:</strong> ${entry.created_at ? new Date(entry.created_at).toLocaleString() : '-'}</p>
+          ${entry.sent_at ? `<p style="margin:0 0 8px 0;"><strong>Sent:</strong> ${new Date(entry.sent_at).toLocaleString()}</p>` : ''}
+          ${entry.last_error ? `<p style="margin:12px 0 0 0;color:#b91c1c;"><strong>Error:</strong> ${entry.last_error}</p>` : ''}
+          <hr style="margin:16px 0;border:0;border-top:1px solid #e5e7eb;" />
+          <p style="margin:0;color:#6b7280;">No stored HTML body was found for this entry. Metadata preview shown.</p>
+        </body>
+      </html>
+    `.trim();
+  }
+
   function openEmailPreviewFromQueueLike(entry: QueueEntry | HistoryEntry, titlePrefix: string) {
-    if (!entry.html || !entry.subject) return;
     setEmailPreviewModal({
       title: `${titlePrefix} - ${entry.to_email}`,
       subtitle: `${entry.template_key || 'template:unknown'} - ${entry.status}`,
-      subject: entry.subject,
-      html: entry.html,
+      subject: entry.subject || 'Email',
+      html: entry.html || buildFallbackPreviewHtml(entry),
+    });
+  }
+
+  function openFlowTemplatePreview(flow: EmailFlow, locale: 'no' | 'en' = 'no') {
+    const tpl = flow.email_templates;
+    const subject =
+      locale === 'en' ? tpl?.subject_en || tpl?.subject_no || flow.template_key : tpl?.subject_no || tpl?.subject_en || flow.template_key;
+    const body =
+      locale === 'en' ? tpl?.body_en || tpl?.body_no || '' : tpl?.body_no || tpl?.body_en || '';
+
+    const html = body
+      ? body
+      : `<p style="font-family:Arial,sans-serif;color:#374151;">No stored template body found for this flow.</p>`;
+
+    setEmailPreviewModal({
+      title: `Flow template - ${flow.flow_key}`,
+      subtitle: `${flow.template_key} - ${flow.event_type} - ${locale.toUpperCase()}`,
+      subject,
+      html,
+    });
+  }
+
+  function openCampaignTemplatePreview(campaign: EmailCampaign, locale: 'no' | 'en' = 'no') {
+    const subject =
+      locale === 'en'
+        ? campaign.subject_en || campaign.subject_no || campaign.name
+        : campaign.subject_no || campaign.subject_en || campaign.name;
+    const body = locale === 'en' ? campaign.body_en || campaign.body_no || '' : campaign.body_no || campaign.body_en || '';
+    const html = body
+      ? body
+      : `<p style="font-family:Arial,sans-serif;color:#374151;">No campaign body found.</p>`;
+
+    setEmailPreviewModal({
+      title: `Campaign email - ${campaign.name}`,
+      subtitle: `${campaign.classification} - ${campaign.status} - ${locale.toUpperCase()}`,
+      subject,
+      html,
     });
   }
 
@@ -997,6 +1063,12 @@ export function EmailControlCenter() {
                 </p>
               </div>
               <div className="flex gap-2">
+                <Button variant="outline" onClick={() => openFlowTemplatePreview(flow, 'no')}>
+                  Preview NO
+                </Button>
+                <Button variant="outline" onClick={() => openFlowTemplatePreview(flow, 'en')}>
+                  Preview EN
+                </Button>
                 <select
                   value={flow.mode}
                   onChange={(event) => handleFlowModeChange(flow, event.target.value as EmailFlow['mode'])}
@@ -1241,8 +1313,14 @@ export function EmailControlCenter() {
                     {campaign.status} - {campaign.classification} - recipients {campaign.total_recipients}
                   </p>
                   <div className="mt-2 flex gap-2">
+                    <Button variant="outline" onClick={() => openCampaignTemplatePreview(campaign, 'no')}>
+                      Preview NO
+                    </Button>
+                    <Button variant="outline" onClick={() => openCampaignTemplatePreview(campaign, 'en')}>
+                      Preview EN
+                    </Button>
                     <Button variant="outline" onClick={() => handleCampaignPreview(campaign.id)}>
-                      Preview
+                      Recipients
                     </Button>
                     {!lifecycleConfig.campaignSendViaApiCronOnly ? (
                       <Button onClick={() => handleCampaignEnqueue(campaign.id)}>Enqueue</Button>
@@ -1289,7 +1367,6 @@ export function EmailControlCenter() {
                 <Button
                   variant="outline"
                   onClick={() => openEmailPreviewFromQueueLike(item, 'Queue email')}
-                  disabled={!item.html || !item.subject}
                 >
                   Preview
                 </Button>
@@ -1323,7 +1400,6 @@ export function EmailControlCenter() {
                 <Button
                   variant="outline"
                   onClick={() => openEmailPreviewFromQueueLike(item, 'History email')}
-                  disabled={!item.html || !item.subject}
                 >
                   Preview
                 </Button>

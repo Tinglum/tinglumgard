@@ -52,7 +52,7 @@ export async function GET() {
 
     const { data, error } = await supabaseAdmin
       .from('email_flows')
-      .select('*, email_templates(template_key, subject_no, subject_en, classification, active)')
+      .select('*, email_templates(template_key, subject_no, subject_en, body_no, body_en, classification, active)')
       .order('flow_key', { ascending: true });
 
     if (!error) {
