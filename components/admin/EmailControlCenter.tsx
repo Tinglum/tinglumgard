@@ -57,7 +57,12 @@ type QueueEntry = {
   status: string;
   classification: string;
   to_email: string;
+  template_key?: string | null;
   subject: string;
+  html?: string | null;
+  text?: string | null;
+  source_path?: string | null;
+  sent_at?: string | null;
   attempts: number;
   max_attempts: number;
   created_at: string;
@@ -66,7 +71,13 @@ type QueueEntry = {
 };
 
 type HistoryEntry = QueueEntry & {
-  sent_at?: string | null;
+  email_delivery_events?: Array<{
+    id: string;
+    event_type: string;
+    recipient: string;
+    event_at?: string | null;
+    created_at: string;
+  }>;
 };
 
 type SetupPayload = {
@@ -121,6 +132,13 @@ type LifecycleFlowMatrixRow = {
   triggerRule: string;
   scheduleLocalTime: string;
   stopRules: string[];
+};
+
+type EmailPreviewModalState = {
+  title: string;
+  subtitle?: string;
+  subject: string;
+  html: string;
 };
 
 export function EmailControlCenter() {
@@ -235,6 +253,8 @@ export function EmailControlCenter() {
 
   const [suppressionEmail, setSuppressionEmail] = useState('');
   const [suppressionReason, setSuppressionReason] = useState('manual_unsubscribe');
+  const [emailPreviewModal, setEmailPreviewModal] = useState<EmailPreviewModalState | null>(null);
+  const [lifecyclePreviewLoadingId, setLifecyclePreviewLoadingId] = useState<string | null>(null);
 
   async function callApi<T = any>(url: string, init?: RequestInit): Promise<T> {
     const response = await fetch(url, init);
@@ -626,6 +646,56 @@ export function EmailControlCenter() {
       }),
     });
     await loadSetup();
+  }
+
+  function openEmailPreviewFromQueueLike(entry: QueueEntry | HistoryEntry, titlePrefix: string) {
+    if (!entry.html || !entry.subject) return;
+    setEmailPreviewModal({
+      title: `${titlePrefix} - ${entry.to_email}`,
+      subtitle: `${entry.template_key || 'template:unknown'} - ${entry.status}`,
+      subject: entry.subject,
+      html: entry.html,
+    });
+  }
+
+  async function openLifecyclePreview(instance: {
+    id: string;
+    flow_key: string;
+    status: string;
+    entity_type: string;
+    entity_id: string;
+    scheduled_for: string;
+  }) {
+    setLifecyclePreviewLoadingId(instance.id);
+    try {
+      const data = await callApi<{
+        preview?: {
+          flowKey: string;
+          templateKey: string;
+          toEmail: string | null;
+          status: string;
+          scheduledFor: string;
+          subject: string;
+          html: string;
+        };
+      }>(`/api/admin/email/lifecycle/preview?instanceId=${encodeURIComponent(instance.id)}`);
+
+      if (!data?.preview?.html || !data?.preview?.subject) {
+        setError('Could not load lifecycle email preview.');
+        return;
+      }
+
+      setEmailPreviewModal({
+        title: `Planned - ${data.preview.flowKey}`,
+        subtitle: `${data.preview.templateKey} - ${data.preview.status} - ${new Date(data.preview.scheduledFor).toLocaleString()}`,
+        subject: data.preview.subject,
+        html: data.preview.html,
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load lifecycle preview');
+    } finally {
+      setLifecyclePreviewLoadingId(null);
+    }
   }
 
   const templateQualityChecks = useMemo(() => {
@@ -1089,15 +1159,26 @@ export function EmailControlCenter() {
               <div className="space-y-2 max-h-[280px] overflow-y-auto">
                 {(lifecycle?.instances || []).slice(0, 40).map((instance: any) => (
                   <div key={instance.id} className="border border-neutral-200 rounded-md p-2">
-                    <p className="text-sm font-medium">
-                      {instance.flow_key} - {instance.status}
-                    </p>
-                    <p className="text-xs text-neutral-500">
-                      {instance.entity_type} {instance.entity_id}
-                    </p>
-                    <p className="text-xs text-neutral-500">
-                      {new Date(instance.scheduled_for).toLocaleString()}
-                    </p>
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <p className="text-sm font-medium">
+                          {instance.flow_key} - {instance.status}
+                        </p>
+                        <p className="text-xs text-neutral-500">
+                          {instance.entity_type} {instance.entity_id}
+                        </p>
+                        <p className="text-xs text-neutral-500">
+                          {new Date(instance.scheduled_for).toLocaleString()}
+                        </p>
+                      </div>
+                      <Button
+                        variant="outline"
+                        onClick={() => openLifecyclePreview(instance)}
+                        disabled={lifecyclePreviewLoadingId === instance.id}
+                      >
+                        {lifecyclePreviewLoadingId === instance.id ? 'Loading...' : 'Preview'}
+                      </Button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -1205,6 +1286,13 @@ export function EmailControlCenter() {
                 {item.last_error && <p className="text-xs text-red-600">{item.last_error}</p>}
               </div>
               <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => openEmailPreviewFromQueueLike(item, 'Queue email')}
+                  disabled={!item.html || !item.subject}
+                >
+                  Preview
+                </Button>
                 <Button variant="outline" onClick={() => handleRetryQueue(item.id)}>
                   Retry
                 </Button>
@@ -1221,14 +1309,25 @@ export function EmailControlCenter() {
         <div className="space-y-2">
           {history.map((item) => (
             <Card key={item.id} className="p-3">
-              <p className="text-sm font-medium">
-                {item.to_email} - {item.status} - {item.classification}
-              </p>
-              <p className="text-xs text-neutral-500">
-                Created {new Date(item.created_at).toLocaleString()}
-                {item.sent_at ? ` - Sent ${new Date(item.sent_at).toLocaleString()}` : ''}
-              </p>
-              <p className="text-xs text-neutral-700">{item.subject}</p>
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <p className="text-sm font-medium">
+                    {item.to_email} - {item.status} - {item.classification}
+                  </p>
+                  <p className="text-xs text-neutral-500">
+                    Created {new Date(item.created_at).toLocaleString()}
+                    {item.sent_at ? ` - Sent ${new Date(item.sent_at).toLocaleString()}` : ''}
+                  </p>
+                  <p className="text-xs text-neutral-700">{item.subject}</p>
+                </div>
+                <Button
+                  variant="outline"
+                  onClick={() => openEmailPreviewFromQueueLike(item, 'History email')}
+                  disabled={!item.html || !item.subject}
+                >
+                  Preview
+                </Button>
+              </div>
             </Card>
           ))}
         </div>
@@ -1433,6 +1532,35 @@ export function EmailControlCenter() {
               ))}
             </div>
           </Card>
+        </div>
+      )}
+
+      {emailPreviewModal && (
+        <div className="fixed inset-0 z-[100] bg-black/60 p-4 md:p-8">
+          <div className="mx-auto h-full max-w-5xl rounded-xl border border-neutral-300 bg-white shadow-2xl flex flex-col">
+            <div className="flex items-start justify-between gap-3 border-b border-neutral-200 px-4 py-3">
+              <div>
+                <p className="text-lg font-medium text-neutral-900">{emailPreviewModal.title}</p>
+                {emailPreviewModal.subtitle ? (
+                  <p className="text-xs text-neutral-500 mt-1">{emailPreviewModal.subtitle}</p>
+                ) : null}
+                <p className="text-sm text-neutral-700 mt-2">
+                  <span className="font-medium">Subject:</span> {emailPreviewModal.subject}
+                </p>
+              </div>
+              <Button variant="outline" onClick={() => setEmailPreviewModal(null)}>
+                Close
+              </Button>
+            </div>
+            <div className="flex-1 p-3 md:p-4">
+              <iframe
+                title="Email preview"
+                srcDoc={emailPreviewModal.html}
+                className="h-full w-full rounded-md border border-neutral-200 bg-white"
+                sandbox="allow-same-origin"
+              />
+            </div>
+          </div>
         </div>
       )}
     </div>
