@@ -235,7 +235,7 @@ export function Header() {
                 )}
                 {currentSection !== 'eggs' && (
                   <Link
-                    href="/rugeegg/raser"
+                    href="/rugeegg"
                     className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all duration-300 border text-neutral-700 bg-white border-neutral-200 hover:text-neutral-900 hover:shadow-[0_6px_16px_rgba(0,0,0,0.1)] hover:-translate-y-0.5"
                   >
                     {t.nav.goToEggs}

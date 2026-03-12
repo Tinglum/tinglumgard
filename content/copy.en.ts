@@ -1,4 +1,4 @@
-﻿export const en = {
+export const en = {
   // Navigation & Common
   nav: {
     products: "Boxes",
@@ -88,7 +88,6 @@
     subtitle:
       "Hatching eggs from Tinglum GÃ¥rd in Namdalseid. Our focus is breeding quality: strong chicks, reliable egg size, and egg colors that stay close to breed standards.",
   },
-
   // Eggs browse
   browse: {
     byBreed: "By breed",
@@ -96,7 +95,12 @@
     week: "Week",
     soldOut: "Sold out",
     eggsAvailable: "eggs available",
-    waitlistCta: "Join waitlist",
+    waitlistCta: "Want more? Add to wishlist",
+    notOpenForOrdering: "Not open for ordering",
+    waitlistPanelTitle: "Missing your preferred week or egg quantity?",
+    waitlistPanelDescription:
+      "If your preferred week is full, sold out, or the quantity is unavailable, add a wishlist request. We review requests manually when cancellations or overproduction happen.",
+    waitlistPanelButton: "Open wishlist",
   },
 
   // Egg breed detail labels
@@ -618,19 +622,37 @@
     },
     waitlist: {
       title: "Add to wishlist",
-      description: "Add how many extra eggs you want for this week. We allocate manually when stock opens up and send you an email update.",
-
-      quantityLabel: "Wanted extra eggs",
+      description:
+        "If your preferred week or quantity is unavailable, add a wishlist request. We allocate manually when cancellations or overproduction happen.",
+      modeLabel: "What do you want to do?",
+      modeOrderAddon: "Add to an existing order",
+      modeSpecificWeek: "Request a specific week",
+      modeAsap: "As soon as possible",
+      modeOrderAddonHint:
+        "Use this when you already have an order and want extra eggs if more become available.",
+      modeSpecificWeekHint:
+        "Use this when you want a specific quantity in a specific week, without linking to an order.",
+      modeAsapHint:
+        "Use this when you want to be listed for the earliest possible week with available eggs.",
+      orderSelectLabel: "Select order",
+      orderSelectPlaceholder: "Choose one of your active orders",
+      noEligibleOrders: "No active orders available for additional eggs.",
+      weekSelectLabel: "Select week",
+      weekSelectPlaceholder: "Select week",
+      weekAutoSelected: "Earliest possible week",
+      breedSelectLabel: "Select breed",
+      breedSelectPlaceholder: "Select breed",
+      quantityLabel: "Requested egg quantity",
+      notesLabel: "Comment (optional)",
+      notesPlaceholder: "For example preferred split by breed or flexible delivery",
       bestEffort: "Wishlist is best effort and not a delivery guarantee.",
-
-
-
       addButton: "Save wishlist",
       successTitle: "Wishlist saved",
-      successDescription: "We will update you as soon as we know if extra eggs can be allocated.",
-      closeButton: "Done",
+      successDescription: "Thanks! We will update you when we know whether we can allocate eggs.",
+      closeButton: "Close",
       alreadyJoined: "You already have an active wishlist request for this week.",
       unavailableNow: "Eggs are available now. You can order directly.",
+      invalidSelection: "Choose a valid week, breed, and quantity before saving.",
       genericError: "Could not save wishlist. Please try again.",
     },
     delivery: {

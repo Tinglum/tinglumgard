@@ -2,7 +2,7 @@
 
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { FormEvent, useEffect, useMemo, useState } from 'react'
+import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
 import { useLanguage } from '@/contexts/LanguageContext'
 import { useOrder } from '@/contexts/eggs/EggOrderContext'
@@ -46,6 +46,7 @@ export default function BreedDetailPage() {
   const [waitlistError, setWaitlistError] = useState<string | null>(null)
   const [waitlistSuccess, setWaitlistSuccess] = useState(false)
   const [waitlistPrefillHandled, setWaitlistPrefillHandled] = useState(false)
+  const [waitlistAutoHandled, setWaitlistAutoHandled] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -234,19 +235,12 @@ export default function BreedDetailPage() {
     setWaitlistError(null)
     setWaitlistSuccess(false)
     setWaitlistSubmitting(false)
+    setWaitlistAutoHandled(false)
     setWaitlistQuantity(1)
   }
 
-  const handleJoinWaitlist = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
+  const submitWaitlistRequest = useCallback(async (quantity: number, redirectOnUnauthorized = true) => {
     if (!selectedWeek) return
-
-    const quantity = Math.max(1, Math.floor(Number(waitlistQuantity || 1)))
-    if (!Number.isFinite(quantity) || quantity <= 0) {
-      setWaitlistError(t.eggs.waitlist.genericError)
-      return
-    }
-
     try {
       setWaitlistSubmitting(true)
       setWaitlistError(null)
@@ -263,7 +257,23 @@ export default function BreedDetailPage() {
       })
 
       if (response.status === 401) {
-        const returnTo = `${window.location.pathname}${window.location.search || ''}`
+        if (!redirectOnUnauthorized) {
+          setWaitlistError(t.eggs.waitlist.genericError)
+          return
+        }
+
+        const loginParams = new URLSearchParams(window.location.search || '')
+        loginParams.set('waitlist', '1')
+        loginParams.set('inventoryId', selectedWeek.id)
+        loginParams.set('year', String(selectedWeek.year))
+        loginParams.set('week', String(selectedWeek.weekNumber))
+        loginParams.set('wishlistAuto', '1')
+        loginParams.set('wishlistQty', String(quantity))
+        if (linkedOrderId) {
+          loginParams.set('orderId', linkedOrderId)
+        }
+
+        const returnTo = `${window.location.pathname}?${loginParams.toString()}`
         window.location.href = `/api/auth/vipps/login?returnTo=${encodeURIComponent(returnTo)}`
         return
       }
@@ -272,7 +282,20 @@ export default function BreedDetailPage() {
         const payload = await response.json().catch(() => ({ error: null }))
         const backendError = String(payload?.error || '').trim()
         if (backendError) {
-          setWaitlistError(backendError)
+          const normalizedError = backendError.toLowerCase()
+          if (
+            normalizedError.includes('failed to create wishlist request') ||
+            normalizedError.includes('failed to read inventory') ||
+            normalizedError.includes('failed to validate requested breeds') ||
+            normalizedError.includes('request_insert_failed') ||
+            normalizedError.includes('request_not_found')
+          ) {
+            setWaitlistError(t.eggs.waitlist.genericError)
+          } else if (normalizedError.includes('already') && normalizedError.includes('wishlist')) {
+            setWaitlistError(t.eggs.waitlist.alreadyJoined)
+          } else {
+            setWaitlistError(backendError)
+          }
           return
         }
         setWaitlistError(t.eggs.waitlist.genericError)
@@ -280,13 +303,60 @@ export default function BreedDetailPage() {
       }
 
       setWaitlistSuccess(true)
+
+      const cleanedParams = new URLSearchParams(window.location.search || '')
+      cleanedParams.delete('waitlist')
+      cleanedParams.delete('inventoryId')
+      cleanedParams.delete('year')
+      cleanedParams.delete('week')
+      cleanedParams.delete('wishlistAuto')
+      cleanedParams.delete('wishlistQty')
+      const cleanedQuery = cleanedParams.toString()
+      router.replace(cleanedQuery ? `${window.location.pathname}?${cleanedQuery}` : window.location.pathname, {
+        scroll: false,
+      })
     } catch (joinError) {
       console.error('Failed to create egg wishlist request', joinError)
       setWaitlistError(t.eggs.waitlist.genericError)
     } finally {
       setWaitlistSubmitting(false)
     }
+  }, [linkedOrderId, router, selectedWeek, t.eggs.waitlist.genericError])
+
+  const handleJoinWaitlist = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (!selectedWeek) return
+
+    const quantity = Math.max(1, Math.floor(Number(waitlistQuantity || 1)))
+    if (!Number.isFinite(quantity) || quantity <= 0) {
+      setWaitlistError(t.eggs.waitlist.genericError)
+      return
+    }
+
+    await submitWaitlistRequest(quantity, true)
   }
+
+  useEffect(() => {
+    if (waitlistAutoHandled) return
+    if (!selectedWeek || !showWaitlistModal) return
+    if (waitlistSubmitting || waitlistSuccess) return
+    if (searchParams.get('wishlistAuto') !== '1') return
+
+    const qtyFromQuery = Number(searchParams.get('wishlistQty') || '1')
+    const quantity = Number.isFinite(qtyFromQuery) && qtyFromQuery > 0 ? Math.floor(qtyFromQuery) : 1
+
+    setWaitlistAutoHandled(true)
+    setWaitlistQuantity(quantity)
+    void submitWaitlistRequest(quantity, false)
+  }, [
+    searchParams,
+    selectedWeek,
+    showWaitlistModal,
+    submitWaitlistRequest,
+    waitlistAutoHandled,
+    waitlistSubmitting,
+    waitlistSuccess,
+  ])
 
   const existingItem = selectedWeek
     ? items.find((item) => item.breed.id === localizedBreed.id && item.week.id === selectedWeek.id)

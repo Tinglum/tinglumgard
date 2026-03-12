@@ -1,4 +1,4 @@
-﻿export const no = {
+export const no = {
   // Navigation & Common
   nav: {
     products: "Kasser",
@@ -12,9 +12,9 @@
     logout: "Logg ut",
     login: "Logg inn",
     order: "Bestill",
-    goToEggs: "GÃ¥ til Rugeegg",
-    goToPigs: "GÃ¥ til Ullgris",
-    goToChickens: "GÃ¥ til Kyllinger",
+    goToEggs: "Gå til Rugeegg",
+    goToPigs: "Gå til Ullgris",
+    goToChickens: "Gå til Kyllinger",
     back: "Tilbake",
     backToHome: "Tilbake til forsiden",
   },
@@ -88,7 +88,6 @@
     subtitle:
       "Rugeegg fra Tinglum GÃ¥rd i Namdalseid. Fokus er kvalitet i avlsarbeidet: sterke kyllinger, gode eggstÃ¸rrelser og eggfarger som ligger tett opp mot rasestandarden.",
   },
-
   // Eggs browse
   browse: {
     byBreed: "Etter rase",
@@ -96,7 +95,12 @@
     week: "Uke",
     soldOut: "Utsolgt",
     eggsAvailable: "egg tilgjengelig",
-    waitlistCta: "Legg deg til venteliste",
+    waitlistCta: "Ønsk flere? Legg i ønskeliste",
+    notOpenForOrdering: "Ikke åpen for bestilling",
+    waitlistPanelTitle: "Finner du ikke ønsket uke eller antall egg?",
+    waitlistPanelDescription:
+      "Hvis ønsket uke er full, utsolgt eller antallet ikke er tilgjengelig, kan du legge inn en ønskeliste. Vi vurderer ønskelister manuelt ved avbestillinger og overproduksjon.",
+    waitlistPanelButton: "Legg inn ønskeliste",
   },
 
   // Egg breed detail labels
@@ -226,7 +230,7 @@
   timeline: {
     title: "Slik fungerer det",
     subtitle: "Fra bestilling til levering",
-    tagline: "Grisene vokser gjennom 2026 â¬¢ Fersk levering i desember",
+    tagline: "Grisene vokser gjennom 2026 â€¢ Fersk levering i desember",
     reserveNow: "Reserver din pakke nÃ¥",
     howItWorks: "Slik fungerer det",
     fromOrderToDelivery: "Fra bestilling til levering",
@@ -618,21 +622,39 @@
       onlyEggsLeftThisWeek: "Kun {count} egg igjen denne uken. Vi har foreslÃ¥tt {count} egg.",
     },
     waitlist: {
-      title: "Legg i Ã¸nskeliste",
-      description: "Legg inn hvor mange ekstra egg du Ã¸nsker denne uken. Vi fordeler manuelt ved Ã¥pninger og sender oppdatering pÃ¥ e-post.",
-
+      title: "Legg i ønskeliste",
+      description:
+        "Hvis ønsket uke eller antall ikke er tilgjengelig, kan du legge inn en ønskeliste. Vi fordeler manuelt ved avbestillinger og overproduksjon.",
+      modeLabel: "Hva ønsker du å gjøre?",
+      modeOrderAddon: "Legg til på eksisterende ordre",
+      modeSpecificWeek: "Ønsk en bestemt uke",
+      modeAsap: "Så snart som mulig",
+      modeOrderAddonHint:
+        "Bruk dette når du allerede har en ordre og ønsker ekstra egg hvis det åpner seg plass.",
+      modeSpecificWeekHint:
+        "Bruk dette når du ønsker et bestemt antall egg i en bestemt uke, uten å knytte det til en ordre.",
+      modeAsapHint:
+        "Bruk dette når du vil stå på liste for første mulige uke med tilgjengelige egg.",
+      orderSelectLabel: "Velg ordre",
+      orderSelectPlaceholder: "Velg en av dine aktive ordre",
+      noEligibleOrders: "Fant ingen aktive ordre som kan få ekstra egg.",
+      weekSelectLabel: "Velg uke",
+      weekSelectPlaceholder: "Velg uke",
+      weekAutoSelected: "Første mulige uke",
+      breedSelectLabel: "Velg rase",
+      breedSelectPlaceholder: "Velg rase",
       quantityLabel: "Antall egg ønsket",
-      bestEffort: "Ønskelisten er best effort, ikke en garanti for levering.",
-
-
-
-      addButton: "Lagre Ã¸nskeliste",
-      successTitle: "Ã˜nskelisten er lagret",
-      successDescription: "Vi gir beskjed sÃ¥ snart vi vet om vi kan tildele ekstra egg.",
-      closeButton: "Ferdig",
-      alreadyJoined: "Du har allerede en aktiv Ã¸nskeliste for denne uken.",
-      unavailableNow: "Det er egg tilgjengelig nÃ¥. Du kan bestille direkte.",
-      genericError: "Kunne ikke lagre Ã¸nskelisten. PrÃ¸v igjen.",
+      notesLabel: "Kommentar (valgfritt)",
+      notesPlaceholder: "F.eks. antall per rase eller fleksibel levering",
+      bestEffort: "Ønskelisten er best effort og ikke en garanti for levering.",
+      addButton: "Lagre ønskeliste",
+      successTitle: "Ønskelisten er lagret",
+      successDescription: "Takk! Vi sender oppdatering når vi vet om vi kan tildele egg.",
+      closeButton: "Lukk",
+      alreadyJoined: "Du har allerede en aktiv ønskeliste for denne uken.",
+      unavailableNow: "Det er egg tilgjengelig nå. Du kan bestille direkte.",
+      invalidSelection: "Velg gyldig uke, rase og antall før du lagrer.",
+      genericError: "Kunne ikke lagre ønskelisten. Prøv igjen.",
     },
     delivery: {
       title: "Forsendelse",
@@ -708,7 +730,7 @@
       delivery: "Forsendelse",
       payRemainder: "Betal rest",
       addEggs: "Legg til egg",
-      wishlistMore: "Ønsk flere egg",
+      wishlistMore: "Ã˜nsk flere egg",
       timeline: "Statuslinje",
       timelineExpand: "Vis detaljer",
       timelineCollapse: "Skjul detaljer",
@@ -1067,7 +1089,7 @@
     addedToOrderTitle: "Oppdatert bestilling",
     addedToOrderDesc: "La til {item}",
     addingToOrderLabel: "Legger til i nÃ¥vÃ¦rende bestilling...",
-    addingToOrderOrderLine: "Bestilling #{orderNumber} â¬¢ {box}",
+    addingToOrderOrderLine: "Bestilling #{orderNumber} â€¢ {box}",
     loadingOrdersTitle: "Henter bestillinger...",
 
     couldNotAddTitle: "Kunne ikke legge til",
@@ -1112,12 +1134,12 @@
     shareCode: "Del koden med venner som vil bestille Mangalitsa-ullgriskasser",
     availableAfterFirstOrder: "Vennerabatt for Mangalitsa-ullgriskasser blir aktiv fÃ¸rst etter at du har lagt inn din fÃ¸rste bestilling.",
     firstOrderRequiredHelp: "NÃ¥r fÃ¸rste bestilling er registrert, fÃ¥r du automatisk din personlige kode her pÃ¥ Min side. Venner fÃ¥r 20% pÃ¥ forskuddet, og du fÃ¥r 20% per venn pÃ¥ restbelÃ¸pet pÃ¥ din kasse (opptil 50% totalt).",
-    goToOrder: "GÃ¥ til ullgrissiden",
+    goToOrder: "Gå til Ullgrissiden",
     code: "Din kode:",
     copied: "Kopiert!",
     copyCode: "Kopier kode",
     shareButton: "Del kode",
-    friendsGet20: "Venner fÃ¥r 20% rabatt pÃ¥ forskuddet â¬¢ Du fÃ¥r 20% rabatt per venn pÃ¥ restbelÃ¸pet for din kasse (opptil 50% totalt)",
+    friendsGet20: "Venner fÃ¥r 20% rabatt pÃ¥ forskuddet â€¢ Du fÃ¥r 20% rabatt per venn pÃ¥ restbelÃ¸pet for din kasse (opptil 50% totalt)",
     totalReferrals: "Totale henvisninger",
     availableCredit: "Tilgjengelig kreditt",
     creditRemaining: "Kredittering igjen",
@@ -2137,7 +2159,7 @@
     extrasTitle: "Legg til ekstra produkter (valgfritt)",
     extrasManagedInPicker:
       "Ekstraprodukter hÃ¥ndteres nÃ¥ i samme velger som de andre alternativene for Ã¥ legge til ekstra.",
-    openExtrasPicker: "Ã…pne ekstra-velger",
+    openExtrasPicker: "Åpne ekstra-velger",
     extrasWarning:
       'Du har endret ekstra produkter. Endringene vil bli lagret nÃ¥r du klikker "Lagre endringer".',
     cancel: "Avbryt",
@@ -2853,7 +2875,7 @@
     viewProfileButton: "Vis profil",
     impersonateButton: "Logg inn som kunde",
     impersonateStartingTitle: "Bytter visning",
-    impersonateStartingDescription: "Ã…pner Min side som {name}.",
+    impersonateStartingDescription: "Åpner Min side som {name}.",
     impersonateErrorTitle: "Kunne ikke logge inn som kunde",
     impersonateErrorDescription: "PrÃ¸v igjen.",
     profileSubtitle: "Samlet kundeprofil pÃ¥ tvers av alle produkter.",
@@ -3139,7 +3161,7 @@
     allocatedLabel: "Allokert",
     remainingEggs: "{count} egg gjenvÃ¦rende",
     closeButton: "Steng",
-    openButton: "Ã…pne",
+    openButton: "Åpne",
   },
   eggOrdersWorkbench: {
     locale: "nb-NO",
@@ -3522,7 +3544,7 @@
     },
     loginTitle: "Admin-innlogging",
     passwordLabel: "Passord",
-    passwordPlaceholder: "â¬¢â¬¢â¬¢â¬¢â¬¢â¬¢â¬¢â¬¢",
+    passwordPlaceholder: "â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢",
     passwordError: "Feil passord. PrÃ¸v igjen.",
     loginButton: "Logg inn",
     headerTitle: "Tinglumgard Admin",
@@ -3534,7 +3556,7 @@
     dashboardTitle: "Dashboard",
     refreshButton: "Oppdater",
     pendingMessagesTitle: "Ubehandlede meldinger",
-    pendingMessagesSubtitle: "Ã…pne og under behandling",
+    pendingMessagesSubtitle: "Åpne og under behandling",
     goToMessages: "GÃ¥ til meldinger",
     noData: "Ingen data tilgjengelig",
     searchPlaceholder: "SÃ¸k etter ordre, navn eller e-post...",
@@ -4063,9 +4085,6 @@
     keypadNext: 'Neste',
   },
 };
-
-
-
 
 
 

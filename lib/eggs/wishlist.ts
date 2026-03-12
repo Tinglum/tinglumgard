@@ -442,7 +442,7 @@ async function ensureRequestWithItems(params: {
 
   let existingQuery = supabaseAdmin
     .from('egg_wishlist_requests')
-    .select('id')
+    .select('id, created_at')
     .eq('year', params.inventory.year)
     .eq('week_number', params.inventory.week_number)
     .in('status', OPEN_STATUSES)
@@ -456,8 +456,11 @@ async function ensureRequestWithItems(params: {
       .eq('customer_id', identity.customerId)
   }
 
-  const { data: existingRow, error: existingError } = await existingQuery.maybeSingle()
+  const { data: existingRows, error: existingError } = await existingQuery
+    .order('created_at', { ascending: false })
+    .limit(1)
   if (existingError) throw existingError
+  const existingRow = Array.isArray(existingRows) ? existingRows[0] : (existingRows as any)
 
   let requestId = existingRow?.id || null
   if (!requestId) {
@@ -639,7 +642,11 @@ export async function createEggWishlistRequest(input: CreateWishlistInput) {
       createdBy: session.name || session.email || session.userId || 'customer',
     })
 
-    await sendWishlistEmail(request, 'wishlist.received', 'api/eggs/wishlist')
+    try {
+      await sendWishlistEmail(request, 'wishlist.received', 'api/eggs/wishlist')
+    } catch (emailError) {
+      logError('egg-wishlist-create-email', emailError, { requestId: request.id })
+    }
 
     const { count } = await supabaseAdmin
       .from('egg_wishlist_requests')
