@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
+import { lintManagedTemplate } from '@/lib/email/template-lint';
 
 type EmailSubTab =
   | 'overview'
@@ -23,6 +24,7 @@ type EmailTemplate = {
   template_key: string;
   classification: string;
   product_scope: string;
+  variables?: string[];
   subject_no: string;
   subject_en: string;
   body_no: string;
@@ -76,6 +78,51 @@ type SetupPayload = {
   defaultReplyTo: string;
 };
 
+type SetupDiagnostics = {
+  cronUrls?: {
+    reconcile?: string;
+    flowRunner?: string;
+    dispatch?: string;
+  };
+  primaryCause?: string;
+  latestRunState?: 'failed' | 'completed' | 'running' | 'unknown';
+  latestRunAgeMinutes?: number | null;
+  latestFlowRun?: {
+    started_at?: string | null;
+    finished_at?: string | null;
+    scanned_count?: number | null;
+    due_count?: number | null;
+    enqueued_count?: number | null;
+    skipped_count?: number | null;
+    failed_count?: number | null;
+    completed_count?: number | null;
+    campaigns_queued_count?: number | null;
+    missing_email_count?: number | null;
+    error?: string | null;
+  } | null;
+  queue?: {
+    pending?: number | null;
+    processing?: number | null;
+    failed?: number | null;
+    dead?: number | null;
+    activeLast24h?: number | null;
+    sentLast24h?: number | null;
+  };
+  schemaDetails?: Record<string, string>;
+  causes?: string[];
+  suggestedFixes?: string[];
+};
+
+type LifecycleFlowMatrixRow = {
+  flowKey: string;
+  productScope: 'pig' | 'eggs' | 'chickens' | 'shared';
+  eventType: string;
+  templateKey: string;
+  triggerRule: string;
+  scheduleLocalTime: string;
+  stopRules: string[];
+};
+
 export function EmailControlCenter() {
   const [activeTab, setActiveTab] = useState<EmailSubTab>('overview');
   const [loading, setLoading] = useState(false);
@@ -117,6 +164,7 @@ export function EmailControlCenter() {
     missingTables: string[];
   } | null>(null);
   const [envStatus, setEnvStatus] = useState<Record<string, boolean> | null>(null);
+  const [setupDiagnostics, setSetupDiagnostics] = useState<SetupDiagnostics | null>(null);
   const [suppressionUnavailable, setSuppressionUnavailable] = useState(false);
 
   const [newTemplate, setNewTemplate] = useState({
@@ -140,6 +188,37 @@ export function EmailControlCenter() {
     bodyEn: '',
   });
   const [templateChangeNote, setTemplateChangeNote] = useState('');
+  const templateEditorLint = useMemo(() => {
+    const variables = Array.isArray(selectedTemplate?.variables) ? selectedTemplate?.variables : undefined;
+    return lintManagedTemplate({
+      templateKey: selectedTemplate?.template_key || '',
+      classification: selectedTemplate?.classification || '',
+      subjectNo: templateEditor.subjectNo,
+      subjectEn: templateEditor.subjectEn,
+      bodyNo: templateEditor.bodyNo,
+      bodyEn: templateEditor.bodyEn,
+      variables,
+    });
+  }, [
+    selectedTemplate?.variables,
+    templateEditor.subjectNo,
+    templateEditor.subjectEn,
+    templateEditor.bodyNo,
+    templateEditor.bodyEn,
+  ]);
+  const newTemplateLint = useMemo(
+    () =>
+      lintManagedTemplate({
+        templateKey: newTemplate.templateKey,
+        classification: newTemplate.classification,
+        subjectNo: newTemplate.subjectNo,
+        subjectEn: newTemplate.subjectEn,
+        bodyNo: newTemplate.bodyNo,
+        bodyEn: newTemplate.bodyEn,
+        variables: undefined,
+      }),
+    [newTemplate.bodyEn, newTemplate.bodyNo, newTemplate.subjectEn, newTemplate.subjectNo]
+  );
 
   const [campaignForm, setCampaignForm] = useState({
     name: '',
@@ -163,11 +242,18 @@ export function EmailControlCenter() {
     if (!response.ok) {
       const missingTables = Array.isArray(data?.missingTables) ? data.missingTables.join(', ') : '';
       const detail = typeof data?.detail === 'string' ? data.detail : '';
+      const details = Array.isArray(data?.details)
+        ? data.details
+            .map((entry: unknown) => String(entry || '').trim())
+            .filter(Boolean)
+            .join('; ')
+        : '';
       const hint = typeof data?.hint === 'string' ? data.hint : '';
       const message = [
         data?.error || `Request failed (${response.status})`,
         missingTables ? `Missing tables: ${missingTables}` : '',
         detail,
+        details,
         hint,
       ]
         .filter(Boolean)
@@ -260,8 +346,13 @@ export function EmailControlCenter() {
     setSuppressionList(data?.suppressionList || []);
     setSchemaStatus(data?.schemaStatus || null);
     setEnvStatus(data?.envStatus || null);
+    setSetupDiagnostics((data?.diagnostics || null) as SetupDiagnostics | null);
     setSuppressionUnavailable(Boolean(data?.suppressionUnavailable));
-    setWarning(typeof data?.warning === 'string' ? data.warning : null);
+    if (Array.isArray(data?.diagnostics?.causes) && data.diagnostics.causes.length > 0) {
+      setWarning(data.diagnostics.causes.join(' | '));
+    } else {
+      setWarning(typeof data?.warning === 'string' ? data.warning : null);
+    }
   }, []);
 
   async function refreshCurrentTab() {
@@ -324,10 +415,17 @@ export function EmailControlCenter() {
   }, [selectedTemplate]);
 
   async function handleCreateTemplate() {
+    if (!newTemplateLint.ok) {
+      setError(`Template validation failed: ${newTemplateLint.errors.join('; ')}`);
+      return;
+    }
     await callApi('/api/admin/email/templates', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(newTemplate),
+      body: JSON.stringify({
+        ...newTemplate,
+        variables: newTemplateLint.normalizedVariables,
+      }),
     });
     setNewTemplate({
       templateKey: '',
@@ -343,21 +441,33 @@ export function EmailControlCenter() {
 
   async function handleSaveTemplate() {
     if (!selectedTemplate) return;
+    if (!templateEditorLint.ok) {
+      setError(`Template validation failed: ${templateEditorLint.errors.join('; ')}`);
+      return;
+    }
     await callApi(`/api/admin/email/templates/${selectedTemplate.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(templateEditor),
+      body: JSON.stringify({
+        ...templateEditor,
+        variables: templateEditorLint.normalizedVariables,
+      }),
     });
     await loadTemplates();
   }
 
   async function handleCreateTemplateVersion() {
     if (!selectedTemplate) return;
+    if (!templateEditorLint.ok) {
+      setError(`Template validation failed: ${templateEditorLint.errors.join('; ')}`);
+      return;
+    }
     await callApi(`/api/admin/email/templates/${selectedTemplate.id}/version`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         ...templateEditor,
+        variables: templateEditorLint.normalizedVariables,
         changeNote: templateChangeNote,
       }),
     });
@@ -518,6 +628,59 @@ export function EmailControlCenter() {
     await loadSetup();
   }
 
+  const templateQualityChecks = useMemo(() => {
+    if (!selectedTemplate) return [];
+
+    const noText = `${templateEditor.subjectNo}\n${templateEditor.bodyNo}`;
+    const enText = `${templateEditor.subjectEn}\n${templateEditor.bodyEn}`;
+    const noHasNextStep = /hva skjer nå\?/i.test(noText);
+    const enHasNextStep = /what happens next\?/i.test(enText);
+    const noHasMinSide = /min side/i.test(noText);
+    const enHasMyPage = /my page/i.test(enText);
+    const hasLinks = /href\s*=\s*['"]/i.test(noText) && /href\s*=\s*['"]/i.test(enText);
+    const noHasDateOrDeadline = /(\{\{\s*(due_date|delivery_date|pickup_date)\s*\}\}|forfall|dato|uke|hentedato)/i.test(noText);
+    const enHasDateOrDeadline = /(\{\{\s*(due_date|delivery_date|pickup_date)\s*\}\}|due date|date|week|pickup)/i.test(enText);
+    const noHasPaymentSnapshot =
+      /(\{\{\s*(total_amount_nok|deposit_amount_nok|remainder_amount_nok)\s*\}\}|forskudd|restbetaling|betalingsoversikt|total)/i.test(
+        noText
+      );
+    const enHasPaymentSnapshot =
+      /(\{\{\s*(total_amount_nok|deposit_amount_nok|remainder_amount_nok)\s*\}\}|payment snapshot|deposit|remaining|total)/i.test(
+        enText
+      );
+
+    return [
+      {
+        label: 'NO quality and terminology',
+        pass: !templateEditorLint.errors.some((entry) => entry.toLowerCase().includes('subjectno') || entry.toLowerCase().includes('bodyno')),
+      },
+      {
+        label: 'EN parity with NO',
+        pass: !templateEditorLint.errors.some((entry) => entry.toLowerCase().includes('placeholder')),
+      },
+      {
+        label: 'Includes "What happens next" block',
+        pass: noHasNextStep && enHasNextStep,
+      },
+      {
+        label: 'Includes Min side / My Page reference',
+        pass: noHasMinSide && enHasMyPage,
+      },
+      {
+        label: 'Contains at least one link in both locales',
+        pass: hasLinks,
+      },
+      {
+        label: 'Includes explicit date/deadline context (Oslo timeline)',
+        pass: noHasDateOrDeadline && enHasDateOrDeadline,
+      },
+      {
+        label: 'Includes payment snapshot for transactional clarity',
+        pass: noHasPaymentSnapshot && enHasPaymentSnapshot,
+      },
+    ];
+  }, [selectedTemplate, templateEditor.subjectNo, templateEditor.bodyNo, templateEditor.subjectEn, templateEditor.bodyEn, templateEditorLint.errors]);
+
   const tabs: Array<{ id: EmailSubTab; label: string }> = [
     { id: 'overview', label: 'Overview' },
     { id: 'templates', label: 'Templates' },
@@ -635,6 +798,23 @@ export function EmailControlCenter() {
               onChange={(event) => setNewTemplate((prev) => ({ ...prev, bodyEn: event.target.value }))}
             />
             <Button onClick={handleCreateTemplate}>Create</Button>
+            <div
+              className={cn(
+                'rounded-md border p-3 text-xs',
+                newTemplateLint.ok ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-amber-200 bg-amber-50 text-amber-800'
+              )}
+            >
+              <p className="font-medium text-neutral-900">Create validation</p>
+              {newTemplateLint.ok ? (
+                <p>Ready to create.</p>
+              ) : (
+                <ul className="list-disc pl-4 mt-1 space-y-1">
+                  {newTemplateLint.errors.map((entry) => (
+                    <li key={entry}>{entry}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
           </Card>
           <Card className="p-4 space-y-2">
             <h3 className="text-lg font-medium">Templates</h3>
@@ -652,7 +832,7 @@ export function EmailControlCenter() {
                 >
                   <p className="text-sm font-medium">{template.template_key}</p>
                   <p className="text-xs text-neutral-500">
-                    {template.classification} · v{template.current_version}
+                    {template.classification} - v{template.current_version}
                   </p>
                 </button>
               ))}
@@ -693,6 +873,43 @@ export function EmailControlCenter() {
                   </Button>
                   <Button onClick={handleCreateTemplateVersion}>New Version</Button>
                 </div>
+                <div
+                  className={cn(
+                    'rounded-md border p-3 text-xs',
+                    templateEditorLint.ok ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-red-200 bg-red-50 text-red-800'
+                  )}
+                >
+                  <p className="font-medium text-neutral-900">Template lint</p>
+                  {templateEditorLint.ok ? (
+                    <p>Template lint passed.</p>
+                  ) : (
+                    <ul className="list-disc pl-4 mt-1 space-y-1">
+                      {templateEditorLint.errors.map((entry) => (
+                        <li key={entry}>{entry}</li>
+                      ))}
+                    </ul>
+                  )}
+                  {templateEditorLint.warnings.length > 0 ? (
+                    <div className="mt-2">
+                      <p className="font-medium text-neutral-900">Warnings</p>
+                      <ul className="list-disc pl-4 mt-1 space-y-1">
+                        {templateEditorLint.warnings.map((entry) => (
+                          <li key={entry}>{entry}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
+                </div>
+                <div className="rounded-md border border-neutral-200 bg-neutral-50 p-3 text-xs text-neutral-700">
+                  <p className="font-medium text-neutral-900">Copy QA checklist</p>
+                  <ul className="mt-1 space-y-1">
+                    {templateQualityChecks.map((item) => (
+                      <li key={item.label} className={item.pass ? 'text-emerald-700' : 'text-amber-700'}>
+                        {item.pass ? 'OK' : 'Needs work'} - {item.label}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               </>
             )}
           </Card>
@@ -706,7 +923,7 @@ export function EmailControlCenter() {
               <div>
                 <p className="font-medium">{flow.flow_key}</p>
                 <p className="text-xs text-neutral-500">
-                  event={flow.event_type} · template={flow.template_key} · offset={flow.send_offset_minutes}m
+                  event={flow.event_type} - template={flow.template_key} - offset={flow.send_offset_minutes}m
                 </p>
               </div>
               <div className="flex gap-2">
@@ -821,8 +1038,8 @@ export function EmailControlCenter() {
             <Card className="p-4">
               <h3 className="text-lg font-medium">Flow Health</h3>
               <p className="text-sm text-neutral-600">
-                Scheduled: {lifecycle?.statusCounts?.scheduled || 0} · Enqueued:{' '}
-                {lifecycle?.statusCounts?.enqueued || 0} · Failed: {lifecycle?.statusCounts?.failed || 0}
+                Scheduled: {lifecycle?.statusCounts?.scheduled || 0} - Enqueued:{' '}
+                {lifecycle?.statusCounts?.enqueued || 0} - Failed: {lifecycle?.statusCounts?.failed || 0}
               </p>
               <p className="text-sm text-neutral-600">
                 Materialized this refresh: {Number(lifecycle?.materializedInserted || 0)}
@@ -830,6 +1047,41 @@ export function EmailControlCenter() {
               <p className="text-sm text-neutral-600">
                 Missing email alerts: {Array.isArray(lifecycle?.missingAlerts) ? lifecycle.missingAlerts.length : 0}
               </p>
+              <p className="text-sm text-neutral-600">
+                Stale scheduled: {Number(lifecycle?.consistency?.staleScheduled || 0)} - Failed instances:{' '}
+                {Number(lifecycle?.consistency?.failedInstances || 0)} - Enqueued w/o queue id:{' '}
+                {Number(lifecycle?.consistency?.enqueuedWithoutQueue || 0)}
+              </p>
+              <p
+                className={cn(
+                  'text-sm font-medium',
+                  lifecycle?.consistency?.ok ? 'text-emerald-700' : 'text-amber-700'
+                )}
+              >
+                {lifecycle?.consistency?.ok
+                  ? 'Lifecycle consistency looks good.'
+                  : 'Lifecycle consistency has issues that need attention.'}
+              </p>
+            </Card>
+
+            <Card className="p-4 space-y-2">
+              <h3 className="text-lg font-medium">Canonical Flow Matrix</h3>
+              <div className="max-h-[260px] overflow-y-auto space-y-2">
+                {((lifecycle?.flowMatrix || []) as LifecycleFlowMatrixRow[]).map((row) => (
+                  <div key={row.flowKey} className="rounded-md border border-neutral-200 p-2">
+                    <p className="text-sm font-medium">{row.flowKey}</p>
+                    <p className="text-xs text-neutral-600">
+                      scope={row.productScope} - event={row.eventType} - template={row.templateKey}
+                    </p>
+                    <p className="text-xs text-neutral-600">trigger={row.triggerRule}</p>
+                    <p className="text-xs text-neutral-600">schedule={row.scheduleLocalTime}</p>
+                    <p className="text-xs text-neutral-500">stop rules: {row.stopRules.join(', ')}</p>
+                  </div>
+                ))}
+                {(lifecycle?.flowMatrix || []).length === 0 ? (
+                  <p className="text-sm text-neutral-500">No flow matrix loaded.</p>
+                ) : null}
+              </div>
             </Card>
 
             <Card className="p-4 space-y-2">
@@ -838,7 +1090,7 @@ export function EmailControlCenter() {
                 {(lifecycle?.instances || []).slice(0, 40).map((instance: any) => (
                   <div key={instance.id} className="border border-neutral-200 rounded-md p-2">
                     <p className="text-sm font-medium">
-                      {instance.flow_key} · {instance.status}
+                      {instance.flow_key} - {instance.status}
                     </p>
                     <p className="text-xs text-neutral-500">
                       {instance.entity_type} {instance.entity_id}
@@ -905,7 +1157,7 @@ export function EmailControlCenter() {
                 <div key={campaign.id} className="border border-neutral-200 rounded-md p-3">
                   <p className="font-medium">{campaign.name}</p>
                   <p className="text-xs text-neutral-500">
-                    {campaign.status} · {campaign.classification} · recipients {campaign.total_recipients}
+                    {campaign.status} - {campaign.classification} - recipients {campaign.total_recipients}
                   </p>
                   <div className="mt-2 flex gap-2">
                     <Button variant="outline" onClick={() => handleCampaignPreview(campaign.id)}>
@@ -931,7 +1183,7 @@ export function EmailControlCenter() {
               <Card className="p-3 border border-neutral-200">
                 <p className="text-sm font-medium">Preview for {selectedCampaignId}</p>
                 <p className="text-sm text-neutral-600">
-                  Total: {campaignPreview.total} · Sendable: {campaignPreview.sendable} · Skipped: {campaignPreview.skipped}
+                  Total: {campaignPreview.total} - Sendable: {campaignPreview.sendable} - Skipped: {campaignPreview.skipped}
                 </p>
               </Card>
             )}
@@ -945,10 +1197,10 @@ export function EmailControlCenter() {
             <Card key={item.id} className="p-3 flex flex-col md:flex-row md:items-center md:justify-between gap-2">
               <div>
                 <p className="text-sm font-medium">
-                  {item.to_email} · {item.status}
+                  {item.to_email} - {item.status}
                 </p>
                 <p className="text-xs text-neutral-500">
-                  attempts {item.attempts}/{item.max_attempts} · next {new Date(item.next_attempt_at).toLocaleString()}
+                  attempts {item.attempts}/{item.max_attempts} - next {new Date(item.next_attempt_at).toLocaleString()}
                 </p>
                 {item.last_error && <p className="text-xs text-red-600">{item.last_error}</p>}
               </div>
@@ -970,11 +1222,11 @@ export function EmailControlCenter() {
           {history.map((item) => (
             <Card key={item.id} className="p-3">
               <p className="text-sm font-medium">
-                {item.to_email} · {item.status} · {item.classification}
+                {item.to_email} - {item.status} - {item.classification}
               </p>
               <p className="text-xs text-neutral-500">
                 Created {new Date(item.created_at).toLocaleString()}
-                {item.sent_at ? ` · Sent ${new Date(item.sent_at).toLocaleString()}` : ''}
+                {item.sent_at ? ` - Sent ${new Date(item.sent_at).toLocaleString()}` : ''}
               </p>
               <p className="text-xs text-neutral-700">{item.subject}</p>
             </Card>
@@ -984,6 +1236,112 @@ export function EmailControlCenter() {
 
       {activeTab === 'setup' && (
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+          <Card className="p-4 space-y-3 xl:col-span-2">
+            <h3 className="text-lg font-medium">Diagnostics</h3>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3 text-sm">
+              <div className="rounded-md border border-neutral-200 bg-neutral-50 p-3">
+                <p className="text-neutral-500">Cron: reconcile</p>
+                <p className="font-medium">{setupDiagnostics?.cronUrls?.reconcile || '/api/cron/email-flow-reconcile'}</p>
+              </div>
+              <div className="rounded-md border border-neutral-200 bg-neutral-50 p-3">
+                <p className="text-neutral-500">Cron: flow runner</p>
+                <p className="font-medium">{setupDiagnostics?.cronUrls?.flowRunner || '/api/cron/email-flow-runner'}</p>
+              </div>
+              <div className="rounded-md border border-neutral-200 bg-neutral-50 p-3">
+                <p className="text-neutral-500">Cron: dispatch</p>
+                <p className="font-medium">{setupDiagnostics?.cronUrls?.dispatch || '/api/cron/email-dispatch'}</p>
+              </div>
+              <div className="rounded-md border border-neutral-200 bg-neutral-50 p-3">
+                <p className="text-neutral-500">Latest flow run</p>
+                <p className="font-medium">
+                  {setupDiagnostics?.latestFlowRun?.started_at
+                    ? new Date(String(setupDiagnostics.latestFlowRun.started_at)).toLocaleString()
+                    : 'No run recorded'}
+                </p>
+                <p className="mt-1 text-xs text-neutral-500">
+                  state: {setupDiagnostics?.latestRunState || 'unknown'}
+                  {typeof setupDiagnostics?.latestRunAgeMinutes === 'number'
+                    ? ` - ${setupDiagnostics.latestRunAgeMinutes} min ago`
+                    : ''}
+                </p>
+              </div>
+            </div>
+
+            {typeof setupDiagnostics?.primaryCause === 'string' && setupDiagnostics.primaryCause.trim() ? (
+              <div className="rounded-md border border-neutral-300 bg-neutral-100 p-3 text-sm text-neutral-800">
+                <p className="font-medium">Primary cause</p>
+                <p className="mt-1">{setupDiagnostics.primaryCause}</p>
+              </div>
+            ) : null}
+
+            <div className="grid grid-cols-2 md:grid-cols-6 gap-2 text-xs">
+              <div className="rounded border border-neutral-200 p-2">
+                pending: {Number(setupDiagnostics?.queue?.pending || 0)}
+              </div>
+              <div className="rounded border border-neutral-200 p-2">
+                processing: {Number(setupDiagnostics?.queue?.processing || 0)}
+              </div>
+              <div className="rounded border border-neutral-200 p-2">
+                failed: {Number(setupDiagnostics?.queue?.failed || 0)}
+              </div>
+              <div className="rounded border border-neutral-200 p-2">
+                dead: {Number(setupDiagnostics?.queue?.dead || 0)}
+              </div>
+              <div className="rounded border border-neutral-200 p-2">
+                active 24h: {Number(setupDiagnostics?.queue?.activeLast24h || 0)}
+              </div>
+              <div className="rounded border border-neutral-200 p-2">
+                sent 24h: {Number(setupDiagnostics?.queue?.sentLast24h || 0)}
+              </div>
+            </div>
+
+            {setupDiagnostics?.latestFlowRun?.error ? (
+              <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                Latest flow error: {String(setupDiagnostics.latestFlowRun.error)}
+              </div>
+            ) : null}
+
+            {Array.isArray(setupDiagnostics?.causes) && (setupDiagnostics?.causes?.length || 0) > 0 ? (
+              <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                <p className="font-medium">Detected causes</p>
+                <ul className="list-disc pl-5 mt-1 space-y-1">
+                  {(setupDiagnostics?.causes || []).map((cause) => (
+                    <li key={cause}>{cause}</li>
+                  ))}
+                </ul>
+              </div>
+            ) : (
+              <div className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">
+                No blocking diagnostics detected.
+              </div>
+            )}
+
+            {Array.isArray(setupDiagnostics?.suggestedFixes) &&
+            (setupDiagnostics?.suggestedFixes?.length || 0) > 0 ? (
+              <div className="rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800">
+                <p className="font-medium">Suggested fixes</p>
+                <ul className="list-disc pl-5 mt-1 space-y-1">
+                  {(setupDiagnostics?.suggestedFixes || []).map((fix) => (
+                    <li key={fix}>{fix}</li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+
+            {setupDiagnostics?.schemaDetails && Object.keys(setupDiagnostics.schemaDetails).length > 0 ? (
+              <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+                <p className="font-medium">Schema details</p>
+                <div className="mt-2 space-y-1 text-xs">
+                  {Object.entries(setupDiagnostics.schemaDetails).map(([table, detail]) => (
+                    <p key={table}>
+                      <span className="font-semibold">{table}</span>: {detail}
+                    </p>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+          </Card>
+
           <Card className="p-4 space-y-2">
             <h3 className="text-lg font-medium">Dispatch Settings</h3>
             {envStatus && (
@@ -1065,7 +1423,7 @@ export function EmailControlCenter() {
                   <div>
                     <p className="text-sm font-medium">{item.email}</p>
                     <p className="text-xs text-neutral-500">
-                      {item.reason} · {item.source}
+                      {item.reason} - {item.source}
                     </p>
                   </div>
                   <Button variant="outline" onClick={() => handleRemoveSuppression(item.email)}>
@@ -1080,3 +1438,6 @@ export function EmailControlCenter() {
     </div>
   );
 }
+
+
+

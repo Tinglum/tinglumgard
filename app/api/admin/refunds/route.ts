@@ -1,8 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth/session';
 import { supabaseAdmin } from '@/lib/supabase/server';
 import { dispatchEmail } from '@/lib/email/dispatch';
 import { renderManagedTemplate } from '@/lib/email/render';
+import { buildCustomerOrderLink } from '@/lib/email/links';
 import { initiateVippsRefund } from '@/lib/vipps/refund';
 import { logError } from '@/lib/logger';
 
@@ -85,7 +86,7 @@ async function cancelOrder(orderId: string, reason: string, restoreInventory: bo
 
   if (order.customer_email && order.customer_email !== 'pending@vipps.no') {
     try {
-      const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://tinglum.no';
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_BASE_URL || 'https://tinglumgard.no';
       const rendered = await renderManagedTemplate({
         templateKey: 'pig.order.cancelled',
         locale: 'no',
@@ -95,7 +96,7 @@ async function cancelOrder(orderId: string, reason: string, restoreInventory: bo
           cancel_reason: reason ? `Arsak: ${reason}` : '',
           refund_text:
             'Dersom du har betalt forskudd eller restbelop, vil refundering bli behandlet innen 5-7 virkedager.',
-          order_url: `${appUrl}/min-side?orderId=${order.id}`,
+          order_url: buildCustomerOrderLink(appUrl, 'pig', String(order.id)),
         },
       });
 
@@ -243,7 +244,7 @@ async function issueRefund(
 
   if (order.customer_email && order.customer_email !== 'pending@vipps.no') {
     try {
-      const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://tinglum.no';
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_BASE_URL || 'https://tinglumgard.no';
       const refundTypeLabel =
         type === 'full'
           ? 'Full refundering'
@@ -261,7 +262,7 @@ async function issueRefund(
           order_number: order.order_number,
           refund_amount_nok: `kr ${refundAmount.toLocaleString('nb-NO')}`,
           refund_type_label: refundTypeLabel,
-          order_url: `${appUrl}/min-side?orderId=${order.id}`,
+          order_url: buildCustomerOrderLink(appUrl, 'pig', String(order.id)),
         },
       });
 
@@ -302,3 +303,4 @@ async function getRefundHistory(orderId: string) {
 
   return NextResponse.json({ refunds: refunds || [] });
 }
+

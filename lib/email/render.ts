@@ -21,45 +21,6 @@ export function interpolateTemplate(input: string, variables: Record<string, unk
   return output;
 }
 
-function normalizeNorwegianCopy(text: string): string {
-  const replacements: Array<[RegExp, string]> = [
-    [/Aapne/g, 'Åpne'],
-    [/Ga til/g, 'Gå til'],
-    [/Paminnelse/g, 'Påminnelse'],
-    [/Hentepaminnelse/g, 'Hentepåminnelse'],
-    [/Honer/g, 'Høner'],
-    [/Belop/g, 'Beløp'],
-    [/gjenstar/g, 'gjenstår'],
-    [/fullfort/g, 'fullført'],
-    [/Tinglum Gard/g, 'Tinglum Gård'],
-    [/Se detaljer pa Min side/g, 'Se detaljer på Min side'],
-    [/Se bestillingen pa Min side/g, 'Se bestillingen på Min side'],
-    [/Se ordren pa Min side/g, 'Se ordren på Min side'],
-    [/Apne bestillingen pa Min side/g, 'Åpne bestillingen på Min side'],
-    [/ na klar /g, ' nå klar '],
-    [/ na låst /g, ' nå låst '],
-    [/ na last /g, ' nå låst '],
-    [/ na /g, ' nå '],
-    [/ na\./g, ' nå.'],
-    [/ na,/g, ' nå,'],
-    [/naer/g, 'når'],
-    [/gjores/g, 'gjøres'],
-    [/fatt/g, 'fått'],
-    [/Leveringsmate/g, 'Leveringsmåte'],
-    [/Forhandsvisning/g, 'Forhåndsvisning'],
-    [/bestillinga/g, 'bestillingen'],
-    [/GÃ¥/g, 'Gå'],
-    [/GÃ¥rd/g, 'Gård'],
-    [/pÃ¥/g, 'på'],
-    [/fÃ¥/g, 'få'],
-    [/Ã¦/g, 'æ'],
-    [/Ã¸/g, 'ø'],
-    [/Ã¥/g, 'å'],
-  ];
-
-  return replacements.reduce((value, [pattern, next]) => value.replace(pattern, next), text);
-}
-
 export function ensureHtmlDocument(html: string, locale: EmailLocale = 'no'): string {
   if (html.trim().toLowerCase().includes('<html')) {
     return html;
@@ -70,6 +31,10 @@ export function ensureHtmlDocument(html: string, locale: EmailLocale = 'no'): st
   const supportLabel = locale === 'en' ? 'Need help?' : 'Trenger du hjelp?';
   const supportText =
     locale === 'en' ? 'Reply to this email and we will help you.' : 'Svar på denne e-posten, så hjelper vi deg.';
+  const preheader =
+    locale === 'en'
+      ? 'Important update about your order from Tinglum Gård.'
+      : 'Viktig oppdatering om bestillingen din fra Tinglum Gård.';
 
   return `<!DOCTYPE html>
 <html lang="${locale}">
@@ -79,6 +44,7 @@ export function ensureHtmlDocument(html: string, locale: EmailLocale = 'no'): st
     <title>${brand}</title>
   </head>
   <body style="margin:0;padding:0;background:#f4f4f5;">
+    <div style="display:none;max-height:0;overflow:hidden;opacity:0;mso-hide:all;">${preheader}</div>
     <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f4f4f5;padding:24px 0;">
       <tr>
         <td align="center">
@@ -90,7 +56,13 @@ export function ensureHtmlDocument(html: string, locale: EmailLocale = 'no'): st
             </tr>
             <tr>
               <td style="padding:24px;font-family:Arial,sans-serif;font-size:16px;line-height:1.6;color:#111827;">
-                ${html}
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border:1px solid #e4e4e7;border-radius:10px;background:#ffffff;">
+                  <tr>
+                    <td style="padding:18px 18px 6px 18px;">
+                      ${html}
+                    </td>
+                  </tr>
+                </table>
                 <p style="margin:20px 0 0;">${greeting}<br><strong>${brand}</strong></p>
               </td>
             </tr>
@@ -127,8 +99,8 @@ export async function renderManagedTemplate(options: {
     return null;
   }
 
-  const subjectRaw = locale === 'en' ? String(data.subject_en || '') : normalizeNorwegianCopy(String(data.subject_no || ''));
-  const bodyRaw = locale === 'en' ? String(data.body_en || '') : normalizeNorwegianCopy(String(data.body_no || ''));
+  const subjectRaw = locale === 'en' ? String(data.subject_en || '') : String(data.subject_no || '');
+  const bodyRaw = locale === 'en' ? String(data.body_en || '') : String(data.body_no || '');
 
   return {
     subject: interpolateTemplate(subjectRaw, vars),

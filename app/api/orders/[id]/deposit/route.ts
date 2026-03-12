@@ -103,7 +103,7 @@ export async function POST(
 
     // Create shorter reference (max 50 chars) using order number
     const shortReference = `DEP-${order.order_number}`;
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://tinglum.no';
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_BASE_URL || 'https://tinglumgard.no';
     const needsShippingAddress = order.delivery_type === 'delivery_trondheim';
 
     // Generate callback authorization token
@@ -210,3 +210,4 @@ export async function POST(
     );
   }
 }
+

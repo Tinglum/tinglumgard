@@ -2,11 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { vippsClient } from '@/lib/vipps/api-client';
 import { randomBytes } from 'crypto';
 import { cookies } from 'next/headers';
+import { sanitizeReturnToPath } from '@/lib/email/links';
 
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
-    const returnTo = searchParams.get('returnTo') || '/min-side';
+    const returnTo = sanitizeReturnToPath(searchParams.get('returnTo') || '/min-side');
 
     // Create state data for simple login (no pending order)
     const stateData = {
@@ -49,12 +50,13 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { orderDetails } = body;
     const productType = String(orderDetails?.productType || '').toLowerCase();
-    const returnTo =
+    const returnTo = sanitizeReturnToPath(
       productType === 'eggs'
         ? '/rugeegg/bestill'
         : productType === 'chickens' || productType === 'chicken'
           ? '/kyllinger'
-          : '/bestill';
+          : '/bestill'
+    );
 
     // Create state data that includes the pending order
     const stateData = {

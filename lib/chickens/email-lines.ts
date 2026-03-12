@@ -1,0 +1,214 @@
+type ChickenBreedRelation =
+  | { name?: string | null; name_no?: string | null; name_en?: string | null }
+  | Array<{ name?: string | null; name_no?: string | null; name_en?: string | null }>
+  | null;
+
+type ChickenAdditionLike = {
+  quantity_hens?: number | null;
+  quantity_roosters?: number | null;
+  price_per_hen_nok?: number | null;
+  price_per_rooster_nok?: number | null;
+  subtotal_nok?: number | null;
+  chicken_breeds?: ChickenBreedRelation;
+};
+
+type ChickenOrderLike = {
+  quantity_hens?: number | null;
+  quantity_roosters?: number | null;
+  price_per_hen_nok?: number | null;
+  price_per_rooster_nok?: number | null;
+  chicken_breeds?: ChickenBreedRelation;
+  chicken_order_additions?: ChickenAdditionLike[] | null;
+};
+
+export type ChickenOrderLine = {
+  source: 'base' | 'addition';
+  breedName: string;
+  hens: number;
+  roosters: number;
+  pricePerHenNok: number;
+  pricePerRoosterNok: number;
+  subtotalNok: number;
+};
+
+export type ChickenOrderSummary = {
+  breedLabel: string;
+  hens: number;
+  roosters: number;
+  subtotalNok: number;
+  lines: ChickenOrderLine[];
+};
+
+function toNumber(value: unknown): number {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+}
+
+function pickBreedName(relation: ChickenBreedRelation): string {
+  const breed = Array.isArray(relation) ? relation[0] : relation;
+  return String(breed?.name_no || breed?.name_en || breed?.name || 'Kyllinger').trim() || 'Kyllinger';
+}
+
+function formatNok(amount: number, locale: 'no' | 'en'): string {
+  const language = locale === 'en' ? 'en-US' : 'nb-NO';
+  return `kr ${Math.round(amount).toLocaleString(language)}`;
+}
+
+function buildQuantityText(line: ChickenOrderLine, locale: 'no' | 'en'): string {
+  if (locale === 'en') {
+    if (line.roosters > 0) return `${line.hens} hens, ${line.roosters} roosters`;
+    return `${line.hens} hens`;
+  }
+  if (line.roosters > 0) return `${line.hens} høner, ${line.roosters} haner`;
+  return `${line.hens} høner`;
+}
+
+function buildUnitPriceText(line: ChickenOrderLine, locale: 'no' | 'en'): string {
+  if (line.roosters > 0 && line.pricePerRoosterNok > 0) {
+    if (locale === 'en') {
+      return `Hen ${formatNok(line.pricePerHenNok, locale)} / Rooster ${formatNok(line.pricePerRoosterNok, locale)}`;
+    }
+    return `Høne ${formatNok(line.pricePerHenNok, locale)} / Hane ${formatNok(line.pricePerRoosterNok, locale)}`;
+  }
+  if (locale === 'en') return `Hen ${formatNok(line.pricePerHenNok, locale)}`;
+  return `Høne ${formatNok(line.pricePerHenNok, locale)}`;
+}
+
+export function summarizeChickenOrderLines(order: ChickenOrderLike): ChickenOrderSummary {
+  const lines: ChickenOrderLine[] = [];
+
+  const baseHens = Math.max(0, Math.round(toNumber(order?.quantity_hens)));
+  const baseRoosters = Math.max(0, Math.round(toNumber(order?.quantity_roosters)));
+  const basePricePerHen = Math.max(0, toNumber(order?.price_per_hen_nok));
+  const basePricePerRooster = Math.max(0, toNumber(order?.price_per_rooster_nok));
+  const baseSubtotal = baseHens * basePricePerHen + baseRoosters * basePricePerRooster;
+
+  if (baseHens > 0 || baseRoosters > 0) {
+    lines.push({
+      source: 'base',
+      breedName: pickBreedName(order?.chicken_breeds || null),
+      hens: baseHens,
+      roosters: baseRoosters,
+      pricePerHenNok: basePricePerHen,
+      pricePerRoosterNok: basePricePerRooster,
+      subtotalNok: baseSubtotal,
+    });
+  }
+
+  const additions = Array.isArray(order?.chicken_order_additions) ? order.chicken_order_additions : [];
+  for (const addition of additions) {
+    const hens = Math.max(0, Math.round(toNumber(addition?.quantity_hens)));
+    const roosters = Math.max(0, Math.round(toNumber(addition?.quantity_roosters)));
+    if (hens === 0 && roosters === 0) continue;
+
+    const pricePerHen = Math.max(0, toNumber(addition?.price_per_hen_nok) || basePricePerHen);
+    const pricePerRooster = Math.max(0, toNumber(addition?.price_per_rooster_nok) || basePricePerRooster);
+    const computedSubtotal = hens * pricePerHen + roosters * pricePerRooster;
+    const explicitSubtotal = Math.max(0, toNumber(addition?.subtotal_nok));
+
+    lines.push({
+      source: 'addition',
+      breedName: pickBreedName(addition?.chicken_breeds || null),
+      hens,
+      roosters,
+      pricePerHenNok: pricePerHen,
+      pricePerRoosterNok: pricePerRooster,
+      subtotalNok: explicitSubtotal > 0 ? explicitSubtotal : computedSubtotal,
+    });
+  }
+
+  const hens = lines.reduce((sum, line) => sum + line.hens, 0);
+  const roosters = lines.reduce((sum, line) => sum + line.roosters, 0);
+  const subtotalNok = lines.reduce((sum, line) => sum + line.subtotalNok, 0);
+  const breedLabel = Array.from(new Set(lines.map((line) => line.breedName)))
+    .filter(Boolean)
+    .join(' + ');
+
+  return {
+    breedLabel,
+    hens,
+    roosters,
+    subtotalNok,
+    lines,
+  };
+}
+
+export function buildChickenOrderLinesHtml(
+  lines: ChickenOrderLine[],
+  locale: 'no' | 'en' = 'no'
+): string {
+  if (!lines.length) {
+    return locale === 'en'
+      ? '<p>No order lines registered.</p>'
+      : '<p>Ingen ordrelinjer registrert.</p>';
+  }
+
+  const headerSource = locale === 'en' ? 'Type' : 'Linje';
+  const headerBreed = locale === 'en' ? 'Breed' : 'Rase';
+  const headerQuantity = locale === 'en' ? 'Quantity' : 'Antall';
+  const headerUnitPrice = locale === 'en' ? 'Unit price' : 'Enhetspris';
+  const headerSubtotal = locale === 'en' ? 'Subtotal' : 'Delsum';
+  const totalLabel = locale === 'en' ? 'Total' : 'Total';
+
+  const rows = lines
+    .map((line) => {
+      const sourceLabel =
+        locale === 'en'
+          ? line.source === 'base'
+            ? 'Base order'
+            : 'Added line'
+          : line.source === 'base'
+            ? 'Grunnordre'
+            : 'Tillegg';
+
+      return `<tr>
+  <td style="padding:8px;border:1px solid #e5e7eb;vertical-align:top;">${escapeHtml(sourceLabel)}</td>
+  <td style="padding:8px;border:1px solid #e5e7eb;vertical-align:top;">${escapeHtml(line.breedName)}</td>
+  <td style="padding:8px;border:1px solid #e5e7eb;vertical-align:top;">${escapeHtml(buildQuantityText(line, locale))}</td>
+  <td style="padding:8px;border:1px solid #e5e7eb;vertical-align:top;">${escapeHtml(buildUnitPriceText(line, locale))}</td>
+  <td style="padding:8px;border:1px solid #e5e7eb;vertical-align:top;text-align:right;">${escapeHtml(
+    formatNok(line.subtotalNok, locale)
+  )}</td>
+</tr>`;
+    })
+    .join('');
+
+  const total = lines.reduce((sum, line) => sum + line.subtotalNok, 0);
+
+  return `<table role="presentation" cellspacing="0" cellpadding="0" style="width:100%;border-collapse:collapse;margin:8px 0;">
+  <thead>
+    <tr style="background:#f9fafb;">
+      <th style="text-align:left;padding:8px;border:1px solid #e5e7eb;">${headerSource}</th>
+      <th style="text-align:left;padding:8px;border:1px solid #e5e7eb;">${headerBreed}</th>
+      <th style="text-align:left;padding:8px;border:1px solid #e5e7eb;">${headerQuantity}</th>
+      <th style="text-align:left;padding:8px;border:1px solid #e5e7eb;">${headerUnitPrice}</th>
+      <th style="text-align:right;padding:8px;border:1px solid #e5e7eb;">${headerSubtotal}</th>
+    </tr>
+  </thead>
+  <tbody>
+    ${rows}
+    <tr style="background:#f9fafb;">
+      <td colspan="4" style="padding:8px;border:1px solid #e5e7eb;text-align:right;font-weight:700;">${totalLabel}</td>
+      <td style="padding:8px;border:1px solid #e5e7eb;text-align:right;font-weight:700;">${escapeHtml(
+        formatNok(total, locale)
+      )}</td>
+    </tr>
+  </tbody>
+</table>`;
+}
+
+export function buildTotalBirdsLabel(hens: number, roosters: number, locale: 'no' | 'en' = 'no'): string {
+  if (locale === 'en') {
+    return `${hens} hens, ${roosters} roosters`;
+  }
+  return `${hens} høner, ${roosters} haner`;
+}

@@ -219,7 +219,7 @@ export function UnifiedEggChickenOrdersManager() {
           notes: 'Kundenotat',
           admin: 'Adminnotat',
           save: 'Lagre notater',
-          amount: 'Belop (NOK)',
+          amount: 'Beløp (NOK)',
           markRemainder: 'Marker rest betalt',
           markDeposit: 'Marker forskudd betalt',
           sync: 'Synk status',
@@ -231,8 +231,8 @@ export function UnifiedEggChickenOrdersManager() {
           due: 'Rest',
           created: 'Opprettet',
           noDate: 'Ingen dato',
-          resend: 'Send bekreftelse pa nytt',
-          resent: 'Bekreftelse sendt pa nytt',
+          resend: 'Send bekreftelse på nytt',
+          resent: 'Bekreftelse sendt på nytt',
         }
 
   const statusLabel = useCallback(
@@ -242,7 +242,7 @@ export function UnifiedEggChickenOrdersManager() {
           pending: lang === 'en' ? 'Pending' : 'Venter',
           deposit_paid: lang === 'en' ? 'Deposit paid' : 'Forskudd betalt',
           fully_paid: lang === 'en' ? 'Fully paid' : 'Fullt betalt',
-          preparing: lang === 'en' ? 'Preparing' : 'Klargjores',
+          preparing: lang === 'en' ? 'Preparing' : 'Klargjøres',
           shipped: lang === 'en' ? 'Shipped' : 'Sendt',
           delivered: lang === 'en' ? 'Delivered' : 'Levert',
           cancelled: lang === 'en' ? 'Cancelled' : 'Kansellert',

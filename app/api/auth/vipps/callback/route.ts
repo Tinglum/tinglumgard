@@ -3,6 +3,7 @@ import { vippsClient } from '@/lib/vipps/api-client';
 import { createSession } from '@/lib/auth/session';
 import { supabaseAdmin } from '@/lib/supabase/server';
 import { cookies } from 'next/headers';
+import { sanitizeReturnToPath } from '@/lib/email/links';
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
@@ -183,7 +184,7 @@ export async function GET(request: NextRequest) {
       return paymentRedirect;
     }
 
-    const returnTo = stateData.returnTo || '/bestill';
+    const returnTo = sanitizeReturnToPath(stateData.returnTo || '/bestill');
 
     // Create an HTML response that sets the cookie and redirects
     // This is a workaround for Netlify Functions cookie issues
@@ -198,7 +199,7 @@ export async function GET(request: NextRequest) {
           <p>Logging in, please wait...</p>
           <script>
             // Force redirect to ensure cookie is set
-            window.location.href = '${returnTo}';
+            window.location.href = ${JSON.stringify(returnTo)};
           </script>
         </body>
       </html>

@@ -35,32 +35,15 @@ export async function GET() {
   const admin = await requireAdminAccess();
   if (!admin.ok) return admin.response;
 
-  const schemaStatus = await getEmailSchemaStatus(['email_campaigns']);
-  if (!schemaStatus.ready) {
-    return NextResponse.json(
-      {
-        campaigns: [],
-        warning: `Missing email schema tables: ${schemaStatus.missingTables.join(', ')}`,
-        missingTables: schemaStatus.missingTables,
-        hint: 'Run migration 20260310210000_repair_unified_email_schema.sql',
-        degradedMode: true,
-      },
-      { status: 200 }
-    );
-  }
-
-  const { data, error } = await supabaseAdmin
-    .from('email_campaigns')
-    .select('*')
-    .order('created_at', { ascending: false })
-    .limit(100);
-
-  if (error) {
-    if (isMissingEmailRelationError(error)) {
+  try {
+    const schemaStatus = await getEmailSchemaStatus(['email_campaigns']);
+    if (!schemaStatus.ready) {
       return NextResponse.json(
         {
           campaigns: [],
-          warning: 'Email schema mismatch while fetching campaigns',
+          warning: `Missing email schema tables: ${schemaStatus.missingTables.join(', ')}`,
+          missingTables: schemaStatus.missingTables,
+          schemaDetails: schemaStatus.details,
           hint: 'Run migration 20260310210000_repair_unified_email_schema.sql',
           degradedMode: true,
         },
@@ -68,13 +51,51 @@ export async function GET() {
       );
     }
 
+    const { data, error } = await supabaseAdmin
+      .from('email_campaigns')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(100);
+
+    if (error) {
+      if (isMissingEmailRelationError(error)) {
+        return NextResponse.json(
+          {
+            campaigns: [],
+            warning: 'Email schema mismatch while fetching campaigns',
+            detail: String((error as { message?: unknown })?.message || 'Unknown schema mismatch'),
+            hint: 'Run migration 20260310210000_repair_unified_email_schema.sql',
+            degradedMode: true,
+          },
+          { status: 200 }
+        );
+      }
+
+      return NextResponse.json(
+        {
+          campaigns: [],
+          warning: 'Failed to fetch campaigns',
+          detail: String((error as { message?: unknown })?.message || 'Unknown error'),
+          degradedMode: true,
+        },
+        { status: 200 }
+      );
+    }
+
+    return NextResponse.json({ campaigns: data || [] });
+  } catch (error) {
+    const isSchemaMismatch = isMissingEmailRelationError(error);
     return NextResponse.json(
-      { campaigns: [], warning: 'Failed to fetch campaigns', degradedMode: true },
+      {
+        campaigns: [],
+        warning: isSchemaMismatch ? 'Email schema mismatch while loading campaigns' : 'Failed to load campaigns',
+        detail: error instanceof Error ? error.message : String(error),
+        hint: isSchemaMismatch ? 'Run migration 20260310210000_repair_unified_email_schema.sql' : undefined,
+        degradedMode: true,
+      },
       { status: 200 }
     );
   }
-
-  return NextResponse.json({ campaigns: data || [] });
 }
 
 export async function POST(request: NextRequest) {

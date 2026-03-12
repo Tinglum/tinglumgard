@@ -13,7 +13,9 @@ export async function POST(
 
   const body = await request.json().catch(() => ({}));
   const includeAdmin = body?.includeAdmin !== false;
-  const suffix = `manual-${Date.now()}`;
+  const resendToken = String(body?.resendToken || 'manual').trim() || 'manual';
+  const force = body?.force === true;
+  const suffix = force ? `manual-${Date.now()}` : `manual-${resendToken}`;
 
   const result = await sendChickenDepositConfirmationEmails({
     orderId: params.id,
@@ -52,6 +54,8 @@ export async function POST(
 
   return NextResponse.json({
     success: true,
+    force,
+    resendToken,
     customerSent: result.customerSent,
     adminSent: result.adminSent,
     customerReason: result.customerReason || null,

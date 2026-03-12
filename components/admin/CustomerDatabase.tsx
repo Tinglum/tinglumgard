@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useToast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -88,12 +89,22 @@ type CommunicationPreviewItem = {
   scheduledFor?: string | null;
   createdAt: string | null;
   html: string;
+  text?: string | null;
   orderRefs?: {
     orderId?: string | null;
     eggOrderId?: string | null;
     chickenOrderId?: string | null;
     campaignId?: string | null;
   };
+  scheduleReason?: {
+    flowKey?: string | null;
+    eventType?: string | null;
+    templateKey?: string | null;
+    productScope?: string | null;
+    triggerDateKey?: string | null;
+    triggerOffsetDays?: number | null;
+    condition?: string | null;
+  } | null;
 };
 
 type ScheduledCommunicationItem = {
@@ -134,6 +145,21 @@ type CustomerProfile = {
     inserted: number;
     error?: string | null;
     missing_tables?: string[];
+  };
+  email_consistency?: {
+    ok: boolean;
+    planned: number;
+    sent: number;
+    failed: number;
+    cancelled: number;
+    overdueScheduled: number;
+    issues: string[];
+    missingConfirmations?: Array<{
+      orderId: string;
+      orderNumber: string;
+      source: OrderSource;
+      expectedTemplate: string;
+    }>;
   };
   email_controls?: {
     email: string | null;
@@ -263,6 +289,7 @@ export function CustomerDatabase() {
   const [communicationModalOpen, setCommunicationModalOpen] = useState(false);
   const [communicationPreview, setCommunicationPreview] = useState<CommunicationPreviewItem | null>(null);
   const [communicationPreviewLoading, setCommunicationPreviewLoading] = useState<string | null>(null);
+  const [communicationPreviewMode, setCommunicationPreviewMode] = useState<'html' | 'text'>('html');
 
   const loadCustomers = useCallback(async () => {
     setLoading(true);
@@ -630,6 +657,8 @@ export function CustomerDatabase() {
         throw new Error(copy.orderSaveErrorDescription);
       }
       setCommunicationPreview(preview);
+      setCommunicationPreviewMode('html');
+      setCommunicationPreviewMode('html');
     } catch (error) {
       setCommunicationModalOpen(false);
       setCommunicationPreview(null);
@@ -683,7 +712,7 @@ export function CustomerDatabase() {
             (copy as any).resendConfirmationMissingDescription ||
               (lang === 'en'
                 ? 'No previous email was found for this order yet.'
-                : 'Fant ingen tidligere e-post pa denne ordren enda.')
+                : 'Fant ingen tidligere e-post på denne ordren enda.')
           );
         }
 
@@ -1159,7 +1188,7 @@ export function CustomerDatabase() {
               <h2 className="text-2xl font-bold">{selectedCustomer.name}</h2>
               <p className="text-sm text-neutral-600">
                 {(copy as any).profileSubtitle ||
-                  (lang === 'en' ? 'Unified customer profile across all products.' : 'Samlet kundeprofil pa tvers av alle produkter.')}
+                  (lang === 'en' ? 'Unified customer profile across all products.' : 'Samlet kundeprofil på tvers av alle produkter.')}
               </p>
             </div>
             {Boolean(customers.find((entry) => entry.customer_id === selectedCustomer.customer_id)?.at_risk) && (
@@ -1398,6 +1427,50 @@ export function CustomerDatabase() {
                 )}
               </div>
             </div>
+            {selectedCustomer.email_consistency ? (
+              <div
+                className={cn(
+                  'mb-4 rounded-lg border p-3',
+                  selectedCustomer.email_consistency.ok
+                    ? 'border-emerald-200 bg-emerald-50'
+                    : 'border-amber-200 bg-amber-50'
+                )}
+              >
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p
+                    className={cn(
+                      'text-sm font-medium',
+                      selectedCustomer.email_consistency.ok ? 'text-emerald-900' : 'text-amber-900'
+                    )}
+                  >
+                    {lang === 'en' ? 'Email consistency' : 'E-postkonsistens'}
+                  </p>
+                  <p
+                    className={cn(
+                      'text-xs',
+                      selectedCustomer.email_consistency.ok ? 'text-emerald-700' : 'text-amber-700'
+                    )}
+                  >
+                    {lang === 'en'
+                      ? `planned: ${selectedCustomer.email_consistency.planned}, sent: ${selectedCustomer.email_consistency.sent}, failed: ${selectedCustomer.email_consistency.failed}`
+                      : `planlagt: ${selectedCustomer.email_consistency.planned}, sendt: ${selectedCustomer.email_consistency.sent}, feilet: ${selectedCustomer.email_consistency.failed}`}
+                  </p>
+                </div>
+                {!selectedCustomer.email_consistency.ok ? (
+                  <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-amber-900">
+                    {(selectedCustomer.email_consistency.issues || []).map((issue) => (
+                      <li key={issue}>{issue}</li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="mt-2 text-xs text-emerald-800">
+                    {lang === 'en'
+                      ? 'No consistency issues detected for this customer.'
+                      : 'Ingen konsistensavvik oppdaget for denne kunden.'}
+                  </p>
+                )}
+              </div>
+            ) : null}
             {selectedCustomer.scheduled_communications &&
             selectedCustomer.scheduled_communications.length > 0 ? (
               <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50/50 p-3">
@@ -1443,7 +1516,7 @@ export function CustomerDatabase() {
                       <p className="mt-1 text-neutral-600">
                         {(copy as any).communicationStatusLabel || (lang === 'en' ? 'Status' : 'Status')}:{' '}
                         {entry.status}
-                        {entry.template_key ? ` · ${entry.template_key}` : ''}
+                        {entry.template_key ? ` – ${entry.template_key}` : ''}
                       </p>
                     </div>
                   ))}
@@ -1649,6 +1722,7 @@ export function CustomerDatabase() {
             if (!open) {
               setCommunicationPreview(null);
               setCommunicationPreviewLoading(null);
+              setCommunicationPreviewMode('html');
             }
           }}
         >
@@ -1662,7 +1736,7 @@ export function CustomerDatabase() {
                 {(copy as any).communicationModalDescription ||
                   (lang === 'en'
                     ? 'Preview of the email exactly as stored in the dispatch history.'
-                    : 'Forhandsvisning av e-posten slik den er lagret i utsendingshistorikken.')}
+                    : 'Forhåndsvisning av e-posten slik den er lagret i utsendingshistorikken.')}
               </DialogDescription>
             </DialogHeader>
 
@@ -1730,13 +1804,88 @@ export function CustomerDatabase() {
                   </p>
                 </div>
 
+                {communicationPreview.scheduleReason ? (
+                  <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-xs text-blue-900">
+                    <p className="font-medium mb-1">
+                      {lang === 'en' ? 'Why this email is scheduled' : 'Hvorfor denne e-posten er planlagt'}
+                    </p>
+                    <div className="grid grid-cols-1 gap-1 sm:grid-cols-2">
+                      <p>
+                        <span className="font-semibold">Flow:</span>{' '}
+                        {communicationPreview.scheduleReason.flowKey || copy.notProvided}
+                      </p>
+                      <p>
+                        <span className="font-semibold">Event:</span>{' '}
+                        {communicationPreview.scheduleReason.eventType || copy.notProvided}
+                      </p>
+                      <p>
+                        <span className="font-semibold">Template:</span>{' '}
+                        {communicationPreview.scheduleReason.templateKey || copy.notProvided}
+                      </p>
+                      <p>
+                        <span className="font-semibold">
+                          {lang === 'en' ? 'Product scope' : 'Produktscope'}:
+                        </span>{' '}
+                        {communicationPreview.scheduleReason.productScope || copy.notProvided}
+                      </p>
+                      <p>
+                        <span className="font-semibold">
+                          {lang === 'en' ? 'Trigger date key' : 'Trigger-dato'}:
+                        </span>{' '}
+                        {communicationPreview.scheduleReason.triggerDateKey || copy.notProvided}
+                      </p>
+                      <p>
+                        <span className="font-semibold">
+                          {lang === 'en' ? 'Offset days' : 'Offset dager'}:
+                        </span>{' '}
+                        {typeof communicationPreview.scheduleReason.triggerOffsetDays === 'number'
+                          ? communicationPreview.scheduleReason.triggerOffsetDays
+                          : copy.notProvided}
+                      </p>
+                    </div>
+                    {communicationPreview.scheduleReason.condition ? (
+                      <p className="mt-2">
+                        <span className="font-semibold">{lang === 'en' ? 'Condition' : 'Betingelse'}:</span>{' '}
+                        {communicationPreview.scheduleReason.condition}
+                      </p>
+                    ) : null}
+                  </div>
+                ) : null}
+
+                {communicationPreview.text ? (
+                  <div className="flex items-center justify-end gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant={communicationPreviewMode === 'html' ? 'default' : 'outline'}
+                      onClick={() => setCommunicationPreviewMode('html')}
+                    >
+                      {lang === 'en' ? 'HTML view' : 'HTML-visning'}
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant={communicationPreviewMode === 'text' ? 'default' : 'outline'}
+                      onClick={() => setCommunicationPreviewMode('text')}
+                    >
+                      {lang === 'en' ? 'Text fallback' : 'Tekstfallback'}
+                    </Button>
+                  </div>
+                ) : null}
+
                 <div className="rounded-lg border border-neutral-200">
-                  <iframe
-                    title={communicationPreview.subject || 'Email preview'}
-                    srcDoc={communicationPreview.html || ''}
-                    sandbox=""
-                    className="h-[60vh] w-full rounded-lg bg-white"
-                  />
+                  {communicationPreviewMode === 'text' && communicationPreview.text ? (
+                    <pre className="max-h-[60vh] overflow-auto whitespace-pre-wrap rounded-lg bg-white p-4 text-xs text-neutral-800">
+                      {communicationPreview.text}
+                    </pre>
+                  ) : (
+                    <iframe
+                      title={communicationPreview.subject || 'Email preview'}
+                      srcDoc={communicationPreview.html || ''}
+                      sandbox=""
+                      className="h-[60vh] w-full rounded-lg bg-white"
+                    />
+                  )}
                 </div>
               </div>
             ) : (
@@ -1815,3 +1964,4 @@ export function CustomerDatabase() {
     </div>
   );
 }
+

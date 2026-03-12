@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth/session';
 import { supabaseAdmin } from '@/lib/supabase/server';
 import { vippsClient } from '@/lib/vipps/api-client';
@@ -101,7 +101,7 @@ export async function POST(
 
     // Create shorter reference (max 50 chars) using order number
     const shortReference = `REM-${order.order_number}`;
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://tinglum.no';
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_BASE_URL || 'https://tinglumgard.no';
 
     // Generate callback authorization token
     const { randomBytes } = await import('crypto');
@@ -209,3 +209,4 @@ export async function POST(
     );
   }
 }
+

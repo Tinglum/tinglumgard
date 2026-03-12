@@ -31,64 +31,67 @@ export async function GET() {
   const admin = await requireAdminAccess();
   if (!admin.ok) return admin.response;
 
-  const schemaStatus = await getEmailSchemaStatus(['email_flows', 'email_templates']);
-  if (!schemaStatus.ready) {
-    return NextResponse.json(
-      {
-        flows: FALLBACK_FLOWS,
-        warning: `Missing email schema tables: ${schemaStatus.missingTables.join(', ')}`,
-        missingTables: schemaStatus.missingTables,
-        hint: 'Run migration 20260310210000_repair_unified_email_schema.sql',
-        degradedMode: true,
-      },
-      { status: 200 }
-    );
-  }
-
-  // Keep core lifecycle flows/templates self-healed in environments where rows were never seeded.
   try {
-    await ensureLifecycleSeedData();
-  } catch (error) {
-    if (isMissingEmailRelationError(error)) {
+    const schemaStatus = await getEmailSchemaStatus(['email_flows', 'email_templates']);
+    if (!schemaStatus.ready) {
       return NextResponse.json(
         {
           flows: FALLBACK_FLOWS,
-          warning: 'Email schema mismatch while seeding lifecycle flows',
+          warning: `Missing email schema tables: ${schemaStatus.missingTables.join(', ')}`,
+          missingTables: schemaStatus.missingTables,
+          schemaDetails: schemaStatus.details,
           hint: 'Run migration 20260310210000_repair_unified_email_schema.sql',
           degradedMode: true,
         },
         { status: 200 }
       );
     }
-    return NextResponse.json(
-      { flows: FALLBACK_FLOWS, warning: 'Failed to seed lifecycle flows', degradedMode: true },
-      { status: 200 }
-    );
-  }
 
-  const { data, error } = await supabaseAdmin
-    .from('email_flows')
-    .select('*, email_templates(template_key, subject_no, subject_en, classification, active)')
-    .order('flow_key', { ascending: true });
+    // Keep core lifecycle flows/templates self-healed in environments where rows were never seeded.
+    await ensureLifecycleSeedData();
 
-  if (!error) {
-    return NextResponse.json({ flows: data || [] });
-  }
+    const { data, error } = await supabaseAdmin
+      .from('email_flows')
+      .select('*, email_templates(template_key, subject_no, subject_en, classification, active)')
+      .order('flow_key', { ascending: true });
 
-  if (isMissingEmailRelationError(error)) {
+    if (!error) {
+      return NextResponse.json({ flows: data || [] });
+    }
+
+    if (isMissingEmailRelationError(error)) {
+      return NextResponse.json(
+        {
+          flows: FALLBACK_FLOWS,
+          warning: 'Email schema mismatch while fetching flows',
+          detail: String((error as { message?: unknown })?.message || 'Unknown schema mismatch'),
+          hint: 'Run migration 20260310210000_repair_unified_email_schema.sql',
+          degradedMode: true,
+        },
+        { status: 200 }
+      );
+    }
+
     return NextResponse.json(
       {
         flows: FALLBACK_FLOWS,
-        warning: 'Email schema mismatch while fetching flows',
-        hint: 'Run migration 20260310210000_repair_unified_email_schema.sql',
+        warning: 'Failed to fetch flows',
+        detail: String((error as { message?: unknown })?.message || 'Unknown error'),
+        degradedMode: true,
+      },
+      { status: 200 }
+    );
+  } catch (error) {
+    const isSchemaMismatch = isMissingEmailRelationError(error);
+    return NextResponse.json(
+      {
+        flows: FALLBACK_FLOWS,
+        warning: isSchemaMismatch ? 'Email schema mismatch while loading flows' : 'Failed to load flows',
+        detail: error instanceof Error ? error.message : String(error),
+        hint: isSchemaMismatch ? 'Run migration 20260310210000_repair_unified_email_schema.sql' : undefined,
         degradedMode: true,
       },
       { status: 200 }
     );
   }
-
-  return NextResponse.json(
-    { flows: FALLBACK_FLOWS, warning: 'Failed to fetch flows', degradedMode: true },
-    { status: 200 }
-  );
 }

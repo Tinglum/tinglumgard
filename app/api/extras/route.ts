@@ -37,7 +37,7 @@ const EXTRA_SLUG_TO_PART_KEY: Record<string, PartKey> = {
   'ekstra_ribbe': 'ribbeside',
   'bacon': 'ribbeside',
   'pinnekjott': 'ribbeside',
-  'pinnekjÃ¸tt': 'ribbeside',
+  'pinnekjøtt': 'ribbeside',
   'extra-pancetta': 'ribbeside',
   'extra-smult': 'ribbeside',
 
@@ -47,7 +47,7 @@ const EXTRA_SLUG_TO_PART_KEY: Record<string, PartKey> = {
   'kjottbiter': 'svinebog',
   'polser': 'svinebog',
   'medisterpolse': 'svinebog',
-  'medisterpÃ¸lse': 'svinebog',
+  'medisterpølse': 'svinebog',
 
   // Knoke
   'svinelabb': 'knoke',

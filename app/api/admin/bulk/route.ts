@@ -3,10 +3,11 @@ import { getSession } from '@/lib/auth/session';
 import { supabaseAdmin } from '@/lib/supabase/server';
 import { dispatchEmail } from '@/lib/email/dispatch';
 import { renderManagedTemplate } from '@/lib/email/render';
+import { buildCustomerOrderLink } from '@/lib/email/links';
 import { getEffectiveBoxSize } from '@/lib/orders/display';
 
 function getDeliveryLabel(deliveryType: string) {
-  if (deliveryType === 'pickup_farm') return 'Henting pa gard';
+  if (deliveryType === 'pickup_farm') return 'Henting på gård';
   if (deliveryType === 'pickup_e6') return 'Henting ved E6';
   if (deliveryType === 'delivery_trondheim') return 'Levering i Trondheim';
   return deliveryType || 'Henting';
@@ -53,7 +54,7 @@ async function bulkUpdateStatus(orderIds: string[], newStatus: string) {
   if (error) throw error;
 
   if (newStatus === 'ready_for_pickup') {
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://tinglum.no';
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_BASE_URL || 'https://tinglumgard.no';
 
     for (const order of data) {
       if (order.customer_email && order.customer_email !== 'pending@vipps.no') {
@@ -65,7 +66,7 @@ async function bulkUpdateStatus(orderIds: string[], newStatus: string) {
               customer_name: order.customer_name || 'Kunde',
               order_number: order.order_number,
               delivery_label: getDeliveryLabel(order.delivery_type),
-              order_url: `${appUrl}/min-side?orderId=${order.id}`,
+              order_url: buildCustomerOrderLink(appUrl, 'pig', String(order.id)),
             },
           });
 
@@ -164,7 +165,7 @@ async function bulkLockOrders(orderIds: string[]) {
 
   if (error) throw error;
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://tinglum.no';
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_BASE_URL || 'https://tinglumgard.no';
 
   for (const order of data) {
     if (order.customer_email && order.customer_email !== 'pending@vipps.no') {
@@ -175,7 +176,7 @@ async function bulkLockOrders(orderIds: string[]) {
           variables: {
             customer_name: order.customer_name || 'Kunde',
             order_number: order.order_number,
-            order_url: `${appUrl}/min-side?orderId=${order.id}`,
+            order_url: buildCustomerOrderLink(appUrl, 'pig', String(order.id)),
           },
         });
 
@@ -265,3 +266,4 @@ async function exportProductionList(orderIds: string[]) {
     })),
   });
 }
+

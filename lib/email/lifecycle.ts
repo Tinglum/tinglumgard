@@ -3,6 +3,7 @@ import { processScheduledCampaigns } from '@/lib/email/campaigns';
 import { enqueueEmailRecord } from '@/lib/email/queue';
 import { renderManagedTemplate } from '@/lib/email/render';
 import { getEmailSchemaStatus } from '@/lib/email/schema';
+import { buildCustomerOrderLink, buildCustomerPathLink } from '@/lib/email/links';
 import { supabaseAdmin } from '@/lib/supabase/server';
 
 type Ymd = { year: number; month: number; day: number };
@@ -73,6 +74,16 @@ type LifecycleFlowSeed = {
   mode: 'shadow' | 'active' | 'disabled';
   active: boolean;
   sendOffsetMinutes: number;
+};
+
+type FlowMatrixRow = {
+  flowKey: string;
+  productScope: 'pig' | 'eggs' | 'chickens' | 'shared';
+  eventType: string;
+  templateKey: string;
+  triggerRule: string;
+  scheduleLocalTime: string;
+  stopRules: string[];
 };
 
 const DEFAULT_LIFECYCLE_CONFIG: LifecycleConfig = {
@@ -151,6 +162,31 @@ const LIFECYCLE_TEMPLATE_SEEDS: LifecycleTemplateSeed[] = [
     bodyEn:
       '<p>Hi {{customer_name}},</p><p>Your hatching egg order <strong>{{order_number}}</strong> ships tomorrow.</p><p><a href="{{upsell_url}}">Add extras today</a></p>',
     variables: ['customer_name', 'order_number', 'upsell_url'],
+  },
+  {
+    templateKey: 'egg.order.shipped.customer',
+    classification: 'transactional',
+    productScope: 'eggs',
+    subjectNo: 'Rugeeggene er sendt - {{order_number}}',
+    subjectEn: 'Your hatching eggs are on the way - {{order_number}}',
+    bodyNo:
+      '<p>Hei {{customer_name}},</p><p>Vi har sendt bestillingen din <strong>{{order_number}}</strong> med Posten.</p><p><strong>Sporingsnummer:</strong> {{tracking_number}}<br/><a href="{{tracking_url}}">Spor pakken hos Posten</a></p><p><strong>Ordrelinjer:</strong></p>{{order_lines_html}}<p><strong>Totalt antall:</strong> {{total_quantity}} egg<br/><strong>Total:</strong> {{total_amount_nok}}<br/><strong>Forskudd:</strong> {{deposit_amount_nok}}<br/><strong>Rest:</strong> {{remainder_amount_nok}}</p><p><strong>Levering:</strong> Uke {{delivery_week}} ({{delivery_date}})</p><p><strong>Hva skjer nå?</strong><br/>1) Følg sporingen hos Posten<br/>2) Kontroller eggene ved mottak<br/>3) Gå til Min side hvis du trenger hjelp</p><p><a href="{{order_url}}">Åpne bestillingen på Min side</a></p>',
+    bodyEn:
+      '<p>Hi {{customer_name}},</p><p>Your order <strong>{{order_number}}</strong> has been shipped with Posten.</p><p><strong>Tracking number:</strong> {{tracking_number}}<br/><a href="{{tracking_url}}">Track your parcel</a></p><p><strong>Order lines:</strong></p>{{order_lines_html}}<p><strong>Total quantity:</strong> {{total_quantity}} eggs<br/><strong>Total:</strong> {{total_amount_nok}}<br/><strong>Deposit:</strong> {{deposit_amount_nok}}<br/><strong>Remaining:</strong> {{remainder_amount_nok}}</p><p><strong>Delivery:</strong> Week {{delivery_week}} ({{delivery_date}})</p><p><strong>What happens next?</strong><br/>1) Track the parcel<br/>2) Check the eggs on arrival<br/>3) Use My Page if you need help</p><p><a href="{{order_url}}">Open your order on My Page</a></p>',
+    variables: [
+      'customer_name',
+      'order_number',
+      'tracking_number',
+      'tracking_url',
+      'order_lines_html',
+      'total_quantity',
+      'total_amount_nok',
+      'deposit_amount_nok',
+      'remainder_amount_nok',
+      'delivery_week',
+      'delivery_date',
+      'order_url',
+    ],
   },
   {
     templateKey: 'egg.hatch.followup',
@@ -298,6 +334,90 @@ const LIFECYCLE_FLOW_SEEDS: LifecycleFlowSeed[] = [
   },
 ];
 
+const LIFECYCLE_FLOW_MATRIX: FlowMatrixRow[] = [
+  {
+    flowKey: 'pig.remainder.explainer',
+    productScope: 'pig',
+    eventType: 'pig.deposit_paid',
+    templateKey: 'pig.remainder.explainer.full|pig.remainder.explainer.reduced',
+    triggerRule: 'created_at + pig_post_order_explainer_delay_days',
+    scheduleLocalTime: '10:00 Europe/Oslo',
+    stopRules: ['order.cancelled', 'order.refunded'],
+  },
+  {
+    flowKey: 'pig.remainder.reminder',
+    productScope: 'pig',
+    eventType: 'pig.deposit_paid',
+    templateKey: 'pig.remainder.reminder',
+    triggerRule: 'pig_remainder_due_date - pig_remainder_reminder_days[]',
+    scheduleLocalTime: '10:00 Europe/Oslo',
+    stopRules: ['remainder_already_paid', 'order.cancelled', 'order.refunded'],
+  },
+  {
+    flowKey: 'egg.remainder.reminder',
+    productScope: 'eggs',
+    eventType: 'egg.deposit_paid',
+    templateKey: 'egg.remainder.reminder',
+    triggerRule: 'delivery_monday - egg_remainder_reminder_days[]',
+    scheduleLocalTime: '09:00 Europe/Oslo',
+    stopRules: ['remainder_not_due', 'order.cancelled', 'order.forfeited'],
+  },
+  {
+    flowKey: 'egg.delivery.day_before',
+    productScope: 'eggs',
+    eventType: 'egg.delivery_upcoming',
+    templateKey: 'egg.delivery.day_before',
+    triggerRule: 'delivery_monday - 1 day',
+    scheduleLocalTime: '08:00 Europe/Oslo',
+    stopRules: ['order.cancelled', 'order.forfeited', 'status_not_eligible'],
+  },
+  {
+    flowKey: 'egg.hatch.followup',
+    productScope: 'eggs',
+    eventType: 'egg.order.shipped',
+    templateKey: 'egg.hatch.followup',
+    triggerRule: 'marked_shipped_at + 5 days',
+    scheduleLocalTime: 'shipped_at + 5d',
+    stopRules: ['order.cancelled', 'missing_recipient_email'],
+  },
+  {
+    flowKey: 'egg.order.forfeited',
+    productScope: 'eggs',
+    eventType: 'egg.overdue_forfeit',
+    templateKey: 'egg.order.forfeited',
+    triggerRule: 'remainder_due_date 23:59 + egg_overdue_grace_hours',
+    scheduleLocalTime: 'due_end + grace',
+    stopRules: ['not_applicable', 'already_paid', 'order.cancelled'],
+  },
+  {
+    flowKey: 'chicken.ready_for_pickup',
+    productScope: 'chickens',
+    eventType: 'chicken.auto_ready_for_pickup',
+    templateKey: 'chicken.ready_for_pickup',
+    triggerRule: 'pickup_monday - chicken_auto_ready_days_before',
+    scheduleLocalTime: '08:00 Europe/Oslo',
+    stopRules: ['order.cancelled', 'order.picked_up'],
+  },
+  {
+    flowKey: 'chicken.pickup.reminder',
+    productScope: 'chickens',
+    eventType: 'chicken.pickup_reminder',
+    templateKey: 'chicken.pickup.reminder',
+    triggerRule: 'pickup_monday - chicken_pickup_reminder_days[]',
+    scheduleLocalTime: '08:30 Europe/Oslo',
+    stopRules: ['order.cancelled', 'order.picked_up'],
+  },
+  {
+    flowKey: 'chicken.remainder.collected',
+    productScope: 'chickens',
+    eventType: 'chicken.remainder_collected',
+    templateKey: 'chicken.remainder.collected',
+    triggerRule: 'on manual collect endpoint',
+    scheduleLocalTime: 'immediate',
+    stopRules: ['template_missing', 'missing_recipient_email'],
+  },
+];
+
 function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' ? (value as Record<string, unknown>) : {};
 }
@@ -423,11 +543,10 @@ function toNoCurrency(amountNok: number): string {
   return `kr ${Math.round(amountNok).toLocaleString('nb-NO')}`;
 }
 
-function entityLink(scope: string, entityId: string, appBaseUrl: string): string {
-  if (scope === 'eggs') return `${appBaseUrl}/rugeegg/mine-bestillinger/${entityId}/betaling`;
-  if (scope === 'chickens') return `${appBaseUrl}/min-side?chickenOrderId=${entityId}`;
-  if (scope === 'pig') return `${appBaseUrl}/min-side?orderId=${entityId}`;
-  return `${appBaseUrl}/min-side`;
+function customerOrderLink(scope: string, entityId: string, appBaseUrl: string): string {
+  if (scope === 'eggs') return buildCustomerOrderLink(appBaseUrl, 'egg', entityId);
+  if (scope === 'chickens') return buildCustomerOrderLink(appBaseUrl, 'chicken', entityId);
+  return buildCustomerOrderLink(appBaseUrl, 'pig', entityId);
 }
 
 async function getLifecycleConfig(): Promise<LifecycleConfig> {
@@ -512,10 +631,26 @@ export async function ensureLifecycleSeedData(): Promise<{
     active: true,
   }));
 
-  const { error: templateError } = await supabaseAdmin
+  const seededTemplateKeys = LIFECYCLE_TEMPLATE_SEEDS.map((entry) => entry.templateKey);
+  const { data: existingTemplateRows, error: existingTemplateError } = await supabaseAdmin
     .from('email_templates')
-    .upsert(templateRows, { onConflict: 'template_key' });
-  if (templateError) throw templateError;
+    .select('template_key')
+    .in('template_key', seededTemplateKeys);
+  if (existingTemplateError) throw existingTemplateError;
+
+  const existingTemplateKeys = new Set(
+    (existingTemplateRows || []).map((row) => String(row.template_key || ''))
+  );
+  const missingTemplateRows = templateRows.filter(
+    (row) => !existingTemplateKeys.has(String(row.template_key || ''))
+  );
+
+  if (missingTemplateRows.length > 0) {
+    const { error: templateInsertError } = await supabaseAdmin
+      .from('email_templates')
+      .insert(missingTemplateRows);
+    if (templateInsertError) throw templateInsertError;
+  }
 
   const flowRows = LIFECYCLE_FLOW_SEEDS.map((seed) => ({
     flow_key: seed.flowKey,
@@ -527,16 +662,26 @@ export async function ensureLifecycleSeedData(): Promise<{
     send_offset_minutes: seed.sendOffsetMinutes,
   }));
 
-  const { error: flowError } = await supabaseAdmin
+  const seededFlowKeys = LIFECYCLE_FLOW_SEEDS.map((entry) => entry.flowKey);
+  const { data: existingFlowRows, error: existingFlowError } = await supabaseAdmin
     .from('email_flows')
-    .upsert(flowRows, { onConflict: 'flow_key' });
-  if (flowError) throw flowError;
+    .select('flow_key')
+    .in('flow_key', seededFlowKeys);
+  if (existingFlowError) throw existingFlowError;
+
+  const existingFlowKeys = new Set((existingFlowRows || []).map((row) => String(row.flow_key || '')));
+  const missingFlowRows = flowRows.filter((row) => !existingFlowKeys.has(String(row.flow_key || '')));
+
+  if (missingFlowRows.length > 0) {
+    const { error: flowInsertError } = await supabaseAdmin.from('email_flows').insert(missingFlowRows);
+    if (flowInsertError) throw flowInsertError;
+  }
 
   return {
     ok: true,
     missingTables: [],
-    seededTemplateKeys: LIFECYCLE_TEMPLATE_SEEDS.map((entry) => entry.templateKey),
-    seededFlowKeys: LIFECYCLE_FLOW_SEEDS.map((entry) => entry.flowKey),
+    seededTemplateKeys,
+    seededFlowKeys,
   };
 }
 
@@ -711,7 +856,7 @@ async function materializePigFlowInstances(flowMap: Map<string, FlowDefinition>,
     const createdYmd: Ymd = { year: createdParts.year, month: createdParts.month, day: createdParts.day };
     const explainerYmd = addDays(createdYmd, config.pigPostOrderExplainerDelayDays);
     const toEmail = normalizeEmail(order.customer_email);
-    const orderUrl = entityLink('pig', orderId, config.appBaseUrl);
+    const orderUrl = customerOrderLink('pig', orderId, config.appBaseUrl);
     const locale: 'no' | 'en' = 'no';
     const remainderNok = Number(order.remainder_amount || 0);
 
@@ -804,7 +949,7 @@ async function materializeEggFlowInstances(flowMap: Map<string, FlowDefinition>,
     const orderId = String(order.id);
     const toEmail = normalizeEmail(order.customer_email);
     const locale: 'no' | 'en' = 'no';
-    const orderUrl = entityLink('eggs', orderId, config.appBaseUrl);
+    const orderUrl = customerOrderLink('eggs', orderId, config.appBaseUrl);
     const deliveryYmd = parseIsoDate(String(order.delivery_monday || ''));
     if (!deliveryYmd) continue;
 
@@ -889,7 +1034,11 @@ async function materializeEggFlowInstances(flowMap: Map<string, FlowDefinition>,
         payload: {
           customer_name: String(order.customer_name || 'Kunde'),
           order_number: String(order.order_number || ''),
-          upsell_url: `${config.appBaseUrl}/rugeegg/mine-bestillinger/${orderId}/betaling`,
+          delivery_date: formatDateForLocale(deliveryYmd, locale, config.timezone),
+          upsell_url: buildCustomerPathLink(
+            config.appBaseUrl,
+            `/rugeegg/mine-bestillinger/${orderId}/betaling`
+          ),
           order_url: orderUrl,
         },
         metadata: {
@@ -921,7 +1070,7 @@ async function materializeEggFlowInstances(flowMap: Map<string, FlowDefinition>,
           payload: {
             customer_name: String(order.customer_name || 'Kunde'),
             order_number: String(order.order_number || ''),
-            message_url: `${config.appBaseUrl}/min-side`,
+            message_url: buildCustomerPathLink(config.appBaseUrl, '/min-side'),
             pork_url: `${config.appBaseUrl}/produkt`,
             deposit_discount_code: EGG_HATCH_PIG_DEPOSIT_DISCOUNT_CODE,
             order_url: orderUrl,
@@ -958,7 +1107,7 @@ async function materializeChickenFlowInstances(flowMap: Map<string, FlowDefiniti
 
     const locale: 'no' | 'en' = 'no';
     const toEmail = normalizeEmail(order.customer_email);
-    const orderUrl = entityLink('chickens', orderId, config.appBaseUrl);
+    const orderUrl = customerOrderLink('chickens', orderId, config.appBaseUrl);
     const status = String(order.status || '');
 
     if (status === 'deposit_paid') {
@@ -976,6 +1125,8 @@ async function materializeChickenFlowInstances(flowMap: Map<string, FlowDefiniti
         payload: {
           customer_name: String(order.customer_name || 'Kunde'),
           order_number: String(order.order_number || ''),
+          pickup_date: formatDateForLocale(pickupYmd, locale, config.timezone),
+          remainder_amount_nok: toNoCurrency(Number(order.remainder_amount_nok || 0)),
           order_url: orderUrl,
         },
         metadata: {
@@ -1004,6 +1155,7 @@ async function materializeChickenFlowInstances(flowMap: Map<string, FlowDefiniti
           order_number: String(order.order_number || ''),
           pickup_date: formatDateForLocale(pickupYmd, locale, config.timezone),
           days_left: days,
+          remainder_amount_nok: toNoCurrency(Number(order.remainder_amount_nok || 0)),
           order_url: orderUrl,
         },
         metadata: {
@@ -1153,11 +1305,43 @@ async function processDueInstances(
     const toEmail = normalizeEmail(instance.to_email || payload.customer_email);
 
     if (instance.flow_key === 'pig.remainder.explainer') {
+      const { data: pigOrder } = await supabaseAdmin
+        .from('orders')
+        .select('status')
+        .eq('id', instance.entity_id)
+        .maybeSingle();
+      const pigStatus = String(pigOrder?.status || '');
+      if (!pigOrder || pigStatus === 'cancelled' || pigStatus === 'refunded') {
+        await updateFlowInstanceStatus(instance.id, {
+          status: 'cancelled',
+          lastError: 'pig_order_not_eligible',
+          processedAt: new Date().toISOString(),
+        });
+        skipped += 1;
+        continue;
+      }
+
       const paid = await pigRemainderPaid(instance.entity_id);
       if (paid) templateKey = 'pig.remainder.explainer.reduced';
     }
 
     if (instance.flow_key === 'pig.remainder.reminder') {
+      const { data: pigOrder } = await supabaseAdmin
+        .from('orders')
+        .select('status')
+        .eq('id', instance.entity_id)
+        .maybeSingle();
+      const pigStatus = String(pigOrder?.status || '');
+      if (!pigOrder || pigStatus === 'cancelled' || pigStatus === 'refunded') {
+        await updateFlowInstanceStatus(instance.id, {
+          status: 'cancelled',
+          lastError: 'pig_order_not_eligible',
+          processedAt: new Date().toISOString(),
+        });
+        skipped += 1;
+        continue;
+      }
+
       const paid = await pigRemainderPaid(instance.entity_id);
       if (paid) {
         await updateFlowInstanceStatus(instance.id, {
@@ -1181,7 +1365,8 @@ async function processDueInstances(
         instance.entity_id,
         Math.round(Number(eggOrder?.remainder_amount || 0))
       );
-      if (!eggOrder || String(eggOrder.status) === 'forfeited' || outstanding <= 0) {
+      const eggStatus = String(eggOrder?.status || '');
+      if (!eggOrder || eggStatus === 'forfeited' || eggStatus === 'cancelled' || outstanding <= 0) {
         await updateFlowInstanceStatus(instance.id, {
           status: 'cancelled',
           lastError: 'egg_remainder_not_due',
@@ -1195,6 +1380,29 @@ async function processDueInstances(
         ...payload,
         remainder_amount_nok: toNoCurrency(Math.round(outstanding / 100)),
       };
+    }
+
+    if (instance.flow_key === 'egg.delivery.day_before') {
+      const { data: eggOrder } = await supabaseAdmin
+        .from('egg_orders')
+        .select('status')
+        .eq('id', instance.entity_id)
+        .maybeSingle();
+      const eggStatus = String(eggOrder?.status || '');
+      const eligible =
+        eggStatus === 'fully_paid' ||
+        eggStatus === 'preparing' ||
+        eggStatus === 'shipped' ||
+        eggStatus === 'delivered';
+      if (!eggOrder || eggStatus === 'cancelled' || eggStatus === 'forfeited' || !eligible) {
+        await updateFlowInstanceStatus(instance.id, {
+          status: 'cancelled',
+          lastError: 'egg_day_before_not_eligible',
+          processedAt: new Date().toISOString(),
+        });
+        skipped += 1;
+        continue;
+      }
     }
 
     if (instance.flow_key === 'egg.order.forfeited') {
@@ -1537,7 +1745,9 @@ export async function getLifecycleOverview() {
       .order('flow_key', { ascending: true }),
     supabaseAdmin
       .from('email_flow_instances')
-      .select('id, flow_key, entity_type, entity_id, trigger_date_key, status, to_email, scheduled_for, last_error, created_at')
+      .select(
+        'id, flow_key, entity_type, entity_id, trigger_date_key, status, to_email, scheduled_for, queue_id, last_error, created_at, processed_at'
+      )
       .order('scheduled_for', { ascending: true })
       .limit(300),
     supabaseAdmin
@@ -1564,11 +1774,31 @@ export async function getLifecycleOverview() {
     return acc;
   }, {});
 
+  const nowIso = new Date().toISOString();
+  const staleScheduled = (instanceRows.data || []).filter((row) => {
+    const status = String(row.status || '');
+    const scheduledFor = String(row.scheduled_for || '');
+    return status === 'scheduled' && scheduledFor && scheduledFor <= nowIso;
+  }).length;
+  const failedInstances = (instanceRows.data || []).filter((row) => String(row.status || '') === 'failed').length;
+  const enqueuedWithoutQueue = (instanceRows.data || []).filter((row) => {
+    const status = String(row.status || '');
+    const queueId = String((row as { queue_id?: string | null }).queue_id || '');
+    return status === 'enqueued' && !queueId;
+  }).length;
+
   return {
     config,
+    flowMatrix: LIFECYCLE_FLOW_MATRIX,
     flows: flowRows.data || [],
     instances: instanceRows.data || [],
     statusCounts,
+    consistency: {
+      staleScheduled,
+      failedInstances,
+      enqueuedWithoutQueue,
+      ok: staleScheduled === 0 && failedInstances === 0 && enqueuedWithoutQueue === 0,
+    },
     missingAlerts,
     runs: runRows.data || [],
     materializedInserted: materializeResult.inserted,
@@ -1632,3 +1862,4 @@ export async function updateLifecycleConfig(updates: Partial<LifecycleConfig>) {
 
   return getLifecycleConfig();
 }
+

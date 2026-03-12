@@ -171,12 +171,26 @@ export default function AdminPage() {
     e.preventDefault();
     setLoading(true);
     try {
+      const returnTo =
+        typeof window !== 'undefined'
+          ? new URLSearchParams(window.location.search).get('returnTo')
+          : null;
       const response = await fetch('/api/admin/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password }),
+        body: JSON.stringify({ password, returnTo }),
       });
       if (response.ok) {
+        const data = await response.json().catch(() => ({}));
+        if (typeof window !== 'undefined' && typeof data?.redirectTo === 'string' && data.redirectTo.trim()) {
+          const target = data.redirectTo.trim();
+          if (target.startsWith('/admin')) {
+            window.history.replaceState(null, '', target);
+          } else {
+            window.location.href = target;
+            return;
+          }
+        }
         setIsAuthenticated(true);
         setPasswordError(false);
       } else {

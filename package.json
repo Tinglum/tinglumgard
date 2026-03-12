@@ -8,6 +8,8 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
+    "check:encoding": "node scripts/check-encoding.mjs",
+    "check:email-flows": "node scripts/check-post-order-flows.mjs",
     "test:eggops-smoke": "node scripts/eggops-smoke.mjs"
   },
   "dependencies": {

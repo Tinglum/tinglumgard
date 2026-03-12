@@ -226,7 +226,7 @@ export const no = {
   timeline: {
     title: "Slik fungerer det",
     subtitle: "Fra bestilling til levering",
-    tagline: "Grisene vokser gjennom 2026 • Fersk levering i desember",
+    tagline: "Grisene vokser gjennom 2026 ⬢ Fersk levering i desember",
     reserveNow: "Reserver din pakke nå",
     howItWorks: "Slik fungerer det",
     fromOrderToDelivery: "Fra bestilling til levering",
@@ -1064,7 +1064,7 @@ export const no = {
     addedToOrderTitle: "Oppdatert bestilling",
     addedToOrderDesc: "La til {item}",
     addingToOrderLabel: "Legger til i nåværende bestilling...",
-    addingToOrderOrderLine: "Bestilling #{orderNumber} • {box}",
+    addingToOrderOrderLine: "Bestilling #{orderNumber} ⬢ {box}",
     loadingOrdersTitle: "Henter bestillinger...",
 
     couldNotAddTitle: "Kunne ikke legge til",
@@ -1114,7 +1114,7 @@ export const no = {
     copied: "Kopiert!",
     copyCode: "Kopier kode",
     shareButton: "Del kode",
-    friendsGet20: "Venner får 20% rabatt på forskuddet • Du får 20% rabatt per venn på restbeløpet for din kasse (opptil 50% totalt)",
+    friendsGet20: "Venner får 20% rabatt på forskuddet ⬢ Du får 20% rabatt per venn på restbeløpet for din kasse (opptil 50% totalt)",
     totalReferrals: "Totale henvisninger",
     availableCredit: "Tilgjengelig kreditt",
     creditRemaining: "Kredittering igjen",
@@ -2851,15 +2851,15 @@ export const no = {
     impersonateStartingDescription: "Åpner Min side som {name}.",
     impersonateErrorTitle: "Kunne ikke logge inn som kunde",
     impersonateErrorDescription: "Prøv igjen.",
-    profileSubtitle: "Samlet kundeprofil pa tvers av alle produkter.",
-    orderHistoryHint: "Hurtighandlinger: detaljer, send bekreftelse pa nytt, rediger.",
+    profileSubtitle: "Samlet kundeprofil på tvers av alle produkter.",
+    orderHistoryHint: "Hurtighandlinger: detaljer, send bekreftelse på nytt, rediger.",
     noOrdersForCustomer: "Ingen ordrer registrert for denne kunden.",
-    resendConfirmationButton: "Send bekreftelse pa nytt",
+    resendConfirmationButton: "Send bekreftelse på nytt",
     resendConfirmationLoading: "Sender...",
-    resendConfirmationSuccessTitle: "Bekreftelse sendt pa nytt",
-    resendConfirmationSuccessDescription: "Bekreftelseseposten ble lagt i ko.",
-    resendConfirmationErrorTitle: "Kunne ikke sende bekreftelse pa nytt",
-    resendConfirmationMissingDescription: "Fant ingen tidligere e-post pa denne ordren enda.",
+    resendConfirmationSuccessTitle: "Bekreftelse sendt på nytt",
+    resendConfirmationSuccessDescription: "Bekreftelseseposten ble lagt i kø.",
+    resendConfirmationErrorTitle: "Kunne ikke sende bekreftelse på nytt",
+    resendConfirmationMissingDescription: "Fant ingen tidligere e-post på denne ordren enda.",
     orderCardTotalLabel: "Total",
     orderCardPaidLabel: "Betalt",
     orderCardRemainingLabel: "Rest",
@@ -2889,7 +2889,7 @@ export const no = {
         description: "Send e-post når forskudd er betalt",
       },
       remainder_reminder: {
-        name: "Paminnelse om restbetaling",
+        name: "Påminnelse om restbetaling",
         description: "Send påminnelse om å betale restbeløp (3 dager for låsing)",
       },
       order_locked: {
@@ -3515,7 +3515,7 @@ export const no = {
     },
     loginTitle: "Admin-innlogging",
     passwordLabel: "Passord",
-    passwordPlaceholder: "••••••••",
+    passwordPlaceholder: "⬢⬢⬢⬢⬢⬢⬢⬢",
     passwordError: "Feil passord. Prøv igjen.",
     loginButton: "Logg inn",
     headerTitle: "Tinglumgard Admin",
@@ -4056,6 +4056,8 @@ export const no = {
     keypadNext: 'Neste',
   },
 };
+
+
 
 
 

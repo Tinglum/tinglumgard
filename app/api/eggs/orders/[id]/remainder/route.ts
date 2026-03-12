@@ -85,7 +85,7 @@ export async function POST(
     }
 
     const shortReference = `EGG-REM-${order.order_number}-${Date.now()}`
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://tinglum.no'
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_BASE_URL || 'https://tinglumgard.no'
 
     const { randomBytes } = await import('crypto')
     const callbackToken = randomBytes(16).toString('hex')
@@ -169,3 +169,4 @@ export async function POST(
     return NextResponse.json({ error: 'Failed to create payment' }, { status: 500 })
   }
 }
+

@@ -79,7 +79,7 @@ export async function POST(
     const depositAmountNok = Number(order.deposit_amount_nok)
     const depositAmountOre = Math.round(depositAmountNok * 100)
     const shortReference = `CHICK-DEP-${order.order_number}`
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://tinglum.no'
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_BASE_URL || 'https://tinglumgard.no'
 
     const { randomBytes } = await import('crypto')
     const callbackToken = randomBytes(16).toString('hex')
@@ -137,3 +137,4 @@ export async function POST(
     return NextResponse.json({ error: 'Failed to create payment', details: errorMessage }, { status: 500 })
   }
 }
+

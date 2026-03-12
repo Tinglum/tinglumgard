@@ -3,6 +3,7 @@ import { supabaseAdmin } from '@/lib/supabase/server';
 import { requireAdminAccess } from '@/app/api/admin/email/_shared';
 import type { EmailClassification } from '@/lib/email/types';
 import { isMissingEmailRelationError } from '@/lib/email/schema';
+import { lintManagedTemplate } from '@/lib/email/template-lint';
 
 const ALLOWED_CLASSIFICATIONS: EmailClassification[] = [
   'transactional',
@@ -20,6 +21,24 @@ export async function PATCH(
 
   const body = await request.json();
   const updates: Record<string, unknown> = {};
+  const { data: existing, error: existingError } = await supabaseAdmin
+    .from('email_templates')
+    .select('id, template_key, classification, subject_no, subject_en, body_no, body_en, variables')
+    .eq('id', params.id)
+    .maybeSingle();
+
+  if (existingError) {
+    if (isMissingEmailRelationError(existingError)) {
+      return NextResponse.json(
+        { error: 'Template tables are not migrated yet in this environment' },
+        { status: 503 }
+      );
+    }
+    return NextResponse.json({ error: 'Failed to read template' }, { status: 500 });
+  }
+  if (!existing) {
+    return NextResponse.json({ error: 'Template not found' }, { status: 404 });
+  }
 
   if (typeof body?.templateKey === 'string' && body.templateKey.trim()) {
     updates.template_key = body.templateKey.trim();
@@ -44,6 +63,29 @@ export async function PATCH(
   if (Object.keys(updates).length === 0) {
     return NextResponse.json({ error: 'No updates provided' }, { status: 400 });
   }
+
+  const merged = {
+    templateKey:
+      typeof updates.template_key === 'string' ? String(updates.template_key) : String(existing.template_key || ''),
+    classification:
+      typeof updates.classification === 'string'
+        ? String(updates.classification)
+        : String(existing.classification || ''),
+    subjectNo:
+      typeof updates.subject_no === 'string' ? String(updates.subject_no) : String(existing.subject_no || ''),
+    subjectEn:
+      typeof updates.subject_en === 'string' ? String(updates.subject_en) : String(existing.subject_en || ''),
+    bodyNo: typeof updates.body_no === 'string' ? String(updates.body_no) : String(existing.body_no || ''),
+    bodyEn: typeof updates.body_en === 'string' ? String(updates.body_en) : String(existing.body_en || ''),
+    variables:
+      Array.isArray(updates.variables) ? updates.variables : Array.isArray(existing.variables) ? existing.variables : [],
+  };
+
+  const lint = lintManagedTemplate(merged);
+  if (!lint.ok) {
+    return NextResponse.json({ error: 'Template validation failed', details: lint.errors }, { status: 400 });
+  }
+  updates.variables = lint.normalizedVariables;
 
   const { data, error } = await supabaseAdmin
     .from('email_templates')

@@ -3,6 +3,7 @@ import { supabaseAdmin } from '@/lib/supabase/server';
 import { requireAdminAccess } from '@/app/api/admin/email/_shared';
 import type { EmailClassification } from '@/lib/email/types';
 import { isMissingEmailRelationError } from '@/lib/email/schema';
+import { lintManagedTemplate } from '@/lib/email/template-lint';
 
 const ALLOWED_CLASSIFICATIONS: EmailClassification[] = [
   'transactional',
@@ -22,40 +23,9 @@ export async function GET() {
 
   if (error) {
     if (isMissingEmailRelationError(error)) {
-      const { data: legacyRows, error: legacyError } = await supabaseAdmin
-        .from('communication_flow_templates')
-        .select('id, slug, product_type, subject_no, subject_en, body_no, body_en, active')
-        .order('slug', { ascending: true });
-
-      if (legacyError) {
-        return NextResponse.json({ error: 'Failed to fetch templates' }, { status: 500 });
-      }
-
-      const templates = (legacyRows || []).map((row: any) => ({
-        id: String(row.id),
-        template_key: String(row.slug || ''),
-        classification: 'system',
-        product_scope:
-          row.product_type === 'mangalitsa'
-            ? 'pig'
-            : row.product_type === 'eggs'
-              ? 'eggs'
-              : row.product_type === 'chickens'
-                ? 'chickens'
-                : 'shared',
-        subject_no: String(row.subject_no || ''),
-        subject_en: String(row.subject_en || ''),
-        body_no: String(row.body_no || ''),
-        body_en: String(row.body_en || ''),
-        current_version: 1,
-        active: Boolean(row.active),
-      }));
-
       return NextResponse.json({
-        templates,
-        legacyFallback: true,
-        unavailableReason: 'email_templates table is not available in this environment yet',
-      });
+        error: 'email_templates table is not available in this environment yet',
+      }, { status: 503 });
     }
 
     return NextResponse.json({ error: 'Failed to fetch templates' }, { status: 500 });
@@ -78,12 +48,25 @@ export async function POST(request: NextRequest) {
   const bodyEn = String(body?.bodyEn || '').trim();
   const variables = Array.isArray(body?.variables) ? body.variables : [];
 
-  if (!templateKey || !subjectNo || !subjectEn || !bodyNo || !bodyEn) {
+  if (!templateKey) {
     return NextResponse.json({ error: 'Missing required template fields' }, { status: 400 });
   }
 
   if (!ALLOWED_CLASSIFICATIONS.includes(classification)) {
     return NextResponse.json({ error: 'Invalid classification' }, { status: 400 });
+  }
+
+  const lint = lintManagedTemplate({
+    subjectNo,
+    subjectEn,
+    bodyNo,
+    bodyEn,
+    variables,
+    classification,
+    templateKey,
+  });
+  if (!lint.ok) {
+    return NextResponse.json({ error: 'Template validation failed', details: lint.errors }, { status: 400 });
   }
 
   const { data: inserted, error: insertError } = await supabaseAdmin
@@ -96,7 +79,7 @@ export async function POST(request: NextRequest) {
       subject_en: subjectEn,
       body_no: bodyNo,
       body_en: bodyEn,
-      variables,
+      variables: lint.normalizedVariables,
       active: true,
       current_version: 1,
     })

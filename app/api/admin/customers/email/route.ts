@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth/session';
 import { supabaseAdmin } from '@/lib/supabase/server';
 import { dispatchEmail } from '@/lib/email/dispatch';
-import { renderManagedTemplate } from '@/lib/email/render';
+import { htmlToPlainText, renderManagedTemplate } from '@/lib/email/render';
 import { fetchCommunicationHistory, resolveOrderIdsForIdentity } from '@/lib/email/history';
 import { isMissingEmailRelationError } from '@/lib/email/schema';
 import type { EmailClassification } from '@/lib/email/types';
@@ -152,7 +152,7 @@ export async function GET(request: NextRequest) {
     let templateKey: string | null = null;
     const { data: flow, error: flowError } = await supabaseAdmin
       .from('email_flows')
-      .select('template_key')
+      .select('template_key, event_type, product_scope')
       .eq('flow_key', String(instance.flow_key || ''))
       .maybeSingle();
 
@@ -171,33 +171,33 @@ export async function GET(request: NextRequest) {
 
     const locale: 'no' | 'en' = String(instance.locale || 'no') === 'en' ? 'en' : 'no';
     const variables = asRecord(instance.payload);
+    const metadata = asRecord(instance.metadata);
 
-    const rendered = templateKey
-      ? await renderManagedTemplate({
-          templateKey,
-          locale,
-          variables,
-        })
-      : null;
+    if (!templateKey) {
+      return NextResponse.json(
+        {
+          error: 'Scheduled flow is missing template key',
+          detail: `flow_key=${String(instance.flow_key || '')}`,
+        },
+        { status: 409 }
+      );
+    }
 
-    const fallbackSubject =
-      locale === 'en'
-        ? `Planned email: ${String(instance.flow_key || '')}`
-        : `Planlagt e-post: ${String(instance.flow_key || '')}`;
+    const rendered = await renderManagedTemplate({
+      templateKey,
+      locale,
+      variables,
+    });
 
-    const fallbackBody = [
-      locale === 'en'
-        ? 'This is a preview of a scheduled automated email.'
-        : 'Dette er en forhåndsvisning av en planlagt automatisk e-post.',
-      '',
-      `Flow: ${String(instance.flow_key || '')}`,
-      `Status: ${String(instance.status || 'scheduled')}`,
-      `Template: ${templateKey || 'n/a'}`,
-      `Scheduled: ${String(instance.scheduled_for || '')}`,
-      '',
-      locale === 'en' ? 'Payload variables:' : 'Variabler:',
-      JSON.stringify(variables, null, 2),
-    ].join('\n');
+    if (!rendered) {
+      return NextResponse.json(
+        {
+          error: 'Managed template not found or inactive for scheduled flow',
+          detail: `template_key=${templateKey}`,
+        },
+        { status: 409 }
+      );
+    }
 
     const entityType = String(instance.entity_type || '');
     const entityId = String(instance.entity_id || '');
@@ -206,17 +206,35 @@ export async function GET(request: NextRequest) {
       preview: {
         id: String(instance.id),
         source: 'email_flow_instance',
-        subject: rendered?.subject || fallbackSubject,
-        html: rendered?.html || wrapPlainTextAsHtml(fallbackBody),
-        classification: String(rendered?.classification || 'system'),
+        subject: rendered.subject,
+        html: rendered.html,
+        text: htmlToPlainText(rendered.html),
+        classification: String(rendered.classification || 'system'),
         status: String(instance.status || 'scheduled'),
         toEmail: instance.to_email ? String(instance.to_email) : null,
-        templateKey: rendered?.templateKey || templateKey,
+        templateKey: rendered.templateKey,
         sourcePath: '/api/cron/email-flow-runner',
         sentAt: null,
         scheduledFor: instance.scheduled_for ? String(instance.scheduled_for) : null,
         createdAt: instance.created_at ? String(instance.created_at) : null,
         lastError: instance.last_error ? String(instance.last_error) : null,
+        scheduleReason: {
+          flowKey: String(instance.flow_key || ''),
+          eventType: flow?.event_type ? String(flow.event_type) : String(metadata.event_type || ''),
+          templateKey: rendered.templateKey,
+          productScope: flow?.product_scope ? String(flow.product_scope) : String(metadata.product_scope || ''),
+          triggerDateKey: String(instance.trigger_date_key || ''),
+          triggerOffsetDays:
+            typeof metadata.trigger_offset_days === 'number'
+              ? metadata.trigger_offset_days
+              : Number(metadata.trigger_offset_days || 0),
+          condition:
+            typeof metadata.condition_summary === 'string'
+              ? metadata.condition_summary
+              : typeof metadata.last_error === 'string'
+                ? metadata.last_error
+                : null,
+        },
         orderRefs: {
           orderId: entityType === 'order' ? entityId : null,
           eggOrderId: entityType === 'egg_order' ? entityId : null,
@@ -262,6 +280,7 @@ export async function GET(request: NextRequest) {
           source: 'email_dispatch_queue',
           subject: String(data.subject || ''),
           html: String(data.html || ''),
+          text: htmlToPlainText(String(data.html || '')),
           classification: String(data.classification || 'system'),
           status: String(data.status || 'unknown'),
           toEmail: data.to_email ? String(data.to_email) : null,
@@ -300,12 +319,14 @@ export async function GET(request: NextRequest) {
     }
 
     const legacyMessage = String(data.message || '');
+    const legacyHtml = looksLikeHtml(legacyMessage) ? legacyMessage : wrapPlainTextAsHtml(legacyMessage);
     return NextResponse.json({
       preview: {
         id: String(data.id),
         source: 'legacy_email_log',
         subject: String(data.subject || ''),
-        html: looksLikeHtml(legacyMessage) ? legacyMessage : wrapPlainTextAsHtml(legacyMessage),
+        html: legacyHtml,
+        text: htmlToPlainText(legacyHtml),
         classification: 'system',
         status: 'sent',
         toEmail: data.recipient ? String(data.recipient) : null,
@@ -468,6 +489,9 @@ export async function POST(request: NextRequest) {
     }
 
     const now = Date.now();
+    const resendToken = String(body?.resendToken || '').trim() || 'manual';
+    const force = body?.force === true;
+    const idempotencyId = force ? `${queueId}:${now}` : `${queueId}:${resendToken}`;
     const result = await dispatchEmail({
       to,
       toPhone: queueRow.to_phone || undefined,
@@ -489,17 +513,33 @@ export async function POST(request: NextRequest) {
         resend_of_queue_id: queueId,
         resent_by_admin: admin.session?.email || admin.session?.name || 'admin',
         resent_at: new Date(now).toISOString(),
+        resend_token: resendToken,
+        force_resend: force,
       },
       idempotency: {
         source: 'admin.resend',
         entity: 'queue_email',
-        id: `${queueId}:${now}`,
+        id: idempotencyId,
         template: queueRow.template_key || 'resend',
       },
     });
 
     if (!result.success) {
       return NextResponse.json({ error: result.error || 'Failed to resend email' }, { status: 500 });
+    }
+
+    if (result.skipped) {
+      return NextResponse.json(
+        {
+          error: result.skipReason
+            ? `Resend skipped: ${result.skipReason}`
+            : 'Resend skipped due to dispatch idempotency/flow policy',
+          mode: result.mode,
+          queueId: result.queueId || null,
+          id: result.id || null,
+        },
+        { status: 409 }
+      );
     }
 
     return NextResponse.json({

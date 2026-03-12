@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Trigger email flow runner and dispatch worker
+      - name: Trigger reconcile, flow runner, and dispatch worker
         env:
           APP_BASE_URL: ${{ secrets.APP_BASE_URL || vars.APP_BASE_URL || 'https://tinglumgard.no' }}
           CRON_SECRET: ${{ secrets.CRON_SECRET || vars.CRON_SECRET }}
@@ -23,6 +23,29 @@ jobs:
           fi
 
           echo "Using APP_BASE_URL=${APP_BASE_URL}"
+
+          RECONCILE_URL="${APP_BASE_URL%/}/api/cron/email-flow-reconcile"
+          RECONCILE_RESPONSE_FILE=/tmp/email-flow-reconcile-response.json
+
+          RECONCILE_HTTP_CODE=$(curl --silent --show-error \
+            --request POST \
+            -H "x-cron-secret: $CRON_SECRET" \
+            --output "$RECONCILE_RESPONSE_FILE" \
+            --write-out "%{http_code}" \
+            "${RECONCILE_URL}?token=${CRON_SECRET}")
+
+          echo "Reconcile HTTP status: $RECONCILE_HTTP_CODE"
+          echo "Reconcile response:"
+          cat "$RECONCILE_RESPONSE_FILE"
+
+          if [ "$RECONCILE_HTTP_CODE" -ge 400 ]; then
+            if [ "$RECONCILE_HTTP_CODE" = "503" ] && grep -q "Email schema is not fully migrated" "$RECONCILE_RESPONSE_FILE"; then
+              echo "::warning::Email reconcile skipped because schema is not fully migrated. Continuing."
+            else
+              echo "::error::Email flow reconcile endpoint failed with HTTP $RECONCILE_HTTP_CODE"
+              exit 1
+            fi
+          fi
 
           FLOW_URL="${APP_BASE_URL%/}/api/cron/email-flow-runner"
           FLOW_RESPONSE_FILE=/tmp/email-flow-runner-response.json

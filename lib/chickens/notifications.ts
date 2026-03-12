@@ -1,23 +1,12 @@
 import { supabaseAdmin } from '@/lib/supabase/server';
 import { dispatchEmail } from '@/lib/email/dispatch';
 import { renderManagedTemplate } from '@/lib/email/render';
-
-type ChickenBreedRelation =
-  | { name?: string | null; name_no?: string | null; name_en?: string | null }
-  | Array<{ name?: string | null; name_no?: string | null; name_en?: string | null }>
-  | null;
-
-type ChickenAdditionRelation = {
-  quantity_hens?: number | null;
-  quantity_roosters?: number | null;
-  chicken_breeds?: ChickenBreedRelation;
-};
-
-type ChickenOrderLine = {
-  breedName: string;
-  hens: number;
-  roosters: number;
-};
+import { buildAdminOrderLink, buildCustomerOrderLink } from '@/lib/email/links';
+import {
+  buildChickenOrderLinesHtml,
+  buildTotalBirdsLabel,
+  summarizeChickenOrderLines,
+} from '@/lib/chickens/email-lines';
 
 function normalizeEmail(value: unknown): string {
   if (typeof value !== 'string') return '';
@@ -34,88 +23,6 @@ function getChickenDeliveryLabel(deliveryMethod: string): string {
   return deliveryMethod || 'Henting';
 }
 
-function pickBreedName(relation: ChickenBreedRelation): string {
-  const breed = Array.isArray(relation) ? relation[0] : relation;
-  return breed?.name_no || breed?.name_en || breed?.name || 'Kyllinger';
-}
-
-function escapeHtml(value: string): string {
-  return value
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#39;');
-}
-
-function summarizeOrder(order: any): { breedLabel: string; hens: number; roosters: number; lines: ChickenOrderLine[] } {
-  const aggregate = new Map<string, ChickenOrderLine>();
-  const addLine = (breedName: string, hens: number, roosters: number) => {
-    const key = (breedName || 'Kyllinger').trim() || 'Kyllinger';
-    const existing = aggregate.get(key) || { breedName: key, hens: 0, roosters: 0 };
-    existing.hens += Number(hens || 0);
-    existing.roosters += Number(roosters || 0);
-    aggregate.set(key, existing);
-  };
-
-  addLine(pickBreedName(order?.chicken_breeds || null), Number(order?.quantity_hens || 0), Number(order?.quantity_roosters || 0));
-
-  const additions: ChickenAdditionRelation[] = Array.isArray(order?.chicken_order_additions)
-    ? order.chicken_order_additions
-    : [];
-
-  for (const addition of additions) {
-    addLine(
-      pickBreedName(addition?.chicken_breeds || null),
-      Number(addition?.quantity_hens || 0),
-      Number(addition?.quantity_roosters || 0)
-    );
-  }
-
-  const lines = Array.from(aggregate.values()).filter((line) => line.hens > 0 || line.roosters > 0);
-  const hens = lines.reduce((sum, line) => sum + line.hens, 0);
-  const roosters = lines.reduce((sum, line) => sum + line.roosters, 0);
-
-  return {
-    breedLabel: lines.map((line) => line.breedName).join(' + '),
-    hens,
-    roosters,
-    lines,
-  };
-}
-
-function buildOrderLinesHtml(lines: ChickenOrderLine[], locale: 'no' | 'en'): string {
-  if (!lines.length) {
-    return locale === 'en' ? '<p>No order lines registered.</p>' : '<p>Ingen ordrelinjer registrert.</p>';
-  }
-
-  const lineItems = lines
-    .map((line) => {
-      const breed = escapeHtml(line.breedName);
-      if (locale === 'en') {
-        if (line.roosters > 0) {
-          return `<li>${breed}: ${line.hens} hens, ${line.roosters} roosters</li>`;
-        }
-        return `<li>${breed}: ${line.hens} hens</li>`;
-      }
-
-      if (line.roosters > 0) {
-        return `<li>${breed}: ${line.hens} høner, ${line.roosters} haner</li>`;
-      }
-      return `<li>${breed}: ${line.hens} høner</li>`;
-    })
-    .join('');
-
-  return `<ul>${lineItems}</ul>`;
-}
-
-function buildTotalBirdsLabel(hens: number, roosters: number, locale: 'no' | 'en'): string {
-  if (locale === 'en') {
-    return `${hens} hens, ${roosters} roosters`;
-  }
-  return `${hens} høner, ${roosters} haner`;
-}
-
 export async function sendChickenDepositConfirmationEmails(params: {
   orderId: string;
   sourcePath: string;
@@ -126,7 +33,7 @@ export async function sendChickenDepositConfirmationEmails(params: {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_BASE_URL || 'https://tinglumgard.no';
 
   const selectClause =
-    '*, chicken_breeds(*), chicken_order_additions(quantity_hens, quantity_roosters, chicken_breeds(*))';
+    '*, chicken_breeds(*), chicken_order_additions(quantity_hens, quantity_roosters, subtotal_nok, price_per_hen_nok, price_per_rooster_nok, chicken_breeds(*))';
 
   const { data: byId, error: byIdError } = await supabaseAdmin
     .from('chicken_orders')
@@ -171,10 +78,10 @@ export async function sendChickenDepositConfirmationEmails(params: {
     };
   }
 
-  const summary = summarizeOrder(order);
+  const summary = summarizeChickenOrderLines(order);
   const pickupDate = order.pickup_monday ? new Date(`${order.pickup_monday}T00:00:00`).toLocaleDateString('nb-NO') : '';
-  const orderLinesHtmlNo = buildOrderLinesHtml(summary.lines, 'no');
-  const orderLinesHtmlEn = buildOrderLinesHtml(summary.lines, 'en');
+  const orderLinesHtmlNo = buildChickenOrderLinesHtml(summary.lines, 'no');
+  const orderLinesHtmlEn = buildChickenOrderLinesHtml(summary.lines, 'en');
 
   const customerEmail = normalizeEmail(order.customer_email);
   let customerSent = false;
@@ -199,7 +106,7 @@ export async function sendChickenDepositConfirmationEmails(params: {
         total_amount_nok: formatNok(order.total_amount_nok),
         deposit_amount_nok: formatNok(order.deposit_amount_nok),
         remainder_amount_nok: formatNok(order.remainder_amount_nok),
-        order_url: `${appUrl}/min-side?chickenOrderId=${order.id}`,
+        order_url: buildCustomerOrderLink(appUrl, 'chicken', String(order.id)),
       },
     });
 
@@ -256,7 +163,7 @@ export async function sendChickenDepositConfirmationEmails(params: {
           deposit_amount_nok: formatNok(order.deposit_amount_nok),
           remainder_amount_nok: formatNok(order.remainder_amount_nok),
           total_amount_nok: formatNok(order.total_amount_nok),
-          order_url: `${appUrl}/admin?tab=chicken-orders&orderId=${order.id}`,
+          order_url: buildAdminOrderLink(appUrl, 'chicken', String(order.id)),
         },
       });
 

@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { Package } from 'lucide-react';
@@ -11,6 +12,7 @@ import { GlassCard } from '@/components/eggs/GlassCard';
 import { ChickenOrderCard } from '@/components/ChickenOrderCard';
 import { EggOrderUnifiedCard } from '@/components/orders/EggOrderUnifiedCard';
 import { PigOrderUnifiedCard } from '@/components/orders/PigOrderUnifiedCard';
+import { cn } from '@/lib/utils';
 
 interface Payment {
   id: string;
@@ -133,6 +135,7 @@ function getIsoWeekMondayTimestamp(year: number, week: number): number {
 export default function CustomerPortalPage() {
   const { t } = useLanguage();
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
+  const searchParams = useSearchParams();
   const chickenOrdersCopy = (t as any).chickens.myOrders;
 
   const [orders, setOrders] = useState<Order[]>([]);
@@ -144,9 +147,22 @@ export default function CustomerPortalPage() {
   const [chickenOrders, setChickenOrders] = useState<ChickenOrder[]>([]);
   const [eggOrdersLoading, setEggOrdersLoading] = useState(false);
   const [chickenOrdersLoading, setChickenOrdersLoading] = useState(false);
+  const [focusedOrderKey, setFocusedOrderKey] = useState<string | null>(null);
+
+  const deepLinkOrder = useMemo(() => {
+    const chickenOrderId = String(searchParams.get('chickenOrderId') || '').trim();
+    const eggOrderId = String(searchParams.get('eggOrderId') || '').trim();
+    const pigOrderId = String(searchParams.get('orderId') || '').trim();
+
+    if (chickenOrderId) return { type: 'chicken' as const, id: chickenOrderId };
+    if (eggOrderId) return { type: 'egg' as const, id: eggOrderId };
+    if (pigOrderId) return { type: 'pig' as const, id: pigOrderId };
+    return null;
+  }, [searchParams]);
 
   async function handleVippsLogin() {
-    window.location.href = '/api/auth/vipps/login?returnTo=/min-side';
+    const returnTo = `${window.location.pathname}${window.location.search || ''}`;
+    window.location.href = `/api/auth/vipps/login?returnTo=${encodeURIComponent(returnTo)}`;
   }
 
   const loadConfig = useCallback(async () => {
@@ -232,6 +248,25 @@ export default function CustomerPortalPage() {
       setLoading(false);
     }
   }, [authLoading, isAuthenticated, loadAllOrders]);
+
+  useEffect(() => {
+    if (!deepLinkOrder) return;
+    setActiveTab('orders');
+    setOrderViewMode('chronological');
+    setFocusedOrderKey(`${deepLinkOrder.type}-${deepLinkOrder.id}`);
+  }, [deepLinkOrder]);
+
+  useEffect(() => {
+    if (!focusedOrderKey || loading || authLoading) return;
+
+    const timer = window.setTimeout(() => {
+      const target = document.getElementById(`order-card-${focusedOrderKey}`);
+      if (!target) return;
+      target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 120);
+
+    return () => window.clearTimeout(timer);
+  }, [focusedOrderKey, loading, authLoading]);
 
   function getWeekNumber(date: Date): { year: number; week: number } {
     const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
@@ -362,7 +397,10 @@ export default function CustomerPortalPage() {
           <h1 className="text-4xl font-light tracking-tight text-neutral-900 mb-4">{t.minSide.loginRequired}</h1>
           <p className="font-light text-neutral-600 mb-8">{t.minSide.loginDesc}</p>
           <button
-            onClick={() => window.location.href = '/api/auth/vipps/login?returnTo=/min-side'}
+            onClick={() => {
+              const returnTo = `${window.location.pathname}${window.location.search || ''}`;
+              window.location.href = `/api/auth/vipps/login?returnTo=${encodeURIComponent(returnTo)}`;
+            }}
             className="w-full bg-neutral-900 hover:bg-neutral-800 text-white font-light py-4 px-8 rounded-xl shadow-[0_20px_60px_-15px_rgba(0,0,0,0.3)] hover:shadow-[0_30px_80px_-20px_rgba(0,0,0,0.4)] hover:-translate-y-1 transition-all duration-300 flex items-center justify-center gap-3 uppercase tracking-wide text-sm"
           >
             <span>{t.minSide.loginWithVipps}</span>
@@ -507,7 +545,13 @@ export default function CustomerPortalPage() {
                   ) : (
                     <div className="space-y-4">
                       {eggOrders.map((order) => (
-                        <EggOrderUnifiedCard key={order.id} order={order} />
+                        <div
+                          key={order.id}
+                          id={`order-card-egg-${order.id}`}
+                          className={focusedOrderKey === `egg-${order.id}` ? 'rounded-xl ring-2 ring-amber-300 ring-offset-2' : undefined}
+                        >
+                          <EggOrderUnifiedCard order={order} />
+                        </div>
                       ))}
                     </div>
                   )}
@@ -527,13 +571,18 @@ export default function CustomerPortalPage() {
                   ) : (
                     <div className="space-y-4">
                       {orders.map((order) => (
-                        <PigOrderUnifiedCard
+                        <div
                           key={order.id}
-                          order={order}
-                          canEdit={canEdit}
-                          onPayRemainder={handlePayRemainder}
-                          onRefresh={loadAllOrders}
-                        />
+                          id={`order-card-pig-${order.id}`}
+                          className={focusedOrderKey === `pig-${order.id}` ? 'rounded-xl ring-2 ring-amber-300 ring-offset-2' : undefined}
+                        >
+                          <PigOrderUnifiedCard
+                            order={order}
+                            canEdit={canEdit}
+                            onPayRemainder={handlePayRemainder}
+                            onRefresh={loadAllOrders}
+                          />
+                        </div>
                       ))}
                     </div>
                   )}
@@ -555,11 +604,16 @@ export default function CustomerPortalPage() {
                   ) : (
                     <div className="space-y-4">
                       {chickenOrders.map((order) => (
-                        <ChickenOrderCard
+                        <div
                           key={order.id}
-                          order={order}
-                          onRefresh={loadAllOrders}
-                        />
+                          id={`order-card-chicken-${order.id}`}
+                          className={focusedOrderKey === `chicken-${order.id}` ? 'rounded-xl ring-2 ring-amber-300 ring-offset-2' : undefined}
+                        >
+                          <ChickenOrderCard
+                            order={order}
+                            onRefresh={loadAllOrders}
+                          />
+                        </div>
                       ))}
                     </div>
                   )}
@@ -568,7 +622,14 @@ export default function CustomerPortalPage() {
             ) : (
               <div className="space-y-4">
                 {unifiedOrders.map((item) => (
-                  <div key={`${item.type}-${item.id}`} className="space-y-2">
+                  <div
+                    key={`${item.type}-${item.id}`}
+                    id={`order-card-${item.type}-${item.id}`}
+                    className={cn(
+                      'space-y-2',
+                      focusedOrderKey === `${item.type}-${item.id}` ? 'rounded-xl ring-2 ring-amber-300 ring-offset-2' : ''
+                    )}
+                  >
                     <div className="flex items-center gap-2">
                       <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${orderTypeBadgeClass[item.type]}`}>
                         {orderTypeLabel[item.type]}

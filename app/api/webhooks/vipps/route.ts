@@ -4,6 +4,12 @@ import crypto from "node:crypto";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import { dispatchEmail } from "@/lib/email/dispatch";
 import { renderManagedTemplate } from "@/lib/email/render";
+import { buildAdminOrderLink, buildCustomerOrderLink } from "@/lib/email/links";
+import {
+  buildChickenOrderLinesHtml,
+  buildTotalBirdsLabel,
+  summarizeChickenOrderLines,
+} from "@/lib/chickens/email-lines";
 import { logError } from "@/lib/logger";
 import { vippsClient } from "@/lib/vipps/api-client";
 
@@ -121,77 +127,21 @@ type EggAdditionsSummary = {
   }>;
 };
 
-type ChickenOrderLine = {
+type EggOrderLine = {
+  source: 'base' | 'addition';
   breedName: string;
-  hens: number;
-  roosters: number;
+  quantity: number;
+  pricePerEggOre: number;
+  subtotalOre: number;
 };
 
-function pickChickenBreedName(
-  relation: { name_no?: string | null; name_en?: string | null; name?: string | null } | Array<{ name_no?: string | null; name_en?: string | null; name?: string | null }> | null
-): string {
-  const breed = Array.isArray(relation) ? relation[0] : relation;
-  return breed?.name_no || breed?.name_en || breed?.name || 'Kyllinger';
-}
-
-function summarizeChickenOrderLines(order: any): { lines: ChickenOrderLine[]; breedLabel: string; hens: number; roosters: number } {
-  const aggregate = new Map<string, ChickenOrderLine>();
-  const addLine = (breedName: string, hens: number, roosters: number) => {
-    const key = (breedName || 'Kyllinger').trim() || 'Kyllinger';
-    const current = aggregate.get(key) || { breedName: key, hens: 0, roosters: 0 };
-    current.hens += Number(hens || 0);
-    current.roosters += Number(roosters || 0);
-    aggregate.set(key, current);
-  };
-
-  addLine(
-    pickChickenBreedName(order?.chicken_breeds as any),
-    Number(order?.quantity_hens || 0),
-    Number(order?.quantity_roosters || 0)
-  );
-
-  const additions = Array.isArray(order?.chicken_order_additions) ? order.chicken_order_additions : [];
-  for (const addition of additions) {
-    addLine(
-      pickChickenBreedName(addition?.chicken_breeds as any),
-      Number(addition?.quantity_hens || 0),
-      Number(addition?.quantity_roosters || 0)
-    );
-  }
-
-  const lines = Array.from(aggregate.values()).filter((line) => line.hens > 0 || line.roosters > 0);
-  return {
-    lines,
-    breedLabel: lines.map((line) => line.breedName).join(' + '),
-    hens: lines.reduce((sum, line) => sum + line.hens, 0),
-    roosters: lines.reduce((sum, line) => sum + line.roosters, 0),
-  };
-}
-
-function buildChickenOrderLinesHtml(lines: ChickenOrderLine[], locale: 'no' | 'en' = 'no'): string {
-  if (!lines.length) {
-    return locale === 'en' ? '<p>No order lines registered.</p>' : '<p>Ingen ordrelinjer registrert.</p>';
-  }
-
-  const li = lines
-    .map((line) => {
-      if (locale === 'en') {
-        if (line.roosters > 0) return `<li>${line.breedName}: ${line.hens} hens, ${line.roosters} roosters</li>`;
-        return `<li>${line.breedName}: ${line.hens} hens</li>`;
-      }
-      if (line.roosters > 0) return `<li>${line.breedName}: ${line.hens} høner, ${line.roosters} haner</li>`;
-      return `<li>${line.breedName}: ${line.hens} høner</li>`;
-    })
-    .join('');
-
-  return `<ul>${li}</ul>`;
-}
-
-function buildTotalBirdsLabel(hens: number, roosters: number, locale: 'no' | 'en' = 'no'): string {
-  if (locale === 'en') {
-    return `${hens} hens, ${roosters} roosters`;
-  }
-  return `${hens} høner, ${roosters} haner`;
+function escapeHtml(value: string): string {
+  return String(value || '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
 }
 
 function summarizeEggAdditions(order: any): EggAdditionsSummary {
@@ -225,6 +175,111 @@ function summarizeEggAdditions(order: any): EggAdditionsSummary {
     totalQuantity,
     additions,
   };
+}
+
+function buildEggOrderLinesHtml(options: {
+  baseBreedName: string;
+  baseQuantity: number;
+  basePricePerEggOre: number;
+  additions: EggAdditionsSummary['additions'];
+  locale?: 'no' | 'en';
+}): string {
+  const locale = options.locale || 'no';
+  const lines: EggOrderLine[] = [];
+  const baseQuantity = Math.max(0, Math.round(Number(options.baseQuantity || 0)));
+  const basePricePerEggOre = Math.max(0, Math.round(Number(options.basePricePerEggOre || 0)));
+
+  if (baseQuantity > 0) {
+    lines.push({
+      source: 'base',
+      breedName: String(options.baseBreedName || 'Rugeegg').trim() || 'Rugeegg',
+      quantity: baseQuantity,
+      pricePerEggOre: basePricePerEggOre,
+      subtotalOre: baseQuantity * basePricePerEggOre,
+    });
+  }
+
+  for (const addition of options.additions || []) {
+    const quantity = Math.max(0, Math.round(Number(addition?.quantity || 0)));
+    if (quantity <= 0) continue;
+    const pricePerEggOre = Math.max(0, Math.round(Number(addition?.pricePerEgg || 0)));
+    const subtotalOre = Math.max(
+      0,
+      Math.round(Number(addition?.subtotal || quantity * pricePerEggOre))
+    );
+    lines.push({
+      source: 'addition',
+      breedName: String(addition?.breedName || 'Rugeegg').trim() || 'Rugeegg',
+      quantity,
+      pricePerEggOre,
+      subtotalOre,
+    });
+  }
+
+  if (lines.length === 0) return '';
+
+  const labels =
+    locale === 'en'
+      ? {
+          source: 'Line',
+          breed: 'Breed',
+          quantity: 'Qty',
+          unitPrice: 'Price / egg',
+          subtotal: 'Subtotal',
+          total: 'Total',
+          base: 'Base order',
+          addition: 'Added line',
+        }
+      : {
+          source: 'Linje',
+          breed: 'Rase',
+          quantity: 'Antall',
+          unitPrice: 'Pris / egg',
+          subtotal: 'Delsum',
+          total: 'Total',
+          base: 'Grunnordre',
+          addition: 'Tillegg',
+        };
+
+  const rows = lines
+    .map((line) => {
+      const sourceLabel = line.source === 'base' ? labels.base : labels.addition;
+      return `<tr>
+  <td style="padding:8px;border:1px solid #e5e7eb;vertical-align:top;">${escapeHtml(sourceLabel)}</td>
+  <td style="padding:8px;border:1px solid #e5e7eb;vertical-align:top;">${escapeHtml(line.breedName)}</td>
+  <td style="padding:8px;border:1px solid #e5e7eb;vertical-align:top;">${line.quantity} egg</td>
+  <td style="padding:8px;border:1px solid #e5e7eb;vertical-align:top;text-align:right;">${formatOreToNokWithPrefix(
+    line.pricePerEggOre
+  )}</td>
+  <td style="padding:8px;border:1px solid #e5e7eb;vertical-align:top;text-align:right;">${formatOreToNokWithPrefix(
+    line.subtotalOre
+  )}</td>
+</tr>`;
+    })
+    .join('');
+
+  const totalOre = lines.reduce((sum, line) => sum + line.subtotalOre, 0);
+
+  return `<table role="presentation" cellspacing="0" cellpadding="0" style="width:100%;border-collapse:collapse;margin:8px 0;">
+  <thead>
+    <tr style="background:#f9fafb;">
+      <th style="text-align:left;padding:8px;border:1px solid #e5e7eb;">${labels.source}</th>
+      <th style="text-align:left;padding:8px;border:1px solid #e5e7eb;">${labels.breed}</th>
+      <th style="text-align:left;padding:8px;border:1px solid #e5e7eb;">${labels.quantity}</th>
+      <th style="text-align:right;padding:8px;border:1px solid #e5e7eb;">${labels.unitPrice}</th>
+      <th style="text-align:right;padding:8px;border:1px solid #e5e7eb;">${labels.subtotal}</th>
+    </tr>
+  </thead>
+  <tbody>
+    ${rows}
+    <tr style="background:#f9fafb;">
+      <td colspan="4" style="padding:8px;border:1px solid #e5e7eb;text-align:right;font-weight:700;">${labels.total}</td>
+      <td style="padding:8px;border:1px solid #e5e7eb;text-align:right;font-weight:700;">${formatOreToNokWithPrefix(
+        totalOre
+      )}</td>
+    </tr>
+  </tbody>
+</table>`;
 }
 
 function formatNok(amount: number): string {
@@ -266,9 +321,15 @@ function buildPigExtrasHtml(extraProducts: any[]): string {
 }
 
 function buildOrderUrl(appUrl: string, scope: 'order' | 'egg_order' | 'chicken_order', id: string): string {
-  if (scope === 'egg_order') return `${appUrl}/min-side?eggOrderId=${id}`;
-  if (scope === 'chicken_order') return `${appUrl}/min-side?chickenOrderId=${id}`;
-  return `${appUrl}/min-side?orderId=${id}`;
+  if (scope === 'egg_order') return buildCustomerOrderLink(appUrl, 'egg', id);
+  if (scope === 'chicken_order') return buildCustomerOrderLink(appUrl, 'chicken', id);
+  return buildCustomerOrderLink(appUrl, 'pig', id);
+}
+
+function buildAdminUrl(appUrl: string, scope: 'order' | 'egg_order' | 'chicken_order', id: string): string {
+  if (scope === 'egg_order') return buildAdminOrderLink(appUrl, 'egg', id);
+  if (scope === 'chicken_order') return buildAdminOrderLink(appUrl, 'chicken', id);
+  return buildAdminOrderLink(appUrl, 'pig', id);
 }
 
 function normalizeEmail(value: unknown): string {
@@ -338,19 +399,17 @@ async function enrichChickenOrderContact(order: any, payment: any): Promise<any>
 
   if (Object.keys(patch).length === 0) return order;
 
-  const { data: updatedOrder, error } = await supabaseAdmin
+  const { error } = await supabaseAdmin
     .from('chicken_orders')
     .update(patch)
-    .eq('id', order.id)
-    .select('*, chicken_breeds(*)')
-    .maybeSingle();
+    .eq('id', order.id);
 
   if (error) {
     logError('vipps-webhook-chicken-contact-update', error);
     return { ...order, ...patch };
   }
 
-  return updatedOrder || { ...order, ...patch };
+  return { ...order, ...patch };
 }
 
 async function attachChickenOrderToVippsUser(order: any): Promise<any> {
@@ -619,7 +678,7 @@ export async function POST(request: NextRequest) {
     if (isChickenPayment) {
       const result = await supabaseAdmin
         .from("chicken_orders")
-        .select("*, chicken_breeds(*), chicken_order_additions(quantity_hens, quantity_roosters, chicken_breeds(name_no, name_en, name))")
+        .select("*, chicken_breeds(*), chicken_order_additions(quantity_hens, quantity_roosters, price_per_hen_nok, price_per_rooster_nok, subtotal_nok, chicken_breeds(name_no, name_en, name))")
         .eq("id", resolvedPayment.chicken_order_id)
         .single();
       order = result.data;
@@ -663,20 +722,16 @@ export async function POST(request: NextRequest) {
       order = await attachChickenOrderToVippsUser(order);
     }
 
-    const formatOreToNok = (amountOre: number) =>
-      Math.round((Number(amountOre) || 0) / 100).toLocaleString('nb-NO');
     const eggSummary = isEggPayment ? summarizeEggAdditions(order) : null;
-    const eggAdditionsHtml =
-      eggSummary && eggSummary.additions.length > 0
-        ? `<p><strong>Tilleggslinjer:</strong></p><ul>${eggSummary.additions
-            .map(
-              (addition) =>
-                `<li>${addition.breedName}: ${addition.quantity} egg x kr ${formatOreToNok(
-                  addition.pricePerEgg
-                )} = kr ${formatOreToNok(addition.subtotal)}</li>`
-            )
-            .join('')}</ul>`
-        : '<p><strong>Tilleggslinjer:</strong> Ingen</p>';
+    const eggAdditionsHtml = eggSummary
+      ? buildEggOrderLinesHtml({
+          baseBreedName: eggBreedName || order?.breed_name || 'Rugeegg',
+          baseQuantity: Number(order?.quantity || 0),
+          basePricePerEggOre: Number(order?.price_per_egg || 0),
+          additions: eggSummary.additions,
+          locale: 'no',
+        })
+      : '';
 
     // If deposit completed, update order status and send confirmation email
     if (resolvedPayment.payment_type === "deposit") {
@@ -724,17 +779,18 @@ export async function POST(request: NextRequest) {
               },
             });
 
-            if (rendered) {
-              await dispatchEmail({
-                to: customerEmailForSend,
-                subject: rendered.subject,
-                html: rendered.html,
-                classification: 'transactional',
-                templateKey: rendered.templateKey,
-                sourcePath: '/api/webhooks/vipps',
-                eggOrderId: order.id,
-              });
+            if (!rendered) {
+              throw new Error('Missing template egg.order.deposit.confirmed.customer');
             }
+            await dispatchEmail({
+              to: customerEmailForSend,
+              subject: rendered.subject,
+              html: rendered.html,
+              classification: 'transactional',
+              templateKey: rendered.templateKey,
+              sourcePath: '/api/webhooks/vipps',
+              eggOrderId: order.id,
+            });
           } else if (isChickenPayment) {
             const chickenSummary = summarizeChickenOrderLines(order);
             const rendered = await renderManagedTemplate({
@@ -758,17 +814,18 @@ export async function POST(request: NextRequest) {
               },
             });
 
-            if (rendered) {
-              await dispatchEmail({
-                to: customerEmailForSend,
-                subject: rendered.subject,
-                html: rendered.html,
-                classification: 'transactional',
-                templateKey: rendered.templateKey,
-                sourcePath: '/api/webhooks/vipps',
-                chickenOrderId: order.id,
-              });
+            if (!rendered) {
+              throw new Error('Missing template chicken.order.deposit.confirmed.customer');
             }
+            await dispatchEmail({
+              to: customerEmailForSend,
+              subject: rendered.subject,
+              html: rendered.html,
+              classification: 'transactional',
+              templateKey: rendered.templateKey,
+              sourcePath: '/api/webhooks/vipps',
+              chickenOrderId: order.id,
+            });
           } else {
             const displayBoxName = order.mangalitsa_preset?.name_no || order.mangalitsa_preset?.name_en || null;
             const boxDisplay = displayBoxName || 'Mangalitsa-boks';
@@ -795,17 +852,18 @@ export async function POST(request: NextRequest) {
               },
             });
 
-            if (rendered) {
-              await dispatchEmail({
-                to: customerEmailForSend,
-                subject: rendered.subject,
-                html: rendered.html,
-                classification: 'transactional',
-                templateKey: rendered.templateKey,
-                sourcePath: '/api/webhooks/vipps',
-                orderId: order.id,
-              });
+            if (!rendered) {
+              throw new Error('Missing template pig.order.deposit.confirmed.customer');
             }
+            await dispatchEmail({
+              to: customerEmailForSend,
+              subject: rendered.subject,
+              html: rendered.html,
+              classification: 'transactional',
+              templateKey: rendered.templateKey,
+              sourcePath: '/api/webhooks/vipps',
+              orderId: order.id,
+            });
           }
         } catch (emailError) {
           logError('vipps-webhook-deposit-email', emailError);
@@ -843,7 +901,7 @@ export async function POST(request: NextRequest) {
               deposit_amount_nok: formatOreToNokWithPrefix(order.deposit_amount),
               remainder_amount_nok: formatOreToNokWithPrefix(order.remainder_amount),
               total_amount_nok: formatOreToNokWithPrefix(order.total_amount),
-              order_url: `${appUrl}/admin?tab=egg-orders&orderId=${order.id}`,
+              order_url: buildAdminUrl(appUrl, 'egg_order', String(order.id)),
             };
           } else if (isChickenPayment) {
             templateKey = 'admin.order.deposit.confirmed.chicken';
@@ -865,7 +923,7 @@ export async function POST(request: NextRequest) {
               deposit_amount_nok: formatNok(order.deposit_amount_nok),
               remainder_amount_nok: formatNok(order.remainder_amount_nok),
               total_amount_nok: formatNok(order.total_amount_nok),
-              order_url: `${appUrl}/admin?tab=chicken-orders&orderId=${order.id}`,
+              order_url: buildAdminUrl(appUrl, 'chicken_order', String(order.id)),
             };
           } else {
             const discountAmount = order.referral_discount_amount || order.rebate_discount_amount || 0;
@@ -884,7 +942,7 @@ export async function POST(request: NextRequest) {
               deposit_amount_nok: formatNok(order.deposit_amount),
               remainder_amount_nok: formatNok(order.remainder_amount),
               total_amount_nok: formatNok(order.total_amount),
-              order_url: `${appUrl}/admin?tab=orders&orderId=${order.id}`,
+              order_url: buildAdminUrl(appUrl, 'order', String(order.id)),
             };
           }
 
@@ -963,17 +1021,18 @@ export async function POST(request: NextRequest) {
               },
             });
 
-            if (rendered) {
-              await dispatchEmail({
-                to: customerEmailForSend,
-                subject: rendered.subject,
-                html: rendered.html,
-                classification: 'transactional',
-                templateKey: rendered.templateKey,
-                sourcePath: '/api/webhooks/vipps',
-                eggOrderId: order.id,
-              });
+            if (!rendered) {
+              throw new Error('Missing template egg.order.remainder.paid.customer');
             }
+            await dispatchEmail({
+              to: customerEmailForSend,
+              subject: rendered.subject,
+              html: rendered.html,
+              classification: 'transactional',
+              templateKey: rendered.templateKey,
+              sourcePath: '/api/webhooks/vipps',
+              eggOrderId: order.id,
+            });
           } else if (isChickenPayment) {
             const rendered = await renderManagedTemplate({
               templateKey: 'chicken.order.remainder.paid.customer',
@@ -987,17 +1046,18 @@ export async function POST(request: NextRequest) {
               },
             });
 
-            if (rendered) {
-              await dispatchEmail({
-                to: customerEmailForSend,
-                subject: rendered.subject,
-                html: rendered.html,
-                classification: 'transactional',
-                templateKey: rendered.templateKey,
-                sourcePath: '/api/webhooks/vipps',
-                chickenOrderId: order.id,
-              });
+            if (!rendered) {
+              throw new Error('Missing template chicken.order.remainder.paid.customer');
             }
+            await dispatchEmail({
+              to: customerEmailForSend,
+              subject: rendered.subject,
+              html: rendered.html,
+              classification: 'transactional',
+              templateKey: rendered.templateKey,
+              sourcePath: '/api/webhooks/vipps',
+              chickenOrderId: order.id,
+            });
           } else {
             const displayBoxWeight = order.box_size || order.mangalitsa_preset?.target_weight_kg || 0;
             const displayBoxName = order.mangalitsa_preset?.name_no || order.mangalitsa_preset?.name_en || null;
@@ -1018,17 +1078,18 @@ export async function POST(request: NextRequest) {
               },
             });
 
-            if (rendered) {
-              await dispatchEmail({
-                to: customerEmailForSend,
-                subject: rendered.subject,
-                html: rendered.html,
-                classification: 'transactional',
-                templateKey: rendered.templateKey,
-                sourcePath: '/api/webhooks/vipps',
-                orderId: order.id,
-              });
+            if (!rendered) {
+              throw new Error('Missing template pig.order.remainder.paid.customer');
             }
+            await dispatchEmail({
+              to: customerEmailForSend,
+              subject: rendered.subject,
+              html: rendered.html,
+              classification: 'transactional',
+              templateKey: rendered.templateKey,
+              sourcePath: '/api/webhooks/vipps',
+              orderId: order.id,
+            });
           }
         } catch (emailError) {
           logError('vipps-webhook-remainder-email', emailError);

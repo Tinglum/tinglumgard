@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/server';
 import { requireAdminAccess } from '@/app/api/admin/email/_shared';
 import { isMissingEmailRelationError } from '@/lib/email/schema';
+import { lintManagedTemplate } from '@/lib/email/template-lint';
 
 export async function POST(
   request: NextRequest,
@@ -17,13 +18,9 @@ export async function POST(
   const bodyEn = String(body?.bodyEn || '').trim();
   const changeNote = typeof body?.changeNote === 'string' ? body.changeNote : null;
 
-  if (!subjectNo || !subjectEn || !bodyNo || !bodyEn) {
-    return NextResponse.json({ error: 'Missing version content' }, { status: 400 });
-  }
-
   const { data: template, error: templateError } = await supabaseAdmin
     .from('email_templates')
-    .select('id, current_version')
+    .select('id, template_key, classification, current_version')
     .eq('id', params.id)
     .single();
 
@@ -36,6 +33,19 @@ export async function POST(
     }
 
     return NextResponse.json({ error: 'Template not found' }, { status: 404 });
+  }
+
+  const lint = lintManagedTemplate({
+    subjectNo,
+    subjectEn,
+    bodyNo,
+    bodyEn,
+    variables: body?.variables,
+    classification: String(template.classification || ''),
+    templateKey: String(template.template_key || ''),
+  });
+  if (!lint.ok) {
+    return NextResponse.json({ error: 'Template validation failed', details: lint.errors }, { status: 400 });
   }
 
   const nextVersion = Number(template.current_version || 0) + 1;
@@ -74,6 +84,7 @@ export async function POST(
       subject_en: subjectEn,
       body_no: bodyNo,
       body_en: bodyEn,
+      variables: lint.normalizedVariables,
       current_version: nextVersion,
     })
     .eq('id', params.id)

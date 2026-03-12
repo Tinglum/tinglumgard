@@ -31,11 +31,16 @@ export function isMissingEmailRelationError(error: unknown): boolean {
     code === '42p01' ||
     code === '42703' ||
     code === '22p02' ||
+    code === 'pgrst200' ||
+    code === 'pgrst201' ||
     code === 'pgrst204' ||
     code === 'pgrst205' ||
+    message.includes("type \"email_") && message.includes('does not exist') ||
     message.includes('invalid input value for enum') ||
     message.includes("could not find the table 'public.email_") ||
     message.includes("could not find the column 'public.email_") ||
+    message.includes('could not find a relationship between') ||
+    message.includes('schema cache') && message.includes('email_') ||
     (message.includes('relation') && message.includes('does not exist'))
   );
 }

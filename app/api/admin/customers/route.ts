@@ -678,6 +678,58 @@ async function getCustomerProfile(customerId: string) {
       byClassification: {} as Record<string, number>,
     }
   );
+
+  const nowIso = new Date().toISOString();
+  const overdueScheduledCount = scheduledCommunications.filter((entry) => {
+    if (!entry.scheduledFor) return false;
+    return entry.status === 'scheduled' && entry.scheduledFor <= nowIso;
+  }).length;
+
+  const expectedConfirmationTemplateBySource: Record<'pig' | 'egg' | 'chicken', string> = {
+    pig: 'pig.order.deposit.confirmed.customer',
+    egg: 'egg.order.deposit.confirmed.customer',
+    chicken: 'chicken.order.deposit.confirmed.customer',
+  };
+
+  const missingConfirmationOrders = sortedOrders
+    .filter((order) => ['deposit_paid', 'fully_paid', 'paid', 'ready_for_pickup', 'completed'].includes(order.status))
+    .filter((order) => {
+      const expectedTemplate = expectedConfirmationTemplateBySource[order.source];
+      return !communications.some((entry) => {
+        if (entry.templateKey !== expectedTemplate) return false;
+        if (order.source === 'pig') return entry.orderRefs.orderId === order.id;
+        if (order.source === 'egg') return entry.orderRefs.eggOrderId === order.id;
+        return entry.orderRefs.chickenOrderId === order.id;
+      });
+    })
+    .map((order) => ({
+      orderId: order.id,
+      orderNumber: order.orderNumber,
+      source: order.source,
+      expectedTemplate: expectedConfirmationTemplateBySource[order.source],
+    }));
+
+  const consistencyIssues: string[] = [];
+  if (overdueScheduledCount > 0) {
+    consistencyIssues.push(`${overdueScheduledCount} planlagte e-poster er forfalt uten utsending`);
+  }
+  if (missingConfirmationOrders.length > 0) {
+    consistencyIssues.push(`${missingConfirmationOrders.length} ordre mangler bekreftelses-e-post`);
+  }
+  if (communicationStats.failed > 0) {
+    consistencyIssues.push(`${communicationStats.failed} e-poster har feilet i historikken`);
+  }
+
+  const emailConsistency = {
+    ok: consistencyIssues.length === 0,
+    planned: scheduledCommunications.length,
+    sent: communicationStats.sent,
+    failed: communicationStats.failed,
+    cancelled: communicationStats.cancelled,
+    overdueScheduled: overdueScheduledCount,
+    missingConfirmations: missingConfirmationOrders,
+    issues: consistencyIssues,
+  };
   const suppressionEntry = suppression as
     | { reason?: string | null; source?: string | null; created_at?: string | null }
     | null;
@@ -745,6 +797,7 @@ async function getCustomerProfile(customerId: string) {
       error: lifecycleMaterialize.error || null,
       missing_tables: lifecycleMaterialize.missingTables,
     },
+    email_consistency: emailConsistency,
     email_controls: {
       email: bestEmail || null,
       suppressed: Boolean(suppressionEntry),

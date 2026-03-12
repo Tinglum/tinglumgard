@@ -321,8 +321,8 @@ export async function POST(request: NextRequest) {
           .single();
 
         if (codeRecord) {
-          // Calculate credit for referrer (10% of original deposit before discount)
-          const creditAmount = Math.round(baseDepositAmount * 0.10);
+          // Calculate credit for referrer (20% of original deposit before discount)
+          const creditAmount = Math.round(baseDepositAmount * 0.20);
 
           // Create referral tracking
           await supabaseAdmin
@@ -335,7 +335,7 @@ export async function POST(request: NextRequest) {
               order_number: order.order_number,
               discount_percentage: 20.00,
               discount_amount_nok: referralDiscountAmount,
-              credit_percentage: 10.00,
+              credit_percentage: 20.00,
               credit_amount_nok: creditAmount,
               referee_name: customerName || 'Vipps kunde',
               referee_email: customerEmail,

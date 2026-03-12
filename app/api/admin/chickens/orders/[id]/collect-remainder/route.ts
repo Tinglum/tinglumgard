@@ -1,7 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth/session';
 import { dispatchEmail } from '@/lib/email/dispatch';
 import { renderManagedTemplate } from '@/lib/email/render';
+import { buildCustomerOrderLink } from '@/lib/email/links';
 import { supabaseAdmin } from '@/lib/supabase/server';
 
 function normalizeEmail(value: unknown): string {
@@ -65,9 +66,11 @@ export async function POST(
 
   const customerEmail = normalizeEmail(order.customer_email);
   let queueId: string | null = null;
+  let emailError: string | null = null;
+  let emailSent = false;
 
   if (sendReceipt && customerEmail && customerEmail !== 'pending@vipps.no') {
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://tinglum.no';
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_BASE_URL || 'https://tinglumgard.no';
     const rendered = await renderManagedTemplate({
       templateKey: 'chicken.remainder.collected',
       locale,
@@ -75,11 +78,13 @@ export async function POST(
         customer_name: String(order.customer_name || 'Kunde'),
         order_number: String(order.order_number || ''),
         remainder_amount_nok: `kr ${remainderAmountNok.toLocaleString('nb-NO')}`,
-        order_url: `${appUrl}/min-side?chickenOrderId=${order.id}`,
+        order_url: buildCustomerOrderLink(appUrl, 'chicken', String(order.id)),
       },
     });
 
-    if (rendered) {
+    if (!rendered) {
+      emailError = 'template_not_found:chicken.remainder.collected';
+    } else {
       const result = await dispatchEmail({
         to: customerEmail,
         subject: rendered.subject,
@@ -99,6 +104,10 @@ export async function POST(
         },
       });
       queueId = result.queueId || null;
+      emailSent = result.success && !result.skipped;
+      if (!emailSent) {
+        emailError = result.error || result.skipReason || 'dispatch_failed';
+      }
     }
   }
 
@@ -108,5 +117,8 @@ export async function POST(
     status: nextStatus,
     remainderCollectedAt: nowIso,
     queueId,
+    emailSent,
+    emailError,
   });
 }
+
