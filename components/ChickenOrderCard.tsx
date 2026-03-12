@@ -14,10 +14,12 @@ type ChickenOrderAddition = {
   id: string
   hatch_id?: string | null
   breed_id?: string | null
+  age_weeks_at_pickup?: number | null
   quantity_hens: number
   quantity_roosters: number
   subtotal_nok: number
   price_per_hen_nok?: number
+  chicken_hatches?: { hatch_date?: string | null } | null
   chicken_breeds?: { name?: string; accent_color?: string } | null
 }
 
@@ -84,6 +86,14 @@ const daysBetween = (future: Date, today: Date) => {
   return Math.round(diffMs / (1000 * 60 * 60 * 24))
 }
 
+const getAgeWeeks = (hatchDate?: string | null, pickupDate?: Date | null) => {
+  if (!hatchDate || !pickupDate) return 0
+  const hatch = toDateOnly(hatchDate)
+  const diffMs = pickupDate.getTime() - hatch.getTime()
+  if (!Number.isFinite(diffMs) || diffMs < 0) return 0
+  return Math.floor(diffMs / (7 * 24 * 60 * 60 * 1000))
+}
+
 const getIsoWeekMondayDate = (year: number, week: number) => {
   const simple = new Date(Date.UTC(year, 0, 1 + (week - 1) * 7))
   const day = simple.getUTCDay() || 7
@@ -121,30 +131,57 @@ export function ChickenOrderCard({ order, onPayRemainder, onRefresh }: ChickenOr
     (Number(order.quantity_roosters || 0) * Number(order.price_per_rooster_nok || 0))
 
   const orderLines = useMemo(() => {
-    const grouped = new Map<string, { key: string; breedName: string; hens: number; roosters: number; subtotalNok: number }>()
+    const pickupDate = getIsoWeekMondayDate(order.pickup_year, order.pickup_week)
+    const grouped = new Map<
+      string,
+      {
+        key: string
+        breedName: string
+        hens: number
+        roosters: number
+        subtotalNok: number
+        ageWeeksAtPickup: number | null
+      }
+    >()
     const baseBreedName = order.chicken_breeds?.name || common.defaultChickenName
-    const baseKey = String(order.breed_id || baseBreedName)
+    const baseAge =
+      Number.isFinite(Number(order.age_weeks_at_pickup)) && Number(order.age_weeks_at_pickup) > 0
+        ? Number(order.age_weeks_at_pickup)
+        : null
+    const baseKey = `${String(order.breed_id || baseBreedName)}:${baseAge ?? 'na'}`
     grouped.set(baseKey, {
       key: baseKey,
       breedName: baseBreedName,
       hens: Number(order.quantity_hens || 0),
       roosters: Number(order.quantity_roosters || 0),
       subtotalNok: Math.max(0, baseSubtotal),
+      ageWeeksAtPickup: baseAge,
     })
 
     for (const addition of order.chicken_order_additions || []) {
       const breedName = addition.chicken_breeds?.name || common.defaultChickenName
-      const key = String(addition.breed_id || breedName || common.defaultChickenName)
+      const explicitAge =
+        Number.isFinite(Number(addition.age_weeks_at_pickup)) && Number(addition.age_weeks_at_pickup) > 0
+          ? Number(addition.age_weeks_at_pickup)
+          : null
+      const computedAge = getAgeWeeks(addition.chicken_hatches?.hatch_date || null, pickupDate)
+      const ageWeeksAtPickup = explicitAge ?? (computedAge > 0 ? computedAge : null)
+      const key = `${String(addition.breed_id || breedName || common.defaultChickenName)}:${ageWeeksAtPickup ?? 'na'}`
       const current = grouped.get(key) || {
         key,
         breedName,
         hens: 0,
         roosters: 0,
         subtotalNok: 0,
+        ageWeeksAtPickup,
       }
       current.hens += Number(addition.quantity_hens || 0)
       current.roosters += Number(addition.quantity_roosters || 0)
-      current.subtotalNok += Number(addition.subtotal_nok || 0)
+      const additionSubtotal =
+        Number(addition.subtotal_nok || 0) > 0
+          ? Number(addition.subtotal_nok || 0)
+          : Number(addition.quantity_hens || 0) * Number(addition.price_per_hen_nok || order.price_per_hen_nok || 0)
+      current.subtotalNok += additionSubtotal
       grouped.set(key, current)
     }
 
@@ -154,9 +191,35 @@ export function ChickenOrderCard({ order, onPayRemainder, onRefresh }: ChickenOr
     common.defaultChickenName,
     order.chicken_breeds?.name,
     order.chicken_order_additions,
+    order.age_weeks_at_pickup,
+    order.pickup_week,
+    order.pickup_year,
+    order.price_per_hen_nok,
     order.quantity_hens,
     order.quantity_roosters,
   ])
+
+  const uniqueAges = useMemo(() => {
+    const ages = Array.from(
+      new Set(
+        orderLines
+          .map((line) => (line.ageWeeksAtPickup !== null ? Number(line.ageWeeksAtPickup) : NaN))
+          .filter((age) => Number.isFinite(age) && age > 0)
+      )
+    )
+    ages.sort((a, b) => a - b)
+    return ages
+  }, [orderLines])
+
+  const ageSummaryLabel = useMemo(() => {
+    if (uniqueAges.length === 0) {
+      return `${order.age_weeks_at_pickup} ${myOrdersCopy.weeksLabel}`
+    }
+    if (uniqueAges.length === 1) {
+      return `${uniqueAges[0]} ${myOrdersCopy.weeksLabel}`
+    }
+    return `${uniqueAges[0]}-${uniqueAges[uniqueAges.length - 1]} ${myOrdersCopy.weeksLabel}`
+  }, [myOrdersCopy.weeksLabel, order.age_weeks_at_pickup, uniqueAges])
 
   const totalHens = orderLines.reduce((sum, line) => sum + line.hens, 0)
   const totalRoosters = orderLines.reduce((sum, line) => sum + line.roosters, 0)
@@ -464,7 +527,14 @@ export function ChickenOrderCard({ order, onPayRemainder, onRefresh }: ChickenOr
                 {orderLines.map((line) => (
                   <div key={line.key} className="rounded-md border border-neutral-200 bg-neutral-50 px-3 py-2 text-sm">
                     <div className="flex items-center justify-between gap-2">
-                      <span className="text-neutral-800">{line.breedName}</span>
+                      <div>
+                        <span className="text-neutral-800">{line.breedName}</span>
+                        {line.ageWeeksAtPickup !== null && (
+                          <p className="text-xs text-neutral-500">
+                            {myOrdersCopy.ageLabel}: {line.ageWeeksAtPickup} {myOrdersCopy.weeksLabel}
+                          </p>
+                        )}
+                      </div>
                       <span className="text-neutral-600">
                         {line.hens} {myOrdersCopy.hensLabel}
                         {line.roosters > 0 ? ` + ${line.roosters} ${myOrdersCopy.roostersLabel}` : ''}
@@ -501,8 +571,13 @@ export function ChickenOrderCard({ order, onPayRemainder, onRefresh }: ChickenOr
             <div className="text-sm text-neutral-600">
               <p className="text-xs uppercase tracking-[0.2em] text-neutral-500">{myOrdersCopy.ageLabel}</p>
               <p className="font-normal text-neutral-900">
-                {order.age_weeks_at_pickup} {myOrdersCopy.weeksLabel}
+                {ageSummaryLabel}
               </p>
+              {uniqueAges.length > 1 && (
+                <p className="text-xs text-neutral-500">
+                  {lang === 'en' ? 'Multiple ages by order line' : 'Flere aldre per ordrelinje'}
+                </p>
+              )}
             </div>
             <div className="text-sm text-neutral-600">
               <p className="text-xs uppercase tracking-[0.2em] text-neutral-500">{myOrdersCopy.pricePerHenLabel}</p>

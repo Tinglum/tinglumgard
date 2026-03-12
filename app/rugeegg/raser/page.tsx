@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { useLanguage } from '@/contexts/LanguageContext'
 import { formatPrice } from '@/lib/eggs/utils'
 import { GlassCard } from '@/components/eggs/GlassCard'
@@ -13,6 +14,7 @@ import type { Breed } from '@/lib/eggs/types'
 
 export default function BreedsPage() {
   const { lang: language, t } = useLanguage()
+  const searchParams = useSearchParams()
   const loadBreedsError = t.eggs.errors.loadBreeds
   const [breeds, setBreeds] = useState<Breed[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -21,6 +23,8 @@ export default function BreedsPage() {
     () => localizeBreeds(breeds, t.eggs.breedDetails),
     [breeds, t.eggs.breedDetails]
   )
+  const linkedOrderId = String(searchParams.get('orderId') || '').trim()
+  const wishlistIntent = searchParams.get('wishlist') === '1'
 
   useEffect(() => {
     let isActive = true
@@ -71,7 +75,17 @@ export default function BreedsPage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: index * 0.1 }}
               >
-                <Link href={`/rugeegg/raser/${breed.slug}`}>
+                <Link
+                  href={{
+                    pathname: `/rugeegg/raser/${breed.slug}`,
+                    query: linkedOrderId
+                      ? {
+                          orderId: linkedOrderId,
+                          ...(wishlistIntent ? { waitlist: '1' } : {}),
+                        }
+                      : undefined,
+                  }}
+                >
                   <GlassCard interactive accentBorder={breed.accentColor} className="p-6 h-full">
                     <div className="flex items-start gap-4 mb-4">
                       <div
@@ -107,7 +121,9 @@ export default function BreedsPage() {
                           {formatPrice(breed.pricePerEgg, language)}
                         </div>
                         <div className="text-xs text-neutral-500">
-                          {t.breed.minOrder}: {breed.minOrderQuantity} {t.breed.eggs}
+                          {breed.slug === 'ayam-cemani'
+                            ? t.eggs.cart.ayamOrderDescription
+                            : t.eggs.cart.mixedOrderDescription}
                         </div>
                       </div>
                       <div className="text-neutral-700 flex items-center gap-1">

@@ -133,7 +133,7 @@ function getIsoWeekMondayTimestamp(year: number, week: number): number {
 }
 
 export default function CustomerPortalPage() {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const searchParams = useSearchParams();
   const chickenOrdersCopy = (t as any).chickens.myOrders;
@@ -145,6 +145,8 @@ export default function CustomerPortalPage() {
   const [orderViewMode, setOrderViewMode] = useState<OrderViewMode>('chronological');
   const [eggOrders, setEggOrders] = useState<EggOrder[]>([]);
   const [chickenOrders, setChickenOrders] = useState<ChickenOrder[]>([]);
+  const [eggWishlistRequests, setEggWishlistRequests] = useState<any[]>([]);
+  const [eggWishlistLoading, setEggWishlistLoading] = useState(false);
   const [eggOrdersLoading, setEggOrdersLoading] = useState(false);
   const [chickenOrdersLoading, setChickenOrdersLoading] = useState(false);
   const [focusedOrderKey, setFocusedOrderKey] = useState<string | null>(null);
@@ -235,11 +237,38 @@ export default function CustomerPortalPage() {
     }
   }, []);
 
+  const loadEggWishlistRequests = useCallback(async () => {
+    setEggWishlistLoading(true);
+    try {
+      const response = await fetch('/api/eggs/wishlist/me', { cache: 'no-store' });
+      if (response.status === 401) {
+        setEggWishlistRequests([]);
+        return;
+      }
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data?.error || 'Failed to load wishlist requests');
+      }
+      setEggWishlistRequests(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error('Failed to load wishlist requests:', error);
+      setEggWishlistRequests([]);
+    } finally {
+      setEggWishlistLoading(false);
+    }
+  }, []);
+
   const loadAllOrders = useCallback(async () => {
     setLoading(true);
-    await Promise.all([loadPigOrders(), loadEggOrders(), loadChickenOrders(), loadConfig()]);
+    await Promise.all([
+      loadPigOrders(),
+      loadEggOrders(),
+      loadChickenOrders(),
+      loadEggWishlistRequests(),
+      loadConfig(),
+    ]);
     setLoading(false);
-  }, [loadPigOrders, loadEggOrders, loadChickenOrders, loadConfig]);
+  }, [loadPigOrders, loadEggOrders, loadChickenOrders, loadEggWishlistRequests, loadConfig]);
 
   useEffect(() => {
     if (!authLoading && isAuthenticated) {
@@ -662,6 +691,86 @@ export default function CustomerPortalPage() {
                 ))}
               </div>
             )}
+
+            <GlassCard className="p-6">
+              <div className="flex items-center justify-between gap-3 mb-4">
+                <h3 className="text-xl font-normal text-neutral-900">
+                  {lang === 'no' ? 'Ønskeliste ekstra egg' : 'Extra eggs wishlist'}
+                </h3>
+                <span className="text-xs text-neutral-500">
+                  {eggWishlistRequests.length} {lang === 'no' ? 'forespørsler' : 'requests'}
+                </span>
+              </div>
+
+              {eggWishlistLoading ? (
+                <div className="text-sm text-neutral-500">{lang === 'no' ? 'Laster ønskeliste...' : 'Loading wishlist...'}</div>
+              ) : eggWishlistRequests.length === 0 ? (
+                <div className="text-sm text-neutral-500">
+                  {lang === 'no'
+                    ? 'Ingen aktive ønskelister ennå.'
+                    : 'No active wishlist requests yet.'}
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {eggWishlistRequests.map((request) => {
+                    const status = String(request?.status || 'open');
+                    const statusLabel =
+                      lang === 'no'
+                        ? ({
+                            open: 'Ønsket',
+                            partially_allocated: 'Delvis tildelt',
+                            allocated: 'Tildelt',
+                            closed: 'Lukket',
+                            cancelled: 'Avbrutt',
+                            expired: 'Utløpt',
+                          } as Record<string, string>)[status] || status
+                        : ({
+                            open: 'Wanted',
+                            partially_allocated: 'Partially allocated',
+                            allocated: 'Allocated',
+                            closed: 'Closed',
+                            cancelled: 'Cancelled',
+                            expired: 'Expired',
+                          } as Record<string, string>)[status] || status;
+
+                    const orderNumber = request?.egg_orders?.order_number || null;
+                    const deliveryMonday = request?.delivery_monday
+                      ? new Date(request.delivery_monday).toLocaleDateString(lang === 'no' ? 'nb-NO' : 'en-GB')
+                      : '-';
+                    const items = Array.isArray(request?.egg_wishlist_items) ? request.egg_wishlist_items : [];
+
+                    return (
+                      <div key={request.id} className="rounded-xl border border-neutral-200 bg-white p-4">
+                        <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                          <div className="text-sm text-neutral-700">
+                            {lang === 'no' ? 'Uke' : 'Week'} {request.week_number}/{request.year} • {deliveryMonday}
+                            {orderNumber ? ` • ${lang === 'no' ? 'Ordre' : 'Order'} ${orderNumber}` : ''}
+                          </div>
+                          <span className="rounded-full bg-neutral-100 px-2.5 py-1 text-xs text-neutral-700">
+                            {statusLabel}
+                          </span>
+                        </div>
+                        <div className="space-y-1">
+                          {items.map((item: any) => (
+                            <div
+                              key={item.id}
+                              className="flex items-center justify-between text-sm rounded-md bg-neutral-50 px-3 py-2"
+                            >
+                              <span>{item?.egg_breeds?.name || t.eggs.common.fallbackBreed}</span>
+                              <span className="text-neutral-600">
+                                {lang === 'no'
+                                  ? `Ønsket ${item.qty_requested}, tildelt ${item.qty_allocated}, igjen ${item.qty_remaining}`
+                                  : `Wanted ${item.qty_requested}, allocated ${item.qty_allocated}, remaining ${item.qty_remaining}`}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </GlassCard>
           </div>
         )}
 

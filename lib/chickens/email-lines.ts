@@ -4,6 +4,9 @@ type ChickenBreedRelation =
   | null;
 
 type ChickenAdditionLike = {
+  hatch_id?: string | null;
+  age_weeks_at_pickup?: number | null;
+  chicken_hatches?: { hatch_date?: string | null } | null;
   quantity_hens?: number | null;
   quantity_roosters?: number | null;
   price_per_hen_nok?: number | null;
@@ -13,6 +16,10 @@ type ChickenAdditionLike = {
 };
 
 type ChickenOrderLike = {
+  hatch_id?: string | null;
+  pickup_monday?: string | null;
+  age_weeks_at_pickup?: number | null;
+  chicken_hatches?: { hatch_date?: string | null } | null;
   quantity_hens?: number | null;
   quantity_roosters?: number | null;
   price_per_hen_nok?: number | null;
@@ -26,6 +33,7 @@ export type ChickenOrderLine = {
   breedName: string;
   hens: number;
   roosters: number;
+  ageWeeksAtPickup: number | null;
   pricePerHenNok: number;
   pricePerRoosterNok: number;
   subtotalNok: number;
@@ -42,6 +50,32 @@ export type ChickenOrderSummary = {
 function toNumber(value: unknown): number {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function toDateOnly(value?: string | null): Date | null {
+  if (!value) return null;
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return null;
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+}
+
+function getAgeWeeks(hatchDate?: string | null, pickupDate?: Date | null): number {
+  const hatch = toDateOnly(hatchDate || null);
+  if (!hatch || !pickupDate) return 0;
+  const diffMs = pickupDate.getTime() - hatch.getTime();
+  if (!Number.isFinite(diffMs) || diffMs < 0) return 0;
+  return Math.floor(diffMs / (7 * 24 * 60 * 60 * 1000));
+}
+
+function resolveLineAgeWeeks(
+  explicitAge: unknown,
+  hatchDate: string | null | undefined,
+  pickupDate: Date | null
+): number | null {
+  const parsedAge = Math.round(toNumber(explicitAge));
+  if (parsedAge > 0) return parsedAge;
+  const computedAge = getAgeWeeks(hatchDate, pickupDate);
+  return computedAge > 0 ? computedAge : null;
 }
 
 function escapeHtml(value: string): string {
@@ -85,6 +119,7 @@ function buildUnitPriceText(line: ChickenOrderLine, locale: 'no' | 'en'): string
 
 export function summarizeChickenOrderLines(order: ChickenOrderLike): ChickenOrderSummary {
   const lines: ChickenOrderLine[] = [];
+  const pickupDate = toDateOnly(order?.pickup_monday || null);
 
   const baseHens = Math.max(0, Math.round(toNumber(order?.quantity_hens)));
   const baseRoosters = Math.max(0, Math.round(toNumber(order?.quantity_roosters)));
@@ -98,6 +133,11 @@ export function summarizeChickenOrderLines(order: ChickenOrderLike): ChickenOrde
       breedName: pickBreedName(order?.chicken_breeds || null),
       hens: baseHens,
       roosters: baseRoosters,
+      ageWeeksAtPickup: resolveLineAgeWeeks(
+        order?.age_weeks_at_pickup,
+        order?.chicken_hatches?.hatch_date || null,
+        pickupDate
+      ),
       pricePerHenNok: basePricePerHen,
       pricePerRoosterNok: basePricePerRooster,
       subtotalNok: baseSubtotal,
@@ -120,6 +160,11 @@ export function summarizeChickenOrderLines(order: ChickenOrderLike): ChickenOrde
       breedName: pickBreedName(addition?.chicken_breeds || null),
       hens,
       roosters,
+      ageWeeksAtPickup: resolveLineAgeWeeks(
+        addition?.age_weeks_at_pickup,
+        addition?.chicken_hatches?.hatch_date || null,
+        pickupDate
+      ),
       pricePerHenNok: pricePerHen,
       pricePerRoosterNok: pricePerRooster,
       subtotalNok: explicitSubtotal > 0 ? explicitSubtotal : computedSubtotal,
@@ -155,6 +200,7 @@ export function buildChickenOrderLinesHtml(
   const headerSource = locale === 'en' ? 'Type' : 'Linje';
   const headerBreed = locale === 'en' ? 'Breed' : 'Rase';
   const headerQuantity = locale === 'en' ? 'Quantity' : 'Antall';
+  const headerAge = locale === 'en' ? 'Age' : 'Alder';
   const headerUnitPrice = locale === 'en' ? 'Unit price' : 'Enhetspris';
   const headerSubtotal = locale === 'en' ? 'Subtotal' : 'Delsum';
   const totalLabel = locale === 'en' ? 'Total' : 'Total';
@@ -170,10 +216,16 @@ export function buildChickenOrderLinesHtml(
             ? 'Grunnordre'
             : 'Tillegg';
 
+      const ageText =
+        line.ageWeeksAtPickup === null
+          ? '&ndash;'
+          : escapeHtml(locale === 'en' ? `${line.ageWeeksAtPickup} weeks` : `${line.ageWeeksAtPickup} uker`);
+
       return `<tr>
   <td style="padding:8px;border:1px solid #e5e7eb;vertical-align:top;">${escapeHtml(sourceLabel)}</td>
   <td style="padding:8px;border:1px solid #e5e7eb;vertical-align:top;">${escapeHtml(line.breedName)}</td>
   <td style="padding:8px;border:1px solid #e5e7eb;vertical-align:top;">${escapeHtml(buildQuantityText(line, locale))}</td>
+  <td style="padding:8px;border:1px solid #e5e7eb;vertical-align:top;">${ageText}</td>
   <td style="padding:8px;border:1px solid #e5e7eb;vertical-align:top;">${escapeHtml(buildUnitPriceText(line, locale))}</td>
   <td style="padding:8px;border:1px solid #e5e7eb;vertical-align:top;text-align:right;">${escapeHtml(
     formatNok(line.subtotalNok, locale)
@@ -190,6 +242,7 @@ export function buildChickenOrderLinesHtml(
       <th style="text-align:left;padding:8px;border:1px solid #e5e7eb;">${headerSource}</th>
       <th style="text-align:left;padding:8px;border:1px solid #e5e7eb;">${headerBreed}</th>
       <th style="text-align:left;padding:8px;border:1px solid #e5e7eb;">${headerQuantity}</th>
+      <th style="text-align:left;padding:8px;border:1px solid #e5e7eb;">${headerAge}</th>
       <th style="text-align:left;padding:8px;border:1px solid #e5e7eb;">${headerUnitPrice}</th>
       <th style="text-align:right;padding:8px;border:1px solid #e5e7eb;">${headerSubtotal}</th>
     </tr>
@@ -197,7 +250,7 @@ export function buildChickenOrderLinesHtml(
   <tbody>
     ${rows}
     <tr style="background:#f9fafb;">
-      <td colspan="4" style="padding:8px;border:1px solid #e5e7eb;text-align:right;font-weight:700;">${totalLabel}</td>
+      <td colspan="5" style="padding:8px;border:1px solid #e5e7eb;text-align:right;font-weight:700;">${totalLabel}</td>
       <td style="padding:8px;border:1px solid #e5e7eb;text-align:right;font-weight:700;">${escapeHtml(
         formatNok(total, locale)
       )}</td>
@@ -211,4 +264,33 @@ export function buildTotalBirdsLabel(hens: number, roosters: number, locale: 'no
     return `${hens} hens, ${roosters} roosters`;
   }
   return `${hens} høner, ${roosters} haner`;
+}
+
+export function buildChickenBreedAgeLabel(
+  lines: ChickenOrderLine[],
+  locale: 'no' | 'en' = 'no'
+): string {
+  if (!lines.length) return locale === 'en' ? 'Chickens' : 'Kyllinger';
+
+  const byBreed = new Map<string, Set<number>>();
+  for (const line of lines) {
+    const breed = String(line.breedName || '').trim();
+    if (!breed) continue;
+    if (!byBreed.has(breed)) byBreed.set(breed, new Set<number>());
+    if (line.ageWeeksAtPickup !== null && line.ageWeeksAtPickup > 0) {
+      byBreed.get(breed)!.add(line.ageWeeksAtPickup);
+    }
+  }
+
+  return Array.from(byBreed.entries())
+    .map(([breed, ages]) => {
+      if (!ages.size) return breed;
+      const sorted = Array.from(ages).sort((a, b) => a - b);
+      const ageText =
+        sorted.length === 1
+          ? `${sorted[0]} ${locale === 'en' ? 'weeks' : 'uker'}`
+          : `${sorted[0]}-${sorted[sorted.length - 1]} ${locale === 'en' ? 'weeks' : 'uker'}`;
+      return `${breed} (${ageText})`;
+    })
+    .join(' + ');
 }

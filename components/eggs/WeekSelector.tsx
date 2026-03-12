@@ -224,7 +224,9 @@ export function WeekSelector({ inventory, accentColor, onSelectWeek }: WeekSelec
                 const rowMonday = getRowMonday(row)
                 const week = rowMonday ? inventoryByDate.get(dateKey(rowMonday)) || null : null
                 const weekNumber = rowMonday ? week?.weekNumber || getWeekNumber(rowMonday) : null
-                const isSelectable = Boolean(week && isWeekAvailable(week))
+                const isSelectable = Boolean(
+                  week && (isWeekAvailable(week) || week.status === 'sold_out')
+                )
 
                 return (
                   <button

@@ -37,7 +37,7 @@ export async function GET() {
   try {
     const { data, error } = await supabaseAdmin
       .from('chicken_orders')
-      .select('*, chicken_breeds(name, slug, accent_color), chicken_hatches(hatch_date, initial_count), chicken_payments(*), chicken_order_additions(*, chicken_breeds(name, slug, accent_color))')
+      .select('*, chicken_breeds(name, slug, accent_color), chicken_hatches(hatch_date, initial_count), chicken_payments(*), chicken_order_additions(*, chicken_breeds(name, slug, accent_color), chicken_hatches(hatch_date))')
       .order('created_at', { ascending: false })
 
     if (error) {

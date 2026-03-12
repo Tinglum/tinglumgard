@@ -87,12 +87,55 @@ type ChickenOrderRow = {
   chicken_breeds?: { name?: string | null } | null;
   chicken_order_additions?: Array<{
     id?: string | null;
+    hatch_id?: string | null;
+    chicken_hatches?: { hatch_date?: string | null } | null;
+    chicken_breeds?: { name?: string | null } | null;
+    age_weeks_at_pickup?: number | null;
     quantity_hens?: number | null;
     quantity_roosters?: number | null;
     subtotal_nok?: number | null;
     price_per_hen_nok?: number | null;
+    price_per_rooster_nok?: number | null;
   }> | null;
   chicken_payments?: PaymentRow[] | null;
+};
+
+type WishlistItemRow = {
+  id: string;
+  breed_id: string | null;
+  qty_requested: number | null;
+  qty_allocated: number | null;
+  qty_remaining: number | null;
+  egg_breeds?: { name?: string | null } | null;
+};
+
+type WishlistEventRow = {
+  id: string;
+  event_type: string | null;
+  payload: Record<string, unknown> | null;
+  created_by: string | null;
+  created_at: string;
+};
+
+type WishlistRequestRow = {
+  id: string;
+  customer_id: string | null;
+  customer_email: string | null;
+  customer_name: string | null;
+  customer_phone: string | null;
+  order_id: string | null;
+  source: string | null;
+  priority: string | null;
+  status: string | null;
+  year: number | null;
+  week_number: number | null;
+  delivery_monday: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+  egg_orders?: { order_number?: string | null } | null;
+  egg_wishlist_items?: WishlistItemRow[] | null;
+  egg_wishlist_events?: WishlistEventRow[] | null;
 };
 
 type UnifiedOrder = {
@@ -132,6 +175,32 @@ function normalizeEmail(value?: string | null): string {
 
 function normalizePhone(value?: string | null): string {
   return (value || '').trim();
+}
+
+function toDateOnly(value?: string | null): Date | null {
+  if (!value) return null;
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return null;
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+}
+
+function getAgeWeeks(hatchDate?: string | null, pickupDate?: Date | null): number {
+  const hatch = toDateOnly(hatchDate);
+  if (!hatch || !pickupDate) return 0;
+  const diffMs = pickupDate.getTime() - hatch.getTime();
+  if (!Number.isFinite(diffMs) || diffMs < 0) return 0;
+  return Math.floor(diffMs / (7 * 24 * 60 * 60 * 1000));
+}
+
+function getMondayOfIsoWeek(year: number, week: number): Date | null {
+  if (!Number.isFinite(year) || !Number.isFinite(week) || week <= 0) return null;
+  const jan4 = new Date(Date.UTC(year, 0, 4));
+  const day = jan4.getUTCDay() || 7;
+  const mondayWeek1 = new Date(jan4);
+  mondayWeek1.setUTCDate(jan4.getUTCDate() - day + 1);
+  const monday = new Date(mondayWeek1);
+  monday.setUTCDate(mondayWeek1.getUTCDate() + (week - 1) * 7);
+  return monday;
 }
 
 function phoneDigits(value?: string | null): string {
@@ -207,6 +276,27 @@ function toEggUnified(row: EggOrderRow): UnifiedOrder {
 }
 
 function toChickenUnified(row: ChickenOrderRow): UnifiedOrder {
+  const pickupDate =
+    toDateOnly(row.pickup_monday || null) ||
+    getMondayOfIsoWeek(Number(row.pickup_year || 0), Number(row.pickup_week || 0));
+
+  const additions = (row.chicken_order_additions || []).map((addition) => {
+    const explicitAge = Number(addition.age_weeks_at_pickup || 0);
+    const computedAge = getAgeWeeks(addition.chicken_hatches?.hatch_date || null, pickupDate);
+    const ageWeeksAtPickup = explicitAge > 0 ? explicitAge : computedAge > 0 ? computedAge : null;
+    return {
+      id: addition.id || null,
+      hatch_id: addition.hatch_id || null,
+      quantity_hens: addition.quantity_hens ?? 0,
+      quantity_roosters: addition.quantity_roosters ?? 0,
+      subtotal_nok: addition.subtotal_nok ?? 0,
+      price_per_hen_nok: addition.price_per_hen_nok ?? null,
+      price_per_rooster_nok: addition.price_per_rooster_nok ?? null,
+      breed_name: addition.chicken_breeds?.name || null,
+      age_weeks_at_pickup: ageWeeksAtPickup,
+    };
+  });
+
   return {
     source: 'chicken',
     id: row.id,
@@ -241,7 +331,7 @@ function toChickenUnified(row: ChickenOrderRow): UnifiedOrder {
       shipping_postal_code: row.shipping_postal_code ?? null,
       shipping_city: row.shipping_city ?? null,
       shipping_country: row.shipping_country ?? null,
-      additions: row.chicken_order_additions || [],
+      additions,
       breed_name: row.chicken_breeds?.name || null,
     },
   };
@@ -410,7 +500,7 @@ async function fetchChickenOrdersRows(): Promise<ChickenOrderRow[]> {
   const detailed = await supabaseAdmin
     .from('chicken_orders')
     .select(
-      'id, user_id, order_number, customer_name, customer_email, customer_phone, status, created_at, total_amount_nok, quantity_hens, quantity_roosters, pickup_week, pickup_year, pickup_monday, age_weeks_at_pickup, delivery_method, delivery_fee_nok, deposit_amount_nok, remainder_amount_nok, remainder_due_date, price_per_hen_nok, price_per_rooster_nok, subtotal_nok, notes, admin_notes, shipping_address, shipping_postal_code, shipping_city, shipping_country, chicken_breeds(name), chicken_payments(amount_nok, status), chicken_order_additions(id, quantity_hens, quantity_roosters, subtotal_nok, price_per_hen_nok)'
+      'id, user_id, order_number, customer_name, customer_email, customer_phone, status, created_at, total_amount_nok, quantity_hens, quantity_roosters, pickup_week, pickup_year, pickup_monday, age_weeks_at_pickup, delivery_method, delivery_fee_nok, deposit_amount_nok, remainder_amount_nok, remainder_due_date, price_per_hen_nok, price_per_rooster_nok, subtotal_nok, notes, admin_notes, shipping_address, shipping_postal_code, shipping_city, shipping_country, chicken_breeds(name), chicken_payments(amount_nok, status), chicken_order_additions(id, hatch_id, quantity_hens, quantity_roosters, subtotal_nok, price_per_hen_nok, chicken_breeds(name), chicken_hatches(hatch_date))'
     );
 
   if (!detailed.error) {
@@ -454,6 +544,67 @@ async function fetchAllUnifiedOrders(): Promise<UnifiedOrder[]> {
 
   return [...pigOrders, ...eggOrders, ...chickenOrders].sort((a, b) => {
     return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+  });
+}
+
+async function fetchWishlistRequestsForCustomer(params: {
+  email?: string;
+  phoneDigits?: string;
+  customerId?: string;
+  eggOrderIds?: string[];
+}): Promise<WishlistRequestRow[]> {
+  const requestMap = new Map<string, WishlistRequestRow>();
+  const baseSelect =
+    'id, customer_id, customer_email, customer_name, customer_phone, order_id, source, priority, status, year, week_number, delivery_monday, notes, created_at, updated_at, egg_orders(order_number), egg_wishlist_items(id, breed_id, qty_requested, qty_allocated, qty_remaining, egg_breeds(name)), egg_wishlist_events(id, event_type, payload, created_by, created_at)';
+
+  const addResults = (rows: WishlistRequestRow[] | null | undefined) => {
+    for (const row of rows || []) requestMap.set(row.id, row);
+  };
+
+  if (params.eggOrderIds && params.eggOrderIds.length > 0) {
+    const { data, error } = await supabaseAdmin
+      .from('egg_wishlist_requests')
+      .select(baseSelect)
+      .in('order_id', params.eggOrderIds);
+
+    if (error && error.code !== '42P01') throw error;
+    addResults(data as WishlistRequestRow[] | null);
+  }
+
+  if (params.email) {
+    const { data, error } = await supabaseAdmin
+      .from('egg_wishlist_requests')
+      .select(baseSelect)
+      .ilike('customer_email', params.email);
+
+    if (error && error.code !== '42P01') throw error;
+    addResults(data as WishlistRequestRow[] | null);
+  }
+
+  if (params.phoneDigits) {
+    const { data, error } = await supabaseAdmin
+      .from('egg_wishlist_requests')
+      .select(baseSelect)
+      .ilike('customer_phone', `%${params.phoneDigits}%`);
+
+    if (error && error.code !== '42P01') throw error;
+    addResults(data as WishlistRequestRow[] | null);
+  }
+
+  if (params.customerId) {
+    const { data, error } = await supabaseAdmin
+      .from('egg_wishlist_requests')
+      .select(baseSelect)
+      .eq('customer_id', params.customerId);
+
+    if (error && error.code !== '42P01') throw error;
+    addResults(data as WishlistRequestRow[] | null);
+  }
+
+  return Array.from(requestMap.values()).sort((a, b) => {
+    const aTime = new Date(a.created_at || '').getTime();
+    const bTime = new Date(b.created_at || '').getTime();
+    return bTime - aTime;
   });
 }
 
@@ -613,6 +764,7 @@ async function getCustomerProfile(customerId: string) {
   const bestName = sortedOrders.find((order) => order.customerName)?.customerName || 'Kunde';
   const bestEmail = sortedOrders.find((order) => isUsableEmail(order.customerEmail))?.customerEmail || '';
   const bestPhone = sortedOrders.find((order) => order.customerPhone)?.customerPhone || null;
+  const bestPhoneDigits = phoneDigits(bestPhone);
   const pigOrderIds = sortedOrders.filter((order) => order.source === 'pig').map((order) => order.id);
   const eggOrderIds = sortedOrders.filter((order) => order.source === 'egg').map((order) => order.id);
   const chickenOrderIds = sortedOrders.filter((order) => order.source === 'chicken').map((order) => order.id);
@@ -631,6 +783,12 @@ async function getCustomerProfile(customerId: string) {
     chickenOrderIds,
     statuses: ['scheduled', 'enqueued'],
     limit: 300,
+  });
+  const wishlistRequests = await fetchWishlistRequestsForCustomer({
+    email: bestEmail || parsed.email || undefined,
+    phoneDigits: bestPhoneDigits || parsed.phoneDigits || undefined,
+    customerId: customerId || undefined,
+    eggOrderIds,
   });
 
   let suppression: {
@@ -791,6 +949,39 @@ async function getCustomerProfile(customerId: string) {
         queue_id: entry.queueId,
       };
     }),
+    wishlist_requests: wishlistRequests.map((request) => ({
+      id: request.id,
+      customer_id: request.customer_id,
+      order_id: request.order_id,
+      order_number: request.egg_orders?.order_number || null,
+      source: request.source,
+      priority: request.priority,
+      status: request.status,
+      year: request.year,
+      week_number: request.week_number,
+      delivery_monday: request.delivery_monday,
+      notes: request.notes,
+      created_at: request.created_at,
+      updated_at: request.updated_at,
+      items: (request.egg_wishlist_items || []).map((item) => ({
+        id: item.id,
+        breed_id: item.breed_id,
+        breed_name: item.egg_breeds?.name || null,
+        qty_requested: item.qty_requested,
+        qty_allocated: item.qty_allocated,
+        qty_remaining: item.qty_remaining,
+      })),
+      events: (request.egg_wishlist_events || [])
+        .slice()
+        .sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')))
+        .map((event) => ({
+          id: event.id,
+          event_type: event.event_type,
+          payload: event.payload || {},
+          created_by: event.created_by,
+          created_at: event.created_at,
+        })),
+    })),
     lifecycle_materialization: {
       ok: lifecycleMaterialize.ok,
       inserted: lifecycleMaterialize.inserted,

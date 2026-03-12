@@ -1,48 +1,53 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createEggWishlistRequest } from '@/lib/eggs/wishlist'
 
-type LegacyWaitlistRequest = {
+type WishlistItemInput = {
+  breedId?: string
+  quantity?: number
+}
+
+type WishlistRequestBody = {
   inventoryId?: string
   orderId?: string | null
-  quantity?: number
+  source?: 'order_addon' | 'standalone'
   notes?: string
-  items?: Array<{ breedId?: string; quantity?: number }>
+  quantity?: number
+  items?: WishlistItemInput[]
 }
 
 export async function POST(request: NextRequest) {
-  const body = (await request.json().catch(() => null)) as LegacyWaitlistRequest | null
-  if (!body?.inventoryId) {
+  const body = (await request.json().catch(() => null)) as WishlistRequestBody | null
+  if (!body || !body.inventoryId) {
     return NextResponse.json({ error: 'Inventory is required' }, { status: 400 })
   }
 
   const result = await createEggWishlistRequest({
-    inventoryId: String(body.inventoryId || '').trim(),
+    inventoryId: body.inventoryId,
     orderId: body.orderId || null,
-    source: body.orderId ? 'order_addon' : 'standalone',
-    quantity: Number(body.quantity || 1),
+    source: body.source,
     notes: body.notes || null,
+    quantity: body.quantity,
     items: Array.isArray(body.items)
       ? body.items
           .map((item) => ({
             breedId: String(item?.breedId || '').trim(),
-            quantity: Math.floor(Number(item?.quantity || 0)),
+            quantity: Number(item?.quantity || 0),
           }))
           .filter((item) => item.breedId && Number.isFinite(item.quantity) && item.quantity > 0)
       : undefined,
   })
 
   if (!result.ok) {
-    const error = result.status === 401 ? 'Login required' : result.error
-    return NextResponse.json({ error }, { status: result.status })
+    return NextResponse.json({ error: result.error }, { status: result.status })
   }
 
   return NextResponse.json(
     {
-      success: true,
-      queuePosition: result.queuePosition,
+      ok: true,
       request: result.request,
-      mode: 'wishlist_v2_compat',
+      queuePosition: result.queuePosition,
     },
     { status: 200 }
   )
 }
+

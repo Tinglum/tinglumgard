@@ -16,6 +16,7 @@ import {
   Beef,
   Bird,
   Package,
+  ListChecks,
 } from 'lucide-react';
 import { ActionDashboard } from '@/components/admin/ActionDashboard';
 import { PigOrdersTable } from '@/components/admin/PigOrdersTable';
@@ -39,12 +40,13 @@ import { ChickenBreedManager } from '@/components/admin/ChickenBreedManager';
 import { ChickenHatchManager } from '@/components/admin/ChickenHatchManager';
 import { ChickenOrdersManager } from '@/components/admin/ChickenOrdersManager';
 import { UnifiedEggChickenOrdersManager } from '@/components/admin/UnifiedEggChickenOrdersManager';
+import { EggWishlistManager } from '@/components/admin/EggWishlistManager';
 import { EggOpsDailyCollection } from '@/components/eggops/EggOpsDailyCollection';
 
 type TabType = 'dashboard' | 'orders' | 'products' | 'customers' | 'settings';
 
 // Orders sub-tabs
-type OrdersSubTab = 'pig' | 'unified' | 'egg' | 'chicken' | 'calendar';
+type OrdersSubTab = 'pig' | 'unified' | 'egg' | 'wishlist' | 'chicken' | 'calendar';
 
 // Products L1 sub-tabs
 type ProductsL1 = 'mangalitsa' | 'eggs' | 'chickens';
@@ -351,6 +353,7 @@ export default function AdminPage() {
                 { id: 'pig', label: lang === 'no' ? 'Gris' : 'Pig', icon: Beef },
                 { id: 'unified', label: lang === 'no' ? 'Rugeegg + Kylling' : 'Egg + Chicken', icon: Package },
                 { id: 'egg', label: lang === 'no' ? 'Egg' : 'Eggs', icon: Egg },
+                { id: 'wishlist', label: lang === 'no' ? 'Ønskeliste' : 'Wishlist', icon: ListChecks },
                 { id: 'chicken', label: lang === 'no' ? 'Kylling' : 'Chicken', icon: Bird },
                 { id: 'calendar', label: lang === 'no' ? 'Kalender' : 'Calendar', icon: LayoutDashboard },
               ]}
@@ -371,6 +374,7 @@ export default function AdminPage() {
                 onInitialOrderHandled={() => setDeepLinkEggOrderId(null)}
               />
             )}
+            {ordersSubTab === 'wishlist' && <EggWishlistManager />}
             {ordersSubTab === 'chicken' && (
               <ChickenOrdersManager
                 initialOrderId={deepLinkChickenOrderId}

@@ -126,6 +126,41 @@ type ScheduledCommunicationItem = {
   queue_id?: string | null;
 };
 
+type WishlistRequestItem = {
+  id: string;
+  breed_id: string | null;
+  breed_name: string | null;
+  qty_requested: number | null;
+  qty_allocated: number | null;
+  qty_remaining: number | null;
+};
+
+type WishlistRequestEvent = {
+  id: string;
+  event_type: string | null;
+  payload?: Record<string, unknown> | null;
+  created_by?: string | null;
+  created_at: string;
+};
+
+type WishlistRequestSummary = {
+  id: string;
+  customer_id: string | null;
+  order_id: string | null;
+  order_number: string | null;
+  source: string | null;
+  priority: string | null;
+  status: string | null;
+  year: number | null;
+  week_number: number | null;
+  delivery_monday: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+  items?: WishlistRequestItem[];
+  events?: WishlistRequestEvent[];
+};
+
 type CustomerProfile = {
   customer_id: string;
   email: string;
@@ -140,6 +175,7 @@ type CustomerProfile = {
   orders: CustomerOrderSummary[];
   communications?: CommunicationHistoryItem[];
   scheduled_communications?: ScheduledCommunicationItem[];
+  wishlist_requests?: WishlistRequestSummary[];
   lifecycle_materialization?: {
     ok: boolean;
     inserted: number;
@@ -775,6 +811,12 @@ export function CustomerDatabase() {
       const additions = Array.isArray(details.additions)
         ? (details.additions as Array<Record<string, unknown>>)
         : [];
+      const baseAge = toNumber(details.age_weeks_at_pickup, 0);
+      const allAges = [
+        baseAge,
+        ...additions.map((item) => toNumber(item.age_weeks_at_pickup, 0)),
+      ].filter((age) => Number.isFinite(age) && age > 0);
+      const uniqueAges = Array.from(new Set(allAges)).sort((a, b) => a - b);
 
       const extraHens = additions.reduce((sum, item) => sum + toNumber(item.quantity_hens), 0);
       const extraRoosters = additions.reduce((sum, item) => sum + toNumber(item.quantity_roosters), 0);
@@ -788,7 +830,14 @@ export function CustomerDatabase() {
           roosters > 0
             ? `${hens.toLocaleString(locale)} ${copy.fieldLabels.hens} + ${roosters.toLocaleString(locale)} ${copy.fieldLabels.roosters}`
             : `${hens.toLocaleString(locale)} ${copy.fieldLabels.hens}`,
-        secondary: breed || null,
+        secondary:
+          uniqueAges.length === 0
+            ? breed || null
+            : uniqueAges.length === 1
+              ? `${breed ? `${breed} · ` : ''}${uniqueAges[0]} ${lang === 'en' ? 'weeks' : 'uker'}`
+              : `${breed ? `${breed} · ` : ''}${uniqueAges[0]}-${uniqueAges[uniqueAges.length - 1]} ${
+                  lang === 'en' ? 'weeks' : 'uker'
+                }`,
       };
     }
 
@@ -864,12 +913,31 @@ export function CustomerDatabase() {
           detail.breed_name ||
           copy.notProvided
       );
+      const pickupDate = (() => {
+        const raw = String(detail.pickup_monday || '').trim();
+        if (!raw) return null;
+        const date = new Date(raw);
+        return Number.isFinite(date.getTime()) ? date : null;
+      })();
       const baseHens = toNumber(detail.quantity_hens);
       const baseRoosters = toNumber(detail.quantity_roosters);
       const formatBirds = (hens: number, roosters: number) =>
         roosters > 0
           ? `${hens.toLocaleString(locale)} ${copy.fieldLabels.hens} + ${roosters.toLocaleString(locale)} ${copy.fieldLabels.roosters}`
           : `${hens.toLocaleString(locale)} ${copy.fieldLabels.hens}`;
+      const getAdditionAgeWeeks = (addition: Record<string, unknown>) => {
+        const explicitAge = toNumber(addition.age_weeks_at_pickup, 0);
+        if (explicitAge > 0) return explicitAge;
+        const hatchDate = String(
+          ((addition.chicken_hatches as Record<string, unknown> | undefined)?.hatch_date as string | undefined) || ''
+        ).trim();
+        if (!hatchDate || !pickupDate) return 0;
+        const hatch = new Date(hatchDate);
+        if (!Number.isFinite(hatch.getTime())) return 0;
+        const diffMs = pickupDate.getTime() - hatch.getTime();
+        if (!Number.isFinite(diffMs) || diffMs < 0) return 0;
+        return Math.floor(diffMs / (7 * 24 * 60 * 60 * 1000));
+      };
 
       const additions = ((detail.chicken_order_additions as Array<Record<string, unknown>> | undefined) ||
         (detail.additions as Array<Record<string, unknown>> | undefined) ||
@@ -889,7 +957,11 @@ export function CustomerDatabase() {
       lines.push({
         key: `${key}:base`,
         label: baseBreed,
-        quantity: formatBirds(baseHens, baseRoosters),
+        quantity: `${formatBirds(baseHens, baseRoosters)}${
+          toNumber(detail.age_weeks_at_pickup, 0) > 0
+            ? ` · ${toNumber(detail.age_weeks_at_pickup, 0)} ${lang === 'en' ? 'weeks' : 'uker'}`
+            : ''
+        }`,
         amount: baseSubtotal > 0 ? `${currency} ${baseSubtotal.toLocaleString(locale)}` : null,
       });
 
@@ -900,10 +972,13 @@ export function CustomerDatabase() {
         const hens = toNumber(addition.quantity_hens);
         const roosters = toNumber(addition.quantity_roosters);
         const additionSubtotal = getChickenAdditionSubtotal(addition);
+        const additionAge = getAdditionAgeWeeks(addition);
         lines.push({
           key: `${key}:addition:${index}`,
           label: additionBreed,
-          quantity: formatBirds(hens, roosters),
+          quantity: `${formatBirds(hens, roosters)}${
+            additionAge > 0 ? ` · ${additionAge} ${lang === 'en' ? 'weeks' : 'uker'}` : ''
+          }`,
           amount: additionSubtotal > 0 ? `${currency} ${additionSubtotal.toLocaleString(locale)}` : null,
         });
       });
@@ -1518,6 +1593,59 @@ export function CustomerDatabase() {
                         {entry.status}
                         {entry.template_key ? ` – ${entry.template_key}` : ''}
                       </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+            {selectedCustomer.wishlist_requests && selectedCustomer.wishlist_requests.length > 0 ? (
+              <div className="mb-4 rounded-lg border border-purple-200 bg-purple-50/50 p-3">
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <p className="text-sm font-medium text-purple-900">
+                    {lang === 'en' ? 'Wishlist timeline' : 'Ønskeliste-tidslinje'}
+                  </p>
+                  <p className="text-xs text-purple-700">{selectedCustomer.wishlist_requests.length}</p>
+                </div>
+                <div className="space-y-2">
+                  {selectedCustomer.wishlist_requests.slice(0, 12).map((request) => (
+                    <div key={request.id} className="rounded-md border border-purple-200 bg-white/80 px-3 py-2 text-xs text-neutral-700">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <p className="font-medium text-neutral-900">
+                          {request.order_number
+                            ? `${request.order_number} • ${request.source || ''}`
+                            : `${request.source || 'standalone'} • ${request.priority || ''}`}
+                        </p>
+                        <p className="text-neutral-600">
+                          {request.week_number && request.year
+                            ? `${lang === 'en' ? 'Week' : 'Uke'} ${request.week_number}/${request.year}`
+                            : copy.notProvided}
+                        </p>
+                      </div>
+                      <p className="mt-1 text-neutral-600">
+                        {(copy as any).communicationStatusLabel || (lang === 'en' ? 'Status' : 'Status')}:{' '}
+                        {request.status || copy.notProvided}
+                      </p>
+                      {request.items && request.items.length > 0 ? (
+                        <div className="mt-1 text-neutral-600">
+                          {request.items.map((item) => (
+                            <div key={item.id}>
+                              {(item.breed_name || item.breed_id || copy.notProvided)}:{' '}
+                              {lang === 'en'
+                                ? `wanted ${item.qty_requested ?? 0}, allocated ${item.qty_allocated ?? 0}, remaining ${item.qty_remaining ?? 0}`
+                                : `ønsket ${item.qty_requested ?? 0}, tildelt ${item.qty_allocated ?? 0}, igjen ${item.qty_remaining ?? 0}`}
+                            </div>
+                          ))}
+                        </div>
+                      ) : null}
+                      {request.events && request.events.length > 0 ? (
+                        <div className="mt-1 text-neutral-500">
+                          {request.events.slice(0, 3).map((event) => (
+                            <div key={event.id}>
+                              {new Date(event.created_at).toLocaleString(locale)} - {event.event_type || 'event'}
+                            </div>
+                          ))}
+                        </div>
+                      ) : null}
                     </div>
                   ))}
                 </div>

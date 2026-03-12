@@ -19,6 +19,7 @@ interface ChickenPayment {
 
 interface ChickenOrderAddition {
   id: string
+  hatch_id?: string | null
   quantity_hens: number
   quantity_roosters: number
   price_per_hen_nok?: number
@@ -26,6 +27,7 @@ interface ChickenOrderAddition {
   subtotal_nok: number
   status: string
   created_at: string
+  chicken_hatches?: { hatch_date?: string | null } | null
   chicken_breeds?: { name: string; slug: string; accent_color: string; rooster_price_nok?: number }
 }
 
@@ -170,6 +172,18 @@ export function ChickenOrdersManager({
     const computed = hens * pricePerHen + roosters * pricePerRooster
     if (computed > 0) return computed
     return Number(addition.subtotal_nok || 0)
+  }, [])
+
+  const getAgeWeeksForAddition = useCallback((order: ChickenOrder, addition: ChickenOrderAddition): number | null => {
+    const hatchDate = addition.chicken_hatches?.hatch_date
+    const pickupDate = order.pickup_monday
+    if (!hatchDate || !pickupDate) return null
+    const hatch = new Date(hatchDate)
+    const pickup = new Date(pickupDate)
+    if (!Number.isFinite(hatch.getTime()) || !Number.isFinite(pickup.getTime())) return null
+    const diffMs = pickup.getTime() - hatch.getTime()
+    if (!Number.isFinite(diffMs) || diffMs < 0) return null
+    return Math.floor(diffMs / (7 * 24 * 60 * 60 * 1000))
   }, [])
 
   const getOrderBirdTotals = useCallback((order: ChickenOrder) => {
@@ -403,6 +417,21 @@ export function ChickenOrdersManager({
             {filtered.map((order) => {
               const transitions = STATUS_TRANSITIONS[order.status] || []
               const totals = getOrderBirdTotals(order)
+              const ages = Array.from(
+                new Set(
+                  [
+                    Number(order.age_weeks_at_pickup || 0),
+                    ...(order.chicken_order_additions || [])
+                      .map((addition) => getAgeWeeksForAddition(order, addition) || 0),
+                  ].filter((age) => Number.isFinite(age) && age > 0)
+                )
+              ).sort((a, b) => a - b)
+              const ageSummary =
+                ages.length === 0
+                  ? co.notAvailable
+                  : ages.length === 1
+                    ? co.ageWeeksLabel.replace('{weeks}', String(ages[0]))
+                    : `${ages[0]}-${ages[ages.length - 1]} ${lang === 'en' ? 'weeks' : 'uker'}`
               const isResending = resendingOrderId === order.id
               return (
                 <tr
@@ -451,7 +480,7 @@ export function ChickenOrdersManager({
                     )}
                   </td>
                   <td className="py-2 pr-3">{co.pickupWeekLabel.replace('{week}', String(order.pickup_week)).replace('{year}', String(order.pickup_year))}</td>
-                  <td className="py-2 pr-3">{co.ageWeeksLabel.replace('{weeks}', String(order.age_weeks_at_pickup))}</td>
+                  <td className="py-2 pr-3">{ageSummary}</td>
                   <td className="py-2 pr-3">{formatMoney(order.price_per_hen_nok)}</td>
                   <td className="py-2 pr-3 font-medium">{formatMoney(order.total_amount_nok)}</td>
                   <td className="py-2 pr-3">
@@ -652,16 +681,35 @@ export function ChickenOrdersManager({
                         label={co.labelAdditionQuantity}
                         value={`${co.labelHens}: ${selectedOrder.quantity_hens}, ${co.labelRoosters}: ${selectedOrder.quantity_roosters}`}
                       />
+                      <DetailRow
+                        label={co.labelAgeWeeks}
+                        value={co.ageWeeksLabel.replace('{weeks}', String(selectedOrder.age_weeks_at_pickup))}
+                      />
                       <DetailRow label={co.labelAdditionSubtotal} value={formatMoney(financial.baseSubtotal)} />
                     </div>
                     {(selectedOrder.chicken_order_additions || []).map((addition) => (
                       <div key={addition.id} className="rounded border border-neutral-200 bg-neutral-50 p-3 text-sm">
+                        {(() => {
+                          const additionAge = getAgeWeeksForAddition(selectedOrder, addition)
+                          return (
+                            <>
                         <DetailRow label={co.labelBreed} value={addition.chicken_breeds?.name || co.unknownBreed} />
                         <DetailRow
                           label={co.labelAdditionQuantity}
                           value={`${co.labelHens}: ${addition.quantity_hens}, ${co.labelRoosters}: ${addition.quantity_roosters}`}
                         />
+                        <DetailRow
+                          label={co.labelAgeWeeks}
+                          value={
+                            additionAge !== null
+                              ? co.ageWeeksLabel.replace('{weeks}', String(additionAge))
+                              : co.notAvailable
+                          }
+                        />
                         <DetailRow label={co.labelAdditionSubtotal} value={formatMoney(getAdditionSubtotal(addition))} />
+                            </>
+                          )
+                        })()}
                       </div>
                     ))}
                   </div>

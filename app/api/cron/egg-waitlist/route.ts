@@ -47,6 +47,21 @@ async function runWaitlistProcessor(request: NextRequest) {
     return NextResponse.json({ error: auth.error, detail: auth.detail }, { status: auth.status })
   }
 
+  const legacyEnabled =
+    String(process.env.EGG_WAITLIST_LEGACY_ENABLED || '')
+      .trim()
+      .toLowerCase() === 'true'
+
+  if (!legacyEnabled) {
+    return NextResponse.json({
+      success: true,
+      skipped: true,
+      reason: 'legacy_waitlist_disabled_v2',
+      detail:
+        'Legacy egg_waitlist_entries processor is disabled. Use egg_wishlist_requests + admin allocation in Waitlist v2.',
+    })
+  }
+
   try {
     const requiredTables = ['egg_waitlist_entries', 'egg_inventory'] as const
     for (const table of requiredTables) {

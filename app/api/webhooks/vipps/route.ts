@@ -6,6 +6,7 @@ import { dispatchEmail } from "@/lib/email/dispatch";
 import { renderManagedTemplate } from "@/lib/email/render";
 import { buildAdminOrderLink, buildCustomerOrderLink } from "@/lib/email/links";
 import {
+  buildChickenBreedAgeLabel,
   buildChickenOrderLinesHtml,
   buildTotalBirdsLabel,
   summarizeChickenOrderLines,
@@ -678,7 +679,7 @@ export async function POST(request: NextRequest) {
     if (isChickenPayment) {
       const result = await supabaseAdmin
         .from("chicken_orders")
-        .select("*, chicken_breeds(*), chicken_order_additions(quantity_hens, quantity_roosters, price_per_hen_nok, price_per_rooster_nok, subtotal_nok, chicken_breeds(name_no, name_en, name))")
+        .select("*, chicken_breeds(*), chicken_hatches(hatch_date), chicken_order_additions(hatch_id, quantity_hens, quantity_roosters, price_per_hen_nok, price_per_rooster_nok, subtotal_nok, chicken_breeds(name_no, name_en, name), chicken_hatches(hatch_date))")
         .eq("id", resolvedPayment.chicken_order_id)
         .single();
       order = result.data;
@@ -793,18 +794,23 @@ export async function POST(request: NextRequest) {
             });
           } else if (isChickenPayment) {
             const chickenSummary = summarizeChickenOrderLines(order);
+            const chickenBreedWithAgeNo = buildChickenBreedAgeLabel(chickenSummary.lines, 'no');
+            const chickenBreedWithAgeEn = buildChickenBreedAgeLabel(chickenSummary.lines, 'en');
             const rendered = await renderManagedTemplate({
               templateKey: 'chicken.order.deposit.confirmed.customer',
               locale: 'no',
               variables: {
                 customer_name: order.customer_name || 'Kunde',
                 order_number: order.order_number,
-                breed_name: chickenSummary.breedLabel || 'Kyllinger',
+                breed_name: chickenBreedWithAgeNo || chickenSummary.breedLabel || 'Kyllinger',
+                breed_name_en: chickenBreedWithAgeEn || chickenSummary.breedLabel || 'Chickens',
+                breed_name_plain: chickenSummary.breedLabel || 'Kyllinger',
                 quantity_hens: chickenSummary.hens,
                 quantity_roosters: chickenSummary.roosters,
                 total_birds_label: buildTotalBirdsLabel(chickenSummary.hens, chickenSummary.roosters, 'no'),
                 total_birds_label_en: buildTotalBirdsLabel(chickenSummary.hens, chickenSummary.roosters, 'en'),
                 order_lines_html: buildChickenOrderLinesHtml(chickenSummary.lines, 'no'),
+                order_lines_html_en: buildChickenOrderLinesHtml(chickenSummary.lines, 'en'),
                 pickup_date: new Date(`${order.pickup_monday}T00:00:00`).toLocaleDateString('nb-NO'),
                 delivery_label: getChickenDeliveryLabel(String(order.delivery_method || '')),
                 total_amount_nok: formatNok(order.total_amount_nok),
@@ -907,17 +913,22 @@ export async function POST(request: NextRequest) {
             templateKey = 'admin.order.deposit.confirmed.chicken';
             entityScope = 'chicken_order';
             const chickenSummary = summarizeChickenOrderLines(order);
+            const chickenBreedWithAgeNo = buildChickenBreedAgeLabel(chickenSummary.lines, 'no');
+            const chickenBreedWithAgeEn = buildChickenBreedAgeLabel(chickenSummary.lines, 'en');
             variables = {
               order_number: order.order_number,
               customer_name: order.customer_name || 'Kunde',
               customer_email: order.customer_email || '',
               customer_phone: order.customer_phone || 'Ikke oppgitt',
-              breed_name: chickenSummary.breedLabel || 'Kyllinger',
+              breed_name: chickenBreedWithAgeNo || chickenSummary.breedLabel || 'Kyllinger',
+              breed_name_en: chickenBreedWithAgeEn || chickenSummary.breedLabel || 'Chickens',
+              breed_name_plain: chickenSummary.breedLabel || 'Kyllinger',
               quantity_hens: chickenSummary.hens,
               quantity_roosters: chickenSummary.roosters,
               total_birds_label: buildTotalBirdsLabel(chickenSummary.hens, chickenSummary.roosters, 'no'),
               total_birds_label_en: buildTotalBirdsLabel(chickenSummary.hens, chickenSummary.roosters, 'en'),
               order_lines_html: buildChickenOrderLinesHtml(chickenSummary.lines, 'no'),
+              order_lines_html_en: buildChickenOrderLinesHtml(chickenSummary.lines, 'en'),
               pickup_week: order.pickup_week,
               pickup_date: new Date(`${order.pickup_monday}T00:00:00`).toLocaleDateString('nb-NO'),
               deposit_amount_nok: formatNok(order.deposit_amount_nok),

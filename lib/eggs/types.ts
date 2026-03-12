@@ -138,6 +138,6 @@ export interface WeekAvailability {
     breedSlug: string
     accentColor: string
     eggsAvailable: number
-    status: 'available' | 'low_stock' | 'sold_out'
+    status: 'available' | 'low_stock' | 'sold_out' | 'closed' | 'locked'
   }>
 }

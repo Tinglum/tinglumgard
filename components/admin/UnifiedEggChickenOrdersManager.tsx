@@ -29,7 +29,7 @@ type URow = {
   status: string
   createdAt: string
   weekLabel: string
-  lines: Array<{ key: string; label: string; qty: string }>
+  lines: Array<{ key: string; label: string; qty: string; ageWeeksAtPickup?: number | null }>
   totalOre: number
   paidOre: number
   dueOre: number
@@ -109,6 +109,20 @@ function toEgg(raw: any, weekWord: string): URow {
 }
 
 function toChicken(raw: any, weekWord: string): URow {
+  const toDateOnly = (value?: string | null) => {
+    if (!value) return null
+    const date = new Date(value)
+    if (!Number.isFinite(date.getTime())) return null
+    return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()))
+  }
+  const getAgeWeeks = (hatchDate?: string | null, pickupDate?: Date | null) => {
+    const hatch = toDateOnly(hatchDate)
+    if (!hatch || !pickupDate) return 0
+    const diffMs = pickupDate.getTime() - hatch.getTime()
+    if (!Number.isFinite(diffMs) || diffMs < 0) return 0
+    return Math.floor(diffMs / (7 * 24 * 60 * 60 * 1000))
+  }
+  const pickupDate = toDateOnly(raw.pickup_monday)
   const lines = [
     {
       key: `${raw.id}-base`,
@@ -116,6 +130,7 @@ function toChicken(raw: any, weekWord: string): URow {
       qty: `${Number(raw.quantity_hens || 0)}H${
         Number(raw.quantity_roosters || 0) > 0 ? ` + ${Number(raw.quantity_roosters || 0)}R` : ''
       }`,
+      ageWeeksAtPickup: Number(raw.age_weeks_at_pickup || 0) > 0 ? Number(raw.age_weeks_at_pickup) : null,
     },
     ...((raw.chicken_order_additions || []) as any[]).map((addition) => ({
       key: addition.id,
@@ -123,6 +138,13 @@ function toChicken(raw: any, weekWord: string): URow {
       qty: `+${Number(addition.quantity_hens || 0)}H${
         Number(addition.quantity_roosters || 0) > 0 ? ` + ${Number(addition.quantity_roosters || 0)}R` : ''
       }`,
+      ageWeeksAtPickup:
+        Number(addition.age_weeks_at_pickup || 0) > 0
+          ? Number(addition.age_weeks_at_pickup)
+          : (() => {
+              const age = getAgeWeeks(addition.chicken_hatches?.hatch_date || null, pickupDate)
+              return age > 0 ? age : null
+            })(),
     })),
   ]
 
@@ -620,6 +642,12 @@ export function UnifiedEggChickenOrdersManager() {
                       <td className="align-top px-4 py-3">
                         <div className="font-medium text-neutral-900">{row.lines[0]?.label || '-'}</div>
                         <div className="text-xs text-neutral-600">{row.lines[0]?.qty || ''}</div>
+                        {typeof row.lines[0]?.ageWeeksAtPickup === 'number' ? (
+                          <div className="text-xs text-neutral-500">
+                            {lang === 'en' ? 'Age' : 'Alder'}: {row.lines[0]?.ageWeeksAtPickup}{' '}
+                            {lang === 'en' ? 'weeks' : 'uker'}
+                          </div>
+                        ) : null}
                         {row.lines.length > 1 ? <div className="text-xs text-neutral-500">+{row.lines.length - 1}</div> : null}
                       </td>
                       <td className="align-top px-4 py-3 text-xs">
@@ -721,6 +749,12 @@ export function UnifiedEggChickenOrdersManager() {
                       <div key={line.key} className="rounded-md border border-neutral-200 bg-neutral-50 px-3 py-2">
                         <div className="font-medium">{line.label}</div>
                         <div className="text-neutral-600">{line.qty}</div>
+                        {typeof line.ageWeeksAtPickup === 'number' ? (
+                          <div className="text-xs text-neutral-500">
+                            {lang === 'en' ? 'Age' : 'Alder'}: {line.ageWeeksAtPickup}{' '}
+                            {lang === 'en' ? 'weeks' : 'uker'}
+                          </div>
+                        ) : null}
                       </div>
                     ))}
                   </div>

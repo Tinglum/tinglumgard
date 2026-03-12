@@ -122,6 +122,8 @@ export function EggOrderUnifiedCard({ order }: { order: EggOrder }) {
   const deliveryDate = toDateOnly(order.delivery_monday)
   const deliveryMondayLocal = new Date(`${order.delivery_monday}T00:00:00`)
   const canAdd = new Date() < deliveryMondayLocal && ['fully_paid', 'preparing'].includes(order.status)
+  const canWishlistMore =
+    new Date() < deliveryMondayLocal && !['cancelled', 'forfeited', 'delivered'].includes(order.status)
   const daysToDue = dueDate ? daysBetween(dueDate, today) : null
   const daysToDueLabel = daysToDue !== null ? Math.max(daysToDue, 0) : null
   const daysToDelivery = daysBetween(deliveryDate, today)
@@ -344,6 +346,14 @@ export function EggOrderUnifiedCard({ order }: { order: EggOrder }) {
             {canAdd && (
               <Link href={`/rugeegg/mine-bestillinger/${order.id}/betaling`} className="btn-secondary inline-flex">
                 {ordersCopy.addEggs}
+              </Link>
+            )}
+            {canWishlistMore && (
+              <Link
+                href={`/rugeegg/raser?orderId=${encodeURIComponent(order.id)}&wishlist=1`}
+                className="btn-secondary inline-flex"
+              >
+                {ordersCopy.wishlistMore || (lang === 'no' ? 'Ønsk flere egg' : 'Wish for more eggs')}
               </Link>
             )}
           </div>

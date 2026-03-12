@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { useLanguage } from '@/contexts/LanguageContext'
 import { BrowseMode } from '@/lib/eggs/types'
@@ -14,6 +15,7 @@ import type { Breed, WeekAvailability } from '@/lib/eggs/types'
 
 export default function HomePage() {
   const { lang: language, t } = useLanguage()
+  const searchParams = useSearchParams()
   const loadEggDataError = t.eggs.errors.loadEggData
   const [browseMode, setBrowseMode] = useState<BrowseMode>('breed')
   const [breeds, setBreeds] = useState<Breed[]>([])
@@ -24,6 +26,7 @@ export default function HomePage() {
     () => localizeBreeds(breeds, t.eggs.breedDetails),
     [breeds, t.eggs.breedDetails]
   )
+  const linkedOrderId = String(searchParams.get('orderId') || '').trim()
 
   useEffect(() => {
     let isActive = true
@@ -195,10 +198,19 @@ export default function HomePage() {
                     </div>
                     <div className="space-y-3">
                       {week.breeds.map((breed) => {
-                        const breedHref = `/rugeegg/raser/${breed.breedSlug}`
-                        const waitlistHref = `${breedHref}?waitlist=1&inventoryId=${encodeURIComponent(
-                          breed.inventoryId
-                        )}&year=${week.year}&week=${week.weekNumber}`
+                        const breedHref = linkedOrderId
+                          ? `/rugeegg/raser/${breed.breedSlug}?orderId=${encodeURIComponent(linkedOrderId)}`
+                          : `/rugeegg/raser/${breed.breedSlug}`
+                        const waitlistParams = new URLSearchParams({
+                          waitlist: '1',
+                          inventoryId: breed.inventoryId,
+                          year: String(week.year),
+                          week: String(week.weekNumber),
+                        })
+                        if (linkedOrderId) {
+                          waitlistParams.set('orderId', linkedOrderId)
+                        }
+                        const waitlistHref = `/rugeegg/raser/${breed.breedSlug}?${waitlistParams.toString()}`
 
                         return (
                           <div
@@ -227,19 +239,21 @@ export default function HomePage() {
                                       {t.browse.waitlistCta}
                                     </Link>
                                   </>
+                                ) : breed.status === 'closed' || breed.status === 'locked' ? (
+                                  <div className="text-sm text-neutral-500">
+                                    {language === 'no' ? 'Ikke åpen for bestilling' : 'Not open for ordering'}
+                                  </div>
                                 ) : (
                                   <>
                                     <div className="text-sm text-neutral-600">
                                       {breed.eggsAvailable} {t.browse.eggsAvailable}
                                     </div>
-                                    {breed.status === 'low_stock' && (
-                                      <Link
-                                        href={waitlistHref}
-                                        className="text-xs font-medium text-amber-700 hover:underline"
-                                      >
-                                        {t.browse.waitlistCta}
-                                      </Link>
-                                    )}
+                                    <Link
+                                      href={waitlistHref}
+                                      className="text-xs font-medium text-amber-700 hover:underline"
+                                    >
+                                      {t.browse.waitlistCta}
+                                    </Link>
                                   </>
                                 )}
                               </div>

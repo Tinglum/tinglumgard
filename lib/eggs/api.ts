@@ -1,6 +1,5 @@
 import type { Breed, WeekAvailability, WeekInventory } from './types'
 import { getWeekNumber } from './utils'
-import { getSingleBreedMinimumEggs } from './minimums'
 
 type EggBreedRow = {
   id: string
@@ -61,15 +60,11 @@ export function mapBreed(row: EggBreedRow): Breed {
 
 function resolveInventoryStatus(
   status: EggInventoryRow['status'],
-  eggsAvailable: number,
-  breed?: { slug?: string | null; minOrderQuantity?: number | null }
+  eggsAvailable: number
 ): WeekInventory['status'] {
   if (status === 'locked') return 'locked'
   if (status === 'closed') return 'closed'
-  if (status === 'sold_out') return 'sold_out'
-
   if (eggsAvailable <= 0) return 'sold_out'
-  if (eggsAvailable < getSingleBreedMinimumEggs(breed || {})) return 'low_stock'
   return 'available'
 }
 
@@ -82,6 +77,7 @@ export function mapInventory(row: EggInventoryRow, breed?: Breed): WeekInventory
     row.eggs_remaining !== undefined && row.eggs_remaining !== null
       ? row.eggs_remaining
       : row.eggs_available - row.eggs_allocated
+  const resolvedStatus = resolveInventoryStatus(row.status, eggsRemaining)
 
   return {
     id: row.id,
@@ -96,10 +92,10 @@ export function mapInventory(row: EggInventoryRow, breed?: Breed): WeekInventory
     eggsCapacity: row.eggs_available,
     eggsAllocated: row.eggs_allocated,
     eggsAvailable: eggsRemaining,
-    isOpen: row.status === 'open',
+    isOpen: resolvedStatus === 'available' || resolvedStatus === 'low_stock',
     isLocked: row.status === 'locked',
     e6PickupAvailable: true,
-    status: resolveInventoryStatus(row.status, eggsRemaining, breed),
+    status: resolvedStatus,
   }
 }
 
@@ -157,11 +153,15 @@ export function buildWeekAvailability(inventory: WeekInventory[]): WeekAvailabil
       accentColor: inv.breedAccentColor || '#1F2937',
       eggsAvailable: inv.eggsAvailable,
       status:
-        inv.status === 'sold_out' || inv.status === 'locked' || inv.status === 'closed'
+        inv.status === 'sold_out'
           ? 'sold_out'
-          : inv.status === 'low_stock'
-            ? 'low_stock'
-            : 'available',
+          : inv.status === 'locked'
+            ? 'locked'
+            : inv.status === 'closed'
+              ? 'closed'
+              : inv.status === 'low_stock'
+                ? 'low_stock'
+                : 'available',
     })
   })
 

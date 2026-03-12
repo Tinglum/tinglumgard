@@ -1,8 +1,9 @@
-import { supabaseAdmin } from '@/lib/supabase/server';
+﻿import { supabaseAdmin } from '@/lib/supabase/server';
 import { dispatchEmail } from '@/lib/email/dispatch';
 import { renderManagedTemplate } from '@/lib/email/render';
 import { buildAdminOrderLink, buildCustomerOrderLink } from '@/lib/email/links';
 import {
+  buildChickenBreedAgeLabel,
   buildChickenOrderLinesHtml,
   buildTotalBirdsLabel,
   summarizeChickenOrderLines,
@@ -33,7 +34,7 @@ export async function sendChickenDepositConfirmationEmails(params: {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_BASE_URL || 'https://tinglumgard.no';
 
   const selectClause =
-    '*, chicken_breeds(*), chicken_order_additions(quantity_hens, quantity_roosters, subtotal_nok, price_per_hen_nok, price_per_rooster_nok, chicken_breeds(*))';
+    '*, chicken_breeds(*), chicken_hatches(hatch_date), chicken_order_additions(hatch_id, quantity_hens, quantity_roosters, subtotal_nok, price_per_hen_nok, price_per_rooster_nok, chicken_breeds(*), chicken_hatches(hatch_date))';
 
   const { data: byId, error: byIdError } = await supabaseAdmin
     .from('chicken_orders')
@@ -79,6 +80,8 @@ export async function sendChickenDepositConfirmationEmails(params: {
   }
 
   const summary = summarizeChickenOrderLines(order);
+  const breedLabelWithAgeNo = buildChickenBreedAgeLabel(summary.lines, 'no');
+  const breedLabelWithAgeEn = buildChickenBreedAgeLabel(summary.lines, 'en');
   const pickupDate = order.pickup_monday ? new Date(`${order.pickup_monday}T00:00:00`).toLocaleDateString('nb-NO') : '';
   const orderLinesHtmlNo = buildChickenOrderLinesHtml(summary.lines, 'no');
   const orderLinesHtmlEn = buildChickenOrderLinesHtml(summary.lines, 'en');
@@ -94,7 +97,9 @@ export async function sendChickenDepositConfirmationEmails(params: {
       variables: {
         customer_name: order.customer_name || 'Kunde',
         order_number: order.order_number,
-        breed_name: summary.breedLabel,
+        breed_name: breedLabelWithAgeNo,
+        breed_name_en: breedLabelWithAgeEn,
+        breed_name_plain: summary.breedLabel,
         quantity_hens: summary.hens,
         quantity_roosters: summary.roosters,
         total_birds_label: buildTotalBirdsLabel(summary.hens, summary.roosters, 'no'),
@@ -151,7 +156,9 @@ export async function sendChickenDepositConfirmationEmails(params: {
           customer_name: order.customer_name || 'Kunde',
           customer_email: order.customer_email || '',
           customer_phone: order.customer_phone || 'Ikke oppgitt',
-          breed_name: summary.breedLabel,
+          breed_name: breedLabelWithAgeNo,
+          breed_name_en: breedLabelWithAgeEn,
+          breed_name_plain: summary.breedLabel,
           quantity_hens: summary.hens,
           quantity_roosters: summary.roosters,
           total_birds_label: buildTotalBirdsLabel(summary.hens, summary.roosters, 'no'),
@@ -204,3 +211,4 @@ export async function sendChickenDepositConfirmationEmails(params: {
     adminReason,
   };
 }
+

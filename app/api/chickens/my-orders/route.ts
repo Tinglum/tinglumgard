@@ -55,6 +55,32 @@ function toNumber(value: unknown): number {
   return Number.isFinite(parsed) ? parsed : 0
 }
 
+function toDateOnly(value?: string | null): Date | null {
+  if (!value) return null
+  const date = new Date(value)
+  if (!Number.isFinite(date.getTime())) return null
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()))
+}
+
+function getMondayOfIsoWeek(year: number, week: number): Date | null {
+  if (!Number.isFinite(year) || !Number.isFinite(week) || week <= 0) return null
+  const jan4 = new Date(Date.UTC(year, 0, 4))
+  const day = jan4.getUTCDay() || 7
+  const mondayWeek1 = new Date(jan4)
+  mondayWeek1.setUTCDate(jan4.getUTCDate() - day + 1)
+  const monday = new Date(mondayWeek1)
+  monday.setUTCDate(mondayWeek1.getUTCDate() + (week - 1) * 7)
+  return monday
+}
+
+function getAgeWeeks(hatchDate?: string | null, pickupDate?: Date | null): number {
+  const hatch = toDateOnly(hatchDate)
+  if (!hatch || !pickupDate) return 0
+  const diffMs = pickupDate.getTime() - hatch.getTime()
+  if (!Number.isFinite(diffMs) || diffMs < 0) return 0
+  return Math.floor(diffMs / (7 * 24 * 60 * 60 * 1000))
+}
+
 function normalizeChickenOrderFinancials<T extends Record<string, any>>(order: T): T {
   const additionsSubtotal = ((order.chicken_order_additions as Array<any> | undefined) || []).reduce(
     (sum, row) => sum + toNumber(row?.subtotal_nok),
@@ -177,6 +203,7 @@ export async function GET() {
     const paymentsByOrder = new Map<string, any[]>()
     const additionsByOrder = new Map<string, any[]>()
     const breedById = new Map<string, any>()
+    const hatchById = new Map<string, { id: string; hatch_date: string }>()
 
     if (orderIds.length > 0) {
       const [{ data: paymentRows, error: paymentError }, { data: additionRows, error: additionError }] =
@@ -231,21 +258,64 @@ export async function GET() {
           }
         }
       }
+
+      const hatchIds = new Set<string>()
+      for (const order of data) {
+        const hatchId = String(order.hatch_id || '').trim()
+        if (hatchId) hatchIds.add(hatchId)
+      }
+      for (const rows of Array.from(additionsByOrder.values())) {
+        for (const row of rows) {
+          const hatchId = String(row.hatch_id || '').trim()
+          if (hatchId) hatchIds.add(hatchId)
+        }
+      }
+
+      if (hatchIds.size > 0) {
+        const { data: hatchRows, error: hatchError } = await supabaseAdmin
+          .from('chicken_hatches')
+          .select('id, hatch_date')
+          .in('id', Array.from(hatchIds))
+
+        if (hatchError) {
+          console.error('Error fetching chicken hatches for my-orders:', hatchError)
+        } else {
+          for (const hatch of (hatchRows as Array<any>) || []) {
+            hatchById.set(String(hatch.id), hatch)
+          }
+        }
+      }
     }
 
     const enriched = data.map((order) => {
       const orderId = String(order.id || '')
+      const pickupDate =
+        toDateOnly(order.pickup_monday) ||
+        getMondayOfIsoWeek(Number(order.pickup_year || 0), Number(order.pickup_week || 0))
+
+      const baseHatch = hatchById.get(String(order.hatch_id || '')) || null
+
       const additions = (additionsByOrder.get(orderId) || []).map((addition) => {
         const breedId = String(addition.breed_id || '')
+        const hatchId = String(addition.hatch_id || '')
+        const hatch = hatchById.get(hatchId) || null
+        const explicitAge = toNumber(addition.age_weeks_at_pickup)
+        const computedAge = getAgeWeeks(hatch?.hatch_date || null, pickupDate)
         return {
           ...addition,
           chicken_breeds: breedById.get(breedId) || null,
+          chicken_hatches: hatch,
+          age_weeks_at_pickup: explicitAge > 0 ? explicitAge : computedAge,
         }
       })
       const baseBreed = breedById.get(String(order.breed_id || '')) || null
+      const explicitBaseAge = toNumber(order.age_weeks_at_pickup)
+      const computedBaseAge = getAgeWeeks(baseHatch?.hatch_date || null, pickupDate)
       return {
         ...order,
         chicken_breeds: baseBreed,
+        chicken_hatches: baseHatch,
+        age_weeks_at_pickup: explicitBaseAge > 0 ? explicitBaseAge : computedBaseAge,
         chicken_payments: paymentsByOrder.get(orderId) || [],
         chicken_order_additions: additions,
       }

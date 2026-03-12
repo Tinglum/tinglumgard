@@ -14,7 +14,6 @@ import { QuantitySelector } from '@/components/eggs/QuantitySelector'
 import { ArrowLeft, Info, AlertTriangle, Loader2, Mail } from 'lucide-react'
 import { Breed, WeekInventory } from '@/lib/eggs/types'
 import { fetchBreedBySlug, fetchInventory } from '@/lib/eggs/api'
-import { getSingleBreedMinimumEggs } from '@/lib/eggs/minimums'
 import { localizeBreed } from '@/lib/eggs/localize'
 
 function getWeekKey(week: WeekInventory): string {
@@ -42,9 +41,7 @@ export default function BreedDetailPage() {
   const [showWaitlistModal, setShowWaitlistModal] = useState(false)
   const [showActiveOrderPrompt, setShowActiveOrderPrompt] = useState(false)
   const [skipAutoWeek, setSkipAutoWeek] = useState(false)
-  const [waitlistEmail, setWaitlistEmail] = useState('')
-  const [waitlistName, setWaitlistName] = useState('')
-  const [waitlistPhone, setWaitlistPhone] = useState('')
+  const [waitlistQuantity, setWaitlistQuantity] = useState(1)
   const [waitlistSubmitting, setWaitlistSubmitting] = useState(false)
   const [waitlistError, setWaitlistError] = useState<string | null>(null)
   const [waitlistSuccess, setWaitlistSuccess] = useState(false)
@@ -52,10 +49,7 @@ export default function BreedDetailPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const minimumPurchase = getSingleBreedMinimumEggs({
-    slug: breed?.slug,
-    minOrderQuantity: breed?.minOrderQuantity,
-  })
+  const linkedOrderId = String(searchParams.get('orderId') || '').trim()
   const localizedBreed = useMemo(
     () => (breed ? localizeBreed(breed, t.eggs.breedDetails) : null),
     [breed, t.eggs.breedDetails]
@@ -121,8 +115,7 @@ export default function BreedDetailPage() {
     }
 
     if (!targetWeek) {
-      targetWeek =
-        inventory.find((week) => week.status === 'sold_out' || week.eggsAvailable < minimumPurchase) || null
+      targetWeek = inventory.find((week) => week.status === 'sold_out') || inventory[0] || null
     }
 
     if (targetWeek) {
@@ -130,10 +123,11 @@ export default function BreedDetailPage() {
       setShowWaitlistModal(true)
       setWaitlistError(null)
       setWaitlistSuccess(false)
+      setWaitlistQuantity(1)
     }
 
     setWaitlistPrefillHandled(true)
-  }, [inventory, minimumPurchase, searchParams, waitlistPrefillHandled])
+  }, [inventory, searchParams, waitlistPrefillHandled])
 
   if (isLoading) {
     return (
@@ -170,11 +164,12 @@ export default function BreedDetailPage() {
       }
     }
 
-    if (week.eggsAvailable < minimumPurchase) {
+    if (week.status === 'sold_out' || week.eggsAvailable <= 0) {
       setSelectedWeek(week)
       setShowWaitlistModal(true)
       setWaitlistError(null)
       setWaitlistSuccess(false)
+      setWaitlistQuantity(1)
       return
     }
 
@@ -203,11 +198,12 @@ export default function BreedDetailPage() {
       return
     }
 
-    if (matchingWeek.eggsAvailable < minimumPurchase) {
+    if (matchingWeek.status === 'sold_out' || matchingWeek.eggsAvailable <= 0) {
       setSelectedWeek(matchingWeek)
       setShowWaitlistModal(true)
       setWaitlistError(null)
       setWaitlistSuccess(false)
+      setWaitlistQuantity(1)
       return
     }
 
@@ -238,17 +234,15 @@ export default function BreedDetailPage() {
     setWaitlistError(null)
     setWaitlistSuccess(false)
     setWaitlistSubmitting(false)
-    setWaitlistEmail('')
-    setWaitlistName('')
-    setWaitlistPhone('')
+    setWaitlistQuantity(1)
   }
 
   const handleJoinWaitlist = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (!selectedWeek) return
 
-    const email = waitlistEmail.trim().toLowerCase()
-    if (!email) {
+    const quantity = Math.max(1, Math.floor(Number(waitlistQuantity || 1)))
+    if (!Number.isFinite(quantity) || quantity <= 0) {
       setWaitlistError(t.eggs.waitlist.genericError)
       return
     }
@@ -257,25 +251,28 @@ export default function BreedDetailPage() {
       setWaitlistSubmitting(true)
       setWaitlistError(null)
 
-      const response = await fetch('/api/eggs/waitlist', {
+      const response = await fetch('/api/eggs/wishlist', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           inventoryId: selectedWeek.id,
-          email,
-          name: waitlistName.trim() || undefined,
-          phone: waitlistPhone.trim() || undefined,
+          quantity,
+          orderId: linkedOrderId || undefined,
+          source: linkedOrderId ? 'order_addon' : 'standalone',
         }),
       })
 
+      if (response.status === 401) {
+        const returnTo = `${window.location.pathname}${window.location.search || ''}`
+        window.location.href = `/api/auth/vipps/login?returnTo=${encodeURIComponent(returnTo)}`
+        return
+      }
+
       if (!response.ok) {
-        const payload = await response.json().catch(() => null)
-        if (response.status === 409 && payload?.error === 'Stock available now') {
-          setWaitlistError(t.eggs.waitlist.unavailableNow)
-          return
-        }
-        if (response.status === 409) {
-          setWaitlistError(t.eggs.waitlist.alreadyJoined)
+        const payload = await response.json().catch(() => ({ error: null }))
+        const backendError = String(payload?.error || '').trim()
+        if (backendError) {
+          setWaitlistError(backendError)
           return
         }
         setWaitlistError(t.eggs.waitlist.genericError)
@@ -284,7 +281,7 @@ export default function BreedDetailPage() {
 
       setWaitlistSuccess(true)
     } catch (joinError) {
-      console.error('Failed to join egg waitlist', joinError)
+      console.error('Failed to create egg wishlist request', joinError)
       setWaitlistError(t.eggs.waitlist.genericError)
     } finally {
       setWaitlistSubmitting(false)
@@ -344,15 +341,11 @@ export default function BreedDetailPage() {
                     {formatPrice(localizedBreed.pricePerEgg, language)}
                   </div>
                 </div>
-                <div className="text-right text-sm text-neutral-600">
-                  <div>{t.breed.minOrder}:</div>
-                  <div className="font-normal text-neutral-900">
-                    {localizedBreed.minOrderQuantity} {t.breed.eggs}
-                  </div>
-                </div>
               </div>
               <div className="text-xs text-neutral-500">
-                {t.breed.deliveryFrom} 300 {t.breed.pricePerEgg} - {t.breed.calculatedAtCheckout}
+                {localizedBreed.slug === 'ayam-cemani'
+                  ? t.eggs.cart.ayamOrderDescription
+                  : t.eggs.cart.mixedOrderDescription}
               </div>
             </GlassCard>
 
@@ -506,9 +499,7 @@ export default function BreedDetailPage() {
                 <h2 className="text-lg font-normal text-neutral-900">
                   {t.eggs.waitlist.title}
                 </h2>
-                <p className="text-sm text-neutral-600">
-                  {t.eggs.waitlist.description.replace('{min}', String(minimumPurchase))}
-                </p>
+                <p className="text-sm text-neutral-600">{t.eggs.waitlist.description}</p>
                 <p className="text-xs text-neutral-500 mt-2">
                   {t.eggs.common.week} {selectedWeek.weekNumber} • {formatDate(selectedWeek.deliveryMonday, language)}
                 </p>
@@ -518,34 +509,18 @@ export default function BreedDetailPage() {
             {!waitlistSuccess ? (
               <form onSubmit={handleJoinWaitlist} className="space-y-3">
                 <div>
-                  <label className="block text-sm text-neutral-700 mb-1">{t.eggs.waitlist.emailLabel}</label>
+                  <label className="block text-sm text-neutral-700 mb-1">{t.eggs.waitlist.quantityLabel}</label>
                   <input
-                    type="email"
+                    type="number"
                     required
-                    value={waitlistEmail}
-                    onChange={(event) => setWaitlistEmail(event.target.value)}
+                    min={1}
+                    value={waitlistQuantity}
+                    onChange={(event) => setWaitlistQuantity(Math.max(1, Number(event.target.value || 1)))}
                     className="w-full rounded-xl border border-neutral-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black/10"
-                    placeholder={t.eggs.waitlist.emailPlaceholder}
+                    placeholder="1"
                   />
                 </div>
-                <div>
-                  <label className="block text-sm text-neutral-700 mb-1">{t.eggs.waitlist.nameLabel}</label>
-                  <input
-                    type="text"
-                    value={waitlistName}
-                    onChange={(event) => setWaitlistName(event.target.value)}
-                    className="w-full rounded-xl border border-neutral-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black/10"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm text-neutral-700 mb-1">{t.eggs.waitlist.phoneLabel}</label>
-                  <input
-                    type="tel"
-                    value={waitlistPhone}
-                    onChange={(event) => setWaitlistPhone(event.target.value)}
-                    className="w-full rounded-xl border border-neutral-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black/10"
-                  />
-                </div>
+                <p className="text-xs text-neutral-500">{t.eggs.waitlist.bestEffort}</p>
 
                 {waitlistError && (
                   <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
