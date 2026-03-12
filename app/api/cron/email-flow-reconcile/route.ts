@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { processEmailDispatchBatch } from '@/lib/email/dispatch';
+import { materializeLifecycleInstancesOnly } from '@/lib/email/lifecycle';
 import { getEmailSchemaStatus } from '@/lib/email/schema';
 
 function getCronAuth(request: NextRequest): {
@@ -49,33 +49,32 @@ export async function POST(request: NextRequest) {
     }
 
     stage = 'schema';
-    const schema = await getEmailSchemaStatus(['email_dispatch_queue']);
+    const schema = await getEmailSchemaStatus(['email_templates', 'email_flows', 'email_flow_instances']);
     if (!schema.ready) {
       return NextResponse.json(
         {
           error: 'Email schema is not fully migrated',
           missingTables: schema.missingTables,
+          hint: 'Run migration 20260310210000_repair_unified_email_schema.sql',
         },
         { status: 503 }
       );
     }
 
     stage = 'run';
-    const result = await processEmailDispatchBatch();
-    return NextResponse.json(result);
+    const result = await materializeLifecycleInstancesOnly();
+    return NextResponse.json(result, { status: result.ok ? 200 : 500 });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unknown dispatch error';
+    const message = error instanceof Error ? error.message : 'Unknown reconcile error';
     return NextResponse.json(
       {
-        error: 'Email dispatch failed',
+        error: 'Email flow reconcile failed',
         stage,
         detail: message,
         env: {
           cronSecret: Boolean(process.env.CRON_SECRET),
           supabaseUrl: Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL),
           supabaseServiceRole: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY),
-          mailgunApiKey: Boolean(process.env.MAILGUN_API_KEY),
-          mailgunDomain: Boolean(process.env.MAILGUN_DOMAIN),
         },
       },
       { status: 500 }

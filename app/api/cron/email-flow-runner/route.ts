@@ -41,34 +41,51 @@ function getCronAuth(request: NextRequest): {
 }
 
 export async function POST(request: NextRequest) {
-  const auth = getCronAuth(request);
-  if (!auth.ok) {
-    return NextResponse.json({ error: auth.error, detail: auth.detail }, { status: auth.status });
-  }
-
-  const schema = await getEmailSchemaStatus([
-    'email_templates',
-    'email_flows',
-    'email_dispatch_queue',
-    'email_flow_instances',
-    'email_flow_runs',
-  ]);
-  if (!schema.ready) {
-    return NextResponse.json(
-      {
-        error: 'Email schema is not fully migrated',
-        missingTables: schema.missingTables,
-        hint: 'Run migration 20260310210000_repair_unified_email_schema.sql',
-      },
-      { status: 503 }
-    );
-  }
-
+  let stage: 'auth' | 'schema' | 'run' = 'auth';
   try {
+    const auth = getCronAuth(request);
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.error, detail: auth.detail }, { status: auth.status });
+    }
+
+    stage = 'schema';
+    const schema = await getEmailSchemaStatus([
+      'email_templates',
+      'email_flows',
+      'email_dispatch_queue',
+      'email_flow_instances',
+      'email_flow_runs',
+    ]);
+    if (!schema.ready) {
+      return NextResponse.json(
+        {
+          error: 'Email schema is not fully migrated',
+          missingTables: schema.missingTables,
+          hint: 'Run migration 20260310210000_repair_unified_email_schema.sql',
+        },
+        { status: 503 }
+      );
+    }
+
+    stage = 'run';
     const result = await runEmailFlowRunner();
     return NextResponse.json(result, { status: result.ok ? 200 : 500 });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown flow runner error';
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json(
+      {
+        error: 'Email flow runner failed',
+        stage,
+        detail: message,
+        env: {
+          cronSecret: Boolean(process.env.CRON_SECRET),
+          supabaseUrl: Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL),
+          supabaseServiceRole: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY),
+          mailgunApiKey: Boolean(process.env.MAILGUN_API_KEY),
+          mailgunDomain: Boolean(process.env.MAILGUN_DOMAIN),
+        },
+      },
+      { status: 500 }
+    );
   }
 }
