@@ -18,6 +18,8 @@ interface InventoryRow {
   id: string
   eggs_available: number
   eggs_allocated: number
+  auto_forecast_eggs: number
+  manual_adjustment: number
   status: InventoryStatus
   manual_override: boolean
 }
@@ -163,7 +165,7 @@ export async function syncForecastToInventory(input: SyncForecastInput) {
 
   const { data: existing, error: fetchError } = await supabaseAdmin
     .from('egg_inventory')
-    .select('id, eggs_available, eggs_allocated, status, manual_override')
+    .select('id, eggs_available, eggs_allocated, auto_forecast_eggs, manual_adjustment, status, manual_override')
     .eq('breed_id', input.breedId)
     .eq('year', input.year)
     .eq('week_number', input.weekNumber)
@@ -185,6 +187,8 @@ export async function syncForecastToInventory(input: SyncForecastInput) {
         week_number: input.weekNumber,
         delivery_monday: input.deliveryMonday,
         eggs_available: nextAvailable,
+        auto_forecast_eggs: nextAvailable,
+        manual_adjustment: 0,
         eggs_allocated: 0,
         status,
         manual_override: false,
@@ -215,15 +219,48 @@ export async function syncForecastToInventory(input: SyncForecastInput) {
   }
 
   if (existing.manual_override) {
+    const adjustment = Number(existing.manual_adjustment || 0)
+    const adjustedAvailable = Math.max(0, nextAvailable + adjustment)
+    const previousStatus = (existing.status || 'open') as InventoryStatus
+    const eggsAllocated = existing.eggs_allocated || 0
+    const deficit = adjustedAvailable < eggsAllocated
+    const adjustedLowStock = adjustedAvailable < input.threshold
+    const nextStatus = computeStatus(previousStatus, adjustedAvailable, eggsAllocated, deficit)
+
+    const { error: manualUpdateError } = await supabaseAdmin
+      .from('egg_inventory')
+      .update({
+        eggs_available: adjustedAvailable,
+        auto_forecast_eggs: nextAvailable,
+        manual_adjustment: adjustment,
+        status: nextStatus,
+        forecast_source: 'manual',
+        auto_forecast_at: nowIso,
+        deficit_alert: deficit,
+      })
+      .eq('id', existing.id)
+
+    if (manualUpdateError) {
+      logError('egg-ops-sync-update-manual-adjustment', manualUpdateError, input)
+      return { ok: false, skipped: false, reason: 'update_failed' as const, inventoryId: existing.id }
+    }
+
+    const capacityIncreased = adjustedAvailable > (existing.eggs_available || 0)
+    const reopened = (previousStatus === 'locked' || previousStatus === 'sold_out') && nextStatus === 'open'
+    if (capacityIncreased || reopened) {
+      await reactivatePausedWaitlistEntries(existing.id)
+      await processEggWaitlistQueue({ inventoryIds: [existing.id] })
+    }
+
     await reconcileAlerts({
       breedId: input.breedId,
       year: input.year,
       weekNumber: input.weekNumber,
-      lowStock: input.lowStock,
-      deficit: existing.eggs_available < (existing.eggs_allocated || 0),
+      lowStock: adjustedLowStock,
+      deficit,
       threshold: input.threshold,
-      forecastEggs: nextAvailable,
-      eggsAllocated: existing.eggs_allocated || 0,
+      forecastEggs: adjustedAvailable,
+      eggsAllocated,
     })
     return { ok: true, skipped: true, inventoryId: existing.id }
   }
@@ -237,6 +274,8 @@ export async function syncForecastToInventory(input: SyncForecastInput) {
     .from('egg_inventory')
     .update({
       eggs_available: nextAvailable,
+      auto_forecast_eggs: nextAvailable,
+      manual_adjustment: 0,
       status: nextStatus,
       forecast_source: 'auto',
       auto_forecast_at: nowIso,

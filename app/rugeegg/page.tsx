@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
@@ -495,14 +495,7 @@ export default function HomePage() {
             {t.eggsHero.subtitle}
           </p>
 
-          <div
-            className={cn(
-              'mb-16 text-left gap-6',
-              browseMode === 'week'
-                ? 'grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_380px] items-start'
-                : 'block'
-            )}
-          >
+          <div className="mb-16 text-left">
             <div className="min-w-0">
               <div className="mb-8 flex justify-center lg:justify-start">
                 <div className="inline-flex glass-light rounded-xl p-1">
@@ -607,81 +600,81 @@ export default function HomePage() {
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ duration: 0.3 }}
-                  className="space-y-4"
+                  className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_380px] gap-6 items-start"
                 >
-                  {isLoading && <div className="text-sm text-neutral-500">{t.eggs.common.loadingWeeks}</div>}
-                  {weekAvailabilityForView.map((week, index) => (
-                    <motion.div
-                      key={`${week.year}-${week.weekNumber}`}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.5, delay: index * 0.05 }}
-                    >
-                      <GlassCard className="p-6">
-                        <div className="mb-4 pb-4 border-b border-neutral-200">
-                          <h3 className="text-lg font-normal text-neutral-900">
-                            {t.browse.week} {week.weekNumber} - {formatDate(week.deliveryMonday, language)}
-                          </h3>
-                        </div>
-                        <div className="space-y-3">
-                          {week.breeds.map((breed) => {
-                            const breedHref = linkedOrderId
-                              ? `/rugeegg/raser/${breed.breedSlug}?orderId=${encodeURIComponent(linkedOrderId)}`
-                              : `/rugeegg/raser/${breed.breedSlug}`
-                            const isClickable = breed.status !== 'closed' && breed.status !== 'locked'
+                  <div className="space-y-4 min-w-0">
+                    {isLoading && <div className="text-sm text-neutral-500">{t.eggs.common.loadingWeeks}</div>}
+                    {weekAvailabilityForView.map((week, index) => (
+                      <motion.div
+                        key={`${week.year}-${week.weekNumber}`}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.5, delay: index * 0.05 }}
+                      >
+                        <GlassCard className="p-6">
+                          <div className="mb-4 pb-4 border-b border-neutral-200">
+                            <h3 className="text-lg font-normal text-neutral-900">
+                              {t.browse.week} {week.weekNumber} - {formatDate(week.deliveryMonday, language)}
+                            </h3>
+                          </div>
+                          <div className="space-y-3">
+                            {week.breeds.map((breed) => {
+                              const breedHref = linkedOrderId
+                                ? `/rugeegg/raser/${breed.breedSlug}?orderId=${encodeURIComponent(linkedOrderId)}`
+                                : `/rugeegg/raser/${breed.breedSlug}`
+                              const isClickable = breed.status !== 'closed' && breed.status !== 'locked'
 
-                            return (
-                              <Link
-                                key={breed.breedId}
-                                href={isClickable ? breedHref : '#'}
-                                className={cn(
-                                  'flex items-center justify-between py-2 px-3 rounded transition-colors group',
-                                  isClickable
-                                    ? 'hover:bg-neutral-50 cursor-pointer'
-                                    : 'cursor-not-allowed opacity-70'
-                                )}
-                                onClick={(event) => {
-                                  if (!isClickable) event.preventDefault()
-                                }}
-                              >
-                                <div className="flex items-center gap-3 min-w-0">
-                                  <div
-                                    className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-normal text-white"
-                                    style={{ backgroundColor: breed.accentColor }}
-                                  >
-                                    {breed.breedName.charAt(0)}
+                              return (
+                                <Link
+                                  key={breed.breedId}
+                                  href={isClickable ? breedHref : '#'}
+                                  className={cn(
+                                    'flex items-center justify-between py-2 px-3 rounded transition-colors group',
+                                    isClickable
+                                      ? 'hover:bg-neutral-50 cursor-pointer'
+                                      : 'cursor-not-allowed opacity-70'
+                                  )}
+                                  onClick={(event) => {
+                                    if (!isClickable) event.preventDefault()
+                                  }}
+                                >
+                                  <div className="flex items-center gap-3 min-w-0">
+                                    <div
+                                      className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-normal text-white"
+                                      style={{ backgroundColor: breed.accentColor }}
+                                    >
+                                      {breed.breedName.charAt(0)}
+                                    </div>
+                                    <span className="font-medium text-neutral-900 truncate">{breed.breedName}</span>
                                   </div>
-                                  <span className="font-medium text-neutral-900 truncate">{breed.breedName}</span>
-                                </div>
 
-                                <div className="flex items-center gap-2">
-                                  <div className="text-right">
-                                    {breed.status === 'sold_out' ? (
-                                      <div className="text-sm font-medium text-neutral-500">{t.browse.soldOut}</div>
-                                    ) : breed.status === 'closed' || breed.status === 'locked' ? (
-                                      <div className="text-sm text-neutral-500">{t.browse.notOpenForOrdering}</div>
-                                    ) : (
-                                      <div className="text-sm text-neutral-600">
-                                        {breed.eggsAvailable} {t.browse.eggsAvailable}
-                                      </div>
-                                    )}
+                                  <div className="flex items-center gap-2">
+                                    <div className="text-right">
+                                      {breed.status === 'sold_out' ? (
+                                        <div className="text-sm font-medium text-neutral-500">{t.browse.soldOut}</div>
+                                      ) : breed.status === 'closed' || breed.status === 'locked' ? (
+                                        <div className="text-sm text-neutral-500">{t.browse.notOpenForOrdering}</div>
+                                      ) : (
+                                        <div className="text-sm text-neutral-600">
+                                          {breed.eggsAvailable} {t.browse.eggsAvailable}
+                                        </div>
+                                      )}
+                                    </div>
+                                    <ArrowRight className="w-4 h-4 text-neutral-400 group-hover:text-neutral-900 group-hover:translate-x-0.5 transition-all" />
                                   </div>
-                                  <ArrowRight className="w-4 h-4 text-neutral-400 group-hover:text-neutral-900 group-hover:translate-x-0.5 transition-all" />
-                                </div>
-                              </Link>
-                            )
-                          })}
-                        </div>
-                      </GlassCard>
-                    </motion.div>
-                  ))}
+                                </Link>
+                              )
+                            })}
+                          </div>
+                        </GlassCard>
+                      </motion.div>
+                    ))}
+                  </div>
+
+                  <aside className="lg:sticky lg:top-28 lg:self-start">{wishlistInfoCard}</aside>
                 </motion.div>
               )}
             </div>
-
-            {browseMode === 'week' ? (
-              <aside className="lg:sticky lg:top-28 lg:self-start">{wishlistInfoCard}</aside>
-            ) : null}
           </div>
         </motion.div>
       </section>

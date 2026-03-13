@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { Card } from '@/components/ui/card';
@@ -21,7 +21,7 @@ import {
 } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 
-/* ── types ─────────────────────────────────────────────────────────── */
+/* â”€â”€ types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 interface Breed {
   id: string;
@@ -39,6 +39,9 @@ interface InventoryItem {
   eggs_available: number;
   eggs_allocated: number;
   eggs_remaining: number;
+  auto_forecast_eggs?: number | null;
+  manual_adjustment?: number | null;
+  manual_override?: boolean | null;
   status: string;
   egg_breeds: Breed;
 }
@@ -47,10 +50,10 @@ interface WeekRow {
   year: number;
   week_number: number;
   delivery_monday: string;
-  items: Record<string, InventoryItem>; // breed_id → item
+  items: Record<string, InventoryItem>; // breed_id â†’ item
 }
 
-/* ── helpers ───────────────────────────────────────────────────────── */
+/* â”€â”€ helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 function groupByWeek(items: InventoryItem[]): WeekRow[] {
   const map = new Map<string, WeekRow>();
@@ -99,7 +102,7 @@ function statusBadge(status: string, copy: any) {
   );
 }
 
-/* ── main component ────────────────────────────────────────────────── */
+/* â”€â”€ main component â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 export function EggInventoryManagement() {
   const { t, lang } = useLanguage();
@@ -114,7 +117,8 @@ export function EggInventoryManagement() {
 
   // Edit panel (appears below the table row)
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
-  const [editCapacity, setEditCapacity] = useState('');
+  const [editAdjustment, setEditAdjustment] = useState('0');
+  const [editBaseForecast, setEditBaseForecast] = useState(0);
   const [editStatus, setEditStatus] = useState('');
   const [savingEdit, setSavingEdit] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -206,7 +210,7 @@ export function EggInventoryManagement() {
     };
   }, [inventory, breeds]);
 
-  /* ── edit panel handlers ─────────────────────────────────────── */
+  /* â”€â”€ edit panel handlers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
   function openEditPanel(item: InventoryItem) {
     if (editingItem?.id === item.id) {
@@ -215,34 +219,49 @@ export function EggInventoryManagement() {
     }
     setSaveError(null);
     setEditingItem(item);
-    setEditCapacity(String(item.eggs_available));
+    const baseForecast =
+      Number.isFinite(Number(item.auto_forecast_eggs)) && item.auto_forecast_eggs !== null
+        ? Number(item.auto_forecast_eggs)
+        : Number(item.eggs_available || 0) - Number(item.manual_adjustment || 0);
+    setEditBaseForecast(Math.max(0, Math.round(baseForecast)));
+    setEditAdjustment(String(Number(item.manual_adjustment || 0)));
     setEditStatus(item.status);
   }
 
   function closeEditPanel() {
     setEditingItem(null);
-    setEditCapacity('');
+    setEditAdjustment('0');
+    setEditBaseForecast(0);
     setEditStatus('');
     setSaveError(null);
   }
 
   async function saveEditPanel() {
     if (!editingItem) return;
-    const newCapacity = parseInt(editCapacity, 10);
-    if (isNaN(newCapacity) || newCapacity < 0) return;
+    const parsedAdjustment = Number(editAdjustment || '0');
+    if (!Number.isInteger(parsedAdjustment)) {
+      setSaveError(lang === 'en' ? 'Adjustment must be a whole number.' : 'Justering mÃ¥ vÃ¦re et heltall.');
+      return;
+    }
 
-    const updates: any = {};
-    if (newCapacity !== editingItem.eggs_available) updates.eggs_available = newCapacity;
-    if (editStatus !== editingItem.status) updates.status = editStatus;
-    if (Object.keys(updates).length === 0) {
+    const previousAdjustment = Number(editingItem.manual_adjustment || 0);
+    const isSameAdjustment = parsedAdjustment === previousAdjustment;
+    const isSameStatus = editStatus === editingItem.status;
+    if (isSameAdjustment && isSameStatus) {
       closeEditPanel();
       return;
     }
 
+    const updates: any = {
+      manual_adjustment: parsedAdjustment,
+      manual_override: parsedAdjustment !== 0,
+    };
+    if (!isSameStatus) updates.status = editStatus;
+
     setSavingEdit(true);
     setSaveError(null);
     try {
-      const res = await fetch(`/api/admin/eggs/inventory/${editingItem.id}`, {
+      const res = await fetch(`/api/admin/eggs/inventory/${editingItem.id}/override`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updates),
@@ -264,7 +283,7 @@ export function EggInventoryManagement() {
     }
   }
 
-  /* ── bulk close/open ──────────────────────────────────────────── */
+  /* â”€â”€ bulk close/open â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
   async function bulkSetStatus(status: 'open' | 'closed') {
     const itemIds: string[] = [];
@@ -293,7 +312,7 @@ export function EggInventoryManagement() {
     }
   }
 
-  /* ── add week (all breeds at once) ────────────────────────────── */
+  /* â”€â”€ add week (all breeds at once) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
   async function handleAddWeek(e: React.FormEvent) {
     e.preventDefault();
@@ -332,7 +351,7 @@ export function EggInventoryManagement() {
     }
   }
 
-  /* ── clone last week ──────────────────────────────────────────── */
+  /* â”€â”€ clone last week â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
   async function cloneLastWeek() {
     if (weekRows.length === 0) return;
@@ -365,7 +384,7 @@ export function EggInventoryManagement() {
     }
   }
 
-  /* ── month collapse toggle ────────────────────────────────────── */
+  /* â”€â”€ month collapse toggle â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
   function toggleMonth(monthKey: string) {
     setCollapsedMonths((prev) => {
@@ -376,7 +395,7 @@ export function EggInventoryManagement() {
     });
   }
 
-  /* ── week row selection ───────────────────────────────────────── */
+  /* â”€â”€ week row selection â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
   function toggleWeekSelection(weekKey: string) {
     setSelectedWeeks((prev) => {
@@ -387,7 +406,7 @@ export function EggInventoryManagement() {
     });
   }
 
-  /* ── render ───────────────────────────────────────────────────── */
+  /* â”€â”€ render â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
   if (loading) {
     return (
@@ -401,7 +420,7 @@ export function EggInventoryManagement() {
 
   return (
     <div className="space-y-6">
-      {/* ── header ──────────────────────────────────────────────── */}
+      {/* â”€â”€ header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold text-neutral-900">{copy.title}</h2>
@@ -423,7 +442,7 @@ export function EggInventoryManagement() {
         </div>
       </div>
 
-      {/* ── summary dashboard ───────────────────────────────────── */}
+      {/* â”€â”€ summary dashboard â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         <div className="rounded-xl border border-neutral-200 bg-white p-4">
           <p className="text-[11px] uppercase tracking-[0.2em] text-neutral-500 mb-1">
@@ -472,7 +491,7 @@ export function EggInventoryManagement() {
         </div>
       )}
 
-      {/* ── bulk actions bar ────────────────────────────────────── */}
+      {/* â”€â”€ bulk actions bar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       {selectedWeeks.size > 0 && (
         <div className="flex items-center gap-3 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3">
           <p className="text-sm font-medium text-blue-800">
@@ -494,7 +513,7 @@ export function EggInventoryManagement() {
         </div>
       )}
 
-      {/* ── add week form ───────────────────────────────────────── */}
+      {/* â”€â”€ add week form â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       {showAddForm && (
         <Card className="p-5 border border-neutral-200 bg-neutral-50">
           <form onSubmit={handleAddWeek} className="space-y-4">
@@ -580,7 +599,7 @@ export function EggInventoryManagement() {
         </Card>
       )}
 
-      {/* ── week table ──────────────────────────────────────────── */}
+      {/* â”€â”€ week table â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       {weekRows.length === 0 ? (
         <Card className="p-12 text-center">
           <Egg className="w-12 h-12 text-neutral-300 mx-auto mb-4" />
@@ -686,7 +705,7 @@ export function EggInventoryManagement() {
                             {monthLabel}
                           </span>
                           <span className="text-xs text-neutral-400">
-                            {ei.monthWeeksLabel.replace('{count}', String(rows.length))} · {ei.monthEggsLeft.replace('{count}', String(monthTotal))}
+                            {ei.monthWeeksLabel.replace('{count}', String(rows.length))} Â· {ei.monthEggsLeft.replace('{count}', String(monthTotal))}
                           </span>
                         </div>
                       </td>
@@ -752,7 +771,7 @@ export function EggInventoryManagement() {
                                   return (
                                     <td key={breed.id} className="text-center px-1 py-1.5">
                                       <div className="mx-auto rounded-lg bg-neutral-50 text-neutral-300 text-xs py-1.5 px-2 w-[72px]">
-                                        —
+                                        â€”
                                       </div>
                                     </td>
                                   );
@@ -776,6 +795,12 @@ export function EggInventoryManagement() {
                                       <div className="leading-tight">
                                         <span>{item.eggs_allocated}/{item.eggs_available}</span>
                                       </div>
+                                      {Number(item.manual_adjustment || 0) !== 0 ? (
+                                        <div className="text-[10px] font-semibold mt-0.5">
+                                          {Number(item.manual_adjustment || 0) > 0 ? '+' : ''}
+                                          {Number(item.manual_adjustment || 0)}
+                                        </div>
+                                      ) : null}
                                       <div className="mt-0.5">
                                         {statusBadge(item.status, copy)}
                                       </div>
@@ -821,8 +846,34 @@ export function EggInventoryManagement() {
                                         {editingItem.egg_breeds.name}
                                       </span>
                                       <span className="text-xs text-neutral-500">
-                                        — {ei.weekLabel} {editingItem.week_number}
+                                        â€” {ei.weekLabel} {editingItem.week_number}
                                       </span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <Label className="text-xs text-neutral-600">
+                                        {ei.editPanelForecastBase || (lang === 'en' ? 'Forecast base:' : 'Forecast base:')}
+                                      </Label>
+                                      <Input
+                                        type="number"
+                                        value={String(editBaseForecast)}
+                                        disabled
+                                        className="w-20 h-8 text-sm bg-neutral-100"
+                                      />
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <Label className="text-xs text-neutral-600">
+                                        {ei.editPanelAdjustment || (lang === 'en' ? 'Adjustment (+/-):' : 'Justering (+/-):')}
+                                      </Label>
+                                      <Input
+                                        type="number"
+                                        value={editAdjustment}
+                                        onChange={(e) => setEditAdjustment(e.target.value)}
+                                        className="w-20 h-8 text-sm"
+                                        onKeyDown={(e) => {
+                                          if (e.key === 'Enter') saveEditPanel();
+                                          if (e.key === 'Escape') closeEditPanel();
+                                        }}
+                                      />
                                     </div>
                                     <div className="flex items-center gap-2">
                                       <Label className="text-xs text-neutral-600">
@@ -830,14 +881,9 @@ export function EggInventoryManagement() {
                                       </Label>
                                       <Input
                                         type="number"
-                                        min="0"
-                                        value={editCapacity}
-                                        onChange={(e) => setEditCapacity(e.target.value)}
-                                        className="w-20 h-8 text-sm"
-                                        onKeyDown={(e) => {
-                                          if (e.key === 'Enter') saveEditPanel();
-                                          if (e.key === 'Escape') closeEditPanel();
-                                        }}
+                                        value={String(Math.max(0, editBaseForecast + Number(editAdjustment || '0')))}
+                                        disabled
+                                        className="w-20 h-8 text-sm bg-neutral-100"
                                       />
                                     </div>
                                     <div className="flex items-center gap-2">
@@ -857,7 +903,7 @@ export function EggInventoryManagement() {
                                     </div>
                                     <div className="flex items-center gap-1 text-xs text-neutral-500">
                                       <span>{ei.editPanelAllocated.replace('{count}', String(editingItem.eggs_allocated))}</span>
-                                      <span>·</span>
+                                      <span>•</span>
                                       <span>{ei.editPanelRemaining.replace('{count}', String(editingItem.eggs_remaining))}</span>
                                     </div>
                                     <div className="flex items-center gap-2 ml-auto">
@@ -888,7 +934,7 @@ export function EggInventoryManagement() {
         </div>
       )}
 
-      {/* ── legend ──────────────────────────────────────────────── */}
+      {/* â”€â”€ legend â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <div className="flex flex-wrap items-center gap-4 text-[11px] text-neutral-500 px-1">
         <span className="flex items-center gap-1.5">
           <div className="w-3 h-3 rounded bg-green-50 border border-green-200" />
@@ -906,7 +952,9 @@ export function EggInventoryManagement() {
           <div className="w-3 h-3 rounded bg-neutral-100 border border-neutral-200" />
           {ei.legendClosed}
         </span>
-        <span className="text-neutral-400">·</span>
+        <span className="text-neutral-400">•</span>
+        <span>{ei.legendAdjusted || (lang === 'en' ? 'Cells with + or - have manual adjustment' : 'Celler med + eller - har manuell justering')}</span>
+        <span className="text-neutral-400">•</span>
         <span>{ei.legendHelp}</span>
       </div>
     </div>

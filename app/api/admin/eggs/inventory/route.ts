@@ -54,8 +54,12 @@ export async function POST(request: Request) {
           week_number: body.week_number,
           delivery_monday: body.delivery_monday,
           eggs_available: body.eggs_available,
+          auto_forecast_eggs: body.eggs_available,
+          manual_adjustment: 0,
+          manual_override: false,
           eggs_allocated: 0,
           status: body.status || 'open',
+          forecast_source: 'manual',
         },
       ])
       .select()
