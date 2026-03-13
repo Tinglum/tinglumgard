@@ -14,7 +14,12 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
 
   try {
     const body = await request.json()
-    const { data: existing, error: existingError } = await supabaseAdmin
+
+    // load the existing row; it may or may not have the new adjustment columns
+    let existing: any
+    let schemaHasNewColumns = true
+
+    const fullSelect = await supabaseAdmin
       .from('egg_inventory')
       .select(
         'id, breed_id, year, week_number, eggs_available, eggs_allocated, auto_forecast_eggs, manual_adjustment, manual_override, status'
@@ -22,9 +27,28 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       .eq('id', params.id)
       .single()
 
-    if (existingError || !existing) {
+    if (fullSelect.error) {
+      // if the error indicates missing columns, fall back to a simpler query
+      if (String(fullSelect.error.message).includes('does not exist')) {
+        const light = await supabaseAdmin
+          .from('egg_inventory')
+          .select('id, breed_id, year, week_number, eggs_available, eggs_allocated, status')
+          .eq('id', params.id)
+          .single()
+        if (light.error || !light.data) {
+          return NextResponse.json({ error: light.error?.message || 'Inventory row not found' }, { status: 404 })
+        }
+        existing = light.data
+        schemaHasNewColumns = false
+      } else {
+        return NextResponse.json({ error: fullSelect.error.message || 'Inventory row not found' }, { status: 404 })
+      }
+    } else if (!fullSelect.data) {
       return NextResponse.json({ error: 'Inventory row not found' }, { status: 404 })
+    } else {
+      existing = fullSelect.data
     }
+
 
     const { data: forecastRow } = await supabaseAdmin
       .from('egg_weekly_forecasts')
@@ -34,13 +58,15 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       .eq('week_number', existing.week_number)
       .maybeSingle()
 
+    // compute the baseline for adjustments; if the auto_forecast_eggs column
+    // doesn't exist it will be undefined and the fallback kicks in.
     const baseline = Number.isFinite(Number(forecastRow?.forecast_eggs))
       ? Number(forecastRow?.forecast_eggs)
       : Number.isFinite(Number(existing.auto_forecast_eggs))
         ? Number(existing.auto_forecast_eggs)
         : Number(existing.eggs_available || 0)
 
-    const updateData: Record<string, unknown> = {
+    let updateData: Record<string, unknown> = {
       auto_forecast_at: new Date().toISOString(),
     }
 
@@ -80,9 +106,11 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     let nextEggsAvailable = Number(existing.eggs_available || 0)
     if (hasAnyOverrideInput) {
       nextEggsAvailable = Math.max(0, baseline + (nextManualOverride ? adjustment : 0))
-      updateData.auto_forecast_eggs = baseline
-      updateData.manual_adjustment = nextManualOverride ? adjustment : 0
-      updateData.manual_override = nextManualOverride
+      if (schemaHasNewColumns) {
+        updateData.auto_forecast_eggs = baseline
+        updateData.manual_adjustment = nextManualOverride ? adjustment : 0
+        updateData.manual_override = nextManualOverride
+      }
       updateData.eggs_available = nextEggsAvailable
       updateData.forecast_source = nextManualOverride ? 'manual' : 'auto'
       updateData.deficit_alert = nextEggsAvailable < Number(existing.eggs_allocated || 0)
@@ -107,12 +135,39 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       return NextResponse.json({ error: 'No valid fields provided' }, { status: 400 })
     }
 
-    const { data, error } = await supabaseAdmin
-      .from('egg_inventory')
-      .update(updateData)
-      .eq('id', params.id)
-      .select('*')
-      .single()
+    // perform the update; if we included new columns but they're missing
+    // we catch the error and retry without them
+    let data: any = null
+    let error: any = null
+
+    try {
+      const result = await supabaseAdmin
+        .from('egg_inventory')
+        .update(updateData)
+        .eq('id', params.id)
+        .select('*')
+        .single()
+      data = result.data
+      error = result.error
+    } catch (e: any) {
+      error = e
+    }
+
+    if (error && String(error.message).includes('does not exist') && schemaHasNewColumns) {
+      // remove optional keys and retry
+      delete updateData.auto_forecast_eggs
+      delete updateData.manual_adjustment
+      delete updateData.manual_override
+
+      const retry = await supabaseAdmin
+        .from('egg_inventory')
+        .update(updateData)
+        .eq('id', params.id)
+        .select('*')
+        .single()
+      data = retry.data
+      error = retry.error
+    }
 
     if (error || !data) {
       return NextResponse.json({ error: error?.message || 'Inventory row not found' }, { status: 404 })

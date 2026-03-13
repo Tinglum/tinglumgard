@@ -45,25 +45,53 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
 
-    const { data, error } = await supabaseAdmin
-      .from('egg_inventory')
-      .insert([
-        {
-          breed_id: body.breed_id,
-          year: body.year,
-          week_number: body.week_number,
-          delivery_monday: body.delivery_monday,
-          eggs_available: body.eggs_available,
-          auto_forecast_eggs: body.eggs_available,
-          manual_adjustment: 0,
-          manual_override: false,
-          eggs_allocated: 0,
-          status: body.status || 'open',
-          forecast_source: 'manual',
-        },
-      ])
-      .select()
-      .single();
+    // build insert object; extra fields should only be included if the
+    // schema supports them. we'll try the full object first and fall back if we
+    // get a "column does not exist" error.
+    const insertObj: any = {
+      breed_id: body.breed_id,
+      year: body.year,
+      week_number: body.week_number,
+      delivery_monday: body.delivery_monday,
+      eggs_available: body.eggs_available,
+      auto_forecast_eggs: body.eggs_available,
+      manual_adjustment: 0,
+      manual_override: false,
+      eggs_allocated: 0,
+      status: body.status || 'open',
+      forecast_source: 'manual',
+    }
+
+    let data: any
+    let error: any
+
+    try {
+      const res = await supabaseAdmin
+        .from('egg_inventory')
+        .insert([insertObj])
+        .select()
+        .single()
+      data = res.data
+      error = res.error
+    } catch (e: any) {
+      error = e
+    }
+
+    if (error && String(error.message).includes('does not exist')) {
+      // remove optional columns and retry
+      delete insertObj.auto_forecast_eggs
+      delete insertObj.manual_adjustment
+      delete insertObj.manual_override
+      delete insertObj.forecast_source
+
+      const retry = await supabaseAdmin
+        .from('egg_inventory')
+        .insert([insertObj])
+        .select()
+        .single()
+      data = retry.data
+      error = retry.error
+    }
 
     if (error) throw error;
 
