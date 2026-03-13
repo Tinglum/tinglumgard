@@ -130,7 +130,10 @@ export async function fetchInventory(params?: { breedId?: string }): Promise<Wee
   })
 }
 
-export function buildWeekAvailability(inventory: WeekInventory[]): WeekAvailability[] {
+export function buildWeekAvailability(
+  inventory: WeekInventory[],
+  allBreeds?: Array<Pick<Breed, 'id' | 'name' | 'slug' | 'accentColor'>>
+): WeekAvailability[] {
   const map = new Map<string, WeekAvailability>()
 
   inventory.forEach((inv) => {
@@ -165,8 +168,38 @@ export function buildWeekAvailability(inventory: WeekInventory[]): WeekAvailabil
     })
   })
 
-  return Array.from(map.values()).sort((a, b) => {
+  const weeks = Array.from(map.values()).sort((a, b) => {
     if (a.year !== b.year) return a.year - b.year
     return a.weekNumber - b.weekNumber
+  })
+
+  if (!allBreeds || allBreeds.length === 0) {
+    return weeks
+  }
+
+  const breedOrder = new Map(allBreeds.map((breed, index) => [breed.id, index]))
+
+  return weeks.map((week) => {
+    const existingBreedIds = new Set(week.breeds.map((breed) => breed.breedId))
+    const missingBreeds = allBreeds
+      .filter((breed) => !existingBreedIds.has(breed.id))
+      .map((breed) => ({
+        inventoryId: '',
+        breedId: breed.id,
+        breedName: breed.name,
+        breedSlug: breed.slug,
+        accentColor: breed.accentColor || '#1F2937',
+        eggsAvailable: 0,
+        status: 'sold_out' as const,
+      }))
+
+    return {
+      ...week,
+      breeds: [...week.breeds, ...missingBreeds].sort((a, b) => {
+        const aIndex = breedOrder.get(a.breedId) ?? Number.MAX_SAFE_INTEGER
+        const bIndex = breedOrder.get(b.breedId) ?? Number.MAX_SAFE_INTEGER
+        return aIndex - bIndex
+      }),
+    }
   })
 }

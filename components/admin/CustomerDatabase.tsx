@@ -307,6 +307,7 @@ export function CustomerDatabase() {
   const copy = t.customerDatabase;
   const locale = lang === 'en' ? 'en-US' : 'nb-NO';
   const currency = t.common.currency;
+  const orderCreatedLabel = (copy as any).createdAtLabel || (lang === 'en' ? 'Created' : 'Opprettet');
 
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1369,7 +1370,11 @@ export function CustomerDatabase() {
                             </span>
                           </div>
                           <p className="mt-1 text-sm text-neutral-600">
-                            {new Date(order.created_at).toLocaleDateString(locale)}
+                            {orderCreatedLabel}:{' '}
+                            {new Date(order.created_at).toLocaleString(locale, {
+                              dateStyle: 'short',
+                              timeStyle: 'short',
+                            })}
                           </p>
                         </div>
                         <div className="flex flex-wrap items-center gap-2">

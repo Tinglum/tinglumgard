@@ -21,12 +21,15 @@ type WishlistItemInput = {
 }
 
 type CreateWishlistInput = {
-  inventoryId: string
+  inventoryId?: string
   items?: WishlistItemInput[]
   quantity?: number
   orderId?: string | null
   source?: WishlistSource
   notes?: string | null
+  year?: number
+  weekNumber?: number
+  deliveryMonday?: string | null
 }
 
 type AdminAllocationInput = {
@@ -411,7 +414,7 @@ function getCustomerIdentity(
 async function ensureRequestWithItems(params: {
   session: SessionData
   inventory: {
-    id: string
+    id: string | null
     breed_id: string
     year: number
     week_number: number
@@ -551,24 +554,6 @@ export async function createEggWishlistRequest(input: CreateWishlistInput) {
   }
 
   const inventoryId = String(input.inventoryId || '').trim()
-  if (!inventoryId) {
-    return { ok: false as const, status: 400, error: 'Inventory is required' }
-  }
-
-  const { data: inventory, error: inventoryError } = await supabaseAdmin
-    .from('egg_inventory')
-    .select('id, breed_id, year, week_number, delivery_monday, status')
-    .eq('id', inventoryId)
-    .maybeSingle()
-
-  if (inventoryError) {
-    logError('egg-wishlist-create-inventory', inventoryError, { inventoryId })
-    return { ok: false as const, status: 500, error: 'Failed to read inventory' }
-  }
-  if (!inventory) {
-    return { ok: false as const, status: 404, error: 'Inventory not found' }
-  }
-
   const source: WishlistSource = input.orderId ? 'order_addon' : input.source || 'standalone'
   if (!['order_addon', 'standalone'].includes(source)) {
     return { ok: false as const, status: 400, error: 'Invalid source' }
@@ -577,7 +562,87 @@ export async function createEggWishlistRequest(input: CreateWishlistInput) {
     return { ok: false as const, status: 400, error: 'Order is required for order-linked wishlist' }
   }
 
-  const items = parseItemInputs(input, inventory.breed_id || null)
+  let linkedOrder: Awaited<ReturnType<typeof findOwnedEggOrder>> | null = null
+  if (input.orderId) {
+    try {
+      linkedOrder = await findOwnedEggOrder(session, input.orderId)
+    } catch (error) {
+      logError('egg-wishlist-create-order-lookup', error, { orderId: input.orderId })
+      return { ok: false as const, status: 500, error: 'Failed to read linked order' }
+    }
+
+    if (!linkedOrder) {
+      return { ok: false as const, status: 403, error: 'Order not found for current customer' }
+    }
+  }
+
+  let inventoryContext:
+    | {
+        id: string | null
+        breed_id: string
+        year: number
+        week_number: number
+        delivery_monday: string
+        status: string
+      }
+    | null = null
+
+  if (inventoryId) {
+    const { data: inventory, error: inventoryError } = await supabaseAdmin
+      .from('egg_inventory')
+      .select('id, breed_id, year, week_number, delivery_monday, status')
+      .eq('id', inventoryId)
+      .maybeSingle()
+
+    if (inventoryError) {
+      logError('egg-wishlist-create-inventory', inventoryError, { inventoryId })
+      return { ok: false as const, status: 500, error: 'Failed to read inventory' }
+    }
+    if (!inventory) {
+      return { ok: false as const, status: 404, error: 'Inventory not found' }
+    }
+
+    inventoryContext = {
+      id: inventory.id,
+      breed_id: inventory.breed_id,
+      year: inventory.year,
+      week_number: inventory.week_number,
+      delivery_monday: inventory.delivery_monday,
+      status: inventory.status,
+    }
+  } else if (linkedOrder) {
+    inventoryContext = {
+      id: null,
+      breed_id: '',
+      year: linkedOrder.year,
+      week_number: linkedOrder.week_number,
+      delivery_monday: linkedOrder.delivery_monday,
+      status: 'open',
+    }
+  } else {
+    const year = Number(input.year)
+    const weekNumber = Number(input.weekNumber)
+    const deliveryMonday = String(input.deliveryMonday || '').trim()
+
+    if (!Number.isFinite(year) || !Number.isFinite(weekNumber) || !deliveryMonday) {
+      return {
+        ok: false as const,
+        status: 400,
+        error: 'Week reference is required when inventory is missing',
+      }
+    }
+
+    inventoryContext = {
+      id: null,
+      breed_id: '',
+      year,
+      week_number: weekNumber,
+      delivery_monday: deliveryMonday,
+      status: 'open',
+    }
+  }
+
+  const items = parseItemInputs(input, inventoryContext.breed_id || null)
   if (items.length === 0) {
     return { ok: false as const, status: 400, error: 'At least one wishlist item is required' }
   }
@@ -593,18 +658,41 @@ export async function createEggWishlistRequest(input: CreateWishlistInput) {
   }))
 
   const requestedBreedIds = normalizedItems.map((item) => item.breedId)
+  const { data: knownBreeds, error: knownBreedsError } = await supabaseAdmin
+    .from('egg_breeds')
+    .select('id, active')
+    .in('id', requestedBreedIds)
+
+  if (knownBreedsError) {
+    logError('egg-wishlist-create-breeds', knownBreedsError, {
+      year: inventoryContext.year,
+      week: inventoryContext.week_number,
+    })
+    return { ok: false as const, status: 500, error: 'Failed to validate requested breeds' }
+  }
+
+  const validBreedIds = new Set(
+    (knownBreeds || [])
+      .filter((breed: any) => Boolean(breed?.active))
+      .map((breed: any) => String(breed.id))
+  )
+  const missingOrInactiveBreed = requestedBreedIds.find((breedId) => !validBreedIds.has(breedId))
+  if (missingOrInactiveBreed) {
+    return { ok: false as const, status: 400, error: 'One or more requested breeds are invalid' }
+  }
+
   const { data: weekInventories, error: weekInventoriesError } = await supabaseAdmin
     .from('egg_inventory')
     .select('breed_id, status')
-    .eq('year', inventory.year)
-    .eq('week_number', inventory.week_number)
+    .eq('year', inventoryContext.year)
+    .eq('week_number', inventoryContext.week_number)
     .in('breed_id', requestedBreedIds)
 
   if (weekInventoriesError) {
     logError('egg-wishlist-create-week-inventories', weekInventoriesError, {
-      inventoryId: inventory.id,
-      year: inventory.year,
-      week: inventory.week_number,
+      inventoryId: inventoryContext.id,
+      year: inventoryContext.year,
+      week: inventoryContext.week_number,
     })
     return { ok: false as const, status: 500, error: 'Failed to validate requested breeds' }
   }
@@ -612,12 +700,9 @@ export async function createEggWishlistRequest(input: CreateWishlistInput) {
   const weekInventoryByBreed = new Map(
     (weekInventories || []).map((row) => [String(row.breed_id), String(row.status || '')])
   )
-  const missingBreed = requestedBreedIds.find((breedId) => !weekInventoryByBreed.has(breedId))
-  if (missingBreed) {
-    return { ok: false as const, status: 400, error: 'One or more requested breeds are not available that week' }
-  }
   const invalidStatus = requestedBreedIds.find((breedId) => {
     const status = weekInventoryByBreed.get(breedId)
+    if (!status) return false
     return status !== 'open' && status !== 'sold_out'
   })
   if (invalidStatus) {
@@ -627,14 +712,7 @@ export async function createEggWishlistRequest(input: CreateWishlistInput) {
   try {
     const request = await ensureRequestWithItems({
       session,
-      inventory: {
-        id: inventory.id,
-        breed_id: inventory.breed_id,
-        year: inventory.year,
-        week_number: inventory.week_number,
-        delivery_monday: inventory.delivery_monday,
-        status: inventory.status,
-      },
+      inventory: inventoryContext,
       source,
       orderId: input.orderId || null,
       notes: input.notes || null,

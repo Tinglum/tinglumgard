@@ -11,14 +11,17 @@ type WishlistRequestBody = {
   orderId?: string | null
   source?: 'order_addon' | 'standalone'
   notes?: string
+  year?: number
+  weekNumber?: number
+  deliveryMonday?: string
   quantity?: number
   items?: WishlistItemInput[]
 }
 
 export async function POST(request: NextRequest) {
   const body = (await request.json().catch(() => null)) as WishlistRequestBody | null
-  if (!body || !body.inventoryId) {
-    return NextResponse.json({ error: 'Inventory is required' }, { status: 400 })
+  if (!body) {
+    return NextResponse.json({ error: 'Wishlist payload is required' }, { status: 400 })
   }
 
   const result = await createEggWishlistRequest({
@@ -26,6 +29,9 @@ export async function POST(request: NextRequest) {
     orderId: body.orderId || null,
     source: body.source,
     notes: body.notes || null,
+    year: body.year,
+    weekNumber: body.weekNumber,
+    deliveryMonday: body.deliveryMonday,
     quantity: body.quantity,
     items: Array.isArray(body.items)
       ? body.items
@@ -50,4 +56,3 @@ export async function POST(request: NextRequest) {
     { status: 200 }
   )
 }
-

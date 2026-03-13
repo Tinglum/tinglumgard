@@ -88,7 +88,7 @@ export default function HomePage() {
         const [breedsData, inventory] = await Promise.all([fetchBreeds(), fetchInventory()])
         if (!isActive) return
         setBreeds(breedsData)
-        setWeekAvailability(buildWeekAvailability(inventory))
+        setWeekAvailability(buildWeekAvailability(inventory, breedsData))
       } catch (err) {
         if (!isActive) return
         console.error('Failed to load egg data', err)
@@ -333,9 +333,12 @@ export default function HomePage() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            inventoryId: targetBreed.inventoryId,
+            inventoryId: targetBreed.inventoryId || undefined,
             orderId: wishlistMode === 'order_addon' ? wishlistOrderId : undefined,
             source: wishlistMode === 'order_addon' ? 'order_addon' : 'standalone',
+            year: targetWeek.year,
+            weekNumber: targetWeek.weekNumber,
+            deliveryMonday: targetWeek.deliveryMonday.toISOString().slice(0, 10),
             quantity,
             items: [{ breedId: wishlistBreedId, quantity }],
             notes: composedNotes || undefined,
@@ -412,15 +415,27 @@ export default function HomePage() {
     if (!wishlistAutoPending || !showWishlistModal) return
     if (wishlistSubmitting || wishlistSuccess) return
     if (wishlistMode === 'order_addon' && ordersLoading) return
+    if (!wishlistBreedId) return
+
+    const autoQuantity = Math.floor(Number(wishlistQuantity || '0'))
+    if (!Number.isFinite(autoQuantity) || autoQuantity <= 0) return
+
+    if (!selectedWeekForWishlist) return
+    if (wishlistMode === 'order_addon' && !wishlistOrderId) return
 
     setWishlistAutoPending(false)
-    void submitWishlistRequest(false)
+    // Use normal auth handling in auto mode too, so we never fail silently after Vipps callback.
+    void submitWishlistRequest(true)
   }, [
+    selectedWeekForWishlist,
     ordersLoading,
     showWishlistModal,
     submitWishlistRequest,
+    wishlistBreedId,
     wishlistAutoPending,
     wishlistMode,
+    wishlistOrderId,
+    wishlistQuantity,
     wishlistSubmitting,
     wishlistSuccess,
   ])
