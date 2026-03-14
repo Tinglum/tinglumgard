@@ -123,17 +123,22 @@ export async function POST(
       return NextResponse.json({ error: 'Not enough hens available' }, { status: 400 })
     }
 
-    if (quantityRoosters > 0 && !breed.sell_roosters) {
-      return NextResponse.json({ error: 'Roosters are not available for this breed' }, { status: 400 })
+    // Compute price at the order's pickup week
+    const pickupMonday = getMondayOfWeek(order.pickup_year, order.pickup_week)
+    const ageWeeks = getAgeWeeks(hatch.hatch_date, pickupMonday)
+
+    const breedSlug = String(breed.slug || '').toLowerCase()
+    const isCreamLegbar = breedSlug === 'cream-legbar'
+    const allowRoosters = ageWeeks >= 10 && !isCreamLegbar
+
+    if (quantityRoosters > 0 && !allowRoosters) {
+      return NextResponse.json({ error: `Roosters can only be ordered for chickens 10 weeks or older${isCreamLegbar ? ' (Cream Legbar is always female)' : ''}.` }, { status: 400 })
     }
 
     if (quantityRoosters > hatch.available_roosters) {
       return NextResponse.json({ error: 'Not enough roosters available' }, { status: 400 })
     }
 
-    // Compute price at the order's pickup week
-    const pickupMonday = getMondayOfWeek(order.pickup_year, order.pickup_week)
-    const ageWeeks = getAgeWeeks(hatch.hatch_date, pickupMonday)
     const pricePerHen = getHenPrice(
       ageWeeks,
       Number(breed.start_price_nok),
@@ -141,7 +146,9 @@ export async function POST(
       Number(breed.adult_price_nok)
     )
 
-    const subtotal = (quantityHens * pricePerHen) + (quantityRoosters * Number(breed.rooster_price_nok))
+    const defaultRoosterPrice = breedSlug === 'ayam-cemani' ? 400 : 200
+    const pricePerRooster = Number(breed.rooster_price_nok) || defaultRoosterPrice
+    const subtotal = (quantityHens * pricePerHen) + (quantityRoosters * pricePerRooster)
 
     // Create addition
     const { data: addition, error: additionError } = await supabaseAdmin

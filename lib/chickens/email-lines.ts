@@ -99,22 +99,22 @@ function formatNok(amount: number, locale: 'no' | 'en'): string {
 
 function buildQuantityText(line: ChickenOrderLine, locale: 'no' | 'en'): string {
   if (locale === 'en') {
-    if (line.roosters > 0) return `${line.hens} hens, ${line.roosters} roosters`;
-    return `${line.hens} hens`;
+    if (line.roosters > 0) return `${line.hens} chickens, ${line.roosters} roosters`;
+    return `${line.hens} chickens`;
   }
-  if (line.roosters > 0) return `${line.hens} høner, ${line.roosters} haner`;
-  return `${line.hens} høner`;
+  if (line.roosters > 0) return `${line.hens} kyllinger, ${line.roosters} haner`;
+  return `${line.hens} kyllinger`;
 }
 
 function buildUnitPriceText(line: ChickenOrderLine, locale: 'no' | 'en'): string {
   if (line.roosters > 0 && line.pricePerRoosterNok > 0) {
     if (locale === 'en') {
-      return `Hen ${formatNok(line.pricePerHenNok, locale)} / Rooster ${formatNok(line.pricePerRoosterNok, locale)}`;
+      return `Chicken ${formatNok(line.pricePerHenNok, locale)} / Rooster ${formatNok(line.pricePerRoosterNok, locale)}`;
     }
-    return `Høne ${formatNok(line.pricePerHenNok, locale)} / Hane ${formatNok(line.pricePerRoosterNok, locale)}`;
+    return `Kylling ${formatNok(line.pricePerHenNok, locale)} / Hane ${formatNok(line.pricePerRoosterNok, locale)}`;
   }
-  if (locale === 'en') return `Hen ${formatNok(line.pricePerHenNok, locale)}`;
-  return `Høne ${formatNok(line.pricePerHenNok, locale)}`;
+  if (locale === 'en') return `Chicken ${formatNok(line.pricePerHenNok, locale)}`;
+  return `Kylling ${formatNok(line.pricePerHenNok, locale)}`;
 }
 
 export function summarizeChickenOrderLines(order: ChickenOrderLike): ChickenOrderSummary {

@@ -234,8 +234,16 @@ export default function KyllingerPage() {
         hatchId: item.hatchId,
         ageWeeks: item.ageWeeks,
         pricePerHen: item.pricePerHen,
-        pricePerRooster: Number(breed?.rooster_price_nok) || 250,
-        sellRoosters: Boolean(breed?.sell_roosters),
+        pricePerRooster: (() => {
+          const slug = (breed?.slug || weekBreed?.breedSlug || '').toLowerCase()
+          const defaultPrice = slug === 'ayam-cemani' ? 400 : 200
+          return Number(breed?.rooster_price_nok) || defaultPrice
+        })(),
+        sellRoosters: (() => {
+          const slug = (breed?.slug || weekBreed?.breedSlug || '').toLowerCase()
+          const isCreamLegbar = slug === 'cream-legbar'
+          return item.ageWeeks >= 10 && !isCreamLegbar
+        })(),
         maxAvailableHens: item.availableHens,
       }
     })

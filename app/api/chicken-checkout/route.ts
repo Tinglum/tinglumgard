@@ -151,17 +151,21 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: `Not enough hens available for ${breed.name}` }, { status: 400 })
       }
 
-      if (item.quantityRoosters > 0 && !breed.sell_roosters) {
-        return NextResponse.json({ error: `Roosters are not available for ${breed.name}` }, { status: 400 })
+      const ageWeeksAtPickup = getAgeWeeks(hatch.hatch_date, pickupMonday)
+      if (ageWeeksAtPickup < 1) {
+        return NextResponse.json({ error: `${breed.name} is not bookable yet (minimum age is 1 week)` }, { status: 400 })
+      }
+
+      const breedSlug = String(breed.slug || '').toLowerCase()
+      const isCreamLegbar = breedSlug === 'cream-legbar'
+      const allowRoosters = ageWeeksAtPickup >= 10 && !isCreamLegbar
+
+      if (item.quantityRoosters > 0 && !allowRoosters) {
+        return NextResponse.json({ error: `Roosters can only be ordered for chickens 10 weeks or older${isCreamLegbar ? ' (Cream Legbar is always female)' : ''}.` }, { status: 400 })
       }
 
       if (item.quantityRoosters > 0 && Number(hatch.available_roosters) < item.quantityRoosters) {
         return NextResponse.json({ error: `Not enough roosters available for ${breed.name}` }, { status: 400 })
-      }
-
-      const ageWeeksAtPickup = getAgeWeeks(hatch.hatch_date, pickupMonday)
-      if (ageWeeksAtPickup < 1) {
-        return NextResponse.json({ error: `${breed.name} is not bookable yet (minimum age is 1 week)` }, { status: 400 })
       }
 
       const pricePerHen = getHenPrice(
@@ -170,7 +174,9 @@ export async function POST(request: NextRequest) {
         Number(breed.weekly_increase_nok),
         Number(breed.adult_price_nok)
       )
-      const pricePerRooster = Number(breed.rooster_price_nok)
+
+      const defaultRoosterPrice = breedSlug === 'ayam-cemani' ? 400 : 200
+      const pricePerRooster = Number(breed.rooster_price_nok) || defaultRoosterPrice
       const subtotal = (item.quantityHens * pricePerHen) + (item.quantityRoosters * pricePerRooster)
 
       computedLines.push({

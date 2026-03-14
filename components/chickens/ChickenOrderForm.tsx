@@ -80,7 +80,8 @@ export function ChickenOrderForm({ selection, onClose, onRemoveLine }: OrderForm
       .map((line) => {
         const quantities = quantitiesByLine[line.id] || { hens: 1, roosters: 0 }
         const hens = Math.max(1, Math.min(line.maxAvailableHens, quantities.hens))
-        const roosters = Math.max(0, quantities.roosters)
+        const canBuyRoosters = line.ageWeeks >= 10 && line.breedSlug !== 'cream-legbar'
+        const roosters = canBuyRoosters ? Math.max(0, quantities.roosters) : 0
         const subtotal = (hens * line.pricePerHen) + (roosters * line.pricePerRooster)
         return {
           ...line,
@@ -221,9 +222,14 @@ export function ChickenOrderForm({ selection, onClose, onRemoveLine }: OrderForm
   return (
     <div className="bg-white rounded-xl border border-neutral-200 p-6 animate-in slide-in-from-bottom-4">
       <div className="flex justify-between items-center mb-6">
-        <h3 className="text-lg font-medium text-neutral-900">
-          {formatCopy(formCopy.title, { count: selectedLines.length })}
-        </h3>
+        <div>
+          <h3 className="text-lg font-medium text-neutral-900">
+            {formatCopy(formCopy.title, { count: selectedLines.length })}
+          </h3>
+          <p className="text-xs text-neutral-500 mt-2">
+            {formCopy.sexDisclaimer}
+          </p>
+        </div>
         <button onClick={onClose} className="text-neutral-400 hover:text-neutral-600 text-xl">&times;</button>
       </div>
 
@@ -281,7 +287,7 @@ export function ChickenOrderForm({ selection, onClose, onRemoveLine }: OrderForm
                   </p>
                 </div>
 
-                {line.sellRoosters && (
+                {line.ageWeeks >= 10 && line.breedSlug !== 'cream-legbar' && (
                   <div>
                     <Label>{formCopy.numberOfRoosters} ({formCopy.optional})</Label>
                     <div className="flex items-center gap-3 mt-1">

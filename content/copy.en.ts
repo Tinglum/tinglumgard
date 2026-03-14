@@ -3783,6 +3783,7 @@
       processing: 'Processing...',
       orderWithVipps: 'Order with Vipps',
       depositInfo: 'You pay a 30% deposit (kr {deposit}) now. Remainder (kr {remainder}) due before pickup.',
+      sexDisclaimer: 'Note: Before week 10, chickens are sold without sex guarantee. From week 10 you can choose roosters, and we guarantee hens if you do not. Cream Legbar is always female.',
     },
     orderSummary: {
       title: 'Order Summary',
