@@ -1,11 +1,15 @@
 import { supabaseAdmin } from '@/lib/supabase/server'
 
 const DEFAULT_FORECAST_WINDOW_DAYS = 14
-const DEFAULT_FORECAST_HORIZON_WEEKS = 4
+const DEFAULT_FORECAST_HORIZON_WEEKS = 12
 const DEFAULT_FORECAST_SYNC_ENABLED = true
 const DEFAULT_FORECAST_TIMEZONE = 'Europe/Oslo'
 const DEFAULT_LANG = 'no'
 const DEFAULT_LOW_STOCK_THRESHOLD = 24
+const DEFAULT_CURRENT_WEEK_BUFFER_EGGS = 1
+const DEFAULT_SHORT_HORIZON_BUFFER_EGGS = 2
+const DEFAULT_LONG_HORIZON_BUFFER_EGGS = 1
+const DEFAULT_SHORT_HORIZON_WEEKS = 4
 const DEFAULT_REQUIRE_AUTH = false
 const DEFAULT_IP_ALLOWLIST: string[] = []
 const DEFAULT_SUMMARY_ENABLED = false
@@ -19,6 +23,11 @@ export interface EggOpsConfig {
   forecastWindowDays: number
   forecastHorizonWeeks: number
   forecastSyncEnabled: boolean
+  forecastCurrentWeekBufferEggs: number
+  forecastShortHorizonBufferEggs: number
+  forecastLongHorizonBufferEggs: number
+  forecastShortHorizonWeeks: number
+  forecastExpectedAdditions: JsonMap
   timezone: string
   defaultLanguage: 'no' | 'en'
   lowStockThresholds: JsonMap
@@ -85,6 +94,11 @@ export async function getEggOpsConfig(): Promise<EggOpsConfig> {
     'egg_forecast_window_days',
     'egg_forecast_horizon_weeks',
     'egg_forecast_sync_enabled',
+    'egg_forecast_current_week_buffer_eggs',
+    'egg_forecast_short_horizon_buffer_eggs',
+    'egg_forecast_long_horizon_buffer_eggs',
+    'egg_forecast_short_horizon_weeks',
+    'egg_forecast_expected_additions',
     'egg_forecast_timezone',
     'egg_low_stock_thresholds',
     'egg_ops_default_language',
@@ -108,6 +122,23 @@ export async function getEggOpsConfig(): Promise<EggOpsConfig> {
     forecastWindowDays: Math.max(3, asInt(map.get('egg_forecast_window_days'), DEFAULT_FORECAST_WINDOW_DAYS)),
     forecastHorizonWeeks: Math.max(1, asInt(map.get('egg_forecast_horizon_weeks'), DEFAULT_FORECAST_HORIZON_WEEKS)),
     forecastSyncEnabled: asBool(map.get('egg_forecast_sync_enabled'), DEFAULT_FORECAST_SYNC_ENABLED),
+    forecastCurrentWeekBufferEggs: Math.max(
+      0,
+      asInt(map.get('egg_forecast_current_week_buffer_eggs'), DEFAULT_CURRENT_WEEK_BUFFER_EGGS)
+    ),
+    forecastShortHorizonBufferEggs: Math.max(
+      0,
+      asInt(map.get('egg_forecast_short_horizon_buffer_eggs'), DEFAULT_SHORT_HORIZON_BUFFER_EGGS)
+    ),
+    forecastLongHorizonBufferEggs: Math.max(
+      0,
+      asInt(map.get('egg_forecast_long_horizon_buffer_eggs'), DEFAULT_LONG_HORIZON_BUFFER_EGGS)
+    ),
+    forecastShortHorizonWeeks: Math.max(
+      1,
+      asInt(map.get('egg_forecast_short_horizon_weeks'), DEFAULT_SHORT_HORIZON_WEEKS)
+    ),
+    forecastExpectedAdditions: asObject(map.get('egg_forecast_expected_additions')),
     timezone: asString(map.get('egg_forecast_timezone'), DEFAULT_FORECAST_TIMEZONE),
     lowStockThresholds: asObject(map.get('egg_low_stock_thresholds')),
     defaultLanguage: languageRaw === 'en' ? 'en' : 'no',

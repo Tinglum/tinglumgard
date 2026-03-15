@@ -64,6 +64,26 @@ function numberOrZero(value: unknown): number {
   return 0
 }
 
+function getOsloDateAndHour(date: Date): { date: string; hour: number } {
+  const dateInOslo = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Europe/Oslo',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(date)
+
+  const hourText = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Europe/Oslo',
+    hour: '2-digit',
+    hour12: false,
+  }).format(date)
+
+  return {
+    date: dateInOslo,
+    hour: Number.parseInt(hourText, 10),
+  }
+}
+
 async function ensureDataGapAlert(params: {
   breedId: string
   message: string
@@ -158,6 +178,93 @@ async function computeRollingAverageSellable(
   return sum / windowDays
 }
 
+async function computeRecentWeeklySellableTotals(
+  breedId: string,
+  asOfDate: string,
+  weekCount: number
+): Promise<number[]> {
+  const asOf = new Date(`${asOfDate}T00:00:00`)
+  const thisWeekMonday = startOfIsoWeek(asOf)
+  const startDate = toDateString(addDays(thisWeekMonday, -weekCount * 7))
+  const endDate = toDateString(addDays(thisWeekMonday, -1))
+
+  const { data, error } = await supabaseAdmin
+    .from('egg_daily_collections')
+    .select('collection_date, sellable_standard')
+    .eq('breed_id', breedId)
+    .gte('collection_date', startDate)
+    .lte('collection_date', endDate)
+
+  if (error) {
+    throw error
+  }
+
+  const byDate = new Map<string, number>()
+  for (const row of data || []) {
+    byDate.set(row.collection_date, numberOrZero(row.sellable_standard))
+  }
+
+  const totals: number[] = []
+  for (let w = weekCount; w >= 1; w -= 1) {
+    const weekStart = addDays(thisWeekMonday, -w * 7)
+    let weekSum = 0
+    for (let day = 0; day < 7; day += 1) {
+      weekSum += byDate.get(toDateString(addDays(weekStart, day))) || 0
+    }
+    totals.push(weekSum)
+  }
+
+  return totals
+}
+
+function computeLinearSlope(values: number[]): number {
+  if (values.length < 2) return 0
+  return (values[values.length - 1] - values[0]) / (values.length - 1)
+}
+
+function resolveExpectedAdditionsFromEntry(entry: unknown, weekAhead: number): number | undefined {
+  if (typeof entry === 'number' && Number.isFinite(entry)) {
+    return Math.round(entry)
+  }
+
+  if (!entry || typeof entry !== 'object' || Array.isArray(entry)) {
+    return undefined
+  }
+
+  const map = entry as Record<string, unknown>
+  const exact = map[String(weekAhead)]
+  if (typeof exact === 'number' && Number.isFinite(exact)) {
+    return Math.round(exact)
+  }
+
+  const fallback = map.default
+  if (typeof fallback === 'number' && Number.isFinite(fallback)) {
+    return Math.round(fallback)
+  }
+
+  return undefined
+}
+
+function getExpectedAdditionsForWeek(params: {
+  expectedAdditions: Record<string, unknown>
+  breedId: string
+  breedSlug: string | null
+  weekAhead: number
+}): number {
+  const candidates = [
+    params.expectedAdditions[params.breedId],
+    params.breedSlug ? params.expectedAdditions[params.breedSlug] : undefined,
+    params.expectedAdditions.default,
+  ]
+
+  for (const candidate of candidates) {
+    const value = resolveExpectedAdditionsFromEntry(candidate, params.weekAhead)
+    if (value !== undefined) return Math.max(0, value)
+  }
+
+  return 0
+}
+
 export async function recomputeForecastForBreed(params: {
   breedId: string
   date?: string
@@ -178,7 +285,15 @@ export async function recomputeForecastForBreed(params: {
   }
 
   const avg14d = await computeRollingAverageSellable(params.breedId, asOfDate, config.forecastWindowDays)
-  const forecastEggs = Math.max(0, Math.round(avg14d * 7))
+  const recentWeeklyTotals = await computeRecentWeeklySellableTotals(params.breedId, asOfDate, 4)
+  const lastTwoWeekTotals = recentWeeklyTotals.slice(-2)
+  const twoWeekAverage =
+    lastTwoWeekTotals.length > 0
+      ? lastTwoWeekTotals.reduce((sum, value) => sum + value, 0) / lastTwoWeekTotals.length
+      : Math.round(avg14d * 7)
+  const fourWeekTrendSlope = computeLinearSlope(recentWeeklyTotals)
+  const shortHorizonWeeks = Math.max(1, Math.min(config.forecastShortHorizonWeeks, horizonWeeks))
+  const firstWeekForecastEggs = Math.max(0, Math.round(twoWeekAverage) - config.forecastShortHorizonBufferEggs)
   const threshold = getLowStockThresholdForBreed(breed.id, breed.slug, config)
 
   const twoDaysAgo = addDays(new Date(`${asOfDate}T00:00:00`), -2)
@@ -205,6 +320,64 @@ export async function recomputeForecastForBreed(params: {
 
   const nowIso = new Date().toISOString()
   const startMonday = addDays(startOfIsoWeek(new Date(`${asOfDate}T00:00:00`)), 7)
+  // ── Current collection week (Mon..today) updates next delivery Monday row ─
+  // Use actual collected so far + projected production for remaining days.
+  if (config.forecastSyncEnabled) {
+    const thisWeekMonday = startOfIsoWeek(new Date(`${asOfDate}T00:00:00`))
+    const thisWeekMondayStr = toDateString(thisWeekMonday)
+    const deliveryWeekMonday = addDays(thisWeekMonday, 7)
+    const { year: deliveryYear, week: deliveryWeek } = isoWeekYearAndNumber(deliveryWeekMonday)
+
+    const { data: thisWeekCollections } = await supabaseAdmin
+      .from('egg_daily_collections')
+      .select('sellable_standard')
+      .eq('breed_id', params.breedId)
+      .gte('collection_date', thisWeekMondayStr)
+      .lte('collection_date', asOfDate)
+
+    const collectedSoFar = (thisWeekCollections || []).reduce(
+      (sum, r) => sum + numberOrZero(r.sellable_standard),
+      0
+    )
+
+    const asOf = new Date(`${asOfDate}T00:00:00`)
+    const jsDay = asOf.getDay() // 0=Sun, 1=Mon, ... 6=Sat
+    const isoDayIndex = jsDay === 0 ? 6 : jsDay - 1 // Mon=0 ... Sun=6
+    const daysAfterToday = Math.max(0, 6 - isoDayIndex)
+    const osloNow = getOsloDateAndHour(new Date())
+    const includeTodayProjection = asOfDate === osloNow.date && osloNow.hour < 20
+    const projectedDays = daysAfterToday + (includeTodayProjection ? 1 : 0)
+    const projectedRemaining = Math.max(0, Math.round(avg14d * projectedDays))
+    const currentWeekForecastEggs = Math.max(
+      0,
+      collectedSoFar + projectedRemaining - config.forecastCurrentWeekBufferEggs
+    )
+
+    const { data: cwInventory } = await supabaseAdmin
+      .from('egg_inventory')
+      .select('id, eggs_allocated, status')
+      .eq('breed_id', params.breedId)
+      .eq('year', deliveryYear)
+      .eq('week_number', deliveryWeek)
+      .maybeSingle()
+
+    if (cwInventory) {
+      const eggsAllocated = numberOrZero(cwInventory.eggs_allocated)
+      const previousStatus = (cwInventory.status || 'open') as 'open' | 'closed' | 'locked' | 'sold_out'
+      const deficit = currentWeekForecastEggs < eggsAllocated
+      const nextStatus =
+        previousStatus === 'closed' ? 'closed'
+        : deficit ? 'locked'
+        : currentWeekForecastEggs <= eggsAllocated ? 'sold_out'
+        : 'open'
+
+      await supabaseAdmin
+        .from('egg_inventory')
+        .update({ eggs_available: currentWeekForecastEggs, status: nextStatus })
+        .eq('id', cwInventory.id)
+    }
+  }
+
   const rows: ForecastRow[] = []
   let created = 0
   let updated = 0
@@ -213,6 +386,28 @@ export async function recomputeForecastForBreed(params: {
     const monday = addDays(startMonday, i * 7)
     const deliveryMonday = toDateString(monday)
     const { year, week } = isoWeekYearAndNumber(monday)
+    const weekAhead = i + 1
+    const isShortHorizon = weekAhead <= shortHorizonWeeks
+    const trendWeeksAhead = Math.max(0, weekAhead - shortHorizonWeeks)
+    const trendBase = twoWeekAverage + (fourWeekTrendSlope * trendWeeksAhead)
+    const expectedAdditions = isShortHorizon
+      ? 0
+      : getExpectedAdditionsForWeek({
+          expectedAdditions: config.forecastExpectedAdditions,
+          breedId: params.breedId,
+          breedSlug: breed.slug,
+          weekAhead,
+        })
+
+    const rawForecastEggs = isShortHorizon
+      ? Math.round(twoWeekAverage)
+      : Math.round(trendBase + expectedAdditions)
+
+    const forecastEggs = Math.max(
+      0,
+      rawForecastEggs - (isShortHorizon ? config.forecastShortHorizonBufferEggs : config.forecastLongHorizonBufferEggs)
+    )
+    const avgForRow = Math.max(0, (isShortHorizon ? twoWeekAverage : trendBase) / 7)
     const lowStock = forecastEggs < threshold
 
     const { data: forecastUpserted, error: forecastError } = await supabaseAdmin
@@ -223,7 +418,7 @@ export async function recomputeForecastForBreed(params: {
           year,
           week_number: week,
           delivery_monday: deliveryMonday,
-          avg_14d_sellable: avg14d,
+          avg_14d_sellable: avgForRow,
           forecast_eggs: forecastEggs,
           low_stock: lowStock,
           computed_at: nowIso,
@@ -282,7 +477,7 @@ export async function recomputeForecastForBreed(params: {
     updated,
     rows,
     avg14d,
-    forecastEggs,
+    forecastEggs: firstWeekForecastEggs,
     threshold,
   }
 }

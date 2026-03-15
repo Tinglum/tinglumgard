@@ -133,44 +133,38 @@ function getWeekNumber(date: Date): number {
 function getOrderLockedEmail({
   customerName,
   orderNumber,
-  language,
 }: {
   customerName: string;
   orderNumber: string;
   language: string;
 }) {
-  return `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; }
-    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-    .header { background: #1a1a1a; color: white; padding: 30px 20px; text-align: center; }
-    .content { background: #ffffff; padding: 30px 20px; }
-    .footer { text-align: center; padding: 20px; color: #666; font-size: 14px; }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <div class="header">
-      <h1 style="margin: 0;">Tinglum Gård</h1>
-    </div>
-    <div class="content">
-      <h2>Hei ${customerName},</h2>
-      <p>Din ordre <strong>${orderNumber}</strong> er nå låst og ferdigstilt.</p>
-      <p>Ingen flere endringer kan gjøres. Vi klargjør okseboksen din for henting/levering.</p>
-      <p>Du vil motta beskjed når bestillingen din er klar.</p>
-      <p>Takk for din bestilling!</p>
-      <p>Vennlig hilsen,<br>Tinglum Gård</p>
-    </div>
-    <div class="footer">
-      <p>Tinglum Gård • Trondheim, Norge</p>
-    </div>
-  </div>
-</body>
-</html>
-  `;
+  const body = `<p style="margin:0 0 16px;"><span style="display:inline-block;font-family:Arial,Helvetica,sans-serif;font-size:12px;font-weight:700;color:#2D6A4F;background:#ECFDF5;border:1px solid #BBF7D0;border-radius:20px;padding:4px 12px;letter-spacing:0.3px;text-transform:uppercase;">Ordre l&aring;st</span></p>
+<p>Hei ${customerName},</p>
+<p>Din ordre <strong>${orderNumber}</strong> er n&aring; l&aring;st og ferdigstilt. Ingen ytterligere endringer kan gj&oslash;res.</p>
+<p>Vi klargjør Mangalitsa-boksen din. Du vil motta beskjed n&aring;r den er klar.</p>
+<p>Takk for din bestilling!</p>`;
+
+  return wrapEmailDocument(body);
+}
+
+function wrapEmailDocument(bodyHtml: string): string {
+  return `<!DOCTYPE html><html xmlns="http://www.w3.org/1999/xhtml" lang="no"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Tinglum Gard</title></head><body style="margin:0;padding:0;background:#F5EFE7;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.6;color:#1C1210;-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;">
+<table role="presentation" cellspacing="0" cellpadding="0" width="100%" style="background:#F5EFE7;"><tr><td align="center" style="padding:24px 16px;">
+<table role="presentation" cellspacing="0" cellpadding="0" width="600" style="max-width:600px;width:100%;">
+<tr><td style="background:#2C1810;padding:28px 24px;text-align:center;border-radius:12px 12px 0 0;">
+<p style="margin:0;font-family:Georgia,'Times New Roman',serif;font-size:26px;font-weight:700;color:#ffffff;letter-spacing:0.5px;">Tinglum G&aring;rd</p>
+</td></tr>
+<tr><td style="height:4px;background:#8B6914;font-size:0;line-height:0;">&nbsp;</td></tr>
+<tr><td style="background:#ffffff;padding:32px 28px;border-left:1px solid #E8DFD5;border-right:1px solid #E8DFD5;">
+${bodyHtml}
+</td></tr>
+<tr><td style="background:#FAF8F5;padding:24px 28px;border:1px solid #E8DFD5;border-top:none;text-align:center;">
+<p style="margin:0 0 4px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#6B5B4E;">Trenger du hjelp? Svar p&aring; denne e-posten.</p>
+</td></tr>
+<tr><td style="padding:16px;text-align:center;">
+<p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#6B5B4E;">Tinglum G&aring;rd &middot; Trondheim, Norge</p>
+</td></tr>
+</table>
+</td></tr></table>
+</body></html>`;
 }

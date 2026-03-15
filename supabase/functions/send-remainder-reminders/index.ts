@@ -72,54 +72,43 @@ function getRemainderReminderEmail(params: {
 }) {
   const { customerName, orderNumber, boxLabel, remainderAmount, paymentUrl, dueDateLabel } = params;
 
-  return `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; }
-    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-    .header { background: #1a1a1a; color: white; padding: 30px 20px; text-align: center; }
-    .content { background: #ffffff; padding: 30px 20px; }
-    .button { display: inline-block; background: #1a1a1a; color: white !important; padding: 14px 32px; text-decoration: none; border-radius: 6px; margin: 20px 0; font-weight: 600; }
-    .footer { text-align: center; padding: 20px; color: #666; font-size: 14px; }
-    .amount { font-size: 28px; font-weight: 700; color: #1a1a1a; margin: 20px 0; }
-    .info-box { background: #f5f5f5; padding: 15px; border-radius: 6px; margin: 20px 0; }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <div class="header">
-      <h1 style="margin: 0;">Tinglum Gard</h1>
-    </div>
-    <div class="content">
-      <h2>Hei ${customerName},</h2>
-      <p>Dette er en påminnelse om restbetaling for ordre <strong>${orderNumber}</strong>.</p>
-      <p><strong>Produkt:</strong> ${boxLabel}</p>
+  const body = `<p style="margin:0 0 16px;"><span style="display:inline-block;font-family:Arial,Helvetica,sans-serif;font-size:12px;font-weight:700;color:#B45309;background:#FFFBEB;border:1px solid #FDE68A;border-radius:20px;padding:4px 12px;letter-spacing:0.3px;text-transform:uppercase;">P&aring;minnelse</span></p>
+<p>Hei ${customerName},</p>
+<p>Dette er en p&aring;minnelse om restbetaling for ordre <strong>${orderNumber}</strong>.</p>
+<table role="presentation" cellspacing="0" cellpadding="0" style="width:100%;background:#FAF8F5;border:1px solid #E8DFD5;border-radius:8px;margin:16px 0;"><tr><td style="padding:14px 16px;">
+<table role="presentation" cellspacing="0" cellpadding="0" style="width:100%;">
+<tr><td style="padding:6px 12px 6px 0;font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#6B5B4E;vertical-align:top;">Produkt</td><td style="padding:6px 0;font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#1C1210;font-weight:600;">${boxLabel}</td></tr>
+<tr><td style="padding:6px 12px 6px 0;font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#6B5B4E;vertical-align:top;">Forfallsdato</td><td style="padding:6px 0;font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#1C1210;font-weight:600;">${dueDateLabel}</td></tr>
+</table></td></tr></table>
+<p style="margin:20px 0;text-align:center;font-family:Georgia,'Times New Roman',serif;font-size:32px;font-weight:700;color:#1C1210;">kr ${remainderAmount.toLocaleString('nb-NO')}</p>
+<table role="presentation" cellspacing="0" cellpadding="0" style="margin:24px auto;"><tr><td align="center" style="border-radius:8px;background:#2C1810;">
+<a href="${paymentUrl}" target="_blank" style="display:inline-block;background:#2C1810;color:#ffffff;font-family:Arial,Helvetica,sans-serif;font-size:15px;font-weight:700;text-decoration:none;padding:12px 28px;border-radius:8px;border:2px solid #2C1810;">Betal rest med Vipps</a>
+</td></tr></table>
+<p style="font-size:13px;color:#6B5B4E;text-align:center;">Hvis du allerede har betalt, kan du se bort fra denne p&aring;minnelsen.</p>`;
 
-      <div class="info-box">
-        <p style="margin: 0;"><strong>Ordrenummer:</strong> ${orderNumber}</p>
-        <p style="margin: 10px 0 0 0;"><strong>Forfallsdato:</strong> ${dueDateLabel}</p>
-      </div>
+  return wrapEmailDocument(body);
+}
 
-      <div style="text-align: center;">
-        <div class="amount">kr ${remainderAmount.toLocaleString('nb-NO')}</div>
-        <a href="${paymentUrl}" class="button">Betal rest med Vipps</a>
-      </div>
-
-      <p style="margin-top: 30px; font-size: 14px; color: #666;">
-        Hvis du allerede har betalt, kan du se bort fra denne påminnelsen.
-      </p>
-
-      <p>Vennlig hilsen,<br>Tinglum Gard</p>
-    </div>
-    <div class="footer">
-      <p>Tinglum Gard • Trondheim, Norge</p>
-    </div>
-  </div>
-</body>
-</html>`;
+function wrapEmailDocument(bodyHtml: string): string {
+  return `<!DOCTYPE html><html xmlns="http://www.w3.org/1999/xhtml" lang="no"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Tinglum Gard</title></head><body style="margin:0;padding:0;background:#F5EFE7;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.6;color:#1C1210;-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;">
+<table role="presentation" cellspacing="0" cellpadding="0" width="100%" style="background:#F5EFE7;"><tr><td align="center" style="padding:24px 16px;">
+<table role="presentation" cellspacing="0" cellpadding="0" width="600" style="max-width:600px;width:100%;">
+<tr><td style="background:#2C1810;padding:28px 24px;text-align:center;border-radius:12px 12px 0 0;">
+<p style="margin:0;font-family:Georgia,'Times New Roman',serif;font-size:26px;font-weight:700;color:#ffffff;letter-spacing:0.5px;">Tinglum G&aring;rd</p>
+</td></tr>
+<tr><td style="height:4px;background:#8B6914;font-size:0;line-height:0;">&nbsp;</td></tr>
+<tr><td style="background:#ffffff;padding:32px 28px;border-left:1px solid #E8DFD5;border-right:1px solid #E8DFD5;">
+${bodyHtml}
+</td></tr>
+<tr><td style="background:#FAF8F5;padding:24px 28px;border:1px solid #E8DFD5;border-top:none;text-align:center;">
+<p style="margin:0 0 4px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#6B5B4E;">Trenger du hjelp? Svar p&aring; denne e-posten.</p>
+</td></tr>
+<tr><td style="padding:16px;text-align:center;">
+<p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#6B5B4E;">Tinglum G&aring;rd &middot; Trondheim, Norge</p>
+</td></tr>
+</table>
+</td></tr></table>
+</body></html>`;
 }
 
 Deno.serve(async (req: Request) => {
