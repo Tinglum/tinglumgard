@@ -189,95 +189,13 @@ export function ActionDashboard({ onNavigate, onNavigateToOrder }: ActionDashboa
         </div>
       </div>
 
-      {/* Row 3: This Week — Pickups & Shipments */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Pickups this week */}
-        <div className="bg-white border border-neutral-200 rounded-xl p-6 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.06)]">
-          <div className="flex items-center gap-3 mb-4">
-            <Calendar className="w-5 h-5 text-neutral-600" />
-            <h3 className="text-lg font-light text-neutral-900">
-              {lang === 'no' ? 'Henting denne uken' : 'Pickups this week'}
-            </h3>
-          </div>
-          {(upcomingDates?.weekPickups?.length > 0 || upcomingDates?.pendingPigPickups?.length > 0) ? (
-            <div className="space-y-4">
-              {upcomingDates.weekPickups.map((group: any) => {
-                const isTomorrow = group.date === tomorrowDate();
-                const isToday = group.date === todayDate();
-                return (
-                  <div key={group.date} className={`rounded-lg ${isTomorrow ? 'bg-amber-50 border border-amber-200 p-3' : isToday ? 'bg-blue-50 border border-blue-200 p-3' : ''}`}>
-                    <p className="text-sm font-medium text-neutral-700 mb-2">
-                      {isToday && <span className="text-blue-700 mr-1">{lang === 'no' ? 'I dag' : 'Today'} —</span>}
-                      {isTomorrow && <span className="text-amber-700 mr-1">{lang === 'no' ? 'I morgen' : 'Tomorrow'} —</span>}
-                      {new Date(group.date + 'T12:00:00').toLocaleDateString(locale, { weekday: 'long', day: 'numeric', month: 'short' })}
-                      <span className="text-neutral-400 ml-2">({group.orders.length})</span>
-                    </p>
-                    <div className="space-y-1">
-                      {group.orders.map((order: any) => (
-                        <OrderRow key={order.order_number} order={order} onNavigateToOrder={onNavigateToOrder} lang={lang} />
-                      ))}
-                    </div>
-                  </div>
-                );
-              })}
-              {upcomingDates.pendingPigPickups.length > 0 && (
-                <div>
-                  <p className="text-sm font-medium text-amber-700 mb-2">
-                    {lang === 'no' ? 'Gris — venter på henting' : 'Pig — awaiting pickup'}
-                    <span className="text-neutral-400 ml-2">({upcomingDates.pendingPigPickups.length})</span>
-                  </p>
-                  <div className="space-y-1">
-                    {upcomingDates.pendingPigPickups.map((order: any) => (
-                      <OrderRow key={order.order_number} order={order} onNavigateToOrder={onNavigateToOrder} lang={lang} />
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          ) : (
-            <p className="text-sm font-light text-neutral-500">
-              {lang === 'no' ? 'Ingen hentinger denne uken' : 'No pickups this week'}
-            </p>
-          )}
-        </div>
-
-        {/* Shipments this week */}
-        <div className="bg-white border border-neutral-200 rounded-xl p-6 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.06)]">
-          <div className="flex items-center gap-3 mb-4">
-            <Mail className="w-5 h-5 text-neutral-600" />
-            <h3 className="text-lg font-light text-neutral-900">
-              {lang === 'no' ? 'Utsending denne uken' : 'Shipments this week'}
-            </h3>
-          </div>
-          {upcomingDates?.weekShipments?.length > 0 ? (
-            <div className="space-y-4">
-              {upcomingDates.weekShipments.map((group: any) => {
-                const isTomorrow = group.date === tomorrowDate();
-                const isToday = group.date === todayDate();
-                return (
-                  <div key={group.date} className={`rounded-lg ${isTomorrow ? 'bg-amber-50 border border-amber-200 p-3' : isToday ? 'bg-blue-50 border border-blue-200 p-3' : ''}`}>
-                    <p className="text-sm font-medium text-neutral-700 mb-2">
-                      {isToday && <span className="text-blue-700 mr-1">{lang === 'no' ? 'I dag' : 'Today'} —</span>}
-                      {isTomorrow && <span className="text-amber-700 mr-1">{lang === 'no' ? 'I morgen' : 'Tomorrow'} —</span>}
-                      {new Date(group.date + 'T12:00:00').toLocaleDateString(locale, { weekday: 'long', day: 'numeric', month: 'short' })}
-                      <span className="text-neutral-400 ml-2">({group.orders.length})</span>
-                    </p>
-                    <div className="space-y-1">
-                      {group.orders.map((order: any) => (
-                        <OrderRow key={order.order_number} order={order} onNavigateToOrder={onNavigateToOrder} lang={lang} />
-                      ))}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
-            <p className="text-sm font-light text-neutral-500">
-              {lang === 'no' ? 'Ingen utsendinger denne uken' : 'No shipments this week'}
-            </p>
-          )}
-        </div>
-      </div>
+      {/* Row 3: Pickups & Shipments (week view with toggle) */}
+      <WeekScheduleSection
+        upcomingDates={upcomingDates}
+        onNavigateToOrder={onNavigateToOrder}
+        lang={lang}
+        locale={locale}
+      />
 
       {/* Row 4: New Orders Since Last Login */}
       {newOrders && newOrders.length > 0 && (
@@ -397,6 +315,136 @@ export function ActionDashboard({ onNavigate, onNavigateToOrder }: ActionDashboa
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function WeekScheduleSection({ upcomingDates, onNavigateToOrder, lang, locale }: {
+  upcomingDates: any;
+  onNavigateToOrder?: (id: string) => void;
+  lang: string;
+  locale: string;
+}) {
+  const [showNextWeek, setShowNextWeek] = useState(false);
+
+  const pickups = upcomingDates?.pickups || { thisWeek: [], nextWeek: [] };
+  const shipments = upcomingDates?.shipments || { thisWeek: [], nextWeek: [] };
+  const pendingPigPickups = upcomingDates?.pendingPigPickups || [];
+
+  const currentPickups = showNextWeek ? pickups.nextWeek : pickups.thisWeek;
+  const currentShipments = showNextWeek ? shipments.nextWeek : shipments.thisWeek;
+
+  const thisWeekLabel = lang === 'no' ? 'Denne uken' : 'This week';
+  const nextWeekLabel = lang === 'no' ? 'Neste uke' : 'Next week';
+
+  return (
+    <div className="space-y-3">
+      {/* Week toggle */}
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => setShowNextWeek(false)}
+          className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+            !showNextWeek
+              ? 'bg-neutral-900 text-white'
+              : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
+          }`}
+        >
+          {thisWeekLabel}
+        </button>
+        <button
+          onClick={() => setShowNextWeek(true)}
+          className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+            showNextWeek
+              ? 'bg-neutral-900 text-white'
+              : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
+          }`}
+        >
+          {nextWeekLabel}
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Pickups */}
+        <div className="bg-white border border-neutral-200 rounded-xl p-6 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.06)]">
+          <div className="flex items-center gap-3 mb-4">
+            <Calendar className="w-5 h-5 text-neutral-600" />
+            <h3 className="text-lg font-light text-neutral-900">
+              {lang === 'no' ? 'Henting' : 'Pickups'}
+            </h3>
+          </div>
+          {(currentPickups.length > 0 || (!showNextWeek && pendingPigPickups.length > 0)) ? (
+            <div className="space-y-4">
+              {currentPickups.map((group: any) => (
+                <DateGroup key={group.date} group={group} onNavigateToOrder={onNavigateToOrder} lang={lang} locale={locale} />
+              ))}
+              {!showNextWeek && pendingPigPickups.length > 0 && (
+                <div>
+                  <p className="text-sm font-medium text-amber-700 mb-2">
+                    {lang === 'no' ? 'Gris — venter på henting' : 'Pig — awaiting pickup'}
+                    <span className="text-neutral-400 ml-2">({pendingPigPickups.length})</span>
+                  </p>
+                  <div className="space-y-1">
+                    {pendingPigPickups.map((order: any) => (
+                      <OrderRow key={order.order_number} order={order} onNavigateToOrder={onNavigateToOrder} lang={lang} />
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <p className="text-sm font-light text-neutral-500">
+              {lang === 'no' ? 'Ingen hentinger' : 'No pickups'}
+            </p>
+          )}
+        </div>
+
+        {/* Shipments */}
+        <div className="bg-white border border-neutral-200 rounded-xl p-6 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.06)]">
+          <div className="flex items-center gap-3 mb-4">
+            <Mail className="w-5 h-5 text-neutral-600" />
+            <h3 className="text-lg font-light text-neutral-900">
+              {lang === 'no' ? 'Utsending' : 'Shipments'}
+            </h3>
+          </div>
+          {currentShipments.length > 0 ? (
+            <div className="space-y-4">
+              {currentShipments.map((group: any) => (
+                <DateGroup key={group.date} group={group} onNavigateToOrder={onNavigateToOrder} lang={lang} locale={locale} />
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm font-light text-neutral-500">
+              {lang === 'no' ? 'Ingen utsendinger' : 'No shipments'}
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DateGroup({ group, onNavigateToOrder, lang, locale }: {
+  group: { date: string; orders: any[] };
+  onNavigateToOrder?: (id: string) => void;
+  lang: string;
+  locale: string;
+}) {
+  const isTomorrow = group.date === tomorrowDate();
+  const isToday = group.date === todayDate();
+
+  return (
+    <div className={`rounded-lg ${isTomorrow ? 'bg-amber-50 border border-amber-200 p-3' : isToday ? 'bg-blue-50 border border-blue-200 p-3' : ''}`}>
+      <p className="text-sm font-medium text-neutral-700 mb-2">
+        {isToday && <span className="text-blue-700 mr-1">{lang === 'no' ? 'I dag' : 'Today'} —</span>}
+        {isTomorrow && <span className="text-amber-700 mr-1">{lang === 'no' ? 'I morgen' : 'Tomorrow'} —</span>}
+        {new Date(group.date + 'T12:00:00').toLocaleDateString(locale, { weekday: 'long', day: 'numeric', month: 'short' })}
+        <span className="text-neutral-400 ml-2">({group.orders.length})</span>
+      </p>
+      <div className="space-y-1">
+        {group.orders.map((order: any) => (
+          <OrderRow key={order.order_number} order={order} onNavigateToOrder={onNavigateToOrder} lang={lang} />
+        ))}
+      </div>
     </div>
   );
 }

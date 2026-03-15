@@ -324,15 +324,22 @@ async function fetchUpcomingDates() {
   const now = new Date();
   const today = now.toISOString().split('T')[0];
 
-  // Calculate current week Monday→Sunday (Oslo time)
+  // Current week Monday→Sunday + next week Monday→Sunday
   const dayOfWeek = now.getDay(); // 0=Sun,1=Mon,...
   const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-  const weekStart = new Date(now);
-  weekStart.setDate(now.getDate() + mondayOffset);
-  const weekEnd = new Date(weekStart);
-  weekEnd.setDate(weekStart.getDate() + 6);
-  const weekStartStr = weekStart.toISOString().split('T')[0];
-  const weekEndStr = weekEnd.toISOString().split('T')[0];
+  const thisMonday = new Date(now);
+  thisMonday.setDate(now.getDate() + mondayOffset);
+  const thisSunday = new Date(thisMonday);
+  thisSunday.setDate(thisMonday.getDate() + 6);
+  const nextMonday = new Date(thisMonday);
+  nextMonday.setDate(thisMonday.getDate() + 7);
+  const nextSunday = new Date(nextMonday);
+  nextSunday.setDate(nextMonday.getDate() + 6);
+
+  // Query range covers both weeks
+  const weekStartStr = thisMonday.toISOString().split('T')[0];
+  const weekEndStr = nextSunday.toISOString().split('T')[0];
+  const nextWeekStartStr = nextMonday.toISOString().split('T')[0];
 
   // Tomorrow
   const tomorrow = new Date(now);
@@ -413,9 +420,21 @@ async function fetchUpcomingDates() {
       if (!pickupMap[g.date]) pickupMap[g.date] = [];
       pickupMap[g.date].push(...g.orders);
     }
-    const weekPickups = Object.entries(pickupMap)
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([date, orders]) => ({ date, orders }));
+    // Split pickups into this week / next week
+    const splitByWeek = (map: Record<string, any[]>) => {
+      const thisWeek: Array<{ date: string; orders: any[] }> = [];
+      const nextWeek: Array<{ date: string; orders: any[] }> = [];
+      for (const [date, orders] of Object.entries(map).sort(([a], [b]) => a.localeCompare(b))) {
+        if (date < nextWeekStartStr) {
+          thisWeek.push({ date, orders });
+        } else {
+          nextWeek.push({ date, orders });
+        }
+      }
+      return { thisWeek, nextWeek };
+    };
+
+    const pickupWeeks = splitByWeek(pickupMap);
 
     // Shipments: egg posten + chicken delivery
     const eggShipmentGroups = groupByDate(eggPostenOrders || [], 'delivery_monday', 'egg');
@@ -429,26 +448,22 @@ async function fetchUpcomingDates() {
       if (!shipmentMap[g.date]) shipmentMap[g.date] = [];
       shipmentMap[g.date].push(...g.orders);
     }
-    const weekShipments = Object.entries(shipmentMap)
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([date, orders]) => ({ date, orders }));
-
-    // Tomorrow's shipments (flat list)
-    const tomorrowShipments = weekShipments
-      .filter((g) => g.date === tomorrowStr)
-      .flatMap((g) => g.orders);
+    const shipmentWeeks = splitByWeek(shipmentMap);
 
     // Pending pig pickups (individual orders, no date)
     const pendingPigPickups = (pigOrders || []).map((o: any) => formatOrder(o, 'pig'));
 
     return {
-      weekPickups,
-      weekShipments,
-      tomorrowShipments,
+      pickups: { thisWeek: pickupWeeks.thisWeek, nextWeek: pickupWeeks.nextWeek },
+      shipments: { thisWeek: shipmentWeeks.thisWeek, nextWeek: shipmentWeeks.nextWeek },
       pendingPigPickups,
     };
   } catch {
-    return { weekPickups: [], weekShipments: [], tomorrowShipments: [], pendingPigPickups: [] };
+    return {
+      pickups: { thisWeek: [], nextWeek: [] },
+      shipments: { thisWeek: [], nextWeek: [] },
+      pendingPigPickups: [],
+    };
   }
 }
 
