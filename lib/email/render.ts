@@ -86,7 +86,13 @@ export async function renderManagedTemplate(options: {
   variables?: Record<string, unknown>;
 }): Promise<{ subject: string; html: string; classification: string; templateKey: string } | null> {
   const locale = options.locale || 'no';
-  const vars = options.variables || {};
+  const vars = { ...options.variables } || {};
+
+  // Auto-derive customer_first_name from customer_name if not explicitly set
+  if (vars.customer_name && !vars.customer_first_name) {
+    const fullName = String(vars.customer_name).trim();
+    vars.customer_first_name = fullName.split(/\s+/)[0] || fullName;
+  }
 
   const { data, error } = await supabaseAdmin
     .from('email_templates')

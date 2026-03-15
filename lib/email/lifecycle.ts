@@ -109,10 +109,10 @@ const LIFECYCLE_TEMPLATE_SEEDS: LifecycleTemplateSeed[] = [
     subjectNo: 'Slik fungerer restbetalingen for {{order_number}}',
     subjectEn: 'How remainder payment works for {{order_number}}',
     bodyNo:
-      '<p>Hei {{customer_name}},</p><p>Takk for bestillingen din. Restbetalingen for <strong>{{order_number}}</strong> er <strong>{{remainder_amount_nok}}</strong>, med forfall <strong>{{due_date}}</strong>.</p><p>Du finner full oversikt og neste steg på Min side.</p><p><a href="{{order_url}}">Gå til Min side</a></p>',
+      '<p>Hei {{customer_first_name}},</p><p>Takk for bestillingen din. Restbetalingen for <strong>{{order_number}}</strong> er <strong>{{remainder_amount_nok}}</strong>, med forfall <strong>{{due_date}}</strong>.</p><p>Du finner full oversikt og neste steg på Min side.</p><p><a href="{{order_url}}">Gå til Min side</a></p>',
     bodyEn:
-      '<p>Hi {{customer_name}},</p><p>The remainder for <strong>{{order_number}}</strong> is <strong>{{remainder_amount_nok}}</strong>, due on <strong>{{due_date}}</strong>.</p><p><a href="{{order_url}}">Go to My Page</a></p>',
-    variables: ['customer_name', 'order_number', 'remainder_amount_nok', 'due_date', 'order_url'],
+      '<p>Hi {{customer_first_name}},</p><p>The remainder for <strong>{{order_number}}</strong> is <strong>{{remainder_amount_nok}}</strong>, due on <strong>{{due_date}}</strong>.</p><p><a href="{{order_url}}">Go to My Page</a></p>',
+    variables: ['customer_name', 'customer_first_name', 'order_number', 'remainder_amount_nok', 'due_date', 'order_url'],
   },
   {
     templateKey: 'pig.remainder.explainer.reduced',
@@ -121,10 +121,10 @@ const LIFECYCLE_TEMPLATE_SEEDS: LifecycleTemplateSeed[] = [
     subjectNo: 'Oppdatering for {{order_number}}',
     subjectEn: 'Update for {{order_number}}',
     bodyNo:
-      '<p>Hei {{customer_name}},</p><p>Vi har registrert at restbetalingen for <strong>{{order_number}}</strong> allerede er betalt.</p><p>Du finner ordredetaljene på Min side.</p><p><a href="{{order_url}}">Gå til Min side</a></p>',
+      '<p>Hei {{customer_first_name}},</p><p>Vi har registrert at restbetalingen for <strong>{{order_number}}</strong> allerede er betalt.</p><p>Du finner ordredetaljene på Min side.</p><p><a href="{{order_url}}">Gå til Min side</a></p>',
     bodyEn:
-      '<p>Hi {{customer_name}},</p><p>The remainder is already registered for <strong>{{order_number}}</strong>.</p><p><a href="{{order_url}}">Go to My Page</a></p>',
-    variables: ['customer_name', 'order_number', 'order_url'],
+      '<p>Hi {{customer_first_name}},</p><p>The remainder is already registered for <strong>{{order_number}}</strong>.</p><p><a href="{{order_url}}">Go to My Page</a></p>',
+    variables: ['customer_name', 'customer_first_name', 'order_number', 'order_url'],
   },
   {
     templateKey: 'pig.remainder.reminder',
@@ -133,10 +133,10 @@ const LIFECYCLE_TEMPLATE_SEEDS: LifecycleTemplateSeed[] = [
     subjectNo: 'Påminnelse om restbetaling ({{days_left}} dager) – {{order_number}}',
     subjectEn: 'Remainder reminder ({{days_left}} days) - {{order_number}}',
     bodyNo:
-      '<p>Hei {{customer_name}},</p><p>Dette er en vennlig påminnelse om restbetaling for <strong>{{order_number}}</strong>.</p><p><strong>Beløp:</strong> {{remainder_amount_nok}}<br/><strong>Forfall:</strong> {{due_date}} ({{days_left}} dager igjen)</p><p><a href="{{order_url}}">Gå til Min side</a></p>',
+      '<p>Hei {{customer_first_name}},</p><p>Dette er en vennlig påminnelse om restbetaling for <strong>{{order_number}}</strong>.</p><p><strong>Beløp:</strong> {{remainder_amount_nok}}<br/><strong>Forfall:</strong> {{due_date}} ({{days_left}} dager igjen)</p><p><a href="{{order_url}}">Gå til Min side</a></p>',
     bodyEn:
-      '<p>Hi {{customer_name}},</p><p>Remainder for <strong>{{order_number}}</strong>: <strong>{{remainder_amount_nok}}</strong>.</p><p>Due date: <strong>{{due_date}}</strong> ({{days_left}} days left).</p><p><a href="{{order_url}}">Go to My Page</a></p>',
-    variables: ['customer_name', 'order_number', 'remainder_amount_nok', 'due_date', 'days_left', 'order_url'],
+      '<p>Hi {{customer_first_name}},</p><p>Remainder for <strong>{{order_number}}</strong>: <strong>{{remainder_amount_nok}}</strong>.</p><p>Due date: <strong>{{due_date}}</strong> ({{days_left}} days left).</p><p><a href="{{order_url}}">Go to My Page</a></p>',
+    variables: ['customer_name', 'customer_first_name', 'order_number', 'remainder_amount_nok', 'due_date', 'days_left', 'order_url'],
   },
   {
     templateKey: 'egg.remainder.reminder',
@@ -145,10 +145,10 @@ const LIFECYCLE_TEMPLATE_SEEDS: LifecycleTemplateSeed[] = [
     subjectNo: 'Påminnelse om restbetaling ({{days_left}} dager) – {{order_number}}',
     subjectEn: 'Remainder reminder ({{days_left}} days) - {{order_number}}',
     bodyNo:
-      '<p>Hei {{customer_name}},</p><p>Restbetalingen for rugeeggordren <strong>{{order_number}}</strong> gjenstår.</p><p><strong>Beløp:</strong> {{remainder_amount_nok}}<br/><strong>Forfall:</strong> {{due_date}}</p><p><a href="{{order_url}}">Åpne bestillingen på Min side</a></p>',
+      '<p>Hei {{customer_first_name}},</p><p>Restbetalingen for rugeeggordren <strong>{{order_number}}</strong> gjenstår.</p><p><strong>Beløp:</strong> {{remainder_amount_nok}}<br/><strong>Forfall:</strong> {{due_date}}</p><p><a href="{{order_url}}">Åpne bestillingen på Min side</a></p>',
     bodyEn:
-      '<p>Hi {{customer_name}},</p><p>The remainder for hatching egg order <strong>{{order_number}}</strong> is still outstanding.</p><p>Amount: <strong>{{remainder_amount_nok}}</strong><br/>Due date: <strong>{{due_date}}</strong></p><p><a href="{{order_url}}">Open your order on My Page</a></p>',
-    variables: ['customer_name', 'order_number', 'remainder_amount_nok', 'due_date', 'days_left', 'order_url'],
+      '<p>Hi {{customer_first_name}},</p><p>The remainder for hatching egg order <strong>{{order_number}}</strong> is still outstanding.</p><p>Amount: <strong>{{remainder_amount_nok}}</strong><br/>Due date: <strong>{{due_date}}</strong></p><p><a href="{{order_url}}">Open your order on My Page</a></p>',
+    variables: ['customer_name', 'customer_first_name', 'order_number', 'remainder_amount_nok', 'due_date', 'days_left', 'order_url'],
   },
   {
     templateKey: 'egg.delivery.day_before',
@@ -157,10 +157,10 @@ const LIFECYCLE_TEMPLATE_SEEDS: LifecycleTemplateSeed[] = [
     subjectNo: 'Levering i morgen - {{order_number}}',
     subjectEn: 'Delivery tomorrow - {{order_number}}',
     bodyNo:
-      '<p>Hei {{customer_name}},</p><p>Rugeeggordren <strong>{{order_number}}</strong> sendes i morgen.</p><p>Om du ønsker å legge til flere egg før utsendelse, kan du gjøre det i dag.</p><p><a href="{{upsell_url}}">Legg til ekstra i dag</a></p>',
+      '<p>Hei {{customer_first_name}},</p><p>Rugeeggordren <strong>{{order_number}}</strong> sendes i morgen.</p><p>Om du ønsker å legge til flere egg før utsendelse, kan du gjøre det i dag.</p><p><a href="{{upsell_url}}">Legg til ekstra i dag</a></p>',
     bodyEn:
-      '<p>Hi {{customer_name}},</p><p>Your hatching egg order <strong>{{order_number}}</strong> ships tomorrow.</p><p><a href="{{upsell_url}}">Add extras today</a></p>',
-    variables: ['customer_name', 'order_number', 'upsell_url'],
+      '<p>Hi {{customer_first_name}},</p><p>Your hatching egg order <strong>{{order_number}}</strong> ships tomorrow.</p><p><a href="{{upsell_url}}">Add extras today</a></p>',
+    variables: ['customer_name', 'customer_first_name', 'order_number', 'upsell_url'],
   },
   {
     templateKey: 'egg.order.shipped.customer',
@@ -169,11 +169,12 @@ const LIFECYCLE_TEMPLATE_SEEDS: LifecycleTemplateSeed[] = [
     subjectNo: 'Rugeeggene er sendt - {{order_number}}',
     subjectEn: 'Your hatching eggs are on the way - {{order_number}}',
     bodyNo:
-      '<p>Hei {{customer_name}},</p><p>Vi har sendt bestillingen din <strong>{{order_number}}</strong> med Posten.</p><p><strong>Sporingsnummer:</strong> {{tracking_number}}<br/><a href="{{tracking_url}}">Spor pakken hos Posten</a></p><p><strong>Ordrelinjer:</strong></p>{{order_lines_html}}<p><strong>Totalt antall:</strong> {{total_quantity}} egg<br/><strong>Total:</strong> {{total_amount_nok}}<br/><strong>Forskudd:</strong> {{deposit_amount_nok}}<br/><strong>Rest:</strong> {{remainder_amount_nok}}</p><p><strong>Levering:</strong> Uke {{delivery_week}} ({{delivery_date}})</p><p><strong>Hva skjer nå?</strong><br/>1) Følg sporingen hos Posten<br/>2) Kontroller eggene ved mottak<br/>3) Gå til Min side hvis du trenger hjelp</p><p><a href="{{order_url}}">Åpne bestillingen på Min side</a></p>',
+      '<p>Hei {{customer_first_name}},</p><p>Vi har sendt bestillingen din <strong>{{order_number}}</strong> med Posten.</p><p><strong>Sporingsnummer:</strong> {{tracking_number}}<br/><a href="{{tracking_url}}">Spor pakken hos Posten</a></p><p><strong>Ordrelinjer:</strong></p>{{order_lines_html}}<p><strong>Totalt antall:</strong> {{total_quantity}} egg<br/><strong>Total:</strong> {{total_amount_nok}}<br/><strong>Forskudd:</strong> {{deposit_amount_nok}}<br/><strong>Rest:</strong> {{remainder_amount_nok}}</p><p><strong>Levering:</strong> Uke {{delivery_week}} ({{delivery_date}})</p><p><strong>Hva skjer nå?</strong><br/>1) Følg sporingen hos Posten<br/>2) Kontroller eggene ved mottak<br/>3) Gå til Min side hvis du trenger hjelp</p><p><a href="{{order_url}}">Åpne bestillingen på Min side</a></p>',
     bodyEn:
-      '<p>Hi {{customer_name}},</p><p>Your order <strong>{{order_number}}</strong> has been shipped with Posten.</p><p><strong>Tracking number:</strong> {{tracking_number}}<br/><a href="{{tracking_url}}">Track your parcel</a></p><p><strong>Order lines:</strong></p>{{order_lines_html}}<p><strong>Total quantity:</strong> {{total_quantity}} eggs<br/><strong>Total:</strong> {{total_amount_nok}}<br/><strong>Deposit:</strong> {{deposit_amount_nok}}<br/><strong>Remaining:</strong> {{remainder_amount_nok}}</p><p><strong>Delivery:</strong> Week {{delivery_week}} ({{delivery_date}})</p><p><strong>What happens next?</strong><br/>1) Track the parcel<br/>2) Check the eggs on arrival<br/>3) Use My Page if you need help</p><p><a href="{{order_url}}">Open your order on My Page</a></p>',
+      '<p>Hi {{customer_first_name}},</p><p>Your order <strong>{{order_number}}</strong> has been shipped with Posten.</p><p><strong>Tracking number:</strong> {{tracking_number}}<br/><a href="{{tracking_url}}">Track your parcel</a></p><p><strong>Order lines:</strong></p>{{order_lines_html}}<p><strong>Total quantity:</strong> {{total_quantity}} eggs<br/><strong>Total:</strong> {{total_amount_nok}}<br/><strong>Deposit:</strong> {{deposit_amount_nok}}<br/><strong>Remaining:</strong> {{remainder_amount_nok}}</p><p><strong>Delivery:</strong> Week {{delivery_week}} ({{delivery_date}})</p><p><strong>What happens next?</strong><br/>1) Track the parcel<br/>2) Check the eggs on arrival<br/>3) Use My Page if you need help</p><p><a href="{{order_url}}">Open your order on My Page</a></p>',
     variables: [
       'customer_name',
+      'customer_first_name',
       'order_number',
       'tracking_number',
       'tracking_url',
@@ -194,10 +195,10 @@ const LIFECYCLE_TEMPLATE_SEEDS: LifecycleTemplateSeed[] = [
     subjectNo: 'Lykke til med klekkingen - {{order_number}}',
     subjectEn: 'Happy hatching - {{order_number}}',
     bodyNo:
-      '<p>Hei {{customer_name}},</p><p>Vi h&aring;per klekkingen g&aring;r fint for <strong>{{order_number}}</strong>.</p><p>Har du sp&oslash;rsm&aring;l underveis, send oss gjerne en melding via nettsiden.</p><p><a href="{{message_url}}">Send melding p&aring; Min side</a></p><hr/><p><strong>Tilbud fra Tinglum G&aring;rd:</strong> Du f&aring;r <strong>10% rabatt p&aring; forskuddet</strong> p&aring; valgfri Mangalitsa-kasse med koden <strong>{{deposit_discount_code}}</strong>.</p><p><a href="{{pork_url}}">Se Mangalitsa-kasser</a></p><p><strong>Vennerrabatt:</strong> Del vennerrabattkoden din. Venner f&aring;r rabatt, og du kan tjene kreditt tilsvarende opptil <strong>50% av forskuddet</strong> n&aring;r de bestiller.</p>',
+      '<p>Hei {{customer_first_name}},</p><p>Vi h&aring;per klekkingen g&aring;r fint for <strong>{{order_number}}</strong>.</p><p>Har du sp&oslash;rsm&aring;l underveis, send oss gjerne en melding via nettsiden.</p><p><a href="{{message_url}}">Send melding p&aring; Min side</a></p><hr/><p><strong>Tilbud fra Tinglum G&aring;rd:</strong> Du f&aring;r <strong>10% rabatt p&aring; forskuddet</strong> p&aring; valgfri Mangalitsa-kasse med koden <strong>{{deposit_discount_code}}</strong>.</p><p><a href="{{pork_url}}">Se Mangalitsa-kasser</a></p><p><strong>Vennerrabatt:</strong> Del vennerrabattkoden din. Venner f&aring;r rabatt, og du kan tjene kreditt tilsvarende opptil <strong>50% av forskuddet</strong> n&aring;r de bestiller.</p>',
     bodyEn:
-      '<p>Hi {{customer_name}},</p><p>We hope your hatch is going well for <strong>{{order_number}}</strong>.</p><p>If you have any questions, send us a message through the website.</p><p><a href="{{message_url}}">Send a message on My Page</a></p><hr/><p><strong>Special offer from Tinglum Gard:</strong> Get <strong>10% off your deposit</strong> on any Mangalitsa box with code <strong>{{deposit_discount_code}}</strong>.</p><p><a href="{{pork_url}}">Explore Mangalitsa boxes</a></p><p><strong>Referral bonus:</strong> Share your referral code. Your friends get a discount, and you can earn credit worth up to <strong>50% of your deposit</strong> as they order.</p>',
-    variables: ['customer_name', 'order_number', 'message_url', 'pork_url', 'deposit_discount_code'],
+      '<p>Hi {{customer_first_name}},</p><p>We hope your hatch is going well for <strong>{{order_number}}</strong>.</p><p>If you have any questions, send us a message through the website.</p><p><a href="{{message_url}}">Send a message on My Page</a></p><hr/><p><strong>Special offer from Tinglum Gard:</strong> Get <strong>10% off your deposit</strong> on any Mangalitsa box with code <strong>{{deposit_discount_code}}</strong>.</p><p><a href="{{pork_url}}">Explore Mangalitsa boxes</a></p><p><strong>Referral bonus:</strong> Share your referral code. Your friends get a discount, and you can earn credit worth up to <strong>50% of your deposit</strong> as they order.</p>',
+    variables: ['customer_name', 'customer_first_name', 'order_number', 'message_url', 'pork_url', 'deposit_discount_code'],
   },
   {
     templateKey: 'egg.order.forfeited',
@@ -206,10 +207,10 @@ const LIFECYCLE_TEMPLATE_SEEDS: LifecycleTemplateSeed[] = [
     subjectNo: 'Bestillingen er kansellert - {{order_number}}',
     subjectEn: 'Order cancelled - {{order_number}}',
     bodyNo:
-      '<p>Hei {{customer_name}},</p><p>Bestillingen <strong>{{order_number}}</strong> er kansellert fordi restbetalingen ikke ble registrert innen fristen.</p><p><a href="{{order_url}}">Se detaljer på Min side</a></p>',
+      '<p>Hei {{customer_first_name}},</p><p>Bestillingen <strong>{{order_number}}</strong> er kansellert fordi restbetalingen ikke ble registrert innen fristen.</p><p><a href="{{order_url}}">Se detaljer på Min side</a></p>',
     bodyEn:
-      '<p>Hi {{customer_name}},</p><p>Order <strong>{{order_number}}</strong> was cancelled because the remainder was not registered before the deadline.</p><p><a href="{{order_url}}">View details on My Page</a></p>',
-    variables: ['customer_name', 'order_number', 'order_url'],
+      '<p>Hi {{customer_first_name}},</p><p>Order <strong>{{order_number}}</strong> was cancelled because the remainder was not registered before the deadline.</p><p><a href="{{order_url}}">View details on My Page</a></p>',
+    variables: ['customer_name', 'customer_first_name', 'order_number', 'order_url'],
   },
   {
     templateKey: 'chicken.ready_for_pickup',
@@ -218,10 +219,10 @@ const LIFECYCLE_TEMPLATE_SEEDS: LifecycleTemplateSeed[] = [
     subjectNo: 'Kyllingene er klare for henting - {{order_number}}',
     subjectEn: 'Chickens ready for pickup - {{order_number}}',
     bodyNo:
-      '<p>Hei {{customer_name}},</p><p>Bestilling <strong>{{order_number}}</strong> er klar for henting.</p><p>Du finner alle detaljer på Min side.</p><p><a href="{{order_url}}">Se detaljer på Min side</a></p>',
+      '<p>Hei {{customer_first_name}},</p><p>Bestilling <strong>{{order_number}}</strong> er klar for henting.</p><p>Du finner alle detaljer på Min side.</p><p><a href="{{order_url}}">Se detaljer på Min side</a></p>',
     bodyEn:
-      '<p>Hi {{customer_name}},</p><p>Order <strong>{{order_number}}</strong> is ready for pickup.</p><p><a href="{{order_url}}">View details on My Page</a></p>',
-    variables: ['customer_name', 'order_number', 'order_url'],
+      '<p>Hi {{customer_first_name}},</p><p>Order <strong>{{order_number}}</strong> is ready for pickup.</p><p><a href="{{order_url}}">View details on My Page</a></p>',
+    variables: ['customer_name', 'customer_first_name', 'order_number', 'order_url'],
   },
   {
     templateKey: 'chicken.pickup.reminder',
@@ -230,10 +231,10 @@ const LIFECYCLE_TEMPLATE_SEEDS: LifecycleTemplateSeed[] = [
     subjectNo: 'Påminnelse om henting ({{days_left}} dager) – {{order_number}}',
     subjectEn: 'Pickup reminder ({{days_left}} days) - {{order_number}}',
     bodyNo:
-      '<p>Hei {{customer_name}},</p><p>Dette er en påminnelse om henting for <strong>{{order_number}}</strong>.</p><p><strong>Hentedato:</strong> {{pickup_date}} ({{days_left}} dager igjen)</p><p><a href="{{order_url}}">Se detaljer på Min side</a></p>',
+      '<p>Hei {{customer_first_name}},</p><p>Dette er en påminnelse om henting for <strong>{{order_number}}</strong>.</p><p><strong>Hentedato:</strong> {{pickup_date}} ({{days_left}} dager igjen)</p><p><a href="{{order_url}}">Se detaljer på Min side</a></p>',
     bodyEn:
-      '<p>Hi {{customer_name}},</p><p>Pickup reminder for <strong>{{order_number}}</strong>.</p><p>Pickup date: <strong>{{pickup_date}}</strong> ({{days_left}} days left).</p><p><a href="{{order_url}}">View details on My Page</a></p>',
-    variables: ['customer_name', 'order_number', 'pickup_date', 'days_left', 'order_url'],
+      '<p>Hi {{customer_first_name}},</p><p>Pickup reminder for <strong>{{order_number}}</strong>.</p><p>Pickup date: <strong>{{pickup_date}}</strong> ({{days_left}} days left).</p><p><a href="{{order_url}}">View details on My Page</a></p>',
+    variables: ['customer_name', 'customer_first_name', 'order_number', 'pickup_date', 'days_left', 'order_url'],
   },
   {
     templateKey: 'chicken.remainder.collected',
@@ -242,10 +243,10 @@ const LIFECYCLE_TEMPLATE_SEEDS: LifecycleTemplateSeed[] = [
     subjectNo: 'Kvittering for restbetaling - {{order_number}}',
     subjectEn: 'Receipt for remainder payment - {{order_number}}',
     bodyNo:
-      '<p>Hei {{customer_name}},</p><p>Restbetalingen for <strong>{{order_number}}</strong> er registrert ved henting.</p><p><strong>Beløp:</strong> {{remainder_amount_nok}}</p><p><a href="{{order_url}}">Se bestillingen på Min side</a></p>',
+      '<p>Hei {{customer_first_name}},</p><p>Restbetalingen for <strong>{{order_number}}</strong> er registrert ved henting.</p><p><strong>Beløp:</strong> {{remainder_amount_nok}}</p><p><a href="{{order_url}}">Se bestillingen på Min side</a></p>',
     bodyEn:
-      '<p>Hi {{customer_name}},</p><p>The remainder payment for <strong>{{order_number}}</strong> was registered at pickup.</p><p>Amount: <strong>{{remainder_amount_nok}}</strong>.</p><p><a href="{{order_url}}">View your order on My Page</a></p>',
-    variables: ['customer_name', 'order_number', 'remainder_amount_nok', 'order_url'],
+      '<p>Hi {{customer_first_name}},</p><p>The remainder payment for <strong>{{order_number}}</strong> was registered at pickup.</p><p>Amount: <strong>{{remainder_amount_nok}}</strong>.</p><p><a href="{{order_url}}">View your order on My Page</a></p>',
+    variables: ['customer_name', 'customer_first_name', 'order_number', 'remainder_amount_nok', 'order_url'],
   },
   {
     templateKey: 'chicken.order.followup',
@@ -254,10 +255,10 @@ const LIFECYCLE_TEMPLATE_SEEDS: LifecycleTemplateSeed[] = [
     subjectNo: 'Takk for kyllingbestillingen - {{order_number}}',
     subjectEn: 'Thanks for your chicken order - {{order_number}}',
     bodyNo:
-      '<p>Hei {{customer_name}},</p><p>Takk for bestillingen av kyllinger fra Tinglum Gård! Vi gleder oss til du henter dem.</p><p>Har du spørsmål, send oss gjerne en melding via nettsiden.</p><p><a href="{{message_url}}">Send melding på Min side</a></p><hr/><p><strong>Tilbud fra Tinglum Gård:</strong> Som kyllingkunde har du <strong>10% rabatt på forskuddet</strong> på din første Mangalitsa-kasse. Rabatten legges til automatisk ved bestilling.</p><p><a href="{{pork_url}}">Besøk tinglumgård.no</a></p><p><strong>Vennerabatt:</strong> Del vennerabattkoden din. Venner får rabatt, og du kan tjene kreditt tilsvarende opptil <strong>50% av forskuddet</strong> når de bestiller.</p>',
+      '<p>Hei {{customer_first_name}},</p><p>Takk for bestillingen av kyllinger fra Tinglum Gård! Vi gleder oss til du henter dem.</p><p>Har du spørsmål, send oss gjerne en melding via nettsiden.</p><p><a href="{{message_url}}">Send melding på Min side</a></p><hr/><p><strong>Tilbud fra Tinglum Gård:</strong> Som kyllingkunde har du <strong>10% rabatt på forskuddet</strong> på din første Mangalitsa-kasse. Rabatten legges til automatisk ved bestilling.</p><p><a href="{{pork_url}}">Besøk tinglumgård.no</a></p><p><strong>Vennerabatt:</strong> Del vennerabattkoden din. Venner får rabatt, og du kan tjene kreditt tilsvarende opptil <strong>50% av forskuddet</strong> når de bestiller.</p>',
     bodyEn:
-      '<p>Hi {{customer_name}},</p><p>Thank you for your chicken order from Tinglum Gård! We look forward to your pickup.</p><p>If you have any questions, feel free to send us a message on the website.</p><p><a href="{{message_url}}">Send a message on My Page</a></p><hr/><p><strong>Offer from Tinglum Gård:</strong> As a chicken customer, you get <strong>10% off the deposit</strong> on your first Mangalitsa box. The discount is applied automatically at checkout.</p><p><a href="{{pork_url}}">Visit tinglumgård.no</a></p><p><strong>Referral bonus:</strong> Share your referral code. Friends get a discount, and you can earn credit worth up to <strong>50% of the deposit</strong> when they order.</p>',
-    variables: ['customer_name', 'order_number', 'message_url', 'pork_url', 'order_url'],
+      '<p>Hi {{customer_first_name}},</p><p>Thank you for your chicken order from Tinglum Gård! We look forward to your pickup.</p><p>If you have any questions, feel free to send us a message on the website.</p><p><a href="{{message_url}}">Send a message on My Page</a></p><hr/><p><strong>Offer from Tinglum Gård:</strong> As a chicken customer, you get <strong>10% off the deposit</strong> on your first Mangalitsa box. The discount is applied automatically at checkout.</p><p><a href="{{pork_url}}">Visit tinglumgård.no</a></p><p><strong>Referral bonus:</strong> Share your referral code. Friends get a discount, and you can earn credit worth up to <strong>50% of the deposit</strong> when they order.</p>',
+    variables: ['customer_name', 'customer_first_name', 'order_number', 'message_url', 'pork_url', 'order_url'],
   },
 ];
 
