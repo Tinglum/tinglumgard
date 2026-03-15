@@ -687,6 +687,28 @@ export function EmailControlCenter() {
     });
   }
 
+  function openTemplatePreview(template: EmailTemplate, locale: 'no' | 'en' = 'no') {
+    // Use current editor content so you can preview unsaved edits
+    const subjectNo = templateEditor.subjectNo || template.subject_no;
+    const subjectEn = templateEditor.subjectEn || template.subject_en;
+    const bodyNo = templateEditor.bodyNo || template.body_no;
+    const bodyEn = templateEditor.bodyEn || template.body_en;
+
+    const subject =
+      locale === 'en' ? subjectEn || subjectNo || template.template_key : subjectNo || subjectEn || template.template_key;
+    const body = locale === 'en' ? bodyEn || bodyNo || '' : bodyNo || bodyEn || '';
+    const html = body
+      ? body
+      : `<p style="font-family:Arial,sans-serif;color:#374151;">No template body found.</p>`;
+
+    setEmailPreviewModal({
+      title: `Template - ${template.template_key}`,
+      subtitle: `${template.classification} - v${template.current_version} - ${locale.toUpperCase()}`,
+      subject,
+      html,
+    });
+  }
+
   function openFlowTemplatePreview(flow: EmailFlow, locale: 'no' | 'en' = 'no') {
     const tpl = flow.email_templates;
     const subject =
@@ -1003,11 +1025,17 @@ export function EmailControlCenter() {
                   value={templateChangeNote}
                   onChange={(event) => setTemplateChangeNote(event.target.value)}
                 />
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   <Button variant="outline" onClick={handleSaveTemplate}>
                     Save
                   </Button>
                   <Button onClick={handleCreateTemplateVersion}>New Version</Button>
+                  <Button variant="outline" onClick={() => openTemplatePreview(selectedTemplate, 'no')}>
+                    Preview NO
+                  </Button>
+                  <Button variant="outline" onClick={() => openTemplatePreview(selectedTemplate, 'en')}>
+                    Preview EN
+                  </Button>
                 </div>
                 <div
                   className={cn(

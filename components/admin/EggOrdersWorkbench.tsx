@@ -11,7 +11,10 @@ import { cn } from '@/lib/utils'
 import { useLanguage } from '@/contexts/LanguageContext'
 import {
   AlertTriangle,
+  ArrowUpDown,
   CheckCircle2,
+  ChevronDown,
+  ChevronUp,
   Download,
   Loader2,
   Package,
@@ -177,13 +180,55 @@ const DELIVERY_OPTIONS = ['all', 'posten', 'e6_pickup', 'farm_pickup'] as const
 const SORT_OPTIONS = [
   'newest',
   'oldest',
+  'customer_asc',
+  'customer_desc',
   'delivery_asc',
   'delivery_desc',
+  'payment_asc',
+  'payment_desc',
+  'status_asc',
+  'status_desc',
   'amount_desc',
   'amount_asc',
   'week_asc',
   'week_desc',
 ] as const
+
+function SortableHeader({ label, sortKey, currentSort, onSort, ascKey, descKey }: {
+  label: string
+  sortKey: string
+  currentSort: string
+  onSort: (value: string) => void
+  ascKey: string
+  descKey: string
+}) {
+  const isAsc = currentSort === ascKey
+  const isDesc = currentSort === descKey
+  const isActive = isAsc || isDesc
+
+  const handleClick = () => {
+    if (isAsc) onSort(descKey)
+    else if (isDesc) onSort(ascKey)
+    else onSort(ascKey)
+  }
+
+  return (
+    <th className="px-4 py-3 text-left">
+      <button
+        onClick={handleClick}
+        className={cn(
+          'flex items-center gap-1 text-sm font-medium transition-colors',
+          isActive ? 'text-neutral-900' : 'text-neutral-700 hover:text-neutral-900'
+        )}
+      >
+        {label}
+        {isAsc ? <ChevronUp className="w-3.5 h-3.5" /> :
+         isDesc ? <ChevronDown className="w-3.5 h-3.5" /> :
+         <ArrowUpDown className="w-3.5 h-3.5 text-neutral-400" />}
+      </button>
+    </th>
+  )
+}
 
 const EMPTY_SUMMARY: EggOrdersSummary = {
   totalOrders: 0,
@@ -1082,12 +1127,12 @@ export function EggOrdersWorkbench({
                       className="rounded border-neutral-300"
                     />
                   </th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-neutral-700">{copy.table.order}</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-neutral-700">{copy.table.customer}</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-neutral-700">{copy.table.delivery}</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-neutral-700">{copy.table.payment}</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-neutral-700">{copy.table.status}</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-neutral-700">{copy.table.amount}</th>
+                  <SortableHeader label={copy.table.order} sortKey="newest" currentSort={sortBy} onSort={setSortBy} ascKey="oldest" descKey="newest" />
+                  <SortableHeader label={copy.table.customer} sortKey="customer" currentSort={sortBy} onSort={setSortBy} ascKey="customer_asc" descKey="customer_desc" />
+                  <SortableHeader label={copy.table.delivery} sortKey="delivery" currentSort={sortBy} onSort={setSortBy} ascKey="delivery_asc" descKey="delivery_desc" />
+                  <SortableHeader label={copy.table.payment} sortKey="payment" currentSort={sortBy} onSort={setSortBy} ascKey="payment_asc" descKey="payment_desc" />
+                  <SortableHeader label={copy.table.status} sortKey="status" currentSort={sortBy} onSort={setSortBy} ascKey="status_asc" descKey="status_desc" />
+                  <SortableHeader label={copy.table.amount} sortKey="amount" currentSort={sortBy} onSort={setSortBy} ascKey="amount_asc" descKey="amount_desc" />
                   <th className="px-4 py-3 text-right text-sm font-medium text-neutral-700">{copy.table.action}</th>
                 </tr>
               </thead>

@@ -188,11 +188,31 @@ function sortOrders(orders: EggOrderRow[], sortBy: string): EggOrderRow[] {
     if (sortBy === 'oldest') {
       return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
     }
+    if (sortBy === 'customer_asc') {
+      return (a.customer_name || '').localeCompare(b.customer_name || '', 'nb')
+    }
+    if (sortBy === 'customer_desc') {
+      return (b.customer_name || '').localeCompare(a.customer_name || '', 'nb')
+    }
     if (sortBy === 'delivery_asc') {
       return new Date(a.delivery_monday).getTime() - new Date(b.delivery_monday).getTime()
     }
     if (sortBy === 'delivery_desc') {
       return new Date(b.delivery_monday).getTime() - new Date(a.delivery_monday).getTime()
+    }
+    if (sortBy === 'payment_asc' || sortBy === 'payment_desc') {
+      const paymentOrder: Record<string, number> = { deposit_pending: 0, remainder_due: 1, fully_paid: 2 }
+      const aState = getPaymentSortKey(a)
+      const bState = getPaymentSortKey(b)
+      const aVal = paymentOrder[aState] ?? 3
+      const bVal = paymentOrder[bState] ?? 3
+      return sortBy === 'payment_asc' ? aVal - bVal : bVal - aVal
+    }
+    if (sortBy === 'status_asc') {
+      return (a.status || '').localeCompare(b.status || '')
+    }
+    if (sortBy === 'status_desc') {
+      return (b.status || '').localeCompare(a.status || '')
     }
     if (sortBy === 'amount_asc') {
       return (a.total_amount || 0) - (b.total_amount || 0)
@@ -209,6 +229,17 @@ function sortOrders(orders: EggOrderRow[], sortBy: string): EggOrderRow[] {
     return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
   })
   return sorted
+}
+
+function getPaymentSortKey(order: EggOrderRow): string {
+  const payments = (order as any).egg_payments || []
+  const hasDeposit = payments.some((p: any) => p.payment_type === 'deposit' && p.status === 'completed')
+  if (!hasDeposit) return 'deposit_pending'
+  const remainderPaid = payments
+    .filter((p: any) => p.payment_type === 'remainder' && p.status === 'completed')
+    .reduce((sum: number, p: any) => sum + (p.amount_nok || 0) * 100, 0)
+  if (remainderPaid >= (order.remainder_amount || 0) && (order.remainder_amount || 0) > 0) return 'fully_paid'
+  return 'remainder_due'
 }
 
 async function appendAdminNote(orderId: string, existingNotes: string | null, note: string) {
