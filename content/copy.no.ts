@@ -3559,10 +3559,10 @@
     eggWeekTracker: {
       title: "Ukeoversikt egg",
       orderedNextMonday: "Bestilt neste mandag",
-      collectedSoFar: "Samlet so langt",
+      collectedSoFar: "Samlet s\u00e5 langt",
       forecastFullWeek: "Prognose (hele uken)",
-      statusNow: "Mangler na",
-      predictionSunday: "Prediksjon sondag kveld",
+      statusNow: "Mangler n\u00e5",
+      predictionSunday: "Prediksjon s\u00f8ndag kveld",
       surplus: "overskudd",
       deficit: "mangler",
       balanced: "i balanse",

@@ -406,7 +406,7 @@ function EggWeekTrackerSection({ tracker, lang, copy }: {
         {/* Collected so far */}
         <div className="p-4 rounded-lg bg-neutral-50 border border-neutral-200">
           <p className="text-xs font-medium text-neutral-500 mb-1">
-            {ewt.collectedSoFar || 'Samlet sa langt'}
+            {ewt.collectedSoFar || 'Samlet s\u00e5 langt'}
           </p>
           <p className="text-2xl font-light text-neutral-900 tabular-nums">{collectedTotal}</p>
           <p className="text-xs text-neutral-400">({collectionWindow})</p>
@@ -426,7 +426,7 @@ function EggWeekTrackerSection({ tracker, lang, copy }: {
         {/* Status now */}
         <div className={`p-4 rounded-lg border ${deltaBg(missingNow)}`}>
           <p className="text-xs font-medium text-neutral-500 mb-1">
-            {ewt.statusNow || 'Mangler na'}
+            {ewt.statusNow || 'Mangler n\u00e5'}
           </p>
           <p className={`text-2xl font-light tabular-nums ${deltaColor(missingNow)}`}>
             {formatDelta(missingNow)}
@@ -443,7 +443,7 @@ function EggWeekTrackerSection({ tracker, lang, copy }: {
           <TrendingUp className="w-4 h-4 text-green-500" />
         )}
         <span className="text-sm text-neutral-700">
-          {ewt.predictionSunday || 'Prediksjon sondag kveld'}:
+          {ewt.predictionSunday || 'Prediksjon s\u00f8ndag kveld'}:
         </span>
         <span className={`text-sm font-medium tabular-nums ${deltaColor(predictedEndOfWeek)}`}>
           {formatDelta(predictedEndOfWeek)} {ewt.eggs || 'egg'}
