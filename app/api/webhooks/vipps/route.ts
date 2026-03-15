@@ -183,6 +183,8 @@ function buildEggOrderLinesHtml(options: {
   baseQuantity: number;
   basePricePerEggOre: number;
   additions: EggAdditionsSummary['additions'];
+  deliveryFeeOre?: number;
+  deliveryLabel?: string;
   locale?: 'no' | 'en';
 }): string {
   const locale = options.locale || 'no';
@@ -259,7 +261,18 @@ function buildEggOrderLinesHtml(options: {
     })
     .join('');
 
-  const totalOre = lines.reduce((sum, line) => sum + line.subtotalOre, 0);
+  const eggSubtotalOre = lines.reduce((sum, line) => sum + line.subtotalOre, 0);
+  const deliveryFeeOre = Math.max(0, Math.round(Number(options.deliveryFeeOre || 0)));
+  const totalOre = eggSubtotalOre + deliveryFeeOre;
+
+  const deliveryFeeLabel = locale === 'en' ? 'Delivery' : 'Frakt';
+  const deliveryFeeRow = deliveryFeeOre > 0
+    ? `<tr>
+  <td colspan="3" style="padding:8px;border:1px solid #e5e7eb;vertical-align:top;">${deliveryFeeLabel}${options.deliveryLabel ? ` (${escapeHtml(options.deliveryLabel)})` : ''}</td>
+  <td style="padding:8px;border:1px solid #e5e7eb;vertical-align:top;text-align:right;"></td>
+  <td style="padding:8px;border:1px solid #e5e7eb;vertical-align:top;text-align:right;">${formatOreToNokWithPrefix(deliveryFeeOre)}</td>
+</tr>`
+    : '';
 
   return `<table role="presentation" cellspacing="0" cellpadding="0" style="width:100%;border-collapse:collapse;margin:8px 0;">
   <thead>
@@ -273,6 +286,7 @@ function buildEggOrderLinesHtml(options: {
   </thead>
   <tbody>
     ${rows}
+    ${deliveryFeeRow}
     <tr style="background:#f9fafb;">
       <td colspan="4" style="padding:8px;border:1px solid #e5e7eb;text-align:right;font-weight:700;">${labels.total}</td>
       <td style="padding:8px;border:1px solid #e5e7eb;text-align:right;font-weight:700;">${formatOreToNokWithPrefix(
@@ -763,6 +777,8 @@ export async function POST(request: NextRequest) {
           baseQuantity: Number(order?.quantity || 0),
           basePricePerEggOre: Number(order?.price_per_egg || 0),
           additions: eggSummary.additions,
+          deliveryFeeOre: Number(order?.delivery_fee || 0),
+          deliveryLabel: getEggDeliveryLabel(String(order?.delivery_method || '')),
           locale: 'no',
         })
       : '';
@@ -842,8 +858,8 @@ export async function POST(request: NextRequest) {
                 quantity_roosters: chickenSummary.roosters,
                 total_birds_label: buildTotalBirdsLabel(chickenSummary.hens, chickenSummary.roosters, 'no'),
                 total_birds_label_en: buildTotalBirdsLabel(chickenSummary.hens, chickenSummary.roosters, 'en'),
-                order_lines_html: buildChickenOrderLinesHtml(chickenSummary.lines, 'no'),
-                order_lines_html_en: buildChickenOrderLinesHtml(chickenSummary.lines, 'en'),
+                order_lines_html: buildChickenOrderLinesHtml(chickenSummary.lines, 'no', { deliveryFeeNok: Number(order.delivery_fee_nok || 0), deliveryLabel: getChickenDeliveryLabel(String(order.delivery_method || '')) }),
+                order_lines_html_en: buildChickenOrderLinesHtml(chickenSummary.lines, 'en', { deliveryFeeNok: Number(order.delivery_fee_nok || 0), deliveryLabel: getChickenDeliveryLabel(String(order.delivery_method || '')) }),
                 pickup_date: new Date(`${order.pickup_monday}T00:00:00`).toLocaleDateString('nb-NO'),
                 delivery_label: getChickenDeliveryLabel(String(order.delivery_method || '')),
                 total_amount_nok: formatNok(order.total_amount_nok),
@@ -960,8 +976,8 @@ export async function POST(request: NextRequest) {
               quantity_roosters: chickenSummary.roosters,
               total_birds_label: buildTotalBirdsLabel(chickenSummary.hens, chickenSummary.roosters, 'no'),
               total_birds_label_en: buildTotalBirdsLabel(chickenSummary.hens, chickenSummary.roosters, 'en'),
-              order_lines_html: buildChickenOrderLinesHtml(chickenSummary.lines, 'no'),
-              order_lines_html_en: buildChickenOrderLinesHtml(chickenSummary.lines, 'en'),
+              order_lines_html: buildChickenOrderLinesHtml(chickenSummary.lines, 'no', { deliveryFeeNok: Number(order.delivery_fee_nok || 0), deliveryLabel: getChickenDeliveryLabel(String(order.delivery_method || '')) }),
+              order_lines_html_en: buildChickenOrderLinesHtml(chickenSummary.lines, 'en', { deliveryFeeNok: Number(order.delivery_fee_nok || 0), deliveryLabel: getChickenDeliveryLabel(String(order.delivery_method || '')) }),
               pickup_week: order.pickup_week,
               pickup_date: new Date(`${order.pickup_monday}T00:00:00`).toLocaleDateString('nb-NO'),
               deposit_amount_nok: formatNok(order.deposit_amount_nok),

@@ -83,8 +83,9 @@ export async function sendChickenDepositConfirmationEmails(params: {
   const breedLabelWithAgeNo = buildChickenBreedAgeLabel(summary.lines, 'no');
   const breedLabelWithAgeEn = buildChickenBreedAgeLabel(summary.lines, 'en');
   const pickupDate = order.pickup_monday ? new Date(`${order.pickup_monday}T00:00:00`).toLocaleDateString('nb-NO') : '';
-  const orderLinesHtmlNo = buildChickenOrderLinesHtml(summary.lines, 'no');
-  const orderLinesHtmlEn = buildChickenOrderLinesHtml(summary.lines, 'en');
+  const chickenDeliveryOpts = { deliveryFeeNok: Number(order.delivery_fee_nok || 0), deliveryLabel: getChickenDeliveryLabel(String(order.delivery_method || '')) };
+  const orderLinesHtmlNo = buildChickenOrderLinesHtml(summary.lines, 'no', chickenDeliveryOpts);
+  const orderLinesHtmlEn = buildChickenOrderLinesHtml(summary.lines, 'en', chickenDeliveryOpts);
 
   const customerEmail = normalizeEmail(order.customer_email);
   let customerSent = false;

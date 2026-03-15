@@ -189,7 +189,8 @@ export function summarizeChickenOrderLines(order: ChickenOrderLike): ChickenOrde
 
 export function buildChickenOrderLinesHtml(
   lines: ChickenOrderLine[],
-  locale: 'no' | 'en' = 'no'
+  locale: 'no' | 'en' = 'no',
+  options?: { deliveryFeeNok?: number; deliveryLabel?: string }
 ): string {
   if (!lines.length) {
     return locale === 'en'
@@ -234,7 +235,18 @@ export function buildChickenOrderLinesHtml(
     })
     .join('');
 
-  const total = lines.reduce((sum, line) => sum + line.subtotalNok, 0);
+  const subtotal = lines.reduce((sum, line) => sum + line.subtotalNok, 0);
+  const deliveryFeeNok = Math.max(0, Math.round(Number(options?.deliveryFeeNok || 0)));
+  const total = subtotal + deliveryFeeNok;
+
+  const deliveryFeeLabel = locale === 'en' ? 'Delivery' : 'Frakt';
+  const deliveryFeeRow = deliveryFeeNok > 0
+    ? `<tr>
+  <td colspan="4" style="padding:8px;border:1px solid #e5e7eb;vertical-align:top;">${deliveryFeeLabel}${options?.deliveryLabel ? ` (${escapeHtml(options.deliveryLabel)})` : ''}</td>
+  <td style="padding:8px;border:1px solid #e5e7eb;vertical-align:top;"></td>
+  <td style="padding:8px;border:1px solid #e5e7eb;vertical-align:top;text-align:right;">${escapeHtml(formatNok(deliveryFeeNok, locale))}</td>
+</tr>`
+    : '';
 
   return `<table role="presentation" cellspacing="0" cellpadding="0" style="width:100%;border-collapse:collapse;margin:8px 0;">
   <thead>
@@ -249,6 +261,7 @@ export function buildChickenOrderLinesHtml(
   </thead>
   <tbody>
     ${rows}
+    ${deliveryFeeRow}
     <tr style="background:#f9fafb;">
       <td colspan="5" style="padding:8px;border:1px solid #e5e7eb;text-align:right;font-weight:700;">${totalLabel}</td>
       <td style="padding:8px;border:1px solid #e5e7eb;text-align:right;font-weight:700;">${escapeHtml(
