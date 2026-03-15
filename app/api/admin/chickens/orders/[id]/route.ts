@@ -58,12 +58,16 @@ function toNonNegativeInt(value: unknown): number | null {
 }
 
 async function fetchOrderWithRelations(orderId: string) {
+  // Try by UUID first, then fall back to order_number for deep-link support
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(orderId);
+  const column = isUuid ? 'id' : 'order_number';
+
   const { data, error } = await supabaseAdmin
     .from('chicken_orders')
     .select(
       '*, chicken_breeds(*), chicken_hatches(*), chicken_payments(*), chicken_order_additions(*, chicken_breeds(*), chicken_hatches(*))'
     )
-    .eq('id', orderId)
+    .eq(column, orderId)
     .maybeSingle();
 
   return { data, error };

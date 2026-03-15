@@ -66,12 +66,16 @@ function deriveStatusFromPayments(
 }
 
 async function fetchOrderWithRelations(orderId: string) {
+  // Try by UUID first, then fall back to order_number for deep-link support
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(orderId);
+  const column = isUuid ? 'id' : 'order_number';
+
   const { data, error } = await supabaseAdmin
     .from('egg_orders')
     .select(
       '*, egg_breeds(*), egg_inventory(*), egg_payments(*), egg_order_additions(*, egg_breeds(*), egg_inventory(*))'
     )
-    .eq('id', orderId)
+    .eq(column, orderId)
     .maybeSingle()
 
   return { data, error }
