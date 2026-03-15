@@ -13,7 +13,7 @@ jobs:
     steps:
       - name: Trigger egg wishlist proposal job
         env:
-          APP_BASE_URL: ${{ secrets.APP_BASE_URL || vars.APP_BASE_URL || 'https://tinglumgard.no' }}
+          APP_BASE_URL: ${{ secrets.APP_BASE_URL || vars.APP_BASE_URL || 'https://xn--tinglumgrd-85a.no' }}
           CRON_SECRET: ${{ secrets.CRON_SECRET || vars.CRON_SECRET }}
         run: |
           set -euo pipefail
