@@ -38,7 +38,7 @@ VALUES
     '["customer_name","order_number","total_amount_nok","pickup_date","order_url"]'::jsonb,
     true
   )
-ON CONFLICT (template_key, locale) DO UPDATE SET
+ON CONFLICT (template_key) DO UPDATE SET
   body_no = EXCLUDED.body_no,
   body_en = EXCLUDED.body_en,
   subject_no = EXCLUDED.subject_no,
