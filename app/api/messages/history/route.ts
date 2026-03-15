@@ -10,11 +10,24 @@ export async function GET() {
   }
 
   try {
-    const communications = await fetchCommunicationHistory({
+    const all = await fetchCommunicationHistory({
       userId: session.userId,
       email: session.email as string | undefined,
       phone: session.phoneNumber as string | undefined,
       limit: 200,
+    });
+
+    // Only show emails actually sent TO this customer, not admin/owner notifications
+    const sessionEmail = (session.email || '').toLowerCase().trim();
+
+    const communications = all.filter((entry) => {
+      const toEmail = (entry.toEmail || '').toLowerCase().trim();
+      // If the entry has a to_email, it must match the customer's email
+      if (toEmail && sessionEmail) return toEmail === sessionEmail;
+      // Legacy entries matched by order_id without to_email — keep them
+      // (they were found via order ownership, so they belong to this customer)
+      if (!toEmail && entry.source === 'legacy_email_log') return true;
+      return false;
     });
 
     return NextResponse.json({ communications });
