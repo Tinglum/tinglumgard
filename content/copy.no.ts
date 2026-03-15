@@ -3571,6 +3571,8 @@
       collected: "Samlet",
       forecast: "Prognose",
       missing: "Mangler",
+      missingNow: "Mangler n\u00e5",
+      missingPrediction: "Mangler pred.",
       prediction: "Prediksjon",
       total: "Totalt",
       eggs: "egg",

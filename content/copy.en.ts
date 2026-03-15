@@ -3568,6 +3568,8 @@
       collected: "Collected",
       forecast: "Forecast",
       missing: "Missing",
+      missingNow: "Missing now",
+      missingPrediction: "Missing pred.",
       prediction: "Prediction",
       total: "Total",
       eggs: "eggs",

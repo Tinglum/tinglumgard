@@ -462,13 +462,15 @@ function EggWeekTrackerSection({ tracker, lang, copy }: {
                 <th className="text-left text-xs font-medium text-neutral-500 pb-2 pr-4">{ewt.breed || 'Rase'}</th>
                 <th className="text-right text-xs font-medium text-neutral-500 pb-2 pr-4">{ewt.ordered || 'Bestilt'}</th>
                 <th className="text-right text-xs font-medium text-neutral-500 pb-2 pr-4">{ewt.collected || 'Samlet'}</th>
+                <th className="text-right text-xs font-medium text-neutral-500 pb-2 pr-4">{ewt.missingNow || 'Mangler n\u00e5'}</th>
                 <th className="text-right text-xs font-medium text-neutral-500 pb-2 pr-4">{ewt.forecast || 'Prognose'}</th>
-                <th className="text-right text-xs font-medium text-neutral-500 pb-2">{ewt.missing || 'Mangler'}</th>
+                <th className="text-right text-xs font-medium text-neutral-500 pb-2">{ewt.missingPrediction || 'Mangler pred.'}</th>
               </tr>
             </thead>
             <tbody>
               {breeds.map((b: any) => {
-                const breedMissing = b.orders - b.collected;
+                const breedMissingNow = b.orders - b.collected;
+                const breedMissingPred = b.orders - b.forecast;
                 return (
                   <tr key={b.breedName} className="border-b border-neutral-50 last:border-0">
                     <td className="py-2 pr-4 flex items-center gap-2">
@@ -480,11 +482,14 @@ function EggWeekTrackerSection({ tracker, lang, copy }: {
                     </td>
                     <td className="py-2 pr-4 text-right tabular-nums text-neutral-700">{b.orders}</td>
                     <td className="py-2 pr-4 text-right tabular-nums text-neutral-700">{b.collected}</td>
+                    <td className={`py-2 pr-4 text-right tabular-nums font-medium ${deltaColor(breedMissingNow)}`}>
+                      {formatDelta(breedMissingNow)}
+                    </td>
                     <td className="py-2 pr-4 text-right tabular-nums text-neutral-500">
                       {b.forecast > 0 ? b.forecast : '\u2013'}
                     </td>
-                    <td className={`py-2 text-right tabular-nums font-medium ${deltaColor(breedMissing)}`}>
-                      {formatDelta(breedMissing)}
+                    <td className={`py-2 text-right tabular-nums font-medium ${deltaColor(breedMissingPred)}`}>
+                      {b.forecast > 0 ? formatDelta(breedMissingPred) : '\u2013'}
                     </td>
                   </tr>
                 );
@@ -494,11 +499,14 @@ function EggWeekTrackerSection({ tracker, lang, copy }: {
                 <td className="py-2 pr-4 text-neutral-900">{ewt.total || 'Totalt'}</td>
                 <td className="py-2 pr-4 text-right tabular-nums text-neutral-900">{ordersTotal}</td>
                 <td className="py-2 pr-4 text-right tabular-nums text-neutral-900">{collectedTotal}</td>
+                <td className={`py-2 pr-4 text-right tabular-nums ${deltaColor(missingNow)}`}>
+                  {formatDelta(missingNow)}
+                </td>
                 <td className="py-2 pr-4 text-right tabular-nums text-neutral-700">
                   {forecastTotal > 0 ? forecastTotal : '\u2013'}
                 </td>
-                <td className={`py-2 text-right tabular-nums ${deltaColor(missingNow)}`}>
-                  {formatDelta(missingNow)}
+                <td className={`py-2 text-right tabular-nums ${deltaColor(predictedEndOfWeek)}`}>
+                  {forecastTotal > 0 ? formatDelta(predictedEndOfWeek) : '\u2013'}
                 </td>
               </tr>
             </tbody>
