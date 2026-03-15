@@ -511,36 +511,29 @@ async function fetchEggWeekTracker() {
     const daysCollected = dayIndex;
     const daysRemaining = 7 - dayIndex;
 
-    // 5 parallel queries
-    const [ordersRes, additionsRes, collectedRes, forecastRes, breedsRes] = await Promise.all([
-      // 1. Egg orders for next Monday delivery
+    // 4 parallel queries (orders + additions combined in one query)
+    const [ordersWithAdditionsRes, collectedRes, forecastRes, breedsRes] = await Promise.all([
+      // 1. Egg orders for next Monday delivery, with their additions
       supabaseAdmin
         .from('egg_orders')
-        .select('breed_id, quantity')
+        .select('breed_id, quantity, egg_order_additions(breed_id, quantity)')
         .eq('delivery_monday', nextMondayStr)
         .not('status', 'in', '(cancelled,forfeited)'),
 
-      // 2. Order additions for those same orders
-      supabaseAdmin
-        .from('egg_order_additions')
-        .select('breed_id, quantity, egg_orders!inner(delivery_monday, status)')
-        .eq('egg_orders.delivery_monday', nextMondayStr)
-        .not('egg_orders.status', 'in', '(cancelled,forfeited)'),
-
-      // 3. Eggs collected this week (Mon through today)
+      // 2. Eggs collected this week (Mon through today)
       supabaseAdmin
         .from('egg_daily_collections')
         .select('breed_id, sellable_standard')
         .gte('collection_date', thisMondayStr)
         .lte('collection_date', todayStr),
 
-      // 4. Forecast for this collection week (keyed by delivery_monday = next Monday)
+      // 3. Forecast for this collection week (keyed by delivery_monday = next Monday)
       supabaseAdmin
         .from('egg_weekly_forecasts')
         .select('breed_id, forecast_eggs')
         .eq('delivery_monday', nextMondayStr),
 
-      // 5. Active breeds for names and colors
+      // 4. Active breeds for names and colors
       supabaseAdmin
         .from('egg_breeds')
         .select('id, name, accent_color')
@@ -554,13 +547,16 @@ async function fetchEggWeekTracker() {
       breedMap.set(b.id, { name: b.name, accentColor: b.accent_color || '#6b7280' });
     }
 
-    // Aggregate orders by breed
+    // Aggregate orders by breed (base quantity + additions)
     const ordersByBreed = new Map<string, number>();
-    for (const o of ordersRes.data || []) {
+    for (const o of ordersWithAdditionsRes.data || []) {
+      // Base order quantity
       ordersByBreed.set(o.breed_id, (ordersByBreed.get(o.breed_id) || 0) + (o.quantity || 0));
-    }
-    for (const a of additionsRes.data || []) {
-      ordersByBreed.set(a.breed_id, (ordersByBreed.get(a.breed_id) || 0) + (a.quantity || 0));
+      // Addition quantities (each addition has its own breed_id)
+      const additions = (o as any).egg_order_additions || [];
+      for (const a of additions) {
+        ordersByBreed.set(a.breed_id, (ordersByBreed.get(a.breed_id) || 0) + (a.quantity || 0));
+      }
     }
 
     // Aggregate collected by breed
