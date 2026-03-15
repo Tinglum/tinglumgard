@@ -240,7 +240,7 @@ export function EggInventoryManagement() {
     if (!editingItem) return;
     const parsedAdjustment = Number(editAdjustment || '0');
     if (!Number.isInteger(parsedAdjustment)) {
-      setSaveError(lang === 'en' ? 'Adjustment must be a whole number.' : 'Justering mÃ¥ vÃ¦re et heltall.');
+      setSaveError(lang === 'en' ? 'Adjustment must be a whole number.' : 'Justering må være et heltall.');
       return;
     }
 
@@ -705,7 +705,7 @@ export function EggInventoryManagement() {
                             {monthLabel}
                           </span>
                           <span className="text-xs text-neutral-400">
-                            {ei.monthWeeksLabel.replace('{count}', String(rows.length))} Â· {ei.monthEggsLeft.replace('{count}', String(monthTotal))}
+                            {ei.monthWeeksLabel.replace('{count}', String(rows.length))} · {ei.monthEggsLeft.replace('{count}', String(monthTotal))}
                           </span>
                         </div>
                       </td>
@@ -770,8 +770,8 @@ export function EggInventoryManagement() {
                                 if (!item) {
                                   return (
                                     <td key={breed.id} className="text-center px-1 py-1.5">
-                                      <div className="mx-auto rounded-lg bg-neutral-50 text-neutral-300 text-xs py-1.5 px-2 w-[72px]">
-                                        â€”
+                                      <div className=”mx-auto rounded-lg bg-neutral-50 text-neutral-300 text-xs py-1.5 px-2 w-[72px]”>
+                                        —
                                       </div>
                                     </td>
                                   );
@@ -846,7 +846,7 @@ export function EggInventoryManagement() {
                                         {editingItem.egg_breeds.name}
                                       </span>
                                       <span className="text-xs text-neutral-500">
-                                        â€” {ei.weekLabel} {editingItem.week_number}
+                                        — {ei.weekLabel} {editingItem.week_number}
                                       </span>
                                     </div>
                                     <div className="flex items-center gap-2">

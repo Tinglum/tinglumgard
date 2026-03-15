@@ -2870,7 +2870,7 @@
         description: "Send e-post når forskudd er betalt",
       },
       remainder_reminder: {
-        name: "Paminnelse om restbetaling",
+        name: "Påminnelse om restbetaling",
         description: "Send påminnelse om å betale restbeløp (3 dager for låsing)",
       },
       order_locked: {
