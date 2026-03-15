@@ -9,11 +9,14 @@ import {
   Beef,
   Calendar,
   CreditCard,
+  Egg,
   Mail,
   MessageSquare,
   Package,
   RefreshCw,
   ShoppingCart,
+  TrendingDown,
+  TrendingUp,
   Truck,
 } from 'lucide-react';
 
@@ -69,7 +72,7 @@ export function ActionDashboard({ onNavigate, onNavigateToOrder }: ActionDashboa
     );
   }
 
-  const { actionItems, keyMetrics, upcomingDates, newOrders, pig, healthAlerts, messages } = data;
+  const { actionItems, keyMetrics, upcomingDates, eggWeekTracker, newOrders, pig, healthAlerts, messages } = data;
 
   return (
     <div className="space-y-8">
@@ -188,6 +191,11 @@ export function ActionDashboard({ onNavigate, onNavigateToOrder }: ActionDashboa
           <p className="text-3xl font-light text-neutral-900 tabular-nums">{keyMetrics.totalKgSold} kg</p>
         </div>
       </div>
+
+      {/* Row 2.5: Egg Week Tracker */}
+      {eggWeekTracker && (
+        <EggWeekTrackerSection tracker={eggWeekTracker} lang={lang} copy={copy} />
+      )}
 
       {/* Row 3: Pickups & Shipments (week view with toggle) */}
       <WeekScheduleSection
@@ -314,6 +322,194 @@ export function ActionDashboard({ onNavigate, onNavigateToOrder }: ActionDashboa
             ))}
           </div>
         </div>
+      )}
+    </div>
+  );
+}
+
+function EggWeekTrackerSection({ tracker, lang, copy }: {
+  tracker: any;
+  lang: string;
+  copy: any;
+}) {
+  const ewt = copy.eggWeekTracker || {};
+  const {
+    weekLabel,
+    weekRange,
+    collectionWindow,
+    daysCollected,
+    daysRemaining,
+    ordersTotal,
+    collectedTotal,
+    forecastTotal,
+    missingNow,
+    predictedEndOfWeek,
+    breeds,
+  } = tracker;
+
+  // missingNow > 0 means deficit (orders > collected)
+  const nowIsDeficit = missingNow > 0;
+  const nowIsBalanced = missingNow === 0;
+  const predIsDeficit = predictedEndOfWeek > 0;
+  const predIsBalanced = predictedEndOfWeek === 0;
+
+  const formatDelta = (val: number) => {
+    if (val === 0) return '0';
+    if (val > 0) return `-${val}`;  // deficit: we are short
+    return `+${Math.abs(val)}`;     // surplus: we have extra
+  };
+
+  const deltaColor = (val: number) => {
+    if (val > 0) return 'text-red-600';
+    if (val < 0) return 'text-green-600';
+    return 'text-neutral-600';
+  };
+
+  const deltaBg = (val: number) => {
+    if (val > 0) return 'bg-red-50 border-red-200';
+    if (val < 0) return 'bg-green-50 border-green-200';
+    return 'bg-neutral-50 border-neutral-200';
+  };
+
+  const statusLabel = (val: number) => {
+    if (val > 0) return ewt.deficit || 'mangler';
+    if (val < 0) return ewt.surplus || 'overskudd';
+    return ewt.balanced || 'i balanse';
+  };
+
+  return (
+    <div className="bg-white border border-neutral-200 rounded-xl p-6 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.06)]">
+      {/* Header */}
+      <div className="flex items-center gap-3 mb-5">
+        <div className="p-2 rounded-lg bg-amber-50">
+          <Egg className="w-5 h-5 text-amber-700" />
+        </div>
+        <div>
+          <h3 className="text-lg font-light text-neutral-900">
+            {ewt.title || 'Ukeoversikt egg'}
+          </h3>
+          <p className="text-sm text-neutral-500">{weekLabel} &middot; {weekRange}</p>
+        </div>
+      </div>
+
+      {/* Summary cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+        {/* Ordered next Monday */}
+        <div className="p-4 rounded-lg bg-neutral-50 border border-neutral-200">
+          <p className="text-xs font-medium text-neutral-500 mb-1">
+            {ewt.orderedNextMonday || 'Bestilt neste mandag'}
+          </p>
+          <p className="text-2xl font-light text-neutral-900 tabular-nums">{ordersTotal}</p>
+          <p className="text-xs text-neutral-400">{ewt.eggs || 'egg'}</p>
+        </div>
+
+        {/* Collected so far */}
+        <div className="p-4 rounded-lg bg-neutral-50 border border-neutral-200">
+          <p className="text-xs font-medium text-neutral-500 mb-1">
+            {ewt.collectedSoFar || 'Samlet sa langt'}
+          </p>
+          <p className="text-2xl font-light text-neutral-900 tabular-nums">{collectedTotal}</p>
+          <p className="text-xs text-neutral-400">({collectionWindow})</p>
+        </div>
+
+        {/* Forecast full week */}
+        <div className="p-4 rounded-lg bg-blue-50 border border-blue-200">
+          <p className="text-xs font-medium text-blue-600 mb-1">
+            {ewt.forecastFullWeek || 'Prognose (hele uken)'}
+          </p>
+          <p className="text-2xl font-light text-neutral-900 tabular-nums">
+            {forecastTotal > 0 ? forecastTotal : (ewt.noForecast || 'N/A')}
+          </p>
+          <p className="text-xs text-blue-400">{ewt.eggs || 'egg'}</p>
+        </div>
+
+        {/* Status now */}
+        <div className={`p-4 rounded-lg border ${deltaBg(missingNow)}`}>
+          <p className="text-xs font-medium text-neutral-500 mb-1">
+            {ewt.statusNow || 'Mangler na'}
+          </p>
+          <p className={`text-2xl font-light tabular-nums ${deltaColor(missingNow)}`}>
+            {formatDelta(missingNow)}
+          </p>
+          <p className={`text-xs ${deltaColor(missingNow)}`}>{statusLabel(missingNow)}</p>
+        </div>
+      </div>
+
+      {/* Prediction Sunday evening */}
+      <div className={`flex items-center gap-3 px-4 py-3 rounded-lg border mb-4 ${deltaBg(predictedEndOfWeek)}`}>
+        {predIsDeficit ? (
+          <TrendingDown className="w-4 h-4 text-red-500" />
+        ) : (
+          <TrendingUp className="w-4 h-4 text-green-500" />
+        )}
+        <span className="text-sm text-neutral-700">
+          {ewt.predictionSunday || 'Prediksjon sondag kveld'}:
+        </span>
+        <span className={`text-sm font-medium tabular-nums ${deltaColor(predictedEndOfWeek)}`}>
+          {formatDelta(predictedEndOfWeek)} {ewt.eggs || 'egg'}
+        </span>
+        {forecastTotal === 0 && (
+          <span className="text-xs text-neutral-400 ml-1">({ewt.noForecast || 'ingen prognose'})</span>
+        )}
+      </div>
+
+      {/* Per-breed breakdown table */}
+      {breeds && breeds.length > 0 && (
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-neutral-100">
+                <th className="text-left text-xs font-medium text-neutral-500 pb-2 pr-4">{ewt.breed || 'Rase'}</th>
+                <th className="text-right text-xs font-medium text-neutral-500 pb-2 pr-4">{ewt.ordered || 'Bestilt'}</th>
+                <th className="text-right text-xs font-medium text-neutral-500 pb-2 pr-4">{ewt.collected || 'Samlet'}</th>
+                <th className="text-right text-xs font-medium text-neutral-500 pb-2 pr-4">{ewt.forecast || 'Prognose'}</th>
+                <th className="text-right text-xs font-medium text-neutral-500 pb-2">{ewt.missing || 'Mangler'}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {breeds.map((b: any) => {
+                const breedMissing = b.orders - b.collected;
+                return (
+                  <tr key={b.breedName} className="border-b border-neutral-50 last:border-0">
+                    <td className="py-2 pr-4 flex items-center gap-2">
+                      <span
+                        className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                        style={{ backgroundColor: b.accentColor }}
+                      />
+                      <span className="text-neutral-800">{b.breedName}</span>
+                    </td>
+                    <td className="py-2 pr-4 text-right tabular-nums text-neutral-700">{b.orders}</td>
+                    <td className="py-2 pr-4 text-right tabular-nums text-neutral-700">{b.collected}</td>
+                    <td className="py-2 pr-4 text-right tabular-nums text-neutral-500">
+                      {b.forecast > 0 ? b.forecast : '\u2013'}
+                    </td>
+                    <td className={`py-2 text-right tabular-nums font-medium ${deltaColor(breedMissing)}`}>
+                      {formatDelta(breedMissing)}
+                    </td>
+                  </tr>
+                );
+              })}
+              {/* Totals row */}
+              <tr className="border-t border-neutral-200 font-medium">
+                <td className="py-2 pr-4 text-neutral-900">{ewt.total || 'Totalt'}</td>
+                <td className="py-2 pr-4 text-right tabular-nums text-neutral-900">{ordersTotal}</td>
+                <td className="py-2 pr-4 text-right tabular-nums text-neutral-900">{collectedTotal}</td>
+                <td className="py-2 pr-4 text-right tabular-nums text-neutral-700">
+                  {forecastTotal > 0 ? forecastTotal : '\u2013'}
+                </td>
+                <td className={`py-2 text-right tabular-nums ${deltaColor(missingNow)}`}>
+                  {formatDelta(missingNow)}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {(!breeds || breeds.length === 0) && (
+        <p className="text-sm text-neutral-500 text-center py-4">
+          {ewt.noData || 'Ingen eggdata for denne uken'}
+        </p>
       )}
     </div>
   );

@@ -22,6 +22,7 @@ export async function GET(request: NextRequest) {
       messageResult,
       healthResult,
       calendarResult,
+      eggWeekTrackerResult,
     ] = await Promise.all([
       fetchPigData(),
       fetchEggData(),
@@ -29,6 +30,7 @@ export async function GET(request: NextRequest) {
       fetchMessageStats(),
       fetchHealthAlerts(),
       fetchUpcomingDates(),
+      fetchEggWeekTracker(),
     ]);
 
     // Build unified response
@@ -206,6 +208,7 @@ export async function GET(request: NextRequest) {
       actionItems,
       keyMetrics,
       upcomingDates: calendarResult,
+      eggWeekTracker: eggWeekTrackerResult,
       newOrders,
       messages: messageResult,
       healthAlerts: healthResult,
@@ -464,6 +467,193 @@ async function fetchUpcomingDates() {
       shipments: { thisWeek: [], nextWeek: [] },
       pendingPigPickups: [],
     };
+  }
+}
+
+async function fetchEggWeekTracker() {
+  try {
+    // Date math — Oslo timezone for "today"
+    const osloNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Oslo' }));
+    const todayStr = [
+      osloNow.getFullYear(),
+      String(osloNow.getMonth() + 1).padStart(2, '0'),
+      String(osloNow.getDate()).padStart(2, '0'),
+    ].join('-');
+
+    // ISO week: Monday = start
+    const dayOfWeek = osloNow.getDay(); // 0=Sun,1=Mon,...
+    const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+    const thisMonday = new Date(osloNow);
+    thisMonday.setDate(osloNow.getDate() + mondayOffset);
+    const thisSunday = new Date(thisMonday);
+    thisSunday.setDate(thisMonday.getDate() + 6);
+    const nextMonday = new Date(thisMonday);
+    nextMonday.setDate(thisMonday.getDate() + 7);
+
+    const fmt = (d: Date) => [
+      d.getFullYear(),
+      String(d.getMonth() + 1).padStart(2, '0'),
+      String(d.getDate()).padStart(2, '0'),
+    ].join('-');
+
+    const thisMondayStr = fmt(thisMonday);
+    const nextMondayStr = fmt(nextMonday);
+
+    // ISO week number
+    const target = new Date(Date.UTC(thisMonday.getFullYear(), thisMonday.getMonth(), thisMonday.getDate()));
+    const dayNum = target.getUTCDay() || 7;
+    target.setUTCDate(target.getUTCDate() + 4 - dayNum);
+    const yearStart = new Date(Date.UTC(target.getUTCFullYear(), 0, 1));
+    const weekNumber = Math.ceil((((target.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+
+    // Days collected (Mon=1 through today's day index)
+    const dayIndex = dayOfWeek === 0 ? 7 : dayOfWeek; // Mon=1..Sun=7
+    const daysCollected = dayIndex;
+    const daysRemaining = 7 - dayIndex;
+
+    // 5 parallel queries
+    const [ordersRes, additionsRes, collectedRes, forecastRes, breedsRes] = await Promise.all([
+      // 1. Egg orders for next Monday delivery
+      supabaseAdmin
+        .from('egg_orders')
+        .select('breed_id, quantity')
+        .eq('delivery_monday', nextMondayStr)
+        .not('status', 'in', '(cancelled,forfeited)'),
+
+      // 2. Order additions for those same orders
+      supabaseAdmin
+        .from('egg_order_additions')
+        .select('breed_id, quantity, egg_orders!inner(delivery_monday, status)')
+        .eq('egg_orders.delivery_monday', nextMondayStr)
+        .not('egg_orders.status', 'in', '(cancelled,forfeited)'),
+
+      // 3. Eggs collected this week (Mon through today)
+      supabaseAdmin
+        .from('egg_daily_collections')
+        .select('breed_id, sellable_standard')
+        .gte('collection_date', thisMondayStr)
+        .lte('collection_date', todayStr),
+
+      // 4. Forecast for this collection week (keyed by delivery_monday = next Monday)
+      supabaseAdmin
+        .from('egg_weekly_forecasts')
+        .select('breed_id, forecast_eggs')
+        .eq('delivery_monday', nextMondayStr),
+
+      // 5. Active breeds for names and colors
+      supabaseAdmin
+        .from('egg_breeds')
+        .select('id, name, accent_color')
+        .eq('active', true)
+        .order('display_order', { ascending: true }),
+    ]);
+
+    // Build breed lookup
+    const breedMap = new Map<string, { name: string; accentColor: string }>();
+    for (const b of breedsRes.data || []) {
+      breedMap.set(b.id, { name: b.name, accentColor: b.accent_color || '#6b7280' });
+    }
+
+    // Aggregate orders by breed
+    const ordersByBreed = new Map<string, number>();
+    for (const o of ordersRes.data || []) {
+      ordersByBreed.set(o.breed_id, (ordersByBreed.get(o.breed_id) || 0) + (o.quantity || 0));
+    }
+    for (const a of additionsRes.data || []) {
+      ordersByBreed.set(a.breed_id, (ordersByBreed.get(a.breed_id) || 0) + (a.quantity || 0));
+    }
+
+    // Aggregate collected by breed
+    const collectedByBreed = new Map<string, number>();
+    for (const c of collectedRes.data || []) {
+      collectedByBreed.set(c.breed_id, (collectedByBreed.get(c.breed_id) || 0) + (c.sellable_standard || 0));
+    }
+
+    // Forecast by breed
+    const forecastByBreed = new Map<string, number>();
+    for (const f of forecastRes.data || []) {
+      forecastByBreed.set(f.breed_id, f.forecast_eggs || 0);
+    }
+
+    // Collect all breed IDs that appear in any dataset
+    const allBreedIds = new Set(
+      Array.from(ordersByBreed.keys())
+        .concat(Array.from(collectedByBreed.keys()))
+        .concat(Array.from(forecastByBreed.keys()))
+    );
+
+    // Build per-breed array
+    const breeds: Array<{
+      breedName: string;
+      accentColor: string;
+      orders: number;
+      collected: number;
+      forecast: number;
+    }> = [];
+
+    let ordersTotal = 0;
+    let collectedTotal = 0;
+    let forecastTotal = 0;
+
+    // Sort breeds by display order (iterate active breeds first, then any extras)
+    const sortedBreedIds: string[] = [];
+    for (const b of breedsRes.data || []) {
+      if (allBreedIds.has(b.id)) {
+        sortedBreedIds.push(b.id);
+        allBreedIds.delete(b.id);
+      }
+    }
+    // Add any remaining breeds not in the active list
+    const remainingIds = Array.from(allBreedIds);
+    for (const id of remainingIds) {
+      sortedBreedIds.push(id);
+    }
+
+    for (const breedId of sortedBreedIds) {
+      const info = breedMap.get(breedId) || { name: 'Ukjent', accentColor: '#6b7280' };
+      const orders = ordersByBreed.get(breedId) || 0;
+      const collected = collectedByBreed.get(breedId) || 0;
+      const forecast = forecastByBreed.get(breedId) || 0;
+
+      ordersTotal += orders;
+      collectedTotal += collected;
+      forecastTotal += forecast;
+
+      breeds.push({
+        breedName: info.name,
+        accentColor: info.accentColor,
+        orders,
+        collected,
+        forecast,
+      });
+    }
+
+    // Day abbreviations for collection window label
+    const dayAbbrevNo = ['son', 'man', 'tir', 'ons', 'tor', 'fre', 'lor'];
+    const todayAbbrev = dayAbbrevNo[dayOfWeek] || 'i dag';
+    const collectionWindow = dayIndex <= 1 ? 'man' : `man\u2013${todayAbbrev}`;
+
+    // Format week range for display
+    const fmtShort = (d: Date) => `${d.getDate()}. ${['jan','feb','mar','apr','mai','jun','jul','aug','sep','okt','nov','des'][d.getMonth()]}`;
+    const weekRange = `${fmtShort(thisMonday)} \u2013 ${fmtShort(thisSunday)}`;
+
+    return {
+      weekLabel: `Uke ${weekNumber}`,
+      weekRange,
+      collectionWindow,
+      daysCollected,
+      daysRemaining,
+      nextMonday: nextMondayStr,
+      ordersTotal,
+      collectedTotal,
+      forecastTotal,
+      missingNow: ordersTotal - collectedTotal,
+      predictedEndOfWeek: ordersTotal - forecastTotal,
+      breeds,
+    };
+  } catch (err) {
+    console.error('Failed to fetch egg week tracker:', err);
+    return null;
   }
 }
 
