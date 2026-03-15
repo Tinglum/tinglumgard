@@ -21,7 +21,7 @@ import {
 } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 
-/* â”€â”€ types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ------ types --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- */
 
 interface Breed {
   id: string;
@@ -50,10 +50,10 @@ interface WeekRow {
   year: number;
   week_number: number;
   delivery_monday: string;
-  items: Record<string, InventoryItem>; // breed_id â†’ item
+  items: Record<string, InventoryItem>; // breed_id -> item
 }
 
-/* â”€â”€ helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ------ helpers --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- */
 
 function groupByWeek(items: InventoryItem[]): WeekRow[] {
   const map = new Map<string, WeekRow>();
@@ -102,7 +102,7 @@ function statusBadge(status: string, copy: any) {
   );
 }
 
-/* â”€â”€ main component â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ------ main component ------------------------------------------------------------------------------------------------------------------------------------------------------ */
 
 export function EggInventoryManagement() {
   const { t, lang } = useLanguage();
@@ -210,7 +210,7 @@ export function EggInventoryManagement() {
     };
   }, [inventory, breeds]);
 
-  /* â”€â”€ edit panel handlers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+  /* ------ edit panel handlers --------------------------------------------------------------------------------------------------------------------- */
 
   function openEditPanel(item: InventoryItem) {
     if (editingItem?.id === item.id) {
@@ -283,7 +283,7 @@ export function EggInventoryManagement() {
     }
   }
 
-  /* â”€â”€ bulk close/open â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+  /* ------ bulk close/open ------------------------------------------------------------------------------------------------------------------------------------ */
 
   async function bulkSetStatus(status: 'open' | 'closed') {
     const itemIds: string[] = [];
@@ -312,7 +312,7 @@ export function EggInventoryManagement() {
     }
   }
 
-  /* â”€â”€ add week (all breeds at once) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+  /* ------ add week (all breeds at once) ------------------------------------------------------------------------------------------ */
 
   async function handleAddWeek(e: React.FormEvent) {
     e.preventDefault();
@@ -351,7 +351,7 @@ export function EggInventoryManagement() {
     }
   }
 
-  /* â”€â”€ clone last week â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+  /* ------ clone last week ------------------------------------------------------------------------------------------------------------------------------------ */
 
   async function cloneLastWeek() {
     if (weekRows.length === 0) return;
@@ -384,7 +384,7 @@ export function EggInventoryManagement() {
     }
   }
 
-  /* â”€â”€ month collapse toggle â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+  /* ------ month collapse toggle ------------------------------------------------------------------------------------------------------------------ */
 
   function toggleMonth(monthKey: string) {
     setCollapsedMonths((prev) => {
@@ -395,7 +395,7 @@ export function EggInventoryManagement() {
     });
   }
 
-  /* â”€â”€ week row selection â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+  /* ------ week row selection --------------------------------------------------------------------------------------------------------------------------- */
 
   function toggleWeekSelection(weekKey: string) {
     setSelectedWeeks((prev) => {
@@ -406,7 +406,7 @@ export function EggInventoryManagement() {
     });
   }
 
-  /* â”€â”€ render â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+  /* ------ render --------------------------------------------------------------------------------------------------------------------------------------------------------------- */
 
   if (loading) {
     return (
@@ -420,7 +420,7 @@ export function EggInventoryManagement() {
 
   return (
     <div className="space-y-6">
-      {/* â”€â”€ header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      {/* ------ header ------------------------------------------------------------------------------------------------------------------------------------------------ */}
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold text-neutral-900">{copy.title}</h2>
@@ -442,7 +442,7 @@ export function EggInventoryManagement() {
         </div>
       </div>
 
-      {/* â”€â”€ summary dashboard â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      {/* ------ summary dashboard --------------------------------------------------------------------------------------------------------------- */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         <div className="rounded-xl border border-neutral-200 bg-white p-4">
           <p className="text-[11px] uppercase tracking-[0.2em] text-neutral-500 mb-1">
@@ -491,7 +491,7 @@ export function EggInventoryManagement() {
         </div>
       )}
 
-      {/* â”€â”€ bulk actions bar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      {/* ------ bulk actions bar ------------------------------------------------------------------------------------------------------------------ */}
       {selectedWeeks.size > 0 && (
         <div className="flex items-center gap-3 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3">
           <p className="text-sm font-medium text-blue-800">
@@ -513,7 +513,7 @@ export function EggInventoryManagement() {
         </div>
       )}
 
-      {/* â”€â”€ add week form â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      {/* ------ add week form --------------------------------------------------------------------------------------------------------------------------- */}
       {showAddForm && (
         <Card className="p-5 border border-neutral-200 bg-neutral-50">
           <form onSubmit={handleAddWeek} className="space-y-4">
@@ -599,7 +599,7 @@ export function EggInventoryManagement() {
         </Card>
       )}
 
-      {/* â”€â”€ week table â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      {/* ------ week table ------------------------------------------------------------------------------------------------------------------------------------ */}
       {weekRows.length === 0 ? (
         <Card className="p-12 text-center">
           <Egg className="w-12 h-12 text-neutral-300 mx-auto mb-4" />
@@ -770,7 +770,7 @@ export function EggInventoryManagement() {
                                 if (!item) {
                                   return (
                                     <td key={breed.id} className="text-center px-1 py-1.5">
-                                      <div className=”mx-auto rounded-lg bg-neutral-50 text-neutral-300 text-xs py-1.5 px-2 w-[72px]”>
+                                      <div className="mx-auto rounded-lg bg-neutral-50 text-neutral-300 text-xs py-1.5 px-2 w-[72px]">
                                         —
                                       </div>
                                     </td>
@@ -934,7 +934,7 @@ export function EggInventoryManagement() {
         </div>
       )}
 
-      {/* â”€â”€ legend â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      {/* ------ legend ------------------------------------------------------------------------------------------------------------------------------------------------ */}
       <div className="flex flex-wrap items-center gap-4 text-[11px] text-neutral-500 px-1">
         <span className="flex items-center gap-1.5">
           <div className="w-3 h-3 rounded bg-green-50 border border-green-200" />

@@ -401,7 +401,7 @@ async function fetchUpcomingDates() {
     };
 
     // Pickups: egg pickups + chicken pickups (by date)
-    const eggPickupGroups = groupByDate(eggPickupOrders, 'delivery_monday', 'egg');
+    const eggPickupGroups = groupByDate(eggPickupOrders || [], 'delivery_monday', 'egg');
     const chickenPickupGroups = groupByDate(
       (chickenOrders || []).filter((o: any) => o.delivery_method !== 'delivery_namsos_trondheim'),
       'pickup_monday',
@@ -418,7 +418,7 @@ async function fetchUpcomingDates() {
       .map(([date, orders]) => ({ date, orders }));
 
     // Shipments: egg posten + chicken delivery
-    const eggShipmentGroups = groupByDate(eggPostenOrders, 'delivery_monday', 'egg');
+    const eggShipmentGroups = groupByDate(eggPostenOrders || [], 'delivery_monday', 'egg');
     const chickenShipmentGroups = groupByDate(
       (chickenOrders || []).filter((o: any) => o.delivery_method === 'delivery_namsos_trondheim'),
       'pickup_monday',
