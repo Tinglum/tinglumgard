@@ -321,56 +321,134 @@ async function fetchHealthAlerts() {
 }
 
 async function fetchUpcomingDates() {
-  const today = new Date().toISOString().split('T')[0];
+  const now = new Date();
+  const today = now.toISOString().split('T')[0];
+
+  // Calculate current week Monday→Sunday (Oslo time)
+  const dayOfWeek = now.getDay(); // 0=Sun,1=Mon,...
+  const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+  const weekStart = new Date(now);
+  weekStart.setDate(now.getDate() + mondayOffset);
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekStart.getDate() + 6);
+  const weekStartStr = weekStart.toISOString().split('T')[0];
+  const weekEndStr = weekEnd.toISOString().split('T')[0];
+
+  // Tomorrow
+  const tomorrow = new Date(now);
+  tomorrow.setDate(now.getDate() + 1);
+  const tomorrowStr = tomorrow.toISOString().split('T')[0];
 
   try {
-    // Upcoming pig pickups
+    // Pig orders pending pickup (no specific date, just undelivered)
     const { data: pigOrders } = await supabaseAdmin
       .from('orders')
-      .select('id, order_number, delivery_type, marked_delivered_at')
+      .select('id, order_number, customer_name, delivery_type, status')
       .not('status', 'in', '(cancelled,forfeited,draft,pending)')
       .is('marked_delivered_at', null);
 
-    // Upcoming egg deliveries (Posten)
+    // Egg orders this week — shipping (Posten)
     const { data: eggPostenOrders } = await supabaseAdmin
       .from('egg_orders')
-      .select('id, order_number, delivery_method, delivery_monday, status')
+      .select('id, order_number, customer_name, delivery_method, delivery_monday, status')
       .eq('delivery_method', 'posten')
       .not('status', 'in', '(cancelled,forfeited,shipped,delivered)')
-      .gte('delivery_monday', today)
-      .order('delivery_monday', { ascending: true })
-      .limit(5);
+      .gte('delivery_monday', weekStartStr)
+      .lte('delivery_monday', weekEndStr)
+      .order('delivery_monday', { ascending: true });
 
-    // Upcoming egg pickups
+    // Egg orders this week — pickup
     const { data: eggPickupOrders } = await supabaseAdmin
       .from('egg_orders')
-      .select('id, order_number, delivery_method, delivery_monday, status')
+      .select('id, order_number, customer_name, delivery_method, delivery_monday, status')
       .neq('delivery_method', 'posten')
       .not('status', 'in', '(cancelled,forfeited,delivered)')
-      .gte('delivery_monday', today)
-      .order('delivery_monday', { ascending: true })
-      .limit(5);
+      .gte('delivery_monday', weekStartStr)
+      .lte('delivery_monday', weekEndStr)
+      .order('delivery_monday', { ascending: true });
 
-    const nextPickup = eggPickupOrders?.[0]?.delivery_monday || null;
-    const nextSendout = eggPostenOrders?.[0]?.delivery_monday || null;
+    // Chicken orders this week
+    const { data: chickenOrders } = await supabaseAdmin
+      .from('chicken_orders')
+      .select('id, order_number, customer_name, delivery_method, pickup_monday, status')
+      .not('status', 'in', '(cancelled,forfeited,picked_up)')
+      .gte('pickup_monday', weekStartStr)
+      .lte('pickup_monday', weekEndStr)
+      .order('pickup_monday', { ascending: true });
+
+    // Helper to format order for response
+    const formatOrder = (o: any, type: 'egg' | 'chicken' | 'pig') => ({
+      id: o.id,
+      order_number: o.order_number,
+      customer_name: o.customer_name || '',
+      delivery_method: o.delivery_method || o.delivery_type || '',
+      status: o.status,
+      type,
+    });
+
+    // Group by date helper
+    const groupByDate = (orders: any[], dateField: string, type: 'egg' | 'chicken') => {
+      const groups: Record<string, any[]> = {};
+      for (const o of orders || []) {
+        const date = o[dateField];
+        if (!date) continue;
+        if (!groups[date]) groups[date] = [];
+        groups[date].push(formatOrder(o, type));
+      }
+      return Object.entries(groups)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([date, orders]) => ({ date, orders }));
+    };
+
+    // Pickups: egg pickups + chicken pickups (by date)
+    const eggPickupGroups = groupByDate(eggPickupOrders, 'delivery_monday', 'egg');
+    const chickenPickupGroups = groupByDate(
+      (chickenOrders || []).filter((o: any) => o.delivery_method !== 'delivery_namsos_trondheim'),
+      'pickup_monday',
+      'chicken'
+    );
+    // Merge pickup groups by date
+    const pickupMap: Record<string, any[]> = {};
+    for (const g of [...eggPickupGroups, ...chickenPickupGroups]) {
+      if (!pickupMap[g.date]) pickupMap[g.date] = [];
+      pickupMap[g.date].push(...g.orders);
+    }
+    const weekPickups = Object.entries(pickupMap)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([date, orders]) => ({ date, orders }));
+
+    // Shipments: egg posten + chicken delivery
+    const eggShipmentGroups = groupByDate(eggPostenOrders, 'delivery_monday', 'egg');
+    const chickenShipmentGroups = groupByDate(
+      (chickenOrders || []).filter((o: any) => o.delivery_method === 'delivery_namsos_trondheim'),
+      'pickup_monday',
+      'chicken'
+    );
+    const shipmentMap: Record<string, any[]> = {};
+    for (const g of [...eggShipmentGroups, ...chickenShipmentGroups]) {
+      if (!shipmentMap[g.date]) shipmentMap[g.date] = [];
+      shipmentMap[g.date].push(...g.orders);
+    }
+    const weekShipments = Object.entries(shipmentMap)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([date, orders]) => ({ date, orders }));
+
+    // Tomorrow's shipments (flat list)
+    const tomorrowShipments = weekShipments
+      .filter((g) => g.date === tomorrowStr)
+      .flatMap((g) => g.orders);
+
+    // Pending pig pickups (individual orders, no date)
+    const pendingPigPickups = (pigOrders || []).map((o: any) => formatOrder(o, 'pig'));
 
     return {
-      nextPickup: nextPickup
-        ? {
-            date: nextPickup,
-            orderCount: eggPickupOrders?.filter((o: any) => o.delivery_monday === nextPickup).length || 0,
-          }
-        : null,
-      nextSendout: nextSendout
-        ? {
-            date: nextSendout,
-            orderCount: eggPostenOrders?.filter((o: any) => o.delivery_monday === nextSendout).length || 0,
-          }
-        : null,
-      pendingPigPickups: pigOrders?.length || 0,
+      weekPickups,
+      weekShipments,
+      tomorrowShipments,
+      pendingPigPickups,
     };
   } catch {
-    return { nextPickup: null, nextSendout: null, pendingPigPickups: 0 };
+    return { weekPickups: [], weekShipments: [], tomorrowShipments: [], pendingPigPickups: [] };
   }
 }
 

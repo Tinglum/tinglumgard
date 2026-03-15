@@ -224,6 +224,33 @@ export default function AdminPage() {
     }
   }
 
+  // Navigate to a specific order from dashboard
+  function handleNavigateToOrder(orderId: string) {
+    const resolveSubTab = (): OrdersSubTab => {
+      if (/^CHICK/i.test(orderId)) return 'chicken';
+      if (/^EGG/i.test(orderId)) return 'egg';
+      return 'pig';
+    };
+
+    const subTab = resolveSubTab();
+    setActiveTab('orders');
+    setOrdersSubTab(subTab);
+
+    if (subTab === 'pig') {
+      setDeepLinkPigOrderId(orderId);
+    } else if (subTab === 'egg') {
+      setDeepLinkEggOrderId(orderId);
+    } else if (subTab === 'chicken') {
+      setDeepLinkChickenOrderId(orderId);
+    }
+
+    // Update URL for bookmarkability
+    const params = new URLSearchParams(window.location.search);
+    params.set('tab', 'orders');
+    params.set('orderId', orderId);
+    window.history.pushState({}, '', `/admin?${params.toString()}`);
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -341,7 +368,7 @@ export default function AdminPage() {
 
         {/* ═══════════ TAB 1: DASHBOARD ═══════════ */}
         {activeTab === 'dashboard' && (
-          <ActionDashboard onNavigate={handleDashboardNavigate} />
+          <ActionDashboard onNavigate={handleDashboardNavigate} onNavigateToOrder={handleNavigateToOrder} />
         )}
 
         {/* ═══════════ TAB 2: ORDERS ═══════════ */}
