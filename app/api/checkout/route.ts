@@ -228,10 +228,35 @@ export async function POST(request: NextRequest) {
     const depositPercentage = 50;
     const baseDepositAmount = Math.round(basePrice * (depositPercentage / 100));
 
-    // Apply discount to deposit only (referral OR rebate - cannot stack)
+    // Check for account-based benefit (egg/chicken customer pork discount)
+    let autoBenefitDiscount = 0;
+    let autoBenefitId: string | null = null;
+    let autoBenefitSource: string | null = null;
+    const normalizedBenefitEmail = (customerEmail || '').trim().toLowerCase();
+    if (normalizedBenefitEmail && normalizedBenefitEmail !== 'pending@vipps.no') {
+      const { data: benefit } = await supabaseAdmin
+        .from('customer_benefits')
+        .select('id, discount_percent, granted_by_order_type')
+        .eq('user_email', normalizedBenefitEmail)
+        .eq('benefit_type', 'egg_customer_pork_discount')
+        .eq('used', false)
+        .order('created_at', { ascending: true })
+        .limit(1)
+        .maybeSingle();
+
+      if (benefit) {
+        autoBenefitDiscount = Math.round(baseDepositAmount * (Number(benefit.discount_percent) / 100));
+        autoBenefitId = benefit.id;
+        autoBenefitSource = benefit.granted_by_order_type;
+      }
+    }
+
+    // Apply discount to deposit only (referral OR rebate OR auto-benefit - cannot stack)
     const referralDiscountAmount = Math.round(referralDiscount || 0);
     const rebateDiscountAmount = Math.round(rebateDiscount || 0);
-    const totalDiscountAmount = referralDiscountAmount || rebateDiscountAmount;
+    const manualDiscount = referralDiscountAmount || rebateDiscountAmount;
+    // Manual discounts (referral/rebate) take priority; auto-benefit only if no manual discount
+    const totalDiscountAmount = manualDiscount || autoBenefitDiscount;
 
     const depositAmount = Math.round(baseDepositAmount - totalDiscountAmount);
 
@@ -376,6 +401,21 @@ export async function POST(request: NextRequest) {
       } catch (rebateError) {
         logError('checkout-rebate-tracking', rebateError);
         // Don't fail the order if rebate tracking fails
+      }
+    }
+
+    // Mark auto-benefit as used if it was applied
+    if (autoBenefitId && !manualDiscount) {
+      try {
+        await supabaseAdmin
+          .from('customer_benefits')
+          .update({
+            used: true,
+            used_on_order_id: order.id,
+          })
+          .eq('id', autoBenefitId);
+      } catch (benefitError) {
+        logError('checkout-benefit-usage', benefitError);
       }
     }
 

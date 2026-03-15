@@ -2,7 +2,7 @@
 import { getSession } from '@/lib/auth/session';
 import { dispatchEmail } from '@/lib/email/dispatch';
 import { renderManagedTemplate } from '@/lib/email/render';
-import { buildCustomerOrderLink } from '@/lib/email/links';
+import { buildCustomerOrderLink, buildCustomerPathLink } from '@/lib/email/links';
 import { supabaseAdmin } from '@/lib/supabase/server';
 
 function normalizeEmail(value: unknown): string {
@@ -108,6 +108,45 @@ export async function POST(
       if (!emailSent) {
         emailError = result.error || result.skipReason || 'dispatch_failed';
       }
+    }
+  }
+
+  // Dispatch chicken order followup email (cross-sell pork discount) - delayed
+  if (customerEmail && customerEmail !== 'pending@vipps.no') {
+    try {
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_BASE_URL || 'https://tinglumgard.no';
+      const followupRendered = await renderManagedTemplate({
+        templateKey: 'chicken.order.followup',
+        locale,
+        variables: {
+          customer_name: String(order.customer_name || 'Kunde'),
+          order_number: String(order.order_number || ''),
+          message_url: buildCustomerPathLink(appUrl, '/min-side'),
+          pork_url: appUrl,
+          order_url: buildCustomerOrderLink(appUrl, 'chicken', String(order.id)),
+        },
+      });
+
+      if (followupRendered) {
+        await dispatchEmail({
+          to: customerEmail,
+          subject: followupRendered.subject,
+          html: followupRendered.html,
+          classification: 'transactional',
+          templateKey: followupRendered.templateKey,
+          locale,
+          sourcePath: '/api/admin/chickens/orders/[id]/collect-remainder',
+          productScope: 'chickens',
+          flowKey: 'chicken.order.followup',
+          entityType: 'chicken_order',
+          entityId: order.id,
+          chickenOrderId: order.id,
+          metadata: { trigger: 'collect-remainder-followup' },
+        });
+      }
+    } catch (followupError) {
+      // Don't fail the collect if followup fails
+      console.error('chicken-followup-dispatch', followupError);
     }
   }
 

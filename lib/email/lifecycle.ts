@@ -100,7 +100,6 @@ const DEFAULT_LIFECYCLE_CONFIG: LifecycleConfig = {
 };
 
 const EGG_HATCH_FOLLOWUP_DELAY_DAYS = 5;
-const EGG_HATCH_PIG_DEPOSIT_DISCOUNT_CODE = 'HATCH10';
 
 const LIFECYCLE_TEMPLATE_SEEDS: LifecycleTemplateSeed[] = [
   {
@@ -248,6 +247,18 @@ const LIFECYCLE_TEMPLATE_SEEDS: LifecycleTemplateSeed[] = [
       '<p>Hi {{customer_name}},</p><p>The remainder payment for <strong>{{order_number}}</strong> was registered at pickup.</p><p>Amount: <strong>{{remainder_amount_nok}}</strong>.</p><p><a href="{{order_url}}">View your order on My Page</a></p>',
     variables: ['customer_name', 'order_number', 'remainder_amount_nok', 'order_url'],
   },
+  {
+    templateKey: 'chicken.order.followup',
+    classification: 'transactional',
+    productScope: 'chickens',
+    subjectNo: 'Takk for kyllingbestillingen - {{order_number}}',
+    subjectEn: 'Thanks for your chicken order - {{order_number}}',
+    bodyNo:
+      '<p>Hei {{customer_name}},</p><p>Takk for bestillingen av kyllinger fra Tinglum Gård! Vi gleder oss til du henter dem.</p><p>Har du spørsmål, send oss gjerne en melding via nettsiden.</p><p><a href="{{message_url}}">Send melding på Min side</a></p><hr/><p><strong>Tilbud fra Tinglum Gård:</strong> Som kyllingkunde har du <strong>10% rabatt på forskuddet</strong> på din første Mangalitsa-kasse. Rabatten legges til automatisk ved bestilling.</p><p><a href="{{pork_url}}">Besøk tinglumgård.no</a></p><p><strong>Vennerabatt:</strong> Del vennerabattkoden din. Venner får rabatt, og du kan tjene kreditt tilsvarende opptil <strong>50% av forskuddet</strong> når de bestiller.</p>',
+    bodyEn:
+      '<p>Hi {{customer_name}},</p><p>Thank you for your chicken order from Tinglum Gård! We look forward to your pickup.</p><p>If you have any questions, feel free to send us a message on the website.</p><p><a href="{{message_url}}">Send a message on My Page</a></p><hr/><p><strong>Offer from Tinglum Gård:</strong> As a chicken customer, you get <strong>10% off the deposit</strong> on your first Mangalitsa box. The discount is applied automatically at checkout.</p><p><a href="{{pork_url}}">Visit tinglumgård.no</a></p><p><strong>Referral bonus:</strong> Share your referral code. Friends get a discount, and you can earn credit worth up to <strong>50% of the deposit</strong> when they order.</p>',
+    variables: ['customer_name', 'order_number', 'message_url', 'pork_url', 'order_url'],
+  },
 ];
 
 const LIFECYCLE_FLOW_SEEDS: LifecycleFlowSeed[] = [
@@ -332,6 +343,15 @@ const LIFECYCLE_FLOW_SEEDS: LifecycleFlowSeed[] = [
     active: true,
     sendOffsetMinutes: 0,
   },
+  {
+    flowKey: 'chicken.order.followup',
+    eventType: 'chicken.remainder_collected',
+    productScope: 'chickens',
+    templateKey: 'chicken.order.followup',
+    mode: 'active',
+    active: true,
+    sendOffsetMinutes: 60, // 1 hour after pickup receipt
+  },
 ];
 
 const LIFECYCLE_FLOW_MATRIX: FlowMatrixRow[] = [
@@ -414,6 +434,15 @@ const LIFECYCLE_FLOW_MATRIX: FlowMatrixRow[] = [
     templateKey: 'chicken.remainder.collected',
     triggerRule: 'on manual collect endpoint',
     scheduleLocalTime: 'immediate',
+    stopRules: ['template_missing', 'missing_recipient_email'],
+  },
+  {
+    flowKey: 'chicken.order.followup',
+    productScope: 'chickens',
+    eventType: 'chicken.remainder_collected',
+    templateKey: 'chicken.order.followup',
+    triggerRule: 'remainder_collected + 1 hour',
+    scheduleLocalTime: '+60min from event',
     stopRules: ['template_missing', 'missing_recipient_email'],
   },
 ];
@@ -699,6 +728,7 @@ async function getFlowMap(): Promise<Map<string, FlowDefinition>> {
       'chicken.ready_for_pickup',
       'chicken.pickup.reminder',
       'chicken.remainder.collected',
+      'chicken.order.followup',
     ]);
 
   const map = new Map<string, FlowDefinition>();
@@ -1071,8 +1101,7 @@ async function materializeEggFlowInstances(flowMap: Map<string, FlowDefinition>,
             customer_name: String(order.customer_name || 'Kunde'),
             order_number: String(order.order_number || ''),
             message_url: buildCustomerPathLink(config.appBaseUrl, '/min-side'),
-            pork_url: `${config.appBaseUrl}/produkt`,
-            deposit_discount_code: EGG_HATCH_PIG_DEPOSIT_DISCOUNT_CODE,
+            pork_url: config.appBaseUrl,
             order_url: orderUrl,
           },
           metadata: {

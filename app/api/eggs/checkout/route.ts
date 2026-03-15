@@ -232,6 +232,24 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Grant pork deposit discount benefit to egg customers
+    const benefitEmail = (body.customerEmail || '').trim().toLowerCase()
+    if (benefitEmail && benefitEmail !== 'pending@vipps.no') {
+      await supabaseAdmin
+        .from('customer_benefits')
+        .upsert({
+          user_email: benefitEmail,
+          user_phone: body.customerPhone || null,
+          benefit_type: 'egg_customer_pork_discount',
+          discount_percent: 10,
+          granted_by_order_id: order.id,
+          granted_by_order_type: 'egg',
+        }, { onConflict: 'user_email,benefit_type,granted_by_order_id' })
+        .then(({ error }) => {
+          if (error) logError('egg-checkout-benefit-grant', error)
+        })
+    }
+
     const orderAccessToken = await createOrderAccessToken({
       scope: 'eggs',
       orderId: order.id,
