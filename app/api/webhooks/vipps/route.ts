@@ -384,6 +384,35 @@ async function getVippsCheckoutSessionFromPayment(payment: any): Promise<any | n
   return null;
 }
 
+async function enrichEggOrderContact(order: any, payment: any): Promise<any> {
+  if (!order) return order;
+
+  const currentEmail = normalizeEmail(order.customer_email);
+  const currentPhone = normalizePhone(order.customer_phone);
+  const needsContactUpdate =
+    !currentEmail || currentEmail === 'pending@vipps.no' || !currentPhone || !String(order.customer_name || '').trim();
+
+  if (!needsContactUpdate) return order;
+
+  const checkoutSession = await getVippsCheckoutSessionFromPayment(payment);
+  const details = checkoutSession?.shippingDetails || checkoutSession?.billingDetails || checkoutSession?.customerDetails;
+  const patch = buildVippsContactUpdate(details);
+
+  if (Object.keys(patch).length === 0) return order;
+
+  const { error } = await supabaseAdmin
+    .from('egg_orders')
+    .update(patch)
+    .eq('id', order.id);
+
+  if (error) {
+    logError('vipps-webhook-egg-contact-update', error);
+    return { ...order, ...patch };
+  }
+
+  return { ...order, ...patch };
+}
+
 async function enrichChickenOrderContact(order: any, payment: any): Promise<any> {
   if (!order) return order;
 
@@ -692,6 +721,10 @@ export async function POST(request: NextRequest) {
         .single();
       order = result.data;
       orderFetchErr = result.error;
+
+      if (order) {
+        order = await enrichEggOrderContact(order, resolvedPayment);
+      }
 
       const baseBreedRelation = order?.egg_breeds as { name?: string } | { name?: string }[] | null;
       eggBreedName = (Array.isArray(baseBreedRelation) ? baseBreedRelation[0]?.name : baseBreedRelation?.name) || null;
