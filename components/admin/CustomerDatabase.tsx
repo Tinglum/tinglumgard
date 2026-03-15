@@ -376,8 +376,8 @@ export function CustomerDatabase() {
       setCommunicationPreviewLoading(null);
     } catch (error) {
       toast({
-        title: copy.impersonateErrorTitle,
-        description: error instanceof Error ? error.message : copy.impersonateErrorDescription,
+        title: copy.profileLoadErrorTitle,
+        description: error instanceof Error ? error.message : copy.profileLoadErrorDescription,
         variant: 'destructive',
       });
     }

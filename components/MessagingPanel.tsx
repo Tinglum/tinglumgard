@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Send, MessageSquare, AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
+import { Send, MessageSquare, AlertCircle, CheckCircle, Loader2, X, Mail, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -130,6 +130,12 @@ export function MessagingPanel({ className, variant = 'light' }: MessagingPanelP
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [communications, setCommunications] = useState<CommunicationHistoryItem[]>([]);
   const [communicationsLoading, setCommunicationsLoading] = useState(true);
+  const [emailPreview, setEmailPreview] = useState<{
+    subject: string;
+    html: string;
+    sentAt: string | null;
+  } | null>(null);
+  const [emailPreviewLoading, setEmailPreviewLoading] = useState<string | null>(null);
 
   const markMessagesAsViewed = useCallback(async (messageIds: string[]) => {
     try {
@@ -178,6 +184,32 @@ export function MessagingPanel({ className, variant = 'light' }: MessagingPanelP
       setCommunicationsLoading(false);
     }
   }, [copy.communicationsLoadError]);
+
+  async function openEmailPreview(entry: CommunicationHistoryItem) {
+    const key = `${entry.source}-${entry.id}`;
+    setEmailPreviewLoading(key);
+    try {
+      const res = await fetch(
+        `/api/messages/history/preview?source=${encodeURIComponent(entry.source)}&id=${encodeURIComponent(entry.id)}`,
+        { cache: 'no-store' },
+      );
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || 'Failed to load preview');
+      setEmailPreview({
+        subject: data.preview?.subject || entry.subject || '',
+        html: data.preview?.html || '',
+        sentAt: data.preview?.sentAt || entry.sentAt || null,
+      });
+    } catch (previewError) {
+      toast({
+        title: copy.errorTitle,
+        description: previewError instanceof Error ? previewError.message : 'Kunne ikke laste forhåndsvisning',
+        variant: 'destructive',
+      });
+    } finally {
+      setEmailPreviewLoading(null);
+    }
+  }
 
   useEffect(() => {
     loadMessages();
@@ -473,26 +505,45 @@ export function MessagingPanel({ className, variant = 'light' }: MessagingPanelP
               const eventTs = entry.sentAt || entry.createdAt;
               const eventLabel = eventTs ? new Date(eventTs).toLocaleString(locale) : '-';
 
+              const entryKey = `${entry.source}-${entry.id}`;
+              const isLoadingPreview = emailPreviewLoading === entryKey;
+
               return (
-                <div
-                  key={`${entry.source}-${entry.id}`}
+                <button
+                  type="button"
+                  key={entryKey}
+                  onClick={() => openEmailPreview(entry)}
+                  disabled={isLoadingPreview}
                   className={cn(
-                    'rounded-lg border p-3',
-                    isDark ? 'border-white/20 bg-white/5' : 'border-gray-200 bg-gray-50'
+                    'rounded-lg border p-3 w-full text-left transition-colors cursor-pointer',
+                    isDark
+                      ? 'border-white/20 bg-white/5 hover:bg-white/10'
+                      : 'border-gray-200 bg-gray-50 hover:bg-gray-100',
+                    isLoadingPreview && 'opacity-60'
                   )}
                 >
                   <div className="flex items-center justify-between gap-3">
-                    <p className={cn('font-medium text-sm', isDark ? 'text-white' : 'text-gray-900')}>
-                      {entry.subject || copy.communicationsNoSubject}
-                    </p>
-                    <span
-                      className={cn(
-                        'text-xs px-2 py-0.5 rounded',
-                        communicationStatusClass[status] || communicationStatusClass.unknown
+                    <div className="flex items-center gap-2 min-w-0">
+                      {isLoadingPreview ? (
+                        <Loader2 className="h-4 w-4 shrink-0 animate-spin opacity-60" />
+                      ) : (
+                        <Mail className={cn('h-4 w-4 shrink-0', isDark ? 'text-white/50' : 'text-gray-400')} />
                       )}
-                    >
-                      {statusLabel}
-                    </span>
+                      <p className={cn('font-medium text-sm truncate', isDark ? 'text-white' : 'text-gray-900')}>
+                        {entry.subject || copy.communicationsNoSubject}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span
+                        className={cn(
+                          'text-xs px-2 py-0.5 rounded',
+                          communicationStatusClass[status] || communicationStatusClass.unknown
+                        )}
+                      >
+                        {statusLabel}
+                      </span>
+                      <ChevronRight className={cn('h-4 w-4', isDark ? 'text-white/40' : 'text-gray-400')} />
+                    </div>
                   </div>
 
                   <div className={cn('text-xs mt-2 flex flex-wrap gap-x-4 gap-y-1', isDark ? 'text-white/70' : 'text-gray-600')}>
@@ -509,12 +560,64 @@ export function MessagingPanel({ className, variant = 'light' }: MessagingPanelP
                       {eventLabel}
                     </span>
                   </div>
-                </div>
+                </button>
               );
             })}
           </div>
         )}
       </div>
+
+      {/* Email preview modal */}
+      {emailPreview && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div
+            className={cn(
+              'relative w-full max-w-2xl max-h-[85vh] flex flex-col rounded-2xl shadow-xl overflow-hidden',
+              isDark ? 'bg-gray-900 border border-white/20' : 'bg-white border border-gray-200'
+            )}
+          >
+            {/* Header */}
+            <div
+              className={cn(
+                'flex items-center justify-between gap-3 px-5 py-4 border-b shrink-0',
+                isDark ? 'border-white/20' : 'border-gray-200'
+              )}
+            >
+              <div className="min-w-0">
+                <h3 className={cn('font-semibold text-base truncate', isDark ? 'text-white' : 'text-gray-900')}>
+                  {emailPreview.subject || copy.communicationsNoSubject}
+                </h3>
+                {emailPreview.sentAt && (
+                  <p className={cn('text-xs mt-0.5', isDark ? 'text-white/60' : 'text-gray-500')}>
+                    {copy.communicationsSentAt}: {new Date(emailPreview.sentAt).toLocaleString(locale)}
+                  </p>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => setEmailPreview(null)}
+                className={cn(
+                  'shrink-0 p-1.5 rounded-lg transition-colors',
+                  isDark ? 'hover:bg-white/10 text-white/70' : 'hover:bg-gray-100 text-gray-500'
+                )}
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Email body */}
+            <div className="flex-1 overflow-hidden">
+              <iframe
+                srcDoc={emailPreview.html}
+                sandbox="allow-same-origin"
+                className="w-full h-full border-0"
+                style={{ minHeight: '400px' }}
+                title={emailPreview.subject || 'Email preview'}
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="space-y-4">
         <h3 className={cn('text-xl font-semibold', isDark ? 'text-white' : 'text-gray-900')}>

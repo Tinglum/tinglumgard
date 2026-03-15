@@ -1238,8 +1238,8 @@
     shareMessage: "Order Woolly Pig from Tinglum Gård and get 20% off the deposit with my friend discount code: {code}",
 
     // Pre-order state
-    availableAfterFirstOrder: "Friend discount becomes available after your first order",
-    firstOrderRequiredHelp: "Place an order first, then you can share your code with friends and earn credit.",
+    availableAfterFirstOrder: "Friend discount is activated for Woolly Pig orders. After you complete your first Woolly Pig box order, friend discount becomes available.",
+    firstOrderRequiredHelp: "Your friend gets 20% off their deposit on a Woolly Pig box (value up to 400 NOK), and you get 10% off your own box, equal to 20% off the remaining balance, for each completed referral that leads to a box purchase. You can refer up to 5 friends and get up to 50% off your own box (value up to 2000 NOK).",
     goToOrder: "Go to order",
   },
 
@@ -2794,6 +2794,8 @@
     impersonateStartingDescription: "Opening My page as {name}.",
     impersonateErrorTitle: "Could not log in as customer",
     impersonateErrorDescription: "Please try again.",
+    profileLoadErrorTitle: "Could not load customer profile",
+    profileLoadErrorDescription: "Please try again.",
     orderSaveErrorTitle: "Save error",
     orderSaveErrorDescription: "Could not save order",
     orderSaveSuccessTitle: "Order saved",

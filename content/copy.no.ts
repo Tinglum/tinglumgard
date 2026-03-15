@@ -1239,8 +1239,8 @@
     shareMessage: "Bestill ullgris fra Tinglum Gård og få 20% rabatt på forskuddet med min vennerabattkode: {code}",
 
     // Pre-order state
-    availableAfterFirstOrder: "Vennerabatt blir tilgjengelig etter din første bestilling",
-    firstOrderRequiredHelp: "Bestill en kasse først, så kan du dele koden din med venner og tjene kreditt.",
+    availableAfterFirstOrder: "Vennerabatt aktiveres etter at du har gjennomført din første bestilling hos oss.",
+    firstOrderRequiredHelp: "Når første bestilling er registrert, kan du opprette en personlig kode, dele den med venner og få 10% kreditt per gjennomfort henvisning. Kreditt trekkes fra restbelopet pa en aktiv bestilling.",
     goToOrder: "Gå til bestilling",
   },
 
@@ -2797,6 +2797,8 @@
     impersonateStartingDescription: "Åpner Min side som {name}.",
     impersonateErrorTitle: "Kunne ikke logge inn som kunde",
     impersonateErrorDescription: "Prøv igjen.",
+    profileLoadErrorTitle: "Kunne ikke laste kundeprofil",
+    profileLoadErrorDescription: "Prøv igjen.",
     orderSaveErrorTitle: "Feil ved lagring",
     orderSaveErrorDescription: "Kunne ikke lagre ordre",
     orderSaveSuccessTitle: "Ordre lagret",
@@ -3771,7 +3773,7 @@
       left: 'igjen',
       maxAvailableInHatch: 'Maks tilgjengelig i dette kullet: {count}',
       numberOfRoosters: 'Antall haner',
-      optional: 'valgfritt',
+      optional: 'Pris for haner over 10 uker',
       deliveryMethod: 'Leveringsmåte',
       farmPickup: 'Henting på gård',
       free: 'Gratis',
@@ -3785,7 +3787,7 @@
       processing: 'Behandler betaling...',
       orderWithVipps: 'Bestill med Vipps',
       depositInfo: 'Du betaler 30% forskudd (kr {deposit}) nå. Rest (kr {remainder}) betales før henting.',
-      sexDisclaimer: 'Merk: Før uke 10 selger vi kyllinger uten kjønnsgaranti. Fra uke 10 kan du velge haner, og vi garanterer høner hvis du ikke gjør det. Cream Legbar er alltid hunn.',
+      sexDisclaimer: 'Merk: Før uke 10 selger vi kyllinger usortert. Fra uke 10 kan du velge høner eller haner, og vi gir deg pengene tilbake om det skal vise seg at hønen var en hane.',
     },
     orderSummary: {
       title: 'Bestillingssammendrag',
