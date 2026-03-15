@@ -705,7 +705,9 @@ async function getCustomerList() {
     }
   }
 
-  const customers = Array.from(customerMap.values()).sort((a, b) => b.lifetime_value - a.lifetime_value);
+  const customers = Array.from(customerMap.values()).sort((a, b) =>
+    new Date(b.last_order_date).getTime() - new Date(a.last_order_date).getTime()
+  );
 
   return NextResponse.json({
     customers,
