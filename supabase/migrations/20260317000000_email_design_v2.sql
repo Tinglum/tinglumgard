@@ -1229,7 +1229,53 @@ UPDATE email_templates SET
 
   </td></tr>
 </table>$$,
-  body_en = NULL
+  body_en = $$<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;margin:0 auto;font-family:Arial,Helvetica,sans-serif;color:#1C1210;background-color:#FAF8F5;">
+  <tr><td style="padding:32px 24px;">
+
+    <span style="display:inline-block;padding:6px 16px;border-radius:9999px;background-color:#ECFDF5;color:#2D6A4F;font-size:13px;font-weight:600;">Payment completed</span>
+
+    <p style="margin:24px 0 0;font-size:16px;line-height:1.5;">Hi {{customer_first_name}},</p>
+
+    <p style="margin:16px 0 0;font-size:16px;line-height:1.5;">Order {{order_number}} is now fully paid!</p>
+
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:24px 0 0;border-left:4px solid #8B6914;background-color:#FFF9E6;border-radius:4px;">
+      <tr><td style="padding:16px 20px;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+          <tr><td style="padding:4px 0;font-size:14px;color:#6B5B4E;">Pickup date</td><td style="padding:4px 0;font-size:14px;color:#1C1210;text-align:right;">{{pickup_date}}</td></tr>
+        </table>
+      </td></tr>
+    </table>
+
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:24px 0 0;border:1px solid #E8DFD5;border-radius:8px;overflow:hidden;">
+      <tr><td style="padding:12px 20px;font-size:14px;font-weight:700;color:#1C1210;background-color:#FFF9E6;">Total</td><td style="padding:12px 20px;font-size:14px;font-weight:700;color:#1C1210;text-align:right;background-color:#FFF9E6;">{{total_amount_nok}}</td></tr>
+    </table>
+
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:32px 0 0;">
+      <tr>
+        <td style="vertical-align:top;padding-right:16px;"><span style="font-family:Georgia,'Times New Roman',serif;font-size:24px;color:#8B6914;font-weight:700;">1</span></td>
+        <td style="padding:4px 0;font-size:14px;color:#1C1210;line-height:1.5;">Your chickens are being prepared for pickup</td>
+      </tr>
+      <tr>
+        <td style="vertical-align:top;padding-right:16px;"><span style="font-family:Georgia,'Times New Roman',serif;font-size:24px;color:#8B6914;font-weight:700;">2</span></td>
+        <td style="padding:4px 0;font-size:14px;color:#1C1210;line-height:1.5;">You will receive a reminder before pickup date</td>
+      </tr>
+      <tr>
+        <td style="vertical-align:top;padding-right:16px;"><span style="font-family:Georgia,'Times New Roman',serif;font-size:24px;color:#8B6914;font-weight:700;">3</span></td>
+        <td style="padding:4px 0;font-size:14px;color:#1C1210;line-height:1.5;">View details on My page</td>
+      </tr>
+    </table>
+
+    <table role="presentation" cellpadding="0" cellspacing="0" style="margin:32px 0 0;">
+      <tr><td style="background-color:#2C1810;border-radius:10px;text-align:center;">
+        <!--[if mso]><v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" href="{{cta_url}}" style="height:44px;width:200px;v-text-anchor:middle;" arcsize="23%" fillcolor="#2C1810" stroke="f"><v:textbox inset="0px,0px,0px,0px"><center style="font-size:14px;color:#ffffff;font-family:Arial,Helvetica,sans-serif;">{{cta_label}}</center></v:textbox></v:roundrect><![endif]-->
+        <a href="{{cta_url}}" style="display:inline-block;background-color:#2C1810;color:#ffffff;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:32px;padding:6px 24px;border-radius:10px;text-decoration:none;mso-hide:all;">{{cta_label}}</a>
+      </td></tr>
+    </table>
+
+    {{tip_html}}
+
+  </td></tr>
+</table>$$
 WHERE template_key = 'chicken.order.remainder.paid.customer';
 
 -- ─── chicken.ready_for_pickup ───
@@ -1254,7 +1300,26 @@ UPDATE email_templates SET
 
   </td></tr>
 </table>$$,
-  body_en = NULL
+  body_en = $$<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;margin:0 auto;font-family:Arial,Helvetica,sans-serif;color:#1C1210;background-color:#FAF8F5;">
+  <tr><td style="padding:32px 24px;">
+
+    <span style="display:inline-block;padding:6px 16px;border-radius:9999px;background-color:#ECFDF5;color:#2D6A4F;font-size:13px;font-weight:600;">Ready for pickup!</span>
+
+    <p style="margin:24px 0 0;font-size:16px;line-height:1.5;">Hi {{customer_first_name}},</p>
+
+    <p style="margin:16px 0 0;font-size:16px;line-height:1.5;">The chickens from order {{order_number}} are ready for pickup!</p>
+
+    <table role="presentation" cellpadding="0" cellspacing="0" style="margin:32px 0 0;">
+      <tr><td style="background-color:#2C1810;border-radius:10px;text-align:center;">
+        <!--[if mso]><v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" href="{{cta_url}}" style="height:44px;width:200px;v-text-anchor:middle;" arcsize="23%" fillcolor="#2C1810" stroke="f"><v:textbox inset="0px,0px,0px,0px"><center style="font-size:14px;color:#ffffff;font-family:Arial,Helvetica,sans-serif;">View order</center></v:textbox></v:roundrect><![endif]-->
+        <a href="{{cta_url}}" style="display:inline-block;background-color:#2C1810;color:#ffffff;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:32px;padding:6px 24px;border-radius:10px;text-decoration:none;mso-hide:all;">View order</a>
+      </td></tr>
+    </table>
+
+    {{tip_html}}
+
+  </td></tr>
+</table>$$
 WHERE template_key = 'chicken.ready_for_pickup';
 
 -- ─── chicken.pickup.reminder ───
@@ -1288,7 +1353,35 @@ UPDATE email_templates SET
 
   </td></tr>
 </table>$$,
-  body_en = NULL
+  body_en = $$<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;margin:0 auto;font-family:Arial,Helvetica,sans-serif;color:#1C1210;background-color:#FAF8F5;">
+  <tr><td style="padding:32px 24px;">
+
+    <span style="display:inline-block;padding:6px 16px;border-radius:9999px;background-color:#FFFBEB;color:#B45309;font-size:13px;font-weight:600;">Pickup approaching</span>
+
+    <p style="margin:24px 0 0;font-size:16px;line-height:1.5;">Hi {{customer_first_name}},</p>
+
+    <p style="margin:16px 0 0;font-size:16px;line-height:1.5;">The pickup date for order {{order_number}} is approaching.</p>
+
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:24px 0 0;border-left:4px solid #8B6914;background-color:#FFF9E6;border-radius:4px;">
+      <tr><td style="padding:16px 20px;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+          <tr><td style="padding:4px 0;font-size:14px;color:#6B5B4E;">Pickup date</td><td style="padding:4px 0;font-size:14px;color:#1C1210;text-align:right;">{{pickup_date}}</td></tr>
+          <tr><td style="padding:4px 0;font-size:14px;color:#6B5B4E;">Days left</td><td style="padding:4px 0;font-size:14px;color:#1C1210;text-align:right;">{{days_left}}</td></tr>
+        </table>
+      </td></tr>
+    </table>
+
+    <table role="presentation" cellpadding="0" cellspacing="0" style="margin:32px 0 0;">
+      <tr><td style="background-color:#2C1810;border-radius:10px;text-align:center;">
+        <!--[if mso]><v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" href="{{cta_url}}" style="height:44px;width:200px;v-text-anchor:middle;" arcsize="23%" fillcolor="#2C1810" stroke="f"><v:textbox inset="0px,0px,0px,0px"><center style="font-size:14px;color:#ffffff;font-family:Arial,Helvetica,sans-serif;">{{cta_label}}</center></v:textbox></v:roundrect><![endif]-->
+        <a href="{{cta_url}}" style="display:inline-block;background-color:#2C1810;color:#ffffff;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:32px;padding:6px 24px;border-radius:10px;text-decoration:none;mso-hide:all;">{{cta_label}}</a>
+      </td></tr>
+    </table>
+
+    {{tip_html}}
+
+  </td></tr>
+</table>$$
 WHERE template_key = 'chicken.pickup.reminder';
 
 -- ─── chicken.remainder.collected ───
@@ -1313,7 +1406,26 @@ UPDATE email_templates SET
 
   </td></tr>
 </table>$$,
-  body_en = NULL
+  body_en = $$<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;margin:0 auto;font-family:Arial,Helvetica,sans-serif;color:#1C1210;background-color:#FAF8F5;">
+  <tr><td style="padding:32px 24px;">
+
+    <span style="display:inline-block;padding:6px 16px;border-radius:9999px;background-color:#ECFDF5;color:#2D6A4F;font-size:13px;font-weight:600;">Receipt</span>
+
+    <p style="margin:24px 0 0;font-size:16px;line-height:1.5;">Hi {{customer_first_name}},</p>
+
+    <p style="margin:16px 0 0;font-size:16px;line-height:1.5;">We confirm that the remaining payment of {{remainder_amount_nok}} for order {{order_number}} has been received.</p>
+
+    <table role="presentation" cellpadding="0" cellspacing="0" style="margin:32px 0 0;">
+      <tr><td style="background-color:#2C1810;border-radius:10px;text-align:center;">
+        <!--[if mso]><v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" href="{{cta_url}}" style="height:44px;width:200px;v-text-anchor:middle;" arcsize="23%" fillcolor="#2C1810" stroke="f"><v:textbox inset="0px,0px,0px,0px"><center style="font-size:14px;color:#ffffff;font-family:Arial,Helvetica,sans-serif;">{{cta_label}}</center></v:textbox></v:roundrect><![endif]-->
+        <a href="{{cta_url}}" style="display:inline-block;background-color:#2C1810;color:#ffffff;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:32px;padding:6px 24px;border-radius:10px;text-decoration:none;mso-hide:all;">{{cta_label}}</a>
+      </td></tr>
+    </table>
+
+    {{tip_html}}
+
+  </td></tr>
+</table>$$
 WHERE template_key = 'chicken.remainder.collected';
 
 -- ─── chicken.order.followup ───
@@ -1344,7 +1456,32 @@ UPDATE email_templates SET
 
   </td></tr>
 </table>$$,
-  body_en = NULL
+  body_en = $$<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;margin:0 auto;font-family:Arial,Helvetica,sans-serif;color:#1C1210;background-color:#FAF8F5;">
+  <tr><td style="padding:32px 24px;">
+
+    <p style="margin:0;font-size:16px;line-height:1.5;">Hi {{customer_first_name}},</p>
+
+    <p style="margin:16px 0 0;font-size:16px;line-height:1.5;">Thank you for shopping with us! We hope you are happy with the chickens from order {{order_number}}.</p>
+
+    <p style="margin:16px 0 0;font-size:16px;line-height:1.5;">Have questions about care or feeding? We are happy to help.</p>
+
+    <table role="presentation" cellpadding="0" cellspacing="0" style="margin:32px 0 0;">
+      <tr><td style="background-color:#2C1810;border-radius:10px;text-align:center;">
+        <!--[if mso]><v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" href="{{message_url}}" style="height:44px;width:220px;v-text-anchor:middle;" arcsize="23%" fillcolor="#2C1810" stroke="f"><v:textbox inset="0px,0px,0px,0px"><center style="font-size:14px;color:#ffffff;font-family:Arial,Helvetica,sans-serif;">Send us a message</center></v:textbox></v:roundrect><![endif]-->
+        <a href="{{message_url}}" style="display:inline-block;background-color:#2C1810;color:#ffffff;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:32px;padding:6px 24px;border-radius:10px;text-decoration:none;mso-hide:all;">Send us a message</a>
+      </td></tr>
+    </table>
+
+    <table role="presentation" cellpadding="0" cellspacing="0" style="margin:16px 0 0;">
+      <tr><td style="border:2px solid #E8DFD5;border-radius:10px;text-align:center;">
+        <a href="{{pork_url}}" style="display:inline-block;color:#2C1810;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:32px;padding:6px 24px;border-radius:10px;text-decoration:none;">See our Mangalitsa boxes</a>
+      </td></tr>
+    </table>
+
+    {{tip_html}}
+
+  </td></tr>
+</table>$$
 WHERE template_key = 'chicken.order.followup';
 
 -- ─── support.message.customer.confirmation ───
@@ -1463,7 +1600,28 @@ UPDATE email_templates SET
 
   </td></tr>
 </table>$$,
-  body_en = NULL
+  body_en = $$<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;margin:0 auto;font-family:Arial,Helvetica,sans-serif;color:#1C1210;background-color:#FAF8F5;">
+  <tr><td style="padding:32px 24px;">
+
+    <p style="margin:0;font-size:16px;line-height:1.5;">New customer inquiry about order {{order_number}}.</p>
+
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:24px 0 0;border-left:4px solid #8B6914;background-color:#FFF9E6;border-radius:4px;">
+      <tr><td style="padding:16px 20px;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+          <tr><td style="padding:4px 0;font-size:14px;color:#6B5B4E;">Customer</td><td style="padding:4px 0;font-size:14px;color:#1C1210;text-align:right;">{{customer_name}}</td></tr>
+          <tr><td style="padding:4px 0;font-size:14px;color:#6B5B4E;">Email</td><td style="padding:4px 0;font-size:14px;color:#1C1210;text-align:right;">{{customer_email}}</td></tr>
+          <tr><td style="padding:4px 0;font-size:14px;color:#6B5B4E;">Phone</td><td style="padding:4px 0;font-size:14px;color:#1C1210;text-align:right;">{{customer_phone}}</td></tr>
+          <tr><td style="padding:4px 0;font-size:14px;color:#6B5B4E;">Order</td><td style="padding:4px 0;font-size:14px;color:#1C1210;text-align:right;">{{order_number}}</td></tr>
+        </table>
+      </td></tr>
+    </table>
+
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:24px 0 0;">
+      <tr><td style="border-left:4px solid #E8DFD5;padding:12px 20px;font-size:14px;color:#6B5B4E;line-height:1.6;font-style:italic;">{{message_text}}</td></tr>
+    </table>
+
+  </td></tr>
+</table>$$
 WHERE template_key = 'support.contact.admin.new';
 
 -- ─── support.contact.customer.confirmation ───
@@ -1483,7 +1641,21 @@ UPDATE email_templates SET
 
   </td></tr>
 </table>$$,
-  body_en = NULL
+  body_en = $$<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;margin:0 auto;font-family:Arial,Helvetica,sans-serif;color:#1C1210;background-color:#FAF8F5;">
+  <tr><td style="padding:32px 24px;">
+
+    <p style="margin:0;font-size:16px;line-height:1.5;">Hi {{customer_first_name}},</p>
+
+    <p style="margin:16px 0 0;font-size:16px;line-height:1.5;">We have received your inquiry about order {{order_number}}.</p>
+
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:24px 0 0;">
+      <tr><td style="border-left:4px solid #E8DFD5;padding:12px 20px;font-size:14px;color:#6B5B4E;line-height:1.6;font-style:italic;">{{message_text}}</td></tr>
+    </table>
+
+    <p style="margin:24px 0 0;font-size:16px;line-height:1.5;">We will get back to you as soon as we can.</p>
+
+  </td></tr>
+</table>$$
 WHERE template_key = 'support.contact.customer.confirmation';
 
 -- ─── support.message.admin.new ───
@@ -1512,7 +1684,30 @@ UPDATE email_templates SET
 
   </td></tr>
 </table>$$,
-  body_en = NULL
+  body_en = $$<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;margin:0 auto;font-family:Arial,Helvetica,sans-serif;color:#1C1210;background-color:#FAF8F5;">
+  <tr><td style="padding:32px 24px;">
+
+    <p style="margin:0;font-size:16px;line-height:1.5;">New message from {{customer_name}} (case {{thread_id}}).</p>
+
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:24px 0 0;border-left:4px solid #8B6914;background-color:#FFF9E6;border-radius:4px;">
+      <tr><td style="padding:16px 20px;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+          <tr><td style="padding:4px 0;font-size:14px;color:#6B5B4E;">Customer</td><td style="padding:4px 0;font-size:14px;color:#1C1210;text-align:right;">{{customer_name}}</td></tr>
+          <tr><td style="padding:4px 0;font-size:14px;color:#6B5B4E;">Email</td><td style="padding:4px 0;font-size:14px;color:#1C1210;text-align:right;">{{customer_email}}</td></tr>
+          <tr><td style="padding:4px 0;font-size:14px;color:#6B5B4E;">Phone</td><td style="padding:4px 0;font-size:14px;color:#1C1210;text-align:right;">{{customer_phone}}</td></tr>
+          <tr><td style="padding:4px 0;font-size:14px;color:#6B5B4E;">Order</td><td style="padding:4px 0;font-size:14px;color:#1C1210;text-align:right;">{{order_number}}</td></tr>
+        </table>
+      </td></tr>
+    </table>
+
+    <p style="margin:24px 0 0;font-size:14px;color:#6B5B4E;">Type: {{message_type}}</p>
+
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:16px 0 0;">
+      <tr><td style="border-left:4px solid #E8DFD5;padding:12px 20px;font-size:14px;color:#6B5B4E;line-height:1.6;font-style:italic;">{{message_text}}</td></tr>
+    </table>
+
+  </td></tr>
+</table>$$
 WHERE template_key = 'support.message.admin.new';
 
 -- ─── support.reply.admin.notification ───
@@ -1538,7 +1733,27 @@ UPDATE email_templates SET
 
   </td></tr>
 </table>$$,
-  body_en = NULL
+  body_en = $$<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;margin:0 auto;font-family:Arial,Helvetica,sans-serif;color:#1C1210;background-color:#FAF8F5;">
+  <tr><td style="padding:32px 24px;">
+
+    <p style="margin:0;font-size:16px;line-height:1.5;">Reply from {{customer_name}} on case {{thread_id}}.</p>
+
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:24px 0 0;border-left:4px solid #8B6914;background-color:#FFF9E6;border-radius:4px;">
+      <tr><td style="padding:16px 20px;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+          <tr><td style="padding:4px 0;font-size:14px;color:#6B5B4E;">Customer</td><td style="padding:4px 0;font-size:14px;color:#1C1210;text-align:right;">{{customer_name}}</td></tr>
+          <tr><td style="padding:4px 0;font-size:14px;color:#6B5B4E;">Email</td><td style="padding:4px 0;font-size:14px;color:#1C1210;text-align:right;">{{customer_email}}</td></tr>
+          <tr><td style="padding:4px 0;font-size:14px;color:#6B5B4E;">Phone</td><td style="padding:4px 0;font-size:14px;color:#1C1210;text-align:right;">{{customer_phone}}</td></tr>
+        </table>
+      </td></tr>
+    </table>
+
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:24px 0 0;">
+      <tr><td style="border-left:4px solid #E8DFD5;padding:12px 20px;font-size:14px;color:#6B5B4E;line-height:1.6;font-style:italic;">{{reply_text}}</td></tr>
+    </table>
+
+  </td></tr>
+</table>$$
 WHERE template_key = 'support.reply.admin.notification';
 
 -- ─── admin.order.deposit.confirmed.pig ───
@@ -1586,7 +1801,49 @@ UPDATE email_templates SET
 
   </td></tr>
 </table>$$,
-  body_en = NULL
+  body_en = $$<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;margin:0 auto;font-family:Arial,Helvetica,sans-serif;color:#1C1210;background-color:#FAF8F5;">
+  <tr><td style="padding:32px 24px;">
+
+    <p style="margin:0;font-size:16px;line-height:1.5;">New Mangalitsa order received.</p>
+
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:24px 0 0;border-left:4px solid #8B6914;background-color:#FFF9E6;border-radius:4px;">
+      <tr><td style="padding:16px 20px;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+          <tr><td style="padding:4px 0;font-size:14px;color:#6B5B4E;">Order</td><td style="padding:4px 0;font-size:14px;color:#1C1210;text-align:right;">{{order_number}}</td></tr>
+          <tr><td style="padding:4px 0;font-size:14px;color:#6B5B4E;">Customer</td><td style="padding:4px 0;font-size:14px;color:#1C1210;text-align:right;">{{customer_name}}</td></tr>
+          <tr><td style="padding:4px 0;font-size:14px;color:#6B5B4E;">Email</td><td style="padding:4px 0;font-size:14px;color:#1C1210;text-align:right;">{{customer_email}}</td></tr>
+          <tr><td style="padding:4px 0;font-size:14px;color:#6B5B4E;">Phone</td><td style="padding:4px 0;font-size:14px;color:#1C1210;text-align:right;">{{customer_phone}}</td></tr>
+        </table>
+      </td></tr>
+    </table>
+
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:16px 0 0;border-left:4px solid #8B6914;background-color:#FFF9E6;border-radius:4px;">
+      <tr><td style="padding:16px 20px;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+          <tr><td style="padding:4px 0;font-size:14px;color:#6B5B4E;">Box</td><td style="padding:4px 0;font-size:14px;color:#1C1210;text-align:right;">{{box_label}}</td></tr>
+          <tr><td style="padding:4px 0;font-size:14px;color:#6B5B4E;">Ribbe</td><td style="padding:4px 0;font-size:14px;color:#1C1210;text-align:right;">{{ribbe_choice}}</td></tr>
+          <tr><td style="padding:4px 0;font-size:14px;color:#6B5B4E;">Delivery</td><td style="padding:4px 0;font-size:14px;color:#1C1210;text-align:right;">{{delivery_label}}</td></tr>
+        </table>
+      </td></tr>
+    </table>
+
+    {{extras_html}}
+
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:24px 0 0;border:1px solid #E8DFD5;border-radius:8px;overflow:hidden;">
+      <tr><td style="padding:12px 20px;font-size:14px;color:#6B5B4E;">Deposit</td><td style="padding:12px 20px;font-size:14px;color:#1C1210;text-align:right;">{{deposit_amount_nok}}</td></tr>
+      <tr><td style="padding:12px 20px;font-size:14px;color:#6B5B4E;">Remainder</td><td style="padding:12px 20px;font-size:14px;color:#1C1210;text-align:right;">{{remainder_amount_nok}}</td></tr>
+      <tr><td style="padding:12px 20px;font-size:14px;font-weight:700;color:#1C1210;background-color:#FFF9E6;">Total</td><td style="padding:12px 20px;font-size:14px;font-weight:700;color:#1C1210;text-align:right;background-color:#FFF9E6;">{{total_amount_nok}}</td></tr>
+    </table>
+
+    <table role="presentation" cellpadding="0" cellspacing="0" style="margin:32px 0 0;">
+      <tr><td style="background-color:#2C1810;border-radius:10px;text-align:center;">
+        <!--[if mso]><v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" href="{{cta_url}}" style="height:44px;width:200px;v-text-anchor:middle;" arcsize="23%" fillcolor="#2C1810" stroke="f"><v:textbox inset="0px,0px,0px,0px"><center style="font-size:14px;color:#ffffff;font-family:Arial,Helvetica,sans-serif;">View in admin</center></v:textbox></v:roundrect><![endif]-->
+        <a href="{{cta_url}}" style="display:inline-block;background-color:#2C1810;color:#ffffff;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:32px;padding:6px 24px;border-radius:10px;text-decoration:none;mso-hide:all;">View in admin</a>
+      </td></tr>
+    </table>
+
+  </td></tr>
+</table>$$
 WHERE template_key = 'admin.order.deposit.confirmed.pig';
 
 -- ─── admin.order.deposit.confirmed.egg ───
@@ -1622,7 +1879,37 @@ UPDATE email_templates SET
 
   </td></tr>
 </table>$$,
-  body_en = NULL
+  body_en = $$<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;margin:0 auto;font-family:Arial,Helvetica,sans-serif;color:#1C1210;background-color:#FAF8F5;">
+  <tr><td style="padding:32px 24px;">
+
+    <p style="margin:0;font-size:16px;line-height:1.5;">New hatching egg order received.</p>
+
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:24px 0 0;border-left:4px solid #8B6914;background-color:#FFF9E6;border-radius:4px;">
+      <tr><td style="padding:16px 20px;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+          <tr><td style="padding:4px 0;font-size:14px;color:#6B5B4E;">Order</td><td style="padding:4px 0;font-size:14px;color:#1C1210;text-align:right;">{{order_number}}</td></tr>
+          <tr><td style="padding:4px 0;font-size:14px;color:#6B5B4E;">Customer</td><td style="padding:4px 0;font-size:14px;color:#1C1210;text-align:right;">{{customer_name}}</td></tr>
+          <tr><td style="padding:4px 0;font-size:14px;color:#6B5B4E;">Email</td><td style="padding:4px 0;font-size:14px;color:#1C1210;text-align:right;">{{customer_email}}</td></tr>
+          <tr><td style="padding:4px 0;font-size:14px;color:#6B5B4E;">Phone</td><td style="padding:4px 0;font-size:14px;color:#1C1210;text-align:right;">{{customer_phone}}</td></tr>
+        </table>
+      </td></tr>
+    </table>
+
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:24px 0 0;border:1px solid #E8DFD5;border-radius:8px;overflow:hidden;">
+      <tr><td style="padding:12px 20px;font-size:14px;color:#6B5B4E;">Deposit</td><td style="padding:12px 20px;font-size:14px;color:#1C1210;text-align:right;">{{deposit_amount_nok}}</td></tr>
+      <tr><td style="padding:12px 20px;font-size:14px;color:#6B5B4E;">Remainder</td><td style="padding:12px 20px;font-size:14px;color:#1C1210;text-align:right;">{{remainder_amount_nok}}</td></tr>
+      <tr><td style="padding:12px 20px;font-size:14px;font-weight:700;color:#1C1210;background-color:#FFF9E6;">Total</td><td style="padding:12px 20px;font-size:14px;font-weight:700;color:#1C1210;text-align:right;background-color:#FFF9E6;">{{total_amount_nok}}</td></tr>
+    </table>
+
+    <table role="presentation" cellpadding="0" cellspacing="0" style="margin:32px 0 0;">
+      <tr><td style="background-color:#2C1810;border-radius:10px;text-align:center;">
+        <!--[if mso]><v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" href="{{cta_url}}" style="height:44px;width:200px;v-text-anchor:middle;" arcsize="23%" fillcolor="#2C1810" stroke="f"><v:textbox inset="0px,0px,0px,0px"><center style="font-size:14px;color:#ffffff;font-family:Arial,Helvetica,sans-serif;">View in admin</center></v:textbox></v:roundrect><![endif]-->
+        <a href="{{cta_url}}" style="display:inline-block;background-color:#2C1810;color:#ffffff;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:32px;padding:6px 24px;border-radius:10px;text-decoration:none;mso-hide:all;">View in admin</a>
+      </td></tr>
+    </table>
+
+  </td></tr>
+</table>$$
 WHERE template_key = 'admin.order.deposit.confirmed.egg';
 
 -- ─── admin.order.deposit.confirmed.chicken ───
@@ -1658,7 +1945,37 @@ UPDATE email_templates SET
 
   </td></tr>
 </table>$$,
-  body_en = NULL
+  body_en = $$<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;margin:0 auto;font-family:Arial,Helvetica,sans-serif;color:#1C1210;background-color:#FAF8F5;">
+  <tr><td style="padding:32px 24px;">
+
+    <p style="margin:0;font-size:16px;line-height:1.5;">New chicken order received.</p>
+
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:24px 0 0;border-left:4px solid #8B6914;background-color:#FFF9E6;border-radius:4px;">
+      <tr><td style="padding:16px 20px;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+          <tr><td style="padding:4px 0;font-size:14px;color:#6B5B4E;">Order</td><td style="padding:4px 0;font-size:14px;color:#1C1210;text-align:right;">{{order_number}}</td></tr>
+          <tr><td style="padding:4px 0;font-size:14px;color:#6B5B4E;">Customer</td><td style="padding:4px 0;font-size:14px;color:#1C1210;text-align:right;">{{customer_name}}</td></tr>
+          <tr><td style="padding:4px 0;font-size:14px;color:#6B5B4E;">Email</td><td style="padding:4px 0;font-size:14px;color:#1C1210;text-align:right;">{{customer_email}}</td></tr>
+          <tr><td style="padding:4px 0;font-size:14px;color:#6B5B4E;">Phone</td><td style="padding:4px 0;font-size:14px;color:#1C1210;text-align:right;">{{customer_phone}}</td></tr>
+        </table>
+      </td></tr>
+    </table>
+
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:24px 0 0;border:1px solid #E8DFD5;border-radius:8px;overflow:hidden;">
+      <tr><td style="padding:12px 20px;font-size:14px;color:#6B5B4E;">Deposit</td><td style="padding:12px 20px;font-size:14px;color:#1C1210;text-align:right;">{{deposit_amount_nok}}</td></tr>
+      <tr><td style="padding:12px 20px;font-size:14px;color:#6B5B4E;">Remainder</td><td style="padding:12px 20px;font-size:14px;color:#1C1210;text-align:right;">{{remainder_amount_nok}}</td></tr>
+      <tr><td style="padding:12px 20px;font-size:14px;font-weight:700;color:#1C1210;background-color:#FFF9E6;">Total</td><td style="padding:12px 20px;font-size:14px;font-weight:700;color:#1C1210;text-align:right;background-color:#FFF9E6;">{{total_amount_nok}}</td></tr>
+    </table>
+
+    <table role="presentation" cellpadding="0" cellspacing="0" style="margin:32px 0 0;">
+      <tr><td style="background-color:#2C1810;border-radius:10px;text-align:center;">
+        <!--[if mso]><v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" href="{{cta_url}}" style="height:44px;width:200px;v-text-anchor:middle;" arcsize="23%" fillcolor="#2C1810" stroke="f"><v:textbox inset="0px,0px,0px,0px"><center style="font-size:14px;color:#ffffff;font-family:Arial,Helvetica,sans-serif;">View in admin</center></v:textbox></v:roundrect><![endif]-->
+        <a href="{{cta_url}}" style="display:inline-block;background-color:#2C1810;color:#ffffff;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:32px;padding:6px 24px;border-radius:10px;text-decoration:none;mso-hide:all;">View in admin</a>
+      </td></tr>
+    </table>
+
+  </td></tr>
+</table>$$
 WHERE template_key = 'admin.order.deposit.confirmed.chicken';
 
 -- ─── wishlist.received ───
@@ -1681,7 +1998,24 @@ UPDATE email_templates SET
 
   </td></tr>
 </table>$$,
-  body_en = NULL
+  body_en = $$<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;margin:0 auto;font-family:Arial,Helvetica,sans-serif;color:#1C1210;background-color:#FAF8F5;">
+  <tr><td style="padding:32px 24px;">
+
+    <span style="display:inline-block;padding:6px 16px;border-radius:9999px;background-color:#ECFDF5;color:#2D6A4F;font-size:13px;font-weight:600;">Wish received</span>
+
+    <p style="margin:24px 0 0;font-size:16px;line-height:1.5;">Hi {{customer_first_name}},</p>
+
+    <p style="margin:16px 0 0;font-size:16px;line-height:1.5;">We have received your wish. You will be notified when a spot becomes available.</p>
+
+    <table role="presentation" cellpadding="0" cellspacing="0" style="margin:32px 0 0;">
+      <tr><td style="background-color:#2C1810;border-radius:10px;text-align:center;">
+        <!--[if mso]><v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" href="{{cta_url}}" style="height:44px;width:200px;v-text-anchor:middle;" arcsize="23%" fillcolor="#2C1810" stroke="f"><v:textbox inset="0px,0px,0px,0px"><center style="font-size:14px;color:#ffffff;font-family:Arial,Helvetica,sans-serif;">{{cta_label}}</center></v:textbox></v:roundrect><![endif]-->
+        <a href="{{cta_url}}" style="display:inline-block;background-color:#2C1810;color:#ffffff;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:32px;padding:6px 24px;border-radius:10px;text-decoration:none;mso-hide:all;">{{cta_label}}</a>
+      </td></tr>
+    </table>
+
+  </td></tr>
+</table>$$
 WHERE template_key = 'wishlist.received';
 
 -- ─── wishlist.allocated ───
@@ -1704,7 +2038,24 @@ UPDATE email_templates SET
 
   </td></tr>
 </table>$$,
-  body_en = NULL
+  body_en = $$<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;margin:0 auto;font-family:Arial,Helvetica,sans-serif;color:#1C1210;background-color:#FAF8F5;">
+  <tr><td style="padding:32px 24px;">
+
+    <span style="display:inline-block;padding:6px 16px;border-radius:9999px;background-color:#ECFDF5;color:#2D6A4F;font-size:13px;font-weight:600;">Spot secured!</span>
+
+    <p style="margin:24px 0 0;font-size:16px;line-height:1.5;">Hi {{customer_first_name}},</p>
+
+    <p style="margin:16px 0 0;font-size:16px;line-height:1.5;">Great news! You have been allocated a spot.</p>
+
+    <table role="presentation" cellpadding="0" cellspacing="0" style="margin:32px 0 0;">
+      <tr><td style="background-color:#2C1810;border-radius:10px;text-align:center;">
+        <!--[if mso]><v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" href="{{cta_url}}" style="height:44px;width:200px;v-text-anchor:middle;" arcsize="23%" fillcolor="#2C1810" stroke="f"><v:textbox inset="0px,0px,0px,0px"><center style="font-size:14px;color:#ffffff;font-family:Arial,Helvetica,sans-serif;">{{cta_label}}</center></v:textbox></v:roundrect><![endif]-->
+        <a href="{{cta_url}}" style="display:inline-block;background-color:#2C1810;color:#ffffff;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:32px;padding:6px 24px;border-radius:10px;text-decoration:none;mso-hide:all;">{{cta_label}}</a>
+      </td></tr>
+    </table>
+
+  </td></tr>
+</table>$$
 WHERE template_key = 'wishlist.allocated';
 
 -- ─── wishlist.not_allocated ───
@@ -1725,7 +2076,22 @@ UPDATE email_templates SET
 
   </td></tr>
 </table>$$,
-  body_en = NULL
+  body_en = $$<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;margin:0 auto;font-family:Arial,Helvetica,sans-serif;color:#1C1210;background-color:#FAF8F5;">
+  <tr><td style="padding:32px 24px;">
+
+    <p style="margin:0;font-size:16px;line-height:1.5;">Hi {{customer_first_name}},</p>
+
+    <p style="margin:16px 0 0;font-size:16px;line-height:1.5;">Unfortunately there was no available spot this time. We still have you on the list.</p>
+
+    <table role="presentation" cellpadding="0" cellspacing="0" style="margin:32px 0 0;">
+      <tr><td style="background-color:#2C1810;border-radius:10px;text-align:center;">
+        <!--[if mso]><v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" href="{{cta_url}}" style="height:44px;width:200px;v-text-anchor:middle;" arcsize="23%" fillcolor="#2C1810" stroke="f"><v:textbox inset="0px,0px,0px,0px"><center style="font-size:14px;color:#ffffff;font-family:Arial,Helvetica,sans-serif;">{{cta_label}}</center></v:textbox></v:roundrect><![endif]-->
+        <a href="{{cta_url}}" style="display:inline-block;background-color:#2C1810;color:#ffffff;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:32px;padding:6px 24px;border-radius:10px;text-decoration:none;mso-hide:all;">{{cta_label}}</a>
+      </td></tr>
+    </table>
+
+  </td></tr>
+</table>$$
 WHERE template_key = 'wishlist.not_allocated';
 
 COMMIT;

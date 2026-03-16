@@ -1130,6 +1130,8 @@ async function materializeEggFlowInstances(flowMap: Map<string, FlowDefinition>,
             order_number: String(order.order_number || ''),
             message_url: buildCustomerPathLink(config.appBaseUrl, '/min-side'),
             pork_url: config.appBaseUrl,
+            deposit_discount_code: '',
+            tip_index: 2,
             order_url: orderUrl,
           },
           metadata: {
