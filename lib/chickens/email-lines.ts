@@ -203,7 +203,7 @@ export function buildChickenOrderLinesHtml(
   const headerQuantity = locale === 'en' ? 'Quantity' : 'Antall';
   const headerAge = locale === 'en' ? 'Age' : 'Alder';
   const headerUnitPrice = locale === 'en' ? 'Unit price' : 'Enhetspris';
-  const headerSubtotal = locale === 'en' ? 'Subtotal' : 'Delsum';
+  const headerSubtotal = '';
   const totalLabel = locale === 'en' ? 'Total' : 'Total';
 
   const rows = lines
@@ -239,7 +239,7 @@ export function buildChickenOrderLinesHtml(
   const deliveryFeeNok = Math.max(0, Math.round(Number(options?.deliveryFeeNok || 0)));
   const total = subtotal + deliveryFeeNok;
 
-  const deliveryFeeLabel = locale === 'en' ? 'Delivery' : 'Frakt';
+  const deliveryFeeLabel = locale === 'en' ? 'Shipping & packing' : 'Frakt og pakking';
   const deliveryFeeRow = deliveryFeeNok > 0
     ? `<tr>
   <td colspan="4" style="padding:8px;border:1px solid #e5e7eb;vertical-align:top;">${deliveryFeeLabel}${options?.deliveryLabel ? ` (${escapeHtml(options.deliveryLabel)})` : ''}</td>

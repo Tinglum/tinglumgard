@@ -228,7 +228,7 @@ function buildEggOrderLinesHtml(options: {
           breed: 'Breed',
           quantity: 'Qty',
           unitPrice: 'Price / egg',
-          subtotal: 'Subtotal',
+          subtotal: '',
           total: 'Total',
           base: 'Base order',
           addition: 'Added line',
@@ -238,7 +238,7 @@ function buildEggOrderLinesHtml(options: {
           breed: 'Rase',
           quantity: 'Antall',
           unitPrice: 'Pris / egg',
-          subtotal: 'Delsum',
+          subtotal: '',
           total: 'Total',
           base: 'Grunnordre',
           addition: 'Tillegg',
@@ -265,7 +265,7 @@ function buildEggOrderLinesHtml(options: {
   const deliveryFeeOre = Math.max(0, Math.round(Number(options.deliveryFeeOre || 0)));
   const totalOre = eggSubtotalOre + deliveryFeeOre;
 
-  const deliveryFeeLabel = locale === 'en' ? 'Delivery' : 'Frakt';
+  const deliveryFeeLabel = locale === 'en' ? 'Shipping & packing' : 'Frakt og pakking';
   const deliveryFeeRow = deliveryFeeOre > 0
     ? `<tr>
   <td colspan="3" style="padding:8px;border:1px solid #e5e7eb;vertical-align:top;">${deliveryFeeLabel}${options.deliveryLabel ? ` (${escapeHtml(options.deliveryLabel)})` : ''}</td>
