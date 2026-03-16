@@ -785,12 +785,18 @@ export async function POST(request: NextRequest) {
 
     // If deposit completed, update order status and send confirmation email
     if (resolvedPayment.payment_type === "deposit") {
-      console.log('Updating order status to deposit_paid');
       const orderTable = isChickenPayment ? "chicken_orders" : isEggPayment ? "egg_orders" : "orders";
       const orderIdField = isChickenPayment ? resolvedPayment.chicken_order_id : isEggPayment ? resolvedPayment.egg_order_id : resolvedPayment.order_id;
+
+      // If deposit covers the full amount, set status to fully_paid
+      const depositAmount = Number(order?.deposit_amount || 0);
+      const totalAmount = Number(order?.total_amount || 0);
+      const newStatus = (depositAmount > 0 && totalAmount > 0 && depositAmount >= totalAmount) ? 'fully_paid' : 'deposit_paid';
+      console.log(`Updating order status to ${newStatus} (deposit: ${depositAmount}, total: ${totalAmount})`);
+
       const { error: orderErr } = await supabaseAdmin
         .from(orderTable)
-        .update({ status: "deposit_paid" })
+        .update({ status: newStatus })
         .eq("id", orderIdField);
 
       if (orderErr) {
