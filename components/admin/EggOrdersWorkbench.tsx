@@ -1237,7 +1237,7 @@ export function EggOrdersWorkbench({
                           {replaceTokens(copy.table.depositValue, { amount: formatOre(order.deposit_amount) })}
                         </p>
                         <p className="text-neutral-500">
-                          {replaceTokens(copy.table.remainderValue, { amount: formatOre(order.remainder_amount) })}
+                          {replaceTokens(copy.table.remainderValue, { amount: formatOre(Math.max(0, (order.remainder_amount || 0) - (order.egg_payments || []).filter(p => p.payment_type === 'remainder' && p.status === 'completed').reduce((sum, p) => sum + Math.round((p.amount_nok || 0) * 100), 0))) })}
                         </p>
                       </td>
                       <td className="px-4 py-3 text-right">
