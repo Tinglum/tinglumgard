@@ -685,9 +685,8 @@ async function markEggOrderShipped(
   if (!effective) {
     return NextResponse.json({ error: 'Tracking number required' }, { status: 400 })
   }
-  // Accept: 18-digit number, Posten tracking URL, ND-prefixed code, or 10+ digit number
+  // Accept: Posten tracking URL, ND-prefixed code, or numeric tracking number (10+ digits)
   const isValidTracking =
-    /^\d{18}$/.test(effective) ||
     /^https?:\/\/(sporing|tracking)\.posten\.no\b/i.test(effective) ||
     /^(ND|NO)\d+$/i.test(effective) ||
     /^\d{10,}$/.test(effective)

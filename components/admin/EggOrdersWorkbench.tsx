@@ -500,9 +500,8 @@ export function EggOrdersWorkbench({
   async function submitTrackingNumber() {
     if (!trackingModalOrderId) return
     const trimmed = trackingNumberInput.trim()
-    // Accept: 18-digit number, or Posten tracking URL, or ND-prefixed code
+    // Accept: Posten tracking URL, ND-prefixed code, or numeric tracking number (10+ digits)
     const isValid =
-      /^\d{18}$/.test(trimmed) ||
       /^https?:\/\/(sporing|tracking)\.posten\.no\b/i.test(trimmed) ||
       /^(ND|NO)\d+$/i.test(trimmed) ||
       /^\d{10,}$/.test(trimmed)
