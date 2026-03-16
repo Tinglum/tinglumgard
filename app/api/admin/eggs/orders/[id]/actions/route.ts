@@ -685,8 +685,14 @@ async function markEggOrderShipped(
   if (!effective) {
     return NextResponse.json({ error: 'Tracking number required' }, { status: 400 })
   }
-  if (!/^\d{18}$/.test(effective)) {
-    return NextResponse.json({ error: 'Must be 18 digits' }, { status: 400 })
+  // Accept: 18-digit number, Posten tracking URL, ND-prefixed code, or 10+ digit number
+  const isValidTracking =
+    /^\d{18}$/.test(effective) ||
+    /^https?:\/\/(sporing|tracking)\.posten\.no\b/i.test(effective) ||
+    /^(ND|NO)\d+$/i.test(effective) ||
+    /^\d{10,}$/.test(effective)
+  if (!isValidTracking) {
+    return NextResponse.json({ error: 'Invalid tracking number or link' }, { status: 400 })
   }
 
   const markedShippedAt = new Date().toISOString()
