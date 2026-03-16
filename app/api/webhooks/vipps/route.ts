@@ -1047,12 +1047,28 @@ export async function POST(request: NextRequest) {
         }
       }
     }
-    // If remainder completed, update order status and send confirmation email
+    // If remainder completed, check if order is now fully paid or still has outstanding balance
     if (resolvedPayment.payment_type === "remainder") {
-      console.log('Updating order status to paid');
       const remainderOrderTable = isChickenPayment ? "chicken_orders" : isEggPayment ? "egg_orders" : "orders";
       const remainderOrderId = isChickenPayment ? resolvedPayment.chicken_order_id : isEggPayment ? resolvedPayment.egg_order_id : resolvedPayment.order_id;
-      const remainderStatus = isChickenPayment ? "fully_paid" : isEggPayment ? "fully_paid" : "paid";
+      const paymentTable = isChickenPayment ? "chicken_payments" : isEggPayment ? "egg_payments" : "payments";
+      const orderFk = isChickenPayment ? "chicken_order_id" : isEggPayment ? "egg_order_id" : "order_id";
+
+      // Sum all completed payments to determine if order is actually fully paid
+      const { data: allPayments } = await supabaseAdmin
+        .from(paymentTable)
+        .select('amount_nok, payment_type, status')
+        .eq(orderFk, remainderOrderId)
+        .eq('status', 'completed');
+
+      const totalPaidOre = (allPayments || []).reduce((sum, p) => sum + Math.round((p.amount_nok || 0) * 100), 0);
+      const totalAmountOre = Number(order?.total_amount || 0);
+      const isActuallyFullyPaid = totalPaidOre >= totalAmountOre;
+
+      const paidStatus = isChickenPayment ? "fully_paid" : isEggPayment ? "fully_paid" : "paid";
+      const remainderStatus = isActuallyFullyPaid ? paidStatus : 'deposit_paid';
+      console.log(`Remainder payment: totalPaid=${totalPaidOre} øre, totalAmount=${totalAmountOre} øre, status=${remainderStatus}`);
+
       const { error: orderErr } = await supabaseAdmin
         .from(remainderOrderTable)
         .update({ status: remainderStatus })
