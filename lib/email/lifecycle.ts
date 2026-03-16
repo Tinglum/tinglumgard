@@ -874,7 +874,7 @@ async function materializePigFlowInstances(flowMap: Map<string, FlowDefinition>,
 
   const { data: orders } = await supabaseAdmin
     .from('orders')
-    .select('id, order_number, customer_name, customer_email, status, remainder_amount, created_at')
+    .select('id, order_number, customer_name, customer_email, status, remainder_amount, deposit_amount, total_amount, box_size, mangalitsa_preset_id, created_at')
     .in('status', ['deposit_paid', 'paid', 'ready_for_pickup', 'completed']);
 
   let inserted = 0;
@@ -928,7 +928,14 @@ async function materializePigFlowInstances(flowMap: Map<string, FlowDefinition>,
     const futureCandidates = reminderDates.filter((entry) => entry.when.getTime() > nowMs);
     const selected = isLateOrder ? (futureCandidates.length > 0 ? [futureCandidates[0]] : []) : futureCandidates;
 
-    for (const reminder of selected) {
+    const totalReminders = config.pigRemainderReminderDays.length;
+    const depositNok = Number(order.deposit_amount || 0);
+    const totalNok = Number(order.total_amount || 0) || (depositNok + remainderNok);
+    const boxLabel = String(order.box_size || 'Mangalitsa-boks');
+
+    for (let ri = 0; ri < selected.length; ri++) {
+      const reminder = selected[ri];
+      const reminderNumber = isLateOrder ? totalReminders : (config.pigRemainderReminderDays.indexOf(reminder.days) + 1);
       const reminderInserted = await insertFlowInstance({
         flowId: reminderFlow.id,
         flowKey: reminderFlow.flow_key,
@@ -943,8 +950,14 @@ async function materializePigFlowInstances(flowMap: Map<string, FlowDefinition>,
           customer_name: String(order.customer_name || 'Kunde'),
           order_number: String(order.order_number || ''),
           remainder_amount_nok: toNoCurrency(remainderNok),
+          deposit_amount_nok: toNoCurrency(depositNok),
+          total_amount_nok: toNoCurrency(totalNok),
           due_date: formatDateForLocale(dueDate, locale, config.timezone),
           days_left: reminder.days,
+          reminder_number: reminderNumber,
+          total_reminders: totalReminders,
+          box_label: boxLabel,
+          tip_index: ri,
           order_url: orderUrl,
         },
         metadata: {
@@ -970,7 +983,7 @@ async function materializeEggFlowInstances(flowMap: Map<string, FlowDefinition>,
   const { data: orders } = await supabaseAdmin
     .from('egg_orders')
     .select(
-      'id, order_number, customer_name, customer_email, status, week_number, delivery_monday, remainder_due_date, remainder_amount, marked_shipped_at, updated_at'
+      'id, order_number, customer_name, customer_email, status, week_number, delivery_monday, remainder_due_date, remainder_amount, deposit_amount, total_amount, breed_name, quantity, marked_shipped_at, updated_at'
     )
     .in('status', ['deposit_paid', 'fully_paid', 'preparing', 'shipped', 'delivered']);
 
@@ -987,7 +1000,14 @@ async function materializeEggFlowInstances(flowMap: Map<string, FlowDefinition>,
     if (String(order.status) === 'deposit_paid') {
       const outstanding = await eggOutstandingOre(orderId, Number(order.remainder_amount || 0));
       if (outstanding > 0) {
-        for (const days of config.eggRemainderReminderDays) {
+        const eggTotalReminders = config.eggRemainderReminderDays.length;
+        const eggDepositOre = Number(order.deposit_amount || 0);
+        const eggTotalOre = Number(order.total_amount || 0);
+        const eggBreedName = String(order.breed_name || 'Rugeegg');
+        const eggQuantity = Number(order.quantity || 0);
+
+        for (let ei = 0; ei < config.eggRemainderReminderDays.length; ei++) {
+          const days = config.eggRemainderReminderDays[ei];
           const scheduleYmd = addDays(deliveryYmd, -days);
           const reminderInserted = await insertFlowInstance({
             flowId: reminderFlow.id,
@@ -1003,12 +1023,19 @@ async function materializeEggFlowInstances(flowMap: Map<string, FlowDefinition>,
               customer_name: String(order.customer_name || 'Kunde'),
               order_number: String(order.order_number || ''),
               remainder_amount_nok: toNoCurrency(Math.round(outstanding / 100)),
+              deposit_amount_nok: toNoCurrency(Math.round(eggDepositOre / 100)),
+              total_amount_nok: toNoCurrency(Math.round(eggTotalOre / 100)),
+              breed_name: eggBreedName,
+              total_quantity: eggQuantity,
               due_date: formatDateForLocale(
                 parseIsoDate(String(order.remainder_due_date || '')) || deliveryYmd,
                 locale,
                 config.timezone
               ),
               days_left: days,
+              reminder_number: ei + 1,
+              total_reminders: eggTotalReminders,
+              tip_index: ei,
               order_url: orderUrl,
             },
             metadata: {

@@ -113,6 +113,7 @@ export async function sendChickenDepositConfirmationEmails(params: {
         deposit_amount_nok: formatNok(order.deposit_amount_nok),
         remainder_amount_nok: formatNok(order.remainder_amount_nok),
         order_url: buildCustomerOrderLink(appUrl, 'chicken', String(order.id)),
+        tip_index: 0,
       },
     });
 

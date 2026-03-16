@@ -826,6 +826,7 @@ export async function POST(request: NextRequest) {
                 deposit_amount_nok: formatOreToNokWithPrefix(order.deposit_amount),
                 remainder_amount_nok: formatOreToNokWithPrefix(order.remainder_amount),
                 order_url: buildOrderUrl(appUrl, 'egg_order', order.id),
+                tip_index: 0,
               },
             });
 
@@ -866,6 +867,7 @@ export async function POST(request: NextRequest) {
                 deposit_amount_nok: formatNok(order.deposit_amount_nok),
                 remainder_amount_nok: formatNok(order.remainder_amount_nok),
                 order_url: buildOrderUrl(appUrl, 'chicken_order', order.id),
+                tip_index: 0,
               },
             });
 
@@ -904,6 +906,7 @@ export async function POST(request: NextRequest) {
                 deposit_amount_nok: formatNok(resolvedPayment.amount_nok),
                 remainder_amount_nok: formatNok(order.remainder_amount),
                 order_url: buildOrderUrl(appUrl, 'order', order.id),
+                tip_index: 0,
               },
             });
 
