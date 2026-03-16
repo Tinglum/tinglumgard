@@ -154,13 +154,13 @@ const LIFECYCLE_TEMPLATE_SEEDS: LifecycleTemplateSeed[] = [
     templateKey: 'egg.delivery.day_before',
     classification: 'transactional',
     productScope: 'eggs',
-    subjectNo: 'Levering i morgen - {{order_number}}',
-    subjectEn: 'Delivery tomorrow - {{order_number}}',
+    subjectNo: 'Rugeeggene dine er på vei! - {{order_number}}',
+    subjectEn: 'Your hatching eggs are on the way! - {{order_number}}',
     bodyNo:
-      '<p>Hei {{customer_first_name}},</p><p>Rugeeggordren <strong>{{order_number}}</strong> sendes i morgen.</p><p>Om du ønsker å legge til flere egg før utsendelse, kan du gjøre det i dag.</p><p><a href="{{upsell_url}}">Legg til ekstra i dag</a></p>',
+      '<p>Hei {{customer_first_name}},</p><p>Rugeegg-bestilling <strong>{{order_number}}</strong> er nå sendt!</p><p>Sporingsnummer: <strong>{{tracking_number}}</strong><br/><a href="{{tracking_url}}">Spor pakken hos Posten</a></p><p>Sørg for å ha rugemaskinen klar når pakken ankommer.</p><p><a href="{{order_url}}">Se bestillingen på Min side</a></p>',
     bodyEn:
-      '<p>Hi {{customer_first_name}},</p><p>Your hatching egg order <strong>{{order_number}}</strong> ships tomorrow.</p><p><a href="{{upsell_url}}">Add extras today</a></p>',
-    variables: ['customer_name', 'customer_first_name', 'order_number', 'upsell_url'],
+      '<p>Hi {{customer_first_name}},</p><p>Hatching egg order <strong>{{order_number}}</strong> is now shipped!</p><p>Tracking number: <strong>{{tracking_number}}</strong><br/><a href="{{tracking_url}}">Track with Posten</a></p><p>Make sure to have your incubator ready when the package arrives.</p><p><a href="{{order_url}}">View your order on My Page</a></p>',
+    variables: ['customer_name', 'customer_first_name', 'order_number', 'tracking_number', 'tracking_url', 'order_url'],
   },
   {
     templateKey: 'egg.order.shipped.customer',
@@ -1077,32 +1077,37 @@ async function materializeEggFlowInstances(flowMap: Map<string, FlowDefinition>,
       }
     }
 
-    if (String(order.status) === 'fully_paid' || String(order.status) === 'preparing') {
-      const dayBeforeYmd = addDays(deliveryYmd, -1);
+    // Only send "on its way" email when order is actually shipped
+    if (String(order.status) === 'shipped') {
+      const trackingNumber = String((order as any).tracking_number || '');
+      const trackingUrl = trackingNumber.startsWith('http')
+        ? trackingNumber
+        : trackingNumber
+          ? `https://sporing.posten.no/sporing/${trackingNumber}`
+          : '';
       const dayBeforeInserted = await insertFlowInstance({
         flowId: dayBeforeFlow.id,
         flowKey: dayBeforeFlow.flow_key,
         productScope: dayBeforeFlow.product_scope,
         entityType: 'egg_order',
         entityId: orderId,
-        triggerDateKey: `day-before:${ymdToKey(deliveryYmd)}`,
-        scheduledFor: zonedDateTimeToUtc(dayBeforeYmd, 8, 0, config.timezone).toISOString(),
+        triggerDateKey: `shipped-notify:${orderId}`,
+        scheduledFor: new Date().toISOString(),
         toEmail: toEmail || null,
         locale,
         payload: {
           customer_name: String(order.customer_name || 'Kunde'),
           order_number: String(order.order_number || ''),
           delivery_date: formatDateForLocale(deliveryYmd, locale, config.timezone),
-          upsell_url: buildCustomerPathLink(
-            config.appBaseUrl,
-            `/rugeegg/mine-bestillinger/${orderId}/betaling`
-          ),
+          tracking_number: trackingNumber,
+          tracking_url: trackingUrl,
           order_url: orderUrl,
+          tip_index: 1,
         },
         metadata: {
           product_scope: 'eggs',
           flow_key: dayBeforeFlow.flow_key,
-          trigger_offset_days: 1,
+          trigger_offset_days: 0,
         },
       });
       if (dayBeforeInserted) inserted += 1;
@@ -1448,12 +1453,9 @@ async function processDueInstances(
         .eq('id', instance.entity_id)
         .maybeSingle();
       const eggStatus = String(eggOrder?.status || '');
-      const eligible =
-        eggStatus === 'fully_paid' ||
-        eggStatus === 'preparing' ||
-        eggStatus === 'shipped' ||
-        eggStatus === 'delivered';
-      if (!eggOrder || eggStatus === 'cancelled' || eggStatus === 'forfeited' || !eligible) {
+      // Only send when order is actually shipped or delivered
+      const eligible = eggStatus === 'shipped' || eggStatus === 'delivered';
+      if (!eggOrder || !eligible) {
         await updateFlowInstanceStatus(instance.id, {
           status: 'cancelled',
           lastError: 'egg_day_before_not_eligible',

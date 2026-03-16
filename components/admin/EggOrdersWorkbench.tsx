@@ -500,7 +500,13 @@ export function EggOrdersWorkbench({
   async function submitTrackingNumber() {
     if (!trackingModalOrderId) return
     const trimmed = trackingNumberInput.trim()
-    if (!/^\d{18}$/.test(trimmed)) {
+    // Accept: 18-digit number, or Posten tracking URL, or ND-prefixed code
+    const isValid =
+      /^\d{18}$/.test(trimmed) ||
+      /^https?:\/\/(sporing|tracking)\.posten\.no\b/i.test(trimmed) ||
+      /^(ND|NO)\d+$/i.test(trimmed) ||
+      /^\d{10,}$/.test(trimmed)
+    if (!isValid) {
       toast({ title: copy.toast.errorTitle, description: copy.markSent.invalidFormat, variant: 'destructive' })
       return
     }
@@ -1808,9 +1814,8 @@ export function EggOrdersWorkbench({
             <Label>{copy.markSent.trackingLabel}</Label>
             <Input
               value={trackingNumberInput}
-              onChange={(e) => setTrackingNumberInput(e.target.value.replace(/\D/g, '').slice(0, 18))}
+              onChange={(e) => setTrackingNumberInput(e.target.value)}
               placeholder={copy.markSent.trackingPlaceholder}
-              maxLength={18}
             />
             <p className="text-xs text-neutral-500">{copy.markSent.formatHint}</p>
           </div>
@@ -1820,7 +1825,7 @@ export function EggOrdersWorkbench({
             </Button>
             <Button
               onClick={submitTrackingNumber}
-              disabled={markShippedLoading || trackingNumberInput.length !== 18}
+              disabled={markShippedLoading || trackingNumberInput.trim().length < 5}
             >
               {markShippedLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               {copy.markSent.confirmButton}
