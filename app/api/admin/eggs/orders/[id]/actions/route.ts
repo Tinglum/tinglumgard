@@ -1,5 +1,6 @@
 ﻿import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth/session'
+import { finalizeConfirmedEggOrder } from '@/lib/eggs/order-confirmation'
 import { supabaseAdmin } from '@/lib/supabase/server'
 import { initiateVippsRefund } from '@/lib/vipps/refund'
 import { dispatchEmail } from '@/lib/email/dispatch'
@@ -301,6 +302,18 @@ async function markPaymentCompleted(
       if (insertError) {
         return NextResponse.json({ error: 'Failed to create remainder payment' }, { status: 500 })
       }
+    }
+  }
+
+  if (paymentType === 'deposit') {
+    try {
+      await finalizeConfirmedEggOrder(orderId)
+    } catch (error) {
+      logError('admin-egg-mark-payment-completed-reservation', error, {
+        orderId,
+        paymentType,
+      })
+      return NextResponse.json({ error: 'Failed to reserve eggs for this order' }, { status: 500 })
     }
   }
 

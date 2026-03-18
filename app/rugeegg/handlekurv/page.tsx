@@ -125,7 +125,7 @@ export default function CartPage() {
   const minimumMessage = getMinimumMessage()
 
   return (
-    <div className="min-h-screen py-12">
+    <div className="min-h-screen overflow-x-hidden py-12">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-5xl">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -172,7 +172,7 @@ export default function CartPage() {
                     transition={{ duration: 0.5, delay: index * 0.1 }}
                   >
                     <GlassCard accentBorder={item.breed.accentColor} className="p-6">
-                      <div className="flex items-start gap-4">
+                      <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
                         <div
                           className="w-14 h-14 rounded-full flex items-center justify-center text-xl font-normal text-white flex-shrink-0"
                           style={{ backgroundColor: item.breed.accentColor }}
@@ -191,7 +191,7 @@ export default function CartPage() {
                             </span>
                           </div>
 
-                          <div className="flex items-center justify-between">
+                          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                             <div className="flex items-center gap-3">
                               <button
                                 onClick={() => updateQuantity(item.breed.id, item.week.id, item.quantity - 1)}
@@ -212,7 +212,7 @@ export default function CartPage() {
                               </button>
                             </div>
 
-                            <div className="text-right">
+                            <div className="sm:text-right">
                               <div className="text-xl font-normal text-neutral-900">
                                 {formatPrice(item.quantity * item.breed.pricePerEgg, language)}
                               </div>
@@ -223,7 +223,7 @@ export default function CartPage() {
 
                             <button
                               onClick={() => removeFromCart(item.breed.id, item.week.id)}
-                              className="ml-4 p-2 rounded text-neutral-400 hover:text-error-700 hover:bg-error-50 transition-colors focus-ring"
+                              className="self-start rounded p-2 text-neutral-400 transition-colors hover:bg-error-50 hover:text-error-700 focus-ring sm:ml-4 sm:self-auto"
                             >
                               <Trash2 className="w-5 h-5" />
                             </button>
@@ -356,9 +356,9 @@ export default function CartPage() {
                 return (
                   <div
                     key={option.week.id}
-                    className="flex items-center justify-between gap-3 rounded-xl border border-neutral-200 bg-white/70 px-4 py-3"
+                    className="flex flex-col gap-3 rounded-xl border border-neutral-200 bg-white/70 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
                   >
-                    <div>
+                    <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium text-neutral-900">{option.breed.name}</p>
                       <p className="text-xs text-neutral-500">
                         {t.eggs.cart.leftThisWeek}: {maxAvailable}
@@ -386,7 +386,7 @@ export default function CartPage() {
                     <button
                       type="button"
                       onClick={() => applyModalSelection(option)}
-                      className="btn-primary whitespace-nowrap"
+                      className="btn-primary w-full justify-center whitespace-nowrap sm:w-auto"
                     >
                       {t.eggs.common.addEggs}
                     </button>

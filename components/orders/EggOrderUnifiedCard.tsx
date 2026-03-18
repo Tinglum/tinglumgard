@@ -338,20 +338,20 @@ export function EggOrderUnifiedCard({ order }: { order: EggOrder }) {
           </div>
           <div className="flex flex-wrap gap-2">
             {remainderDue > 0 && order.status === 'deposit_paid' && (
-              <Link href={`/rugeegg/mine-bestillinger/${order.id}/betaling`} className="btn-primary inline-flex">
+              <Link href={`/rugeegg/mine-bestillinger/${order.id}/betaling`} className="btn-primary inline-flex w-full justify-center sm:w-auto">
                 {ordersCopy.payRemainder}
                 <ArrowRight className="w-4 h-4" />
               </Link>
             )}
             {canAdd && (
-              <Link href={`/rugeegg/mine-bestillinger/${order.id}/betaling`} className="btn-secondary inline-flex">
+              <Link href={`/rugeegg/mine-bestillinger/${order.id}/betaling`} className="btn-secondary inline-flex w-full justify-center sm:w-auto">
                 {ordersCopy.addEggs}
               </Link>
             )}
             {canWishlistMore && (
               <Link
                 href={`/rugeegg/raser?orderId=${encodeURIComponent(order.id)}&wishlist=1`}
-                className="btn-secondary inline-flex"
+                className="btn-secondary inline-flex w-full justify-center sm:w-auto"
               >
                 {ordersCopy.wishlistMore || (lang === 'no' ? 'Ønsk flere egg' : 'Wish for more eggs')}
               </Link>

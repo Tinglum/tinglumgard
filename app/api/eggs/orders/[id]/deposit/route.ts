@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth/session'
 import { verifyOrderAccessToken } from '@/lib/auth/order-access'
+import { validateEggOrderInventoryAvailability } from '@/lib/eggs/order-confirmation'
 import { supabaseAdmin } from '@/lib/supabase/server'
 import { vippsClient } from '@/lib/vipps/api-client'
 
@@ -47,6 +48,17 @@ export async function POST(
     const existingDeposit = order.egg_payments?.find((p: any) => p.payment_type === 'deposit')
     if (existingDeposit && existingDeposit.status === 'completed') {
       return NextResponse.json({ error: 'Deposit already paid' }, { status: 400 })
+    }
+
+    if (!order.inventory_reserved_at) {
+      try {
+        await validateEggOrderInventoryAvailability(order.id)
+      } catch (error: any) {
+        return NextResponse.json(
+          { error: error?.message || 'Selected eggs are no longer available' },
+          { status: 409 }
+        )
+      }
     }
 
     if (existingDeposit && existingDeposit.status === 'pending') {

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase/server'
 import { logError } from '@/lib/logger'
-import { markWaitlistPurchase } from '@/lib/eggs/waitlist'
 import { createOrderAccessToken } from '@/lib/auth/order-access'
 
 interface EggCheckoutRequest {
@@ -109,7 +108,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Inventory mismatch' }, { status: 400 })
       }
 
-      const eggsRemaining = inventory.eggs_remaining ?? (inventory.eggs_available - inventory.eggs_allocated)
+      const eggsRemaining = Math.max(0, inventory.eggs_available - inventory.eggs_allocated)
       if (eggsRemaining < item.quantity) {
         return NextResponse.json({ error: 'Not enough eggs available' }, { status: 400 })
       }
@@ -182,21 +181,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to create order' }, { status: 500 })
     }
 
-    for (const item of items) {
-      const inventory = inventoryMap.get(item.inventoryId)
-      if (!inventory) continue
-
-      const nextAllocated = (inventory.eggs_allocated || 0) + item.quantity
-      const { error: updateError } = await supabaseAdmin
-        .from('egg_inventory')
-        .update({ eggs_allocated: nextAllocated })
-        .eq('id', inventory.id)
-
-      if (updateError) {
-        logError('egg-checkout-inventory-update', updateError)
-      }
-    }
-
     const additions = items.slice(1).map((item) => {
       const inventory = inventoryMap.get(item.inventoryId)
       const pricePerEgg = inventory?.egg_breeds?.price_per_egg || 0
@@ -218,36 +202,6 @@ export async function POST(request: NextRequest) {
       if (additionsError) {
         logError('egg-checkout-additions-insert', additionsError)
       }
-    }
-
-    const customerEmail = (body.customerEmail || '').trim().toLowerCase()
-    if (customerEmail && customerEmail !== 'pending@vipps.no') {
-      const uniqueInventoryIds = Array.from(new Set(items.map((item) => item.inventoryId)))
-      for (const inventoryId of uniqueInventoryIds) {
-        await markWaitlistPurchase({
-          inventoryId,
-          email: customerEmail,
-          orderId: order.id,
-        })
-      }
-    }
-
-    // Grant pork deposit discount benefit to egg customers
-    const benefitEmail = (body.customerEmail || '').trim().toLowerCase()
-    if (benefitEmail && benefitEmail !== 'pending@vipps.no') {
-      await supabaseAdmin
-        .from('customer_benefits')
-        .upsert({
-          user_email: benefitEmail,
-          user_phone: body.customerPhone || null,
-          benefit_type: 'egg_customer_pork_discount',
-          discount_percent: 10,
-          granted_by_order_id: order.id,
-          granted_by_order_type: 'egg',
-        }, { onConflict: 'user_email,benefit_type,granted_by_order_id' })
-        .then(({ error }) => {
-          if (error) logError('egg-checkout-benefit-grant', error)
-        })
     }
 
     const orderAccessToken = await createOrderAccessToken({

@@ -5,6 +5,7 @@ import { supabaseAdmin } from "@/lib/supabase/server";
 import { dispatchEmail } from "@/lib/email/dispatch";
 import { renderManagedTemplate } from "@/lib/email/render";
 import { buildAdminOrderLink, buildCustomerOrderLink } from "@/lib/email/links";
+import { finalizeConfirmedEggOrder } from '@/lib/eggs/order-confirmation'
 import {
   buildChickenBreedAgeLabel,
   buildChickenOrderLinesHtml,
@@ -683,8 +684,39 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Idempotency guard: if payment is already completed, skip processing to avoid duplicate emails
+    // Idempotency guard: if payment is already completed, skip duplicate side effects.
     if (resolvedPayment.status === 'completed') {
+      if (isEggPayment && resolvedPayment.payment_type === 'deposit' && resolvedPayment.egg_order_id) {
+        try {
+          await finalizeConfirmedEggOrder(resolvedPayment.egg_order_id)
+
+          const { data: existingEggOrder } = await supabaseAdmin
+            .from('egg_orders')
+            .select('id, status, deposit_amount, total_amount')
+            .eq('id', resolvedPayment.egg_order_id)
+            .maybeSingle()
+
+          if (existingEggOrder && existingEggOrder.status === 'pending') {
+            const depositAmount = Number(existingEggOrder.deposit_amount || 0)
+            const totalAmount = Number(existingEggOrder.total_amount || 0)
+            const nextStatus =
+              depositAmount > 0 && totalAmount > 0 && depositAmount >= totalAmount
+                ? 'fully_paid'
+                : 'deposit_paid'
+
+            await supabaseAdmin
+              .from('egg_orders')
+              .update({ status: nextStatus })
+              .eq('id', existingEggOrder.id)
+          }
+        } catch (error) {
+          logError('vipps-webhook-duplicate-egg-finalization', error, {
+            paymentId: resolvedPayment.id,
+            orderId: resolvedPayment.egg_order_id,
+          })
+        }
+      }
+
       console.log('Payment already completed, skipping duplicate webhook', { paymentId: resolvedPayment.id });
       return NextResponse.json({ received: true, duplicate: true });
     }
@@ -787,6 +819,10 @@ export async function POST(request: NextRequest) {
     if (resolvedPayment.payment_type === "deposit") {
       const orderTable = isChickenPayment ? "chicken_orders" : isEggPayment ? "egg_orders" : "orders";
       const orderIdField = isChickenPayment ? resolvedPayment.chicken_order_id : isEggPayment ? resolvedPayment.egg_order_id : resolvedPayment.order_id;
+
+      if (isEggPayment && order?.id) {
+        await finalizeConfirmedEggOrder(order.id)
+      }
 
       // If deposit covers the full amount, set status to fully_paid
       const depositAmount = Number(order?.deposit_amount || 0);

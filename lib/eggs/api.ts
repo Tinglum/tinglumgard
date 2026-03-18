@@ -73,10 +73,7 @@ export function mapInventory(row: EggInventoryRow, breed?: Breed): WeekInventory
   const orderCutoffDate = new Date(deliveryMonday)
   orderCutoffDate.setDate(orderCutoffDate.getDate() - 6)
 
-  const eggsRemaining =
-    row.eggs_remaining !== undefined && row.eggs_remaining !== null
-      ? row.eggs_remaining
-      : row.eggs_available - row.eggs_allocated
+  const eggsRemaining = Math.max(0, row.eggs_available - row.eggs_allocated)
   const resolvedStatus = resolveInventoryStatus(row.status, eggsRemaining)
 
   return {

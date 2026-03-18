@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth/session'
+import { finalizeConfirmedEggOrder } from '@/lib/eggs/order-confirmation'
 import { supabaseAdmin } from '@/lib/supabase/server'
 import { vippsClient } from '@/lib/vipps/api-client'
 
@@ -72,21 +73,31 @@ async function reconcileEggOrder(order: any) {
     (payment: any) => payment.payment_type === 'deposit' && payment.status === 'completed'
   )
 
-  if (completedDeposit && order.status === 'pending') {
-    const { error: statusErr } = await supabaseAdmin
-      .from('egg_orders')
-      .update({ status: 'deposit_paid' })
-      .eq('id', order.id)
-
-    if (statusErr) {
-      console.error('Failed to self-heal egg order status:', statusErr)
-      return order
+  if (completedDeposit) {
+    try {
+      await finalizeConfirmedEggOrder(order.id)
+    } catch (error) {
+      console.error('Failed to finalize egg order after completed deposit:', error)
     }
 
-    return {
-      ...order,
-      status: 'deposit_paid',
+    if (order.status === 'pending') {
+      const { error: statusErr } = await supabaseAdmin
+        .from('egg_orders')
+        .update({ status: 'deposit_paid' })
+        .eq('id', order.id)
+
+      if (statusErr) {
+        console.error('Failed to self-heal egg order status:', statusErr)
+        return order
+      }
+
+      return {
+        ...order,
+        status: 'deposit_paid',
+      }
     }
+
+    return order
   }
 
   const depositPayment = pickLatestPendingDeposit(order.egg_payments || [])
@@ -133,6 +144,8 @@ async function reconcileEggOrder(order: any) {
       .update({ status: 'deposit_paid' })
       .eq('id', order.id)
       .throwOnError()
+
+    await finalizeConfirmedEggOrder(order.id)
 
     return {
       ...order,
