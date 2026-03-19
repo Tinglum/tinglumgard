@@ -3,7 +3,7 @@ import { getSession } from '@/lib/auth/session';
 import { supabaseAdmin } from '@/lib/supabase/server';
 import { fetchCommunicationHistory, fetchScheduledCommunications } from '@/lib/email/history';
 import { isMissingEmailRelationError } from '@/lib/email/schema';
-import { materializeLifecycleInstancesOnly } from '@/lib/email/lifecycle';
+import { materializeLifecycleInstancesOnly, reconcileEggPaymentDependentFlowInstances } from '@/lib/email/lifecycle';
 
 type PaymentRow = {
   amount_nok: number | null;
@@ -841,6 +841,21 @@ async function getCustomerProfile(customerId: string) {
     console.error('Customer profile lifecycle materialization degraded:', error);
   }
 
+  try {
+    const eggOrdersThatShouldNotHavePaymentFlows = sortedOrders.filter((order) => {
+      return (
+        order.source === 'egg' &&
+        ['fully_paid', 'preparing', 'shipped', 'delivered'].includes(order.status)
+      );
+    });
+
+    for (const order of eggOrdersThatShouldNotHavePaymentFlows) {
+      await reconcileEggPaymentDependentFlowInstances(order.id, 'order_fully_paid');
+    }
+  } catch (error) {
+    console.error('Customer profile egg flow reconciliation degraded:', error);
+  }
+
   let scheduledCommunications = [] as Awaited<ReturnType<typeof fetchScheduledCommunications>>;
   try {
     scheduledCommunications = await fetchScheduledCommunications({
@@ -915,7 +930,24 @@ async function getCustomerProfile(customerId: string) {
   const nowIso = new Date().toISOString();
   const futureScheduledCommunications = scheduledCommunications.filter((entry) => {
     if (!entry.scheduledFor) return false;
-    return entry.status === 'scheduled' && entry.scheduledFor > nowIso;
+    if (!(entry.status === 'scheduled' && entry.scheduledFor > nowIso)) return false;
+
+    const matchedOrder = sortedOrders.find((order) => {
+      if (entry.entityType === 'order') return order.source === 'pig' && order.id === entry.entityId;
+      if (entry.entityType === 'egg_order') return order.source === 'egg' && order.id === entry.entityId;
+      if (entry.entityType === 'chicken_order') return order.source === 'chicken' && order.id === entry.entityId;
+      return false;
+    });
+
+    if (
+      matchedOrder?.source === 'egg' &&
+      ['fully_paid', 'preparing', 'shipped', 'delivered'].includes(matchedOrder.status) &&
+      ['egg.remainder.reminder', 'egg.order.forfeited'].includes(entry.flowKey)
+    ) {
+      return false;
+    }
+
+    return true;
   });
   const overdueScheduledCount = scheduledCommunications.filter((entry) => {
     if (!entry.scheduledFor) return false;
