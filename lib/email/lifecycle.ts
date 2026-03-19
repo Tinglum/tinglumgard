@@ -1,6 +1,6 @@
 import { dispatchEmail } from '@/lib/email/dispatch';
 import { processScheduledCampaigns } from '@/lib/email/campaigns';
-import { enqueueEmailRecord } from '@/lib/email/queue';
+import { cancelQueueEntry, enqueueEmailRecord } from '@/lib/email/queue';
 import { renderManagedTemplate } from '@/lib/email/render';
 import { getEmailSchemaStatus } from '@/lib/email/schema';
 import { buildCustomerOrderLink, buildCustomerPathLink } from '@/lib/email/links';
@@ -837,6 +837,86 @@ async function eggOutstandingOre(orderId: string, remainderAmountOre: number): P
   return Math.max(0, Math.round(Number(remainderAmountOre || 0)) - paidOre);
 }
 
+export async function reconcileEggPaymentDependentFlowInstances(
+  orderId: string,
+  reason = 'egg_remainder_not_due'
+): Promise<void> {
+  const { data: instances, error: instanceError } = await supabaseAdmin
+    .from('email_flow_instances')
+    .select('id, status, queue_id')
+    .eq('entity_type', 'egg_order')
+    .eq('entity_id', orderId)
+    .in('flow_key', ['egg.remainder.reminder', 'egg.order.forfeited'])
+    .in('status', ['scheduled', 'enqueued']);
+
+  if (instanceError) {
+    throw instanceError;
+  }
+
+  if (!instances || instances.length === 0) {
+    return;
+  }
+
+  const queueIds = Array.from(
+    new Set(
+      instances
+        .map((instance) => String(instance.queue_id || '').trim())
+        .filter(Boolean)
+    )
+  );
+
+  const queueMap = new Map<string, { status: string; sentAt: string | null }>();
+  if (queueIds.length > 0) {
+    const { data: queueRows, error: queueError } = await supabaseAdmin
+      .from('email_dispatch_queue')
+      .select('id, status, sent_at')
+      .in('id', queueIds);
+
+    if (queueError) {
+      throw queueError;
+    }
+
+    for (const row of queueRows || []) {
+      queueMap.set(String(row.id), {
+        status: String(row.status || ''),
+        sentAt: row.sent_at ? String(row.sent_at) : null,
+      });
+    }
+  }
+
+  const nowIso = new Date().toISOString();
+
+  for (const instance of instances) {
+    const instanceId = String(instance.id || '');
+    if (!instanceId) continue;
+
+    const queueId = String(instance.queue_id || '').trim();
+    const queue = queueId ? queueMap.get(queueId) : undefined;
+    const queueStatus = String(queue?.status || '');
+
+    if (String(instance.status || '') === 'enqueued' && queueStatus === 'sent') {
+      await updateFlowInstanceStatus(instanceId, {
+        status: 'completed',
+        queueId: queueId || null,
+        lastError: null,
+        processedAt: queue?.sentAt || nowIso,
+      });
+      continue;
+    }
+
+    if (queueId && ['pending', 'processing', 'failed'].includes(queueStatus)) {
+      await cancelQueueEntry(queueId);
+    }
+
+    await updateFlowInstanceStatus(instanceId, {
+      status: 'cancelled',
+      queueId: queueId || null,
+      lastError: reason,
+      processedAt: nowIso,
+    });
+  }
+}
+
 async function releaseEggInventory(inventoryId: string, quantity: number): Promise<void> {
   const { data: inventory } = await supabaseAdmin
     .from('egg_inventory')
@@ -1007,8 +1087,9 @@ async function materializeEggFlowInstances(flowMap: Map<string, FlowDefinition>,
     const orderUrl = customerOrderLink('eggs', orderId, config.appBaseUrl);
     const deliveryYmd = parseIsoDate(String(order.delivery_monday || ''));
     if (!deliveryYmd) continue;
+    const eggStatus = String(order.status || '');
 
-    if (String(order.status) === 'deposit_paid') {
+    if (eggStatus === 'deposit_paid') {
       const outstanding = await eggOutstandingOre(orderId, Number(order.remainder_amount || 0));
       if (outstanding > 0) {
         const eggTotalReminders = config.eggRemainderReminderDays.length;
@@ -1085,11 +1166,15 @@ async function materializeEggFlowInstances(flowMap: Map<string, FlowDefinition>,
           });
           if (forfeitInserted) inserted += 1;
         }
+      } else {
+        await reconcileEggPaymentDependentFlowInstances(orderId, 'order_fully_paid');
       }
+    } else {
+      await reconcileEggPaymentDependentFlowInstances(orderId, 'order_no_longer_remainder_due');
     }
 
     // Send the shipment follow-up the first morning after the order was marked as shipped.
-    if (String(order.status) === 'shipped') {
+    if (eggStatus === 'shipped') {
       const shippedAtRaw = String(order.marked_shipped_at || order.updated_at || '');
       const shippedAt = shippedAtRaw ? new Date(shippedAtRaw) : null;
       if (!shippedAt || Number.isNaN(shippedAt.getTime())) continue;
@@ -1137,7 +1222,7 @@ async function materializeEggFlowInstances(flowMap: Map<string, FlowDefinition>,
       if (dayBeforeInserted) inserted += 1;
     }
 
-    if (hatchFollowupFlow && (String(order.status) === 'shipped' || String(order.status) === 'delivered')) {
+    if (hatchFollowupFlow && (eggStatus === 'shipped' || eggStatus === 'delivered')) {
       const shippedAtRaw = String(order.marked_shipped_at || order.updated_at || '');
       const shippedAt = shippedAtRaw ? new Date(shippedAtRaw) : null;
       if (shippedAt && !Number.isNaN(shippedAt.getTime())) {

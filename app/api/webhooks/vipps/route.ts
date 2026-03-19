@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import crypto from "node:crypto";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import { dispatchEmail } from "@/lib/email/dispatch";
+import { reconcileEggPaymentDependentFlowInstances } from "@/lib/email/lifecycle";
 import { renderManagedTemplate } from "@/lib/email/render";
 import { buildAdminOrderLink, buildCustomerOrderLink } from "@/lib/email/links";
 import { finalizeConfirmedEggOrder } from '@/lib/eggs/order-confirmation'
@@ -1116,6 +1117,16 @@ export async function POST(request: NextRequest) {
       }
 
       console.log('Order status updated to paid');
+
+      if (isEggPayment && remainderStatus === 'fully_paid') {
+        try {
+          await reconcileEggPaymentDependentFlowInstances(String(remainderOrderId), 'order_fully_paid');
+        } catch (cleanupError) {
+          logError('vipps-webhook-egg-flow-cleanup', cleanupError, {
+            orderId: String(remainderOrderId),
+          });
+        }
+      }
 
       const customerEmailForSend = normalizeEmail(order?.customer_email);
       if (order && customerEmailForSend && customerEmailForSend !== 'pending@vipps.no') {

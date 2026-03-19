@@ -4,6 +4,7 @@ import { finalizeConfirmedEggOrder } from '@/lib/eggs/order-confirmation'
 import { supabaseAdmin } from '@/lib/supabase/server'
 import { initiateVippsRefund } from '@/lib/vipps/refund'
 import { dispatchEmail } from '@/lib/email/dispatch'
+import { reconcileEggPaymentDependentFlowInstances } from '@/lib/email/lifecycle'
 import { renderManagedTemplate } from '@/lib/email/render'
 import { buildCustomerOrderLink } from '@/lib/email/links'
 import { logError } from '@/lib/logger'
@@ -200,6 +201,10 @@ async function syncEggOrderStatus(orderId: string, reason: string | undefined) {
 
   if (updateError) {
     return NextResponse.json({ error: 'Failed to sync order status' }, { status: 500 })
+  }
+
+  if (nextStatus === 'fully_paid' || nextStatus === 'preparing' || nextStatus === 'shipped' || nextStatus === 'delivered') {
+    await reconcileEggPaymentDependentFlowInstances(orderId, 'order_fully_paid')
   }
 
   await appendAdminNote(

@@ -847,7 +847,7 @@ async function getCustomerProfile(customerId: string) {
       pigOrderIds,
       eggOrderIds,
       chickenOrderIds,
-      statuses: ['scheduled', 'enqueued'],
+      statuses: ['scheduled'],
       limit: 300,
     });
   } catch (error) {
@@ -913,6 +913,10 @@ async function getCustomerProfile(customerId: string) {
   );
 
   const nowIso = new Date().toISOString();
+  const futureScheduledCommunications = scheduledCommunications.filter((entry) => {
+    if (!entry.scheduledFor) return false;
+    return entry.status === 'scheduled' && entry.scheduledFor > nowIso;
+  });
   const overdueScheduledCount = scheduledCommunications.filter((entry) => {
     if (!entry.scheduledFor) return false;
     return entry.status === 'scheduled' && entry.scheduledFor <= nowIso;
@@ -955,7 +959,7 @@ async function getCustomerProfile(customerId: string) {
 
   const emailConsistency = {
     ok: consistencyIssues.length === 0,
-    planned: scheduledCommunications.length,
+    planned: futureScheduledCommunications.length,
     sent: communicationStats.sent,
     failed: communicationStats.failed,
     cancelled: communicationStats.cancelled,
@@ -997,7 +1001,7 @@ async function getCustomerProfile(customerId: string) {
       details: order.metadata,
     })),
     communications,
-    scheduled_communications: scheduledCommunications.map((entry) => {
+    scheduled_communications: futureScheduledCommunications.map((entry) => {
       const matchedOrder = sortedOrders.find((order) => {
         if (entry.entityType === 'order') return order.source === 'pig' && order.id === entry.entityId;
         if (entry.entityType === 'egg_order') return order.source === 'egg' && order.id === entry.entityId;
