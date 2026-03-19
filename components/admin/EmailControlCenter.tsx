@@ -268,6 +268,15 @@ export function EmailControlCenter() {
   const [emailPreviewModal, setEmailPreviewModal] = useState<EmailPreviewModalState | null>(null);
   const [lifecyclePreviewLoadingId, setLifecyclePreviewLoadingId] = useState<string | null>(null);
 
+  const upcomingLifecycleInstances = useMemo(() => {
+    const nowIso = new Date().toISOString();
+    return (lifecycle?.instances || []).filter((instance: any) => {
+      const status = String(instance?.status || '');
+      const scheduledFor = String(instance?.scheduled_for || '');
+      return status === 'scheduled' && scheduledFor && scheduledFor > nowIso;
+    });
+  }, [lifecycle?.instances]);
+
   async function callApi<T = any>(url: string, init?: RequestInit): Promise<T> {
     const response = await fetch(url, init);
     const data = await response.json().catch(() => ({}));
@@ -1257,7 +1266,7 @@ export function EmailControlCenter() {
             <Card className="p-4 space-y-2">
               <h3 className="text-lg font-medium">Upcoming Triggers</h3>
               <div className="space-y-2 max-h-[280px] overflow-y-auto">
-                {(lifecycle?.instances || []).slice(0, 40).map((instance: any) => (
+                {upcomingLifecycleInstances.slice(0, 40).map((instance: any) => (
                   <div key={instance.id} className="border border-neutral-200 rounded-md p-2">
                     <div className="flex items-start justify-between gap-2">
                       <div>
@@ -1281,6 +1290,9 @@ export function EmailControlCenter() {
                     </div>
                   </div>
                 ))}
+                {upcomingLifecycleInstances.length === 0 ? (
+                  <p className="text-sm text-neutral-500">No upcoming scheduled triggers.</p>
+                ) : null}
               </div>
             </Card>
           </div>
@@ -1670,6 +1682,5 @@ export function EmailControlCenter() {
     </div>
   );
 }
-
 
 

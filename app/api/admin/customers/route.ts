@@ -138,6 +138,12 @@ type WishlistRequestRow = {
   egg_wishlist_events?: WishlistEventRow[] | null;
 };
 
+type WishlistLookupMode =
+  | { type: 'orderIds'; value: string[] }
+  | { type: 'email'; value: string }
+  | { type: 'phone'; value: string }
+  | { type: 'customerId'; value: string };
+
 type UnifiedOrder = {
   source: 'pig' | 'egg' | 'chicken';
   id: string;
@@ -219,6 +225,52 @@ function isMissingColumnOrRelationError(error: unknown): boolean {
   if (candidate.code === '42703' || candidate.code === '42P01') return true;
   if (typeof candidate.message === 'string' && candidate.message.includes('does not exist')) return true;
   return false;
+}
+
+function normalizeWishlistRequestRow(row: WishlistRequestRow): WishlistRequestRow {
+  const normalizedOrder = Array.isArray(row.egg_orders) ? row.egg_orders[0] || null : row.egg_orders || null;
+
+  return {
+    ...row,
+    egg_orders: normalizedOrder,
+    egg_wishlist_items: Array.isArray(row.egg_wishlist_items) ? row.egg_wishlist_items : [],
+    egg_wishlist_events: Array.isArray(row.egg_wishlist_events) ? row.egg_wishlist_events : [],
+  };
+}
+
+async function runWishlistRequestLookup(
+  lookup: WishlistLookupMode,
+  selectClause: string
+): Promise<WishlistRequestRow[] | null> {
+  let query = supabaseAdmin.from('egg_wishlist_requests').select(selectClause);
+
+  switch (lookup.type) {
+    case 'orderIds':
+      query = query.in('order_id', lookup.value);
+      break;
+    case 'email':
+      query = query.ilike('customer_email', lookup.value);
+      break;
+    case 'phone':
+      query = query.ilike('customer_phone', `%${lookup.value}%`);
+      break;
+    case 'customerId':
+      query = query.eq('customer_id', lookup.value);
+      break;
+    default:
+      return [];
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    if (isMissingColumnOrRelationError(error)) {
+      return null;
+    }
+    throw error;
+  }
+
+  return ((data || []) as unknown as WishlistRequestRow[]).map(normalizeWishlistRequestRow);
 }
 
 function sumCompletedPayments(payments: PaymentRow[] | null | undefined): number {
@@ -554,51 +606,49 @@ async function fetchWishlistRequestsForCustomer(params: {
   eggOrderIds?: string[];
 }): Promise<WishlistRequestRow[]> {
   const requestMap = new Map<string, WishlistRequestRow>();
-  const baseSelect =
+  const detailedSelect =
     'id, customer_id, customer_email, customer_name, customer_phone, order_id, source, priority, status, year, week_number, delivery_monday, notes, created_at, updated_at, egg_orders(order_number), egg_wishlist_items(id, breed_id, qty_requested, qty_allocated, qty_remaining, egg_breeds(name)), egg_wishlist_events(id, event_type, payload, created_by, created_at)';
+  const fallbackSelect =
+    'id, customer_id, customer_email, customer_name, customer_phone, order_id, source, priority, status, year, week_number, delivery_monday, notes, created_at, updated_at';
 
   const addResults = (rows: WishlistRequestRow[] | null | undefined) => {
     for (const row of rows || []) requestMap.set(row.id, row);
   };
 
-  if (params.eggOrderIds && params.eggOrderIds.length > 0) {
-    const { data, error } = await supabaseAdmin
-      .from('egg_wishlist_requests')
-      .select(baseSelect)
-      .in('order_id', params.eggOrderIds);
+  const lookups: WishlistLookupMode[] = [];
 
-    if (error && error.code !== '42P01') throw error;
-    addResults(data as WishlistRequestRow[] | null);
+  if (params.eggOrderIds && params.eggOrderIds.length > 0) {
+    lookups.push({ type: 'orderIds', value: params.eggOrderIds });
   }
 
   if (params.email) {
-    const { data, error } = await supabaseAdmin
-      .from('egg_wishlist_requests')
-      .select(baseSelect)
-      .ilike('customer_email', params.email);
-
-    if (error && error.code !== '42P01') throw error;
-    addResults(data as WishlistRequestRow[] | null);
+    lookups.push({ type: 'email', value: params.email });
   }
 
   if (params.phoneDigits) {
-    const { data, error } = await supabaseAdmin
-      .from('egg_wishlist_requests')
-      .select(baseSelect)
-      .ilike('customer_phone', `%${params.phoneDigits}%`);
-
-    if (error && error.code !== '42P01') throw error;
-    addResults(data as WishlistRequestRow[] | null);
+    lookups.push({ type: 'phone', value: params.phoneDigits });
   }
 
   if (params.customerId) {
-    const { data, error } = await supabaseAdmin
-      .from('egg_wishlist_requests')
-      .select(baseSelect)
-      .eq('customer_id', params.customerId);
+    lookups.push({ type: 'customerId', value: params.customerId });
+  }
 
-    if (error && error.code !== '42P01') throw error;
-    addResults(data as WishlistRequestRow[] | null);
+  for (const lookup of lookups) {
+    const detailedRows = await runWishlistRequestLookup(lookup, detailedSelect);
+    if (detailedRows) {
+      addResults(detailedRows);
+      continue;
+    }
+
+    const fallbackRows = await runWishlistRequestLookup(lookup, fallbackSelect);
+    addResults(
+      (fallbackRows || []).map((row) => ({
+        ...row,
+        egg_orders: null,
+        egg_wishlist_items: [],
+        egg_wishlist_events: [],
+      }))
+    );
   }
 
   return Array.from(requestMap.values()).sort((a, b) => {
@@ -770,28 +820,51 @@ async function getCustomerProfile(customerId: string) {
   const pigOrderIds = sortedOrders.filter((order) => order.source === 'pig').map((order) => order.id);
   const eggOrderIds = sortedOrders.filter((order) => order.source === 'egg').map((order) => order.id);
   const chickenOrderIds = sortedOrders.filter((order) => order.source === 'chicken').map((order) => order.id);
-  const communications = await fetchCommunicationHistory({
-    email: bestEmail || undefined,
-    phone: bestPhone || undefined,
-    pigOrderIds,
-    eggOrderIds,
-    chickenOrderIds,
-    limit: 300,
-  });
-  const lifecycleMaterialize = await materializeLifecycleInstancesOnly();
-  const scheduledCommunications = await fetchScheduledCommunications({
-    pigOrderIds,
-    eggOrderIds,
-    chickenOrderIds,
-    statuses: ['scheduled', 'enqueued'],
-    limit: 300,
-  });
-  const wishlistRequests = await fetchWishlistRequestsForCustomer({
-    email: bestEmail || parsed.email || undefined,
-    phoneDigits: bestPhoneDigits || parsed.phoneDigits || undefined,
-    customerId: customerId || undefined,
-    eggOrderIds,
-  });
+  let communications = [] as Awaited<ReturnType<typeof fetchCommunicationHistory>>;
+  try {
+    communications = await fetchCommunicationHistory({
+      email: bestEmail || undefined,
+      phone: bestPhone || undefined,
+      pigOrderIds,
+      eggOrderIds,
+      chickenOrderIds,
+      limit: 300,
+    });
+  } catch (error) {
+    console.error('Customer profile communication history degraded:', error);
+  }
+
+  let lifecycleMaterialize: Awaited<ReturnType<typeof materializeLifecycleInstancesOnly>> | null = null;
+  try {
+    lifecycleMaterialize = await materializeLifecycleInstancesOnly();
+  } catch (error) {
+    console.error('Customer profile lifecycle materialization degraded:', error);
+  }
+
+  let scheduledCommunications = [] as Awaited<ReturnType<typeof fetchScheduledCommunications>>;
+  try {
+    scheduledCommunications = await fetchScheduledCommunications({
+      pigOrderIds,
+      eggOrderIds,
+      chickenOrderIds,
+      statuses: ['scheduled', 'enqueued'],
+      limit: 300,
+    });
+  } catch (error) {
+    console.error('Customer profile scheduled communication fetch degraded:', error);
+  }
+
+  let wishlistRequests: WishlistRequestRow[] = [];
+  try {
+    wishlistRequests = await fetchWishlistRequestsForCustomer({
+      email: bestEmail || parsed.email || undefined,
+      phoneDigits: bestPhoneDigits || parsed.phoneDigits || undefined,
+      customerId: customerId || undefined,
+      eggOrderIds,
+    });
+  } catch (error) {
+    console.error('Customer profile wishlist fetch degraded:', error);
+  }
 
   let suppression: {
     email: string;
@@ -985,10 +1058,10 @@ async function getCustomerProfile(customerId: string) {
         })),
     })),
     lifecycle_materialization: {
-      ok: lifecycleMaterialize.ok,
-      inserted: lifecycleMaterialize.inserted,
-      error: lifecycleMaterialize.error || null,
-      missing_tables: lifecycleMaterialize.missingTables,
+      ok: lifecycleMaterialize?.ok ?? false,
+      inserted: lifecycleMaterialize?.inserted ?? 0,
+      error: lifecycleMaterialize?.error || 'degraded',
+      missing_tables: lifecycleMaterialize?.missingTables || [],
     },
     email_consistency: emailConsistency,
     email_controls: {

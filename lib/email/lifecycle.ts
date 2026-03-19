@@ -292,7 +292,7 @@ const LIFECYCLE_FLOW_SEEDS: LifecycleFlowSeed[] = [
   },
   {
     flowKey: 'egg.delivery.day_before',
-    eventType: 'egg.delivery_upcoming',
+    eventType: 'egg.order.shipped_followup',
     productScope: 'eggs',
     templateKey: 'egg.delivery.day_before',
     mode: 'active',
@@ -386,10 +386,10 @@ const LIFECYCLE_FLOW_MATRIX: FlowMatrixRow[] = [
   {
     flowKey: 'egg.delivery.day_before',
     productScope: 'eggs',
-    eventType: 'egg.delivery_upcoming',
+    eventType: 'egg.order.shipped_followup',
     templateKey: 'egg.delivery.day_before',
-    triggerRule: 'delivery_monday - 1 day',
-    scheduleLocalTime: '08:00 Europe/Oslo',
+    triggerRule: 'marked_shipped_at + 1 day',
+    scheduleLocalTime: '08:00 Europe/Oslo (first morning after shipment)',
     stopRules: ['order.cancelled', 'order.forfeited', 'status_not_eligible'],
   },
   {
@@ -989,6 +989,17 @@ async function materializeEggFlowInstances(flowMap: Map<string, FlowDefinition>,
 
   let inserted = 0;
 
+  await supabaseAdmin
+    .from('email_flow_instances')
+    .update({
+      status: 'cancelled',
+      last_error: 'legacy_delivery_day_before_replaced',
+      processed_at: new Date().toISOString(),
+    })
+    .eq('flow_key', 'egg.delivery.day_before')
+    .eq('status', 'scheduled')
+    .not('trigger_date_key', 'like', 'shipped-followup:%');
+
   for (const order of orders || []) {
     const orderId = String(order.id);
     const toEmail = normalizeEmail(order.customer_email);
@@ -1077,8 +1088,21 @@ async function materializeEggFlowInstances(flowMap: Map<string, FlowDefinition>,
       }
     }
 
-    // Only send "on its way" email when order is actually shipped
+    // Send the shipment follow-up the first morning after the order was marked as shipped.
     if (String(order.status) === 'shipped') {
+      const shippedAtRaw = String(order.marked_shipped_at || order.updated_at || '');
+      const shippedAt = shippedAtRaw ? new Date(shippedAtRaw) : null;
+      if (!shippedAt || Number.isNaN(shippedAt.getTime())) continue;
+
+      const shippedYmd = getZonedDateTimeParts(shippedAt, config.timezone);
+      const followupYmd = addDays(
+        {
+          year: shippedYmd.year,
+          month: shippedYmd.month,
+          day: shippedYmd.day,
+        },
+        1
+      );
       const trackingNumber = String((order as any).tracking_number || '');
       const trackingUrl = trackingNumber.startsWith('http')
         ? trackingNumber
@@ -1091,8 +1115,8 @@ async function materializeEggFlowInstances(flowMap: Map<string, FlowDefinition>,
         productScope: dayBeforeFlow.product_scope,
         entityType: 'egg_order',
         entityId: orderId,
-        triggerDateKey: `shipped-notify:${orderId}`,
-        scheduledFor: new Date().toISOString(),
+        triggerDateKey: `shipped-followup:${shippedAt.toISOString().slice(0, 10)}`,
+        scheduledFor: zonedDateTimeToUtc(followupYmd, 8, 0, config.timezone).toISOString(),
         toEmail: toEmail || null,
         locale,
         payload: {
@@ -1107,7 +1131,7 @@ async function materializeEggFlowInstances(flowMap: Map<string, FlowDefinition>,
         metadata: {
           product_scope: 'eggs',
           flow_key: dayBeforeFlow.flow_key,
-          trigger_offset_days: 0,
+          trigger_offset_days: 1,
         },
       });
       if (dayBeforeInserted) inserted += 1;
@@ -1923,4 +1947,3 @@ export async function updateLifecycleConfig(updates: Partial<LifecycleConfig>) {
 
   return getLifecycleConfig();
 }
-
