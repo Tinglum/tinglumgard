@@ -64,6 +64,8 @@ interface EggOrder {
   week_number: number;
   delivery_method: string;
   delivery_fee?: number;
+  tracking_number?: string | null;
+  marked_shipped_at?: string | null;
   created_at?: string | null;
   egg_breeds?: { name?: string; accent_color?: string } | null;
   egg_payments?: Array<{

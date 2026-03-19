@@ -667,6 +667,8 @@
       deliveryPosten: "Sending med Posten",
       deliveryE6: "E6 møtepunkt",
       deliveryFarm: "Henting på gården",
+      trackingNumber: "Sporingsnummer",
+      trackParcel: "Spor pakken hos Posten",
       quantityBreakdown: "Grunn {base} + tillegg {additions} = totalt {total}",
       wishlistMore: "Ønsk flere egg",
     },

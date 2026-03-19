@@ -666,6 +666,8 @@
       deliveryPosten: "Posten shipment",
       deliveryE6: "E6 pickup",
       deliveryFarm: "Farm pickup",
+      trackingNumber: "Tracking number",
+      trackParcel: "Track parcel with Posten",
       quantityBreakdown: "Base {base} + additions {additions} = total {total}",
       wishlistMore: "Wish for more eggs",
     },

@@ -46,7 +46,20 @@ function normalizeEggReminderVariables(
 ): Record<string, unknown> {
   const vars = { ...input };
   const daysLeft = Number(vars.days_left ?? 0);
-  const reminderNumber = Number(vars.reminder_number ?? 0);
+  const defaultReminderDays = [11, 9, 7, 6];
+  const totalReminders =
+    Number(vars.total_reminders ?? 0) > 0 ? Number(vars.total_reminders) : defaultReminderDays.length;
+  const reminderNumber =
+    Number(vars.reminder_number ?? 0) > 0
+      ? Number(vars.reminder_number)
+      : Math.max(1, defaultReminderDays.indexOf(daysLeft) + 1 || 0);
+
+  if (!vars.total_reminders && totalReminders > 0) {
+    vars.total_reminders = totalReminders;
+  }
+  if (!vars.reminder_number && reminderNumber > 0) {
+    vars.reminder_number = reminderNumber;
+  }
 
   if (vars.reminder_badge_label && vars.reminder_intro_html && vars.reminder_support_html && vars.reminder_consequence_html) {
     return vars;
@@ -137,14 +150,26 @@ function normalizeEggReminderVariables(
 
 export function interpolateTemplate(input: string, variables: Record<string, unknown>): string {
   let output = input;
-  for (const [key, value] of Object.entries(variables)) {
-    const normalizedValue = toStringValue(value);
-    const upperKey = key.toUpperCase();
-    output = output
-      .replaceAll(`{{${key}}}`, normalizedValue)
-      .replaceAll(`{{ ${key} }}`, normalizedValue)
-      .replaceAll(`{${upperKey}}`, normalizedValue);
+
+  for (let pass = 0; pass < 3; pass += 1) {
+    let nextOutput = output;
+
+    for (const [key, value] of Object.entries(variables)) {
+      const normalizedValue = toStringValue(value);
+      const upperKey = key.toUpperCase();
+      nextOutput = nextOutput
+        .replaceAll(`{{${key}}}`, normalizedValue)
+        .replaceAll(`{{ ${key} }}`, normalizedValue)
+        .replaceAll(`{${upperKey}}`, normalizedValue);
+    }
+
+    if (nextOutput === output) {
+      break;
+    }
+
+    output = nextOutput;
   }
+
   return output;
 }
 
@@ -577,7 +602,7 @@ export function ensureHtmlDocument(html: string, locale: EmailLocale = 'no', pre
                 <table role="presentation" cellspacing="0" cellpadding="0" style="width:100%;">
                   <tr>
                     <td style="font-family:${FONT_BODY};font-size:12px;color:rgba(255,255,255,0.5);line-height:1.5;">
-                      ${brand} &middot; Tinglum, Steinkjer &middot; <a href="${APP_URL}" style="color:rgba(255,255,255,0.5);text-decoration:none;">tinglumgard.no</a>
+                      ${brand} &middot; Tinglum, Namdalseid &middot; <a href="${APP_URL}" style="color:rgba(255,255,255,0.5);text-decoration:none;">tinglumgard.no</a>
                     </td>
                   </tr>
                 </table>

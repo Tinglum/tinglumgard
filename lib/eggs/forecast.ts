@@ -265,6 +265,10 @@ function getExpectedAdditionsForWeek(params: {
   return 0
 }
 
+function scaleExpectedAdditions(value: number): number {
+  return Math.max(0, Math.round(value * 0.5))
+}
+
 export async function recomputeForecastForBreed(params: {
   breedId: string
   date?: string
@@ -392,12 +396,14 @@ export async function recomputeForecastForBreed(params: {
     const trendBase = twoWeekAverage + (fourWeekTrendSlope * trendWeeksAhead)
     const expectedAdditions = isShortHorizon
       ? 0
-      : getExpectedAdditionsForWeek({
-          expectedAdditions: config.forecastExpectedAdditions,
-          breedId: params.breedId,
-          breedSlug: breed.slug,
-          weekAhead,
-        })
+      : scaleExpectedAdditions(
+          getExpectedAdditionsForWeek({
+            expectedAdditions: config.forecastExpectedAdditions,
+            breedId: params.breedId,
+            breedSlug: breed.slug,
+            weekAhead,
+          })
+        )
 
     const rawForecastEggs = isShortHorizon
       ? Math.round(twoWeekAverage)

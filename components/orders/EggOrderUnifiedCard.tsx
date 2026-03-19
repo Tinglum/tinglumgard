@@ -37,6 +37,8 @@ type EggOrder = {
   week_number: number
   delivery_method: string
   delivery_fee?: number
+  tracking_number?: string | null
+  marked_shipped_at?: string | null
   created_at?: string | null
   egg_breeds?: { name?: string; accent_color?: string } | null
   egg_payments?: EggPayment[]
@@ -51,6 +53,13 @@ const toDateOnly = (value: string | Date) => {
 const daysBetween = (future: Date, today: Date) => {
   const diffMs = future.getTime() - today.getTime()
   return Math.round(diffMs / (1000 * 60 * 60 * 24))
+}
+
+const buildTrackingUrl = (trackingNumber?: string | null) => {
+  const value = String(trackingNumber || '').trim()
+  if (!value) return null
+  if (/^https?:\/\//i.test(value)) return value
+  return `https://sporing.posten.no/sporing/${encodeURIComponent(value)}`
 }
 
 export function EggOrderUnifiedCard({ order }: { order: EggOrder }) {
@@ -131,6 +140,7 @@ export function EggOrderUnifiedCard({ order }: { order: EggOrder }) {
     remainderDue <= 0 || ['fully_paid', 'preparing', 'shipped', 'delivered'].includes(order.status)
   const shipmentStarted = ['shipped', 'delivered'].includes(order.status)
   const shipmentDone = order.status === 'delivered'
+  const trackingUrl = buildTrackingUrl(order.tracking_number)
 
   const timelineSteps = [
     {
@@ -334,6 +344,24 @@ export function EggOrderUnifiedCard({ order }: { order: EggOrder }) {
             <p className="font-normal text-neutral-900">{formatDeliveryMethod(order.delivery_method)}</p>
             {typeof order.delivery_fee === 'number' && (
               <p className="text-xs text-neutral-500">{formatPrice(order.delivery_fee, lang)}</p>
+            )}
+            {order.tracking_number && shipmentStarted && (
+              <div className="mt-2 rounded-md border border-neutral-200 bg-neutral-50 px-3 py-2">
+                <p className="text-[11px] uppercase tracking-[0.16em] text-neutral-500">
+                  {ordersCopy.trackingNumber || (lang === 'no' ? 'Sporingsnummer' : 'Tracking number')}
+                </p>
+                <p className="mt-1 font-medium text-neutral-900 break-all">{order.tracking_number}</p>
+                {trackingUrl && (
+                  <a
+                    href={trackingUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mt-2 inline-flex text-sm font-medium text-neutral-900 underline underline-offset-4 hover:text-neutral-700"
+                  >
+                    {ordersCopy.trackParcel || (lang === 'no' ? 'Spor pakken hos Posten' : 'Track parcel with Posten')}
+                  </a>
+                )}
+              </div>
             )}
           </div>
           <div className="flex flex-wrap gap-2">
