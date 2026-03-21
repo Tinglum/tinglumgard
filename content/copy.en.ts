@@ -102,6 +102,55 @@
     notOpenForOrdering: "Not open for ordering",
   },
 
+  crossSell: {
+    switcherLabel: "From Tinglum Farm",
+    switcherHint: "Move between hatching eggs, chickens and woolly pig boxes.",
+    sections: {
+      pigs: "Woolly Pig",
+      eggs: "Eggs",
+      chickens: "Chickens",
+    },
+    otherProductsLabel: "More from the farm",
+    otherProductsTitle: "Explore more from Tinglum Farm",
+    otherProductsDescription:
+      "While planning eggs or chickens, you can also look at this season's woolly pig boxes and the other products from Tinglum Farm.",
+    cards: {
+      pigs: {
+        badge: "Woolly pig for Christmas",
+        title: "Reserve your Christmas rib already now",
+        description:
+          "If you want ribbe for Christmas, richly marbled bacon and cuts worth looking forward to, try the delicacy woolly pig from Tinglum Farm and reserve early.",
+        descriptionShort: "Reserve woolly pig for Christmas before the season fills up.",
+        highlights: ["Ribbe for Christmas", "Woolly pig for Christmas", "Try the delicacy woolly pig"],
+        meta: "Season 2026 • Limited number of boxes • Only a few boxes per pig",
+        primaryCta: "See woolly pig boxes",
+        secondaryCta: "Learn more about the boxes",
+      },
+      eggs: {
+        badge: "Hatching eggs in season",
+        title: "Find the right week for eggs",
+        description:
+          "See which weeks are open, which breeds are available, and find hatching eggs that fit your plans for the season ahead.",
+        descriptionShort: "See the weekly view and find eggs that fit your plan.",
+        highlights: ["Multiple breeds", "Week by week", "Beautiful egg colours"],
+        meta: "Carefully selected hatching eggs • Delivered week by week in season",
+        primaryCta: "Go to eggs",
+        secondaryCta: "See available weeks",
+      },
+      chickens: {
+        badge: "Live chickens",
+        title: "Book chickens by week and age",
+        description:
+          "Choose breed, age and pickup week directly in the calendar. Ideal if you want to build your flock step by step during the season.",
+        descriptionShort: "Choose breed, age and pickup week directly in the calendar.",
+        highlights: ["Choose age", "Weekly availability", "Multiple breeds"],
+        meta: "Heritage breed chickens from the farm • Book week by week",
+        primaryCta: "Go to chickens",
+        secondaryCta: "See available hatches",
+      },
+    },
+  },
+
   // Egg breed detail labels
   breed: {
     deliveryFrom: "Shipping from",

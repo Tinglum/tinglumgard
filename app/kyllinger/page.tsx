@@ -8,6 +8,10 @@ import { ChickenOrderForm } from '@/components/chickens/ChickenOrderForm'
 import type { ChickenWeekAvailability } from '@/lib/chickens/types'
 import { trackChickenFunnel } from '@/lib/chickens/analytics'
 import { useToast } from '@/hooks/use-toast'
+import { ProductSectionSwitcher } from '@/components/ProductSectionSwitcher'
+import { FarmCrossSellCard } from '@/components/FarmCrossSellCard'
+import { OtherProductsRow } from '@/components/OtherProductsRow'
+import { MobileProductDock } from '@/components/MobileProductDock'
 
 interface SelectedHatchOption {
   id: string
@@ -250,7 +254,7 @@ export default function KyllingerPage() {
   }, [breedById, selectedOptions, selectedWeekBookableBreeds])
 
   return (
-    <div className="min-h-screen bg-stone-50">
+    <div className="min-h-screen bg-stone-50 pb-28 md:pb-10">
       <div className="bg-gradient-to-b from-neutral-900 to-neutral-800 text-white py-16">
         <div className="max-w-6xl mx-auto px-4 text-center">
           <h1 className="text-4xl md:text-5xl font-light mb-4">
@@ -263,6 +267,10 @@ export default function KyllingerPage() {
       </div>
 
       <div className="max-w-6xl mx-auto px-4 py-10 space-y-10">
+        <div className="sticky top-24 z-20">
+          <ProductSectionSwitcher />
+        </div>
+
         {loading ? (
           <div className="space-y-8 animate-pulse">
             <div className="rounded-xl border border-neutral-200 bg-white p-4">
@@ -341,6 +349,8 @@ export default function KyllingerPage() {
                 ))}
               </div>
             </section>
+
+            <FarmCrossSellCard product="pigs" variant="strip" />
 
             <section>
               <h2 className="text-2xl font-light text-neutral-900 mb-2">
@@ -495,7 +505,8 @@ export default function KyllingerPage() {
             )}
 
             {selectedWeek && selectedOrderLines.length > 0 && (
-              <section id="order-form">
+              <section id="order-form" className="space-y-4">
+                <FarmCrossSellCard product="pigs" variant="compact" />
                 <ChickenOrderForm
                   selection={{
                     weekNumber: selectedWeek.weekNumber,
@@ -507,9 +518,13 @@ export default function KyllingerPage() {
                 />
               </section>
             )}
+
+            <OtherProductsRow currentSection="chickens" />
           </>
         )}
       </div>
+
+      <MobileProductDock />
     </div>
   )
 }

@@ -102,6 +102,55 @@
     notOpenForOrdering: "Ikke åpent for bestilling",
   },
 
+  crossSell: {
+    switcherLabel: "Fra Tinglum Gård",
+    switcherHint: "Bytt mellom rugeegg, kyllinger og ullgris.",
+    sections: {
+      pigs: "Ullgris",
+      eggs: "Rugeegg",
+      chickens: "Kyllinger",
+    },
+    otherProductsLabel: "Mer fra gården",
+    otherProductsTitle: "Se hva mer du kan sikre deg fra gården",
+    otherProductsDescription:
+      "Mens du planlegger rugeegg eller kyllinger, kan du også se sesongens ullgris-kasser og de andre produktene fra Tinglum Gård.",
+    cards: {
+      pigs: {
+        badge: "Ullgris til jul",
+        title: "Sikre ribbe til jul allerede nå",
+        description:
+          "Vil du ha ribbe til jul, bacon med karakter og stykningsdeler det er verdt å glede seg til? Prøv delikatessen ullgris fra Tinglum Gård og reserver kassen tidlig.",
+        descriptionShort: "Reserver ullgris til jul før sesongens kasser blir tatt.",
+        highlights: ["Ribbe til jul", "Ullgris til jul", "Prøv delikatessen ullgris"],
+        meta: "Sesong 2026 • Begrenset antall kasser • Kun få kasser per gris",
+        primaryCta: "Se ullgris-kassene",
+        secondaryCta: "Les mer om kassene",
+      },
+      eggs: {
+        badge: "Rugeegg i sesong",
+        title: "Finn riktig uke for rugeegg",
+        description:
+          "Se hvilke uker som er åpne, hvilke raser som er tilgjengelige, og finn rugeegg som passer planene dine videre i sesongen.",
+        descriptionShort: "Se ukeoversikten og finn rugeegg som passer planen din.",
+        highlights: ["Flere raser", "Uke for uke", "Vakre eggfarger"],
+        meta: "Nøye utvalgte rugeegg • Leveres uke for uke i sesong",
+        primaryCta: "Gå til rugeegg",
+        secondaryCta: "Se tilgjengelige uker",
+      },
+      chickens: {
+        badge: "Levende kyllinger",
+        title: "Bestill kyllinger etter uke og alder",
+        description:
+          "Velg rase, alder og henteuke direkte i kalenderen. Perfekt for deg som vil bygge opp flokken steg for steg gjennom sesongen.",
+        descriptionShort: "Velg rase, alder og henteuke direkte i kalenderen.",
+        highlights: ["Velg alder", "Ukevis tilgjengelighet", "Flere raser"],
+        meta: "Rasekyllinger fra gården • Bestill uke for uke",
+        primaryCta: "Gå til kyllinger",
+        secondaryCta: "Se tilgjengelige kull",
+      },
+    },
+  },
+
   // Egg breed detail labels
   breed: {
     deliveryFrom: "Sending fra",

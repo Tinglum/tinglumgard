@@ -12,6 +12,10 @@ import { ArrowRight, Loader2, Mail } from 'lucide-react'
 import { buildWeekAvailability, fetchBreeds, fetchInventory } from '@/lib/eggs/api'
 import { localizeBreeds } from '@/lib/eggs/localize'
 import type { Breed, WeekAvailability } from '@/lib/eggs/types'
+import { ProductSectionSwitcher } from '@/components/ProductSectionSwitcher'
+import { FarmCrossSellCard } from '@/components/FarmCrossSellCard'
+import { OtherProductsRow } from '@/components/OtherProductsRow'
+import { MobileProductDock } from '@/components/MobileProductDock'
 
 type WishlistMode = 'order_addon' | 'week' | 'asap'
 
@@ -479,7 +483,7 @@ export default function HomePage() {
   )
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen pb-28 md:pb-16">
       {/* Hero section */}
       <section className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-screen-xl py-16 md:py-24">
         <motion.div
@@ -494,6 +498,10 @@ export default function HomePage() {
           <p className="text-lg md:text-xl text-neutral-600 mb-12 leading-relaxed max-w-prose mx-auto">
             {t.eggsHero.subtitle}
           </p>
+
+          <div className="sticky top-24 z-20 mb-8">
+            <ProductSectionSwitcher />
+          </div>
 
           <div className="mb-16 text-left">
             <div className="min-w-0">
@@ -671,9 +679,16 @@ export default function HomePage() {
                     ))}
                   </div>
 
-                  <aside className="lg:sticky lg:top-28 lg:self-start">{wishlistInfoCard}</aside>
+                  <aside className="space-y-4 lg:sticky lg:top-28 lg:self-start">
+                    {wishlistInfoCard}
+                    <FarmCrossSellCard product="pigs" />
+                  </aside>
                 </motion.div>
               )}
+
+              <div className="mt-10">
+                <OtherProductsRow currentSection="eggs" />
+              </div>
             </div>
           </div>
         </motion.div>
@@ -886,6 +901,8 @@ export default function HomePage() {
           </GlassCard>
         </div>
       )}
+
+      <MobileProductDock />
     </div>
   )
 }
