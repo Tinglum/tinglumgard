@@ -2,13 +2,26 @@
 import { getSession } from '@/lib/auth/session';
 import { dispatchEmail } from '@/lib/email/dispatch';
 import { renderManagedTemplate } from '@/lib/email/render';
-import { buildCustomerOrderLink, buildCustomerPathLink } from '@/lib/email/links';
+import { buildCustomerOrderLink } from '@/lib/email/links';
+import { reconcileChickenPickupDependentFlowInstances } from '@/lib/email/lifecycle';
 import { supabaseAdmin } from '@/lib/supabase/server';
 
 function normalizeEmail(value: unknown): string {
   return String(value || '')
     .trim()
     .toLowerCase();
+}
+
+function isMissingChickenCollectionColumn(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false;
+  const candidate = error as { message?: string | null; code?: string | null };
+  if (candidate.code === '42703') return true;
+  const message = String(candidate.message || '');
+  return (
+    message.includes('remainder_collected_at') ||
+    message.includes('remainder_collected_by') ||
+    message.includes('remainder_collection_note')
+  );
 }
 
 export async function POST(
@@ -28,7 +41,9 @@ export async function POST(
 
   const { data: order, error } = await supabaseAdmin
     .from('chicken_orders')
-    .select('id, order_number, customer_name, customer_email, status, remainder_amount_nok')
+    .select(
+      'id, order_number, customer_name, customer_email, status, total_amount_nok, remainder_amount_nok, chicken_payments(amount_nok, status, payment_type)'
+    )
     .eq('id', params.id)
     .maybeSingle();
 
@@ -43,17 +58,49 @@ export async function POST(
   const nowIso = new Date().toISOString();
   const collectedBy = session.email || session.name || 'admin';
   const status = String(order.status || '');
-  const nextStatus = status === 'deposit_paid' || status === 'ready_for_pickup' ? 'fully_paid' : status;
+  const completedPayments = Array.isArray(order.chicken_payments)
+    ? order.chicken_payments.filter((payment) => payment?.status === 'completed')
+    : [];
+  const alreadyPaidNok = completedPayments.reduce((sum, payment) => {
+    return sum + Math.round(Number(payment?.amount_nok || 0));
+  }, 0);
+  const totalAmountNok = Math.max(0, Math.round(Number(order.total_amount_nok || 0)));
+  const totalPaidAfterCollection = alreadyPaidNok + remainderAmountNok;
+  const isFullyPaidAfterCollection = totalPaidAfterCollection >= totalAmountNok;
+  const nextStatus = isFullyPaidAfterCollection
+    ? 'picked_up'
+    : status === 'ready_for_pickup'
+      ? 'ready_for_pickup'
+      : 'deposit_paid';
 
-  await supabaseAdmin
+  const primaryOrderUpdate = {
+    status: nextStatus,
+    remainder_payment_enabled: false,
+    remainder_collected_at: nowIso,
+    remainder_collected_by: collectedBy,
+    remainder_collection_note: note || null,
+  };
+
+  const { error: updateError } = await supabaseAdmin
     .from('chicken_orders')
-    .update({
-      status: nextStatus,
-      remainder_collected_at: nowIso,
-      remainder_collected_by: collectedBy,
-      remainder_collection_note: note || null,
-    })
+    .update(primaryOrderUpdate)
     .eq('id', order.id);
+
+  if (updateError && isMissingChickenCollectionColumn(updateError)) {
+    const { error: fallbackUpdateError } = await supabaseAdmin
+      .from('chicken_orders')
+      .update({
+        status: nextStatus,
+        remainder_payment_enabled: false,
+      })
+      .eq('id', order.id);
+
+    if (fallbackUpdateError) {
+      throw fallbackUpdateError;
+    }
+  } else if (updateError) {
+    throw updateError;
+  }
 
   await supabaseAdmin.from('chicken_payments').insert({
     chicken_order_id: order.id,
@@ -111,42 +158,14 @@ export async function POST(
     }
   }
 
-  // Dispatch chicken order followup email (cross-sell pork discount) - delayed
-  if (customerEmail && customerEmail !== 'pending@vipps.no') {
+  if (nextStatus === 'picked_up') {
     try {
-      const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_BASE_URL || 'https://tinglumgard.no';
-      const followupRendered = await renderManagedTemplate({
-        templateKey: 'chicken.order.followup',
-        locale,
-        variables: {
-          customer_name: String(order.customer_name || 'Kunde'),
-          order_number: String(order.order_number || ''),
-          message_url: buildCustomerPathLink(appUrl, '/min-side'),
-          pork_url: appUrl,
-          order_url: buildCustomerOrderLink(appUrl, 'chicken', String(order.id)),
-        },
+      await reconcileChickenPickupDependentFlowInstances(String(order.id), {
+        reason: 'order_picked_up',
+        pickedUpAt: nowIso,
       });
-
-      if (followupRendered) {
-        await dispatchEmail({
-          to: customerEmail,
-          subject: followupRendered.subject,
-          html: followupRendered.html,
-          classification: 'transactional',
-          templateKey: followupRendered.templateKey,
-          locale,
-          sourcePath: '/api/admin/chickens/orders/[id]/collect-remainder',
-          productScope: 'chickens',
-          flowKey: 'chicken.order.followup',
-          entityType: 'chicken_order',
-          entityId: order.id,
-          chickenOrderId: order.id,
-          metadata: { trigger: 'collect-remainder-followup' },
-        });
-      }
     } catch (followupError) {
-      // Don't fail the collect if followup fails
-      console.error('chicken-followup-dispatch', followupError);
+      console.error('chicken-followup-schedule', followupError);
     }
   }
 
@@ -160,4 +179,3 @@ export async function POST(
     emailError,
   });
 }
-

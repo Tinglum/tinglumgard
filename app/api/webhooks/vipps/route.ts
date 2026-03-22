@@ -3,7 +3,10 @@ import { NextRequest, NextResponse } from "next/server";
 import crypto from "node:crypto";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import { dispatchEmail } from "@/lib/email/dispatch";
-import { reconcileEggPaymentDependentFlowInstances } from "@/lib/email/lifecycle";
+import {
+  reconcileChickenPickupDependentFlowInstances,
+  reconcileEggPaymentDependentFlowInstances,
+} from "@/lib/email/lifecycle";
 import { renderManagedTemplate } from "@/lib/email/render";
 import { buildAdminOrderLink, buildCustomerOrderLink } from "@/lib/email/links";
 import { finalizeConfirmedEggOrder } from '@/lib/eggs/order-confirmation'
@@ -358,6 +361,18 @@ function normalizeEmail(value: unknown): string {
 function normalizePhone(value: unknown): string {
   if (typeof value !== 'string') return '';
   return value.trim();
+}
+
+function isMissingChickenCollectionColumn(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false;
+  const candidate = error as { message?: string | null; code?: string | null };
+  if (candidate.code === '42703') return true;
+  const message = String(candidate.message || '');
+  return (
+    message.includes('remainder_collected_at') ||
+    message.includes('remainder_collected_by') ||
+    message.includes('remainder_collection_note')
+  );
 }
 
 function buildVippsContactUpdate(details: any): Record<string, string> {
@@ -1080,14 +1095,35 @@ export async function POST(request: NextRequest) {
         : Number(order?.total_amount || 0);
       const isActuallyFullyPaid = totalPaidOre >= totalAmountOre;
 
-      const paidStatus = isChickenPayment ? "fully_paid" : isEggPayment ? "fully_paid" : "paid";
+      const paidStatus = isChickenPayment ? "picked_up" : isEggPayment ? "fully_paid" : "paid";
       const remainderStatus = isActuallyFullyPaid ? paidStatus : 'deposit_paid';
       console.log(`Remainder payment: totalPaid=${totalPaidOre} øre, totalAmount=${totalAmountOre} øre, status=${remainderStatus}`);
 
-      const { error: orderErr } = await supabaseAdmin
+      const chickenRemainderCollectedAt = new Date().toISOString();
+      const chickenRemainderUpdate = {
+        status: remainderStatus,
+        remainder_payment_enabled: false,
+        remainder_collected_at: isActuallyFullyPaid ? chickenRemainderCollectedAt : null,
+        remainder_collected_by: isActuallyFullyPaid ? 'vipps_remainder' : null,
+        remainder_collection_note: isActuallyFullyPaid
+          ? 'Customer completed remainder payment via Vipps at pickup'
+          : null,
+      };
+      let { error: orderErr } = await supabaseAdmin
         .from(remainderOrderTable)
-        .update({ status: remainderStatus })
+        .update(isChickenPayment ? chickenRemainderUpdate : { status: remainderStatus })
         .eq("id", remainderOrderId);
+
+      if (orderErr && isChickenPayment && isMissingChickenCollectionColumn(orderErr)) {
+        const fallback = await supabaseAdmin
+          .from(remainderOrderTable)
+          .update({
+            status: remainderStatus,
+            remainder_payment_enabled: false,
+          })
+          .eq("id", remainderOrderId);
+        orderErr = fallback.error;
+      }
 
       if (orderErr) {
         logError('vipps-webhook-order-update-failed', orderErr);
@@ -1101,6 +1137,19 @@ export async function POST(request: NextRequest) {
           await reconcileEggPaymentDependentFlowInstances(String(remainderOrderId), 'order_fully_paid');
         } catch (cleanupError) {
           logError('vipps-webhook-egg-flow-cleanup', cleanupError, {
+            orderId: String(remainderOrderId),
+          });
+        }
+      }
+
+      if (isChickenPayment && remainderStatus === 'picked_up') {
+        try {
+          await reconcileChickenPickupDependentFlowInstances(String(remainderOrderId), {
+            reason: 'order_picked_up',
+            pickedUpAt: chickenRemainderCollectedAt,
+          });
+        } catch (cleanupError) {
+          logError('vipps-webhook-chicken-flow-cleanup', cleanupError, {
             orderId: String(remainderOrderId),
           });
         }

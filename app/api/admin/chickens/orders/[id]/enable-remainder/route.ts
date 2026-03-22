@@ -11,17 +11,13 @@ function isUuid(value?: string | null): boolean {
 async function loadChickenOrder(identifier: string) {
   type LookupError = { message?: string | null; code?: string | null } | null
 
-  const primarySelect =
-    'id, order_number, customer_name, customer_email, status, pickup_monday, delivery_method, delivery_fee_nok, remainder_amount_nok, remainder_payment_enabled, chicken_breeds(*), chicken_hatches(hatch_date), chicken_order_additions(hatch_id, quantity_hens, quantity_roosters, subtotal_nok, price_per_hen_nok, price_per_rooster_nok, chicken_breeds(*), chicken_hatches(hatch_date)), chicken_payments(*)'
-  const fallbackSelect =
+  const selectClause =
     'id, order_number, customer_name, customer_email, status, pickup_monday, delivery_method, delivery_fee_nok, remainder_amount_nok, remainder_payment_enabled, chicken_breeds(*), chicken_hatches(hatch_date), chicken_order_additions(hatch_id, quantity_hens, quantity_roosters, subtotal_nok, price_per_hen_nok, chicken_breeds(*), chicken_hatches(hatch_date)), chicken_payments(*)'
   const attempts: Array<'id' | 'order_number'> = isUuid(identifier)
     ? ['id', 'order_number']
     : ['order_number', 'id']
 
-  const runLookup = async (
-    selectClause: string
-  ): Promise<{ data: any; error: LookupError }> => {
+  const runLookup = async (): Promise<{ data: any; error: LookupError }> => {
     let lastError: LookupError = null
 
     for (const column of attempts) {
@@ -44,16 +40,22 @@ async function loadChickenOrder(identifier: string) {
     return { data: null, error: lastError }
   }
 
-  const primary = await runLookup(primarySelect)
+  const result = await runLookup()
   if (
-    !primary.error ||
-    (primary.error.code !== '42703' &&
-      !String(primary.error.message || '').includes('price_per_rooster_nok'))
+    result.error &&
+    (result.error.code === '42703' || String(result.error.message || '').includes('price_per_rooster_nok'))
   ) {
-    return primary
+    return {
+      data: null,
+      error: {
+        ...result.error,
+        message:
+          'Chicken remainder activation query still depends on a missing production column. This loader should be schema-tolerant.',
+      },
+    }
   }
 
-  return await runLookup(fallbackSelect)
+  return result
 }
 
 function getCompletedRemainderPaidNok(payments: any[] = []): number {

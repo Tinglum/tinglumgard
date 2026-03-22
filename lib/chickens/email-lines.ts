@@ -1,6 +1,16 @@
 type ChickenBreedRelation =
-  | { name?: string | null; name_no?: string | null; name_en?: string | null }
-  | Array<{ name?: string | null; name_no?: string | null; name_en?: string | null }>
+  | {
+      name?: string | null;
+      name_no?: string | null;
+      name_en?: string | null;
+      rooster_price_nok?: number | null;
+    }
+  | Array<{
+      name?: string | null;
+      name_no?: string | null;
+      name_en?: string | null;
+      rooster_price_nok?: number | null;
+    }>
   | null;
 
 type ChickenAdditionLike = {
@@ -92,6 +102,11 @@ function pickBreedName(relation: ChickenBreedRelation): string {
   return String(breed?.name_no || breed?.name_en || breed?.name || 'Kyllinger').trim() || 'Kyllinger';
 }
 
+function pickBreedRoosterPrice(relation: ChickenBreedRelation): number {
+  const breed = Array.isArray(relation) ? relation[0] : relation;
+  return Math.max(0, toNumber(breed?.rooster_price_nok));
+}
+
 function formatNok(amount: number, locale: 'no' | 'en'): string {
   const language = locale === 'en' ? 'en-US' : 'nb-NO';
   return `kr ${Math.round(amount).toLocaleString(language)}`;
@@ -151,7 +166,12 @@ export function summarizeChickenOrderLines(order: ChickenOrderLike): ChickenOrde
     if (hens === 0 && roosters === 0) continue;
 
     const pricePerHen = Math.max(0, toNumber(addition?.price_per_hen_nok) || basePricePerHen);
-    const pricePerRooster = Math.max(0, toNumber(addition?.price_per_rooster_nok) || basePricePerRooster);
+    const pricePerRooster = Math.max(
+      0,
+      toNumber(addition?.price_per_rooster_nok) ||
+        pickBreedRoosterPrice(addition?.chicken_breeds || null) ||
+        basePricePerRooster
+    );
     const computedSubtotal = hens * pricePerHen + roosters * pricePerRooster;
     const explicitSubtotal = Math.max(0, toNumber(addition?.subtotal_nok));
 
@@ -307,3 +327,4 @@ export function buildChickenBreedAgeLabel(
     })
     .join(' + ');
 }
+

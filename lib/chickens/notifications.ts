@@ -18,17 +18,17 @@ function isMissingChickenEmailColumnError(error: unknown): boolean {
 
 async function fetchChickenOrderForEmail(orderId: string) {
   type LookupError = { message?: string | null; code?: string | null } | null
-  const primarySelect =
-    '*, chicken_breeds(*), chicken_hatches(hatch_date), chicken_order_additions(hatch_id, age_weeks_at_pickup, quantity_hens, quantity_roosters, subtotal_nok, price_per_hen_nok, price_per_rooster_nok, chicken_breeds(*), chicken_hatches(hatch_date))';
-  const fallbackSelect =
-    '*, chicken_breeds(*), chicken_hatches(hatch_date), chicken_order_additions(hatch_id, age_weeks_at_pickup, quantity_hens, quantity_roosters, subtotal_nok, price_per_hen_nok, chicken_breeds(*), chicken_hatches(hatch_date))';
+  const selectClauses = [
+    '*, chicken_breeds(*), chicken_hatches(hatch_date), chicken_order_additions(hatch_id, age_weeks_at_pickup, quantity_hens, quantity_roosters, subtotal_nok, price_per_hen_nok, chicken_breeds(*), chicken_hatches(hatch_date))',
+    '*, chicken_breeds(*), chicken_hatches(hatch_date), chicken_order_additions(hatch_id, quantity_hens, quantity_roosters, subtotal_nok, price_per_hen_nok, chicken_breeds(*), chicken_hatches(hatch_date))',
+  ];
 
   const runLookup = async (
-    selectClause: string
+    selectClauseToUse: string
   ): Promise<{ order: any; error: LookupError }> => {
     const { data: byId, error: byIdError } = await supabaseAdmin
       .from('chicken_orders')
-      .select(selectClause)
+      .select(selectClauseToUse)
       .eq('id', String(orderId).trim())
       .maybeSingle();
 
@@ -38,19 +38,34 @@ async function fetchChickenOrderForEmail(orderId: string) {
 
     const { data: byOrderNumber, error: byOrderNumberError } = await supabaseAdmin
       .from('chicken_orders')
-      .select(selectClause)
+      .select(selectClauseToUse)
       .eq('order_number', String(orderId).trim())
       .maybeSingle();
 
     return { order: byOrderNumber, error: byOrderNumberError };
   };
 
-  const primary = await runLookup(primarySelect);
-  if (!primary.error || !isMissingChickenEmailColumnError(primary.error)) {
-    return primary;
+  let result: { order: any; error: LookupError } = { order: null, error: null };
+
+  for (const selectClause of selectClauses) {
+    result = await runLookup(selectClause);
+    if (!result.error || !isMissingChickenEmailColumnError(result.error)) {
+      return result;
+    }
   }
 
-  return await runLookup(fallbackSelect);
+  if (result.error && isMissingChickenEmailColumnError(result.error)) {
+    return {
+      order: null,
+      error: {
+        ...result.error,
+        message:
+          'Chicken email query still depends on columns missing in production. This order loader should be schema-tolerant.',
+      },
+    };
+  }
+
+  return result;
 }
 
 function normalizeEmail(value: unknown): string {

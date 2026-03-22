@@ -63,6 +63,7 @@ export async function PATCH(
 
     const body = await request.json()
     const pickupDate = String(body.pickupDate || '').trim()
+    const pickupTime = String(body.pickupTime || '').trim()
 
     // Validate ISO date format (YYYY-MM-DD)
     if (!/^\d{4}-\d{2}-\d{2}$/.test(pickupDate)) {
@@ -72,6 +73,12 @@ export async function PATCH(
     const parsed = new Date(`${pickupDate}T00:00:00Z`)
     if (Number.isNaN(parsed.getTime())) {
       return NextResponse.json({ error: 'Invalid date' }, { status: 400 })
+    }
+
+    // Validate pickup time slot
+    const validTimes = ['09:00', '11:00', '17:00']
+    if (!validTimes.includes(pickupTime)) {
+      return NextResponse.json({ error: 'Invalid pickup time. Must be 09:00, 11:00, or 17:00' }, { status: 400 })
     }
 
     // Fetch order
@@ -101,15 +108,15 @@ export async function PATCH(
       )
     }
 
-    // Update the pickup date
+    // Update the pickup date and time
     const { error: updateError } = await supabaseAdmin
       .from('chicken_orders')
-      .update({ pickup_date: pickupDate })
+      .update({ pickup_date: pickupDate, pickup_time: pickupTime })
       .eq('id', params.id)
 
     if (updateError) throw updateError
 
-    return NextResponse.json({ success: true, pickupDate })
+    return NextResponse.json({ success: true, pickupDate, pickupTime })
   } catch (error) {
     console.error('Error setting pickup date:', error)
     return NextResponse.json({ error: 'Failed to update pickup date' }, { status: 500 })

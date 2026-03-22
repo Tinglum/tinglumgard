@@ -3,6 +3,7 @@ import { getSession } from '@/lib/auth/session';
 import { supabaseAdmin } from '@/lib/supabase/server';
 import { logError } from '@/lib/logger';
 import { getMondayOfWeek } from '@/lib/chickens/pricing';
+import { reconcileChickenPickupDependentFlowInstances } from '@/lib/email/lifecycle';
 
 const ALLOWED_STATUSES = new Set([
   'pending',
@@ -140,6 +141,9 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
         return NextResponse.json({ error: 'Invalid status' }, { status: 400 });
       }
       updates.status = status;
+      if (status === 'picked_up') {
+        updates.remainder_payment_enabled = false;
+      }
     }
 
     const intFields: Array<[string, string]> = [
@@ -271,6 +275,19 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     const { data: updatedOrder, error: refetchError } = await fetchOrderWithRelations(params.id);
     if (refetchError || !updatedOrder) {
       return NextResponse.json({ error: 'Order updated but could not be reloaded' }, { status: 500 });
+    }
+
+    if (String(updates.status || '') === 'picked_up') {
+      try {
+        await reconcileChickenPickupDependentFlowInstances(String(updatedOrder.id), {
+          reason: 'order_picked_up',
+          pickedUpAt: new Date().toISOString(),
+        });
+      } catch (error) {
+        logError('admin-chicken-order-picked-up-followup', error, {
+          orderId: String(updatedOrder.id),
+        });
+      }
     }
 
     return NextResponse.json(normalizeChickenOrderFinancials(updatedOrder));

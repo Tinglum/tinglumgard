@@ -43,6 +43,7 @@ interface ChickenOrder {
   pickup_week: number
   pickup_monday?: string | null
   pickup_date?: string | null
+  pickup_time?: string | null
   age_weeks_at_pickup: number
   price_per_hen_nok: number
   price_per_rooster_nok?: number
@@ -97,7 +98,7 @@ const STATUS_COLORS: Record<string, string> = {
 const STATUS_TRANSITIONS: Record<string, string[]> = {
   pending: ['deposit_paid', 'cancelled'],
   deposit_paid: ['fully_paid', 'cancelled'],
-  fully_paid: ['ready_for_pickup', 'cancelled'],
+  fully_paid: ['ready_for_pickup', 'picked_up', 'cancelled'],
   ready_for_pickup: ['picked_up'],
   picked_up: [],
   cancelled: [],
@@ -205,6 +206,11 @@ export function ChickenOrdersManager({
     pickupWeekLabel: lang === 'en' ? 'Week {week}/{year}' : 'Uke {week}/{year}',
     viewDetailsButton: lang === 'en' ? 'Details' : 'Detaljer',
     collectRemainderButton: lang === 'en' ? 'Register remainder' : 'Registrer rest',
+    markPickedUpButton: lang === 'en' ? 'Mark as picked up' : 'Marker som hentet',
+    markPickedUpSuccess:
+      lang === 'en' ? 'Order marked as picked up.' : 'Bestillingen er markert som hentet.',
+    markPickedUpError:
+      lang === 'en' ? 'Could not mark order as picked up.' : 'Kunne ikke markere bestillingen som hentet.',
     enableRemainderButton: lang === 'en' ? 'Enable remainder payment' : 'Aktiver restbetaling',
     remainderEnabled: lang === 'en' ? 'Remainder enabled ✓' : 'Rest aktivert ✓',
     enableRemainderSuccess:
@@ -235,6 +241,7 @@ export function ChickenOrdersManager({
   const [selectedOrder, setSelectedOrder] = useState<ChickenOrder | null>(null)
   const [resendingOrderId, setResendingOrderId] = useState<string | null>(null)
   const [activatingRemainderOrderId, setActivatingRemainderOrderId] = useState<string | null>(null)
+  const [markingPickedUpOrderId, setMarkingPickedUpOrderId] = useState<string | null>(null)
   const [initialOrderHandled, setInitialOrderHandled] = useState(false)
   const [adjustBirdsOpen, setAdjustBirdsOpen] = useState(false)
   const [adjustBirdsStep, setAdjustBirdsStep] = useState<'edit' | 'pool' | 'confirm'>('edit')
@@ -503,6 +510,21 @@ export function ChickenOrdersManager({
     [getOrderFinancialTotals]
   )
 
+  const canMarkPickedUp = useCallback(
+    (order: ChickenOrder) => {
+      const financial = getOrderFinancialTotals(order)
+      return (
+        order.status !== 'cancelled' &&
+        order.status !== 'picked_up' &&
+        (financial.remaining <= 0 ||
+          Boolean(order.remainder_collected_at) ||
+          order.status === 'ready_for_pickup' ||
+          order.status === 'fully_paid')
+      )
+    },
+    [getOrderFinancialTotals]
+  )
+
   const handleEnableRemainder = async (order: ChickenOrder) => {
     try {
       setActivatingRemainderOrderId(order.id)
@@ -587,6 +609,40 @@ export function ChickenOrdersManager({
       })
     } finally {
       setResendingOrderId((current) => (current === orderId ? null : current))
+    }
+  }
+
+  const handleMarkPickedUp = async (order: ChickenOrder) => {
+    try {
+      setMarkingPickedUpOrderId(order.id)
+      const res = await fetch(`/api/admin/chickens/orders/${order.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'picked_up' }),
+      })
+      const body = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        throw new Error(body?.error || co.markPickedUpError)
+      }
+      toast({
+        title: co.updateToastTitle,
+        description: co.markPickedUpSuccess,
+      })
+      setOrders((current) =>
+        current.map((entry) => (entry.id === order.id ? { ...entry, ...body, status: 'picked_up' } : entry))
+      )
+      setSelectedOrder((current) =>
+        current?.id === order.id ? { ...current, ...body, status: 'picked_up' } : current
+      )
+      void fetchOrders()
+    } catch (error: any) {
+      toast({
+        title: co.errorUpdateTitle,
+        description: error?.message || co.markPickedUpError,
+        variant: 'destructive',
+      })
+    } finally {
+      setMarkingPickedUpOrderId((current) => (current === order.id ? null : current))
     }
   }
 
@@ -756,8 +812,10 @@ export function ChickenOrdersManager({
                     : `${ages[0]}-${ages[ages.length - 1]} ${lang === 'en' ? 'weeks' : 'uker'}`
               const isResending = resendingOrderId === order.id
               const isActivatingRemainder = activatingRemainderOrderId === order.id
+              const isMarkingPickedUp = markingPickedUpOrderId === order.id
               const canEnableRemainder = canEnableRemainderPayment(order)
               const remainderEnabled = showRemainderEnabledBadge(order)
+              const canMarkPickedUpNow = canMarkPickedUp(order)
               return (
                 <tr
                   key={order.id}
@@ -847,6 +905,16 @@ export function ChickenOrdersManager({
                           {co.remainderEnabled}
                         </Button>
                       )}
+                      {canMarkPickedUpNow && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => void handleMarkPickedUp(order)}
+                          disabled={isMarkingPickedUp}
+                        >
+                          {isMarkingPickedUp ? co.resendSending : co.markPickedUpButton}
+                        </Button>
+                      )}
                       <Button
                         size="sm"
                         variant="outline"
@@ -928,13 +996,13 @@ export function ChickenOrdersManager({
                   />
                   <DetailRow label={co.labelPickupMonday} value={formatDate(selectedOrder.pickup_monday || null)} />
                   <DetailRow
-                    label={lang === 'en' ? 'Pickup day' : 'Hentedag'}
+                    label={lang === 'en' ? 'Pickup day & time' : 'Hentedag og tid'}
                     value={
                       selectedOrder.pickup_date
-                        ? new Date(`${selectedOrder.pickup_date}T00:00:00`).toLocaleDateString(
+                        ? `${new Date(`${selectedOrder.pickup_date}T00:00:00`).toLocaleDateString(
                             lang === 'en' ? 'en-US' : 'nb-NO',
                             { weekday: 'long', day: 'numeric', month: 'long' }
-                          )
+                          )}${selectedOrder.pickup_time ? ` ${lang === 'en' ? 'at' : 'kl.'} ${selectedOrder.pickup_time}` : ''}`
                         : lang === 'en' ? 'Not chosen yet' : 'Ikke valgt ennå'
                     }
                   />
@@ -1091,6 +1159,15 @@ export function ChickenOrdersManager({
                 {showRemainderEnabledBadge(selectedOrder) && (
                   <Button variant="outline" disabled>
                     {co.remainderEnabled}
+                  </Button>
+                )}
+                {canMarkPickedUp(selectedOrder) && (
+                  <Button
+                    variant="outline"
+                    onClick={() => void handleMarkPickedUp(selectedOrder)}
+                    disabled={markingPickedUpOrderId === selectedOrder.id}
+                  >
+                    {markingPickedUpOrderId === selectedOrder.id ? co.resendSending : co.markPickedUpButton}
                   </Button>
                 )}
                 {!selectedOrder.remainder_collected_at &&

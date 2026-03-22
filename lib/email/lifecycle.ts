@@ -17,6 +17,7 @@ type LifecycleConfig = {
   eggOverdueGraceHours: number;
   chickenPickupReminderDays: number[];
   chickenAutoReadyDaysBefore: number;
+  chickenChoosePickupDayBefore: number;
   campaignSendViaApiCronOnly: boolean;
   appBaseUrl: string;
 };
@@ -95,11 +96,13 @@ const DEFAULT_LIFECYCLE_CONFIG: LifecycleConfig = {
   eggOverdueGraceHours: 48,
   chickenPickupReminderDays: [3, 1],
   chickenAutoReadyDaysBefore: 4,
+  chickenChoosePickupDayBefore: 7,
   campaignSendViaApiCronOnly: true,
   appBaseUrl: process.env.NEXT_PUBLIC_APP_URL || 'https://tinglumgard.no',
 };
 
 const EGG_HATCH_FOLLOWUP_DELAY_DAYS = 5;
+const CHICKEN_POST_PICKUP_FOLLOWUP_DELAY_DAYS = 3;
 
 const LIFECYCLE_TEMPLATE_SEEDS: LifecycleTemplateSeed[] = [
   {
@@ -255,10 +258,46 @@ const LIFECYCLE_TEMPLATE_SEEDS: LifecycleTemplateSeed[] = [
     subjectNo: 'Takk for kyllingbestillingen - {{order_number}}',
     subjectEn: 'Thanks for your chicken order - {{order_number}}',
     bodyNo:
-      '<p>Hei {{customer_first_name}},</p><p>Takk for bestillingen av kyllinger fra Tinglum Gård! Vi gleder oss til du henter dem.</p><p>Har du spørsmål, send oss gjerne en melding via nettsiden.</p><p><a href="{{message_url}}">Send melding på Min side</a></p><hr/><p><strong>Tilbud fra Tinglum Gård:</strong> Som kyllingkunde har du <strong>10% rabatt på forskuddet</strong> på din første Mangalitsa-kasse. Rabatten legges til automatisk ved bestilling.</p><p><a href="{{pork_url}}">Besøk tinglumgård.no</a></p><p><strong>Vennerabatt:</strong> Del vennerabattkoden din. Venner får rabatt, og du kan tjene kreditt tilsvarende opptil <strong>50% av forskuddet</strong> når de bestiller.</p>',
+      '<p>Hei {{customer_first_name}},</p><p>Takk for at du hentet kyllingene dine hos oss.</p><p>Vi håper de har fått en god start hjemme hos deg. Hvis du lurer på noe underveis, er det bare å sende oss en melding på Min side.</p><p><a href="{{message_url}}">Send melding på Min side</a></p><hr/><p><strong>Har du lyst til å prøve ullgris til jul?</strong> Som kyllingkunde får du <strong>10% rabatt på forskuddet</strong> på en Mangalitsa-kasse fra Tinglum Gård.</p><p><a href="{{pork_url}}">Se ullgris-kasser</a></p><p><strong>Vennerabatt:</strong> Del vennerabattkoden din videre. Vennene dine får <strong>20% rabatt på forskuddet</strong>, og du kan tjene kreditt tilsvarende opptil <strong>50% av forskuddet</strong> på kassen din.</p>',
     bodyEn:
-      '<p>Hi {{customer_first_name}},</p><p>Thank you for your chicken order from Tinglum Gård! We look forward to your pickup.</p><p>If you have any questions, feel free to send us a message on the website.</p><p><a href="{{message_url}}">Send a message on My Page</a></p><hr/><p><strong>Offer from Tinglum Gård:</strong> As a chicken customer, you get <strong>10% off the deposit</strong> on your first Mangalitsa box. The discount is applied automatically at checkout.</p><p><a href="{{pork_url}}">Visit tinglumgård.no</a></p><p><strong>Referral bonus:</strong> Share your referral code. Friends get a discount, and you can earn credit worth up to <strong>50% of the deposit</strong> when they order.</p>',
+      '<p>Hi {{customer_first_name}},</p><p>Thank you for picking up your chickens from us.</p><p>We hope they have settled in well. If you have any questions, just send us a message on My Page.</p><p><a href="{{message_url}}">Send a message on My Page</a></p><hr/><p><strong>Would you like to try Mangalitsa pork for Christmas?</strong> As a chicken customer, you get <strong>10% off the deposit</strong> on a Mangalitsa box from Tinglum Gård.</p><p><a href="{{pork_url}}">See Mangalitsa boxes</a></p><p><strong>Referral bonus:</strong> Share your referral code. Your friends get <strong>20% off the deposit</strong>, and you can earn credit worth up to <strong>50% of the deposit</strong> on your own box.</p>',
     variables: ['customer_name', 'customer_first_name', 'order_number', 'message_url', 'pork_url', 'order_url'],
+  },
+  {
+    templateKey: 'chicken.choose_pickup_day',
+    classification: 'transactional',
+    productScope: 'chickens',
+    subjectNo: 'Velg hentedag – {{order_number}}',
+    subjectEn: 'Choose your pickup day – {{order_number}}',
+    bodyNo:
+      '<p>Hei {{customer_first_name}},</p><p>Henteuken for bestilling <strong>{{order_number}}</strong> nærmer seg (uke {{pickup_week}}).</p><p>Gå inn på Min side og velg hentedag og -tid, slik at vi vet når du kommer.</p><p><a href="{{order_url}}" style="display:inline-block;background:#111827;color:#ffffff;text-decoration:none;padding:10px 16px;border-radius:8px;">Velg hentedag og tid</a></p>',
+    bodyEn:
+      '<p>Hi {{customer_first_name}},</p><p>The pickup week for order <strong>{{order_number}}</strong> is approaching (week {{pickup_week}}).</p><p>Go to My Page and choose your pickup day and time so we know when to expect you.</p><p><a href="{{order_url}}" style="display:inline-block;background:#111827;color:#ffffff;text-decoration:none;padding:10px 16px;border-radius:8px;">Choose pickup day &amp; time</a></p>',
+    variables: ['customer_name', 'customer_first_name', 'order_number', 'pickup_week', 'order_url'],
+  },
+  {
+    templateKey: 'chicken.pickup.reminder.no_day',
+    classification: 'transactional',
+    productScope: 'chickens',
+    subjectNo: 'Velg hentedag! Påminnelse – {{order_number}}',
+    subjectEn: 'Choose your pickup day! Reminder – {{order_number}}',
+    bodyNo:
+      '<p>Hei {{customer_first_name}},</p><p>Henteuken for bestilling <strong>{{order_number}}</strong> nærmer seg, men du har ikke valgt hentedag og -tid ennå.</p><p><strong>Velg dag og tid nå</strong> slik at vi kan gjøre kyllingene klare for deg.</p><p><a href="{{order_url}}" style="display:inline-block;background:#111827;color:#ffffff;text-decoration:none;padding:10px 16px;border-radius:8px;">Velg hentedag og tid</a></p>',
+    bodyEn:
+      '<p>Hi {{customer_first_name}},</p><p>The pickup week for order <strong>{{order_number}}</strong> is approaching, but you haven\'t chosen a pickup day and time yet.</p><p><strong>Choose your day and time now</strong> so we can prepare the chickens for you.</p><p><a href="{{order_url}}" style="display:inline-block;background:#111827;color:#ffffff;text-decoration:none;padding:10px 16px;border-radius:8px;">Choose pickup day &amp; time</a></p>',
+    variables: ['customer_name', 'customer_first_name', 'order_number', 'order_url'],
+  },
+  {
+    templateKey: 'chicken.pickup.reminder.final_warning',
+    classification: 'transactional',
+    productScope: 'chickens',
+    subjectNo: 'Siste sjanse: Velg hentedag – {{order_number}}',
+    subjectEn: 'Final notice: Choose your pickup day – {{order_number}}',
+    bodyNo:
+      '<p>Hei {{customer_first_name}},</p><p>I morgen starter henteuken for bestilling <strong>{{order_number}}</strong>, men du har ikke valgt hentedag eller -tid.</p><p><strong>Hvis du ikke velger hentedag innen søndag denne uken, vil bestillingen bli kansellert, forskuddet ditt beholdt, og kyllingene frigitt til andre kunder.</strong></p><p><a href="{{order_url}}" style="display:inline-block;background:#dc2626;color:#ffffff;text-decoration:none;padding:10px 16px;border-radius:8px;">Velg hentedag og tid nå</a></p>',
+    bodyEn:
+      '<p>Hi {{customer_first_name}},</p><p>Tomorrow is the start of the pickup week for order <strong>{{order_number}}</strong>, but you haven\'t specified a pickup day or time.</p><p><strong>If you do not choose a pickup day by Sunday this week, your order will be cancelled, your deposit forfeited, and the chickens released for other clients.</strong></p><p><a href="{{order_url}}" style="display:inline-block;background:#dc2626;color:#ffffff;text-decoration:none;padding:10px 16px;border-radius:8px;">Choose pickup day &amp; time now</a></p>',
+    variables: ['customer_name', 'customer_first_name', 'order_number', 'order_url'],
   },
 ];
 
@@ -336,6 +375,15 @@ const LIFECYCLE_FLOW_SEEDS: LifecycleFlowSeed[] = [
     sendOffsetMinutes: 0,
   },
   {
+    flowKey: 'chicken.choose_pickup_day',
+    eventType: 'chicken.choose_pickup_day',
+    productScope: 'chickens',
+    templateKey: 'chicken.choose_pickup_day',
+    mode: 'active',
+    active: true,
+    sendOffsetMinutes: 0,
+  },
+  {
     flowKey: 'chicken.remainder.collected',
     eventType: 'chicken.remainder_collected',
     productScope: 'chickens',
@@ -346,12 +394,12 @@ const LIFECYCLE_FLOW_SEEDS: LifecycleFlowSeed[] = [
   },
   {
     flowKey: 'chicken.order.followup',
-    eventType: 'chicken.remainder_collected',
+    eventType: 'chicken.order.picked_up',
     productScope: 'chickens',
     templateKey: 'chicken.order.followup',
     mode: 'active',
     active: true,
-    sendOffsetMinutes: 60, // 1 hour after pickup receipt
+    sendOffsetMinutes: CHICKEN_POST_PICKUP_FOLLOWUP_DELAY_DAYS * 24 * 60,
   },
 ];
 
@@ -411,6 +459,15 @@ const LIFECYCLE_FLOW_MATRIX: FlowMatrixRow[] = [
     stopRules: ['not_applicable', 'already_paid', 'order.cancelled'],
   },
   {
+    flowKey: 'chicken.choose_pickup_day',
+    productScope: 'chickens',
+    eventType: 'chicken.choose_pickup_day',
+    templateKey: 'chicken.choose_pickup_day',
+    triggerRule: 'pickup_monday - chicken_choose_pickup_day_before',
+    scheduleLocalTime: '08:00 Europe/Oslo',
+    stopRules: ['order.cancelled', 'order.picked_up'],
+  },
+  {
     flowKey: 'chicken.ready_for_pickup',
     productScope: 'chickens',
     eventType: 'chicken.auto_ready_for_pickup',
@@ -440,11 +497,11 @@ const LIFECYCLE_FLOW_MATRIX: FlowMatrixRow[] = [
   {
     flowKey: 'chicken.order.followup',
     productScope: 'chickens',
-    eventType: 'chicken.remainder_collected',
+    eventType: 'chicken.order.picked_up',
     templateKey: 'chicken.order.followup',
-    triggerRule: 'remainder_collected + 1 hour',
-    scheduleLocalTime: '+60min from event',
-    stopRules: ['template_missing', 'missing_recipient_email'],
+    triggerRule: `picked_up + ${CHICKEN_POST_PICKUP_FOLLOWUP_DELAY_DAYS} days`,
+    scheduleLocalTime: '10:00 Europe/Oslo',
+    stopRules: ['order.cancelled', 'template_missing', 'missing_recipient_email'],
   },
 ];
 
@@ -589,6 +646,7 @@ async function getLifecycleConfig(): Promise<LifecycleConfig> {
     'egg_overdue_grace_hours',
     'chicken_pickup_reminder_days',
     'chicken_auto_ready_days_before',
+    'chicken_choose_pickup_day_before',
     'campaign_send_via_api_cron_only',
   ];
 
@@ -624,6 +682,10 @@ async function getLifecycleConfig(): Promise<LifecycleConfig> {
     chickenAutoReadyDaysBefore: parseJsonNumber(
       map.chicken_auto_ready_days_before,
       DEFAULT_LIFECYCLE_CONFIG.chickenAutoReadyDaysBefore
+    ),
+    chickenChoosePickupDayBefore: parseJsonNumber(
+      map.chicken_choose_pickup_day_before,
+      DEFAULT_LIFECYCLE_CONFIG.chickenChoosePickupDayBefore
     ),
     campaignSendViaApiCronOnly: parseJsonBoolean(
       map.campaign_send_via_api_cron_only,
@@ -915,6 +977,151 @@ export async function reconcileEggPaymentDependentFlowInstances(
       processedAt: nowIso,
     });
   }
+}
+
+export async function reconcileChickenPickupDependentFlowInstances(
+  orderId: string,
+  options?: {
+    reason?: string;
+    pickedUpAt?: string | null;
+  }
+): Promise<void> {
+  const reason = options?.reason || 'chicken_order_picked_up';
+  const { data: order, error: orderError } = await supabaseAdmin
+    .from('chicken_orders')
+    .select('id, status, customer_name, customer_email, order_number, updated_at')
+    .eq('id', orderId)
+    .maybeSingle();
+
+  if (orderError) {
+    throw orderError;
+  }
+
+  if (!order) {
+    return;
+  }
+
+  const { data: instances, error: instanceError } = await supabaseAdmin
+    .from('email_flow_instances')
+    .select('id, status, queue_id, flow_key')
+    .eq('entity_type', 'chicken_order')
+    .eq('entity_id', orderId)
+    .in('flow_key', [
+      'chicken.ready_for_pickup',
+      'chicken.pickup.reminder',
+      'chicken.choose_pickup_day',
+      'chicken.order.followup',
+    ])
+    .in('status', ['scheduled', 'enqueued']);
+
+  if (instanceError) {
+    throw instanceError;
+  }
+
+  const queueIds = Array.from(
+    new Set(
+      (instances || [])
+        .map((instance) => String(instance.queue_id || '').trim())
+        .filter(Boolean)
+    )
+  );
+
+  const queueMap = new Map<string, { status: string; sentAt: string | null }>();
+  if (queueIds.length > 0) {
+    const { data: queueRows, error: queueError } = await supabaseAdmin
+      .from('email_dispatch_queue')
+      .select('id, status, sent_at')
+      .in('id', queueIds);
+
+    if (queueError) {
+      throw queueError;
+    }
+
+    for (const row of queueRows || []) {
+      queueMap.set(String(row.id), {
+        status: String(row.status || ''),
+        sentAt: row.sent_at ? String(row.sent_at) : null,
+      });
+    }
+  }
+
+  const nowIso = new Date().toISOString();
+
+  for (const instance of instances || []) {
+    const instanceId = String(instance.id || '');
+    if (!instanceId) continue;
+
+    const queueId = String(instance.queue_id || '').trim();
+    const queue = queueId ? queueMap.get(queueId) : undefined;
+    const queueStatus = String(queue?.status || '');
+
+    if (String(instance.status || '') === 'enqueued' && queueStatus === 'sent') {
+      await updateFlowInstanceStatus(instanceId, {
+        status: 'completed',
+        queueId: queueId || null,
+        lastError: null,
+        processedAt: queue?.sentAt || nowIso,
+      });
+      continue;
+    }
+
+    if (queueId && ['pending', 'processing', 'failed'].includes(queueStatus)) {
+      await cancelQueueEntry(queueId);
+    }
+
+    await updateFlowInstanceStatus(instanceId, {
+      status: 'cancelled',
+      queueId: queueId || null,
+      lastError: reason,
+      processedAt: nowIso,
+    });
+  }
+
+  if (String(order.status || '') !== 'picked_up') {
+    return;
+  }
+
+  const config = await getLifecycleConfig();
+  const flowMap = await getFlowMap();
+  const followupFlow = flowMap.get('chicken.order.followup');
+  if (!followupFlow || !followupFlow.active || followupFlow.mode === 'disabled') {
+    return;
+  }
+
+  const pickedUpAtIso = options?.pickedUpAt || String(order.updated_at || '') || nowIso;
+  const pickedUpAt = new Date(pickedUpAtIso);
+  const pickedUpYmd = getZonedDateTimeParts(
+    Number.isFinite(pickedUpAt.getTime()) ? pickedUpAt : new Date(nowIso),
+    config.timezone
+  );
+  const followupYmd = addDays(pickedUpYmd, CHICKEN_POST_PICKUP_FOLLOWUP_DELAY_DAYS);
+  const toEmail = normalizeEmail(order.customer_email);
+  const orderUrl = customerOrderLink('chickens', String(order.id), config.appBaseUrl);
+
+  await insertFlowInstance({
+    flowId: followupFlow.id,
+    flowKey: followupFlow.flow_key,
+    productScope: followupFlow.product_scope,
+    entityType: 'chicken_order',
+    entityId: String(order.id),
+    triggerDateKey: `picked-up-followup:${ymdToKey(pickedUpYmd)}`,
+    scheduledFor: zonedDateTimeToUtc(followupYmd, 10, 0, config.timezone).toISOString(),
+    toEmail: toEmail || null,
+    locale: 'no',
+    payload: {
+      customer_name: String(order.customer_name || 'Kunde'),
+      order_number: String(order.order_number || ''),
+      order_url: orderUrl,
+      message_url: buildCustomerPathLink(config.appBaseUrl, '/min-side'),
+      pork_url: `${String(config.appBaseUrl || '').replace(/\/+$/, '')}/produkt`,
+    },
+    metadata: {
+      product_scope: 'chickens',
+      flow_key: followupFlow.flow_key,
+      trigger_offset_days: CHICKEN_POST_PICKUP_FOLLOWUP_DELAY_DAYS,
+      pickup_event_at: pickedUpAtIso,
+    },
+  });
 }
 
 async function releaseEggInventory(inventoryId: string, quantity: number): Promise<void> {
@@ -1265,20 +1472,23 @@ async function materializeEggFlowInstances(flowMap: Map<string, FlowDefinition>,
 async function materializeChickenFlowInstances(flowMap: Map<string, FlowDefinition>, config: LifecycleConfig): Promise<number> {
   const readyFlow = flowMap.get('chicken.ready_for_pickup');
   const pickupReminderFlow = flowMap.get('chicken.pickup.reminder');
+  const choosePickupDayFlow = flowMap.get('chicken.choose_pickup_day');
   if (!readyFlow || !pickupReminderFlow) return 0;
 
   const { data: orders } = await supabaseAdmin
     .from('chicken_orders')
-    .select('id, order_number, customer_name, customer_email, status, pickup_monday, pickup_date, remainder_amount_nok, created_at')
+    .select('id, order_number, customer_name, customer_email, status, pickup_monday, pickup_date, pickup_time, pickup_week, remainder_amount_nok, created_at')
     .in('status', ['deposit_paid', 'ready_for_pickup', 'fully_paid']);
 
   let inserted = 0;
   for (const order of orders || []) {
     const orderId = String(order.id);
-    // Use customer-chosen pickup_date if set, otherwise fall back to pickup_monday
-    const effectivePickupStr = String(order.pickup_date || order.pickup_monday || '');
-    const pickupYmd = parseIsoDate(effectivePickupStr);
+    // Reminders always schedule relative to pickup_monday (the week anchor).
+    // Template switching at processing time handles pickup_date-specific content.
+    const pickupMondayStr = String(order.pickup_monday || '');
+    const pickupYmd = parseIsoDate(pickupMondayStr);
     if (!pickupYmd) continue;
+    const hasChosenDay = Boolean(order.pickup_date);
 
     const locale: 'no' | 'en' = 'no';
     const toEmail = normalizeEmail(order.customer_email);
@@ -1311,6 +1521,37 @@ async function materializeChickenFlowInstances(flowMap: Map<string, FlowDefiniti
         },
       });
       if (readyInserted) inserted += 1;
+    }
+
+    // "Choose your pickup day" email — 7 days before pickup_monday, only if no day chosen
+    if (choosePickupDayFlow && !hasChosenDay) {
+      const chooseYmd = addDays(pickupYmd, -config.chickenChoosePickupDayBefore);
+      const chooseWhen = zonedDateTimeToUtc(chooseYmd, 8, 0, config.timezone);
+      if (chooseWhen.getTime() > Date.now()) {
+        const chooseInserted = await insertFlowInstance({
+          flowId: choosePickupDayFlow.id,
+          flowKey: choosePickupDayFlow.flow_key,
+          productScope: choosePickupDayFlow.product_scope,
+          entityType: 'chicken_order',
+          entityId: orderId,
+          triggerDateKey: `choose-pickup-day:${ymdToKey(chooseYmd)}`,
+          scheduledFor: chooseWhen.toISOString(),
+          toEmail: toEmail || null,
+          locale,
+          payload: {
+            customer_name: String(order.customer_name || 'Kunde'),
+            order_number: String(order.order_number || ''),
+            pickup_week: String(order.pickup_week || ''),
+            order_url: orderUrl,
+          },
+          metadata: {
+            product_scope: 'chickens',
+            flow_key: choosePickupDayFlow.flow_key,
+            trigger_offset_days: config.chickenChoosePickupDayBefore,
+          },
+        });
+        if (chooseInserted) inserted += 1;
+      }
     }
 
     // Build reminder candidates and filter to future-only (avoid blast when order is placed late)
@@ -1648,6 +1889,25 @@ async function processDueInstances(
         await updateFlowInstanceStatus(instance.id, {
           status: 'cancelled',
           lastError: 'pickup_reminder_not_eligible',
+          processedAt: new Date().toISOString(),
+        });
+        skipped += 1;
+        continue;
+      }
+    }
+
+    if (instance.flow_key === 'chicken.order.followup') {
+      const { data: chickenOrder } = await supabaseAdmin
+        .from('chicken_orders')
+        .select('status')
+        .eq('id', instance.entity_id)
+        .maybeSingle();
+
+      const status = String(chickenOrder?.status || '');
+      if (!chickenOrder || status !== 'picked_up') {
+        await updateFlowInstanceStatus(instance.id, {
+          status: 'cancelled',
+          lastError: 'chicken_followup_not_eligible',
           processedAt: new Date().toISOString(),
         });
         skipped += 1;
