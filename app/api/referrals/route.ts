@@ -53,17 +53,47 @@ async function createAutoCode(params: {
 }
 
 async function getFirstEligibleOrderId(ownerPhone: string): Promise<string | null> {
-  const { data: order, error } = await supabaseAdmin
+  // Check pig orders
+  const { data: pigOrder, error: pigError } = await supabaseAdmin
     .from('orders')
-    .select('id')
+    .select('id, created_at')
     .eq('customer_phone', ownerPhone)
     .neq('status', 'cancelled')
     .order('created_at', { ascending: true })
     .limit(1)
     .maybeSingle();
 
-  if (error) throw error;
-  return order?.id || null;
+  if (pigError) throw pigError;
+
+  // Check egg orders
+  const { data: eggOrder, error: eggError } = await supabaseAdmin
+    .from('egg_orders')
+    .select('id, created_at')
+    .eq('customer_phone', ownerPhone)
+    .not('status', 'in', '(cancelled,forfeited,pending)')
+    .order('created_at', { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  if (eggError) throw eggError;
+
+  // Check chicken orders
+  const { data: chickenOrder, error: chickenError } = await supabaseAdmin
+    .from('chicken_orders')
+    .select('id, created_at')
+    .eq('customer_phone', ownerPhone)
+    .neq('status', 'cancelled')
+    .order('created_at', { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  if (chickenError) throw chickenError;
+
+  // Return the earliest order across all product types
+  const candidates = [pigOrder, eggOrder, chickenOrder].filter(Boolean) as Array<{ id: string; created_at: string }>;
+  if (candidates.length === 0) return null;
+  candidates.sort((a, b) => a.created_at.localeCompare(b.created_at));
+  return candidates[0].id;
 }
 
 // GET /api/referrals - Get user's referral code and stats
@@ -242,17 +272,10 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Du har allerede en kode' }, { status: 400 });
       }
 
-      // Get user's first order (to link code to)
-      const { data: userOrder } = await supabaseAdmin
-        .from('orders')
-        .select('id')
-        .eq('customer_phone', session.phoneNumber)
-        .neq('status', 'cancelled')
-        .order('created_at', { ascending: true })
-        .limit(1)
-        .maybeSingle();
+      // Get user's first order across all product types
+      const userOrderId = await getFirstEligibleOrderId(session.phoneNumber || '');
 
-      if (!userOrder?.id) {
+      if (!userOrderId) {
         return NextResponse.json(
           { error: 'Vennerabattkoden blir aktiv etter at du har lagt inn din første bestilling.' },
           { status: 400 }
@@ -267,7 +290,7 @@ export async function POST(request: NextRequest) {
           owner_phone: session.phoneNumber,
           owner_name: session.name,
           owner_email: session.email,
-          order_id: userOrder.id,
+          order_id: userOrderId,
           max_uses: 5,
           is_active: true,
         })
