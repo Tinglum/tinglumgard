@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth/session'
 import { supabaseAdmin } from '@/lib/supabase/server'
 
+function isUuid(value?: string | null): boolean {
+  if (!value) return false
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)
+}
+
 function getCompletedRemainderPaidNok(payments: any[] = []): number {
   return payments.reduce((sum, payment) => {
     if (payment?.payment_type !== 'remainder' || payment?.status !== 'completed') return sum
@@ -22,10 +27,11 @@ export async function POST(
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
+  const lookupColumn = isUuid(params.id) ? 'id' : 'order_number'
   const { data: order, error } = await supabaseAdmin
     .from('chicken_orders')
     .select('id, status, remainder_amount_nok, remainder_collected_at, remainder_payment_enabled, chicken_payments(*)')
-    .eq('id', params.id)
+    .eq(lookupColumn, params.id)
     .maybeSingle()
 
   if (error || !order) {
