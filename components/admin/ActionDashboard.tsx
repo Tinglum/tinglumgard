@@ -347,11 +347,21 @@ function EggWeekTrackerSection({ tracker, lang, copy }: {
     breeds,
   } = tracker;
 
-  // missingNow > 0 means deficit (orders > collected)
-  const nowIsDeficit = missingNow > 0;
-  const nowIsBalanced = missingNow === 0;
-  const predIsDeficit = predictedEndOfWeek > 0;
-  const predIsBalanced = predictedEndOfWeek === 0;
+  // Compute deficit-only totals (surplus breeds can't substitute for deficit breeds)
+  const deficitNow = (breeds || []).reduce((sum: number, b: any) => {
+    const diff = b.orders - b.collected;
+    return diff > 0 ? sum + diff : sum;
+  }, 0);
+  const deficitPred = (breeds || []).reduce((sum: number, b: any) => {
+    const diff = b.orders - b.forecast;
+    return diff > 0 ? sum + diff : sum;
+  }, 0);
+
+  // Use deficit-only for summary (surplus breeds can't cover other breeds)
+  const nowIsDeficit = deficitNow > 0;
+  const nowIsBalanced = deficitNow === 0;
+  const predIsDeficit = deficitPred > 0;
+  const predIsBalanced = deficitPred === 0;
 
   const formatDelta = (val: number) => {
     if (val === 0) return '0';
@@ -424,19 +434,19 @@ function EggWeekTrackerSection({ tracker, lang, copy }: {
         </div>
 
         {/* Status now */}
-        <div className={`p-4 rounded-lg border ${deltaBg(missingNow)}`}>
+        <div className={`p-4 rounded-lg border ${deltaBg(deficitNow)}`}>
           <p className="text-xs font-medium text-neutral-500 mb-1">
             {ewt.statusNow || 'Mangler n\u00e5'}
           </p>
-          <p className={`text-2xl font-light tabular-nums ${deltaColor(missingNow)}`}>
-            {formatDelta(missingNow)}
+          <p className={`text-2xl font-light tabular-nums ${deltaColor(deficitNow)}`}>
+            {formatDelta(deficitNow)}
           </p>
-          <p className={`text-xs ${deltaColor(missingNow)}`}>{statusLabel(missingNow)}</p>
+          <p className={`text-xs ${deltaColor(deficitNow)}`}>{statusLabel(deficitNow)}</p>
         </div>
       </div>
 
       {/* Prediction Sunday evening */}
-      <div className={`flex items-center gap-3 px-4 py-3 rounded-lg border mb-4 ${deltaBg(predictedEndOfWeek)}`}>
+      <div className={`flex items-center gap-3 px-4 py-3 rounded-lg border mb-4 ${deltaBg(deficitPred)}`}>
         {predIsDeficit ? (
           <TrendingDown className="w-4 h-4 text-red-500" />
         ) : (
@@ -445,8 +455,8 @@ function EggWeekTrackerSection({ tracker, lang, copy }: {
         <span className="text-sm text-neutral-700">
           {ewt.predictionSunday || 'Prediksjon s\u00f8ndag kveld'}:
         </span>
-        <span className={`text-sm font-medium tabular-nums ${deltaColor(predictedEndOfWeek)}`}>
-          {formatDelta(predictedEndOfWeek)} {ewt.eggs || 'egg'}
+        <span className={`text-sm font-medium tabular-nums ${deltaColor(deficitPred)}`}>
+          {formatDelta(deficitPred)} {ewt.eggs || 'egg'}
         </span>
         {forecastTotal === 0 && (
           <span className="text-xs text-neutral-400 ml-1">({ewt.noForecast || 'ingen prognose'})</span>
@@ -494,21 +504,33 @@ function EggWeekTrackerSection({ tracker, lang, copy }: {
                   </tr>
                 );
               })}
-              {/* Totals row */}
-              <tr className="border-t border-neutral-200 font-medium">
-                <td className="py-2 pr-4 text-neutral-900">{ewt.total || 'Totalt'}</td>
-                <td className="py-2 pr-4 text-right tabular-nums text-neutral-900">{ordersTotal}</td>
-                <td className="py-2 pr-4 text-right tabular-nums text-neutral-900">{collectedTotal}</td>
-                <td className={`py-2 pr-4 text-right tabular-nums ${deltaColor(missingNow)}`}>
-                  {formatDelta(missingNow)}
-                </td>
-                <td className="py-2 pr-4 text-right tabular-nums text-neutral-700">
-                  {forecastTotal > 0 ? forecastTotal : '\u2013'}
-                </td>
-                <td className={`py-2 text-right tabular-nums ${deltaColor(predictedEndOfWeek)}`}>
-                  {forecastTotal > 0 ? formatDelta(predictedEndOfWeek) : '\u2013'}
-                </td>
-              </tr>
+              {/* Totals row — only sum deficit breeds (surplus breeds can't substitute) */}
+              {(() => {
+                const deficitNow = breeds.reduce((sum: number, b: any) => {
+                  const diff = b.orders - b.collected;
+                  return diff > 0 ? sum + diff : sum;
+                }, 0);
+                const deficitPred = breeds.reduce((sum: number, b: any) => {
+                  const diff = b.orders - b.forecast;
+                  return diff > 0 ? sum + diff : sum;
+                }, 0);
+                return (
+                  <tr className="border-t border-neutral-200 font-medium">
+                    <td className="py-2 pr-4 text-neutral-900">{ewt.total || 'Totalt'}</td>
+                    <td className="py-2 pr-4 text-right tabular-nums text-neutral-900">{ordersTotal}</td>
+                    <td className="py-2 pr-4 text-right tabular-nums text-neutral-900">{collectedTotal}</td>
+                    <td className={`py-2 pr-4 text-right tabular-nums ${deltaColor(deficitNow)}`}>
+                      {formatDelta(deficitNow)}
+                    </td>
+                    <td className="py-2 pr-4 text-right tabular-nums text-neutral-700">
+                      {forecastTotal > 0 ? forecastTotal : '\u2013'}
+                    </td>
+                    <td className={`py-2 text-right tabular-nums ${deltaColor(deficitPred)}`}>
+                      {forecastTotal > 0 ? formatDelta(deficitPred) : '\u2013'}
+                    </td>
+                  </tr>
+                );
+              })()}
             </tbody>
           </table>
         </div>
