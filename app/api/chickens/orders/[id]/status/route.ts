@@ -8,6 +8,23 @@ function isUuid(value: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
 }
 
+async function hasChickenConfirmationEmail(orderId: string): Promise<boolean> {
+  const { data, error } = await supabaseAdmin
+    .from('email_dispatch_queue')
+    .select('id')
+    .eq('chicken_order_id', orderId)
+    .eq('template_key', 'chicken.order.deposit.confirmed.customer')
+    .limit(1)
+    .maybeSingle()
+
+  if (error) {
+    logError('chicken-order-status-confirmation-check', error)
+    return false
+  }
+
+  return Boolean(data?.id)
+}
+
 export async function GET(
   _request: NextRequest,
   { params }: { params: { id: string } }
@@ -80,13 +97,20 @@ export async function GET(
       return NextResponse.json({ error: 'Order not found' }, { status: 404 })
     }
 
-    // If this endpoint reconciled the deposit before webhook, send the same confirmations here.
-    if (reconciledDeposit && refreshedOrder.status === 'deposit_paid') {
+    const shouldHaveConfirmation = refreshedOrder.status === 'deposit_paid'
+    const alreadyHasConfirmation = shouldHaveConfirmation
+      ? await hasChickenConfirmationEmail(orderId)
+      : false
+
+    // If this endpoint reconciled the deposit before the webhook, or if the order is
+    // already deposit-paid but still missing its confirmation email, queue the shared
+    // detailed confirmation mail from the chicken notification helper.
+    if (shouldHaveConfirmation && (!alreadyHasConfirmation || reconciledDeposit)) {
       try {
         await sendChickenDepositConfirmationEmails({
           orderId,
           sourcePath: '/api/chickens/orders/[id]/status',
-          includeAdmin: true,
+          includeAdmin: reconciledDeposit,
         })
       } catch (notifyError) {
         logError('chicken-order-status-reconcile-notification', notifyError)

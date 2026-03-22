@@ -13,6 +13,7 @@ import {
   buildTotalBirdsLabel,
   summarizeChickenOrderLines,
 } from "@/lib/chickens/email-lines";
+import { sendChickenDepositConfirmationEmails } from '@/lib/chickens/notifications';
 import { logError } from "@/lib/logger";
 import { vippsClient } from "@/lib/vipps/api-client";
 
@@ -756,7 +757,7 @@ export async function POST(request: NextRequest) {
     if (isChickenPayment) {
       const result = await supabaseAdmin
         .from("chicken_orders")
-        .select("*, chicken_breeds(*), chicken_hatches(hatch_date), chicken_order_additions(hatch_id, quantity_hens, quantity_roosters, price_per_hen_nok, price_per_rooster_nok, subtotal_nok, chicken_breeds(name_no, name_en, name), chicken_hatches(hatch_date))")
+        .select("*, chicken_breeds(*), chicken_hatches(hatch_date), chicken_order_additions(hatch_id, quantity_hens, quantity_roosters, price_per_hen_nok, subtotal_nok, chicken_breeds(name_no, name_en, name), chicken_hatches(hatch_date))")
         .eq("id", resolvedPayment.chicken_order_id)
         .single();
       order = result.data;
@@ -888,46 +889,19 @@ export async function POST(request: NextRequest) {
               eggOrderId: order.id,
             });
           } else if (isChickenPayment) {
-            const chickenSummary = summarizeChickenOrderLines(order);
-            const chickenBreedWithAgeNo = buildChickenBreedAgeLabel(chickenSummary.lines, 'no');
-            const chickenBreedWithAgeEn = buildChickenBreedAgeLabel(chickenSummary.lines, 'en');
-            const rendered = await renderManagedTemplate({
-              templateKey: 'chicken.order.deposit.confirmed.customer',
-              locale: 'no',
-              variables: {
-                customer_name: order.customer_name || 'Kunde',
-                order_number: order.order_number,
-                breed_name: chickenBreedWithAgeNo || chickenSummary.breedLabel || 'Kyllinger',
-                breed_name_en: chickenBreedWithAgeEn || chickenSummary.breedLabel || 'Chickens',
-                breed_name_plain: chickenSummary.breedLabel || 'Kyllinger',
-                quantity_hens: chickenSummary.hens,
-                quantity_roosters: chickenSummary.roosters,
-                total_birds_label: buildTotalBirdsLabel(chickenSummary.hens, chickenSummary.roosters, 'no'),
-                total_birds_label_en: buildTotalBirdsLabel(chickenSummary.hens, chickenSummary.roosters, 'en'),
-                order_lines_html: buildChickenOrderLinesHtml(chickenSummary.lines, 'no', { deliveryFeeNok: Number(order.delivery_fee_nok || 0), deliveryLabel: getChickenDeliveryLabel(String(order.delivery_method || '')) }),
-                order_lines_html_en: buildChickenOrderLinesHtml(chickenSummary.lines, 'en', { deliveryFeeNok: Number(order.delivery_fee_nok || 0), deliveryLabel: getChickenDeliveryLabel(String(order.delivery_method || '')) }),
-                pickup_date: new Date(`${order.pickup_monday}T00:00:00`).toLocaleDateString('nb-NO'),
-                delivery_label: getChickenDeliveryLabel(String(order.delivery_method || '')),
-                total_amount_nok: formatNok(order.total_amount_nok),
-                deposit_amount_nok: formatNok(order.deposit_amount_nok),
-                remainder_amount_nok: formatNok(order.remainder_amount_nok),
-                order_url: buildOrderUrl(appUrl, 'chicken_order', order.id),
-                tip_index: 0,
-              },
+            const result = await sendChickenDepositConfirmationEmails({
+              orderId: String(order.id),
+              sourcePath: '/api/webhooks/vipps',
+              includeAdmin: true,
             });
 
-            if (!rendered) {
-              throw new Error('Missing template chicken.order.deposit.confirmed.customer');
+            if (!result.ok) {
+              throw new Error(result.errorMessage || result.reason || 'Failed to send chicken deposit confirmations');
             }
-            await dispatchEmail({
-              to: customerEmailForSend,
-              subject: rendered.subject,
-              html: rendered.html,
-              classification: 'transactional',
-              templateKey: rendered.templateKey,
-              sourcePath: '/api/webhooks/vipps',
-              chickenOrderId: order.id,
-            });
+
+            if (!result.customerSent && !result.adminSent) {
+              throw new Error(result.customerReason || result.adminReason || 'No chicken deposit confirmations were sent');
+            }
           } else {
             const displayBoxName = order.mangalitsa_preset?.name_no || order.mangalitsa_preset?.name_en || null;
             const boxDisplay = displayBoxName || 'Mangalitsa-boks';

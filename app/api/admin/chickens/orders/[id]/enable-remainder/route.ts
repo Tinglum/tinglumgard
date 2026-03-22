@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth/session'
 import { supabaseAdmin } from '@/lib/supabase/server'
+import { sendChickenRemainderEnabledEmail } from '@/lib/chickens/notifications'
 
 function isUuid(value?: string | null): boolean {
   if (!value) return false
@@ -8,31 +9,51 @@ function isUuid(value?: string | null): boolean {
 }
 
 async function loadChickenOrder(identifier: string) {
-  const baseSelect = 'id, order_number, status, remainder_amount_nok, chicken_payments(*)'
+  type LookupError = { message?: string | null; code?: string | null } | null
+
+  const primarySelect =
+    'id, order_number, customer_name, customer_email, status, pickup_monday, delivery_method, delivery_fee_nok, remainder_amount_nok, remainder_payment_enabled, chicken_breeds(*), chicken_hatches(hatch_date), chicken_order_additions(hatch_id, quantity_hens, quantity_roosters, subtotal_nok, price_per_hen_nok, price_per_rooster_nok, chicken_breeds(*), chicken_hatches(hatch_date)), chicken_payments(*)'
+  const fallbackSelect =
+    'id, order_number, customer_name, customer_email, status, pickup_monday, delivery_method, delivery_fee_nok, remainder_amount_nok, remainder_payment_enabled, chicken_breeds(*), chicken_hatches(hatch_date), chicken_order_additions(hatch_id, quantity_hens, quantity_roosters, subtotal_nok, price_per_hen_nok, chicken_breeds(*), chicken_hatches(hatch_date)), chicken_payments(*)'
   const attempts: Array<'id' | 'order_number'> = isUuid(identifier)
     ? ['id', 'order_number']
     : ['order_number', 'id']
 
-  let lastError: { message?: string | null } | null = null
+  const runLookup = async (
+    selectClause: string
+  ): Promise<{ data: any; error: LookupError }> => {
+    let lastError: LookupError = null
 
-  for (const column of attempts) {
-    const { data, error } = await supabaseAdmin
-      .from('chicken_orders')
-      .select(baseSelect)
-      .eq(column, identifier)
-      .maybeSingle()
+    for (const column of attempts) {
+      const { data, error } = await supabaseAdmin
+        .from('chicken_orders')
+        .select(selectClause)
+        .eq(column, identifier)
+        .maybeSingle()
 
-    if (error) {
-      lastError = error
-      continue
+      if (error) {
+        lastError = error
+        continue
+      }
+
+      if (data) {
+        return { data, error: null }
+      }
     }
 
-    if (data) {
-      return { data, error: null }
-    }
+    return { data: null, error: lastError }
   }
 
-  return { data: null, error: lastError }
+  const primary = await runLookup(primarySelect)
+  if (
+    !primary.error ||
+    (primary.error.code !== '42703' &&
+      !String(primary.error.message || '').includes('price_per_rooster_nok'))
+  ) {
+    return primary
+  }
+
+  return await runLookup(fallbackSelect)
 }
 
 function getCompletedRemainderPaidNok(payments: any[] = []): number {
@@ -90,6 +111,17 @@ export async function POST(
     return NextResponse.json({ error: 'Remainder is already paid' }, { status: 400 })
   }
 
+  if (order.remainder_payment_enabled === true) {
+    return NextResponse.json({
+      success: true,
+      remainderPaymentEnabled: true,
+      remainderDueNok,
+      alreadyEnabled: true,
+      emailSent: false,
+      emailReason: 'already_enabled',
+    })
+  }
+
   const { error: updateError } = await supabaseAdmin
     .from('chicken_orders')
     .update({ remainder_payment_enabled: true })
@@ -109,9 +141,28 @@ export async function POST(
     return NextResponse.json({ error: message || 'Failed to enable remainder payment' }, { status: 500 })
   }
 
+  let emailSent = false
+  let emailReason: string | null = null
+
+  try {
+    const emailResult = await sendChickenRemainderEnabledEmail({
+      orderId: order.id,
+      sourcePath: '/api/admin/chickens/orders/[id]/enable-remainder',
+      idempotencySuffix: 'enabled',
+    })
+
+    emailSent = emailResult.customerSent
+    emailReason = emailResult.customerReason || emailResult.errorMessage || emailResult.reason || null
+  } catch (error) {
+    emailSent = false
+    emailReason = error instanceof Error ? error.message : 'email_send_failed'
+  }
+
   return NextResponse.json({
     success: true,
     remainderPaymentEnabled: true,
     remainderDueNok,
+    emailSent,
+    emailReason,
   })
 }

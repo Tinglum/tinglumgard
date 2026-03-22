@@ -9,6 +9,50 @@ import {
   summarizeChickenOrderLines,
 } from '@/lib/chickens/email-lines';
 
+function isMissingChickenEmailColumnError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false;
+  const candidate = error as { code?: string; message?: string };
+  if (candidate.code === '42703' || candidate.code === '42P01') return true;
+  return typeof candidate.message === 'string' && candidate.message.includes('does not exist');
+}
+
+async function fetchChickenOrderForEmail(orderId: string) {
+  type LookupError = { message?: string | null; code?: string | null } | null
+  const primarySelect =
+    '*, chicken_breeds(*), chicken_hatches(hatch_date), chicken_order_additions(hatch_id, age_weeks_at_pickup, quantity_hens, quantity_roosters, subtotal_nok, price_per_hen_nok, price_per_rooster_nok, chicken_breeds(*), chicken_hatches(hatch_date))';
+  const fallbackSelect =
+    '*, chicken_breeds(*), chicken_hatches(hatch_date), chicken_order_additions(hatch_id, age_weeks_at_pickup, quantity_hens, quantity_roosters, subtotal_nok, price_per_hen_nok, chicken_breeds(*), chicken_hatches(hatch_date))';
+
+  const runLookup = async (
+    selectClause: string
+  ): Promise<{ order: any; error: LookupError }> => {
+    const { data: byId, error: byIdError } = await supabaseAdmin
+      .from('chicken_orders')
+      .select(selectClause)
+      .eq('id', String(orderId).trim())
+      .maybeSingle();
+
+    if (byId || byIdError) {
+      return { order: byId, error: byIdError };
+    }
+
+    const { data: byOrderNumber, error: byOrderNumberError } = await supabaseAdmin
+      .from('chicken_orders')
+      .select(selectClause)
+      .eq('order_number', String(orderId).trim())
+      .maybeSingle();
+
+    return { order: byOrderNumber, error: byOrderNumberError };
+  };
+
+  const primary = await runLookup(primarySelect);
+  if (!primary.error || !isMissingChickenEmailColumnError(primary.error)) {
+    return primary;
+  }
+
+  return await runLookup(fallbackSelect);
+}
+
 function normalizeEmail(value: unknown): string {
   if (typeof value !== 'string') return '';
   return value.trim().toLowerCase();
@@ -33,27 +77,7 @@ export async function sendChickenDepositConfirmationEmails(params: {
   const includeAdmin = params.includeAdmin !== false;
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_BASE_URL || 'https://tinglumgard.no';
 
-  const selectClause =
-    '*, chicken_breeds(*), chicken_hatches(hatch_date), chicken_order_additions(hatch_id, quantity_hens, quantity_roosters, subtotal_nok, price_per_hen_nok, price_per_rooster_nok, chicken_breeds(*), chicken_hatches(hatch_date))';
-
-  const { data: byId, error: byIdError } = await supabaseAdmin
-    .from('chicken_orders')
-    .select(selectClause)
-    .eq('id', String(params.orderId).trim())
-    .maybeSingle();
-
-  let order = byId;
-  let queryError = byIdError;
-
-  if (!order && !queryError) {
-    const { data: byOrderNumber, error: byOrderNumberError } = await supabaseAdmin
-      .from('chicken_orders')
-      .select(selectClause)
-      .eq('order_number', String(params.orderId).trim())
-      .maybeSingle();
-    order = byOrderNumber;
-    queryError = byOrderNumberError;
-  }
+  const { order, error: queryError } = await fetchChickenOrderForEmail(params.orderId);
 
   if (queryError) {
     return {
@@ -214,3 +238,105 @@ export async function sendChickenDepositConfirmationEmails(params: {
   };
 }
 
+export async function sendChickenRemainderEnabledEmail(params: {
+  orderId: string;
+  sourcePath: string;
+  idempotencySuffix?: string;
+}) {
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_BASE_URL || 'https://tinglumgard.no';
+
+  const { order, error: queryError } = await fetchChickenOrderForEmail(params.orderId);
+
+  if (queryError) {
+    return {
+      ok: false as const,
+      reason: 'order_query_failed' as const,
+      errorMessage: String(queryError?.message || 'Unknown query error'),
+      customerSent: false,
+      customerReason: null,
+    };
+  }
+
+  if (!order) {
+    return {
+      ok: false as const,
+      reason: 'order_not_found' as const,
+      errorMessage: null,
+      customerSent: false,
+      customerReason: null,
+    };
+  }
+
+  const customerEmail = normalizeEmail(order.customer_email);
+  if (!customerEmail || customerEmail === 'pending@vipps.no') {
+    return {
+      ok: false as const,
+      reason: 'missing_customer_email' as const,
+      errorMessage: null,
+      customerSent: false,
+      customerReason: 'missing_customer_email',
+    };
+  }
+
+  const summary = summarizeChickenOrderLines(order);
+  const breedLabelWithAgeNo = buildChickenBreedAgeLabel(summary.lines, 'no');
+  const breedLabelWithAgeEn = buildChickenBreedAgeLabel(summary.lines, 'en');
+  const pickupDate = order.pickup_monday ? new Date(`${order.pickup_monday}T00:00:00`).toLocaleDateString('nb-NO') : '';
+  const chickenDeliveryOpts = {
+    deliveryFeeNok: Number(order.delivery_fee_nok || 0),
+    deliveryLabel: getChickenDeliveryLabel(String(order.delivery_method || '')),
+  };
+  const orderLinesHtmlNo = buildChickenOrderLinesHtml(summary.lines, 'no', chickenDeliveryOpts);
+  const orderLinesHtmlEn = buildChickenOrderLinesHtml(summary.lines, 'en', chickenDeliveryOpts);
+
+  const rendered = await renderManagedTemplate({
+    templateKey: 'chicken.order.remainder.enabled.customer',
+    locale: 'no',
+    variables: {
+      customer_name: order.customer_name || 'Kunde',
+      order_number: order.order_number,
+      breed_name: breedLabelWithAgeNo,
+      breed_name_en: breedLabelWithAgeEn,
+      total_birds_label: buildTotalBirdsLabel(summary.hens, summary.roosters, 'no'),
+      total_birds_label_en: buildTotalBirdsLabel(summary.hens, summary.roosters, 'en'),
+      order_lines_html: orderLinesHtmlNo,
+      order_lines_html_en: orderLinesHtmlEn,
+      pickup_date: pickupDate,
+      remainder_amount_nok: formatNok(order.remainder_amount_nok),
+      order_url: buildCustomerOrderLink(appUrl, 'chicken', String(order.id)),
+    },
+  });
+
+  if (!rendered) {
+    return {
+      ok: false as const,
+      reason: 'template_not_found' as const,
+      errorMessage: null,
+      customerSent: false,
+      customerReason: 'template_not_found:chicken.order.remainder.enabled.customer',
+    };
+  }
+
+  const result = await dispatchEmail({
+    to: customerEmail,
+    subject: rendered.subject,
+    html: rendered.html,
+    classification: 'transactional',
+    templateKey: rendered.templateKey,
+    sourcePath: params.sourcePath,
+    chickenOrderId: order.id,
+    idempotency: {
+      source: 'chicken-remainder-enabled',
+      entity: 'chicken_order',
+      id: params.idempotencySuffix ? `${order.id}:${params.idempotencySuffix}` : order.id,
+      template: rendered.templateKey,
+    },
+  });
+
+  const customerSent = result.success && !result.skipped;
+  return {
+    ok: true as const,
+    customerSent,
+    customerReason: customerSent ? null : result.error || result.skipReason || 'dispatch_failed',
+  };
+}
