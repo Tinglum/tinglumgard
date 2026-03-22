@@ -38,6 +38,7 @@ interface ChickenOrderCardProps {
     total_amount_nok: number
     deposit_amount_nok: number
     remainder_amount_nok: number
+    remainder_payment_enabled?: boolean
     remainder_due_date?: string | null
     delivery_method: string
     status: string
@@ -242,7 +243,10 @@ export function ChickenOrderCard({ order, onPayRemainder, onRefresh }: ChickenOr
     }, 0) || 0
   const remainderDueNok = Math.max(0, order.remainder_amount_nok - remainderPaidNok)
 
-  const showPayRemainder = false
+  const showPayRemainder =
+    order.remainder_payment_enabled === true &&
+    remainderDueNok > 0 &&
+    ['deposit_paid', 'ready_for_pickup'].includes(order.status)
   const meta = statusMeta[order.status] || { label: order.status, className: 'bg-neutral-100 text-neutral-700' }
   const pickupDate = getIsoWeekMondayDate(order.pickup_year, order.pickup_week)
   const daysToPickup = daysBetween(pickupDate, today)

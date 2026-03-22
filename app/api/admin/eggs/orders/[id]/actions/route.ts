@@ -715,7 +715,12 @@ async function markEggOrderShipped(
   const markedShippedAt = new Date().toISOString()
   const { error: updErr } = await supabaseAdmin
     .from('egg_orders')
-    .update({ status: 'shipped', tracking_number: effective, marked_shipped_at: markedShippedAt })
+    .update({
+      status: 'shipped',
+      tracking_number: effective,
+      marked_shipped_at: markedShippedAt,
+      marked_delivered_at: markedShippedAt, // Posten orders: shipped = done from admin side
+    })
     .eq('id', orderId)
 
   if (updErr) {

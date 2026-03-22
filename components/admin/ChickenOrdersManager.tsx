@@ -50,6 +50,7 @@ interface ChickenOrder {
   total_amount_nok: number
   deposit_amount_nok: number
   remainder_amount_nok: number
+  remainder_payment_enabled?: boolean | null
   remainder_due_date?: string | null
   delivery_method: string
   status: string
@@ -77,6 +78,10 @@ function safeText(value: unknown): string {
 
 function ensureArray<T>(value: T[] | null | undefined): T[] {
   return Array.isArray(value) ? value : []
+}
+
+function ensureObjectArray<T extends Record<string, any>>(value: T[] | null | undefined): T[] {
+  return ensureArray(value).filter((item): item is T => Boolean(item) && typeof item === 'object')
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -199,6 +204,12 @@ export function ChickenOrdersManager({
     pickupWeekLabel: lang === 'en' ? 'Week {week}/{year}' : 'Uke {week}/{year}',
     viewDetailsButton: lang === 'en' ? 'Details' : 'Detaljer',
     collectRemainderButton: lang === 'en' ? 'Register remainder' : 'Registrer rest',
+    enableRemainderButton: lang === 'en' ? 'Enable remainder payment' : 'Aktiver restbetaling',
+    remainderEnabled: lang === 'en' ? 'Remainder enabled ✓' : 'Rest aktivert ✓',
+    enableRemainderSuccess:
+      lang === 'en' ? 'Remainder payment enabled for customer.' : 'Restbetaling er aktivert for kunden.',
+    errorEnableRemainderDescription:
+      lang === 'en' ? 'Could not enable remainder payment.' : 'Kunne ikke aktivere restbetaling.',
     promptRemainderAmount: lang === 'en' ? 'Remainder amount in NOK' : 'Restbeløp i kroner',
     promptOptionalNote: lang === 'en' ? 'Optional note' : 'Valgfritt notat',
     invalidAmountDescription: lang === 'en' ? 'Please enter a valid amount.' : 'Legg inn et gyldig beløp.',
@@ -222,6 +233,7 @@ export function ChickenOrdersManager({
   const [detailLoading, setDetailLoading] = useState(false)
   const [selectedOrder, setSelectedOrder] = useState<ChickenOrder | null>(null)
   const [resendingOrderId, setResendingOrderId] = useState<string | null>(null)
+  const [activatingRemainderOrderId, setActivatingRemainderOrderId] = useState<string | null>(null)
   const [initialOrderHandled, setInitialOrderHandled] = useState(false)
   const [adjustBirdsOpen, setAdjustBirdsOpen] = useState(false)
   const [adjustBirdsStep, setAdjustBirdsStep] = useState<'edit' | 'pool' | 'confirm'>('edit')
@@ -295,6 +307,9 @@ export function ChickenOrdersManager({
     return Number(addition.subtotal_nok || 0)
   }, [])
 
+  const getAdditions = useCallback((order: ChickenOrder) => ensureObjectArray(order.chicken_order_additions), [])
+  const getPayments = useCallback((order: ChickenOrder) => ensureObjectArray(order.chicken_payments), [])
+
   const getAgeWeeksForAddition = useCallback((order: ChickenOrder, addition: ChickenOrderAddition): number | null => {
     const hatchDate = addition.chicken_hatches?.hatch_date
     const pickupDate = order.pickup_monday
@@ -308,7 +323,7 @@ export function ChickenOrdersManager({
   }, [])
 
   const getOrderBirdTotals = useCallback((order: ChickenOrder) => {
-    const additions = ensureArray(order.chicken_order_additions)
+    const additions = getAdditions(order)
     const additionsHens = additions.reduce(
       (sum, row) => sum + Number(row.quantity_hens || 0),
       0
@@ -329,10 +344,10 @@ export function ChickenOrdersManager({
       totalHens: baseHens + additionsHens,
       totalRoosters: baseRoosters + additionsRoosters,
     }
-  }, [])
+  }, [getAdditions])
 
   const getOrderFinancialTotals = useCallback((order: ChickenOrder) => {
-    const additionsSubtotal = ensureArray(order.chicken_order_additions).reduce(
+    const additionsSubtotal = getAdditions(order).reduce(
       (sum, row) => sum + getAdditionSubtotal(row),
       0
     )
@@ -346,13 +361,13 @@ export function ChickenOrdersManager({
       grandTotal > 0 &&
       Math.abs(baseSubtotalByPricing + additionsSubtotal + deliveryFee - grandTotal) > 1
     const baseSubtotal = shouldReconcileBase ? reconciledBaseFromTotal : baseSubtotalByPricing
-    const paidTotal = ensureArray(order.chicken_payments).reduce((sum, payment) => {
+    const paidTotal = getPayments(order).reduce((sum, payment) => {
       if (payment.status !== 'completed') return sum
       return sum + Number(payment.amount_nok || 0)
     }, 0)
     const remaining = Math.max(0, grandTotal - paidTotal)
     return { baseSubtotal, additionsSubtotal, deliveryFee, grandTotal, paidTotal, remaining }
-  }, [getAdditionSubtotal])
+  }, [getAdditionSubtotal, getAdditions, getPayments])
 
   const fetchOrders = useCallback(async () => {
     setLoading(true)
@@ -360,7 +375,10 @@ export function ChickenOrdersManager({
       const res = await fetch('/api/admin/chickens/orders')
       if (!res.ok) throw new Error('Failed')
       const data = await res.json()
-      setOrders(data.orders || [])
+      const nextOrders = Array.isArray(data?.orders)
+        ? data.orders.filter((order: unknown): order is ChickenOrder => Boolean(order) && typeof order === 'object')
+        : []
+      setOrders(nextOrders)
     } catch {
       toast({ title: co.errorFetchTitle, description: co.errorFetchDescription, variant: 'destructive' })
     } finally {
@@ -386,7 +404,7 @@ export function ChickenOrdersManager({
         const res = await fetch(`/api/admin/chickens/orders/${orderId}`)
         if (!res.ok) throw new Error('Failed')
         const data = await res.json()
-        setSelectedOrder(data)
+        setSelectedOrder(data && typeof data === 'object' ? data : null)
       } catch {
         toast({ title: co.errorFetchTitle, description: co.errorFetchDetailDescription, variant: 'destructive' })
       } finally {
@@ -454,6 +472,72 @@ export function ChickenOrdersManager({
     }
   }
 
+  const canEnableRemainderPayment = useCallback(
+    (order: ChickenOrder) => {
+      const financial = getOrderFinancialTotals(order)
+      return (
+        order.remainder_payment_enabled !== true &&
+        !order.remainder_collected_at &&
+        order.status !== 'cancelled' &&
+        order.status !== 'picked_up' &&
+        order.status !== 'fully_paid' &&
+        financial.remaining > 0
+      )
+    },
+    [getOrderFinancialTotals]
+  )
+
+  const showRemainderEnabledBadge = useCallback(
+    (order: ChickenOrder) => {
+      const financial = getOrderFinancialTotals(order)
+      return (
+        order.remainder_payment_enabled === true &&
+        !order.remainder_collected_at &&
+        order.status !== 'cancelled' &&
+        order.status !== 'picked_up' &&
+        order.status !== 'fully_paid' &&
+        financial.remaining > 0
+      )
+    },
+    [getOrderFinancialTotals]
+  )
+
+  const handleEnableRemainder = async (order: ChickenOrder) => {
+    try {
+      setActivatingRemainderOrderId(order.id)
+      const res = await fetch(`/api/admin/chickens/orders/${order.id}/enable-remainder`, {
+        method: 'POST',
+      })
+      const body = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        throw new Error(body?.error || 'Failed to enable remainder payment')
+      }
+
+      toast({
+        title: co.updateToastTitle,
+        description: co.enableRemainderSuccess,
+      })
+
+      setOrders((current) =>
+        current.map((entry) =>
+          entry.id === order.id ? { ...entry, remainder_payment_enabled: true } : entry
+        )
+      )
+      setSelectedOrder((current) =>
+        current?.id === order.id ? { ...current, remainder_payment_enabled: true } : current
+      )
+      void fetchOrders()
+    } catch (error: any) {
+      toast({
+        title: co.errorUpdateTitle,
+        description: error?.message || co.errorEnableRemainderDescription,
+        variant: 'destructive',
+      })
+    } finally {
+      setActivatingRemainderOrderId((current) => (current === order.id ? null : current))
+    }
+  }
+
   const resendConfirmation = async (orderId: string) => {
     try {
       setResendingOrderId(orderId)
@@ -495,7 +579,7 @@ export function ChickenOrdersManager({
     if (!selectedOrder) return
     const initial: Record<string, { hensDelta: number; roostersDelta: number }> = {}
     initial['main'] = { hensDelta: 0, roostersDelta: 0 }
-    for (const addition of ensureArray(selectedOrder.chicken_order_additions)) {
+    for (const addition of getAdditions(selectedOrder)) {
       initial[addition.id] = { hensDelta: 0, roostersDelta: 0 }
     }
     setAdjustDeltas(initial)
@@ -644,7 +728,7 @@ export function ChickenOrdersManager({
                 new Set(
                   [
                     Number(order.age_weeks_at_pickup || 0),
-                    ...ensureArray(order.chicken_order_additions)
+                    ...getAdditions(order)
                       .map((addition) => getAgeWeeksForAddition(order, addition) || 0),
                   ].filter((age) => Number.isFinite(age) && age > 0)
                 )
@@ -656,6 +740,9 @@ export function ChickenOrdersManager({
                     ? co.ageWeeksLabel.replace('{weeks}', String(ages[0]))
                     : `${ages[0]}-${ages[ages.length - 1]} ${lang === 'en' ? 'weeks' : 'uker'}`
               const isResending = resendingOrderId === order.id
+              const isActivatingRemainder = activatingRemainderOrderId === order.id
+              const canEnableRemainder = canEnableRemainderPayment(order)
+              const remainderEnabled = showRemainderEnabledBadge(order)
               return (
                 <tr
                   key={order.id}
@@ -684,8 +771,8 @@ export function ChickenOrdersManager({
                     </button>
                   </td>
                   <td className="py-2 pr-3">
-                    <div className="font-medium">{order.customer_name}</div>
-                    <div className="text-xs text-gray-500">{order.customer_email}</div>
+                    <div className="font-medium">{safeText(order.customer_name) || co.notAvailable}</div>
+                    <div className="text-xs text-gray-500">{safeText(order.customer_email) || co.notAvailable}</div>
                   </td>
                   <td className="py-2 pr-3">
                     <div className="flex items-center gap-1">
@@ -728,6 +815,21 @@ export function ChickenOrdersManager({
                       {!order.remainder_collected_at && order.status !== 'cancelled' && order.status !== 'picked_up' && Number(order.remainder_amount_nok || 0) > 0 && (
                         <Button size="sm" variant="outline" onClick={() => handleCollectRemainder(order)}>
                           {co.collectRemainderButton}
+                        </Button>
+                      )}
+                      {canEnableRemainder && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => void handleEnableRemainder(order)}
+                          disabled={isActivatingRemainder}
+                        >
+                          {isActivatingRemainder ? co.resendSending : co.enableRemainderButton}
+                        </Button>
+                      )}
+                      {remainderEnabled && (
+                        <Button size="sm" variant="outline" disabled>
+                          {co.remainderEnabled}
                         </Button>
                       )}
                       <Button
@@ -875,10 +977,10 @@ export function ChickenOrdersManager({
                 </CardSection>
 
                 <CardSection title={co.detailPaymentsTitle}>
-                  {ensureArray(selectedOrder.chicken_payments).length === 0 && (
+                  {getPayments(selectedOrder).length === 0 && (
                     <p className="text-sm text-gray-500">{co.detailNoPayments}</p>
                   )}
-                  {ensureArray(selectedOrder.chicken_payments).map((payment) => (
+                  {getPayments(selectedOrder).map((payment) => (
                     <div key={payment.id} className="rounded border border-gray-200 p-3 text-sm space-y-1">
                       <DetailRow label={co.labelPaymentType} value={payment.payment_type} />
                       <DetailRow label={co.labelPaymentStatus} value={statusLabelMap[payment.status] || payment.status} />
@@ -910,7 +1012,7 @@ export function ChickenOrdersManager({
                       />
                       <DetailRow label={co.labelAdditionSubtotal} value={formatMoney(financial.baseSubtotal)} />
                     </div>
-                    {ensureArray(selectedOrder.chicken_order_additions).map((addition) => (
+                    {getAdditions(selectedOrder).map((addition) => (
                       <div key={addition.id} className="rounded border border-neutral-200 bg-neutral-50 p-3 text-sm">
                         {(() => {
                           const additionAge = getAgeWeeksForAddition(selectedOrder, addition)
@@ -940,7 +1042,7 @@ export function ChickenOrdersManager({
                   )
                 })()}
 
-                {ensureArray(selectedOrder.chicken_order_additions).length === 0 && (
+                {getAdditions(selectedOrder).length === 0 && (
                   <p className="text-sm text-gray-500">{co.detailNoAdditions}</p>
                 )}
               </CardSection>
@@ -949,6 +1051,20 @@ export function ChickenOrdersManager({
                 {selectedOrder.status !== 'cancelled' && selectedOrder.status !== 'picked_up' && (
                   <Button variant="outline" onClick={openAdjustBirds}>
                     {lang === 'en' ? 'Edit quantities' : 'Endre antall'}
+                  </Button>
+                )}
+                {canEnableRemainderPayment(selectedOrder) && (
+                  <Button
+                    variant="outline"
+                    onClick={() => void handleEnableRemainder(selectedOrder)}
+                    disabled={activatingRemainderOrderId === selectedOrder.id}
+                  >
+                    {activatingRemainderOrderId === selectedOrder.id ? co.resendSending : co.enableRemainderButton}
+                  </Button>
+                )}
+                {showRemainderEnabledBadge(selectedOrder) && (
+                  <Button variant="outline" disabled>
+                    {co.remainderEnabled}
                   </Button>
                 )}
                 {!selectedOrder.remainder_collected_at &&
@@ -1009,7 +1125,7 @@ export function ChickenOrdersManager({
                 lang={lang}
               />
               {/* Addition lines */}
-              {ensureArray(selectedOrder.chicken_order_additions).map((addition) => {
+              {getAdditions(selectedOrder).map((addition) => {
                 const additionAge = getAgeWeeksForAddition(selectedOrder, addition)
                 const ageStr = additionAge !== null ? ` · ${additionAge} ${lang === 'en' ? 'weeks' : 'uker'}` : ''
                 return (
@@ -1041,7 +1157,7 @@ export function ChickenOrdersManager({
                 .filter(([, d]) => d.hensDelta < 0 || d.roostersDelta < 0)
                 .map(([key, delta]) => {
                   const isMain = key === 'main'
-                  const addition = !isMain ? ensureArray(selectedOrder.chicken_order_additions).find((a) => a.id === key) : null
+                  const addition = !isMain ? getAdditions(selectedOrder).find((a) => a.id === key) : null
                   const breedName = isMain
                     ? selectedOrder.chicken_breeds?.name || '-'
                     : addition?.chicken_breeds?.name || '-'
@@ -1109,7 +1225,7 @@ export function ChickenOrdersManager({
                   .filter(([, d]) => d.hensDelta !== 0 || d.roostersDelta !== 0)
                   .map(([key, delta]) => {
                     const isMain = key === 'main'
-                    const addition = !isMain ? ensureArray(selectedOrder.chicken_order_additions).find((a) => a.id === key) : null
+                    const addition = !isMain ? getAdditions(selectedOrder).find((a) => a.id === key) : null
                     const breedName = isMain
                       ? selectedOrder.chicken_breeds?.name || '-'
                       : addition?.chicken_breeds?.name || '-'
@@ -1290,4 +1406,3 @@ function DetailRow({
     </div>
   )
 }
-

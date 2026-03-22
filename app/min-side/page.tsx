@@ -13,6 +13,7 @@ import { ChickenOrderCard } from '@/components/ChickenOrderCard';
 import { EggOrderUnifiedCard } from '@/components/orders/EggOrderUnifiedCard';
 import { PigOrderUnifiedCard } from '@/components/orders/PigOrderUnifiedCard';
 import { cn } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
 
 interface Payment {
   id: string;
@@ -90,6 +91,7 @@ interface ChickenOrder {
   total_amount_nok: number;
   deposit_amount_nok: number;
   remainder_amount_nok: number;
+  remainder_payment_enabled?: boolean;
   remainder_due_date?: string | null;
   delivery_method: string;
   status: string;
@@ -137,8 +139,10 @@ function getIsoWeekMondayTimestamp(year: number, week: number): number {
 export default function CustomerPortalPage() {
   const { t, lang } = useLanguage();
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
+  const { toast } = useToast();
   const searchParams = useSearchParams();
   const chickenOrdersCopy = (t as any).chickens.myOrders;
+  const common = t.common;
 
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
@@ -308,8 +312,38 @@ export default function CustomerPortalPage() {
     return { year: d.getUTCFullYear(), week: weekNo };
   }
 
-  async function handlePayRemainder(orderId: string) {
+  async function handlePigPayRemainder(orderId: string) {
     window.location.href = `/min-side/ordre/${orderId}/betaling`;
+  }
+
+  async function handleChickenPayRemainder(orderId: string) {
+    try {
+      const response = await fetch(`/api/chickens/orders/${orderId}/remainder`, {
+        method: 'POST',
+      });
+      const body = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(body?.error || 'Could not start chicken remainder payment');
+      }
+
+      if (!body?.redirectUrl) {
+        throw new Error('Missing Vipps redirect URL');
+      }
+
+      window.location.href = body.redirectUrl;
+    } catch (error) {
+      toast({
+        title: common.error,
+        description:
+          error instanceof Error
+            ? error.message
+            : lang === 'en'
+              ? 'Could not start chicken remainder payment.'
+              : 'Kunne ikke starte restbetaling for kylling.',
+        variant: 'destructive',
+      });
+    }
   }
 
   async function handleExitImpersonation() {
@@ -610,7 +644,7 @@ export default function CustomerPortalPage() {
                           <PigOrderUnifiedCard
                             order={order}
                             canEdit={canEdit}
-                            onPayRemainder={handlePayRemainder}
+                            onPayRemainder={handlePigPayRemainder}
                             onRefresh={loadAllOrders}
                           />
                         </div>
@@ -642,6 +676,7 @@ export default function CustomerPortalPage() {
                         >
                           <ChickenOrderCard
                             order={order}
+                            onPayRemainder={handleChickenPayRemainder}
                             onRefresh={loadAllOrders}
                           />
                         </div>
@@ -676,7 +711,7 @@ export default function CustomerPortalPage() {
                         <PigOrderUnifiedCard
                           order={pigOrdersById.get(item.id)!}
                           canEdit={canEdit}
-                          onPayRemainder={handlePayRemainder}
+                          onPayRemainder={handlePigPayRemainder}
                           onRefresh={loadAllOrders}
                         />
                       ) : null
@@ -685,6 +720,7 @@ export default function CustomerPortalPage() {
                       chickenOrdersById.get(item.id) ? (
                         <ChickenOrderCard
                           order={chickenOrdersById.get(item.id)!}
+                          onPayRemainder={handleChickenPayRemainder}
                           onRefresh={loadAllOrders}
                         />
                       ) : null
