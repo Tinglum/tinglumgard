@@ -867,11 +867,11 @@ WHERE template_key = 'egg.order.shipped.customer';
 UPDATE email_templates SET
   body_no = $$<div style="max-width:600px;margin:0 auto;font-family:Arial,Helvetica,sans-serif;color:#1C1210;">
   <div style="text-align:center;padding:24px 0 16px;">
-    <span style="display:inline-block;background:#ECFDF5;color:#2D6A4F;border:1px solid #BBF7D0;border-radius:999px;padding:6px 18px;font-size:14px;font-weight:600;">Levering i morgen</span>
+    <span style="display:inline-block;background:#ECFDF5;color:#2D6A4F;border:1px solid #BBF7D0;border-radius:999px;padding:6px 18px;font-size:14px;font-weight:600;">Eggene er p&aring; vei!</span>
   </div>
   <p style="font-size:16px;line-height:1.6;margin:0 0 16px;">Hei {{customer_first_name}},</p>
-  <p style="font-size:16px;line-height:1.6;margin:0 0 8px;">Rugeegg-bestilling {{order_number}} ankommer i morgen!</p>
-  <p style="font-size:16px;line-height:1.6;margin:0 0 24px;">S&oslash;rg for &aring; ha rugemaskinen klar.</p>
+  <p style="font-size:16px;line-height:1.6;margin:0 0 8px;">Rugeegg-bestilling {{order_number}} er n&aring; sendt!</p>
+  <p style="font-size:16px;line-height:1.6;margin:0 0 24px;">S&oslash;rg for &aring; ha rugemaskinen klar n&aring;r pakken ankommer.</p>
   <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 24px;">
     <tr><td style="padding:16px 0;">
       <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
@@ -906,11 +906,11 @@ UPDATE email_templates SET
 </div>$$,
   body_en = $$<div style="max-width:600px;margin:0 auto;font-family:Arial,Helvetica,sans-serif;color:#1C1210;">
   <div style="text-align:center;padding:24px 0 16px;">
-    <span style="display:inline-block;background:#ECFDF5;color:#2D6A4F;border:1px solid #BBF7D0;border-radius:999px;padding:6px 18px;font-size:14px;font-weight:600;">Delivery tomorrow</span>
+    <span style="display:inline-block;background:#ECFDF5;color:#2D6A4F;border:1px solid #BBF7D0;border-radius:999px;padding:6px 18px;font-size:14px;font-weight:600;">Your eggs are on the way!</span>
   </div>
   <p style="font-size:16px;line-height:1.6;margin:0 0 16px;">Hi {{customer_first_name}},</p>
-  <p style="font-size:16px;line-height:1.6;margin:0 0 8px;">Hatching egg order {{order_number}} arrives tomorrow!</p>
-  <p style="font-size:16px;line-height:1.6;margin:0 0 24px;">Make sure to have your incubator ready.</p>
+  <p style="font-size:16px;line-height:1.6;margin:0 0 8px;">Hatching egg order {{order_number}} has been shipped!</p>
+  <p style="font-size:16px;line-height:1.6;margin:0 0 24px;">Make sure to have your incubator ready when the package arrives.</p>
   <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 24px;">
     <tr><td style="padding:16px 0;">
       <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">

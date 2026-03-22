@@ -69,6 +69,16 @@ interface ChickenOrder {
   chicken_order_additions?: ChickenOrderAddition[]
 }
 
+function safeText(value: unknown): string {
+  if (typeof value === 'string') return value
+  if (value === null || value === undefined) return ''
+  return String(value)
+}
+
+function ensureArray<T>(value: T[] | null | undefined): T[] {
+  return Array.isArray(value) ? value : []
+}
+
 const STATUS_COLORS: Record<string, string> = {
   pending: 'bg-yellow-100 text-yellow-800',
   deposit_paid: 'bg-blue-100 text-blue-800',
@@ -213,6 +223,12 @@ export function ChickenOrdersManager({
   const [selectedOrder, setSelectedOrder] = useState<ChickenOrder | null>(null)
   const [resendingOrderId, setResendingOrderId] = useState<string | null>(null)
   const [initialOrderHandled, setInitialOrderHandled] = useState(false)
+  const [adjustBirdsOpen, setAdjustBirdsOpen] = useState(false)
+  const [adjustBirdsStep, setAdjustBirdsStep] = useState<'edit' | 'pool' | 'confirm'>('edit')
+  const [adjustBirdsLoading, setAdjustBirdsLoading] = useState(false)
+  const [adjustDeltas, setAdjustDeltas] = useState<Record<string, { hensDelta: number; roostersDelta: number }>>({})
+  const [poolReturns, setPoolReturns] = useState<Record<string, { poolHensReturn: number; poolRoostersReturn: number }>>({})
+  const [adjustNote, setAdjustNote] = useState('')
   const locale = lang === 'en' ? 'en-US' : 'nb-NO'
 
   const statusOptions = useMemo(
@@ -292,11 +308,12 @@ export function ChickenOrdersManager({
   }, [])
 
   const getOrderBirdTotals = useCallback((order: ChickenOrder) => {
-    const additionsHens = (order.chicken_order_additions || []).reduce(
+    const additions = ensureArray(order.chicken_order_additions)
+    const additionsHens = additions.reduce(
       (sum, row) => sum + Number(row.quantity_hens || 0),
       0
     )
-    const additionsRoosters = (order.chicken_order_additions || []).reduce(
+    const additionsRoosters = additions.reduce(
       (sum, row) => sum + Number(row.quantity_roosters || 0),
       0
     )
@@ -315,7 +332,7 @@ export function ChickenOrdersManager({
   }, [])
 
   const getOrderFinancialTotals = useCallback((order: ChickenOrder) => {
-    const additionsSubtotal = (order.chicken_order_additions || []).reduce(
+    const additionsSubtotal = ensureArray(order.chicken_order_additions).reduce(
       (sum, row) => sum + getAdditionSubtotal(row),
       0
     )
@@ -329,7 +346,7 @@ export function ChickenOrdersManager({
       grandTotal > 0 &&
       Math.abs(baseSubtotalByPricing + additionsSubtotal + deliveryFee - grandTotal) > 1
     const baseSubtotal = shouldReconcileBase ? reconciledBaseFromTotal : baseSubtotalByPricing
-    const paidTotal = (order.chicken_payments || []).reduce((sum, payment) => {
+    const paidTotal = ensureArray(order.chicken_payments).reduce((sum, payment) => {
       if (payment.status !== 'completed') return sum
       return sum + Number(payment.amount_nok || 0)
     }, 0)
@@ -474,11 +491,112 @@ export function ChickenOrdersManager({
     }
   }
 
+  const openAdjustBirds = () => {
+    if (!selectedOrder) return
+    const initial: Record<string, { hensDelta: number; roostersDelta: number }> = {}
+    initial['main'] = { hensDelta: 0, roostersDelta: 0 }
+    for (const addition of ensureArray(selectedOrder.chicken_order_additions)) {
+      initial[addition.id] = { hensDelta: 0, roostersDelta: 0 }
+    }
+    setAdjustDeltas(initial)
+    setPoolReturns({})
+    setAdjustNote('')
+    setAdjustBirdsStep('edit')
+    setAdjustBirdsOpen(true)
+  }
+
+  const adjustBirdsHasSubtractions = () => {
+    return Object.values(adjustDeltas).some((d) => d.hensDelta < 0 || d.roostersDelta < 0)
+  }
+
+  const adjustBirdsHasChanges = () => {
+    return Object.values(adjustDeltas).some((d) => d.hensDelta !== 0 || d.roostersDelta !== 0)
+  }
+
+  const handleAdjustBirdsNext = () => {
+    if (adjustBirdsStep === 'edit') {
+      if (adjustBirdsHasSubtractions()) {
+        // Initialize pool returns for subtracted lines
+        const returns: Record<string, { poolHensReturn: number; poolRoostersReturn: number }> = {}
+        for (const [key, delta] of Object.entries(adjustDeltas)) {
+          if (delta.hensDelta < 0 || delta.roostersDelta < 0) {
+            returns[key] = { poolHensReturn: 0, poolRoostersReturn: 0 }
+          }
+        }
+        setPoolReturns(returns)
+        setAdjustBirdsStep('pool')
+      } else {
+        setAdjustBirdsStep('confirm')
+      }
+    } else if (adjustBirdsStep === 'pool') {
+      setAdjustBirdsStep('confirm')
+    }
+  }
+
+  const handleAdjustBirdsBack = () => {
+    if (adjustBirdsStep === 'pool') setAdjustBirdsStep('edit')
+    else if (adjustBirdsStep === 'confirm') {
+      if (adjustBirdsHasSubtractions()) setAdjustBirdsStep('pool')
+      else setAdjustBirdsStep('edit')
+    }
+  }
+
+  const submitAdjustBirds = async () => {
+    if (!selectedOrder) return
+    setAdjustBirdsLoading(true)
+    try {
+      const adjustments = Object.entries(adjustDeltas)
+        .filter(([, d]) => d.hensDelta !== 0 || d.roostersDelta !== 0)
+        .map(([key, d]) => {
+          const isMain = key === 'main'
+          const pr = poolReturns[key] || { poolHensReturn: 0, poolRoostersReturn: 0 }
+          return {
+            type: isMain ? 'main' : 'addition',
+            additionId: isMain ? null : key,
+            hensDelta: d.hensDelta,
+            roostersDelta: d.roostersDelta,
+            poolHensReturn: d.hensDelta < 0 ? pr.poolHensReturn : 0,
+            poolRoostersReturn: d.roostersDelta < 0 ? pr.poolRoostersReturn : 0,
+            poolHensIncrease: d.hensDelta > 0 ? d.hensDelta : 0,
+            poolRoostersIncrease: d.roostersDelta > 0 ? d.roostersDelta : 0,
+          }
+        })
+
+      const res = await fetch(`/api/admin/chickens/orders/${selectedOrder.id}/adjust-birds`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ adjustments, adminNote: adjustNote }),
+      })
+      const result = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(result?.error || 'Failed to adjust birds')
+
+      toast({
+        title: lang === 'en' ? 'Order updated' : 'Bestilling oppdatert',
+        description: lang === 'en' ? 'Bird quantities adjusted successfully.' : 'Antall fugler justert.',
+      })
+      setAdjustBirdsOpen(false)
+      if (result.order) setSelectedOrder(result.order)
+      fetchOrders()
+    } catch (err: any) {
+      toast({
+        title: co.errorUpdateTitle,
+        description: err?.message || (lang === 'en' ? 'Could not adjust birds' : 'Kunne ikke justere antall'),
+        variant: 'destructive',
+      })
+    } finally {
+      setAdjustBirdsLoading(false)
+    }
+  }
+
   const filtered = orders.filter((order) => {
+    const orderNumber = safeText(order.order_number).toLowerCase()
+    const customerName = safeText(order.customer_name).toLowerCase()
+    const customerEmail = safeText(order.customer_email).toLowerCase()
+    const normalizedSearch = searchTerm.toLowerCase()
     const matchesSearch = !searchTerm ||
-      order.order_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.customer_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.customer_email.toLowerCase().includes(searchTerm.toLowerCase())
+      orderNumber.includes(normalizedSearch) ||
+      customerName.includes(normalizedSearch) ||
+      customerEmail.includes(normalizedSearch)
     const matchesStatus = statusFilter === 'all' || order.status === statusFilter
     return matchesSearch && matchesStatus
   })
@@ -526,7 +644,7 @@ export function ChickenOrdersManager({
                 new Set(
                   [
                     Number(order.age_weeks_at_pickup || 0),
-                    ...(order.chicken_order_additions || [])
+                    ...ensureArray(order.chicken_order_additions)
                       .map((addition) => getAgeWeeksForAddition(order, addition) || 0),
                   ].filter((age) => Number.isFinite(age) && age > 0)
                 )
@@ -757,10 +875,10 @@ export function ChickenOrdersManager({
                 </CardSection>
 
                 <CardSection title={co.detailPaymentsTitle}>
-                  {(selectedOrder.chicken_payments || []).length === 0 && (
+                  {ensureArray(selectedOrder.chicken_payments).length === 0 && (
                     <p className="text-sm text-gray-500">{co.detailNoPayments}</p>
                   )}
-                  {(selectedOrder.chicken_payments || []).map((payment) => (
+                  {ensureArray(selectedOrder.chicken_payments).map((payment) => (
                     <div key={payment.id} className="rounded border border-gray-200 p-3 text-sm space-y-1">
                       <DetailRow label={co.labelPaymentType} value={payment.payment_type} />
                       <DetailRow label={co.labelPaymentStatus} value={statusLabelMap[payment.status] || payment.status} />
@@ -792,7 +910,7 @@ export function ChickenOrdersManager({
                       />
                       <DetailRow label={co.labelAdditionSubtotal} value={formatMoney(financial.baseSubtotal)} />
                     </div>
-                    {(selectedOrder.chicken_order_additions || []).map((addition) => (
+                    {ensureArray(selectedOrder.chicken_order_additions).map((addition) => (
                       <div key={addition.id} className="rounded border border-neutral-200 bg-neutral-50 p-3 text-sm">
                         {(() => {
                           const additionAge = getAgeWeeksForAddition(selectedOrder, addition)
@@ -822,12 +940,17 @@ export function ChickenOrdersManager({
                   )
                 })()}
 
-                {(selectedOrder.chicken_order_additions || []).length === 0 && (
+                {ensureArray(selectedOrder.chicken_order_additions).length === 0 && (
                   <p className="text-sm text-gray-500">{co.detailNoAdditions}</p>
                 )}
               </CardSection>
 
               <div className="flex flex-wrap items-center justify-end gap-2">
+                {selectedOrder.status !== 'cancelled' && selectedOrder.status !== 'picked_up' && (
+                  <Button variant="outline" onClick={openAdjustBirds}>
+                    {lang === 'en' ? 'Edit quantities' : 'Endre antall'}
+                  </Button>
+                )}
                 {!selectedOrder.remainder_collected_at &&
                   selectedOrder.status !== 'cancelled' &&
                   selectedOrder.status !== 'picked_up' &&
@@ -850,6 +973,271 @@ export function ChickenOrdersManager({
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Adjust Birds Dialog */}
+      <Dialog open={adjustBirdsOpen} onOpenChange={setAdjustBirdsOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>
+              {lang === 'en' ? 'Edit bird quantities' : 'Endre antall fugler'}
+            </DialogTitle>
+            <DialogDescription>
+              {adjustBirdsStep === 'edit' && (lang === 'en'
+                ? 'Use +/- to adjust quantities on each order line.'
+                : 'Bruk +/- for å justere antall på hver ordrelinje.')}
+              {adjustBirdsStep === 'pool' && (lang === 'en'
+                ? 'How many removed birds should go back to the pool?'
+                : 'Hvor mange av de fjernede fuglene skal tilbake til lageret?')}
+              {adjustBirdsStep === 'confirm' && (lang === 'en'
+                ? 'Review changes before confirming.'
+                : 'Gjennomgå endringene før du bekrefter.')}
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedOrder && adjustBirdsStep === 'edit' && (
+            <div className="space-y-4 py-2">
+              {/* Main order line */}
+              <AdjustBirdLine
+                label={selectedOrder.chicken_breeds?.name || '-'}
+                subLabel={lang === 'en' ? 'Main order' : 'Hovedbestilling'}
+                currentHens={selectedOrder.quantity_hens}
+                currentRoosters={selectedOrder.quantity_roosters}
+                hensDelta={adjustDeltas['main']?.hensDelta || 0}
+                roostersDelta={adjustDeltas['main']?.roostersDelta || 0}
+                onHensDelta={(d) => setAdjustDeltas((prev) => ({ ...prev, main: { ...prev['main'], hensDelta: d } }))}
+                onRoostersDelta={(d) => setAdjustDeltas((prev) => ({ ...prev, main: { ...prev['main'], roostersDelta: d } }))}
+                lang={lang}
+              />
+              {/* Addition lines */}
+              {ensureArray(selectedOrder.chicken_order_additions).map((addition) => (
+                <AdjustBirdLine
+                  key={addition.id}
+                  label={addition.chicken_breeds?.name || '-'}
+                  subLabel={lang === 'en' ? 'Addition' : 'Tillegg'}
+                  currentHens={addition.quantity_hens}
+                  currentRoosters={addition.quantity_roosters}
+                  hensDelta={adjustDeltas[addition.id]?.hensDelta || 0}
+                  roostersDelta={adjustDeltas[addition.id]?.roostersDelta || 0}
+                  onHensDelta={(d) => setAdjustDeltas((prev) => ({ ...prev, [addition.id]: { ...prev[addition.id], hensDelta: d } }))}
+                  onRoostersDelta={(d) => setAdjustDeltas((prev) => ({ ...prev, [addition.id]: { ...prev[addition.id], roostersDelta: d } }))}
+                  lang={lang}
+                />
+              ))}
+            </div>
+          )}
+
+          {selectedOrder && adjustBirdsStep === 'pool' && (
+            <div className="space-y-4 py-2">
+              <p className="text-sm text-neutral-600">
+                {lang === 'en'
+                  ? 'Birds not returned to pool are treated as corrections (e.g. sexing errors).'
+                  : 'Fugler som ikke legges tilbake regnes som korreksjoner (f.eks. feil i kjønnsfordeling).'}
+              </p>
+              {Object.entries(adjustDeltas)
+                .filter(([, d]) => d.hensDelta < 0 || d.roostersDelta < 0)
+                .map(([key, delta]) => {
+                  const isMain = key === 'main'
+                  const breedName = isMain
+                    ? selectedOrder.chicken_breeds?.name || '-'
+                    : ensureArray(selectedOrder.chicken_order_additions).find((a) => a.id === key)?.chicken_breeds?.name || '-'
+                  const pr = poolReturns[key] || { poolHensReturn: 0, poolRoostersReturn: 0 }
+
+                  return (
+                    <div key={key} className="rounded border border-neutral-200 p-3 space-y-2">
+                      <p className="text-sm font-medium">{breedName} {isMain ? (lang === 'en' ? '(Main)' : '(Hoved)') : (lang === 'en' ? '(Addition)' : '(Tillegg)')}</p>
+                      {delta.hensDelta < 0 && (
+                        <div className="flex items-center justify-between text-sm">
+                          <span>{lang === 'en' ? `${Math.abs(delta.hensDelta)} hens removed` : `${Math.abs(delta.hensDelta)} høner fjernet`}</span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-neutral-500">{lang === 'en' ? 'Return to pool:' : 'Tilbake til lager:'}</span>
+                            <Button size="sm" variant="outline" className="h-7 w-7 p-0"
+                              onClick={() => setPoolReturns((prev) => ({
+                                ...prev, [key]: { ...pr, poolHensReturn: Math.max(0, pr.poolHensReturn - 1) }
+                              }))}
+                              disabled={pr.poolHensReturn <= 0}
+                            >−</Button>
+                            <span className="w-6 text-center font-medium">{pr.poolHensReturn}</span>
+                            <Button size="sm" variant="outline" className="h-7 w-7 p-0"
+                              onClick={() => setPoolReturns((prev) => ({
+                                ...prev, [key]: { ...pr, poolHensReturn: Math.min(Math.abs(delta.hensDelta), pr.poolHensReturn + 1) }
+                              }))}
+                              disabled={pr.poolHensReturn >= Math.abs(delta.hensDelta)}
+                            >+</Button>
+                          </div>
+                        </div>
+                      )}
+                      {delta.roostersDelta < 0 && (
+                        <div className="flex items-center justify-between text-sm">
+                          <span>{lang === 'en' ? `${Math.abs(delta.roostersDelta)} roosters removed` : `${Math.abs(delta.roostersDelta)} haner fjernet`}</span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-neutral-500">{lang === 'en' ? 'Return to pool:' : 'Tilbake til lager:'}</span>
+                            <Button size="sm" variant="outline" className="h-7 w-7 p-0"
+                              onClick={() => setPoolReturns((prev) => ({
+                                ...prev, [key]: { ...pr, poolRoostersReturn: Math.max(0, pr.poolRoostersReturn - 1) }
+                              }))}
+                              disabled={pr.poolRoostersReturn <= 0}
+                            >−</Button>
+                            <span className="w-6 text-center font-medium">{pr.poolRoostersReturn}</span>
+                            <Button size="sm" variant="outline" className="h-7 w-7 p-0"
+                              onClick={() => setPoolReturns((prev) => ({
+                                ...prev, [key]: { ...pr, poolRoostersReturn: Math.min(Math.abs(delta.roostersDelta), pr.poolRoostersReturn + 1) }
+                              }))}
+                              disabled={pr.poolRoostersReturn >= Math.abs(delta.roostersDelta)}
+                            >+</Button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+            </div>
+          )}
+
+          {selectedOrder && adjustBirdsStep === 'confirm' && (
+            <div className="space-y-3 py-2">
+              <div className="rounded border border-neutral-200 bg-neutral-50 p-3 text-sm space-y-1">
+                {Object.entries(adjustDeltas)
+                  .filter(([, d]) => d.hensDelta !== 0 || d.roostersDelta !== 0)
+                  .map(([key, delta]) => {
+                    const isMain = key === 'main'
+                    const breedName = isMain
+                      ? selectedOrder.chicken_breeds?.name || '-'
+                      : ensureArray(selectedOrder.chicken_order_additions).find((a) => a.id === key)?.chicken_breeds?.name || '-'
+                    const pr = poolReturns[key] || { poolHensReturn: 0, poolRoostersReturn: 0 }
+
+                    return (
+                      <div key={key}>
+                        <p className="font-medium">{breedName}:</p>
+                        {delta.hensDelta !== 0 && (
+                          <p className="ml-2">
+                            {lang === 'en' ? 'Hens' : 'Høner'}: {delta.hensDelta > 0 ? '+' : ''}{delta.hensDelta}
+                            {delta.hensDelta < 0 && pr.poolHensReturn > 0 && (
+                              <span className="text-green-700 ml-1">
+                                ({pr.poolHensReturn} {lang === 'en' ? 'back to pool' : 'tilbake til lager'})
+                              </span>
+                            )}
+                            {delta.hensDelta > 0 && (
+                              <span className="text-blue-700 ml-1">
+                                ({lang === 'en' ? '+1 pool increase' : 'øker lager'})
+                              </span>
+                            )}
+                          </p>
+                        )}
+                        {delta.roostersDelta !== 0 && (
+                          <p className="ml-2">
+                            {lang === 'en' ? 'Roosters' : 'Haner'}: {delta.roostersDelta > 0 ? '+' : ''}{delta.roostersDelta}
+                            {delta.roostersDelta < 0 && pr.poolRoostersReturn > 0 && (
+                              <span className="text-green-700 ml-1">
+                                ({pr.poolRoostersReturn} {lang === 'en' ? 'back to pool' : 'tilbake til lager'})
+                              </span>
+                            )}
+                          </p>
+                        )}
+                      </div>
+                    )
+                  })}
+              </div>
+              <div>
+                <label className="text-xs font-medium text-neutral-600">{lang === 'en' ? 'Note (optional)' : 'Notat (valgfritt)'}</label>
+                <Input
+                  value={adjustNote}
+                  onChange={(e) => setAdjustNote(e.target.value)}
+                  placeholder={lang === 'en' ? 'Reason for adjustment...' : 'Årsak til justering...'}
+                />
+              </div>
+            </div>
+          )}
+
+          <div className="flex justify-between pt-2">
+            <div>
+              {adjustBirdsStep !== 'edit' && (
+                <Button variant="outline" onClick={handleAdjustBirdsBack}>
+                  {lang === 'en' ? 'Back' : 'Tilbake'}
+                </Button>
+              )}
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setAdjustBirdsOpen(false)}>
+                {lang === 'en' ? 'Cancel' : 'Avbryt'}
+              </Button>
+              {adjustBirdsStep === 'confirm' ? (
+                <Button onClick={submitAdjustBirds} disabled={adjustBirdsLoading}>
+                  {adjustBirdsLoading
+                    ? (lang === 'en' ? 'Saving...' : 'Lagrer...')
+                    : (lang === 'en' ? 'Confirm changes' : 'Bekreft endring')}
+                </Button>
+              ) : (
+                <Button onClick={handleAdjustBirdsNext} disabled={!adjustBirdsHasChanges()}>
+                  {lang === 'en' ? 'Next' : 'Neste'}
+                </Button>
+              )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
+  )
+}
+
+function AdjustBirdLine({
+  label,
+  subLabel,
+  currentHens,
+  currentRoosters,
+  hensDelta,
+  roostersDelta,
+  onHensDelta,
+  onRoostersDelta,
+  lang,
+}: {
+  label: string
+  subLabel: string
+  currentHens: number
+  currentRoosters: number
+  hensDelta: number
+  roostersDelta: number
+  onHensDelta: (d: number) => void
+  onRoostersDelta: (d: number) => void
+  lang: string
+}) {
+  return (
+    <div className="rounded border border-neutral-200 p-3 space-y-2">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-sm font-medium">{label}</p>
+          <p className="text-xs text-neutral-500">{subLabel}</p>
+        </div>
+      </div>
+      <div className="flex items-center gap-6">
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-neutral-500 w-12">{lang === 'en' ? 'Hens' : 'Høner'}</span>
+          <Button size="sm" variant="outline" className="h-7 w-7 p-0"
+            onClick={() => onHensDelta(hensDelta - 1)}
+            disabled={currentHens + hensDelta <= 0}
+          >−</Button>
+          <span className={`w-10 text-center text-sm font-medium ${hensDelta !== 0 ? (hensDelta > 0 ? 'text-green-700' : 'text-red-700') : ''}`}>
+            {currentHens + hensDelta}
+            {hensDelta !== 0 && <span className="text-xs"> ({hensDelta > 0 ? '+' : ''}{hensDelta})</span>}
+          </span>
+          <Button size="sm" variant="outline" className="h-7 w-7 p-0"
+            onClick={() => onHensDelta(hensDelta + 1)}
+          >+</Button>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-neutral-500 w-12">{lang === 'en' ? 'Roosters' : 'Haner'}</span>
+          <Button size="sm" variant="outline" className="h-7 w-7 p-0"
+            onClick={() => onRoostersDelta(roostersDelta - 1)}
+            disabled={currentRoosters + roostersDelta <= 0}
+          >−</Button>
+          <span className={`w-10 text-center text-sm font-medium ${roostersDelta !== 0 ? (roostersDelta > 0 ? 'text-green-700' : 'text-red-700') : ''}`}>
+            {currentRoosters + roostersDelta}
+            {roostersDelta !== 0 && <span className="text-xs"> ({roostersDelta > 0 ? '+' : ''}{roostersDelta})</span>}
+          </span>
+          <Button size="sm" variant="outline" className="h-7 w-7 p-0"
+            onClick={() => onRoostersDelta(roostersDelta + 1)}
+          >+</Button>
+        </div>
+      </div>
     </div>
   )
 }
