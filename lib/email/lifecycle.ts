@@ -1269,13 +1269,15 @@ async function materializeChickenFlowInstances(flowMap: Map<string, FlowDefiniti
 
   const { data: orders } = await supabaseAdmin
     .from('chicken_orders')
-    .select('id, order_number, customer_name, customer_email, status, pickup_monday, remainder_amount_nok, created_at')
+    .select('id, order_number, customer_name, customer_email, status, pickup_monday, pickup_date, remainder_amount_nok, created_at')
     .in('status', ['deposit_paid', 'ready_for_pickup', 'fully_paid']);
 
   let inserted = 0;
   for (const order of orders || []) {
     const orderId = String(order.id);
-    const pickupYmd = parseIsoDate(String(order.pickup_monday || ''));
+    // Use customer-chosen pickup_date if set, otherwise fall back to pickup_monday
+    const effectivePickupStr = String(order.pickup_date || order.pickup_monday || '');
+    const pickupYmd = parseIsoDate(effectivePickupStr);
     if (!pickupYmd) continue;
 
     const locale: 'no' | 'en' = 'no';

@@ -38,6 +38,8 @@ interface ChickenOrderCardProps {
     total_amount_nok: number
     deposit_amount_nok: number
     remainder_amount_nok: number
+    pickup_date?: string | null
+    pickup_monday?: string | null
     remainder_payment_enabled?: boolean
     remainder_due_date?: string | null
     delivery_method: string
@@ -117,6 +119,9 @@ export function ChickenOrderCard({ order, onPayRemainder, onRefresh }: ChickenOr
   const [addOptions, setAddOptions] = useState<AddOption[]>([])
   const [loadingAddOptions, setLoadingAddOptions] = useState(false)
   const [savingAdditions, setSavingAdditions] = useState(false)
+  const [chosenPickupDate, setChosenPickupDate] = useState<string | null>(order.pickup_date || null)
+  const [pickingDay, setPickingDay] = useState(false)
+  const [savingPickupDay, setSavingPickupDay] = useState(false)
 
   const statusMeta: Record<string, { label: string; className: string }> = {
     pending: { label: myOrdersCopy.statusPending, className: 'bg-amber-50 text-amber-700' },
@@ -248,16 +253,63 @@ export function ChickenOrderCard({ order, onPayRemainder, onRefresh }: ChickenOr
     remainderDueNok > 0 &&
     ['deposit_paid', 'ready_for_pickup'].includes(order.status)
   const meta = statusMeta[order.status] || { label: order.status, className: 'bg-neutral-100 text-neutral-700' }
-  const pickupDate = getIsoWeekMondayDate(order.pickup_year, order.pickup_week)
-  const daysToPickup = daysBetween(pickupDate, today)
+  const pickupMonday = getIsoWeekMondayDate(order.pickup_year, order.pickup_week)
+  const effectivePickupDate = chosenPickupDate ? toDateOnly(chosenPickupDate) : pickupMonday
+  const daysToPickup = daysBetween(effectivePickupDate, today)
   const canAddMore =
     ['deposit_paid', 'fully_paid', 'ready_for_pickup'].includes(order.status) && daysToPickup >= 0
   const daysToPickupLabel = Math.max(daysToPickup, 0)
-  const pickupDateLabel = pickupDate.toLocaleDateString(locale, {
+  const pickupDateLabel = effectivePickupDate.toLocaleDateString(locale, {
+    weekday: chosenPickupDate ? 'long' : undefined,
     day: 'numeric',
     month: 'long',
     year: 'numeric',
   })
+
+  // Generate the 7 days of the pickup week (Mon–Sun)
+  const pickupWeekDays = useMemo(() => {
+    const days: Array<{ date: Date; iso: string; dayName: string }> = []
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(pickupMonday)
+      d.setUTCDate(pickupMonday.getUTCDate() + i)
+      days.push({
+        date: d,
+        iso: d.toISOString().split('T')[0],
+        dayName: d.toLocaleDateString(locale, { weekday: 'short', day: 'numeric', month: 'short' }),
+      })
+    }
+    return days
+  }, [pickupMonday, locale])
+
+  const canChoosePickupDay =
+    ['deposit_paid', 'fully_paid', 'ready_for_pickup'].includes(order.status) &&
+    daysBetween(new Date(pickupWeekDays[pickupWeekDays.length - 1]?.date || pickupMonday), today) >= 0
+
+  const handlePickupDaySelect = async (iso: string) => {
+    setSavingPickupDay(true)
+    try {
+      const res = await fetch(`/api/chickens/orders/${order.id}/pickup-date`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pickupDate: iso }),
+      })
+      if (!res.ok) throw new Error('Failed')
+      setChosenPickupDate(iso)
+      setPickingDay(false)
+      toast({
+        title: myOrdersCopy.pickupDaySet,
+        description: new Date(`${iso}T00:00:00`).toLocaleDateString(locale, {
+          weekday: 'long',
+          day: 'numeric',
+          month: 'long',
+        }),
+      })
+    } catch {
+      toast({ title: common.error || 'Error', variant: 'destructive' })
+    } finally {
+      setSavingPickupDay(false)
+    }
+  }
   const dueDate = order.remainder_due_date ? toDateOnly(order.remainder_due_date) : null
   const dueDateLabel = dueDate
     ? dueDate.toLocaleDateString(locale, {
@@ -311,10 +363,16 @@ export function ChickenOrderCard({ order, onPayRemainder, onRefresh }: ChickenOr
         ? myOrdersCopy.statusPickedUp
         : order.status === 'ready_for_pickup'
         ? myOrdersCopy.statusReadyForPickup
-        : `${myOrdersCopy.pickupPrefix} ${pickupDateLabel}`,
-      detail: `${myOrdersCopy.pickupPrefix} ${pickupDateLabel}${
-        daysToPickup >= 0 ? ` - ${daysToPickupLabel} ${myOrdersCopy.daysLeftLabel}` : ''
-      }`,
+        : chosenPickupDate
+        ? `${myOrdersCopy.pickupDay}: ${pickupDateLabel}`
+        : `${myOrdersCopy.pickupPrefix} ${myOrdersCopy.weekLabel} ${order.pickup_week}`,
+      detail: chosenPickupDate
+        ? `${myOrdersCopy.pickupDay}: ${pickupDateLabel}${
+            daysToPickup >= 0 ? ` - ${daysToPickupLabel} ${myOrdersCopy.daysLeftLabel}` : ''
+          }`
+        : `${myOrdersCopy.weekLabel} ${order.pickup_week}, ${order.pickup_year}${
+            daysToPickup >= 0 ? ` - ${myOrdersCopy.choosePickupDay}` : ''
+          }`,
       done: pickupDone,
     },
   ]
@@ -594,6 +652,75 @@ export function ChickenOrderCard({ order, onPayRemainder, onRefresh }: ChickenOr
             )}
           </div>
         </div>
+
+        {canChoosePickupDay && (
+          <div className="mt-6 rounded-lg border border-neutral-200 bg-neutral-50 p-4">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs uppercase tracking-[0.2em] text-neutral-500">
+                {myOrdersCopy.pickupDay}
+              </p>
+              {chosenPickupDate && !pickingDay && (
+                <button
+                  type="button"
+                  onClick={() => setPickingDay(true)}
+                  className="text-xs text-neutral-500 underline hover:text-neutral-700"
+                >
+                  {myOrdersCopy.changePickupDay}
+                </button>
+              )}
+            </div>
+
+            {!chosenPickupDate || pickingDay ? (
+              <>
+                {!chosenPickupDate && (
+                  <p className="text-sm text-neutral-600 mb-3">{myOrdersCopy.choosePickupDay}</p>
+                )}
+                <div className="grid grid-cols-4 sm:grid-cols-7 gap-2">
+                  {pickupWeekDays.map((day) => {
+                    const isPast = day.date < today
+                    const isSelected = chosenPickupDate === day.iso
+                    return (
+                      <button
+                        key={day.iso}
+                        type="button"
+                        disabled={isPast || savingPickupDay}
+                        onClick={() => handlePickupDaySelect(day.iso)}
+                        className={cn(
+                          'rounded-md border px-2 py-2 text-center text-xs transition-colors',
+                          isSelected
+                            ? 'border-neutral-900 bg-neutral-900 text-white'
+                            : isPast
+                            ? 'border-neutral-100 bg-neutral-100 text-neutral-300 cursor-not-allowed'
+                            : 'border-neutral-200 bg-white text-neutral-700 hover:border-neutral-400 hover:bg-neutral-100'
+                        )}
+                      >
+                        {day.dayName}
+                      </button>
+                    )
+                  })}
+                </div>
+                {pickingDay && (
+                  <button
+                    type="button"
+                    onClick={() => setPickingDay(false)}
+                    className="mt-2 text-xs text-neutral-500 underline"
+                  >
+                    {myOrdersCopy.timelineCollapse}
+                  </button>
+                )}
+              </>
+            ) : (
+              <p className="text-sm font-normal text-neutral-900">
+                {effectivePickupDate.toLocaleDateString(locale, {
+                  weekday: 'long',
+                  day: 'numeric',
+                  month: 'long',
+                  year: 'numeric',
+                })}
+              </p>
+            )}
+          </div>
+        )}
 
         <div className="mt-6 space-y-2">
           <div className={cn('rounded-lg border px-3 py-2 text-sm', nextActionClass)}>

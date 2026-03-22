@@ -4024,6 +4024,11 @@
       statusReadyForPickup: 'Klar for henting',
       statusPickedUp: 'Hentet',
       statusCancelled: 'Kansellert',
+      choosePickupDay: 'Velg hentedag',
+      pickupDay: 'Hentedag',
+      changePickupDay: 'Endre',
+      pickupDaySet: 'Hentedag valgt',
+      pickupDayNotChosen: 'Ikke valgt ennå',
     },
     admin: {
       tabLabel: 'Kyllinger',

@@ -42,6 +42,7 @@ interface ChickenOrder {
   pickup_year: number
   pickup_week: number
   pickup_monday?: string | null
+  pickup_date?: string | null
   age_weeks_at_pickup: number
   price_per_hen_nok: number
   price_per_rooster_nok?: number
@@ -514,9 +515,22 @@ export function ChickenOrdersManager({
         throw new Error(body?.error || 'Failed to enable remainder payment')
       }
 
+      const successDescription =
+        body?.alreadyEnabled === true
+          ? (lang === 'en'
+              ? 'Remainder payment was already enabled for this order.'
+              : 'Restbetaling var allerede aktivert for denne bestillingen.')
+          : body?.emailSent === false
+            ? `${co.enableRemainderSuccess} ${
+                lang === 'en'
+                  ? `Email was not sent${body?.emailReason ? `: ${body.emailReason}` : '.'}`
+                  : `E-post ble ikke sendt${body?.emailReason ? `: ${body.emailReason}` : '.'}`
+              }`
+            : co.enableRemainderSuccess
+
       toast({
         title: co.updateToastTitle,
-        description: co.enableRemainderSuccess,
+        description: successDescription,
       })
 
       setOrders((current) =>
@@ -913,6 +927,17 @@ export function ChickenOrdersManager({
                     value={co.pickupWeekLabel.replace('{week}', String(selectedOrder.pickup_week)).replace('{year}', String(selectedOrder.pickup_year))}
                   />
                   <DetailRow label={co.labelPickupMonday} value={formatDate(selectedOrder.pickup_monday || null)} />
+                  <DetailRow
+                    label={lang === 'en' ? 'Pickup day' : 'Hentedag'}
+                    value={
+                      selectedOrder.pickup_date
+                        ? new Date(`${selectedOrder.pickup_date}T00:00:00`).toLocaleDateString(
+                            lang === 'en' ? 'en-US' : 'nb-NO',
+                            { weekday: 'long', day: 'numeric', month: 'long' }
+                          )
+                        : lang === 'en' ? 'Not chosen yet' : 'Ikke valgt ennå'
+                    }
+                  />
                   <DetailRow label={co.labelAgeWeeks} value={co.ageWeeksLabel.replace('{weeks}', String(selectedOrder.age_weeks_at_pickup))} />
                   {(() => {
                     const totals = getOrderBirdTotals(selectedOrder)

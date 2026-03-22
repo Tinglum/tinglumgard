@@ -4022,6 +4022,11 @@
       statusReadyForPickup: 'Ready for pickup',
       statusPickedUp: 'Picked up',
       statusCancelled: 'Cancelled',
+      choosePickupDay: 'Choose pickup day',
+      pickupDay: 'Pickup day',
+      changePickupDay: 'Change',
+      pickupDaySet: 'Pickup day chosen',
+      pickupDayNotChosen: 'Not chosen yet',
     },
     admin: {
       tabLabel: 'Chickens',
