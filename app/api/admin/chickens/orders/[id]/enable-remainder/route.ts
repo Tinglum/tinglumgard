@@ -8,7 +8,7 @@ function isUuid(value?: string | null): boolean {
 }
 
 async function loadChickenOrder(identifier: string) {
-  const baseSelect = 'id, order_number, status, remainder_amount_nok, remainder_collected_at, chicken_payments(*)'
+  const baseSelect = 'id, order_number, status, remainder_amount_nok, chicken_payments(*)'
   const attempts: Array<'id' | 'order_number'> = isUuid(identifier)
     ? ['id', 'order_number']
     : ['order_number', 'id']
@@ -77,10 +77,6 @@ export async function POST(
 
   if (order.status === 'cancelled' || order.status === 'picked_up') {
     return NextResponse.json({ error: 'Remainder payment cannot be enabled for this order state' }, { status: 400 })
-  }
-
-  if (order.remainder_collected_at) {
-    return NextResponse.json({ error: 'Remainder has already been collected' }, { status: 400 })
   }
 
   if (!hasCompletedDeposit(order.chicken_payments || [])) {
