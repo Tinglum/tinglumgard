@@ -693,15 +693,16 @@ export async function POST(request: NextRequest) {
 
           const { data: existingEggOrder } = await supabaseAdmin
             .from('egg_orders')
-            .select('id, status, deposit_amount, total_amount')
+            .select('id, status, deposit_amount, total_amount, remainder_amount')
             .eq('id', resolvedPayment.egg_order_id)
             .maybeSingle()
 
           if (existingEggOrder && existingEggOrder.status === 'pending') {
             const depositAmount = Number(existingEggOrder.deposit_amount || 0)
             const totalAmount = Number(existingEggOrder.total_amount || 0)
+            const remainderAmount = Number(existingEggOrder.remainder_amount || 0)
             const nextStatus =
-              depositAmount > 0 && totalAmount > 0 && depositAmount >= totalAmount
+              remainderAmount <= 0 || (depositAmount > 0 && totalAmount > 0 && depositAmount >= totalAmount)
                 ? 'fully_paid'
                 : 'deposit_paid'
 
@@ -825,11 +826,12 @@ export async function POST(request: NextRequest) {
         await finalizeConfirmedEggOrder(order.id)
       }
 
-      // If deposit covers the full amount, set status to fully_paid
+      // If deposit covers the full amount (or remainder is zero), set status to fully_paid
       const depositAmount = Number(order?.deposit_amount || 0);
       const totalAmount = Number(order?.total_amount || 0);
-      const newStatus = (depositAmount > 0 && totalAmount > 0 && depositAmount >= totalAmount) ? 'fully_paid' : 'deposit_paid';
-      console.log(`Updating order status to ${newStatus} (deposit: ${depositAmount}, total: ${totalAmount})`);
+      const remainderAmount = Number(isEggPayment ? (order?.remainder_amount || 0) : (order?.remainder_amount_nok || 0));
+      const newStatus = (remainderAmount <= 0 || (depositAmount > 0 && totalAmount > 0 && depositAmount >= totalAmount)) ? 'fully_paid' : 'deposit_paid';
+      console.log(`Updating order status to ${newStatus} (deposit: ${depositAmount}, total: ${totalAmount}, remainder: ${remainderAmount})`);
 
       const { error: orderErr } = await supabaseAdmin
         .from(orderTable)
@@ -1099,7 +1101,9 @@ export async function POST(request: NextRequest) {
         .eq('status', 'completed');
 
       const totalPaidOre = (allPayments || []).reduce((sum, p) => sum + Math.round((p.amount_nok || 0) * 100), 0);
-      const totalAmountOre = Number(order?.total_amount || 0);
+      const totalAmountOre = isChickenPayment
+        ? Math.round(Number(order?.total_amount_nok || 0) * 100)
+        : Number(order?.total_amount || 0);
       const isActuallyFullyPaid = totalPaidOre >= totalAmountOre;
 
       const paidStatus = isChickenPayment ? "fully_paid" : isEggPayment ? "fully_paid" : "paid";
