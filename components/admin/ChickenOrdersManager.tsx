@@ -505,7 +505,8 @@ export function ChickenOrdersManager({
   const handleEnableRemainder = async (order: ChickenOrder) => {
     try {
       setActivatingRemainderOrderId(order.id)
-      const res = await fetch(`/api/admin/chickens/orders/${order.id}/enable-remainder`, {
+      const orderRef = order.order_number || order.id
+      const res = await fetch(`/api/admin/chickens/orders/${orderRef}/enable-remainder`, {
         method: 'POST',
       })
       const body = await res.json().catch(() => ({}))
