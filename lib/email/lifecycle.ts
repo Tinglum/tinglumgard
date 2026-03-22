@@ -1880,7 +1880,7 @@ async function processDueInstances(
     if (instance.flow_key === 'chicken.pickup.reminder') {
       const { data: chickenOrder } = await supabaseAdmin
         .from('chicken_orders')
-        .select('status')
+        .select('status, pickup_date, pickup_time')
         .eq('id', instance.entity_id)
         .maybeSingle();
 
@@ -1889,6 +1889,61 @@ async function processDueInstances(
         await updateFlowInstanceStatus(instance.id, {
           status: 'cancelled',
           lastError: 'pickup_reminder_not_eligible',
+          processedAt: new Date().toISOString(),
+        });
+        skipped += 1;
+        continue;
+      }
+
+      const hasChosenDay = Boolean(chickenOrder.pickup_date);
+      if (!hasChosenDay) {
+        // Check if this is the 1-day-before reminder (final warning)
+        const daysLeft = Number(instance.metadata?.trigger_offset_days ?? 3);
+        if (daysLeft <= 1) {
+          templateKey = 'chicken.pickup.reminder.final_warning';
+        } else {
+          templateKey = 'chicken.pickup.reminder.no_day';
+        }
+      } else {
+        // Customer has chosen a day — enrich payload with chosen date/time
+        const chosenLocale = locale === 'en' ? 'en-US' : 'nb-NO';
+        const chosenDateStr = new Date(`${chickenOrder.pickup_date}T00:00:00`).toLocaleDateString(
+          chosenLocale,
+          { weekday: 'long', day: 'numeric', month: 'long' }
+        );
+        const timeLabel = locale === 'en' ? 'at' : 'kl.';
+        payload = {
+          ...payload,
+          pickup_date_display: chickenOrder.pickup_time
+            ? `${chosenDateStr} ${timeLabel} ${chickenOrder.pickup_time}`
+            : chosenDateStr,
+        };
+      }
+    }
+
+    if (instance.flow_key === 'chicken.choose_pickup_day') {
+      const { data: chickenOrder } = await supabaseAdmin
+        .from('chicken_orders')
+        .select('status, pickup_date')
+        .eq('id', instance.entity_id)
+        .maybeSingle();
+
+      const status = String(chickenOrder?.status || '');
+      if (!chickenOrder || status === 'cancelled' || status === 'picked_up') {
+        await updateFlowInstanceStatus(instance.id, {
+          status: 'cancelled',
+          lastError: 'choose_pickup_day_not_eligible',
+          processedAt: new Date().toISOString(),
+        });
+        skipped += 1;
+        continue;
+      }
+
+      // If customer already chose a day, skip this nudge email
+      if (chickenOrder.pickup_date) {
+        await updateFlowInstanceStatus(instance.id, {
+          status: 'cancelled',
+          lastError: 'pickup_day_already_chosen',
           processedAt: new Date().toISOString(),
         });
         skipped += 1;
@@ -2296,6 +2351,12 @@ export async function updateLifecycleConfig(updates: Partial<LifecycleConfig>) {
     rows.push({
       key: 'chicken_auto_ready_days_before',
       value: Math.max(0, Math.round(updates.chickenAutoReadyDaysBefore)),
+    });
+  }
+  if (typeof updates.chickenChoosePickupDayBefore === 'number') {
+    rows.push({
+      key: 'chicken_choose_pickup_day_before',
+      value: Math.max(0, Math.round(updates.chickenChoosePickupDayBefore)),
     });
   }
   if (typeof updates.campaignSendViaApiCronOnly === 'boolean') {
