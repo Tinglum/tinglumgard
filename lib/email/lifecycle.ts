@@ -1269,7 +1269,7 @@ async function materializeChickenFlowInstances(flowMap: Map<string, FlowDefiniti
 
   const { data: orders } = await supabaseAdmin
     .from('chicken_orders')
-    .select('id, order_number, customer_name, customer_email, status, pickup_monday, remainder_amount_nok')
+    .select('id, order_number, customer_name, customer_email, status, pickup_monday, remainder_amount_nok, created_at')
     .in('status', ['deposit_paid', 'ready_for_pickup', 'fully_paid']);
 
   let inserted = 0;
@@ -1311,30 +1311,50 @@ async function materializeChickenFlowInstances(flowMap: Map<string, FlowDefiniti
       if (readyInserted) inserted += 1;
     }
 
-    for (const days of config.chickenPickupReminderDays) {
-      const scheduleYmd = addDays(pickupYmd, -days);
+    // Build reminder candidates and filter to future-only (avoid blast when order is placed late)
+    const nowMs = Date.now();
+    const reminderCandidates = config.chickenPickupReminderDays
+      .map((days) => ({
+        days,
+        when: zonedDateTimeToUtc(addDays(pickupYmd, -days), 8, 30, config.timezone),
+      }))
+      .sort((a, b) => a.when.getTime() - b.when.getTime());
+
+    const orderCreatedAt = order.created_at ? new Date(order.created_at).getTime() : nowMs;
+    const earliestReminderAt = reminderCandidates[0]?.when.getTime() || nowMs;
+    const isLateOrder = orderCreatedAt > earliestReminderAt;
+    const futureCandidates = reminderCandidates.filter((r) => r.when.getTime() > nowMs);
+    // Late orders: send at most 1 future reminder; normal orders: send all future reminders
+    const selectedReminders = isLateOrder
+      ? futureCandidates.length > 0
+        ? [futureCandidates[0]]
+        : []
+      : futureCandidates;
+
+    for (const reminder of selectedReminders) {
+      const scheduleYmd = addDays(pickupYmd, -reminder.days);
       const reminderInserted = await insertFlowInstance({
         flowId: pickupReminderFlow.id,
         flowKey: pickupReminderFlow.flow_key,
         productScope: pickupReminderFlow.product_scope,
         entityType: 'chicken_order',
         entityId: orderId,
-        triggerDateKey: `pickup-reminder:${ymdToKey(pickupYmd)}:${days}`,
-        scheduledFor: zonedDateTimeToUtc(scheduleYmd, 8, 30, config.timezone).toISOString(),
+        triggerDateKey: `pickup-reminder:${ymdToKey(pickupYmd)}:${reminder.days}`,
+        scheduledFor: reminder.when.toISOString(),
         toEmail: toEmail || null,
         locale,
         payload: {
           customer_name: String(order.customer_name || 'Kunde'),
           order_number: String(order.order_number || ''),
           pickup_date: formatDateForLocale(pickupYmd, locale, config.timezone),
-          days_left: days,
+          days_left: reminder.days,
           remainder_amount_nok: toNoCurrency(Number(order.remainder_amount_nok || 0)),
           order_url: orderUrl,
         },
         metadata: {
           product_scope: 'chickens',
           flow_key: pickupReminderFlow.flow_key,
-          trigger_offset_days: days,
+          trigger_offset_days: reminder.days,
         },
       });
       if (reminderInserted) inserted += 1;
