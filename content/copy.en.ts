@@ -1241,11 +1241,11 @@
   // Referrals
   referrals: {
     createCode: "Create friend discount code",
-    getCredit: "Get 10% credit for each friend who uses your code",
+    getCredit: "Give friends a discount on a Woolly Pig box – and earn credit yourself",
     howItWorks: "How it works:",
     step1: "You create a personal discount code",
-    step2: "Friends get 20% off the deposit when they use your code",
-    step3: "You get 10% credit of their purchase that can be used on your balance",
+    step2: "Friends get 20% off the deposit when they order a Woolly Pig box",
+    step3: "You get 10% credit on your own Woolly Pig box for each friend who orders",
     step4: "Maximum 5 friends per order can give you credit",
     chooseCode: "Choose your unique code (4-20 characters, letters and numbers only)",
     exampleCode: "e.g. KENNETH2026",
@@ -1257,7 +1257,7 @@
     copied: "Copied!",
     copyCode: "Copy code",
     shareButton: "Share code",
-    friendsGet20: "Friends get 20% off the deposit • You get 10% credit per referral",
+    friendsGet20: "Friends get 20% off a Woolly Pig box • You get 10% credit on your own box",
     totalReferrals: "Total referrals",
     availableCredit: "Available credit",
     creditRemaining: "Credit remaining",
@@ -1275,7 +1275,7 @@
     enterCode: "Enter code",
     checking: "Checking...",
     useCode: "Use code",
-    newCustomersGet20: "New customers get 20% off the deposit when using a friend discount code",
+    newCustomersGet20: "New customers get 20% off the deposit on a Woolly Pig box when using a friend discount code",
     codeActivated: "Code activated: {code}",
     youGet20Off: "You get 20% off the deposit ({amount} NOK)",
     youSave: "You save {amount} NOK",
@@ -1289,8 +1289,8 @@
     shareMessage: "Order Woolly Pig from Tinglum Gård and get 20% off the deposit with my friend discount code: {code}",
 
     // Pre-order state
-    availableAfterFirstOrder: "Friend discount is activated for Woolly Pig orders. After you complete your first Woolly Pig box order, friend discount becomes available.",
-    firstOrderRequiredHelp: "Your friend gets 20% off their deposit on a Woolly Pig box (value up to 400 NOK), and you get 10% off your own box, equal to 20% off the remaining balance, for each completed referral that leads to a box purchase. You can refer up to 5 friends and get up to 50% off your own box (value up to 2000 NOK).",
+    availableAfterFirstOrder: "Friend discount is activated after you place your first order with us.",
+    firstOrderRequiredHelp: "Once your first order is registered, you can create a personal code and share it with friends. Your friend gets 20% off the deposit on a Woolly Pig box, and you get 10% credit on your own Woolly Pig box for each friend who orders.",
     goToOrder: "Go to order",
   },
 

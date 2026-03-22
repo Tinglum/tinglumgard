@@ -1242,11 +1242,11 @@
   // Referrals
   referrals: {
     createCode: "Opprett vennerabattkode",
-    getCredit: "Få 10% kreditt for hver venn som bruker din kode",
+    getCredit: "Gi venner rabatt på ullgriskasse – og få kreditt selv",
     howItWorks: "Slik fungerer det:",
     step1: "Du oppretter en personlig rabattkode",
-    step2: "Venner får 20% rabatt på forskuddet når de bruker din kode",
-    step3: "Du får 10% kreditt av deres kjøp som kan brukes på ditt restbeløp",
+    step2: "Venner får 20% rabatt på forskuddet når de bestiller en ullgriskasse",
+    step3: "Du får 10% kreditt på din egen ullgriskasse for hver venn som bestiller",
     step4: "Maks 5 venner per bestilling kan gi deg kreditt",
     chooseCode: "Velg din unike kode (4-20 tegn, kun bokstaver og tall)",
     exampleCode: "f.eks. KENNETH2026",
@@ -1258,7 +1258,7 @@
     copied: "Kopiert!",
     copyCode: "Kopier kode",
     shareButton: "Del kode",
-    friendsGet20: "Venner får 20% rabatt på forskuddet • Du får 10% kreditt per henvisning",
+    friendsGet20: "Venner får 20% rabatt på ullgriskasse • Du får 10% kreditt på din egen kasse",
     totalReferrals: "Totale henvisninger",
     availableCredit: "Tilgjengelig kreditt",
     creditRemaining: "Kredittering igjen",
@@ -1276,7 +1276,7 @@
     enterCode: "Skriv inn kode",
     checking: "Sjekker...",
     useCode: "Bruk kode",
-    newCustomersGet20: "Nye kunder får 20% rabatt på forskuddet ved bruk av vennerabattkode",
+    newCustomersGet20: "Nye kunder får 20% rabatt på forskuddet på ullgriskasse ved bruk av vennerabattkode",
     codeActivated: "Kode aktivert: {code}",
     youGet20Off: "Du får 20% rabatt på forskuddet ({amount} kr)",
     youSave: "Du sparer {amount} kr",
@@ -1291,7 +1291,7 @@
 
     // Pre-order state
     availableAfterFirstOrder: "Vennerabatt aktiveres etter at du har gjennomført din første bestilling hos oss.",
-    firstOrderRequiredHelp: "Når første bestilling er registrert, kan du opprette en personlig kode, dele den med venner og få 10% kreditt per gjennomfort henvisning. Kreditt trekkes fra restbelopet pa en aktiv bestilling.",
+    firstOrderRequiredHelp: "Når første bestilling er registrert, kan du opprette en personlig kode og dele den med venner. Vennen din får 20% rabatt på forskuddet på en ullgriskasse, og du får 10% kreditt på din egen ullgriskasse for hver venn som bestiller.",
     goToOrder: "Gå til bestilling",
   },
 
