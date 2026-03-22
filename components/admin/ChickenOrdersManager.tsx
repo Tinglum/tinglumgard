@@ -999,7 +999,7 @@ export function ChickenOrdersManager({
               {/* Main order line */}
               <AdjustBirdLine
                 label={selectedOrder.chicken_breeds?.name || '-'}
-                subLabel={lang === 'en' ? 'Main order' : 'Hovedbestilling'}
+                subLabel={`${lang === 'en' ? 'Main order' : 'Hovedbestilling'} · ${selectedOrder.age_weeks_at_pickup} ${lang === 'en' ? 'weeks' : 'uker'}`}
                 currentHens={selectedOrder.quantity_hens}
                 currentRoosters={selectedOrder.quantity_roosters}
                 hensDelta={adjustDeltas['main']?.hensDelta || 0}
@@ -1009,11 +1009,14 @@ export function ChickenOrdersManager({
                 lang={lang}
               />
               {/* Addition lines */}
-              {ensureArray(selectedOrder.chicken_order_additions).map((addition) => (
+              {ensureArray(selectedOrder.chicken_order_additions).map((addition) => {
+                const additionAge = getAgeWeeksForAddition(selectedOrder, addition)
+                const ageStr = additionAge !== null ? ` · ${additionAge} ${lang === 'en' ? 'weeks' : 'uker'}` : ''
+                return (
                 <AdjustBirdLine
                   key={addition.id}
                   label={addition.chicken_breeds?.name || '-'}
-                  subLabel={lang === 'en' ? 'Addition' : 'Tillegg'}
+                  subLabel={`${lang === 'en' ? 'Addition' : 'Tillegg'}${ageStr}`}
                   currentHens={addition.quantity_hens}
                   currentRoosters={addition.quantity_roosters}
                   hensDelta={adjustDeltas[addition.id]?.hensDelta || 0}
@@ -1022,7 +1025,8 @@ export function ChickenOrdersManager({
                   onRoostersDelta={(d) => setAdjustDeltas((prev) => ({ ...prev, [addition.id]: { ...prev[addition.id], roostersDelta: d } }))}
                   lang={lang}
                 />
-              ))}
+                )
+              })}
             </div>
           )}
 
@@ -1037,14 +1041,19 @@ export function ChickenOrdersManager({
                 .filter(([, d]) => d.hensDelta < 0 || d.roostersDelta < 0)
                 .map(([key, delta]) => {
                   const isMain = key === 'main'
+                  const addition = !isMain ? ensureArray(selectedOrder.chicken_order_additions).find((a) => a.id === key) : null
                   const breedName = isMain
                     ? selectedOrder.chicken_breeds?.name || '-'
-                    : ensureArray(selectedOrder.chicken_order_additions).find((a) => a.id === key)?.chicken_breeds?.name || '-'
+                    : addition?.chicken_breeds?.name || '-'
+                  const ageWeeks = isMain
+                    ? selectedOrder.age_weeks_at_pickup
+                    : addition ? getAgeWeeksForAddition(selectedOrder, addition) : null
+                  const ageStr = ageWeeks !== null ? ` · ${ageWeeks} ${lang === 'en' ? 'wk' : 'u'}` : ''
                   const pr = poolReturns[key] || { poolHensReturn: 0, poolRoostersReturn: 0 }
 
                   return (
                     <div key={key} className="rounded border border-neutral-200 p-3 space-y-2">
-                      <p className="text-sm font-medium">{breedName} {isMain ? (lang === 'en' ? '(Main)' : '(Hoved)') : (lang === 'en' ? '(Addition)' : '(Tillegg)')}</p>
+                      <p className="text-sm font-medium">{breedName} {isMain ? (lang === 'en' ? '(Main)' : '(Hoved)') : (lang === 'en' ? '(Addition)' : '(Tillegg)')}{ageStr}</p>
                       {delta.hensDelta < 0 && (
                         <div className="flex items-center justify-between text-sm">
                           <span>{lang === 'en' ? `${Math.abs(delta.hensDelta)} hens removed` : `${Math.abs(delta.hensDelta)} høner fjernet`}</span>
@@ -1100,14 +1109,19 @@ export function ChickenOrdersManager({
                   .filter(([, d]) => d.hensDelta !== 0 || d.roostersDelta !== 0)
                   .map(([key, delta]) => {
                     const isMain = key === 'main'
+                    const addition = !isMain ? ensureArray(selectedOrder.chicken_order_additions).find((a) => a.id === key) : null
                     const breedName = isMain
                       ? selectedOrder.chicken_breeds?.name || '-'
-                      : ensureArray(selectedOrder.chicken_order_additions).find((a) => a.id === key)?.chicken_breeds?.name || '-'
+                      : addition?.chicken_breeds?.name || '-'
+                    const ageWeeks = isMain
+                      ? selectedOrder.age_weeks_at_pickup
+                      : addition ? getAgeWeeksForAddition(selectedOrder, addition) : null
+                    const ageStr = ageWeeks !== null ? ` (${ageWeeks} ${lang === 'en' ? 'wk' : 'u'})` : ''
                     const pr = poolReturns[key] || { poolHensReturn: 0, poolRoostersReturn: 0 }
 
                     return (
                       <div key={key}>
-                        <p className="font-medium">{breedName}:</p>
+                        <p className="font-medium">{breedName}{ageStr}:</p>
                         {delta.hensDelta !== 0 && (
                           <p className="ml-2">
                             {lang === 'en' ? 'Hens' : 'Høner'}: {delta.hensDelta > 0 ? '+' : ''}{delta.hensDelta}
