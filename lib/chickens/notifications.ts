@@ -19,9 +19,8 @@ function isMissingChickenEmailColumnError(error: unknown): boolean {
 async function fetchChickenOrderForEmail(orderId: string) {
   type LookupError = { message?: string | null; code?: string | null } | null
   const selectClauses = [
-    '*, chicken_breeds(*), chicken_hatches(hatch_date), chicken_order_additions(hatch_id, age_weeks_at_pickup, quantity_hens, quantity_roosters, subtotal_nok, price_per_hen_nok, chicken_breeds(*), chicken_hatches(hatch_date))',
     '*, chicken_breeds(*), chicken_hatches(hatch_date), chicken_order_additions(hatch_id, quantity_hens, quantity_roosters, subtotal_nok, price_per_hen_nok, chicken_breeds(*), chicken_hatches(hatch_date))',
-  ];
+  ] as const;
 
   const runLookup = async (
     selectClauseToUse: string
@@ -45,27 +44,14 @@ async function fetchChickenOrderForEmail(orderId: string) {
     return { order: byOrderNumber, error: byOrderNumberError };
   };
 
-  let result: { order: any; error: LookupError } = { order: null, error: null };
-
+  let lastResult: { order: any; error: LookupError } = { order: null, error: null };
   for (const selectClause of selectClauses) {
-    result = await runLookup(selectClause);
-    if (!result.error || !isMissingChickenEmailColumnError(result.error)) {
-      return result;
+    lastResult = await runLookup(selectClause);
+    if (!lastResult.error || !isMissingChickenEmailColumnError(lastResult.error)) {
+      return lastResult;
     }
   }
-
-  if (result.error && isMissingChickenEmailColumnError(result.error)) {
-    return {
-      order: null,
-      error: {
-        ...result.error,
-        message:
-          'Chicken email query still depends on columns missing in production. This order loader should be schema-tolerant.',
-      },
-    };
-  }
-
-  return result;
+  return lastResult;
 }
 
 function normalizeEmail(value: unknown): string {
@@ -319,6 +305,7 @@ export async function sendChickenRemainderEnabledEmail(params: {
       pickup_date: pickupDate,
       remainder_amount_nok: formatNok(order.remainder_amount_nok),
       order_url: buildCustomerOrderLink(appUrl, 'chicken', String(order.id)),
+      tip_index: 1,
     },
   });
 
