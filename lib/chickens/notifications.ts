@@ -19,10 +19,8 @@ function isMissingChickenEmailColumnError(error: unknown): boolean {
 async function fetchChickenOrderForEmail(orderId: string) {
   type LookupError = { message?: string | null; code?: string | null } | null
   const selectClauses = [
-    '*, chicken_breeds(*), chicken_hatches(hatch_date), chicken_order_additions(hatch_id, quantity_hens, quantity_roosters, subtotal_nok, price_per_hen_nok, price_per_rooster_nok, age_weeks_at_pickup, chicken_breeds(*), chicken_hatches(hatch_date))',
-    '*, chicken_breeds(*), chicken_hatches(hatch_date), chicken_order_additions(hatch_id, quantity_hens, quantity_roosters, subtotal_nok, price_per_hen_nok, price_per_rooster_nok, chicken_breeds(*), chicken_hatches(hatch_date))',
-    '*, chicken_breeds(*), chicken_hatches(hatch_date), chicken_order_additions(hatch_id, quantity_hens, quantity_roosters, subtotal_nok, price_per_hen_nok, age_weeks_at_pickup, chicken_breeds(*), chicken_hatches(hatch_date))',
     '*, chicken_breeds(*), chicken_hatches(hatch_date), chicken_order_additions(hatch_id, quantity_hens, quantity_roosters, subtotal_nok, price_per_hen_nok, chicken_breeds(*), chicken_hatches(hatch_date))',
+    'id, order_number, customer_name, customer_email, customer_phone, status, pickup_monday, pickup_date, pickup_time, pickup_week, delivery_method, delivery_fee_nok, total_amount_nok, deposit_amount_nok, remainder_amount_nok, quantity_hens, quantity_roosters, price_per_hen_nok, price_per_rooster_nok, age_weeks_at_pickup, chicken_breeds(*), chicken_hatches(hatch_date), chicken_order_additions(hatch_id, quantity_hens, quantity_roosters, subtotal_nok, price_per_hen_nok, chicken_breeds(*), chicken_hatches(hatch_date))',
   ] as const;
 
   const runLookup = async (
