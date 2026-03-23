@@ -4,6 +4,7 @@ import { supabaseAdmin } from '@/lib/supabase/server';
 import { dispatchEmail } from '@/lib/email/dispatch';
 import { renderManagedTemplate } from '@/lib/email/render';
 import { buildCustomerOrderLink } from '@/lib/email/links';
+import { buildEggOrderLinesHtml, summarizeEggOrderLines } from '@/lib/eggs/email-lines';
 
 /**
  * One-time admin endpoint to resend missing deposit/remainder confirmation
@@ -16,16 +17,6 @@ import { buildCustomerOrderLink } from '@/lib/email/links';
 
 function formatOreToNok(amountOre: number): string {
   return `kr ${Math.round((Number(amountOre) || 0) / 100).toLocaleString('nb-NO')}`;
-}
-
-function buildEggAdditionsHtml(additions: Array<{ breedName: string; quantity: number }>): string {
-  if (!additions || additions.length === 0) return '';
-  let html = '<p><strong>Tilleggsraser:</strong></p><ul>';
-  for (const a of additions) {
-    html += `<li>${a.breedName}: ${a.quantity} egg</li>`;
-  }
-  html += '</ul>';
-  return html;
 }
 
 export async function POST() {
@@ -50,7 +41,7 @@ export async function POST() {
     .select(`
       id, order_number, customer_name, customer_email, status,
       total_amount, deposit_amount, remainder_amount,
-      quantity, week_number,
+      quantity, week_number, price_per_egg, delivery_fee, delivery_method, delivery_monday,
       breed_id,
       egg_breeds!egg_orders_breed_id_fkey ( name ),
       egg_order_additions ( quantity, price_per_egg, subtotal, breed_id, egg_breeds!egg_order_additions_breed_id_fkey ( name ) )
@@ -100,25 +91,19 @@ export async function POST() {
     const isFullyPaidOrLater = ['fully_paid', 'shipped', 'delivered'].includes(status);
 
     // Build template variables
-    const breedRelation = order.egg_breeds as any;
-    const breedName = (Array.isArray(breedRelation)
-      ? breedRelation[0]?.name
-      : breedRelation?.name) || 'Rugeegg';
-    const baseQuantity = Number(order.quantity || 0);
-
-    const additions = Array.isArray(order.egg_order_additions)
-      ? (order.egg_order_additions as any[]).map((a: any) => {
-          const ab = a?.egg_breeds as any;
-          return {
-            breedName: (Array.isArray(ab) ? ab[0]?.name : ab?.name) || 'Rugeegg',
-            quantity: Number(a?.quantity || 0),
-          };
-        }).filter((a: any) => a.quantity > 0)
-      : [];
-
-    const additionsQuantity = additions.reduce((sum: number, a: any) => sum + a.quantity, 0);
-    const totalQuantity = baseQuantity + additionsQuantity;
-    const eggAdditionsHtml = buildEggAdditionsHtml(additions);
+    const eggSummary = summarizeEggOrderLines(order as any, 'no');
+    const baseQuantity = eggSummary.baseQuantity;
+    const additionsQuantity = eggSummary.additionsQuantity;
+    const totalQuantity = eggSummary.totalQuantity;
+    const breedName = eggSummary.breedLabel || 'Rugeegg';
+    const orderLinesHtml = buildEggOrderLinesHtml(eggSummary.lines, 'no', {
+      deliveryFeeOre: Number((order as any).delivery_fee || 0),
+      deliveryLabel: String((order as any).delivery_method || ''),
+    });
+    const orderLinesHtmlEn = buildEggOrderLinesHtml(summarizeEggOrderLines(order as any, 'en').lines, 'en', {
+      deliveryFeeOre: Number((order as any).delivery_fee || 0),
+      deliveryLabel: String((order as any).delivery_method || ''),
+    });
     const orderUrl = buildCustomerOrderLink(appUrl, 'egg', orderId);
 
     // 1. Remainder confirmation: send if fully_paid+ and no confirmation sent
@@ -131,13 +116,16 @@ export async function POST() {
           variables: {
             customer_name: order.customer_name || 'Kunde',
             order_number: orderNumber,
+            breed_name: breedName,
             base_quantity: baseQuantity,
             additions_quantity: additionsQuantity,
             total_quantity: totalQuantity,
-            additions_html: eggAdditionsHtml,
+            order_lines_html: orderLinesHtml,
+            order_lines_html_en: orderLinesHtmlEn,
             total_amount_nok: formatOreToNok(order.total_amount),
             remainder_amount_nok: formatOreToNok(order.remainder_amount),
             order_url: orderUrl,
+            tip_index: 1,
           },
         });
 
@@ -197,11 +185,13 @@ export async function POST() {
             base_quantity: baseQuantity,
             additions_quantity: additionsQuantity,
             total_quantity: totalQuantity,
-            additions_html: eggAdditionsHtml,
+            order_lines_html: orderLinesHtml,
+            order_lines_html_en: orderLinesHtmlEn,
             total_amount_nok: formatOreToNok(order.total_amount),
             deposit_amount_nok: formatOreToNok(order.deposit_amount),
             remainder_amount_nok: formatOreToNok(order.remainder_amount),
             order_url: orderUrl,
+            tip_index: 0,
           },
         });
 

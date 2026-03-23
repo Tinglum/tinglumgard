@@ -7,6 +7,7 @@ import { dispatchEmail } from '@/lib/email/dispatch'
 import { reconcileEggPaymentDependentFlowInstances } from '@/lib/email/lifecycle'
 import { renderManagedTemplate } from '@/lib/email/render'
 import { buildCustomerOrderLink } from '@/lib/email/links'
+import { buildEggOrderLinesHtml, summarizeEggOrderLines } from '@/lib/eggs/email-lines'
 import { logError } from '@/lib/logger'
 
 interface EggOrderAddition {
@@ -41,20 +42,6 @@ function formatOreToNokWithPrefix(value: unknown) {
   const ore = Number(value || 0)
   const nok = Math.round(ore / 100)
   return `kr ${nok.toLocaleString('nb-NO')}`
-}
-
-function escapeHtml(value: unknown) {
-  return String(value || '')
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#39;')
-}
-
-function formatOrderLine(quantity: number, breedName: string, pricePerEggOre: number) {
-  const subtotalOre = quantity * pricePerEggOre
-  return `<li>${escapeHtml(breedName)}: ${quantity} egg x ${formatOreToNokWithPrefix(pricePerEggOre)} = ${formatOreToNokWithPrefix(subtotalOre)}</li>`
 }
 
 async function releaseInventory(inventoryId: string, quantity: number) {
@@ -682,7 +669,7 @@ async function markEggOrderShipped(
   const { data: order, error } = await supabaseAdmin
     .from('egg_orders')
     .select(
-      'id, order_number, customer_name, customer_email, status, delivery_method, admin_notes, tracking_number, quantity, price_per_egg, deposit_amount, remainder_amount, total_amount, week_number, delivery_monday, egg_breeds(name), egg_order_additions(quantity, price_per_egg, egg_breeds(name))'
+      'id, order_number, customer_name, customer_email, status, delivery_method, admin_notes, tracking_number, quantity, price_per_egg, deposit_amount, remainder_amount, total_amount, week_number, delivery_monday, delivery_fee, egg_breeds(name), egg_order_additions(quantity, price_per_egg, subtotal, egg_breeds(name))'
     )
     .eq('id', orderId)
     .single()
@@ -735,30 +722,17 @@ async function markEggOrderShipped(
 
   const trackingUrl = `https://sporing.posten.no/sporing/${effective}`
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_BASE_URL || 'https://tinglumgard.no'
-  const baseBreedName = String((order as any)?.egg_breeds?.name || 'Rugeegg')
-  const baseQuantity = Math.max(0, Number((order as any)?.quantity || 0))
-  const basePricePerEgg = Math.max(0, Number((order as any)?.price_per_egg || 0))
-  const additions = Array.isArray((order as any)?.egg_order_additions)
-    ? ((order as any).egg_order_additions as Array<Record<string, unknown>>)
-    : []
-
-  const lineItems: string[] = []
-  if (baseQuantity > 0) {
-    lineItems.push(formatOrderLine(baseQuantity, baseBreedName, basePricePerEgg))
-  }
-
-  for (const addition of additions) {
-    const quantity = Math.max(0, Number(addition.quantity || 0))
-    if (quantity <= 0) continue
-    const additionBreed = String((addition.egg_breeds as Record<string, unknown> | undefined)?.name || baseBreedName)
-    const additionPrice = Math.max(0, Number(addition.price_per_egg || basePricePerEgg))
-    lineItems.push(formatOrderLine(quantity, additionBreed, additionPrice))
-  }
-
-  const orderLinesHtml =
-    lineItems.length > 0 ? `<ul>${lineItems.join('')}</ul>` : '<p>Ingen ordrelinjer registrert.</p>'
-  const totalQuantity =
-    baseQuantity + additions.reduce((sum, addition) => sum + Math.max(0, Number(addition.quantity || 0)), 0)
+  const eggSummaryNo = summarizeEggOrderLines(order as any, 'no')
+  const eggSummaryEn = summarizeEggOrderLines(order as any, 'en')
+  const orderLinesHtml = buildEggOrderLinesHtml(eggSummaryNo.lines, 'no', {
+    deliveryFeeOre: Number((order as any)?.delivery_fee || 0),
+    deliveryLabel: String((order as any)?.delivery_method || ''),
+  })
+  const orderLinesHtmlEn = buildEggOrderLinesHtml(eggSummaryEn.lines, 'en', {
+    deliveryFeeOre: Number((order as any)?.delivery_fee || 0),
+    deliveryLabel: String((order as any)?.delivery_method || ''),
+  })
+  const totalQuantity = eggSummaryNo.totalQuantity
   const deliveryDate = (order as any)?.delivery_monday
     ? new Date(`${(order as any).delivery_monday}T00:00:00`).toLocaleDateString('nb-NO')
     : ''
@@ -770,9 +744,11 @@ async function markEggOrderShipped(
       variables: {
         customer_name: order.customer_name || 'Kunde',
         order_number: order.order_number,
+        breed_name: eggSummaryNo.breedLabel || String((order as any)?.egg_breeds?.name || 'Rugeegg'),
         tracking_number: effective,
         tracking_url: trackingUrl,
         order_lines_html: orderLinesHtml,
+        order_lines_html_en: orderLinesHtmlEn,
         total_quantity: totalQuantity,
         deposit_amount_nok: formatOreToNokWithPrefix((order as any).deposit_amount),
         remainder_amount_nok: formatOreToNokWithPrefix((order as any).remainder_amount),
@@ -780,6 +756,7 @@ async function markEggOrderShipped(
         delivery_week: (order as any).week_number || '',
         delivery_date: deliveryDate || '',
         order_url: buildCustomerOrderLink(appUrl, 'egg', String(orderId)),
+        tip_index: 2,
       },
     })
 

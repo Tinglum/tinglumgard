@@ -1,4 +1,4 @@
-type ChickenBreedRelation =
+﻿type ChickenBreedRelation =
   | {
       name?: string | null;
       name_no?: string | null;
@@ -114,11 +114,13 @@ function formatNok(amount: number, locale: 'no' | 'en'): string {
 
 function buildQuantityText(line: ChickenOrderLine, locale: 'no' | 'en'): string {
   if (locale === 'en') {
-    if (line.roosters > 0) return `${line.hens} chickens, ${line.roosters} roosters`;
-    return `${line.hens} chickens`;
+    if (line.hens > 0 && line.roosters > 0) return `${line.hens} hens, ${line.roosters} roosters`;
+    if (line.roosters > 0) return `${line.roosters} roosters`;
+    return `${line.hens} hens`;
   }
-  if (line.roosters > 0) return `${line.hens} kyllinger, ${line.roosters} haner`;
-  return `${line.hens} kyllinger`;
+  if (line.hens > 0 && line.roosters > 0) return `${line.hens} høner, ${line.roosters} haner`;
+  if (line.roosters > 0) return `${line.roosters} haner`;
+  return `${line.hens} høner`;
 }
 
 function buildUnitPriceText(line: ChickenOrderLine, locale: 'no' | 'en'): string {
@@ -327,4 +329,5 @@ export function buildChickenBreedAgeLabel(
     })
     .join(' + ');
 }
+
 

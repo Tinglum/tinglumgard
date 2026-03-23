@@ -1,4 +1,4 @@
-# Post-Order Copy Map
+﻿# Post-Order Copy Map
 
 This map is the source of truth for customer/admin post-order communication copy and lifecycle behavior.
 
@@ -24,7 +24,7 @@ This map is the source of truth for customer/admin post-order communication copy
 | Pig | `pig.remainder.explainer` | after deposit paid (+config delay) | `pig.remainder.explainer.full` or `.reduced` | Reduced variant when remainder already paid |
 | Pig | `pig.remainder.reminder` | config-driven reminder schedule | `pig.remainder.reminder` | Skips when already paid/cancelled |
 | Egg | `egg.remainder.reminder` | `delivery_monday - [11,9,7,6]` (config) | `egg.remainder.reminder` | Stops at outstanding `<= 0` |
-| Egg | `egg.delivery.day_before` | day before shipment | `egg.delivery.day_before` | Includes upsell action |
+| Egg | `egg.delivery.day_before` | first morning after the order is marked shipped | `egg.delivery.day_before` | Includes upsell action |
 | Egg | `egg.order.shipped` | when marked shipped | `egg.order.shipped.customer` | Includes line breakdown + tracking |
 | Egg | `egg.hatch.followup` | 5 days after shipped | `egg.hatch.followup` | Includes support CTA + pork cross-sell |
 | Egg | `egg.order.forfeited` | after overdue grace | `egg.order.forfeited` | Cancels and releases inventory |

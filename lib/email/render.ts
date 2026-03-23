@@ -1,7 +1,7 @@
-import { supabaseAdmin } from '@/lib/supabase/server';
+﻿import { supabaseAdmin } from '@/lib/supabase/server';
 import type { EmailLocale } from '@/lib/email/types';
 
-// ── Brand Design Tokens ────────────────────────────────────────────────────
+// Brand design tokens
 const BRAND = {
   dark: '#2C1810',
   accent: '#8B6914',
@@ -31,7 +31,7 @@ const FONT_HEADING = "Georgia, 'Times New Roman', serif";
 const FONT_BODY = "Arial, Helvetica, sans-serif";
 const APP_URL = 'https://tinglumgard.no';
 
-// ── Template interpolation ─────────────────────────────────────────────────
+// Template interpolation
 
 function toStringValue(value: unknown): string {
   if (value === null || value === undefined) return '';
@@ -109,41 +109,41 @@ function normalizeEggReminderVariables(
   }
 
   if (isFirstFriendlyReminder) {
-    vars.reminder_badge_label = vars.reminder_badge_label || 'Vennlig påminnelse';
+    vars.reminder_badge_label = vars.reminder_badge_label || 'Vennlig p&aring;minnelse';
     vars.reminder_intro_html =
       vars.reminder_intro_html ||
-      '<p style="font-size:16px;line-height:1.6;margin:0 0 8px;">Vi gleder oss til å sende rugeeggene dine, og vil bare gi deg en tidlig og vennlig påminnelse om restbetalingen for bestilling <strong>{{order_number}}</strong>.</p><p style="font-size:16px;line-height:1.6;margin:0 0 24px;">Du har fortsatt god tid. Vi sender denne meldingen nå slik at du kan ordne betalingen når det passer deg best.</p>';
+      '<p style="font-size:16px;line-height:1.6;margin:0 0 8px;">Vi gleder oss til &aring; sende rugeeggene dine, og vil bare gi deg en tidlig og vennlig p&aring;minnelse om restbetalingen for bestilling <strong>{{order_number}}</strong>.</p><p style="font-size:16px;line-height:1.6;margin:0 0 24px;">Du har fortsatt god tid. Vi sender denne meldingen n&aring; slik at du kan ordne betalingen n&aring;r det passer deg best.</p>';
     vars.reminder_support_html =
       vars.reminder_support_html ||
-      '<div style="margin:0 0 20px;padding:16px 20px;background:#FAF8F5;border:1px solid #E8DFD5;border-radius:10px;"><p style="font-size:14px;line-height:1.6;color:#6B5B4E;margin:0;">Hvis du allerede har betalt, kan du se bort fra denne e-posten. Har du spørsmål om bestillingen, er det bare å svare oss.</p></div>';
+      '<div style="margin:0 0 20px;padding:16px 20px;background:#FAF8F5;border:1px solid #E8DFD5;border-radius:10px;"><p style="font-size:14px;line-height:1.6;color:#6B5B4E;margin:0;">Hvis du allerede har betalt, kan du se bort fra denne e-posten. Har du sp&oslash;rsm&aring;l om bestillingen, er det bare &aring; svare oss.</p></div>';
     vars.reminder_consequence_html =
       vars.reminder_consequence_html ||
-      '<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 24px;border-left:4px solid #E8DFD5;background:#FAF8F5;border-radius:0 8px 8px 0;"><tr><td style="padding:16px 20px;"><p style="font-size:14px;line-height:1.6;color:#6B5B4E;margin:0;">Bestillingen beholdes for deg frem til betalingsfristen. Dersom restbeløpet ikke er registrert innen fristen, blir ordren til slutt kansellert og eggene frigitt til andre kunder.</p></td></tr></table>';
+      '<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 24px;border-left:4px solid #E8DFD5;background:#FAF8F5;border-radius:0 8px 8px 0;"><tr><td style="padding:16px 20px;"><p style="font-size:14px;line-height:1.6;color:#6B5B4E;margin:0;">Bestillingen beholdes for deg frem til betalingsfristen. Dersom restbel&oslash;pet ikke er registrert innen fristen, blir ordren til slutt kansellert og eggene frigitt til andre kunder.</p></td></tr></table>';
     return vars;
   }
 
   if (isSecondFriendlyReminder) {
-    vars.reminder_badge_label = vars.reminder_badge_label || 'Vennlig påminnelse';
+    vars.reminder_badge_label = vars.reminder_badge_label || 'Vennlig p&aring;minnelse';
     vars.reminder_intro_html =
       vars.reminder_intro_html ||
-      '<p style="font-size:16px;line-height:1.6;margin:0 0 8px;">Dette er en ny vennlig påminnelse om restbetalingen for bestilling <strong>{{order_number}}</strong>.</p><p style="font-size:16px;line-height:1.6;margin:0 0 24px;">Når betalingen er registrert, er alt klart videre mot utsending i riktig uke.</p>';
+      '<p style="font-size:16px;line-height:1.6;margin:0 0 8px;">Dette er en ny vennlig p&aring;minnelse om restbetalingen for bestilling <strong>{{order_number}}</strong>.</p><p style="font-size:16px;line-height:1.6;margin:0 0 24px;">N&aring;r betalingen er registrert, er alt klart videre mot utsending i riktig uke.</p>';
     vars.reminder_support_html =
       vars.reminder_support_html ||
-      '<div style="margin:0 0 20px;padding:16px 20px;background:#FAF8F5;border:1px solid #E8DFD5;border-radius:10px;"><p style="font-size:14px;line-height:1.6;color:#6B5B4E;margin:0;">Hvis du allerede har betalt, eller lurer på noe rundt ordren, er det bare å svare oss. Vi hjelper gjerne.</p></div>';
+      '<div style="margin:0 0 20px;padding:16px 20px;background:#FAF8F5;border:1px solid #E8DFD5;border-radius:10px;"><p style="font-size:14px;line-height:1.6;color:#6B5B4E;margin:0;">Hvis du allerede har betalt, eller lurer p&aring; noe rundt ordren, er det bare &aring; svare oss. Vi hjelper gjerne.</p></div>';
     vars.reminder_consequence_html =
       vars.reminder_consequence_html ||
-      '<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 24px;border-left:4px solid #FDE68A;background:#FFFBEB;border-radius:0 8px 8px 0;"><tr><td style="padding:16px 20px;"><p style="font-size:14px;line-height:1.6;color:#B45309;margin:0;">Vi holder fortsatt av plassen din, men restbeløpet må være registrert innen fristen for at leveringen skal gå som planlagt.</p></td></tr></table>';
+      '<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 24px;border-left:4px solid #FDE68A;background:#FFFBEB;border-radius:0 8px 8px 0;"><tr><td style="padding:16px 20px;"><p style="font-size:14px;line-height:1.6;color:#B45309;margin:0;">Vi holder fortsatt av plassen din, men restbel&oslash;pet m&aring; v&aelig;re registrert innen fristen for at leveringen skal g&aring; som planlagt.</p></td></tr></table>';
     return vars;
   }
 
-  vars.reminder_badge_label = vars.reminder_badge_label || 'Påminnelse';
+  vars.reminder_badge_label = vars.reminder_badge_label || 'P&aring;minnelse';
   vars.reminder_intro_html =
     vars.reminder_intro_html ||
-    '<p style="font-size:16px;line-height:1.6;margin:0 0 8px;">Din rugeegg-bestilling <strong>{{order_number}}</strong> er ikke ferdig betalt.</p><p style="font-size:16px;line-height:1.6;margin:0 0 24px;">Restbeløpet må betales innen fristen for å sikre leveransen.</p>';
+    '<p style="font-size:16px;line-height:1.6;margin:0 0 8px;">Din rugeegg-bestilling <strong>{{order_number}}</strong> er ikke ferdig betalt.</p><p style="font-size:16px;line-height:1.6;margin:0 0 24px;">Restbel&oslash;pet m&aring; betales innen fristen for &aring; sikre leveransen.</p>';
   vars.reminder_support_html = vars.reminder_support_html || '';
   vars.reminder_consequence_html =
     vars.reminder_consequence_html ||
-    '<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 24px;border-left:4px solid #B45309;background:#FFFBEB;border-radius:0 8px 8px 0;"><tr><td style="padding:16px 20px;"><p style="font-size:14px;line-height:1.6;color:#B45309;margin:0;">Hvis restbeløpet ikke betales innen fristen, vil bestillingen bli kansellert og eggene frigitt til andre kunder.</p></td></tr></table>';
+    '<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 24px;border-left:4px solid #B45309;background:#FFFBEB;border-radius:0 8px 8px 0;"><tr><td style="padding:16px 20px;"><p style="font-size:14px;line-height:1.6;color:#B45309;margin:0;">Hvis restbel&oslash;pet ikke betales innen fristen, vil bestillingen bli kansellert og eggene frigitt til andre kunder.</p></td></tr></table>';
 
   return vars;
 }
@@ -173,7 +173,25 @@ export function interpolateTemplate(input: string, variables: Record<string, unk
   return output;
 }
 
-// ── Email Component Helpers ────────────────────────────────────────────────
+function decodeBasicHtmlEntities(input: string): string {
+  return input
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&aring;/g, '\u00E5')
+    .replace(/&oslash;/g, '\u00F8')
+    .replace(/&aelig;/g, '\u00E6')
+    .replace(/&Aring;/g, '\u00C5')
+    .replace(/&Oslash;/g, '\u00D8')
+    .replace(/&AElig;/g, '\u00C6')
+    .replace(/&ndash;/g, '-')
+    .replace(/&mdash;/g, '--');
+}
+
+// Email component helpers
 
 export function emailButton(text: string, href: string, variant: 'primary' | 'secondary' = 'primary'): string {
   const bg = variant === 'primary' ? BRAND.dark : BRAND.card;
@@ -311,7 +329,7 @@ export function emailHighlightAmount(amount: string, label?: string): string {
 </table>`;
 }
 
-// ── Timeline Component ─────────────────────────────────────────────────────
+// Timeline component
 
 type TimelineStep = {
   label: string;
@@ -379,7 +397,7 @@ export function emailTimeline(steps: TimelineStep[]): string {
 </table>`;
 }
 
-// ── Tip of the Week Component ──────────────────────────────────────────────
+// Tip of the week component
 
 type TipContent = {
   title: string;
@@ -433,7 +451,7 @@ export function emailTipBox(product: 'pig' | 'eggs' | 'chickens' | string, tipIn
 </table>`;
 }
 
-// ── Reminder Progress Component ────────────────────────────────────────────
+// Reminder progress component
 
 export function emailReminderProgress(current: number, total: number, locale: EmailLocale = 'no'): string {
   const label = locale === 'en' ? `Reminder ${current} of ${total}` : `P\u00e5minnelse ${current} av ${total}`;
@@ -454,7 +472,7 @@ export function emailReminderProgress(current: number, total: number, locale: Em
 </table>`;
 }
 
-// ── Order Recap Component ──────────────────────────────────────────────────
+// Order recap component
 
 export function emailOrderRecap(rows: Array<{ label: string; value: string }>): string {
   const rowHtml = rows
@@ -478,7 +496,7 @@ export function emailOrderRecap(rows: Array<{ label: string; value: string }>): 
 </table>`;
 }
 
-// ── Story Footer Component ─────────────────────────────────────────────────
+// Story footer component
 
 const PIG_STORIES = [
   'Mangalitsa er verdens mest eksklusive svinekj\u00f8tt. Den ullh\u00e5rede rasen fra Ungarn gir et marmorert, n\u00f8tteaktig kj\u00f8tt som minner mer om Wagyu-biff enn vanlig svin.',
@@ -514,9 +532,123 @@ export function emailStoryFooter(product: 'pig' | 'eggs' | 'chickens' | string, 
 </table>`;
 }
 
-// ── Main Document Wrapper ──────────────────────────────────────────────────
+// Main document wrapper
 
-export function ensureHtmlDocument(html: string, locale: EmailLocale = 'no', preheaderText?: string): string {
+type FarmProductScope = 'pig' | 'eggs' | 'chickens';
+
+type FarmCrossSellCopy = {
+  title: string;
+  description: string;
+  cta: string;
+  href: string;
+};
+
+const FARM_CROSS_SELL: Record<EmailLocale, Record<FarmProductScope, FarmCrossSellCopy>> = {
+  no: {
+    pig: {
+      title: 'Ullgris til jul',
+      description:
+        'Pr\u00f8v delikatessen ullgris fra Tinglum G\u00e5rd. Sikre deg ribbe til jul og sesongens kasser mens vi fortsatt har ledige bokser.',
+      cta: 'Se ullgris-kassene',
+      href: `${APP_URL}/produkt`,
+    },
+    eggs: {
+      title: 'Rugeegg',
+      description:
+        'Se tilgjengelige uker, finn rasene du vil klekke, og legg inn bestilling eller \u00f8nskeliste direkte p\u00e5 Min side.',
+      cta: 'Se rugeegg',
+      href: `${APP_URL}/rugeegg`,
+    },
+    chickens: {
+      title: 'Kyllinger',
+      description:
+        'Reserver kyllinger fra v\u00e5rens kull og finn raser med ulike aldre, farger og egenskaper som passer hos deg.',
+      cta: 'Se kyllinger',
+      href: `${APP_URL}/kyllinger`,
+    },
+  },
+  en: {
+    pig: {
+      title: 'Mangalitsa for the holidays',
+      description:
+        'Discover our seasonal woolly pig boxes and reserve premium pork for the holiday table while we still have boxes available.',
+      cta: 'View pig boxes',
+      href: `${APP_URL}/produkt`,
+    },
+    eggs: {
+      title: 'Hatching eggs',
+      description:
+        'Browse available weeks, choose the breeds you want to hatch, and place an order or wishlist request from your account.',
+      cta: 'View hatching eggs',
+      href: `${APP_URL}/rugeegg`,
+    },
+    chickens: {
+      title: 'Chickens',
+      description:
+        'Reserve chickens from our upcoming groups and explore breeds with different ages, colors, and personalities.',
+      cta: 'View chickens',
+      href: `${APP_URL}/kyllinger`,
+    },
+  },
+};
+
+function emailFarmProductCard(copy: FarmCrossSellCopy): string {
+  return `<table role="presentation" cellspacing="0" cellpadding="0" style="width:100%;margin:0 0 12px;background:${BRAND.card};border:1px solid ${BRAND.cardBorder};border-radius:12px;">
+  <tr>
+    <td style="padding:16px 18px;">
+      <p style="margin:0 0 6px;font-family:${FONT_HEADING};font-size:18px;font-weight:700;color:${BRAND.textPrimary};">${copy.title}</p>
+      <p style="margin:0 0 12px;font-family:${FONT_BODY};font-size:13px;line-height:1.6;color:${BRAND.textSecondary};">${copy.description}</p>
+      <p style="margin:0;"><a href="${copy.href}" style="font-family:${FONT_BODY};font-size:13px;font-weight:700;color:${BRAND.link};text-decoration:none;">${copy.cta} &rarr;</a></p>
+    </td>
+  </tr>
+</table>`;
+}
+
+function emailFarmCrossSellBar(productScope: string | undefined, locale: EmailLocale, classification?: string): string {
+  if (!productScope || !['pig', 'eggs', 'chickens'].includes(productScope)) {
+    return '';
+  }
+
+  if (classification === 'system' || classification === 'support') {
+    return '';
+  }
+
+  const currentScope = productScope as FarmProductScope;
+  const sectionTitle = locale === 'en' ? 'Also from the farm' : 'Ogs\u00e5 fra g\u00e5rden';
+  const sectionDescription =
+    locale === 'en'
+      ? 'This is not part of your current order, just a quick look at the two other products we currently offer from Tinglum G\u00e5rd.'
+      : 'Dette er ikke en del av bestillingen din, bare en liten oversikt over de to andre produktene vi tilbyr fra Tinglum G\u00e5rd akkurat n\u00e5.';
+
+  const otherScopes = (['pig', 'eggs', 'chickens'] as FarmProductScope[]).filter(
+    (scope) => scope !== currentScope,
+  );
+
+  const cards = otherScopes
+    .map((scope) => emailFarmProductCard(FARM_CROSS_SELL[locale][scope]))
+    .join('');
+
+  return `<tr>
+    <td style="padding:22px 36px;border-top:1px solid ${BRAND.border};border-bottom:1px solid ${BRAND.border};background:${BRAND.gold50};">
+      <table role="presentation" cellspacing="0" cellpadding="0" style="width:100%;">
+        <tr>
+          <td>
+            <p style="margin:0 0 4px;font-family:${FONT_BODY};font-size:12px;font-weight:700;color:${BRAND.accent};letter-spacing:0.6px;text-transform:uppercase;">${sectionTitle}</p>
+            <p style="margin:0 0 16px;font-family:${FONT_BODY};font-size:13px;line-height:1.6;color:${BRAND.textSecondary};">${sectionDescription}</p>
+            ${cards}
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>`;
+}
+
+export function ensureHtmlDocument(
+  html: string,
+  locale: EmailLocale = 'no',
+  preheaderText?: string,
+  options?: { productScope?: string; classification?: string },
+): string {
   if (html.trim().toLowerCase().includes('<html')) {
     return html;
   }
@@ -533,6 +665,7 @@ export function ensureHtmlDocument(html: string, locale: EmailLocale = 'no', pre
     (locale === 'en'
       ? 'Update from Tinglum G\u00e5rd about your order.'
       : 'Oppdatering fra Tinglum G\u00e5rd om bestillingen din.');
+  const crossSellBar = emailFarmCrossSellBar(options?.productScope, locale, options?.classification);
 
   return `<!DOCTYPE html>
 <html lang="${locale}" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
@@ -596,6 +729,7 @@ export function ensureHtmlDocument(html: string, locale: EmailLocale = 'no', pre
                 </table>
               </td>
             </tr>
+            ${crossSellBar}
             <!-- Bottom bar -->
             <tr>
               <td style="padding:16px 36px;background:${BRAND.dark};">
@@ -616,7 +750,7 @@ export function ensureHtmlDocument(html: string, locale: EmailLocale = 'no', pre
 </html>`;
 }
 
-// ── Managed Template Rendering ─────────────────────────────────────────────
+// Managed template rendering
 
 export async function renderManagedTemplate(options: {
   templateKey: string;
@@ -665,27 +799,29 @@ export async function renderManagedTemplate(options: {
 
   return {
     subject: interpolateTemplate(subjectRaw, vars),
-    html: ensureHtmlDocument(interpolateTemplate(bodyRaw, vars), locale),
+    html: ensureHtmlDocument(interpolateTemplate(bodyRaw, vars), locale, undefined, {
+      productScope,
+      classification: String(data.classification || 'transactional'),
+    }),
     classification: String(data.classification || 'transactional'),
     templateKey: String(data.template_key || options.templateKey),
   };
 }
 
-// ── Plain Text Conversion ──────────────────────────────────────────────────
+// Plain text conversion
 
 export function htmlToPlainText(html: string): string {
-  return html
-    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
-    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
-    .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<\/p>/gi, '\n\n')
-    .replace(/<\/div>/gi, '\n')
-    .replace(/<[^>]+>/g, ' ')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/\n{3,}/g, '\n\n')
-    .replace(/[ \t]{2,}/g, ' ')
-    .trim();
+  return decodeBasicHtmlEntities(
+    html
+      .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+      .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/<\/p>/gi, '\n\n')
+      .replace(/<\/div>/gi, '\n')
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/\n{3,}/g, '\n\n')
+      .replace(/[ \t]{2,}/g, ' ')
+      .trim(),
+  );
 }
+

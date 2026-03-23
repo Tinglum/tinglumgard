@@ -1,9 +1,11 @@
-import { dispatchEmail } from '@/lib/email/dispatch';
+﻿import { dispatchEmail } from '@/lib/email/dispatch';
 import { processScheduledCampaigns } from '@/lib/email/campaigns';
 import { cancelQueueEntry, enqueueEmailRecord } from '@/lib/email/queue';
 import { renderManagedTemplate } from '@/lib/email/render';
 import { getEmailSchemaStatus } from '@/lib/email/schema';
 import { buildCustomerOrderLink, buildCustomerPathLink } from '@/lib/email/links';
+import { buildChickenBreedAgeLabel, buildChickenOrderLinesHtml, buildTotalBirdsLabel, summarizeChickenOrderLines } from '@/lib/chickens/email-lines';
+import { buildEggOrderLinesHtml, summarizeEggOrderLines } from '@/lib/eggs/email-lines';
 import { supabaseAdmin } from '@/lib/supabase/server';
 
 type Ymd = { year: number; month: number; day: number };
@@ -636,6 +638,120 @@ function customerOrderLink(scope: string, entityId: string, appBaseUrl: string):
   return buildCustomerOrderLink(appBaseUrl, 'pig', entityId);
 }
 
+function isMissingLifecycleColumnError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false;
+  const candidate = error as { code?: string; message?: string };
+  if (candidate.code === '42703' || candidate.code === '42P01') return true;
+  return typeof candidate.message === 'string' && candidate.message.includes('does not exist');
+}
+
+function getEggDeliveryLabel(deliveryMethod: string, locale: 'no' | 'en' = 'no'): string {
+  if (deliveryMethod === 'posten') return locale === 'en' ? 'Posten shipping' : 'Posten';
+  if (deliveryMethod === 'farm_pickup') return locale === 'en' ? 'Pickup at the farm' : 'Henting på gården';
+  if (deliveryMethod === 'e6_pickup') return locale === 'en' ? 'E6 pickup' : 'E6-henting';
+  return locale === 'en' ? 'Delivery to be confirmed' : 'Levering avklares';
+}
+
+function getChickenDeliveryLabel(deliveryMethod: string, locale: 'no' | 'en' = 'no'): string {
+  if (deliveryMethod === 'farm_pickup') return locale === 'en' ? 'Pickup at the farm' : 'Henting på gården';
+  if (deliveryMethod === 'delivery_namsos_trondheim') {
+    return locale === 'en' ? 'Delivery Namsos/Trondheim' : 'Levering Namsos/Trondheim';
+  }
+  return locale === 'en' ? 'Pickup to be confirmed' : 'Henting avklares';
+}
+
+function formatChickenPickupLabel(order: any, locale: 'no' | 'en', timeZone: string): string {
+  const chosenDate = parseIsoDate(String(order?.pickup_date || ''));
+  const pickupMonday = parseIsoDate(String(order?.pickup_monday || ''));
+  const pickupTime = String(order?.pickup_time || '').trim();
+  const target = chosenDate || pickupMonday;
+  if (!target) return locale === 'en' ? 'To be agreed' : 'Avklares';
+  const dateLabel = formatDateForLocale(target, locale, timeZone);
+  if (!pickupTime) return dateLabel;
+  return locale === 'en' ? `${dateLabel} at ${pickupTime}` : `${dateLabel} kl. ${pickupTime}`;
+}
+
+async function fetchEggOrderForLifecycle(orderId: string) {
+  const { data, error } = await supabaseAdmin
+    .from('egg_orders')
+    .select(`
+      id,
+      order_number,
+      customer_name,
+      customer_email,
+      status,
+      week_number,
+      year,
+      delivery_monday,
+      remainder_due_date,
+      remainder_amount,
+      deposit_amount,
+      total_amount,
+      quantity,
+      price_per_egg,
+      breed_name,
+      tracking_number,
+      marked_shipped_at,
+      updated_at,
+      delivery_method,
+      delivery_fee,
+      egg_breeds!egg_orders_breed_id_fkey(name, name_no, name_en),
+      egg_order_additions(
+        quantity,
+        price_per_egg,
+        subtotal,
+        egg_breeds!egg_order_additions_breed_id_fkey(name, name_no, name_en)
+      )
+    `)
+    .eq('id', orderId)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data;
+}
+
+async function fetchChickenOrderForLifecycle(orderId: string) {
+  type LookupError = { message?: string | null; code?: string | null } | null;
+  const selectClauses = [
+    'id, order_number, customer_name, customer_email, status, pickup_monday, pickup_date, pickup_time, pickup_week, delivery_method, delivery_fee_nok, total_amount_nok, deposit_amount_nok, remainder_amount_nok, quantity_hens, quantity_roosters, price_per_hen_nok, price_per_rooster_nok, age_weeks_at_pickup, created_at, updated_at, chicken_breeds(name, name_no, name_en, rooster_price_nok), chicken_hatches(hatch_date), chicken_order_additions(hatch_id, quantity_hens, quantity_roosters, subtotal_nok, price_per_hen_nok, price_per_rooster_nok, age_weeks_at_pickup, chicken_breeds(name, name_no, name_en, rooster_price_nok), chicken_hatches(hatch_date))',
+    'id, order_number, customer_name, customer_email, status, pickup_monday, pickup_date, pickup_time, pickup_week, delivery_method, delivery_fee_nok, total_amount_nok, deposit_amount_nok, remainder_amount_nok, quantity_hens, quantity_roosters, price_per_hen_nok, price_per_rooster_nok, age_weeks_at_pickup, created_at, updated_at, chicken_breeds(name, name_no, name_en, rooster_price_nok), chicken_hatches(hatch_date), chicken_order_additions(hatch_id, quantity_hens, quantity_roosters, subtotal_nok, price_per_hen_nok, price_per_rooster_nok, chicken_breeds(name, name_no, name_en, rooster_price_nok), chicken_hatches(hatch_date))',
+    'id, order_number, customer_name, customer_email, status, pickup_monday, pickup_date, pickup_time, pickup_week, delivery_method, delivery_fee_nok, total_amount_nok, deposit_amount_nok, remainder_amount_nok, quantity_hens, quantity_roosters, price_per_hen_nok, price_per_rooster_nok, created_at, updated_at, chicken_breeds(name, name_no, name_en, rooster_price_nok), chicken_hatches(hatch_date), chicken_order_additions(hatch_id, quantity_hens, quantity_roosters, subtotal_nok, price_per_hen_nok, price_per_rooster_nok, chicken_breeds(name, name_no, name_en, rooster_price_nok), chicken_hatches(hatch_date))',
+  ] as const;
+
+  const runLookup = async (
+    selectClauseToUse: string
+  ): Promise<{ order: any; error: LookupError }> => {
+    const { data: byId, error: byIdError } = await supabaseAdmin
+      .from('chicken_orders')
+      .select(selectClauseToUse)
+      .eq('id', String(orderId).trim())
+      .maybeSingle();
+
+    if (byId || byIdError) {
+      return { order: byId, error: byIdError };
+    }
+
+    const { data: byOrderNumber, error: byOrderNumberError } = await supabaseAdmin
+      .from('chicken_orders')
+      .select(selectClauseToUse)
+      .eq('order_number', String(orderId).trim())
+      .maybeSingle();
+
+    return { order: byOrderNumber, error: byOrderNumberError };
+  };
+
+  let lastResult: { order: any; error: LookupError } = { order: null, error: null };
+  for (const selectClause of selectClauses) {
+    lastResult = await runLookup(selectClause);
+    if (!lastResult.error || !isMissingLifecycleColumnError(lastResult.error)) {
+      return lastResult.order;
+    }
+  }
+
+  if (lastResult.error) throw lastResult.error;
+  return lastResult.order;
+}
+
 async function getLifecycleConfig(): Promise<LifecycleConfig> {
   const keys = [
     'email_trigger_timezone',
@@ -790,6 +906,7 @@ async function getFlowMap(): Promise<Map<string, FlowDefinition>> {
       'egg.order.forfeited',
       'chicken.ready_for_pickup',
       'chicken.pickup.reminder',
+      'chicken.choose_pickup_day',
       'chicken.remainder.collected',
       'chicken.order.followup',
     ]);
@@ -839,7 +956,37 @@ async function insertFlowInstance(row: {
   if (!error) return true;
   const duplicate =
     String(error.code || '') === '23505' || String(error.message || '').toLowerCase().includes('duplicate');
-  if (duplicate) return false;
+  if (duplicate) {
+    const { data: existing, error: existingError } = await supabaseAdmin
+      .from('email_flow_instances')
+      .select('id, status')
+      .eq('flow_key', row.flowKey)
+      .eq('entity_type', row.entityType)
+      .eq('entity_id', row.entityId)
+      .eq('trigger_date_key', row.triggerDateKey)
+      .maybeSingle();
+
+    if (existingError) throw existingError;
+    if (!existing?.id || String(existing.status || '') !== 'scheduled') return false;
+
+    const { error: updateError } = await supabaseAdmin
+      .from('email_flow_instances')
+      .update({
+        flow_id: row.flowId,
+        product_scope: row.productScope,
+        scheduled_for: row.scheduledFor,
+        to_email: row.toEmail,
+        locale: row.locale,
+        payload: row.payload,
+        metadata: row.metadata,
+        last_error: null,
+      })
+      .eq('id', String(existing.id))
+      .eq('status', 'scheduled');
+
+    if (updateError) throw updateError;
+    return false;
+  }
   throw error;
 }
 
@@ -1096,6 +1243,24 @@ export async function reconcileChickenPickupDependentFlowInstances(
   );
   const followupYmd = addDays(pickedUpYmd, CHICKEN_POST_PICKUP_FOLLOWUP_DELAY_DAYS);
   const toEmail = normalizeEmail(order.customer_email);
+  const detailedOrder = (await fetchChickenOrderForLifecycle(String(order.id))) || order;
+  const chickenSummary = summarizeChickenOrderLines(detailedOrder as any);
+  const breedNameNo = buildChickenBreedAgeLabel(chickenSummary.lines, 'no');
+  const breedNameEn = buildChickenBreedAgeLabel(chickenSummary.lines, 'en');
+  const totalBirdsNo = buildTotalBirdsLabel(chickenSummary.hens, chickenSummary.roosters, 'no');
+  const totalBirdsEn = buildTotalBirdsLabel(chickenSummary.hens, chickenSummary.roosters, 'en');
+  const deliveryLabelNo = getChickenDeliveryLabel(String((detailedOrder as any).delivery_method || ''), 'no');
+  const deliveryLabelEn = getChickenDeliveryLabel(String((detailedOrder as any).delivery_method || ''), 'en');
+  const pickupLabelNo = formatChickenPickupLabel(detailedOrder, 'no', config.timezone);
+  const pickupLabelEn = formatChickenPickupLabel(detailedOrder, 'en', config.timezone);
+  const orderLinesHtmlNo = buildChickenOrderLinesHtml(chickenSummary.lines, 'no', {
+    deliveryFeeNok: Number((detailedOrder as any).delivery_fee_nok || 0),
+    deliveryLabel: deliveryLabelNo,
+  });
+  const orderLinesHtmlEn = buildChickenOrderLinesHtml(chickenSummary.lines, 'en', {
+    deliveryFeeNok: Number((detailedOrder as any).delivery_fee_nok || 0),
+    deliveryLabel: deliveryLabelEn,
+  });
   const orderUrl = customerOrderLink('chickens', String(order.id), config.appBaseUrl);
 
   await insertFlowInstance({
@@ -1111,9 +1276,18 @@ export async function reconcileChickenPickupDependentFlowInstances(
     payload: {
       customer_name: String(order.customer_name || 'Kunde'),
       order_number: String(order.order_number || ''),
+      breed_name: breedNameNo,
+      breed_name_en: breedNameEn,
+      total_birds_label: totalBirdsNo,
+      total_birds_label_en: totalBirdsEn,
+      order_lines_html: orderLinesHtmlNo,
+      order_lines_html_en: orderLinesHtmlEn,
+      pickup_date: pickupLabelNo,
+      pickup_date_en: pickupLabelEn,
       order_url: orderUrl,
       message_url: buildCustomerPathLink(config.appBaseUrl, '/min-side'),
       pork_url: `${String(config.appBaseUrl || '').replace(/\/+$/, '')}/produkt`,
+      tip_index: 2,
     },
     metadata: {
       product_scope: 'chickens',
@@ -1270,7 +1444,7 @@ async function materializeEggFlowInstances(flowMap: Map<string, FlowDefinition>,
   const { data: orders } = await supabaseAdmin
     .from('egg_orders')
     .select(
-      'id, order_number, customer_name, customer_email, status, week_number, delivery_monday, remainder_due_date, remainder_amount, deposit_amount, total_amount, breed_name, quantity, marked_shipped_at, updated_at'
+      'id, order_number, customer_name, customer_email, status, week_number, delivery_monday, remainder_due_date, remainder_amount, deposit_amount, total_amount, breed_name, quantity, tracking_number, marked_shipped_at, updated_at'
     )
     .in('status', ['deposit_paid', 'fully_paid', 'preparing', 'shipped', 'delivered']);
 
@@ -1289,21 +1463,41 @@ async function materializeEggFlowInstances(flowMap: Map<string, FlowDefinition>,
 
   for (const order of orders || []) {
     const orderId = String(order.id);
+    const detailedOrder = (await fetchEggOrderForLifecycle(orderId)) || order;
     const toEmail = normalizeEmail(order.customer_email);
     const locale: 'no' | 'en' = 'no';
     const orderUrl = customerOrderLink('eggs', orderId, config.appBaseUrl);
     const deliveryYmd = parseIsoDate(String(order.delivery_monday || ''));
     if (!deliveryYmd) continue;
+    const deliveryYmdSafe = deliveryYmd;
     const eggStatus = String(order.status || '');
+    const eggSummaryNo = summarizeEggOrderLines(detailedOrder as any, 'no');
+    const eggSummaryEn = summarizeEggOrderLines(detailedOrder as any, 'en');
+    const eggBreedNameNo = eggSummaryNo.breedLabel || String((order as any).breed_name || 'Rugeegg');
+    const eggBreedNameEn = eggSummaryEn.breedLabel || eggBreedNameNo;
+    const totalQuantity = eggSummaryNo.totalQuantity;
+    const deliveryLabelNo = getEggDeliveryLabel(String((detailedOrder as any).delivery_method || ''), 'no');
+    const deliveryLabelEn = getEggDeliveryLabel(String((detailedOrder as any).delivery_method || ''), 'en');
+    const orderLinesHtmlNo = buildEggOrderLinesHtml(eggSummaryNo.lines, 'no', {
+      deliveryFeeOre: Number((detailedOrder as any).delivery_fee || 0),
+      deliveryLabel: deliveryLabelNo,
+    });
+    const orderLinesHtmlEn = buildEggOrderLinesHtml(eggSummaryEn.lines, 'en', {
+      deliveryFeeOre: Number((detailedOrder as any).delivery_fee || 0),
+      deliveryLabel: deliveryLabelEn,
+    });
+    const eggDepositOre = Number((detailedOrder as any).deposit_amount || 0);
+    const eggTotalOre = Number((detailedOrder as any).total_amount || 0);
+    const eggRemainderOre = Number((detailedOrder as any).remainder_amount || 0);
+    const dueDate =
+      parseIsoDate(String((detailedOrder as any).remainder_due_date || '')) || deliveryYmdSafe;
+    const deliveryDateNo = formatDateForLocale(deliveryYmdSafe, 'no', config.timezone);
+    const deliveryDateEn = formatDateForLocale(deliveryYmdSafe, 'en', config.timezone);
 
     if (eggStatus === 'deposit_paid') {
-      const outstanding = await eggOutstandingOre(orderId, Number(order.remainder_amount || 0));
+      const outstanding = await eggOutstandingOre(orderId, eggRemainderOre);
       if (outstanding > 0) {
         const eggTotalReminders = config.eggRemainderReminderDays.length;
-        const eggDepositOre = Number(order.deposit_amount || 0);
-        const eggTotalOre = Number(order.total_amount || 0);
-        const eggBreedName = String(order.breed_name || 'Rugeegg');
-        const eggQuantity = Number(order.quantity || 0);
 
         for (let ei = 0; ei < config.eggRemainderReminderDays.length; ei++) {
           const days = config.eggRemainderReminderDays[ei];
@@ -1314,7 +1508,7 @@ async function materializeEggFlowInstances(flowMap: Map<string, FlowDefinition>,
             productScope: reminderFlow.product_scope,
             entityType: 'egg_order',
             entityId: orderId,
-            triggerDateKey: `remainder:${ymdToKey(deliveryYmd)}:${days}`,
+            triggerDateKey: `remainder:${ymdToKey(deliveryYmdSafe)}:${days}`,
             scheduledFor: zonedDateTimeToUtc(scheduleYmd, 9, 0, config.timezone).toISOString(),
             toEmail: toEmail || null,
             locale,
@@ -1324,13 +1518,16 @@ async function materializeEggFlowInstances(flowMap: Map<string, FlowDefinition>,
               remainder_amount_nok: toNoCurrency(Math.round(outstanding / 100)),
               deposit_amount_nok: toNoCurrency(Math.round(eggDepositOre / 100)),
               total_amount_nok: toNoCurrency(Math.round(eggTotalOre / 100)),
-              breed_name: eggBreedName,
-              total_quantity: eggQuantity,
-              due_date: formatDateForLocale(
-                parseIsoDate(String(order.remainder_due_date || '')) || deliveryYmd,
-                locale,
-                config.timezone
-              ),
+              breed_name: eggBreedNameNo,
+              breed_name_en: eggBreedNameEn,
+              base_quantity: eggSummaryNo.baseQuantity,
+              additions_quantity: eggSummaryNo.additionsQuantity,
+              total_quantity: totalQuantity,
+              order_lines_html: orderLinesHtmlNo,
+              order_lines_html_en: orderLinesHtmlEn,
+              delivery_method_label: deliveryLabelNo,
+              delivery_method_label_en: deliveryLabelEn,
+              due_date: formatDateForLocale(dueDate, locale, config.timezone),
               days_left: days,
               reminder_number: ei + 1,
               total_reminders: eggTotalReminders,
@@ -1346,9 +1543,9 @@ async function materializeEggFlowInstances(flowMap: Map<string, FlowDefinition>,
           if (reminderInserted) inserted += 1;
         }
 
-        const dueDate = parseIsoDate(String(order.remainder_due_date || ''));
-        if (dueDate) {
-          const dueEnd = zonedDateTimeToUtc(dueDate, 23, 59, config.timezone);
+        const explicitDueDate = parseIsoDate(String(order.remainder_due_date || ''));
+        if (explicitDueDate) {
+          const dueEnd = zonedDateTimeToUtc(explicitDueDate, 23, 59, config.timezone);
           const forfeitAt = new Date(dueEnd.getTime() + config.eggOverdueGraceHours * 60 * 60 * 1000);
           const forfeitInserted = await insertFlowInstance({
             flowId: forfeitFlow.id,
@@ -1356,7 +1553,7 @@ async function materializeEggFlowInstances(flowMap: Map<string, FlowDefinition>,
             productScope: forfeitFlow.product_scope,
             entityType: 'egg_order',
             entityId: orderId,
-            triggerDateKey: `forfeit:${ymdToKey(dueDate)}:grace-${config.eggOverdueGraceHours}`,
+            triggerDateKey: `forfeit:${ymdToKey(explicitDueDate)}:grace-${config.eggOverdueGraceHours}`,
             scheduledFor: forfeitAt.toISOString(),
             toEmail: toEmail || null,
             locale,
@@ -1414,7 +1611,21 @@ async function materializeEggFlowInstances(flowMap: Map<string, FlowDefinition>,
         payload: {
           customer_name: String(order.customer_name || 'Kunde'),
           order_number: String(order.order_number || ''),
-          delivery_date: formatDateForLocale(deliveryYmd, locale, config.timezone),
+          breed_name: eggBreedNameNo,
+          breed_name_en: eggBreedNameEn,
+          base_quantity: eggSummaryNo.baseQuantity,
+          additions_quantity: eggSummaryNo.additionsQuantity,
+          total_quantity: totalQuantity,
+          total_amount_nok: toNoCurrency(Math.round(eggTotalOre / 100)),
+          deposit_amount_nok: toNoCurrency(Math.round(eggDepositOre / 100)),
+          remainder_amount_nok: toNoCurrency(Math.round(eggRemainderOre / 100)),
+          order_lines_html: orderLinesHtmlNo,
+          order_lines_html_en: orderLinesHtmlEn,
+          delivery_method_label: deliveryLabelNo,
+          delivery_method_label_en: deliveryLabelEn,
+          delivery_week: String((detailedOrder as any).week_number || order.week_number || ''),
+          delivery_date: formatDateForLocale(deliveryYmdSafe, locale, config.timezone),
+          delivery_date_en: deliveryDateEn,
           tracking_number: trackingNumber,
           tracking_url: trackingUrl,
           order_url: orderUrl,
@@ -1449,8 +1660,14 @@ async function materializeEggFlowInstances(flowMap: Map<string, FlowDefinition>,
           payload: {
             customer_name: String(order.customer_name || 'Kunde'),
             order_number: String(order.order_number || ''),
+            breed_name: eggBreedNameNo,
+            breed_name_en: eggBreedNameEn,
+            total_quantity: totalQuantity,
+            order_lines_html: orderLinesHtmlNo,
+            order_lines_html_en: orderLinesHtmlEn,
+            delivery_week: String((detailedOrder as any).week_number || order.week_number || ''),
             message_url: buildCustomerPathLink(config.appBaseUrl, '/min-side'),
-            pork_url: config.appBaseUrl,
+            pork_url: `${String(config.appBaseUrl || '').replace(/\/+$/, '')}/produkt`,
             deposit_discount_code: '',
             tip_index: 2,
             order_url: orderUrl,
@@ -1483,6 +1700,28 @@ async function materializeChickenFlowInstances(flowMap: Map<string, FlowDefiniti
   let inserted = 0;
   for (const order of orders || []) {
     const orderId = String(order.id);
+    const detailedOrder = (await fetchChickenOrderForLifecycle(orderId)) || order;
+    const chickenSummary = summarizeChickenOrderLines(detailedOrder as any);
+    const breedNameNo =
+      buildChickenBreedAgeLabel(chickenSummary.lines, 'no') || String((order as any).breed_name || 'Kyllinger');
+    const breedNameEn = buildChickenBreedAgeLabel(chickenSummary.lines, 'en') || breedNameNo;
+    const totalBirdsNo = buildTotalBirdsLabel(chickenSummary.hens, chickenSummary.roosters, 'no');
+    const totalBirdsEn = buildTotalBirdsLabel(chickenSummary.hens, chickenSummary.roosters, 'en');
+    const deliveryLabelNo = getChickenDeliveryLabel(String((detailedOrder as any).delivery_method || ''), 'no');
+    const deliveryLabelEn = getChickenDeliveryLabel(String((detailedOrder as any).delivery_method || ''), 'en');
+    const pickupLabelNo = formatChickenPickupLabel(detailedOrder, 'no', config.timezone);
+    const pickupLabelEn = formatChickenPickupLabel(detailedOrder, 'en', config.timezone);
+    const orderLinesHtmlNo = buildChickenOrderLinesHtml(chickenSummary.lines, 'no', {
+      deliveryFeeNok: Number((detailedOrder as any).delivery_fee_nok || 0),
+      deliveryLabel: deliveryLabelNo,
+    });
+    const orderLinesHtmlEn = buildChickenOrderLinesHtml(chickenSummary.lines, 'en', {
+      deliveryFeeNok: Number((detailedOrder as any).delivery_fee_nok || 0),
+      deliveryLabel: deliveryLabelEn,
+    });
+    const totalAmountNok = toNoCurrency(Number((detailedOrder as any).total_amount_nok || 0));
+    const depositAmountNok = toNoCurrency(Number((detailedOrder as any).deposit_amount_nok || 0));
+    const remainderAmountNok = toNoCurrency(Number((detailedOrder as any).remainder_amount_nok || 0));
     // Reminders always schedule relative to pickup_monday (the week anchor).
     // Template switching at processing time handles pickup_date-specific content.
     const pickupMondayStr = String(order.pickup_monday || '');
@@ -1510,9 +1749,21 @@ async function materializeChickenFlowInstances(flowMap: Map<string, FlowDefiniti
         payload: {
           customer_name: String(order.customer_name || 'Kunde'),
           order_number: String(order.order_number || ''),
-          pickup_date: formatDateForLocale(pickupYmd, locale, config.timezone),
-          remainder_amount_nok: toNoCurrency(Number(order.remainder_amount_nok || 0)),
+          breed_name: breedNameNo,
+          breed_name_en: breedNameEn,
+          total_birds_label: totalBirdsNo,
+          total_birds_label_en: totalBirdsEn,
+          order_lines_html: orderLinesHtmlNo,
+          order_lines_html_en: orderLinesHtmlEn,
+          pickup_date: pickupLabelNo,
+          pickup_date_en: pickupLabelEn,
+          delivery_label: deliveryLabelNo,
+          delivery_label_en: deliveryLabelEn,
+          total_amount_nok: totalAmountNok,
+          deposit_amount_nok: depositAmountNok,
+          remainder_amount_nok: remainderAmountNok,
           order_url: orderUrl,
+          tip_index: 0,
         },
         metadata: {
           product_scope: 'chickens',
@@ -1541,8 +1792,22 @@ async function materializeChickenFlowInstances(flowMap: Map<string, FlowDefiniti
           payload: {
             customer_name: String(order.customer_name || 'Kunde'),
             order_number: String(order.order_number || ''),
+            breed_name: breedNameNo,
+            breed_name_en: breedNameEn,
+            total_birds_label: totalBirdsNo,
+            total_birds_label_en: totalBirdsEn,
+            order_lines_html: orderLinesHtmlNo,
+            order_lines_html_en: orderLinesHtmlEn,
             pickup_week: String(order.pickup_week || ''),
+            pickup_date: pickupLabelNo,
+            pickup_date_en: pickupLabelEn,
+            delivery_label: deliveryLabelNo,
+            delivery_label_en: deliveryLabelEn,
+            total_amount_nok: totalAmountNok,
+            deposit_amount_nok: depositAmountNok,
+            remainder_amount_nok: remainderAmountNok,
             order_url: orderUrl,
+            tip_index: 0,
           },
           metadata: {
             product_scope: 'chickens',
@@ -1589,10 +1854,22 @@ async function materializeChickenFlowInstances(flowMap: Map<string, FlowDefiniti
         payload: {
           customer_name: String(order.customer_name || 'Kunde'),
           order_number: String(order.order_number || ''),
-          pickup_date: formatDateForLocale(pickupYmd, locale, config.timezone),
+          breed_name: breedNameNo,
+          breed_name_en: breedNameEn,
+          total_birds_label: totalBirdsNo,
+          total_birds_label_en: totalBirdsEn,
+          order_lines_html: orderLinesHtmlNo,
+          order_lines_html_en: orderLinesHtmlEn,
+          pickup_date: pickupLabelNo,
+          pickup_date_en: pickupLabelEn,
           days_left: reminder.days,
-          remainder_amount_nok: toNoCurrency(Number(order.remainder_amount_nok || 0)),
+          delivery_label: deliveryLabelNo,
+          delivery_label_en: deliveryLabelEn,
+          total_amount_nok: totalAmountNok,
+          deposit_amount_nok: depositAmountNok,
+          remainder_amount_nok: remainderAmountNok,
           order_url: orderUrl,
+          tip_index: reminder.days <= 1 ? 2 : 1,
         },
         metadata: {
           product_scope: 'chickens',

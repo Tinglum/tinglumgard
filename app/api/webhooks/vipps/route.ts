@@ -1,4 +1,4 @@
-// app/api/webhooks/vipps/route.ts
+﻿// app/api/webhooks/vipps/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "node:crypto";
 import { supabaseAdmin } from "@/lib/supabase/server";
@@ -10,6 +10,10 @@ import {
 import { renderManagedTemplate } from "@/lib/email/render";
 import { buildAdminOrderLink, buildCustomerOrderLink } from "@/lib/email/links";
 import { finalizeConfirmedEggOrder } from '@/lib/eggs/order-confirmation'
+import {
+  buildEggOrderLinesHtml,
+  summarizeEggOrderLines,
+} from '@/lib/eggs/email-lines'
 import {
   buildChickenBreedAgeLabel,
   buildChickenOrderLinesHtml,
@@ -113,194 +117,6 @@ function extractIncomingCallbackToken(request: NextRequest): string {
   }
 
   return authorizationHeader;
-}
-
-type EggAdditionRelation = {
-  quantity?: number | null;
-  price_per_egg?: number | null;
-  subtotal?: number | null;
-  egg_breeds?: { name?: string | null } | { name?: string | null }[] | null;
-};
-
-type EggAdditionsSummary = {
-  baseQuantity: number;
-  additionsQuantity: number;
-  totalQuantity: number;
-  additions: Array<{
-    breedName: string;
-    quantity: number;
-    pricePerEgg: number;
-    subtotal: number;
-  }>;
-};
-
-type EggOrderLine = {
-  source: 'base' | 'addition';
-  breedName: string;
-  quantity: number;
-  pricePerEggOre: number;
-  subtotalOre: number;
-};
-
-function escapeHtml(value: string): string {
-  return String(value || '')
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#39;');
-}
-
-function summarizeEggAdditions(order: any): EggAdditionsSummary {
-  const relation: EggAdditionRelation[] = Array.isArray(order?.egg_order_additions)
-    ? order.egg_order_additions
-    : [];
-
-  const additions: EggAdditionsSummary['additions'] = relation
-    .map((item: EggAdditionRelation) => {
-      const breedRelation = item?.egg_breeds as { name?: string | null } | { name?: string | null }[] | null;
-      const breedName =
-        (Array.isArray(breedRelation) ? breedRelation[0]?.name : breedRelation?.name) || 'Rugeegg';
-      return {
-        breedName,
-        quantity: Number(item?.quantity || 0),
-        pricePerEgg: Number(item?.price_per_egg || 0),
-        subtotal: Number(item?.subtotal || 0),
-      };
-    })
-    .filter((item: EggAdditionsSummary['additions'][number]) => item.quantity > 0);
-
-  const baseQuantity = Number(order?.quantity || 0);
-  const additionsQuantity = additions.reduce((sum: number, item: EggAdditionsSummary['additions'][number]) => {
-    return sum + item.quantity;
-  }, 0);
-  const totalQuantity = baseQuantity + additionsQuantity;
-
-  return {
-    baseQuantity,
-    additionsQuantity,
-    totalQuantity,
-    additions,
-  };
-}
-
-function buildEggOrderLinesHtml(options: {
-  baseBreedName: string;
-  baseQuantity: number;
-  basePricePerEggOre: number;
-  additions: EggAdditionsSummary['additions'];
-  deliveryFeeOre?: number;
-  deliveryLabel?: string;
-  locale?: 'no' | 'en';
-}): string {
-  const locale = options.locale || 'no';
-  const lines: EggOrderLine[] = [];
-  const baseQuantity = Math.max(0, Math.round(Number(options.baseQuantity || 0)));
-  const basePricePerEggOre = Math.max(0, Math.round(Number(options.basePricePerEggOre || 0)));
-
-  if (baseQuantity > 0) {
-    lines.push({
-      source: 'base',
-      breedName: String(options.baseBreedName || 'Rugeegg').trim() || 'Rugeegg',
-      quantity: baseQuantity,
-      pricePerEggOre: basePricePerEggOre,
-      subtotalOre: baseQuantity * basePricePerEggOre,
-    });
-  }
-
-  for (const addition of options.additions || []) {
-    const quantity = Math.max(0, Math.round(Number(addition?.quantity || 0)));
-    if (quantity <= 0) continue;
-    const pricePerEggOre = Math.max(0, Math.round(Number(addition?.pricePerEgg || 0)));
-    const subtotalOre = Math.max(
-      0,
-      Math.round(Number(addition?.subtotal || quantity * pricePerEggOre))
-    );
-    lines.push({
-      source: 'addition',
-      breedName: String(addition?.breedName || 'Rugeegg').trim() || 'Rugeegg',
-      quantity,
-      pricePerEggOre,
-      subtotalOre,
-    });
-  }
-
-  if (lines.length === 0) return '';
-
-  const labels =
-    locale === 'en'
-      ? {
-          source: 'Line',
-          breed: 'Breed',
-          quantity: 'Qty',
-          unitPrice: 'Price / egg',
-          subtotal: '',
-          total: 'Total',
-          base: 'Base order',
-          addition: 'Added line',
-        }
-      : {
-          source: 'Linje',
-          breed: 'Rase',
-          quantity: 'Antall',
-          unitPrice: 'Pris / egg',
-          subtotal: '',
-          total: 'Total',
-          base: 'Grunnordre',
-          addition: 'Tillegg',
-        };
-
-  const rows = lines
-    .map((line) => {
-      const sourceLabel = line.source === 'base' ? labels.base : labels.addition;
-      return `<tr>
-  <td style="padding:8px;border:1px solid #e5e7eb;vertical-align:top;">${escapeHtml(sourceLabel)}</td>
-  <td style="padding:8px;border:1px solid #e5e7eb;vertical-align:top;">${escapeHtml(line.breedName)}</td>
-  <td style="padding:8px;border:1px solid #e5e7eb;vertical-align:top;">${line.quantity} egg</td>
-  <td style="padding:8px;border:1px solid #e5e7eb;vertical-align:top;text-align:right;">${formatOreToNokWithPrefix(
-    line.pricePerEggOre
-  )}</td>
-  <td style="padding:8px;border:1px solid #e5e7eb;vertical-align:top;text-align:right;">${formatOreToNokWithPrefix(
-    line.subtotalOre
-  )}</td>
-</tr>`;
-    })
-    .join('');
-
-  const eggSubtotalOre = lines.reduce((sum, line) => sum + line.subtotalOre, 0);
-  const deliveryFeeOre = Math.max(0, Math.round(Number(options.deliveryFeeOre || 0)));
-  const totalOre = eggSubtotalOre + deliveryFeeOre;
-
-  const deliveryFeeLabel = locale === 'en' ? 'Shipping & packing' : 'Frakt og pakking';
-  const deliveryFeeRow = deliveryFeeOre > 0
-    ? `<tr>
-  <td colspan="3" style="padding:8px;border:1px solid #e5e7eb;vertical-align:top;">${deliveryFeeLabel}${options.deliveryLabel ? ` (${escapeHtml(options.deliveryLabel)})` : ''}</td>
-  <td style="padding:8px;border:1px solid #e5e7eb;vertical-align:top;text-align:right;"></td>
-  <td style="padding:8px;border:1px solid #e5e7eb;vertical-align:top;text-align:right;">${formatOreToNokWithPrefix(deliveryFeeOre)}</td>
-</tr>`
-    : '';
-
-  return `<table role="presentation" cellspacing="0" cellpadding="0" style="width:100%;border-collapse:collapse;margin:8px 0;">
-  <thead>
-    <tr style="background:#f9fafb;">
-      <th style="text-align:left;padding:8px;border:1px solid #e5e7eb;">${labels.source}</th>
-      <th style="text-align:left;padding:8px;border:1px solid #e5e7eb;">${labels.breed}</th>
-      <th style="text-align:left;padding:8px;border:1px solid #e5e7eb;">${labels.quantity}</th>
-      <th style="text-align:right;padding:8px;border:1px solid #e5e7eb;">${labels.unitPrice}</th>
-      <th style="text-align:right;padding:8px;border:1px solid #e5e7eb;">${labels.subtotal}</th>
-    </tr>
-  </thead>
-  <tbody>
-    ${rows}
-    ${deliveryFeeRow}
-    <tr style="background:#f9fafb;">
-      <td colspan="4" style="padding:8px;border:1px solid #e5e7eb;text-align:right;font-weight:700;">${labels.total}</td>
-      <td style="padding:8px;border:1px solid #e5e7eb;text-align:right;font-weight:700;">${formatOreToNokWithPrefix(
-        totalOre
-      )}</td>
-    </tr>
-  </tbody>
-</table>`;
 }
 
 function formatNok(amount: number): string {
@@ -820,16 +636,17 @@ export async function POST(request: NextRequest) {
       order = await attachChickenOrderToVippsUser(order);
     }
 
-    const eggSummary = isEggPayment ? summarizeEggAdditions(order) : null;
-    const eggAdditionsHtml = eggSummary
-      ? buildEggOrderLinesHtml({
-          baseBreedName: eggBreedName || order?.breed_name || 'Rugeegg',
-          baseQuantity: Number(order?.quantity || 0),
-          basePricePerEggOre: Number(order?.price_per_egg || 0),
-          additions: eggSummary.additions,
+    const eggSummary = isEggPayment ? summarizeEggOrderLines(order, 'no') : null;
+    const eggOrderLinesHtmlNo = eggSummary
+      ? buildEggOrderLinesHtml(eggSummary.lines, 'no', {
           deliveryFeeOre: Number(order?.delivery_fee || 0),
           deliveryLabel: getEggDeliveryLabel(String(order?.delivery_method || '')),
-          locale: 'no',
+        })
+      : '';
+    const eggOrderLinesHtmlEn = isEggPayment
+      ? buildEggOrderLinesHtml(summarizeEggOrderLines(order, 'en').lines, 'en', {
+          deliveryFeeOre: Number(order?.delivery_fee || 0),
+          deliveryLabel: getEggDeliveryLabel(String(order?.delivery_method || '')),
         })
       : '';
 
@@ -867,7 +684,7 @@ export async function POST(request: NextRequest) {
           const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_BASE_URL || 'https://tinglumgard.no';
 
           if (isEggPayment) {
-            const breedName = eggBreedName || order.breed_name || 'Rugeegg';
+            const breedName = eggSummary?.breedLabel || eggBreedName || order.breed_name || 'Rugeegg';
             const baseQuantity = eggSummary?.baseQuantity ?? Number(order.quantity || 0);
             const additionsQuantity = eggSummary?.additionsQuantity ?? 0;
             const totalQuantity = eggSummary?.totalQuantity ?? baseQuantity;
@@ -882,7 +699,8 @@ export async function POST(request: NextRequest) {
                 base_quantity: baseQuantity,
                 additions_quantity: additionsQuantity,
                 total_quantity: totalQuantity,
-                additions_html: eggAdditionsHtml,
+                order_lines_html: eggOrderLinesHtmlNo,
+                order_lines_html_en: eggOrderLinesHtmlEn,
                 total_amount_nok: formatOreToNokWithPrefix(order.total_amount),
                 deposit_amount_nok: formatOreToNokWithPrefix(order.deposit_amount),
                 remainder_amount_nok: formatOreToNokWithPrefix(order.remainder_amount),
@@ -981,13 +799,14 @@ export async function POST(request: NextRequest) {
               customer_name: order.customer_name || 'Kunde',
               customer_email: order.customer_email || '',
               customer_phone: order.customer_phone || 'Ikke oppgitt',
-              breed_name: eggBreedName || order.breed_name || 'Rugeegg',
+              breed_name: eggSummary?.breedLabel || eggBreedName || order.breed_name || 'Rugeegg',
               week_number: order.week_number,
               delivery_date: new Date(`${order.delivery_monday}T00:00:00`).toLocaleDateString('nb-NO'),
               base_quantity: baseQuantity,
               additions_quantity: additionsQuantity,
               total_quantity: totalQuantity,
-              additions_html: eggAdditionsHtml,
+              order_lines_html: eggOrderLinesHtmlNo,
+              order_lines_html_en: eggOrderLinesHtmlEn,
               price_per_egg_nok: formatOreToNokWithPrefix(order.price_per_egg),
               delivery_method_label: getEggDeliveryLabel(String(order.delivery_method || '')),
               deposit_amount_nok: formatOreToNokWithPrefix(order.deposit_amount),
@@ -1097,7 +916,7 @@ export async function POST(request: NextRequest) {
 
       const paidStatus = isChickenPayment ? "picked_up" : isEggPayment ? "fully_paid" : "paid";
       const remainderStatus = isActuallyFullyPaid ? paidStatus : 'deposit_paid';
-      console.log(`Remainder payment: totalPaid=${totalPaidOre} øre, totalAmount=${totalAmountOre} øre, status=${remainderStatus}`);
+      console.log(`Remainder payment: totalPaid=${totalPaidOre} ore, totalAmount=${totalAmountOre} ore, status=${remainderStatus}`);
 
       const chickenRemainderCollectedAt = new Date().toISOString();
       const chickenRemainderUpdate = {
@@ -1170,13 +989,16 @@ export async function POST(request: NextRequest) {
               variables: {
                 customer_name: order.customer_name || 'Kunde',
                 order_number: order.order_number,
+                breed_name: eggSummary?.breedLabel || eggBreedName || order.breed_name || 'Rugeegg',
                 base_quantity: baseQuantity,
                 additions_quantity: additionsQuantity,
                 total_quantity: totalQuantity,
-                additions_html: eggAdditionsHtml,
+                order_lines_html: eggOrderLinesHtmlNo,
+                order_lines_html_en: eggOrderLinesHtmlEn,
                 total_amount_nok: formatOreToNokWithPrefix(order.total_amount),
                 remainder_amount_nok: formatOreToNokWithPrefix(order.remainder_amount),
                 order_url: buildOrderUrl(appUrl, 'egg_order', order.id),
+                tip_index: 1,
               },
             });
 
@@ -1193,15 +1015,31 @@ export async function POST(request: NextRequest) {
               eggOrderId: order.id,
             });
           } else if (isChickenPayment) {
+            const chickenSummary = summarizeChickenOrderLines(order);
+            const chickenBreedWithAgeNo = buildChickenBreedAgeLabel(chickenSummary.lines, 'no');
+            const chickenBreedWithAgeEn = buildChickenBreedAgeLabel(chickenSummary.lines, 'en');
             const rendered = await renderManagedTemplate({
               templateKey: 'chicken.order.remainder.paid.customer',
               locale: 'no',
               variables: {
                 customer_name: order.customer_name || 'Kunde',
                 order_number: order.order_number,
+                breed_name: chickenBreedWithAgeNo || chickenSummary.breedLabel || 'Kyllinger',
+                breed_name_en: chickenBreedWithAgeEn || chickenSummary.breedLabel || 'Chickens',
+                total_birds_label: buildTotalBirdsLabel(chickenSummary.hens, chickenSummary.roosters, 'no'),
+                total_birds_label_en: buildTotalBirdsLabel(chickenSummary.hens, chickenSummary.roosters, 'en'),
+                order_lines_html: buildChickenOrderLinesHtml(chickenSummary.lines, 'no', {
+                  deliveryFeeNok: Number(order.delivery_fee_nok || 0),
+                  deliveryLabel: getChickenDeliveryLabel(String(order.delivery_method || '')),
+                }),
+                order_lines_html_en: buildChickenOrderLinesHtml(chickenSummary.lines, 'en', {
+                  deliveryFeeNok: Number(order.delivery_fee_nok || 0),
+                  deliveryLabel: getChickenDeliveryLabel(String(order.delivery_method || '')),
+                }),
                 total_amount_nok: formatNok(order.total_amount_nok),
                 pickup_date: new Date(`${order.pickup_monday}T00:00:00`).toLocaleDateString('nb-NO'),
                 order_url: buildOrderUrl(appUrl, 'chicken_order', order.id),
+                tip_index: 2,
               },
             });
 
@@ -1261,3 +1099,4 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
+
