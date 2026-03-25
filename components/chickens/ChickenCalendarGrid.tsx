@@ -95,6 +95,14 @@ export function ChickenCalendarGrid({ calendar, onSelectWeek, selectedWeekKey }:
   const calendarCopy = chickens.calendar
   const commonCopy = chickens.common
   const locale = lang === 'en' ? 'en-GB' : 'nb-NO'
+  const interactionTitle = lang === 'en'
+    ? 'Choose a week to continue'
+    : 'Velg en uke for å fortsette'
+  const interactionHint = lang === 'en'
+    ? 'Pick a week card below, then choose hatch options in the next step.'
+    : 'Klikk et ukekort under, og velg deretter kull i neste steg.'
+  const actionChooseWeek = lang === 'en' ? 'Choose this week' : 'Velg denne uken'
+  const actionSelectedWeek = lang === 'en' ? 'Selected week' : 'Valgt uke'
 
   const monthBuckets = useMemo<MonthBucket[]>(() => {
     const weeks = [...calendar]
@@ -156,6 +164,11 @@ export function ChickenCalendarGrid({ calendar, onSelectWeek, selectedWeekKey }:
 
   return (
     <div className="space-y-4">
+      <div className="rounded-xl border border-neutral-200 bg-white px-4 py-3">
+        <p className="text-sm font-medium text-neutral-900">{interactionTitle}</p>
+        <p className="mt-1 text-xs text-neutral-600">{interactionHint}</p>
+      </div>
+
       <div className="flex flex-wrap items-center gap-2">
         {monthBuckets.map((month) => (
           <button
@@ -166,13 +179,23 @@ export function ChickenCalendarGrid({ calendar, onSelectWeek, selectedWeekKey }:
               setActivePage(0)
             }}
             className={cn(
-              'rounded-full border px-3 py-1.5 text-xs font-medium capitalize',
+              'inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium capitalize',
               activeMonthKey === month.key
                 ? 'border-neutral-900 bg-neutral-900 text-white'
                 : 'border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-50'
             )}
           >
-            {month.label}
+            <span>{month.label}</span>
+            <span
+              className={cn(
+                'rounded-full px-1.5 py-0.5 text-[10px] font-semibold',
+                activeMonthKey === month.key
+                  ? 'bg-white/20 text-white'
+                  : 'bg-neutral-100 text-neutral-700'
+              )}
+            >
+              {month.weeks.filter((week) => week.status !== 'sold_out').length}
+            </span>
           </button>
         ))}
       </div>
@@ -211,6 +234,7 @@ export function ChickenCalendarGrid({ calendar, onSelectWeek, selectedWeekKey }:
             const weekKey = `${week.year}-${week.weekNumber}`
             const isSelected = selectedWeekKey === weekKey
             const isDisabled = weekCard.status === 'sold_out'
+            const selectableBreedsCount = week.breeds.length
             const ageText = weekCard.minAge == null || weekCard.maxAge == null
               ? '-'
               : weekCard.minAge === weekCard.maxAge
@@ -225,16 +249,25 @@ export function ChickenCalendarGrid({ calendar, onSelectWeek, selectedWeekKey }:
                 disabled={isDisabled}
                 onClick={() => !isDisabled && onSelectWeek(week)}
                 className={cn(
-                  'rounded-lg border p-4 text-left transition-all',
+                  'group relative overflow-hidden rounded-xl border p-4 text-left transition-all',
                   isDisabled
-                    ? 'cursor-not-allowed border-neutral-200 bg-neutral-50 opacity-75'
-                    : 'border-neutral-200 bg-white hover:border-neutral-400 hover:shadow-sm',
-                  isSelected && !isDisabled && 'border-neutral-900 ring-2 ring-neutral-900/20 bg-neutral-50'
+                    ? 'cursor-not-allowed border-neutral-200 bg-neutral-50/70 opacity-80'
+                    : 'border-neutral-200 bg-white hover:-translate-y-0.5 hover:border-neutral-400 hover:shadow-md',
+                  isSelected && !isDisabled && 'border-neutral-900 ring-2 ring-neutral-900/20 bg-neutral-50 shadow-sm'
                 )}
               >
+                <div
+                  className={cn(
+                    'pointer-events-none absolute inset-x-0 top-0 h-1',
+                    weekCard.status === 'bookable' && 'bg-emerald-400',
+                    weekCard.status === 'nearly_full' && 'bg-amber-400',
+                    weekCard.status === 'sold_out' && 'bg-neutral-300'
+                  )}
+                />
+
                 <div className="mb-3 flex items-start justify-between gap-2">
                   <div>
-                    <div className="text-base font-semibold text-neutral-900">
+                    <div className="text-lg font-semibold text-neutral-900">
                       {calendarCopy.weekLabel} {week.weekNumber}
                     </div>
                     <div className="text-xs text-neutral-500">
@@ -252,19 +285,25 @@ export function ChickenCalendarGrid({ calendar, onSelectWeek, selectedWeekKey }:
                 </div>
 
                 <div className="grid grid-cols-3 gap-2 text-xs">
-                  <div>
+                  <div className="rounded-lg bg-neutral-50 px-2 py-2">
                     <div className="text-neutral-500">{calendarCopy.hensLabel}</div>
                     <div className="text-sm font-semibold text-neutral-900">{weekCard.totalAvailable}</div>
                   </div>
-                  <div>
+                  <div className="rounded-lg bg-neutral-50 px-2 py-2">
                     <div className="text-neutral-500">{calendarCopy.breedsLabel}</div>
-                    <div className="text-sm font-semibold text-neutral-900">{week.breeds.length}</div>
+                    <div className="text-sm font-semibold text-neutral-900">{selectableBreedsCount}</div>
                   </div>
-                  <div>
+                  <div className="rounded-lg bg-neutral-50 px-2 py-2">
                     <div className="text-neutral-500">{calendarCopy.ageLabel}</div>
                     <div className="text-sm font-semibold text-neutral-900">{ageText}</div>
                   </div>
                 </div>
+
+                {!isDisabled && (
+                  <div className="mt-3 border-t border-neutral-200 pt-2 text-xs font-medium text-neutral-800">
+                    {isSelected ? actionSelectedWeek : actionChooseWeek}
+                  </div>
+                )}
               </button>
             )
           })}

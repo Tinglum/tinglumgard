@@ -31,9 +31,10 @@ export function ChickenBreedCard({ breed }: ChickenBreedCardProps) {
   const [imageErrored, setImageErrored] = useState(false)
 
   const imageSrc = useMemo(() => {
+    if (visualProfile.realImageUrl) return visualProfile.realImageUrl
     if (breed.image_url?.trim()) return breed.image_url.trim()
     return visualProfile.placeholderImageUrl
-  }, [breed.image_url, visualProfile.placeholderImageUrl])
+  }, [breed.image_url, visualProfile.placeholderImageUrl, visualProfile.realImageUrl])
 
   const showImage = Boolean(imageSrc) && !imageErrored
 
@@ -74,17 +75,17 @@ export function ChickenBreedCard({ breed }: ChickenBreedCardProps) {
       )}
 
       <div className="space-y-4 p-5">
-        <div className="flex items-start justify-between gap-3">
+        <div className="space-y-2">
           <div className="min-w-0">
-            <div className="mb-1 flex items-center gap-2">
-              <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: visualProfile.accentColor }} />
-              <h3 className="truncate text-lg font-medium text-neutral-900">{breed.name}</h3>
+            <div className="mb-1 flex items-start gap-2">
+              <span className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: visualProfile.accentColor }} />
+              <h3 className="text-lg font-medium leading-snug text-neutral-900">{breed.name}</h3>
             </div>
             <p className="line-clamp-3 text-sm leading-relaxed text-neutral-600">{description}</p>
           </div>
 
           <span
-            className="rounded-full border px-2.5 py-1 text-[11px] font-medium tracking-wide"
+            className="inline-flex rounded-full border px-2.5 py-1 text-[11px] font-medium tracking-wide"
             style={{
               borderColor: withAlpha(visualProfile.accentColor, 30),
               color: withAlpha(visualProfile.accentColor, 95),
@@ -124,6 +125,7 @@ export function ChickenBreedCard({ breed }: ChickenBreedCardProps) {
 type BreedVisualProfile = {
   accentColor: string
   placeholderImageUrl: string
+  realImageUrl?: string
 }
 
 const RUGE_EGG_BREED_COLORS: Record<string, string> = {
@@ -144,6 +146,16 @@ const BREED_PLACEHOLDER_IMAGES: Record<string, string> = {
   'silverudds-blue': 'https://images.pexels.com/photos/2255441/pexels-photo-2255441.jpeg?auto=compress&cs=tinysrgb&w=1400',
   'cream-legbar': 'https://images.pexels.com/photos/375510/pexels-photo-375510.jpeg?auto=compress&cs=tinysrgb&w=1400',
   maran: 'https://images.pexels.com/photos/1300375/pexels-photo-1300375.jpeg?auto=compress&cs=tinysrgb&w=1400',
+}
+
+const BREED_REAL_IMAGES: Record<string, string> = {
+  'ayam-cemani': 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/29/Poule_cemani.jpg/640px-Poule_cemani.jpg',
+  'jersey-giant': 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/7f/OntarioCountyFair2018JerseyGiantCockerel.jpg/640px-OntarioCountyFair2018JerseyGiantCockerel.jpg',
+  maran: 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/65/Cuckoo_Marans.jpg/640px-Cuckoo_Marans.jpg',
+  'cream-legbar': 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/55/Cream_Legbar.jpg/640px-Cream_Legbar.jpg',
+  silverudds: 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Silveruddsbl%C3%A5_hen.jpg/640px-Silveruddsbl%C3%A5_hen.jpg',
+  'silverudds-bla': 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Silveruddsbl%C3%A5_hen.jpg/640px-Silveruddsbl%C3%A5_hen.jpg',
+  'silverudds-blue': 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Silveruddsbl%C3%A5_hen.jpg/640px-Silveruddsbl%C3%A5_hen.jpg',
 }
 
 const DEFAULT_PLACEHOLDER_IMAGE =
@@ -171,6 +183,7 @@ function resolveBreedVisualProfile(breed: ChickenBreedCardProps['breed']): Breed
   return {
     accentColor: RUGE_EGG_BREED_COLORS[key] || breed.accent_color || '#6B7280',
     placeholderImageUrl: BREED_PLACEHOLDER_IMAGES[key] || DEFAULT_PLACEHOLDER_IMAGE,
+    realImageUrl: BREED_REAL_IMAGES[key],
   }
 }
 

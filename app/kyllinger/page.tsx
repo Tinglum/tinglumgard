@@ -9,7 +9,6 @@ import type { ChickenWeekAvailability } from '@/lib/chickens/types'
 import { trackChickenFunnel } from '@/lib/chickens/analytics'
 import { useToast } from '@/hooks/use-toast'
 import { ProductSectionSwitcher } from '@/components/ProductSectionSwitcher'
-import { FarmCrossSellCard } from '@/components/FarmCrossSellCard'
 import { OtherProductsRow } from '@/components/OtherProductsRow'
 import { MobileProductDock } from '@/components/MobileProductDock'
 
@@ -255,16 +254,16 @@ export default function KyllingerPage() {
 
   return (
     <div className="min-h-screen bg-stone-50 pb-28 md:pb-10">
-      <div className="bg-gradient-to-b from-neutral-900 to-neutral-800 text-white py-16">
-        <div className="max-w-6xl mx-auto px-4 text-center">
-          <h1 className="text-4xl md:text-5xl font-light mb-4">
+      <section className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-screen-xl py-16 md:py-24">
+        <div className="text-center max-w-6xl mx-auto">
+          <h1 className="text-5xl md:text-6xl font-normal tracking-tight text-neutral-900 mb-6 leading-tight">
             {chickens.pageTitle}
           </h1>
-          <p className="text-lg text-neutral-300 max-w-2xl mx-auto">
+          <p className="text-lg md:text-xl text-neutral-600 mb-12 leading-relaxed max-w-prose mx-auto">
             {chickens.pageSubtitle}
           </p>
         </div>
-      </div>
+      </section>
 
       <div className="max-w-6xl mx-auto px-4 py-10 space-y-10">
         <div className="sticky top-24 z-20">
@@ -354,9 +353,31 @@ export default function KyllingerPage() {
               <h2 className="text-2xl font-light text-neutral-900 mb-2">
                 {chickens.calendarTitle}
               </h2>
-              <p className="text-sm text-neutral-500 mb-4">
-                {chickens.page.chooseMonthWeekHint}
-              </p>
+              <div className="mb-4 rounded-xl border border-neutral-200 bg-white p-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-neutral-500">
+                  {lang === 'en' ? 'How to book' : 'Slik bestiller du'}
+                </p>
+                <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
+                  <div className="rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2">
+                    <p className="text-[11px] font-semibold text-neutral-500">1</p>
+                    <p className="text-sm font-medium text-neutral-900">{chickens.stepCards.chooseWeekTitle}</p>
+                    <p className="text-xs text-neutral-600">{chickens.stepCards.chooseWeekDesc}</p>
+                  </div>
+                  <div className="rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2">
+                    <p className="text-[11px] font-semibold text-neutral-500">2</p>
+                    <p className="text-sm font-medium text-neutral-900">{chickens.stepCards.chooseHatchesTitle}</p>
+                    <p className="text-xs text-neutral-600">{chickens.stepCards.chooseHatchesDesc}</p>
+                  </div>
+                  <div className="rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2">
+                    <p className="text-[11px] font-semibold text-neutral-500">3</p>
+                    <p className="text-sm font-medium text-neutral-900">{chickens.stepCards.completeBookingTitle}</p>
+                    <p className="text-xs text-neutral-600">{chickens.stepCards.completeBookingDesc}</p>
+                  </div>
+                </div>
+                <p className="mt-3 text-xs text-neutral-600">
+                  {chickens.page.chooseMonthWeekHint}
+                </p>
+              </div>
 
               <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
                 {chickens.page.bookingAgeNote}
@@ -504,7 +525,6 @@ export default function KyllingerPage() {
 
             {selectedWeek && selectedOrderLines.length > 0 && (
               <section id="order-form" className="space-y-4">
-                <FarmCrossSellCard product="pigs" variant="compact" />
                 <ChickenOrderForm
                   selection={{
                     weekNumber: selectedWeek.weekNumber,
