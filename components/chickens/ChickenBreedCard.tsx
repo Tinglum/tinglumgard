@@ -30,8 +30,8 @@ export function ChickenBreedCard({ breed }: ChickenBreedCardProps) {
   const visualProfile = resolveBreedVisualProfile(breed)
   const imageCandidates = useMemo(() => {
     const candidates = [
-      breed.image_url?.trim() || '',
       visualProfile.realImageUrl || '',
+      breed.image_url?.trim() || '',
       visualProfile.placeholderImageUrl || '',
     ].filter(Boolean)
 
