@@ -350,8 +350,6 @@ export default function KyllingerPage() {
               </div>
             </section>
 
-            <FarmCrossSellCard product="pigs" variant="strip" />
-
             <section>
               <h2 className="text-2xl font-light text-neutral-900 mb-2">
                 {chickens.calendarTitle}
