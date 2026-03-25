@@ -28,15 +28,19 @@ export function ChickenBreedCard({ breed }: ChickenBreedCardProps) {
   const description = lang === 'en' ? breed.description_en : breed.description_no
 
   const visualProfile = resolveBreedVisualProfile(breed)
-  const [imageErrored, setImageErrored] = useState(false)
+  const imageCandidates = useMemo(() => {
+    const candidates = [
+      breed.image_url?.trim() || '',
+      visualProfile.realImageUrl || '',
+      visualProfile.placeholderImageUrl || '',
+    ].filter(Boolean)
 
-  const imageSrc = useMemo(() => {
-    if (visualProfile.realImageUrl) return visualProfile.realImageUrl
-    if (breed.image_url?.trim()) return breed.image_url.trim()
-    return visualProfile.placeholderImageUrl
+    return Array.from(new Set(candidates))
   }, [breed.image_url, visualProfile.placeholderImageUrl, visualProfile.realImageUrl])
+  const [imageIndex, setImageIndex] = useState(0)
 
-  const showImage = Boolean(imageSrc) && !imageErrored
+  const imageSrc = imageCandidates[imageIndex] || ''
+  const showImage = Boolean(imageSrc)
 
   return (
     <article
@@ -52,7 +56,12 @@ export function ChickenBreedCard({ breed }: ChickenBreedCardProps) {
             alt={breed.name}
             className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
             loading="lazy"
-            onError={() => setImageErrored(true)}
+            onError={() => {
+              setImageIndex((prev) => {
+                if (prev < imageCandidates.length - 1) return prev + 1
+                return imageCandidates.length
+              })
+            }}
           />
           <div
             className="pointer-events-none absolute inset-x-0 bottom-0 h-20"

@@ -8,7 +8,6 @@ import { ChickenOrderForm } from '@/components/chickens/ChickenOrderForm'
 import type { ChickenWeekAvailability } from '@/lib/chickens/types'
 import { trackChickenFunnel } from '@/lib/chickens/analytics'
 import { useToast } from '@/hooks/use-toast'
-import { ProductSectionSwitcher } from '@/components/ProductSectionSwitcher'
 import { OtherProductsRow } from '@/components/OtherProductsRow'
 import { MobileProductDock } from '@/components/MobileProductDock'
 
@@ -150,13 +149,6 @@ export default function KyllingerPage() {
     : selectedWeekBookableBreeds.filter((breed) => breed.breedId === activeBreedFilter)
 
   const selectedCount = Object.keys(selectedOptions).length
-  const activeStep = !selectedWeek ? 1 : selectedCount === 0 ? 2 : 3
-
-  const stepCopy = [
-    { title: chickens.stepCards.chooseWeekTitle, desc: chickens.stepCards.chooseWeekDesc },
-    { title: chickens.stepCards.chooseHatchesTitle, desc: chickens.stepCards.chooseHatchesDesc },
-    { title: chickens.stepCards.completeBookingTitle, desc: chickens.stepCards.completeBookingDesc },
-  ]
 
   const handleBreedFilterChange = (breedId: string) => {
     setActiveBreedFilter(breedId)
@@ -266,10 +258,6 @@ export default function KyllingerPage() {
       </section>
 
       <div className="max-w-6xl mx-auto px-4 py-10 space-y-10">
-        <div className="sticky top-24 z-20">
-          <ProductSectionSwitcher />
-        </div>
-
         {loading ? (
           <div className="space-y-8 animate-pulse">
             <div className="rounded-xl border border-neutral-200 bg-white p-4">
@@ -299,45 +287,6 @@ export default function KyllingerPage() {
           </div>
         ) : (
           <>
-            <section className="rounded-xl border border-neutral-200 bg-white p-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                {stepCopy.map((step, idx) => {
-                  const stepNumber = idx + 1
-                  const done = activeStep > stepNumber
-                  const active = activeStep === stepNumber
-
-                  return (
-                    <div
-                      key={step.title}
-                      className={`rounded-lg border p-3 transition-colors ${
-                        active
-                          ? 'border-neutral-900 bg-neutral-50'
-                          : done
-                            ? 'border-emerald-200 bg-emerald-50'
-                            : 'border-neutral-200 bg-white'
-                      }`}
-                    >
-                      <div className="mb-1 flex items-center gap-2">
-                        <span
-                          className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold ${
-                            active
-                              ? 'bg-neutral-900 text-white'
-                              : done
-                                ? 'bg-emerald-600 text-white'
-                                : 'bg-neutral-200 text-neutral-700'
-                          }`}
-                        >
-                          {stepNumber}
-                        </span>
-                        <h3 className="text-sm font-medium text-neutral-900">{step.title}</h3>
-                      </div>
-                      <p className="text-xs text-neutral-500">{step.desc}</p>
-                    </div>
-                  )
-                })}
-              </div>
-            </section>
-
             <section>
               <h2 className="text-2xl font-light text-neutral-900 mb-4">
                 {chickens.breedsTitle}
@@ -377,10 +326,6 @@ export default function KyllingerPage() {
                 <p className="mt-3 text-xs text-neutral-600">
                   {chickens.page.chooseMonthWeekHint}
                 </p>
-              </div>
-
-              <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
-                {chickens.page.bookingAgeNote}
               </div>
 
               <ChickenCalendarGrid
