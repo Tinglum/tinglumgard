@@ -1000,6 +1000,13 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
     }
   }
 
+  async function saveEasyMisc() {
+    const ok = await saveDayMisc()
+    if (ok) {
+      setEasyCompleteOpen(false)
+    }
+  }
+
   async function completeEasyDay() {
     const miscOk = await saveDayMisc()
     if (!miscOk) return
@@ -1546,16 +1553,17 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
             <Button
               size="lg"
               className="h-14 w-full gap-2 bg-emerald-700 text-lg font-semibold text-white hover:bg-emerald-600"
-              onClick={() => setEasyCompleteOpen(true)}
+              onClick={completeEasyDay}
+              disabled={miscState.saving || dayState?.status === 'closed'}
             >
               <CheckCircle2 className="h-6 w-6" />
-              {copy.easyFinish}
+              {miscState.saving ? copy.saving : copy.easyFinish}
             </Button>
           </div>
 
           {easyModalRow && (
             <div className="fixed inset-0 z-50 bg-black/50 p-2">
-              <div className="mx-auto grid h-[calc(100dvh-1rem)] w-full max-w-md grid-rows-[auto_1fr_auto] overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-2xl">
+              <div className="mx-auto grid h-[calc(100dvh-1rem)] w-full max-w-md grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-2xl">
                 <div className="flex items-center justify-between gap-2 border-b border-neutral-200 bg-gradient-to-r from-sky-100 via-white to-emerald-100 px-3 py-2">
                   <div className="min-w-0">
                     <h3 className="truncate text-lg font-semibold text-neutral-900">{easyModalRow.breed_name}</h3>
@@ -1568,56 +1576,58 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
                   </Button>
                 </div>
 
-                <div className="grid gap-2.5 p-2.5 [grid-template-columns:repeat(2,minmax(0,1fr))]">
-                  <PhoneEggStepperField
-                    label={copy.totalEggs}
-                    value={easyModalRow.total_collected}
-                    onIncrement={() => stepField(easyModalRow.breed_id, 'total_collected', 1)}
-                    onDecrement={() => stepField(easyModalRow.breed_id, 'total_collected', -1)}
-                    onChange={(value) => updateRowField(easyModalRow.breed_id, 'total_collected', value)}
-                  />
-                  <PhoneEggStepperField
-                    label={copy.keepEggs}
-                    value={easyModalRow.sellable_standard}
-                    onIncrement={() => stepField(easyModalRow.breed_id, 'sellable_standard', 1)}
-                    onDecrement={() => stepField(easyModalRow.breed_id, 'sellable_standard', -1)}
-                    onChange={(value) => updateRowField(easyModalRow.breed_id, 'sellable_standard', value)}
-                  />
-                  <PhoneEggStepperField
-                    label={copy.tooSmall}
-                    value={easyModalRow.too_small}
-                    onIncrement={() => stepField(easyModalRow.breed_id, 'too_small', 1)}
-                    onDecrement={() => stepField(easyModalRow.breed_id, 'too_small', -1)}
-                    onChange={(value) => updateRowField(easyModalRow.breed_id, 'too_small', value)}
-                  />
-                  <PhoneEggStepperField
-                    label={copy.dirty}
-                    value={easyModalRow.dirty}
-                    onIncrement={() => stepField(easyModalRow.breed_id, 'dirty', 1)}
-                    onDecrement={() => stepField(easyModalRow.breed_id, 'dirty', -1)}
-                    onChange={(value) => updateRowField(easyModalRow.breed_id, 'dirty', value)}
-                  />
-                  <PhoneEggStepperField
-                    label={copy.cracked}
-                    value={easyModalRow.cracked}
-                    onIncrement={() => stepField(easyModalRow.breed_id, 'cracked', 1)}
-                    onDecrement={() => stepField(easyModalRow.breed_id, 'cracked', -1)}
-                    onChange={(value) => updateRowField(easyModalRow.breed_id, 'cracked', value)}
-                  />
-                  <PhoneEggStepperField
-                    label={copy.shellDefect}
-                    value={easyModalRow.shell_defect}
-                    onIncrement={() => stepField(easyModalRow.breed_id, 'shell_defect', 1)}
-                    onDecrement={() => stepField(easyModalRow.breed_id, 'shell_defect', -1)}
-                    onChange={(value) => updateRowField(easyModalRow.breed_id, 'shell_defect', value)}
-                  />
-                  <PhoneEggStepperField
-                    label={copy.other}
-                    value={easyModalRow.other_unsellable}
-                    onIncrement={() => stepField(easyModalRow.breed_id, 'other_unsellable', 1)}
-                    onDecrement={() => stepField(easyModalRow.breed_id, 'other_unsellable', -1)}
-                    onChange={(value) => updateRowField(easyModalRow.breed_id, 'other_unsellable', value)}
-                  />
+                <div className="min-h-0 overflow-y-auto p-2.5">
+                  <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                    <PhoneEggStepperField
+                      label={copy.totalEggs}
+                      value={easyModalRow.total_collected}
+                      onIncrement={() => stepField(easyModalRow.breed_id, 'total_collected', 1)}
+                      onDecrement={() => stepField(easyModalRow.breed_id, 'total_collected', -1)}
+                      onChange={(value) => updateRowField(easyModalRow.breed_id, 'total_collected', value)}
+                    />
+                    <PhoneEggStepperField
+                      label={copy.keepEggs}
+                      value={easyModalRow.sellable_standard}
+                      onIncrement={() => stepField(easyModalRow.breed_id, 'sellable_standard', 1)}
+                      onDecrement={() => stepField(easyModalRow.breed_id, 'sellable_standard', -1)}
+                      onChange={(value) => updateRowField(easyModalRow.breed_id, 'sellable_standard', value)}
+                    />
+                    <PhoneEggStepperField
+                      label={copy.tooSmall}
+                      value={easyModalRow.too_small}
+                      onIncrement={() => stepField(easyModalRow.breed_id, 'too_small', 1)}
+                      onDecrement={() => stepField(easyModalRow.breed_id, 'too_small', -1)}
+                      onChange={(value) => updateRowField(easyModalRow.breed_id, 'too_small', value)}
+                    />
+                    <PhoneEggStepperField
+                      label={copy.dirty}
+                      value={easyModalRow.dirty}
+                      onIncrement={() => stepField(easyModalRow.breed_id, 'dirty', 1)}
+                      onDecrement={() => stepField(easyModalRow.breed_id, 'dirty', -1)}
+                      onChange={(value) => updateRowField(easyModalRow.breed_id, 'dirty', value)}
+                    />
+                    <PhoneEggStepperField
+                      label={copy.cracked}
+                      value={easyModalRow.cracked}
+                      onIncrement={() => stepField(easyModalRow.breed_id, 'cracked', 1)}
+                      onDecrement={() => stepField(easyModalRow.breed_id, 'cracked', -1)}
+                      onChange={(value) => updateRowField(easyModalRow.breed_id, 'cracked', value)}
+                    />
+                    <PhoneEggStepperField
+                      label={copy.shellDefect}
+                      value={easyModalRow.shell_defect}
+                      onIncrement={() => stepField(easyModalRow.breed_id, 'shell_defect', 1)}
+                      onDecrement={() => stepField(easyModalRow.breed_id, 'shell_defect', -1)}
+                      onChange={(value) => updateRowField(easyModalRow.breed_id, 'shell_defect', value)}
+                    />
+                    <PhoneEggStepperField
+                      label={copy.other}
+                      value={easyModalRow.other_unsellable}
+                      onIncrement={() => stepField(easyModalRow.breed_id, 'other_unsellable', 1)}
+                      onDecrement={() => stepField(easyModalRow.breed_id, 'other_unsellable', -1)}
+                      onChange={(value) => updateRowField(easyModalRow.breed_id, 'other_unsellable', value)}
+                    />
+                  </div>
                 </div>
 
                 <div className="border-t border-neutral-200 bg-neutral-50/70 p-2.5">
@@ -1657,40 +1667,43 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
 
           {easyCompleteOpen && (
             <div className="fixed inset-0 z-50 bg-black/50 p-2">
-              <div className="mx-auto grid h-[calc(100dvh-1rem)] w-full max-w-md grid-rows-[auto_1fr_auto] overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-2xl">
+              <div className="mx-auto grid h-[calc(100dvh-1rem)] w-full max-w-md grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-2xl">
                 <div className="flex items-center justify-between border-b border-neutral-200 bg-gradient-to-r from-amber-100 via-white to-emerald-100 px-3 py-2">
-                  <h3 className="text-lg font-semibold text-neutral-900">{copy.easyCompleteTitle}</h3>
+                  <h3 className="text-lg font-semibold text-neutral-900">{copy.editMisc}</h3>
                   <Button size="sm" variant="outline" className="border-neutral-300 bg-white" onClick={() => setEasyCompleteOpen(false)}>
                     {copy.close}
                   </Button>
                 </div>
-                <div className="grid gap-2.5 p-2.5 [grid-template-columns:repeat(2,minmax(0,1fr))]">
-                  <PhoneEggStepperField
-                    label={copy.duckEggs}
-                    value={dayState?.duck_eggs || 0}
-                    onIncrement={() => stepDayMiscField('duck_eggs', 1)}
-                    onDecrement={() => stepDayMiscField('duck_eggs', -1)}
-                    onChange={(value) => setDayMiscField('duck_eggs', value)}
-                  />
-                  <PhoneEggStepperField
-                    label={copy.otherEggsExtra}
-                    value={dayState?.other_eggs || 0}
-                    onIncrement={() => stepDayMiscField('other_eggs', 1)}
-                    onDecrement={() => stepDayMiscField('other_eggs', -1)}
-                    onChange={(value) => setDayMiscField('other_eggs', value)}
-                  />
+                <div className="min-h-0 overflow-y-auto p-2.5">
+                  <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                    <PhoneEggStepperField
+                      label={copy.duckEggs}
+                      value={dayState?.duck_eggs || 0}
+                      onIncrement={() => stepDayMiscField('duck_eggs', 1)}
+                      onDecrement={() => stepDayMiscField('duck_eggs', -1)}
+                      onChange={(value) => setDayMiscField('duck_eggs', value)}
+                    />
+                    <PhoneEggStepperField
+                      label={copy.otherEggsExtra}
+                      value={dayState?.other_eggs || 0}
+                      onIncrement={() => stepDayMiscField('other_eggs', 1)}
+                      onDecrement={() => stepDayMiscField('other_eggs', -1)}
+                      onChange={(value) => setDayMiscField('other_eggs', value)}
+                    />
+                  </div>
                 </div>
                 <div className="border-t border-neutral-200 bg-neutral-50/70 p-2.5">
                   {miscState.error && <p className="mb-2 text-sm font-medium text-red-700">{miscState.error}</p>}
                   <Button
                     size="lg"
                     className="h-12 w-full gap-2 bg-emerald-700 text-base font-semibold text-white hover:bg-emerald-600"
-                    onClick={completeEasyDay}
-                    disabled={miscState.saving}
+                    onClick={saveEasyMisc}
+                    disabled={miscState.saving || dayState?.status === 'closed'}
                   >
                     <CheckCircle2 className="h-5 w-5" />
-                    {copy.easyFinish}
+                    {miscState.saving ? copy.saving : copy.easySaveBack}
                   </Button>
+                  {dayState?.status === 'closed' && <p className="mt-2 text-sm font-medium text-red-700">{copy.dayClosedSaveHint}</p>}
                 </div>
               </div>
             </div>
@@ -2456,15 +2469,15 @@ function PhoneEggStepperField({
   onChange: (value: string) => void
 }) {
   return (
-    <div className="rounded-xl border border-neutral-300 bg-gradient-to-br from-white to-neutral-50 p-2 shadow-sm">
+    <div className="min-w-0 rounded-xl border border-neutral-300 bg-gradient-to-br from-white to-neutral-50 p-2 shadow-sm">
       <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-neutral-700">{label}</label>
-      <div className="grid grid-cols-[48px_minmax(0,1fr)_48px] items-center gap-2">
+      <div className="grid grid-cols-[44px_minmax(0,1fr)_44px] items-center gap-2 sm:grid-cols-[48px_minmax(0,1fr)_48px]">
         <Button
           type="button"
           size="icon"
           variant="outline"
           onClick={onDecrement}
-          className="h-12 w-12 border-neutral-300 bg-neutral-900 text-white hover:bg-neutral-800"
+          className="h-11 w-11 border-neutral-300 bg-neutral-900 text-white hover:bg-neutral-800 sm:h-12 sm:w-12"
         >
           <Minus className="h-5 w-5" />
         </Button>
@@ -2474,14 +2487,14 @@ function PhoneEggStepperField({
           onChange={(event) => onChange(event.target.value)}
           onFocus={(event) => event.currentTarget.select()}
           placeholder="0"
-          className="h-12 border-neutral-300 bg-white text-center text-2xl font-semibold"
+          className="h-11 min-w-0 border-neutral-300 bg-white px-1 text-center text-xl font-semibold sm:h-12 sm:text-2xl"
         />
         <Button
           type="button"
           size="icon"
           variant="outline"
           onClick={onIncrement}
-          className="h-12 w-12 border-neutral-300 bg-neutral-900 text-white hover:bg-neutral-800"
+          className="h-11 w-11 border-neutral-300 bg-neutral-900 text-white hover:bg-neutral-800 sm:h-12 sm:w-12"
         >
           <Plus className="h-5 w-5" />
         </Button>
