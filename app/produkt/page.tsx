@@ -4,8 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { GlassCard } from "@/components/GlassCard";
-import { MangalitsaBoxesSection } from "@/components/MangalitsaBoxesSection";
-import { MangalitsaPremiumStory } from "@/components/MangalitsaPremiumStory";
 import {
   Accordion,
   AccordionContent,
@@ -20,40 +18,6 @@ interface InventoryData {
   isLowStock: boolean;
   isSoldOut: boolean;
   active: boolean;
-}
-
-interface MangalitsaPresetContent {
-  id: string;
-  content_name_no: string;
-  content_name_en: string;
-  cut_size_from_kg?: number | null;
-  cut_size_to_kg?: number | null;
-  target_weight_kg?: number | null;
-  display_order: number;
-}
-
-interface MangalitsaPreset {
-  id: string;
-  name_no: string;
-  name_en: string;
-  display_order: number;
-  contents?: MangalitsaPresetContent[];
-}
-
-interface FeaturedExtra {
-  slug: string;
-  name_no: string;
-  name_en?: string | null;
-  description_no?: string | null;
-  description_en?: string | null;
-  description_premium_no?: string | null;
-  description_premium_en?: string | null;
-  chef_term_no?: string | null;
-  chef_term_en?: string | null;
-  recipe_suggestions?: Array<{
-    title_no?: string | null;
-    title_en?: string | null;
-  }> | null;
 }
 
 function Section({
@@ -108,15 +72,12 @@ function StickyCTABar({
 
 export default function ProductPage() {
   const { t, lang } = useLanguage();
-  const locale = lang === 'en' ? 'en-US' : 'nb-NO';
   const copy = t.productPage;
+  const locale = lang === "no" ? "nb-NO" : "en-US";
+  const [pricing, setPricing] = useState<any>(null);
   const [inventory, setInventory] = useState<InventoryData | null>(null);
-  const [boxPresets, setBoxPresets] = useState<MangalitsaPreset[]>([]);
-  const [loadingPresets, setLoadingPresets] = useState(true);
   const [loadingInventory, setLoadingInventory] = useState(true);
-  const [loadingExtras, setLoadingExtras] = useState(true);
   const [isScrolled, setIsScrolled] = useState(false);
-  const [featuredExtras, setFeaturedExtras] = useState<FeaturedExtra[]>([]);
 
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 20);
@@ -126,24 +87,18 @@ export default function ProductPage() {
   }, []);
 
   useEffect(() => {
-    let active = true;
-    async function fetchPresets() {
+    async function fetchPricing() {
       try {
-        const res = await fetch('/api/mangalitsa/presets', { cache: 'no-store' });
-        const data = await res.json();
-        if (active) {
-          setBoxPresets(data.presets || []);
+        const res = await fetch("/api/config/pricing");
+        if (res.ok) {
+          const data = await res.json();
+          setPricing(data);
         }
       } catch (error) {
-        console.error('Failed to fetch presets for product page:', error);
-      } finally {
-        if (active) setLoadingPresets(false);
+        console.error("Failed to fetch pricing:", error);
       }
     }
-    fetchPresets();
-    return () => {
-      active = false;
-    };
+    fetchPricing();
   }, []);
 
   useEffect(() => {
@@ -163,69 +118,31 @@ export default function ProductPage() {
     fetchInventory();
   }, []);
 
-  useEffect(() => {
-    let active = true;
-    async function fetchExtras() {
-      try {
-        const response = await fetch('/api/extras', { cache: 'no-store' });
-        const data = await response.json();
-        const extras = Array.isArray(data.extras) ? data.extras : [];
-        const prioritized = extras
-          .filter((extra: FeaturedExtra) => Boolean(extra.slug))
-          .sort((a: FeaturedExtra, b: FeaturedExtra) => {
-            const aPremium = Boolean(a.chef_term_no || a.chef_term_en || String(a.slug || '').startsWith('extra-'));
-            const bPremium = Boolean(b.chef_term_no || b.chef_term_en || String(b.slug || '').startsWith('extra-'));
-            if (aPremium !== bPremium) return aPremium ? -1 : 1;
-            return 0;
-          })
-          .slice(0, 4);
-        if (active) {
-          setFeaturedExtras(prioritized);
-        }
-      } catch (error) {
-        console.error('Failed to fetch featured extras:', error);
-      } finally {
-        if (active) setLoadingExtras(false);
-      }
-    }
-    fetchExtras();
-    return () => {
-      active = false;
-    };
-  }, []);
-
   const boxesLeft = inventory?.boxesRemaining ?? 0;
   const isSoldOut = inventory?.isSoldOut ?? false;
   const isLowStock = inventory?.isLowStock ?? false;
 
-  const contents = useMemo(
-    () =>
-      boxPresets
-        .slice()
-        .sort((a, b) => a.display_order - b.display_order)
-        .map((preset) => {
-          const title = lang === 'en' ? preset.name_en : preset.name_no;
-          const items = (preset.contents || [])
-            .slice()
-            .sort((a, b) => a.display_order - b.display_order)
-            .map((content) => {
-              const base = lang === 'en' ? content.content_name_en : content.content_name_no;
-              const sizeFrom = content.cut_size_from_kg != null ? Number(content.cut_size_from_kg) : null;
-              const sizeTo = content.cut_size_to_kg != null ? Number(content.cut_size_to_kg) : null;
-              const sizeRange = sizeFrom != null && sizeTo != null && Number.isFinite(sizeFrom) && Number.isFinite(sizeTo)
-                ? `${t.common.approx} ${sizeFrom.toLocaleString(locale, { maximumFractionDigits: 2 })}-${sizeTo.toLocaleString(locale, { maximumFractionDigits: 2 })} ${t.common.kg}`
-                : null;
-              if (content.target_weight_kg) {
-                return sizeRange
-                  ? `${base} (${content.target_weight_kg} ${t.common.kg} • ${sizeRange})`
-                  : `${base} (${content.target_weight_kg} ${t.common.kg})`;
-              }
-              return sizeRange ? `${base} (${sizeRange})` : base;
-            });
+  const box8Price = pricing?.box_8kg_price;
+  const box12Price = pricing?.box_12kg_price;
+  const box8Deposit = pricing
+    ? Math.floor(pricing.box_8kg_price * pricing.box_8kg_deposit_percentage / 100)
+    : null;
+  const box12Deposit = pricing
+    ? Math.floor(pricing.box_12kg_price * pricing.box_12kg_deposit_percentage / 100)
+    : null;
+  const box8Balance = pricing && box8Deposit !== null ? pricing.box_8kg_price - box8Deposit : null;
+  const box12Balance = pricing && box12Deposit !== null ? pricing.box_12kg_price - box12Deposit : null;
 
-          return { title, items };
-        }),
-    [boxPresets, lang, locale, t.common.approx, t.common.kg]
+  const contents = useMemo(
+    () => [
+      copy.contents.ribbe,
+      copy.contents.chops,
+      copy.contents.bacon,
+      copy.contents.sausages,
+      copy.contents.stew,
+      copy.contents.surprises,
+    ],
+    [copy]
   );
 
   return (
@@ -250,7 +167,7 @@ export default function ProductPage() {
               {copy.stickySecondary}
             </Link>
             <Link
-              href="#mangalitsa-boxes"
+              href="#velg-kasse"
               className="rounded-full bg-neutral-900 px-5 py-2 text-xs font-bold uppercase tracking-[0.25em] text-white"
             >
               {copy.stickyCta}
@@ -279,7 +196,7 @@ export default function ProductPage() {
 
               <div className="flex flex-wrap gap-3 pt-2">
                 <Link
-                  href="#mangalitsa-boxes"
+                  href="#velg-kasse"
                   className="inline-flex items-center justify-center rounded-xl bg-white px-7 py-4 text-xs font-bold uppercase tracking-[0.3em] text-[#101012] shadow-[0_18px_40px_-20px_rgba(0,0,0,0.5)]"
                 >
                   {copy.heroCtaPrimary}
@@ -334,10 +251,22 @@ export default function ProductPage() {
                 </div>
 
                 <div className="border-t border-white/15 pt-6 space-y-3">
-                  <SectionLabel>{t.mangalitsa.pageTitle}</SectionLabel>
-                  <p className="text-sm text-white/65">
-                    {t.mangalitsa.hero.title}
-                  </p>
+                  <SectionLabel>{copy.sizesTitle}</SectionLabel>
+                  <p className="text-sm text-white/65">{copy.sizesLead}</p>
+                  <div className="space-y-2 text-sm text-white/80">
+                    <div className="flex items-center justify-between">
+                      <span>{t.product.box8}</span>
+                      <span className="tabular-nums">
+                        {box8Price ? `${box8Price.toLocaleString(locale)} ${t.common.currency}` : t.common.loading}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span>{t.product.box12}</span>
+                      <span className="tabular-nums">
+                        {box12Price ? `${box12Price.toLocaleString(locale)} ${t.common.currency}` : t.common.loading}
+                      </span>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="border-t border-white/15 pt-6 space-y-2">
@@ -387,44 +316,32 @@ export default function ProductPage() {
               {copy.contentsHeading}
             </h2>
             <p className="text-base text-neutral-600 leading-relaxed">
-              {loadingPresets
-                ? t.common.loading
-                : contents.length > 0
-                  ? copy.contentsLead
-                  : copy.noBoxContentsConfigured}
+              {copy.contentsLead}
             </p>
           </div>
 
-          {contents.length > 0 ? (
-            <div className="grid gap-6 md:grid-cols-2">
-              {contents.map((item: { title: string; items: string[] }) => (
-                <GlassCard
-                  key={item.title}
-                  className="bg-white/80 backdrop-blur border-white/50 motion-safe:transition-transform motion-safe:hover:-translate-y-1"
-                >
-                  <div className="p-6">
-                    <p className="text-xs uppercase tracking-[0.3em] text-neutral-500 font-semibold">
-                      {item.title}
-                    </p>
-                    <ul className="mt-5 space-y-3">
-                      {item.items.map((detail) => (
-                        <li key={detail} className="flex items-start gap-3 text-sm text-neutral-700">
-                          <span className="mt-2 h-1.5 w-1.5 rounded-full bg-neutral-400" />
-                          <span>{detail}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </GlassCard>
-              ))}
-            </div>
-          ) : (
-            !loadingPresets && (
-              <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-6 text-sm text-neutral-600">
-                {t.mangalitsa.noPresets}
-              </div>
-            )
-          )}
+          <div className="grid gap-6 md:grid-cols-2">
+            {contents.map((item: { title: string; items: string[] }) => (
+              <GlassCard
+                key={item.title}
+                className="bg-white/80 backdrop-blur border-white/50 motion-safe:transition-transform motion-safe:hover:-translate-y-1"
+              >
+                <div className="p-6">
+                  <p className="text-xs uppercase tracking-[0.3em] text-neutral-500 font-semibold">
+                    {item.title}
+                  </p>
+                  <ul className="mt-5 space-y-3">
+                    {item.items.map((detail) => (
+                      <li key={detail} className="flex items-start gap-3 text-sm text-neutral-700">
+                        <span className="mt-2 h-1.5 w-1.5 rounded-full bg-neutral-400" />
+                        <span>{detail}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </GlassCard>
+            ))}
+          </div>
 
           <div className="flex flex-col gap-4 rounded-2xl border border-neutral-200 bg-neutral-50 p-6 text-sm text-neutral-600">
             <p>{copy.contentsNote}</p>
@@ -434,106 +351,160 @@ export default function ProductPage() {
               className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.3em] text-neutral-700 hover:text-neutral-900"
             >
               {copy.contentsLinkLabel}
-              <span aria-hidden>&rarr;</span>
+              <span aria-hidden>→</span>
             </Link>
           </div>
         </div>
       </Section>
 
-      {/* Mangalitsa Premium Boxes */}
-      <MangalitsaBoxesSection />
-
-      <Section className="bg-white">
-        <div className="mx-auto max-w-6xl px-6 space-y-8">
+      <Section id="velg-kasse" className="bg-[#F7F5F2]">
+        <div className="mx-auto max-w-6xl px-6 space-y-10">
           <div className="max-w-2xl space-y-3">
-            <SectionLabel>{copy.enhanceTitle}</SectionLabel>
+            <SectionLabel>{copy.sizesTitle}</SectionLabel>
             <h2 className="text-3xl sm:text-4xl font-light tracking-tight font-[family:var(--font-playfair)] text-neutral-900">
-              {copy.enhanceLead}
+              {copy.sizesHeading}
             </h2>
             <p className="text-base text-neutral-600 leading-relaxed">
-              {copy.enhanceBody}
+              {copy.sizesLead}
             </p>
           </div>
 
-          {loadingExtras ? (
-            <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-6 text-sm text-neutral-600">
-              {t.common.loading}
-            </div>
-          ) : featuredExtras.length > 0 ? (
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-              {featuredExtras.map((extra) => {
-                const name = lang === 'en' && extra.name_en ? extra.name_en : extra.name_no;
-                const chef = lang === 'en' ? (extra.chef_term_en || extra.chef_term_no) : extra.chef_term_no;
-                const description = lang === 'en'
-                  ? (extra.description_premium_en || extra.description_en || extra.description_no || '')
-                  : (extra.description_premium_no || extra.description_no || '');
-                const recipeTags = Array.isArray(extra.recipe_suggestions)
-                  ? extra.recipe_suggestions
-                      .slice(0, 2)
-                      .map((recipe) => (lang === 'en' ? recipe.title_en : recipe.title_no))
-                      .filter((value): value is string => Boolean(value))
-                  : [];
-
-                return (
-                  <GlassCard key={extra.slug} className="bg-white/85 backdrop-blur border-white/50">
-                    <div className="p-5 space-y-4">
-                      <div>
-                        <p className="text-lg font-semibold text-neutral-900">{name}</p>
-                        {chef && (
-                          <p className="text-xs italic text-neutral-500 mt-1">{chef}</p>
-                        )}
-                      </div>
-                      <p className="text-sm text-neutral-600 leading-relaxed">{description}</p>
-                      {recipeTags.length > 0 && (
-                        <div className="flex flex-wrap gap-1.5">
-                          {recipeTags.map((tag) => (
-                            <span key={`${extra.slug}-${tag}`} className="text-[11px] px-2 py-1 rounded-full border border-neutral-200 bg-neutral-50 text-neutral-600">
-                              {tag}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                      <Link
-                        href={`/bestill?extra=${encodeURIComponent(extra.slug)}`}
-                        className="inline-flex items-center justify-center rounded-xl border border-neutral-300 px-3 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-neutral-800 hover:text-neutral-900 hover:border-neutral-400"
-                      >
-                        {copy.enhanceCta}
-                      </Link>
-                    </div>
-                  </GlassCard>
-                );
-              })}
-            </div>
-          ) : (
-            <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-6 text-sm text-neutral-600">
-              {copy.noFeaturedExtras}
-            </div>
-          )}
-        </div>
-      </Section>
-
-      {/* Premium Storytelling */}
-      <MangalitsaPremiumStory />
-
-      <Section id="velg-kasse" className="bg-[#F7F5F2]">
-        <div className="mx-auto max-w-5xl px-6">
-          <GlassCard className="bg-white/85 backdrop-blur border-white/60">
-            <div className="p-8 sm:p-10 space-y-6 text-center">
-              <SectionLabel>{t.mangalitsa.pageTitle}</SectionLabel>
-              <h2 className="text-3xl sm:text-4xl font-light tracking-tight font-[family:var(--font-playfair)] text-neutral-900">
-                {t.mangalitsa.hero.title}
-              </h2>
-              <p className="text-base text-neutral-600 leading-relaxed max-w-2xl mx-auto">
-                {t.mangalitsa.hero.subtitle}
-              </p>
-              <Link
-                href="/bestill"
-                className="inline-flex items-center justify-center rounded-xl bg-neutral-900 px-8 py-4 text-xs font-bold uppercase tracking-[0.3em] text-white"
-              >
-                {t.mangalitsa.reserveBox}
-              </Link>
+          <GlassCard className="bg-white/80 backdrop-blur border-white/50">
+            <div className="flex flex-wrap items-center justify-between gap-4 p-6">
+              <div>
+                <p className="text-xs uppercase tracking-[0.3em] text-neutral-500 font-semibold">
+                  {copy.availabilityTitle}
+                </p>
+                <p className="mt-2 text-3xl font-light tabular-nums text-neutral-900">
+                  {loadingInventory ? "--" : boxesLeft}
+                </p>
+                <p className="text-sm text-neutral-500">{copy.availabilityLead}</p>
+              </div>
+              <div className="flex items-center gap-3">
+                {isSoldOut && (
+                  <span className="rounded-full bg-neutral-200 px-4 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-neutral-700">
+                    {t.availability.soldOut}
+                  </span>
+                )}
+                {!isSoldOut && isLowStock && (
+                  <span className="rounded-full bg-neutral-900 px-4 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-white">
+                    {t.availability.fewLeft}
+                  </span>
+                )}
+                {!isSoldOut && !isLowStock && (
+                  <span className="rounded-full bg-neutral-200 px-4 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-neutral-700">
+                    {copy.availabilityOpen}
+                  </span>
+                )}
+              </div>
             </div>
           </GlassCard>
+
+          <div className="grid gap-6 lg:grid-cols-2">
+            <GlassCard className="bg-white/90 backdrop-blur border-white/60 motion-safe:transition-transform motion-safe:hover:-translate-y-1">
+              <div className="p-8 space-y-6">
+                <div className="space-y-3">
+                  <p className="text-xs uppercase tracking-[0.3em] text-neutral-500 font-semibold">
+                    {t.product.box8}
+                  </p>
+                  <p className="text-5xl font-light tracking-tight text-neutral-900">
+                    8 <span className="text-lg text-neutral-500">{t.common.kg}</span>
+                  </p>
+                  <p className="text-sm text-neutral-600">{t.product.perfectFor2to3}</p>
+                </div>
+
+                <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
+                  <p className="text-xs uppercase tracking-[0.3em] text-neutral-500 font-semibold">
+                    {t.product.totalPrice}
+                  </p>
+                  <p className="mt-2 text-3xl font-light text-neutral-900 tabular-nums">
+                    {box8Price ? `${box8Price.toLocaleString(locale)} ${t.common.currency}` : t.common.loading}
+                  </p>
+                </div>
+
+                <details className="rounded-2xl border border-neutral-200 bg-white/70 p-4">
+                  <summary className="cursor-pointer list-none text-xs font-semibold uppercase tracking-[0.25em] text-neutral-600">
+                    {copy.paymentSummary}
+                  </summary>
+                  <div className="mt-3 space-y-2 text-sm text-neutral-600">
+                    <div className="flex items-center justify-between">
+                      <span>{copy.paymentDepositLabel}</span>
+                      <span className="tabular-nums">
+                        {box8Deposit !== null ? `${box8Deposit.toLocaleString(locale)} ${t.common.currency}` : t.common.loading}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span>{copy.paymentRemainderLabel}</span>
+                      <span className="tabular-nums">
+                        {box8Balance !== null ? `${box8Balance.toLocaleString(locale)} ${t.common.currency}` : t.common.loading}
+                      </span>
+                    </div>
+                    <p className="text-xs text-neutral-500">{copy.paymentNote}</p>
+                  </div>
+                </details>
+
+                <Link
+                  href="/bestill?size=8"
+                  className="inline-flex w-full items-center justify-center rounded-xl bg-neutral-900 px-6 py-4 text-xs font-bold uppercase tracking-[0.3em] text-white"
+                >
+                  {copy.reserve8Label}
+                </Link>
+              </div>
+            </GlassCard>
+
+            <GlassCard className="bg-neutral-900 text-white border-neutral-900 motion-safe:transition-transform motion-safe:hover:-translate-y-1">
+              <div className="p-8 space-y-6">
+                <div className="space-y-3">
+                  <p className="text-xs uppercase tracking-[0.3em] text-white/70 font-semibold">
+                    {t.product.box12}
+                  </p>
+                  <p className="text-5xl font-light tracking-tight">
+                    12 <span className="text-lg text-white/70">{t.common.kg}</span>
+                  </p>
+                  <p className="text-sm text-white/70">{t.product.idealFor4to6}</p>
+                </div>
+
+                <div className="rounded-2xl border border-white/15 bg-white/10 p-4">
+                  <p className="text-xs uppercase tracking-[0.3em] text-white/70 font-semibold">
+                    {t.product.totalPrice}
+                  </p>
+                  <p className="mt-2 text-3xl font-light tabular-nums">
+                    {box12Price ? `${box12Price.toLocaleString(locale)} ${t.common.currency}` : t.common.loading}
+                  </p>
+                </div>
+
+                <details className="rounded-2xl border border-white/15 bg-white/5 p-4">
+                  <summary className="cursor-pointer list-none text-xs font-semibold uppercase tracking-[0.25em] text-white/70">
+                    {copy.paymentSummary}
+                  </summary>
+                  <div className="mt-3 space-y-2 text-sm text-white/70">
+                    <div className="flex items-center justify-between">
+                      <span>{copy.paymentDepositLabel}</span>
+                      <span className="tabular-nums">
+                        {box12Deposit !== null ? `${box12Deposit.toLocaleString(locale)} ${t.common.currency}` : t.common.loading}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span>{copy.paymentRemainderLabel}</span>
+                      <span className="tabular-nums">
+                        {box12Balance !== null ? `${box12Balance.toLocaleString(locale)} ${t.common.currency}` : t.common.loading}
+                      </span>
+                    </div>
+                    <p className="text-xs text-white/60">{copy.paymentNote}</p>
+                  </div>
+                </details>
+
+                <Link
+                  href="/bestill?size=12"
+                  className="inline-flex w-full items-center justify-center rounded-xl bg-white px-6 py-4 text-xs font-bold uppercase tracking-[0.3em] text-neutral-900"
+                >
+                  {copy.reserve12Label}
+                </Link>
+              </div>
+            </GlassCard>
+          </div>
+
+          <p className="text-sm text-neutral-500">{copy.sizesNote}</p>
         </div>
       </Section>
 
@@ -598,24 +569,6 @@ export default function ProductPage() {
         </div>
       </Section>
 
-      <Section className="bg-neutral-950 text-white">
-        <div className="mx-auto max-w-5xl px-6 text-center space-y-6">
-          <SectionLabel>{copy.finalCtaEyebrow}</SectionLabel>
-          <h2 className="text-3xl sm:text-4xl font-light tracking-tight font-[family:var(--font-playfair)]">
-            {copy.finalCtaHeading}
-          </h2>
-          <p className="text-base text-white/70 leading-relaxed">
-            {copy.finalCtaBody}
-          </p>
-          <Link
-            href="#mangalitsa-boxes"
-            className="inline-flex items-center justify-center rounded-xl bg-white px-10 py-4 text-xs font-bold uppercase tracking-[0.3em] text-neutral-900"
-          >
-            {copy.finalCtaButton}
-          </Link>
-        </div>
-      </Section>
-
       <Section className="bg-white">
         <div className="mx-auto max-w-5xl px-6 space-y-10">
           <div className="space-y-3">
@@ -665,10 +618,28 @@ export default function ProductPage() {
         </div>
       </Section>
 
+      <Section className="bg-neutral-950 text-white">
+        <div className="mx-auto max-w-5xl px-6 text-center space-y-6">
+          <SectionLabel>{copy.finalCtaEyebrow}</SectionLabel>
+          <h2 className="text-3xl sm:text-4xl font-light tracking-tight font-[family:var(--font-playfair)]">
+            {copy.finalCtaHeading}
+          </h2>
+          <p className="text-base text-white/70 leading-relaxed">
+            {copy.finalCtaBody}
+          </p>
+          <Link
+            href="#velg-kasse"
+            className="inline-flex items-center justify-center rounded-xl bg-white px-10 py-4 text-xs font-bold uppercase tracking-[0.3em] text-neutral-900"
+          >
+            {copy.finalCtaButton}
+          </Link>
+        </div>
+      </Section>
+
       <StickyCTABar
         label={copy.stickyTitle}
         ctaLabel={copy.stickyCta}
-        ctaHref="#mangalitsa-boxes"
+        ctaHref="#velg-kasse"
       />
     </div>
   );

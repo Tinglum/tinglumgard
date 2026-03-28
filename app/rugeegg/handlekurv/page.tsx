@@ -15,7 +15,7 @@ import { ShoppingBag, Trash2, Plus, Minus, ArrowRight, Calendar, AlertCircle, Ch
 export default function CartPage() {
   const router = useRouter()
   const { lang: language, t } = useLanguage()
-  const { items, addToCart, removeFromCart, updateQuantity, getTotalEggs, getTotalPrice, canCheckout } = useCart()
+  const { items, addToCart, removeFromCart, updateQuantity, getTotalEggs, getTotalPrice, canCheckout, clearCart } = useCart()
   const { startOrder } = useOrder()
 
   const totalEggs = getTotalEggs()
@@ -23,11 +23,6 @@ export default function CartPage() {
   const checkoutStatus = canCheckout()
   const [weekOptions, setWeekOptions] = useState<Array<{ breed: any; week: any }>>([])
   const [showMixModal, setShowMixModal] = useState(false)
-  const [modalQuantities, setModalQuantities] = useState<Record<string, number>>({})
-
-  const activeWeek = items[0]?.week || null
-  const getOptionKey = (breedId: string, weekId: string) => `${breedId}:${weekId}`
-
   useEffect(() => {
     if (items.length === 0) {
       setWeekOptions([])
@@ -54,36 +49,25 @@ export default function CartPage() {
   }, [items])
 
   useEffect(() => {
-    if (!showMixModal) return
+    if (checkoutStatus.allowed) return
+    if (!['mixed_min_12', 'single_breed_min_10', 'ayam_cemani_min_6'].includes(checkoutStatus.reason || '')) return
+    if (items.length === 0) return
+    setShowMixModal(true)
+  }, [checkoutStatus.allowed, checkoutStatus.reason, items.length])
 
-    const initialQuantities: Record<string, number> = {}
-    weekOptions.forEach((option) => {
-      const existing = items.find((item) => item.breed.id === option.breed.id && item.week.id === option.week.id)
-      const key = getOptionKey(option.breed.id, option.week.id)
-      initialQuantities[key] = Math.min(existing?.quantity || 0, option.week.eggsAvailable)
-    })
-    setModalQuantities(initialQuantities)
-  }, [showMixModal, weekOptions, items])
+  const handleAdjustBreed = (breedId: string, weekId: string, delta: number, maxAvailable: number, breed: any, week: any) => {
+    const existing = items.find((item) => item.breed.id === breedId && item.week.id === weekId)
+    const currentQty = existing?.quantity || 0
+    const nextQty = Math.max(0, Math.min(currentQty + delta, maxAvailable))
 
-  const adjustModalQuantity = (breedId: string, weekId: string, delta: number, maxAvailable: number) => {
-    const key = getOptionKey(breedId, weekId)
-    setModalQuantities((current) => {
-      const existingQty = current[key] || 0
-      const nextQty = Math.max(0, Math.min(existingQty + delta, maxAvailable))
-      return { ...current, [key]: nextQty }
-    })
-  }
-
-  const applyModalSelection = (option: { breed: any; week: any }) => {
-    const key = getOptionKey(option.breed.id, option.week.id)
-    const selectedQuantity = modalQuantities[key] || 0
-
-    if (selectedQuantity <= 0) {
-      removeFromCart(option.breed.id, option.week.id)
+    if (nextQty === 0) {
+      if (existing) {
+        removeFromCart(breedId, weekId)
+      }
       return
     }
 
-    addToCart(option.breed, option.week, selectedQuantity)
+    addToCart(breed, week, nextQty)
   }
 
   const handleCheckout = () => {
@@ -107,7 +91,12 @@ export default function CartPage() {
           type: 'warning',
           message: t.eggs.cart.ayamMinimum.replace('{count}', String(totalEggs)),
         }
-      case 'mixed_min_10':
+      case 'single_breed_min_10':
+        return {
+          type: 'warning',
+          message: t.eggs.cart.singleBreedMinimum.replace('{count}', String(totalEggs)),
+        }
+      case 'mixed_min_12':
         return {
           type: 'warning',
           message: t.eggs.cart.mixedMinimum.replace('{count}', String(totalEggs)),
@@ -125,7 +114,7 @@ export default function CartPage() {
   const minimumMessage = getMinimumMessage()
 
   return (
-    <div className="min-h-screen overflow-x-hidden py-12">
+    <div className="min-h-screen py-12">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-5xl">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -172,7 +161,7 @@ export default function CartPage() {
                     transition={{ duration: 0.5, delay: index * 0.1 }}
                   >
                     <GlassCard accentBorder={item.breed.accentColor} className="p-6">
-                      <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+                      <div className="flex items-start gap-4">
                         <div
                           className="w-14 h-14 rounded-full flex items-center justify-center text-xl font-normal text-white flex-shrink-0"
                           style={{ backgroundColor: item.breed.accentColor }}
@@ -191,11 +180,11 @@ export default function CartPage() {
                             </span>
                           </div>
 
-                          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                          <div className="flex items-center justify-between">
                             <div className="flex items-center gap-3">
                               <button
                                 onClick={() => updateQuantity(item.breed.id, item.week.id, item.quantity - 1)}
-                                disabled={item.quantity <= 1}
+                                disabled={item.quantity <= item.breed.minOrderQuantity}
                                 className="w-8 h-8 rounded-full glass-light flex items-center justify-center hover:glass-strong disabled:opacity-40 disabled:cursor-not-allowed transition-all focus-ring"
                               >
                                 <Minus className="w-4 h-4" />
@@ -212,7 +201,7 @@ export default function CartPage() {
                               </button>
                             </div>
 
-                            <div className="sm:text-right">
+                            <div className="text-right">
                               <div className="text-xl font-normal text-neutral-900">
                                 {formatPrice(item.quantity * item.breed.pricePerEgg, language)}
                               </div>
@@ -223,12 +212,18 @@ export default function CartPage() {
 
                             <button
                               onClick={() => removeFromCart(item.breed.id, item.week.id)}
-                              className="self-start rounded p-2 text-neutral-400 transition-colors hover:bg-error-50 hover:text-error-700 focus-ring sm:ml-4 sm:self-auto"
+                              className="ml-4 p-2 rounded text-neutral-400 hover:text-error-700 hover:bg-error-50 transition-colors focus-ring"
                             >
                               <Trash2 className="w-5 h-5" />
                             </button>
                           </div>
 
+                          {item.quantity < item.breed.minOrderQuantity && (
+                            <div className="mt-3 text-xs text-warning-700 bg-warning-50 px-3 py-2 rounded-sm">
+                              {t.eggs.cart.minimum}: {item.breed.minOrderQuantity}{' '}
+                              {t.eggs.common.eggs}
+                            </div>
+                          )}
                         </div>
                       </div>
                     </GlassCard>
@@ -280,6 +275,16 @@ export default function CartPage() {
                       </div>
                     )}
 
+                    {minimumMessage && (
+                      <button
+                        type="button"
+                        onClick={() => setShowMixModal(true)}
+                        className="btn-secondary w-full justify-center"
+                      >
+                        {t.eggs.cart.addMoreEggs}
+                      </button>
+                    )}
+
                     {checkoutStatus.allowed && (
                       <div className="p-4 rounded-xl bg-success-50 text-success-700 flex items-start gap-3">
                         <CheckCircle2 className="w-5 h-5 flex-shrink-0 mt-0.5" />
@@ -307,14 +312,9 @@ export default function CartPage() {
                       <ArrowRight className="w-5 h-5" />
                     </button>
 
-                    <button
-                      type="button"
-                      onClick={() => setShowMixModal(true)}
-                      disabled={!activeWeek || weekOptions.length === 0}
-                      className="btn-secondary w-full justify-center disabled:opacity-40 disabled:cursor-not-allowed"
-                    >
+                    <Link href="/rugeegg/raser" className="btn-secondary w-full justify-center">
                       {t.eggs.cart.continueShopping}
-                    </button>
+                    </Link>
                   </GlassCard>
                 </div>
               </div>
@@ -331,11 +331,9 @@ export default function CartPage() {
                 <h2 className="text-lg font-normal text-neutral-900">
                   {t.eggs.cart.mixedOrderTitle}
                 </h2>
-                {activeWeek && (
-                  <p className="text-sm text-neutral-600">
-                    {t.eggs.cart.weekLabel} {activeWeek.weekNumber} • {formatDate(activeWeek.deliveryMonday, language)}
-                  </p>
-                )}
+                <p className="text-sm text-neutral-600">
+                  {t.eggs.cart.mixedOrderDescription}
+                </p>
               </div>
               <button
                 type="button"
@@ -349,16 +347,16 @@ export default function CartPage() {
 
             <div className="space-y-3">
               {weekOptions.map((option) => {
-                const key = getOptionKey(option.breed.id, option.week.id)
-                const qty = modalQuantities[key] || 0
+                const existing = items.find((item) => item.breed.id === option.breed.id)
+                const qty = existing?.quantity || 0
                 const maxAvailable = option.week.eggsAvailable
 
                 return (
                   <div
                     key={option.week.id}
-                    className="flex flex-col gap-3 rounded-xl border border-neutral-200 bg-white/70 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+                    className="flex items-center justify-between rounded-xl border border-neutral-200 bg-white/70 px-4 py-3"
                   >
-                    <div className="min-w-0 flex-1">
+                    <div>
                       <p className="text-sm font-medium text-neutral-900">{option.breed.name}</p>
                       <p className="text-xs text-neutral-500">
                         {t.eggs.cart.leftThisWeek}: {maxAvailable}
@@ -367,7 +365,7 @@ export default function CartPage() {
                     <div className="flex items-center gap-3">
                       <button
                         type="button"
-                        onClick={() => adjustModalQuantity(option.breed.id, option.week.id, -1, maxAvailable)}
+                        onClick={() => handleAdjustBreed(option.breed.id, option.week.id, -1, maxAvailable, option.breed, option.week)}
                         disabled={qty <= 0}
                         className="w-8 h-8 rounded-full border border-neutral-200 flex items-center justify-center disabled:opacity-40"
                       >
@@ -376,23 +374,22 @@ export default function CartPage() {
                       <span className="w-8 text-center text-sm text-neutral-900">{qty}</span>
                       <button
                         type="button"
-                        onClick={() => adjustModalQuantity(option.breed.id, option.week.id, 1, maxAvailable)}
+                        onClick={() => handleAdjustBreed(option.breed.id, option.week.id, 1, maxAvailable, option.breed, option.week)}
                         disabled={qty >= maxAvailable}
                         className="w-8 h-8 rounded-full border border-neutral-200 flex items-center justify-center disabled:opacity-40"
                       >
                         <Plus className="w-4 h-4" />
                       </button>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => applyModalSelection(option)}
-                      className="btn-primary w-full justify-center whitespace-nowrap sm:w-auto"
-                    >
-                      {t.eggs.common.addEggs}
-                    </button>
                   </div>
                 )
               })}
+            </div>
+
+            <div className="mt-6 flex flex-col sm:flex-row gap-3">
+              <button type="button" onClick={() => setShowMixModal(false)} className="btn-primary w-full">
+                {t.eggs.cart.done}
+              </button>
             </div>
           </GlassCard>
         </div>
@@ -400,5 +397,4 @@ export default function CartPage() {
     </div>
   )
 }
-
 

@@ -95,16 +95,16 @@ export default function EggPaymentPage() {
   }
 
   return (
-    <div className="min-h-screen overflow-x-hidden py-12">
+    <div className="min-h-screen py-12">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-4xl space-y-8">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex items-center justify-between">
           <div>
             <h1 className="text-4xl font-normal text-neutral-900 mb-2">{copy.title}</h1>
             <p className="text-neutral-600">
               {currentDraft.isFullPayment ? copy.subtitleFullPayment : copy.subtitleDeposit}
             </p>
           </div>
-          <Link href="/rugeegg/bestill/levering" className="self-start text-sm text-neutral-600 hover:text-neutral-900">
+          <Link href="/rugeegg/bestill/levering" className="text-sm text-neutral-600 hover:text-neutral-900">
             {t.eggs.common.backToShipment}
           </Link>
         </div>
@@ -129,7 +129,7 @@ export default function EggPaymentPage() {
                 </div>
               </div>
 
-              <div className="flex flex-col gap-2 border-t border-neutral-200 pt-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center justify-between border-t border-neutral-200 pt-4">
                 <span className="text-sm text-neutral-600">
                   {currentDraft.isFullPayment ? copy.dueNow : copy.depositDue}
                 </span>
@@ -157,17 +157,17 @@ export default function EggPaymentPage() {
               <GlassCard className="p-6 space-y-5">
                 <h2 className="text-lg font-normal text-neutral-900">{copy.orderTitle}</h2>
                 <div className="space-y-2 text-sm text-neutral-600">
-                  <div className="flex flex-wrap justify-between gap-2">
+                  <div className="flex justify-between">
                     <span>{t.eggs.common.totalEggs}</span>
                     <span className="font-normal text-neutral-900">{totalEggs}</span>
                   </div>
-                  <div className="flex flex-wrap justify-between gap-2">
+                  <div className="flex justify-between">
                     <span>{t.eggs.common.week}</span>
                     <span className="font-normal text-neutral-900">
                       {currentDraft.deliveryWeek.weekNumber}
                     </span>
                   </div>
-                  <div className="flex flex-wrap justify-between gap-2">
+                  <div className="flex justify-between">
                     <span>{t.eggs.common.shipment}</span>
                     <span className="font-normal text-neutral-900">
                       {formatDate(currentDraft.deliveryWeek.deliveryMonday, language)}
@@ -176,25 +176,21 @@ export default function EggPaymentPage() {
                 </div>
 
                 <div className="border-t border-neutral-200 pt-4 space-y-2 text-sm">
-                  <div className="flex flex-wrap justify-between gap-2 text-neutral-600">
+                  <div className="flex justify-between text-neutral-600">
                     <span>{t.eggs.common.subtotal}</span>
                     <span className="font-normal text-neutral-900">
                       {formatPrice(currentDraft.subtotal, language)}
                     </span>
                   </div>
-                  <div className="flex flex-wrap justify-between gap-2 text-neutral-600">
+                  <div className="flex justify-between text-neutral-600">
                     <span>{copy.packingAndShipment}</span>
                     <span className="font-normal text-neutral-900">
                       {formatPrice(currentDraft.deliveryFee, language)}
                     </span>
                   </div>
-                  <div className="flex flex-wrap justify-between gap-2 text-base text-neutral-900">
+                  <div className="flex justify-between text-neutral-900 text-base">
                     <span>{t.eggs.common.total}</span>
                     <span className="font-normal">{formatPrice(currentDraft.totalAmount, language)}</span>
-                  </div>
-                  <div className="flex flex-wrap justify-between gap-2 pt-1 text-sm font-medium text-blue-700">
-                    <span>{copy.dueNowSummary}</span>
-                    <span>{formatPrice(currentDraft.depositAmount, language)}</span>
                   </div>
                 </div>
 

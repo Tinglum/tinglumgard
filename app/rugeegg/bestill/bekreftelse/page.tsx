@@ -39,7 +39,6 @@ export default function EggConfirmationPage() {
   const [order, setOrder] = useState<EggOrder | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [paymentStatus, setPaymentStatus] = useState<EggPaymentStatus>('pending')
-  const [showCompletedState, setShowCompletedState] = useState(false)
   const [pollCount, setPollCount] = useState(0)
   const confirmation = t.eggs.confirmation
   const orderNotFoundError = t.eggs.errors.orderNotFound
@@ -106,26 +105,6 @@ export default function EggConfirmationPage() {
     return () => clearInterval(interval)
   }, [orderId, paymentStatus, pollCount])
 
-  const rawPaymentStatus = paymentStatus === 'completed' ? 'completed' : paymentStatus === 'failed' ? 'failed' : 'pending'
-
-  useEffect(() => {
-    if (rawPaymentStatus !== 'completed') {
-      setShowCompletedState(false)
-      return
-    }
-
-    setShowCompletedState(false)
-    const timeoutId = setTimeout(() => setShowCompletedState(true), 2000)
-    return () => clearTimeout(timeoutId)
-  }, [rawPaymentStatus])
-
-  const displayPaymentStatus =
-    rawPaymentStatus === 'completed' && showCompletedState
-      ? 'completed'
-      : rawPaymentStatus === 'failed'
-        ? 'failed'
-        : 'pending'
-
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -149,34 +128,26 @@ export default function EggConfirmationPage() {
   }
 
   const statusTitle =
-    displayPaymentStatus === 'completed'
+    paymentStatus === 'completed'
       ? confirmation.titleCompleted
-      : displayPaymentStatus === 'failed'
+      : paymentStatus === 'failed'
         ? confirmation.titleFailed
         : confirmation.titlePending
 
   const statusLead =
-    displayPaymentStatus === 'completed'
+    paymentStatus === 'completed'
       ? confirmation.leadCompleted
-      : displayPaymentStatus === 'failed'
+      : paymentStatus === 'failed'
         ? confirmation.leadFailed
         : confirmation.leadPending
 
-  const StatusIcon = displayPaymentStatus === 'completed' ? CheckCircle2 : displayPaymentStatus === 'failed' ? XCircle : Clock3
+  const StatusIcon = paymentStatus === 'completed' ? CheckCircle2 : paymentStatus === 'failed' ? XCircle : Clock3
 
   return (
     <div className="min-h-screen py-12">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-3xl space-y-8">
         <div className="text-center space-y-3">
-          <div
-            className={
-              displayPaymentStatus === 'completed'
-                ? 'mx-auto w-14 h-14 rounded-full bg-green-50 text-green-600 border border-green-300 flex items-center justify-center'
-                : displayPaymentStatus === 'failed'
-                  ? 'mx-auto w-14 h-14 rounded-full bg-red-50 text-red-600 border border-red-300 flex items-center justify-center'
-                  : 'mx-auto w-14 h-14 rounded-full bg-amber-50 text-amber-600 border border-amber-300 flex items-center justify-center'
-            }
-          >
+          <div className="mx-auto w-14 h-14 rounded-full bg-neutral-50 text-neutral-900 border border-neutral-200 flex items-center justify-center">
             <StatusIcon className="w-7 h-7" />
           </div>
           <h1 className="text-4xl font-normal text-neutral-900">{statusTitle}</h1>
@@ -220,9 +191,9 @@ export default function EggConfirmationPage() {
           </div>
         </GlassCard>
 
-        {displayPaymentStatus !== 'completed' && (
+        {paymentStatus !== 'completed' && (
           <GlassCard className="p-5 text-sm text-neutral-700">
-            {displayPaymentStatus === 'failed' ? confirmation.failedHelp : confirmation.pendingHelp}
+            {paymentStatus === 'failed' ? confirmation.failedHelp : confirmation.pendingHelp}
           </GlassCard>
         )}
 
@@ -230,9 +201,9 @@ export default function EggConfirmationPage() {
           <Link href="/rugeegg/raser" className="btn-secondary w-full sm:w-auto justify-center">
             {t.eggs.common.backToBreeds}
           </Link>
-          <a href="/min-side" className="btn-primary w-full sm:w-auto justify-center">
+          <Link href="/rugeegg/mine-bestillinger" className="btn-primary w-full sm:w-auto justify-center">
             {confirmation.goToMyOrders}
-          </a>
+          </Link>
         </div>
       </div>
     </div>

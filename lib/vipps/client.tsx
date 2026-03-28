@@ -126,17 +126,10 @@ export default function CheckoutPage() {
         const orderId = data.orderId;
 
         try {
-          const paymentHeaders: HeadersInit = {
-            'Content-Type': 'application/json',
-          };
-          if (data.orderAccessToken) {
-            paymentHeaders['x-order-access-token'] = data.orderAccessToken;
-          }
-
           // Create deposit payment session with Vipps
           const paymentResponse = await fetch(`/api/orders/${orderId}/deposit`, {
             method: 'POST',
-            headers: paymentHeaders,
+            headers: { 'Content-Type': 'application/json' },
           });
 
           const paymentData = await paymentResponse.json();
@@ -185,22 +178,20 @@ export default function CheckoutPage() {
     }
   }
 
-  const depositPercent = pricing?.deposit_percentage || 50;
-  const getPresetTotal = (size: '8' | '12') => {
-    return pricing?.preset_prices?.[size] ?? 0;
-  };
-
-  const prices = {
-    '8': {
-      total: getPresetTotal('8'),
-      deposit: Math.floor(getPresetTotal('8') * depositPercent / 100),
-      remainder: Math.floor(getPresetTotal('8') * (100 - depositPercent) / 100),
+  const prices = pricing ? {
+    '8': { 
+      deposit: Math.floor(pricing.box_8kg_price * (pricing.deposit_percentage || 50) / 100),
+      remainder: Math.floor(pricing.box_8kg_price * (100 - (pricing.deposit_percentage || 50)) / 100),
+      total: pricing.box_8kg_price 
     },
-    '12': {
-      total: getPresetTotal('12'),
-      deposit: Math.floor(getPresetTotal('12') * depositPercent / 100),
-      remainder: Math.floor(getPresetTotal('12') * (100 - depositPercent) / 100),
+    '12': { 
+      deposit: Math.floor(pricing.box_12kg_price * (pricing.deposit_percentage || 50) / 100),
+      remainder: Math.floor(pricing.box_12kg_price * (100 - (pricing.deposit_percentage || 50)) / 100),
+      total: pricing.box_12kg_price 
     },
+  } : {
+    '8': { deposit: 0, remainder: 0, total: 0 },
+    '12': { deposit: 0, remainder: 0, total: 0 },
   };
 
   const addonPrices = {
