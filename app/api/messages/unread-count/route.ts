@@ -70,6 +70,7 @@ export async function GET(request: NextRequest) {
         customer_phone,
         customer_email,
         status,
+        admin_initiated,
         last_viewed_at,
         message_replies (
           id,
@@ -109,7 +110,13 @@ export async function GET(request: NextRequest) {
           ? replies.filter((r: any) => r && !r.is_internal && !r.is_from_customer)
           : [];
         
-        // Case 1: Message has admin replies
+        // Case 1: Admin initiated a new thread the customer has not viewed yet.
+        if (message.admin_initiated && !message.last_viewed_at) {
+          unreadCount++;
+          continue;
+        }
+
+        // Case 2: Message has admin replies
         if (publicReplies.length > 0) {
           // If never viewed, or has replies after last viewed time, it's unread
           if (!message.last_viewed_at) {

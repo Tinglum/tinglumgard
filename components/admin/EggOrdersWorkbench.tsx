@@ -230,6 +230,52 @@ function SortableHeader({ label, sortKey, currentSort, onSort, ascKey, descKey }
   )
 }
 
+function DetailStat({
+  label,
+  value,
+  tone = 'neutral',
+}: {
+  label: string
+  value: string
+  tone?: 'neutral' | 'warning' | 'positive'
+}) {
+  return (
+    <div
+      className={cn(
+        'rounded-xl border px-3 py-3',
+        tone === 'warning' && 'border-amber-200 bg-amber-50',
+        tone === 'positive' && 'border-emerald-200 bg-emerald-50',
+        tone === 'neutral' && 'border-neutral-200 bg-neutral-50'
+      )}
+    >
+      <p className="text-[11px] uppercase tracking-wide text-neutral-500">{label}</p>
+      <p className="mt-1 text-xl font-semibold text-neutral-900">{value}</p>
+    </div>
+  )
+}
+
+function InfoBlock({
+  title,
+  rows,
+}: {
+  title: string
+  rows: Array<[string, string]>
+}) {
+  return (
+    <div className="rounded-xl border border-neutral-200 p-4">
+      <p className="text-sm font-medium text-neutral-900">{title}</p>
+      <div className="mt-3 space-y-2 text-sm">
+        {rows.map(([label, value]) => (
+          <div key={`${title}-${label}`} className="flex items-start justify-between gap-3">
+            <span className="text-neutral-500">{label}</span>
+            <span className="text-right text-neutral-900">{value}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 const EMPTY_SUMMARY: EggOrdersSummary = {
   totalOrders: 0,
   filteredOrders: 0,

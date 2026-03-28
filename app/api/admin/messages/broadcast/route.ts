@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth/session';
+import { createAdminInitiatedCustomerThread } from '@/lib/messages/admin-thread';
 import { supabaseAdmin } from '@/lib/supabase/server';
 import { getEffectiveBoxSize } from '@/lib/orders/display';
 
@@ -14,6 +15,10 @@ type CandidateRecipient = {
   email: string;
   phone?: string | null;
   name?: string | null;
+};
+
+type RecipientAssessment = CandidateRecipient & {
+  reason?: string;
 };
 
 function normalizeEmail(value: string): string {
@@ -129,13 +134,23 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const { subject, message, mode, recipients, excludedPhones, filters } = await request.json();
+    const {
+      subject,
+      message,
+      mode,
+      recipients,
+      excludedPhones,
+      filters,
+      dryRun,
+      overridePhones,
+    } = await request.json();
 
     if (!subject || !message) {
       return NextResponse.json({ error: 'Subject and message are required' }, { status: 400 });
     }
 
     const exclude = Array.isArray(excludedPhones) ? excludedPhones.map(String) : [];
+    const override = new Set(Array.isArray(overridePhones) ? overridePhones.map(String) : []);
     const recipientMode: 'all' | 'manual' | 'filters' = ['manual', 'filters'].includes(mode) ? mode : 'all';
     const parsedFilters: BroadcastFilters = filters || {};
 
@@ -155,45 +170,150 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No recipients found' }, { status: 400 });
     }
 
-    const { data: campaign, error: campaignError } = await supabaseAdmin
-      .from('email_campaigns')
-      .insert({
-        name: `Legacy broadcast ${new Date().toISOString()}`,
-        classification: 'promotional',
-        status: 'ready',
-        subject_no: String(subject),
-        subject_en: String(subject),
-        body_no: String(message),
-        body_en: String(message),
-        recipient_mode: recipientMode,
-        recipient_filter: parsedFilters,
-        total_recipients: resolved.length,
-        created_by: session.email || session.name || 'admin',
-      })
-      .select('id')
-      .single();
+    const emails = resolved.map((recipient) => normalizeEmail(recipient.email)).filter(Boolean);
+    const phones = resolved.map((recipient) => String(recipient.phone || '').trim()).filter(Boolean);
 
-    if (campaignError || !campaign) {
-      return NextResponse.json({ error: 'Failed to create campaign' }, { status: 500 });
+    const [suppressionResult, preferenceResult] = await Promise.all([
+      emails.length > 0
+        ? supabaseAdmin
+            .from('email_suppression_list')
+            .select('email, reason')
+            .in('email', emails)
+        : Promise.resolve({ data: [], error: null }),
+      phones.length > 0
+        ? supabaseAdmin
+            .from('notification_preferences')
+            .select('customer_phone, email_enabled, promotional_enabled')
+            .in('customer_phone', phones)
+        : Promise.resolve({ data: [], error: null }),
+    ]);
+
+    if (suppressionResult.error) {
+      return NextResponse.json({ error: 'Failed to inspect suppression list' }, { status: 500 });
+    }
+    if (preferenceResult.error) {
+      return NextResponse.json({ error: 'Failed to inspect notification preferences' }, { status: 500 });
     }
 
-    const rows = resolved.map((recipient) => ({
-      campaign_id: campaign.id,
-      email: recipient.email,
-      phone: recipient.phone || null,
-      name: recipient.name || null,
-      status: 'planned',
-    }));
+    const suppressionByEmail = new Map(
+      (suppressionResult.data || []).map((row) => [normalizeEmail(String(row.email || '')), String(row.reason || '')])
+    );
+    const preferencesByPhone = new Map(
+      (preferenceResult.data || []).map((row) => [String(row.customer_phone || '').trim(), row])
+    );
 
-    await supabaseAdmin.from('email_campaign_recipients').upsert(rows, {
-      onConflict: 'campaign_id,email',
-    });
+    const allowedRecipients: CandidateRecipient[] = [];
+    const optedOutRecipients: RecipientAssessment[] = [];
+    const blockedRecipients: RecipientAssessment[] = [];
+
+    for (const recipient of resolved) {
+      const email = normalizeEmail(recipient.email);
+      const phone = String(recipient.phone || '').trim();
+
+      if (!email) {
+        blockedRecipients.push({ ...recipient, reason: 'missing_email' });
+        continue;
+      }
+
+      if (!phone) {
+        blockedRecipients.push({ ...recipient, reason: 'missing_phone' });
+        continue;
+      }
+
+      const suppressionReason = suppressionByEmail.get(email);
+      if (suppressionReason === 'bounced' || suppressionReason === 'complaint') {
+        blockedRecipients.push({ ...recipient, reason: suppressionReason });
+        continue;
+      }
+
+      const preference = preferencesByPhone.get(phone);
+      const isOptedOut =
+        suppressionReason === 'manual_unsubscribe' ||
+        preference?.email_enabled === false ||
+        preference?.promotional_enabled === false;
+
+      if (isOptedOut && !override.has(phone)) {
+        optedOutRecipients.push({
+          ...recipient,
+          reason:
+            suppressionReason === 'manual_unsubscribe'
+              ? 'manual_unsubscribe'
+              : preference?.email_enabled === false
+                ? 'email_disabled'
+                : 'promotional_disabled',
+        });
+        continue;
+      }
+
+      allowedRecipients.push(recipient);
+    }
+
+    if (dryRun === true) {
+      return NextResponse.json({
+        totalResolved: resolved.length,
+        sendableCount: allowedRecipients.length,
+        optedOutCount: optedOutRecipients.length,
+        blockedCount: blockedRecipients.length,
+        sendableRecipients: allowedRecipients,
+        optedOutRecipients,
+        blockedRecipients,
+      });
+    }
+
+    if (allowedRecipients.length === 0 && optedOutRecipients.length > 0) {
+      return NextResponse.json(
+        {
+          error: 'Some recipients are opted out and require review',
+          needsReview: true,
+          optedOutRecipients,
+          blockedRecipients,
+          totalResolved: resolved.length,
+          sendableCount: 0,
+        },
+        { status: 409 }
+      );
+    }
+
+    const adminName = String(session.name || session.email || 'Tinglum Gard');
+    const results = await Promise.allSettled(
+      allowedRecipients.map((recipient) =>
+        createAdminInitiatedCustomerThread({
+          customerName: recipient.name || null,
+          customerEmail: recipient.email,
+          customerPhone: String(recipient.phone || ''),
+          subject: String(subject),
+          message: String(message),
+          adminName,
+          sourcePath: '/api/admin/messages/broadcast',
+          metadata: {
+            recipient_mode: recipientMode,
+            recipient_filter: parsedFilters,
+            opted_out_override: override.has(String(recipient.phone || '').trim()),
+          },
+        })
+      )
+    );
+
+    const sent = results.filter((result) => result.status === 'fulfilled').length;
+    const failed = results
+      .map((result, index) => ({ result, recipient: allowedRecipients[index] }))
+      .filter((entry) => entry.result.status === 'rejected')
+      .map((entry) => ({
+        ...entry.recipient,
+        reason: entry.result.status === 'rejected' && entry.result.reason instanceof Error
+          ? entry.result.reason.message
+          : 'send_failed',
+      }));
 
     return NextResponse.json({
-      count: rows.length,
-      campaignId: campaign.id,
-      requiresApproval: false,
-      queuedByCron: true,
+      totalResolved: resolved.length,
+      sentCount: sent,
+      failedCount: failed.length,
+      optedOutCount: optedOutRecipients.length,
+      blockedCount: blockedRecipients.length,
+      optedOutRecipients,
+      blockedRecipients,
+      failedRecipients: failed,
     });
   } catch (error) {
     console.error('admin messages broadcast compatibility route failed', error);

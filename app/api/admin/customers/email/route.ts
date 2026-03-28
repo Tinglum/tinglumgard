@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth/session';
+import { createAdminInitiatedCustomerThread } from '@/lib/messages/admin-thread';
 import { supabaseAdmin } from '@/lib/supabase/server';
 import { dispatchEmail } from '@/lib/email/dispatch';
 import { htmlToPlainText, renderManagedTemplate } from '@/lib/email/render';
@@ -549,6 +550,66 @@ export async function POST(request: NextRequest) {
       id: result.id || null,
       skipped: Boolean(result.skipped),
       skipReason: result.skipReason || null,
+    });
+  }
+
+  if (action === 'send_direct') {
+    const email = normalizeEmail(body?.email);
+    const phone = normalizePhone(body?.phone);
+    const subject = String(body?.subject || '').trim();
+    const message = String(body?.message || '').trim();
+    const customerId = String(body?.customerId || '').trim();
+    const customerName = String(body?.customerName || '').trim();
+
+    if (!email) {
+      return NextResponse.json({ error: 'Recipient email is required' }, { status: 400 });
+    }
+    if (!phone) {
+      return NextResponse.json({ error: 'Recipient phone is required' }, { status: 400 });
+    }
+    if (!subject) {
+      return NextResponse.json({ error: 'Subject is required' }, { status: 400 });
+    }
+    if (!message) {
+      return NextResponse.json({ error: 'Message is required' }, { status: 400 });
+    }
+
+    const adminName = String(admin.session?.email || admin.session?.name || 'Tinglum Gard');
+    const { emailResult } = await createAdminInitiatedCustomerThread({
+      customerName,
+      customerEmail: email,
+      customerPhone: phone,
+      subject,
+      message,
+      adminName,
+      sourcePath: '/api/admin/customers/email?action=send_direct',
+      metadata: {
+        manual_message: true,
+        customer_id: customerId || null,
+        customer_name: customerName || null,
+        sent_by_admin: adminName,
+        sent_at: new Date().toISOString(),
+      },
+    });
+
+    if (!emailResult.success) {
+      return NextResponse.json({ error: emailResult.error || 'Failed to send direct message' }, { status: 500 });
+    }
+
+    if (emailResult.skipped) {
+      return NextResponse.json(
+        {
+          error: emailResult.skipReason ? `Direct message skipped: ${emailResult.skipReason}` : 'Direct message was skipped',
+        },
+        { status: 409 }
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      mode: emailResult.mode,
+      queueId: emailResult.queueId || null,
+      id: emailResult.id || null,
     });
   }
 

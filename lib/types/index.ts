@@ -97,6 +97,8 @@ export interface CustomerMessage {
   customer_phone: string;
   customer_name?: string | null;
   customer_email?: string | null;
+  admin_initiated?: boolean;
+  admin_sender?: string | null;
   subject: string;
   message: string;
   message_type: 'support' | 'inquiry' | 'complaint' | 'feedback' | 'referral_question';

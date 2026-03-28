@@ -638,6 +638,13 @@ export function MessagingPanel({ className, variant = 'light' }: MessagingPanelP
               key={msg.id}
               className={cn('rounded-lg p-4 border', statusColors[msg.status as keyof typeof statusColors])}
             >
+              {(() => {
+                const originalSender = msg.admin_initiated
+                  ? msg.admin_sender || copy.fromFarm
+                  : copy.fromYou;
+
+                return (
+              <>
               <div className="flex items-start justify-between mb-2">
                 <div className="flex items-center gap-2">
                   {statusIcons[msg.status as keyof typeof statusIcons]}
@@ -653,6 +660,7 @@ export function MessagingPanel({ className, variant = 'light' }: MessagingPanelP
                 </span>
               </div>
 
+              <p className="text-xs font-semibold text-gray-500 mb-1">{originalSender}</p>
               <p className="text-gray-700 text-sm mb-3">{msg.message}</p>
 
               {msg.message_replies && msg.message_replies.length > 0 && (
@@ -742,6 +750,9 @@ export function MessagingPanel({ className, variant = 'light' }: MessagingPanelP
               >
                 {copy.statuses[msg.status as keyof typeof copy.statuses]}
               </span>
+              </>
+                );
+              })()}
             </div>
           ))
         )}
