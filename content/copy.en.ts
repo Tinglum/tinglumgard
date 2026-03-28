@@ -40,6 +40,7 @@
     week: "week",
     year: "year",
     currency: "NOK",
+    defaultBoxName: "Standard box",
     backTo: "Back to",
     languageCodeNo: "NO",
     languageCodeEn: "EN",
@@ -1327,6 +1328,7 @@
     step3Body: "The pigs live on the farm through {year} and are slaughtered locally in December.",
     step4Title: "Remainder payment and delivery",
     step4Body: "The remainder is paid at delivery in December {year}.",
+    shareMessage: "Order Woolly Pig from Tinglum Gard and get 20% off the deposit with my friend discount code: {code}",
     myOrders: "See my orders",
   },
 

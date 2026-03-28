@@ -40,6 +40,7 @@
     week: "uke",
     year: "år",
     currency: "kr",
+    defaultBoxName: "Standard kasse",
     backTo: "Tilbake til",
     languageCodeNo: "NO",
     languageCodeEn: "EN",
@@ -1328,6 +1329,7 @@
     step3Body: "Grisene lever pa garden gjennom {year} og blir slaktet lokalt i desember.",
     step4Title: "Betaling av rest og levering",
     step4Body: "Restbelopet betales ved levering i desember {year}.",
+    shareMessage: "Bestill ullgris fra Tinglum Gard og fa 20% rabatt pa forskuddet med min vennerabattkode: {code}",
     myOrders: "Se mine ordrer",
   },
 
