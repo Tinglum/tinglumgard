@@ -7,6 +7,10 @@ interface User {
   name: string;
   email: string;
   phoneNumber: string;
+  isAdmin?: boolean;
+  role?: string | null;
+  isImpersonating?: boolean;
+  impersonatorName?: string | null;
 }
 
 interface AuthContextType {

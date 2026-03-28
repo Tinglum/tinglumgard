@@ -9,6 +9,7 @@ import { getHeroStyles, getBannerStyles, getInventoryStyles } from "@/lib/theme-
 import { useIsMobile } from "@/hooks/useMediaQuery";
 import { MobileHero } from "@/components/MobileHero";
 import { MobileProductTiles } from "@/components/MobileProductTiles";
+import type { MangalitsaPreset } from "@/components/MobileProductTiles";
 import { MobileTimeline } from "@/components/MobileTimeline";
 
 interface InventoryData {
@@ -273,6 +274,7 @@ export default function Page() {
   const [inventory, setInventory] = useState<InventoryData | null>(null);
   const [loading, setLoading] = useState(true);
   const [pricing, setPricing] = useState<any>(null);
+  const [mobilePresets, setMobilePresets] = useState<MangalitsaPreset[] | null>(null);
   const [scrollY, setScrollY] = useState(0);
 
   // Parallax scroll effect
@@ -315,6 +317,24 @@ export default function Page() {
       }
     }
     fetchPricing();
+  }, []);
+
+  useEffect(() => {
+    async function fetchMobilePresets() {
+      try {
+        const res = await fetch('/api/mangalitsa/presets');
+        if (!res.ok) {
+          setMobilePresets([]);
+          return;
+        }
+        const data = await res.json();
+        setMobilePresets(Array.isArray(data?.presets) ? data.presets : []);
+      } catch (error) {
+        console.error('Failed to fetch mobile presets:', error);
+        setMobilePresets([]);
+      }
+    }
+    fetchMobilePresets();
   }, []);
 
   const boxesLeft = inventory?.boxesRemaining ?? 0;
@@ -393,7 +413,7 @@ export default function Page() {
 
         <MobileHero isSoldOut={isSoldOut} minPrice={minPrice} minDeposit={minDeposit} />
 
-        <MobileProductTiles pricing={pricing} />
+        <MobileProductTiles presets={mobilePresets} />
 
         <section className="px-5 py-10">
           <div className="mx-auto max-w-md rounded-[28px] border border-[#E4DED5] bg-white p-6 shadow-[0_20px_45px_rgba(30,27,22,0.12)]">

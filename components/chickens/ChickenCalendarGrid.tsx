@@ -95,14 +95,7 @@ export function ChickenCalendarGrid({ calendar, onSelectWeek, selectedWeekKey }:
   const calendarCopy = chickens.calendar
   const commonCopy = chickens.common
   const locale = lang === 'en' ? 'en-GB' : 'nb-NO'
-  const interactionTitle = lang === 'en'
-    ? 'Choose a week to continue'
-    : 'Velg en uke for å fortsette'
-  const interactionHint = lang === 'en'
-    ? 'Pick a week card below, then choose hatch options in the next step.'
-    : 'Klikk et ukekort under, og velg deretter kull i neste steg.'
-  const actionChooseWeek = lang === 'en' ? 'Choose this week' : 'Velg denne uken'
-  const actionSelectedWeek = lang === 'en' ? 'Selected week' : 'Valgt uke'
+
 
   const monthBuckets = useMemo<MonthBucket[]>(() => {
     const weeks = [...calendar]
@@ -165,8 +158,8 @@ export function ChickenCalendarGrid({ calendar, onSelectWeek, selectedWeekKey }:
   return (
     <div className="space-y-4">
       <div className="rounded-xl border border-neutral-200 bg-white px-4 py-3">
-        <p className="text-sm font-medium text-neutral-900">{interactionTitle}</p>
-        <p className="mt-1 text-xs text-neutral-600">{interactionHint}</p>
+        <p className="text-sm font-medium text-neutral-900">{calendarCopy.interactionTitle}</p>
+        <p className="mt-1 text-xs text-neutral-600">{calendarCopy.interactionHint}</p>
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
@@ -301,7 +294,7 @@ export function ChickenCalendarGrid({ calendar, onSelectWeek, selectedWeekKey }:
 
                 {!isDisabled && (
                   <div className="mt-3 border-t border-neutral-200 pt-2 text-xs font-medium text-neutral-800">
-                    {isSelected ? actionSelectedWeek : actionChooseWeek}
+                    {isSelected ? calendarCopy.actionSelectedWeek : calendarCopy.actionChooseWeek}
                   </div>
                 )}
               </button>
