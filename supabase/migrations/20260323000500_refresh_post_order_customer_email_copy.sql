@@ -467,8 +467,8 @@ SELECT refresh_email_template(
   <strong>Hva skjer nå?</strong>
   <ol style="margin:10px 0 0 20px;padding:0;">
     <li>Følg sporingen hos Posten.</li>
-    <li>Når pakken kommer frem, pakk ut og sjekk eggene rolig og forsiktig.</li>
-    <li>La eggene hvile i romtemperatur i minst 12 timer, gjerne 12-24 timer etter transport, før du legger dem i rugemaskinen.</li>
+    <li>Når pakken kommer frem, sjekk innholdet rolig og forsiktig.</li>
+    <li>La eggene hvile og temperere før du legger dem i rugemaskinen.</li>
   </ol>
 </div>
 <p><a href="{{order_url}}">Åpne Min side</a></p>
@@ -486,8 +486,8 @@ $egg_ship_no$,
   <strong>What happens next?</strong>
   <ol style="margin:10px 0 0 20px;padding:0;">
     <li>Track the parcel with Posten.</li>
-    <li>Carefully unpack and inspect the eggs when the parcel arrives.</li>
-    <li>Let the eggs rest at room temperature for at least 12 hours, preferably 12-24 hours after transport, before setting them in the incubator.</li>
+    <li>Check the contents carefully when the parcel arrives.</li>
+    <li>Let the eggs rest and warm up gently before putting them in the incubator.</li>
   </ol>
 </div>
 <p><a href="{{order_url}}">Open My Page</a></p>
@@ -515,7 +515,7 @@ SELECT refresh_email_template(
   <ol style="margin:10px 0 0 20px;padding:0;">
     <li>Følg med på sporingen.</li>
     <li>Gjør rugemaskinen klar.</li>
-    <li>La eggene hvile i romtemperatur i minst 12 timer, gjerne 12-24 timer etter transport, før oppstart.</li>
+    <li>La eggene hvile og temperere før oppstart.</li>
   </ol>
 </div>
 <p>Du finner alltid bestillingen på Min side når du logger inn med Vipps.</p>
@@ -534,7 +534,7 @@ $egg_way_no$,
   <ol style="margin:10px 0 0 20px;padding:0;">
     <li>Keep an eye on the tracking.</li>
     <li>Prepare the incubator.</li>
-    <li>Let the eggs rest at room temperature for at least 12 hours, preferably 12-24 hours after transport, before setting them.</li>
+    <li>Let the eggs rest and warm up gently before setting them.</li>
   </ol>
 </div>
 <p>You will always find the order on My Page when you log in with Vipps.</p>

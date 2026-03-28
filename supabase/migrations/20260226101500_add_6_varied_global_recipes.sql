@@ -20,7 +20,7 @@ INSERT INTO recipes (
   'En kraftig steak-opplevelse med urtefrisk chimichurri og sotet sitron. Helt annen profil enn klassisk norsk husmann.',
   'A bold steak experience with herb-forward chimichurri and charred lemon. A completely different profile from classic Nordic comfort food.',
   '[
-    {"amount":"1,2 kg","item":"tomahawk av ullgris"},a
+    {"amount":"1,2 kg","item":"tomahawk av ullgris"},
     {"amount":"1 ss","item":"noytral olje"},
     {"amount":"","item":"salt og sort pepper"},
     {"amount":"1 bunt","item":"bladpersille, finhakket"},

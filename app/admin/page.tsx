@@ -1,107 +1,70 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useEffect, useState } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useToast } from '@/hooks/use-toast';
 import {
   LayoutDashboard,
   ShoppingCart,
   Users,
-  BarChart3,
-  Package,
+  Egg,
   Settings,
-  Search,
-  Filter,
-  Download,
-  Mail,
   Lock,
-  Eye,
-  Trash2,
-  CheckSquare,
-  RefreshCw,
-  Activity,
   MessageSquare,
-  Warehouse,
-  Calendar,
-  Tag
+  Beef,
+  Bird,
+  Package,
+  ListChecks,
 } from 'lucide-react';
-import { DashboardMetrics } from '@/components/admin/DashboardMetrics';
-import { EggMetrics } from '@/components/admin/EggMetrics';
-import { OrderDetailModal } from '@/components/admin/OrderDetailModal';
+import { ActionDashboard } from '@/components/admin/ActionDashboard';
+import { PigOrdersTable } from '@/components/admin/PigOrdersTable';
 import { CustomerDatabase } from '@/components/admin/CustomerDatabase';
 import { SystemHealth } from '@/components/admin/SystemHealth';
-import { EmailControlCenter as CommunicationCenter } from '@/components/admin/EmailControlCenter';
-import { CommunicationHistory } from '@/components/admin/CommunicationHistory';
 import { InventoryManagement } from '@/components/admin/InventoryManagement';
+import { AdminMessagingPanel } from '@/components/admin/AdminMessagingPanel';
+import { EmailControlCenter } from '@/components/admin/EmailControlCenter';
+import { ConfigurationManagement } from '@/components/admin/ConfigurationManagement';
+import { DeliveryCalendar } from '@/components/admin/DeliveryCalendar';
+import { RebateCodesManager } from '@/components/admin/RebateCodesManager';
+import { MangalitsaBoxManager } from '@/components/admin/MangalitsaBoxManager';
+import { MangalitsaExtrasManager } from '@/components/admin/MangalitsaExtrasManager';
+import { MangalitsaCutsManager } from '@/components/admin/MangalitsaCutsManager';
+import { EggOrdersWorkbench } from '@/components/admin/EggOrdersWorkbench';
 import { EggInventoryManagement } from '@/components/admin/EggInventoryManagement';
 import { BreedManagement } from '@/components/admin/BreedManagement';
 import { EggAnalytics } from '@/components/admin/EggAnalytics';
-import { EggOrdersWorkbench } from '@/components/admin/EggOrdersWorkbench';
-import { AdminMessagingPanel } from '@/components/admin/AdminMessagingPanel';
-import { ConfigurationManagement } from '@/components/admin/ConfigurationManagement';
-import { DeliveryCalendar } from '@/components/admin/DeliveryCalendar';
-import { MangalitsaBoxManager as BoxConfiguration } from '@/components/admin/MangalitsaBoxManager';
-import { RebateCodesManager } from '@/components/admin/RebateCodesManager';
-import { MangalitsaExtrasManager as ExtrasCatalogManager } from '@/components/admin/MangalitsaExtrasManager';
-import { NotificationSettings } from '@/components/admin/NotificationSettings';
+import { RecipeManager } from '@/components/admin/RecipeManager';
+import { ChickenBreedManager } from '@/components/admin/ChickenBreedManager';
+import { ChickenHatchManager } from '@/components/admin/ChickenHatchManager';
+import { ChickenOrdersManager } from '@/components/admin/ChickenOrdersManager';
+import { UnifiedEggChickenOrdersManager } from '@/components/admin/UnifiedEggChickenOrdersManager';
+import { EggWishlistManager } from '@/components/admin/EggWishlistManager';
+import { EggOpsDailyCollection } from '@/components/eggops/EggOpsDailyCollection';
 
-type TabType = 'dashboard' | 'orders' | 'customers' | 'analytics' | 'production' | 'communication' | 'messages' | 'health' | 'inventory' | 'breeds' | 'boxes' | 'rebates' | 'extras' | 'settings' | 'notifications';
+type TabType = 'dashboard' | 'orders' | 'products' | 'customers' | 'settings';
 
-interface Order {
-  id: string;
-  order_number: string;
-  product_type: 'pig_box' | 'eggs';
-  customer_name: string;
-  customer_email: string;
-  customer_phone: string | null;
-  shipping_address?: string | null;
-  shipping_postal_code?: string | null;
-  shipping_city?: string | null;
-  shipping_country?: string | null;
+// Orders sub-tabs
+type OrdersSubTab = 'pig' | 'unified' | 'egg' | 'wishlist' | 'chicken' | 'calendar';
 
-  // Pig-specific fields (optional)
-  box_size?: number;
-  fresh_delivery?: boolean;
-  ribbe_choice?: string;
-  extra_products?: any[];
+// Products L1 sub-tabs
+type ProductsL1 = 'mangalitsa' | 'eggs' | 'chickens';
 
-  // Egg-specific fields (optional)
-  breed_id?: string;
-  breed_name?: string;
-  quantity?: number;
-  week_number?: number;
-  year?: number;
-  delivery_monday?: string;
-  price_per_egg?: number;
+// Products L2 sub-tabs
+type MangalitsaL2 = 'boxes' | 'extras' | 'cuts' | 'recipes' | 'inventory';
+type EggsL2 = 'daily' | 'inventory' | 'breeds' | 'analytics';
+type ChickensL2 = 'hatches' | 'breeds';
 
-  // Common fields
-  status: string;
-  delivery_type: string;
-  notes: string;
-  admin_notes: string;
-  total_amount: number;
-  deposit_amount: number;
-  remainder_amount: number;
-  created_at: string;
-  locked_at: string | null;
-  marked_delivered_at: string | null;
-  at_risk: boolean;
-  payments: any[];
-}
+// Customers sub-tabs
+type CustomersSubTab = 'database' | 'messages' | 'email';
+
+// Settings sub-tabs
+type SettingsSubTab = 'config' | 'rebates' | 'health';
 
 export default function AdminPage() {
   const { t, lang } = useLanguage();
-  const searchParams = useSearchParams();
   const copy = t.adminPage;
-  const locale = lang === 'en' ? 'en-US' : 'nb-NO';
-  const currency = t.common.currency;
-  const { toast } = useToast();
 
   // Authentication
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -109,517 +72,184 @@ export default function AdminPage() {
   const [passwordError, setPasswordError] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  // UI State
+  // Tab state
   const [activeTab, setActiveTab] = useState<TabType>('dashboard');
-  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
-  const [showOrderDetail, setShowOrderDetail] = useState(false);
-  const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set());
+  const [ordersSubTab, setOrdersSubTab] = useState<OrdersSubTab>('unified');
+  const [productsL1, setProductsL1] = useState<ProductsL1>('mangalitsa');
+  const [mangalitsaL2, setMangalitsaL2] = useState<MangalitsaL2>('boxes');
+  const [eggsL2, setEggsL2] = useState<EggsL2>('daily');
+  const [chickensL2, setChickensL2] = useState<ChickensL2>('hatches');
+  const [customersSubTab, setCustomersSubTab] = useState<CustomersSubTab>('database');
+  const [settingsSubTab, setSettingsSubTab] = useState<SettingsSubTab>('config');
+  const [deepLinkParsed, setDeepLinkParsed] = useState(false);
+  const [deepLinkPigOrderId, setDeepLinkPigOrderId] = useState<string | null>(null);
+  const [deepLinkEggOrderId, setDeepLinkEggOrderId] = useState<string | null>(null);
+  const [deepLinkChickenOrderId, setDeepLinkChickenOrderId] = useState<string | null>(null);
 
-  // Product Mode Filter
-  const [productMode, setProductMode] = useState<'pigs' | 'eggs' | 'combined'>('combined');
-
-  // Data
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [dashboardMetrics, setDashboardMetrics] = useState<any>(null);
-  const [analytics, setAnalytics] = useState<any>(null);
-  const [messageStats, setMessageStats] = useState({ total: 0, open: 0, in_progress: 0, resolved: 0 });
-
-  // Filters
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [deliveryFilter, setDeliveryFilter] = useState('all');
-
-  // Loading states
-  const [ordersLoading, setOrdersLoading] = useState(false);
-  const [dashboardLoading, setDashboardLoading] = useState(false);
-  const [bulkActionLoading, setBulkActionLoading] = useState(false);
-
-  const messagePrefill = useMemo(() => ({
-    phone: searchParams.get('recipientPhone'),
-    email: searchParams.get('recipientEmail'),
-    name: searchParams.get('recipientName'),
-    subject: searchParams.get('subject'),
-    message: searchParams.get('message'),
-  }), [searchParams]);
+  // Message badge
+  const [unresolvedCount, setUnresolvedCount] = useState(0);
 
   useEffect(() => {
     setLoading(false);
   }, []);
 
   useEffect(() => {
-    const requestedTab = searchParams.get('tab');
-    if (!requestedTab) return;
-    const validTabs = new Set<TabType>([
-      'dashboard',
-      'orders',
-      'customers',
-      'analytics',
-      'production',
-      'communication',
-      'messages',
-      'health',
-      'inventory',
-      'breeds',
-      'boxes',
-      'rebates',
-      'extras',
-      'settings',
-      'notifications',
-    ]);
-    if (validTabs.has(requestedTab as TabType)) {
-      setActiveTab(requestedTab as TabType);
+    if (!isAuthenticated || deepLinkParsed || typeof window === 'undefined') return;
+
+    const params = new URLSearchParams(window.location.search);
+    const rawTab = (params.get('tab') || '').trim().toLowerCase();
+    const orderId = (params.get('orderId') || '').trim();
+    const hasParams = rawTab.length > 0 || orderId.length > 0;
+
+    if (!hasParams) {
+      setDeepLinkParsed(true);
+      return;
     }
-  }, [searchParams]);
+
+    const resolveFromOrderId = (): OrdersSubTab => {
+      if (/^CHICK/i.test(orderId)) return 'chicken';
+      if (/^EGG/i.test(orderId)) return 'egg';
+      return 'pig';
+    };
+
+    let targetOrdersSubTab: OrdersSubTab | null = null;
+
+    if (rawTab === 'pig' || rawTab === 'orders' || rawTab === 'pig-orders') {
+      targetOrdersSubTab = 'pig';
+    } else if (rawTab === 'egg' || rawTab === 'egg-orders') {
+      targetOrdersSubTab = 'egg';
+    } else if (rawTab === 'chicken' || rawTab === 'chicken-orders') {
+      targetOrdersSubTab = 'chicken';
+    } else if (rawTab === 'unified') {
+      targetOrdersSubTab = 'unified';
+    } else if (orderId) {
+      targetOrdersSubTab = resolveFromOrderId();
+    }
+
+    if (targetOrdersSubTab) {
+      setActiveTab('orders');
+      setOrdersSubTab(targetOrdersSubTab);
+
+      if (orderId) {
+        if (targetOrdersSubTab === 'pig') {
+          setDeepLinkPigOrderId(orderId);
+        } else if (targetOrdersSubTab === 'egg') {
+          setDeepLinkEggOrderId(orderId);
+        } else if (targetOrdersSubTab === 'chicken') {
+          setDeepLinkChickenOrderId(orderId);
+        }
+      }
+    }
+
+    setDeepLinkParsed(true);
+  }, [deepLinkParsed, isAuthenticated]);
+
+  // Load message stats for badge
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    async function loadMessageStats() {
+      try {
+        const response = await fetch('/api/admin/messages');
+        if (!response.ok) {
+          if (response.status === 401) setIsAuthenticated(false);
+          return;
+        }
+        const data = await response.json();
+        if (data?.stats) {
+          setUnresolvedCount(data.stats.open + data.stats.in_progress);
+        }
+      } catch {
+        // Non-critical
+      }
+    }
+
+    loadMessageStats();
+    const interval = setInterval(loadMessageStats, 30000);
+    return () => clearInterval(interval);
+  }, [isAuthenticated]);
 
   async function handlePasswordSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     try {
+      const returnTo =
+        typeof window !== 'undefined'
+          ? new URLSearchParams(window.location.search).get('returnTo')
+          : null;
       const response = await fetch('/api/admin/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password }),
+        body: JSON.stringify({ password, returnTo }),
       });
-
       if (response.ok) {
+        const data = await response.json().catch(() => ({}));
+        if (typeof window !== 'undefined' && typeof data?.redirectTo === 'string' && data.redirectTo.trim()) {
+          const target = data.redirectTo.trim();
+          if (target.startsWith('/admin')) {
+            window.history.replaceState(null, '', target);
+          } else {
+            window.location.href = target;
+            return;
+          }
+        }
         setIsAuthenticated(true);
         setPasswordError(false);
       } else {
         setPasswordError(true);
       }
-    } catch (error) {
-      console.error('Login error:', error);
+    } catch {
       setPasswordError(true);
     } finally {
       setLoading(false);
     }
   }
 
-  const loadDashboard = useCallback(async () => {
-    setDashboardLoading(true);
-    try {
-      // Fetch pig metrics
-      const pigResponse = await fetch('/api/admin/dashboard');
-      if (!pigResponse.ok) {
-        if (pigResponse.status === 403) {
-          setIsAuthenticated(false);
-          return;
-        }
-        throw new Error('Failed to load pig dashboard');
+  // Dashboard navigation handler
+  function handleDashboardNavigate(tab: string, subTab?: string) {
+    if (tab === 'orders') {
+      setActiveTab('orders');
+      if (subTab === 'pig' || subTab === 'unified' || subTab === 'egg' || subTab === 'chicken' || subTab === 'calendar') {
+        setOrdersSubTab(subTab);
       }
-      const pigData = await pigResponse.json();
-
-      // Fetch egg metrics
-      let eggData = null;
-      try {
-        const eggResponse = await fetch('/api/admin/eggs/dashboard');
-        if (eggResponse.ok) {
-          eggData = await eggResponse.json();
-        }
-      } catch (err) {
-        console.log('Egg dashboard not available yet');
+    } else if (tab === 'customers') {
+      setActiveTab('customers');
+      if (subTab === 'messages' || subTab === 'database' || subTab === 'email') {
+        setCustomersSubTab(subTab);
       }
-
-      setDashboardMetrics({
-        pigs: pigData,
-        eggs: eggData,
-      });
-    } catch (error) {
-      console.error('Failed to load dashboard:', error);
-    } finally {
-      setDashboardLoading(false);
-    }
-  }, []);
-
-  const loadOrders = useCallback(async () => {
-    setOrdersLoading(true);
-    try {
-      const params = new URLSearchParams();
-      if (searchTerm) params.append('search', searchTerm);
-      if (statusFilter !== 'all') params.append('status', statusFilter);
-
-      // Fetch pig orders
-      const pigResponse = await fetch(`/api/admin/orders?${params}`);
-      const pigData = await pigResponse.json();
-      const pigOrders = (pigData.orders || []).map((o: any) => ({
-        ...o,
-        product_type: 'pig_box' as const,
-      }));
-
-      // Fetch egg orders
-      const eggResponse = await fetch(`/api/eggs/orders`);
-      const eggData = await eggResponse.json();
-      const eggOrders = (eggData || []).map((o: any) => ({
-        ...o,
-        product_type: 'eggs' as const,
-        breed_name: o.egg_breeds?.[0]?.name ?? o.egg_breeds?.name,
-        delivery_type: o.delivery_method,
-      }));
-
-      // Combine orders
-      const allOrders = [...pigOrders, ...eggOrders];
-
-      // Sort by created_at
-      allOrders.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-
-      setOrders(allOrders);
-    } catch (error) {
-      console.error('Failed to load orders:', error);
-    } finally {
-      setOrdersLoading(false);
-    }
-  }, [searchTerm, statusFilter]);
-
-  const loadAnalytics = useCallback(async () => {
-    try {
-      const response = await fetch('/api/admin/analytics');
-      const data = await response.json();
-      setAnalytics(data);
-    } catch (error) {
-      console.error('Failed to load analytics:', error);
-    }
-  }, []);
-
-  const loadMessageStats = useCallback(async () => {
-    try {
-      const response = await fetch('/api/admin/messages');
-      if (!response.ok) {
-        if (response.status === 401) {
-          setIsAuthenticated(false);
-        }
-        return;
-      }
-      const data = await response.json();
-      if (data?.stats) {
-        setMessageStats(data.stats);
-      }
-    } catch (error) {
-      console.error('Failed to load message stats:', error);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (isAuthenticated && activeTab === 'dashboard') {
-      loadDashboard();
-    } else if (isAuthenticated && activeTab === 'orders' && productMode !== 'eggs') {
-      loadOrders();
-    } else if (isAuthenticated && activeTab === 'analytics') {
-      loadAnalytics();
-    }
-  }, [isAuthenticated, activeTab, productMode, loadDashboard, loadOrders, loadAnalytics]);
-
-  useEffect(() => {
-    if (!isAuthenticated) return;
-
-    loadMessageStats();
-    const interval = setInterval(() => {
-      loadMessageStats();
-    }, 30000);
-
-    return () => clearInterval(interval);
-  }, [isAuthenticated, loadMessageStats]);
-
-  async function handleStatusChange(orderId: string, newStatus: string) {
-    try {
-      const response = await fetch(`/api/admin/orders/${orderId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: newStatus }),
-      });
-
-      if (response.ok) {
-        await loadOrders();
-        if (activeTab === 'dashboard') await loadDashboard();
-        setShowOrderDetail(false);
-      } else {
-        toast({
-          title: copy.toastErrorTitle,
-          description: copy.updateStatusError,
-          variant: 'destructive'
-        });
-      }
-    } catch (error) {
-      console.error('Error updating status:', error);
-      toast({
-        title: copy.toastErrorTitle,
-        description: copy.updateStatusError,
-        variant: 'destructive'
-      });
+    } else if (tab === 'products') {
+      setActiveTab('products');
+    } else if (tab === 'settings') {
+      setActiveTab('settings');
     }
   }
 
-  async function handleSaveNotes(orderId: string, notes: string) {
-    try {
-      const response = await fetch(`/api/admin/orders/${orderId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ adminNotes: notes }),
-      });
+  // Navigate to a specific order from dashboard
+  function handleNavigateToOrder(orderId: string) {
+    const resolveSubTab = (): OrdersSubTab => {
+      if (/^CHICK/i.test(orderId)) return 'chicken';
+      if (/^EGG/i.test(orderId)) return 'egg';
+      return 'pig';
+    };
 
-      if (response.ok) {
-        await loadOrders();
-        // Update the selected order
-        const updatedOrder = orders.find((o) => o.id === orderId);
-        if (updatedOrder) {
-          setSelectedOrder({ ...updatedOrder, admin_notes: notes });
-        }
-      } else {
-        toast({
-          title: copy.toastErrorTitle,
-          description: copy.saveNotesError,
-          variant: 'destructive'
-        });
-      }
-    } catch (error) {
-      console.error('Error saving notes:', error);
-      toast({
-        title: copy.toastErrorTitle,
-        description: copy.saveNotesError,
-        variant: 'destructive'
-      });
+    const subTab = resolveSubTab();
+    setActiveTab('orders');
+    setOrdersSubTab(subTab);
+
+    if (subTab === 'pig') {
+      setDeepLinkPigOrderId(orderId);
+    } else if (subTab === 'egg') {
+      setDeepLinkEggOrderId(orderId);
+    } else if (subTab === 'chicken') {
+      setDeepLinkChickenOrderId(orderId);
     }
+
+    // Update URL for bookmarkability
+    const params = new URLSearchParams(window.location.search);
+    params.set('tab', 'orders');
+    params.set('orderId', orderId);
+    window.history.pushState({}, '', `/admin?${params.toString()}`);
   }
-
-  function toggleOrderSelection(orderId: string) {
-    const newSelection = new Set(selectedOrders);
-    if (newSelection.has(orderId)) {
-      newSelection.delete(orderId);
-    } else {
-      newSelection.add(orderId);
-    }
-    setSelectedOrders(newSelection);
-  }
-
-  function selectAllOrders() {
-    if (selectedOrders.size === filteredOrders.length) {
-      setSelectedOrders(new Set());
-    } else {
-      setSelectedOrders(new Set(filteredOrders.map((o) => o.id)));
-    }
-  }
-
-  async function handleBulkStatusUpdate(newStatus: string) {
-    if (selectedOrders.size === 0) {
-      toast({
-        title: copy.noOrdersSelectedTitle,
-        description: copy.bulkNoSelectionUpdate,
-        variant: 'destructive'
-      });
-      return;
-    }
-
-    if (!window.confirm(
-      copy.confirmBulkUpdate
-        .replace('{status}', newStatus)
-        .replace('{count}', String(selectedOrders.size))
-    )) {
-      return;
-    }
-
-    setBulkActionLoading(true);
-    try {
-      const response = await fetch('/api/admin/bulk', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'update_status',
-          orderIds: Array.from(selectedOrders),
-          data: { status: newStatus },
-        }),
-      });
-
-      if (response.ok) {
-        await loadOrders();
-        setSelectedOrders(new Set());
-        toast({
-          title: copy.bulkUpdateSuccessTitle,
-          description: copy.bulkUpdateSuccessDescription.replace('{count}', String(selectedOrders.size))
-        });
-      } else {
-        toast({
-          title: copy.toastErrorTitle,
-          description: copy.bulkUpdateError,
-          variant: 'destructive'
-        });
-      }
-    } catch (error) {
-      console.error('Bulk update error:', error);
-      toast({
-        title: copy.toastErrorTitle,
-        description: copy.bulkUpdateError,
-        variant: 'destructive'
-      });
-    } finally {
-      setBulkActionLoading(false);
-    }
-  }
-
-  async function handleBulkLock() {
-    if (selectedOrders.size === 0) {
-      toast({
-        title: copy.noOrdersSelectedTitle,
-        description: copy.bulkNoSelectionLock,
-        variant: 'destructive'
-      });
-      return;
-    }
-
-    if (!window.confirm(copy.confirmBulkLock.replace('{count}', String(selectedOrders.size)))) {
-      return;
-    }
-
-    setBulkActionLoading(true);
-    try {
-      const response = await fetch('/api/admin/bulk', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'lock_orders',
-          orderIds: Array.from(selectedOrders),
-        }),
-      });
-
-      if (response.ok) {
-        await loadOrders();
-        setSelectedOrders(new Set());
-        toast({
-          title: copy.bulkLockSuccessTitle,
-          description: copy.bulkLockSuccessDescription.replace('{count}', String(selectedOrders.size))
-        });
-      } else {
-        toast({
-          title: copy.toastErrorTitle,
-          description: copy.bulkLockError,
-          variant: 'destructive'
-        });
-      }
-    } catch (error) {
-      console.error('Bulk lock error:', error);
-      toast({
-        title: copy.toastErrorTitle,
-        description: copy.bulkLockError,
-        variant: 'destructive'
-      });
-    } finally {
-      setBulkActionLoading(false);
-    }
-  }
-
-  async function handleExportCSV() {
-    try {
-      const params = new URLSearchParams();
-      params.append('format', 'csv');
-      if (statusFilter !== 'all') params.append('status', statusFilter);
-
-      const response = await fetch(`/api/admin/orders?${params}`);
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `orders-${new Date().toISOString().split('T')[0]}.csv`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-    } catch (error) {
-      console.error('Export error:', error);
-      toast({
-        title: copy.toastErrorTitle,
-        description: copy.exportCsvError,
-        variant: 'destructive'
-      });
-    }
-  }
-
-  async function handleExportProduction() {
-    if (selectedOrders.size === 0) {
-      toast({
-        title: copy.noOrdersSelectedTitle,
-        description: copy.noOrdersSelectedDescription,
-        variant: 'destructive'
-      });
-      return;
-    }
-
-    try {
-      const response = await fetch('/api/admin/bulk', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'export_production',
-          orderIds: Array.from(selectedOrders),
-        }),
-      });
-
-      const data = await response.json();
-
-      // Create downloadable JSON
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `production-${new Date().toISOString().split('T')[0]}.json`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-    } catch (error) {
-      console.error('Export error:', error);
-      toast({
-        title: copy.toastErrorTitle,
-        description: copy.exportProductionError,
-        variant: 'destructive'
-      });
-    }
-  }
-
-  const filteredOrders = orders.filter((order) => {
-    // Filter by product mode
-    const matchesProductMode =
-      productMode === 'combined' ||
-      (productMode === 'pigs' && order.product_type === 'pig_box') ||
-      (productMode === 'eggs' && order.product_type === 'eggs');
-
-    const matchesSearch =
-      order.order_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.customer_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.customer_email.toLowerCase().includes(searchTerm.toLowerCase());
-
-    const matchesStatus = statusFilter === 'all' || order.status === statusFilter;
-    const matchesDelivery = deliveryFilter === 'all' || order.delivery_type === deliveryFilter;
-
-    return matchesProductMode && matchesSearch && matchesStatus && matchesDelivery;
-  });
-
-  const tabs: Array<{ id: TabType; label: string; icon: any }> = [
-    { id: 'dashboard', label: copy.tabs.dashboard, icon: LayoutDashboard },
-    { id: 'orders', label: copy.tabs.orders, icon: ShoppingCart },
-    { id: 'customers', label: copy.tabs.customers, icon: Users },
-    { id: 'analytics', label: copy.tabs.analytics, icon: BarChart3 },
-    { id: 'communication', label: copy.tabs.communication, icon: MessageSquare },
-    { id: 'messages', label: copy.tabs.messages, icon: MessageSquare },
-    { id: 'production', label: copy.tabs.production, icon: Calendar },
-    { id: 'inventory', label: copy.tabs.inventory, icon: Warehouse },
-    { id: 'breeds', label: copy.tabs.breeds, icon: Tag },
-    { id: 'boxes', label: copy.tabs.boxes, icon: Package },
-    { id: 'rebates', label: copy.tabs.rebates, icon: Tag },
-    { id: 'extras', label: copy.tabs.extras, icon: ShoppingCart },
-    { id: 'notifications', label: copy.tabs.notifications, icon: Mail },
-    { id: 'health', label: copy.tabs.health, icon: Activity },
-    { id: 'settings', label: copy.tabs.settings, icon: Settings },
-  ];
-
-  const statusOptions = [
-    { value: 'all', label: copy.statusOptions.all },
-    { value: 'pending', label: copy.statusOptions.pending },
-    { value: 'draft', label: copy.statusOptions.draft },
-    { value: 'deposit_paid', label: copy.statusOptions.depositPaid },
-    { value: 'paid', label: copy.statusOptions.paid },
-    { value: 'ready_for_pickup', label: copy.statusOptions.readyForPickup },
-    { value: 'completed', label: copy.statusOptions.completed },
-    { value: 'cancelled', label: copy.statusOptions.cancelled },
-    { value: 'forfeited', label: copy.statusOptions.forfeited },
-  ];
 
   if (loading) {
     return (
@@ -667,17 +297,29 @@ export default function AdminPage() {
     );
   }
 
+  const tabs: Array<{ id: TabType; label: string; icon: any; badge?: number }> = [
+    { id: 'dashboard', label: lang === 'no' ? 'Oversikt' : 'Overview', icon: LayoutDashboard },
+    { id: 'orders', label: lang === 'no' ? 'Bestillinger' : 'Orders', icon: ShoppingCart },
+    { id: 'products', label: lang === 'no' ? 'Produkter' : 'Products', icon: Package },
+    { id: 'customers', label: lang === 'no' ? 'Kunder' : 'Customers', icon: Users, badge: unresolvedCount || undefined },
+    { id: 'settings', label: lang === 'no' ? 'Innstillinger' : 'Settings', icon: Settings },
+  ];
+
   return (
     <div className="min-h-screen bg-white">
       {/* Header */}
       <div className="bg-white border-b border-neutral-200 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.08)]">
         <div className="max-w-[1800px] mx-auto px-6 py-6">
           <div className="flex items-center justify-between">
-            <h1 className="text-3xl font-light tracking-tight text-neutral-900">{copy.headerTitle}</h1>
+            <h1 className="text-3xl font-light tracking-tight text-neutral-900">Tinglumgård Admin</h1>
             <button
               onClick={async () => {
                 await fetch('/api/admin/logout', { method: 'POST' });
                 setIsAuthenticated(false);
+                setDeepLinkParsed(false);
+                setDeepLinkPigOrderId(null);
+                setDeepLinkEggOrderId(null);
+                setDeepLinkChickenOrderId(null);
               }}
               className="px-6 py-3 border-2 border-neutral-200 text-neutral-900 rounded-xl text-sm font-light hover:bg-neutral-50 hover:border-neutral-300 hover:-translate-y-0.5 hover:shadow-[0_10px_30px_-10px_rgba(0,0,0,0.1)] transition-all duration-300"
             >
@@ -687,61 +329,16 @@ export default function AdminPage() {
         </div>
       </div>
 
-      {/* Product Mode Toggle */}
-      <div className="bg-neutral-50 border-b border-neutral-200">
-        <div className="max-w-[1800px] mx-auto px-6 py-5">
-          <div className="flex items-center gap-4">
-            <span className="text-sm font-light text-neutral-600">{copy.productViewLabel}</span>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setProductMode('pigs')}
-                className={cn(
-                  'px-5 py-2.5 rounded-xl text-sm font-light transition-all duration-300',
-                  productMode === 'pigs'
-                    ? 'bg-neutral-900 text-white shadow-[0_10px_30px_-10px_rgba(0,0,0,0.3)]'
-                    : 'bg-white text-neutral-700 hover:bg-neutral-50 border border-neutral-200 hover:border-neutral-300 hover:-translate-y-0.5'
-                )}
-              >
-                ðŸ· {copy.productViewPigs}
-              </button>
-              <button
-                onClick={() => setProductMode('eggs')}
-                className={cn(
-                  'px-5 py-2.5 rounded-xl text-sm font-light transition-all duration-300',
-                  productMode === 'eggs'
-                    ? 'bg-neutral-900 text-white shadow-[0_10px_30px_-10px_rgba(0,0,0,0.3)]'
-                    : 'bg-white text-neutral-700 hover:bg-neutral-50 border border-neutral-200 hover:border-neutral-300 hover:-translate-y-0.5'
-                )}
-              >
-                ðŸ¥š {copy.productViewEggs}
-              </button>
-              <button
-                onClick={() => setProductMode('combined')}
-                className={cn(
-                  'px-5 py-2.5 rounded-xl text-sm font-light transition-all duration-300',
-                  productMode === 'combined'
-                    ? 'bg-neutral-900 text-white shadow-[0_10px_30px_-10px_rgba(0,0,0,0.3)]'
-                    : 'bg-white text-neutral-700 hover:bg-neutral-50 border border-neutral-200 hover:border-neutral-300 hover:-translate-y-0.5'
-                )}
-              >
-                ðŸ“Š {copy.productViewCombined}
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Tabs */}
+      {/* Top-level tabs (5 tabs) */}
       <div className="bg-white border-b border-neutral-200">
         <div className="max-w-[1800px] mx-auto px-6">
-          <div className="flex gap-2 overflow-x-auto">
+          <div className="flex gap-2">
             {tabs.map((tab) => {
               const Icon = tab.icon;
-              const unresolvedCount = messageStats.open + messageStats.in_progress;
               return (
                 <button
                   key={tab.id}
-                  onClick={() => setActiveTab(tab.id as TabType)}
+                  onClick={() => setActiveTab(tab.id)}
                   className={cn(
                     'flex items-center gap-3 px-6 py-4 font-light transition-all duration-300 whitespace-nowrap relative',
                     activeTab === tab.id
@@ -751,9 +348,9 @@ export default function AdminPage() {
                 >
                   <Icon className="w-5 h-5" />
                   {tab.label}
-                  {tab.id === 'messages' && unresolvedCount > 0 && (
+                  {tab.badge && tab.badge > 0 && (
                     <span className="ml-1 inline-flex items-center justify-center text-xs font-light bg-red-600 text-white rounded-full px-2 py-0.5 shadow-[0_5px_15px_-5px_rgba(220,38,38,0.4)]">
-                      {unresolvedCount}
+                      {tab.badge}
                     </span>
                   )}
                   {activeTab === tab.id && (
@@ -768,492 +365,222 @@ export default function AdminPage() {
 
       {/* Content */}
       <div className="max-w-[1800px] mx-auto px-6 py-10">
-        {/* DASHBOARD TAB */}
+
+        {/* ═══════════ TAB 1: DASHBOARD ═══════════ */}
         {activeTab === 'dashboard' && (
-          <div className="space-y-8">
-            <div className="flex items-center justify-between">
-              <h2 className="text-4xl font-light tracking-tight text-neutral-900">{copy.dashboardTitle}</h2>
-              <button
-                onClick={loadDashboard}
-                className="px-6 py-3 border-2 border-neutral-200 text-neutral-900 rounded-xl text-sm font-light flex items-center gap-2 hover:bg-neutral-50 hover:border-neutral-300 hover:-translate-y-0.5 hover:shadow-[0_10px_30px_-10px_rgba(0,0,0,0.1)] transition-all duration-300"
-              >
-                <RefreshCw className="w-4 h-4" />
-                {copy.refreshButton}
-              </button>
-            </div>
-
-            <div className="bg-white border border-neutral-200 rounded-xl p-8 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.08)] transition-all duration-500 hover:shadow-[0_30px_80px_-20px_rgba(0,0,0,0.12)]">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-2xl font-light text-neutral-900">{copy.pendingMessagesTitle}</h3>
-                  <p className="text-sm font-light text-neutral-600 mt-1">{copy.pendingMessagesSubtitle}</p>
-                </div>
-                <div className="flex items-center gap-4">
-                  <div className="text-5xl font-light text-neutral-900 tabular-nums">
-                    {messageStats.open + messageStats.in_progress}
-                  </div>
-                  <Button onClick={() => setActiveTab('messages')} variant="outline">
-                    {copy.goToMessages}
-                  </Button>
-                </div>
-              </div>
-            </div>
-
-            {dashboardLoading ? (
-              <div className="flex items-center justify-center py-12">
-                <div className="w-12 h-12 border-4 border-neutral-200 border-t-neutral-600 rounded-full animate-spin" />
-              </div>
-            ) : dashboardMetrics ? (
-              <div className="space-y-8">
-                {(productMode === 'pigs' || productMode === 'combined') && dashboardMetrics.pigs && (
-                  <div>
-                    <DashboardMetrics metrics={dashboardMetrics.pigs} />
-                  </div>
-                )}
-
-                {(productMode === 'eggs' || productMode === 'combined') && (
-                  <div>
-                    <EggMetrics metrics={dashboardMetrics.eggs} />
-                  </div>
-                )}
-              </div>
-            ) : (
-              <Card className="p-12 text-center">
-                <p className="text-gray-600">{copy.noData}</p>
-              </Card>
-            )}
-          </div>
+          <ActionDashboard onNavigate={handleDashboardNavigate} onNavigateToOrder={handleNavigateToOrder} />
         )}
 
-        {/* ORDERS TAB */}
-        {activeTab === 'orders' && productMode === 'eggs' && (
-          <EggOrdersWorkbench />
-        )}
-
-        {activeTab === 'orders' && productMode !== 'eggs' && (
+        {/* ═══════════ TAB 2: ORDERS ═══════════ */}
+        {activeTab === 'orders' && (
           <div className="space-y-6">
-            {/* Filters & Search */}
-            <div className="flex flex-col lg:flex-row gap-4">
-              <div className="flex-1">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                  <Input
-                    type="text"
-                    placeholder={copy.searchPlaceholder}
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
-              </div>
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="px-4 py-2 border border-gray-300 rounded-xl"
-              >
-                {statusOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-              <Button onClick={loadOrders} variant="outline">
-                <Filter className="w-4 h-4 mr-2" />
-                {copy.filterButton}
-              </Button>
-              <Button onClick={handleExportCSV} variant="outline">
-                <Download className="w-4 h-4 mr-2" />
-                {copy.exportCsvButton}
-              </Button>
-            </div>
+            {/* Sub-tab bar */}
+            <SubTabBar
+              tabs={[
+                { id: 'pig', label: lang === 'no' ? 'Gris' : 'Pig', icon: Beef },
+                { id: 'unified', label: lang === 'no' ? 'Rugeegg + Kylling' : 'Egg + Chicken', icon: Package },
+                { id: 'egg', label: lang === 'no' ? 'Egg' : 'Eggs', icon: Egg },
+                { id: 'wishlist', label: lang === 'no' ? 'Ønskeliste' : 'Wishlist', icon: ListChecks },
+                { id: 'chicken', label: lang === 'no' ? 'Kylling' : 'Chicken', icon: Bird },
+                { id: 'calendar', label: lang === 'no' ? 'Kalender' : 'Calendar', icon: LayoutDashboard },
+              ]}
+              active={ordersSubTab}
+              onChange={(id) => setOrdersSubTab(id as OrdersSubTab)}
+            />
 
-            {/* Bulk Actions */}
-            {selectedOrders.size > 0 && (
-              <Card className="p-4 bg-blue-50 border-blue-200">
-                <div className="flex items-center justify-between">
-                  <p className="font-medium text-blue-900">
-                    {copy.bulkSelected.replace('{count}', String(selectedOrders.size))}
-                  </p>
-                  <div className="flex gap-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handleBulkStatusUpdate('ready_for_pickup')}
-                      disabled={bulkActionLoading}
-                    >
-                      {copy.bulkMarkReady}
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={handleBulkLock}
-                      disabled={bulkActionLoading}
-                    >
-                      <Lock className="w-4 h-4 mr-1" />
-                      {copy.bulkLock}
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={handleExportProduction}
-                      disabled={bulkActionLoading}
-                    >
-                      <Download className="w-4 h-4 mr-1" />
-                      {copy.bulkProductionPlan}
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setSelectedOrders(new Set())}
-                    >
-                      {copy.bulkCancel}
-                    </Button>
-                  </div>
-                </div>
-              </Card>
+            {ordersSubTab === 'pig' && (
+              <PigOrdersTable
+                initialOrderId={deepLinkPigOrderId}
+                onInitialOrderHandled={() => setDeepLinkPigOrderId(null)}
+              />
             )}
-
-            {/* Orders Table */}
-            {ordersLoading ? (
-              <div className="flex items-center justify-center py-12">
-                <div className="w-12 h-12 border-4 border-neutral-200 border-t-neutral-600 rounded-full animate-spin" />
-              </div>
-            ) : filteredOrders.length === 0 ? (
-              <Card className="p-12 text-center">
-                <ShoppingCart className="w-16 h-16 mx-auto mb-4 text-gray-400" />
-                <p className="text-xl font-normal text-gray-900 mb-2">{copy.noOrdersTitle}</p>
-                <p className="text-gray-600">{copy.noOrdersSubtitle}</p>
-              </Card>
-            ) : (
-              <Card className="overflow-hidden">
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead className="bg-gray-50 border-b">
-                      <tr>
-                        <th className="px-4 py-3 text-left">
-                          <input
-                            type="checkbox"
-                            checked={selectedOrders.size === filteredOrders.length && filteredOrders.length > 0}
-                            onChange={selectAllOrders}
-                            className="rounded"
-                          />
-                        </th>
-                        <th className="px-4 py-3 text-left text-sm font-normal text-gray-700">{copy.table.orderNumber}</th>
-                        <th className="px-4 py-3 text-left text-sm font-normal text-gray-700">{copy.table.customer}</th>
-                        <th className="px-4 py-3 text-left text-sm font-normal text-gray-700">{copy.table.product}</th>
-                        <th className="px-4 py-3 text-left text-sm font-normal text-gray-700">{copy.table.status}</th>
-                        <th className="px-4 py-3 text-left text-sm font-normal text-gray-700">{copy.table.delivery}</th>
-                        <th className="px-4 py-3 text-left text-sm font-normal text-gray-700">{copy.table.amount}</th>
-                        <th className="px-4 py-3 text-left text-sm font-normal text-gray-700">{copy.table.date}</th>
-                        <th className="px-4 py-3 text-right text-sm font-normal text-gray-700">{copy.table.actions}</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y">
-                      {filteredOrders.map((order) => (
-                        <tr key={order.id} className="hover:bg-gray-50 transition-colors">
-                          <td className="px-4 py-3">
-                            <input
-                              type="checkbox"
-                              checked={selectedOrders.has(order.id)}
-                              onChange={() => toggleOrderSelection(order.id)}
-                              className="rounded"
-                            />
-                          </td>
-                          <td className="px-4 py-3">
-                            <div className="flex items-center gap-2">
-                              <button
-                                onClick={() => {
-                                  if (order.product_type === 'eggs') {
-                                    setProductMode('eggs');
-                                    setSearchTerm(order.order_number);
-                                    return;
-                                  }
-                                  setSelectedOrder(order);
-                                  setShowOrderDetail(true);
-                                }}
-                                className="font-medium text-blue-600 hover:text-blue-800"
-                              >
-                                {order.order_number}
-                              </button>
-                              {order.product_type === 'eggs' && (
-                                <span className="px-2 py-0.5 bg-yellow-100 text-yellow-800 text-xs rounded-full font-medium">
-                                  ðŸ¥š
-                                </span>
-                              )}
-                              {order.product_type === 'pig_box' && (
-                                <span className="px-2 py-0.5 bg-pink-100 text-pink-800 text-xs rounded-full font-medium">
-                                  ðŸ·
-                                </span>
-                              )}
-                            </div>
-                          </td>
-                          <td className="px-4 py-3">
-                            <div>
-                              <p className="font-medium text-gray-900">{order.customer_name}</p>
-                              <p className="text-sm text-gray-600">{order.customer_email}</p>
-                            </div>
-                          </td>
-                          <td className="px-4 py-3">
-                            {order.product_type === 'pig_box' && (
-                              <span className="text-gray-900">
-                                {copy.productPigBox.replace('{size}', String(order.box_size))}
-                              </span>
-                            )}
-                            {order.product_type === 'eggs' && (
-                              <div>
-                                <p className="font-medium text-gray-900">{order.breed_name}</p>
-                                <p className="text-sm text-gray-600">
-                                  {copy.productEggs.replace('{quantity}', String(order.quantity))}
-                                </p>
-                              </div>
-                            )}
-                          </td>
-                          <td className="px-4 py-3">
-                            <span className={cn(
-                              'px-2 py-1 rounded-full text-xs font-medium',
-                              order.status === 'completed' ? 'bg-neutral-100 text-neutral-900' :
-                              order.status === 'ready_for_pickup' ? 'bg-blue-100 text-blue-800' :
-                              order.status === 'paid' ? 'bg-neutral-100 text-neutral-900' :
-                              order.status === 'fully_paid' ? 'bg-neutral-100 text-neutral-900' :
-                              order.status === 'deposit_paid' ? 'bg-neutral-100 text-neutral-600' :
-                              'bg-gray-100 text-gray-800'
-                            )}>
-                              {statusOptions.find((s) => s.value === order.status)?.label || order.status}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-600">
-                            {order.product_type === 'eggs' && order.week_number && (
-                              <div>{copy.weekLabel.replace('{week}', String(order.week_number))}</div>
-                            )}
-                            <div>{order.delivery_type}</div>
-                          </td>
-                          <td className="px-4 py-3 font-medium text-gray-900">
-                            {currency} {(order.total_amount / 100).toLocaleString(locale)}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-600">
-                            {new Date(order.created_at).toLocaleDateString(locale)}
-                          </td>
-                          <td className="px-4 py-3 text-right">
-                            <div className="flex items-center justify-end gap-2">
-                              {order.product_type === 'eggs' && (
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => {
-                                    setProductMode('eggs');
-                                  }}
-                                >
-                                  <Settings className="w-4 h-4" />
-                                </Button>
-                              )}
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => {
-                                  if (order.product_type === 'eggs') {
-                                    setProductMode('eggs');
-                                    setSearchTerm(order.order_number);
-                                    return;
-                                  }
-                                  setSelectedOrder(order);
-                                  setShowOrderDetail(true);
-                                }}
-                              >
-                                <Eye className="w-4 h-4" />
-                              </Button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </Card>
+            {ordersSubTab === 'unified' && <UnifiedEggChickenOrdersManager />}
+            {ordersSubTab === 'egg' && (
+              <EggOrdersWorkbench
+                initialOrderId={deepLinkEggOrderId}
+                onInitialOrderHandled={() => setDeepLinkEggOrderId(null)}
+              />
             )}
+            {ordersSubTab === 'wishlist' && <EggWishlistManager />}
+            {ordersSubTab === 'chicken' && (
+              <ChickenOrdersManager
+                initialOrderId={deepLinkChickenOrderId}
+                onInitialOrderHandled={() => setDeepLinkChickenOrderId(null)}
+              />
+            )}
+            {ordersSubTab === 'calendar' && <DeliveryCalendar />}
           </div>
         )}
 
-        {/* ANALYTICS TAB */}
-        {activeTab === 'analytics' && (
-          <div className="space-y-8">
-            <h2 className="text-3xl font-bold text-gray-900">{copy.analyticsTitle}</h2>
-
-            {/* Pig Analytics */}
-            {(productMode === 'pigs' || productMode === 'combined') && analytics && (
-              <div>
-                <h3 className="text-xl font-bold text-gray-900 mb-4">ðŸ· {copy.pigAnalyticsTitle}</h3>
-            {analytics ? (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <Card className="p-6">
-                  <h3 className="font-normal text-lg mb-4">{copy.keyMetricsTitle}</h3>
-                  <div className="space-y-3">
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">{copy.totalOrdersLabel}</span>
-                      <span className="font-bold text-xl">{analytics.summary.total_orders}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">{copy.uniqueCustomersLabel}</span>
-                      <span className="font-bold text-xl">{analytics.summary.total_customers}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">{copy.repeatCustomersLabel}</span>
-                      <span className="font-bold text-xl">{analytics.summary.repeat_customers}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">{copy.repeatRateLabel}</span>
-                      <span className="font-bold text-xl">{analytics.customer_insights.repeat_rate.toFixed(1)}%</span>
-                    </div>
-                  </div>
-                </Card>
-
-                <Card className="p-6">
-                  <h3 className="font-normal text-lg mb-4">{copy.conversionFunnelTitle}</h3>
-                  <div className="space-y-2">
-                    {Object.entries(analytics.conversion_funnel).map(([status, count]: [string, any]) => {
-                      const percentage = (count / analytics.summary.total_orders) * 100;
-                      return (
-                        <div key={status}>
-                          <div className="flex justify-between text-sm mb-1">
-                            <span className="capitalize text-gray-700">{status.replace('_', ' ')}</span>
-                            <span className="font-normal">{count} ({percentage.toFixed(0)}%)</span>
-                          </div>
-                          <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                            <div
-                              className="h-full bg-blue-500 transition-all"
-                              style={{ width: `${percentage}%` }}
-                            />
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </Card>
-
-                {analytics.products.combinations.length > 0 && (
-                  <Card className="p-6 lg:col-span-2">
-                    <h3 className="font-normal text-lg mb-4">{copy.popularCombosTitle}</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {analytics.products.combinations.map((combo: any, index: number) => (
-                        <div key={index} className="p-4 rounded-xl bg-gray-50">
-                          <p className="font-medium text-gray-900">{combo.combo}</p>
-                          <p className="text-2xl font-bold text-blue-600">{combo.count}</p>
-                          <p className="text-sm text-gray-600">{copy.ordersLabel}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </Card>
-                )}
-              </div>
-            ) : (
-              <Card className="p-12 text-center">
-                <p className="text-gray-600">{copy.loadingAnalytics}</p>
-              </Card>
-            )}
-              </div>
-            )}
-
-            {/* Egg Analytics */}
-            {(productMode === 'eggs' || productMode === 'combined') && (
-              <div>
-                <h3 className="text-xl font-bold text-gray-900 mb-4">ðŸ¥š {copy.eggAnalyticsTitle}</h3>
-                <EggAnalytics />
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* PRODUCTION/DELIVERY CALENDAR TAB */}
-        {activeTab === 'production' && <DeliveryCalendar />}
-
-        {/* INVENTORY TAB */}
-        {activeTab === 'inventory' && (
-          <div className="space-y-8">
-            {(productMode === 'pigs' || productMode === 'combined') && (
-              <div>
-                <h3 className="text-xl font-bold text-gray-900 mb-4">ðŸ· {copy.pigInventoryTitle}</h3>
-                <InventoryManagement />
-              </div>
-            )}
-
-            {(productMode === 'eggs' || productMode === 'combined') && (
-              <div>
-                <h3 className="text-xl font-bold text-gray-900 mb-4">ðŸ¥š {copy.eggInventoryTitle}</h3>
-                <EggInventoryManagement />
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* CUSTOMERS TAB */}
-        {activeTab === 'customers' && <CustomerDatabase />}
-
-        {/* COMMUNICATION TAB */}
-        {activeTab === 'communication' && (
+        {/* ═══════════ TAB 3: PRODUCTS ═══════════ */}
+        {activeTab === 'products' && (
           <div className="space-y-6">
-            <div className="border-b">
-              <div className="flex gap-4">
-                <button
-                  onClick={() => setActiveTab('communication')}
-                  className="pb-3 px-1 border-b-2 border-[#2C1810] text-[#2C1810] font-medium"
-                >
-                  {copy.communicationSendEmail}
-                </button>
-                <button
-                  onClick={() => {
-                    const historySection = document.getElementById('comm-history');
-                    if (historySection) historySection.scrollIntoView({ behavior: 'smooth' });
-                  }}
-                  className="pb-3 px-1 border-b-2 border-transparent text-gray-600 hover:text-gray-900 font-medium"
-                >
-                  {copy.communicationHistory}
-                </button>
+            {/* L1 sub-tab bar (pills) */}
+            <div className="flex gap-2">
+              {([
+                { id: 'mangalitsa' as const, label: 'Mangalitsa', icon: Beef },
+                { id: 'eggs' as const, label: lang === 'no' ? 'Rugeegg' : 'Eggs', icon: Egg },
+                { id: 'chickens' as const, label: lang === 'no' ? 'Kyllinger' : 'Chickens', icon: Bird },
+              ]).map((item) => {
+                const Icon = item.icon;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => setProductsL1(item.id)}
+                    className={cn(
+                      'flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-light transition-all',
+                      productsL1 === item.id
+                        ? 'bg-neutral-900 text-white shadow-[0_10px_30px_-10px_rgba(0,0,0,0.3)]'
+                        : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
+                    )}
+                  >
+                    <Icon className="w-4 h-4" />
+                    {item.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Mangalitsa L2 */}
+            {productsL1 === 'mangalitsa' && (
+              <div className="space-y-6">
+                <SubTabBar
+                  tabs={[
+                    { id: 'boxes', label: lang === 'no' ? 'Bokser' : 'Boxes' },
+                    { id: 'extras', label: lang === 'no' ? 'Ekstra' : 'Extras' },
+                    { id: 'cuts', label: lang === 'no' ? 'Stykker' : 'Cuts' },
+                    { id: 'recipes', label: lang === 'no' ? 'Oppskrifter' : 'Recipes' },
+                    { id: 'inventory', label: lang === 'no' ? 'Lager' : 'Inventory' },
+                  ]}
+                  active={mangalitsaL2}
+                  onChange={(id) => setMangalitsaL2(id as MangalitsaL2)}
+                />
+                {mangalitsaL2 === 'boxes' && <MangalitsaBoxManager />}
+                {mangalitsaL2 === 'extras' && <MangalitsaExtrasManager />}
+                {mangalitsaL2 === 'cuts' && <MangalitsaCutsManager />}
+                {mangalitsaL2 === 'recipes' && <RecipeManager />}
+                {mangalitsaL2 === 'inventory' && <InventoryManagement />}
               </div>
-            </div>
-            <CommunicationCenter />
-            <div id="comm-history">
-              <CommunicationHistory />
-            </div>
+            )}
+
+            {/* Eggs L2 */}
+            {productsL1 === 'eggs' && (
+              <div className="space-y-6">
+                <SubTabBar
+                  tabs={[
+                    { id: 'daily', label: lang === 'no' ? 'Daglig innsamling' : 'Daily collection' },
+                    { id: 'inventory', label: lang === 'no' ? 'Lager' : 'Inventory' },
+                    { id: 'breeds', label: lang === 'no' ? 'Raser' : 'Breeds' },
+                    { id: 'analytics', label: lang === 'no' ? 'Analyse' : 'Analytics' },
+                  ]}
+                  active={eggsL2}
+                  onChange={(id) => setEggsL2(id as EggsL2)}
+                />
+                {eggsL2 === 'daily' && <EggOpsDailyCollection embedded />}
+                {eggsL2 === 'inventory' && <EggInventoryManagement />}
+                {eggsL2 === 'breeds' && <BreedManagement />}
+                {eggsL2 === 'analytics' && <EggAnalytics />}
+              </div>
+            )}
+
+            {/* Chickens L2 */}
+            {productsL1 === 'chickens' && (
+              <div className="space-y-6">
+                <SubTabBar
+                  tabs={[
+                    { id: 'hatches', label: lang === 'no' ? 'Kull' : 'Hatches' },
+                    { id: 'breeds', label: lang === 'no' ? 'Raser' : 'Breeds' },
+                  ]}
+                  active={chickensL2}
+                  onChange={(id) => setChickensL2(id as ChickensL2)}
+                />
+                {chickensL2 === 'hatches' && <ChickenHatchManager />}
+                {chickensL2 === 'breeds' && <ChickenBreedManager />}
+              </div>
+            )}
           </div>
         )}
 
-        {/* BREEDS TAB */}
-        {activeTab === 'breeds' && <BreedManagement />}
+        {/* ═══════════ TAB 4: CUSTOMERS ═══════════ */}
+        {activeTab === 'customers' && (
+          <div className="space-y-6">
+            <SubTabBar
+              tabs={[
+                { id: 'database', label: 'Database' },
+                { id: 'messages', label: lang === 'no' ? 'Meldinger' : 'Messages', icon: MessageSquare, badge: unresolvedCount || undefined },
+                { id: 'email', label: 'E-post', icon: undefined },
+              ]}
+              active={customersSubTab}
+              onChange={(id) => setCustomersSubTab(id as CustomersSubTab)}
+            />
 
-        {/* BOX CONFIGURATION TAB */}
-        {activeTab === 'boxes' && <BoxConfiguration />}
+            {customersSubTab === 'database' && <CustomerDatabase />}
+            {customersSubTab === 'messages' && <AdminMessagingPanel />}
+            {customersSubTab === 'email' && <EmailControlCenter />}
+          </div>
+        )}
 
-  {/* MESSAGES TAB */}
-  {activeTab === 'messages' && <AdminMessagingPanel prefill={messagePrefill} />}
+        {/* ═══════════ TAB 5: SETTINGS ═══════════ */}
+        {activeTab === 'settings' && (
+          <div className="space-y-6">
+            <SubTabBar
+              tabs={[
+                { id: 'config', label: lang === 'no' ? 'Konfigurasjon' : 'Configuration' },
+                { id: 'rebates', label: lang === 'no' ? 'Rabattkoder' : 'Rebate codes' },
+                { id: 'health', label: lang === 'no' ? 'Systemhelse' : 'System health' },
+              ]}
+              active={settingsSubTab}
+              onChange={(id) => setSettingsSubTab(id as SettingsSubTab)}
+            />
 
-        {/* SYSTEM HEALTH TAB */}
-        {activeTab === 'health' && <SystemHealth />}
-
-        {/* REBATE CODES TAB */}
-        {activeTab === 'rebates' && <RebateCodesManager />}
-
-        {/* EXTRAS TAB */}
-        {activeTab === 'extras' && <ExtrasCatalogManager />}
-
-        {/* NOTIFICATIONS TAB */}
-        {activeTab === 'notifications' && <NotificationSettings />}
-
-        {/* SETTINGS TAB */}
-        {activeTab === 'settings' && <ConfigurationManagement />}
+            {settingsSubTab === 'config' && <ConfigurationManagement />}
+            {settingsSubTab === 'rebates' && <RebateCodesManager />}
+            {settingsSubTab === 'health' && <SystemHealth />}
+          </div>
+        )}
       </div>
+    </div>
+  );
+}
 
-      {/* Order Detail Modal */}
-      {showOrderDetail && selectedOrder && (
-        <OrderDetailModal
-          order={selectedOrder}
-          isOpen={showOrderDetail}
-          onClose={() => {
-            setShowOrderDetail(false);
-            setSelectedOrder(null);
-          }}
-          onStatusChange={handleStatusChange}
-          onSaveNotes={handleSaveNotes}
-        />
-      )}
+// Reusable underline-style sub-tab bar
+function SubTabBar({
+  tabs,
+  active,
+  onChange,
+}: {
+  tabs: Array<{ id: string; label: string; icon?: any; badge?: number }>;
+  active: string;
+  onChange: (id: string) => void;
+}) {
+  return (
+    <div className="border-b border-neutral-200">
+      <div className="flex gap-1 overflow-x-auto">
+        {tabs.map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => onChange(tab.id)}
+            className={cn(
+              'px-5 py-3 text-sm font-light transition-all relative whitespace-nowrap',
+              active === tab.id
+                ? 'text-neutral-900'
+                : 'text-neutral-500 hover:text-neutral-900'
+            )}
+          >
+            <span className="flex items-center gap-2">
+              {tab.label}
+              {tab.badge && tab.badge > 0 && (
+                <span className="inline-flex items-center justify-center text-xs font-light bg-red-600 text-white rounded-full px-2 py-0.5">
+                  {tab.badge}
+                </span>
+              )}
+            </span>
+            {active === tab.id && (
+              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-neutral-900" />
+            )}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }

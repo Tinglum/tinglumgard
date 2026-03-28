@@ -33,6 +33,7 @@ export default function EggDeliveryPage() {
   const { lang: language, t } = useLanguage()
   const { currentDraft, setDeliveryMethod, setShippingDetails } = useOrder()
   const [showAddressError, setShowAddressError] = useState(false)
+  const [showMethodError, setShowMethodError] = useState(false)
   const copy = t.eggs.delivery
 
   useEffect(() => {
@@ -40,6 +41,19 @@ export default function EggDeliveryPage() {
       router.replace('/rugeegg/handlekurv')
     }
   }, [currentDraft, router])
+
+  useEffect(() => {
+    if (!currentDraft) return
+    if (currentDraft.deliveryMethod) return
+    setDeliveryMethod('posten')
+  }, [currentDraft, setDeliveryMethod])
+
+  useEffect(() => {
+    if (!currentDraft) return
+    if (currentDraft.deliveryMethod !== 'posten') return
+    if ((currentDraft.shippingCountry || '').trim()) return
+    setShippingDetails({ shippingCountry: copy.countryPlaceholder })
+  }, [currentDraft, setShippingDetails, copy.countryPlaceholder])
 
   useEffect(() => {
     if (!showAddressError || !currentDraft) return
@@ -56,6 +70,13 @@ export default function EggDeliveryPage() {
       setShowAddressError(false)
     }
   }, [showAddressError, currentDraft])
+
+  useEffect(() => {
+    if (!showMethodError) return
+    if (currentDraft?.deliveryMethod) {
+      setShowMethodError(false)
+    }
+  }, [showMethodError, currentDraft?.deliveryMethod])
 
   if (!currentDraft) {
     return (
@@ -78,6 +99,7 @@ export default function EggDeliveryPage() {
     shippingCity.trim() &&
     shippingCountry.trim()
   )
+  const showShippingValidationError = showAddressError && isPosten && !shippingComplete
   const totalEggs = currentDraft.items.reduce((sum, item) => sum + item.quantity, 0)
   const itemSummary = currentDraft.items
     .map((item) => `${item.breed.name} (${item.quantity})`)
@@ -110,7 +132,10 @@ export default function EggDeliveryPage() {
   }
 
   const handleContinue = () => {
-    if (!selectedMethod) return
+    if (!selectedMethod) {
+      setShowMethodError(true)
+      return
+    }
     if (isPosten && !shippingComplete) {
       setShowAddressError(true)
       return
@@ -119,14 +144,14 @@ export default function EggDeliveryPage() {
   }
 
   return (
-    <div className="min-h-screen py-12">
+    <div className="min-h-screen overflow-x-hidden py-12">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-5xl space-y-8">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <h1 className="text-4xl font-normal text-neutral-900 mb-2">{copy.title}</h1>
             <p className="text-neutral-600">{copy.subtitle}</p>
           </div>
-          <Link href="/rugeegg/handlekurv" className="text-sm text-neutral-600 hover:text-neutral-900">
+          <Link href="/rugeegg/handlekurv" className="self-start text-sm text-neutral-600 hover:text-neutral-900">
             {t.eggs.common.backToCart}
           </Link>
         </div>
@@ -162,9 +187,11 @@ export default function EggDeliveryPage() {
                       <Icon className="w-5 h-5" />
                     </div>
                     <div className="flex-1">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <h3 className="text-lg font-normal">{getTitleByMethod(option.id)}</h3>
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h3 className={`text-lg font-normal ${active ? 'text-white' : 'text-neutral-900'}`}>
+                            {getTitleByMethod(option.id)}
+                          </h3>
                           {isRecommended && (
                             <span
                               className={`text-[11px] px-2 py-0.5 rounded-full ${
@@ -177,11 +204,11 @@ export default function EggDeliveryPage() {
                             </span>
                           )}
                         </div>
-                        <span className="text-sm font-normal">
+                        <span className={`text-sm font-normal ${active ? 'text-white' : 'text-neutral-900'}`}>
                           {option.fee === 0 ? t.common.free : formatPrice(option.fee, language)}
                         </span>
                       </div>
-                      <p className={`text-sm ${active ? 'text-white/80' : 'text-neutral-600'}`}>
+                      <p className={`text-sm ${active ? 'text-white/85' : 'text-neutral-600'}`}>
                         {getDescriptionByMethod(option.id)}
                       </p>
                       {disabled && (
@@ -193,6 +220,10 @@ export default function EggDeliveryPage() {
               )
             })}
 
+            {showMethodError && !selectedMethod && (
+              <p className="text-xs text-red-600">{copy.selectMethodRequired}</p>
+            )}
+
             {selectedMethod === 'posten' && (
               <div className="rounded-xl border border-neutral-200 bg-white p-6 space-y-4">
                 <div>
@@ -200,13 +231,14 @@ export default function EggDeliveryPage() {
                   <p className="text-sm text-neutral-600">{copy.shippingAddressDescription}</p>
                 </div>
 
-                <div className="grid grid-cols-1 gap-4">
+                <form autoComplete="on" onSubmit={(event) => event.preventDefault()} className="grid grid-cols-1 gap-4">
                   <div>
-                    <label className="text-sm text-neutral-600">{copy.address}</label>
+                    <label htmlFor="shipping-address" className="text-sm text-neutral-600">{copy.address}</label>
                     <input
+                      id="shipping-address"
                       type="text"
                       name="shippingAddress"
-                      autoComplete="address-line1"
+                      autoComplete="shipping street-address"
                       value={shippingAddress}
                       onChange={(event) => setShippingDetails({ shippingAddress: event.target.value })}
                       className="mt-1 w-full rounded-xl border border-neutral-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900/20"
@@ -217,11 +249,14 @@ export default function EggDeliveryPage() {
 
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div>
-                      <label className="text-sm text-neutral-600">{copy.postalCode}</label>
+                      <label htmlFor="shipping-postal-code" className="text-sm text-neutral-600">{copy.postalCode}</label>
                       <input
+                        id="shipping-postal-code"
                         type="text"
                         name="shippingPostalCode"
-                        autoComplete="postal-code"
+                        autoComplete="shipping postal-code"
+                        inputMode="numeric"
+                        pattern="[0-9]{4}"
                         value={shippingPostalCode}
                         onChange={(event) => setShippingDetails({ shippingPostalCode: event.target.value })}
                         className="mt-1 w-full rounded-xl border border-neutral-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900/20"
@@ -230,11 +265,12 @@ export default function EggDeliveryPage() {
                       />
                     </div>
                     <div className="sm:col-span-2">
-                      <label className="text-sm text-neutral-600">{copy.city}</label>
+                      <label htmlFor="shipping-city" className="text-sm text-neutral-600">{copy.city}</label>
                       <input
+                        id="shipping-city"
                         type="text"
                         name="shippingCity"
-                        autoComplete="address-level2"
+                        autoComplete="shipping address-level2"
                         value={shippingCity}
                         onChange={(event) => setShippingDetails({ shippingCity: event.target.value })}
                         className="mt-1 w-full rounded-xl border border-neutral-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900/20"
@@ -245,11 +281,12 @@ export default function EggDeliveryPage() {
                   </div>
 
                   <div>
-                    <label className="text-sm text-neutral-600">{copy.country}</label>
+                    <label htmlFor="shipping-country" className="text-sm text-neutral-600">{copy.country}</label>
                     <input
+                      id="shipping-country"
                       type="text"
                       name="shippingCountry"
-                      autoComplete="country"
+                      autoComplete="shipping country-name"
                       value={shippingCountry}
                       onChange={(event) => setShippingDetails({ shippingCountry: event.target.value })}
                       className="mt-1 w-full rounded-xl border border-neutral-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900/20"
@@ -257,9 +294,9 @@ export default function EggDeliveryPage() {
                       required
                     />
                   </div>
-                </div>
+                </form>
 
-                {showAddressError && !shippingComplete && (
+                {showShippingValidationError && (
                   <p className="text-xs text-red-600">{copy.addressRequired}</p>
                 )}
               </div>
@@ -277,7 +314,7 @@ export default function EggDeliveryPage() {
 
                 <div className="space-y-3 text-sm">
                   {summaryRows.map((row) => (
-                    <div key={row.label} className="flex justify-between text-neutral-600">
+                    <div key={row.label} className="flex flex-wrap justify-between gap-2 text-neutral-600">
                       <span>{row.label}</span>
                       <span className="font-normal text-neutral-900">{row.value}</span>
                     </div>
@@ -285,19 +322,19 @@ export default function EggDeliveryPage() {
                 </div>
 
                 <div className="border-t border-neutral-200 pt-4 space-y-2 text-sm">
-                  <div className="flex justify-between text-neutral-600">
+                  <div className="flex flex-wrap justify-between gap-2 text-neutral-600">
                     <span>{t.eggs.common.subtotal}</span>
                     <span className="font-normal text-neutral-900">
                       {formatPrice(currentDraft.subtotal, language)}
                     </span>
                   </div>
-                  <div className="flex justify-between text-neutral-600">
+                  <div className="flex flex-wrap justify-between gap-2 text-neutral-600">
                     <span>{t.eggs.common.shipment}</span>
                     <span className="font-normal text-neutral-900">
                       {formatPrice(currentDraft.deliveryFee, language)}
                     </span>
                   </div>
-                  <div className="flex justify-between text-neutral-900 text-base">
+                  <div className="flex flex-wrap justify-between gap-2 text-base text-neutral-900">
                     <span>{t.eggs.common.total}</span>
                     <span className="font-normal">{formatPrice(currentDraft.totalAmount, language)}</span>
                   </div>
@@ -306,12 +343,21 @@ export default function EggDeliveryPage() {
                 <button
                   type="button"
                   onClick={handleContinue}
-                  disabled={!selectedMethod}
                   className="btn-primary w-full"
                 >
                   {t.eggs.common.continueToPayment}
                   <ArrowRight className="w-5 h-5" />
                 </button>
+                {showMethodError && !selectedMethod && (
+                  <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                    {copy.selectMethodRequired}
+                  </p>
+                )}
+                {showShippingValidationError && (
+                  <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                    {copy.addressRequired}
+                  </p>
+                )}
               </GlassCard>
             </div>
           </div>

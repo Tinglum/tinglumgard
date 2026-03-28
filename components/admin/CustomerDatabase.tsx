@@ -327,8 +327,6 @@ export function CustomerDatabase() {
   const [communicationPreview, setCommunicationPreview] = useState<CommunicationPreviewItem | null>(null);
   const [communicationPreviewLoading, setCommunicationPreviewLoading] = useState<string | null>(null);
   const [communicationPreviewMode, setCommunicationPreviewMode] = useState<'html' | 'text'>('html');
-  const [directMessageSubject, setDirectMessageSubject] = useState('');
-  const [directMessageBody, setDirectMessageBody] = useState('');
 
   const loadCustomers = useCallback(async () => {
     setLoading(true);
@@ -376,8 +374,6 @@ export function CustomerDatabase() {
       setCommunicationModalOpen(false);
       setCommunicationPreview(null);
       setCommunicationPreviewLoading(null);
-      setDirectMessageSubject('');
-      setDirectMessageBody('');
     } catch (error) {
       toast({
         title: copy.profileLoadErrorTitle,
@@ -599,41 +595,6 @@ export function CustomerDatabase() {
       });
     } finally {
       setEmailActionLoading((current) => (current === actionKey ? null : current));
-    }
-  }
-
-  async function sendDirectMessage() {
-    if (!selectedCustomer?.phone) {
-      toast({
-        title: copy.orderSaveErrorTitle,
-        description:
-          (copy as any).directMessageMissingPhone ||
-          (lang === 'en'
-            ? 'This customer needs a phone number to receive a message thread on My Page.'
-            : 'Denne kunden trenger et telefonnummer for å få en meldingstråd på Min side.'),
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    try {
-      const params = new URLSearchParams({
-        tab: 'messages',
-        recipientPhone: selectedCustomer.phone,
-      });
-
-      if (selectedCustomer.email) params.set('recipientEmail', selectedCustomer.email);
-      if (selectedCustomer.name) params.set('recipientName', selectedCustomer.name);
-      if (directMessageSubject.trim()) params.set('subject', directMessageSubject.trim());
-      if (directMessageBody.trim()) params.set('message', directMessageBody.trim());
-
-      window.location.href = `/admin?${params.toString()}`;
-    } catch (error) {
-      toast({
-        title: copy.orderSaveErrorTitle,
-        description: error instanceof Error ? error.message : copy.orderSaveErrorDescription,
-        variant: 'destructive',
-      });
     }
   }
 
@@ -1507,61 +1468,6 @@ export function CustomerDatabase() {
           <div>
             <h3 className="text-lg font-semibold">{copy.communicationTitle}</h3>
             <p className="mb-3 text-sm text-neutral-600">{copy.communicationSubtitle}</p>
-            <div className="mb-4 rounded-lg border border-neutral-200 bg-white p-4">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <p className="text-sm font-medium text-neutral-900">
-                    {(copy as any).directMessageTitle ||
-                      (lang === 'en' ? 'Prepare message for customer' : 'Forbered melding til kunde')}
-                  </p>
-                  <p className="text-xs text-neutral-600">
-                    {(copy as any).directMessageDescription ||
-                      (lang === 'en'
-                        ? 'This opens the message center with the customer already selected and your draft prefilled.'
-                        : 'Dette åpner meldingssenteret med kunden valgt og utkastet ditt ferdig utfylt.')}
-                  </p>
-                </div>
-                {selectedCustomer.email ? (
-                  <p className="text-xs text-neutral-500">
-                    {(copy as any).directMessageRecipientLabel ||
-                      (lang === 'en' ? 'Recipient' : 'Mottaker')}
-                    : {selectedCustomer.email}
-                  </p>
-                ) : null}
-              </div>
-              <div className="mt-3 space-y-3">
-                <Input
-                  value={directMessageSubject}
-                  onChange={(event) => setDirectMessageSubject(event.target.value)}
-                  placeholder={
-                    (copy as any).directMessageSubjectPlaceholder ||
-                    (lang === 'en' ? 'Subject' : 'Emne')
-                  }
-                  disabled={!selectedCustomer.phone}
-                />
-                <Textarea
-                  value={directMessageBody}
-                  onChange={(event) => setDirectMessageBody(event.target.value)}
-                  placeholder={
-                    (copy as any).directMessageBodyPlaceholder ||
-                    (lang === 'en'
-                      ? 'Write the message you want to send to the customer...'
-                      : 'Skriv meldingen du vil sende til kunden...')
-                  }
-                  disabled={!selectedCustomer.phone}
-                  rows={6}
-                />
-                <div className="flex justify-end">
-                  <Button
-                    onClick={() => void sendDirectMessage()}
-                    disabled={!selectedCustomer.phone}
-                  >
-                    {(copy as any).directMessageSendButton ||
-                      (lang === 'en' ? 'Open message center' : 'Åpne meldingssenter')}
-                  </Button>
-                </div>
-              </div>
-            </div>
             <div className="mb-4 rounded-lg border border-neutral-200 bg-neutral-50 p-3">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>

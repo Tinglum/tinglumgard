@@ -9,11 +9,15 @@ import { useAsyncAction } from '@/hooks/useAsyncAction';
 import { ExtraProductsSelector } from '@/components/ExtraProductsSelector';
 import { ShoppingCart, Check } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { getFixedExtraQuantity, normalizeExtraQuantity } from '@/lib/extras/fixedQuantities';
 
 interface OrderData {
   id: string;
   order_number: string;
-  box_size: number;
+  box_size: number | null;
+  effective_box_size?: number;
+  display_box_name_no?: string | null;
+  display_box_name_en?: string | null;
   deposit_amount: number;
   remainder_amount: number;
   total_amount: number;
@@ -32,6 +36,7 @@ interface ExtrasCatalogItem {
   price_nok: number;
   pricing_type: 'per_unit' | 'per_kg';
   default_quantity?: number | null;
+  fixed_quantity?: number | null;
   stock_quantity: number | null;
   active: boolean;
 }
@@ -74,6 +79,7 @@ export default function RemainderPaymentSummaryPage() {
   const [deliveryType, setDeliveryType] = useState<'pickup_farm' | 'pickup_e6' | 'delivery_trondheim'>('pickup_farm');
   const [freshDelivery, setFreshDelivery] = useState<boolean>(false);
   const [pricingConfig, setPricingConfig] = useState<any>(null);
+  const [showDeliveryEditor, setShowDeliveryEditor] = useState(false);
 
   // Load order data
   useEffect(() => {
@@ -99,7 +105,10 @@ export default function RemainderPaymentSummaryPage() {
           if (data.extra_products) {
             const quantities: Record<string, number> = {};
             data.extra_products.forEach((ep: any) => {
-              quantities[ep.slug] = ep.quantity;
+              const parsedQty = Number(ep.quantity);
+              if (Number.isFinite(parsedQty) && parsedQty > 0) {
+                quantities[ep.slug] = parsedQty;
+              }
             });
             setSelectedQuantities(quantities);
           }
@@ -114,7 +123,7 @@ export default function RemainderPaymentSummaryPage() {
     return () => {
       isMounted = false;
     };
-  }, [orderId]);
+  }, [orderId, copy.fetchOrderError]);
 
   // Load available extras catalog
   useEffect(() => {
@@ -162,7 +171,8 @@ export default function RemainderPaymentSummaryPage() {
     return Object.entries(selectedQuantities).reduce((sum, [slug, qty]) => {
       if (qty === 0) return sum;
       const extra = availableExtras.find(e => e.slug === slug);
-      return sum + (extra ? extra.price_nok * qty : 0);
+      const normalizedQty = normalizeExtraQuantity(extra || { slug }, qty);
+      return sum + (extra ? extra.price_nok * normalizedQty : 0);
     }, 0);
   }, [selectedQuantities, availableExtras]);
 
@@ -232,11 +242,14 @@ export default function RemainderPaymentSummaryPage() {
     // Different items or quantities?
     for (const [slug, qty] of selectedEntries) {
       const saved = savedExtras.find(e => e.slug === slug);
-      if (!saved || saved.quantity !== qty) return true;
+      const extra = availableExtras.find((item) => item.slug === slug);
+      const normalizedSelectedQty = normalizeExtraQuantity(extra || { slug }, qty);
+      const normalizedSavedQty = normalizeExtraQuantity(extra || { slug }, Number(saved?.quantity || 0));
+      if (!saved || normalizedSavedQty !== normalizedSelectedQty) return true;
     }
 
     return false;
-  }, [selectedQuantities, order]);
+  }, [selectedQuantities, order, availableExtras]);
 
   // Check if delivery has changed from saved state
   const hasDeliveryChanges = useMemo(() => {
@@ -245,9 +258,14 @@ export default function RemainderPaymentSummaryPage() {
   }, [deliveryType, freshDelivery, order]);
 
   function handleQuantityChange(slug: string, quantity: number) {
+    const normalizedQty = Number(quantity);
+    const catalogItem = availableExtras.find((extra) => extra.slug === slug);
+    const fixedQuantity = getFixedExtraQuantity(catalogItem || { slug });
+    const nextQuantity = fixedQuantity ?? normalizedQty;
+
     setSelectedQuantities(prev => {
       // If quantity is 0 or less, remove the item entirely (deselect)
-      if (quantity <= 0) {
+      if (!Number.isFinite(normalizedQty) || normalizedQty <= 0) {
         const newQuantities = { ...prev };
         delete newQuantities[slug];
         return newQuantities;
@@ -255,7 +273,7 @@ export default function RemainderPaymentSummaryPage() {
 
       return {
         ...prev,
-        [slug]: quantity
+        [slug]: nextQuantity
       };
     });
   }
@@ -318,7 +336,10 @@ export default function RemainderPaymentSummaryPage() {
         setOrder(data);
         const quantities: Record<string, number> = {};
         (data.extra_products || []).forEach((ep: any) => {
-          quantities[ep.slug] = ep.quantity;
+          const parsedQty = Number(ep.quantity);
+          if (Number.isFinite(parsedQty) && parsedQty > 0) {
+            quantities[ep.slug] = parsedQty;
+          }
         });
         setSelectedQuantities(quantities);
       }
@@ -344,7 +365,13 @@ export default function RemainderPaymentSummaryPage() {
   function getSelectedExtras() {
     return Object.entries(selectedQuantities)
       .filter(([_, qty]) => qty > 0)
-      .map(([slug, quantity]) => ({ slug, quantity }));
+      .map(([slug, quantity]) => {
+        const extra = availableExtras.find((item) => item.slug === slug);
+        return {
+          slug,
+          quantity: normalizeExtraQuantity(extra || { slug }, quantity),
+        };
+      });
   }
 
   const [isPaying, executePayment] = useAsyncAction(
@@ -577,151 +604,166 @@ export default function RemainderPaymentSummaryPage() {
           </div>
         )}
 
-        {/* Pickup/Delivery Details Card - Interactive */}
+        {/* Pickup/Delivery Details Card - Collapsed by default */}
         <div className="bg-white border border-neutral-200 rounded-xl p-8 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.08)] transition-all duration-500 hover:shadow-[0_30px_80px_-20px_rgba(0,0,0,0.12)]">
-          <h2 className="text-2xl font-light tracking-tight text-neutral-900 mb-6">
-            {copy.pickupDeliveryTitle}
-          </h2>
-
-          <div className="space-y-6">
-            {/* Delivery Type Selection */}
+          <div className="flex items-start justify-between gap-4 mb-6">
             <div>
-              <p className="text-sm font-light text-neutral-900 mb-4 uppercase tracking-wide">
-                {copy.deliveryMethod}
+              <h2 className="text-2xl font-light tracking-tight text-neutral-900">
+                {copy.pickupDeliveryTitle}
+              </h2>
+              <p className="text-sm text-neutral-600 mt-2">
+                {showDeliveryEditor ? copy.deliveryEditorLeadOpen : copy.deliveryEditorLeadClosed}
               </p>
-              <div className="space-y-3">
-                {/* Farm Pickup - FREE */}
-                <button
-                  onClick={() => setDeliveryType('pickup_farm')}
-                  disabled={isPaying}
-                  className={cn(
-                    "w-full p-6 rounded-xl border-2 transition-all duration-300 text-left",
-                    deliveryType === 'pickup_farm'
-                      ? "border-neutral-900 bg-neutral-50 shadow-[0_15px_40px_-12px_rgba(0,0,0,0.15)]"
-                      : "border-neutral-200 hover:border-neutral-300 hover:shadow-[0_10px_30px_-10px_rgba(0,0,0,0.1)] hover:-translate-y-0.5"
-                  )}
-                >
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <p className="font-light text-neutral-900">{copy.pickupFarm}</p>
-                      <p className="text-sm font-light text-neutral-600 mt-1">
-                        {copy.pickupFarmLocation}
-                      </p>
-                    </div>
-                    <span className="text-sm font-normal text-neutral-900">{copy.free}</span>
-                  </div>
-                </button>
-
-                {/* E6 Pickup - Fee */}
-                <button
-                  onClick={() => {
-                    setDeliveryType('pickup_e6');
-                    setFreshDelivery(false); // Can't have fresh delivery with E6
-                  }}
-                  disabled={isPaying}
-                  className={cn(
-                    "w-full p-6 rounded-xl border-2 transition-all duration-300 text-left",
-                    deliveryType === 'pickup_e6'
-                      ? "border-neutral-900 bg-neutral-50 shadow-[0_15px_40px_-12px_rgba(0,0,0,0.15)]"
-                      : "border-neutral-200 hover:border-neutral-300 hover:shadow-[0_10px_30px_-10px_rgba(0,0,0,0.1)] hover:-translate-y-0.5"
-                  )}
-                >
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <p className="font-light text-neutral-900">{copy.pickupE6}</p>
-                      <p className="text-sm font-light text-neutral-600 mt-1">{copy.pickupE6Point}</p>
-                    </div>
-                    <span className="text-sm font-light text-neutral-900">
-                      +{pricingConfig?.delivery_fee_pickup_e6 || 300} {currency}
-                    </span>
-                  </div>
-                </button>
-
-                {/* Trondheim Delivery - Fee */}
-                <button
-                  onClick={() => {
-                    setDeliveryType('delivery_trondheim');
-                    setFreshDelivery(false); // Can't have fresh delivery with Trondheim
-                  }}
-                  disabled={isPaying}
-                  className={cn(
-                    "w-full p-6 rounded-xl border-2 transition-all duration-300 text-left",
-                    deliveryType === 'delivery_trondheim'
-                      ? "border-neutral-900 bg-neutral-50 shadow-[0_15px_40px_-12px_rgba(0,0,0,0.15)]"
-                      : "border-neutral-200 hover:border-neutral-300 hover:shadow-[0_10px_30px_-10px_rgba(0,0,0,0.1)] hover:-translate-y-0.5"
-                  )}
-                >
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <p className="font-light text-neutral-900">{copy.deliveryTrondheim}</p>
-                      <p className="text-sm font-light text-neutral-600 mt-1">{copy.deliveryAddress}</p>
-                    </div>
-                    <span className="text-sm font-light text-neutral-900">
-                      +{pricingConfig?.delivery_fee_trondheim || 200} {currency}
-                    </span>
-                  </div>
-                </button>
-              </div>
             </div>
+            <button
+              type="button"
+              onClick={() => setShowDeliveryEditor((prev) => !prev)}
+              className="text-sm font-light text-neutral-600 hover:text-neutral-900 underline whitespace-nowrap"
+            >
+              {showDeliveryEditor ? copy.deliveryEditorToggleHide : copy.deliveryEditorToggleShow}
+            </button>
+          </div>
 
-            {/* Fresh Delivery Option - Only with Farm Pickup */}
-            {deliveryType === 'pickup_farm' && (
+          {!showDeliveryEditor && (
+            <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-700">
+              {copy.currentDeliverySelectionLabel}{' '}
+              <span className="font-medium text-neutral-900">
+                {deliveryType === 'pickup_farm'
+                  ? copy.pickupFarm
+                  : deliveryType === 'pickup_e6'
+                  ? copy.pickupE6
+                  : copy.deliveryTrondheim}
+                {freshDelivery ? ` + ${copy.freshDelivery}` : ''}
+              </span>
+            </div>
+          )}
+
+          {showDeliveryEditor && (
+            <div className="space-y-6">
               <div>
                 <p className="text-sm font-light text-neutral-900 mb-4 uppercase tracking-wide">
-                  {copy.extraOption}
+                  {copy.deliveryMethod}
                 </p>
-                <button
-                  onClick={() => setFreshDelivery(!freshDelivery)}
-                  disabled={isPaying}
-                  className={cn(
-                    "w-full p-6 rounded-xl border-2 transition-all duration-300 text-left",
-                    freshDelivery
-                      ? "border-neutral-900 bg-neutral-50 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.08)]"
-                      : "border-neutral-200 hover:border-neutral-300 hover:shadow-[0_10px_30px_-10px_rgba(0,0,0,0.1)] hover:-translate-y-0.5"
-                  )}
-                >
-                  <div className="flex justify-between items-center">
-                    <div className="flex items-center gap-3">
-                      {freshDelivery && <Check className="w-6 h-6 text-neutral-900" />}
+                <div className="space-y-3">
+                  <button
+                    onClick={() => setDeliveryType('pickup_farm')}
+                    disabled={isPaying}
+                    className={cn(
+                      "w-full p-6 rounded-xl border-2 transition-all duration-300 text-left",
+                      deliveryType === 'pickup_farm'
+                        ? "border-neutral-900 bg-neutral-50 shadow-[0_15px_40px_-12px_rgba(0,0,0,0.15)]"
+                        : "border-neutral-200 hover:border-neutral-300 hover:shadow-[0_10px_30px_-10px_rgba(0,0,0,0.1)] hover:-translate-y-0.5"
+                    )}
+                  >
+                    <div className="flex justify-between items-center">
                       <div>
-                        <p className="font-light text-neutral-900">
-                          {copy.freshDelivery}
-                        </p>
-                        <p className="text-sm font-light mt-1 text-neutral-600">
-                          {copy.freshDeliveryDescription}
-                        </p>
+                        <p className="font-light text-neutral-900">{copy.pickupFarm}</p>
+                        <p className="text-sm font-light text-neutral-600 mt-1">{copy.pickupFarmLocation}</p>
                       </div>
+                      <span className="text-sm font-normal text-neutral-900">{copy.free}</span>
                     </div>
-                    <span className="text-sm font-light text-neutral-900">
-                      +{pricingConfig?.fresh_delivery_fee || 500} {currency}
-                    </span>
-                  </div>
-                </button>
-              </div>
-            )}
+                  </button>
 
-            {/* Delta Display */}
-            {totalDeliveryDelta !== 0 && (
-              <div className="p-3 rounded-xl bg-neutral-50 border border-neutral-200">
-                {totalDeliveryDelta > 0 ? (
-                  <p className="text-sm text-neutral-900">
-                    {copy.youAdd} {currency} {totalDeliveryDelta.toLocaleString(locale)} {copy.forDeliveryChange}
-                  </p>
-                ) : (
-                  <p className="text-sm text-neutral-900">
-                    {t.referrals.youSave.replace('{amount}', Math.abs(totalDeliveryDelta).toLocaleString(locale))} {copy.saveOnDeliveryChange}
-                  </p>
-                )}
-              </div>
-            )}
+                  <button
+                    onClick={() => {
+                      setDeliveryType('pickup_e6');
+                      setFreshDelivery(false);
+                    }}
+                    disabled={isPaying}
+                    className={cn(
+                      "w-full p-6 rounded-xl border-2 transition-all duration-300 text-left",
+                      deliveryType === 'pickup_e6'
+                        ? "border-neutral-900 bg-neutral-50 shadow-[0_15px_40px_-12px_rgba(0,0,0,0.15)]"
+                        : "border-neutral-200 hover:border-neutral-300 hover:shadow-[0_10px_30px_-10px_rgba(0,0,0,0.1)] hover:-translate-y-0.5"
+                    )}
+                  >
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <p className="font-light text-neutral-900">{copy.pickupE6}</p>
+                        <p className="text-sm font-light text-neutral-600 mt-1">{copy.pickupE6Point}</p>
+                      </div>
+                      <span className="text-sm font-light text-neutral-900">
+                        +{pricingConfig?.delivery_fee_pickup_e6 || 300} {currency}
+                      </span>
+                    </div>
+                  </button>
 
-            {/* Changes Warning */}
-            {hasDeliveryChanges && (
-              <div className="p-4 rounded-xl bg-neutral-50 border border-neutral-200">
-                <p className="text-sm font-light text-neutral-900 leading-relaxed">{copy.deliveryChangesWarning}</p>
+                  <button
+                    onClick={() => {
+                      setDeliveryType('delivery_trondheim');
+                      setFreshDelivery(false);
+                    }}
+                    disabled={isPaying}
+                    className={cn(
+                      "w-full p-6 rounded-xl border-2 transition-all duration-300 text-left",
+                      deliveryType === 'delivery_trondheim'
+                        ? "border-neutral-900 bg-neutral-50 shadow-[0_15px_40px_-12px_rgba(0,0,0,0.15)]"
+                        : "border-neutral-200 hover:border-neutral-300 hover:shadow-[0_10px_30px_-10px_rgba(0,0,0,0.1)] hover:-translate-y-0.5"
+                    )}
+                  >
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <p className="font-light text-neutral-900">{copy.deliveryTrondheim}</p>
+                        <p className="text-sm font-light text-neutral-600 mt-1">{copy.deliveryAddress}</p>
+                      </div>
+                      <span className="text-sm font-light text-neutral-900">
+                        +{pricingConfig?.delivery_fee_trondheim || 200} {currency}
+                      </span>
+                    </div>
+                  </button>
+                </div>
               </div>
-            )}
-          </div>
+
+              {deliveryType === 'pickup_farm' && (
+                <div>
+                  <p className="text-sm font-light text-neutral-900 mb-4 uppercase tracking-wide">{copy.extraOption}</p>
+                  <button
+                    onClick={() => setFreshDelivery(!freshDelivery)}
+                    disabled={isPaying}
+                    className={cn(
+                      "w-full p-6 rounded-xl border-2 transition-all duration-300 text-left",
+                      freshDelivery
+                        ? "border-neutral-900 bg-neutral-50 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.08)]"
+                        : "border-neutral-200 hover:border-neutral-300 hover:shadow-[0_10px_30px_-10px_rgba(0,0,0,0.1)] hover:-translate-y-0.5"
+                    )}
+                  >
+                    <div className="flex justify-between items-center">
+                      <div className="flex items-center gap-3">
+                        {freshDelivery && <Check className="w-6 h-6 text-neutral-900" />}
+                        <div>
+                          <p className="font-light text-neutral-900">{copy.freshDelivery}</p>
+                          <p className="text-sm font-light mt-1 text-neutral-600">{copy.freshDeliveryDescription}</p>
+                        </div>
+                      </div>
+                      <span className="text-sm font-light text-neutral-900">
+                        +{pricingConfig?.fresh_delivery_fee || 500} {currency}
+                      </span>
+                    </div>
+                  </button>
+                </div>
+              )}
+
+              {totalDeliveryDelta !== 0 && (
+                <div className="p-3 rounded-xl bg-neutral-50 border border-neutral-200">
+                  {totalDeliveryDelta > 0 ? (
+                    <p className="text-sm text-neutral-900">
+                      {copy.youAdd} {currency} {totalDeliveryDelta.toLocaleString(locale)} {copy.forDeliveryChange}
+                    </p>
+                  ) : (
+                    <p className="text-sm text-neutral-900">
+                      {t.referrals.youSave.replace('{amount}', Math.abs(totalDeliveryDelta).toLocaleString(locale))} {copy.saveOnDeliveryChange}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {hasDeliveryChanges && (
+                <div className="p-4 rounded-xl bg-neutral-50 border border-neutral-200">
+                  <p className="text-sm font-light text-neutral-900 leading-relaxed">{copy.deliveryChangesWarning}</p>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Payment Summary Card */}

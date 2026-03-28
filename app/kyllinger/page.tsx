@@ -65,7 +65,7 @@ export default function KyllingerPage() {
         console.error('Failed to load chicken data:', err)
         toast({
           title: chickens.pageTitle,
-          description: chickens.page.loadErrorDescription,
+          description: lang === 'no' ? 'Kunne ikke laste data. Prøv å laste siden på nytt.' : 'Could not load data. Try reloading the page.',
           variant: 'destructive',
         })
       } finally {
@@ -304,7 +304,7 @@ export default function KyllingerPage() {
               </h2>
               <div className="mb-4 rounded-xl border border-neutral-200 bg-white p-4">
                 <p className="text-xs font-semibold uppercase tracking-[0.12em] text-neutral-500">
-                  {chickens.page.bookingStepsTitle}
+                  {lang === 'en' ? 'How to book' : 'Slik bestiller du'}
                 </p>
                 <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
                   <div className="rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2">

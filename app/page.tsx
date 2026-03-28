@@ -3,14 +3,14 @@
 import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { useTheme } from "@/contexts/ThemeContext";
+import { fixMojibake } from "@/lib/utils/text";
 import { InstagramFeed } from "@/components/InstagramFeed";
-import { getHeroStyles, getBannerStyles, getInventoryStyles } from "@/lib/theme-utils";
 import { useIsMobile } from "@/hooks/useMediaQuery";
 import { MobileHero } from "@/components/MobileHero";
 import { MobileProductTiles } from "@/components/MobileProductTiles";
-import type { MangalitsaPreset } from "@/components/MobileProductTiles";
 import { MobileTimeline } from "@/components/MobileTimeline";
+import { FrontpageVideoDialog } from "@/components/FrontpageVideoDialog";
+import { useToast } from "@/hooks/use-toast";
 
 interface InventoryData {
   season: string;
@@ -19,6 +19,46 @@ interface InventoryData {
   isLowStock: boolean;
   isSoldOut: boolean;
   active: boolean;
+}
+
+interface MangalitsaPreset {
+  id: string;
+  slug: string;
+  name_no: string;
+  name_en: string;
+  short_pitch_no: string;
+  short_pitch_en: string;
+  description_no?: string | null;
+  description_en?: string | null;
+  target_audience_no?: string | null;
+  target_audience_en?: string | null;
+  scarcity_message_no?: string | null;
+  scarcity_message_en?: string | null;
+  target_weight_kg: number;
+  price_nok: number;
+  display_order?: number;
+  contents?: Array<{
+    content_name_no: string;
+    content_name_en: string;
+    display_order?: number;
+  }>;
+}
+
+function formatTodayTimelineDate(locale: string): string {
+  const now = new Date();
+  const month = new Intl.DateTimeFormat(locale, {
+    month: 'short',
+    timeZone: 'Europe/Oslo',
+  })
+    .format(now)
+    .replace('.', '')
+    .toLocaleUpperCase(locale);
+  const day = new Intl.DateTimeFormat(locale, {
+    day: 'numeric',
+    timeZone: 'Europe/Oslo',
+  }).format(now);
+
+  return `${month} ${day}`;
 }
 
 // Meta Label Component
@@ -60,7 +100,6 @@ function ParallaxLayer({
 
 // Product Card with refined animations - KEPT (scroll-triggered stagger)
 function ProductCard({
-  size,
   label,
   description,
   features,
@@ -73,10 +112,8 @@ function ProductCard({
   ctaText,
   ctaHref,
   isFeatured = false,
-  pricing,
   delay = 0
 }: {
-  size: string;
   label: string;
   description: string;
   features: string[];
@@ -89,7 +126,6 @@ function ProductCard({
   ctaText: string;
   ctaHref: string;
   isFeatured?: boolean;
-  pricing: any;
   delay?: number;
 }) {
   const { t, lang } = useLanguage();
@@ -117,12 +153,12 @@ function ProductCard({
   return (
     <div
       ref={cardRef}
-      className={`group relative transition-all duration-700 ${
+      className={`group relative h-full transition-all duration-700 ${
         isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-12'
       }`}
       style={{ transitionDelay: `${delay}ms` }}
     >
-      <div className="bg-white border border-neutral-200 rounded-lg p-8 transition-all duration-500 hover:shadow-[0_30px_80px_-20px_rgba(0,0,0,0.2)] hover:-translate-y-3">
+      <div className="bg-white border border-neutral-200 rounded-lg p-8 h-full flex flex-col transition-all duration-500 hover:shadow-[0_30px_80px_-20px_rgba(0,0,0,0.2)] hover:-translate-y-3">
 
         {isFeatured && (
           <div className="absolute -top-3 left-1/2 -translate-x-1/2">
@@ -132,15 +168,15 @@ function ProductCard({
           </div>
         )}
 
-        <div className="space-y-6">
+        <div className="flex h-full flex-col gap-6">
           {/* Header */}
           <div className="space-y-3 pb-6 border-b border-neutral-200">
-            <MetaLabel>{label}</MetaLabel>
-            <h3 className="text-7xl font-light tracking-tight text-neutral-900 tabular-nums">
-              {size} <span className="text-2xl text-neutral-500">{t.common.kg}</span>
+            <MetaLabel>{t.mangalitsa.pageTitle}</MetaLabel>
+            <h3 className="text-4xl font-light tracking-tight text-neutral-900 font-[family:var(--font-playfair)]">
+              {label}
             </h3>
             <p className="text-base text-neutral-600 leading-relaxed">{description}</p>
-            <div className="flex items-center gap-3 text-xs text-neutral-500 font-medium">
+            <div className="flex flex-wrap items-center gap-3 text-xs text-neutral-500 font-medium">
               <span>{personCount}</span>
               <span className="w-1 h-1 rounded-full bg-neutral-400" />
               <span>{mealsCount}</span>
@@ -164,37 +200,39 @@ function ProductCard({
             </ul>
           </div>
 
-          {/* Pricing */}
-          <div className="space-y-3 pt-6 border-t border-neutral-200">
-            <div className="flex items-baseline justify-between">
-              <span className="text-xs uppercase tracking-wider text-neutral-500 font-semibold">
-                {t.product.totalPrice}
-              </span>
-              <span className="text-4xl font-light tracking-tight text-neutral-900 tabular-nums">
-                {price?.toLocaleString(locale)} <span className="text-base text-neutral-500">{t.common.currency}</span>
-              </span>
+          <div className="mt-auto space-y-6">
+            {/* Pricing */}
+            <div className="space-y-3 pt-6 border-t border-neutral-200">
+              <div className="flex items-baseline justify-between">
+                <span className="text-xs uppercase tracking-wider text-neutral-500 font-semibold">
+                  {t.product.totalPrice}
+                </span>
+                <span className="text-2xl font-light tracking-tight text-neutral-900 tabular-nums">
+                  {price?.toLocaleString(locale)} <span className="text-base text-neutral-500">{t.common.currency}</span>
+                </span>
+              </div>
+              <div className="flex items-baseline justify-between text-sm">
+                <span className="text-neutral-600">{t.product.deposit50}</span>
+                <span className="text-neutral-900 font-medium tabular-nums">
+                  {deposit?.toLocaleString(locale)} {t.common.currency}
+                </span>
+              </div>
+              <div className="flex items-baseline justify-between text-sm">
+                <span className="text-neutral-600">{t.product.balanceOnDelivery}</span>
+                <span className="text-neutral-900 font-medium tabular-nums">
+                  {balance?.toLocaleString(locale)} {t.common.currency}
+                </span>
+              </div>
             </div>
-            <div className="flex items-baseline justify-between text-sm">
-              <span className="text-neutral-600">{t.product.deposit50}</span>
-              <span className="text-neutral-900 font-medium tabular-nums">
-                {deposit?.toLocaleString(locale)} {t.common.currency}
-              </span>
-            </div>
-            <div className="flex items-baseline justify-between text-sm">
-              <span className="text-neutral-600">{t.product.balanceOnDelivery}</span>
-              <span className="text-neutral-900 font-medium tabular-nums">
-                {balance?.toLocaleString(locale)} {t.common.currency}
-              </span>
-            </div>
-          </div>
 
-          {/* CTA */}
-          <Link
-            href={ctaHref}
-            className="block w-full text-center px-6 py-4 bg-neutral-900 text-white rounded-lg text-sm font-bold uppercase tracking-wider hover:bg-neutral-800 transition-all duration-300 hover:shadow-[0_20px_50px_-15px_rgba(0,0,0,0.4)] hover:-translate-y-1"
-          >
-            {ctaText}
-          </Link>
+            {/* CTA */}
+            <Link
+              href={ctaHref}
+              className="block w-full text-center px-6 py-4 bg-neutral-900 text-white rounded-lg text-sm font-bold uppercase tracking-wider hover:bg-neutral-800 transition-all duration-300 hover:shadow-[0_20px_50px_-15px_rgba(0,0,0,0.4)] hover:-translate-y-1"
+            >
+              {ctaText}
+            </Link>
+          </div>
         </div>
       </div>
     </div>
@@ -264,28 +302,60 @@ function TimelineStep({
   );
 }
 
+function LazySection({
+  children,
+  placeholderClassName = "py-20",
+}: {
+  children: React.ReactNode;
+  placeholderClassName?: string;
+}) {
+  const [isVisible, setIsVisible] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const node = containerRef.current;
+    if (!node || isVisible) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        if (entry?.isIntersecting) {
+          setIsVisible(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: "220px 0px" }
+    );
+
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [isVisible]);
+
+  return (
+    <div ref={containerRef}>
+      {isVisible ? (
+        children
+      ) : (
+        <div className={placeholderClassName}>
+          <div className="max-w-6xl mx-auto px-6">
+            <div className="h-24 rounded-2xl border border-neutral-200 bg-neutral-50" />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function Page() {
   const { t, lang } = useLanguage();
-  const { getThemeClasses } = useTheme();
-  const theme = getThemeClasses();
-  const heroStyles = getHeroStyles(theme);
-  const bannerStyles = getBannerStyles(theme);
-  const inventoryStyles = getInventoryStyles(theme);
+  const { toast } = useToast();
   const [inventory, setInventory] = useState<InventoryData | null>(null);
+  const [presets, setPresets] = useState<MangalitsaPreset[]>([]);
   const [loading, setLoading] = useState(true);
-  const [pricing, setPricing] = useState<any>(null);
-  const [mobilePresets, setMobilePresets] = useState<MangalitsaPreset[] | null>(null);
-  const [scrollY, setScrollY] = useState(0);
-
-  // Parallax scroll effect
-  useEffect(() => {
-    const handleScroll = () => {
-      setScrollY(window.scrollY);
-    };
-
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
+  const [waitlistEmail, setWaitlistEmail] = useState('');
+  const [waitlistName, setWaitlistName] = useState('');
+  const [waitlistSubmitting, setWaitlistSubmitting] = useState(false);
+  const [waitlistSuccess, setWaitlistSuccess] = useState(false);
 
   useEffect(() => {
     async function fetchInventory() {
@@ -297,6 +367,11 @@ export default function Page() {
         }
       } catch (error) {
         console.error('Failed to fetch inventory:', error);
+        toast({
+          title: 'Tinglum Gård',
+          description: lang === 'no' ? 'Kunne ikke laste lagerstatus.' : 'Could not load inventory status.',
+          variant: 'destructive',
+        });
       } finally {
         setLoading(false);
       }
@@ -305,36 +380,18 @@ export default function Page() {
   }, []);
 
   useEffect(() => {
-    async function fetchPricing() {
-      try {
-        const res = await fetch('/api/config/pricing');
-        if (res.ok) {
-          const data = await res.json();
-          setPricing(data);
-        }
-      } catch (error) {
-        console.error('Failed to fetch pricing:', error);
-      }
-    }
-    fetchPricing();
-  }, []);
-
-  useEffect(() => {
-    async function fetchMobilePresets() {
+    async function fetchPresets() {
       try {
         const res = await fetch('/api/mangalitsa/presets');
-        if (!res.ok) {
-          setMobilePresets([]);
-          return;
+        if (res.ok) {
+          const data = await res.json();
+          setPresets(data.presets || []);
         }
-        const data = await res.json();
-        setMobilePresets(Array.isArray(data?.presets) ? data.presets : []);
       } catch (error) {
-        console.error('Failed to fetch mobile presets:', error);
-        setMobilePresets([]);
+        console.error('Failed to fetch presets:', error);
       }
     }
-    fetchMobilePresets();
+    fetchPresets();
   }, []);
 
   const boxesLeft = inventory?.boxesRemaining ?? 0;
@@ -350,56 +407,53 @@ export default function Page() {
   const desktopEmptyClass = 'bg-neutral-200';
   const mobileFillColor = isSoldOut ? '#D7CEC3' : isLowStock ? '#B35A2A' : '#0F6C6F';
   const mobileEmptyColor = '#E9E1D6';
-  const minPrice = pricing ? Math.min(pricing.box_8kg_price, pricing.box_12kg_price) : null;
-  const minDeposit = pricing
-    ? Math.floor(
-        (pricing.box_8kg_price <= pricing.box_12kg_price
-          ? pricing.box_8kg_price * pricing.box_8kg_deposit_percentage
-          : pricing.box_12kg_price * pricing.box_12kg_deposit_percentage) / 100
-      )
+  const minPresetPrice = presets.length > 0
+    ? Math.min(...presets.map((preset) => preset.price_nok))
     : null;
+  const minPrice = minPresetPrice;
+  const minDeposit = minPresetPrice ? Math.floor(minPresetPrice * 0.5) : null;
   const locale = lang === 'no' ? 'nb-NO' : 'en-US';
-  const pageCopy = lang === 'no'
-    ? {
-        updatedToday: 'Oppdatert i dag',
-        instagram: 'Instagram',
-        followInstagram: 'Folg oss pa Instagram',
-        instagramDescription: 'Se hverdagen pa garden og oppdateringer gjennom sesongen.',
-        reserveBox: 'Reserver kasse',
-        fromPrice: 'Fra',
-        depositFrom: 'Forskudd fra',
-        deliveryWindow: 'Levering uke 46-48',
-        timelineDate1: 'Jan 26',
-        timelineDate2: 'Uke 46',
-        timelineDate3: 'Uke 48',
-        timelineDate4: 'Uke 50/51',
-        personCount8: '2-3 pers',
-        personCount12: '4-6 pers',
-        meals8: '12-16 maltider',
-        meals12: '20-28 maltider',
-        freezer8: 'Lite fryserom',
-        freezer12: 'Mer fryserom',
+  const [todayTimelineDate, setTodayTimelineDate] = useState(() => formatTodayTimelineDate(locale));
+  const pageCopy = (t as any).homepage;
+  const sortedPresets = [...presets].sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
+
+  useEffect(() => {
+    setTodayTimelineDate(formatTodayTimelineDate(locale));
+  }, [locale]);
+
+  async function handleWaitlistSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!waitlistEmail.trim()) return;
+
+    setWaitlistSubmitting(true);
+    try {
+      const response = await fetch('/api/waitlist', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: waitlistEmail.trim(),
+          name: waitlistName.trim() || undefined,
+        }),
+      });
+
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null);
+        throw new Error(payload?.error || t.checkout.somethingWentWrong);
       }
-    : {
-        updatedToday: 'Updated today',
-        instagram: 'Instagram',
-        followInstagram: 'Follow us on Instagram',
-        instagramDescription: 'See everyday life on the farm and season updates.',
-        reserveBox: 'Reserve box',
-        fromPrice: 'From',
-        depositFrom: 'Deposit from',
-        deliveryWindow: 'Delivery weeks 46-48',
-        timelineDate1: 'Jan 26',
-        timelineDate2: 'Week 46',
-        timelineDate3: 'Week 48',
-        timelineDate4: 'Week 50/51',
-        personCount8: '2-3 people',
-        personCount12: '4-6 people',
-        meals8: '12-16 meals',
-        meals12: '20-28 meals',
-        freezer8: 'Less freezer space',
-        freezer12: 'More freezer space',
-      };
+
+      setWaitlistSuccess(true);
+      setWaitlistEmail('');
+      setWaitlistName('');
+    } catch (error: any) {
+      toast({
+        title: t.common.error,
+        description: error?.message || t.checkout.somethingWentWrong,
+        variant: 'destructive',
+      });
+    } finally {
+      setWaitlistSubmitting(false);
+    }
+  }
 
   // Mobile version - keep existing design
   if (isMobile) {
@@ -413,7 +467,7 @@ export default function Page() {
 
         <MobileHero isSoldOut={isSoldOut} minPrice={minPrice} minDeposit={minDeposit} />
 
-        <MobileProductTiles presets={mobilePresets} />
+        <MobileProductTiles presets={presets} />
 
         <section className="px-5 py-10">
           <div className="mx-auto max-w-md rounded-[28px] border border-[#E4DED5] bg-white p-6 shadow-[0_20px_45px_rgba(30,27,22,0.12)]">
@@ -466,6 +520,47 @@ export default function Page() {
           </div>
         </section>
 
+        {isSoldOut && (
+          <section id="waitlist" className="px-5 py-2">
+            <div className="mx-auto max-w-md rounded-[28px] border border-[#E4DED5] bg-white p-6 shadow-[0_20px_45px_rgba(30,27,22,0.12)]">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-[#6A6258]">{t.productCard.waitlistTitle}</p>
+              <h3 className="mt-2 text-2xl font-semibold text-[#1E1B16] font-[family:var(--font-playfair)]">
+                {t.hero.joinWaitlist}
+              </h3>
+              <p className="mt-3 text-sm text-[#5E5A50]">{t.productCard.waitlistDescription}</p>
+
+              {waitlistSuccess ? (
+                <p className="mt-4 text-sm text-emerald-700">{t.productCard.waitlistSuccess}</p>
+              ) : (
+                <form onSubmit={handleWaitlistSubmit} className="mt-4 space-y-2">
+                  <input
+                    type="email"
+                    required
+                    value={waitlistEmail}
+                    onChange={(event) => setWaitlistEmail(event.target.value)}
+                    placeholder={t.productCard.emailPlaceholder}
+                    className="w-full rounded-xl border border-[#E4DED5] px-3 py-2 text-sm text-[#1E1B16] focus:outline-none focus:ring-2 focus:ring-[#0F6C6F]"
+                  />
+                  <input
+                    type="text"
+                    value={waitlistName}
+                    onChange={(event) => setWaitlistName(event.target.value)}
+                    placeholder={t.productCard.namePlaceholder}
+                    className="w-full rounded-xl border border-[#E4DED5] px-3 py-2 text-sm text-[#1E1B16] focus:outline-none focus:ring-2 focus:ring-[#0F6C6F]"
+                  />
+                  <button
+                    type="submit"
+                    disabled={waitlistSubmitting}
+                    className="w-full rounded-xl bg-[#1E1B16] px-4 py-3 text-xs font-semibold uppercase tracking-[0.2em] text-white disabled:opacity-60"
+                  >
+                    {waitlistSubmitting ? t.common.processing : t.productCard.submitWaitlist}
+                  </button>
+                </form>
+              )}
+            </div>
+          </section>
+        )}
+
         <MobileTimeline />
 
         <section className="px-5 py-12">
@@ -512,6 +607,15 @@ export default function Page() {
                 { q: t.faq.q1, a: t.faq.a1 },
                 { q: t.faq.q2, a: t.faq.a2 },
                 { q: t.faq.q3, a: t.faq.a3 },
+                { q: t.faq.q4, a: t.faq.a4 },
+                { q: t.faq.q5, a: t.faq.a5 },
+                { q: t.faq.q6, a: t.faq.a6 },
+                { q: t.faq.q7, a: t.faq.a7 },
+                { q: t.faq.q8, a: t.faq.a8 },
+                { q: t.faq.q9, a: t.faq.a9 },
+                { q: t.faq.q10, a: t.faq.a10 },
+                { q: t.faq.q11, a: t.faq.a11 },
+                { q: t.faq.q12, a: t.faq.a12 },
               ].map((faq) => (
                 <details key={faq.q} className="rounded-2xl border border-[#E9E1D6] bg-[#FBFAF7] px-4 py-3">
                   <summary className="cursor-pointer list-none text-sm font-semibold text-[#1E1B16]">
@@ -613,6 +717,9 @@ export default function Page() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
                     </svg>
                   </Link>
+
+                  <FrontpageVideoDialog className="px-8 py-4" />
+
                   <Link
                     href="/produkt"
                     className="text-sm font-semibold text-neutral-900 underline underline-offset-4 hover:text-neutral-600 transition-colors"
@@ -647,66 +754,55 @@ export default function Page() {
         <div className="max-w-6xl mx-auto">
 
           <div className="max-w-2xl mb-16">
-            <MetaLabel>{t.product.choosePackage}</MetaLabel>
+            <MetaLabel>{t.mangalitsa.pageTitle}</MetaLabel>
             <h2 className="text-6xl font-light tracking-tight text-neutral-900 mt-3 mb-6">
-              {t.product.twoSizes}
+              {t.mangalitsa.hero.title}
             </h2>
             <p className="text-lg leading-relaxed text-neutral-600">
-              {t.product.sameQuality}
+              {t.mangalitsa.hero.subtitle}
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-8">
-            <ProductCard
-              size="8"
-              label={t.product.smallerPackage}
-              description={t.product.perfectFor2to3}
-              features={[
-                t.boxContents.ribbe8kg,
-                t.boxContents.nakkekoteletter8kg,
-                t.boxContents.julepolse8kg,
-                t.boxContents.svinesteik8kg,
-                t.boxContents.medisterfarse8kg,
-                t.boxContents.knoke,
-                t.boxContents.butchersChoice8kg
-              ]}
-              personCount={pageCopy.personCount8}
-              mealsCount={pageCopy.meals8}
-              freezerNote={pageCopy.freezer8}
-              price={pricing?.box_8kg_price}
-              deposit={pricing ? Math.floor(pricing.box_8kg_price * pricing.box_8kg_deposit_percentage / 100) : undefined}
-              balance={pricing ? pricing.box_8kg_price - Math.floor(pricing.box_8kg_price * pricing.box_8kg_deposit_percentage / 100) : undefined}
-              ctaText={t.product.reserve8kg}
-              ctaHref="/bestill?size=8"
-              pricing={pricing}
-              delay={0}
-            />
+          <div className="grid md:grid-cols-2 gap-8 items-stretch">
+            {sortedPresets.length === 0 && (
+              <div className="md:col-span-2 rounded-xl border border-neutral-200 bg-neutral-50 p-8 text-sm text-neutral-600">
+                {t.mangalitsa.noPresets}
+              </div>
+            )}
+            {sortedPresets.map((preset, index) => {
+              const label = fixMojibake(lang === 'no' ? preset.name_no : preset.name_en);
+              const description = fixMojibake((lang === 'no' ? preset.description_no : preset.description_en)
+                || (lang === 'no' ? preset.short_pitch_no : preset.short_pitch_en)
+                || '');
+              const audience = (lang === 'no' ? preset.target_audience_no : preset.target_audience_en)
+                || (lang === 'no' ? preset.short_pitch_no : preset.short_pitch_en)
+                || t.mangalitsa.hero.scarcity;
+              const scarcity = (lang === 'no' ? preset.scarcity_message_no : preset.scarcity_message_en)
+                || t.mangalitsa.hero.scarcity;
+              const weightMeta = `${t.common.approx} ${preset.target_weight_kg} ${t.common.kg}`;
+              const features = [...(preset.contents || [])]
+                .sort((a, b) => (a.display_order || 0) - (b.display_order || 0))
+                .map((content) => fixMojibake(lang === 'no' ? content.content_name_no : content.content_name_en));
 
-            <ProductCard
-              size="12"
-              label={t.product.largerPackage}
-              description={t.product.idealFor4to6}
-              features={[
-                t.boxContents.ribbe12kg,
-                t.boxContents.nakkekoteletter12kg,
-                t.boxContents.julepolse12kg,
-                t.boxContents.svinesteik12kg,
-                t.boxContents.medisterfarse12kg,
-                t.boxContents.knoke,
-                t.boxContents.butchersChoice12kg
-              ]}
-              personCount={pageCopy.personCount12}
-              mealsCount={pageCopy.meals12}
-              freezerNote={pageCopy.freezer12}
-              price={pricing?.box_12kg_price}
-              deposit={pricing ? Math.floor(pricing.box_12kg_price * pricing.box_12kg_deposit_percentage / 100) : undefined}
-              balance={pricing ? pricing.box_12kg_price - Math.floor(pricing.box_12kg_price * pricing.box_12kg_deposit_percentage / 100) : undefined}
-              ctaText={t.product.reserve12kg}
-              ctaHref="/bestill?size=12"
-              isFeatured={true}
-              pricing={pricing}
-              delay={150}
-            />
+              return (
+                <ProductCard
+                  key={preset.id}
+                  label={label}
+                  description={description}
+                  features={features}
+                  personCount={fixMojibake(String(audience || ''))}
+                  mealsCount={weightMeta}
+                  freezerNote={fixMojibake(String(scarcity || ''))}
+                  price={preset.price_nok}
+                  deposit={Math.floor(preset.price_nok * 0.5)}
+                  balance={preset.price_nok - Math.floor(preset.price_nok * 0.5)}
+                  ctaText={t.mangalitsa.reserveBox}
+                  ctaHref={`/bestill?preset=${preset.slug}`}
+                  isFeatured={index === 0}
+                  delay={index * 120}
+                />
+              );
+            })}
           </div>
 
         </div>
@@ -760,96 +856,102 @@ export default function Page() {
         </div>
       </section>
 
-      {/* TIMELINE SECTION - Scroll cascade */}
-      <section className="py-20 px-6 lg:px-8 bg-neutral-50">
-        <div className="max-w-5xl mx-auto">
+      {isSoldOut && (
+        <section id="waitlist" className="py-16 px-6 lg:px-8 bg-white">
+          <div className="max-w-4xl mx-auto">
+            <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-8 md:p-10 shadow-[0_20px_60px_-20px_rgba(0,0,0,0.12)]">
+              <div className="max-w-2xl">
+                <MetaLabel>{t.productCard.waitlistTitle}</MetaLabel>
+                <h2 className="text-4xl font-light tracking-tight text-neutral-900 mt-3">
+                  {t.hero.joinWaitlist}
+                </h2>
+                <p className="mt-3 text-base text-neutral-600 leading-relaxed">
+                  {t.productCard.waitlistDescription}
+                </p>
+              </div>
 
-          <div className="max-w-2xl mb-16">
-            <MetaLabel>{t.timeline.howItWorks}</MetaLabel>
-            <h2 className="text-6xl font-light tracking-tight text-neutral-900 mt-3 mb-6">
-              {t.timeline.fromOrderToDelivery}
-            </h2>
-            <p className="text-lg leading-relaxed text-neutral-600">
-              {t.timeline.subtitle}
-            </p>
-          </div>
-
-          <div className="space-y-12">
-            <TimelineStep
-              date={pageCopy.timelineDate1}
-              title={t.timeline.step1Title}
-              description={t.timeline.step1Desc}
-              time={t.timeline.step1Time}
-              delay={0}
-            />
-            <TimelineStep
-              date={pageCopy.timelineDate2}
-              title={t.timeline.step2Title}
-              description={t.timeline.step2Desc}
-              time={t.timeline.step2Time}
-              delay={100}
-            />
-            <TimelineStep
-              date={pageCopy.timelineDate3}
-              title={t.timeline.step3Title}
-              description={t.timeline.step3Desc}
-              time={t.timeline.step3Time}
-              delay={200}
-            />
-            <TimelineStep
-              date={pageCopy.timelineDate4}
-              title={t.timeline.step4Title}
-              description={t.timeline.step4Desc}
-              time={t.timeline.step4Time}
-              isOptional={true}
-              delay={300}
-            />
-          </div>
-        </div>
-      </section>
-
-      {/* FAQ SECTION */}
-      <section className="py-20 px-6 lg:px-8">
-        <div className="max-w-4xl mx-auto">
-
-          <div className="max-w-2xl mb-12">
-            <MetaLabel>{t.faq.badge}</MetaLabel>
-            <h2 className="text-6xl font-light tracking-tight text-neutral-900 mt-3">
-              {t.faq.title}
-            </h2>
-          </div>
-
-          <div className="space-y-4">
-            {[
-              { q: t.faq.q1, a: t.faq.a1 },
-              { q: t.faq.q2, a: t.faq.a2 },
-              { q: t.faq.q3, a: t.faq.a3 },
-              { q: t.faq.q4, a: t.faq.a4 },
-            ].map((faq, i) => (
-              <details
-                key={i}
-                className="group bg-white border border-neutral-200 rounded-lg overflow-hidden transition-all duration-300 hover:shadow-[0_10px_30px_-10px_rgba(0,0,0,0.12)] hover:-translate-y-1"
-              >
-                <summary className="cursor-pointer py-6 px-8 flex items-center justify-between list-none font-semibold text-neutral-900">
-                  <span className="text-lg">{faq.q}</span>
-                  <svg
-                    className="w-6 h-6 text-neutral-400 transform group-open:rotate-180 transition-transform duration-300"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
+              {waitlistSuccess ? (
+                <p className="mt-6 text-sm text-emerald-700">{t.productCard.waitlistSuccess}</p>
+              ) : (
+                <form onSubmit={handleWaitlistSubmit} className="mt-6 grid gap-3 md:grid-cols-[1fr,1fr,auto]">
+                  <input
+                    type="email"
+                    required
+                    value={waitlistEmail}
+                    onChange={(event) => setWaitlistEmail(event.target.value)}
+                    placeholder={t.productCard.emailPlaceholder}
+                    className="rounded-xl border border-neutral-300 bg-white px-4 py-3 text-sm text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-400"
+                  />
+                  <input
+                    type="text"
+                    value={waitlistName}
+                    onChange={(event) => setWaitlistName(event.target.value)}
+                    placeholder={t.productCard.namePlaceholder}
+                    className="rounded-xl border border-neutral-300 bg-white px-4 py-3 text-sm text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-400"
+                  />
+                  <button
+                    type="submit"
+                    disabled={waitlistSubmitting}
+                    className="rounded-xl bg-neutral-900 px-6 py-3 text-xs font-bold uppercase tracking-[0.2em] text-white disabled:opacity-60"
                   >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
-                </summary>
-                <div className="px-8 pb-6 text-base leading-relaxed text-neutral-600">
-                  {faq.a}
-                </div>
-              </details>
-            ))}
+                    {waitlistSubmitting ? t.common.processing : t.productCard.submitWaitlist}
+                  </button>
+                </form>
+              )}
+            </div>
           </div>
+        </section>
+      )}
 
-        </div>
-      </section>
+      {/* TIMELINE SECTION - Scroll cascade */}
+      <LazySection placeholderClassName="py-20 bg-neutral-50">
+        <section className="py-20 px-6 lg:px-8 bg-neutral-50">
+          <div className="max-w-5xl mx-auto">
+
+            <div className="max-w-2xl mb-16">
+              <MetaLabel>{t.timeline.howItWorks}</MetaLabel>
+              <h2 className="text-6xl font-light tracking-tight text-neutral-900 mt-3 mb-6">
+                {t.timeline.fromOrderToDelivery}
+              </h2>
+              <p className="text-lg leading-relaxed text-neutral-600">
+                {t.timeline.subtitle}
+              </p>
+            </div>
+
+            <div className="space-y-12">
+              <TimelineStep
+                date={todayTimelineDate}
+                title={t.timeline.step1Title}
+                description={t.timeline.step1Desc}
+                time={t.timeline.step1Time}
+                delay={0}
+              />
+              <TimelineStep
+                date={pageCopy.timelineDate2}
+                title={t.timeline.step2Title}
+                description={t.timeline.step2Desc}
+                time={t.timeline.step2Time}
+                delay={100}
+              />
+              <TimelineStep
+                date={pageCopy.timelineDate3}
+                title={t.timeline.step3Title}
+                description={t.timeline.step3Desc}
+                time={t.timeline.step3Time}
+                delay={200}
+              />
+              <TimelineStep
+                date={pageCopy.timelineDate4}
+                title={t.timeline.step4Title}
+                description={t.timeline.step4Desc}
+                time={t.timeline.step4Time}
+                isOptional={true}
+                delay={300}
+              />
+            </div>
+          </div>
+        </section>
+      </LazySection>
 
       {/* LIMITED OFFER TILE */}
       <section className="py-16 px-6 lg:px-8">
@@ -889,8 +991,63 @@ export default function Page() {
         </div>
       </section>
 
+      {/* FAQ SECTION */}
+      <LazySection placeholderClassName="py-20">
+        <section className="py-20 px-6 lg:px-8">
+          <div className="max-w-4xl mx-auto">
+
+            <div className="max-w-2xl mb-12">
+              <MetaLabel>{t.faq.badge}</MetaLabel>
+              <h2 className="text-6xl font-light tracking-tight text-neutral-900 mt-3">
+                {t.faq.title}
+              </h2>
+            </div>
+
+            <div className="space-y-4">
+              {[
+                { q: t.faq.q1, a: t.faq.a1 },
+                { q: t.faq.q2, a: t.faq.a2 },
+                { q: t.faq.q3, a: t.faq.a3 },
+                { q: t.faq.q4, a: t.faq.a4 },
+                { q: t.faq.q5, a: t.faq.a5 },
+                { q: t.faq.q6, a: t.faq.a6 },
+                { q: t.faq.q7, a: t.faq.a7 },
+                { q: t.faq.q8, a: t.faq.a8 },
+                { q: t.faq.q9, a: t.faq.a9 },
+                { q: t.faq.q10, a: t.faq.a10 },
+                { q: t.faq.q11, a: t.faq.a11 },
+                { q: t.faq.q12, a: t.faq.a12 },
+              ].map((faq, i) => (
+                <details
+                  key={i}
+                  className="group bg-white border border-neutral-200 rounded-lg overflow-hidden transition-all duration-300 hover:shadow-[0_10px_30px_-10px_rgba(0,0,0,0.12)] hover:-translate-y-1"
+                >
+                  <summary className="cursor-pointer py-6 px-8 flex items-center justify-between list-none font-semibold text-neutral-900">
+                    <span className="text-lg">{faq.q}</span>
+                    <svg
+                      className="w-6 h-6 text-neutral-400 transform group-open:rotate-180 transition-transform duration-300"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </summary>
+                  <div className="px-8 pb-6 text-base leading-relaxed text-neutral-600">
+                    {faq.a}
+                  </div>
+                </details>
+              ))}
+            </div>
+
+          </div>
+        </section>
+      </LazySection>
+
       {/* INSTAGRAM FEED */}
-      <InstagramFeed />
+      <LazySection placeholderClassName="py-16">
+        <InstagramFeed />
+      </LazySection>
 
     </div>
   );

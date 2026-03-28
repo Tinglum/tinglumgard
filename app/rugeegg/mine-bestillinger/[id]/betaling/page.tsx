@@ -267,7 +267,7 @@ export default function EggRemainderPage() {
       <div className="min-h-screen flex items-center justify-center px-6">
         <GlassCard className="p-8 text-center max-w-md">
           <p className="text-sm text-neutral-600 mb-4">{loadError || t.eggs.errors.couldNotFetchOrder}</p>
-          <Link href="/rugeegg/mine-bestillinger" className="btn-secondary inline-flex justify-center">
+          <Link href="/min-side" className="btn-secondary inline-flex justify-center">
             {t.nav.back}
           </Link>
         </GlassCard>
@@ -280,7 +280,7 @@ export default function EggRemainderPage() {
       <div className="min-h-screen flex items-center justify-center px-6">
         <GlassCard className="p-8 text-center max-w-md">
           <p className="text-sm text-neutral-600 mb-4">{remainderCopy.unavailable}</p>
-          <Link href="/rugeegg/mine-bestillinger" className="btn-secondary inline-flex justify-center">
+          <Link href="/min-side" className="btn-secondary inline-flex justify-center">
             {t.nav.back}
           </Link>
         </GlassCard>
@@ -289,22 +289,22 @@ export default function EggRemainderPage() {
   }
 
   return (
-    <div className="min-h-screen py-12">
+    <div className="min-h-screen overflow-x-hidden py-12">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-4xl space-y-8">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <h1 className="text-4xl font-normal text-neutral-900 mb-2">{remainderCopy.title}</h1>
             <p className="text-neutral-600">
               {remainderCopy.orderLabel.replace('{orderNumber}', order.order_number)}
             </p>
           </div>
-          <Link href="/rugeegg/mine-bestillinger" className="text-sm text-neutral-600 hover:text-neutral-900">
+          <Link href="/min-side" className="self-start text-sm text-neutral-600 hover:text-neutral-900">
             {t.nav.back}
           </Link>
         </div>
 
         <GlassCard className="p-6 space-y-4">
-          <div className="flex flex-wrap justify-between gap-4">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <p className="text-xs uppercase tracking-[0.2em] text-neutral-500">{t.eggs.common.breed}</p>
               <p className="text-lg font-normal text-neutral-900">
@@ -314,7 +314,7 @@ export default function EggRemainderPage() {
                 {t.eggs.common.week} {order.week_number} - {formatDate(new Date(order.delivery_monday), language)}
               </p>
             </div>
-            <div className="text-right">
+            <div className="sm:text-right">
               <p className="text-sm text-neutral-500">{remainderCopy.depositPaidEggs}</p>
               <p className="text-lg font-normal text-neutral-900">{formatPrice(order.deposit_amount, language)}</p>
               {order.remainder_due_date && (
@@ -327,7 +327,7 @@ export default function EggRemainderPage() {
         </GlassCard>
 
         <GlassCard className="p-6 space-y-4">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <h2 className="text-lg font-normal text-neutral-900">{remainderCopy.addMoreEggsOptional}</h2>
             <span className="text-xs text-neutral-500">{remainderCopy.sameShipmentWeek}</span>
           </div>
@@ -340,7 +340,7 @@ export default function EggRemainderPage() {
             )}
 
             {inventory.map((item) => {
-              const remaining = item.eggs_remaining ?? (item.eggs_available - item.eggs_allocated)
+              const remaining = Math.max(0, item.eggs_available - item.eggs_allocated)
               const selected = selectedQuantities[item.id] || 0
               const existingQty =
                 order.egg_order_additions?.find((addition) => addition.inventory_id === item.id)?.quantity || 0
@@ -351,14 +351,17 @@ export default function EggRemainderPage() {
               const displayPrice = discountEligible ? Math.round(basePrice * 0.7) : basePrice
 
               return (
-                <div key={item.id} className="flex flex-wrap items-center justify-between gap-3 border border-neutral-200 rounded-xl p-4">
-                  <div>
+                <div
+                  key={item.id}
+                  className="flex flex-col gap-4 rounded-xl border border-neutral-200 p-4 sm:flex-row sm:items-center sm:justify-between"
+                >
+                  <div className="min-w-0 flex-1">
                     <p className="font-normal text-neutral-900">{item.egg_breeds?.name}</p>
                     <p className="text-xs text-neutral-500">
                       {remaining} {remainderCopy.eggsLeft} - {formatPrice(displayPrice, language)} / {t.eggs.common.eggs}
                     </p>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 self-start sm:self-center">
                     <button
                       type="button"
                       disabled={disabled || selected <= minQty || isPaying}
@@ -387,23 +390,23 @@ export default function EggRemainderPage() {
           <h2 className="text-lg font-normal text-neutral-900">{remainderCopy.paymentSummaryTitle}</h2>
           <p className="text-sm text-neutral-600">{remainderCopy.paymentSummaryDescription}</p>
           <div className="space-y-2 text-sm">
-            <div className="flex justify-between text-neutral-600">
+            <div className="flex flex-wrap justify-between gap-2 text-neutral-600">
               <span>{t.eggs.common.remainder}</span>
               <span className="font-normal text-neutral-900">{formatPrice(baseRemainder, language)}</span>
             </div>
             {additionsTotal > 0 && (
-              <div className="flex justify-between text-neutral-600">
+              <div className="flex flex-wrap justify-between gap-2 text-neutral-600">
                 <span>{t.eggs.common.additions}</span>
                 <span className="font-normal text-neutral-900">{formatPrice(additionsTotal, language)}</span>
               </div>
             )}
             {remainderPaidOre > 0 && (
-              <div className="flex justify-between text-neutral-600">
+              <div className="flex flex-wrap justify-between gap-2 text-neutral-600">
                 <span>{t.eggs.common.alreadyPaid}</span>
                 <span className="font-normal text-neutral-900">{formatPrice(remainderPaidOre, language)}</span>
               </div>
             )}
-            <div className="flex justify-between text-neutral-900 text-base pt-2 border-t border-neutral-200">
+            <div className="flex flex-wrap justify-between gap-2 border-t border-neutral-200 pt-2 text-base text-neutral-900">
               <span className="font-normal">{t.eggs.common.dueNow}</span>
               <span className="font-normal">{formatPrice(amountDue, language)}</span>
             </div>

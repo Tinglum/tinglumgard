@@ -101,7 +101,7 @@ export function ChickenBreedCard({ breed }: ChickenBreedCardProps) {
               backgroundColor: withAlpha(visualProfile.accentColor, 10),
             }}
           >
-            {breed.slug?.toUpperCase() || commonCopy.defaultBreedCode}
+            {breed.slug?.toUpperCase() || 'BREED'}
           </span>
         </div>
 

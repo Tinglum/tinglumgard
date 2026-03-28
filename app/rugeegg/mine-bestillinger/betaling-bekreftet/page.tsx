@@ -114,7 +114,7 @@ export default function EggRemainderConfirmationPage() {
         <GlassCard className="p-8 text-center max-w-lg">
           <h1 className="text-2xl font-normal text-neutral-900 mb-3">{t.eggs.confirmation.orderNotFoundTitle}</h1>
           <p className="text-sm text-neutral-600 mb-6">{error}</p>
-          <Link href="/rugeegg/mine-bestillinger" className="btn-primary inline-flex">
+          <Link href="/min-side" className="btn-primary inline-flex">
             {copy.backToOrders}
           </Link>
         </GlassCard>
@@ -170,7 +170,7 @@ export default function EggRemainderConfirmationPage() {
         </GlassCard>
 
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
-          <Link href="/rugeegg/mine-bestillinger" className="btn-secondary w-full sm:w-auto justify-center">
+          <Link href="/min-side" className="btn-secondary w-full sm:w-auto justify-center">
             {copy.backToOrders}
           </Link>
           {canAdd && (

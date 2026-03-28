@@ -30,6 +30,9 @@ interface Order {
   shipping_city?: string | null;
   shipping_country?: string | null;
   box_size?: number;
+  effective_box_size?: number;
+  display_box_name_no?: string | null;
+  display_box_name_en?: string | null;
   fresh_delivery?: boolean;
   ribbe_choice?: string;
   extra_products?: any[];
@@ -90,6 +93,9 @@ export function OrderDetailModal({
   const actualRemainderAmount = remainderPayment?.amount_nok || order.remainder_amount;
 
   const formatMoney = (amount: number | undefined | null) => `${currency} ${Number(amount || 0).toLocaleString(locale)}`;
+  const boxName = lang === 'no' ? order.display_box_name_no : order.display_box_name_en;
+  const boxSize = order.box_size || order.effective_box_size || 0;
+  const boxLabel = boxName && boxSize ? `${boxName} (${boxSize}kg)` : boxName || (boxSize ? `${boxSize}kg` : '-');
 
   const statusOptions = [
     { value: 'draft', label: copy.statusOptions.draft },
@@ -326,7 +332,7 @@ export function OrderDetailModal({
                     <div>
                       <p className="text-sm text-gray-600">{copy.boxLabel}</p>
                       <p className="font-medium text-gray-900">
-                        {copy.pigBoxValue.replace('{size}', String(order.box_size || 0))}
+                        {boxLabel}
                       </p>
                     </div>
                     <div>

@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { fixMojibake } from '@/lib/utils/text';
 
-export interface MangalitsaPreset {
+interface MangalitsaPreset {
   id: string;
   slug: string;
   name_no: string;
@@ -26,22 +26,12 @@ export interface MangalitsaPreset {
 }
 
 interface MobileProductTilesProps {
-  presets?: MangalitsaPreset[] | null;
+  presets: MangalitsaPreset[];
 }
 
 export function MobileProductTiles({ presets }: MobileProductTilesProps) {
   const { t, lang } = useLanguage();
   const locale = lang === 'no' ? 'nb-NO' : 'en-US';
-
-  if (!presets) {
-    return (
-      <section className="px-5 py-12 text-[#1E1B16]">
-        <div className="mx-auto max-w-md rounded-[28px] border border-[#E4DED5] bg-white p-6 text-center text-sm text-[#5E5A50] shadow-[0_20px_45px_rgba(30,27,22,0.12)] font-[family:var(--font-manrope)]">
-          {t.mangalitsa.loading}
-        </div>
-      </section>
-    );
-  }
 
   const sortedPresets = [...presets].sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
 
