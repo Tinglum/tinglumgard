@@ -34,6 +34,7 @@ export default function EggConfirmationPage() {
   const { lang: language, t } = useLanguage()
   const searchParams = useSearchParams()
   const orderId = searchParams.get('orderId')
+  const isPaymentDeferred = searchParams.get('payment_deferred') === 'true'
   const { clearCart } = useCart()
   const { clearDraft } = useOrder()
   const [order, setOrder] = useState<EggOrder | null>(null)
@@ -83,7 +84,7 @@ export default function EggConfirmationPage() {
   }, [orderId, orderNotFoundError])
 
   useEffect(() => {
-    if (!orderId || paymentStatus === 'completed' || pollCount >= 10) return
+    if (!orderId || paymentStatus === 'completed' || pollCount >= 10 || isPaymentDeferred) return
 
     const interval = setInterval(async () => {
       try {
@@ -220,7 +221,20 @@ export default function EggConfirmationPage() {
           </div>
         </GlassCard>
 
-        {displayPaymentStatus !== 'completed' && (
+        {isPaymentDeferred && displayPaymentStatus !== 'completed' && (
+          <GlassCard className="p-5 border-2 border-blue-400 bg-blue-50/50">
+            <p className="font-semibold text-blue-900 mb-1">
+              {language === 'no' ? 'Vipps er midlertidig utilgjengelig' : 'Vipps is temporarily unavailable'}
+            </p>
+            <p className="text-sm text-blue-800">
+              {language === 'no'
+                ? 'Bestillingen din er registrert og reservert. Vipps-betaling er midlertidig nede, så depositum er ikke trukket ennå. Vi tar kontakt når betalingen kan gjennomføres.'
+                : 'Your order has been registered and reserved. Vipps payment is temporarily down, so the deposit has not been charged yet. We will contact you when payment can be processed.'}
+            </p>
+          </GlassCard>
+        )}
+
+        {!isPaymentDeferred && displayPaymentStatus !== 'completed' && (
           <GlassCard className="p-5 text-sm text-neutral-700">
             {displayPaymentStatus === 'failed' ? confirmation.failedHelp : confirmation.pendingHelp}
           </GlassCard>

@@ -36,6 +36,7 @@ export default function ConfirmationPage() {
   const { lang, t } = useLanguage();
   const searchParams = useSearchParams();
   const orderId = searchParams.get("orderId");
+  const isPaymentDeferred = searchParams.get("payment_deferred") === "true";
 
   const [order, setOrder] = useState<OrderData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -90,7 +91,7 @@ export default function ConfirmationPage() {
   }, [orderId]);
 
   useEffect(() => {
-    if (!orderId || paymentStatus === "completed" || pollCount >= 10) return;
+    if (!orderId || paymentStatus === "completed" || pollCount >= 10 || isPaymentDeferred) return;
 
     const pollInterval = setInterval(async () => {
       try {
@@ -356,7 +357,20 @@ export default function ConfirmationPage() {
           <h2 className="text-3xl font-light tracking-tight text-neutral-900 mb-8">{copy.nextStepsTitle}</h2>
 
           <div className="space-y-4">
-            {displayPaymentState === "pending" && (
+            {isPaymentDeferred && displayPaymentState === "pending" && (
+              <div className={cn("p-4 rounded-xl border-2 border-blue-500 bg-blue-50")}>
+                <p className="text-blue-900 font-semibold mb-2">
+                  {lang === "no" ? "Vipps er midlertidig utilgjengelig" : "Vipps is temporarily unavailable"}
+                </p>
+                <p className="text-sm text-blue-800 mt-1">
+                  {lang === "no"
+                    ? "Bestillingen din er registrert og reservert. Vipps-betaling er midlertidig nede, så depositum er ikke trukket ennå. Vi tar kontakt når betalingen kan gjennomføres."
+                    : "Your order has been registered and reserved. Vipps payment is temporarily down, so the deposit has not been charged yet. We will contact you when payment can be processed."}
+                </p>
+              </div>
+            )}
+
+            {!isPaymentDeferred && displayPaymentState === "pending" && (
               <div className={cn("p-4 rounded-xl border-2 border-yellow-500 bg-yellow-50")}>
                 <p className="text-yellow-900 font-semibold mb-2">{copy.pendingTitle}</p>
                 <p className="text-sm text-yellow-800 mt-1">

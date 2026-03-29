@@ -154,20 +154,23 @@ export async function GET(request: NextRequest) {
 
       if (!depositResponse.ok) {
         console.error('Failed to create deposit payment', { status: depositResponse.status });
-        const errorRedirect = NextResponse.redirect(
-          new URL(
-            `${orderPagePath}?error=payment_failed&orderId=${orderResult.orderId}`,
-            request.url
-          )
+        // Vipps payment unavailable — accept order without deposit and redirect to confirmation
+        const confirmationPath = isEggOrder
+          ? `/rugeegg/bestill/bekreftelse?orderId=${orderResult.orderId}&payment_deferred=true`
+          : isChickenOrder
+            ? `/kyllinger/bekreftelse?orderId=${orderResult.orderId}&payment_deferred=true`
+            : `/bestill/bekreftelse?orderId=${orderResult.orderId}&payment_deferred=true`;
+        const deferredRedirect = NextResponse.redirect(
+          new URL(confirmationPath, request.url)
         );
-        errorRedirect.cookies.set('tinglum_session', sessionToken, {
+        deferredRedirect.cookies.set('tinglum_session', sessionToken, {
           httpOnly: true,
           secure: process.env.NODE_ENV === 'production',
           sameSite: 'lax',
           maxAge: 60 * 60 * 24 * 7,
           path: '/',
         });
-        return errorRedirect;
+        return deferredRedirect;
       }
 
       const depositResult = await depositResponse.json();

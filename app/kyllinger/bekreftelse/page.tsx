@@ -8,7 +8,7 @@ import Link from 'next/link'
 import { CheckCircle, Clock, RefreshCcw, XCircle } from 'lucide-react'
 
 export default function ChickenConfirmationPage() {
-  const { t } = useLanguage()
+  const { t, lang } = useLanguage()
   const chickens = (t as any).chickens
   const commonCopy = chickens.common
   const confirmationCopy = chickens.confirmation
@@ -16,6 +16,7 @@ export default function ChickenConfirmationPage() {
 
   const searchParams = useSearchParams()
   const orderId = searchParams.get('orderId')
+  const isPaymentDeferred = searchParams.get('payment_deferred') === 'true'
   const [order, setOrder] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [attempts, setAttempts] = useState(0)
@@ -30,6 +31,15 @@ export default function ChickenConfirmationPage() {
   useEffect(() => {
     if (!orderId) {
       setLoading(false)
+      return
+    }
+
+    if (isPaymentDeferred) {
+      // Fetch order once for display, then stop
+      fetch(`/api/chickens/orders/${orderId}/status`, { cache: 'no-store' })
+        .then(res => res.ok ? res.json() : null)
+        .then(found => { if (found) setOrder(found) })
+        .finally(() => setLoading(false))
       return
     }
 
@@ -123,7 +133,36 @@ export default function ChickenConfirmationPage() {
     <div className="min-h-screen bg-neutral-50 py-16">
       <div className="max-w-lg mx-auto px-4">
         <div className="bg-white rounded-xl shadow-sm border p-8 text-center">
-          {displayPaymentState === 'pending' ? (
+          {isPaymentDeferred && displayPaymentState === 'pending' ? (
+            <div className="space-y-4">
+              <Clock className="w-12 h-12 text-blue-500 mx-auto" />
+              <h1 className="text-2xl font-light text-neutral-900">
+                {lang === 'no' ? 'Bestilling registrert' : 'Order registered'}
+              </h1>
+              <div className="bg-blue-50 border-2 border-blue-400 rounded-lg p-4 text-sm text-blue-800 text-left">
+                <p className="font-semibold text-blue-900 mb-1">
+                  {lang === 'no' ? 'Vipps er midlertidig utilgjengelig' : 'Vipps is temporarily unavailable'}
+                </p>
+                <p>
+                  {lang === 'no'
+                    ? 'Bestillingen din er registrert og reservert. Vipps-betaling er midlertidig nede, så depositum er ikke trukket ennå. Vi tar kontakt når betalingen kan gjennomføres.'
+                    : 'Your order has been registered and reserved. Vipps payment is temporarily down, so the deposit has not been charged yet. We will contact you when payment can be processed.'}
+                </p>
+              </div>
+              {order && (
+                <div className="bg-neutral-50 rounded-lg p-4 text-sm text-left space-y-2 mt-4">
+                  <p><strong>{confirmationCopy.orderLabel}:</strong> {order.order_number}</p>
+                  <p><strong>{confirmationCopy.breedLabel}:</strong> {order.chicken_breeds?.name || confirmationCopy.unknownBreed}</p>
+                  <p><strong>{confirmationCopy.hensLabel}:</strong> {order.quantity_hens}</p>
+                  {order.quantity_roosters > 0 && (
+                    <p><strong>{confirmationCopy.roostersLabel}:</strong> {order.quantity_roosters}</p>
+                  )}
+                  <p><strong>{confirmationCopy.pickupWeekLabel}:</strong> {summaryCopy.week} {order.pickup_week}, {order.pickup_year}</p>
+                  <p><strong>{confirmationCopy.totalLabel}:</strong> {commonCopy.currency} {order.total_amount_nok}</p>
+                </div>
+              )}
+            </div>
+          ) : displayPaymentState === 'pending' ? (
             <div className="space-y-4">
               <Clock className="w-12 h-12 text-amber-500 mx-auto animate-pulse" />
               <h1 className="text-2xl font-light text-neutral-900">{confirmationCopy.processingTitle}</h1>
