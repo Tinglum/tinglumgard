@@ -47,7 +47,11 @@ export async function GET() {
       .eq('status', 'completed')
       .limit(1);
     if (!payments || payments.length === 0) {
-      eggsWithNoDeposit.push({ ...order, product_type: 'eggs' });
+      eggsWithNoDeposit.push({
+        ...order,
+        deposit_amount: Math.round((order.deposit_amount || 0) / 100),
+        product_type: 'eggs',
+      });
     }
   }
 
