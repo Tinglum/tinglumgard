@@ -4,6 +4,7 @@ import { createSession } from '@/lib/auth/session';
 import { supabaseAdmin } from '@/lib/supabase/server';
 import { cookies } from 'next/headers';
 import { sanitizeReturnToPath } from '@/lib/email/links';
+import { notifyDeferredPayment } from '@/lib/notifications/deferred-payment';
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
@@ -154,6 +155,17 @@ export async function GET(request: NextRequest) {
 
       if (!depositResponse.ok) {
         console.error('Failed to create deposit payment', { status: depositResponse.status });
+
+        // Notify admin about deferred payment (fire-and-forget)
+        notifyDeferredPayment({
+          orderId: orderResult.orderId,
+          orderNumber: orderResult.orderNumber || '',
+          productType: isEggOrder ? 'eggs' : isChickenOrder ? 'chickens' : 'pork',
+          customerName: userInfo.name || '',
+          customerEmail: userInfo.email || '',
+          depositStatus: depositResponse.status,
+        }).catch((err) => console.error('Failed to send deferred payment notification:', err));
+
         // Vipps payment unavailable — accept order without deposit and redirect to confirmation
         const confirmationPath = isEggOrder
           ? `/rugeegg/bestill/bekreftelse?orderId=${orderResult.orderId}&payment_deferred=true`

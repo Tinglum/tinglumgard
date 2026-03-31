@@ -19,6 +19,7 @@ import {
   TrendingUp,
   Truck,
 } from 'lucide-react';
+import { DeferredPaymentsCard } from './DeferredPaymentsCard';
 
 interface ActionDashboardProps {
   onNavigate: (tab: string, subTab?: string) => void;
@@ -159,6 +160,9 @@ export function ActionDashboard({ onNavigate, onNavigateToOrder }: ActionDashboa
           <p className="text-3xl font-light text-neutral-900 tabular-nums">{actionItems.shippingMissing.count}</p>
         </button>
       </div>
+
+      {/* Deferred Payments Alert */}
+      <DeferredPaymentsCard lang={lang} />
 
       {/* Row 2: Key Metrics */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
