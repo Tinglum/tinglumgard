@@ -104,9 +104,18 @@ class VippsClient {
   async createCheckoutSession(sessionData: any) {
     const accessToken = await this.getAccessToken();
 
-    console.log('Vipps Checkout - Creating session');
+    const endpoint = `${vippsConfig.apiBaseUrl}/checkout/v3/session`;
+    const requestTimestamp = new Date().toISOString();
+    console.log('Vipps Checkout - Creating session', {
+      endpoint,
+      timestamp: requestTimestamp,
+      msn: vippsConfig.merchantSerialNumber,
+      clientIdPrefix: vippsConfig.clientId.substring(0, 8) + '...',
+      subscriptionKeyPrefix: vippsConfig.subscriptionKey.substring(0, 8) + '...',
+      env: vippsConfig.isTest ? 'test' : 'production',
+    });
 
-    const response = await fetch(`${vippsConfig.apiBaseUrl}/checkout/v3/session`, {
+    const response = await fetch(endpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -123,13 +132,23 @@ class VippsClient {
     });
 
     const responseText = await response.text();
-    console.log('Vipps API Response Status:', response.status, response.statusText);
+    console.log('Vipps API Response:', {
+      status: response.status,
+      statusText: response.statusText,
+      timestamp: requestTimestamp,
+      responseBody: responseText,
+      responseHeaders: Object.fromEntries(response.headers.entries()),
+    });
 
     if (!response.ok) {
       console.error('Vipps Checkout session creation failed:', {
+        endpoint,
+        timestamp: requestTimestamp,
         status: response.status,
         statusText: response.statusText,
-        error: responseText,
+        responseBody: responseText,
+        msn: vippsConfig.merchantSerialNumber,
+        requestBody: JSON.stringify(sessionData),
       });
       throw new Error(`Failed to create checkout session: ${response.status} ${responseText}`);
     }
