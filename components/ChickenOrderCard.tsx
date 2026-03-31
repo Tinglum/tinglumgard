@@ -51,6 +51,7 @@ interface ChickenOrderCardProps {
     chicken_payments?: Array<{ payment_type: string; status: string; amount_nok: number }>
   }
   onPayRemainder?: (orderId: string) => void
+  onPayDeposit?: (orderId: string) => void
   onRefresh?: () => Promise<void> | void
 }
 
@@ -109,7 +110,7 @@ const getIsoWeekMondayDate = (year: number, week: number) => {
   return toDateOnly(simple)
 }
 
-export function ChickenOrderCard({ order, onPayRemainder, onRefresh }: ChickenOrderCardProps) {
+export function ChickenOrderCard({ order, onPayRemainder, onPayDeposit, onRefresh }: ChickenOrderCardProps) {
   const { lang, t } = useLanguage()
   const { toast } = useToast()
   const myOrdersCopy = (t as any).chickens.myOrders
@@ -410,7 +411,7 @@ export function ChickenOrderCard({ order, onPayRemainder, onRefresh }: ChickenOr
       return { text: myOrdersCopy.statusCancelled, tone: 'neutral' as const }
     }
     if (order.status === 'pending') {
-      return { text: myOrdersCopy.nextActionPendingDeposit, tone: 'neutral' as const }
+      return { text: myOrdersCopy.nextActionPendingDeposit, tone: 'warning' as const }
     }
     return { text: myOrdersCopy.nextActionProcessing, tone: 'info' as const }
   })()
@@ -789,6 +790,13 @@ export function ChickenOrderCard({ order, onPayRemainder, onRefresh }: ChickenOr
           />
         </div>
 
+        {(!depositPaid && onPayDeposit) && (
+          <div className="mt-5 pt-5 border-t border-neutral-200">
+            <Button className="btn-primary" onClick={() => onPayDeposit(order.id)}>
+              {lang === 'no' ? 'Betal depositum' : 'Pay deposit'}
+            </Button>
+          </div>
+        )}
         {showPayRemainder && (
           <div className="mt-5 pt-5 border-t border-neutral-200">
             <Button className="btn-primary" onClick={() => onPayRemainder?.(order.id)}>

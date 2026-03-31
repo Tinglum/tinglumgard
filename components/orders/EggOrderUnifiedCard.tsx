@@ -62,7 +62,7 @@ const buildTrackingUrl = (trackingNumber?: string | null) => {
   return `https://sporing.posten.no/sporing/${encodeURIComponent(value)}`
 }
 
-export function EggOrderUnifiedCard({ order }: { order: EggOrder }) {
+export function EggOrderUnifiedCard({ order, onPayDeposit }: { order: EggOrder; onPayDeposit?: (orderId: string) => void }) {
   const { lang, t } = useLanguage()
   const ordersCopy = t.eggs.myOrders
   const common = t.eggs.common
@@ -213,7 +213,7 @@ export function EggOrderUnifiedCard({ order }: { order: EggOrder }) {
     if (order.status === 'fully_paid' || order.status === 'preparing') {
       return { text: ordersCopy.nextActionPreparing, tone: 'info' as const }
     }
-    return { text: ordersCopy.nextActionPendingDeposit, tone: 'neutral' as const }
+    return { text: ordersCopy.nextActionPendingDeposit, tone: 'warning' as const }
   })()
 
   const nextActionClass = {
@@ -365,6 +365,15 @@ export function EggOrderUnifiedCard({ order }: { order: EggOrder }) {
             )}
           </div>
           <div className="flex flex-wrap gap-2">
+            {!depositPaid && onPayDeposit && (
+              <button
+                onClick={() => onPayDeposit(order.id)}
+                className="btn-primary inline-flex items-center gap-1.5 w-full justify-center sm:w-auto"
+              >
+                {lang === 'no' ? 'Betal depositum' : 'Pay deposit'}
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            )}
             {remainderDue > 0 && order.status === 'deposit_paid' && (
               <Link href={`/rugeegg/mine-bestillinger/${order.id}/betaling`} className="btn-primary inline-flex w-full justify-center sm:w-auto">
                 {ordersCopy.payRemainder}

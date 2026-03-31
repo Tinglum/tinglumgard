@@ -71,6 +71,7 @@ interface PigOrderUnifiedCardProps {
   order: Order
   canEdit: boolean
   onPayRemainder: (orderId: string) => void
+  onPayDeposit?: (orderId: string) => void
   onRefresh: () => void
 }
 
@@ -84,7 +85,7 @@ const daysBetween = (future: Date, today: Date) => {
   return Math.round(diffMs / (1000 * 60 * 60 * 24))
 }
 
-export function PigOrderUnifiedCard({ order, canEdit, onPayRemainder, onRefresh }: PigOrderUnifiedCardProps) {
+export function PigOrderUnifiedCard({ order, canEdit, onPayRemainder, onPayDeposit, onRefresh }: PigOrderUnifiedCardProps) {
   const { toast } = useToast()
   const { lang, t } = useLanguage()
   const locale = lang === 'en' ? 'en-US' : 'nb-NO'
@@ -270,7 +271,7 @@ export function PigOrderUnifiedCard({ order, canEdit, onPayRemainder, onRefresh 
       return { text: copy.nextActionLocked, tone: 'warning' as const }
     }
     if (!depositPaid) {
-      return { text: copy.nextActionWaitingDeposit, tone: 'neutral' as const }
+      return { text: copy.nextActionWaitingDeposit, tone: 'warning' as const }
     }
     if (order.status === 'cancelled') {
       return { text: copy.statusCancelled, tone: 'neutral' as const }
@@ -498,6 +499,12 @@ export function PigOrderUnifiedCard({ order, canEdit, onPayRemainder, onRefresh 
         </div>
 
         <div className="mt-5 pt-5 border-t border-neutral-200 flex flex-wrap gap-2">
+          {!depositPaid && onPayDeposit && (
+            <Button onClick={() => onPayDeposit(order.id)} className="btn-primary">
+              <CreditCard className="w-4 h-4 mr-1.5" />
+              {lang === 'no' ? 'Betal depositum' : 'Pay deposit'}
+            </Button>
+          )}
           {needsRemainderPayment && (
             <Button onClick={() => onPayRemainder(order.id)} className="btn-primary">
               {copy.payRemainder}

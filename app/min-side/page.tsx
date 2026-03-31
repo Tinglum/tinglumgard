@@ -312,6 +312,37 @@ export default function CustomerPortalPage() {
     return { year: d.getUTCFullYear(), week: weekNo };
   }
 
+  async function handlePayDeposit(orderId: string, productType: 'pork' | 'eggs' | 'chickens') {
+    const apiPath =
+      productType === 'eggs'
+        ? `/api/eggs/orders/${orderId}/deposit`
+        : productType === 'chickens'
+          ? `/api/chickens/orders/${orderId}/deposit`
+          : `/api/orders/${orderId}/deposit`;
+    try {
+      const response = await fetch(apiPath, { method: 'POST' });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(body?.error || 'Could not start deposit payment');
+      }
+      if (!body?.redirectUrl) {
+        throw new Error('Missing Vipps redirect URL');
+      }
+      window.location.href = body.redirectUrl;
+    } catch (error) {
+      toast({
+        title: common.error,
+        description:
+          error instanceof Error
+            ? error.message
+            : lang === 'en'
+              ? 'Could not start deposit payment.'
+              : 'Kunne ikke starte forskuddsbetaling.',
+        variant: 'destructive',
+      });
+    }
+  }
+
   async function handlePigPayRemainder(orderId: string) {
     window.location.href = `/min-side/ordre/${orderId}/betaling`;
   }
@@ -615,7 +646,7 @@ export default function CustomerPortalPage() {
                           id={`order-card-egg-${order.id}`}
                           className={focusedOrderKey === `egg-${order.id}` ? 'rounded-xl ring-2 ring-amber-300 ring-offset-2' : undefined}
                         >
-                          <EggOrderUnifiedCard order={order} />
+                          <EggOrderUnifiedCard order={order} onPayDeposit={(id) => handlePayDeposit(id, 'eggs')} />
                         </div>
                       ))}
                     </div>
@@ -645,6 +676,7 @@ export default function CustomerPortalPage() {
                             order={order}
                             canEdit={canEdit}
                             onPayRemainder={handlePigPayRemainder}
+                            onPayDeposit={(id) => handlePayDeposit(id, 'pork')}
                             onRefresh={loadAllOrders}
                           />
                         </div>
@@ -677,6 +709,7 @@ export default function CustomerPortalPage() {
                           <ChickenOrderCard
                             order={order}
                             onPayRemainder={handleChickenPayRemainder}
+                            onPayDeposit={(id) => handlePayDeposit(id, 'chickens')}
                             onRefresh={loadAllOrders}
                           />
                         </div>
@@ -703,7 +736,7 @@ export default function CustomerPortalPage() {
                     </div>
                     {item.type === 'egg' && (
                       eggOrdersById.get(item.id) ? (
-                        <EggOrderUnifiedCard order={eggOrdersById.get(item.id)!} />
+                        <EggOrderUnifiedCard order={eggOrdersById.get(item.id)!} onPayDeposit={(id) => handlePayDeposit(id, 'eggs')} />
                       ) : null
                     )}
                     {item.type === 'pig' && (
@@ -712,6 +745,7 @@ export default function CustomerPortalPage() {
                           order={pigOrdersById.get(item.id)!}
                           canEdit={canEdit}
                           onPayRemainder={handlePigPayRemainder}
+                          onPayDeposit={(id) => handlePayDeposit(id, 'pork')}
                           onRefresh={loadAllOrders}
                         />
                       ) : null
@@ -721,6 +755,7 @@ export default function CustomerPortalPage() {
                         <ChickenOrderCard
                           order={chickenOrdersById.get(item.id)!}
                           onPayRemainder={handleChickenPayRemainder}
+                          onPayDeposit={(id) => handlePayDeposit(id, 'chickens')}
                           onRefresh={loadAllOrders}
                         />
                       ) : null
