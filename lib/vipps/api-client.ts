@@ -110,28 +110,33 @@ class VippsClient {
   }
 
   async createCheckoutSession(sessionData: any) {
-    const accessToken = await this.getAccessToken();
-
     const endpoint = `${vippsConfig.apiBaseUrl}/checkout/v3/session`;
     const requestTimestamp = new Date().toISOString();
+
+    // Debug: verify credentials are loaded correctly at runtime
+    const clientId = vippsConfig.clientId;
+    const clientSecret = vippsConfig.clientSecret;
+    const subscriptionKey = vippsConfig.subscriptionKey;
+    const msn = vippsConfig.merchantSerialNumber;
+
     console.log('Vipps Checkout - Creating session', {
       endpoint,
       timestamp: requestTimestamp,
-      msn: vippsConfig.merchantSerialNumber,
-      clientIdPrefix: vippsConfig.clientId.substring(0, 8) + '...',
-      subscriptionKeyPrefix: vippsConfig.subscriptionKey.substring(0, 8) + '...',
+      msn,
+      clientId: clientId ? `${clientId.substring(0, 8)}... (len=${clientId.length})` : 'MISSING',
+      clientSecret: clientSecret ? `${clientSecret.substring(0, 6)}... (len=${clientSecret.length})` : 'MISSING',
+      subscriptionKey: subscriptionKey ? `${subscriptionKey.substring(0, 8)}... (len=${subscriptionKey.length})` : 'MISSING',
       env: vippsConfig.isTest ? 'test' : 'production',
     });
 
-    // Try Bearer-only auth first (matching createPayment method)
-    // Fall back to client_id/client_secret if Bearer fails
     const response = await fetch(endpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${accessToken}`,
-        'Ocp-Apim-Subscription-Key': vippsConfig.subscriptionKey,
-        'Merchant-Serial-Number': vippsConfig.merchantSerialNumber,
+        'client_id': clientId,
+        'client_secret': clientSecret,
+        'Ocp-Apim-Subscription-Key': subscriptionKey,
+        'Merchant-Serial-Number': msn,
         'Vipps-System-Name': 'tinglumgard',
         'Vipps-System-Version': '1.0.0',
         'Vipps-System-Plugin-Name': 'tinglumgard-checkout',
