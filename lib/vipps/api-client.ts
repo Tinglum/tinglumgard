@@ -20,14 +20,22 @@ class VippsClient {
         'client_id': vippsConfig.clientId,
         'client_secret': vippsConfig.clientSecret,
         'Ocp-Apim-Subscription-Key': vippsConfig.subscriptionKey,
+        'Merchant-Serial-Number': vippsConfig.merchantSerialNumber,
       },
     });
 
     if (!response.ok) {
-      throw new Error('Failed to get Vipps access token');
+      const errorText = await response.text();
+      console.error('Vipps getAccessToken failed:', response.status, errorText);
+      throw new Error(`Failed to get Vipps access token: ${response.status}`);
     }
 
     const data = await response.json();
+    console.log('Vipps access token obtained:', {
+      tokenType: data.token_type,
+      expiresIn: data.expires_in,
+      tokenPrefix: data.access_token?.substring(0, 20) + '...',
+    });
     return data.access_token;
   }
 
@@ -115,13 +123,13 @@ class VippsClient {
       env: vippsConfig.isTest ? 'test' : 'production',
     });
 
+    // Try Bearer-only auth first (matching createPayment method)
+    // Fall back to client_id/client_secret if Bearer fails
     const response = await fetch(endpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${accessToken}`,
-        'client_id': vippsConfig.clientId,
-        'client_secret': vippsConfig.clientSecret,
         'Ocp-Apim-Subscription-Key': vippsConfig.subscriptionKey,
         'Merchant-Serial-Number': vippsConfig.merchantSerialNumber,
         'Vipps-System-Name': 'tinglumgard',
