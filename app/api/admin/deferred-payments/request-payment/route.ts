@@ -19,15 +19,9 @@ export async function POST(request: NextRequest) {
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://tinglumgard.no';
 
-  // Build the payment link based on product type
-  let paymentLink: string;
-  if (productType === 'eggs') {
-    paymentLink = `${appUrl}/rugeegg/mine-bestillinger/${orderId}/betaling`;
-  } else if (productType === 'chickens') {
-    paymentLink = `${appUrl}/min-side/kylling/${orderId}/betaling`;
-  } else {
-    paymentLink = `${appUrl}/min-side/ordre/${orderId}/betaling`;
-  }
+  // Link to min-side with deep-link to the specific order card (where deposit button is)
+  const orderParam = productType === 'eggs' ? 'eggOrderId' : productType === 'chickens' ? 'chickenOrderId' : 'orderId';
+  const paymentLink = `${appUrl}/min-side?${orderParam}=${orderId}`;
 
   const subject = `Betal depositum for din bestilling ${orderNumber} – Tinglum Gård`;
   const html = `
