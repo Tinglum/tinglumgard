@@ -20,22 +20,14 @@ class VippsClient {
         'client_id': vippsConfig.clientId,
         'client_secret': vippsConfig.clientSecret,
         'Ocp-Apim-Subscription-Key': vippsConfig.subscriptionKey,
-        'Merchant-Serial-Number': vippsConfig.merchantSerialNumber,
       },
     });
 
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Vipps getAccessToken failed:', response.status, errorText);
-      throw new Error(`Failed to get Vipps access token: ${response.status}`);
+      throw new Error('Failed to get Vipps access token');
     }
 
     const data = await response.json();
-    console.log('Vipps access token obtained:', {
-      tokenType: data.token_type,
-      expiresIn: data.expires_in,
-      tokenPrefix: data.access_token?.substring(0, 20) + '...',
-    });
     return data.access_token;
   }
 
@@ -110,33 +102,16 @@ class VippsClient {
   }
 
   async createCheckoutSession(sessionData: any) {
-    const endpoint = `${vippsConfig.apiBaseUrl}/checkout/v3/session`;
-    const requestTimestamp = new Date().toISOString();
+    console.log('Vipps Checkout - Creating session');
 
-    // Debug: verify credentials are loaded correctly at runtime
-    const clientId = vippsConfig.clientId;
-    const clientSecret = vippsConfig.clientSecret;
-    const subscriptionKey = vippsConfig.subscriptionKey;
-    const msn = vippsConfig.merchantSerialNumber;
-
-    console.log('Vipps Checkout - Creating session', {
-      endpoint,
-      timestamp: requestTimestamp,
-      msn,
-      clientId: clientId ? `${clientId.substring(0, 8)}... (len=${clientId.length})` : 'MISSING',
-      clientSecret: clientSecret ? `${clientSecret.substring(0, 6)}... (len=${clientSecret.length})` : 'MISSING',
-      subscriptionKey: subscriptionKey ? `${subscriptionKey.substring(0, 8)}... (len=${subscriptionKey.length})` : 'MISSING',
-      env: vippsConfig.isTest ? 'test' : 'production',
-    });
-
-    const response = await fetch(endpoint, {
+    const response = await fetch(`${vippsConfig.apiBaseUrl}/checkout/v3/session`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'client_id': clientId,
-        'client_secret': clientSecret,
-        'Ocp-Apim-Subscription-Key': subscriptionKey,
-        'Merchant-Serial-Number': msn,
+        'client_id': vippsConfig.clientId,
+        'client_secret': vippsConfig.clientSecret,
+        'Ocp-Apim-Subscription-Key': vippsConfig.subscriptionKey,
+        'Merchant-Serial-Number': vippsConfig.merchantSerialNumber,
         'Vipps-System-Name': 'tinglumgard',
         'Vipps-System-Version': '1.0.0',
         'Vipps-System-Plugin-Name': 'tinglumgard-checkout',
@@ -146,23 +121,13 @@ class VippsClient {
     });
 
     const responseText = await response.text();
-    console.log('Vipps API Response:', {
-      status: response.status,
-      statusText: response.statusText,
-      timestamp: requestTimestamp,
-      responseBody: responseText,
-      responseHeaders: Object.fromEntries(response.headers.entries()),
-    });
+    console.log('Vipps API Response Status:', response.status, response.statusText);
 
     if (!response.ok) {
       console.error('Vipps Checkout session creation failed:', {
-        endpoint,
-        timestamp: requestTimestamp,
         status: response.status,
         statusText: response.statusText,
-        responseBody: responseText,
-        msn: vippsConfig.merchantSerialNumber,
-        requestBody: JSON.stringify(sessionData),
+        error: responseText,
       });
       throw new Error(`Failed to create checkout session: ${response.status} ${responseText}`);
     }
