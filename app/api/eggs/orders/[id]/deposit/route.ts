@@ -50,7 +50,9 @@ export async function POST(
       return NextResponse.json({ error: 'Deposit already paid' }, { status: 400 })
     }
 
-    if (!order.inventory_reserved_at) {
+    // Skip inventory validation for orders retrying deposit (e.g. deferred during Vipps outage).
+    // The order already exists and eggs are logically committed.
+    if (!order.inventory_reserved_at && !existingDeposit && order.status !== 'pending') {
       try {
         await validateEggOrderInventoryAvailability(order.id)
       } catch (error: any) {
