@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Check, ExternalLink, Sparkles, Info, Minus, Plus } from 'lucide-react';
+import { Check, ExternalLink, Sparkles, Info, Minus, Plus, ChevronDown, Search, Shield } from 'lucide-react';
 import { ReferralCodeInput } from '@/components/ReferralCodeInput';
 import { RebateCodeInput } from '@/components/RebateCodeInput';
 import { MobileCheckout } from '@/components/MobileCheckout';
@@ -25,6 +25,28 @@ import {
   getFixedExtraQuantity,
   normalizeExtraQuantity,
 } from '@/lib/extras/fixedQuantities';
+
+/* ── Category inference for extras filter chips ── */
+const EXTRAS_FILTER_CHIPS = [
+  { id: 'biff', label: 'Biff', match: (e: any) => /biff|steak|entrecote|flatbiff|indre.?filet|tomahawk|t-?bone/i.test(`${e.slug} ${e.name_no} ${e.part_key || ''}`) },
+  { id: 'ribbe', label: 'Ribbe', match: (e: any) => /ribbe|rib|porchetta/i.test(`${e.slug} ${e.name_no} ${e.part_key || ''}`) },
+  { id: 'spek', label: 'Spek', match: (e: any) => /spek|cure|pancetta|guanciale|lardo/i.test(`${e.slug} ${e.name_no} ${e.part_key || ''}`) },
+  { id: 'polser', label: 'Pølser', match: (e: any) => /pølse|sausage|polse|bratwurst/i.test(`${e.slug} ${e.name_no}`) },
+  { id: 'jul', label: 'Til jul', match: (e: any) => /jul|ribbe|skinke|sylte/i.test(`${e.slug} ${e.name_no}`) },
+  { id: 'grill', label: 'Til grill', match: (e: any) => /grill|tomahawk|koteletter|nakke|secreto|presa|pluma|biff/i.test(`${e.slug} ${e.name_no}`) },
+] as const;
+
+/* ── Smooth scroll helper respecting reduced-motion ── */
+function smoothScrollTo(element: HTMLElement | null, offset = 80) {
+  if (!element) return;
+  const prefersReduced = typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const top = element.getBoundingClientRect().top + window.scrollY - offset;
+  window.scrollTo({ top, behavior: prefersReduced ? 'instant' : 'smooth' });
+}
+
+/* ── Step labels ── */
+const STEP_NAMES_NO = ['Velg kasse', 'Ribbetype', 'Tilvalg', 'Levering'] as const;
+const STEP_NAMES_EN = ['Choose box', 'Ribs', 'Extras', 'Delivery'] as const;
 
 interface MangalitsaPreset {
   id: string;
@@ -114,6 +136,13 @@ export default function CheckoutPage() {
   const [showDiscountCodes, setShowDiscountCodes] = useState(false);
   const [summaryOffset, setSummaryOffset] = useState(0);
   const [prefillReferralCode, setPrefillReferralCode] = useState<string | null>(null);
+  // Extras accordion + filtering state
+  const [extrasExpanded, setExtrasExpanded] = useState(false);
+  const [extrasSearch, setExtrasSearch] = useState('');
+  const [extrasFilter, setExtrasFilter] = useState<string | null>(null);
+  // Track whether we already auto-scrolled after preset selection
+  const didAutoScrollRef = useRef(false);
+  const ribbeFirstOptionRef = useRef<HTMLButtonElement>(null);
   const [recipeHintMode, setRecipeHintMode] = useState<'matched_box' | 'no_box_match'>('matched_box');
   const cameFromRecipe = searchParams.get('fromRecipe') === '1' || Boolean(searchParams.get('recipeSlug'));
   const recipePiece = fixMojibake(searchParams.get('recipePiece') || '').trim();
@@ -193,6 +222,32 @@ export default function CheckoutPage() {
     const chefPickSlugs = new Set(chefPicks.map((extra) => extra.slug));
     return selectableExtras.filter((extra) => !chefPickSlugs.has(extra.slug));
   }, [chefPicks, selectableExtras]);
+
+  // B) Filtered standard extras (search + chip filter — only computed when accordion is open)
+  const filteredStandardExtras = useMemo(() => {
+    if (!extrasExpanded) return standardExtras;
+    let filtered = standardExtras;
+    if (extrasFilter) {
+      const chip = EXTRAS_FILTER_CHIPS.find((c) => c.id === extrasFilter);
+      if (chip) filtered = filtered.filter(chip.match);
+    }
+    if (extrasSearch.trim()) {
+      const q = extrasSearch.trim().toLowerCase();
+      filtered = filtered.filter((extra) =>
+        `${extra.name_no} ${extra.name_en || ''} ${extra.description_no || ''} ${extra.slug}`.toLowerCase().includes(q)
+      );
+    }
+    return filtered;
+  }, [standardExtras, extrasExpanded, extrasFilter, extrasSearch]);
+
+  // Count how many extras match each chip (for showing relevance)
+  const chipCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const chip of EXTRAS_FILTER_CHIPS) {
+      counts[chip.id] = standardExtras.filter(chip.match).length;
+    }
+    return counts;
+  }, [standardExtras]);
 
   const checkoutExtrasTotal = useMemo(() => {
     return extraProducts.reduce((total, slug) => {
@@ -362,6 +417,31 @@ export default function CheckoutPage() {
   useEffect(() => {
     if (!isMobile && step > 4) {
       setStep(4);
+    }
+  }, [isMobile, step]);
+
+  // A) Auto-scroll to ribbe when entering step 2 (desktop only)
+  useEffect(() => {
+    if (isMobile || step !== 2) return;
+    // Small delay so the DOM renders the step 2 section
+    const timer = setTimeout(() => {
+      smoothScrollTo(step2Ref.current, 100);
+      // Focus first ribbe option for keyboard accessibility
+      ribbeFirstOptionRef.current?.focus({ preventScroll: true });
+    }, 120);
+    return () => clearTimeout(timer);
+  }, [isMobile, step]);
+
+  // Auto-scroll to step 3/4 as well for continuity
+  useEffect(() => {
+    if (isMobile) return;
+    if (step === 3) {
+      const timer = setTimeout(() => smoothScrollTo(step3Ref.current, 100), 120);
+      return () => clearTimeout(timer);
+    }
+    if (step === 4) {
+      const timer = setTimeout(() => smoothScrollTo(step4Ref.current, 100), 120);
+      return () => clearTimeout(timer);
     }
   }, [isMobile, step]);
 
@@ -1156,8 +1236,8 @@ export default function CheckoutPage() {
           </Link>
         </div>
 
-        {/* Hero */}
-        <div className="mb-16">
+        {/* Hero + Trust signals */}
+        <div className="mb-12">
           <MetaLabel>{t.checkout.title}</MetaLabel>
           <h1 className="text-5xl font-normal tracking-tight text-neutral-900 mt-3 mb-4">
             {t.checkout.pageTitle}
@@ -1170,10 +1250,28 @@ export default function CheckoutPage() {
               <p className="text-sm font-light text-neutral-700">{recipeCheckoutHint}</p>
             </div>
           )}
+
+          {/* C) Trygghet block — warm trust signals */}
+          <div className="mt-8 max-w-2xl flex items-start gap-4 rounded-xl border border-neutral-200 bg-neutral-50/70 px-5 py-4">
+            <Shield className="w-5 h-5 text-neutral-400 flex-shrink-0 mt-0.5" />
+            <ul className="space-y-1.5 text-sm font-light text-neutral-600">
+              <li>{lang === 'no' ? 'Du reserverer med 50\u00A0% forskudd' : 'You reserve with 50% deposit'}</li>
+              <li>{lang === 'no' ? 'Rest betales før levering (uke 46)' : 'Remainder paid before delivery (week 46)'}</li>
+              <li>{lang === 'no' ? 'Vi produserer kun et begrenset antall\u00A0– når det er tomt er det tomt' : 'Limited production\u00A0– when it\u2019s gone, it\u2019s gone'}</li>
+            </ul>
+          </div>
         </div>
 
-        {/* Progress Steps - Enhanced with shadow and animation */}
+        {/* Progress Steps — with active step label */}
         <div className="mb-16">
+          {/* Current step label */}
+          <p className="text-center text-sm font-light text-neutral-500 mb-5">
+            {lang === 'no' ? `Steg ${step} av 4` : `Step ${step} of 4`}
+            <span className="mx-2 text-neutral-300">·</span>
+            <span className="text-neutral-700">
+              {(lang === 'no' ? STEP_NAMES_NO : STEP_NAMES_EN)[step - 1]}
+            </span>
+          </p>
           <div className="flex items-center justify-center gap-2">
             {[1, 2, 3, 4].map((s) => (
               <div key={s} className="flex items-center gap-2">
@@ -1324,6 +1422,15 @@ export default function CheckoutPage() {
                 })}
               </div>
 
+              {/* A) Micro-confirmation after box selected */}
+              {mangalitsaPreset && step >= 2 && (
+                <p className="mt-5 text-sm font-light text-neutral-500 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                  ✓ {lang === 'no'
+                    ? `Flott valg! Nå velger du ribbetype.`
+                    : `Great choice! Now pick your rib style.`}
+                </p>
+              )}
+
               {canProceedToStep2 && step === 1 && (
                 <button
                   onClick={() => setStep(2)}
@@ -1364,9 +1471,10 @@ export default function CheckoutPage() {
                 </div>
 
                 <div className="space-y-4">
-                  {ribbeOptions.map((option) => (
+                  {ribbeOptions.map((option, idx) => (
                     <button
                       key={option.id}
+                      ref={idx === 0 ? ribbeFirstOptionRef : undefined}
                       onClick={() => {
                         setRibbeChoice(option.id as typeof ribbeChoice);
                         if (step === 2) setStep(3);
@@ -1445,8 +1553,10 @@ export default function CheckoutPage() {
                 </div>
 
                 <div className="mb-8 p-5 bg-neutral-50 border border-neutral-200 rounded-xl">
-                  <p className="text-sm font-light text-neutral-700 leading-relaxed">
-                    {t.checkout.extrasWarning}
+                  <p className="text-sm font-light text-neutral-600 leading-relaxed">
+                    {lang === 'no'
+                      ? 'Tilvalg legges til restbeløpet og betales ved levering. Vektene er ca.-anslag.'
+                      : 'Extras are added to the remainder and paid at delivery. Weights are approximate.'}
                   </p>
                 </div>
                 <div className="mb-8 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-neutral-200 bg-neutral-50 px-5 py-4">
@@ -1479,14 +1589,82 @@ export default function CheckoutPage() {
                   </div>
                 )}
 
+                {/* B) Standard extras — collapsed accordion with search + filters */}
                 {standardExtras.length > 0 && (
-                  <div>
-                    <p className="text-sm uppercase tracking-wide text-neutral-700 mb-4">
-                      {t.checkout.moreExtrasTitle}
-                    </p>
-                    <div className="grid md:grid-cols-2 gap-6">
-                      {standardExtras.map((extra) => renderExtraCard(extra, false))}
-                    </div>
+                  <div className="border border-neutral-200 rounded-xl overflow-hidden">
+                    <button
+                      type="button"
+                      onClick={() => setExtrasExpanded((v) => !v)}
+                      aria-expanded={extrasExpanded}
+                      aria-controls="extras-accordion-panel"
+                      className="w-full flex items-center justify-between px-6 py-5 text-left hover:bg-neutral-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 rounded-xl"
+                    >
+                      <div>
+                        <p className="text-sm uppercase tracking-wide text-neutral-700 font-normal">
+                          {lang === 'no' ? 'Flere tilvalg' : 'More extras'}
+                        </p>
+                        <p className="text-xs font-light text-neutral-500 mt-0.5">
+                          {extrasExpanded
+                            ? (lang === 'no' ? 'Skjul' : 'Collapse')
+                            : (lang === 'no' ? `Vis alle (${standardExtras.length})` : `Show all (${standardExtras.length})`)}
+                        </p>
+                      </div>
+                      <ChevronDown className={cn(
+                        "w-5 h-5 text-neutral-400 transition-transform duration-300",
+                        extrasExpanded && "rotate-180"
+                      )} />
+                    </button>
+
+                    {extrasExpanded && (
+                      <div
+                        id="extras-accordion-panel"
+                        role="region"
+                        aria-label={lang === 'no' ? 'Flere tilvalg' : 'More extras'}
+                        className="px-6 pb-6 animate-in fade-in slide-in-from-top-2 duration-300"
+                      >
+                        {/* Search + filter chips */}
+                        <div className="mb-5 space-y-3">
+                          <div className="relative">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400 pointer-events-none" />
+                            <input
+                              type="text"
+                              placeholder={lang === 'no' ? 'Søk i tilvalg\u2026' : 'Search extras\u2026'}
+                              value={extrasSearch}
+                              onChange={(e) => setExtrasSearch(e.target.value)}
+                              className="w-full pl-10 pr-4 py-2.5 text-sm font-light border border-neutral-200 rounded-xl bg-white placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:ring-offset-1 transition-shadow"
+                            />
+                          </div>
+                          <div className="flex flex-wrap gap-2" role="group" aria-label={lang === 'no' ? 'Filtrer tilvalg' : 'Filter extras'}>
+                            {EXTRAS_FILTER_CHIPS.filter((chip) => chipCounts[chip.id] > 0).map((chip) => (
+                              <button
+                                key={chip.id}
+                                type="button"
+                                onClick={() => setExtrasFilter(extrasFilter === chip.id ? null : chip.id)}
+                                aria-pressed={extrasFilter === chip.id}
+                                className={cn(
+                                  "px-3 py-1.5 text-xs rounded-full border transition-all duration-200",
+                                  extrasFilter === chip.id
+                                    ? "bg-neutral-900 text-white border-neutral-900"
+                                    : "bg-white text-neutral-600 border-neutral-200 hover:border-neutral-400 hover:text-neutral-900"
+                                )}
+                              >
+                                {chip.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {filteredStandardExtras.length === 0 ? (
+                          <p className="text-sm font-light text-neutral-500 py-4 text-center">
+                            {lang === 'no' ? 'Ingen tilvalg matcher søket.' : 'No extras match your search.'}
+                          </p>
+                        ) : (
+                          <div className="grid md:grid-cols-2 gap-6">
+                            {filteredStandardExtras.map((extra) => renderExtraCard(extra, false))}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
 
