@@ -3,6 +3,7 @@ import { supabaseAdmin } from '@/lib/supabase/server'
 import { vippsClient } from '@/lib/vipps/api-client'
 import { finalizeConfirmedEggOrder } from '@/lib/eggs/order-confirmation'
 import { logError } from '@/lib/logger'
+import { notifyInventoryOverallocation } from '@/lib/notifications/inventory-overallocation'
 
 function getCronAuth(request: NextRequest): {
   ok: boolean
@@ -148,8 +149,13 @@ export async function POST(request: NextRequest) {
           try {
             await finalizeConfirmedEggOrder(payment.egg_order_id)
           } catch (finErr) {
-            // Inventory reservation may fail for deferred orders — continue with status update
             logError('cron-reconcile-egg-finalize', finErr, { paymentId: payment.id, orderId: payment.egg_order_id })
+            notifyInventoryOverallocation({
+              orderId: payment.egg_order_id,
+              orderNumber: `EGG-${payment.egg_order_id.slice(0, 8)}`,
+              errorMessage: finErr instanceof Error ? finErr.message : 'Unknown error',
+              source: 'cron-reconcile-payments',
+            }).catch(() => {})
           }
 
           const { data: order } = await supabaseAdmin

@@ -9,6 +9,7 @@ import { renderManagedTemplate } from '@/lib/email/render'
 import { buildCustomerOrderLink } from '@/lib/email/links'
 import { buildEggOrderLinesHtml, summarizeEggOrderLines } from '@/lib/eggs/email-lines'
 import { logError } from '@/lib/logger'
+import { notifyInventoryOverallocation } from '@/lib/notifications/inventory-overallocation'
 
 interface EggOrderAddition {
   id: string
@@ -307,6 +308,12 @@ async function markPaymentCompleted(
         orderId,
         paymentType,
       })
+      notifyInventoryOverallocation({
+        orderId,
+        orderNumber: order.order_number || orderId,
+        errorMessage: error instanceof Error ? error.message : 'Unknown error',
+        source: 'admin-mark-deposit-paid',
+      }).catch(() => {})
     }
   }
 

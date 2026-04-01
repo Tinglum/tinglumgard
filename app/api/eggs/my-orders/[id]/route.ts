@@ -3,6 +3,7 @@ import { getSession } from '@/lib/auth/session'
 import { finalizeConfirmedEggOrder } from '@/lib/eggs/order-confirmation'
 import { supabaseAdmin } from '@/lib/supabase/server'
 import { vippsClient } from '@/lib/vipps/api-client'
+import { notifyInventoryOverallocation } from '@/lib/notifications/inventory-overallocation'
 
 function buildShippingUpdate(details: any) {
   if (!details || typeof details !== 'object') return null
@@ -152,6 +153,13 @@ async function reconcileEggOrder(order: any) {
         orderId: order.id,
         error: finErr instanceof Error ? finErr.message : finErr,
       })
+      notifyInventoryOverallocation({
+        orderId: order.id,
+        orderNumber: order.order_number || order.id,
+        customerName: order.customer_name,
+        errorMessage: finErr instanceof Error ? finErr.message : 'Unknown error',
+        source: 'on-load-reconciliation',
+      }).catch(() => {})
     }
 
     return {

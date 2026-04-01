@@ -10,6 +10,7 @@ import {
 import { renderManagedTemplate } from "@/lib/email/render";
 import { buildAdminOrderLink, buildCustomerOrderLink } from "@/lib/email/links";
 import { finalizeConfirmedEggOrder } from '@/lib/eggs/order-confirmation'
+import { notifyInventoryOverallocation } from '@/lib/notifications/inventory-overallocation'
 import {
   buildEggOrderLinesHtml,
   summarizeEggOrderLines,
@@ -548,6 +549,12 @@ export async function POST(request: NextRequest) {
             paymentId: resolvedPayment.id,
             orderId: resolvedPayment.egg_order_id,
           })
+          notifyInventoryOverallocation({
+            orderId: resolvedPayment.egg_order_id,
+            orderNumber: resolvedPayment.egg_order_id,
+            errorMessage: error instanceof Error ? error.message : 'Unknown error',
+            source: 'vipps-webhook-duplicate',
+          }).catch(() => {})
         }
       }
 
@@ -656,7 +663,18 @@ export async function POST(request: NextRequest) {
       const orderIdField = isChickenPayment ? resolvedPayment.chicken_order_id : isEggPayment ? resolvedPayment.egg_order_id : resolvedPayment.order_id;
 
       if (isEggPayment && order?.id) {
-        await finalizeConfirmedEggOrder(order.id)
+        try {
+          await finalizeConfirmedEggOrder(order.id)
+        } catch (finErr) {
+          logError('vipps-webhook-egg-finalize', finErr, { orderId: order.id })
+          notifyInventoryOverallocation({
+            orderId: order.id,
+            orderNumber: order.order_number || order.id,
+            customerName: order.customer_name,
+            errorMessage: finErr instanceof Error ? finErr.message : 'Unknown error',
+            source: 'vipps-webhook',
+          }).catch(() => {})
+        }
       }
 
       // If deposit covers the full amount (or remainder is zero), set status to fully_paid
