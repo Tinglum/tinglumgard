@@ -185,32 +185,15 @@ class VippsClient {
   }
 
   async getPaymentStatus(reference: string) {
-    const response = await fetch(`${vippsConfig.apiBaseUrl}/checkout/v3/session/${reference}`, {
-      headers: {
-        'client_id': vippsConfig.clientId,
-        'client_secret': vippsConfig.clientSecret,
-        'Ocp-Apim-Subscription-Key': vippsConfig.subscriptionKey,
-        'Merchant-Serial-Number': vippsConfig.merchantSerialNumber,
-        'Vipps-System-Name': 'tinglumgard',
-        'Vipps-System-Version': '1.0.0',
-        'Vipps-System-Plugin-Name': 'tinglumgard-checkout',
-        'Vipps-System-Plugin-Version': '1.0.0',
-      },
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Failed to get payment status (${response.status}): ${errorText}`);
-    }
-
-    return response.json();
+    return this.getCheckoutSession(reference);
   }
 
   async getCheckoutSession(sessionIdOrReference: string) {
+    const accessToken = await this.getAccessToken();
+
     const response = await fetch(`${vippsConfig.apiBaseUrl}/checkout/v3/session/${sessionIdOrReference}`, {
       headers: {
-        'client_id': vippsConfig.clientId,
-        'client_secret': vippsConfig.clientSecret,
+        'Authorization': `Bearer ${accessToken}`,
         'Ocp-Apim-Subscription-Key': vippsConfig.subscriptionKey,
         'Merchant-Serial-Number': vippsConfig.merchantSerialNumber,
         'Vipps-System-Name': 'tinglumgard',

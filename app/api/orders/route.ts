@@ -153,7 +153,14 @@ async function reconcilePigOrder(order: any) {
       ),
     };
   } catch (error) {
-    console.error('Failed to reconcile pig order payment:', error);
+    console.error('Failed to reconcile pig order payment:', {
+      orderId: order.id,
+      orderNumber: order.order_number,
+      paymentId: depositPayment.id,
+      vippsSessionId: depositPayment.vipps_session_id,
+      idempotencyKey: depositPayment.idempotency_key,
+      error: error instanceof Error ? error.message : error,
+    });
     return order;
   }
 }

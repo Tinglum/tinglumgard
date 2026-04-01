@@ -301,11 +301,12 @@ async function markPaymentCompleted(
     try {
       await finalizeConfirmedEggOrder(orderId)
     } catch (error) {
+      // Inventory reservation failure should not block admin from marking payment.
+      // The customer already paid — log warning and continue.
       logError('admin-egg-mark-payment-completed-reservation', error, {
         orderId,
         paymentType,
       })
-      return NextResponse.json({ error: 'Failed to reserve eggs for this order' }, { status: 500 })
     }
   }
 

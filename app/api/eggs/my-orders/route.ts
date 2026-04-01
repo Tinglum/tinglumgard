@@ -150,7 +150,14 @@ async function reconcileEggOrder(order: any) {
       .eq('id', order.id)
       .throwOnError()
 
-    await finalizeConfirmedEggOrder(order.id)
+    try {
+      await finalizeConfirmedEggOrder(order.id)
+    } catch (finErr) {
+      console.error('Egg inventory reservation failed during reconciliation (payment still registered):', {
+        orderId: order.id,
+        error: finErr instanceof Error ? finErr.message : finErr,
+      })
+    }
 
     return {
       ...order,
@@ -163,7 +170,14 @@ async function reconcileEggOrder(order: any) {
       ),
     }
   } catch (error) {
-    console.error('Failed to reconcile egg order payment:', error)
+    console.error('Failed to reconcile egg order payment:', {
+      orderId: order.id,
+      orderNumber: order.order_number,
+      paymentId: depositPayment.id,
+      vippsOrderId: depositPayment.vipps_order_id,
+      idempotencyKey: depositPayment.idempotency_key,
+      error: error instanceof Error ? error.message : error,
+    })
     return order
   }
 }
