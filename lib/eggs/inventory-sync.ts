@@ -1,6 +1,5 @@
 import { logError } from '@/lib/logger'
 import { supabaseAdmin } from '@/lib/supabase/server'
-import { processEggWaitlistQueue, reactivatePausedWaitlistEntries } from '@/lib/eggs/waitlist'
 
 type InventoryStatus = 'open' | 'closed' | 'locked' | 'sold_out'
 
@@ -245,13 +244,6 @@ export async function syncForecastToInventory(input: SyncForecastInput) {
       return { ok: false, skipped: false, reason: 'update_failed' as const, inventoryId: existing.id }
     }
 
-    const capacityIncreased = adjustedAvailable > (existing.eggs_available || 0)
-    const reopened = (previousStatus === 'locked' || previousStatus === 'sold_out') && nextStatus === 'open'
-    if (capacityIncreased || reopened) {
-      await reactivatePausedWaitlistEntries(existing.id)
-      await processEggWaitlistQueue({ inventoryIds: [existing.id] })
-    }
-
     await reconcileAlerts({
       breedId: input.breedId,
       year: input.year,
@@ -286,14 +278,6 @@ export async function syncForecastToInventory(input: SyncForecastInput) {
   if (updateError) {
     logError('egg-ops-sync-update-inventory', updateError, input)
     return { ok: false, skipped: false, reason: 'update_failed' as const, inventoryId: existing.id }
-  }
-
-  const capacityIncreased = nextAvailable > (existing.eggs_available || 0)
-  const reopened = (previousStatus === 'locked' || previousStatus === 'sold_out') && nextStatus === 'open'
-
-  if (capacityIncreased || reopened) {
-    await reactivatePausedWaitlistEntries(existing.id)
-    await processEggWaitlistQueue({ inventoryIds: [existing.id] })
   }
 
   await reconcileAlerts({

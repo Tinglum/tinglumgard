@@ -42,6 +42,7 @@ export type EggWaitlistProcessSummary = {
   skippedLowStock: number
   skippedClosed: number
   skippedNoQueue: number
+  errors: number
 }
 
 function addMinutes(date: Date, minutes: number): Date {
@@ -352,6 +353,7 @@ export async function processEggWaitlistQueue(options?: { inventoryIds?: string[
     skippedLowStock: 0,
     skippedClosed: 0,
     skippedNoQueue: 0,
+    errors: 0,
   }
 
   const explicitInventoryIds = (options?.inventoryIds || []).filter(Boolean)
@@ -411,11 +413,20 @@ export async function processEggWaitlistQueue(options?: { inventoryIds?: string[
       continue
     }
 
-    const result = await notifyNextInQueue(inventory, now, appUrl)
-    summary.notified += result.notified
-    summary.expired += result.expired
-    summary.waitingWindowOpen += result.waitingWindowOpen
-    summary.skippedNoQueue += result.noQueue
+    try {
+      const result = await notifyNextInQueue(inventory, now, appUrl)
+      summary.notified += result.notified
+      summary.expired += result.expired
+      summary.waitingWindowOpen += result.waitingWindowOpen
+      summary.skippedNoQueue += result.noQueue
+    } catch (error) {
+      summary.errors += 1
+      logError('egg-waitlist-process-inventory', error, {
+        inventoryId: inventory.id,
+        weekNumber: inventory.week_number,
+        year: inventory.year,
+      })
+    }
   }
 
   return summary
