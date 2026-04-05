@@ -1,7 +1,7 @@
 ﻿'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { AlertTriangle, CheckCircle2, Minus, Plus, RefreshCw, Save } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, Minus, Plus, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -141,6 +141,8 @@ const DEFAULT_SAVE_STATE: RowSaveState = {
   success: false,
 }
 
+const INPUT_AUTOSAVE_DELAY_MS = 180
+
 function todayDateOslo(): string {
   return new Intl.DateTimeFormat('en-CA', {
     timeZone: 'Europe/Oslo',
@@ -247,6 +249,15 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
   const [syncingOffline, setSyncingOffline] = useState(false)
   const [miscState, setMiscState] = useState<RowSaveState>(DEFAULT_SAVE_STATE)
   const postSaveRefreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const rowAutosaveTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
+  const rowAutosaveQueuedRef = useRef<Record<string, boolean>>({})
+  const miscAutosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const miscAutosaveQueuedRef = useRef(false)
+  const rowsRef = useRef<DailyRow[]>([])
+  const rowStatesRef = useRef<Record<string, RowSaveState>>({})
+  const dayStateRef = useRef<DayState | null>(null)
+  const miscStateRef = useRef<RowSaveState>(DEFAULT_SAVE_STATE)
+  const selectedDateRef = useRef(selectedDate)
 
   useEffect(() => {
     loadAll(selectedDate)
@@ -316,14 +327,59 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
   }, [rows])
 
   useEffect(() => {
+    rowsRef.current = rows
+  }, [rows])
+
+  useEffect(() => {
+    rowStatesRef.current = rowStates
+  }, [rowStates])
+
+  useEffect(() => {
+    dayStateRef.current = dayState
+  }, [dayState])
+
+  useEffect(() => {
+    miscStateRef.current = miscState
+  }, [miscState])
+
+  useEffect(() => {
+    selectedDateRef.current = selectedDate
+  }, [selectedDate])
+
+  useEffect(() => {
     if (!easyInputMode) {
       setEasyModalBreedId(null)
       setEasyCompleteOpen(false)
     }
   }, [easyInputMode])
 
+  function clearRowAutosaveTimer(breedId: string) {
+    const timer = rowAutosaveTimersRef.current[breedId]
+    if (!timer) return
+    clearTimeout(timer)
+    delete rowAutosaveTimersRef.current[breedId]
+  }
+
+  function clearMiscAutosaveTimer() {
+    if (!miscAutosaveTimerRef.current) return
+    clearTimeout(miscAutosaveTimerRef.current)
+    miscAutosaveTimerRef.current = null
+  }
+
+  function clearAutosaveTimers() {
+    Object.keys(rowAutosaveTimersRef.current).forEach((breedId) => clearRowAutosaveTimer(breedId))
+    rowAutosaveQueuedRef.current = {}
+    clearMiscAutosaveTimer()
+    miscAutosaveQueuedRef.current = false
+  }
+
+  useEffect(() => {
+    clearAutosaveTimers()
+  }, [selectedDate])
+
   useEffect(() => {
     return () => {
+      clearAutosaveTimers()
       if (postSaveRefreshTimerRef.current) {
         clearTimeout(postSaveRefreshTimerRef.current)
         postSaveRefreshTimerRef.current = null
@@ -378,6 +434,60 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
         ...patch,
       },
     }))
+  }
+
+  async function runRowAutosave(breedId: string) {
+    const row = rowsRef.current.find((item) => item.breed_id === breedId)
+    if (!row) return
+    if (dayStateRef.current?.status === 'closed') return
+
+    if (rowStatesRef.current[breedId]?.saving) {
+      rowAutosaveQueuedRef.current[breedId] = true
+      return
+    }
+
+    if (!rowIsValid(row)) return
+
+    await saveRow(row, { fastReturn: true })
+
+    if (rowAutosaveQueuedRef.current[breedId]) {
+      delete rowAutosaveQueuedRef.current[breedId]
+      void runRowAutosave(breedId)
+    }
+  }
+
+  function scheduleRowAutosave(breedId: string) {
+    if (dayStateRef.current?.status === 'closed') return
+    clearRowAutosaveTimer(breedId)
+    rowAutosaveTimersRef.current[breedId] = setTimeout(() => {
+      delete rowAutosaveTimersRef.current[breedId]
+      void runRowAutosave(breedId)
+    }, INPUT_AUTOSAVE_DELAY_MS)
+  }
+
+  async function runMiscAutosave() {
+    if (dayStateRef.current?.status === 'closed') return
+
+    if (miscStateRef.current.saving) {
+      miscAutosaveQueuedRef.current = true
+      return
+    }
+
+    await saveDayMisc()
+
+    if (miscAutosaveQueuedRef.current) {
+      miscAutosaveQueuedRef.current = false
+      void runMiscAutosave()
+    }
+  }
+
+  function scheduleMiscAutosave() {
+    if (dayStateRef.current?.status === 'closed') return
+    clearMiscAutosaveTimer()
+    miscAutosaveTimerRef.current = setTimeout(() => {
+      miscAutosaveTimerRef.current = null
+      void runMiscAutosave()
+    }, INPUT_AUTOSAVE_DELAY_MS)
   }
 
   function enqueueOffline(item: Omit<OfflineQueueItem, 'id' | 'queuedAt'>) {
@@ -506,6 +616,7 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
       })
     )
     setRowState(breedId, { success: false, error: null })
+    scheduleRowAutosave(breedId)
   }
 
   function stepField(breedId: string, field: keyof DailyRow, delta: number) {
@@ -517,6 +628,7 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
       })
     )
     setRowState(breedId, { success: false, error: null })
+    scheduleRowAutosave(breedId)
   }
 
   function setDayMiscField(field: 'duck_eggs' | 'other_eggs', value: string | number) {
@@ -528,6 +640,7 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
       }
     })
     setMiscState({ success: false, error: null, saving: false })
+    scheduleMiscAutosave()
   }
 
   function stepDayMiscField(field: 'duck_eggs' | 'other_eggs', delta: number) {
@@ -540,6 +653,7 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
       }
     })
     setMiscState({ success: false, error: null, saving: false })
+    scheduleMiscAutosave()
   }
 
   function rowBreakdownTotal(row: DailyRow): number {
@@ -584,6 +698,7 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
       )
     )
     setRowState(row.breed_id, { success: false, error: null })
+    scheduleRowAutosave(row.breed_id)
   }
 
   async function setDayStatus(status: 'open' | 'in_progress' | 'closed') {
@@ -614,7 +729,8 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
   }
 
   async function saveDayMisc(): Promise<boolean> {
-    const current = normalizeDayState(selectedDate, dayState || null)
+    const currentDate = selectedDateRef.current
+    const current = normalizeDayState(currentDate, dayStateRef.current || null)
     setMiscState({ saving: true, error: null, success: false })
 
     try {
@@ -622,7 +738,7 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          collection_date: selectedDate,
+          collection_date: currentDate,
           duck_eggs: current.duck_eggs,
           other_eggs: current.other_eggs,
         }),
@@ -634,8 +750,8 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
       }
 
       const data = await response.json()
-      setDayState(normalizeDayState(selectedDate, data.day_state || current))
-      if (dayState?.status === 'open') {
+      setDayState(normalizeDayState(currentDate, data.day_state || current))
+      if (current.status === 'open') {
         await setDayStatus('in_progress')
       }
       setMiscState({ saving: false, error: null, success: true })
@@ -790,6 +906,7 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
       )
     )
     setRowState(breedId, { success: false, error: null })
+    scheduleRowAutosave(breedId)
   }
 
   async function clearAllInputsForDay() {
@@ -893,6 +1010,7 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
 
   async function saveRow(row: DailyRow, options?: { fastReturn?: boolean }): Promise<boolean> {
     const fastReturn = Boolean(options?.fastReturn)
+    const currentDate = selectedDateRef.current
     if (!rowIsValid(row)) {
       setRowState(row.breed_id, { error: `${copy.mismatchTitle}. ${copy.mismatchBody}`, success: false })
       return false
@@ -902,7 +1020,7 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
 
     try {
       const payload = {
-        collection_date: selectedDate,
+        collection_date: currentDate,
         breed_id: row.breed_id,
         total_collected: row.total_collected,
         sellable_standard: row.sellable_standard,
@@ -965,7 +1083,7 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
         return nextRows
       })
 
-      if (dayState?.status === 'open') {
+      if (dayStateRef.current?.status === 'open') {
         if (fastReturn) {
           void setDayStatus('in_progress')
         } else {
@@ -977,11 +1095,11 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
       window.setTimeout(() => setRowState(row.breed_id, { success: false }), 2500)
 
       if (fastReturn) {
-        schedulePostSaveRefresh(selectedDate, row.breed_id)
+        schedulePostSaveRefresh(currentDate, row.breed_id)
         return true
       }
 
-      await Promise.all([loadForecastOnly(), loadAlertsOnly(), loadDashboardOnly(), loadAuditOnly(selectedDate)])
+      await Promise.all([loadForecastOnly(), loadAlertsOnly(), loadDashboardOnly(), loadAuditOnly(currentDate)])
       return true
     } catch (error: any) {
       const message = error?.message || copy.failedSave
@@ -989,21 +1107,6 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
       setNonBlockingErrors((prev) => [message, ...prev].slice(0, 6))
       setAlertsOpen(true)
       return false
-    }
-  }
-
-  async function saveEasyModalRow() {
-    if (!easyModalRow) return
-    const ok = await saveRow(easyModalRow, { fastReturn: true })
-    if (ok) {
-      setEasyModalBreedId(null)
-    }
-  }
-
-  async function saveEasyMisc() {
-    const ok = await saveDayMisc()
-    if (ok) {
-      setEasyCompleteOpen(false)
     }
   }
 
@@ -1644,22 +1747,32 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
                       type="button"
                       size="lg"
                       variant="outline"
+                      className="h-12 border-neutral-300 bg-white text-sm font-semibold text-neutral-900 hover:bg-neutral-50"
+                      onClick={() => setEasyModalBreedId(null)}
+                    >
+                      {copy.close}
+                    </Button>
+                    <Button
+                      type="button"
+                      size="lg"
+                      variant="outline"
                       className="h-12 border-red-300 bg-white text-sm font-semibold text-red-700 hover:bg-red-50"
                       onClick={() => clearRowDraft(easyModalRow.breed_id)}
                       disabled={(rowStates[easyModalRow.breed_id]?.saving ?? false) || dayState?.status === 'closed'}
                     >
                       {copy.clearRow}
                     </Button>
-                    <Button
-                      size="lg"
-                      className="h-12 gap-2 bg-emerald-700 text-base font-semibold text-white hover:bg-emerald-600"
-                      onClick={saveEasyModalRow}
-                      disabled={!rowIsValid(easyModalRow) || (rowStates[easyModalRow.breed_id]?.saving ?? false) || dayState?.status === 'closed'}
-                    >
-                      <CheckCircle2 className="h-5 w-5" />
-                      {copy.easySaveBack}
-                    </Button>
                   </div>
+                  {rowStates[easyModalRow.breed_id]?.saving && (
+                    <p className="mt-2 text-sm font-medium text-neutral-600">{copy.saving}</p>
+                  )}
+                  {rowStates[easyModalRow.breed_id]?.success && (
+                    <p className="mt-2 text-sm font-medium text-emerald-700">{copy.saved}</p>
+                  )}
+                  {rowStates[easyModalRow.breed_id]?.error && (
+                    <p className="mt-2 text-sm font-medium text-red-700">{rowStates[easyModalRow.breed_id]?.error}</p>
+                  )}
+                  {dayState?.status === 'closed' && <p className="mt-2 text-sm font-medium text-red-700">{copy.dayClosedSaveHint}</p>}
                 </div>
               </div>
             </div>
@@ -1694,15 +1807,8 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
                 </div>
                 <div className="border-t border-neutral-200 bg-neutral-50/70 p-2.5">
                   {miscState.error && <p className="mb-2 text-sm font-medium text-red-700">{miscState.error}</p>}
-                  <Button
-                    size="lg"
-                    className="h-12 w-full gap-2 bg-emerald-700 text-base font-semibold text-white hover:bg-emerald-600"
-                    onClick={saveEasyMisc}
-                    disabled={miscState.saving || dayState?.status === 'closed'}
-                  >
-                    <CheckCircle2 className="h-5 w-5" />
-                    {miscState.saving ? copy.saving : copy.easySaveBack}
-                  </Button>
+                  {miscState.saving && <p className="text-sm font-medium text-neutral-600">{copy.saving}</p>}
+                  {miscState.success && <p className="text-sm font-medium text-emerald-700">{copy.saved}</p>}
                   {dayState?.status === 'closed' && <p className="mt-2 text-sm font-medium text-red-700">{copy.dayClosedSaveHint}</p>}
                 </div>
               </div>
@@ -1788,14 +1894,11 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
       <Card className="border-neutral-200 p-4 md:p-5">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h3 className="text-sm font-semibold uppercase tracking-wide text-neutral-800">{copy.miscEggs}</h3>
-          <Button
-            size="sm"
-            className="h-8 bg-neutral-900 px-3 text-xs text-white hover:bg-neutral-800"
-            onClick={saveDayMisc}
-            disabled={miscState.saving || dayState?.status === 'closed'}
-          >
-            {miscState.saving ? copy.saving : copy.saveMisc}
-          </Button>
+          {miscState.saving ? (
+            <span className="text-xs font-medium text-neutral-600">{copy.saving}</span>
+          ) : miscState.success ? (
+            <span className="text-xs font-medium text-emerald-700">{copy.saved}</span>
+          ) : null}
         </div>
         <p className="mt-1 text-xs text-neutral-600">{copy.miscNotInTotals}</p>
 
@@ -2147,15 +2250,11 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
                   {selectedState.error && <p className="mt-1 text-sm text-red-700">{selectedState.error}</p>}
                 </div>
 
-                <Button
-                  size="lg"
-                  className="gap-2 bg-neutral-900 px-6 text-white hover:bg-neutral-800"
-                  onClick={() => saveRow(selectedRow)}
-                  disabled={!rowIsValid(selectedRow) || selectedState.saving || dayState?.status === 'closed'}
-                >
-                  <Save className="h-4 w-4" />
-                  {selectedState.saving ? copy.saving : copy.save}
-                </Button>
+                {selectedState.saving ? (
+                  <span className="text-sm font-medium text-neutral-600">{copy.saving}</span>
+                ) : selectedState.success ? (
+                  <span className="text-sm font-medium text-emerald-700">{copy.saved}</span>
+                ) : null}
               </div>
             </Card>
           </div>
