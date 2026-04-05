@@ -1,6 +1,6 @@
 import { supabaseAdmin } from '@/lib/supabase/server'
 import { getEggOpsConfig, getLowStockThresholdForBreed } from '@/lib/eggs/ops-config'
-import { syncForecastToInventory } from '@/lib/eggs/inventory-sync'
+import { syncForecastBatchToInventory, type SyncForecastInput } from '@/lib/eggs/inventory-sync'
 import { logError } from '@/lib/logger'
 
 type EggBreed = {
@@ -22,6 +22,19 @@ type ForecastRow = {
   computed_at: string
   created_at: string
   updated_at: string
+}
+
+type ForecastPlanRow = {
+  year: number
+  week: number
+  deliveryMonday: string
+  avgForRow: number
+  forecastEggs: number
+  lowStock: boolean
+}
+
+function buildInventoryKey(breedId: string, year: number, weekNumber: number) {
+  return `${breedId}:${year}:${weekNumber}`
 }
 
 function toDateString(date: Date): string {
@@ -382,10 +395,7 @@ export async function recomputeForecastForBreed(params: {
     }
   }
 
-  const rows: ForecastRow[] = []
-  let created = 0
-  let updated = 0
-
+  const plans: ForecastPlanRow[] = []
   for (let i = 0; i < horizonWeeks; i += 1) {
     const monday = addDays(startMonday, i * 7)
     const deliveryMonday = toDateString(monday)
@@ -416,17 +426,60 @@ export async function recomputeForecastForBreed(params: {
     const avgForRow = Math.max(0, (isShortHorizon ? twoWeekAverage : trendBase) / 7)
     const lowStock = forecastEggs < threshold
 
+    plans.push({
+      year,
+      week,
+      deliveryMonday,
+      avgForRow,
+      forecastEggs,
+      lowStock,
+    })
+  }
+
+  const inventoryYears = Array.from(new Set(plans.map((plan) => plan.year)))
+  const inventoryByKey = new Map<string, { eggs_allocated: number }>()
+
+  if (inventoryYears.length > 0) {
+    const { data: inventoryRows, error: inventoryError } = await supabaseAdmin
+      .from('egg_inventory')
+      .select('breed_id, year, week_number, eggs_allocated')
+      .eq('breed_id', params.breedId)
+      .in('year', inventoryYears)
+
+    if (inventoryError) {
+      logError('egg-forecast-fetch-inventory-allocations', inventoryError, {
+        breedId: params.breedId,
+        years: inventoryYears,
+      })
+    } else {
+      for (const row of inventoryRows || []) {
+        inventoryByKey.set(buildInventoryKey(row.breed_id, row.year, row.week_number), row)
+      }
+    }
+  }
+
+  const rows: ForecastRow[] = []
+  const syncInputs: SyncForecastInput[] = []
+  let created = 0
+  let updated = 0
+
+  for (const plan of plans) {
+    const eggsAllocated = numberOrZero(
+      inventoryByKey.get(buildInventoryKey(params.breedId, plan.year, plan.week))?.eggs_allocated
+    )
+    const deficit = plan.forecastEggs < eggsAllocated
     const { data: forecastUpserted, error: forecastError } = await supabaseAdmin
       .from('egg_weekly_forecasts')
       .upsert(
         {
           breed_id: params.breedId,
-          year,
-          week_number: week,
-          delivery_monday: deliveryMonday,
-          avg_14d_sellable: avgForRow,
-          forecast_eggs: forecastEggs,
-          low_stock: lowStock,
+          year: plan.year,
+          week_number: plan.week,
+          delivery_monday: plan.deliveryMonday,
+          avg_14d_sellable: plan.avgForRow,
+          forecast_eggs: plan.forecastEggs,
+          low_stock: plan.lowStock,
+          deficit,
           computed_at: nowIso,
         },
         { onConflict: 'breed_id,year,week_number' }
@@ -435,7 +488,11 @@ export async function recomputeForecastForBreed(params: {
       .single()
 
     if (forecastError || !forecastUpserted) {
-      logError('egg-forecast-upsert', forecastError, { breedId: params.breedId, year, week })
+      logError('egg-forecast-upsert', forecastError, {
+        breedId: params.breedId,
+        year: plan.year,
+        week: plan.week,
+      })
       continue
     }
 
@@ -446,34 +503,21 @@ export async function recomputeForecastForBreed(params: {
     }
 
     if (config.forecastSyncEnabled) {
-      await syncForecastToInventory({
+      syncInputs.push({
         breedId: params.breedId,
-        year,
-        weekNumber: week,
-        deliveryMonday,
-        forecastEggs,
-        lowStock,
+        year: plan.year,
+        weekNumber: plan.week,
+        deliveryMonday: plan.deliveryMonday,
+        forecastEggs: plan.forecastEggs,
+        lowStock: plan.lowStock,
         threshold,
       })
     }
+    rows.push(forecastUpserted as ForecastRow)
+  }
 
-    const { data: inventory } = await supabaseAdmin
-      .from('egg_inventory')
-      .select('eggs_allocated')
-      .eq('breed_id', params.breedId)
-      .eq('year', year)
-      .eq('week_number', week)
-      .maybeSingle()
-
-    const deficit = forecastEggs < numberOrZero(inventory?.eggs_allocated)
-    const { data: forecastRow } = await supabaseAdmin
-      .from('egg_weekly_forecasts')
-      .update({ deficit, low_stock: lowStock })
-      .eq('id', forecastUpserted.id)
-      .select('*')
-      .single()
-
-    rows.push((forecastRow || forecastUpserted) as ForecastRow)
+  if (config.forecastSyncEnabled && syncInputs.length > 0) {
+    await syncForecastBatchToInventory(syncInputs)
   }
 
   return {
