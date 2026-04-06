@@ -189,11 +189,10 @@ class VippsClient {
   }
 
   async getCheckoutSession(sessionIdOrReference: string) {
-    const accessToken = await this.getAccessToken();
-
     const response = await fetch(`${vippsConfig.apiBaseUrl}/checkout/v3/session/${sessionIdOrReference}`, {
       headers: {
-        'Authorization': `Bearer ${accessToken}`,
+        'client_id': vippsConfig.clientId,
+        'client_secret': vippsConfig.clientSecret,
         'Ocp-Apim-Subscription-Key': vippsConfig.subscriptionKey,
         'Merchant-Serial-Number': vippsConfig.merchantSerialNumber,
         'Vipps-System-Name': 'tinglumgard',
