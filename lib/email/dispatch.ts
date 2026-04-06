@@ -13,6 +13,7 @@ import {
 } from '@/lib/email/queue';
 import { ensureHtmlDocument, htmlToPlainText } from '@/lib/email/render';
 import { isMissingEmailRelationError } from '@/lib/email/schema';
+import { getSupportReplyAddress } from '@/lib/messages/reply-address';
 import type { DispatchEmailInput, DispatchEmailResult } from '@/lib/email/types';
 
 function inferIdempotency(input: DispatchEmailInput): {
@@ -71,9 +72,36 @@ function buildDispatchMetadata(input: DispatchEmailInput): Record<string, unknow
     entity_type: input.entityType || null,
     entity_id: input.entityId || null,
     missing_email_alert: false,
+    reply_to: input.replyTo || null,
     headers: input.headers || null,
     ...(input.metadata || {}),
   };
+}
+
+function readStoredReplyTo(value: unknown) {
+  const replyTo = String(value || '').trim();
+  return replyTo || null;
+}
+
+function resolveReplyToAddress(input: {
+  requestedReplyTo?: unknown;
+  classification: string;
+  settings: { defaultFrom: string; defaultReplyTo: string };
+}) {
+  const explicitReplyTo = readStoredReplyTo(input.requestedReplyTo);
+  if (explicitReplyTo) {
+    return explicitReplyTo;
+  }
+
+  if (input.classification === 'support') {
+    return getSupportReplyAddress({
+      configuredReplyTo: input.settings.defaultReplyTo,
+      configuredFrom: input.settings.defaultFrom,
+      mailDomain: process.env.MAILGUN_DOMAIN,
+    });
+  }
+
+  return input.settings.defaultReplyTo;
 }
 
 function getDispatchHeaders(value: unknown): Record<string, string> | undefined {
@@ -97,6 +125,8 @@ async function sendLegacyDirect(input: {
   subject: string;
   html: string;
   headers?: Record<string, string>;
+  replyTo?: string | null;
+  classification: string;
   settings: { defaultFrom: string; defaultReplyTo: string };
 }): Promise<DispatchEmailResult> {
   const sendResult = await sendViaMailgun({
@@ -105,7 +135,11 @@ async function sendLegacyDirect(input: {
     html: input.html,
     text: htmlToPlainText(input.html),
     from: input.settings.defaultFrom,
-    replyTo: input.settings.defaultReplyTo,
+    replyTo: resolveReplyToAddress({
+      requestedReplyTo: input.replyTo,
+      classification: input.classification,
+      settings: input.settings,
+    }),
     headers: input.headers,
   });
 
@@ -229,7 +263,11 @@ export async function dispatchEmail(input: DispatchEmailInput): Promise<Dispatch
           html: queue.record.html,
           text: htmlToPlainText(queue.record.html),
           from: settings.defaultFrom,
-          replyTo: settings.defaultReplyTo,
+          replyTo: resolveReplyToAddress({
+            requestedReplyTo: (queue.record.metadata || {}).reply_to,
+            classification: queue.record.classification,
+            settings,
+          }),
           headers: getDispatchHeaders((queue.record.metadata || {}).headers),
         });
 
@@ -285,6 +323,8 @@ export async function dispatchEmail(input: DispatchEmailInput): Promise<Dispatch
         subject: input.subject,
         html,
         headers: input.headers,
+        replyTo: input.replyTo || null,
+        classification,
         settings,
       });
     }
@@ -375,6 +415,8 @@ export async function dispatchEmail(input: DispatchEmailInput): Promise<Dispatch
       subject: input.subject,
       html,
       headers: input.headers,
+      replyTo: input.replyTo || null,
+      classification,
       settings,
     });
   }
@@ -395,7 +437,11 @@ export async function dispatchEmail(input: DispatchEmailInput): Promise<Dispatch
     html: queued.record.html,
     text: htmlToPlainText(queued.record.html),
     from: settings.defaultFrom,
-    replyTo: settings.defaultReplyTo,
+    replyTo: resolveReplyToAddress({
+      requestedReplyTo: (queued.record.metadata || {}).reply_to,
+      classification: queued.record.classification,
+      settings,
+    }),
     headers: getDispatchHeaders((queued.record.metadata || {}).headers),
   });
 
@@ -501,7 +547,11 @@ export async function processEmailDispatchBatch(options?: {
       html: locked.html,
       text: htmlToPlainText(locked.html),
       from: settings.defaultFrom,
-      replyTo: settings.defaultReplyTo,
+      replyTo: resolveReplyToAddress({
+        requestedReplyTo: (locked.metadata || {}).reply_to,
+        classification: locked.classification,
+        settings,
+      }),
       headers: getDispatchHeaders((locked.metadata || {}).headers),
     });
 
