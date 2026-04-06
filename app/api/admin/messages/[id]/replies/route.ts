@@ -4,6 +4,7 @@ import { supabaseAdmin } from '@/lib/supabase/server';
 import { logError } from '@/lib/logger';
 import { dispatchEmail } from '@/lib/email/dispatch';
 import { renderManagedTemplate } from '@/lib/email/render';
+import { buildCustomerMessageEmail } from '@/lib/messages/customer-email';
 
 // POST /api/admin/messages/[id]/replies - Add reply to a message
 export async function POST(
@@ -55,28 +56,39 @@ export async function POST(
     try {
       const { data: message } = await supabaseAdmin
         .from('customer_messages')
-        .select('customer_email, customer_name, subject, id')
+        .select('customer_email, customer_name, subject, id, initiated_by, email_thread_id')
         .eq('id', params.id)
         .single();
 
       if (message && message.customer_email) {
         const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://tinglumgard.no';
-        const rendered = await renderManagedTemplate({
-          templateKey: 'support.reply.customer.notification',
-          locale: 'no',
-          variables: {
-            customer_name: message.customer_name || 'Kunde',
-            thread_id: `msg_${message.id}`,
-            subject_line: message.subject,
-            reply_text: trimmedReply,
-            admin_name: adminName,
-            portal_url: `${appUrl}/min-side`,
-            portal_label: 'Min side',
-          },
-        });
+        const isAdminInitiated = message.initiated_by === 'admin';
+        const rendered = isAdminInitiated
+          ? buildCustomerMessageEmail({
+              locale: 'no',
+              customerName: message.customer_name || 'Kunde',
+              adminName,
+              subjectLine: message.subject,
+              messageText: trimmedReply,
+              portalUrl: `${appUrl}/min-side`,
+              portalLabel: 'Min side',
+            })
+          : await renderManagedTemplate({
+              templateKey: 'support.reply.customer.notification',
+              locale: 'no',
+              variables: {
+                customer_name: message.customer_name || 'Kunde',
+                thread_id: String(message.email_thread_id || `msg_${message.id}`),
+                subject_line: message.subject,
+                reply_text: trimmedReply,
+                admin_name: adminName,
+                portal_url: `${appUrl}/min-side`,
+                portal_label: 'Min side',
+              },
+            });
 
         if (!rendered) {
-          throw new Error('Missing template support.reply.customer.notification');
+          throw new Error('Missing customer reply template');
         }
 
         await dispatchEmail({
@@ -84,7 +96,9 @@ export async function POST(
           subject: rendered.subject,
           html: rendered.html,
           classification: 'support',
-          templateKey: rendered.templateKey,
+          templateKey: isAdminInitiated
+            ? 'support.message.customer.admin_initiated'
+            : ((rendered as any).templateKey as string) || 'support.reply.customer.notification',
           sourcePath: '/api/admin/messages/[id]/replies',
           customerMessageId: message.id,
           sendImmediately: true,

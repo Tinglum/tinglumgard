@@ -4,6 +4,7 @@ import { supabaseAdmin } from '@/lib/supabase/server';
 import { dispatchEmail } from '@/lib/email/dispatch';
 import { renderManagedTemplate } from '@/lib/email/render';
 import { logError } from '@/lib/logger';
+import { buildCustomerMessageEmail } from '@/lib/messages/customer-email';
 
 function verifyMailgunSignature(timestamp: string, token: string, signature: string): boolean {
   const signingKey = process.env.MAILGUN_WEBHOOK_SIGNING_KEY;
@@ -40,9 +41,93 @@ function getPlainText(html: string | null, text: string | null): string {
     .trim();
 }
 
+function buildMessageIdVariants(value: string) {
+  const normalized = value.replace(/[<>]/g, '').trim();
+  if (!normalized) return [];
+
+  return Array.from(new Set([normalized, `<${normalized}>`]));
+}
+
+function extractMessageIds(headerValue: string | null | undefined) {
+  const raw = String(headerValue || '').trim();
+  if (!raw) return [];
+
+  const bracketMatches = Array.from(raw.matchAll(/<([^>]+)>/g)).map((match) => match[1]);
+  if (bracketMatches.length > 0) {
+    return bracketMatches;
+  }
+
+  return raw
+    .split(/\s+/)
+    .map((part) => part.replace(/[<>]/g, '').trim())
+    .filter(Boolean);
+}
+
+function getInboundHeaderMap(formData: FormData) {
+  const headers = new Map<string, string>();
+
+  formData.forEach((value, key) => {
+    if (typeof value !== 'string') return;
+    headers.set(key.toLowerCase(), value);
+  });
+
+  const rawMessageHeaders = headers.get('message-headers');
+  if (rawMessageHeaders) {
+    try {
+      const parsed = JSON.parse(rawMessageHeaders);
+      if (Array.isArray(parsed)) {
+        for (const entry of parsed) {
+          if (Array.isArray(entry) && entry.length >= 2) {
+            headers.set(String(entry[0]).toLowerCase(), String(entry[1]));
+          }
+        }
+      }
+    } catch {
+      // Ignore malformed Mailgun message-headers payloads and fall back to direct fields.
+    }
+  }
+
+  return headers;
+}
+
+async function findMessageByProviderReferences(messageIds: string[]) {
+  const variants = Array.from(new Set(messageIds.flatMap(buildMessageIdVariants)));
+  if (variants.length === 0) {
+    return null;
+  }
+
+  const { data: queueRows, error: queueError } = await supabaseAdmin
+    .from('email_dispatch_queue')
+    .select('customer_message_id, sent_at')
+    .in('provider_message_id', variants)
+    .not('customer_message_id', 'is', null)
+    .order('sent_at', { ascending: false });
+
+  if (queueError || !queueRows || queueRows.length === 0) {
+    return null;
+  }
+
+  for (const row of queueRows) {
+    if (!row.customer_message_id) continue;
+
+    const { data: message } = await supabaseAdmin
+      .from('customer_messages')
+      .select('*, orders(order_number)')
+      .eq('id', row.customer_message_id)
+      .maybeSingle();
+
+    if (message) {
+      return message;
+    }
+  }
+
+  return null;
+}
+
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
+    const headerMap = getInboundHeaderMap(formData);
 
     const timestamp = formData.get('timestamp')?.toString() || '';
     const token = formData.get('token')?.toString() || '';
@@ -60,20 +145,29 @@ export async function POST(request: NextRequest) {
     const text = formData.get('stripped-text')?.toString() || null;
     const messageId = formData.get('Message-Id')?.toString() || formData.get('message-id')?.toString() || null;
 
-    const threadId = extractThreadId(subject);
-    if (!threadId) {
-      return NextResponse.json({ success: true, message: 'No thread ID found' });
-    }
+    const inReplyToIds = extractMessageIds(headerMap.get('in-reply-to'));
+    const referenceIds = extractMessageIds(headerMap.get('references'));
+    let message = await findMessageByProviderReferences([...inReplyToIds, ...referenceIds]);
+    let threadId = message?.email_thread_id || null;
 
-    const { data: message, error: messageError } = await supabaseAdmin
-      .from('customer_messages')
-      .select('*, orders(order_number)')
-      .eq('email_thread_id', threadId)
-      .single();
+    if (!message) {
+      threadId = extractThreadId(subject);
+      if (!threadId) {
+        return NextResponse.json({ success: true, message: 'No thread reference found' });
+      }
 
-    if (messageError || !message) {
-      logError('mailgun-webhook-message-not-found', { threadId, error: messageError });
-      return NextResponse.json({ error: 'Message not found' }, { status: 404 });
+      const { data: subjectMessage, error: messageError } = await supabaseAdmin
+        .from('customer_messages')
+        .select('*, orders(order_number)')
+        .eq('email_thread_id', threadId)
+        .single();
+
+      if (messageError || !subjectMessage) {
+        logError('mailgun-webhook-message-not-found', { threadId, error: messageError });
+        return NextResponse.json({ error: 'Message not found' }, { status: 404 });
+      }
+
+      message = subjectMessage;
     }
 
     const senderEmail = extractEmail(sender);
@@ -115,22 +209,33 @@ export async function POST(request: NextRequest) {
     if (isFromAdmin && message.customer_email) {
       try {
         const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://tinglumgard.no';
-        const rendered = await renderManagedTemplate({
-          templateKey: 'support.reply.customer.notification',
-          locale: 'no',
-          variables: {
-            customer_name: message.customer_name || 'Kunde',
-            thread_id: `msg_${message.id}`,
-            subject_line: message.subject,
-            reply_text: replyText,
-            admin_name: 'Tinglum Gård',
-            portal_url: `${appUrl}/min-side`,
-            portal_label: 'Min side',
-          },
-        });
+        const isAdminInitiated = message.initiated_by === 'admin';
+        const rendered = isAdminInitiated
+          ? buildCustomerMessageEmail({
+              locale: 'no',
+              customerName: message.customer_name || 'Kunde',
+              adminName: 'Tinglum Gård',
+              subjectLine: message.subject,
+              messageText: replyText,
+              portalUrl: `${appUrl}/min-side`,
+              portalLabel: 'Min side',
+            })
+          : await renderManagedTemplate({
+              templateKey: 'support.reply.customer.notification',
+              locale: 'no',
+              variables: {
+                customer_name: message.customer_name || 'Kunde',
+                thread_id: String(message.email_thread_id || `msg_${message.id}`),
+                subject_line: message.subject,
+                reply_text: replyText,
+                admin_name: 'Tinglum Gård',
+                portal_url: `${appUrl}/min-side`,
+                portal_label: 'Min side',
+              },
+            });
 
         if (!rendered) {
-          throw new Error('Missing template support.reply.customer.notification');
+          throw new Error('Missing customer notification template');
         }
 
         await dispatchEmail({
@@ -138,7 +243,9 @@ export async function POST(request: NextRequest) {
           subject: rendered.subject,
           html: rendered.html,
           classification: 'support',
-          templateKey: rendered.templateKey,
+          templateKey: isAdminInitiated
+            ? 'support.message.customer.admin_initiated'
+            : ((rendered as any).templateKey as string) || 'support.reply.customer.notification',
           sourcePath: '/api/webhooks/email-reply',
           customerMessageId: message.id,
         });
@@ -152,7 +259,7 @@ export async function POST(request: NextRequest) {
           templateKey: 'support.reply.admin.notification',
           locale: 'no',
           variables: {
-            thread_id: `msg_${message.id}`,
+            thread_id: String(message.email_thread_id || `msg_${message.id}`),
             customer_name: message.customer_name || 'Kunde',
             customer_phone: message.customer_phone || '',
             customer_email: message.customer_email || '',
@@ -183,7 +290,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       reply_id: reply.id,
-      thread_id: threadId,
+      thread_id: threadId || message.email_thread_id || null,
       source: 'email',
     });
   } catch (error) {

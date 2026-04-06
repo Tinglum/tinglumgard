@@ -22,6 +22,7 @@ import {
   Truck,
 } from 'lucide-react';
 import { DeferredPaymentsCard } from './DeferredPaymentsCard';
+import { EggShippingModal } from './EggShippingModal';
 
 interface ActionDashboardProps {
   onNavigate: (tab: string, subTab?: string) => void;
@@ -39,6 +40,7 @@ export function ActionDashboard({ onNavigate, onNavigateToOrder }: ActionDashboa
   const [eggWeekOffset, setEggWeekOffset] = useState(0);
   const [eggWeekLoading, setEggWeekLoading] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [shippingModalOrderId, setShippingModalOrderId] = useState<string | null>(null);
 
   const loadDashboard = useCallback(async (weekOffset = 0) => {
     setLoading(true);
@@ -247,6 +249,13 @@ export function ActionDashboard({ onNavigate, onNavigateToOrder }: ActionDashboa
       <WeekScheduleSection
         upcomingDates={upcomingDates}
         onNavigateToOrder={onNavigateToOrder}
+        onShipmentOrderClick={(order: any) => {
+          if (order.type === 'egg') {
+            setShippingModalOrderId(order.order_number);
+          } else {
+            onNavigateToOrder?.(order.order_number);
+          }
+        }}
         lang={lang}
         locale={locale}
       />
@@ -369,6 +378,16 @@ export function ActionDashboard({ onNavigate, onNavigateToOrder }: ActionDashboa
           </div>
         </div>
       )}
+
+      <EggShippingModal
+        orderId={shippingModalOrderId}
+        open={!!shippingModalOrderId}
+        onClose={() => {
+          setShippingModalOrderId(null);
+          loadDashboard(eggWeekOffset);
+        }}
+        lang={lang}
+      />
     </div>
   );
 }
@@ -642,9 +661,10 @@ function EggWeekTrackerSection({
   );
 }
 
-function WeekScheduleSection({ upcomingDates, onNavigateToOrder, lang, locale }: {
+function WeekScheduleSection({ upcomingDates, onNavigateToOrder, onShipmentOrderClick, lang, locale }: {
   upcomingDates: any;
   onNavigateToOrder?: (id: string) => void;
+  onShipmentOrderClick?: (order: any) => void;
   lang: string;
   locale: string;
 }) {
@@ -732,7 +752,7 @@ function WeekScheduleSection({ upcomingDates, onNavigateToOrder, lang, locale }:
           {currentShipments.length > 0 ? (
             <div className="space-y-4">
               {currentShipments.map((group: any) => (
-                <DateGroup key={group.date} group={group} onNavigateToOrder={onNavigateToOrder} lang={lang} locale={locale} />
+                <DateGroup key={group.date} group={group} onOrderClick={onShipmentOrderClick} lang={lang} locale={locale} />
               ))}
             </div>
           ) : (
@@ -746,9 +766,10 @@ function WeekScheduleSection({ upcomingDates, onNavigateToOrder, lang, locale }:
   );
 }
 
-function DateGroup({ group, onNavigateToOrder, lang, locale }: {
+function DateGroup({ group, onNavigateToOrder, onOrderClick, lang, locale }: {
   group: { date: string; orders: any[] };
   onNavigateToOrder?: (id: string) => void;
+  onOrderClick?: (order: any) => void;
   lang: string;
   locale: string;
 }) {
@@ -765,7 +786,13 @@ function DateGroup({ group, onNavigateToOrder, lang, locale }: {
       </p>
       <div className="space-y-1">
         {group.orders.map((order: any) => (
-          <OrderRow key={order.order_number} order={order} onNavigateToOrder={onNavigateToOrder} lang={lang} />
+          <OrderRow
+            key={order.order_number}
+            order={order}
+            onNavigateToOrder={onOrderClick ? undefined : onNavigateToOrder}
+            onOrderClick={onOrderClick}
+            lang={lang}
+          />
         ))}
       </div>
     </div>
@@ -788,13 +815,13 @@ const typeBadge: Record<string, { bg: string; text: string; labelNo: string; lab
   pig: { bg: 'bg-amber-100', text: 'text-amber-800', labelNo: 'Gris', labelEn: 'Pig' },
 };
 
-function OrderRow({ order, onNavigateToOrder, lang }: { order: any; onNavigateToOrder?: (id: string) => void; lang: string }) {
+function OrderRow({ order, onNavigateToOrder, onOrderClick, lang }: { order: any; onNavigateToOrder?: (id: string) => void; onOrderClick?: (order: any) => void; lang: string }) {
   const badge = typeBadge[order.type] || typeBadge.egg;
   const firstName = (order.customer_name || '').split(/\s+/)[0] || '';
 
   return (
     <button
-      onClick={() => onNavigateToOrder?.(order.order_number)}
+      onClick={() => onOrderClick ? onOrderClick(order) : onNavigateToOrder?.(order.order_number)}
       className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left hover:bg-neutral-50 transition-colors group"
     >
       <span className="text-sm font-medium text-neutral-900 group-hover:text-blue-700 transition-colors min-w-[120px]">

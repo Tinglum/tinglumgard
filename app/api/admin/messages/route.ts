@@ -3,7 +3,7 @@ import { getSession } from '@/lib/auth/session';
 import { supabaseAdmin } from '@/lib/supabase/server';
 import { logError } from '@/lib/logger';
 import { dispatchEmail } from '@/lib/email/dispatch';
-import { renderManagedTemplate } from '@/lib/email/render';
+import { buildCustomerMessageEmail } from '@/lib/messages/customer-email';
 
 const MESSAGE_TYPES = new Set(['support', 'inquiry', 'complaint', 'feedback', 'referral_question']);
 const PRIORITIES = new Set(['low', 'normal', 'high', 'urgent']);
@@ -35,7 +35,7 @@ function buildOrderBlock(locale: 'no' | 'en', orderNumber: string | null, orderS
           ? 'Mangalitsa'
           : 'Mangalitsa';
 
-  const label = locale === 'en' ? 'Related order' : 'Tilknyttet ordre';
+  const label = locale === 'en' ? 'Regarding order' : 'Gjelder ordre';
 
   return `<p style="margin:16px 0 0;font-size:14px;line-height:1.5;color:#6B5B4E;">${label}: ${orderNumber}${sourceLabel ? ` (${sourceLabel})` : ''}</p>`;
 }
@@ -220,31 +220,23 @@ export async function POST(request: NextRequest) {
 
     if (customerEmail) {
       try {
-        const rendered = await renderManagedTemplate({
-          templateKey: 'support.message.customer.admin_initiated',
+        const rendered = buildCustomerMessageEmail({
           locale: 'no',
-          variables: {
-            customer_name: fallbackCustomerName,
-            admin_name: adminName,
-            thread_id: threadId,
-            subject_line: subject,
-            message_text: message,
-            portal_url: `${appUrl}/min-side`,
-            portal_label: 'Min side',
-            order_block: buildOrderBlock('no', orderNumber, relatedOrderSource),
-          },
+          customerName: fallbackCustomerName,
+          adminName,
+          subjectLine: subject,
+          messageText: message,
+          portalUrl: `${appUrl}/min-side`,
+          portalLabel: 'Min side',
+          orderContextHtml: buildOrderBlock('no', orderNumber, relatedOrderSource),
         });
-
-        if (!rendered) {
-          throw new Error('Missing template support.message.customer.admin_initiated');
-        }
 
         await dispatchEmail({
           to: customerEmail,
           subject: rendered.subject,
           html: rendered.html,
           classification: 'support',
-          templateKey: rendered.templateKey,
+          templateKey: 'support.message.customer.admin_initiated',
           sourcePath: '/api/admin/messages',
           customerMessageId: newMessage.id,
           sendImmediately: true,
