@@ -12,14 +12,31 @@ const RELATED_ORDER_SOURCES = new Set(['pig', 'egg', 'chicken']);
 function needsAdminAttention(message: {
   status?: string | null;
   initiated_by?: string | null;
-  message_replies?: Array<{ is_from_customer?: boolean | null }> | null;
+  message_replies?: Array<{
+    is_from_customer?: boolean | null;
+    is_internal?: boolean | null;
+    created_at?: string | null;
+  }> | null;
 }) {
   const isUnresolved = message.status === 'open' || message.status === 'in_progress';
   if (!isUnresolved) return false;
-  if (message.initiated_by !== 'admin') return true;
-  return Array.isArray(message.message_replies)
-    ? message.message_replies.some((reply) => Boolean(reply.is_from_customer))
-    : false;
+
+  const publicReplies = Array.isArray(message.message_replies)
+    ? message.message_replies
+        .filter((reply) => !reply?.is_internal)
+        .sort(
+          (left, right) =>
+            new Date(left?.created_at || 0).getTime() - new Date(right?.created_at || 0).getTime()
+        )
+    : [];
+
+  const latestPublicReply = publicReplies.length > 0 ? publicReplies[publicReplies.length - 1] : null;
+
+  if (latestPublicReply) {
+    return Boolean(latestPublicReply.is_from_customer);
+  }
+
+  return message.initiated_by !== 'admin';
 }
 
 function normalizeEmail(value?: string | null) {
