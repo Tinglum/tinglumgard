@@ -474,17 +474,24 @@ async function fetchEggWeekTracker() {
   try {
     // Date math — Oslo timezone for "today"
     const osloNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Oslo' }));
+    const trackerDate = new Date(osloNow);
+
+    // Keep the previous operational egg week visible through all of Monday.
+    if (osloNow.getDay() === 1) {
+      trackerDate.setDate(trackerDate.getDate() - 1);
+    }
+
     const todayStr = [
-      osloNow.getFullYear(),
-      String(osloNow.getMonth() + 1).padStart(2, '0'),
-      String(osloNow.getDate()).padStart(2, '0'),
+      trackerDate.getFullYear(),
+      String(trackerDate.getMonth() + 1).padStart(2, '0'),
+      String(trackerDate.getDate()).padStart(2, '0'),
     ].join('-');
 
     // ISO week: Monday = start
-    const dayOfWeek = osloNow.getDay(); // 0=Sun,1=Mon,...
+    const dayOfWeek = trackerDate.getDay(); // 0=Sun,1=Mon,...
     const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-    const thisMonday = new Date(osloNow);
-    thisMonday.setDate(osloNow.getDate() + mondayOffset);
+    const thisMonday = new Date(trackerDate);
+    thisMonday.setDate(trackerDate.getDate() + mondayOffset);
     const thisSunday = new Date(thisMonday);
     thisSunday.setDate(thisMonday.getDate() + 6);
     const nextMonday = new Date(thisMonday);
