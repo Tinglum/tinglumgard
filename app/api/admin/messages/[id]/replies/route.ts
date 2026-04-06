@@ -87,6 +87,7 @@ export async function POST(
           templateKey: rendered.templateKey,
           sourcePath: '/api/admin/messages/[id]/replies',
           customerMessageId: message.id,
+          sendImmediately: true,
         });
       }
     } catch (emailError) {

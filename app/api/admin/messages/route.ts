@@ -247,6 +247,7 @@ export async function POST(request: NextRequest) {
           templateKey: rendered.templateKey,
           sourcePath: '/api/admin/messages',
           customerMessageId: newMessage.id,
+          sendImmediately: true,
         });
 
         emailDispatched = true;

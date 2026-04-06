@@ -177,6 +177,7 @@ export async function dispatchEmail(input: DispatchEmailInput): Promise<Dispatch
 
   if (settings.mode === 'active' || (settings.mode === 'legacy' && settings.paused)) {
     try {
+      const immediateStatus = input.sendImmediately ? 'processing' : 'pending';
       const queue = await enqueueEmailRecord({
         idempotencyKey,
         classification,
@@ -195,8 +196,50 @@ export async function dispatchEmail(input: DispatchEmailInput): Promise<Dispatch
         customerMessageId: input.customerMessageId,
         priority: input.priority,
         maxAttempts: input.maxAttempts || 6,
-        status: 'pending',
+        status: immediateStatus,
+        ...(input.sendImmediately
+          ? { lockedAt: new Date().toISOString(), lockedBy: 'immediate-dispatch' }
+          : {}),
       });
+
+      if (input.sendImmediately && queue.inserted) {
+        const attempt = queue.record.attempts + 1;
+        const sendResult = await sendViaMailgun({
+          to: queue.record.to_email,
+          subject: queue.record.subject,
+          html: queue.record.html,
+          text: htmlToPlainText(queue.record.html),
+          from: settings.defaultFrom,
+          replyTo: settings.defaultReplyTo,
+        });
+
+        if (sendResult.success) {
+          await markQueueEntrySent({
+            id: queue.record.id,
+            attempts: attempt,
+            providerMessageId: sendResult.id || null,
+          });
+          return {
+            success: true,
+            mode: settings.mode,
+            queueId: queue.record.id,
+            id: sendResult.id,
+          };
+        }
+
+        await markQueueEntryFailed({
+          id: queue.record.id,
+          attempts: attempt,
+          maxAttempts: queue.record.max_attempts,
+          errorMessage: sendResult.error || 'immediate_send_failed',
+        });
+        return {
+          success: false,
+          mode: settings.mode,
+          queueId: queue.record.id,
+          error: sendResult.error || 'Failed to send email',
+        };
+      }
 
       return {
         success: true,

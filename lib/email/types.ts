@@ -110,6 +110,8 @@ export interface DispatchEmailInput {
     id: string;
     template?: string;
   };
+  /** Send immediately even in active (queue) mode. Use for support messages. */
+  sendImmediately?: boolean;
 }
 
 export interface DispatchEmailResult {
