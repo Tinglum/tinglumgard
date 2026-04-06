@@ -4,7 +4,9 @@ import { supabaseAdmin } from '@/lib/supabase/server';
 import { dispatchEmail } from '@/lib/email/dispatch';
 import { renderManagedTemplate } from '@/lib/email/render';
 import { logError } from '@/lib/logger';
+import { getCustomerFacingAdminName } from '@/lib/messages/admin-sender';
 import { buildCustomerMessageEmail } from '@/lib/messages/customer-email';
+import { recordMessageEmailDebugEvent } from '@/lib/messages/email-debug';
 import {
   extractSupportThreadId,
   normalizeSupportSubject,
@@ -190,7 +192,15 @@ export async function POST(request: NextRequest) {
     const from = formData.get('from')?.toString() || '';
     const sender = formData.get('sender')?.toString() || from;
     const senderEmail = extractEmail(sender).trim().toLowerCase();
+    const recipient =
+      formData.get('recipient')?.toString() ||
+      formData.get('To')?.toString() ||
+      formData.get('to')?.toString() ||
+      headerMap.get('to') ||
+      process.env.EMAIL_FROM ||
+      'post@tinglum.com';
     const subject = formData.get('subject')?.toString() || '';
+    const normalizedSubject = normalizeSupportSubject(subject);
     const html = formData.get('stripped-html')?.toString() || null;
     const text = formData.get('stripped-text')?.toString() || null;
     const messageId =
@@ -200,25 +210,60 @@ export async function POST(request: NextRequest) {
     const referenceIds = extractMessageIds(headerMap.get('references'));
     const candidateMessageIds = [...inReplyToIds, ...referenceIds];
 
+    const headerThreadId = extractThreadIdFromMessageIds(candidateMessageIds);
+    const subjectThreadId = extractThreadId(subject);
+    let matchStrategy: string | null = null;
     let message = await findMessageByProviderReferences(candidateMessageIds);
     let threadId = message?.email_thread_id || null;
-
-    if (!message) {
-      threadId = extractThreadIdFromMessageIds(candidateMessageIds);
-      message = await findMessageByThreadId(threadId);
+    if (message) {
+      matchStrategy = 'provider_reference';
     }
 
     if (!message) {
-      threadId = extractThreadId(subject);
+      threadId = headerThreadId;
       message = await findMessageByThreadId(threadId);
+      if (message) {
+        matchStrategy = 'header_thread_id';
+      }
+    }
+
+    if (!message) {
+      threadId = subjectThreadId;
+      message = await findMessageByThreadId(threadId);
+      if (message) {
+        matchStrategy = 'subject_thread_token';
+      }
     }
 
     if (!message) {
       message = await findMessageBySenderAndSubject(senderEmail, subject);
       threadId = message?.email_thread_id || null;
+      if (message) {
+        matchStrategy = 'sender_subject_fallback';
+      }
     }
 
     if (!message) {
+      await recordMessageEmailDebugEvent({
+        emailThreadId: headerThreadId || subjectThreadId || null,
+        customerEmail: senderEmail,
+        direction: 'inbound',
+        eventType: 'inbound_email_unmatched',
+        matchStatus: 'unmatched',
+        matchStrategy: 'none',
+        senderEmail,
+        recipientEmail: recipient,
+        emailSubject: subject,
+        normalizedSubject,
+        providerMessageId: messageId,
+        details: {
+          inReplyToIds,
+          referenceIds,
+          candidateMessageIds,
+          headerThreadId,
+          subjectThreadId,
+        },
+      });
       logError('mailgun-webhook-no-thread-reference', {
         senderEmail,
         subject,
@@ -228,8 +273,44 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true, message: 'No thread reference found' });
     }
 
+    await recordMessageEmailDebugEvent({
+      messageId: message.id,
+      emailThreadId: threadId || message.email_thread_id || null,
+      customerEmail: message.customer_email || senderEmail,
+      direction: 'inbound',
+      eventType: 'inbound_email_matched',
+      matchStatus: 'matched',
+      matchStrategy,
+      senderEmail,
+      recipientEmail: recipient,
+      emailSubject: subject,
+      normalizedSubject,
+      providerMessageId: messageId,
+      details: {
+        inReplyToIds,
+        referenceIds,
+        candidateMessageIds,
+        headerThreadId,
+        subjectThreadId,
+      },
+    });
+
     const replyText = getPlainText(html, text);
     if (!replyText.trim()) {
+      await recordMessageEmailDebugEvent({
+        messageId: message.id,
+        emailThreadId: threadId || message.email_thread_id || null,
+        customerEmail: message.customer_email || senderEmail,
+        direction: 'inbound',
+        eventType: 'inbound_email_empty',
+        matchStatus: 'error',
+        matchStrategy,
+        senderEmail,
+        recipientEmail: recipient,
+        emailSubject: subject,
+        normalizedSubject,
+        providerMessageId: messageId,
+      });
       return NextResponse.json({ error: 'Empty reply' }, { status: 400 });
     }
 
@@ -237,12 +318,18 @@ export async function POST(request: NextRequest) {
     const adminDomain = adminEmail.split('@')[1];
     const senderDomain = senderEmail.split('@')[1];
     const isFromAdmin = senderDomain === adminDomain;
+    const adminSenderName = isFromAdmin
+      ? getCustomerFacingAdminName({
+          name: formData.get('From')?.toString() || sender,
+          email: senderEmail,
+        })
+      : null;
 
     const { data: reply, error: replyError } = await supabaseAdmin
       .from('message_replies')
       .insert({
         message_id: message.id,
-        admin_name: isFromAdmin ? 'Admin (via email)' : message.customer_name || senderEmail,
+        admin_name: isFromAdmin ? adminSenderName : message.customer_name || senderEmail,
         reply_text: replyText,
         is_internal: false,
         is_from_customer: !isFromAdmin,
@@ -253,6 +340,25 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (replyError) {
+      await recordMessageEmailDebugEvent({
+        messageId: message.id,
+        emailThreadId: threadId || message.email_thread_id || null,
+        customerEmail: message.customer_email || senderEmail,
+        direction: 'inbound',
+        eventType: 'inbound_reply_create_failed',
+        matchStatus: 'error',
+        matchStrategy,
+        senderEmail,
+        recipientEmail: recipient,
+        emailSubject: subject,
+        normalizedSubject,
+        providerMessageId: messageId,
+        details: {
+          error: replyError.message || null,
+          details: replyError.details || null,
+          hint: replyError.hint || null,
+        },
+      });
       logError('mailgun-webhook-reply-create', replyError);
       return NextResponse.json({ error: 'Failed to create reply' }, { status: 500 });
     }
@@ -263,6 +369,27 @@ export async function POST(request: NextRequest) {
       .update({ status: newStatus, updated_at: new Date().toISOString() })
       .eq('id', message.id);
 
+    await recordMessageEmailDebugEvent({
+      messageId: message.id,
+      emailThreadId: threadId || message.email_thread_id || null,
+      customerEmail: message.customer_email || senderEmail,
+      direction: 'inbound',
+      eventType: 'inbound_reply_stored',
+      matchStatus: 'matched',
+      matchStrategy,
+      senderEmail,
+      recipientEmail: recipient,
+      emailSubject: subject,
+      normalizedSubject,
+      providerMessageId: messageId,
+      details: {
+        replyId: reply.id,
+        source: 'email',
+        isFromAdmin,
+        newStatus,
+      },
+    });
+
     if (isFromAdmin && message.customer_email) {
       try {
         const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://tinglumgard.no';
@@ -271,7 +398,7 @@ export async function POST(request: NextRequest) {
           ? buildCustomerMessageEmail({
               locale: 'no',
               customerName: message.customer_name || 'Kunde',
-              adminName: 'Tinglum G\u00E5rd',
+              adminName: adminSenderName,
               subjectLine: message.subject,
               messageText: replyText,
               portalUrl: `${appUrl}/min-side`,
@@ -285,7 +412,7 @@ export async function POST(request: NextRequest) {
                 thread_id: String(message.email_thread_id || `msg_${message.id}`),
                 subject_line: message.subject,
                 reply_text: replyText,
-                admin_name: 'Tinglum G\u00E5rd',
+                admin_name: adminSenderName || 'Tinglum G\u00E5rd',
                 portal_url: `${appUrl}/min-side`,
                 portal_label: 'Min side',
               },

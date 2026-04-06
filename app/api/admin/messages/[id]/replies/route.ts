@@ -5,6 +5,8 @@ import { logError } from '@/lib/logger';
 import { dispatchEmail } from '@/lib/email/dispatch';
 import { renderManagedTemplate } from '@/lib/email/render';
 import { buildCustomerMessageEmail } from '@/lib/messages/customer-email';
+import { getCustomerFacingAdminName } from '@/lib/messages/admin-sender';
+import { recordMessageEmailDebugEvent } from '@/lib/messages/email-debug';
 import { buildSupportThreadMessageId } from '@/lib/messages/threading';
 
 // POST /api/admin/messages/[id]/replies - Add reply to a message
@@ -25,7 +27,10 @@ export async function POST(
       return NextResponse.json({ error: 'Reply text is required' }, { status: 400 });
     }
 
-    const adminName = session.email || 'Admin';
+    const adminName = getCustomerFacingAdminName({
+      name: session.name,
+      email: session.email,
+    });
     const trimmedReply = reply_text.trim();
 
     const { data: reply, error: replyError } = await supabaseAdmin
@@ -64,6 +69,8 @@ export async function POST(
       if (message && message.customer_email) {
         const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://tinglumgard.no';
         const isAdminInitiated = message.initiated_by === 'admin';
+        const threadId = String(message.email_thread_id || `msg_${message.id}`);
+        const outboundMessageId = buildSupportThreadMessageId(threadId, 'admin-reply');
         const rendered = isAdminInitiated
           ? buildCustomerMessageEmail({
               locale: 'no',
@@ -92,16 +99,13 @@ export async function POST(
           throw new Error('Missing customer reply template');
         }
 
-        await dispatchEmail({
+        const dispatchResult = await dispatchEmail({
           to: message.customer_email,
           subject: rendered.subject,
           html: rendered.html,
           headers: {
-            'Message-ID': buildSupportThreadMessageId(
-              String(message.email_thread_id || `msg_${message.id}`),
-              'admin-reply'
-            ),
-            'X-Tinglum-Thread-Id': String(message.email_thread_id || `msg_${message.id}`),
+            'Message-ID': outboundMessageId,
+            'X-Tinglum-Thread-Id': threadId,
           },
           classification: 'support',
           templateKey: isAdminInitiated
@@ -111,9 +115,57 @@ export async function POST(
           customerMessageId: message.id,
           sendImmediately: true,
         });
+
+        await recordMessageEmailDebugEvent({
+          messageId: message.id,
+          emailThreadId: threadId,
+          customerEmail: message.customer_email,
+          direction: 'outbound',
+          eventType: dispatchResult.success
+            ? 'outbound_admin_reply_sent'
+            : 'outbound_admin_reply_failed',
+          matchStatus: dispatchResult.success ? 'matched' : 'error',
+          matchStrategy: 'thread_headers',
+          senderEmail: session.email || process.env.EMAIL_FROM || 'post@tinglum.com',
+          recipientEmail: message.customer_email,
+          emailSubject: rendered.subject,
+          providerMessageId: dispatchResult.id || null,
+          details: {
+            replyId: reply.id,
+            queueId: dispatchResult.queueId || null,
+            hiddenMessageId: outboundMessageId,
+            templateKey: isAdminInitiated
+              ? 'support.message.customer.admin_initiated'
+              : ((rendered as any).templateKey as string) || 'support.reply.customer.notification',
+            sendImmediately: true,
+            error: dispatchResult.error || null,
+          },
+        });
+
+        if (!dispatchResult.success) {
+          logError('admin-message-reply-email-dispatch-failed', {
+            messageId: message.id,
+            replyId: reply.id,
+            threadId,
+            queueId: dispatchResult.queueId || null,
+            error: dispatchResult.error || 'unknown_dispatch_error',
+          });
+        }
       }
     } catch (emailError) {
       logError('admin-message-reply-email', emailError);
+      await recordMessageEmailDebugEvent({
+        messageId: params.id,
+        direction: 'outbound',
+        eventType: 'outbound_admin_reply_failed',
+        matchStatus: 'error',
+        matchStrategy: 'thread_headers',
+        senderEmail: session.email || process.env.EMAIL_FROM || 'post@tinglum.com',
+        details: {
+          replyId: reply.id,
+          error: emailError instanceof Error ? emailError.message : String(emailError),
+        },
+      });
     }
 
     return NextResponse.json({ reply, success: true });

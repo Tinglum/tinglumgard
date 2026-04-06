@@ -3105,6 +3105,15 @@
     conversation: "Samtale",
     customerFallback: "Kunde",
     farmSender: "Tinglum Gård",
+    emailDebugTitle: "E-postdebug",
+    emailDebugDescription: "Viser hvordan e-post til denne tråden ble sendt, matchet eller avvist.",
+    emailDebugEmpty: "Ingen debughendelser ennå.",
+    emailDebugStrategyLabel: "Matchmetode",
+    emailDebugSenderLabel: "Avsender",
+    emailDebugRecipientLabel: "Mottaker",
+    emailDebugSubjectLabel: "Emne",
+    emailDebugProviderIdLabel: "Provider-ID",
+    emailDebugDetailsLabel: "Detaljer",
   },
 
   boxConfiguration: {

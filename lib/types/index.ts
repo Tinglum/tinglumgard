@@ -124,6 +124,24 @@ export interface MessageReply {
   created_at: string;
 }
 
+export interface MessageEmailDebugEvent {
+  id: string;
+  message_id?: string | null;
+  email_thread_id?: string | null;
+  customer_email?: string | null;
+  direction: 'inbound' | 'outbound';
+  event_type: string;
+  match_status?: 'matched' | 'unmatched' | 'error' | null;
+  match_strategy?: string | null;
+  sender_email?: string | null;
+  recipient_email?: string | null;
+  email_subject?: string | null;
+  normalized_subject?: string | null;
+  provider_message_id?: string | null;
+  details?: Record<string, any> | null;
+  created_at: string;
+}
+
 export interface AnalyticsSnapshot {
   id: string;
   snapshot_date: string;

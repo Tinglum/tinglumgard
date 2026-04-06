@@ -3102,6 +3102,15 @@
     conversation: "Conversation",
     customerFallback: "Customer",
     farmSender: "Tinglum Farm",
+    emailDebugTitle: "Email debug",
+    emailDebugDescription: "Shows how email for this thread was sent, matched, or rejected.",
+    emailDebugEmpty: "No debug events yet.",
+    emailDebugStrategyLabel: "Match strategy",
+    emailDebugSenderLabel: "Sender",
+    emailDebugRecipientLabel: "Recipient",
+    emailDebugSubjectLabel: "Subject",
+    emailDebugProviderIdLabel: "Provider ID",
+    emailDebugDetailsLabel: "Details",
   },
 
   boxConfiguration: {

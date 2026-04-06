@@ -14,6 +14,21 @@ interface MessageReply {
   reply_text: string;
   is_from_customer?: boolean;
   source?: string | null;
+  email_message_id?: string | null;
+  created_at: string;
+}
+
+interface MessageEmailDebugEvent {
+  id: string;
+  direction: 'inbound' | 'outbound';
+  event_type: string;
+  match_status?: 'matched' | 'unmatched' | 'error' | null;
+  match_strategy?: string | null;
+  sender_email?: string | null;
+  recipient_email?: string | null;
+  email_subject?: string | null;
+  provider_message_id?: string | null;
+  details?: Record<string, unknown> | null;
   created_at: string;
 }
 
@@ -29,9 +44,11 @@ interface CustomerMessage {
   priority: 'low' | 'normal' | 'high' | 'urgent';
   initiated_by?: 'customer' | 'admin';
   initiated_by_admin_name?: string | null;
+  email_thread_id?: string | null;
   created_at: string;
   updated_at?: string;
   message_replies?: MessageReply[];
+  email_debug_events?: MessageEmailDebugEvent[];
 }
 
 type StatusFilter = 'all' | 'open' | 'in_progress' | 'resolved' | 'closed';
@@ -54,6 +71,20 @@ export function AdminMessagingPanel({ initialMessageId = null }: AdminMessagingP
   const [priorityFilter, setPriorityFilter] = useState<PriorityFilter>('all');
   const [stats, setStats] = useState({ total: 0, open: 0, in_progress: 0, resolved: 0 });
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const loadMessageDetail = useCallback(async (messageId: string) => {
+    try {
+      const response = await fetch(`/api/admin/messages/${messageId}`);
+      const data = await response.json();
+      if (response.ok && data.message) {
+        setSelectedMessage(data.message);
+        return data.message as CustomerMessage;
+      }
+    } catch (error) {
+      console.error('Failed to load message detail:', error);
+    }
+    return null;
+  }, []);
 
   const loadMessages = useCallback(async (showLoader = true) => {
     try {
@@ -88,26 +119,25 @@ export function AdminMessagingPanel({ initialMessageId = null }: AdminMessagingP
 
   useEffect(() => {
     const interval = window.setInterval(async () => {
-      const refreshedMessages = await loadMessages(false);
-      if (!selectedMessage) return;
-
-      const refreshedSelectedMessage = refreshedMessages.find(
-        (message: CustomerMessage) => message.id === selectedMessage.id
-      );
-
-      if (refreshedSelectedMessage) {
-        setSelectedMessage(refreshedSelectedMessage);
+      await loadMessages(false);
+      if (selectedMessage) {
+        await loadMessageDetail(selectedMessage.id);
       }
     }, 15000);
 
     return () => window.clearInterval(interval);
-  }, [loadMessages, selectedMessage]);
+  }, [loadMessageDetail, loadMessages, selectedMessage]);
 
   useEffect(() => {
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
   }, [selectedMessage?.message_replies]);
+
+  const openMessage = useCallback(async (message: CustomerMessage) => {
+    setSelectedMessage(message);
+    await loadMessageDetail(message.id);
+  }, [loadMessageDetail]);
 
   const handleSendReply = async () => {
     if (!replyText.trim() || !selectedMessage) return;
@@ -122,11 +152,8 @@ export function AdminMessagingPanel({ initialMessageId = null }: AdminMessagingP
 
       if (response.ok) {
         setReplyText('');
-        const updatedMessages = await loadMessages();
-        const updated = updatedMessages.find((m: CustomerMessage) => m.id === selectedMessage.id);
-        if (updated) {
-          setSelectedMessage(updated);
-        }
+        await loadMessages();
+        await loadMessageDetail(selectedMessage.id);
       }
     } catch (error) {
       console.error('Failed to send reply:', error);
@@ -146,9 +173,8 @@ export function AdminMessagingPanel({ initialMessageId = null }: AdminMessagingP
       });
 
       if (response.ok) {
-        const updatedMessages = await loadMessages();
-        const updated = updatedMessages.find((m: CustomerMessage) => m.id === selectedMessage.id);
-        if (updated) setSelectedMessage(updated);
+        await loadMessages();
+        await loadMessageDetail(selectedMessage.id);
       }
     } catch (error) {
       console.error('Failed to update status:', error);
@@ -255,6 +281,34 @@ export function AdminMessagingPanel({ initialMessageId = null }: AdminMessagingP
     return latestReply?.created_at || message.updated_at || message.created_at;
   };
 
+  const formatDebugLabel = (value: string) =>
+    value
+      .split('_')
+      .filter(Boolean)
+      .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
+      .join(' ');
+
+  const getEmailDebugStatusClasses = (status?: string | null) => {
+    switch (status) {
+      case 'matched':
+        return 'bg-green-100 text-green-800 border border-green-200';
+      case 'unmatched':
+        return 'bg-yellow-100 text-yellow-800 border border-yellow-200';
+      case 'error':
+        return 'bg-red-100 text-red-800 border border-red-200';
+      default:
+        return 'bg-gray-100 text-gray-700 border border-gray-200';
+    }
+  };
+
+  const formatDebugDetails = (details?: Record<string, unknown> | null) => {
+    if (!details || Object.keys(details).length === 0) {
+      return '';
+    }
+
+    return JSON.stringify(details, null, 2);
+  };
+
   const filteredMessages = messages.filter(msg => {
     const statusMatch = statusFilter === 'all' || msg.status === statusFilter;
     const priorityMatch = priorityFilter === 'all' || msg.priority === priorityFilter;
@@ -266,9 +320,9 @@ export function AdminMessagingPanel({ initialMessageId = null }: AdminMessagingP
     if (selectedMessage?.id === initialMessageId) return;
     const deepLinkedMessage = messages.find((message) => message.id === initialMessageId);
     if (deepLinkedMessage) {
-      setSelectedMessage(deepLinkedMessage);
+      void openMessage(deepLinkedMessage);
     }
-  }, [initialMessageId, messages, selectedMessage?.id]);
+  }, [initialMessageId, messages, openMessage, selectedMessage?.id]);
 
   if (!selectedMessage) {
     return (
@@ -351,7 +405,7 @@ export function AdminMessagingPanel({ initialMessageId = null }: AdminMessagingP
                   'p-4 cursor-pointer hover:shadow-lg transition-shadow',
                   getPriorityColor(msg.priority)
                 )}
-                onClick={() => setSelectedMessage(msg)}
+                onClick={() => void openMessage(msg)}
               >
                 <div className="flex items-start justify-between mb-2">
                   <div className="flex-1">
@@ -532,6 +586,83 @@ export function AdminMessagingPanel({ initialMessageId = null }: AdminMessagingP
           )}
           <div ref={messagesEndRef} />
         </div>
+      </Card>
+
+      {/* Email Debug Trail */}
+      <Card className="p-6">
+        <div className="mb-4">
+          <h3 className="font-semibold text-gray-900">{copy.emailDebugTitle}</h3>
+          <p className="text-sm text-gray-600 mt-1">{copy.emailDebugDescription}</p>
+        </div>
+        {selectedMessage.email_debug_events && selectedMessage.email_debug_events.length > 0 ? (
+          <div className="space-y-3 max-h-96 overflow-y-auto pr-1">
+            {selectedMessage.email_debug_events.map((event) => {
+              const detailText = formatDebugDetails(event.details);
+              return (
+                <div key={event.id} className="rounded-xl border border-gray-200 bg-gray-50 p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+                    <div>
+                      <p className="font-medium text-gray-900">{formatDebugLabel(event.event_type)}</p>
+                      <p className="text-xs text-gray-500">{formatDate(event.created_at)}</p>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="rounded-full border border-gray-200 bg-white px-2 py-1 text-xs font-medium text-gray-700">
+                        {event.direction === 'inbound' ? 'Inbound' : 'Outbound'}
+                      </span>
+                      {event.match_status && (
+                        <span className={cn('rounded-full px-2 py-1 text-xs font-medium', getEmailDebugStatusClasses(event.match_status))}>
+                          {formatDebugLabel(event.match_status)}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                    {event.match_strategy && (
+                      <div>
+                        <p className="text-xs font-medium text-gray-500">{copy.emailDebugStrategyLabel}</p>
+                        <p className="text-gray-800">{formatDebugLabel(event.match_strategy)}</p>
+                      </div>
+                    )}
+                    {event.sender_email && (
+                      <div>
+                        <p className="text-xs font-medium text-gray-500">{copy.emailDebugSenderLabel}</p>
+                        <p className="text-gray-800 break-all">{event.sender_email}</p>
+                      </div>
+                    )}
+                    {event.recipient_email && (
+                      <div>
+                        <p className="text-xs font-medium text-gray-500">{copy.emailDebugRecipientLabel}</p>
+                        <p className="text-gray-800 break-all">{event.recipient_email}</p>
+                      </div>
+                    )}
+                    {event.email_subject && (
+                      <div>
+                        <p className="text-xs font-medium text-gray-500">{copy.emailDebugSubjectLabel}</p>
+                        <p className="text-gray-800">{event.email_subject}</p>
+                      </div>
+                    )}
+                    {event.provider_message_id && (
+                      <div>
+                        <p className="text-xs font-medium text-gray-500">{copy.emailDebugProviderIdLabel}</p>
+                        <p className="text-gray-800 break-all">{event.provider_message_id}</p>
+                      </div>
+                    )}
+                  </div>
+                  {detailText && (
+                    <div className="mt-3">
+                      <p className="text-xs font-medium text-gray-500 mb-1">{copy.emailDebugDetailsLabel}</p>
+                      <pre className="overflow-x-auto rounded-lg bg-white p-3 text-xs text-gray-700 border border-gray-200 whitespace-pre-wrap break-words">
+                        {detailText}
+                      </pre>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="text-sm text-gray-500">{copy.emailDebugEmpty}</p>
+        )}
       </Card>
 
       {/* Reply Form */}

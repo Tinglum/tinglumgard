@@ -4,6 +4,7 @@ import { supabaseAdmin } from '@/lib/supabase/server';
 import { logError } from '@/lib/logger';
 import { dispatchEmail } from '@/lib/email/dispatch';
 import { renderManagedTemplate } from '@/lib/email/render';
+import { recordMessageEmailDebugEvent } from '@/lib/messages/email-debug';
 import { buildSupportThreadMessageId } from '@/lib/messages/threading';
 
 const MESSAGE_TYPES = new Set(['support', 'inquiry', 'complaint', 'feedback', 'referral_question']);
@@ -202,6 +203,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (session.email) {
+      const outboundMessageId = buildSupportThreadMessageId(threadId, 'customer-confirmation');
       try {
         const rendered = await renderManagedTemplate({
           templateKey: 'support.message.customer.confirmation',
@@ -221,12 +223,12 @@ export async function POST(request: NextRequest) {
           throw new Error('Missing template support.message.customer.confirmation');
         }
 
-        await dispatchEmail({
+        const dispatchResult = await dispatchEmail({
           to: session.email,
           subject: rendered.subject,
           html: rendered.html,
           headers: {
-            'Message-ID': buildSupportThreadMessageId(threadId, 'customer-confirmation'),
+            'Message-ID': outboundMessageId,
             'X-Tinglum-Thread-Id': threadId,
           },
           classification: 'support',
@@ -234,8 +236,56 @@ export async function POST(request: NextRequest) {
           sourcePath: '/api/messages',
           customerMessageId: newMessage.id,
         });
+
+        await recordMessageEmailDebugEvent({
+          messageId: newMessage.id,
+          emailThreadId: threadId,
+          customerEmail: session.email,
+          direction: 'outbound',
+          eventType: dispatchResult.success
+            ? 'outbound_customer_confirmation_sent'
+            : 'outbound_customer_confirmation_failed',
+          matchStatus: dispatchResult.success ? 'matched' : 'error',
+          matchStrategy: 'thread_headers',
+          senderEmail: process.env.EMAIL_FROM || 'post@tinglum.com',
+          recipientEmail: session.email,
+          emailSubject: rendered.subject,
+          providerMessageId: dispatchResult.id || null,
+          details: {
+            queueId: dispatchResult.queueId || null,
+            hiddenMessageId: outboundMessageId,
+            templateKey: rendered.templateKey,
+            error: dispatchResult.error || null,
+          },
+        });
+
+        if (!dispatchResult.success) {
+          logError('messages-customer-confirmation-email-dispatch-failed', {
+            messageId: newMessage.id,
+            threadId,
+            queueId: dispatchResult.queueId || null,
+            error: dispatchResult.error || 'unknown_dispatch_error',
+          });
+        }
       } catch (emailError) {
         logError('messages-customer-confirmation-email', emailError);
+        await recordMessageEmailDebugEvent({
+          messageId: newMessage.id,
+          emailThreadId: threadId,
+          customerEmail: session.email,
+          direction: 'outbound',
+          eventType: 'outbound_customer_confirmation_failed',
+          matchStatus: 'error',
+          matchStrategy: 'thread_headers',
+          senderEmail: process.env.EMAIL_FROM || 'post@tinglum.com',
+          recipientEmail: session.email,
+          emailSubject: subject,
+          details: {
+            hiddenMessageId: outboundMessageId,
+            templateKey: 'support.message.customer.confirmation',
+            error: emailError instanceof Error ? emailError.message : String(emailError),
+          },
+        });
       }
     }
 

@@ -2,8 +2,60 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth/session';
 import { supabaseAdmin } from '@/lib/supabase/server';
 import { logError } from '@/lib/logger';
+import { listMessageEmailDebugEvents } from '@/lib/messages/email-debug';
 
 const ALLOWED_STATUSES = new Set(['open', 'in_progress', 'resolved', 'closed']);
+
+// GET /api/admin/messages/[id] - Fetch single message with replies and email debug trail
+export async function GET(_request: NextRequest, context: { params: { id: string } }) {
+  const session = await getSession();
+
+  if (!session?.isAdmin) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  try {
+    const { data: message, error } = await supabaseAdmin
+      .from('customer_messages')
+      .select(`
+        *,
+        message_replies (
+          id,
+          admin_name,
+          reply_text,
+          is_internal,
+          is_from_customer,
+          source,
+          email_message_id,
+          created_at
+        )
+      `)
+      .eq('id', context.params.id)
+      .single();
+
+    if (error) {
+      logError('admin-message-get', error);
+      return NextResponse.json({ error: 'Failed to fetch message' }, { status: 500 });
+    }
+
+    const emailDebugEvents = await listMessageEmailDebugEvents({
+      messageId: message.id,
+      emailThreadId: message.email_thread_id || null,
+      customerEmail: message.customer_email || null,
+      subject: message.subject || '',
+    });
+
+    return NextResponse.json({
+      message: {
+        ...message,
+        email_debug_events: emailDebugEvents,
+      },
+    });
+  } catch (error) {
+    logError('admin-message-get-main', error);
+    return NextResponse.json({ error: 'Server error' }, { status: 500 });
+  }
+}
 
 // PATCH /api/admin/messages/[id] - Update message status
 export async function PATCH(request: NextRequest, context: { params: { id: string } }) {

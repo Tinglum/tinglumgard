@@ -4,6 +4,8 @@ import { supabaseAdmin } from '@/lib/supabase/server';
 import { logError } from '@/lib/logger';
 import { dispatchEmail } from '@/lib/email/dispatch';
 import { buildCustomerMessageEmail } from '@/lib/messages/customer-email';
+import { getCustomerFacingAdminName } from '@/lib/messages/admin-sender';
+import { recordMessageEmailDebugEvent } from '@/lib/messages/email-debug';
 import { buildSupportThreadMessageId } from '@/lib/messages/threading';
 
 const MESSAGE_TYPES = new Set(['support', 'inquiry', 'complaint', 'feedback', 'referral_question']);
@@ -207,7 +209,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid related order reference' }, { status: 400 });
     }
 
-    const adminName = String(session.name || session.email || 'Tinglum Gard').trim();
+    const adminName = getCustomerFacingAdminName({
+      name: session.name,
+      email: session.email,
+    });
     const fallbackCustomerName = customerName || customerEmail || customerPhone || 'Customer';
     const legacyOrderId = relatedOrderSource === 'pig' ? relatedOrderId : null;
 
@@ -253,6 +258,7 @@ export async function POST(request: NextRequest) {
     let emailDispatched = false;
 
     if (customerEmail) {
+      const outboundMessageId = buildSupportThreadMessageId(threadId, 'admin-message');
       try {
         const rendered = buildCustomerMessageEmail({
           locale: 'no',
@@ -265,12 +271,12 @@ export async function POST(request: NextRequest) {
           orderContextHtml: buildOrderBlock('no', orderNumber, relatedOrderSource),
         });
 
-        await dispatchEmail({
+        const dispatchResult = await dispatchEmail({
           to: customerEmail,
           subject: rendered.subject,
           html: rendered.html,
           headers: {
-            'Message-ID': buildSupportThreadMessageId(threadId, 'admin-message'),
+            'Message-ID': outboundMessageId,
             'X-Tinglum-Thread-Id': threadId,
           },
           classification: 'support',
@@ -280,9 +286,59 @@ export async function POST(request: NextRequest) {
           sendImmediately: true,
         });
 
-        emailDispatched = true;
+        emailDispatched = dispatchResult.success;
+
+        await recordMessageEmailDebugEvent({
+          messageId: newMessage.id,
+          emailThreadId: threadId,
+          customerEmail,
+          direction: 'outbound',
+          eventType: dispatchResult.success
+            ? 'outbound_admin_message_sent'
+            : 'outbound_admin_message_failed',
+          matchStatus: dispatchResult.success ? 'matched' : 'error',
+          matchStrategy: 'thread_headers',
+          senderEmail: session.email || process.env.EMAIL_FROM || 'post@tinglum.com',
+          recipientEmail: customerEmail,
+          emailSubject: rendered.subject,
+          providerMessageId: dispatchResult.id || null,
+          details: {
+            queueId: dispatchResult.queueId || null,
+            hiddenMessageId: outboundMessageId,
+            templateKey: 'support.message.customer.admin_initiated',
+            sendImmediately: true,
+            error: dispatchResult.error || null,
+          },
+        });
+
+        if (!dispatchResult.success) {
+          logError('admin-messages-post-email-dispatch-failed', {
+            messageId: newMessage.id,
+            threadId,
+            queueId: dispatchResult.queueId || null,
+            error: dispatchResult.error || 'unknown_dispatch_error',
+          });
+        }
       } catch (emailError) {
         logError('admin-messages-post-email', emailError);
+        await recordMessageEmailDebugEvent({
+          messageId: newMessage.id,
+          emailThreadId: threadId,
+          customerEmail,
+          direction: 'outbound',
+          eventType: 'outbound_admin_message_failed',
+          matchStatus: 'error',
+          matchStrategy: 'thread_headers',
+          senderEmail: session.email || process.env.EMAIL_FROM || 'post@tinglum.com',
+          recipientEmail: customerEmail,
+          emailSubject: subject,
+          details: {
+            hiddenMessageId: outboundMessageId,
+            templateKey: 'support.message.customer.admin_initiated',
+            sendImmediately: true,
+            error: emailError instanceof Error ? emailError.message : String(emailError),
+          },
+        });
       }
     }
 
