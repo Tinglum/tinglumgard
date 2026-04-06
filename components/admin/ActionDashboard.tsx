@@ -8,6 +8,8 @@ import {
   AlertTriangle,
   Beef,
   Calendar,
+  ChevronLeft,
+  ChevronRight,
   CreditCard,
   Egg,
   Mail,
@@ -33,17 +35,30 @@ export function ActionDashboard({ onNavigate, onNavigateToOrder }: ActionDashboa
   const currency = t.common.currency;
 
   const [data, setData] = useState<any>(null);
+  const [eggWeekTracker, setEggWeekTracker] = useState<any>(null);
+  const [eggWeekOffset, setEggWeekOffset] = useState(0);
+  const [eggWeekLoading, setEggWeekLoading] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  const loadDashboard = useCallback(async () => {
+  const loadDashboard = useCallback(async (weekOffset = 0) => {
     setLoading(true);
     try {
       const lastLogin = localStorage.getItem('tinglum_last_login') || '';
-      const params = lastLogin ? `?lastLogin=${encodeURIComponent(lastLogin)}` : '';
-      const response = await fetch(`/api/admin/dashboard${params}`);
+      const params = new URLSearchParams();
+      if (lastLogin) {
+        params.set('lastLogin', lastLogin);
+      }
+      if (weekOffset !== 0) {
+        params.set('eggWeekOffset', String(weekOffset));
+      }
+      const query = params.toString();
+      const url = query ? `/api/admin/dashboard?${query}` : '/api/admin/dashboard';
+      const response = await fetch(url);
       if (!response.ok) throw new Error('Failed to load dashboard');
       const result = await response.json();
       setData(result);
+      setEggWeekTracker(result.eggWeekTracker);
+      setEggWeekOffset(weekOffset);
       // Update last login timestamp
       localStorage.setItem('tinglum_last_login', new Date().toISOString());
     } catch (error) {
@@ -53,8 +68,27 @@ export function ActionDashboard({ onNavigate, onNavigateToOrder }: ActionDashboa
     }
   }, []);
 
+  const loadEggWeekTracker = useCallback(async (weekOffset: number) => {
+    setEggWeekLoading(true);
+    try {
+      const params = new URLSearchParams({
+        section: 'eggWeekTracker',
+        eggWeekOffset: String(weekOffset),
+      });
+      const response = await fetch(`/api/admin/dashboard?${params.toString()}`);
+      if (!response.ok) throw new Error('Failed to load egg week tracker');
+      const result = await response.json();
+      setEggWeekTracker(result.eggWeekTracker);
+      setEggWeekOffset(weekOffset);
+    } catch (error) {
+      console.error('Failed to load egg week tracker:', error);
+    } finally {
+      setEggWeekLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
-    loadDashboard();
+    loadDashboard(0);
   }, [loadDashboard]);
 
   if (loading) {
@@ -73,7 +107,8 @@ export function ActionDashboard({ onNavigate, onNavigateToOrder }: ActionDashboa
     );
   }
 
-  const { actionItems, keyMetrics, upcomingDates, eggWeekTracker, newOrders, pig, healthAlerts, messages } = data;
+  const { actionItems, keyMetrics, upcomingDates, newOrders, pig, healthAlerts, messages } = data;
+  const currentEggWeekTracker = eggWeekTracker || data.eggWeekTracker;
 
   return (
     <div className="space-y-8">
@@ -81,7 +116,7 @@ export function ActionDashboard({ onNavigate, onNavigateToOrder }: ActionDashboa
       <div className="flex items-center justify-between">
         <h2 className="text-4xl font-light tracking-tight text-neutral-900">{copy.dashboardTitle}</h2>
         <button
-          onClick={loadDashboard}
+          onClick={() => loadDashboard(eggWeekOffset)}
           className="px-6 py-3 border-2 border-neutral-200 text-neutral-900 rounded-xl text-sm font-light flex items-center gap-2 hover:bg-neutral-50 hover:border-neutral-300 hover:-translate-y-0.5 hover:shadow-[0_10px_30px_-10px_rgba(0,0,0,0.1)] transition-all duration-300"
         >
           <RefreshCw className="w-4 h-4" />
@@ -197,8 +232,15 @@ export function ActionDashboard({ onNavigate, onNavigateToOrder }: ActionDashboa
       </div>
 
       {/* Row 2.5: Egg Week Tracker */}
-      {eggWeekTracker && (
-        <EggWeekTrackerSection tracker={eggWeekTracker} lang={lang} copy={copy} />
+      {currentEggWeekTracker && (
+        <EggWeekTrackerSection
+          tracker={currentEggWeekTracker}
+          lang={lang}
+          copy={copy}
+          loading={eggWeekLoading}
+          weekOffset={eggWeekOffset}
+          onChangeWeek={(nextOffset) => loadEggWeekTracker(nextOffset)}
+        />
       )}
 
       {/* Row 3: Pickups & Shipments (week view with toggle) */}
@@ -331,10 +373,20 @@ export function ActionDashboard({ onNavigate, onNavigateToOrder }: ActionDashboa
   );
 }
 
-function EggWeekTrackerSection({ tracker, lang, copy }: {
+function EggWeekTrackerSection({
+  tracker,
+  lang,
+  copy,
+  loading = false,
+  weekOffset = 0,
+  onChangeWeek,
+}: {
   tracker: any;
   lang: string;
   copy: any;
+  loading?: boolean;
+  weekOffset?: number;
+  onChangeWeek?: (nextOffset: number) => void;
 }) {
   const ewt = copy.eggWeekTracker || {};
   const {
@@ -391,18 +443,59 @@ function EggWeekTrackerSection({ tracker, lang, copy }: {
     return ewt.balanced || 'i balanse';
   };
 
+  const previousWeekLabel = ewt.previousWeek || (lang === 'no' ? 'Forrige uke' : 'Previous week');
+  const nextWeekLabel = ewt.nextWeek || (lang === 'no' ? 'Neste uke' : 'Next week');
+  const currentWeekLabel = ewt.currentWeek || (lang === 'no' ? 'Til standardvisning' : 'Back to default view');
+
   return (
     <div className="bg-white border border-neutral-200 rounded-xl p-6 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.06)]">
       {/* Header */}
-      <div className="flex items-center gap-3 mb-5">
-        <div className="p-2 rounded-lg bg-amber-50">
-          <Egg className="w-5 h-5 text-amber-700" />
+      <div className="flex flex-col gap-4 mb-5 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-lg bg-amber-50">
+            <Egg className="w-5 h-5 text-amber-700" />
+          </div>
+          <div>
+            <h3 className="text-lg font-light text-neutral-900">
+              {ewt.title || 'Ukeoversikt egg'}
+            </h3>
+            <p className="text-sm text-neutral-500">{weekLabel} &middot; {weekRange}</p>
+          </div>
         </div>
-        <div>
-          <h3 className="text-lg font-light text-neutral-900">
-            {ewt.title || 'Ukeoversikt egg'}
-          </h3>
-          <p className="text-sm text-neutral-500">{weekLabel} &middot; {weekRange}</p>
+
+        <div className="flex flex-wrap items-center gap-2">
+          {loading && <RefreshCw className="w-4 h-4 animate-spin text-neutral-400" />}
+          <button
+            type="button"
+            onClick={() => onChangeWeek?.(weekOffset - 1)}
+            disabled={loading}
+            className="inline-flex items-center gap-2 rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm font-medium text-neutral-700 transition-all hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <ChevronLeft className="w-4 h-4" />
+            {previousWeekLabel}
+          </button>
+
+          {weekOffset !== 0 && (
+            <button
+              type="button"
+              onClick={() => onChangeWeek?.(0)}
+              disabled={loading}
+              className="inline-flex items-center gap-2 rounded-lg border border-neutral-200 bg-neutral-100 px-3 py-2 text-sm font-medium text-neutral-700 transition-all hover:bg-neutral-200 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {loading && <RefreshCw className="w-4 h-4 animate-spin" />}
+              {currentWeekLabel}
+            </button>
+          )}
+
+          <button
+            type="button"
+            onClick={() => onChangeWeek?.(weekOffset + 1)}
+            disabled={loading}
+            className="inline-flex items-center gap-2 rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm font-medium text-neutral-700 transition-all hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {nextWeekLabel}
+            <ChevronRight className="w-4 h-4" />
+          </button>
         </div>
       </div>
 

@@ -13,6 +13,13 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const lastLogin = searchParams.get('lastLogin');
+    const eggWeekOffset = parseEggWeekOffset(searchParams.get('eggWeekOffset'));
+    const section = searchParams.get('section');
+
+    if (section === 'eggWeekTracker') {
+      const eggWeekTracker = await fetchEggWeekTracker(eggWeekOffset);
+      return NextResponse.json({ eggWeekTracker });
+    }
 
     // Fetch all data in parallel
     const [
@@ -30,7 +37,7 @@ export async function GET(request: NextRequest) {
       fetchMessageStats(),
       fetchHealthAlerts(),
       fetchUpcomingDates(),
-      fetchEggWeekTracker(),
+      fetchEggWeekTracker(eggWeekOffset),
     ]);
 
     // Build unified response
@@ -220,6 +227,16 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+function parseEggWeekOffset(raw: string | null) {
+  const parsed = Number.parseInt(raw || '0', 10);
+
+  if (Number.isNaN(parsed)) {
+    return 0;
+  }
+
+  return Math.max(-52, Math.min(52, parsed));
 }
 
 async function fetchPigData() {
@@ -470,7 +487,7 @@ async function fetchUpcomingDates() {
   }
 }
 
-async function fetchEggWeekTracker() {
+async function fetchEggWeekTracker(weekOffset = 0) {
   try {
     // Date math — Oslo timezone for "today"
     const osloNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Oslo' }));
@@ -481,17 +498,12 @@ async function fetchEggWeekTracker() {
       trackerDate.setDate(trackerDate.getDate() - 1);
     }
 
-    const todayStr = [
-      trackerDate.getFullYear(),
-      String(trackerDate.getMonth() + 1).padStart(2, '0'),
-      String(trackerDate.getDate()).padStart(2, '0'),
-    ].join('-');
-
     // ISO week: Monday = start
     const dayOfWeek = trackerDate.getDay(); // 0=Sun,1=Mon,...
     const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
     const thisMonday = new Date(trackerDate);
     thisMonday.setDate(trackerDate.getDate() + mondayOffset);
+    thisMonday.setDate(thisMonday.getDate() + (weekOffset * 7));
     const thisSunday = new Date(thisMonday);
     thisSunday.setDate(thisMonday.getDate() + 6);
     const nextMonday = new Date(thisMonday);
@@ -513,10 +525,17 @@ async function fetchEggWeekTracker() {
     const yearStart = new Date(Date.UTC(target.getUTCFullYear(), 0, 1));
     const weekNumber = Math.ceil((((target.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
 
-    // Days collected (Mon=1 through today's day index)
+    const collectionStarted = trackerDate >= thisMonday;
+    const collectionComplete = trackerDate > thisSunday;
+    const collectionEndDate = collectionStarted
+      ? new Date(collectionComplete ? thisSunday : trackerDate)
+      : null;
+    const collectionEndStr = collectionEndDate ? fmt(collectionEndDate) : null;
+
+    // Days collected (Mon=1 through the viewed week's collection day index)
     const dayIndex = dayOfWeek === 0 ? 7 : dayOfWeek; // Mon=1..Sun=7
-    const daysCollected = dayIndex;
-    const daysRemaining = 7 - dayIndex;
+    const daysCollected = !collectionStarted ? 0 : collectionComplete ? 7 : dayIndex;
+    const daysRemaining = 7 - daysCollected;
 
     // 4 parallel queries (orders + additions combined in one query)
     const [ordersWithAdditionsRes, collectedRes, forecastRes, breedsRes] = await Promise.all([
@@ -527,12 +546,14 @@ async function fetchEggWeekTracker() {
         .eq('delivery_monday', nextMondayStr)
         .not('status', 'in', '(cancelled,forfeited)'),
 
-      // 2. Eggs collected this week (Mon through today)
-      supabaseAdmin
-        .from('egg_daily_collections')
-        .select('breed_id, sellable_standard')
-        .gte('collection_date', thisMondayStr)
-        .lte('collection_date', todayStr),
+      // 2. Eggs collected in the viewed week (Mon through the current collection end)
+      collectionEndStr
+        ? supabaseAdmin
+            .from('egg_daily_collections')
+            .select('breed_id, sellable_standard')
+            .gte('collection_date', thisMondayStr)
+            .lte('collection_date', collectionEndStr)
+        : Promise.resolve({ data: [], error: null }),
 
       // 3. Forecast for this collection week (keyed by delivery_monday = next Monday)
       supabaseAdmin
@@ -633,8 +654,16 @@ async function fetchEggWeekTracker() {
 
     // Day abbreviations for collection window label
     const dayAbbrevNo = ['son', 'man', 'tir', 'ons', 'tor', 'fre', 'lor'];
-    const todayAbbrev = dayAbbrevNo[dayOfWeek] || 'i dag';
-    const collectionWindow = dayIndex <= 1 ? 'man' : `man\u2013${todayAbbrev}`;
+    const collectionDayOfWeek = collectionEndDate?.getDay() ?? 1;
+    const collectionDayIndex = collectionDayOfWeek === 0 ? 7 : collectionDayOfWeek;
+    const collectionDayAbbrev = dayAbbrevNo[collectionDayOfWeek] || 'i dag';
+    const collectionWindow = !collectionStarted
+      ? 'ikke startet'
+      : collectionComplete
+        ? 'man\u2013son'
+        : collectionDayIndex <= 1
+          ? 'man'
+          : `man\u2013${collectionDayAbbrev}`;
 
     // Format week range for display
     const fmtShort = (d: Date) => `${d.getDate()}. ${['jan','feb','mar','apr','mai','jun','jul','aug','sep','okt','nov','des'][d.getMonth()]}`;
