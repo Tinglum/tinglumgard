@@ -55,9 +55,11 @@ export function AdminMessagingPanel({ initialMessageId = null }: AdminMessagingP
   const [stats, setStats] = useState({ total: 0, open: 0, in_progress: 0, resolved: 0 });
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const loadMessages = useCallback(async () => {
+  const loadMessages = useCallback(async (showLoader = true) => {
     try {
-      setLoading(true);
+      if (showLoader) {
+        setLoading(true);
+      }
       const params = new URLSearchParams();
       if (statusFilter !== 'all') params.append('status', statusFilter);
       if (priorityFilter !== 'all') params.append('priority', priorityFilter);
@@ -74,13 +76,32 @@ export function AdminMessagingPanel({ initialMessageId = null }: AdminMessagingP
       console.error('Failed to load messages:', error);
       return [];
     } finally {
-      setLoading(false);
+      if (showLoader) {
+        setLoading(false);
+      }
     }
   }, [initialMessageId, priorityFilter, statusFilter]);
 
   useEffect(() => {
     loadMessages();
   }, [loadMessages]);
+
+  useEffect(() => {
+    const interval = window.setInterval(async () => {
+      const refreshedMessages = await loadMessages(false);
+      if (!selectedMessage) return;
+
+      const refreshedSelectedMessage = refreshedMessages.find(
+        (message: CustomerMessage) => message.id === selectedMessage.id
+      );
+
+      if (refreshedSelectedMessage) {
+        setSelectedMessage(refreshedSelectedMessage);
+      }
+    }, 15000);
+
+    return () => window.clearInterval(interval);
+  }, [loadMessages, selectedMessage]);
 
   useEffect(() => {
     if (messagesEndRef.current) {
@@ -201,6 +222,39 @@ export function AdminMessagingPanel({ initialMessageId = null }: AdminMessagingP
   const getRootSenderInitial = (message: CustomerMessage) =>
     getRootSenderName(message).trim().charAt(0).toUpperCase() || copy.customerFallback.charAt(0).toUpperCase();
 
+  const getSortedReplies = (message: CustomerMessage) =>
+    [...(message.message_replies || [])].sort(
+      (left, right) => new Date(left.created_at).getTime() - new Date(right.created_at).getTime()
+    );
+
+  const getLatestReply = (message: CustomerMessage) => {
+    const replies = getSortedReplies(message);
+    return replies.length > 0 ? replies[replies.length - 1] : null;
+  };
+
+  const getLatestPreviewText = (message: CustomerMessage) => {
+    const latestReply = getLatestReply(message);
+    return latestReply?.reply_text || message.message;
+  };
+
+  const getLatestPreviewSender = (message: CustomerMessage) => {
+    const latestReply = getLatestReply(message);
+    if (!latestReply) {
+      return getRootSenderName(message);
+    }
+
+    if (latestReply.is_from_customer) {
+      return latestReply.admin_name || getCustomerDisplayName(message);
+    }
+
+    return copy.farmSender;
+  };
+
+  const getLatestPreviewDate = (message: CustomerMessage) => {
+    const latestReply = getLatestReply(message);
+    return latestReply?.created_at || message.updated_at || message.created_at;
+  };
+
   const filteredMessages = messages.filter(msg => {
     const statusMatch = statusFilter === 'all' || msg.status === statusFilter;
     const priorityMatch = priorityFilter === 'all' || msg.priority === priorityFilter;
@@ -316,10 +370,13 @@ export function AdminMessagingPanel({ initialMessageId = null }: AdminMessagingP
                     </span>
                   </div>
                 </div>
-                <p className="text-sm text-gray-700 line-clamp-2 mb-2">{msg.message}</p>
+                <div className="mb-2">
+                  <p className="text-xs font-medium text-gray-500 mb-1">{getLatestPreviewSender(msg)}</p>
+                  <p className="text-sm text-gray-700 line-clamp-2">{getLatestPreviewText(msg)}</p>
+                </div>
                 <div className="flex items-center justify-between text-xs text-gray-500">
                   <span className="bg-gray-200 px-2 py-1 rounded">{msg.message_type}</span>
-                  <span>{formatDate(msg.created_at)}</span>
+                  <span>{formatDate(getLatestPreviewDate(msg))}</span>
                 </div>
               </Card>
             ))
@@ -436,7 +493,7 @@ export function AdminMessagingPanel({ initialMessageId = null }: AdminMessagingP
           {/* Replies */}
           {selectedMessage.message_replies && selectedMessage.message_replies.length > 0 && (
             <>
-              {selectedMessage.message_replies.map((reply) => {
+              {getSortedReplies(selectedMessage).map((reply) => {
                 const isFromCustomer = (reply as any).is_from_customer;
                 return (
                   <div key={reply.id} className="flex gap-3">
