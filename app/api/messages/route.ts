@@ -4,6 +4,7 @@ import { supabaseAdmin } from '@/lib/supabase/server';
 import { logError } from '@/lib/logger';
 import { dispatchEmail } from '@/lib/email/dispatch';
 import { renderManagedTemplate } from '@/lib/email/render';
+import { buildSupportThreadMessageId } from '@/lib/messages/threading';
 
 const MESSAGE_TYPES = new Set(['support', 'inquiry', 'complaint', 'feedback', 'referral_question']);
 const RELATED_ORDER_SOURCES = new Set(['pig', 'egg', 'chicken']);
@@ -224,6 +225,10 @@ export async function POST(request: NextRequest) {
           to: session.email,
           subject: rendered.subject,
           html: rendered.html,
+          headers: {
+            'Message-ID': buildSupportThreadMessageId(threadId, 'customer-confirmation'),
+            'X-Tinglum-Thread-Id': threadId,
+          },
           classification: 'support',
           templateKey: rendered.templateKey,
           sourcePath: '/api/messages',

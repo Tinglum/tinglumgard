@@ -86,6 +86,7 @@ export interface DispatchEmailInput {
   toPhone?: string;
   subject: string;
   html: string;
+  headers?: Record<string, string>;
   classification?: EmailClassification;
   locale?: EmailLocale;
   templateKey?: string;

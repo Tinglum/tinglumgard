@@ -4,6 +4,7 @@ import { supabaseAdmin } from '@/lib/supabase/server';
 import { logError } from '@/lib/logger';
 import { dispatchEmail } from '@/lib/email/dispatch';
 import { buildCustomerMessageEmail } from '@/lib/messages/customer-email';
+import { buildSupportThreadMessageId } from '@/lib/messages/threading';
 
 const MESSAGE_TYPES = new Set(['support', 'inquiry', 'complaint', 'feedback', 'referral_question']);
 const PRIORITIES = new Set(['low', 'normal', 'high', 'urgent']);
@@ -268,6 +269,10 @@ export async function POST(request: NextRequest) {
           to: customerEmail,
           subject: rendered.subject,
           html: rendered.html,
+          headers: {
+            'Message-ID': buildSupportThreadMessageId(threadId, 'admin-message'),
+            'X-Tinglum-Thread-Id': threadId,
+          },
           classification: 'support',
           templateKey: 'support.message.customer.admin_initiated',
           sourcePath: '/api/admin/messages',

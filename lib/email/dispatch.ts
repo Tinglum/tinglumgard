@@ -71,14 +71,32 @@ function buildDispatchMetadata(input: DispatchEmailInput): Record<string, unknow
     entity_type: input.entityType || null,
     entity_id: input.entityId || null,
     missing_email_alert: false,
+    headers: input.headers || null,
     ...(input.metadata || {}),
   };
+}
+
+function getDispatchHeaders(value: unknown): Record<string, string> | undefined {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return undefined;
+  }
+
+  const headers: Record<string, string> = {};
+  for (const [key, rawValue] of Object.entries(value as Record<string, unknown>)) {
+    const normalizedKey = String(key || '').trim();
+    const normalizedValue = String(rawValue || '').trim();
+    if (!normalizedKey || !normalizedValue) continue;
+    headers[normalizedKey] = normalizedValue;
+  }
+
+  return Object.keys(headers).length > 0 ? headers : undefined;
 }
 
 async function sendLegacyDirect(input: {
   to: string;
   subject: string;
   html: string;
+  headers?: Record<string, string>;
   settings: { defaultFrom: string; defaultReplyTo: string };
 }): Promise<DispatchEmailResult> {
   const sendResult = await sendViaMailgun({
@@ -88,6 +106,7 @@ async function sendLegacyDirect(input: {
     text: htmlToPlainText(input.html),
     from: input.settings.defaultFrom,
     replyTo: input.settings.defaultReplyTo,
+    headers: input.headers,
   });
 
   if (sendResult.success) {
@@ -211,6 +230,7 @@ export async function dispatchEmail(input: DispatchEmailInput): Promise<Dispatch
           text: htmlToPlainText(queue.record.html),
           from: settings.defaultFrom,
           replyTo: settings.defaultReplyTo,
+          headers: getDispatchHeaders((queue.record.metadata || {}).headers),
         });
 
         if (sendResult.success) {
@@ -264,6 +284,7 @@ export async function dispatchEmail(input: DispatchEmailInput): Promise<Dispatch
         to: input.to,
         subject: input.subject,
         html,
+        headers: input.headers,
         settings,
       });
     }
@@ -353,6 +374,7 @@ export async function dispatchEmail(input: DispatchEmailInput): Promise<Dispatch
       to: input.to,
       subject: input.subject,
       html,
+      headers: input.headers,
       settings,
     });
   }
@@ -374,6 +396,7 @@ export async function dispatchEmail(input: DispatchEmailInput): Promise<Dispatch
     text: htmlToPlainText(queued.record.html),
     from: settings.defaultFrom,
     replyTo: settings.defaultReplyTo,
+    headers: getDispatchHeaders((queued.record.metadata || {}).headers),
   });
 
   if (sendResult.success) {
@@ -479,6 +502,7 @@ export async function processEmailDispatchBatch(options?: {
       text: htmlToPlainText(locked.html),
       from: settings.defaultFrom,
       replyTo: settings.defaultReplyTo,
+      headers: getDispatchHeaders((locked.metadata || {}).headers),
     });
 
     if (sendResult.success) {

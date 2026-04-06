@@ -5,6 +5,7 @@ export interface MailgunSendParams {
   text?: string;
   from?: string;
   replyTo?: string;
+  headers?: Record<string, string>;
 }
 
 export interface MailgunSendResult {
@@ -20,6 +21,7 @@ export async function sendViaMailgun({
   text,
   from,
   replyTo,
+  headers,
 }: MailgunSendParams): Promise<MailgunSendResult> {
   const apiKey = process.env.MAILGUN_API_KEY;
   const domain = process.env.MAILGUN_DOMAIN;
@@ -43,6 +45,10 @@ export async function sendViaMailgun({
       formData.append('text', text);
     }
     formData.append('h:Reply-To', replyAddress);
+    for (const [name, value] of Object.entries(headers || {})) {
+      if (!name || !value) continue;
+      formData.append(`h:${name}`, value);
+    }
 
     const response = await fetch(`${apiBase}/v3/${domain}/messages`, {
       method: 'POST',

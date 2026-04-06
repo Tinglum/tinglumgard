@@ -5,6 +5,7 @@ import { logError } from '@/lib/logger';
 import { dispatchEmail } from '@/lib/email/dispatch';
 import { renderManagedTemplate } from '@/lib/email/render';
 import { buildCustomerMessageEmail } from '@/lib/messages/customer-email';
+import { buildSupportThreadMessageId } from '@/lib/messages/threading';
 
 // POST /api/admin/messages/[id]/replies - Add reply to a message
 export async function POST(
@@ -95,6 +96,13 @@ export async function POST(
           to: message.customer_email,
           subject: rendered.subject,
           html: rendered.html,
+          headers: {
+            'Message-ID': buildSupportThreadMessageId(
+              String(message.email_thread_id || `msg_${message.id}`),
+              'admin-reply'
+            ),
+            'X-Tinglum-Thread-Id': String(message.email_thread_id || `msg_${message.id}`),
+          },
           classification: 'support',
           templateKey: isAdminInitiated
             ? 'support.message.customer.admin_initiated'

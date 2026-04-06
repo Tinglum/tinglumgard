@@ -5,6 +5,10 @@ import { dispatchEmail } from '@/lib/email/dispatch';
 import { renderManagedTemplate } from '@/lib/email/render';
 import { logError } from '@/lib/logger';
 import { buildCustomerMessageEmail } from '@/lib/messages/customer-email';
+import {
+  extractSupportThreadId,
+  normalizeSupportSubject,
+} from '@/lib/messages/threading';
 
 function verifyMailgunSignature(timestamp: string, token: string, signature: string): boolean {
   const signingKey = process.env.MAILGUN_WEBHOOK_SIGNING_KEY;
@@ -61,6 +65,17 @@ function extractMessageIds(headerValue: string | null | undefined) {
     .split(/\s+/)
     .map((part) => part.replace(/[<>]/g, '').trim())
     .filter(Boolean);
+}
+
+function extractThreadIdFromMessageIds(messageIds: string[]) {
+  for (const messageId of messageIds) {
+    const threadId = extractSupportThreadId(messageId);
+    if (threadId) {
+      return threadId;
+    }
+  }
+
+  return null;
 }
 
 function getInboundHeaderMap(formData: FormData) {
@@ -124,6 +139,40 @@ async function findMessageByProviderReferences(messageIds: string[]) {
   return null;
 }
 
+async function findMessageByThreadId(threadId: string | null) {
+  if (!threadId) return null;
+
+  const { data: message } = await supabaseAdmin
+    .from('customer_messages')
+    .select('*, orders(order_number)')
+    .eq('email_thread_id', threadId)
+    .maybeSingle();
+
+  return message || null;
+}
+
+async function findMessageBySenderAndSubject(senderEmail: string, subject: string) {
+  const normalizedSenderEmail = extractEmail(senderEmail).trim().toLowerCase();
+  const normalizedSubject = normalizeSupportSubject(subject);
+
+  if (!normalizedSenderEmail || !normalizedSubject) {
+    return null;
+  }
+
+  const { data: messages, error } = await supabaseAdmin
+    .from('customer_messages')
+    .select('*, orders(order_number)')
+    .eq('customer_email', normalizedSenderEmail)
+    .order('updated_at', { ascending: false })
+    .limit(25);
+
+  if (error || !messages || messages.length === 0) {
+    return null;
+  }
+
+  return messages.find((message) => normalizeSupportSubject(message.subject) === normalizedSubject) || null;
+}
+
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
@@ -140,37 +189,45 @@ export async function POST(request: NextRequest) {
 
     const from = formData.get('from')?.toString() || '';
     const sender = formData.get('sender')?.toString() || from;
+    const senderEmail = extractEmail(sender).trim().toLowerCase();
     const subject = formData.get('subject')?.toString() || '';
     const html = formData.get('stripped-html')?.toString() || null;
     const text = formData.get('stripped-text')?.toString() || null;
-    const messageId = formData.get('Message-Id')?.toString() || formData.get('message-id')?.toString() || null;
+    const messageId =
+      formData.get('Message-Id')?.toString() || formData.get('message-id')?.toString() || null;
 
     const inReplyToIds = extractMessageIds(headerMap.get('in-reply-to'));
     const referenceIds = extractMessageIds(headerMap.get('references'));
-    let message = await findMessageByProviderReferences([...inReplyToIds, ...referenceIds]);
+    const candidateMessageIds = [...inReplyToIds, ...referenceIds];
+
+    let message = await findMessageByProviderReferences(candidateMessageIds);
     let threadId = message?.email_thread_id || null;
 
     if (!message) {
-      threadId = extractThreadId(subject);
-      if (!threadId) {
-        return NextResponse.json({ success: true, message: 'No thread reference found' });
-      }
-
-      const { data: subjectMessage, error: messageError } = await supabaseAdmin
-        .from('customer_messages')
-        .select('*, orders(order_number)')
-        .eq('email_thread_id', threadId)
-        .single();
-
-      if (messageError || !subjectMessage) {
-        logError('mailgun-webhook-message-not-found', { threadId, error: messageError });
-        return NextResponse.json({ error: 'Message not found' }, { status: 404 });
-      }
-
-      message = subjectMessage;
+      threadId = extractThreadIdFromMessageIds(candidateMessageIds);
+      message = await findMessageByThreadId(threadId);
     }
 
-    const senderEmail = extractEmail(sender);
+    if (!message) {
+      threadId = extractThreadId(subject);
+      message = await findMessageByThreadId(threadId);
+    }
+
+    if (!message) {
+      message = await findMessageBySenderAndSubject(senderEmail, subject);
+      threadId = message?.email_thread_id || null;
+    }
+
+    if (!message) {
+      logError('mailgun-webhook-no-thread-reference', {
+        senderEmail,
+        subject,
+        inReplyToIds,
+        referenceIds,
+      });
+      return NextResponse.json({ success: true, message: 'No thread reference found' });
+    }
+
     const replyText = getPlainText(html, text);
     if (!replyText.trim()) {
       return NextResponse.json({ error: 'Empty reply' }, { status: 400 });
@@ -214,7 +271,7 @@ export async function POST(request: NextRequest) {
           ? buildCustomerMessageEmail({
               locale: 'no',
               customerName: message.customer_name || 'Kunde',
-              adminName: 'Tinglum Gård',
+              adminName: 'Tinglum G\u00E5rd',
               subjectLine: message.subject,
               messageText: replyText,
               portalUrl: `${appUrl}/min-side`,
@@ -228,7 +285,7 @@ export async function POST(request: NextRequest) {
                 thread_id: String(message.email_thread_id || `msg_${message.id}`),
                 subject_line: message.subject,
                 reply_text: replyText,
-                admin_name: 'Tinglum Gård',
+                admin_name: 'Tinglum G\u00E5rd',
                 portal_url: `${appUrl}/min-side`,
                 portal_label: 'Min side',
               },
