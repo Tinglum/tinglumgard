@@ -61,6 +61,7 @@ export function AdminMessagingPanel({ initialMessageId = null }: AdminMessagingP
       const params = new URLSearchParams();
       if (statusFilter !== 'all') params.append('status', statusFilter);
       if (priorityFilter !== 'all') params.append('priority', priorityFilter);
+      if (initialMessageId) params.append('messageId', initialMessageId);
 
       const response = await fetch(`/api/admin/messages?${params.toString()}`);
       const data = await response.json();
@@ -75,7 +76,7 @@ export function AdminMessagingPanel({ initialMessageId = null }: AdminMessagingP
     } finally {
       setLoading(false);
     }
-  }, [priorityFilter, statusFilter]);
+  }, [initialMessageId, priorityFilter, statusFilter]);
 
   useEffect(() => {
     loadMessages();

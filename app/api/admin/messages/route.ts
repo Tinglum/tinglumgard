@@ -86,6 +86,8 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status');
     const priority = searchParams.get('priority');
     const type = searchParams.get('type');
+    const messageId = searchParams.get('messageId');
+    const includeSent = searchParams.get('includeSent') === 'true';
 
     let query = supabaseAdmin
       .from('customer_messages')
@@ -114,14 +116,23 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to fetch messages' }, { status: 500 });
     }
 
+    const visibleMessages = (messages || []).filter((message) => {
+      if (includeSent) return true;
+      if (messageId && message.id === messageId) return true;
+      if (message.initiated_by !== 'admin') return true;
+      return Array.isArray(message.message_replies)
+        ? message.message_replies.some((reply: { is_from_customer?: boolean | null }) => Boolean(reply.is_from_customer))
+        : false;
+    });
+
     const stats = {
-      total: messages?.length || 0,
-      open: messages?.filter((message) => message.status === 'open').length || 0,
-      in_progress: messages?.filter((message) => message.status === 'in_progress').length || 0,
-      resolved: messages?.filter((message) => message.status === 'resolved').length || 0,
+      total: visibleMessages.length,
+      open: visibleMessages.filter((message) => message.status === 'open').length,
+      in_progress: visibleMessages.filter((message) => message.status === 'in_progress').length,
+      resolved: visibleMessages.filter((message) => message.status === 'resolved').length,
     };
 
-    return NextResponse.json({ messages, stats });
+    return NextResponse.json({ messages: visibleMessages, stats });
   } catch (error) {
     logError('admin-messages-get-main', error);
     return NextResponse.json({ error: 'Server error' }, { status: 500 });
