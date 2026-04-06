@@ -9,6 +9,19 @@ const MESSAGE_TYPES = new Set(['support', 'inquiry', 'complaint', 'feedback', 'r
 const PRIORITIES = new Set(['low', 'normal', 'high', 'urgent']);
 const RELATED_ORDER_SOURCES = new Set(['pig', 'egg', 'chicken']);
 
+function needsAdminAttention(message: {
+  status?: string | null;
+  initiated_by?: string | null;
+  message_replies?: Array<{ is_from_customer?: boolean | null }> | null;
+}) {
+  const isUnresolved = message.status === 'open' || message.status === 'in_progress';
+  if (!isUnresolved) return false;
+  if (message.initiated_by !== 'admin') return true;
+  return Array.isArray(message.message_replies)
+    ? message.message_replies.some((reply) => Boolean(reply.is_from_customer))
+    : false;
+}
+
 function normalizeEmail(value?: string | null) {
   const email = String(value || '').trim().toLowerCase();
   return email || null;
@@ -86,8 +99,6 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status');
     const priority = searchParams.get('priority');
     const type = searchParams.get('type');
-    const messageId = searchParams.get('messageId');
-    const includeSent = searchParams.get('includeSent') === 'true';
 
     let query = supabaseAdmin
       .from('customer_messages')
@@ -116,23 +127,17 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to fetch messages' }, { status: 500 });
     }
 
-    const visibleMessages = (messages || []).filter((message) => {
-      if (includeSent) return true;
-      if (messageId && message.id === messageId) return true;
-      if (message.initiated_by !== 'admin') return true;
-      return Array.isArray(message.message_replies)
-        ? message.message_replies.some((reply: { is_from_customer?: boolean | null }) => Boolean(reply.is_from_customer))
-        : false;
-    });
+    const allMessages = messages || [];
 
     const stats = {
-      total: visibleMessages.length,
-      open: visibleMessages.filter((message) => message.status === 'open').length,
-      in_progress: visibleMessages.filter((message) => message.status === 'in_progress').length,
-      resolved: visibleMessages.filter((message) => message.status === 'resolved').length,
+      total: allMessages.length,
+      open: allMessages.filter((message) => message.status === 'open').length,
+      in_progress: allMessages.filter((message) => message.status === 'in_progress').length,
+      resolved: allMessages.filter((message) => message.status === 'resolved').length,
+      attention_required: allMessages.filter(needsAdminAttention).length,
     };
 
-    return NextResponse.json({ messages: visibleMessages, stats });
+    return NextResponse.json({ messages: allMessages, stats });
   } catch (error) {
     logError('admin-messages-get-main', error);
     return NextResponse.json({ error: 'Server error' }, { status: 500 });

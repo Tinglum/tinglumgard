@@ -172,7 +172,11 @@ export default function AdminPage() {
         }
         const data = await response.json();
         if (data?.stats) {
-          setUnresolvedCount(data.stats.open + data.stats.in_progress);
+          setUnresolvedCount(
+            typeof data.stats.attention_required === 'number'
+              ? data.stats.attention_required
+              : data.stats.open + data.stats.in_progress
+          );
         }
       } catch {
         // Non-critical
