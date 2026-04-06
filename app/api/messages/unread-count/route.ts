@@ -69,7 +69,9 @@ export async function GET(request: NextRequest) {
         id,
         customer_phone,
         customer_email,
+        initiated_by,
         status,
+        created_at,
         last_viewed_at,
         message_replies (
           id,
@@ -109,23 +111,18 @@ export async function GET(request: NextRequest) {
           ? replies.filter((r: any) => r && !r.is_internal && !r.is_from_customer)
           : [];
         
-        // Case 1: Message has admin replies
-        if (publicReplies.length > 0) {
-          // If never viewed, or has replies after last viewed time, it's unread
-          if (!message.last_viewed_at) {
-            unreadCount++;
-          } else {
-            const lastViewed = new Date(message.last_viewed_at).getTime();
-            const hasNewReplies = publicReplies.some((reply: any) => {
-              if (!reply || !reply.created_at) return false;
-              const replyTime = new Date(reply.created_at).getTime();
-              return replyTime > lastViewed;
-            });
+        const lastViewed = message.last_viewed_at ? new Date(message.last_viewed_at).getTime() : 0;
+        const rootMessageTime = message.created_at ? new Date(message.created_at).getTime() : 0;
+        const hasUnreadAdminStartedRoot =
+          message.initiated_by === 'admin' && rootMessageTime > lastViewed;
+        const hasNewReplies = publicReplies.some((reply: any) => {
+          if (!reply || !reply.created_at) return false;
+          const replyTime = new Date(reply.created_at).getTime();
+          return replyTime > lastViewed;
+        });
 
-            if (hasNewReplies) {
-              unreadCount++;
-            }
-          }
+        if (hasUnreadAdminStartedRoot || hasNewReplies) {
+          unreadCount++;
         }
       }
     }

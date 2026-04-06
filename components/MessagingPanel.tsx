@@ -73,35 +73,33 @@ export function MessagingPanel({ className, variant = 'light' }: MessagingPanelP
     fromYou: t.customerMessagingPanel.fromYou,
     fromFarm: t.customerMessagingPanel.fromFarm,
     replyPlaceholder: t.customerMessagingPanel.replyPlaceholder,
-    communicationsTitle: (t as any).customerMessagingPanel.communicationsTitle || 'Systemkommunikasjon',
+    communicationsTitle: t.customerMessagingPanel.communicationsTitle,
     communicationsSubtitle:
-      (t as any).customerMessagingPanel.communicationsSubtitle ||
-      'Automatiske e-poster og oppdateringer fra systemet.',
-    communicationsLoading: (t as any).customerMessagingPanel.communicationsLoading || 'Laster kommunikasjon...',
-    communicationsEmpty: (t as any).customerMessagingPanel.communicationsEmpty || 'Ingen e-poster registrert ennå',
+      t.customerMessagingPanel.communicationsSubtitle,
+    communicationsLoading: t.customerMessagingPanel.communicationsLoading,
+    communicationsEmpty: t.customerMessagingPanel.communicationsEmpty,
     communicationsLoadError:
-      (t as any).customerMessagingPanel.communicationsLoadError || 'Kunne ikke laste kommunikasjonshistorikk',
-    communicationsSentAt: (t as any).customerMessagingPanel.communicationsSentAt || 'Sendt',
-    communicationsCreatedAt: (t as any).customerMessagingPanel.communicationsCreatedAt || 'Opprettet',
-    communicationsClassification: (t as any).customerMessagingPanel.communicationsClassification || 'Type',
-    communicationsTemplate: (t as any).customerMessagingPanel.communicationsTemplate || 'Mal',
-    communicationsNoSubject: (t as any).customerMessagingPanel.communicationsNoSubject || '(Uten emne)',
+      t.customerMessagingPanel.communicationsLoadError,
+    communicationsSentAt: t.customerMessagingPanel.communicationsSentAt,
+    communicationsCreatedAt: t.customerMessagingPanel.communicationsCreatedAt,
+    communicationsClassification: t.customerMessagingPanel.communicationsClassification,
+    communicationsTemplate: t.customerMessagingPanel.communicationsTemplate,
+    communicationsNoSubject: t.customerMessagingPanel.communicationsNoSubject,
     communicationStatus: {
-      sent: (t as any).customerMessagingPanel.communicationStatusSent || 'Sendt',
-      pending: (t as any).customerMessagingPanel.communicationStatusPending || 'Venter',
-      processing: (t as any).customerMessagingPanel.communicationStatusProcessing || 'Behandles',
-      failed: (t as any).customerMessagingPanel.communicationStatusFailed || 'Feilet',
-      dead: (t as any).customerMessagingPanel.communicationStatusDead || 'Stoppet',
-      cancelled: (t as any).customerMessagingPanel.communicationStatusCancelled || 'Kansellert',
-      unknown: (t as any).customerMessagingPanel.communicationStatusUnknown || 'Ukjent',
+      sent: t.customerMessagingPanel.communicationStatusSent,
+      pending: t.customerMessagingPanel.communicationStatusPending,
+      processing: t.customerMessagingPanel.communicationStatusProcessing,
+      failed: t.customerMessagingPanel.communicationStatusFailed,
+      dead: t.customerMessagingPanel.communicationStatusDead,
+      cancelled: t.customerMessagingPanel.communicationStatusCancelled,
+      unknown: t.customerMessagingPanel.communicationStatusUnknown,
     },
     communicationClassification: {
-      transactional:
-        (t as any).customerMessagingPanel.communicationClassificationTransactional || 'Transaksjonell',
-      support: (t as any).customerMessagingPanel.communicationClassificationSupport || 'Support',
-      promotional: (t as any).customerMessagingPanel.communicationClassificationPromotional || 'Kampanje',
-      system: (t as any).customerMessagingPanel.communicationClassificationSystem || 'System',
-      unknown: (t as any).customerMessagingPanel.communicationClassificationUnknown || 'Ukjent',
+      transactional: t.customerMessagingPanel.communicationClassificationTransactional,
+      support: t.customerMessagingPanel.communicationClassificationSupport,
+      promotional: t.customerMessagingPanel.communicationClassificationPromotional,
+      system: t.customerMessagingPanel.communicationClassificationSystem,
+      unknown: t.customerMessagingPanel.communicationClassificationUnknown,
     },
     categories: {
       support: t.customerMessagingPanel.categorySupport,
@@ -339,6 +337,21 @@ export function MessagingPanel({ className, variant = 'light' }: MessagingPanelP
   };
 
   const isDark = variant === 'dark';
+
+  const getRootSenderLabel = (message: CustomerMessageWithReplies) =>
+    message.initiated_by === 'admin' ? copy.fromFarm : copy.fromYou;
+
+  const getRootBubbleClass = (message: CustomerMessageWithReplies) => {
+    if (message.initiated_by === 'admin') {
+      return isDark
+        ? 'bg-white/10 border-white/20 text-white mr-4'
+        : 'bg-white border-gray-200 mr-4';
+    }
+
+    return isDark
+      ? 'bg-blue-900/30 border-blue-500/30 text-white ml-4'
+      : 'bg-blue-50 border-blue-200 ml-4';
+  };
 
   const communicationStatusClass: Record<string, string> = {
     sent: 'bg-green-100 text-green-800',
@@ -653,7 +666,25 @@ export function MessagingPanel({ className, variant = 'light' }: MessagingPanelP
                 </span>
               </div>
 
-              <p className="text-gray-700 text-sm mb-3">{msg.message}</p>
+              <div className="mb-3">
+                <div className={cn('rounded-lg border p-3', getRootBubbleClass(msg))}>
+                  <div className="flex items-center justify-between mb-1">
+                    <p className={cn('text-xs font-semibold', isDark ? 'text-white/80' : 'text-gray-700')}>
+                      {getRootSenderLabel(msg)}
+                    </p>
+                    <span className="text-xs text-gray-500">
+                      {new Date(msg.created_at).toLocaleDateString(locale, {
+                        day: '2-digit',
+                        month: '2-digit',
+                        year: 'numeric',
+                      })}
+                    </span>
+                  </div>
+                  <p className={cn('text-sm whitespace-pre-wrap', isDark ? 'text-white/90' : 'text-gray-700')}>
+                    {msg.message}
+                  </p>
+                </div>
+              </div>
 
               {msg.message_replies && msg.message_replies.length > 0 && (
                 <div className="mt-3 space-y-2">

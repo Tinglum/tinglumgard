@@ -5,6 +5,9 @@ import { logError } from '@/lib/logger';
 import { dispatchEmail } from '@/lib/email/dispatch';
 import { renderManagedTemplate } from '@/lib/email/render';
 
+const MESSAGE_TYPES = new Set(['support', 'inquiry', 'complaint', 'feedback', 'referral_question']);
+const RELATED_ORDER_SOURCES = new Set(['pig', 'egg', 'chicken']);
+
 function normalizePhone(value?: string | null) {
   return (value || '').replace(/\D/g, '');
 }
@@ -77,7 +80,7 @@ export async function GET(request: NextRequest) {
           created_at
         )
       `)
-      .order('created_at', { ascending: false });
+      .order('updated_at', { ascending: false });
 
     if (identityFilter) {
       query = query.or(identityFilter);
@@ -109,14 +112,15 @@ export async function POST(request: NextRequest) {
   try {
     const session = await getSession();
 
-    if (!session?.phoneNumber) {
+    if (!session?.phoneNumber && !session?.email) {
       logError('messages-post-no-session', { session });
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
 
-    const { subject, message, message_type, order_id } = await request.json();
+    const { subject, message, message_type, order_id, related_order_source, related_order_id } =
+      await request.json();
 
-    if (!subject || !message || !message_type) {
+    if (!subject || !message || !message_type || !MESSAGE_TYPES.has(String(message_type))) {
       logError('messages-post-missing-fields', {
         subject: !!subject,
         message: !!message,
@@ -128,18 +132,33 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (
+      (related_order_source &&
+        (!RELATED_ORDER_SOURCES.has(String(related_order_source)) || !related_order_id)) ||
+      (!related_order_source && related_order_id)
+    ) {
+      return NextResponse.json({ error: 'Invalid related order reference' }, { status: 400 });
+    }
+
+    const relatedOrderSource = String(related_order_source || '').trim() || (order_id ? 'pig' : null);
+    const relatedOrderId = String(related_order_id || order_id || '').trim() || null;
+    const legacyOrderId = relatedOrderSource === 'pig' ? relatedOrderId : null;
+
     const { data: newMessage, error } = await supabaseAdmin
       .from('customer_messages')
       .insert({
-        customer_phone: session.phoneNumber,
+        customer_phone: session.phoneNumber || null,
         customer_name: session.name || null,
         customer_email: session.email || null,
         subject,
         message,
         message_type,
-        order_id: order_id || null,
+        order_id: legacyOrderId,
         status: 'open',
         priority: 'normal',
+        initiated_by: 'customer',
+        related_order_source: relatedOrderSource,
+        related_order_id: relatedOrderId,
       })
       .select()
       .single();
@@ -149,21 +168,35 @@ export async function POST(request: NextRequest) {
         error: error?.message,
         details: error?.details,
         hint: error?.hint,
-        phone: session.phoneNumber,
+        phone: session.phoneNumber || null,
       });
       return NextResponse.json({ error: 'Failed to create message', details: error?.message }, { status: 500 });
     }
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://tinglumgard.no';
-    const threadId = `msg_${newMessage.id}`;
+    const threadId = String(newMessage.email_thread_id || `msg_${newMessage.id}`);
     let orderNumber: string | null = null;
 
-    if (order_id) {
+    if (relatedOrderId && relatedOrderSource === 'pig') {
       const { data: orderData } = await supabaseAdmin
         .from('orders')
         .select('order_number')
-        .eq('id', order_id)
-        .single();
+        .eq('id', relatedOrderId)
+        .maybeSingle();
+      orderNumber = orderData?.order_number || null;
+    } else if (relatedOrderId && relatedOrderSource === 'egg') {
+      const { data: orderData } = await supabaseAdmin
+        .from('egg_orders')
+        .select('order_number')
+        .eq('id', relatedOrderId)
+        .maybeSingle();
+      orderNumber = orderData?.order_number || null;
+    } else if (relatedOrderId && relatedOrderSource === 'chicken') {
+      const { data: orderData } = await supabaseAdmin
+        .from('chicken_orders')
+        .select('order_number')
+        .eq('id', relatedOrderId)
+        .maybeSingle();
       orderNumber = orderData?.order_number || null;
     }
 

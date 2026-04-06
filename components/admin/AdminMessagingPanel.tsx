@@ -10,30 +10,41 @@ import { useLanguage } from '@/contexts/LanguageContext';
 interface MessageReply {
   id: string;
   message_id: string;
-  admin_name: string;
+  admin_name: string | null;
   reply_text: string;
+  is_from_customer?: boolean;
+  source?: string | null;
   created_at: string;
 }
 
 interface CustomerMessage {
   id: string;
-  customer_phone: string;
+  customer_phone?: string | null;
   customer_name?: string;
+  customer_email?: string | null;
   subject: string;
   message: string;
   message_type: string;
   status: 'open' | 'in_progress' | 'resolved' | 'closed';
   priority: 'low' | 'normal' | 'high' | 'urgent';
+  initiated_by?: 'customer' | 'admin';
+  initiated_by_admin_name?: string | null;
   created_at: string;
+  updated_at?: string;
   message_replies?: MessageReply[];
 }
 
 type StatusFilter = 'all' | 'open' | 'in_progress' | 'resolved' | 'closed';
 type PriorityFilter = 'all' | 'low' | 'normal' | 'high' | 'urgent';
 
-export function AdminMessagingPanel() {
-  const { t } = useLanguage();
+interface AdminMessagingPanelProps {
+  initialMessageId?: string | null;
+}
+
+export function AdminMessagingPanel({ initialMessageId = null }: AdminMessagingPanelProps) {
+  const { t, lang } = useLanguage();
   const copy = t.adminMessagingPanel;
+  const locale = lang === 'en' ? 'en-US' : 'nb-NO';
   const [messages, setMessages] = useState<CustomerMessage[]>([]);
   const [selectedMessage, setSelectedMessage] = useState<CustomerMessage | null>(null);
   const [loading, setLoading] = useState(true);
@@ -169,7 +180,7 @@ export function AdminMessagingPanel() {
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleString('no-NO', {
+    return date.toLocaleString(locale, {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
@@ -178,11 +189,31 @@ export function AdminMessagingPanel() {
     });
   };
 
+  const getCustomerDisplayName = (message: CustomerMessage) =>
+    message.customer_name || message.customer_email || message.customer_phone || copy.customerFallback;
+
+  const getRootSenderName = (message: CustomerMessage) =>
+    message.initiated_by === 'admin'
+      ? message.initiated_by_admin_name || copy.farmSender
+      : getCustomerDisplayName(message);
+
+  const getRootSenderInitial = (message: CustomerMessage) =>
+    getRootSenderName(message).trim().charAt(0).toUpperCase() || copy.customerFallback.charAt(0).toUpperCase();
+
   const filteredMessages = messages.filter(msg => {
     const statusMatch = statusFilter === 'all' || msg.status === statusFilter;
     const priorityMatch = priorityFilter === 'all' || msg.priority === priorityFilter;
     return statusMatch && priorityMatch;
   });
+
+  useEffect(() => {
+    if (!initialMessageId || !messages.length) return;
+    if (selectedMessage?.id === initialMessageId) return;
+    const deepLinkedMessage = messages.find((message) => message.id === initialMessageId);
+    if (deepLinkedMessage) {
+      setSelectedMessage(deepLinkedMessage);
+    }
+  }, [initialMessageId, messages, selectedMessage?.id]);
 
   if (!selectedMessage) {
     return (
@@ -270,12 +301,17 @@ export function AdminMessagingPanel() {
                 <div className="flex items-start justify-between mb-2">
                   <div className="flex-1">
                     <h3 className="font-semibold text-gray-900">{msg.subject}</h3>
-                    <p className="text-sm text-gray-600">{msg.customer_name || msg.customer_phone}</p>
+                    <p className="text-sm text-gray-600">{getCustomerDisplayName(msg)}</p>
+                    {(msg.customer_email || msg.customer_phone) && (
+                      <p className="text-xs text-gray-500">
+                        {[msg.customer_email, msg.customer_phone].filter(Boolean).join(' • ')}
+                      </p>
+                    )}
                   </div>
                   <div className="flex items-center gap-2 ml-2">
                     <span className={cn('px-2 py-1 rounded-full text-xs font-medium flex items-center gap-1', getStatusColor(msg.status))}>
                       {getStatusIcon(msg.status)}
-                      {msg.status.replace('_', ' ')}
+                      {t.messaging[msg.status as keyof typeof t.messaging]}
                     </span>
                   </div>
                 </div>
@@ -309,7 +345,12 @@ export function AdminMessagingPanel() {
           <div className="flex items-start justify-between mb-4">
             <div>
               <h2 className="text-2xl font-bold text-gray-900">{selectedMessage.subject}</h2>
-              <p className="text-gray-600">{selectedMessage.customer_name || selectedMessage.customer_phone}</p>
+              <p className="text-gray-600">{getCustomerDisplayName(selectedMessage)}</p>
+              {(selectedMessage.customer_email || selectedMessage.customer_phone) && (
+                <p className="text-xs text-gray-500">
+                  {[selectedMessage.customer_email, selectedMessage.customer_phone].filter(Boolean).join(' • ')}
+                </p>
+              )}
             </div>
             <div className="flex items-center gap-2">
               <span className={cn('px-3 py-1 rounded-full text-sm font-medium flex items-center gap-2', getStatusColor(selectedMessage.status))}>
@@ -353,14 +394,38 @@ export function AdminMessagingPanel() {
         <div className="space-y-4 max-h-96 overflow-y-auto mb-4">
           {/* Original Message */}
           <div className="flex gap-3">
-            <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
-              <span className="text-xs font-bold text-blue-600">
-                {(selectedMessage.customer_name || copy.customerFallback).charAt(0).toUpperCase()}
+            <div
+              className={cn(
+                'flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center',
+                selectedMessage.initiated_by === 'admin' ? 'bg-green-100' : 'bg-blue-100'
+              )}
+            >
+              <span
+                className={cn(
+                  'text-xs font-bold',
+                  selectedMessage.initiated_by === 'admin' ? 'text-green-600' : 'text-blue-600'
+                )}
+              >
+                {getRootSenderInitial(selectedMessage)}
               </span>
             </div>
             <div className="flex-1">
-              <div className="bg-gray-100 p-3 rounded-xl">
-                <p className="text-xs font-semibold text-gray-600 mb-1">{selectedMessage.customer_name || copy.customerFallback}</p>
+              <div
+                className={cn(
+                  'p-3 rounded-xl border',
+                  selectedMessage.initiated_by === 'admin'
+                    ? 'bg-green-50 border-green-200'
+                    : 'bg-blue-50 border-blue-200'
+                )}
+              >
+                <p
+                  className={cn(
+                    'text-xs font-semibold mb-1',
+                    selectedMessage.initiated_by === 'admin' ? 'text-green-600' : 'text-blue-600'
+                  )}
+                >
+                  {getRootSenderName(selectedMessage)}
+                </p>
                 <p className="text-gray-800">{selectedMessage.message}</p>
               </div>
               <p className="text-xs text-gray-500 mt-1">{formatDate(selectedMessage.created_at)}</p>
@@ -383,7 +448,7 @@ export function AdminMessagingPanel() {
                         isFromCustomer ? "text-blue-600" : "text-green-600"
                       )}>
                         {isFromCustomer
-                          ? (selectedMessage.customer_name || copy.customerFallback).charAt(0).toUpperCase()
+                          ? getCustomerDisplayName(selectedMessage).charAt(0).toUpperCase()
                           : copy.farmSender.charAt(0).toUpperCase()}
                       </span>
                     </div>
@@ -396,7 +461,7 @@ export function AdminMessagingPanel() {
                           "text-xs font-semibold mb-1",
                           isFromCustomer ? "text-blue-600" : "text-green-600"
                         )}>
-                          {isFromCustomer ? reply.admin_name : copy.farmSender}
+                          {isFromCustomer ? reply.admin_name || getCustomerDisplayName(selectedMessage) : copy.farmSender}
                         </p>
                         <p className="text-gray-800">{reply.reply_text}</p>
                       </div>

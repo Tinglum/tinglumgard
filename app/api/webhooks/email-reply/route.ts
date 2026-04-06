@@ -91,9 +91,10 @@ export async function POST(request: NextRequest) {
       .from('message_replies')
       .insert({
         message_id: message.id,
-        admin_name: isFromAdmin ? 'Admin (via email)' : message.customer_name,
+        admin_name: isFromAdmin ? 'Admin (via email)' : message.customer_name || senderEmail,
         reply_text: replyText,
         is_internal: false,
+        is_from_customer: !isFromAdmin,
         source: 'email',
         email_message_id: messageId,
       })

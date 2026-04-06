@@ -144,6 +144,38 @@ type WishlistLookupMode =
   | { type: 'phone'; value: string }
   | { type: 'customerId'; value: string };
 
+type SupportThreadReplyRow = {
+  id: string;
+  admin_name: string | null;
+  reply_text: string;
+  is_internal: boolean | null;
+  is_from_customer: boolean | null;
+  source: string | null;
+  created_at: string;
+};
+
+type SupportThreadRow = {
+  id: string;
+  order_id: string | null;
+  related_order_source: 'pig' | 'egg' | 'chicken' | null;
+  related_order_id: string | null;
+  customer_phone: string | null;
+  customer_name: string | null;
+  customer_email: string | null;
+  subject: string;
+  message: string;
+  message_type: string;
+  status: string;
+  priority: string;
+  initiated_by: 'customer' | 'admin' | null;
+  initiated_by_admin_name: string | null;
+  email_thread_id: string | null;
+  last_viewed_at: string | null;
+  created_at: string;
+  updated_at: string;
+  message_replies?: SupportThreadReplyRow[] | null;
+};
+
 type UnifiedOrder = {
   source: 'pig' | 'egg' | 'chicken';
   id: string;
@@ -483,6 +515,165 @@ function orderMatchesCustomer(order: UnifiedOrder, parsed: ParsedCustomerId): bo
   if (parsed.phoneDigits && order.phoneDigits === parsed.phoneDigits) return true;
   if (parsed.orderKey && `${order.source}:${order.id}` === parsed.orderKey) return true;
   return false;
+}
+
+function isSupportThreadPhoneMatch(candidatePhone?: string | null, sessionPhone?: string | null) {
+  const candidateDigits = phoneDigits(candidatePhone);
+  const sessionDigits = phoneDigits(sessionPhone);
+  if (!candidateDigits || !sessionDigits) return false;
+  if (candidateDigits === sessionDigits) return true;
+  const candidateLast8 = candidateDigits.slice(-8);
+  const sessionLast8 = sessionDigits.slice(-8);
+  return candidateLast8.length === 8 && sessionLast8.length === 8 && candidateLast8 === sessionLast8;
+}
+
+async function fetchSupportThreadsForCustomer(args: {
+  parsed: ParsedCustomerId;
+  email?: string;
+  phone?: string | null;
+  orders: UnifiedOrder[];
+}): Promise<SupportThreadRow[]> {
+  const selectClause = `
+    id,
+    order_id,
+    related_order_source,
+    related_order_id,
+    customer_phone,
+    customer_name,
+    customer_email,
+    subject,
+    message,
+    message_type,
+    status,
+    priority,
+    initiated_by,
+    initiated_by_admin_name,
+    email_thread_id,
+    last_viewed_at,
+    created_at,
+    updated_at,
+    message_replies (
+      id,
+      admin_name,
+      reply_text,
+      is_internal,
+      is_from_customer,
+      source,
+      created_at
+    )
+  `;
+
+  const email = normalizeEmail(args.email || args.parsed.email);
+  const phone = normalizePhone(args.phone);
+  const digits = phoneDigits(phone || args.parsed.phoneDigits);
+  const orderGroups = args.orders.reduce(
+    (acc, order) => {
+      acc[order.source].push(order.id);
+      return acc;
+    },
+    { pig: [] as string[], egg: [] as string[], chicken: [] as string[] }
+  );
+
+  const queries: Array<Promise<{ data: SupportThreadRow[] | null; error: unknown }>> = [];
+
+  if (email) {
+    queries.push(
+      (async () =>
+        await supabaseAdmin
+          .from('customer_messages')
+          .select(selectClause)
+          .ilike('customer_email', email)
+          .order('updated_at', { ascending: false }))()
+    );
+  }
+
+  if (phone) {
+    queries.push(
+      (async () =>
+        await supabaseAdmin
+          .from('customer_messages')
+          .select(selectClause)
+          .eq('customer_phone', phone)
+          .order('updated_at', { ascending: false }))()
+    );
+  }
+
+  if (digits.length >= 8) {
+    queries.push(
+      (async () =>
+        await supabaseAdmin
+          .from('customer_messages')
+          .select(selectClause)
+          .ilike('customer_phone', `%${digits.slice(-8)}`)
+          .order('updated_at', { ascending: false }))()
+    );
+  }
+
+  for (const [source, ids] of Object.entries(orderGroups) as Array<
+    ['pig' | 'egg' | 'chicken', string[]]
+  >) {
+    if (ids.length === 0) continue;
+
+    queries.push(
+      (async () =>
+        await supabaseAdmin
+          .from('customer_messages')
+          .select(selectClause)
+          .eq('related_order_source', source)
+          .in('related_order_id', ids)
+          .order('updated_at', { ascending: false }))()
+    );
+
+    if (source === 'pig') {
+      queries.push(
+        (async () =>
+          await supabaseAdmin
+            .from('customer_messages')
+            .select(selectClause)
+            .in('order_id', ids)
+            .order('updated_at', { ascending: false }))()
+      );
+    }
+  }
+
+  if (queries.length === 0) return [];
+
+  const results = await Promise.all(queries);
+  const threadMap = new Map<string, SupportThreadRow>();
+  const orderKeys = new Set(args.orders.map((order) => `${order.source}:${order.id}`));
+
+  for (const result of results) {
+    if (result.error) {
+      throw result.error;
+    }
+
+    for (const thread of result.data || []) {
+      const matchesIdentity =
+        (email && normalizeEmail(thread.customer_email) === email) ||
+        (phone && isSupportThreadPhoneMatch(thread.customer_phone, phone)) ||
+        (digits.length >= 8 && isSupportThreadPhoneMatch(thread.customer_phone, digits));
+
+      const threadSource = thread.related_order_source || (thread.order_id ? 'pig' : null);
+      const threadOrderId = thread.related_order_id || thread.order_id || null;
+      const matchesOrder =
+        Boolean(threadSource && threadOrderId && orderKeys.has(`${threadSource}:${threadOrderId}`));
+
+      if (!matchesIdentity && !matchesOrder) continue;
+
+      threadMap.set(thread.id, {
+        ...thread,
+        message_replies: (thread.message_replies || [])
+          .slice()
+          .sort((a, b) => String(a.created_at || '').localeCompare(String(b.created_at || ''))),
+      });
+    }
+  }
+
+  return Array.from(threadMap.values()).sort((a, b) => {
+    const aTime = new Date(a.updated_at || a.created_at || '').getTime();
+    const bTime = new Date(b.updated_at || b.created_at || '').getTime();
+    return bTime - aTime;
+  });
 }
 
 async function fetchPigOrdersRows(): Promise<PigOrderRow[]> {
@@ -881,6 +1072,18 @@ async function getCustomerProfile(customerId: string) {
     console.error('Customer profile wishlist fetch degraded:', error);
   }
 
+  let supportThreads: SupportThreadRow[] = [];
+  try {
+    supportThreads = await fetchSupportThreadsForCustomer({
+      parsed,
+      email: bestEmail || parsed.email || undefined,
+      phone: bestPhone || parsed.phoneDigits || undefined,
+      orders: sortedOrders,
+    });
+  } catch (error) {
+    console.error('Customer profile support thread fetch degraded:', error);
+  }
+
   let suppression: {
     email: string;
     reason: string;
@@ -1032,6 +1235,44 @@ async function getCustomerProfile(customerId: string) {
       created_at: order.createdAt,
       details: order.metadata,
     })),
+    support_threads: supportThreads.map((thread) => {
+      const relatedSource = thread.related_order_source || (thread.order_id ? 'pig' : null);
+      const relatedOrderId = thread.related_order_id || thread.order_id || null;
+      const matchedOrder = sortedOrders.find((order) => {
+        if (!relatedSource || !relatedOrderId) return false;
+        return order.source === relatedSource && order.id === relatedOrderId;
+      });
+
+      return {
+        id: thread.id,
+        order_id: relatedOrderId,
+        order_source: relatedSource,
+        order_number: matchedOrder?.orderNumber || null,
+        customer_phone: thread.customer_phone,
+        customer_name: thread.customer_name,
+        customer_email: thread.customer_email,
+        subject: thread.subject,
+        message: thread.message,
+        message_type: thread.message_type,
+        status: thread.status,
+        priority: thread.priority,
+        initiated_by: thread.initiated_by || 'customer',
+        initiated_by_admin_name: thread.initiated_by_admin_name,
+        email_thread_id: thread.email_thread_id,
+        last_viewed_at: thread.last_viewed_at,
+        created_at: thread.created_at,
+        updated_at: thread.updated_at,
+        message_replies: (thread.message_replies || []).map((reply) => ({
+          id: reply.id,
+          admin_name: reply.admin_name,
+          reply_text: reply.reply_text,
+          is_internal: Boolean(reply.is_internal),
+          is_from_customer: Boolean(reply.is_from_customer),
+          source: reply.source,
+          created_at: reply.created_at,
+        })),
+      };
+    }),
     communications,
     scheduled_communications: futureScheduledCommunications.map((entry) => {
       const matchedOrder = sortedOrders.find((order) => {

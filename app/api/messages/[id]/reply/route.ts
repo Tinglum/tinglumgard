@@ -93,15 +93,15 @@ export async function POST(
       return NextResponse.json({ error: 'Failed to create reply', details: replyError.message }, { status: 500 });
     }
 
-    // Update message status to 'in_progress' if it was resolved/closed
+    // Keep the thread active and bump the timestamp so ordering stays current.
     const { error: updateError } = await supabaseAdmin
       .from('customer_messages')
-      .update({ 
+      .update({
         status: 'in_progress',
         updated_at: new Date().toISOString()
       })
       .eq('id', params.id)
-      .in('status', ['resolved', 'closed']);
+      .in('status', ['open', 'in_progress', 'resolved', 'closed']);
 
     if (updateError) {
       logError('customer-message-reply-update-status', updateError);

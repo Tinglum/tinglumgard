@@ -94,7 +94,9 @@ export interface NotificationPreferences {
 export interface CustomerMessage {
   id: string;
   order_id?: string | null;
-  customer_phone: string;
+  related_order_source?: 'pig' | 'egg' | 'chicken' | null;
+  related_order_id?: string | null;
+  customer_phone?: string | null;
   customer_name?: string | null;
   customer_email?: string | null;
   subject: string;
@@ -102,6 +104,10 @@ export interface CustomerMessage {
   message_type: 'support' | 'inquiry' | 'complaint' | 'feedback' | 'referral_question';
   status: 'open' | 'in_progress' | 'resolved' | 'closed';
   priority: 'low' | 'normal' | 'high' | 'urgent';
+  initiated_by?: 'customer' | 'admin';
+  initiated_by_admin_name?: string | null;
+  email_thread_id?: string | null;
+  last_viewed_at?: string | null;
   created_at: string;
   updated_at: string;
   resolved_at?: string | null;
@@ -113,6 +119,8 @@ export interface MessageReply {
   admin_name?: string | null;
   reply_text: string;
   is_internal: boolean;
+  is_from_customer?: boolean;
+  source?: 'panel' | 'email' | null;
   created_at: string;
 }
 

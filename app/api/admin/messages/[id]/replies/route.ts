@@ -44,9 +44,9 @@ export async function POST(
 
     const { error: updateError } = await supabaseAdmin
       .from('customer_messages')
-      .update({ status: 'in_progress' })
+      .update({ status: 'in_progress', updated_at: new Date().toISOString() })
       .eq('id', params.id)
-      .eq('status', 'open');
+      .in('status', ['open', 'resolved', 'closed', 'in_progress']);
 
     if (updateError) {
       logError('admin-message-reply-update-status', updateError);

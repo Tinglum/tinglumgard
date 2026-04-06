@@ -10,6 +10,7 @@ import {
   Loader2,
   LogIn,
   Mail,
+  MessageSquare,
   Phone,
   Search,
 } from 'lucide-react';
@@ -161,6 +162,38 @@ type WishlistRequestSummary = {
   events?: WishlistRequestEvent[];
 };
 
+type SupportThreadReply = {
+  id: string;
+  admin_name?: string | null;
+  reply_text: string;
+  is_internal: boolean;
+  is_from_customer: boolean;
+  source?: string | null;
+  created_at: string;
+};
+
+type SupportThreadSummary = {
+  id: string;
+  order_id: string | null;
+  order_source: OrderSource | null;
+  order_number: string | null;
+  customer_phone?: string | null;
+  customer_name?: string | null;
+  customer_email?: string | null;
+  subject: string;
+  message: string;
+  message_type: 'support' | 'inquiry' | 'complaint' | 'feedback' | 'referral_question';
+  status: 'open' | 'in_progress' | 'resolved' | 'closed';
+  priority: 'low' | 'normal' | 'high' | 'urgent';
+  initiated_by: 'customer' | 'admin';
+  initiated_by_admin_name?: string | null;
+  email_thread_id?: string | null;
+  last_viewed_at?: string | null;
+  created_at: string;
+  updated_at: string;
+  message_replies?: SupportThreadReply[];
+};
+
 type CustomerProfile = {
   customer_id: string;
   email: string;
@@ -173,6 +206,7 @@ type CustomerProfile = {
   avg_order_value: number;
   lifetime_value: number;
   orders: CustomerOrderSummary[];
+  support_threads?: SupportThreadSummary[];
   communications?: CommunicationHistoryItem[];
   scheduled_communications?: ScheduledCommunicationItem[];
   wishlist_requests?: WishlistRequestSummary[];
@@ -258,6 +292,31 @@ const parseNumberOrUndefined = (value: unknown) => {
   return Number.isFinite(parsed) ? parsed : undefined;
 };
 
+type SupportMessageDraft = {
+  subject: string;
+  message: string;
+  messageType: SupportThreadSummary['message_type'];
+  priority: SupportThreadSummary['priority'];
+  relatedOrderKey: string;
+};
+
+const createSupportMessageDraft = (relatedOrderKey = ''): SupportMessageDraft => ({
+  subject: '',
+  message: '',
+  messageType: 'support',
+  priority: 'normal',
+  relatedOrderKey,
+});
+
+const parseRelatedOrderKey = (value: string): { source: OrderSource | null; id: string | null } => {
+  const [source, id] = String(value || '').split(':', 2);
+  if ((source === 'pig' || source === 'egg' || source === 'chicken') && id) {
+    return { source, id };
+  }
+
+  return { source: null, id: null };
+};
+
 const buildDraft = (source: OrderSource, order: Record<string, unknown>) => {
   if (source === 'egg') {
     return {
@@ -327,6 +386,23 @@ export function CustomerDatabase() {
   const [communicationPreview, setCommunicationPreview] = useState<CommunicationPreviewItem | null>(null);
   const [communicationPreviewLoading, setCommunicationPreviewLoading] = useState<string | null>(null);
   const [communicationPreviewMode, setCommunicationPreviewMode] = useState<'html' | 'text'>('html');
+  const [supportMessageComposerOpen, setSupportMessageComposerOpen] = useState(false);
+  const [supportMessageDraft, setSupportMessageDraft] = useState<SupportMessageDraft>(createSupportMessageDraft());
+  const [supportMessageSending, setSupportMessageSending] = useState(false);
+
+  const supportThreadStatusLabels = {
+    open: t.customerMessagingPanel.statusOpen,
+    in_progress: t.customerMessagingPanel.statusInProgress,
+    resolved: t.customerMessagingPanel.statusResolved,
+    closed: t.customerMessagingPanel.statusClosed,
+  };
+
+  const supportThreadPriorityLabels = {
+    low: t.messaging.low,
+    normal: t.messaging.normal,
+    high: t.messaging.high,
+    urgent: t.messaging.urgent,
+  };
 
   const loadCustomers = useCallback(async () => {
     setLoading(true);
@@ -374,12 +450,101 @@ export function CustomerDatabase() {
       setCommunicationModalOpen(false);
       setCommunicationPreview(null);
       setCommunicationPreviewLoading(null);
+      setSupportMessageComposerOpen(false);
+      setSupportMessageDraft(createSupportMessageDraft());
     } catch (error) {
       toast({
         title: copy.profileLoadErrorTitle,
         description: error instanceof Error ? error.message : copy.profileLoadErrorDescription,
         variant: 'destructive',
       });
+    }
+  }
+
+  function openSupportMessageComposer() {
+    if (!selectedCustomer) return;
+    const defaultOrderKey =
+      selectedCustomer.orders.length === 1 ? orderKey(selectedCustomer.orders[0]) : '';
+    setSupportMessageDraft(createSupportMessageDraft(defaultOrderKey));
+    setSupportMessageComposerOpen(true);
+  }
+
+  function openSupportThreadInMessages(messageId: string) {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    params.set('tab', 'customers');
+    params.set('subTab', 'messages');
+    params.set('messageId', messageId);
+    window.location.href = `/admin?${params.toString()}`;
+  }
+
+  async function sendSupportMessageToCustomer() {
+    if (!selectedCustomer) return;
+
+    if (!supportMessageDraft.subject.trim() || !supportMessageDraft.message.trim()) {
+      toast({
+        title: copy.messageSendMissingTitle,
+        description: copy.messageSendMissingDescription,
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!selectedCustomer.email && !selectedCustomer.phone) {
+      toast({
+        title: copy.messageSendNoContactTitle,
+        description: copy.messageSendNoContactDescription,
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const relatedOrder = parseRelatedOrderKey(supportMessageDraft.relatedOrderKey);
+
+    try {
+      setSupportMessageSending(true);
+      const response = await fetch('/api/admin/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customer_id: selectedCustomer.customer_id,
+          customer_name: selectedCustomer.name,
+          customer_email: selectedCustomer.email,
+          customer_phone: selectedCustomer.phone,
+          subject: supportMessageDraft.subject.trim(),
+          message: supportMessageDraft.message.trim(),
+          message_type: supportMessageDraft.messageType,
+          priority: supportMessageDraft.priority,
+          related_order_source: relatedOrder.source,
+          related_order_id: relatedOrder.id,
+        }),
+      });
+
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(body?.error || 'Failed to send message');
+      }
+
+      const deliveryDescription = body?.emailDispatched
+        ? copy.messageSendSuccessDescription
+        : copy.messageSendPortalOnlyDescription;
+
+      toast({
+        title: copy.messageSendSuccessTitle,
+        description: deliveryDescription,
+      });
+
+      setSupportMessageComposerOpen(false);
+      setSupportMessageDraft(createSupportMessageDraft());
+      await viewCustomerProfile(selectedCustomer.customer_id);
+    } catch (error) {
+      toast({
+        title: copy.messageSendErrorTitle,
+        description: error instanceof Error ? error.message : copy.messageSendErrorDescription,
+        variant: 'destructive',
+      });
+    } finally {
+      setSupportMessageSending(false);
     }
   }
 
@@ -1243,6 +1408,14 @@ export function CustomerDatabase() {
             {copy.backToList}
           </Button>
           <Button
+            onClick={openSupportMessageComposer}
+            disabled={!selectedCustomer.email && !selectedCustomer.phone}
+            variant="outline"
+          >
+            <MessageSquare className="mr-1 h-4 w-4" />
+            {copy.sendMessageButton}
+          </Button>
+          <Button
             onClick={() =>
               impersonateCustomer({
                 customer_id: selectedCustomer.customer_id,
@@ -1468,6 +1641,103 @@ export function CustomerDatabase() {
           <div>
             <h3 className="text-lg font-semibold">{copy.communicationTitle}</h3>
             <p className="mb-3 text-sm text-neutral-600">{copy.communicationSubtitle}</p>
+            <div className="mb-4 rounded-lg border border-neutral-200 bg-white p-4">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-medium text-neutral-900">
+                    {copy.supportThreadsTitle}
+                  </p>
+                  <p className="text-xs text-neutral-600">
+                    {copy.supportThreadsSubtitle}
+                  </p>
+                  <p className="mt-1 text-xs text-neutral-500">
+                    {selectedCustomer.email
+                      ? copy.supportMessageDeliveryEmail
+                      : selectedCustomer.phone
+                        ? copy.supportMessageDeliveryPortalOnly
+                        : copy.supportMessageNoContact}
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  onClick={openSupportMessageComposer}
+                  disabled={!selectedCustomer.email && !selectedCustomer.phone}
+                >
+                  <MessageSquare className="mr-1 h-4 w-4" />
+                  {copy.sendMessageButton}
+                </Button>
+              </div>
+
+              {selectedCustomer.support_threads && selectedCustomer.support_threads.length > 0 ? (
+                <div className="mt-4 space-y-3">
+                  {selectedCustomer.support_threads.map((thread) => {
+                    const lastPublicReply = (thread.message_replies || [])
+                      .filter((reply) => !reply.is_internal)
+                      .slice(-1)[0];
+
+                    const statusClass =
+                      thread.status === 'open'
+                        ? 'bg-amber-100 text-amber-800'
+                        : thread.status === 'in_progress'
+                          ? 'bg-blue-100 text-blue-800'
+                          : thread.status === 'resolved'
+                            ? 'bg-green-100 text-green-800'
+                            : 'bg-neutral-200 text-neutral-700';
+
+                    const threadStarter =
+                      thread.initiated_by === 'admin'
+                        ? thread.initiated_by_admin_name || t.adminMessagingPanel.farmSender
+                        : selectedCustomer.name || copy.notProvided;
+
+                    return (
+                      <div key={thread.id} className="rounded-lg border border-neutral-200 bg-neutral-50 p-3">
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div className="min-w-0 flex-1">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <p className="truncate font-medium text-neutral-900">{thread.subject}</p>
+                              <span className={cn('rounded-full px-2 py-0.5 text-xs font-medium', statusClass)}>
+                                {supportThreadStatusLabels[thread.status]}
+                              </span>
+                              <span className="rounded-full bg-neutral-200 px-2 py-0.5 text-xs font-medium text-neutral-700">
+                                {supportThreadPriorityLabels[thread.priority]}
+                              </span>
+                            </div>
+                            <p className="mt-1 text-xs text-neutral-600">
+                              {copy.supportThreadStartedByLabel}:{' '}
+                              {threadStarter}
+                              {' • '}
+                              {copy.supportThreadUpdatedLabel}:{' '}
+                              {new Date(thread.updated_at).toLocaleString(locale)}
+                              {thread.order_number
+                                ? ` • ${copy.supportThreadOrderLabel}: ${thread.order_number}`
+                                : ''}
+                            </p>
+                            <p className="mt-2 whitespace-pre-wrap text-sm text-neutral-700">{thread.message}</p>
+                            {lastPublicReply ? (
+                              <div className="mt-2 rounded-md border border-neutral-200 bg-white p-2">
+                                <p className="text-xs font-medium text-neutral-700">
+                                  {lastPublicReply.is_from_customer
+                                    ? copy.supportThreadLastCustomerReply
+                                    : copy.supportThreadLastFarmReply}
+                                </p>
+                                <p className="mt-1 text-xs text-neutral-600">{lastPublicReply.reply_text}</p>
+                              </div>
+                            ) : null}
+                          </div>
+                          <Button variant="outline" size="sm" onClick={() => openSupportThreadInMessages(thread.id)}>
+                            {copy.supportThreadOpenButton}
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="mt-4 text-sm text-neutral-500">
+                  {copy.noSupportThreads}
+                </p>
+              )}
+            </div>
             <div className="mb-4 rounded-lg border border-neutral-200 bg-neutral-50 p-3">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
@@ -2027,6 +2297,171 @@ export function CustomerDatabase() {
                   (lang === 'en' ? 'No preview available.' : 'Ingen forhåndsvisning tilgjengelig.')}
               </p>
             )}
+          </DialogContent>
+        </Dialog>
+
+        <Dialog
+          open={supportMessageComposerOpen}
+          onOpenChange={(open) => {
+            setSupportMessageComposerOpen(open);
+            if (!open) {
+              setSupportMessageDraft(createSupportMessageDraft());
+            }
+          }}
+        >
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>
+                {copy.messageComposerTitle}
+              </DialogTitle>
+              <DialogDescription>
+                {copy.messageComposerDescription}
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 gap-3 rounded-lg border border-neutral-200 bg-neutral-50 p-3 text-sm text-neutral-700 sm:grid-cols-2">
+                <p>
+                  <span className="font-medium">{copy.emailLabel}:</span> {selectedCustomer.email || copy.notProvided}
+                </p>
+                <p>
+                  <span className="font-medium">{copy.phoneLabel}:</span> {selectedCustomer.phone || copy.notProvided}
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-neutral-700">
+                    {copy.messageComposerOrderLabel}
+                  </label>
+                  <select
+                    value={supportMessageDraft.relatedOrderKey}
+                    onChange={(event) =>
+                      setSupportMessageDraft((current) => ({
+                        ...current,
+                        relatedOrderKey: event.target.value,
+                      }))
+                    }
+                    className="w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm"
+                  >
+                    <option value="">
+                      {copy.messageComposerOrderPlaceholder}
+                    </option>
+                    {selectedCustomer.orders.map((order) => (
+                      <option key={orderKey(order)} value={orderKey(order)}>
+                        {order.order_number} • {copy.sourceLabels[order.source]}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-neutral-700">
+                    {copy.messageComposerTypeLabel}
+                  </label>
+                  <select
+                    value={supportMessageDraft.messageType}
+                    onChange={(event) =>
+                      setSupportMessageDraft((current) => ({
+                        ...current,
+                        messageType: event.target.value as SupportThreadSummary['message_type'],
+                      }))
+                    }
+                    className="w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm"
+                  >
+                    <option value="support">{t.customerMessagingPanel.categorySupport}</option>
+                    <option value="inquiry">{t.customerMessagingPanel.categoryInquiry}</option>
+                    <option value="complaint">{t.customerMessagingPanel.categoryComplaint}</option>
+                    <option value="feedback">{t.customerMessagingPanel.categoryFeedback}</option>
+                    <option value="referral_question">{t.customerMessagingPanel.categoryReferralQuestion}</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-medium text-neutral-700">
+                  {copy.messageComposerPriorityLabel}
+                </label>
+                <select
+                  value={supportMessageDraft.priority}
+                  onChange={(event) =>
+                    setSupportMessageDraft((current) => ({
+                      ...current,
+                      priority: event.target.value as SupportThreadSummary['priority'],
+                    }))
+                  }
+                  className="w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm"
+                >
+                  <option value="low">{supportThreadPriorityLabels.low}</option>
+                  <option value="normal">{supportThreadPriorityLabels.normal}</option>
+                  <option value="high">{supportThreadPriorityLabels.high}</option>
+                  <option value="urgent">{supportThreadPriorityLabels.urgent}</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-medium text-neutral-700">
+                  {copy.messageComposerSubjectLabel}
+                </label>
+                <Input
+                  value={supportMessageDraft.subject}
+                  onChange={(event) =>
+                    setSupportMessageDraft((current) => ({
+                      ...current,
+                      subject: event.target.value,
+                    }))
+                  }
+                  placeholder={
+                    copy.messageComposerSubjectPlaceholder
+                  }
+                />
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-medium text-neutral-700">
+                  {copy.messageComposerBodyLabel}
+                </label>
+                <Textarea
+                  value={supportMessageDraft.message}
+                  onChange={(event) =>
+                    setSupportMessageDraft((current) => ({
+                      ...current,
+                      message: event.target.value,
+                    }))
+                  }
+                  placeholder={
+                    copy.messageComposerBodyPlaceholder
+                  }
+                  rows={8}
+                />
+              </div>
+
+              <div className="flex justify-end gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setSupportMessageComposerOpen(false);
+                    setSupportMessageDraft(createSupportMessageDraft());
+                  }}
+                >
+                  {copy.messageComposerCancelButton}
+                </Button>
+                <Button type="button" onClick={() => void sendSupportMessageToCustomer()} disabled={supportMessageSending}>
+                  {supportMessageSending ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      {copy.messageComposerSendingButton}
+                    </>
+                  ) : (
+                    <>
+                      <MessageSquare className="mr-2 h-4 w-4" />
+                      {copy.messageComposerSendButton}
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
           </DialogContent>
         </Dialog>
       </div>

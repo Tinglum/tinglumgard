@@ -85,6 +85,7 @@ export default function AdminPage() {
   const [deepLinkPigOrderId, setDeepLinkPigOrderId] = useState<string | null>(null);
   const [deepLinkEggOrderId, setDeepLinkEggOrderId] = useState<string | null>(null);
   const [deepLinkChickenOrderId, setDeepLinkChickenOrderId] = useState<string | null>(null);
+  const [deepLinkMessageId, setDeepLinkMessageId] = useState<string | null>(null);
 
   // Message badge
   const [unresolvedCount, setUnresolvedCount] = useState(0);
@@ -98,8 +99,10 @@ export default function AdminPage() {
 
     const params = new URLSearchParams(window.location.search);
     const rawTab = (params.get('tab') || '').trim().toLowerCase();
+    const rawSubTab = (params.get('subTab') || '').trim().toLowerCase();
     const orderId = (params.get('orderId') || '').trim();
-    const hasParams = rawTab.length > 0 || orderId.length > 0;
+    const messageId = (params.get('messageId') || '').trim();
+    const hasParams = rawTab.length > 0 || rawSubTab.length > 0 || orderId.length > 0 || messageId.length > 0;
 
     if (!hasParams) {
       setDeepLinkParsed(true);
@@ -138,6 +141,18 @@ export default function AdminPage() {
         } else if (targetOrdersSubTab === 'chicken') {
           setDeepLinkChickenOrderId(orderId);
         }
+      }
+    } else if (rawTab === 'customers' || rawTab === 'customer') {
+      setActiveTab('customers');
+
+      if (rawSubTab === 'email' || rawSubTab === 'database' || rawSubTab === 'messages') {
+        setCustomersSubTab(rawSubTab);
+      } else if (messageId) {
+        setCustomersSubTab('messages');
+      }
+
+      if (messageId) {
+        setDeepLinkMessageId(messageId);
       }
     }
 
@@ -515,7 +530,7 @@ export default function AdminPage() {
             />
 
             {customersSubTab === 'database' && <CustomerDatabase />}
-            {customersSubTab === 'messages' && <AdminMessagingPanel />}
+            {customersSubTab === 'messages' && <AdminMessagingPanel initialMessageId={deepLinkMessageId} />}
             {customersSubTab === 'email' && <EmailControlCenter />}
           </div>
         )}
