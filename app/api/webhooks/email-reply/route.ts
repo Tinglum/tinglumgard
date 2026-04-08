@@ -180,15 +180,6 @@ export async function POST(request: NextRequest) {
     const formData = await request.formData();
     const headerMap = getInboundHeaderMap(formData);
 
-    const timestamp = formData.get('timestamp')?.toString() || '';
-    const token = formData.get('token')?.toString() || '';
-    const signature = formData.get('signature')?.toString() || '';
-
-    if (!verifyMailgunSignature(timestamp, token, signature)) {
-      logError('mailgun-webhook-invalid-signature', { timestamp, token, signature });
-      return NextResponse.json({ error: 'Invalid signature' }, { status: 403 });
-    }
-
     const from = formData.get('from')?.toString() || '';
     const sender = formData.get('sender')?.toString() || from;
     const senderEmail = extractEmail(sender).trim().toLowerCase();
@@ -201,17 +192,66 @@ export async function POST(request: NextRequest) {
       'post@tinglum.com';
     const subject = formData.get('subject')?.toString() || '';
     const normalizedSubject = normalizeSupportSubject(subject);
-    const html = formData.get('stripped-html')?.toString() || null;
-    const text = formData.get('stripped-text')?.toString() || null;
     const messageId =
       formData.get('Message-Id')?.toString() || formData.get('message-id')?.toString() || null;
-
     const inReplyToIds = extractMessageIds(headerMap.get('in-reply-to'));
     const referenceIds = extractMessageIds(headerMap.get('references'));
     const candidateMessageIds = [...inReplyToIds, ...referenceIds];
-
     const headerThreadId = extractThreadIdFromMessageIds(candidateMessageIds);
     const subjectThreadId = extractThreadId(subject);
+
+    await recordMessageEmailDebugEvent({
+      emailThreadId: headerThreadId || subjectThreadId || null,
+      customerEmail: senderEmail,
+      direction: 'inbound',
+      eventType: 'inbound_webhook_received',
+      senderEmail,
+      recipientEmail: recipient,
+      emailSubject: subject,
+      normalizedSubject,
+      providerMessageId: messageId,
+      details: {
+        inReplyToIds,
+        referenceIds,
+        candidateMessageIds,
+        headerThreadId,
+        subjectThreadId,
+      },
+    });
+
+    const timestamp = formData.get('timestamp')?.toString() || '';
+    const token = formData.get('token')?.toString() || '';
+    const signature = formData.get('signature')?.toString() || '';
+
+    if (!verifyMailgunSignature(timestamp, token, signature)) {
+      await recordMessageEmailDebugEvent({
+        emailThreadId: headerThreadId || subjectThreadId || null,
+        customerEmail: senderEmail,
+        direction: 'inbound',
+        eventType: 'inbound_signature_invalid',
+        matchStatus: 'error',
+        matchStrategy: 'signature',
+        senderEmail,
+        recipientEmail: recipient,
+        emailSubject: subject,
+        normalizedSubject,
+        providerMessageId: messageId,
+        details: {
+          inReplyToIds,
+          referenceIds,
+          candidateMessageIds,
+          headerThreadId,
+          subjectThreadId,
+          timestampPresent: Boolean(timestamp),
+          tokenPresent: Boolean(token),
+          signaturePresent: Boolean(signature),
+        },
+      });
+      logError('mailgun-webhook-invalid-signature', { timestamp, token, signature });
+      return NextResponse.json({ error: 'Invalid signature' }, { status: 403 });
+    }
+    const html = formData.get('stripped-html')?.toString() || null;
+    const text = formData.get('stripped-text')?.toString() || null;
     let matchStrategy: string | null = null;
     let message = await findMessageByProviderReferences(candidateMessageIds);
     let threadId = message?.email_thread_id || null;

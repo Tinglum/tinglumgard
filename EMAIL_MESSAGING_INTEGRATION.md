@@ -81,7 +81,7 @@ Or via Supabase dashboard:
 #### B. Configure Route
 1. Go to Routes
 2. Create a route to forward inbound emails to:
-   `https://tinglumgard.no/api/webhooks/email-reply`
+   `https://main--tinglum.netlify.app/api/webhooks/email-reply`
 3. Match recipient: `messages@tinglum.com` and `post@tinglum.com`
 
 ### 3. Environment Variables
@@ -96,7 +96,7 @@ MAILGUN_WEBHOOK_SIGNING_KEY=your-signing-key
 EMAIL_FROM=Tinglumgård <post@tinglum.com>
 EMAIL_REPLY_TO=messages@tinglum.com
 
-NEXT_PUBLIC_APP_URL=https://tinglumgard.no
+NEXT_PUBLIC_APP_URL=https://xn--tinglumgrd-85a.no
 
 ### 4. Test the Integration
 
@@ -219,7 +219,7 @@ Thread IDs are:
 - Verify EMAIL_FROM is set correctly
 
 ### Webhook not triggering
-- Test webhook URL: `https://tinglumgard.no/api/webhooks/email-reply`
+- Test webhook URL: `https://main--tinglum.netlify.app/api/webhooks/email-reply`
 - Check Mailgun route/webhook logs
 - Verify webhook secret (if using)
 - Check server logs for errors
@@ -271,3 +271,4 @@ For issues or questions:
 - Check application logs in Netlify
 - Review database for message entries
 - Test webhook endpoint directly
+

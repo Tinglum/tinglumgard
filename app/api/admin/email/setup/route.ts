@@ -10,12 +10,92 @@ import { getSupportReplyAddress } from '@/lib/messages/reply-address';
 
 type CountQueryResult = { count: number | null; error: unknown };
 
+type WebhookHealth = {
+  url: string;
+  ok: boolean;
+  status: number | null;
+  error: string | null;
+};
+
 function extractMailbox(value?: string | null) {
   const raw = String(value || '').trim();
   if (!raw) return '';
 
   const match = raw.match(/<([^>]+)>/);
   return (match ? match[1] : raw).trim().toLowerCase();
+}
+
+function appendWebhookPath(baseUrl: string, path: string) {
+  try {
+    const url = new URL(baseUrl);
+    url.pathname = path;
+    url.search = '';
+    url.hash = '';
+    return url.toString();
+  } catch {
+    const sanitizedBase = String(baseUrl || '').trim().replace(/\/+$/, '');
+    const sanitizedPath = path.startsWith('/') ? path : `/${path}`;
+    return `${sanitizedBase}${sanitizedPath}`;
+  }
+}
+
+function resolvePublicReplyWebhookUrl() {
+  const publicBase = String(
+    process.env.NEXT_PUBLIC_APP_URL || process.env.APP_BASE_URL || ''
+  ).trim();
+
+  if (!publicBase) return null;
+  return appendWebhookPath(publicBase, '/api/webhooks/email-reply');
+}
+
+function resolveOperationalReplyWebhookUrl() {
+  const configuredUrl = String(
+    process.env.MAILGUN_REPLY_WEBHOOK_URL ||
+      process.env.EMAIL_REPLY_WEBHOOK_URL ||
+      process.env.INBOUND_EMAIL_WEBHOOK_URL ||
+      ''
+  ).trim();
+
+  if (configuredUrl) {
+    if (configuredUrl.includes('/api/webhooks/email-reply')) {
+      return configuredUrl;
+    }
+    return appendWebhookPath(configuredUrl, '/api/webhooks/email-reply');
+  }
+
+  return 'https://main--tinglum.netlify.app/api/webhooks/email-reply';
+}
+
+async function checkWebhookHealth(url: string | null): Promise<WebhookHealth | null> {
+  if (!url) return null;
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 4000);
+
+  try {
+    const response = await fetch(url, {
+      method: 'GET',
+      cache: 'no-store',
+      signal: controller.signal,
+    });
+
+    return {
+      url,
+      ok: response.ok,
+      status: response.status,
+      error: response.ok ? null : `HTTP ${response.status}`,
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return {
+      url,
+      ok: false,
+      status: null,
+      error: message,
+    };
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 async function safeCount(query: PromiseLike<CountQueryResult>) {
@@ -43,7 +123,20 @@ function inferPrimaryCause(input: {
   queueProcessing: number | null;
   supportReplyUsesDedicatedMailbox: boolean;
   generalReplyMatchesSender: boolean;
+  publicReplyWebhookHealthy: boolean | null;
+  operationalReplyWebhookHealthy: boolean | null;
+  publicReplyWebhookDiffersFromOperational: boolean;
 }) {
+  if (
+    input.publicReplyWebhookHealthy === false &&
+    input.operationalReplyWebhookHealthy === true &&
+    input.publicReplyWebhookDiffersFromOperational
+  ) {
+    return 'Public reply webhook is unreachable while the operational webhook is healthy';
+  }
+  if (input.operationalReplyWebhookHealthy === false) {
+    return 'Operational inbound reply webhook is unreachable';
+  }
   if (!input.envStatus.emailReplyTo) return 'EMAIL_REPLY_TO missing';
   if (input.generalReplyMatchesSender) return 'General Reply-To matches sender mailbox';
   if (!input.supportReplyUsesDedicatedMailbox) return 'Support replies do not use a dedicated inbox';
@@ -102,10 +195,27 @@ export async function GET() {
     mailgunApiKey: Boolean(process.env.MAILGUN_API_KEY),
     mailgunDomain: Boolean(process.env.MAILGUN_DOMAIN),
     mailgunWebhookSigningKey: Boolean(process.env.MAILGUN_WEBHOOK_SIGNING_KEY),
+    mailgunReplyWebhookUrl: Boolean(
+      process.env.MAILGUN_REPLY_WEBHOOK_URL ||
+        process.env.EMAIL_REPLY_WEBHOOK_URL ||
+        process.env.INBOUND_EMAIL_WEBHOOK_URL
+    ),
     emailReplyTo: Boolean(process.env.EMAIL_REPLY_TO),
     cronSecret: Boolean(process.env.CRON_SECRET),
     nextPublicAppUrl: Boolean(process.env.NEXT_PUBLIC_APP_URL),
   };
+
+  const publicReplyWebhookUrl = resolvePublicReplyWebhookUrl();
+  const operationalReplyWebhookUrl = resolveOperationalReplyWebhookUrl();
+  const [publicReplyWebhookHealth, operationalReplyWebhookHealth] = await Promise.all([
+    checkWebhookHealth(publicReplyWebhookUrl),
+    checkWebhookHealth(operationalReplyWebhookUrl),
+  ]);
+  const publicReplyWebhookDiffersFromOperational = Boolean(
+    publicReplyWebhookUrl &&
+      operationalReplyWebhookUrl &&
+      publicReplyWebhookUrl !== operationalReplyWebhookUrl
+  );
 
   const flowRunsQuery = await supabaseAdmin
     .from('email_flow_runs')
@@ -188,6 +298,26 @@ export async function GET() {
   if (!envStatus.emailReplyTo) {
     diagnosticsCauses.push('EMAIL_REPLY_TO is missing in the environment, so support threads use a computed reply address.');
   }
+  if (
+    publicReplyWebhookHealth &&
+    operationalReplyWebhookHealth &&
+    publicReplyWebhookHealth.ok === false &&
+    operationalReplyWebhookHealth.ok === true &&
+    publicReplyWebhookDiffersFromOperational
+  ) {
+    diagnosticsCauses.push(
+      `Public reply webhook is unreachable, while the operational webhook is healthy at ${operationalReplyWebhookUrl}.`
+    );
+  } else if (publicReplyWebhookHealth && publicReplyWebhookHealth.ok === false) {
+    diagnosticsCauses.push(
+      `Public reply webhook health check failed (${publicReplyWebhookHealth.error || 'unknown error'}).`
+    );
+  }
+  if (operationalReplyWebhookHealth && operationalReplyWebhookHealth.ok === false) {
+    diagnosticsCauses.push(
+      `Operational reply webhook health check failed (${operationalReplyWebhookHealth.error || 'unknown error'}).`
+    );
+  }
   if (generalReplyAddress && senderAddress && generalReplyAddress === senderAddress) {
     diagnosticsCauses.push('General Reply-To points to the same mailbox as the sender address.');
   }
@@ -214,6 +344,21 @@ export async function GET() {
   }
   if (!envStatus.emailReplyTo) {
     suggestedFixes.push(`Set EMAIL_REPLY_TO to ${supportReplyAddress} in production.`);
+  }
+  if (
+    publicReplyWebhookHealth &&
+    operationalReplyWebhookHealth &&
+    publicReplyWebhookHealth.ok === false &&
+    operationalReplyWebhookHealth.ok === true &&
+    publicReplyWebhookDiffersFromOperational
+  ) {
+    suggestedFixes.push(
+      `Update the Mailgun inbound route target to ${operationalReplyWebhookUrl}.`
+    );
+  } else if (operationalReplyWebhookHealth && operationalReplyWebhookHealth.ok === false) {
+    suggestedFixes.push(
+      `Verify that ${operationalReplyWebhookUrl} is publicly reachable and returns 200 for GET /api/webhooks/email-reply.`
+    );
   }
   if (generalReplyAddress && senderAddress && generalReplyAddress === senderAddress) {
     suggestedFixes.push(`Use a dedicated support reply-to mailbox, for example ${supportReplyAddress}.`);
@@ -248,6 +393,9 @@ export async function GET() {
     generalReplyMatchesSender: Boolean(
       generalReplyAddress && senderAddress && generalReplyAddress === senderAddress
     ),
+    publicReplyWebhookHealthy: publicReplyWebhookHealth?.ok ?? null,
+    operationalReplyWebhookHealthy: operationalReplyWebhookHealth?.ok ?? null,
+    publicReplyWebhookDiffersFromOperational,
   });
 
   return NextResponse.json({
@@ -262,6 +410,17 @@ export async function GET() {
       supportReplyAddress,
       supportReplyUsesDedicatedMailbox,
       supportReplyOverridesGeneralReplyTo,
+      publicReplyWebhookUrl,
+      operationalReplyWebhookUrl,
+      publicReplyWebhookHealth,
+      operationalReplyWebhookHealth,
+      mailgunRouteLikelyMisconfigured: Boolean(
+        publicReplyWebhookHealth &&
+          operationalReplyWebhookHealth &&
+          publicReplyWebhookHealth.ok === false &&
+          operationalReplyWebhookHealth.ok === true &&
+          publicReplyWebhookDiffersFromOperational
+      ),
       cronUrls,
       latestFlowRun,
       latestRunState,

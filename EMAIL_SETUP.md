@@ -37,7 +37,7 @@ In Mailgun Dashboard:
 1. Go to Domains → tinglum.com
 2. Open Routes / Receiving
 3. Add route to forward inbound email to:
-   https://tinglumgard.no/api/webhooks/email-reply
+   https://main--tinglum.netlify.app/api/webhooks/email-reply
 
 ### 5. Verify Domain
 1. After adding DNS records, return to Mailgun dashboard
@@ -113,3 +113,4 @@ Before going live:
 For Mailgun support:
 - Documentation: https://documentation.mailgun.com
 - Dashboard: https://app.mailgun.com
+

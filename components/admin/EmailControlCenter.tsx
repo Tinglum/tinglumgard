@@ -107,6 +107,21 @@ type SetupDiagnostics = {
   supportReplyAddress?: string;
   supportReplyUsesDedicatedMailbox?: boolean;
   supportReplyOverridesGeneralReplyTo?: boolean;
+  publicReplyWebhookUrl?: string | null;
+  operationalReplyWebhookUrl?: string | null;
+  publicReplyWebhookHealth?: {
+    url: string;
+    ok: boolean;
+    status: number | null;
+    error: string | null;
+  } | null;
+  operationalReplyWebhookHealth?: {
+    url: string;
+    ok: boolean;
+    status: number | null;
+    error: string | null;
+  } | null;
+  mailgunRouteLikelyMisconfigured?: boolean;
   cronUrls?: {
     reconcile?: string;
     flowRunner?: string;
@@ -1489,6 +1504,32 @@ export function EmailControlCenter({
                   sender: {setupDiagnostics?.senderAddress || setup.defaultFrom || 'Unknown'}
                 </p>
               </div>
+              <div className="rounded-md border border-neutral-200 bg-neutral-50 p-3 md:col-span-2">
+                <p className="text-neutral-500">Public reply webhook</p>
+                <p className="font-medium break-all">
+                  {setupDiagnostics?.publicReplyWebhookUrl || 'Unknown'}
+                </p>
+                <p className="mt-1 text-xs text-neutral-500">
+                  {setupDiagnostics?.publicReplyWebhookHealth
+                    ? setupDiagnostics.publicReplyWebhookHealth.ok
+                      ? `Healthy${setupDiagnostics.publicReplyWebhookHealth.status ? ` (HTTP ${setupDiagnostics.publicReplyWebhookHealth.status})` : ''}`
+                      : `Failed${setupDiagnostics.publicReplyWebhookHealth.error ? ` - ${setupDiagnostics.publicReplyWebhookHealth.error}` : ''}`
+                    : 'Not checked'}
+                </p>
+              </div>
+              <div className="rounded-md border border-neutral-200 bg-neutral-50 p-3 md:col-span-2">
+                <p className="text-neutral-500">Operational reply webhook</p>
+                <p className="font-medium break-all">
+                  {setupDiagnostics?.operationalReplyWebhookUrl || 'Unknown'}
+                </p>
+                <p className="mt-1 text-xs text-neutral-500">
+                  {setupDiagnostics?.operationalReplyWebhookHealth
+                    ? setupDiagnostics.operationalReplyWebhookHealth.ok
+                      ? `Healthy${setupDiagnostics.operationalReplyWebhookHealth.status ? ` (HTTP ${setupDiagnostics.operationalReplyWebhookHealth.status})` : ''}`
+                      : `Failed${setupDiagnostics.operationalReplyWebhookHealth.error ? ` - ${setupDiagnostics.operationalReplyWebhookHealth.error}` : ''}`
+                    : 'Not checked'}
+                </p>
+              </div>
               <div className="rounded-md border border-neutral-200 bg-neutral-50 p-3">
                 <p className="text-neutral-500">Cron: reconcile</p>
                 <p className="font-medium">{setupDiagnostics?.cronUrls?.reconcile || '/api/cron/email-flow-reconcile'}</p>
@@ -1533,6 +1574,16 @@ export function EmailControlCenter({
                 instead of
                 {' '}
                 <span className="font-medium">{setupDiagnostics.generalReplyAddress}</span>.
+              </div>
+            ) : null}
+
+            {setupDiagnostics?.mailgunRouteLikelyMisconfigured ? (
+              <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+                Mailgun inbound replies are likely pointed at the wrong host. Update the Mailgun route to
+                {' '}
+                <span className="font-medium">{setupDiagnostics.operationalReplyWebhookUrl}</span>
+                {' '}
+                instead of the public app webhook.
               </div>
             ) : null}
 
@@ -1611,6 +1662,7 @@ export function EmailControlCenter({
                 <p>MAILGUN_API_KEY: {envStatus.mailgunApiKey ? 'ok' : 'missing'}</p>
                 <p>MAILGUN_DOMAIN: {envStatus.mailgunDomain ? 'ok' : 'missing'}</p>
                 <p>MAILGUN_WEBHOOK_SIGNING_KEY: {envStatus.mailgunWebhookSigningKey ? 'ok' : 'missing'}</p>
+                <p>MAILGUN_REPLY_WEBHOOK_URL: {envStatus.mailgunReplyWebhookUrl ? 'ok' : 'missing'}</p>
                 <p>EMAIL_REPLY_TO: {envStatus.emailReplyTo ? 'ok' : 'missing'}</p>
                 <p>CRON_SECRET: {envStatus.cronSecret ? 'ok' : 'missing'}</p>
                 <p>NEXT_PUBLIC_APP_URL: {envStatus.nextPublicAppUrl ? 'ok' : 'missing'}</p>
