@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import { lintManagedTemplate } from '@/lib/email/template-lint';
 
-type EmailSubTab =
+export type EmailSubTab =
   | 'overview'
   | 'templates'
   | 'flows'
@@ -158,7 +158,15 @@ type EmailPreviewModalState = {
   html: string;
 };
 
-export function EmailControlCenter() {
+type EmailControlCenterProps = {
+  initialTab?: EmailSubTab | null;
+  onInitialTabHandled?: () => void;
+};
+
+export function EmailControlCenter({
+  initialTab = null,
+  onInitialTabHandled,
+}: EmailControlCenterProps) {
   const [activeTab, setActiveTab] = useState<EmailSubTab>('overview');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -271,6 +279,12 @@ export function EmailControlCenter() {
   const [suppressionEmail, setSuppressionEmail] = useState('');
   const [suppressionReason, setSuppressionReason] = useState('manual_unsubscribe');
   const [emailPreviewModal, setEmailPreviewModal] = useState<EmailPreviewModalState | null>(null);
+
+  useEffect(() => {
+    if (!initialTab) return;
+    setActiveTab(initialTab);
+    onInitialTabHandled?.();
+  }, [initialTab, onInitialTabHandled]);
   const [lifecyclePreviewLoadingId, setLifecyclePreviewLoadingId] = useState<string | null>(null);
 
   const upcomingLifecycleInstances = useMemo(() => {

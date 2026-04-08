@@ -24,7 +24,7 @@ import { CustomerDatabase } from '@/components/admin/CustomerDatabase';
 import { SystemHealth } from '@/components/admin/SystemHealth';
 import { InventoryManagement } from '@/components/admin/InventoryManagement';
 import { AdminMessagingPanel } from '@/components/admin/AdminMessagingPanel';
-import { EmailControlCenter } from '@/components/admin/EmailControlCenter';
+import { EmailControlCenter, type EmailSubTab } from '@/components/admin/EmailControlCenter';
 import { ConfigurationManagement } from '@/components/admin/ConfigurationManagement';
 import { DeliveryCalendar } from '@/components/admin/DeliveryCalendar';
 import { RebateCodesManager } from '@/components/admin/RebateCodesManager';
@@ -61,6 +61,21 @@ type CustomersSubTab = 'database' | 'messages' | 'email';
 // Settings sub-tabs
 type SettingsSubTab = 'config' | 'rebates' | 'health';
 
+const EMAIL_SUB_TABS: EmailSubTab[] = [
+  'overview',
+  'templates',
+  'flows',
+  'lifecycle',
+  'campaigns',
+  'queue',
+  'history',
+  'setup',
+];
+
+function isEmailSubTab(value: string): value is EmailSubTab {
+  return EMAIL_SUB_TABS.includes(value as EmailSubTab);
+}
+
 export default function AdminPage() {
   const { t, lang } = useLanguage();
   const copy = t.adminPage;
@@ -86,6 +101,7 @@ export default function AdminPage() {
   const [deepLinkChickenOrderId, setDeepLinkChickenOrderId] = useState<string | null>(null);
   const [deepLinkMessageId, setDeepLinkMessageId] = useState<string | null>(null);
   const [deepLinkCustomerId, setDeepLinkCustomerId] = useState<string | null>(null);
+  const [deepLinkEmailTab, setDeepLinkEmailTab] = useState<EmailSubTab | null>(null);
 
   // Message badge
   const [unresolvedCount, setUnresolvedCount] = useState(0);
@@ -100,6 +116,7 @@ export default function AdminPage() {
     const params = new URLSearchParams(window.location.search);
     const rawTab = (params.get('tab') || '').trim().toLowerCase();
     const rawSubTab = (params.get('subTab') || '').trim().toLowerCase();
+    const rawEmailTab = (params.get('emailTab') || '').trim().toLowerCase();
     const orderId = (params.get('orderId') || '').trim();
     const messageId = (params.get('messageId') || '').trim();
     const customerId = (params.get('customerId') || '').trim();
@@ -155,6 +172,10 @@ export default function AdminPage() {
         setCustomersSubTab(rawSubTab);
       } else if (messageId) {
         setCustomersSubTab('messages');
+      }
+
+      if (rawSubTab === 'email' && isEmailSubTab(rawEmailTab)) {
+        setDeepLinkEmailTab(rawEmailTab);
       }
 
       if (messageId) {
@@ -284,11 +305,49 @@ export default function AdminPage() {
     setActiveTab('customers');
     setCustomersSubTab('database');
     setDeepLinkCustomerId(customerId);
+    setDeepLinkMessageId(null);
+    setDeepLinkEmailTab(null);
 
     const params = new URLSearchParams(window.location.search);
     params.set('tab', 'customers');
     params.set('subTab', 'database');
     params.set('customerId', customerId);
+    params.delete('messageId');
+    params.delete('emailTab');
+    params.delete('orderId');
+    window.history.pushState({}, '', `/admin?${params.toString()}`);
+  }
+
+  function handleNavigateToMessage(messageId: string) {
+    setActiveTab('customers');
+    setCustomersSubTab('messages');
+    setDeepLinkMessageId(messageId);
+    setDeepLinkCustomerId(null);
+    setDeepLinkEmailTab(null);
+
+    const params = new URLSearchParams(window.location.search);
+    params.set('tab', 'customers');
+    params.set('subTab', 'messages');
+    params.set('messageId', messageId);
+    params.delete('customerId');
+    params.delete('emailTab');
+    params.delete('orderId');
+    window.history.pushState({}, '', `/admin?${params.toString()}`);
+  }
+
+  function handleNavigateToEmailTab(emailTab: EmailSubTab) {
+    setActiveTab('customers');
+    setCustomersSubTab('email');
+    setDeepLinkEmailTab(emailTab);
+    setDeepLinkCustomerId(null);
+
+    const params = new URLSearchParams(window.location.search);
+    params.set('tab', 'customers');
+    params.set('subTab', 'email');
+    params.set('emailTab', emailTab);
+    params.delete('customerId');
+    params.delete('messageId');
+    params.delete('orderId');
     window.history.pushState({}, '', `/admin?${params.toString()}`);
   }
 
@@ -409,7 +468,13 @@ export default function AdminPage() {
 
         {/* ═══════════ TAB 1: DASHBOARD ═══════════ */}
         {activeTab === 'dashboard' && (
-          <ActionDashboard onNavigate={handleDashboardNavigate} onNavigateToOrder={handleNavigateToOrder} />
+              <ActionDashboard
+                onNavigate={handleDashboardNavigate}
+                onNavigateToOrder={handleNavigateToOrder}
+                onNavigateToCustomer={handleNavigateToCustomer}
+                onNavigateToMessage={handleNavigateToMessage}
+                onNavigateToEmailTab={handleNavigateToEmailTab}
+              />
         )}
 
         {/* ═══════════ TAB 2: ORDERS ═══════════ */}
@@ -560,8 +625,13 @@ export default function AdminPage() {
                 onInitialCustomerHandled={() => setDeepLinkCustomerId(null)}
               />
             )}
-            {customersSubTab === 'messages' && <AdminMessagingPanel initialMessageId={deepLinkMessageId} />}
-            {customersSubTab === 'email' && <EmailControlCenter />}
+                {customersSubTab === 'messages' && <AdminMessagingPanel initialMessageId={deepLinkMessageId} />}
+                {customersSubTab === 'email' && (
+                  <EmailControlCenter
+                    initialTab={deepLinkEmailTab}
+                    onInitialTabHandled={() => setDeepLinkEmailTab(null)}
+                  />
+                )}
           </div>
         )}
 

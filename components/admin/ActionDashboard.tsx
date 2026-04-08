@@ -1,9 +1,10 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import type { EmailSubTab } from './EmailControlCenter';
 import {
   AlertTriangle,
   Beef,
@@ -27,9 +28,18 @@ import { EggShippingModal } from './EggShippingModal';
 interface ActionDashboardProps {
   onNavigate: (tab: string, subTab?: string) => void;
   onNavigateToOrder?: (orderId: string) => void;
+  onNavigateToCustomer?: (customerId: string) => void;
+  onNavigateToMessage?: (messageId: string) => void;
+  onNavigateToEmailTab?: (tab: EmailSubTab) => void;
 }
 
-export function ActionDashboard({ onNavigate, onNavigateToOrder }: ActionDashboardProps) {
+export function ActionDashboard({
+  onNavigate,
+  onNavigateToOrder,
+  onNavigateToCustomer,
+  onNavigateToMessage,
+  onNavigateToEmailTab,
+}: ActionDashboardProps) {
   const { t, lang } = useLanguage();
   const copy = t.adminPage;
   const locale = lang === 'en' ? 'en-US' : 'nb-NO';
@@ -109,7 +119,7 @@ export function ActionDashboard({ onNavigate, onNavigateToOrder }: ActionDashboa
     );
   }
 
-  const { actionItems, keyMetrics, upcomingDates, newOrders, pig, healthAlerts, messages } = data;
+  const { actionItems, keyMetrics, upcomingDates, newOrders, pig, healthAlerts, emailActivity } = data;
   const currentEggWeekTracker = eggWeekTracker || data.eggWeekTracker;
 
   return (
@@ -258,6 +268,16 @@ export function ActionDashboard({ onNavigate, onNavigateToOrder }: ActionDashboa
         }}
         lang={lang}
         locale={locale}
+      />
+
+      <EmailActivitySection
+        emailActivity={emailActivity}
+        lang={lang}
+        locale={locale}
+        onNavigateToOrder={onNavigateToOrder}
+        onNavigateToCustomer={onNavigateToCustomer}
+        onNavigateToMessage={onNavigateToMessage}
+        onNavigateToEmailTab={onNavigateToEmailTab}
       />
 
       {/* Row 4: New Orders Since Last Login */}
@@ -659,6 +679,311 @@ function EggWeekTrackerSection({
       )}
     </div>
   );
+}
+
+function EmailActivitySection({
+  emailActivity,
+  lang,
+  locale,
+  onNavigateToOrder,
+  onNavigateToCustomer,
+  onNavigateToMessage,
+  onNavigateToEmailTab,
+}: {
+  emailActivity: any;
+  lang: string;
+  locale: string;
+  onNavigateToOrder?: (id: string) => void;
+  onNavigateToCustomer?: (customerId: string) => void;
+  onNavigateToMessage?: (messageId: string) => void;
+  onNavigateToEmailTab?: (tab: EmailSubTab) => void;
+}) {
+  const upcomingWeek = Array.isArray(emailActivity?.upcomingWeek) ? emailActivity.upcomingWeek : [];
+  const sentLastWeek = Array.isArray(emailActivity?.sentLastWeek) ? emailActivity.sentLastWeek : [];
+  const counts = emailActivity?.counts || {};
+
+  const title = lang === 'no' ? 'E-postoversikt' : 'Email overview';
+  const subtitle =
+    lang === 'no'
+      ? 'Hva som går ut neste uke, og hva som gikk ut siste uke.'
+      : 'What is going out next week, and what went out last week.';
+  const openEmailCenterLabel = lang === 'no' ? 'Åpne e-postsenter' : 'Open email center';
+  const nextWeekTitle = lang === 'no' ? 'Neste 7 dager' : 'Next 7 days';
+  const nextWeekSubtitle =
+    lang === 'no' ? 'Planlagte og køsatte e-poster.' : 'Scheduled and queued emails.';
+  const lastWeekTitle = lang === 'no' ? 'Siste 7 dager' : 'Last 7 days';
+  const lastWeekSubtitle =
+    lang === 'no' ? 'E-poster som faktisk ble sendt.' : 'Emails that were actually sent.';
+
+  return (
+    <div className="bg-white border border-neutral-200 rounded-xl p-6 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.06)]">
+      <div className="flex flex-col gap-4 mb-6 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex items-start gap-3">
+          <div className="p-2 rounded-lg bg-sky-50">
+            <Mail className="w-5 h-5 text-sky-700" />
+          </div>
+          <div>
+            <h3 className="text-lg font-light text-neutral-900">{title}</h3>
+            <p className="text-sm text-neutral-500">{subtitle}</p>
+          </div>
+        </div>
+
+        <Button variant="outline" size="sm" onClick={() => onNavigateToEmailTab?.('overview')}>
+          {openEmailCenterLabel}
+        </Button>
+      </div>
+
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+        <EmailActivityColumn
+          title={nextWeekTitle}
+          subtitle={nextWeekSubtitle}
+          count={Number(counts.upcomingWeek || upcomingWeek.length || 0)}
+          icon={<Calendar className="w-4 h-4 text-sky-700" />}
+          entries={upcomingWeek}
+          emptyLabel={lang === 'no' ? 'Ingen planlagte e-poster neste uke.' : 'No scheduled emails next week.'}
+          lang={lang}
+          locale={locale}
+          onNavigateToOrder={onNavigateToOrder}
+          onNavigateToCustomer={onNavigateToCustomer}
+          onNavigateToMessage={onNavigateToMessage}
+          onNavigateToEmailTab={onNavigateToEmailTab}
+        />
+
+        <EmailActivityColumn
+          title={lastWeekTitle}
+          subtitle={lastWeekSubtitle}
+          count={Number(counts.sentLastWeek || sentLastWeek.length || 0)}
+          icon={<Mail className="w-4 h-4 text-emerald-700" />}
+          entries={sentLastWeek}
+          emptyLabel={lang === 'no' ? 'Ingen utsendte e-poster siste uke.' : 'No emails sent in the last week.'}
+          lang={lang}
+          locale={locale}
+          onNavigateToOrder={onNavigateToOrder}
+          onNavigateToCustomer={onNavigateToCustomer}
+          onNavigateToMessage={onNavigateToMessage}
+          onNavigateToEmailTab={onNavigateToEmailTab}
+        />
+      </div>
+    </div>
+  );
+}
+
+function EmailActivityColumn({
+  title,
+  subtitle,
+  count,
+  icon,
+  entries,
+  emptyLabel,
+  lang,
+  locale,
+  onNavigateToOrder,
+  onNavigateToCustomer,
+  onNavigateToMessage,
+  onNavigateToEmailTab,
+}: {
+  title: string;
+  subtitle: string;
+  count: number;
+  icon: ReactNode;
+  entries: any[];
+  emptyLabel: string;
+  lang: string;
+  locale: string;
+  onNavigateToOrder?: (id: string) => void;
+  onNavigateToCustomer?: (customerId: string) => void;
+  onNavigateToMessage?: (messageId: string) => void;
+  onNavigateToEmailTab?: (tab: EmailSubTab) => void;
+}) {
+  return (
+    <div className="rounded-xl border border-neutral-200 bg-neutral-50/60 p-4">
+      <div className="flex items-start justify-between gap-4 mb-4">
+        <div className="flex items-start gap-3">
+          <div className="mt-0.5">{icon}</div>
+          <div>
+            <h4 className="text-base font-medium text-neutral-900">{title}</h4>
+            <p className="text-sm text-neutral-500">{subtitle}</p>
+          </div>
+        </div>
+        <span className="inline-flex min-w-8 justify-center rounded-full bg-white px-2.5 py-1 text-xs font-medium text-neutral-700 border border-neutral-200">
+          {count}
+        </span>
+      </div>
+
+      {entries.length > 0 ? (
+        <div className="space-y-3">
+          {entries.map((entry: any) => (
+            <EmailActivityItem
+              key={`${entry.emailCenterTab}-${entry.id}`}
+              entry={entry}
+              lang={lang}
+              locale={locale}
+              onNavigateToOrder={onNavigateToOrder}
+              onNavigateToCustomer={onNavigateToCustomer}
+              onNavigateToMessage={onNavigateToMessage}
+              onNavigateToEmailTab={onNavigateToEmailTab}
+            />
+          ))}
+        </div>
+      ) : (
+        <div className="rounded-lg border border-dashed border-neutral-200 bg-white px-4 py-6 text-sm text-neutral-500">
+          {emptyLabel}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function EmailActivityItem({
+  entry,
+  lang,
+  locale,
+  onNavigateToOrder,
+  onNavigateToCustomer,
+  onNavigateToMessage,
+  onNavigateToEmailTab,
+}: {
+  entry: any;
+  lang: string;
+  locale: string;
+  onNavigateToOrder?: (id: string) => void;
+  onNavigateToCustomer?: (customerId: string) => void;
+  onNavigateToMessage?: (messageId: string) => void;
+  onNavigateToEmailTab?: (tab: EmailSubTab) => void;
+}) {
+  const heading = entry.subject || entry.label || (lang === 'no' ? 'E-post' : 'Email');
+  const customerLabel = entry.customerName || entry.toEmail || (lang === 'no' ? 'Ukjent mottaker' : 'Unknown recipient');
+  const orderLabel = entry.relatedOrderNumber || null;
+  const primaryTime = entry.scheduledFor || entry.sentAt || entry.createdAt || null;
+  const timePrefix = entry.scheduledFor
+    ? lang === 'no'
+      ? 'Planlagt'
+      : 'Scheduled'
+    : entry.sentAt
+      ? lang === 'no'
+        ? 'Sendt'
+        : 'Sent'
+      : lang === 'no'
+        ? 'Opprettet'
+        : 'Created';
+  const openCenterLabel =
+    entry.emailCenterTab === 'history'
+      ? lang === 'no'
+        ? 'Historikk'
+        : 'History'
+      : entry.emailCenterTab === 'queue'
+        ? 'Kø'
+        : lang === 'no'
+          ? 'Livsløp'
+          : 'Lifecycle';
+  const customerButtonLabel = lang === 'no' ? 'Kunde' : 'Customer';
+  const orderButtonLabel = lang === 'no' ? 'Ordre' : 'Order';
+  const threadButtonLabel = lang === 'no' ? 'Tråd' : 'Thread';
+  const templateLabel = entry.templateKey || entry.flowKey || entry.eventType || null;
+
+  return (
+    <div className="rounded-xl border border-neutral-200 bg-white p-4">
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
+            <button
+              type="button"
+              onClick={() => onNavigateToEmailTab?.(entry.emailCenterTab)}
+              className="text-left text-base font-medium text-neutral-900 hover:text-blue-700 transition-colors"
+            >
+              {heading}
+            </button>
+            <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-neutral-500">
+              <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-neutral-700">
+                {entry.classification || (lang === 'no' ? 'system' : 'system')}
+              </span>
+              {entry.productScope && (
+                <span className="rounded-full bg-sky-50 px-2 py-0.5 text-sky-700">
+                  {entry.productScope}
+                </span>
+              )}
+              {templateLabel && (
+                <span className="truncate rounded-full bg-neutral-100 px-2 py-0.5 text-neutral-600 max-w-[260px]">
+                  {templateLabel}
+                </span>
+              )}
+            </div>
+          </div>
+
+          {primaryTime && (
+            <div className="text-xs text-neutral-500 whitespace-nowrap">
+              {timePrefix}: {formatEmailActivityDate(primaryTime, locale)}
+            </div>
+          )}
+        </div>
+
+        <div className="text-sm text-neutral-700">
+          <button
+            type="button"
+            disabled={!entry.customerLookupId}
+            onClick={() => entry.customerLookupId && onNavigateToCustomer?.(entry.customerLookupId)}
+            className="font-medium text-left hover:text-blue-700 transition-colors disabled:cursor-default disabled:hover:text-neutral-700"
+          >
+            {customerLabel}
+          </button>
+          {entry.toEmail && (
+            <span className="text-neutral-500"> · {entry.toEmail}</span>
+          )}
+          {orderLabel && (
+            <>
+              <span className="text-neutral-400"> · </span>
+              <button
+                type="button"
+                onClick={() => onNavigateToOrder?.(orderLabel)}
+                className="font-medium text-left text-neutral-700 hover:text-blue-700 transition-colors"
+              >
+                {orderLabel}
+              </button>
+            </>
+          )}
+        </div>
+
+        {entry.lastError && (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+            {entry.lastError}
+          </div>
+        )}
+
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" size="sm" onClick={() => onNavigateToEmailTab?.(entry.emailCenterTab)}>
+            {openCenterLabel}
+          </Button>
+          {entry.customerLookupId && (
+            <Button variant="outline" size="sm" onClick={() => onNavigateToCustomer?.(entry.customerLookupId)}>
+              {customerButtonLabel}
+            </Button>
+          )}
+          {orderLabel && (
+            <Button variant="outline" size="sm" onClick={() => onNavigateToOrder?.(orderLabel)}>
+              {orderButtonLabel}
+            </Button>
+          )}
+          {entry.relatedMessageId && (
+            <Button variant="outline" size="sm" onClick={() => onNavigateToMessage?.(entry.relatedMessageId)}>
+              {threadButtonLabel}
+            </Button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function formatEmailActivityDate(dateValue: string, locale: string) {
+  const date = new Date(dateValue);
+  if (Number.isNaN(date.getTime())) return dateValue;
+
+  return new Intl.DateTimeFormat(locale, {
+    day: 'numeric',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(date);
 }
 
 function WeekScheduleSection({ upcomingDates, onNavigateToOrder, onShipmentOrderClick, lang, locale }: {

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth/session';
+import { isMissingEmailRelationError } from '@/lib/email/schema';
 import { supabaseAdmin } from '@/lib/supabase/server';
 import { getEffectiveBoxSize, normalizeOrderForDisplay } from '@/lib/orders/display';
 
@@ -27,6 +28,7 @@ export async function GET(request: NextRequest) {
       eggResult,
       chickenResult,
       messageResult,
+      emailActivityResult,
       healthResult,
       calendarResult,
       eggWeekTrackerResult,
@@ -35,6 +37,7 @@ export async function GET(request: NextRequest) {
       fetchEggData(),
       fetchChickenData(),
       fetchMessageStats(),
+      fetchEmailActivity(),
       fetchHealthAlerts(),
       fetchUpcomingDates(),
       fetchEggWeekTracker(eggWeekOffset),
@@ -216,6 +219,7 @@ export async function GET(request: NextRequest) {
       keyMetrics,
       upcomingDates: calendarResult,
       eggWeekTracker: eggWeekTrackerResult,
+      emailActivity: emailActivityResult,
       newOrders,
       messages: messageResult,
       healthAlerts: healthResult,
@@ -289,6 +293,579 @@ async function fetchMessageStats() {
     in_progress: messages.filter((m) => m.status === 'in_progress').length,
     resolved: messages.filter((m) => m.status === 'resolved').length,
   };
+}
+
+type DashboardEmailOrderSource = 'pig' | 'egg' | 'chicken';
+
+type DashboardOrderLookup = {
+  source: DashboardEmailOrderSource;
+  id: string;
+  orderNumber: string | null;
+  customerName: string | null;
+  customerEmail: string | null;
+  customerPhone: string | null;
+};
+
+type DashboardMessageLookup = {
+  id: string;
+  subject: string | null;
+  customerName: string | null;
+  customerEmail: string | null;
+  customerPhone: string | null;
+  relatedOrderSource: DashboardEmailOrderSource | null;
+  relatedOrderId: string | null;
+};
+
+type DashboardFlowLookup = {
+  templateKey: string | null;
+  eventType: string | null;
+  productScope: string | null;
+};
+
+type DashboardQueueLookup = {
+  id: string;
+  status: string | null;
+  classification: string | null;
+  toEmail: string | null;
+  subject: string | null;
+  templateKey: string | null;
+  sourcePath: string | null;
+  createdAt: string | null;
+  campaignId: string | null;
+  orderId: string | null;
+  eggOrderId: string | null;
+  chickenOrderId: string | null;
+  customerMessageId: string | null;
+};
+
+type DashboardEmailItem = {
+  id: string;
+  status: string;
+  classification: string;
+  label: string;
+  subject: string | null;
+  templateKey: string | null;
+  flowKey: string | null;
+  toEmail: string | null;
+  customerName: string | null;
+  customerLookupId: string | null;
+  scheduledFor: string | null;
+  sentAt: string | null;
+  createdAt: string | null;
+  lastError: string | null;
+  relatedOrderSource: DashboardEmailOrderSource | null;
+  relatedOrderNumber: string | null;
+  relatedMessageId: string | null;
+  eventType: string | null;
+  productScope: string | null;
+  emailCenterTab: 'lifecycle' | 'queue' | 'history';
+};
+
+function uniqueStrings(values: Array<string | null | undefined>): string[] {
+  const set = new Set<string>();
+
+  for (const value of values) {
+    const normalized = String(value || '').trim();
+    if (!normalized) continue;
+    set.add(normalized);
+  }
+
+  return Array.from(set);
+}
+
+function normalizeDashboardOrderSource(entityType?: string | null): DashboardEmailOrderSource | null {
+  const normalized = String(entityType || '').trim().toLowerCase();
+
+  if (normalized === 'order') return 'pig';
+  if (normalized === 'egg_order') return 'egg';
+  if (normalized === 'chicken_order') return 'chicken';
+
+  return null;
+}
+
+function buildOrderLookupKey(source: DashboardEmailOrderSource, id: string) {
+  return `${source}:${id}`;
+}
+
+function buildCustomerLookupId(params: {
+  email?: string | null;
+  phone?: string | null;
+  orderNumber?: string | null;
+}) {
+  const email = String(params.email || '').trim();
+  if (email) return email;
+
+  const phone = String(params.phone || '').trim();
+  if (phone) return phone;
+
+  const orderNumber = String(params.orderNumber || '').trim();
+  if (orderNumber) return orderNumber;
+
+  return null;
+}
+
+function humanizeEmailKey(value?: string | null) {
+  const normalized = String(value || '').trim();
+  if (!normalized) return 'Email';
+
+  return normalized
+    .replace(/[._]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+async function fetchDashboardOrderLookup(orderIds: {
+  pig: string[];
+  egg: string[];
+  chicken: string[];
+}) {
+  const lookup = new Map<string, DashboardOrderLookup>();
+
+  const [pigResult, eggResult, chickenResult] = await Promise.all([
+    orderIds.pig.length > 0
+      ? supabaseAdmin
+          .from('orders')
+          .select('id, order_number, customer_name, customer_email, customer_phone')
+          .in('id', orderIds.pig)
+      : Promise.resolve({ data: [], error: null }),
+    orderIds.egg.length > 0
+      ? supabaseAdmin
+          .from('egg_orders')
+          .select('id, order_number, customer_name, customer_email, customer_phone')
+          .in('id', orderIds.egg)
+      : Promise.resolve({ data: [], error: null }),
+    orderIds.chicken.length > 0
+      ? supabaseAdmin
+          .from('chicken_orders')
+          .select('id, order_number, customer_name, customer_email, customer_phone')
+          .in('id', orderIds.chicken)
+      : Promise.resolve({ data: [], error: null }),
+  ]);
+
+  for (const [source, result] of [
+    ['pig', pigResult],
+    ['egg', eggResult],
+    ['chicken', chickenResult],
+  ] as Array<[DashboardEmailOrderSource, { data: any[] | null; error: any }]>) {
+    if (result.error) throw result.error;
+
+    for (const row of result.data || []) {
+      lookup.set(buildOrderLookupKey(source, String(row.id)), {
+        source,
+        id: String(row.id),
+        orderNumber: row.order_number ? String(row.order_number) : null,
+        customerName: row.customer_name ? String(row.customer_name) : null,
+        customerEmail: row.customer_email ? String(row.customer_email) : null,
+        customerPhone: row.customer_phone ? String(row.customer_phone) : null,
+      });
+    }
+  }
+
+  return lookup;
+}
+
+async function fetchDashboardMessageLookup(messageIds: string[]) {
+  const lookup = new Map<string, DashboardMessageLookup>();
+  if (messageIds.length === 0) return lookup;
+
+  const { data, error } = await supabaseAdmin
+    .from('customer_messages')
+    .select('id, subject, customer_name, customer_email, customer_phone, related_order_source, related_order_id')
+    .in('id', messageIds);
+
+  if (error) throw error;
+
+  for (const row of data || []) {
+    lookup.set(String(row.id), {
+      id: String(row.id),
+      subject: row.subject ? String(row.subject) : null,
+      customerName: row.customer_name ? String(row.customer_name) : null,
+      customerEmail: row.customer_email ? String(row.customer_email) : null,
+      customerPhone: row.customer_phone ? String(row.customer_phone) : null,
+      relatedOrderSource: normalizeDashboardOrderSource(
+        row.related_order_source === 'pig'
+          ? 'order'
+          : row.related_order_source === 'egg'
+            ? 'egg_order'
+            : row.related_order_source === 'chicken'
+              ? 'chicken_order'
+              : ''
+      ),
+      relatedOrderId: row.related_order_id ? String(row.related_order_id) : null,
+    });
+  }
+
+  return lookup;
+}
+
+async function fetchDashboardFlowLookup(flowKeys: string[]) {
+  const lookup = new Map<string, DashboardFlowLookup>();
+  if (flowKeys.length === 0) return lookup;
+
+  const { data, error } = await supabaseAdmin
+    .from('email_flows')
+    .select('flow_key, template_key, event_type, product_scope')
+    .in('flow_key', flowKeys);
+
+  if (error) throw error;
+
+  for (const row of data || []) {
+    lookup.set(String(row.flow_key), {
+      templateKey: row.template_key ? String(row.template_key) : null,
+      eventType: row.event_type ? String(row.event_type) : null,
+      productScope: row.product_scope ? String(row.product_scope) : null,
+    });
+  }
+
+  return lookup;
+}
+
+async function fetchDashboardQueueLookup(queueIds: string[]) {
+  const lookup = new Map<string, DashboardQueueLookup>();
+  if (queueIds.length === 0) return lookup;
+
+  const { data, error } = await supabaseAdmin
+    .from('email_dispatch_queue')
+    .select(
+      'id, status, classification, to_email, subject, template_key, source_path, created_at, campaign_id, order_id, egg_order_id, chicken_order_id, customer_message_id'
+    )
+    .in('id', queueIds);
+
+  if (error) throw error;
+
+  for (const row of data || []) {
+    lookup.set(String(row.id), {
+      id: String(row.id),
+      status: row.status ? String(row.status) : null,
+      classification: row.classification ? String(row.classification) : null,
+      toEmail: row.to_email ? String(row.to_email) : null,
+      subject: row.subject ? String(row.subject) : null,
+      templateKey: row.template_key ? String(row.template_key) : null,
+      sourcePath: row.source_path ? String(row.source_path) : null,
+      createdAt: row.created_at ? String(row.created_at) : null,
+      campaignId: row.campaign_id ? String(row.campaign_id) : null,
+      orderId: row.order_id ? String(row.order_id) : null,
+      eggOrderId: row.egg_order_id ? String(row.egg_order_id) : null,
+      chickenOrderId: row.chicken_order_id ? String(row.chicken_order_id) : null,
+      customerMessageId: row.customer_message_id ? String(row.customer_message_id) : null,
+    });
+  }
+
+  return lookup;
+}
+
+function resolveDashboardOrderRef(params: {
+  sourceFromEntity?: DashboardEmailOrderSource | null;
+  idFromEntity?: string | null;
+  queue?: DashboardQueueLookup | null;
+  message?: DashboardMessageLookup | null;
+}) {
+  if (params.queue?.orderId) {
+    return { source: 'pig' as const, id: params.queue.orderId };
+  }
+  if (params.queue?.eggOrderId) {
+    return { source: 'egg' as const, id: params.queue.eggOrderId };
+  }
+  if (params.queue?.chickenOrderId) {
+    return { source: 'chicken' as const, id: params.queue.chickenOrderId };
+  }
+  if (params.message?.relatedOrderSource && params.message.relatedOrderId) {
+    return { source: params.message.relatedOrderSource, id: params.message.relatedOrderId };
+  }
+  if (params.sourceFromEntity && params.idFromEntity) {
+    return { source: params.sourceFromEntity, id: params.idFromEntity };
+  }
+
+  return { source: null, id: null };
+}
+
+async function fetchEmailActivity() {
+  const emptyResult = {
+    upcomingWeek: [] as DashboardEmailItem[],
+    sentLastWeek: [] as DashboardEmailItem[],
+    counts: {
+      upcomingWeek: 0,
+      sentLastWeek: 0,
+    },
+  };
+
+  const now = new Date();
+  const nowIso = now.toISOString();
+  const nextWeekIso = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString();
+  const weekAgoIso = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
+
+  try {
+    let upcomingRows: any[] = [];
+    let sentRows: any[] = [];
+    let upcomingCount = 0;
+    let sentCount = 0;
+
+    const [upcomingCountResult, sentCountResult] = await Promise.all([
+      supabaseAdmin
+        .from('email_flow_instances')
+        .select('id', { count: 'exact', head: true })
+        .in('status', ['scheduled', 'enqueued'])
+        .gte('scheduled_for', nowIso)
+        .lte('scheduled_for', nextWeekIso),
+      supabaseAdmin
+        .from('email_dispatch_queue')
+        .select('id', { count: 'exact', head: true })
+        .eq('status', 'sent')
+        .gte('sent_at', weekAgoIso)
+        .lte('sent_at', nowIso),
+    ]);
+
+    if (!upcomingCountResult.error) {
+      upcomingCount = Number(upcomingCountResult.count || 0);
+    } else if (!isMissingEmailRelationError(upcomingCountResult.error)) {
+      throw upcomingCountResult.error;
+    }
+
+    if (!sentCountResult.error) {
+      sentCount = Number(sentCountResult.count || 0);
+    } else if (!isMissingEmailRelationError(sentCountResult.error)) {
+      throw sentCountResult.error;
+    }
+
+    const upcomingResult = await supabaseAdmin
+      .from('email_flow_instances')
+      .select('id, flow_key, entity_type, entity_id, status, to_email, scheduled_for, created_at, last_error, queue_id')
+      .in('status', ['scheduled', 'enqueued'])
+      .gte('scheduled_for', nowIso)
+      .lte('scheduled_for', nextWeekIso)
+      .order('scheduled_for', { ascending: true })
+      .limit(12);
+
+    if (upcomingResult.error) {
+      if (!isMissingEmailRelationError(upcomingResult.error)) {
+        throw upcomingResult.error;
+      }
+    } else {
+      upcomingRows = upcomingResult.data || [];
+    }
+
+    const sentResult = await supabaseAdmin
+      .from('email_dispatch_queue')
+      .select(
+        'id, status, classification, to_email, template_key, subject, source_path, sent_at, created_at, last_error, order_id, egg_order_id, chicken_order_id, customer_message_id'
+      )
+      .eq('status', 'sent')
+      .gte('sent_at', weekAgoIso)
+      .lte('sent_at', nowIso)
+      .order('sent_at', { ascending: false })
+      .limit(12);
+
+    if (sentResult.error) {
+      if (!isMissingEmailRelationError(sentResult.error)) {
+        throw sentResult.error;
+      }
+
+      const legacyResult = await supabaseAdmin
+        .from('email_log')
+        .select('id, recipient, subject, sent_at, created_at, order_id')
+        .gte('sent_at', weekAgoIso)
+        .lte('sent_at', nowIso)
+        .order('sent_at', { ascending: false })
+        .limit(12);
+
+      if (legacyResult.error && !isMissingEmailRelationError(legacyResult.error)) {
+        throw legacyResult.error;
+      }
+
+      sentRows = (legacyResult.data || []).map((row: any) => ({
+        id: row.id,
+        status: 'sent',
+        classification: 'system',
+        to_email: row.recipient,
+        template_key: null,
+        subject: row.subject,
+        source_path: 'legacy.email_log',
+        sent_at: row.sent_at || row.created_at,
+        created_at: row.created_at,
+        last_error: null,
+        order_id: row.order_id,
+        egg_order_id: null,
+        chicken_order_id: null,
+        customer_message_id: null,
+      }));
+      sentCount = sentRows.length;
+    } else {
+      sentRows = sentResult.data || [];
+    }
+
+    const flowLookup = await fetchDashboardFlowLookup(
+      uniqueStrings(upcomingRows.map((row: any) => row.flow_key))
+    );
+
+    const queueLookup = await fetchDashboardQueueLookup(
+      uniqueStrings(upcomingRows.map((row: any) => row.queue_id))
+    );
+
+    const messageLookup = await fetchDashboardMessageLookup(
+      uniqueStrings(
+        sentRows.map((row: any) => row.customer_message_id).concat(
+          Array.from(queueLookup.values()).map((row) => row.customerMessageId)
+        )
+      )
+    );
+
+    const orderIds = {
+      pig: [] as string[],
+      egg: [] as string[],
+      chicken: [] as string[],
+    };
+
+    for (const row of sentRows) {
+      if (row.order_id) orderIds.pig.push(String(row.order_id));
+      if (row.egg_order_id) orderIds.egg.push(String(row.egg_order_id));
+      if (row.chicken_order_id) orderIds.chicken.push(String(row.chicken_order_id));
+
+      const message = row.customer_message_id ? messageLookup.get(String(row.customer_message_id)) : null;
+      if (message?.relatedOrderSource && message.relatedOrderId) {
+        orderIds[message.relatedOrderSource].push(message.relatedOrderId);
+      }
+    }
+
+    for (const row of upcomingRows) {
+      const entitySource = normalizeDashboardOrderSource(row.entity_type);
+      const entityId = row.entity_id ? String(row.entity_id) : null;
+      if (entitySource && entityId) {
+        orderIds[entitySource].push(entityId);
+      }
+
+      const queue = row.queue_id ? queueLookup.get(String(row.queue_id)) : null;
+      if (queue?.orderId) orderIds.pig.push(queue.orderId);
+      if (queue?.eggOrderId) orderIds.egg.push(queue.eggOrderId);
+      if (queue?.chickenOrderId) orderIds.chicken.push(queue.chickenOrderId);
+
+      const message = queue?.customerMessageId ? messageLookup.get(queue.customerMessageId) : null;
+      if (message?.relatedOrderSource && message.relatedOrderId) {
+        orderIds[message.relatedOrderSource].push(message.relatedOrderId);
+      }
+    }
+
+    const orderLookup = await fetchDashboardOrderLookup({
+      pig: uniqueStrings(orderIds.pig),
+      egg: uniqueStrings(orderIds.egg),
+      chicken: uniqueStrings(orderIds.chicken),
+    });
+
+    const upcomingWeek = upcomingRows.map((row: any) => {
+      const entitySource = normalizeDashboardOrderSource(row.entity_type);
+      const entityId = row.entity_id ? String(row.entity_id) : null;
+      const queue = row.queue_id ? queueLookup.get(String(row.queue_id)) || null : null;
+      const message = queue?.customerMessageId ? messageLookup.get(queue.customerMessageId) || null : null;
+      const orderRef = resolveDashboardOrderRef({
+        sourceFromEntity: entitySource,
+        idFromEntity: entityId,
+        queue,
+        message,
+      });
+      const order =
+        orderRef.source && orderRef.id ? orderLookup.get(buildOrderLookupKey(orderRef.source, orderRef.id)) || null : null;
+
+      const customerName =
+        order?.customerName ||
+        message?.customerName ||
+        null;
+      const customerEmail =
+        queue?.toEmail ||
+        (row.to_email ? String(row.to_email) : null) ||
+        order?.customerEmail ||
+        message?.customerEmail ||
+        null;
+      const customerPhone = order?.customerPhone || message?.customerPhone || null;
+
+      const templateKey = queue?.templateKey || flowLookup.get(String(row.flow_key || ''))?.templateKey || null;
+      const label = queue?.subject || humanizeEmailKey(templateKey || row.flow_key);
+
+      return {
+        id: String(row.id),
+        status: String(row.status || 'scheduled'),
+        classification: queue?.classification || 'system',
+        label,
+        subject: queue?.subject || null,
+        templateKey,
+        flowKey: row.flow_key ? String(row.flow_key) : null,
+        toEmail: customerEmail,
+        customerName,
+        customerLookupId: buildCustomerLookupId({
+          email: customerEmail,
+          phone: customerPhone,
+          orderNumber: order?.orderNumber,
+        }),
+        scheduledFor: row.scheduled_for ? String(row.scheduled_for) : null,
+        sentAt: null,
+        createdAt: queue?.createdAt || (row.created_at ? String(row.created_at) : null),
+        lastError: row.last_error ? String(row.last_error) : null,
+        relatedOrderSource: orderRef.source,
+        relatedOrderNumber: order?.orderNumber || null,
+        relatedMessageId: queue?.customerMessageId || null,
+        eventType: flowLookup.get(String(row.flow_key || ''))?.eventType || null,
+        productScope: flowLookup.get(String(row.flow_key || ''))?.productScope || orderRef.source || null,
+        emailCenterTab: row.queue_id ? 'queue' : 'lifecycle',
+      } satisfies DashboardEmailItem;
+    });
+
+    const sentLastWeek = sentRows.map((row: any) => {
+      const message = row.customer_message_id ? messageLookup.get(String(row.customer_message_id)) || null : null;
+      const orderRef = resolveDashboardOrderRef({
+        sourceFromEntity: row.order_id ? 'pig' : row.egg_order_id ? 'egg' : row.chicken_order_id ? 'chicken' : null,
+        idFromEntity:
+          row.order_id ? String(row.order_id) : row.egg_order_id ? String(row.egg_order_id) : row.chicken_order_id ? String(row.chicken_order_id) : null,
+        message,
+      });
+      const order =
+        orderRef.source && orderRef.id ? orderLookup.get(buildOrderLookupKey(orderRef.source, orderRef.id)) || null : null;
+      const customerEmail =
+        row.to_email ? String(row.to_email) : order?.customerEmail || message?.customerEmail || null;
+      const customerPhone = order?.customerPhone || message?.customerPhone || null;
+      const customerName = order?.customerName || message?.customerName || null;
+      const templateKey = row.template_key ? String(row.template_key) : null;
+
+      return {
+        id: String(row.id),
+        status: String(row.status || 'sent'),
+        classification: row.classification ? String(row.classification) : 'system',
+        label: row.subject ? String(row.subject) : humanizeEmailKey(templateKey || row.source_path),
+        subject: row.subject ? String(row.subject) : null,
+        templateKey,
+        flowKey: null,
+        toEmail: customerEmail,
+        customerName,
+        customerLookupId: buildCustomerLookupId({
+          email: customerEmail,
+          phone: customerPhone,
+          orderNumber: order?.orderNumber,
+        }),
+        scheduledFor: null,
+        sentAt: row.sent_at ? String(row.sent_at) : null,
+        createdAt: row.created_at ? String(row.created_at) : null,
+        lastError: row.last_error ? String(row.last_error) : null,
+        relatedOrderSource: orderRef.source,
+        relatedOrderNumber: order?.orderNumber || null,
+        relatedMessageId: row.customer_message_id ? String(row.customer_message_id) : null,
+        eventType: null,
+        productScope: orderRef.source,
+        emailCenterTab: 'history',
+      } satisfies DashboardEmailItem;
+    });
+
+    return {
+      upcomingWeek,
+      sentLastWeek,
+      counts: {
+        upcomingWeek: upcomingCount || upcomingWeek.length,
+        sentLastWeek: sentCount || sentLastWeek.length,
+      },
+    };
+  } catch (error: any) {
+    if (!isMissingEmailRelationError(error)) {
+      console.warn('Could not build dashboard email activity:', error?.message || error);
+    }
+    return emptyResult;
+  }
 }
 
 async function fetchHealthAlerts() {
@@ -379,7 +956,7 @@ async function fetchUpcomingDates() {
       .from('egg_orders')
       .select('id, order_number, customer_name, delivery_method, delivery_monday, status')
       .eq('delivery_method', 'posten')
-      .in('status', ['fully_paid', 'preparing'])
+      .not('status', 'in', '(cancelled,forfeited,delivered,shipped,pending)')
       .gte('delivery_monday', weekStartStr)
       .lte('delivery_monday', weekEndStr)
       .order('delivery_monday', { ascending: true });
