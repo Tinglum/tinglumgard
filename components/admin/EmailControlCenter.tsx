@@ -225,6 +225,19 @@ export function EmailControlCenter({
   const [setupDiagnostics, setSetupDiagnostics] = useState<SetupDiagnostics | null>(null);
   const [suppressionUnavailable, setSuppressionUnavailable] = useState(false);
 
+  const [mailgunRoutes, setMailgunRoutes] = useState<Array<{
+    id: string;
+    priority: number;
+    description: string;
+    expression: string;
+    actions: string[];
+    created_at: string;
+  }>>([]);
+  const [mailgunRoutesError, setMailgunRoutesError] = useState<string | null>(null);
+  const [mailgunRoutesLoading, setMailgunRoutesLoading] = useState(false);
+  const [mailgunExpectedUrl, setMailgunExpectedUrl] = useState<string>('');
+  const [mailgunDomain, setMailgunDomain] = useState<string>('');
+
   const [newTemplate, setNewTemplate] = useState({
     templateKey: '',
     classification: 'system',
@@ -429,6 +442,48 @@ export function EmailControlCenter({
       setWarning(typeof data?.warning === 'string' ? data.warning : null);
     }
   }, []);
+
+  const loadMailgunRoutes = useCallback(async () => {
+    setMailgunRoutesLoading(true);
+    setMailgunRoutesError(null);
+    try {
+      const data = await callApi<any>('/api/admin/email/mailgun-routes');
+      setMailgunRoutes(data?.routes || []);
+      setMailgunExpectedUrl(data?.expectedWebhookUrl || '');
+      setMailgunDomain(data?.domain || '');
+      if (data?.error) setMailgunRoutesError(data.error);
+    } catch (err) {
+      setMailgunRoutesError(err instanceof Error ? err.message : 'Failed to load routes');
+    } finally {
+      setMailgunRoutesLoading(false);
+    }
+  }, []);
+
+  async function handleUpdateMailgunRoute(routeId: string, forwardUrl: string) {
+    try {
+      await callApi('/api/admin/email/mailgun-routes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'update_forward', routeId, forwardUrl }),
+      });
+      await loadMailgunRoutes();
+    } catch (err) {
+      setMailgunRoutesError(err instanceof Error ? err.message : 'Failed to update route');
+    }
+  }
+
+  async function handleCreateMailgunInboundRoute() {
+    try {
+      await callApi('/api/admin/email/mailgun-routes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'create_inbound' }),
+      });
+      await loadMailgunRoutes();
+    } catch (err) {
+      setMailgunRoutesError(err instanceof Error ? err.message : 'Failed to create route');
+    }
+  }
 
   async function refreshCurrentTab() {
     setLoading(true);
@@ -1753,6 +1808,106 @@ export function EmailControlCenter({
                 </div>
               ))}
             </div>
+          </Card>
+          <Card className="p-4 space-y-3 xl:col-span-2">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-medium">Mailgun Inbound Routes</h3>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  onClick={loadMailgunRoutes}
+                  disabled={mailgunRoutesLoading}
+                >
+                  {mailgunRoutesLoading ? 'Loading...' : 'Load Routes'}
+                </Button>
+              </div>
+            </div>
+            {mailgunRoutesError && (
+              <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+                {mailgunRoutesError}
+              </div>
+            )}
+            {mailgunExpectedUrl && (
+              <div className="rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800">
+                <p className="font-medium">Expected webhook target</p>
+                <p className="break-all mt-1">{mailgunExpectedUrl}</p>
+                <p className="text-xs mt-1 opacity-70">Domain: {mailgunDomain || 'unknown'}</p>
+              </div>
+            )}
+            {mailgunRoutes.length === 0 && !mailgunRoutesLoading && !mailgunRoutesError && mailgunExpectedUrl && (
+              <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                <p>No Mailgun routes found. Inbound replies will not be processed.</p>
+                <Button
+                  variant="outline"
+                  className="mt-2"
+                  onClick={handleCreateMailgunInboundRoute}
+                >
+                  Create default inbound route
+                </Button>
+              </div>
+            )}
+            {mailgunRoutes.length > 0 && (
+              <div className="space-y-3">
+                {mailgunRoutes.map((route) => {
+                  const forwardAction = (route.actions || []).find((a: string) => a.includes('forward('));
+                  const currentForwardUrl = forwardAction
+                    ? forwardAction.replace(/^forward\("?/, '').replace(/"?\)$/, '')
+                    : null;
+                  const isCorrect = currentForwardUrl === mailgunExpectedUrl;
+                  return (
+                    <div
+                      key={route.id}
+                      className={`rounded-md border p-3 text-sm ${
+                        isCorrect
+                          ? 'border-emerald-200 bg-emerald-50'
+                          : 'border-amber-200 bg-amber-50'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="space-y-1 min-w-0">
+                          <p className="font-medium text-neutral-900">
+                            {route.description || 'Unnamed route'}
+                          </p>
+                          <p className="text-xs text-neutral-600 break-all">
+                            <span className="font-medium">Match:</span> {route.expression}
+                          </p>
+                          {(route.actions || []).map((action: string, idx: number) => (
+                            <p key={idx} className="text-xs text-neutral-600 break-all">
+                              <span className="font-medium">Action:</span> {action}
+                            </p>
+                          ))}
+                          <p className="text-xs text-neutral-500">
+                            Priority: {route.priority} | ID: {route.id}
+                          </p>
+                        </div>
+                        <div className="flex flex-col gap-1 shrink-0">
+                          {isCorrect ? (
+                            <span className="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800">
+                              Correct
+                            </span>
+                          ) : (
+                            <>
+                              <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">
+                                Wrong target
+                              </span>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() =>
+                                  handleUpdateMailgunRoute(route.id, mailgunExpectedUrl)
+                                }
+                              >
+                                Fix to correct URL
+                              </Button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </Card>
         </div>
       )}
