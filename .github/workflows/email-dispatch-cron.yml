@@ -12,7 +12,7 @@ jobs:
     steps:
       - name: Trigger reconcile, flow runner, and dispatch worker
         env:
-          APP_BASE_URL: ${{ secrets.APP_BASE_URL || vars.APP_BASE_URL || 'https://main--tinglum.netlify.app' }}
+          CRON_BASE_URL: ${{ secrets.CRON_BASE_URL || vars.CRON_BASE_URL || 'https://main--tinglum.netlify.app' }}
           CRON_SECRET: ${{ secrets.CRON_SECRET || vars.CRON_SECRET }}
         run: |
           set -euo pipefail
@@ -22,9 +22,9 @@ jobs:
             exit 1
           fi
 
-          echo "Using APP_BASE_URL=${APP_BASE_URL}"
+          echo "Using CRON_BASE_URL=${CRON_BASE_URL}"
 
-          RECONCILE_URL="${APP_BASE_URL%/}/api/cron/email-flow-reconcile"
+          RECONCILE_URL="${CRON_BASE_URL%/}/api/cron/email-flow-reconcile"
           RECONCILE_RESPONSE_FILE=/tmp/email-flow-reconcile-response.json
 
           RECONCILE_HTTP_CODE=$(curl --silent --show-error \
@@ -47,7 +47,7 @@ jobs:
             fi
           fi
 
-          FLOW_URL="${APP_BASE_URL%/}/api/cron/email-flow-runner"
+          FLOW_URL="${CRON_BASE_URL%/}/api/cron/email-flow-runner"
           FLOW_RESPONSE_FILE=/tmp/email-flow-runner-response.json
 
           FLOW_HTTP_CODE=$(curl --silent --show-error \
@@ -70,7 +70,7 @@ jobs:
             fi
           fi
 
-          DISPATCH_URL="${APP_BASE_URL%/}/api/cron/email-dispatch"
+          DISPATCH_URL="${CRON_BASE_URL%/}/api/cron/email-dispatch"
           DISPATCH_RESPONSE_FILE=/tmp/email-dispatch-response.json
 
           DISPATCH_HTTP_CODE=$(curl --silent --show-error \

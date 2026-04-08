@@ -13,7 +13,7 @@ jobs:
     steps:
       - name: Trigger egg wishlist proposal job
         env:
-          APP_BASE_URL: ${{ secrets.APP_BASE_URL || vars.APP_BASE_URL || 'https://main--tinglum.netlify.app' }}
+          CRON_BASE_URL: ${{ secrets.CRON_BASE_URL || vars.CRON_BASE_URL || 'https://main--tinglum.netlify.app' }}
           CRON_SECRET: ${{ secrets.CRON_SECRET || vars.CRON_SECRET }}
         run: |
           set -euo pipefail
@@ -23,7 +23,7 @@ jobs:
             exit 1
           fi
 
-          URL="${APP_BASE_URL%/}/api/cron/egg-wishlist-proposal"
+          URL="${CRON_BASE_URL%/}/api/cron/egg-wishlist-proposal"
           RESPONSE_FILE=/tmp/egg-wishlist-proposal-response.json
 
           HTTP_CODE=$(curl --silent --show-error \
@@ -41,4 +41,3 @@ jobs:
             echo "::error::Egg wishlist proposal endpoint failed with HTTP $HTTP_CODE"
             exit 1
           fi
-

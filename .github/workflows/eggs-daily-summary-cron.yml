@@ -12,7 +12,7 @@ jobs:
     steps:
       - name: Trigger eggs daily summary
         env:
-          APP_BASE_URL: ${{ secrets.APP_BASE_URL || vars.APP_BASE_URL || 'https://main--tinglum.netlify.app' }}
+          CRON_BASE_URL: ${{ secrets.CRON_BASE_URL || vars.CRON_BASE_URL || 'https://main--tinglum.netlify.app' }}
           CRON_SECRET: ${{ secrets.CRON_SECRET || vars.CRON_SECRET }}
         run: |
           set -euo pipefail
@@ -22,9 +22,9 @@ jobs:
             exit 1
           fi
 
-          echo "Using APP_BASE_URL=${APP_BASE_URL}"
+          echo "Using CRON_BASE_URL=${CRON_BASE_URL}"
 
-          URL="${APP_BASE_URL%/}/api/cron/eggs-daily-summary"
+          URL="${CRON_BASE_URL%/}/api/cron/eggs-daily-summary"
           RESPONSE_FILE=/tmp/eggs-daily-summary-response.json
 
           HTTP_CODE=$(curl --silent --show-error \
