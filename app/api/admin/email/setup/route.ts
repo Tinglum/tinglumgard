@@ -6,8 +6,17 @@ import {
   getEmailSchemaStatus,
   isMissingEmailRelationError,
 } from '@/lib/email/schema';
+import { getSupportReplyAddress } from '@/lib/messages/reply-address';
 
 type CountQueryResult = { count: number | null; error: unknown };
+
+function extractMailbox(value?: string | null) {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+
+  const match = raw.match(/<([^>]+)>/);
+  return (match ? match[1] : raw).trim().toLowerCase();
+}
 
 async function safeCount(query: PromiseLike<CountQueryResult>) {
   try {
@@ -21,6 +30,7 @@ async function safeCount(query: PromiseLike<CountQueryResult>) {
 
 function inferPrimaryCause(input: {
   envStatus: {
+    emailReplyTo: boolean;
     cronSecret: boolean;
     nextPublicAppUrl: boolean;
   };
@@ -31,7 +41,12 @@ function inferPrimaryCause(input: {
   latestRunError: string | null;
   queuePending: number | null;
   queueProcessing: number | null;
-}): string {
+  supportReplyUsesDedicatedMailbox: boolean;
+  generalReplyMatchesSender: boolean;
+}) {
+  if (!input.envStatus.emailReplyTo) return 'EMAIL_REPLY_TO missing';
+  if (input.generalReplyMatchesSender) return 'General Reply-To matches sender mailbox';
+  if (!input.supportReplyUsesDedicatedMailbox) return 'Support replies do not use a dedicated inbox';
   if (!input.envStatus.cronSecret) return 'CRON_SECRET missing';
   if (!input.envStatus.nextPublicAppUrl) return 'NEXT_PUBLIC_APP_URL missing';
   if (!input.schemaReady) return 'Email schema not fully migrated';
@@ -54,6 +69,22 @@ export async function GET() {
 
   const settings = await getEmailDispatchSettings(true);
   const schemaStatus = await getEmailSchemaStatus();
+  const senderAddress = extractMailbox(settings.defaultFrom);
+  const generalReplyAddress = extractMailbox(settings.defaultReplyTo);
+  const supportReplyAddress = getSupportReplyAddress({
+    configuredReplyTo: settings.defaultReplyTo,
+    configuredFrom: settings.defaultFrom,
+    mailDomain: process.env.MAILGUN_DOMAIN,
+  });
+  const supportReplyUsesDedicatedMailbox = Boolean(
+    supportReplyAddress && senderAddress && supportReplyAddress !== senderAddress
+  );
+  const supportReplyOverridesGeneralReplyTo = Boolean(
+    supportReplyAddress &&
+      generalReplyAddress &&
+      supportReplyAddress !== generalReplyAddress
+  );
+
   const { data: suppressions, error: suppressionsError } = await supabaseAdmin
     .from('email_suppression_list')
     .select('*')
@@ -71,6 +102,7 @@ export async function GET() {
     mailgunApiKey: Boolean(process.env.MAILGUN_API_KEY),
     mailgunDomain: Boolean(process.env.MAILGUN_DOMAIN),
     mailgunWebhookSigningKey: Boolean(process.env.MAILGUN_WEBHOOK_SIGNING_KEY),
+    emailReplyTo: Boolean(process.env.EMAIL_REPLY_TO),
     cronSecret: Boolean(process.env.CRON_SECRET),
     nextPublicAppUrl: Boolean(process.env.NEXT_PUBLIC_APP_URL),
   };
@@ -153,39 +185,55 @@ export async function GET() {
           : 'unknown';
 
   const diagnosticsCauses: string[] = [];
-  if (!envStatus.cronSecret) diagnosticsCauses.push('CRON_SECRET mangler i miljø');
-  if (!envStatus.nextPublicAppUrl) diagnosticsCauses.push('NEXT_PUBLIC_APP_URL mangler i miljø');
-  if (!schemaStatus.ready) diagnosticsCauses.push(`Manglende tabeller: ${schemaStatus.missingTables.join(', ')}`);
-  if (settings.mode === 'legacy') diagnosticsCauses.push('Dispatch mode står på legacy (bruk active i produksjon)');
-  if (settings.paused) diagnosticsCauses.push('Dispatch worker er pauset');
-  if (!latestFlowRun) diagnosticsCauses.push('Ingen flow-run registrert ennå');
-  if (latestRunAgeMinutes !== null && latestRunAgeMinutes > 30) {
-    diagnosticsCauses.push(`Siste flow-run er gammel (${latestRunAgeMinutes} min siden)`);
+  if (!envStatus.emailReplyTo) {
+    diagnosticsCauses.push('EMAIL_REPLY_TO is missing in the environment, so support threads use a computed reply address.');
   }
-  if (latestFlowRun?.error) diagnosticsCauses.push(`Siste flow-run feilet: ${String(latestFlowRun.error)}`);
+  if (generalReplyAddress && senderAddress && generalReplyAddress === senderAddress) {
+    diagnosticsCauses.push('General Reply-To points to the same mailbox as the sender address.');
+  }
+  if (!supportReplyUsesDedicatedMailbox) {
+    diagnosticsCauses.push('Support messages are not replying to a dedicated messaging inbox.');
+  }
+  if (!envStatus.cronSecret) diagnosticsCauses.push('CRON_SECRET is missing');
+  if (!envStatus.nextPublicAppUrl) diagnosticsCauses.push('NEXT_PUBLIC_APP_URL is missing');
+  if (!schemaStatus.ready) diagnosticsCauses.push(`Missing tables: ${schemaStatus.missingTables.join(', ')}`);
+  if (settings.mode === 'legacy') diagnosticsCauses.push('Dispatch mode is legacy (use active in production)');
+  if (settings.paused) diagnosticsCauses.push('Dispatch worker is paused');
+  if (!latestFlowRun) diagnosticsCauses.push('No flow run has been recorded yet');
+  if (latestRunAgeMinutes !== null && latestRunAgeMinutes > 30) {
+    diagnosticsCauses.push(`Latest flow run is stale (${latestRunAgeMinutes} min ago)`);
+  }
+  if (latestFlowRun?.error) diagnosticsCauses.push(`Latest flow run failed: ${String(latestFlowRun.error)}`);
 
   const suggestedFixes: string[] = [];
   if (!envStatus.cronSecret) {
-    suggestedFixes.push('Sett CRON_SECRET i både hosting-miljø og GitHub Secrets.');
+    suggestedFixes.push('Set CRON_SECRET in both hosting environment variables and GitHub Secrets.');
   }
   if (!envStatus.nextPublicAppUrl) {
-    suggestedFixes.push('Sett NEXT_PUBLIC_APP_URL til produksjonsdomenet (for eksempel https://tinglumgard.no).');
+    suggestedFixes.push('Set NEXT_PUBLIC_APP_URL to the production domain, for example https://tinglumgard.no.');
+  }
+  if (!envStatus.emailReplyTo) {
+    suggestedFixes.push(`Set EMAIL_REPLY_TO to ${supportReplyAddress} in production.`);
+  }
+  if (generalReplyAddress && senderAddress && generalReplyAddress === senderAddress) {
+    suggestedFixes.push(`Use a dedicated support reply-to mailbox, for example ${supportReplyAddress}.`);
   }
   if (!schemaStatus.ready) {
-    suggestedFixes.push('Kjør manglende migrasjoner for unified email-tabellene i produksjonsdatabasen.');
+    suggestedFixes.push('Run the missing unified email migrations in the production database.');
   }
   if (settings.mode === 'legacy') {
-    suggestedFixes.push('Bytt dispatch mode til active når miljø og migrasjoner er verifisert.');
+    suggestedFixes.push('Switch dispatch mode to active once environment and migrations are verified.');
   }
   if (settings.paused) {
-    suggestedFixes.push('Fjern pause på dispatch worker.');
+    suggestedFixes.push('Unpause the dispatch worker.');
   }
   if ((pendingCount || 0) > 0 && latestRunAgeMinutes !== null && latestRunAgeMinutes > 10) {
-    suggestedFixes.push('Verifiser at cron kjører hvert minutt og at token sendes i både header og query.');
+    suggestedFixes.push('Verify cron runs every minute and that the token is sent in both header and query.');
   }
 
   const primaryCause = inferPrimaryCause({
     envStatus: {
+      emailReplyTo: envStatus.emailReplyTo,
       cronSecret: envStatus.cronSecret,
       nextPublicAppUrl: envStatus.nextPublicAppUrl,
     },
@@ -196,6 +244,10 @@ export async function GET() {
     latestRunError: latestFlowRun?.error ? String(latestFlowRun.error) : null,
     queuePending: pendingCount,
     queueProcessing: processingCount,
+    supportReplyUsesDedicatedMailbox,
+    generalReplyMatchesSender: Boolean(
+      generalReplyAddress && senderAddress && generalReplyAddress === senderAddress
+    ),
   });
 
   return NextResponse.json({
@@ -205,6 +257,11 @@ export async function GET() {
     suppressionList: suppressions || [],
     suppressionUnavailable,
     diagnostics: {
+      senderAddress,
+      generalReplyAddress,
+      supportReplyAddress,
+      supportReplyUsesDedicatedMailbox,
+      supportReplyOverridesGeneralReplyTo,
       cronUrls,
       latestFlowRun,
       latestRunState,

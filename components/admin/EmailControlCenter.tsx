@@ -102,6 +102,11 @@ type SetupPayload = {
 };
 
 type SetupDiagnostics = {
+  senderAddress?: string;
+  generalReplyAddress?: string;
+  supportReplyAddress?: string;
+  supportReplyUsesDedicatedMailbox?: boolean;
+  supportReplyOverridesGeneralReplyTo?: boolean;
   cronUrls?: {
     reconcile?: string;
     flowRunner?: string;
@@ -1453,7 +1458,23 @@ export function EmailControlCenter() {
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
           <Card className="p-4 space-y-3 xl:col-span-2">
             <h3 className="text-lg font-medium">Diagnostics</h3>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-3 text-sm">
+            <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-6 gap-3 text-sm">
+              <div className="rounded-md border border-neutral-200 bg-neutral-50 p-3">
+                <p className="text-neutral-500">Support reply inbox</p>
+                <p className="font-medium">{setupDiagnostics?.supportReplyAddress || 'Unknown'}</p>
+                <p className="mt-1 text-xs text-neutral-500">
+                  {setupDiagnostics?.supportReplyUsesDedicatedMailbox
+                    ? 'Dedicated inbox for support threads'
+                    : 'Not using a dedicated support inbox'}
+                </p>
+              </div>
+              <div className="rounded-md border border-neutral-200 bg-neutral-50 p-3">
+                <p className="text-neutral-500">General Reply-To</p>
+                <p className="font-medium">{setupDiagnostics?.generalReplyAddress || setup.defaultReplyTo || 'Unknown'}</p>
+                <p className="mt-1 text-xs text-neutral-500">
+                  sender: {setupDiagnostics?.senderAddress || setup.defaultFrom || 'Unknown'}
+                </p>
+              </div>
               <div className="rounded-md border border-neutral-200 bg-neutral-50 p-3">
                 <p className="text-neutral-500">Cron: reconcile</p>
                 <p className="font-medium">{setupDiagnostics?.cronUrls?.reconcile || '/api/cron/email-flow-reconcile'}</p>
@@ -1486,6 +1507,18 @@ export function EmailControlCenter() {
               <div className="rounded-md border border-neutral-300 bg-neutral-100 p-3 text-sm text-neutral-800">
                 <p className="font-medium">Primary cause</p>
                 <p className="mt-1">{setupDiagnostics.primaryCause}</p>
+              </div>
+            ) : null}
+
+            {setupDiagnostics?.supportReplyOverridesGeneralReplyTo ? (
+              <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                Support threads are overriding the general Reply-To so customer replies go to
+                {' '}
+                <span className="font-medium">{setupDiagnostics.supportReplyAddress}</span>
+                {' '}
+                instead of
+                {' '}
+                <span className="font-medium">{setupDiagnostics.generalReplyAddress}</span>.
               </div>
             ) : null}
 
@@ -1564,6 +1597,7 @@ export function EmailControlCenter() {
                 <p>MAILGUN_API_KEY: {envStatus.mailgunApiKey ? 'ok' : 'missing'}</p>
                 <p>MAILGUN_DOMAIN: {envStatus.mailgunDomain ? 'ok' : 'missing'}</p>
                 <p>MAILGUN_WEBHOOK_SIGNING_KEY: {envStatus.mailgunWebhookSigningKey ? 'ok' : 'missing'}</p>
+                <p>EMAIL_REPLY_TO: {envStatus.emailReplyTo ? 'ok' : 'missing'}</p>
                 <p>CRON_SECRET: {envStatus.cronSecret ? 'ok' : 'missing'}</p>
                 <p>NEXT_PUBLIC_APP_URL: {envStatus.nextPublicAppUrl ? 'ok' : 'missing'}</p>
               </div>
@@ -1606,6 +1640,12 @@ export function EmailControlCenter() {
               value={setup.defaultReplyTo}
               onChange={(event) => setSetup((prev) => ({ ...prev, defaultReplyTo: event.target.value }))}
             />
+            <p className="text-xs text-neutral-500">
+              Support threads currently reply to
+              {' '}
+              <span className="font-medium">{setupDiagnostics?.supportReplyAddress || 'unknown'}</span>
+              .
+            </p>
             <Button onClick={handleSaveSetup}>Save Setup</Button>
           </Card>
           <Card className="p-4 space-y-2">
@@ -1682,5 +1722,3 @@ export function EmailControlCenter() {
     </div>
   );
 }
-
-
