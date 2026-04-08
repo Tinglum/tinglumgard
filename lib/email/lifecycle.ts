@@ -1701,7 +1701,7 @@ async function materializeChickenFlowInstances(flowMap: Map<string, FlowDefiniti
 
   const { data: orders } = await supabaseAdmin
     .from('chicken_orders')
-    .select('id, order_number, customer_name, customer_email, status, pickup_monday, pickup_date, pickup_time, pickup_week, remainder_amount_nok, created_at')
+    .select('id, order_number, customer_name, customer_email, status, pickup_monday, pickup_date, pickup_week, remainder_amount_nok, created_at')
     .in('status', ['deposit_paid', 'ready_for_pickup', 'fully_paid']);
 
   let inserted = 0;
@@ -2162,11 +2162,24 @@ async function processDueInstances(
     }
 
     if (instance.flow_key === 'chicken.pickup.reminder') {
-      const { data: chickenOrder } = await supabaseAdmin
-        .from('chicken_orders')
-        .select('status, pickup_date, pickup_time')
-        .eq('id', instance.entity_id)
-        .maybeSingle();
+      let chickenOrder: Record<string, unknown> | null = null;
+      {
+        const { data, error } = await supabaseAdmin
+          .from('chicken_orders')
+          .select('status, pickup_date, pickup_time')
+          .eq('id', instance.entity_id)
+          .maybeSingle();
+        if (error && isMissingLifecycleColumnError(error)) {
+          const fallback = await supabaseAdmin
+            .from('chicken_orders')
+            .select('status, pickup_date')
+            .eq('id', instance.entity_id)
+            .maybeSingle();
+          chickenOrder = fallback.data as Record<string, unknown> | null;
+        } else {
+          chickenOrder = data as Record<string, unknown> | null;
+        }
+      }
 
       const status = String(chickenOrder?.status || '');
       if (!chickenOrder || status === 'cancelled' || status === 'picked_up') {
