@@ -379,7 +379,7 @@ async function fetchUpcomingDates() {
       .from('egg_orders')
       .select('id, order_number, customer_name, delivery_method, delivery_monday, status')
       .eq('delivery_method', 'posten')
-      .not('status', 'in', '(cancelled,forfeited,shipped,delivered)')
+      .in('status', ['fully_paid', 'preparing'])
       .gte('delivery_monday', weekStartStr)
       .lte('delivery_monday', weekEndStr)
       .order('delivery_monday', { ascending: true });

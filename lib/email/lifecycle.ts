@@ -1444,7 +1444,7 @@ async function materializeEggFlowInstances(flowMap: Map<string, FlowDefinition>,
   const { data: orders } = await supabaseAdmin
     .from('egg_orders')
     .select(
-      'id, order_number, customer_name, customer_email, status, week_number, delivery_monday, remainder_due_date, remainder_amount, deposit_amount, total_amount, breed_name, quantity, tracking_number, marked_shipped_at, updated_at'
+      'id, order_number, customer_name, customer_email, status, week_number, delivery_monday, remainder_due_date, remainder_amount, deposit_amount, total_amount, quantity, tracking_number, marked_shipped_at, updated_at, egg_breeds(name)'
     )
     .in('status', ['deposit_paid', 'fully_paid', 'preparing', 'shipped', 'delivered']);
 
@@ -1473,7 +1473,7 @@ async function materializeEggFlowInstances(flowMap: Map<string, FlowDefinition>,
     const eggStatus = String(order.status || '');
     const eggSummaryNo = summarizeEggOrderLines(detailedOrder as any, 'no');
     const eggSummaryEn = summarizeEggOrderLines(detailedOrder as any, 'en');
-    const eggBreedNameNo = eggSummaryNo.breedLabel || String((order as any).breed_name || 'Rugeegg');
+    const eggBreedNameNo = eggSummaryNo.breedLabel || String((order as any).egg_breeds?.name || 'Rugeegg');
     const eggBreedNameEn = eggSummaryEn.breedLabel || eggBreedNameNo;
     const totalQuantity = eggSummaryNo.totalQuantity;
     const deliveryLabelNo = getEggDeliveryLabel(String((detailedOrder as any).delivery_method || ''), 'no');
