@@ -625,7 +625,18 @@ export default function AdminPage() {
                 onInitialCustomerHandled={() => setDeepLinkCustomerId(null)}
               />
             )}
-                {customersSubTab === 'messages' && <AdminMessagingPanel initialMessageId={deepLinkMessageId} />}
+                {customersSubTab === 'messages' && (
+                  <AdminMessagingPanel
+                    initialMessageId={deepLinkMessageId}
+                    onStatsChange={(stats) =>
+                      setUnresolvedCount(
+                        typeof stats.attention_required === 'number'
+                          ? stats.attention_required
+                          : stats.open + stats.in_progress
+                      )
+                    }
+                  />
+                )}
                 {customersSubTab === 'email' && (
                   <EmailControlCenter
                     initialTab={deepLinkEmailTab}

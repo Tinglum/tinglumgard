@@ -3,6 +3,7 @@ import { getSession } from '@/lib/auth/session';
 import { isMissingEmailRelationError } from '@/lib/email/schema';
 import { supabaseAdmin } from '@/lib/supabase/server';
 import { getEffectiveBoxSize, normalizeOrderForDisplay } from '@/lib/orders/display';
+import { needsAdminAttention } from '@/lib/messages/admin-attention';
 
 export async function GET(request: NextRequest) {
   const session = await getSession();
@@ -145,7 +146,7 @@ export async function GET(request: NextRequest) {
         count: eggReadyToShip.length,
       },
       unreadMessages: {
-        count: messageResult.open + messageResult.in_progress,
+        count: messageResult.attention_required,
       },
       shippingMissing: {
         count: eggShippingMissing.length,
@@ -279,11 +280,21 @@ async function fetchChickenData() {
 async function fetchMessageStats() {
   const { data, error } = await supabaseAdmin
     .from('customer_messages')
-    .select('id, status');
+    .select(`
+      id,
+      status,
+      initiated_by,
+      created_at,
+      message_replies (
+        created_at,
+        is_internal,
+        is_from_customer
+      )
+    `);
 
   if (error) {
     console.warn('Could not fetch messages:', error.message);
-    return { total: 0, open: 0, in_progress: 0, resolved: 0 };
+    return { total: 0, open: 0, in_progress: 0, resolved: 0, attention_required: 0 };
   }
 
   const messages = data || [];
@@ -292,6 +303,7 @@ async function fetchMessageStats() {
     open: messages.filter((m) => m.status === 'open').length,
     in_progress: messages.filter((m) => m.status === 'in_progress').length,
     resolved: messages.filter((m) => m.status === 'resolved').length,
+    attention_required: messages.filter(needsAdminAttention).length,
   };
 }
 

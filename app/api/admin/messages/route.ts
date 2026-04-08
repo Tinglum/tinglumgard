@@ -7,40 +7,11 @@ import { buildCustomerMessageEmail } from '@/lib/messages/customer-email';
 import { getCustomerFacingAdminName } from '@/lib/messages/admin-sender';
 import { recordMessageEmailDebugEvent } from '@/lib/messages/email-debug';
 import { buildSupportThreadMessageId } from '@/lib/messages/threading';
+import { needsAdminAttention } from '@/lib/messages/admin-attention';
 
 const MESSAGE_TYPES = new Set(['support', 'inquiry', 'complaint', 'feedback', 'referral_question']);
 const PRIORITIES = new Set(['low', 'normal', 'high', 'urgent']);
 const RELATED_ORDER_SOURCES = new Set(['pig', 'egg', 'chicken']);
-
-function needsAdminAttention(message: {
-  status?: string | null;
-  initiated_by?: string | null;
-  message_replies?: Array<{
-    is_from_customer?: boolean | null;
-    is_internal?: boolean | null;
-    created_at?: string | null;
-  }> | null;
-}) {
-  const isUnresolved = message.status === 'open' || message.status === 'in_progress';
-  if (!isUnresolved) return false;
-
-  const publicReplies = Array.isArray(message.message_replies)
-    ? message.message_replies
-        .filter((reply) => !reply?.is_internal)
-        .sort(
-          (left, right) =>
-            new Date(left?.created_at || 0).getTime() - new Date(right?.created_at || 0).getTime()
-        )
-    : [];
-
-  const latestPublicReply = publicReplies.length > 0 ? publicReplies[publicReplies.length - 1] : null;
-
-  if (latestPublicReply) {
-    return Boolean(latestPublicReply.is_from_customer);
-  }
-
-  return message.initiated_by !== 'admin';
-}
 
 function normalizeEmail(value?: string | null) {
   const email = String(value || '').trim().toLowerCase();

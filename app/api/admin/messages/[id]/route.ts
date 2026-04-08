@@ -3,6 +3,7 @@ import { getSession } from '@/lib/auth/session';
 import { supabaseAdmin } from '@/lib/supabase/server';
 import { logError } from '@/lib/logger';
 import { listMessageEmailDebugEvents } from '@/lib/messages/email-debug';
+import { needsAdminAttention } from '@/lib/messages/admin-attention';
 
 const ALLOWED_STATUSES = new Set(['open', 'in_progress', 'resolved', 'closed']);
 
@@ -36,6 +37,29 @@ export async function GET(_request: NextRequest, context: { params: { id: string
     if (error) {
       logError('admin-message-get', error);
       return NextResponse.json({ error: 'Failed to fetch message' }, { status: 500 });
+    }
+
+    if (needsAdminAttention(message)) {
+      const viewedAt = new Date().toISOString();
+      const { data: internalViewReply, error: viewError } = await supabaseAdmin
+        .from('message_replies')
+        .insert({
+          message_id: message.id,
+          admin_name: 'System',
+          reply_text: '[admin_viewed]',
+          is_internal: true,
+          is_from_customer: false,
+          source: 'panel',
+          created_at: viewedAt,
+        })
+        .select('id, admin_name, reply_text, is_internal, is_from_customer, source, email_message_id, created_at')
+        .maybeSingle();
+
+      if (viewError) {
+        logError('admin-message-mark-viewed', viewError);
+      } else if (internalViewReply) {
+        message.message_replies = [...(message.message_replies || []), internalViewReply];
+      }
     }
 
     const emailDebugEvents = await listMessageEmailDebugEvents({

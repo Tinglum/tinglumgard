@@ -12,6 +12,7 @@ interface MessageReply {
   message_id: string;
   admin_name: string | null;
   reply_text: string;
+  is_internal?: boolean;
   is_from_customer?: boolean;
   source?: string | null;
   email_message_id?: string | null;
@@ -56,9 +57,19 @@ type PriorityFilter = 'all' | 'low' | 'normal' | 'high' | 'urgent';
 
 interface AdminMessagingPanelProps {
   initialMessageId?: string | null;
+  onStatsChange?: (stats: {
+    total: number;
+    open: number;
+    in_progress: number;
+    resolved: number;
+    attention_required?: number;
+  }) => void;
 }
 
-export function AdminMessagingPanel({ initialMessageId = null }: AdminMessagingPanelProps) {
+export function AdminMessagingPanel({
+  initialMessageId = null,
+  onStatsChange,
+}: AdminMessagingPanelProps) {
   const { t, lang } = useLanguage();
   const copy = t.adminMessagingPanel;
   const locale = lang === 'en' ? 'en-US' : 'nb-NO';
@@ -101,6 +112,7 @@ export function AdminMessagingPanel({ initialMessageId = null }: AdminMessagingP
       setMessages(data.messages || []);
       if (data.stats) {
         setStats(data.stats);
+        onStatsChange?.(data.stats);
       }
       return data.messages || [];
     } catch (error) {
@@ -111,7 +123,7 @@ export function AdminMessagingPanel({ initialMessageId = null }: AdminMessagingP
         setLoading(false);
       }
     }
-  }, [initialMessageId, priorityFilter, statusFilter]);
+  }, [initialMessageId, onStatsChange, priorityFilter, statusFilter]);
 
   useEffect(() => {
     loadMessages();
@@ -119,9 +131,11 @@ export function AdminMessagingPanel({ initialMessageId = null }: AdminMessagingP
 
   useEffect(() => {
     const interval = window.setInterval(async () => {
-      await loadMessages(false);
       if (selectedMessage) {
         await loadMessageDetail(selectedMessage.id);
+        await loadMessages(false);
+      } else {
+        await loadMessages(false);
       }
     }, 15000);
 
@@ -137,7 +151,8 @@ export function AdminMessagingPanel({ initialMessageId = null }: AdminMessagingP
   const openMessage = useCallback(async (message: CustomerMessage) => {
     setSelectedMessage(message);
     await loadMessageDetail(message.id);
-  }, [loadMessageDetail]);
+    await loadMessages(false);
+  }, [loadMessageDetail, loadMessages]);
 
   const handleSendReply = async () => {
     if (!replyText.trim() || !selectedMessage) return;
@@ -249,9 +264,11 @@ export function AdminMessagingPanel({ initialMessageId = null }: AdminMessagingP
     getRootSenderName(message).trim().charAt(0).toUpperCase() || copy.customerFallback.charAt(0).toUpperCase();
 
   const getSortedReplies = (message: CustomerMessage) =>
-    [...(message.message_replies || [])].sort(
+    [...(message.message_replies || [])]
+      .filter((reply) => !reply.is_internal)
+      .sort(
       (left, right) => new Date(left.created_at).getTime() - new Date(right.created_at).getTime()
-    );
+      );
 
   const getLatestReply = (message: CustomerMessage) => {
     const replies = getSortedReplies(message);
