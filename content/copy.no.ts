@@ -3373,6 +3373,7 @@
       orderActionFailed: "Kunne ikke utføre handling",
       bulkActionFailed: "Kunne ikke utføre bulk handling",
       exportCsv: "Kunne ikke eksportere CSV",
+      openCustomerProfile: "Kunne ikke åpne kundeprofilen fordi ordren mangler kontaktinformasjon.",
     },
     toast: {
       errorTitle: "Feil",
@@ -3463,6 +3464,10 @@
       updateDeliveryButton: "Oppdater levering",
       manualStatusLabel: "Manuell status",
       customerShippingTitle: "Kunde og levering",
+      orderContentsTitle: "Ordreoversikt",
+      notesTitle: "Notater",
+      editSectionTitle: "Rediger ordre",
+      openTrackingButton: "Åpne sporing",
       pricingStatusNotesTitle: "Pris, status, notater",
       fields: {
         name: "Navn",

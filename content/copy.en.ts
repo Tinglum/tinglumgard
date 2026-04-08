@@ -3370,6 +3370,7 @@
       orderActionFailed: "Could not perform action",
       bulkActionFailed: "Could not perform bulk action",
       exportCsv: "Could not export CSV",
+      openCustomerProfile: "Could not open the customer profile because the order has no contact details.",
     },
     toast: {
       errorTitle: "Error",
@@ -3460,6 +3461,10 @@
       updateDeliveryButton: "Update delivery",
       manualStatusLabel: "Manual status",
       customerShippingTitle: "Customer and shipping",
+      orderContentsTitle: "Order overview",
+      notesTitle: "Notes",
+      editSectionTitle: "Edit order",
+      openTrackingButton: "Open tracking",
       pricingStatusNotesTitle: "Price, status, notes",
       fields: {
         name: "Name",

@@ -12,17 +12,25 @@ import { useLanguage } from '@/contexts/LanguageContext'
 import {
   AlertTriangle,
   ArrowUpDown,
+  CalendarDays,
   CheckCircle2,
   ChevronDown,
   ChevronUp,
+  CircleDollarSign,
   Download,
+  ExternalLink,
+  FileText,
   Loader2,
+  Mail,
+  MapPin,
   Package,
+  Phone,
   RefreshCw,
   Search,
   Settings,
   ShieldAlert,
   Truck,
+  UserRound,
   X,
 } from 'lucide-react'
 import {
@@ -153,6 +161,7 @@ interface EggOrderFormState {
 type EggOrdersWorkbenchProps = {
   initialOrderId?: string | null
   onInitialOrderHandled?: () => void
+  onNavigateToCustomer?: (customerId: string) => void
 }
 
 const STATUS_OPTIONS = [
@@ -316,6 +325,20 @@ function getEggQuantities(order: Pick<EggOrder, 'quantity' | 'egg_order_addition
   return { base, additions, total }
 }
 
+function resolveCustomerLookup(customerEmail?: string | null, customerPhone?: string | null): string | null {
+  const email = String(customerEmail || '').trim()
+  if (email) return email
+  const digits = String(customerPhone || '').replace(/\D+/g, '')
+  return digits || null
+}
+
+function buildTrackingUrl(trackingNumber?: string | null): string | null {
+  const value = String(trackingNumber || '').trim()
+  if (!value) return null
+  if (/^https?:\/\//i.test(value)) return value
+  return `https://sporing.posten.no/sporing/${encodeURIComponent(value)}`
+}
+
 function toFormState(order: EggOrder, defaultCountry: string): EggOrderFormState {
   return {
     customerName: order.customer_name || '',
@@ -345,10 +368,12 @@ function toFormState(order: EggOrder, defaultCountry: string): EggOrderFormState
 export function EggOrdersWorkbench({
   initialOrderId = null,
   onInitialOrderHandled,
+  onNavigateToCustomer,
 }: EggOrdersWorkbenchProps = {}) {
   const { toast } = useToast()
   const { t } = useLanguage()
   const copy = t.eggOrdersWorkbench
+  const customerCopy = t.customerDatabase
   const [orders, setOrders] = useState<EggOrder[]>([])
   const [summary, setSummary] = useState<EggOrdersSummary>(EMPTY_SUMMARY)
   const [availableWeeks, setAvailableWeeks] = useState<WeekOption[]>([])
@@ -836,6 +861,47 @@ export function EggOrdersWorkbench({
 
   const revenue = useMemo(() => formatOre(summary.revenueOre), [summary.revenueOre])
   const outstanding = useMemo(() => formatOre(summary.outstandingOre), [summary.outstandingOre])
+  const selectedQuantities = useMemo(
+    () => (selectedOrder ? getEggQuantities(selectedOrder) : null),
+    [selectedOrder]
+  )
+  const selectedPaymentState = useMemo(
+    () => (selectedOrder ? getPaymentState(selectedOrder) : null),
+    [selectedOrder]
+  )
+  const selectedOrderAtRisk = useMemo(
+    () => (selectedOrder ? isAtRiskOrder(selectedOrder) : false),
+    [selectedOrder]
+  )
+  const selectedShippingMissing = useMemo(
+    () => (selectedOrder ? hasMissingShipping(selectedOrder) : false),
+    [selectedOrder]
+  )
+
+  function navigateToCustomerProfile(customerEmail?: string | null, customerPhone?: string | null) {
+    const lookup = resolveCustomerLookup(customerEmail, customerPhone)
+    if (!lookup) {
+      toast({
+        title: copy.toast.errorTitle,
+        description: copy.errors.openCustomerProfile,
+        variant: 'destructive',
+      })
+      return
+    }
+
+    if (onNavigateToCustomer) {
+      onNavigateToCustomer(lookup)
+      return
+    }
+
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search)
+      params.set('tab', 'customers')
+      params.set('subTab', 'database')
+      params.set('customerId', lookup)
+      window.location.href = `/admin?${params.toString()}`
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -1185,9 +1251,22 @@ export function EggOrdersWorkbench({
                         </div>
                       </td>
                       <td className="px-4 py-3 text-sm">
-                        <p className="font-medium text-neutral-900">{order.customer_name}</p>
-                        <p className="text-neutral-600">{order.customer_email}</p>
-                        {order.customer_phone && <p className="text-neutral-500">{order.customer_phone}</p>}
+                        <div className="space-y-1">
+                          <button
+                            type="button"
+                            onClick={() => navigateToCustomerProfile(order.customer_email, order.customer_phone)}
+                            className="font-medium text-left text-neutral-900 underline-offset-4 transition hover:text-neutral-700 hover:underline"
+                          >
+                            {order.customer_name}
+                          </button>
+                          <a
+                            href={`mailto:${order.customer_email}`}
+                            className="block text-neutral-600 underline-offset-4 hover:text-neutral-800 hover:underline"
+                          >
+                            {order.customer_email}
+                          </a>
+                          {order.customer_phone && <p className="text-neutral-500">{order.customer_phone}</p>}
+                        </div>
                       </td>
                       <td className="px-4 py-3 text-sm">
                         <p className="text-neutral-900">
@@ -1275,7 +1354,7 @@ export function EggOrdersWorkbench({
 
       {panelOpen && (
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-end">
-          <div className="w-full max-w-4xl h-full bg-white shadow-2xl border-l border-neutral-200 overflow-y-auto">
+          <div className="w-full max-w-5xl h-full bg-neutral-50 shadow-2xl border-l border-neutral-200 overflow-y-auto">
             <div className="sticky top-0 bg-white border-b border-neutral-200 px-6 py-4 flex items-start justify-between z-10">
               <div>
                 <h3 className="text-2xl font-light text-neutral-900">
@@ -1319,6 +1398,355 @@ export function EggOrdersWorkbench({
               </div>
             ) : (
               <div className="p-6 space-y-6">
+                {(() => {
+                  const paymentState = selectedPaymentState || getPaymentState(selectedOrder)
+                  const statusLabel = getStatusLabel(selectedOrder.status)
+                  const trackingUrl = buildTrackingUrl(selectedOrder.tracking_number)
+                  const summaryOrderQuantities = selectedQuantities || getEggQuantities(selectedOrder)
+                  const customerEmail = form.customerEmail || selectedOrder.customer_email || ''
+                  const customerPhone = form.customerPhone || selectedOrder.customer_phone || ''
+                  const shippingAddress = [
+                    form.shippingAddress,
+                    form.shippingPostalCode,
+                    form.shippingCity,
+                    form.shippingCountry,
+                  ]
+                    .map((value) => String(value || '').trim())
+                    .filter(Boolean)
+                    .join(', ')
+                  const dueOre = Math.max(
+                    0,
+                    (selectedOrder.remainder_amount || 0) -
+                      (selectedOrder.egg_payments || [])
+                        .filter((payment) => payment.payment_type === 'remainder' && payment.status === 'completed')
+                        .reduce((sum, payment) => sum + Math.round((payment.amount_nok || 0) * 100), 0)
+                  )
+                  const attentionClass = selectedShippingMissing
+                    ? 'border-amber-200 bg-amber-50 text-amber-900'
+                    : selectedOrderAtRisk || paymentState === 'deposit_pending' || paymentState === 'remainder_due'
+                      ? 'border-red-200 bg-red-50 text-red-900'
+                      : selectedOrder.status === 'delivered'
+                        ? 'border-emerald-200 bg-emerald-50 text-emerald-900'
+                        : 'border-slate-200 bg-slate-50 text-slate-900'
+                  const attentionText = selectedShippingMissing
+                    ? copy.filters.missingShippingData.replace('{count}', '1')
+                    : selectedOrderAtRisk
+                      ? getPaymentStateLabel(paymentState)
+                      : paymentState === 'deposit_pending'
+                        ? getPaymentStateLabel('deposit_pending')
+                        : paymentState === 'remainder_due'
+                          ? getPaymentStateLabel('remainder_due')
+                          : statusLabel
+
+                  return (
+                    <>
+                      <Card className="overflow-hidden border-neutral-200 shadow-sm">
+                        <div className="border-b border-neutral-200 bg-gradient-to-r from-neutral-50 via-white to-neutral-50 px-5 py-5">
+                          <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
+                            <div className="space-y-3">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className="inline-flex items-center rounded-full bg-neutral-900 px-3 py-1 text-xs font-medium text-white">
+                                  {statusLabel}
+                                </span>
+                                <span
+                                  className={cn(
+                                    'inline-flex items-center rounded-full px-3 py-1 text-xs font-medium',
+                                    paymentBadgeClass(paymentState)
+                                  )}
+                                >
+                                  {getPaymentStateLabel(paymentState)}
+                                </span>
+                                {selectedOrderAtRisk && (
+                                  <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-3 py-1 text-xs font-medium text-red-800">
+                                    <AlertTriangle className="h-3.5 w-3.5" />
+                                    {copy.table.riskBadge}
+                                  </span>
+                                )}
+                                {selectedShippingMissing && (
+                                  <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-3 py-1 text-xs font-medium text-amber-800">
+                                    <Truck className="h-3.5 w-3.5" />
+                                    {copy.table.shippingBadge}
+                                  </span>
+                                )}
+                              </div>
+                              <div>
+                                <p className="text-xs uppercase tracking-[0.2em] text-neutral-500">{copy.table.order}</p>
+                                <h4 className="mt-2 text-3xl font-light text-neutral-900">{selectedOrder.order_number}</h4>
+                                <p className="mt-2 text-sm text-neutral-600">
+                                  {replaceTokens(copy.panel.summaryValue, {
+                                    breed: selectedOrder.egg_breeds?.name || copy.fallbackBreedShort,
+                                    quantity: summaryOrderQuantities.total,
+                                    week: selectedOrder.week_number,
+                                    year: selectedOrder.year,
+                                  })}
+                                </p>
+                                {summaryOrderQuantities.additions > 0 && (
+                                  <p className="mt-1 text-xs text-neutral-500">
+                                    {replaceTokens(copy.panel.quantityBreakdownValue, {
+                                      base: summaryOrderQuantities.base,
+                                      additions: summaryOrderQuantities.additions,
+                                      total: summaryOrderQuantities.total,
+                                    })}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="flex flex-wrap gap-2 xl:max-w-xl xl:justify-end">
+                              <Button
+                                variant="outline"
+                                className="gap-2"
+                                onClick={() => navigateToCustomerProfile(customerEmail, customerPhone)}
+                                disabled={!resolveCustomerLookup(customerEmail, customerPhone)}
+                              >
+                                <UserRound className="h-4 w-4" />
+                                {customerCopy.viewProfileButton}
+                              </Button>
+                              <Button
+                                variant="outline"
+                                className="gap-2"
+                                onClick={() => {
+                                  window.location.href = `mailto:${customerEmail}`
+                                }}
+                                disabled={!customerEmail}
+                              >
+                                <Mail className="h-4 w-4" />
+                                {copy.panel.fields.email}
+                              </Button>
+                              <Button
+                                variant="outline"
+                                className="gap-2"
+                                onClick={() => {
+                                  window.location.href = `tel:${customerPhone}`
+                                }}
+                                disabled={!customerPhone}
+                              >
+                                <Phone className="h-4 w-4" />
+                                {copy.panel.fields.phone}
+                              </Button>
+                              {trackingUrl ? (
+                                <Button
+                                  variant="outline"
+                                  className="gap-2"
+                                  onClick={() => window.open(trackingUrl, '_blank', 'noopener,noreferrer')}
+                                >
+                                  <ExternalLink className="h-4 w-4" />
+                                  {copy.panel.openTrackingButton}
+                                </Button>
+                              ) : selectedOrder.delivery_method === 'posten' &&
+                                ['fully_paid', 'preparing'].includes(selectedOrder.status) ? (
+                                <Button
+                                  variant="outline"
+                                  className="gap-2"
+                                  disabled={markShippedLoading}
+                                  onClick={() => handleMarkAsSent(selectedOrder)}
+                                >
+                                  {markShippedLoading ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                  ) : (
+                                    <Package className="h-4 w-4" />
+                                  )}
+                                  {copy.markSent.button}
+                                </Button>
+                              ) : null}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 gap-3 p-5 md:grid-cols-2 xl:grid-cols-4">
+                          <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
+                            <div className="flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-neutral-500">
+                              <UserRound className="h-3.5 w-3.5" />
+                              {copy.table.customer}
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => navigateToCustomerProfile(customerEmail, customerPhone)}
+                              className="mt-3 block text-left text-lg font-medium text-neutral-900 underline-offset-4 hover:underline"
+                            >
+                              {form.customerName || selectedOrder.customer_name}
+                            </button>
+                            <p className="mt-1 text-sm text-neutral-600 break-all">{customerEmail || customerCopy.notProvided}</p>
+                            <p className="text-sm text-neutral-500">{customerPhone || customerCopy.notProvided}</p>
+                          </div>
+
+                          <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
+                            <div className="flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-neutral-500">
+                              <CalendarDays className="h-3.5 w-3.5" />
+                              {copy.table.delivery}
+                            </div>
+                            <p className="mt-3 text-lg font-medium text-neutral-900">
+                              {replaceTokens(copy.table.weekValue, {
+                                week: selectedOrder.week_number,
+                                year: selectedOrder.year,
+                              })}
+                            </p>
+                            <p className="mt-1 text-sm text-neutral-600">{getDeliveryLabel(selectedOrder.delivery_method)}</p>
+                            <p className="text-sm text-neutral-500">{formatDate(selectedOrder.delivery_monday)}</p>
+                            <p className="mt-2 text-xs text-neutral-500">
+                              {shippingAddress || customerCopy.notProvided}
+                            </p>
+                          </div>
+
+                          <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
+                            <div className="flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-neutral-500">
+                              <CircleDollarSign className="h-3.5 w-3.5" />
+                              {copy.table.payment}
+                            </div>
+                            <p className="mt-3 text-lg font-medium text-neutral-900">{formatOre(selectedOrder.total_amount)}</p>
+                            <p className="mt-1 text-sm text-neutral-600">{getPaymentStateLabel(paymentState)}</p>
+                            <p className="mt-2 text-xs text-neutral-500">
+                              {replaceTokens(copy.table.depositValue, { amount: formatOre(selectedOrder.deposit_amount) })}
+                            </p>
+                            <p className="text-xs text-neutral-500">
+                              {replaceTokens(copy.table.remainderValue, { amount: formatOre(dueOre) })}
+                            </p>
+                          </div>
+
+                          <div className={cn('rounded-2xl border p-4', attentionClass)}>
+                            <p className="text-xs uppercase tracking-[0.2em] opacity-70">{copy.stats.needsAttention}</p>
+                            <p className="mt-3 text-lg font-medium">{attentionText}</p>
+                            <p className="mt-1 text-sm opacity-80">
+                              {selectedOrder.remainder_due_date
+                                ? formatDate(selectedOrder.remainder_due_date)
+                                : formatDate(selectedOrder.created_at)}
+                            </p>
+                          </div>
+                        </div>
+                      </Card>
+
+                      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+                        <Card className="border-neutral-200 p-5">
+                          <div className="flex flex-wrap items-start justify-between gap-3">
+                            <div>
+                              <h4 className="text-lg font-medium text-neutral-900">{copy.panel.orderContentsTitle}</h4>
+                              <p className="mt-1 text-sm text-neutral-600">
+                                {replaceTokens(copy.table.breedEggsValue, {
+                                  breed: selectedOrder.egg_breeds?.name || copy.fallbackBreed,
+                                  quantity: summaryOrderQuantities.total,
+                                })}
+                              </p>
+                            </div>
+                            <p className="text-sm font-medium text-neutral-900">{formatOre(selectedOrder.total_amount)}</p>
+                          </div>
+
+                          <div className="mt-4 space-y-3">
+                            <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
+                              <div className="flex items-start justify-between gap-3">
+                                <div>
+                                  <p className="font-medium text-neutral-900">
+                                    {replaceTokens(copy.table.breedEggsValue, {
+                                      breed: selectedOrder.egg_breeds?.name || copy.fallbackBreed,
+                                      quantity: summaryOrderQuantities.base,
+                                    })}
+                                  </p>
+                                  <p className="mt-1 text-xs text-neutral-500">
+                                    {replaceTokens(copy.table.weekValue, {
+                                      week: selectedOrder.week_number,
+                                      year: selectedOrder.year,
+                                    })}
+                                  </p>
+                                </div>
+                                <p className="text-sm font-medium text-neutral-900">{formatOre(selectedOrder.subtotal)}</p>
+                              </div>
+                            </div>
+
+                            {(selectedOrder.egg_order_additions || []).length > 0 ? (
+                              (selectedOrder.egg_order_additions || []).map((addition) => (
+                                <div key={addition.id} className="rounded-2xl border border-neutral-200 bg-white p-4">
+                                  <div className="flex items-start justify-between gap-3">
+                                    <div>
+                                      <p className="font-medium text-neutral-900">
+                                        {replaceTokens(copy.additions.breedEggsValue, {
+                                          breed: addition.egg_breeds?.name || copy.fallbackBreedShort,
+                                          quantity: addition.quantity,
+                                        })}
+                                      </p>
+                                      <p className="mt-1 text-xs text-neutral-500">
+                                        {replaceTokens(copy.additions.weekValue, {
+                                          week: addition.egg_inventory?.week_number ?? '-',
+                                          year: addition.egg_inventory?.year ?? '-',
+                                        })}
+                                      </p>
+                                    </div>
+                                    <p className="text-sm font-medium text-neutral-900">{formatOre(addition.subtotal)}</p>
+                                  </div>
+                                </div>
+                              ))
+                            ) : (
+                              <p className="text-sm text-neutral-600">{copy.additions.empty}</p>
+                            )}
+                          </div>
+                        </Card>
+
+                        <Card className="border-neutral-200 p-5">
+                          <div className="flex flex-wrap items-start justify-between gap-3">
+                            <div>
+                              <h4 className="text-lg font-medium text-neutral-900">{copy.panel.customerShippingTitle}</h4>
+                              <p className="mt-1 text-sm text-neutral-600">{getDeliveryLabel(selectedOrder.delivery_method)}</p>
+                            </div>
+                            <Button
+                              variant="outline"
+                              className="gap-2"
+                              onClick={() => navigateToCustomerProfile(customerEmail, customerPhone)}
+                              disabled={!resolveCustomerLookup(customerEmail, customerPhone)}
+                            >
+                              <UserRound className="h-4 w-4" />
+                              {customerCopy.viewProfileButton}
+                            </Button>
+                          </div>
+
+                          <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+                            <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
+                              <p className="text-xs uppercase tracking-[0.2em] text-neutral-500">{copy.table.customer}</p>
+                              <div className="mt-3 space-y-2 text-sm text-neutral-700">
+                                <p><span className="font-medium text-neutral-900">{copy.panel.fields.name}:</span> {form.customerName || customerCopy.notProvided}</p>
+                                <p><span className="font-medium text-neutral-900">{copy.panel.fields.email}:</span> {customerEmail || customerCopy.notProvided}</p>
+                                <p><span className="font-medium text-neutral-900">{copy.panel.fields.phone}:</span> {customerPhone || customerCopy.notProvided}</p>
+                              </div>
+                            </div>
+
+                            <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
+                              <p className="text-xs uppercase tracking-[0.2em] text-neutral-500">{copy.table.delivery}</p>
+                              <div className="mt-3 space-y-2 text-sm text-neutral-700">
+                                <p><span className="font-medium text-neutral-900">{copy.panel.fields.shippingName}:</span> {form.shippingName || form.customerName || customerCopy.notProvided}</p>
+                                <p><span className="font-medium text-neutral-900">{copy.panel.fields.shippingEmail}:</span> {form.shippingEmail || customerCopy.notProvided}</p>
+                                <p><span className="font-medium text-neutral-900">{copy.panel.fields.shippingPhone}:</span> {form.shippingPhone || customerCopy.notProvided}</p>
+                              </div>
+                            </div>
+
+                            <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4 md:col-span-2">
+                              <div className="flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-neutral-500">
+                                <MapPin className="h-3.5 w-3.5" />
+                                {copy.panel.fields.address}
+                              </div>
+                              <p className="mt-3 text-sm text-neutral-700">{shippingAddress || customerCopy.notProvided}</p>
+                            </div>
+                          </div>
+                        </Card>
+
+                        <Card className="border-neutral-200 p-5">
+                          <h4 className="text-lg font-medium text-neutral-900">{copy.panel.notesTitle}</h4>
+                          <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+                            <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
+                              <p className="text-xs uppercase tracking-[0.2em] text-neutral-500">{copy.panel.fields.customerNotes}</p>
+                              <p className="mt-3 whitespace-pre-wrap text-sm text-neutral-700">
+                                {selectedOrder.notes || customerCopy.notProvided}
+                              </p>
+                            </div>
+                            <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
+                              <p className="text-xs uppercase tracking-[0.2em] text-neutral-500">{copy.panel.fields.adminNotes}</p>
+                              <p className="mt-3 whitespace-pre-wrap text-sm text-neutral-700">
+                                {selectedOrder.admin_notes || customerCopy.notProvided}
+                              </p>
+                            </div>
+                          </div>
+                        </Card>
+                      </div>
+                    </>
+                  )
+                })()}
+
                 <Card className="p-4 border-neutral-200">
                   <h4 className="font-medium text-neutral-900 mb-3">{copy.panel.quickActionsTitle}</h4>
                   <div className="grid grid-cols-2 xl:grid-cols-4 gap-2">
@@ -1497,7 +1925,7 @@ export function EggOrdersWorkbench({
                 </Card>
 
                 <Card className="p-4 border-neutral-200">
-                  <h4 className="font-medium text-neutral-900 mb-3">{copy.panel.customerShippingTitle}</h4>
+                  <h4 className="font-medium text-neutral-900 mb-3">{copy.panel.editSectionTitle}</h4>
                   <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
                     <div>
                       <Label>{copy.panel.fields.name}</Label>

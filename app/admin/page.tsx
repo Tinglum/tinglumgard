@@ -39,14 +39,13 @@ import { RecipeManager } from '@/components/admin/RecipeManager';
 import { ChickenBreedManager } from '@/components/admin/ChickenBreedManager';
 import { ChickenHatchManager } from '@/components/admin/ChickenHatchManager';
 import { ChickenOrdersManager } from '@/components/admin/ChickenOrdersManager';
-import { UnifiedEggChickenOrdersManager } from '@/components/admin/UnifiedEggChickenOrdersManager';
 import { EggWishlistManager } from '@/components/admin/EggWishlistManager';
 import { EggOpsDailyCollection } from '@/components/eggops/EggOpsDailyCollection';
 
 type TabType = 'dashboard' | 'orders' | 'products' | 'customers' | 'settings';
 
 // Orders sub-tabs
-type OrdersSubTab = 'pig' | 'unified' | 'egg' | 'wishlist' | 'chicken' | 'calendar';
+type OrdersSubTab = 'pig' | 'egg' | 'wishlist' | 'chicken' | 'calendar';
 
 // Products L1 sub-tabs
 type ProductsL1 = 'mangalitsa' | 'eggs' | 'chickens';
@@ -74,7 +73,7 @@ export default function AdminPage() {
 
   // Tab state
   const [activeTab, setActiveTab] = useState<TabType>('dashboard');
-  const [ordersSubTab, setOrdersSubTab] = useState<OrdersSubTab>('unified');
+  const [ordersSubTab, setOrdersSubTab] = useState<OrdersSubTab>('pig');
   const [productsL1, setProductsL1] = useState<ProductsL1>('mangalitsa');
   const [mangalitsaL2, setMangalitsaL2] = useState<MangalitsaL2>('boxes');
   const [eggsL2, setEggsL2] = useState<EggsL2>('daily');
@@ -86,6 +85,7 @@ export default function AdminPage() {
   const [deepLinkEggOrderId, setDeepLinkEggOrderId] = useState<string | null>(null);
   const [deepLinkChickenOrderId, setDeepLinkChickenOrderId] = useState<string | null>(null);
   const [deepLinkMessageId, setDeepLinkMessageId] = useState<string | null>(null);
+  const [deepLinkCustomerId, setDeepLinkCustomerId] = useState<string | null>(null);
 
   // Message badge
   const [unresolvedCount, setUnresolvedCount] = useState(0);
@@ -102,7 +102,13 @@ export default function AdminPage() {
     const rawSubTab = (params.get('subTab') || '').trim().toLowerCase();
     const orderId = (params.get('orderId') || '').trim();
     const messageId = (params.get('messageId') || '').trim();
-    const hasParams = rawTab.length > 0 || rawSubTab.length > 0 || orderId.length > 0 || messageId.length > 0;
+    const customerId = (params.get('customerId') || '').trim();
+    const hasParams =
+      rawTab.length > 0 ||
+      rawSubTab.length > 0 ||
+      orderId.length > 0 ||
+      messageId.length > 0 ||
+      customerId.length > 0;
 
     if (!hasParams) {
       setDeepLinkParsed(true);
@@ -124,7 +130,7 @@ export default function AdminPage() {
     } else if (rawTab === 'chicken' || rawTab === 'chicken-orders') {
       targetOrdersSubTab = 'chicken';
     } else if (rawTab === 'unified') {
-      targetOrdersSubTab = 'unified';
+      targetOrdersSubTab = 'egg';
     } else if (orderId) {
       targetOrdersSubTab = resolveFromOrderId();
     }
@@ -153,6 +159,10 @@ export default function AdminPage() {
 
       if (messageId) {
         setDeepLinkMessageId(messageId);
+      }
+
+      if (customerId) {
+        setDeepLinkCustomerId(customerId);
       }
     }
 
@@ -228,7 +238,7 @@ export default function AdminPage() {
   function handleDashboardNavigate(tab: string, subTab?: string) {
     if (tab === 'orders') {
       setActiveTab('orders');
-      if (subTab === 'pig' || subTab === 'unified' || subTab === 'egg' || subTab === 'chicken' || subTab === 'calendar') {
+      if (subTab === 'pig' || subTab === 'egg' || subTab === 'chicken' || subTab === 'calendar') {
         setOrdersSubTab(subTab);
       }
     } else if (tab === 'customers') {
@@ -267,6 +277,18 @@ export default function AdminPage() {
     const params = new URLSearchParams(window.location.search);
     params.set('tab', 'orders');
     params.set('orderId', orderId);
+    window.history.pushState({}, '', `/admin?${params.toString()}`);
+  }
+
+  function handleNavigateToCustomer(customerId: string) {
+    setActiveTab('customers');
+    setCustomersSubTab('database');
+    setDeepLinkCustomerId(customerId);
+
+    const params = new URLSearchParams(window.location.search);
+    params.set('tab', 'customers');
+    params.set('subTab', 'database');
+    params.set('customerId', customerId);
     window.history.pushState({}, '', `/admin?${params.toString()}`);
   }
 
@@ -397,7 +419,6 @@ export default function AdminPage() {
             <SubTabBar
               tabs={[
                 { id: 'pig', label: lang === 'no' ? 'Gris' : 'Pig', icon: Beef },
-                { id: 'unified', label: lang === 'no' ? 'Rugeegg + Kylling' : 'Egg + Chicken', icon: Package },
                 { id: 'egg', label: lang === 'no' ? 'Egg' : 'Eggs', icon: Egg },
                 { id: 'wishlist', label: lang === 'no' ? 'Ønskeliste' : 'Wishlist', icon: ListChecks },
                 { id: 'chicken', label: lang === 'no' ? 'Kylling' : 'Chicken', icon: Bird },
@@ -413,11 +434,11 @@ export default function AdminPage() {
                 onInitialOrderHandled={() => setDeepLinkPigOrderId(null)}
               />
             )}
-            {ordersSubTab === 'unified' && <UnifiedEggChickenOrdersManager />}
             {ordersSubTab === 'egg' && (
               <EggOrdersWorkbench
                 initialOrderId={deepLinkEggOrderId}
                 onInitialOrderHandled={() => setDeepLinkEggOrderId(null)}
+                onNavigateToCustomer={handleNavigateToCustomer}
               />
             )}
             {ordersSubTab === 'wishlist' && <EggWishlistManager />}
@@ -533,7 +554,12 @@ export default function AdminPage() {
               onChange={(id) => setCustomersSubTab(id as CustomersSubTab)}
             />
 
-            {customersSubTab === 'database' && <CustomerDatabase />}
+            {customersSubTab === 'database' && (
+              <CustomerDatabase
+                initialCustomerId={deepLinkCustomerId}
+                onInitialCustomerHandled={() => setDeepLinkCustomerId(null)}
+              />
+            )}
             {customersSubTab === 'messages' && <AdminMessagingPanel initialMessageId={deepLinkMessageId} />}
             {customersSubTab === 'email' && <EmailControlCenter />}
           </div>

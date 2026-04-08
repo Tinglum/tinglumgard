@@ -360,7 +360,15 @@ const buildDraft = (source: OrderSource, order: Record<string, unknown>) => {
   };
 };
 
-export function CustomerDatabase() {
+type CustomerDatabaseProps = {
+  initialCustomerId?: string | null;
+  onInitialCustomerHandled?: () => void;
+};
+
+export function CustomerDatabase({
+  initialCustomerId = null,
+  onInitialCustomerHandled,
+}: CustomerDatabaseProps = {}) {
   const { t, lang } = useLanguage();
   const { toast } = useToast();
   const copy = t.customerDatabase;
@@ -389,6 +397,7 @@ export function CustomerDatabase() {
   const [supportMessageComposerOpen, setSupportMessageComposerOpen] = useState(false);
   const [supportMessageDraft, setSupportMessageDraft] = useState<SupportMessageDraft>(createSupportMessageDraft());
   const [supportMessageSending, setSupportMessageSending] = useState(false);
+  const [initialCustomerHandled, setInitialCustomerHandled] = useState(false);
 
   const supportThreadStatusLabels = {
     open: t.customerMessagingPanel.statusOpen,
@@ -460,6 +469,18 @@ export function CustomerDatabase() {
       });
     }
   }
+
+  useEffect(() => {
+    setInitialCustomerHandled(false);
+  }, [initialCustomerId]);
+
+  useEffect(() => {
+    if (!initialCustomerId || initialCustomerHandled) return;
+    setInitialCustomerHandled(true);
+    void viewCustomerProfile(initialCustomerId).finally(() => {
+      onInitialCustomerHandled?.();
+    });
+  }, [initialCustomerHandled, initialCustomerId, onInitialCustomerHandled]);
 
   function openSupportMessageComposer() {
     if (!selectedCustomer) return;
