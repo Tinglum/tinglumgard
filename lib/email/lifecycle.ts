@@ -1500,9 +1500,11 @@ async function materializeEggFlowInstances(flowMap: Map<string, FlowDefinition>,
         const eggTotalReminders = config.eggRemainderReminderDays.length;
 
         const nowUtc = new Date();
+        // Schedule reminders relative to the due date, not delivery date
+        const reminderAnchor = dueDate;
         for (let ei = 0; ei < config.eggRemainderReminderDays.length; ei++) {
           const days = config.eggRemainderReminderDays[ei];
-          const scheduleYmd = addDays(deliveryYmd, -days);
+          const scheduleYmd = addDays(reminderAnchor, -days);
           const scheduledUtc = zonedDateTimeToUtc(scheduleYmd, 9, 0, config.timezone);
           if (scheduledUtc.getTime() < nowUtc.getTime()) continue;
           const reminderInserted = await insertFlowInstance({
@@ -1511,8 +1513,8 @@ async function materializeEggFlowInstances(flowMap: Map<string, FlowDefinition>,
             productScope: reminderFlow.product_scope,
             entityType: 'egg_order',
             entityId: orderId,
-            triggerDateKey: `remainder:${ymdToKey(deliveryYmdSafe)}:${days}`,
-            scheduledFor: zonedDateTimeToUtc(scheduleYmd, 9, 0, config.timezone).toISOString(),
+            triggerDateKey: `remainder:${ymdToKey(reminderAnchor)}:${days}`,
+            scheduledFor: scheduledUtc.toISOString(),
             toEmail: toEmail || null,
             locale,
             payload: {
