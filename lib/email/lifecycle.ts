@@ -1499,9 +1499,12 @@ async function materializeEggFlowInstances(flowMap: Map<string, FlowDefinition>,
       if (outstanding > 0) {
         const eggTotalReminders = config.eggRemainderReminderDays.length;
 
+        const nowUtc = new Date();
         for (let ei = 0; ei < config.eggRemainderReminderDays.length; ei++) {
           const days = config.eggRemainderReminderDays[ei];
           const scheduleYmd = addDays(deliveryYmd, -days);
+          const scheduledUtc = zonedDateTimeToUtc(scheduleYmd, 9, 0, config.timezone);
+          if (scheduledUtc.getTime() < nowUtc.getTime()) continue;
           const reminderInserted = await insertFlowInstance({
             flowId: reminderFlow.id,
             flowKey: reminderFlow.flow_key,
@@ -1547,28 +1550,30 @@ async function materializeEggFlowInstances(flowMap: Map<string, FlowDefinition>,
         if (explicitDueDate) {
           const dueEnd = zonedDateTimeToUtc(explicitDueDate, 23, 59, config.timezone);
           const forfeitAt = new Date(dueEnd.getTime() + config.eggOverdueGraceHours * 60 * 60 * 1000);
-          const forfeitInserted = await insertFlowInstance({
-            flowId: forfeitFlow.id,
-            flowKey: forfeitFlow.flow_key,
-            productScope: forfeitFlow.product_scope,
-            entityType: 'egg_order',
-            entityId: orderId,
-            triggerDateKey: `forfeit:${ymdToKey(explicitDueDate)}:grace-${config.eggOverdueGraceHours}`,
-            scheduledFor: forfeitAt.toISOString(),
-            toEmail: toEmail || null,
-            locale,
-            payload: {
-              customer_name: String(order.customer_name || 'Kunde'),
-              order_number: String(order.order_number || ''),
-              order_url: orderUrl,
-            },
-            metadata: {
-              product_scope: 'eggs',
-              flow_key: forfeitFlow.flow_key,
-              trigger_offset_days: 0,
-            },
-          });
-          if (forfeitInserted) inserted += 1;
+          if (forfeitAt.getTime() >= nowUtc.getTime()) {
+            const forfeitInserted = await insertFlowInstance({
+              flowId: forfeitFlow.id,
+              flowKey: forfeitFlow.flow_key,
+              productScope: forfeitFlow.product_scope,
+              entityType: 'egg_order',
+              entityId: orderId,
+              triggerDateKey: `forfeit:${ymdToKey(explicitDueDate)}:grace-${config.eggOverdueGraceHours}`,
+              scheduledFor: forfeitAt.toISOString(),
+              toEmail: toEmail || null,
+              locale,
+              payload: {
+                customer_name: String(order.customer_name || 'Kunde'),
+                order_number: String(order.order_number || ''),
+                order_url: orderUrl,
+              },
+              metadata: {
+                product_scope: 'eggs',
+                flow_key: forfeitFlow.flow_key,
+                trigger_offset_days: 0,
+              },
+            });
+            if (forfeitInserted) inserted += 1;
+          }
         }
       } else {
         await reconcileEggPaymentDependentFlowInstances(orderId, 'order_fully_paid');
