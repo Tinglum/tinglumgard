@@ -308,31 +308,6 @@ export default function BreedDetailPage() {
     return method || t.eggs.common.week
   }, [t])
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen py-12 flex items-center justify-center">
-        <div className="text-sm text-neutral-500">
-          {t.eggs.common.loadingBreed}
-        </div>
-      </div>
-    )
-  }
-
-  if (error || !localizedBreed) {
-    return (
-      <div className="min-h-screen py-12 flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-2xl font-normal text-neutral-900 mb-2">
-            {error || t.eggs.breedsPage.breedNotFound}
-          </h1>
-          <Link href="/rugeegg/raser" className="text-neutral-600 hover:text-neutral-900">
-            {t.eggs.common.backToBreeds}
-          </Link>
-        </div>
-      </div>
-    )
-  }
-
   const handleWeekSelect = useCallback(async (week: WeekInventory) => {
     if (items.length > 0) {
       const firstWeek = items[0].week
@@ -375,6 +350,31 @@ export default function BreedDetailPage() {
     items,
     proceedWithWeek,
   ])
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen py-12 flex items-center justify-center">
+        <div className="text-sm text-neutral-500">
+          {t.eggs.common.loadingBreed}
+        </div>
+      </div>
+    )
+  }
+
+  if (error || !localizedBreed) {
+    return (
+      <div className="min-h-screen py-12 flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-normal text-neutral-900 mb-2">
+            {error || t.eggs.breedsPage.breedNotFound}
+          </h1>
+          <Link href="/rugeegg/raser" className="text-neutral-600 hover:text-neutral-900">
+            {t.eggs.common.backToBreeds}
+          </Link>
+        </div>
+      </div>
+    )
+  }
 
   useEffect(() => {
     if (weekPrefillHandled || inventory.length === 0 || showQuantityModal || showWaitlistModal) return
