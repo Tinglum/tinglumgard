@@ -93,7 +93,7 @@ export async function POST(
     const sessionData: any = {
       merchantInfo: {
         callbackUrl: `${appUrl}/api/webhooks/vipps`,
-        returnUrl: `${appUrl}/rugeegg/mine-bestillinger/betaling-bekreftet?orderId=${order.id}`,
+        returnUrl: `${appUrl}/rugeegg/mine-bestillinger/betaling-bekreftet?orderId=${order.id}&paymentType=remainder`,
         termsAndConditionsUrl: `${appUrl}/vilkar`,
         callbackAuthorizationToken: callbackToken,
       },

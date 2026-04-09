@@ -23,6 +23,8 @@ type EggOrder = {
     payment_type: string
     status: string
     amount_nok?: number
+    paid_at?: string | null
+    created_at?: string | null
   }>
 }
 
@@ -30,6 +32,7 @@ export default function EggRemainderConfirmationPage() {
   const { lang: language, t } = useLanguage()
   const searchParams = useSearchParams()
   const orderId = searchParams.get('orderId')
+  const expectedPaymentType = searchParams.get('paymentType')
   const [order, setOrder] = useState<EggOrder | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [pollCount, setPollCount] = useState(0)
@@ -81,7 +84,39 @@ export default function EggRemainderConfirmationPage() {
     return Math.max(0, order.remainder_amount - remainderPaidOre)
   }, [order, remainderPaidOre])
 
-  const isPaid = remainderDue <= 0 && !!order
+  const hasCompletedAdditionDeposit = useMemo(() => {
+    return (order?.egg_payments || []).some(
+      (payment) => payment.payment_type === 'addition_deposit' && payment.status === 'completed'
+    )
+  }, [order])
+
+  const hasCompletedRemainder = useMemo(() => {
+    return (order?.egg_payments || []).some(
+      (payment) => payment.payment_type === 'remainder' && payment.status === 'completed'
+    )
+  }, [order])
+
+  const isPaid = useMemo(() => {
+    if (!order) return false
+
+    if (expectedPaymentType === 'addition_deposit') {
+      return hasCompletedAdditionDeposit
+    }
+
+    if (expectedPaymentType === 'remainder') {
+      return hasCompletedRemainder || remainderDue <= 0
+    }
+
+    // Legacy return URLs did not include payment type. Treat a completed
+    // addition deposit as a successful confirmation when the order still has
+    // remainder outstanding, so the page does not spin forever after the
+    // webhook has already updated the order.
+    if (remainderDue > 0 && order.status === 'deposit_paid' && hasCompletedAdditionDeposit) {
+      return true
+    }
+
+    return remainderDue <= 0
+  }, [expectedPaymentType, hasCompletedAdditionDeposit, hasCompletedRemainder, order, remainderDue])
 
   const deliveryMondayLocal = useMemo(() => {
     if (!order) return null
@@ -91,7 +126,7 @@ export default function EggRemainderConfirmationPage() {
   const canAdd = useMemo(() => {
     if (!deliveryMondayLocal || !order) return false
     const now = new Date()
-    return now < deliveryMondayLocal && ['fully_paid', 'preparing'].includes(order.status)
+    return now < deliveryMondayLocal && ['deposit_paid', 'fully_paid', 'preparing'].includes(order.status)
   }, [deliveryMondayLocal, order])
 
   useEffect(() => {
