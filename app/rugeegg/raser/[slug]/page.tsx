@@ -66,10 +66,16 @@ export default function BreedDetailPage() {
   const [waitlistSuccess, setWaitlistSuccess] = useState(false)
   const [waitlistPrefillHandled, setWaitlistPrefillHandled] = useState(false)
   const [waitlistAutoHandled, setWaitlistAutoHandled] = useState(false)
+  const [weekPrefillHandled, setWeekPrefillHandled] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   const linkedOrderId = String(searchParams.get('orderId') || '').trim()
+  const preselectedInventoryId = String(searchParams.get('inventoryId') || '').trim()
+  const preselectedYear = Number(searchParams.get('year'))
+  const preselectedWeekNumber = Number(searchParams.get('week'))
+  const hasWeekPrefill =
+    Boolean(preselectedInventoryId) || (Number.isFinite(preselectedYear) && Number.isFinite(preselectedWeekNumber))
   const localizedBreed = useMemo(
     () => (breed ? localizeBreed(breed, t.eggs.breedDetails) : null),
     [breed, t.eggs.breedDetails]
@@ -104,10 +110,11 @@ export default function BreedDetailPage() {
   useEffect(() => {
     if (selectedWeek || showQuantityModal || inventory.length === 0) return
     if (items.length === 0 || skipAutoWeek) return
+    if (hasWeekPrefill && !weekPrefillHandled) return
     if (showActiveOrderPrompt) return
 
     setShowActiveOrderPrompt(true)
-  }, [inventory, items, selectedWeek, showQuantityModal, showActiveOrderPrompt, skipAutoWeek])
+  }, [hasWeekPrefill, inventory, items, selectedWeek, showActiveOrderPrompt, showQuantityModal, skipAutoWeek, weekPrefillHandled])
 
   useEffect(() => {
     if (waitlistPrefillHandled) return
@@ -326,7 +333,7 @@ export default function BreedDetailPage() {
     )
   }
 
-  const handleWeekSelect = async (week: WeekInventory) => {
+  const handleWeekSelect = useCallback(async (week: WeekInventory) => {
     if (items.length > 0) {
       const firstWeek = items[0].week
       const sameWeek = items.every((item) => isSameDeliveryWeek(item.week, firstWeek))
@@ -358,7 +365,61 @@ export default function BreedDetailPage() {
     }
 
     proceedWithWeek(week)
-  }
+  }, [
+    clearExistingOrderTarget,
+    existingOrderTarget,
+    existingTargetMatchesWeek,
+    fetchExistingOrdersForWeek,
+    forceNewWeekKeys,
+    isAuthenticated,
+    items,
+    proceedWithWeek,
+  ])
+
+  useEffect(() => {
+    if (weekPrefillHandled || inventory.length === 0 || showQuantityModal || showWaitlistModal) return
+    if (!hasWeekPrefill) {
+      setWeekPrefillHandled(true)
+      return
+    }
+
+    const targetWeek =
+      (preselectedInventoryId
+        ? inventory.find((week) => week.id === preselectedInventoryId) || null
+        : null) ||
+      (Number.isFinite(preselectedYear) && Number.isFinite(preselectedWeekNumber)
+        ? inventory.find(
+            (week) => week.year === preselectedYear && week.weekNumber === preselectedWeekNumber
+          ) || null
+        : null)
+
+    setWeekPrefillHandled(true)
+
+    const cleanedParams = new URLSearchParams(searchParams.toString())
+    cleanedParams.delete('inventoryId')
+    cleanedParams.delete('year')
+    cleanedParams.delete('week')
+    const cleanedQuery = cleanedParams.toString()
+    router.replace(cleanedQuery ? `${window.location.pathname}?${cleanedQuery}` : window.location.pathname, {
+      scroll: false,
+    })
+
+    if (targetWeek) {
+      void handleWeekSelect(targetWeek)
+    }
+  }, [
+    handleWeekSelect,
+    hasWeekPrefill,
+    inventory,
+    preselectedInventoryId,
+    preselectedWeekNumber,
+    preselectedYear,
+    router,
+    searchParams,
+    showQuantityModal,
+    showWaitlistModal,
+    weekPrefillHandled,
+  ])
 
   const handleContinueExistingOrder = () => {
     setShowActiveOrderPrompt(false)

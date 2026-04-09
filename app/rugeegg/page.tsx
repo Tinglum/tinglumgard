@@ -627,9 +627,14 @@ export default function HomePage() {
                           </div>
                           <div className="space-y-3">
                             {week.breeds.map((breed) => {
-                              const breedHref = linkedOrderId
-                                ? `/rugeegg/raser/${breed.breedSlug}?orderId=${encodeURIComponent(linkedOrderId)}`
-                                : `/rugeegg/raser/${breed.breedSlug}`
+                              const breedParams = new URLSearchParams()
+                              breedParams.set('inventoryId', breed.inventoryId)
+                              breedParams.set('year', String(week.year))
+                              breedParams.set('week', String(week.weekNumber))
+                              if (linkedOrderId) {
+                                breedParams.set('orderId', linkedOrderId)
+                              }
+                              const breedHref = `/rugeegg/raser/${breed.breedSlug}?${breedParams.toString()}`
                               const isClickable = breed.status !== 'closed' && breed.status !== 'locked'
 
                               return (
