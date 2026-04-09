@@ -855,7 +855,11 @@ export default function CustomerPortalPage() {
 
         {activeTab === 'messages' && (
           <GlassCard className="p-6">
-            <MessagingPanel />
+            <MessagingPanel
+              pigOrders={orders}
+              eggOrders={eggOrders}
+              chickenOrders={chickenOrders}
+            />
           </GlassCard>
         )}
       </div>

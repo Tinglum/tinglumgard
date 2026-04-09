@@ -1,17 +1,96 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Send, MessageSquare, AlertCircle, CheckCircle, Loader2, X, Mail, ChevronRight } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import {
+  Send,
+  MessageSquare,
+  AlertCircle,
+  CheckCircle,
+  Loader2,
+  X,
+  Mail,
+  ChevronRight,
+  Check,
+  ChevronsUpDown,
+  Link2,
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { useLanguage } from '@/contexts/LanguageContext';
 import type { CustomerMessage, MessageReply } from '@/lib/types';
+import { formatDate, formatPrice } from '@/lib/eggs/utils';
+
+type RelatedOrderSource = 'pig' | 'egg' | 'chicken';
+
+type MessagingPigOrder = {
+  id: string;
+  order_number: string;
+  display_box_name_no?: string | null;
+  display_box_name_en?: string | null;
+  box_size?: number | null;
+  status: string;
+  delivery_type: string;
+  extra_products?: Array<Record<string, unknown>>;
+  notes?: string | null;
+  total_amount: number;
+  created_at: string;
+};
+
+type MessagingEggOrder = {
+  id: string;
+  order_number: string;
+  status: string;
+  quantity: number;
+  total_amount: number;
+  week_number: number;
+  delivery_monday: string;
+  delivery_method: string;
+  created_at?: string | null;
+  egg_breeds?: { name?: string } | null;
+  egg_order_additions?: Array<{ quantity: number }>;
+};
+
+type MessagingChickenOrder = {
+  id: string;
+  order_number: string;
+  status: string;
+  quantity_hens: number;
+  quantity_roosters: number;
+  pickup_year: number;
+  pickup_week: number;
+  pickup_date?: string | null;
+  delivery_method: string;
+  total_amount_nok: number;
+  created_at: string;
+  chicken_breeds?: { name?: string } | null;
+  chicken_order_additions?: Array<{ quantity_hens: number; quantity_roosters: number }>;
+};
+
+type RelatedOrderOption = {
+  key: string;
+  source: RelatedOrderSource;
+  id: string;
+  orderNumber: string;
+  typeLabel: string;
+  title: string;
+  subtitle: string;
+  statusLabel: string;
+  totalLabel: string;
+  createdLabel: string;
+  deliveryLabel: string;
+  contentLines: string[];
+  note?: string | null;
+};
 
 interface MessagingPanelProps {
   className?: string;
   variant?: 'light' | 'dark';
+  pigOrders?: MessagingPigOrder[];
+  eggOrders?: MessagingEggOrder[];
+  chickenOrders?: MessagingChickenOrder[];
 }
 
 type CustomerMessageWithReplies = CustomerMessage & { message_replies?: MessageReply[] };
@@ -39,7 +118,13 @@ type CommunicationHistoryItem = {
   };
 };
 
-export function MessagingPanel({ className, variant = 'light' }: MessagingPanelProps) {
+export function MessagingPanel({
+  className,
+  variant = 'light',
+  pigOrders = [],
+  eggOrders = [],
+  chickenOrders = [],
+}: MessagingPanelProps) {
   const { toast } = useToast();
   const { lang, t } = useLanguage();
   const locale = lang === 'en' ? 'en-US' : 'nb-NO';
@@ -67,6 +152,29 @@ export function MessagingPanel({ className, variant = 'light' }: MessagingPanelP
     successMessage: t.customerMessagingPanel.successMessage,
     sending: t.customerMessagingPanel.sending,
     sendMessage: t.customerMessagingPanel.sendMessage,
+    attachOrderLabel: t.customerMessagingPanel.attachOrderLabel,
+    attachOrderOptional: t.customerMessagingPanel.attachOrderOptional,
+    attachOrderHelp: t.customerMessagingPanel.attachOrderHelp,
+    attachOrderPlaceholder: t.customerMessagingPanel.attachOrderPlaceholder,
+    attachOrderNone: t.customerMessagingPanel.attachOrderNone,
+    attachOrderEmpty: t.customerMessagingPanel.attachOrderEmpty,
+    attachedOrderTitle: t.customerMessagingPanel.attachedOrderTitle,
+    orderPreviewTitle: t.customerMessagingPanel.orderPreviewTitle,
+    orderPreviewHint: t.customerMessagingPanel.orderPreviewHint,
+    orderPreviewStatus: t.customerMessagingPanel.orderPreviewStatus,
+    orderPreviewTotal: t.customerMessagingPanel.orderPreviewTotal,
+    orderPreviewDelivery: t.customerMessagingPanel.orderPreviewDelivery,
+    orderPreviewCreated: t.customerMessagingPanel.orderPreviewCreated,
+    orderPreviewContents: t.customerMessagingPanel.orderPreviewContents,
+    orderPreviewNotes: t.customerMessagingPanel.orderPreviewNotes,
+    orderTypePig: t.customerMessagingPanel.orderTypePig,
+    orderTypeEgg: t.customerMessagingPanel.orderTypeEgg,
+    orderTypeChicken: t.customerMessagingPanel.orderTypeChicken,
+    deliveryPosten: t.customerMessagingPanel.deliveryPosten,
+    deliveryFarmPickup: t.customerMessagingPanel.deliveryFarmPickup,
+    deliveryE6Pickup: t.customerMessagingPanel.deliveryE6Pickup,
+    deliveryTrondheimPickup: t.customerMessagingPanel.deliveryTrondheimPickup,
+    deliveryPickup: t.customerMessagingPanel.deliveryPickup,
     yourMessages: t.customerMessagingPanel.yourMessages,
     loadingMessages: t.customerMessagingPanel.loadingMessages,
     noMessages: t.customerMessagingPanel.noMessages,
@@ -121,6 +229,9 @@ export function MessagingPanel({ className, variant = 'light' }: MessagingPanelP
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [subject, setSubject] = useState('');
   const [messageText, setMessageText] = useState('');
+  const [selectedRelatedOrderKey, setSelectedRelatedOrderKey] = useState('');
+  const [orderPickerOpen, setOrderPickerOpen] = useState(false);
+  const [hoveredRelatedOrderKey, setHoveredRelatedOrderKey] = useState<string | null>(null);
   const [messageType, setMessageType] = useState<'support' | 'inquiry' | 'complaint' | 'feedback' | 'referral_question'>('support');
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -134,6 +245,300 @@ export function MessagingPanel({ className, variant = 'light' }: MessagingPanelP
     sentAt: string | null;
   } | null>(null);
   const [emailPreviewLoading, setEmailPreviewLoading] = useState<string | null>(null);
+  const isDark = variant === 'dark';
+
+  const formatPlainCurrency = useCallback(
+    (amount: number) => `${Math.round(amount).toLocaleString(locale)} ${t.common.currency}`,
+    [locale, t.common.currency]
+  );
+
+  const humanizeStatus = useCallback((value?: string | null) => {
+    const raw = String(value || '').trim();
+    if (!raw) return '-';
+
+    const lower = raw.toLowerCase();
+    const mapped: Record<string, string> = {
+      pending: locale === 'en-US' ? 'Pending' : 'Venter',
+      deposit_paid: locale === 'en-US' ? 'Deposit paid' : 'Forskudd betalt',
+      fully_paid: locale === 'en-US' ? 'Fully paid' : 'Fullt betalt',
+      preparing: locale === 'en-US' ? 'Preparing' : 'Klargjores',
+      shipped: locale === 'en-US' ? 'Shipped' : 'Sendt',
+      delivered: locale === 'en-US' ? 'Delivered' : 'Levert',
+      ready_for_pickup: locale === 'en-US' ? 'Ready for pickup' : 'Klar for henting',
+      picked_up: locale === 'en-US' ? 'Picked up' : 'Hentet',
+      paid: locale === 'en-US' ? 'Paid' : 'Betalt',
+      completed: locale === 'en-US' ? 'Completed' : 'Fullfort',
+      cancelled: locale === 'en-US' ? 'Cancelled' : 'Kansellert',
+      forfeited: locale === 'en-US' ? 'Forfeited' : 'Forfalt',
+    };
+
+    if (mapped[lower]) return mapped[lower];
+
+    return raw
+      .replace(/_/g, ' ')
+      .replace(/\b\w/g, (char) => char.toUpperCase());
+  }, [locale]);
+
+  const formatDeliveryLabel = useCallback(
+    (method?: string | null, source?: RelatedOrderSource) => {
+      const raw = String(method || '').trim().toLowerCase();
+      if (!raw) return '-';
+      if (raw === 'posten') return copy.deliveryPosten;
+      if (raw === 'farm_pickup' || raw === 'pickup_farm') return copy.deliveryFarmPickup;
+      if (raw === 'e6_pickup' || raw === 'pickup_e6') return copy.deliveryE6Pickup;
+      if (raw === 'delivery_trondheim') return copy.deliveryTrondheimPickup;
+      if (raw === 'pickup') return copy.deliveryPickup;
+      if (source === 'chicken' && raw.includes('pickup')) return copy.deliveryPickup;
+      return raw.replace(/_/g, ' ');
+    },
+    [copy.deliveryE6Pickup, copy.deliveryFarmPickup, copy.deliveryPickup, copy.deliveryPosten, copy.deliveryTrondheimPickup]
+  );
+
+  const extractPigExtraLabel = useCallback(
+    (extra: Record<string, unknown>) => {
+      const localizedName = lang === 'en'
+        ? (extra.name_en as string | undefined)
+        : (extra.name_no as string | undefined);
+      return (
+        localizedName ||
+        (extra.name as string | undefined) ||
+        (extra.cut_name_en as string | undefined) ||
+        (extra.cut_name_no as string | undefined) ||
+        (extra.slug as string | undefined) ||
+        null
+      );
+    },
+    [lang]
+  );
+
+  const relatedOrders = useMemo<RelatedOrderOption[]>(() => {
+    const pigOptions = pigOrders.map((order) => {
+      const boxName =
+        (lang === 'en' ? order.display_box_name_en : order.display_box_name_no) ||
+        (order.box_size ? `${order.box_size} kg` : copy.orderTypePig);
+      const extraNames = (order.extra_products || [])
+        .map((extra) => extractPigExtraLabel(extra))
+        .filter((value): value is string => Boolean(value))
+        .slice(0, 3);
+
+      return {
+        key: `pig-${order.id}`,
+        source: 'pig' as const,
+        id: order.id,
+        orderNumber: order.order_number,
+        typeLabel: copy.orderTypePig,
+        title: boxName,
+        subtitle: extraNames.length > 0 ? extraNames.join(' - ') : boxName,
+        statusLabel: humanizeStatus(order.status),
+        totalLabel: formatPlainCurrency(order.total_amount || 0),
+        createdLabel: order.created_at ? formatDate(new Date(order.created_at), lang) : '-',
+        deliveryLabel: formatDeliveryLabel(order.delivery_type, 'pig'),
+        contentLines:
+          extraNames.length > 0
+            ? extraNames
+            : [boxName],
+        note: order.notes || null,
+      };
+    });
+
+    const eggOptions = eggOrders.map((order) => {
+      const addedEggs = (order.egg_order_additions || []).reduce(
+        (sum, addition) => sum + Number(addition.quantity || 0),
+        0
+      );
+      const totalEggs = Number(order.quantity || 0) + addedEggs;
+      const breedName = order.egg_breeds?.name || copy.orderTypeEgg;
+      const contentLines = [
+        `${totalEggs} ${lang === 'en' ? 'eggs' : 'egg'}`,
+        `${t.eggs.common.week} ${order.week_number} - ${formatDate(new Date(order.delivery_monday), lang)}`,
+      ];
+
+      if (addedEggs > 0) {
+        contentLines.push(
+          lang === 'en'
+            ? `${addedEggs} added later`
+            : `${addedEggs} lagt til senere`
+        );
+      }
+
+      return {
+        key: `egg-${order.id}`,
+        source: 'egg' as const,
+        id: order.id,
+        orderNumber: order.order_number,
+        typeLabel: copy.orderTypeEgg,
+        title: breedName,
+        subtitle: `${totalEggs} ${lang === 'en' ? 'eggs' : 'egg'}`,
+        statusLabel: humanizeStatus(order.status),
+        totalLabel: formatPrice(order.total_amount || 0, lang),
+        createdLabel: order.created_at ? formatDate(new Date(order.created_at), lang) : '-',
+        deliveryLabel: formatDeliveryLabel(order.delivery_method, 'egg'),
+        contentLines,
+      };
+    });
+
+    const chickenOptions = chickenOrders.map((order) => {
+      const addedHens = (order.chicken_order_additions || []).reduce(
+        (sum, addition) => sum + Number(addition.quantity_hens || 0),
+        0
+      );
+      const addedRoosters = (order.chicken_order_additions || []).reduce(
+        (sum, addition) => sum + Number(addition.quantity_roosters || 0),
+        0
+      );
+      const totalHens = Number(order.quantity_hens || 0) + addedHens;
+      const totalRoosters = Number(order.quantity_roosters || 0) + addedRoosters;
+      const breedName = order.chicken_breeds?.name || copy.orderTypeChicken;
+      const contentLines = [
+        lang === 'en'
+          ? `${totalHens} hens - ${totalRoosters} roosters`
+          : `${totalHens} høner - ${totalRoosters} haner`,
+        order.pickup_date
+          ? formatDate(new Date(order.pickup_date), lang)
+          : `${t.eggs.common.week} ${order.pickup_week} / ${order.pickup_year}`,
+      ];
+
+      return {
+        key: `chicken-${order.id}`,
+        source: 'chicken' as const,
+        id: order.id,
+        orderNumber: order.order_number,
+        typeLabel: copy.orderTypeChicken,
+        title: breedName,
+        subtitle: lang === 'en'
+          ? `${totalHens} hens - ${totalRoosters} roosters`
+          : `${totalHens} høner - ${totalRoosters} haner`,
+        statusLabel: humanizeStatus(order.status),
+        totalLabel: formatPlainCurrency(order.total_amount_nok || 0),
+        createdLabel: order.created_at ? formatDate(new Date(order.created_at), lang) : '-',
+        deliveryLabel: formatDeliveryLabel(order.delivery_method, 'chicken'),
+        contentLines,
+      };
+    });
+
+    return [...eggOptions, ...chickenOptions, ...pigOptions].sort((a, b) => b.orderNumber.localeCompare(a.orderNumber));
+  }, [
+    chickenOrders,
+    copy.orderTypeChicken,
+    copy.orderTypeEgg,
+    copy.orderTypePig,
+    eggOrders,
+    extractPigExtraLabel,
+    formatDeliveryLabel,
+    formatPlainCurrency,
+    humanizeStatus,
+    lang,
+    pigOrders,
+    t.eggs.common.week,
+  ]);
+
+  const selectedRelatedOrder = useMemo(
+    () => relatedOrders.find((order) => order.key === selectedRelatedOrderKey) || null,
+    [relatedOrders, selectedRelatedOrderKey]
+  );
+
+  const previewedRelatedOrder = useMemo(
+    () =>
+      relatedOrders.find((order) => order.key === hoveredRelatedOrderKey) ||
+      selectedRelatedOrder ||
+      null,
+    [hoveredRelatedOrderKey, relatedOrders, selectedRelatedOrder]
+  );
+
+  useEffect(() => {
+    if (!selectedRelatedOrderKey) return;
+    if (relatedOrders.some((order) => order.key === selectedRelatedOrderKey)) return;
+    setSelectedRelatedOrderKey('');
+  }, [relatedOrders, selectedRelatedOrderKey]);
+
+  const renderOrderPreview = useCallback(
+    (order: RelatedOrderOption | null, compact = false) => {
+      if (!order) {
+        return (
+          <div
+            className={cn(
+              'rounded-xl border border-dashed p-4 text-sm',
+              isDark ? 'border-white/20 text-white/60' : 'border-gray-200 text-gray-500'
+            )}
+          >
+            {copy.orderPreviewHint}
+          </div>
+        );
+      }
+
+      return (
+        <div
+          className={cn(
+            'rounded-xl border p-4',
+            isDark ? 'border-white/20 bg-white/5 text-white' : 'border-gray-200 bg-gray-50 text-gray-900'
+          )}
+        >
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className={cn('text-xs uppercase tracking-[0.2em]', isDark ? 'text-white/60' : 'text-gray-500')}>
+                {compact ? copy.attachedOrderTitle : copy.orderPreviewTitle}
+              </p>
+              <p className="text-base font-semibold truncate">{order.orderNumber}</p>
+              <p className={cn('text-sm mt-1', isDark ? 'text-white/80' : 'text-gray-700')}>{order.title}</p>
+              <p className={cn('text-xs mt-1', isDark ? 'text-white/60' : 'text-gray-500')}>{order.typeLabel}</p>
+            </div>
+            <span
+              className={cn(
+                'shrink-0 rounded-full px-2.5 py-1 text-[11px] font-medium',
+                isDark ? 'bg-white/10 text-white/80' : 'bg-white text-gray-600 border border-gray-200'
+              )}
+            >
+              {order.typeLabel}
+            </span>
+          </div>
+
+          <div className="mt-4 grid grid-cols-2 gap-3 text-xs">
+            <div>
+              <p className={cn(isDark ? 'text-white/60' : 'text-gray-500')}>{copy.orderPreviewStatus}</p>
+              <p className="mt-1 font-medium">{order.statusLabel}</p>
+            </div>
+            <div>
+              <p className={cn(isDark ? 'text-white/60' : 'text-gray-500')}>{copy.orderPreviewTotal}</p>
+              <p className="mt-1 font-medium">{order.totalLabel}</p>
+            </div>
+            <div>
+              <p className={cn(isDark ? 'text-white/60' : 'text-gray-500')}>{copy.orderPreviewDelivery}</p>
+              <p className="mt-1 font-medium">{order.deliveryLabel}</p>
+            </div>
+            <div>
+              <p className={cn(isDark ? 'text-white/60' : 'text-gray-500')}>{copy.orderPreviewCreated}</p>
+              <p className="mt-1 font-medium">{order.createdLabel}</p>
+            </div>
+          </div>
+
+          {order.contentLines.length > 0 && (
+            <div className="mt-4">
+              <p className={cn('text-xs uppercase tracking-[0.16em]', isDark ? 'text-white/60' : 'text-gray-500')}>
+                {copy.orderPreviewContents}
+              </p>
+              <ul className="mt-2 space-y-1.5 text-sm">
+                {order.contentLines.map((line) => (
+                  <li key={`${order.key}-${line}`} className={cn(isDark ? 'text-white/85' : 'text-gray-700')}>
+                    {line}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {order.note && (
+            <div className="mt-4">
+              <p className={cn('text-xs uppercase tracking-[0.16em]', isDark ? 'text-white/60' : 'text-gray-500')}>
+                {copy.orderPreviewNotes}
+              </p>
+              <p className={cn('mt-2 text-sm', isDark ? 'text-white/85' : 'text-gray-700')}>{order.note}</p>
+            </div>
+          )}
+        </div>
+      );
+    },
+    [copy.attachedOrderTitle, copy.orderPreviewContents, copy.orderPreviewCreated, copy.orderPreviewDelivery, copy.orderPreviewHint, copy.orderPreviewNotes, copy.orderPreviewStatus, copy.orderPreviewTitle, copy.orderPreviewTotal, isDark]
+  );
 
   const markMessagesAsViewed = useCallback(async (messageIds: string[]) => {
     try {
@@ -293,6 +698,8 @@ export function MessagingPanel({ className, variant = 'light' }: MessagingPanelP
           subject: subject.trim(),
           message: messageText.trim(),
           message_type: messageType,
+          related_order_source: selectedRelatedOrder?.source || null,
+          related_order_id: selectedRelatedOrder?.id || null,
         }),
       });
 
@@ -308,6 +715,9 @@ export function MessagingPanel({ className, variant = 'light' }: MessagingPanelP
 
       setSubject('');
       setMessageText('');
+      setSelectedRelatedOrderKey('');
+      setHoveredRelatedOrderKey(null);
+      setOrderPickerOpen(false);
       setSuccess(true);
       setMessages((prev) => [data.message, ...prev]);
       loadCommunicationHistory();
@@ -335,8 +745,6 @@ export function MessagingPanel({ className, variant = 'light' }: MessagingPanelP
     resolved: <CheckCircle className="h-4 w-4 text-green-600" />,
     closed: <CheckCircle className="h-4 w-4 text-gray-600" />,
   };
-
-  const isDark = variant === 'dark';
 
   const getRootSenderLabel = (message: CustomerMessageWithReplies) =>
     message.initiated_by === 'admin' ? copy.fromFarm : copy.fromYou;
@@ -396,6 +804,147 @@ export function MessagingPanel({ className, variant = 'light' }: MessagingPanelP
               <option value="feedback">{copy.categories.feedback}</option>
               <option value="referral_question">{copy.categories.referral_question}</option>
             </select>
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between gap-3 mb-2">
+              <label className={cn('block text-sm font-medium', isDark ? 'text-white/80' : 'text-gray-700')}>
+                {copy.attachOrderLabel}
+              </label>
+              <span className={cn('text-xs', isDark ? 'text-white/50' : 'text-gray-500')}>
+                {copy.attachOrderOptional}
+              </span>
+            </div>
+
+            <Popover
+              open={orderPickerOpen}
+              onOpenChange={(open) => {
+                setOrderPickerOpen(open);
+                if (open) {
+                  setHoveredRelatedOrderKey(selectedRelatedOrderKey || relatedOrders[0]?.key || null);
+                } else {
+                  setHoveredRelatedOrderKey(null);
+                }
+              }}
+            >
+              <PopoverTrigger asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className={cn(
+                    'w-full justify-between rounded-lg px-4 py-3 h-auto',
+                    isDark
+                      ? 'bg-white/10 border-white/20 text-white hover:bg-white/15 hover:text-white'
+                      : 'bg-white border-gray-300 text-gray-900 hover:bg-gray-50'
+                  )}
+                >
+                  <div className="flex min-w-0 items-center gap-3 text-left">
+                    <Link2 className={cn('h-4 w-4 shrink-0', isDark ? 'text-white/60' : 'text-gray-400')} />
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium">
+                        {selectedRelatedOrder ? selectedRelatedOrder.orderNumber : copy.attachOrderNone}
+                      </p>
+                      <p className={cn('truncate text-xs', isDark ? 'text-white/60' : 'text-gray-500')}>
+                        {selectedRelatedOrder ? `${selectedRelatedOrder.typeLabel} - ${selectedRelatedOrder.title}` : copy.attachOrderPlaceholder}
+                      </p>
+                    </div>
+                  </div>
+                  <ChevronsUpDown className={cn('h-4 w-4 shrink-0', isDark ? 'text-white/60' : 'text-gray-400')} />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent
+                align="start"
+                className={cn(
+                  'w-[min(92vw,720px)] p-3',
+                  isDark ? 'border-white/20 bg-gray-900 text-white' : 'border-gray-200 bg-white text-gray-900'
+                )}
+              >
+                {relatedOrders.length === 0 ? (
+                  <div className={cn('rounded-xl border border-dashed p-4 text-sm', isDark ? 'border-white/20 text-white/60' : 'border-gray-200 text-gray-500')}>
+                    {copy.attachOrderEmpty}
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-4 lg:grid lg:grid-cols-[minmax(0,1fr)_280px]">
+                    <div className="space-y-1 max-h-[320px] overflow-auto pr-1">
+                      <button
+                        type="button"
+                        onMouseEnter={() => setHoveredRelatedOrderKey(null)}
+                        onFocus={() => setHoveredRelatedOrderKey(null)}
+                        onClick={() => {
+                          setSelectedRelatedOrderKey('');
+                          setHoveredRelatedOrderKey(null);
+                          setOrderPickerOpen(false);
+                        }}
+                        className={cn(
+                          'flex w-full items-start justify-between rounded-lg px-3 py-3 text-left transition-colors',
+                          !selectedRelatedOrderKey
+                            ? isDark
+                              ? 'bg-white/10 text-white'
+                              : 'bg-gray-100 text-gray-900'
+                            : isDark
+                              ? 'hover:bg-white/5 text-white/80'
+                              : 'hover:bg-gray-50 text-gray-700'
+                        )}
+                      >
+                        <div>
+                          <p className="text-sm font-medium">{copy.attachOrderNone}</p>
+                          <p className={cn('text-xs mt-1', isDark ? 'text-white/60' : 'text-gray-500')}>
+                            {copy.attachOrderHelp}
+                          </p>
+                        </div>
+                        {!selectedRelatedOrderKey && <Check className="h-4 w-4 shrink-0" />}
+                      </button>
+
+                      {relatedOrders.map((order) => (
+                        <button
+                          key={order.key}
+                          type="button"
+                          onMouseEnter={() => setHoveredRelatedOrderKey(order.key)}
+                          onFocus={() => setHoveredRelatedOrderKey(order.key)}
+                          onClick={() => {
+                            setSelectedRelatedOrderKey(order.key);
+                            setHoveredRelatedOrderKey(order.key);
+                            setOrderPickerOpen(false);
+                          }}
+                          className={cn(
+                            'flex w-full items-start justify-between rounded-lg px-3 py-3 text-left transition-colors',
+                            selectedRelatedOrderKey === order.key
+                              ? isDark
+                                ? 'bg-white/10 text-white'
+                                : 'bg-gray-100 text-gray-900'
+                              : isDark
+                                ? 'hover:bg-white/5 text-white/80'
+                                : 'hover:bg-gray-50 text-gray-700'
+                          )}
+                        >
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-semibold">{order.orderNumber}</p>
+                            <p className={cn('mt-1 truncate text-xs', isDark ? 'text-white/60' : 'text-gray-500')}>
+                              {order.typeLabel} - {order.title}
+                            </p>
+                          </div>
+                          {selectedRelatedOrderKey === order.key && <Check className="h-4 w-4 shrink-0" />}
+                        </button>
+                      ))}
+                    </div>
+
+                    <div className="lg:block">
+                      {renderOrderPreview(previewedRelatedOrder)}
+                    </div>
+                  </div>
+                )}
+              </PopoverContent>
+            </Popover>
+
+            <p className={cn('mt-2 text-xs', isDark ? 'text-white/50' : 'text-gray-500')}>
+              {copy.attachOrderHelp}
+            </p>
+
+            {selectedRelatedOrder && (
+              <div className="mt-3">
+                {renderOrderPreview(selectedRelatedOrder, true)}
+              </div>
+            )}
           </div>
 
           <div>
@@ -780,3 +1329,5 @@ export function MessagingPanel({ className, variant = 'light' }: MessagingPanelP
     </div>
   );
 }
+
+
