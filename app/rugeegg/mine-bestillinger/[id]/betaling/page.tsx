@@ -2,9 +2,10 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { useParams } from 'next/navigation'
+import { useParams, useSearchParams } from 'next/navigation'
 import { GlassCard } from '@/components/eggs/GlassCard'
 import { useLanguage } from '@/contexts/LanguageContext'
+import { useCart } from '@/contexts/eggs/EggCartContext'
 import { formatDate, formatPrice } from '@/lib/eggs/utils'
 import { ArrowRight, Minus, Plus } from 'lucide-react'
 
@@ -56,11 +57,16 @@ interface WeekInventoryItem {
 
 export default function EggRemainderPage() {
   const params = useParams<{ id: string }>()
+  const searchParams = useSearchParams()
   const orderId = params?.id
   const { lang: language, t } = useLanguage()
+  const { items: cartItems, clearCart } = useCart()
   const [order, setOrder] = useState<EggOrder | null>(null)
   const [inventory, setInventory] = useState<WeekInventoryItem[]>([])
   const [selectedQuantities, setSelectedQuantities] = useState<Record<string, number>>({})
+  const [paymentMode, setPaymentMode] = useState<'deposit_on_additions' | 'pay_all_now'>('pay_all_now')
+  const [cartPrefillApplied, setCartPrefillApplied] = useState(false)
+  const [cartPrefillCount, setCartPrefillCount] = useState(0)
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
@@ -126,6 +132,41 @@ export default function EggRemainderPage() {
     }
   }, [order, t])
 
+  const importFromCart = searchParams.get('fromCart') === '1'
+
+  useEffect(() => {
+    if (!order || !inventory.length || !importFromCart || cartPrefillApplied) return
+
+    const matchesWeek = cartItems.filter(
+      (item) =>
+        item.week.year === Number(order.delivery_monday.slice(0, 4)) &&
+        item.week.weekNumber === order.week_number &&
+        item.week.id
+    )
+
+    if (matchesWeek.length === 0) {
+      setCartPrefillApplied(true)
+      return
+    }
+
+    const nextQuantities: Record<string, number> = {}
+    ;(order.egg_order_additions || []).forEach((addition) => {
+      if (addition.inventory_id) {
+        nextQuantities[addition.inventory_id] = addition.quantity
+      }
+    })
+
+    let importedEggs = 0
+    matchesWeek.forEach((item) => {
+      nextQuantities[item.week.id] = (nextQuantities[item.week.id] || 0) + item.quantity
+      importedEggs += item.quantity
+    })
+
+    setSelectedQuantities(nextQuantities)
+    setCartPrefillCount(importedEggs)
+    setCartPrefillApplied(true)
+  }, [cartItems, cartPrefillApplied, importFromCart, inventory.length, order])
+
   const savedAdditionsTotal = useMemo(() => {
     return (order?.egg_order_additions || []).reduce((sum, addition) => sum + (addition.subtotal || 0), 0)
   }, [order])
@@ -136,6 +177,15 @@ export default function EggRemainderPage() {
         if (payment.payment_type !== 'remainder' || payment.status !== 'completed') return sum
         return sum + (payment.amount_nok || 0) * 100
       }, 0) || 0
+      )
+  }, [order])
+
+  const additionDepositPaidOre = useMemo(() => {
+    return (
+      order?.egg_payments?.reduce((sum, payment) => {
+        if (payment.payment_type !== 'addition_deposit' || payment.status !== 'completed') return sum
+        return sum + (payment.amount_nok || 0) * 100
+      }, 0) || 0
     )
   }, [order])
 
@@ -143,11 +193,6 @@ export default function EggRemainderPage() {
     if (!order) return 0
     return Math.max(0, order.total_amount - savedAdditionsTotal)
   }, [order, savedAdditionsTotal])
-
-  const baseRemainder = useMemo(() => {
-    if (!order) return 0
-    return Math.max(0, baseTotal - order.deposit_amount)
-  }, [order, baseTotal])
 
   const deliveryMondayLocal = useMemo(() => {
     if (!order) return null
@@ -164,13 +209,13 @@ export default function EggRemainderPage() {
   const canAdd = useMemo(() => {
     if (!deliveryMondayLocal || !order) return false
     const now = new Date()
-    return now < deliveryMondayLocal && ['fully_paid', 'preparing'].includes(order.status)
+    return now < deliveryMondayLocal && ['deposit_paid', 'fully_paid', 'preparing'].includes(order.status)
   }, [deliveryMondayLocal, order])
 
   const discountEligible = useMemo(() => {
     if (!deliveryMondayLocal || !dayBeforeStart || !order) return false
     const now = new Date()
-    return now >= dayBeforeStart && now < deliveryMondayLocal && ['fully_paid', 'preparing'].includes(order.status)
+    return now >= dayBeforeStart && now < deliveryMondayLocal && ['deposit_paid', 'fully_paid', 'preparing'].includes(order.status)
   }, [deliveryMondayLocal, dayBeforeStart, order])
 
   const additionsTotal = useMemo(() => {
@@ -184,8 +229,15 @@ export default function EggRemainderPage() {
   }, [selectedQuantities, inventory, discountEligible])
 
   const nextTotal = baseTotal + additionsTotal
-  const nextRemainder = Math.max(0, nextTotal - (order?.deposit_amount || 0))
-  const amountDue = Math.max(0, nextRemainder - remainderPaidOre)
+  const outstandingBeforeChanges = Math.max(0, (order?.total_amount || 0) - (order?.deposit_amount || 0) - remainderPaidOre)
+  const payAllNowAmountDue = Math.max(0, nextTotal - (order?.deposit_amount || 0) - remainderPaidOre)
+  const targetAdditionDepositOre = Math.round(additionsTotal / 2)
+  const depositOnAdditionsAmountDue = Math.max(0, targetAdditionDepositOre - additionDepositPaidOre)
+  const amountDue = paymentMode === 'deposit_on_additions' ? depositOnAdditionsAmountDue : payAllNowAmountDue
+  const outstandingAfterThisPayment =
+    paymentMode === 'deposit_on_additions'
+      ? Math.max(0, nextTotal - ((order?.deposit_amount || 0) + amountDue) - remainderPaidOre)
+      : 0
 
   const hasChanges = useMemo(() => {
     const saved = new Map<string, number>()
@@ -230,24 +282,38 @@ export default function EggRemainderPage() {
       }
 
       if (amountDue <= 0) {
+        if (importFromCart) {
+          clearCart()
+        }
         window.location.href = `/rugeegg/mine-bestillinger/betaling-bekreftet?orderId=${order.id}`
         return
       }
 
-      const remainderResponse = await fetch(`/api/eggs/orders/${order.id}/remainder`, {
+      const paymentRoute =
+        paymentMode === 'deposit_on_additions'
+          ? `/api/eggs/orders/${order.id}/addition-deposit`
+          : `/api/eggs/orders/${order.id}/remainder`
+
+      const paymentResponse = await fetch(paymentRoute, {
         method: 'POST',
       })
-      const remainderData = await remainderResponse.json()
+      const paymentData = await paymentResponse.json()
 
-      if (!remainderResponse.ok || !remainderData.redirectUrl) {
-        if (remainderData?.error === 'Remainder already paid') {
+      if (!paymentResponse.ok || !paymentData.redirectUrl) {
+        if (paymentData?.error === 'Remainder already paid' || paymentData?.error === 'Addition deposit already covered') {
+          if (importFromCart) {
+            clearCart()
+          }
           window.location.href = `/rugeegg/mine-bestillinger/betaling-bekreftet?orderId=${order.id}`
           return
         }
-        throw new Error(remainderData?.error || t.eggs.errors.couldNotStartPayment)
+        throw new Error(paymentData?.error || t.eggs.errors.couldNotStartPayment)
       }
 
-      window.location.href = remainderData.redirectUrl
+      if (importFromCart) {
+        clearCart()
+      }
+      window.location.href = paymentData.redirectUrl
     } catch (err: any) {
       setActionError(err?.message || t.eggs.errors.couldNotStartPayment)
       setIsPaying(false)
@@ -302,6 +368,12 @@ export default function EggRemainderPage() {
             {t.nav.back}
           </Link>
         </div>
+
+        {cartPrefillCount > 0 && (
+          <GlassCard className="p-4 text-sm text-neutral-700">
+            {remainderCopy.cartImportedNotice.replace('{count}', String(cartPrefillCount))}
+          </GlassCard>
+        )}
 
         <GlassCard className="p-6 space-y-4">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -386,18 +458,91 @@ export default function EggRemainderPage() {
           </div>
         </GlassCard>
 
+        {additionsTotal > 0 && (
+          <GlassCard className="p-6 space-y-4">
+            <div>
+              <h2 className="text-lg font-normal text-neutral-900">{remainderCopy.paymentChoiceTitle}</h2>
+              <p className="text-sm text-neutral-600">{remainderCopy.paymentChoiceDescription}</p>
+            </div>
+
+            <div className="grid gap-3">
+              <label
+                className={`rounded-xl border px-4 py-4 cursor-pointer transition-colors ${
+                  paymentMode === 'deposit_on_additions'
+                    ? 'border-neutral-900 bg-neutral-900 text-white'
+                    : 'border-neutral-200 bg-white text-neutral-900'
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="payment-mode"
+                  value="deposit_on_additions"
+                  checked={paymentMode === 'deposit_on_additions'}
+                  onChange={() => setPaymentMode('deposit_on_additions')}
+                  className="sr-only"
+                />
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="font-medium">{remainderCopy.depositOnNewEggsTitle}</p>
+                    <p className={`mt-1 text-sm ${paymentMode === 'deposit_on_additions' ? 'text-white/80' : 'text-neutral-600'}`}>
+                      {remainderCopy.depositOnNewEggsDescription}
+                    </p>
+                  </div>
+                  <span className={paymentMode === 'deposit_on_additions' ? 'text-white' : 'text-neutral-900'}>
+                    {formatPrice(depositOnAdditionsAmountDue, language)}
+                  </span>
+                </div>
+              </label>
+
+              <label
+                className={`rounded-xl border px-4 py-4 cursor-pointer transition-colors ${
+                  paymentMode === 'pay_all_now'
+                    ? 'border-neutral-900 bg-neutral-900 text-white'
+                    : 'border-neutral-200 bg-white text-neutral-900'
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="payment-mode"
+                  value="pay_all_now"
+                  checked={paymentMode === 'pay_all_now'}
+                  onChange={() => setPaymentMode('pay_all_now')}
+                  className="sr-only"
+                />
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="font-medium">{remainderCopy.payEverythingNowTitle}</p>
+                    <p className={`mt-1 text-sm ${paymentMode === 'pay_all_now' ? 'text-white/80' : 'text-neutral-600'}`}>
+                      {remainderCopy.payEverythingNowDescription}
+                    </p>
+                  </div>
+                  <span className={paymentMode === 'pay_all_now' ? 'text-white' : 'text-neutral-900'}>
+                    {formatPrice(payAllNowAmountDue, language)}
+                  </span>
+                </div>
+              </label>
+            </div>
+          </GlassCard>
+        )}
+
         <GlassCard className="p-6 space-y-4">
           <h2 className="text-lg font-normal text-neutral-900">{remainderCopy.paymentSummaryTitle}</h2>
           <p className="text-sm text-neutral-600">{remainderCopy.paymentSummaryDescription}</p>
           <div className="space-y-2 text-sm">
             <div className="flex flex-wrap justify-between gap-2 text-neutral-600">
-              <span>{t.eggs.common.remainder}</span>
-              <span className="font-normal text-neutral-900">{formatPrice(baseRemainder, language)}</span>
+              <span>{remainderCopy.currentOutstanding}</span>
+              <span className="font-normal text-neutral-900">{formatPrice(outstandingBeforeChanges, language)}</span>
             </div>
             {additionsTotal > 0 && (
               <div className="flex flex-wrap justify-between gap-2 text-neutral-600">
                 <span>{t.eggs.common.additions}</span>
                 <span className="font-normal text-neutral-900">{formatPrice(additionsTotal, language)}</span>
+              </div>
+            )}
+            {additionDepositPaidOre > 0 && (
+              <div className="flex flex-wrap justify-between gap-2 text-neutral-600">
+                <span>{remainderCopy.additionDepositsPaid}</span>
+                <span className="font-normal text-neutral-900">{formatPrice(additionDepositPaidOre, language)}</span>
               </div>
             )}
             {remainderPaidOre > 0 && (
@@ -410,6 +555,12 @@ export default function EggRemainderPage() {
               <span className="font-normal">{t.eggs.common.dueNow}</span>
               <span className="font-normal">{formatPrice(amountDue, language)}</span>
             </div>
+            {paymentMode === 'deposit_on_additions' && (
+              <div className="flex flex-wrap justify-between gap-2 text-neutral-600">
+                <span>{remainderCopy.outstandingAfterThisPayment}</span>
+                <span className="font-normal text-neutral-900">{formatPrice(outstandingAfterThisPayment, language)}</span>
+              </div>
+            )}
           </div>
 
           {actionError && <p className="text-xs text-red-600">{actionError}</p>}
@@ -417,10 +568,10 @@ export default function EggRemainderPage() {
           <button
             type="button"
             onClick={handlePayment}
-            disabled={isPaying || amountDue <= 0}
+            disabled={isPaying || (!hasChanges && amountDue <= 0)}
             className="w-full px-6 py-4 bg-[#FF5B24] text-white rounded-xl text-sm font-light uppercase tracking-wide shadow-[0_20px_60px_-15px_rgba(0,0,0,0.3)] hover:bg-[#E6501F] hover:shadow-[0_30px_80px_-20px_rgba(0,0,0,0.4)] hover:-translate-y-1 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-[0_20px_60px_-15px_rgba(0,0,0,0.3)] flex items-center justify-center gap-2"
           >
-            {t.eggs.common.payWithVipps}
+            {amountDue > 0 ? t.eggs.common.payWithVipps : remainderCopy.saveChangesOnly}
             <ArrowRight className="w-5 h-5" />
           </button>
         </GlassCard>

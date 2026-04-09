@@ -27,7 +27,7 @@ export async function POST(
       return NextResponse.json({ error: 'Order not found' }, { status: 404 })
     }
 
-    if (!['fully_paid', 'preparing'].includes(order.status)) {
+    if (!['deposit_paid', 'fully_paid', 'preparing'].includes(order.status)) {
       return NextResponse.json({ error: 'Order is not eligible for additions' }, { status: 400 })
     }
 

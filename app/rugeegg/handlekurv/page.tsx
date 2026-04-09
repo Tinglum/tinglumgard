@@ -16,7 +16,7 @@ export default function CartPage() {
   const router = useRouter()
   const { lang: language, t } = useLanguage()
   const { items, addToCart, removeFromCart, updateQuantity, getTotalEggs, getTotalPrice, canCheckout } = useCart()
-  const { startOrder } = useOrder()
+  const { existingOrderTarget, startOrder } = useOrder()
 
   const totalEggs = getTotalEggs()
   const totalPrice = getTotalPrice()
@@ -88,6 +88,17 @@ export default function CartPage() {
 
   const handleCheckout = () => {
     if (!checkoutStatus.allowed) return
+
+    if (
+      existingOrderTarget &&
+      activeWeek &&
+      existingOrderTarget.year === activeWeek.year &&
+      existingOrderTarget.weekNumber === activeWeek.weekNumber &&
+      existingOrderTarget.deliveryMonday === activeWeek.deliveryMonday.toISOString().split('T')[0]
+    ) {
+      router.push(`/rugeegg/mine-bestillinger/${existingOrderTarget.id}/betaling?fromCart=1`)
+      return
+    }
 
     startOrder(items)
     router.push('/rugeegg/bestill/levering')

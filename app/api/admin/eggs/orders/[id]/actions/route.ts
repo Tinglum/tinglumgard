@@ -20,7 +20,7 @@ interface EggOrderAddition {
 
 interface EggPaymentRow {
   id: string
-  payment_type: 'deposit' | 'remainder'
+  payment_type: 'deposit' | 'addition_deposit' | 'remainder'
   status: string
   amount_nok: number
   paid_at: string | null

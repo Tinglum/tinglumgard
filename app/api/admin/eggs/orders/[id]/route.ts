@@ -3,7 +3,7 @@ import { getSession } from '@/lib/auth/session'
 import { supabaseAdmin } from '@/lib/supabase/server'
 
 type EggPaymentRow = {
-  payment_type: 'deposit' | 'remainder'
+  payment_type: 'deposit' | 'addition_deposit' | 'remainder'
   status: string
   amount_nok: number
 }

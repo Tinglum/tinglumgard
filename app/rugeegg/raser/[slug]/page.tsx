@@ -7,6 +7,7 @@ import { motion } from 'framer-motion'
 import { useLanguage } from '@/contexts/LanguageContext'
 import { useOrder } from '@/contexts/eggs/EggOrderContext'
 import { useCart } from '@/contexts/eggs/EggCartContext'
+import { useAuth } from '@/contexts/AuthContext'
 import { formatPrice, formatDate } from '@/lib/eggs/utils'
 import { GlassCard } from '@/components/eggs/GlassCard'
 import { WeekSelector } from '@/components/eggs/WeekSelector'
@@ -24,6 +25,17 @@ function isSameDeliveryWeek(a: WeekInventory, b: WeekInventory): boolean {
   return getWeekKey(a) === getWeekKey(b)
 }
 
+interface ExistingEggOrderMatch {
+  id: string
+  orderNumber: string
+  customerName?: string | null
+  deliveryMethod?: string | null
+  year: number
+  weekNumber: number
+  deliveryMonday: string
+  totalQuantity: number
+}
+
 export default function BreedDetailPage() {
   const params = useParams()
   const router = useRouter()
@@ -31,8 +43,9 @@ export default function BreedDetailPage() {
   const slug = params.slug as string
   const { lang: language, t } = useLanguage()
   const loadBreedError = t.eggs.errors.loadBreed
-  const { startOrder } = useOrder()
+  const { existingOrderTarget, setExistingOrderTarget, clearExistingOrderTarget } = useOrder()
   const { items, addToCart, clearCart } = useCart()
+  const { isAuthenticated } = useAuth()
 
   const [breed, setBreed] = useState<Breed | null>(null)
   const [inventory, setInventory] = useState<WeekInventory[]>([])
@@ -40,7 +53,13 @@ export default function BreedDetailPage() {
   const [showQuantityModal, setShowQuantityModal] = useState(false)
   const [showWaitlistModal, setShowWaitlistModal] = useState(false)
   const [showActiveOrderPrompt, setShowActiveOrderPrompt] = useState(false)
+  const [showExistingOrderPrompt, setShowExistingOrderPrompt] = useState(false)
+  const [showNewOrderWarning, setShowNewOrderWarning] = useState(false)
   const [skipAutoWeek, setSkipAutoWeek] = useState(false)
+  const [pendingExistingWeek, setPendingExistingWeek] = useState<WeekInventory | null>(null)
+  const [sameWeekExistingOrders, setSameWeekExistingOrders] = useState<ExistingEggOrderMatch[]>([])
+  const [selectedExistingOrderId, setSelectedExistingOrderId] = useState<string>('')
+  const [forceNewWeekKeys, setForceNewWeekKeys] = useState<string[]>([])
   const [waitlistQuantity, setWaitlistQuantity] = useState(1)
   const [waitlistSubmitting, setWaitlistSubmitting] = useState(false)
   const [waitlistError, setWaitlistError] = useState<string | null>(null)
@@ -240,6 +259,48 @@ export default function BreedDetailPage() {
     ? items.find((item) => item.breed.id === localizedBreed?.id && item.week.id === selectedWeek.id)
     : null
 
+  const proceedWithWeek = useCallback((week: WeekInventory) => {
+    if (week.status === 'sold_out' || week.eggsAvailable <= 0) {
+      setSelectedWeek(week)
+      setShowWaitlistModal(true)
+      setWaitlistError(null)
+      setWaitlistSuccess(false)
+      setWaitlistQuantity(1)
+      return
+    }
+
+    setSelectedWeek(week)
+    setShowQuantityModal(true)
+  }, [])
+
+  const fetchExistingOrdersForWeek = useCallback(async (week: WeekInventory) => {
+    if (!isAuthenticated) return []
+
+    const response = await fetch(`/api/eggs/existing-orders?year=${week.year}&week=${week.weekNumber}`)
+    if (!response.ok) {
+      return []
+    }
+
+    const payload = await response.json().catch(() => [])
+    return Array.isArray(payload) ? payload as ExistingEggOrderMatch[] : []
+  }, [isAuthenticated])
+
+  const existingTargetMatchesWeek = useCallback((week: WeekInventory) => {
+    if (!existingOrderTarget) return false
+    return (
+      existingOrderTarget.year === week.year &&
+      existingOrderTarget.weekNumber === week.weekNumber &&
+      existingOrderTarget.deliveryMonday === week.deliveryMonday.toISOString().split('T')[0]
+    )
+  }, [existingOrderTarget])
+
+  const formatExistingOrderDelivery = useCallback((method?: string | null) => {
+    if (method === 'posten') return t.eggs.myOrders.deliveryPosten
+    if (method === 'e6_pickup') return t.eggs.myOrders.deliveryE6
+    if (method === 'farm_pickup') return t.eggs.myOrders.deliveryFarm
+    return method || t.eggs.common.week
+  }, [t])
+
   if (isLoading) {
     return (
       <div className="min-h-screen py-12 flex items-center justify-center">
@@ -265,7 +326,7 @@ export default function BreedDetailPage() {
     )
   }
 
-  const handleWeekSelect = (week: WeekInventory) => {
+  const handleWeekSelect = async (week: WeekInventory) => {
     if (items.length > 0) {
       const firstWeek = items[0].week
       const sameWeek = items.every((item) => isSameDeliveryWeek(item.week, firstWeek))
@@ -275,17 +336,28 @@ export default function BreedDetailPage() {
       }
     }
 
-    if (week.status === 'sold_out' || week.eggsAvailable <= 0) {
-      setSelectedWeek(week)
-      setShowWaitlistModal(true)
-      setWaitlistError(null)
-      setWaitlistSuccess(false)
-      setWaitlistQuantity(1)
+    const weekKey = getWeekKey(week)
+    if (existingTargetMatchesWeek(week)) {
+      proceedWithWeek(week)
       return
     }
 
-    setSelectedWeek(week)
-    setShowQuantityModal(true)
+    if (isAuthenticated && !forceNewWeekKeys.includes(weekKey)) {
+      const matches = await fetchExistingOrdersForWeek(week)
+      if (matches.length > 0) {
+        setPendingExistingWeek(week)
+        setSameWeekExistingOrders(matches)
+        setSelectedExistingOrderId(matches[0].id)
+        setShowExistingOrderPrompt(true)
+        return
+      }
+    }
+
+    if (existingOrderTarget && !existingTargetMatchesWeek(week)) {
+      clearExistingOrderTarget()
+    }
+
+    proceedWithWeek(week)
   }
 
   const handleContinueExistingOrder = () => {
@@ -328,6 +400,44 @@ export default function BreedDetailPage() {
     clearCart()
     setSelectedWeek(null)
     setShowWaitlistModal(false)
+    clearExistingOrderTarget()
+  }
+
+  const handleUseExistingOrder = () => {
+    const target = sameWeekExistingOrders.find((order) => order.id === selectedExistingOrderId)
+    if (!target || !pendingExistingWeek) return
+
+    setExistingOrderTarget({
+      id: target.id,
+      orderNumber: target.orderNumber,
+      weekNumber: target.weekNumber,
+      year: target.year,
+      deliveryMonday: target.deliveryMonday,
+      customerName: target.customerName || null,
+      deliveryMethod: target.deliveryMethod || null,
+    })
+    setShowExistingOrderPrompt(false)
+    setShowNewOrderWarning(false)
+    proceedWithWeek(pendingExistingWeek)
+  }
+
+  const handleStartDuplicateOrder = () => {
+    setShowExistingOrderPrompt(false)
+    setShowNewOrderWarning(true)
+  }
+
+  const handleConfirmDuplicateOrder = () => {
+    if (!pendingExistingWeek) return
+
+    setForceNewWeekKeys((current) => Array.from(new Set([...current, getWeekKey(pendingExistingWeek)])))
+    clearExistingOrderTarget()
+    setShowNewOrderWarning(false)
+    proceedWithWeek(pendingExistingWeek)
+  }
+
+  const handleReturnToExistingOrderPrompt = () => {
+    setShowNewOrderWarning(false)
+    setShowExistingOrderPrompt(true)
   }
 
   const handleQuantityContinue = (quantity: number) => {
@@ -539,6 +649,106 @@ export default function BreedDetailPage() {
               </button>
               <button type="button" onClick={handleStartNewOrder} className="btn-secondary w-full">
                 {t.eggs.activeOrderPrompt.noNewOrder}
+              </button>
+            </div>
+          </GlassCard>
+        </div>
+      )}
+
+      {showExistingOrderPrompt && pendingExistingWeek && (
+        <div className="fixed inset-0 z-40 flex items-end md:items-center justify-center p-4 bg-black/40">
+          <GlassCard variant="strong" className="w-full max-w-xl p-6 md:p-8">
+            <div className="flex items-start gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center">
+                <AlertTriangle className="w-5 h-5" />
+              </div>
+              <div>
+                <h2 className="text-lg font-normal text-neutral-900">
+                  {t.eggs.activeOrderPrompt.existingOrderTitle}
+                </h2>
+                <p className="text-sm text-neutral-600">
+                  {t.eggs.activeOrderPrompt.existingOrderDescription}
+                </p>
+              </div>
+            </div>
+
+            <div className="mb-5 rounded-xl border border-neutral-200 bg-white/70 p-4 text-sm text-neutral-700">
+              <div className="font-medium text-neutral-900 mb-2">
+                {t.eggs.activeOrderPrompt.activeWeek}:{' '}
+                {pendingExistingWeek.weekNumber} - {formatDate(pendingExistingWeek.deliveryMonday, language)}
+              </div>
+              <div className="space-y-3">
+                {sameWeekExistingOrders.map((order) => (
+                  <label
+                    key={order.id}
+                    className={`flex cursor-pointer items-start gap-3 rounded-xl border px-4 py-3 transition-colors ${
+                      selectedExistingOrderId === order.id
+                        ? 'border-neutral-900 bg-neutral-900 text-white'
+                        : 'border-neutral-200 bg-white text-neutral-900'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="existing-order"
+                      value={order.id}
+                      checked={selectedExistingOrderId === order.id}
+                      onChange={() => setSelectedExistingOrderId(order.id)}
+                      className="mt-1"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <span className="font-medium">{order.orderNumber}</span>
+                        <span className={selectedExistingOrderId === order.id ? 'text-white/80' : 'text-neutral-500'}>
+                          {formatExistingOrderDelivery(order.deliveryMethod)}
+                        </span>
+                      </div>
+                      <div className={`mt-1 text-xs ${selectedExistingOrderId === order.id ? 'text-white/80' : 'text-neutral-600'}`}>
+                        {order.customerName || t.eggs.activeOrderPrompt.orderWithoutName}
+                      </div>
+                      <div className={`mt-1 text-xs ${selectedExistingOrderId === order.id ? 'text-white/80' : 'text-neutral-600'}`}>
+                        {t.eggs.activeOrderPrompt.eggsAlreadyOrdered.replace('{count}', String(order.totalQuantity))}
+                      </div>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-3">
+              <button type="button" onClick={handleUseExistingOrder} className="btn-primary w-full">
+                {t.eggs.activeOrderPrompt.addToExistingOrder}
+              </button>
+              <button type="button" onClick={handleStartDuplicateOrder} className="btn-secondary w-full">
+                {t.eggs.activeOrderPrompt.createNewOrder}
+              </button>
+            </div>
+          </GlassCard>
+        </div>
+      )}
+
+      {showNewOrderWarning && pendingExistingWeek && (
+        <div className="fixed inset-0 z-40 flex items-end md:items-center justify-center p-4 bg-black/40">
+          <GlassCard variant="strong" className="w-full max-w-lg p-6 md:p-8">
+            <div className="flex items-start gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center">
+                <AlertTriangle className="w-5 h-5" />
+              </div>
+              <div>
+                <h2 className="text-lg font-normal text-neutral-900">
+                  {t.eggs.activeOrderPrompt.duplicateWarningTitle}
+                </h2>
+                <p className="text-sm text-neutral-600">
+                  {t.eggs.activeOrderPrompt.duplicateWarningDescription.replace('{week}', String(pendingExistingWeek.weekNumber))}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-3">
+              <button type="button" onClick={handleReturnToExistingOrderPrompt} className="btn-secondary w-full">
+                {t.eggs.activeOrderPrompt.backToExistingOrder}
+              </button>
+              <button type="button" onClick={handleConfirmDuplicateOrder} className="btn-primary w-full">
+                {t.eggs.activeOrderPrompt.confirmDuplicateOrder}
               </button>
             </div>
           </GlassCard>

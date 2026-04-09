@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth/session'
 import { supabaseAdmin } from '@/lib/supabase/server'
 
-type EggPaymentType = 'deposit' | 'remainder'
+type EggPaymentType = 'deposit' | 'addition_deposit' | 'remainder'
 type EggPaymentStatus = 'pending' | 'completed' | 'failed' | 'refunded'
 
 type EggPaymentRow = {

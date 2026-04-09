@@ -912,6 +912,36 @@ export async function POST(request: NextRequest) {
         }
       }
     }
+    if (resolvedPayment.payment_type === "addition_deposit" && isEggPayment) {
+      const paidOre = Math.round(Number(resolvedPayment.amount_nok || 0) * 100);
+      const nextDepositAmount = Number(order?.deposit_amount || 0) + paidOre;
+      const totalAmountOre = Number(order?.total_amount || 0);
+      const nextRemainderAmount = Math.max(0, totalAmountOre - nextDepositAmount);
+      const nextStatus = nextRemainderAmount <= 0 ? 'fully_paid' : 'deposit_paid';
+
+      const { error: additionDepositErr } = await supabaseAdmin
+        .from('egg_orders')
+        .update({
+          deposit_amount: nextDepositAmount,
+          remainder_amount: nextRemainderAmount,
+          status: nextStatus,
+        })
+        .eq('id', resolvedPayment.egg_order_id);
+
+      if (additionDepositErr) {
+        logError('vipps-webhook-egg-addition-deposit-update-failed', additionDepositErr);
+        throw additionDepositErr;
+      }
+
+      console.log('Egg order updated after addition deposit payment', {
+        orderId: resolvedPayment.egg_order_id,
+        paidOre,
+        nextDepositAmount,
+        nextRemainderAmount,
+        nextStatus,
+      });
+    }
+
     // If remainder completed, check if order is now fully paid or still has outstanding balance
     if (resolvedPayment.payment_type === "remainder") {
       const remainderOrderTable = isChickenPayment ? "chicken_orders" : isEggPayment ? "egg_orders" : "orders";

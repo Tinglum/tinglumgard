@@ -130,7 +130,7 @@ export function EggOrderUnifiedCard({ order, onPayDeposit }: { order: EggOrder; 
   const dueDate = order.remainder_due_date ? toDateOnly(order.remainder_due_date) : null
   const deliveryDate = toDateOnly(order.delivery_monday)
   const deliveryMondayLocal = new Date(`${order.delivery_monday}T00:00:00`)
-  const canAdd = new Date() < deliveryMondayLocal && ['fully_paid', 'preparing'].includes(order.status)
+  const canAdd = new Date() < deliveryMondayLocal && ['deposit_paid', 'fully_paid', 'preparing'].includes(order.status)
   const canWishlistMore =
     new Date() < deliveryMondayLocal && !['cancelled', 'forfeited', 'delivered'].includes(order.status)
   const daysToDue = dueDate ? daysBetween(dueDate, today) : null
