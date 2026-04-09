@@ -77,7 +77,7 @@ function normalizeEggReminderVariables(
         '<p style="font-size:16px;line-height:1.6;margin:0 0 8px;">We are looking forward to sending your hatching eggs, and this is simply an early and friendly reminder about the remaining balance for order <strong>{{order_number}}</strong>.</p><p style="font-size:16px;line-height:1.6;margin:0 0 24px;">You still have plenty of time. We are sending this now so you can settle the payment whenever it suits you best.</p>';
       vars.reminder_support_html =
         vars.reminder_support_html ||
-        '<div style="margin:0 0 20px;padding:16px 20px;background:#FAF8F5;border:1px solid #E8DFD5;border-radius:10px;"><p style="font-size:14px;line-height:1.6;color:#6B5B4E;margin:0;">If you have already paid, you can ignore this email. If you have any questions about your order, just reply and we will gladly help.</p></div>';
+        '<div style="margin:0 0 20px;padding:16px 20px;background:#FAF8F5;border:1px solid #E8DFD5;border-radius:10px;"><p style="font-size:14px;line-height:1.6;color:#6B5B4E;margin:0;">If you have already paid, you can ignore this email. If you have any questions about your order, sign in to My page and we will gladly help.</p></div>';
       vars.reminder_consequence_html =
         vars.reminder_consequence_html ||
         '<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 24px;border-left:4px solid #E8DFD5;background:#FAF8F5;border-radius:0 8px 8px 0;"><tr><td style="padding:16px 20px;"><p style="font-size:14px;line-height:1.6;color:#6B5B4E;margin:0;">Your order remains reserved for you until the payment deadline. If the balance is still not registered by then, the order will eventually be cancelled and the eggs released to other customers.</p></td></tr></table>';
@@ -91,7 +91,7 @@ function normalizeEggReminderVariables(
         '<p style="font-size:16px;line-height:1.6;margin:0 0 8px;">This is another friendly reminder about the remaining balance for order <strong>{{order_number}}</strong>.</p><p style="font-size:16px;line-height:1.6;margin:0 0 24px;">As soon as the payment is registered, everything is ready for the next step toward shipment in the correct week.</p>';
       vars.reminder_support_html =
         vars.reminder_support_html ||
-        '<div style="margin:0 0 20px;padding:16px 20px;background:#FAF8F5;border:1px solid #E8DFD5;border-radius:10px;"><p style="font-size:14px;line-height:1.6;color:#6B5B4E;margin:0;">If you have already paid, or if you have any questions about the order, just reply to this email. We are happy to help.</p></div>';
+        '<div style="margin:0 0 20px;padding:16px 20px;background:#FAF8F5;border:1px solid #E8DFD5;border-radius:10px;"><p style="font-size:14px;line-height:1.6;color:#6B5B4E;margin:0;">If you have already paid, or if you have any questions about the order, sign in to My page. We are happy to help.</p></div>';
       vars.reminder_consequence_html =
         vars.reminder_consequence_html ||
         '<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 24px;border-left:4px solid #FDE68A;background:#FFFBEB;border-radius:0 8px 8px 0;"><tr><td style="padding:16px 20px;"><p style="font-size:14px;line-height:1.6;color:#B45309;margin:0;">We are still holding your place, but the remaining balance needs to be registered by the deadline for delivery to stay on schedule.</p></td></tr></table>';
@@ -116,7 +116,7 @@ function normalizeEggReminderVariables(
       '<p style="font-size:16px;line-height:1.6;margin:0 0 8px;">Vi gleder oss til &aring; sende rugeeggene dine, og vil bare gi deg en tidlig og vennlig p&aring;minnelse om restbetalingen for bestilling <strong>{{order_number}}</strong>.</p><p style="font-size:16px;line-height:1.6;margin:0 0 24px;">Du har fortsatt god tid. Vi sender denne meldingen n&aring; slik at du kan ordne betalingen n&aring;r det passer deg best.</p>';
     vars.reminder_support_html =
       vars.reminder_support_html ||
-      '<div style="margin:0 0 20px;padding:16px 20px;background:#FAF8F5;border:1px solid #E8DFD5;border-radius:10px;"><p style="font-size:14px;line-height:1.6;color:#6B5B4E;margin:0;">Hvis du allerede har betalt, kan du se bort fra denne e-posten. Har du sp&oslash;rsm&aring;l om bestillingen, er det bare &aring; svare oss.</p></div>';
+      '<div style="margin:0 0 20px;padding:16px 20px;background:#FAF8F5;border:1px solid #E8DFD5;border-radius:10px;"><p style="font-size:14px;line-height:1.6;color:#6B5B4E;margin:0;">Hvis du allerede har betalt, kan du se bort fra denne e-posten. Har du sp&oslash;rsm&aring;l om bestillingen, kan du logge inn p&aring; Min side for hjelp.</p></div>';
     vars.reminder_consequence_html =
       vars.reminder_consequence_html ||
       '<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 24px;border-left:4px solid #E8DFD5;background:#FAF8F5;border-radius:0 8px 8px 0;"><tr><td style="padding:16px 20px;"><p style="font-size:14px;line-height:1.6;color:#6B5B4E;margin:0;">Bestillingen beholdes for deg frem til betalingsfristen. Dersom restbel&oslash;pet ikke er registrert innen fristen, blir ordren til slutt kansellert og eggene frigitt til andre kunder.</p></td></tr></table>';
@@ -130,7 +130,7 @@ function normalizeEggReminderVariables(
       '<p style="font-size:16px;line-height:1.6;margin:0 0 8px;">Dette er en ny vennlig p&aring;minnelse om restbetalingen for bestilling <strong>{{order_number}}</strong>.</p><p style="font-size:16px;line-height:1.6;margin:0 0 24px;">N&aring;r betalingen er registrert, er alt klart videre mot utsending i riktig uke.</p>';
     vars.reminder_support_html =
       vars.reminder_support_html ||
-      '<div style="margin:0 0 20px;padding:16px 20px;background:#FAF8F5;border:1px solid #E8DFD5;border-radius:10px;"><p style="font-size:14px;line-height:1.6;color:#6B5B4E;margin:0;">Hvis du allerede har betalt, eller lurer p&aring; noe rundt ordren, er det bare &aring; svare oss. Vi hjelper gjerne.</p></div>';
+      '<div style="margin:0 0 20px;padding:16px 20px;background:#FAF8F5;border:1px solid #E8DFD5;border-radius:10px;"><p style="font-size:14px;line-height:1.6;color:#6B5B4E;margin:0;">Hvis du allerede har betalt, eller lurer p&aring; noe rundt ordren, kan du logge inn p&aring; Min side. Vi hjelper gjerne.</p></div>';
     vars.reminder_consequence_html =
       vars.reminder_consequence_html ||
       '<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 24px;border-left:4px solid #FDE68A;background:#FFFBEB;border-radius:0 8px 8px 0;"><tr><td style="padding:16px 20px;"><p style="font-size:14px;line-height:1.6;color:#B45309;margin:0;">Vi holder fortsatt av plassen din, men restbel&oslash;pet m&aring; v&aelig;re registrert innen fristen for at leveringen skal g&aring; som planlagt.</p></td></tr></table>';
@@ -660,8 +660,8 @@ export function ensureHtmlDocument(
   const supportLabel = locale === 'en' ? 'Questions?' : 'Sp\u00f8rsm\u00e5l?';
   const supportText =
     locale === 'en'
-      ? 'Just reply to this email \u2014 we\u2019re happy to help.'
-      : 'Bare svar p\u00e5 denne e-posten \u2014 vi hjelper deg gjerne.';
+      ? 'Sign in to My page if you need help or want to respond to a message.'
+      : 'Logg inn p\u00e5 Min side hvis du trenger hjelp eller vil svare p\u00e5 en melding.';
   const preheader = preheaderText ||
     (locale === 'en'
       ? 'Update from Tinglum G\u00e5rd about your order.'

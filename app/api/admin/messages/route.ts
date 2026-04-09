@@ -3,7 +3,7 @@ import { getSession } from '@/lib/auth/session';
 import { supabaseAdmin } from '@/lib/supabase/server';
 import { logError } from '@/lib/logger';
 import { dispatchEmail } from '@/lib/email/dispatch';
-import { buildCustomerMessageEmail } from '@/lib/messages/customer-email';
+import { buildCustomerMessageEmail, buildCustomerMessagePortalUrl } from '@/lib/messages/customer-email';
 import { getCustomerFacingAdminName } from '@/lib/messages/admin-sender';
 import { recordMessageEmailDebugEvent } from '@/lib/messages/email-debug';
 import { buildSupportThreadMessageId } from '@/lib/messages/threading';
@@ -232,13 +232,14 @@ export async function POST(request: NextRequest) {
     if (customerEmail) {
       const outboundMessageId = buildSupportThreadMessageId(threadId, 'admin-message');
       try {
+        const portalUrl = buildCustomerMessagePortalUrl(appUrl, newMessage.id);
         const rendered = buildCustomerMessageEmail({
           locale: 'no',
           customerName: fallbackCustomerName,
           adminName,
           subjectLine: subject,
           messageText: message,
-          portalUrl: `${appUrl}/min-side`,
+          portalUrl,
           portalLabel: 'Min side',
           orderContextHtml: buildOrderBlock('no', orderNumber, relatedOrderSource),
         });

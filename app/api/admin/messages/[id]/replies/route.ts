@@ -4,7 +4,7 @@ import { supabaseAdmin } from '@/lib/supabase/server';
 import { logError } from '@/lib/logger';
 import { dispatchEmail } from '@/lib/email/dispatch';
 import { renderManagedTemplate } from '@/lib/email/render';
-import { buildCustomerMessageEmail } from '@/lib/messages/customer-email';
+import { buildCustomerMessageEmail, buildCustomerMessagePortalUrl } from '@/lib/messages/customer-email';
 import { getCustomerFacingAdminName } from '@/lib/messages/admin-sender';
 import { recordMessageEmailDebugEvent } from '@/lib/messages/email-debug';
 import { buildSupportThreadMessageId } from '@/lib/messages/threading';
@@ -72,6 +72,7 @@ export async function POST(
         const isAdminInitiated = message.initiated_by === 'admin';
         const threadId = String(message.email_thread_id || `msg_${message.id}`);
         const outboundMessageId = buildSupportThreadMessageId(threadId, 'admin-reply');
+        const portalUrl = buildCustomerMessagePortalUrl(appUrl, message.id, { replyId: reply.id });
         const rendered = isAdminInitiated
           ? buildCustomerMessageEmail({
               locale: 'no',
@@ -80,7 +81,7 @@ export async function POST(
               mode: 'reply',
               subjectLine: message.subject,
               messageText: trimmedReply,
-              portalUrl: `${appUrl}/min-side`,
+              portalUrl,
               portalLabel: 'Min side',
             })
           : await renderManagedTemplate({
@@ -92,7 +93,7 @@ export async function POST(
                 subject_line: message.subject,
                 reply_text: trimmedReply,
                 admin_name: adminName,
-                portal_url: `${appUrl}/min-side`,
+                portal_url: portalUrl,
                 portal_label: 'Min side',
               },
             });

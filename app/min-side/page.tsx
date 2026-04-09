@@ -168,6 +168,21 @@ export default function CustomerPortalPage() {
     return null;
   }, [searchParams]);
 
+  const deepLinkMessage = useMemo(() => {
+    const requestedTab = String(searchParams.get('tab') || '').trim().toLowerCase();
+    const messageId = String(searchParams.get('messageId') || '').trim();
+    const replyId = String(searchParams.get('replyId') || '').trim();
+
+    if (requestedTab === 'messages' || messageId || replyId) {
+      return {
+        messageId: messageId || null,
+        replyId: replyId || null,
+      };
+    }
+
+    return null;
+  }, [searchParams]);
+
   async function handleVippsLogin() {
     const returnTo = `${window.location.pathname}${window.location.search || ''}`;
     window.location.href = `/api/auth/vipps/login?returnTo=${encodeURIComponent(returnTo)}`;
@@ -290,6 +305,11 @@ export default function CustomerPortalPage() {
     setOrderViewMode('chronological');
     setFocusedOrderKey(`${deepLinkOrder.type}-${deepLinkOrder.id}`);
   }, [deepLinkOrder]);
+
+  useEffect(() => {
+    if (!deepLinkMessage) return;
+    setActiveTab('messages');
+  }, [deepLinkMessage]);
 
   useEffect(() => {
     if (!focusedOrderKey || loading || authLoading) return;
@@ -859,6 +879,8 @@ export default function CustomerPortalPage() {
               pigOrders={orders}
               eggOrders={eggOrders}
               chickenOrders={chickenOrders}
+              initialMessageId={deepLinkMessage?.messageId || undefined}
+              initialReplyId={deepLinkMessage?.replyId || undefined}
             />
           </GlassCard>
         )}

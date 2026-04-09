@@ -12,6 +12,10 @@ interface BuildCustomerMessageEmailInput {
   orderContextHtml?: string;
 }
 
+interface BuildCustomerMessagePortalUrlOptions {
+  replyId?: string | null;
+}
+
 function escapeHtml(value: string) {
   return value
     .replaceAll('&', '&amp;')
@@ -94,6 +98,23 @@ function getReplyHint(locale: CustomerMessageEmailLocale, portalLabel: string) {
   }
 
   return `For \u00E5 svare p\u00E5 meldingen, logg inn p\u00E5 ${escapeHtml(portalLabel)}.`;
+}
+
+export function buildCustomerMessagePortalUrl(
+  appUrl: string,
+  messageId: string,
+  options?: BuildCustomerMessagePortalUrlOptions,
+) {
+  const url = new URL('/min-side', appUrl);
+  url.searchParams.set('tab', 'messages');
+  url.searchParams.set('messageId', messageId);
+
+  const replyId = String(options?.replyId || '').trim();
+  if (replyId) {
+    url.searchParams.set('replyId', replyId);
+  }
+
+  return url.toString();
 }
 
 export function buildCustomerMessageEmail(input: BuildCustomerMessageEmailInput) {

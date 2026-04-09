@@ -91,6 +91,8 @@ interface MessagingPanelProps {
   pigOrders?: MessagingPigOrder[];
   eggOrders?: MessagingEggOrder[];
   chickenOrders?: MessagingChickenOrder[];
+  initialMessageId?: string;
+  initialReplyId?: string;
 }
 
 type CustomerMessageWithReplies = CustomerMessage & { message_replies?: MessageReply[] };
@@ -124,6 +126,8 @@ export function MessagingPanel({
   pigOrders = [],
   eggOrders = [],
   chickenOrders = [],
+  initialMessageId,
+  initialReplyId,
 }: MessagingPanelProps) {
   const { toast } = useToast();
   const { lang, t } = useLanguage();
@@ -437,6 +441,34 @@ export function MessagingPanel({
     [relatedOrders, selectedRelatedOrderKey]
   );
 
+  const focusedMessage = useMemo(
+    () => messages.find((message) => message.id === initialMessageId) || null,
+    [initialMessageId, messages]
+  );
+
+  const highlightedReplyId = useMemo(() => {
+    if (!focusedMessage) {
+      return null;
+    }
+
+    if (initialReplyId) {
+      return initialReplyId;
+    }
+
+    const visibleReplies = (focusedMessage.message_replies || [])
+      .filter((reply) => !reply.is_internal)
+      .sort(
+        (a, b) =>
+          new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+      );
+
+    const latestFarmReply = [...visibleReplies]
+      .reverse()
+      .find((reply) => !(reply as any).is_from_customer);
+
+    return latestFarmReply?.id || null;
+  }, [focusedMessage, initialReplyId]);
+
   const previewedRelatedOrder = useMemo(
     () =>
       relatedOrders.find((order) => order.key === hoveredRelatedOrderKey) ||
@@ -630,6 +662,27 @@ export function MessagingPanel({
     window.addEventListener('tinglum_message_created', handleMessageCreated);
     return () => window.removeEventListener('tinglum_message_created', handleMessageCreated);
   }, [loadMessages]);
+
+  useEffect(() => {
+    if (isLoading || !initialMessageId) {
+      return;
+    }
+
+    const targetId = highlightedReplyId
+      ? `message-reply-${highlightedReplyId}`
+      : `message-thread-${initialMessageId}`;
+
+    const timer = window.setTimeout(() => {
+      const target = document.getElementById(targetId);
+      if (!target) {
+        return;
+      }
+
+      target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 140);
+
+    return () => window.clearTimeout(timer);
+  }, [highlightedReplyId, initialMessageId, isLoading]);
 
   async function handleReply(messageId: string) {
     const replyText = replyTexts[messageId];
@@ -1195,10 +1248,24 @@ export function MessagingPanel({
             {copy.noMessages}
           </div>
         ) : (
-          messages.map((msg) => (
+          messages.map((msg) => {
+            const isFocusedThread = msg.id === initialMessageId;
+            const visibleReplies = (msg.message_replies || [])
+              .filter((reply) => !reply.is_internal)
+              .sort(
+                (a, b) =>
+                  new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+              );
+
+            return (
             <div
               key={msg.id}
-              className={cn('rounded-lg p-4 border', statusColors[msg.status as keyof typeof statusColors])}
+              id={`message-thread-${msg.id}`}
+              className={cn(
+                'rounded-lg p-4 border transition-all',
+                statusColors[msg.status as keyof typeof statusColors],
+                isFocusedThread && 'ring-2 ring-amber-300 ring-offset-2 shadow-[0_12px_30px_-18px_rgba(180,83,9,0.55)]'
+              )}
             >
               <div className="flex items-start justify-between mb-2">
                 <div className="flex items-center gap-2">
@@ -1235,24 +1302,28 @@ export function MessagingPanel({
                 </div>
               </div>
 
-              {msg.message_replies && msg.message_replies.length > 0 && (
+              {visibleReplies.length > 0 && (
                 <div className="mt-3 space-y-2">
-                  {msg.message_replies
-                    .filter((reply) => !reply.is_internal)
-                    .map((reply) => {
+                  {visibleReplies.map((reply) => {
                       const isFromCustomer = (reply as any).is_from_customer;
+                      const isHighlightedReply = reply.id === highlightedReplyId;
                       return (
                         <div
                           key={reply.id}
+                          id={`message-reply-${reply.id}`}
                           className={cn(
-                            'rounded-lg border p-3',
-                            isFromCustomer
+                            'rounded-lg border p-3 transition-all',
+                            isHighlightedReply
                               ? isDark
-                                ? 'bg-blue-900/30 border-blue-500/30 text-white ml-4'
-                                : 'bg-blue-50 border-blue-200 ml-4'
-                              : isDark
-                                ? 'bg-white/10 border-white/20 text-white mr-4'
-                                : 'bg-white border-gray-200 mr-4'
+                                ? 'bg-amber-500/10 border-amber-300/40 text-white mr-2 ring-2 ring-amber-300/50 shadow-[0_10px_24px_-14px_rgba(245,158,11,0.7)]'
+                                : 'bg-amber-50 border-amber-300 mr-2 ring-2 ring-amber-200 shadow-[0_10px_24px_-16px_rgba(217,119,6,0.45)]'
+                              : isFromCustomer
+                                ? isDark
+                                  ? 'bg-blue-900/30 border-blue-500/30 text-white ml-4'
+                                  : 'bg-blue-50 border-blue-200 ml-4'
+                                : isDark
+                                  ? 'bg-white/10 border-white/20 text-white mr-4'
+                                  : 'bg-white border-gray-200 mr-4'
                           )}
                         >
                           <div className="flex items-center justify-between mb-1">
@@ -1323,7 +1394,7 @@ export function MessagingPanel({
                 {copy.statuses[msg.status as keyof typeof copy.statuses]}
               </span>
             </div>
-          ))
+          )})
         )}
       </div>
     </div>

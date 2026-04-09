@@ -7,6 +7,7 @@ import { renderManagedTemplate } from '@/lib/email/render';
 import { recordMessageEmailDebugEvent } from '@/lib/messages/email-debug';
 import { buildSupportThreadMessageId } from '@/lib/messages/threading';
 import { getNoReplyAddress } from '@/lib/messages/no-reply-address';
+import { buildCustomerMessagePortalUrl } from '@/lib/messages/customer-email';
 
 const MESSAGE_TYPES = new Set(['support', 'inquiry', 'complaint', 'feedback', 'referral_question']);
 const RELATED_ORDER_SOURCES = new Set(['pig', 'egg', 'chicken']);
@@ -206,6 +207,7 @@ export async function POST(request: NextRequest) {
     if (session.email) {
       const outboundMessageId = buildSupportThreadMessageId(threadId, 'customer-confirmation');
       try {
+        const portalUrl = buildCustomerMessagePortalUrl(appUrl, newMessage.id);
         const rendered = await renderManagedTemplate({
           templateKey: 'support.message.customer.confirmation',
           locale: 'no',
@@ -215,7 +217,7 @@ export async function POST(request: NextRequest) {
             subject_line: subject,
             order_number: orderNumber ? `Ordre: ${orderNumber}` : '',
             message_text: message,
-            portal_url: `${appUrl}/min-side`,
+            portal_url: portalUrl,
             portal_label: 'Min side',
           },
         });

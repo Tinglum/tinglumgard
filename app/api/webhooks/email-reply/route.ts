@@ -5,7 +5,7 @@ import { dispatchEmail } from '@/lib/email/dispatch';
 import { renderManagedTemplate } from '@/lib/email/render';
 import { logError } from '@/lib/logger';
 import { getCustomerFacingAdminName } from '@/lib/messages/admin-sender';
-import { buildCustomerMessageEmail } from '@/lib/messages/customer-email';
+import { buildCustomerMessageEmail, buildCustomerMessagePortalUrl } from '@/lib/messages/customer-email';
 import { recordMessageEmailDebugEvent } from '@/lib/messages/email-debug';
 import { getNoReplyAddress } from '@/lib/messages/no-reply-address';
 import {
@@ -435,6 +435,7 @@ export async function POST(request: NextRequest) {
       try {
         const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://tinglumgard.no';
         const isAdminInitiated = message.initiated_by === 'admin';
+        const portalUrl = buildCustomerMessagePortalUrl(appUrl, message.id, { replyId: reply.id });
         const rendered = isAdminInitiated
           ? buildCustomerMessageEmail({
               locale: 'no',
@@ -443,7 +444,7 @@ export async function POST(request: NextRequest) {
               mode: 'reply',
               subjectLine: message.subject,
               messageText: replyText,
-              portalUrl: `${appUrl}/min-side`,
+              portalUrl,
               portalLabel: 'Min side',
             })
           : await renderManagedTemplate({
@@ -455,7 +456,7 @@ export async function POST(request: NextRequest) {
                 subject_line: message.subject,
                 reply_text: replyText,
                 admin_name: adminSenderName || 'Tinglum G\u00E5rd',
-                portal_url: `${appUrl}/min-side`,
+                portal_url: portalUrl,
                 portal_label: 'Min side',
               },
             });
