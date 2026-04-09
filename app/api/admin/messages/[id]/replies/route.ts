@@ -76,6 +76,7 @@ export async function POST(
               locale: 'no',
               customerName: message.customer_name || 'Kunde',
               adminName,
+              mode: 'reply',
               subjectLine: message.subject,
               messageText: trimmedReply,
               portalUrl: `${appUrl}/min-side`,

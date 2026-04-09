@@ -1,5 +1,6 @@
 ﻿import { supabaseAdmin } from '@/lib/supabase/server';
 import type { EmailLocale } from '@/lib/email/types';
+import { sanitizeSupportEmailCopy } from '@/lib/messages/support-email-copy';
 
 // Brand design tokens
 const BRAND = {
@@ -796,15 +797,21 @@ export async function renderManagedTemplate(options: {
 
   const subjectRaw = locale === 'en' ? String(data.subject_en || '') : String(data.subject_no || '');
   const bodyRaw = locale === 'en' ? String(data.body_en || '') : String(data.body_no || '');
+  const templateKey = String(data.template_key || options.templateKey);
+  const sanitized = sanitizeSupportEmailCopy({
+    templateKey,
+    subject: interpolateTemplate(subjectRaw, vars),
+    html: interpolateTemplate(bodyRaw, vars),
+  });
 
   return {
-    subject: interpolateTemplate(subjectRaw, vars),
-    html: ensureHtmlDocument(interpolateTemplate(bodyRaw, vars), locale, undefined, {
+    subject: sanitized.subject,
+    html: ensureHtmlDocument(sanitized.html, locale, undefined, {
       productScope,
       classification: String(data.classification || 'transactional'),
     }),
     classification: String(data.classification || 'transactional'),
-    templateKey: String(data.template_key || options.templateKey),
+    templateKey,
   };
 }
 

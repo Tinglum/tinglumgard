@@ -439,6 +439,7 @@ export async function POST(request: NextRequest) {
               locale: 'no',
               customerName: message.customer_name || 'Kunde',
               adminName: adminSenderName,
+              mode: 'reply',
               subjectLine: message.subject,
               messageText: replyText,
               portalUrl: `${appUrl}/min-side`,

@@ -4,6 +4,7 @@ interface BuildCustomerMessageEmailInput {
   locale: CustomerMessageEmailLocale;
   customerName?: string | null;
   adminName?: string | null;
+  mode?: 'message' | 'reply';
   subjectLine: string;
   messageText: string;
   portalUrl: string;
@@ -34,37 +35,58 @@ function getFirstName(customerName: string | null | undefined, locale: CustomerM
 }
 
 function getFarmName(locale: CustomerMessageEmailLocale) {
-  return locale === 'en' ? 'Tinglum Gard' : 'Tinglum Gård';
+  return locale === 'en' ? 'Tinglum Gard' : 'Tinglum G\u00E5rd';
 }
 
-function getSubjectPrefix(locale: CustomerMessageEmailLocale) {
-  return locale === 'en' ? 'Message from Tinglum Gard' : 'Melding fra Tinglum Gård';
+function getSubjectPrefix(
+  locale: CustomerMessageEmailLocale,
+  mode: 'message' | 'reply'
+) {
+  if (mode === 'reply') {
+    return locale === 'en' ? 'Reply from Tinglum Gard' : 'Svar fra Tinglum G\u00E5rd';
+  }
+
+  return locale === 'en' ? 'Message from Tinglum Gard' : 'Melding fra Tinglum G\u00E5rd';
 }
 
-function getSenderLine(locale: CustomerMessageEmailLocale, adminName?: string | null) {
+function getSenderLine(
+  locale: CustomerMessageEmailLocale,
+  mode: 'message' | 'reply',
+  adminName?: string | null
+) {
   const farmName = getFarmName(locale);
   const trimmedAdminName = String(adminName || '').trim();
+  const action =
+    mode === 'reply'
+      ? locale === 'en'
+        ? 'has replied.'
+        : 'har svart.'
+      : locale === 'en'
+        ? 'has sent you a message.'
+        : 'har sendt deg en melding.';
 
   if (!trimmedAdminName) {
-    return locale === 'en'
-      ? `${farmName} has sent you a message.`
-      : `${farmName} har sendt deg en melding.`;
+    return `${farmName} ${action}`;
   }
 
   const includesFarmName = trimmedAdminName.toLowerCase().includes(farmName.toLowerCase());
   if (locale === 'en') {
     return includesFarmName
-      ? `${escapeHtml(trimmedAdminName)} has sent you a message.`
-      : `${escapeHtml(trimmedAdminName)} from ${farmName} has sent you a message.`;
+      ? `${escapeHtml(trimmedAdminName)} ${action}`
+      : `${escapeHtml(trimmedAdminName)} from ${farmName} ${action}`;
   }
 
   return includesFarmName
-    ? `${escapeHtml(trimmedAdminName)} har sendt deg en melding.`
-    : `${escapeHtml(trimmedAdminName)} fra ${farmName} har sendt deg en melding.`;
+    ? `${escapeHtml(trimmedAdminName)} ${action}`
+    : `${escapeHtml(trimmedAdminName)} fra ${farmName} ${action}`;
 }
 
-function getOpenLabel(locale: CustomerMessageEmailLocale) {
-  return locale === 'en' ? 'Open message' : 'Åpne meldingen';
+function getOpenLabel(locale: CustomerMessageEmailLocale, mode: 'message' | 'reply') {
+  if (mode === 'reply') {
+    return locale === 'en' ? 'View reply' : 'Se svaret';
+  }
+
+  return locale === 'en' ? 'Open message' : '\u00C5pne meldingen';
 }
 
 function getReplyHint(locale: CustomerMessageEmailLocale, portalLabel: string) {
@@ -72,19 +94,20 @@ function getReplyHint(locale: CustomerMessageEmailLocale, portalLabel: string) {
     return `You can reply directly to this email or open the message in ${escapeHtml(portalLabel)}.`;
   }
 
-  return `Du kan svare direkte på denne e-posten eller åpne meldingen i ${escapeHtml(portalLabel)}.`;
+  return `Du kan svare direkte p\u00E5 denne e-posten eller \u00E5pne meldingen i ${escapeHtml(portalLabel)}.`;
 }
 
 export function buildCustomerMessageEmail(input: BuildCustomerMessageEmailInput) {
   const locale = input.locale;
+  const mode = input.mode || 'message';
   const firstName = escapeHtml(getFirstName(input.customerName, locale));
   const subjectLine = String(input.subjectLine || '').trim();
-  const subject = `${getSubjectPrefix(locale)}: ${subjectLine}`.trim();
+  const subject = `${getSubjectPrefix(locale, mode)}: ${subjectLine}`.trim();
   const messageHtml = formatMessageHtml(String(input.messageText || '').trim());
   const orderContextHtml = input.orderContextHtml || '';
-  const senderLine = getSenderLine(locale, input.adminName);
+  const senderLine = getSenderLine(locale, mode, input.adminName);
   const replyHint = getReplyHint(locale, input.portalLabel);
-  const openLabel = getOpenLabel(locale);
+  const openLabel = getOpenLabel(locale, mode);
 
   const greeting = locale === 'en' ? `Hi ${firstName},` : `Hei ${firstName},`;
 
