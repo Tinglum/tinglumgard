@@ -33,10 +33,11 @@ export function getSupportReplyAddress(input?: {
     return explicitReplyTo;
   }
 
-  const domain =
+  const inboundDomain =
+    extractDomain(process.env.MAILGUN_INBOUND_DOMAIN) ||
     extractDomain(input?.mailDomain || process.env.MAILGUN_DOMAIN) ||
     extractDomain(input?.configuredFrom || process.env.EMAIL_FROM) ||
     'tinglum.com';
 
-  return `messages@${domain}`;
+  return `messages@${inboundDomain}`;
 }

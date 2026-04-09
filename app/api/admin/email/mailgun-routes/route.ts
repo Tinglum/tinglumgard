@@ -121,7 +121,8 @@ export async function POST(request: NextRequest) {
 
   // Create a new inbound route for reply processing
   if (action === 'create_inbound') {
-    const recipientMatch = String(body?.recipientMatch || `match_recipient("messages@${domain}")`);
+    const inboundDomain = process.env.MAILGUN_INBOUND_DOMAIN || domain;
+    const recipientMatch = String(body?.recipientMatch || `match_recipient("messages@${inboundDomain}")`);
     const forwardUrl = String(body?.forwardUrl || resolveExpectedWebhookUrl());
 
     const formData = new URLSearchParams();

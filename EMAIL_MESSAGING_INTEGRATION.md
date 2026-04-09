@@ -82,7 +82,7 @@ Or via Supabase dashboard:
 1. Go to Routes
 2. Create a route to forward inbound emails to:
    `https://main--tinglum.netlify.app/api/webhooks/email-reply`
-3. Match recipient: `messages@tinglum.com` and `post@tinglum.com`
+3. Match recipient: `messages@inbound.tinglum.com`
 
 ### 3. Environment Variables
 
@@ -94,7 +94,8 @@ MAILGUN_REGION=eu
 MAILGUN_WEBHOOK_SIGNING_KEY=your-signing-key
 
 EMAIL_FROM=Tinglumgård <post@tinglum.com>
-EMAIL_REPLY_TO=messages@tinglum.com
+EMAIL_REPLY_TO=messages@inbound.tinglum.com
+MAILGUN_INBOUND_DOMAIN=inbound.tinglum.com
 
 NEXT_PUBLIC_APP_URL=https://xn--tinglumgrd-85a.no
 

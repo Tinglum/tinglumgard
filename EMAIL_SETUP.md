@@ -30,14 +30,18 @@ MAILGUN_DOMAIN=tinglum.com
 MAILGUN_REGION=eu
 
 EMAIL_FROM=Tinglumgård <post@tinglum.com>
-EMAIL_REPLY_TO=messages@tinglum.com
+EMAIL_REPLY_TO=messages@inbound.tinglum.com
+MAILGUN_INBOUND_DOMAIN=inbound.tinglum.com
 
 ### 4. Enable Inbound Routes
 In Mailgun Dashboard:
-1. Go to Domains → tinglum.com
-2. Open Routes / Receiving
-3. Add route to forward inbound email to:
-   https://main--tinglum.netlify.app/api/webhooks/email-reply
+1. Go to Receiving → Routes
+2. Add route: match_recipient("messages@inbound.tinglum.com")
+3. Forward to: https://main--tinglum.netlify.app/api/webhooks/email-reply
+4. Enable Stop
+
+Note: inbound.tinglum.com has MX records pointing to Mailgun EU.
+Root domain tinglum.com MX goes to Domeneshop for regular email.
 
 ### 5. Verify Domain
 1. After adding DNS records, return to Mailgun dashboard
