@@ -102,6 +102,7 @@ type SetupPayload = {
 };
 
 type SetupDiagnostics = {
+  supportReplyMode?: 'portal_only' | 'email_inbox';
   senderAddress?: string;
   generalReplyAddress?: string;
   supportReplyAddress?: string;
@@ -1544,12 +1545,22 @@ export function EmailControlCenter({
             <h3 className="text-lg font-medium">Diagnostics</h3>
             <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-6 gap-3 text-sm">
               <div className="rounded-md border border-neutral-200 bg-neutral-50 p-3">
-                <p className="text-neutral-500">Support reply inbox</p>
-                <p className="font-medium">{setupDiagnostics?.supportReplyAddress || 'Unknown'}</p>
+                <p className="text-neutral-500">
+                  {setupDiagnostics?.supportReplyMode === 'portal_only'
+                    ? 'Support reply policy'
+                    : 'Support reply inbox'}
+                </p>
+                <p className="font-medium">
+                  {setupDiagnostics?.supportReplyMode === 'portal_only'
+                    ? 'Min side only'
+                    : setupDiagnostics?.supportReplyAddress || 'Unknown'}
+                </p>
                 <p className="mt-1 text-xs text-neutral-500">
-                  {setupDiagnostics?.supportReplyUsesDedicatedMailbox
-                    ? 'Dedicated inbox for support threads'
-                    : 'Not using a dedicated support inbox'}
+                  {setupDiagnostics?.supportReplyMode === 'portal_only'
+                    ? 'Customer replies are handled inside Min side'
+                    : setupDiagnostics?.supportReplyUsesDedicatedMailbox
+                      ? 'Dedicated inbox for support threads'
+                      : 'Not using a dedicated support inbox'}
                 </p>
               </div>
               <div className="rounded-md border border-neutral-200 bg-neutral-50 p-3">
@@ -1560,7 +1571,11 @@ export function EmailControlCenter({
                 </p>
               </div>
               <div className="rounded-md border border-neutral-200 bg-neutral-50 p-3 md:col-span-2">
-                <p className="text-neutral-500">Public reply webhook</p>
+                <p className="text-neutral-500">
+                  {setupDiagnostics?.supportReplyMode === 'portal_only'
+                    ? 'Public reply webhook (inactive)'
+                    : 'Public reply webhook'}
+                </p>
                 <p className="font-medium break-all">
                   {setupDiagnostics?.publicReplyWebhookUrl || 'Unknown'}
                 </p>
@@ -1573,7 +1588,11 @@ export function EmailControlCenter({
                 </p>
               </div>
               <div className="rounded-md border border-neutral-200 bg-neutral-50 p-3 md:col-span-2">
-                <p className="text-neutral-500">Operational reply webhook</p>
+                <p className="text-neutral-500">
+                  {setupDiagnostics?.supportReplyMode === 'portal_only'
+                    ? 'Operational reply webhook (inactive)'
+                    : 'Operational reply webhook'}
+                </p>
                 <p className="font-medium break-all">
                   {setupDiagnostics?.operationalReplyWebhookUrl || 'Unknown'}
                 </p>
@@ -1620,7 +1639,7 @@ export function EmailControlCenter({
               </div>
             ) : null}
 
-            {setupDiagnostics?.supportReplyOverridesGeneralReplyTo ? (
+            {setupDiagnostics?.supportReplyMode !== 'portal_only' && setupDiagnostics?.supportReplyOverridesGeneralReplyTo ? (
               <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
                 Support threads are overriding the general Reply-To so customer replies go to
                 {' '}
@@ -1632,13 +1651,19 @@ export function EmailControlCenter({
               </div>
             ) : null}
 
-            {setupDiagnostics?.mailgunRouteLikelyMisconfigured ? (
+            {setupDiagnostics?.supportReplyMode !== 'portal_only' && setupDiagnostics?.mailgunRouteLikelyMisconfigured ? (
               <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">
                 Mailgun inbound replies are likely pointed at the wrong host. Update the Mailgun route to
                 {' '}
                 <span className="font-medium">{setupDiagnostics.operationalReplyWebhookUrl}</span>
                 {' '}
                 instead of the public app webhook.
+              </div>
+            ) : null}
+
+            {setupDiagnostics?.supportReplyMode === 'portal_only' ? (
+              <div className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
+                Customer support emails are notification-only. Customers must log in to Min side to reply.
               </div>
             ) : null}
 
@@ -1718,7 +1743,7 @@ export function EmailControlCenter({
                 <p>MAILGUN_DOMAIN: {envStatus.mailgunDomain ? 'ok' : 'missing'}</p>
                 <p>MAILGUN_WEBHOOK_SIGNING_KEY: {envStatus.mailgunWebhookSigningKey ? 'ok' : 'missing'}</p>
                 <p>MAILGUN_REPLY_WEBHOOK_URL: {envStatus.mailgunReplyWebhookUrl ? 'ok' : 'missing'}</p>
-                <p>EMAIL_REPLY_TO: {envStatus.emailReplyTo ? 'ok' : 'missing'}</p>
+                <p>EMAIL_REPLY_TO: {envStatus.emailReplyTo ? 'ok' : 'optional'}</p>
                 <p>CRON_SECRET: {envStatus.cronSecret ? 'ok' : 'missing'}</p>
                 <p>NEXT_PUBLIC_APP_URL: {envStatus.nextPublicAppUrl ? 'ok' : 'missing'}</p>
               </div>
@@ -1762,10 +1787,9 @@ export function EmailControlCenter({
               onChange={(event) => setSetup((prev) => ({ ...prev, defaultReplyTo: event.target.value }))}
             />
             <p className="text-xs text-neutral-500">
-              Support threads currently reply to
-              {' '}
-              <span className="font-medium">{setupDiagnostics?.supportReplyAddress || 'unknown'}</span>
-              .
+              {setupDiagnostics?.supportReplyMode === 'portal_only'
+                ? 'Support notifications are sent as no-reply emails. Customers reply inside Min side.'
+                : <>Support threads currently reply to <span className="font-medium">{setupDiagnostics?.supportReplyAddress || 'unknown'}</span>.</>}
             </p>
             <Button onClick={handleSaveSetup}>Save Setup</Button>
           </Card>

@@ -109,6 +109,7 @@ async function safeCount(query: PromiseLike<CountQueryResult>) {
 }
 
 function inferPrimaryCause(input: {
+  supportReplyMode: 'portal_only' | 'email_inbox';
   envStatus: {
     emailReplyTo: boolean;
     cronSecret: boolean;
@@ -127,19 +128,21 @@ function inferPrimaryCause(input: {
   operationalReplyWebhookHealthy: boolean | null;
   publicReplyWebhookDiffersFromOperational: boolean;
 }) {
-  if (
-    input.publicReplyWebhookHealthy === false &&
-    input.operationalReplyWebhookHealthy === true &&
-    input.publicReplyWebhookDiffersFromOperational
-  ) {
-    return 'Public reply webhook is unreachable while the operational webhook is healthy';
+  if (input.supportReplyMode !== 'portal_only') {
+    if (
+      input.publicReplyWebhookHealthy === false &&
+      input.operationalReplyWebhookHealthy === true &&
+      input.publicReplyWebhookDiffersFromOperational
+    ) {
+      return 'Public reply webhook is unreachable while the operational webhook is healthy';
+    }
+    if (input.operationalReplyWebhookHealthy === false) {
+      return 'Operational inbound reply webhook is unreachable';
+    }
+    if (!input.envStatus.emailReplyTo) return 'EMAIL_REPLY_TO missing';
+    if (input.generalReplyMatchesSender) return 'General Reply-To matches sender mailbox';
+    if (!input.supportReplyUsesDedicatedMailbox) return 'Support replies do not use a dedicated inbox';
   }
-  if (input.operationalReplyWebhookHealthy === false) {
-    return 'Operational inbound reply webhook is unreachable';
-  }
-  if (!input.envStatus.emailReplyTo) return 'EMAIL_REPLY_TO missing';
-  if (input.generalReplyMatchesSender) return 'General Reply-To matches sender mailbox';
-  if (!input.supportReplyUsesDedicatedMailbox) return 'Support replies do not use a dedicated inbox';
   if (!input.envStatus.cronSecret) return 'CRON_SECRET missing';
   if (!input.envStatus.nextPublicAppUrl) return 'NEXT_PUBLIC_APP_URL missing';
   if (!input.schemaReady) return 'Email schema not fully migrated';
@@ -159,6 +162,7 @@ function inferPrimaryCause(input: {
 export async function GET() {
   const admin = await requireAdminAccess();
   if (!admin.ok) return admin.response;
+  const supportReplyMode: 'portal_only' | 'email_inbox' = 'portal_only';
 
   const settings = await getEmailDispatchSettings(true);
   const schemaStatus = await getEmailSchemaStatus();
@@ -295,34 +299,36 @@ export async function GET() {
           : 'unknown';
 
   const diagnosticsCauses: string[] = [];
-  if (!envStatus.emailReplyTo) {
-    diagnosticsCauses.push('EMAIL_REPLY_TO is missing in the environment, so support threads use a computed reply address.');
-  }
-  if (
-    publicReplyWebhookHealth &&
-    operationalReplyWebhookHealth &&
-    publicReplyWebhookHealth.ok === false &&
-    operationalReplyWebhookHealth.ok === true &&
-    publicReplyWebhookDiffersFromOperational
-  ) {
-    diagnosticsCauses.push(
-      `Public reply webhook is unreachable, while the operational webhook is healthy at ${operationalReplyWebhookUrl}.`
-    );
-  } else if (publicReplyWebhookHealth && publicReplyWebhookHealth.ok === false) {
-    diagnosticsCauses.push(
-      `Public reply webhook health check failed (${publicReplyWebhookHealth.error || 'unknown error'}).`
-    );
-  }
-  if (operationalReplyWebhookHealth && operationalReplyWebhookHealth.ok === false) {
-    diagnosticsCauses.push(
-      `Operational reply webhook health check failed (${operationalReplyWebhookHealth.error || 'unknown error'}).`
-    );
-  }
-  if (generalReplyAddress && senderAddress && generalReplyAddress === senderAddress) {
-    diagnosticsCauses.push('General Reply-To points to the same mailbox as the sender address.');
-  }
-  if (!supportReplyUsesDedicatedMailbox) {
-    diagnosticsCauses.push('Support messages are not replying to a dedicated messaging inbox.');
+  if (supportReplyMode !== 'portal_only') {
+    if (!envStatus.emailReplyTo) {
+      diagnosticsCauses.push('EMAIL_REPLY_TO is missing in the environment, so support threads use a computed reply address.');
+    }
+    if (
+      publicReplyWebhookHealth &&
+      operationalReplyWebhookHealth &&
+      publicReplyWebhookHealth.ok === false &&
+      operationalReplyWebhookHealth.ok === true &&
+      publicReplyWebhookDiffersFromOperational
+    ) {
+      diagnosticsCauses.push(
+        `Public reply webhook is unreachable, while the operational webhook is healthy at ${operationalReplyWebhookUrl}.`
+      );
+    } else if (publicReplyWebhookHealth && publicReplyWebhookHealth.ok === false) {
+      diagnosticsCauses.push(
+        `Public reply webhook health check failed (${publicReplyWebhookHealth.error || 'unknown error'}).`
+      );
+    }
+    if (operationalReplyWebhookHealth && operationalReplyWebhookHealth.ok === false) {
+      diagnosticsCauses.push(
+        `Operational reply webhook health check failed (${operationalReplyWebhookHealth.error || 'unknown error'}).`
+      );
+    }
+    if (generalReplyAddress && senderAddress && generalReplyAddress === senderAddress) {
+      diagnosticsCauses.push('General Reply-To points to the same mailbox as the sender address.');
+    }
+    if (!supportReplyUsesDedicatedMailbox) {
+      diagnosticsCauses.push('Support messages are not replying to a dedicated messaging inbox.');
+    }
   }
   if (!envStatus.cronSecret) diagnosticsCauses.push('CRON_SECRET is missing');
   if (!envStatus.nextPublicAppUrl) diagnosticsCauses.push('NEXT_PUBLIC_APP_URL is missing');
@@ -342,26 +348,28 @@ export async function GET() {
   if (!envStatus.nextPublicAppUrl) {
     suggestedFixes.push('Set NEXT_PUBLIC_APP_URL to the production domain, for example https://tinglumgard.no.');
   }
-  if (!envStatus.emailReplyTo) {
-    suggestedFixes.push(`Set EMAIL_REPLY_TO to ${supportReplyAddress} in production.`);
-  }
-  if (
-    publicReplyWebhookHealth &&
-    operationalReplyWebhookHealth &&
-    publicReplyWebhookHealth.ok === false &&
-    operationalReplyWebhookHealth.ok === true &&
-    publicReplyWebhookDiffersFromOperational
-  ) {
-    suggestedFixes.push(
-      `Update the Mailgun inbound route target to ${operationalReplyWebhookUrl}.`
-    );
-  } else if (operationalReplyWebhookHealth && operationalReplyWebhookHealth.ok === false) {
-    suggestedFixes.push(
-      `Verify that ${operationalReplyWebhookUrl} is publicly reachable and returns 200 for GET /api/webhooks/email-reply.`
-    );
-  }
-  if (generalReplyAddress && senderAddress && generalReplyAddress === senderAddress) {
-    suggestedFixes.push(`Use a dedicated support reply-to mailbox, for example ${supportReplyAddress}.`);
+  if (supportReplyMode !== 'portal_only') {
+    if (!envStatus.emailReplyTo) {
+      suggestedFixes.push(`Set EMAIL_REPLY_TO to ${supportReplyAddress} in production.`);
+    }
+    if (
+      publicReplyWebhookHealth &&
+      operationalReplyWebhookHealth &&
+      publicReplyWebhookHealth.ok === false &&
+      operationalReplyWebhookHealth.ok === true &&
+      publicReplyWebhookDiffersFromOperational
+    ) {
+      suggestedFixes.push(
+        `Update the Mailgun inbound route target to ${operationalReplyWebhookUrl}.`
+      );
+    } else if (operationalReplyWebhookHealth && operationalReplyWebhookHealth.ok === false) {
+      suggestedFixes.push(
+        `Verify that ${operationalReplyWebhookUrl} is publicly reachable and returns 200 for GET /api/webhooks/email-reply.`
+      );
+    }
+    if (generalReplyAddress && senderAddress && generalReplyAddress === senderAddress) {
+      suggestedFixes.push(`Use a dedicated support reply-to mailbox, for example ${supportReplyAddress}.`);
+    }
   }
   if (!schemaStatus.ready) {
     suggestedFixes.push('Run the missing unified email migrations in the production database.');
@@ -377,6 +385,7 @@ export async function GET() {
   }
 
   const primaryCause = inferPrimaryCause({
+    supportReplyMode,
     envStatus: {
       emailReplyTo: envStatus.emailReplyTo,
       cronSecret: envStatus.cronSecret,
@@ -405,6 +414,7 @@ export async function GET() {
     suppressionList: suppressions || [],
     suppressionUnavailable,
     diagnostics: {
+      supportReplyMode,
       senderAddress,
       generalReplyAddress,
       supportReplyAddress,

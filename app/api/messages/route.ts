@@ -6,6 +6,7 @@ import { dispatchEmail } from '@/lib/email/dispatch';
 import { renderManagedTemplate } from '@/lib/email/render';
 import { recordMessageEmailDebugEvent } from '@/lib/messages/email-debug';
 import { buildSupportThreadMessageId } from '@/lib/messages/threading';
+import { getNoReplyAddress } from '@/lib/messages/no-reply-address';
 
 const MESSAGE_TYPES = new Set(['support', 'inquiry', 'complaint', 'feedback', 'referral_question']);
 const RELATED_ORDER_SOURCES = new Set(['pig', 'egg', 'chicken']);
@@ -227,6 +228,7 @@ export async function POST(request: NextRequest) {
           to: session.email,
           subject: rendered.subject,
           html: rendered.html,
+          replyTo: getNoReplyAddress(),
           headers: {
             'Message-ID': outboundMessageId,
             'X-Tinglum-Thread-Id': threadId,
@@ -315,6 +317,7 @@ export async function POST(request: NextRequest) {
           to: adminEmail,
           subject: rendered.subject,
           html: rendered.html,
+          replyTo: getNoReplyAddress(),
           classification: 'support',
           templateKey: rendered.templateKey,
           sourcePath: '/api/messages',

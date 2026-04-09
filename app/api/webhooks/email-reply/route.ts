@@ -7,6 +7,7 @@ import { logError } from '@/lib/logger';
 import { getCustomerFacingAdminName } from '@/lib/messages/admin-sender';
 import { buildCustomerMessageEmail } from '@/lib/messages/customer-email';
 import { recordMessageEmailDebugEvent } from '@/lib/messages/email-debug';
+import { getNoReplyAddress } from '@/lib/messages/no-reply-address';
 import {
   extractSupportThreadId,
   normalizeSupportSubject,
@@ -467,6 +468,7 @@ export async function POST(request: NextRequest) {
           to: message.customer_email,
           subject: rendered.subject,
           html: rendered.html,
+          replyTo: getNoReplyAddress(),
           classification: 'support',
           templateKey: isAdminInitiated
             ? 'support.message.customer.admin_initiated'
@@ -502,6 +504,7 @@ export async function POST(request: NextRequest) {
           to: adminEmail,
           subject: rendered.subject,
           html: rendered.html,
+          replyTo: getNoReplyAddress(),
           classification: 'support',
           templateKey: rendered.templateKey,
           sourcePath: '/api/webhooks/email-reply',

@@ -8,6 +8,7 @@ import { buildCustomerMessageEmail } from '@/lib/messages/customer-email';
 import { getCustomerFacingAdminName } from '@/lib/messages/admin-sender';
 import { recordMessageEmailDebugEvent } from '@/lib/messages/email-debug';
 import { buildSupportThreadMessageId } from '@/lib/messages/threading';
+import { getNoReplyAddress } from '@/lib/messages/no-reply-address';
 
 // POST /api/admin/messages/[id]/replies - Add reply to a message
 export async function POST(
@@ -104,6 +105,7 @@ export async function POST(
           to: message.customer_email,
           subject: rendered.subject,
           html: rendered.html,
+          replyTo: getNoReplyAddress(),
           headers: {
             'Message-ID': outboundMessageId,
             'X-Tinglum-Thread-Id': threadId,

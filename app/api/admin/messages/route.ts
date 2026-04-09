@@ -8,6 +8,7 @@ import { getCustomerFacingAdminName } from '@/lib/messages/admin-sender';
 import { recordMessageEmailDebugEvent } from '@/lib/messages/email-debug';
 import { buildSupportThreadMessageId } from '@/lib/messages/threading';
 import { needsAdminAttention } from '@/lib/messages/admin-attention';
+import { getNoReplyAddress } from '@/lib/messages/no-reply-address';
 
 const MESSAGE_TYPES = new Set(['support', 'inquiry', 'complaint', 'feedback', 'referral_question']);
 const PRIORITIES = new Set(['low', 'normal', 'high', 'urgent']);
@@ -246,6 +247,7 @@ export async function POST(request: NextRequest) {
           to: customerEmail,
           subject: rendered.subject,
           html: rendered.html,
+          replyTo: getNoReplyAddress(),
           headers: {
             'Message-ID': outboundMessageId,
             'X-Tinglum-Thread-Id': threadId,

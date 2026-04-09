@@ -81,20 +81,19 @@ function getSenderLine(
     : `${escapeHtml(trimmedAdminName)} fra ${farmName} ${action}`;
 }
 
-function getOpenLabel(locale: CustomerMessageEmailLocale, mode: 'message' | 'reply') {
-  if (mode === 'reply') {
-    return locale === 'en' ? 'View reply' : 'Se svaret';
-  }
-
-  return locale === 'en' ? 'Open message' : '\u00C5pne meldingen';
+function getOpenLabel(locale: CustomerMessageEmailLocale, portalLabel: string) {
+  const escapedPortalLabel = escapeHtml(portalLabel);
+  return locale === 'en'
+    ? `Open in ${escapedPortalLabel}`
+    : `\u00C5pne i ${escapedPortalLabel}`;
 }
 
 function getReplyHint(locale: CustomerMessageEmailLocale, portalLabel: string) {
   if (locale === 'en') {
-    return `You can reply directly to this email or open the message in ${escapeHtml(portalLabel)}.`;
+    return `To reply to the message, sign in to ${escapeHtml(portalLabel)}.`;
   }
 
-  return `Du kan svare direkte p\u00E5 denne e-posten eller \u00E5pne meldingen i ${escapeHtml(portalLabel)}.`;
+  return `For \u00E5 svare p\u00E5 meldingen, logg inn p\u00E5 ${escapeHtml(portalLabel)}.`;
 }
 
 export function buildCustomerMessageEmail(input: BuildCustomerMessageEmailInput) {
@@ -107,7 +106,7 @@ export function buildCustomerMessageEmail(input: BuildCustomerMessageEmailInput)
   const orderContextHtml = input.orderContextHtml || '';
   const senderLine = getSenderLine(locale, mode, input.adminName);
   const replyHint = getReplyHint(locale, input.portalLabel);
-  const openLabel = getOpenLabel(locale, mode);
+  const openLabel = getOpenLabel(locale, input.portalLabel);
 
   const greeting = locale === 'en' ? `Hi ${firstName},` : `Hei ${firstName},`;
 

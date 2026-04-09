@@ -59,6 +59,30 @@ function sanitizeSupportHtml(html: string) {
       /Reply from ([^<]+?) on case msg_[^.]+\./gi,
       'Reply from $1.'
     )
+    .replace(
+      /Du kan svare direkte p(?:&aring;|\u00E5) denne e-posten,? eller g(?:&aring;|\u00E5) til <a href="([^"]+)">([^<]+)<\/a>\./gi,
+      'For \u00E5 svare p\u00E5 meldingen, logg inn p\u00E5 <a href="$1">$2</a>.'
+    )
+    .replace(
+      /You can reply directly to this email,? or visit <a href="([^"]+)">([^<]+)<\/a>\./gi,
+      'To reply to the message, sign in to <a href="$1">$2</a>.'
+    )
+    .replace(
+      /Bare svar p(?:&aring;|\u00E5) denne e-posten(?:\s|&nbsp;|&#160;|&mdash;|—|-)+vi hjelper deg gjerne\./gi,
+      'For \u00E5 svare p\u00E5 meldingen, logg inn p\u00E5 Min side.'
+    )
+    .replace(
+      /Just reply to this email(?:\s|&nbsp;|&#160;|&mdash;|—|-)+we(?:'|&#39;)ll gladly help\./gi,
+      'Log in to My page to reply to the message.'
+    )
+    .replace(
+      /Svar p(?:&aring;|\u00E5) denne e-posten direkte for \u00E5 svare kunden\./gi,
+      '\u00C5pne kundemeldinger i admin for \u00E5 svare kunden.'
+    )
+    .replace(
+      /Reply directly to this email to answer the customer\./gi,
+      'Open admin messages to reply to the customer.'
+    )
     .replace(/\s*\(sak msg_[^)]+\)/gi, '')
     .replace(/\s*\(case msg_[^)]+\)/gi, '')
     .replace(/\u00E5pne saken i/gi, '\u00E5pne meldingen i')
