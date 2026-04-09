@@ -64,11 +64,13 @@ interface AdminMessagingPanelProps {
     resolved: number;
     attention_required?: number;
   }) => void;
+  onNavigateToCustomer?: (customerId: string) => void;
 }
 
 export function AdminMessagingPanel({
   initialMessageId = null,
   onStatsChange,
+  onNavigateToCustomer,
 }: AdminMessagingPanelProps) {
   const { t, lang } = useLanguage();
   const copy = t.adminMessagingPanel;
@@ -255,6 +257,22 @@ export function AdminMessagingPanel({
   const getCustomerDisplayName = (message: CustomerMessage) =>
     message.customer_name || message.customer_email || message.customer_phone || copy.customerFallback;
 
+  const resolveCustomerId = (message: CustomerMessage): string | null => {
+    if (message.customer_email) return `email:${message.customer_email}`;
+    if (message.customer_phone) {
+      const digits = message.customer_phone.replace(/\D/g, '').replace(/^47/, '');
+      if (digits) return `phone:${digits}`;
+    }
+    return null;
+  };
+
+  const handleCustomerClick = (message: CustomerMessage) => {
+    const customerId = resolveCustomerId(message);
+    if (customerId && onNavigateToCustomer) {
+      onNavigateToCustomer(customerId);
+    }
+  };
+
   const getRootSenderName = (message: CustomerMessage) =>
     message.initiated_by === 'admin'
       ? message.initiated_by_admin_name || copy.farmSender
@@ -427,7 +445,19 @@ export function AdminMessagingPanel({
                 <div className="flex items-start justify-between mb-2">
                   <div className="flex-1">
                     <h3 className="font-semibold text-gray-900">{msg.subject}</h3>
-                    <p className="text-sm text-gray-600">{getCustomerDisplayName(msg)}</p>
+                    <p className="text-sm text-gray-600">
+                      {onNavigateToCustomer && resolveCustomerId(msg) ? (
+                        <button
+                          type="button"
+                          className="text-blue-600 hover:text-blue-800 hover:underline font-medium"
+                          onClick={(e) => { e.stopPropagation(); handleCustomerClick(msg); }}
+                        >
+                          {getCustomerDisplayName(msg)}
+                        </button>
+                      ) : (
+                        getCustomerDisplayName(msg)
+                      )}
+                    </p>
                     {(msg.customer_email || msg.customer_phone) && (
                       <p className="text-xs text-gray-500">
                         {[msg.customer_email, msg.customer_phone].filter(Boolean).join(' • ')}
@@ -474,7 +504,19 @@ export function AdminMessagingPanel({
           <div className="flex items-start justify-between mb-4">
             <div>
               <h2 className="text-2xl font-bold text-gray-900">{selectedMessage.subject}</h2>
-              <p className="text-gray-600">{getCustomerDisplayName(selectedMessage)}</p>
+              <p className="text-gray-600">
+                {onNavigateToCustomer && resolveCustomerId(selectedMessage) ? (
+                  <button
+                    type="button"
+                    className="text-blue-600 hover:text-blue-800 hover:underline font-medium"
+                    onClick={() => handleCustomerClick(selectedMessage)}
+                  >
+                    {getCustomerDisplayName(selectedMessage)}
+                  </button>
+                ) : (
+                  getCustomerDisplayName(selectedMessage)
+                )}
+              </p>
               {(selectedMessage.customer_email || selectedMessage.customer_phone) && (
                 <p className="text-xs text-gray-500">
                   {[selectedMessage.customer_email, selectedMessage.customer_phone].filter(Boolean).join(' • ')}

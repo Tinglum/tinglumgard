@@ -635,6 +635,7 @@ export default function AdminPage() {
                           : stats.open + stats.in_progress
                       )
                     }
+                    onNavigateToCustomer={handleNavigateToCustomer}
                   />
                 )}
                 {customersSubTab === 'email' && (
