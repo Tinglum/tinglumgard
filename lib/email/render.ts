@@ -47,6 +47,7 @@ function normalizeEggReminderVariables(
 ): Record<string, unknown> {
   const vars = { ...input };
   const daysLeft = Number(vars.days_left ?? 0);
+  const displayDaysLeft = Number.isFinite(daysLeft) ? Math.max(daysLeft - 6, 0) : 0;
   const defaultReminderDays = [11, 9, 7, 6];
   const totalReminders =
     Number(vars.total_reminders ?? 0) > 0 ? Number(vars.total_reminders) : defaultReminderDays.length;
@@ -60,6 +61,14 @@ function normalizeEggReminderVariables(
   }
   if (!vars.reminder_number && reminderNumber > 0) {
     vars.reminder_number = reminderNumber;
+  }
+  if (!vars.days_left_display_no) {
+    vars.days_left_display_no =
+      displayDaysLeft === 0 ? 'i dag' : `${displayDaysLeft} ${displayDaysLeft === 1 ? 'dag' : 'dager'} igjen`;
+  }
+  if (!vars.days_left_display_en) {
+    vars.days_left_display_en =
+      displayDaysLeft === 0 ? 'today' : `${displayDaysLeft} ${displayDaysLeft === 1 ? 'day' : 'days'} left`;
   }
 
   if (vars.reminder_badge_label && vars.reminder_intro_html && vars.reminder_support_html && vars.reminder_consequence_html) {
@@ -798,10 +807,23 @@ export async function renderManagedTemplate(options: {
   const subjectRaw = locale === 'en' ? String(data.subject_en || '') : String(data.subject_no || '');
   const bodyRaw = locale === 'en' ? String(data.body_en || '') : String(data.body_no || '');
   const templateKey = String(data.template_key || options.templateKey);
+  const interpolatedBody = interpolateTemplate(bodyRaw, vars);
+  const eggReminderBody =
+    templateKey === 'egg.remainder.reminder'
+      ? locale === 'en'
+        ? interpolatedBody.replace(
+            /\(\s*[^)]*days left\s*\)/i,
+            `(${String(vars.days_left_display_en || 'today')})`
+          )
+        : interpolatedBody.replace(
+            /\(\s*[^)]*dager igjen\s*\)/i,
+            `(${String(vars.days_left_display_no || 'i dag')})`
+          )
+      : interpolatedBody;
   const sanitized = sanitizeSupportEmailCopy({
     templateKey,
     subject: interpolateTemplate(subjectRaw, vars),
-    html: interpolateTemplate(bodyRaw, vars),
+    html: eggReminderBody,
   });
 
   return {
