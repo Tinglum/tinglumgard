@@ -9,6 +9,7 @@ const FALLBACK_FLOWS = [
   'pig.remainder.reminder',
   'egg.remainder.reminder',
   'egg.delivery.day_before',
+  'egg.order.shipped.plus_one',
   'egg.hatch.followup',
   'egg.order.forfeited',
   'chicken.ready_for_pickup',

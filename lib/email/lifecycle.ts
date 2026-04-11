@@ -103,7 +103,11 @@ const DEFAULT_LIFECYCLE_CONFIG: LifecycleConfig = {
   appBaseUrl: process.env.NEXT_PUBLIC_APP_URL || 'https://tinglumgard.no',
 };
 
+const EGG_DAY_BEFORE_ADD_MORE_HOUR = 9;
+const EGG_SHIPPED_PLUS_ONE_DELAY_DAYS = 1;
+const EGG_SHIPPED_PLUS_ONE_CATCHUP_HOURS = 48;
 const EGG_HATCH_FOLLOWUP_DELAY_DAYS = 5;
+const EGG_HATCH_FOLLOWUP_CATCHUP_HOURS = 72;
 const CHICKEN_POST_PICKUP_FOLLOWUP_DELAY_DAYS = 3;
 
 const LIFECYCLE_TEMPLATE_SEEDS: LifecycleTemplateSeed[] = [
@@ -156,6 +160,26 @@ const LIFECYCLE_TEMPLATE_SEEDS: LifecycleTemplateSeed[] = [
     variables: ['customer_name', 'customer_first_name', 'order_number', 'remainder_amount_nok', 'due_date', 'days_left', 'order_url'],
   },
   {
+    templateKey: 'egg.order.add_more.day_before',
+    classification: 'transactional',
+    productScope: 'eggs',
+    subjectNo: 'Du kan fortsatt legge til flere rugeegg - {{order_number}}',
+    subjectEn: 'You can still add more hatching eggs - {{order_number}}',
+    bodyNo:
+      '<p>Hei {{customer_first_name}},</p><p>Bestillingen <strong>{{order_number}}</strong> sendes <strong>{{delivery_date}}</strong>, og vi har fortsatt <strong>{{available_eggs_total}}</strong> egg tilgjengelig for denne uka.</p><p><strong>Legger du til egg i dag, får du 30% rabatt på tilleggseggene.</strong></p>{{available_breeds_html}}<p><a href="{{order_url}}">Legg til flere egg på Min side</a></p>',
+    bodyEn:
+      '<p>Hi {{customer_first_name}},</p><p>Your order <strong>{{order_number}}</strong> ships on <strong>{{delivery_date}}</strong>, and we still have <strong>{{available_eggs_total}}</strong> eggs available for that week.</p><p><strong>If you add eggs today, you get 30% off the added eggs.</strong></p>{{available_breeds_html}}<p><a href="{{order_url}}">Add more eggs on My Page</a></p>',
+    variables: [
+      'customer_name',
+      'customer_first_name',
+      'order_number',
+      'delivery_date',
+      'available_eggs_total',
+      'available_breeds_html',
+      'order_url',
+    ],
+  },
+  {
     templateKey: 'egg.delivery.day_before',
     classification: 'transactional',
     productScope: 'eggs',
@@ -192,6 +216,18 @@ const LIFECYCLE_TEMPLATE_SEEDS: LifecycleTemplateSeed[] = [
       'delivery_date',
       'order_url',
     ],
+  },
+  {
+    templateKey: 'egg.order.shipped.plus_one',
+    classification: 'transactional',
+    productScope: 'eggs',
+    subjectNo: 'Slik går det videre med rugeeggene - {{order_number}}',
+    subjectEn: 'What happens next with your hatching eggs - {{order_number}}',
+    bodyNo:
+      '<p>Hei {{customer_first_name}},</p><p>Bestillingen <strong>{{order_number}}</strong> ble sendt i går.</p><p><strong>Sporingsnummer:</strong> {{tracking_number}}<br/><a href="{{tracking_url}}">Spor pakken hos Posten</a></p><p>Sørg for å ta imot pakken raskt og la eggene hvile før du legger dem i rugemaskinen.</p><p><a href="{{order_url}}">Se bestillingen på Min side</a></p>',
+    bodyEn:
+      '<p>Hi {{customer_first_name}},</p><p>Your order <strong>{{order_number}}</strong> was shipped yesterday.</p><p><strong>Tracking number:</strong> {{tracking_number}}<br/><a href="{{tracking_url}}">Track the parcel with Posten</a></p><p>Please collect the parcel quickly and let the eggs rest before putting them in the incubator.</p><p><a href="{{order_url}}">View your order on My Page</a></p>',
+    variables: ['customer_name', 'customer_first_name', 'order_number', 'tracking_number', 'tracking_url', 'order_url'],
   },
   {
     templateKey: 'egg.hatch.followup',
@@ -333,9 +369,18 @@ const LIFECYCLE_FLOW_SEEDS: LifecycleFlowSeed[] = [
   },
   {
     flowKey: 'egg.delivery.day_before',
+    eventType: 'egg.order.day_before_add_more',
+    productScope: 'eggs',
+    templateKey: 'egg.order.add_more.day_before',
+    mode: 'active',
+    active: true,
+    sendOffsetMinutes: 0,
+  },
+  {
+    flowKey: 'egg.order.shipped.plus_one',
     eventType: 'egg.order.shipped_followup',
     productScope: 'eggs',
-    templateKey: 'egg.delivery.day_before',
+    templateKey: 'egg.order.shipped.plus_one',
     mode: 'active',
     active: true,
     sendOffsetMinutes: 0,
@@ -436,10 +481,19 @@ const LIFECYCLE_FLOW_MATRIX: FlowMatrixRow[] = [
   {
     flowKey: 'egg.delivery.day_before',
     productScope: 'eggs',
+    eventType: 'egg.order.day_before_add_more',
+    templateKey: 'egg.order.add_more.day_before',
+    triggerRule: 'delivery_monday - 1 day (only when extra eggs are available)',
+    scheduleLocalTime: '09:00 Europe/Oslo',
+    stopRules: ['no_additional_eggs_available', 'order.cancelled', 'order.forfeited', 'status_not_eligible'],
+  },
+  {
+    flowKey: 'egg.order.shipped.plus_one',
+    productScope: 'eggs',
     eventType: 'egg.order.shipped_followup',
-    templateKey: 'egg.delivery.day_before',
+    templateKey: 'egg.order.shipped.plus_one',
     triggerRule: 'marked_shipped_at + 1 day',
-    scheduleLocalTime: '08:00 Europe/Oslo (first morning after shipment)',
+    scheduleLocalTime: '08:00 Europe/Oslo (with 48h catch-up)',
     stopRules: ['order.cancelled', 'order.forfeited', 'status_not_eligible'],
   },
   {
@@ -574,6 +628,10 @@ function addDays(ymd: Ymd, delta: number): Ymd {
   };
 }
 
+function getYearFromYmd(ymd: Ymd | null): number {
+  return ymd?.year || 0;
+}
+
 function partsMap(parts: Intl.DateTimeFormatPart[]): Record<string, string> {
   return parts.reduce<Record<string, string>>((acc, part) => {
     acc[part.type] = part.value;
@@ -632,6 +690,15 @@ function toNoCurrency(amountNok: number): string {
   return `kr ${Math.round(amountNok).toLocaleString('nb-NO')}`;
 }
 
+function escapeHtml(value: string): string {
+  return String(value || '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+}
+
 function customerOrderLink(scope: string, entityId: string, appBaseUrl: string): string {
   if (scope === 'eggs') return buildCustomerOrderLink(appBaseUrl, 'egg', entityId);
   if (scope === 'chickens') return buildCustomerOrderLink(appBaseUrl, 'chicken', entityId);
@@ -672,9 +739,8 @@ function formatChickenPickupLabel(order: any, locale: 'no' | 'en', timeZone: str
 }
 
 async function fetchEggOrderForLifecycle(orderId: string) {
-  const { data, error } = await supabaseAdmin
-    .from('egg_orders')
-    .select(`
+  const selectClauses = [
+    `
       id,
       order_number,
       customer_name,
@@ -689,7 +755,6 @@ async function fetchEggOrderForLifecycle(orderId: string) {
       total_amount,
       quantity,
       price_per_egg,
-      breed_name,
       tracking_number,
       marked_shipped_at,
       updated_at,
@@ -702,12 +767,128 @@ async function fetchEggOrderForLifecycle(orderId: string) {
         subtotal,
         egg_breeds!egg_order_additions_breed_id_fkey(name, name_no, name_en)
       )
-    `)
-    .eq('id', orderId)
-    .maybeSingle();
+    `,
+    `
+      id,
+      order_number,
+      customer_name,
+      customer_email,
+      status,
+      week_number,
+      year,
+      delivery_monday,
+      remainder_due_date,
+      remainder_amount,
+      deposit_amount,
+      total_amount,
+      quantity,
+      price_per_egg,
+      tracking_number,
+      marked_shipped_at,
+      updated_at,
+      delivery_method,
+      delivery_fee,
+      egg_breeds!egg_orders_breed_id_fkey(name),
+      egg_order_additions(
+        quantity,
+        price_per_egg,
+        subtotal,
+        egg_breeds!egg_order_additions_breed_id_fkey(name)
+      )
+    `,
+  ] as const;
+
+  let lastError: unknown = null;
+  for (const selectClause of selectClauses) {
+    const { data, error } = await supabaseAdmin
+      .from('egg_orders')
+      .select(selectClause)
+      .eq('id', orderId)
+      .maybeSingle();
+
+    if (!error) return data;
+    lastError = error;
+    if (!isMissingLifecycleColumnError(error)) {
+      throw error;
+    }
+  }
+
+  if (lastError) throw lastError;
+  return null;
+}
+
+type EggAvailableInventoryRow = {
+  eggs_available?: number | null;
+  eggs_allocated?: number | null;
+  egg_breeds?: {
+    name?: string | null;
+  } | null;
+};
+
+function buildEggAvailabilityHtml(
+  rows: Array<{ breedName: string; remaining: number }>,
+  locale: 'no' | 'en'
+): string {
+  if (!rows.length) {
+    return locale === 'en' ? '<p>No extra eggs are available right now.</p>' : '<p>Det er ingen ekstra egg tilgjengelig akkurat nå.</p>';
+  }
+
+  const heading = locale === 'en' ? 'Available this week:' : 'Tilgjengelig denne uka:';
+  const eggLabel = locale === 'en' ? 'eggs' : 'egg';
+  const items = rows
+    .map((row) => `<li>${escapeHtml(row.breedName)}: <strong>${row.remaining}</strong> ${eggLabel}</li>`)
+    .join('');
+
+  return `<p><strong>${heading}</strong></p><ul>${items}</ul>`;
+}
+
+async function fetchEggAddMoreAvailability(order: {
+  week_number?: number | null;
+  year?: number | null;
+  delivery_monday?: string | null;
+}) {
+  const weekNumber = Math.round(Number(order.week_number || 0));
+  const derivedYear =
+    Math.round(Number(order.year || 0)) || getYearFromYmd(parseIsoDate(String(order.delivery_monday || '')));
+  if (!weekNumber || !derivedYear) {
+    return {
+      totalAvailable: 0,
+      htmlNo: '',
+      htmlEn: '',
+    };
+  }
+
+  const { data, error } = await supabaseAdmin
+    .from('egg_inventory')
+    .select('eggs_available, eggs_allocated, egg_breeds(name)')
+    .eq('year', derivedYear)
+    .eq('week_number', weekNumber)
+    .in('status', ['open', 'sold_out', 'locked']);
 
   if (error) throw error;
-  return data;
+
+  const rows = ((data || []) as EggAvailableInventoryRow[])
+    .map((row) => {
+      const remaining = Math.max(0, Number(row.eggs_available || 0) - Number(row.eggs_allocated || 0));
+      return {
+        remaining,
+        breedNameNo: String(row.egg_breeds?.name || 'Rugeegg').trim() || 'Rugeegg',
+        breedNameEn: String(row.egg_breeds?.name || 'Hatching eggs').trim() || 'Hatching eggs',
+      };
+    })
+    .filter((row) => row.remaining > 0);
+
+  return {
+    totalAvailable: rows.reduce((sum, row) => sum + row.remaining, 0),
+    htmlNo: buildEggAvailabilityHtml(
+      rows.map((row) => ({ breedName: row.breedNameNo, remaining: row.remaining })),
+      'no'
+    ),
+    htmlEn: buildEggAvailabilityHtml(
+      rows.map((row) => ({ breedName: row.breedNameEn, remaining: row.remaining })),
+      'en'
+    ),
+  };
 }
 
 async function fetchChickenOrderForLifecycle(orderId: string) {
@@ -885,6 +1066,16 @@ export async function ensureLifecycleSeedData(): Promise<{
     if (flowInsertError) throw flowInsertError;
   }
 
+  const { error: legacyEggDayBeforeFlowUpdateError } = await supabaseAdmin
+    .from('email_flows')
+    .update({
+      event_type: 'egg.order.day_before_add_more',
+      template_key: 'egg.order.add_more.day_before',
+      product_scope: 'eggs',
+    })
+    .eq('flow_key', 'egg.delivery.day_before');
+  if (legacyEggDayBeforeFlowUpdateError) throw legacyEggDayBeforeFlowUpdateError;
+
   return {
     ok: true,
     missingTables: [],
@@ -902,6 +1093,7 @@ async function getFlowMap(): Promise<Map<string, FlowDefinition>> {
       'pig.remainder.reminder',
       'egg.remainder.reminder',
       'egg.delivery.day_before',
+      'egg.order.shipped.plus_one',
       'egg.hatch.followup',
       'egg.order.forfeited',
       'chicken.ready_for_pickup',
@@ -1434,9 +1626,48 @@ async function materializePigFlowInstances(flowMap: Map<string, FlowDefinition>,
   return inserted;
 }
 
+function selectEggReminderSchedules(
+  deliveryYmd: Ymd,
+  reminderDays: number[],
+  nowUtc: Date,
+  timeZone: string
+): Array<{ days: number; scheduledAt: Date }> {
+  const schedules = reminderDays
+    .map((days) => ({
+      days,
+      scheduledAt: zonedDateTimeToUtc(addDays(deliveryYmd, -days), 9, 0, timeZone),
+    }))
+    .sort((a, b) => a.scheduledAt.getTime() - b.scheduledAt.getTime());
+
+  const future = schedules.filter((entry) => entry.scheduledAt.getTime() > nowUtc.getTime());
+  const latestPast = [...schedules]
+    .reverse()
+    .find((entry) => entry.scheduledAt.getTime() <= nowUtc.getTime());
+
+  if (latestPast) {
+    return [
+      { days: latestPast.days, scheduledAt: nowUtc },
+      ...future,
+    ];
+  }
+
+  return future;
+}
+
+function scheduleEggImmediateOrFuture(
+  target: Date,
+  nowUtc: Date,
+  catchupWindowHours: number
+): Date | null {
+  if (target.getTime() > nowUtc.getTime()) return target;
+  if (nowUtc.getTime() - target.getTime() > catchupWindowHours * 60 * 60 * 1000) return null;
+  return nowUtc;
+}
+
 async function materializeEggFlowInstances(flowMap: Map<string, FlowDefinition>, config: LifecycleConfig): Promise<number> {
   const reminderFlow = flowMap.get('egg.remainder.reminder');
   const dayBeforeFlow = flowMap.get('egg.delivery.day_before');
+  const shippedPlusOneFlow = flowMap.get('egg.order.shipped.plus_one');
   const hatchFollowupFlow = flowMap.get('egg.hatch.followup');
   const forfeitFlow = flowMap.get('egg.order.forfeited');
   if (!reminderFlow || !dayBeforeFlow || !forfeitFlow) return 0;
@@ -1450,109 +1681,101 @@ async function materializeEggFlowInstances(flowMap: Map<string, FlowDefinition>,
 
   let inserted = 0;
 
-  await supabaseAdmin
-    .from('email_flow_instances')
-    .update({
-      status: 'cancelled',
-      last_error: 'legacy_delivery_day_before_replaced',
-      processed_at: new Date().toISOString(),
-    })
-    .eq('flow_key', 'egg.delivery.day_before')
-    .eq('status', 'scheduled')
-    .not('trigger_date_key', 'like', 'shipped-followup:%');
-
   for (const order of orders || []) {
     const orderId = String(order.id);
-    const detailedOrder = (await fetchEggOrderForLifecycle(orderId)) || order;
-    const toEmail = normalizeEmail(order.customer_email);
-    const locale: 'no' | 'en' = 'no';
-    const orderUrl = customerOrderLink('eggs', orderId, config.appBaseUrl);
-    const deliveryYmd = parseIsoDate(String(order.delivery_monday || ''));
-    if (!deliveryYmd) continue;
-    const deliveryYmdSafe = deliveryYmd;
-    const eggStatus = String(order.status || '');
-    const eggSummaryNo = summarizeEggOrderLines(detailedOrder as any, 'no');
-    const eggSummaryEn = summarizeEggOrderLines(detailedOrder as any, 'en');
-    const eggBreedNameNo = eggSummaryNo.breedLabel || String((order as any).egg_breeds?.name || 'Rugeegg');
-    const eggBreedNameEn = eggSummaryEn.breedLabel || eggBreedNameNo;
-    const totalQuantity = eggSummaryNo.totalQuantity;
-    const deliveryLabelNo = getEggDeliveryLabel(String((detailedOrder as any).delivery_method || ''), 'no');
-    const deliveryLabelEn = getEggDeliveryLabel(String((detailedOrder as any).delivery_method || ''), 'en');
-    const orderLinesHtmlNo = buildEggOrderLinesHtml(eggSummaryNo.lines, 'no', {
-      deliveryFeeOre: Number((detailedOrder as any).delivery_fee || 0),
-      deliveryLabel: deliveryLabelNo,
-    });
-    const orderLinesHtmlEn = buildEggOrderLinesHtml(eggSummaryEn.lines, 'en', {
-      deliveryFeeOre: Number((detailedOrder as any).delivery_fee || 0),
-      deliveryLabel: deliveryLabelEn,
-    });
-    const eggDepositOre = Number((detailedOrder as any).deposit_amount || 0);
-    const eggTotalOre = Number((detailedOrder as any).total_amount || 0);
-    const eggRemainderOre = Number((detailedOrder as any).remainder_amount || 0);
-    const dueDate =
-      parseIsoDate(String((detailedOrder as any).remainder_due_date || '')) || deliveryYmdSafe;
-    const deliveryDateNo = formatDateForLocale(deliveryYmdSafe, 'no', config.timezone);
-    const deliveryDateEn = formatDateForLocale(deliveryYmdSafe, 'en', config.timezone);
+    try {
+      const nowUtc = new Date();
+      const detailedOrder = (await fetchEggOrderForLifecycle(orderId)) || order;
+      const toEmail = normalizeEmail(order.customer_email);
+      const locale: 'no' | 'en' = 'no';
+      const orderUrl = customerOrderLink('eggs', orderId, config.appBaseUrl);
+      const deliveryYmd = parseIsoDate(String(order.delivery_monday || ''));
+      if (!deliveryYmd) continue;
+      const deliveryYmdSafe = deliveryYmd;
+      const eggStatus = String(order.status || '');
+      const eggSummaryNo = summarizeEggOrderLines(detailedOrder as any, 'no');
+      const eggSummaryEn = summarizeEggOrderLines(detailedOrder as any, 'en');
+      const eggBreedNameNo = eggSummaryNo.breedLabel || String((order as any).egg_breeds?.name || 'Rugeegg');
+      const eggBreedNameEn = eggSummaryEn.breedLabel || eggBreedNameNo;
+      const totalQuantity = eggSummaryNo.totalQuantity;
+      const deliveryLabelNo = getEggDeliveryLabel(String((detailedOrder as any).delivery_method || ''), 'no');
+      const deliveryLabelEn = getEggDeliveryLabel(String((detailedOrder as any).delivery_method || ''), 'en');
+      const orderLinesHtmlNo = buildEggOrderLinesHtml(eggSummaryNo.lines, 'no', {
+        deliveryFeeOre: Number((detailedOrder as any).delivery_fee || 0),
+        deliveryLabel: deliveryLabelNo,
+      });
+      const orderLinesHtmlEn = buildEggOrderLinesHtml(eggSummaryEn.lines, 'en', {
+        deliveryFeeOre: Number((detailedOrder as any).delivery_fee || 0),
+        deliveryLabel: deliveryLabelEn,
+      });
+      const eggDepositOre = Number((detailedOrder as any).deposit_amount || 0);
+      const eggTotalOre = Number((detailedOrder as any).total_amount || 0);
+      const eggRemainderOre = Number((detailedOrder as any).remainder_amount || 0);
+      const explicitDueDate = parseIsoDate(String((detailedOrder as any).remainder_due_date || ''));
+      const dueDate = explicitDueDate || deliveryYmdSafe;
+      const deliveryDateNo = formatDateForLocale(deliveryYmdSafe, 'no', config.timezone);
+      const deliveryDateEn = formatDateForLocale(deliveryYmdSafe, 'en', config.timezone);
 
-    if (eggStatus === 'deposit_paid') {
-      const outstanding = await eggOutstandingOre(orderId, eggRemainderOre);
-      if (outstanding > 0) {
-        const eggTotalReminders = config.eggRemainderReminderDays.length;
+      if (eggStatus === 'deposit_paid') {
+        const outstanding = await eggOutstandingOre(orderId, eggRemainderOre);
+        if (outstanding > 0) {
+          const eggTotalReminders = config.eggRemainderReminderDays.length;
+          const selectedReminders = selectEggReminderSchedules(
+            deliveryYmdSafe,
+            config.eggRemainderReminderDays,
+            nowUtc,
+            config.timezone
+          );
 
-        const nowUtc = new Date();
-        // Schedule reminders relative to the due date, not delivery date
-        const reminderAnchor = dueDate;
-        for (let ei = 0; ei < config.eggRemainderReminderDays.length; ei++) {
-          const days = config.eggRemainderReminderDays[ei];
-          const scheduleYmd = addDays(reminderAnchor, -days);
-          const scheduledUtc = zonedDateTimeToUtc(scheduleYmd, 9, 0, config.timezone);
-          if (scheduledUtc.getTime() < nowUtc.getTime()) continue;
-          const reminderInserted = await insertFlowInstance({
-            flowId: reminderFlow.id,
-            flowKey: reminderFlow.flow_key,
-            productScope: reminderFlow.product_scope,
-            entityType: 'egg_order',
-            entityId: orderId,
-            triggerDateKey: `remainder:${ymdToKey(reminderAnchor)}:${days}`,
-            scheduledFor: scheduledUtc.toISOString(),
-            toEmail: toEmail || null,
-            locale,
-            payload: {
-              customer_name: String(order.customer_name || 'Kunde'),
-              order_number: String(order.order_number || ''),
-              remainder_amount_nok: toNoCurrency(Math.round(outstanding / 100)),
-              deposit_amount_nok: toNoCurrency(Math.round(eggDepositOre / 100)),
-              total_amount_nok: toNoCurrency(Math.round(eggTotalOre / 100)),
-              breed_name: eggBreedNameNo,
-              breed_name_en: eggBreedNameEn,
-              base_quantity: eggSummaryNo.baseQuantity,
-              additions_quantity: eggSummaryNo.additionsQuantity,
-              total_quantity: totalQuantity,
-              order_lines_html: orderLinesHtmlNo,
-              order_lines_html_en: orderLinesHtmlEn,
-              delivery_method_label: deliveryLabelNo,
-              delivery_method_label_en: deliveryLabelEn,
-              due_date: formatDateForLocale(dueDate, locale, config.timezone),
-              days_left: days,
-              reminder_number: ei + 1,
-              total_reminders: eggTotalReminders,
-              tip_index: ei,
-              order_url: orderUrl,
-            },
-            metadata: {
-              product_scope: 'eggs',
-              flow_key: reminderFlow.flow_key,
-              trigger_offset_days: days,
-            },
-          });
-          if (reminderInserted) inserted += 1;
-        }
+          for (const reminder of selectedReminders) {
+            const reminderNumber = config.eggRemainderReminderDays.indexOf(reminder.days) + 1;
+            const reminderInserted = await insertFlowInstance({
+              flowId: reminderFlow.id,
+              flowKey: reminderFlow.flow_key,
+              productScope: reminderFlow.product_scope,
+              entityType: 'egg_order',
+              entityId: orderId,
+              triggerDateKey: `delivery-reminder:${ymdToKey(deliveryYmdSafe)}:${reminder.days}`,
+              scheduledFor: reminder.scheduledAt.toISOString(),
+              toEmail: toEmail || null,
+              locale,
+              payload: {
+                customer_name: String(order.customer_name || 'Kunde'),
+                order_number: String(order.order_number || ''),
+                remainder_amount_nok: toNoCurrency(Math.round(outstanding / 100)),
+                deposit_amount_nok: toNoCurrency(Math.round(eggDepositOre / 100)),
+                total_amount_nok: toNoCurrency(Math.round(eggTotalOre / 100)),
+                breed_name: eggBreedNameNo,
+                breed_name_en: eggBreedNameEn,
+                base_quantity: eggSummaryNo.baseQuantity,
+                additions_quantity: eggSummaryNo.additionsQuantity,
+                total_quantity: totalQuantity,
+                order_lines_html: orderLinesHtmlNo,
+                order_lines_html_en: orderLinesHtmlEn,
+                delivery_method_label: deliveryLabelNo,
+                delivery_method_label_en: deliveryLabelEn,
+                due_date: formatDateForLocale(dueDate, locale, config.timezone),
+                days_left: reminder.days,
+                reminder_number: reminderNumber,
+                total_reminders: eggTotalReminders,
+                tip_index: Math.max(0, reminderNumber - 1),
+                order_url: orderUrl,
+              },
+              metadata: {
+                product_scope: 'eggs',
+                flow_key: reminderFlow.flow_key,
+                trigger_offset_days: reminder.days,
+                delivery_anchor: ymdToKey(deliveryYmdSafe),
+                due_anchor: explicitDueDate ? ymdToKey(explicitDueDate) : null,
+              },
+            });
+            if (reminderInserted) inserted += 1;
+          }
 
-        const explicitDueDate = parseIsoDate(String(order.remainder_due_date || ''));
-        if (explicitDueDate) {
-          const dueEnd = zonedDateTimeToUtc(explicitDueDate, 23, 59, config.timezone);
-          const forfeitAt = new Date(dueEnd.getTime() + config.eggOverdueGraceHours * 60 * 60 * 1000);
-          if (forfeitAt.getTime() >= nowUtc.getTime()) {
+          if (explicitDueDate) {
+            const dueEnd = zonedDateTimeToUtc(explicitDueDate, 23, 59, config.timezone);
+            const forfeitAt = new Date(dueEnd.getTime() + config.eggOverdueGraceHours * 60 * 60 * 1000);
+            const scheduledForfeitAt = forfeitAt.getTime() > nowUtc.getTime() ? forfeitAt : nowUtc;
             const forfeitInserted = await insertFlowInstance({
               flowId: forfeitFlow.id,
               flowKey: forfeitFlow.flow_key,
@@ -1560,7 +1783,7 @@ async function materializeEggFlowInstances(flowMap: Map<string, FlowDefinition>,
               entityType: 'egg_order',
               entityId: orderId,
               triggerDateKey: `forfeit:${ymdToKey(explicitDueDate)}:grace-${config.eggOverdueGraceHours}`,
-              scheduledFor: forfeitAt.toISOString(),
+              scheduledFor: scheduledForfeitAt.toISOString(),
               toEmail: toEmail || null,
               locale,
               payload: {
@@ -1576,117 +1799,201 @@ async function materializeEggFlowInstances(flowMap: Map<string, FlowDefinition>,
             });
             if (forfeitInserted) inserted += 1;
           }
+        } else {
+          await reconcileEggPaymentDependentFlowInstances(orderId, 'order_fully_paid');
         }
       } else {
-        await reconcileEggPaymentDependentFlowInstances(orderId, 'order_fully_paid');
+        await reconcileEggPaymentDependentFlowInstances(orderId, 'order_no_longer_remainder_due');
       }
-    } else {
-      await reconcileEggPaymentDependentFlowInstances(orderId, 'order_no_longer_remainder_due');
-    }
 
-    // Send the shipment follow-up the first morning after the order was marked as shipped.
-    if (eggStatus === 'shipped') {
-      const shippedAtRaw = String(order.marked_shipped_at || order.updated_at || '');
-      const shippedAt = shippedAtRaw ? new Date(shippedAtRaw) : null;
-      if (!shippedAt || Number.isNaN(shippedAt.getTime())) continue;
+      if (['deposit_paid', 'fully_paid', 'preparing'].includes(eggStatus)) {
+        const addMoreAvailability = await fetchEggAddMoreAvailability(detailedOrder as any);
+        if (addMoreAvailability.totalAvailable > 0) {
+          const dayBeforeTarget = zonedDateTimeToUtc(
+            addDays(deliveryYmdSafe, -1),
+            EGG_DAY_BEFORE_ADD_MORE_HOUR,
+            0,
+            config.timezone
+          );
+          const scheduledDayBeforeAt =
+            dayBeforeTarget.getTime() > nowUtc.getTime() && nowUtc.getTime() < zonedDateTimeToUtc(deliveryYmdSafe, 0, 0, config.timezone).getTime()
+              ? dayBeforeTarget
+              : nowUtc.getTime() < zonedDateTimeToUtc(deliveryYmdSafe, 0, 0, config.timezone).getTime()
+                ? nowUtc
+                : null;
 
-      const shippedYmd = getZonedDateTimeParts(shippedAt, config.timezone);
-      const followupYmd = addDays(
-        {
-          year: shippedYmd.year,
-          month: shippedYmd.month,
-          day: shippedYmd.day,
-        },
-        1
-      );
-      const trackingNumber = String((order as any).tracking_number || '');
-      const trackingUrl = trackingNumber.startsWith('http')
-        ? trackingNumber
-        : trackingNumber
-          ? `https://sporing.posten.no/sporing/${trackingNumber}`
-          : '';
-      const dayBeforeInserted = await insertFlowInstance({
-        flowId: dayBeforeFlow.id,
-        flowKey: dayBeforeFlow.flow_key,
-        productScope: dayBeforeFlow.product_scope,
-        entityType: 'egg_order',
-        entityId: orderId,
-        triggerDateKey: `shipped-followup:${shippedAt.toISOString().slice(0, 10)}`,
-        scheduledFor: zonedDateTimeToUtc(followupYmd, 8, 0, config.timezone).toISOString(),
-        toEmail: toEmail || null,
-        locale,
-        payload: {
-          customer_name: String(order.customer_name || 'Kunde'),
-          order_number: String(order.order_number || ''),
-          breed_name: eggBreedNameNo,
-          breed_name_en: eggBreedNameEn,
-          base_quantity: eggSummaryNo.baseQuantity,
-          additions_quantity: eggSummaryNo.additionsQuantity,
-          total_quantity: totalQuantity,
-          total_amount_nok: toNoCurrency(Math.round(eggTotalOre / 100)),
-          deposit_amount_nok: toNoCurrency(Math.round(eggDepositOre / 100)),
-          remainder_amount_nok: toNoCurrency(Math.round(eggRemainderOre / 100)),
-          order_lines_html: orderLinesHtmlNo,
-          order_lines_html_en: orderLinesHtmlEn,
-          delivery_method_label: deliveryLabelNo,
-          delivery_method_label_en: deliveryLabelEn,
-          delivery_week: String((detailedOrder as any).week_number || order.week_number || ''),
-          delivery_date: formatDateForLocale(deliveryYmdSafe, locale, config.timezone),
-          delivery_date_en: deliveryDateEn,
-          tracking_number: trackingNumber,
-          tracking_url: trackingUrl,
-          order_url: orderUrl,
-          tip_index: 1,
-        },
-        metadata: {
-          product_scope: 'eggs',
-          flow_key: dayBeforeFlow.flow_key,
-          trigger_offset_days: 1,
-        },
+          if (scheduledDayBeforeAt) {
+              const dayBeforeInserted = await insertFlowInstance({
+                flowId: dayBeforeFlow.id,
+                flowKey: dayBeforeFlow.flow_key,
+                productScope: dayBeforeFlow.product_scope,
+                entityType: 'egg_order',
+                entityId: orderId,
+                // Use a distinct trigger key for the restored add-more-eggs nudge so
+                // old cancelled day-before rows do not block future scheduling.
+                triggerDateKey: `day-before-add-more:${ymdToKey(deliveryYmdSafe)}`,
+                scheduledFor: scheduledDayBeforeAt.toISOString(),
+                toEmail: toEmail || null,
+                locale,
+                payload: {
+                customer_name: String(order.customer_name || 'Kunde'),
+                order_number: String(order.order_number || ''),
+                delivery_date: deliveryDateNo,
+                delivery_date_en: deliveryDateEn,
+                available_eggs_total: addMoreAvailability.totalAvailable,
+                available_breeds_html: addMoreAvailability.htmlNo,
+                available_breeds_html_en: addMoreAvailability.htmlEn,
+                order_url: orderUrl,
+              },
+              metadata: {
+                product_scope: 'eggs',
+                flow_key: dayBeforeFlow.flow_key,
+                trigger_offset_days: 1,
+                delivery_anchor: ymdToKey(deliveryYmdSafe),
+              },
+            });
+            if (dayBeforeInserted) inserted += 1;
+          }
+        }
+      }
+
+      if (shippedPlusOneFlow && (eggStatus === 'shipped' || eggStatus === 'delivered')) {
+        const shippedAtRaw = String(order.marked_shipped_at || order.updated_at || '');
+        const shippedAt = shippedAtRaw ? new Date(shippedAtRaw) : null;
+        if (shippedAt && !Number.isNaN(shippedAt.getTime())) {
+          const legacyPlusOneCount = await supabaseAdmin
+            .from('email_flow_instances')
+            .select('id', { count: 'exact', head: true })
+            .eq('entity_type', 'egg_order')
+            .eq('entity_id', orderId)
+            .eq('flow_key', 'egg.delivery.day_before')
+            .like('trigger_date_key', 'shipped-followup:%');
+
+          if ((legacyPlusOneCount.count || 0) === 0) {
+            const shippedYmd = getZonedDateTimeParts(shippedAt, config.timezone);
+            const followupYmd = addDays(
+              {
+                year: shippedYmd.year,
+                month: shippedYmd.month,
+                day: shippedYmd.day,
+              },
+              EGG_SHIPPED_PLUS_ONE_DELAY_DAYS
+            );
+            const followupTarget = zonedDateTimeToUtc(followupYmd, 8, 0, config.timezone);
+            const scheduledFollowupAt = scheduleEggImmediateOrFuture(
+              followupTarget,
+              nowUtc,
+              EGG_SHIPPED_PLUS_ONE_CATCHUP_HOURS
+            );
+            const trackingNumber = String((order as any).tracking_number || '');
+            const trackingUrl = trackingNumber.startsWith('http')
+              ? trackingNumber
+              : trackingNumber
+                ? `https://sporing.posten.no/sporing/${trackingNumber}`
+                : '';
+
+            if (scheduledFollowupAt) {
+              const shippedPlusOneInserted = await insertFlowInstance({
+                flowId: shippedPlusOneFlow.id,
+                flowKey: shippedPlusOneFlow.flow_key,
+                productScope: shippedPlusOneFlow.product_scope,
+                entityType: 'egg_order',
+                entityId: orderId,
+                triggerDateKey: `shipped-plus-one:${shippedAt.toISOString().slice(0, 10)}`,
+                scheduledFor: scheduledFollowupAt.toISOString(),
+                toEmail: toEmail || null,
+                locale,
+                payload: {
+                  customer_name: String(order.customer_name || 'Kunde'),
+                  order_number: String(order.order_number || ''),
+                  breed_name: eggBreedNameNo,
+                  breed_name_en: eggBreedNameEn,
+                  base_quantity: eggSummaryNo.baseQuantity,
+                  additions_quantity: eggSummaryNo.additionsQuantity,
+                  total_quantity: totalQuantity,
+                  total_amount_nok: toNoCurrency(Math.round(eggTotalOre / 100)),
+                  deposit_amount_nok: toNoCurrency(Math.round(eggDepositOre / 100)),
+                  remainder_amount_nok: toNoCurrency(Math.round(eggRemainderOre / 100)),
+                  order_lines_html: orderLinesHtmlNo,
+                  order_lines_html_en: orderLinesHtmlEn,
+                  delivery_method_label: deliveryLabelNo,
+                  delivery_method_label_en: deliveryLabelEn,
+                  delivery_week: String((detailedOrder as any).week_number || order.week_number || ''),
+                  delivery_date: deliveryDateNo,
+                  delivery_date_en: deliveryDateEn,
+                  tracking_number: trackingNumber,
+                  tracking_url: trackingUrl,
+                  order_url: orderUrl,
+                  tip_index: 1,
+                },
+                metadata: {
+                  product_scope: 'eggs',
+                  flow_key: shippedPlusOneFlow.flow_key,
+                  trigger_offset_days: EGG_SHIPPED_PLUS_ONE_DELAY_DAYS,
+                },
+              });
+              if (shippedPlusOneInserted) inserted += 1;
+            }
+          }
+        }
+      }
+
+      if (hatchFollowupFlow && (eggStatus === 'shipped' || eggStatus === 'delivered')) {
+        const shippedAtRaw = String(order.marked_shipped_at || order.updated_at || '');
+        const shippedAt = shippedAtRaw ? new Date(shippedAtRaw) : null;
+        if (shippedAt && !Number.isNaN(shippedAt.getTime())) {
+          const followupTarget = new Date(
+            shippedAt.getTime() + EGG_HATCH_FOLLOWUP_DELAY_DAYS * 24 * 60 * 60 * 1000
+          );
+          const scheduledHatchFollowupAt = scheduleEggImmediateOrFuture(
+            followupTarget,
+            nowUtc,
+            EGG_HATCH_FOLLOWUP_CATCHUP_HOURS
+          );
+
+          if (scheduledHatchFollowupAt) {
+            const hatchFollowupInserted = await insertFlowInstance({
+              flowId: hatchFollowupFlow.id,
+              flowKey: hatchFollowupFlow.flow_key,
+              productScope: hatchFollowupFlow.product_scope,
+              entityType: 'egg_order',
+              entityId: orderId,
+              triggerDateKey: `hatch-followup:${shippedAt.toISOString().slice(0, 10)}`,
+              scheduledFor: scheduledHatchFollowupAt.toISOString(),
+              toEmail: toEmail || null,
+              locale,
+              payload: {
+                customer_name: String(order.customer_name || 'Kunde'),
+                order_number: String(order.order_number || ''),
+                breed_name: eggBreedNameNo,
+                breed_name_en: eggBreedNameEn,
+                total_quantity: totalQuantity,
+                order_lines_html: orderLinesHtmlNo,
+                order_lines_html_en: orderLinesHtmlEn,
+                delivery_week: String((detailedOrder as any).week_number || order.week_number || ''),
+                message_url: buildCustomerPathLink(config.appBaseUrl, '/min-side'),
+                pork_url: `${String(config.appBaseUrl || '').replace(/\/+$/, '')}/produkt`,
+                deposit_discount_code: '',
+                tip_index: 2,
+                order_url: orderUrl,
+              },
+              metadata: {
+                product_scope: 'eggs',
+                flow_key: hatchFollowupFlow.flow_key,
+                trigger_offset_days: EGG_HATCH_FOLLOWUP_DELAY_DAYS,
+              },
+            });
+            if (hatchFollowupInserted) inserted += 1;
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Failed to materialize egg lifecycle instances for order', {
+        orderId,
+        orderNumber: String(order.order_number || ''),
+        error: error instanceof Error ? error.message : String(error),
       });
-      if (dayBeforeInserted) inserted += 1;
-    }
-
-    if (hatchFollowupFlow && (eggStatus === 'shipped' || eggStatus === 'delivered')) {
-      const shippedAtRaw = String(order.marked_shipped_at || order.updated_at || '');
-      const shippedAt = shippedAtRaw ? new Date(shippedAtRaw) : null;
-      if (shippedAt && !Number.isNaN(shippedAt.getTime())) {
-        const followupAt = new Date(
-          shippedAt.getTime() + EGG_HATCH_FOLLOWUP_DELAY_DAYS * 24 * 60 * 60 * 1000
-        );
-        const hatchFollowupInserted = await insertFlowInstance({
-          flowId: hatchFollowupFlow.id,
-          flowKey: hatchFollowupFlow.flow_key,
-          productScope: hatchFollowupFlow.product_scope,
-          entityType: 'egg_order',
-          entityId: orderId,
-          triggerDateKey: `hatch-followup:${shippedAt.toISOString().slice(0, 10)}`,
-          scheduledFor: followupAt.toISOString(),
-          toEmail: toEmail || null,
-          locale,
-          payload: {
-            customer_name: String(order.customer_name || 'Kunde'),
-            order_number: String(order.order_number || ''),
-            breed_name: eggBreedNameNo,
-            breed_name_en: eggBreedNameEn,
-            total_quantity: totalQuantity,
-            order_lines_html: orderLinesHtmlNo,
-            order_lines_html_en: orderLinesHtmlEn,
-            delivery_week: String((detailedOrder as any).week_number || order.week_number || ''),
-            message_url: buildCustomerPathLink(config.appBaseUrl, '/min-side'),
-            pork_url: `${String(config.appBaseUrl || '').replace(/\/+$/, '')}/produkt`,
-            deposit_discount_code: '',
-            tip_index: 2,
-            order_url: orderUrl,
-          },
-          metadata: {
-            product_scope: 'eggs',
-            flow_key: hatchFollowupFlow.flow_key,
-            trigger_offset_days: EGG_HATCH_FOLLOWUP_DELAY_DAYS,
-          },
-        });
-        if (hatchFollowupInserted) inserted += 1;
-      }
+      continue;
     }
   }
 
@@ -2103,18 +2410,71 @@ async function processDueInstances(
     }
 
     if (instance.flow_key === 'egg.delivery.day_before') {
+      if (instance.trigger_date_key.startsWith('shipped-followup:')) {
+        const { data: eggOrder } = await supabaseAdmin
+          .from('egg_orders')
+          .select('status')
+          .eq('id', instance.entity_id)
+          .maybeSingle();
+        const eggStatus = String(eggOrder?.status || '');
+        const eligible = eggStatus === 'shipped' || eggStatus === 'delivered';
+        if (!eggOrder || !eligible) {
+          await updateFlowInstanceStatus(instance.id, {
+            status: 'cancelled',
+            lastError: 'egg_shipped_plus_one_not_eligible',
+            processedAt: new Date().toISOString(),
+          });
+          skipped += 1;
+          continue;
+        }
+        templateKey = 'egg.order.shipped.plus_one';
+      } else {
+        const eggOrder = await fetchEggOrderForLifecycle(instance.entity_id);
+        const eggStatus = String((eggOrder as { status?: string | null } | null)?.status || '');
+        const eligible = ['deposit_paid', 'fully_paid', 'preparing'].includes(eggStatus);
+        if (!eggOrder || !eligible) {
+          await updateFlowInstanceStatus(instance.id, {
+            status: 'cancelled',
+            lastError: 'egg_day_before_not_eligible',
+            processedAt: new Date().toISOString(),
+          });
+          skipped += 1;
+          continue;
+        }
+
+        const availability = await fetchEggAddMoreAvailability(eggOrder as any);
+        if (availability.totalAvailable <= 0) {
+          await updateFlowInstanceStatus(instance.id, {
+            status: 'cancelled',
+            lastError: 'no_additional_eggs_available',
+            processedAt: new Date().toISOString(),
+          });
+          skipped += 1;
+          continue;
+        }
+
+        templateKey = 'egg.order.add_more.day_before';
+        payload = {
+          ...payload,
+          available_eggs_total: availability.totalAvailable,
+          available_breeds_html:
+            locale === 'en' ? availability.htmlEn : availability.htmlNo,
+        };
+      }
+    }
+
+    if (instance.flow_key === 'egg.order.shipped.plus_one') {
       const { data: eggOrder } = await supabaseAdmin
         .from('egg_orders')
         .select('status')
         .eq('id', instance.entity_id)
         .maybeSingle();
       const eggStatus = String(eggOrder?.status || '');
-      // Only send when order is actually shipped or delivered
       const eligible = eggStatus === 'shipped' || eggStatus === 'delivered';
       if (!eggOrder || !eligible) {
         await updateFlowInstanceStatus(instance.id, {
           status: 'cancelled',
-          lastError: 'egg_day_before_not_eligible',
+          lastError: 'egg_shipped_plus_one_not_eligible',
           processedAt: new Date().toISOString(),
         });
         skipped += 1;
@@ -2512,12 +2872,18 @@ export async function materializeLifecycleInstancesOnly(): Promise<{
       missingTables: [],
     };
   } catch (error) {
+    const detail =
+      error instanceof Error
+        ? error.stack
+          ? `${error.message}\n${error.stack}`
+          : error.message
+        : 'Failed to materialize lifecycle instances';
     return {
       ok: false,
       inserted: 0,
       config,
       missingTables: [],
-      error: error instanceof Error ? error.message : 'Failed to materialize lifecycle instances',
+      error: detail,
     };
   }
 }

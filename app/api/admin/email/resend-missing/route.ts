@@ -83,6 +83,7 @@ export async function POST() {
     const hasRemainderConfirmation = sentTemplates.has('egg.order.remainder.paid.customer');
     const hasAnyReminder = sentTemplates.has('egg.remainder.reminder');
     const hasDeliveryEmail = sentTemplates.has('egg.delivery.day_before');
+    const hasShippedPlusOne = sentTemplates.has('egg.order.shipped.plus_one');
     const hasHatchFollowup = sentTemplates.has('egg.hatch.followup');
     const hasShippedEmail = sentTemplates.has('egg.order.shipped.customer');
 
@@ -162,7 +163,8 @@ export async function POST() {
     // 2. Deposit confirmation: send if deposit_paid and no confirmation or later email sent
     if (!hasDepositConfirmation && !hasLegacyEmail) {
       // Skip if any later email in the chain was already sent
-      const hasLaterEmail = hasAnyReminder || hasDeliveryEmail || hasHatchFollowup || hasShippedEmail;
+      const hasLaterEmail =
+        hasAnyReminder || hasDeliveryEmail || hasShippedPlusOne || hasHatchFollowup || hasShippedEmail;
       if (hasLaterEmail) {
         results.push({
           orderId, orderNumber, email,
