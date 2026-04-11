@@ -2,6 +2,10 @@ import { supabaseAdmin } from '@/lib/supabase/server';
 import { getCachedPricing } from './cache';
 
 export interface PricingConfig {
+  box_8kg_price: number;
+  box_12kg_price: number;
+  box_8kg_deposit_percentage: number;
+  box_12kg_deposit_percentage: number;
   delivery_fee_pickup_e6: number;
   delivery_fee_trondheim: number;
   fresh_delivery_fee: number;
@@ -18,6 +22,10 @@ async function fetchPricingConfigFromDB(): Promise<PricingConfig> {
       .from('app_config')
       .select('key, value')
       .in('key', [
+        'box_8kg_price',
+        'box_12kg_price',
+        'box_8kg_deposit_percentage',
+        'box_12kg_deposit_percentage',
         'delivery_fee_pickup_e6',
         'delivery_fee_trondheim',
         'fresh_delivery_fee',
@@ -32,6 +40,10 @@ async function fetchPricingConfigFromDB(): Promise<PricingConfig> {
 
     // Validate all required config exists
     const requiredKeys = [
+      'box_8kg_price',
+      'box_12kg_price',
+      'box_8kg_deposit_percentage',
+      'box_12kg_deposit_percentage',
       'delivery_fee_pickup_e6',
       'delivery_fee_trondheim',
       'fresh_delivery_fee',
@@ -43,6 +55,10 @@ async function fetchPricingConfigFromDB(): Promise<PricingConfig> {
     }
 
     return {
+      box_8kg_price: parseInt(configMap.get('box_8kg_price')!),
+      box_12kg_price: parseInt(configMap.get('box_12kg_price')!),
+      box_8kg_deposit_percentage: parseInt(configMap.get('box_8kg_deposit_percentage')!),
+      box_12kg_deposit_percentage: parseInt(configMap.get('box_12kg_deposit_percentage')!),
       delivery_fee_pickup_e6: parseInt(configMap.get('delivery_fee_pickup_e6')!),
       delivery_fee_trondheim: parseInt(configMap.get('delivery_fee_trondheim')!),
       fresh_delivery_fee: parseInt(configMap.get('fresh_delivery_fee')!),

@@ -29,6 +29,11 @@ function MetaLabel({ children }: { children: React.ReactNode }) {
   );
 }
 
+function getFinitePrice(value: unknown): number | null {
+  const parsed = typeof value === 'number' ? value : Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
 // Parallax scroll layer - KEPT (subtle, high impact)
 function ParallaxLayer({
   children,
@@ -330,14 +335,28 @@ export default function Page() {
   const desktopEmptyClass = 'bg-neutral-200';
   const mobileFillColor = isSoldOut ? '#D7CEC3' : isLowStock ? '#B35A2A' : '#0F6C6F';
   const mobileEmptyColor = '#E9E1D6';
-  const minPrice = pricing ? Math.min(pricing.box_8kg_price, pricing.box_12kg_price) : null;
-  const minDeposit = pricing
-    ? Math.floor(
-        (pricing.box_8kg_price <= pricing.box_12kg_price
-          ? pricing.box_8kg_price * pricing.box_8kg_deposit_percentage
-          : pricing.box_12kg_price * pricing.box_12kg_deposit_percentage) / 100
-      )
+  const box8Price = getFinitePrice(pricing?.box_8kg_price);
+  const box12Price = getFinitePrice(pricing?.box_12kg_price);
+  const box8DepositPercentage = getFinitePrice(pricing?.box_8kg_deposit_percentage);
+  const box12DepositPercentage = getFinitePrice(pricing?.box_12kg_deposit_percentage);
+  const box8Deposit = box8Price !== null && box8DepositPercentage !== null
+    ? Math.floor((box8Price * box8DepositPercentage) / 100)
     : null;
+  const box12Deposit = box12Price !== null && box12DepositPercentage !== null
+    ? Math.floor((box12Price * box12DepositPercentage) / 100)
+    : null;
+  const box8Balance = box8Price !== null && box8Deposit !== null ? box8Price - box8Deposit : null;
+  const box12Balance = box12Price !== null && box12Deposit !== null ? box12Price - box12Deposit : null;
+  const minPrice =
+    box8Price !== null && box12Price !== null
+      ? Math.min(box8Price, box12Price)
+      : box8Price ?? box12Price;
+  const minDeposit =
+    minPrice === null
+      ? null
+      : minPrice === box8Price
+        ? box8Deposit
+        : box12Deposit;
   const locale = lang === 'no' ? 'nb-NO' : 'en-US';
   const pageCopy = lang === 'no'
     ? {
@@ -653,9 +672,9 @@ export default function Page() {
               personCount={pageCopy.personCount8}
               mealsCount={pageCopy.meals8}
               freezerNote={pageCopy.freezer8}
-              price={pricing?.box_8kg_price}
-              deposit={pricing ? Math.floor(pricing.box_8kg_price * pricing.box_8kg_deposit_percentage / 100) : undefined}
-              balance={pricing ? pricing.box_8kg_price - Math.floor(pricing.box_8kg_price * pricing.box_8kg_deposit_percentage / 100) : undefined}
+              price={box8Price ?? undefined}
+              deposit={box8Deposit ?? undefined}
+              balance={box8Balance ?? undefined}
               ctaText={t.product.reserve8kg}
               ctaHref="/bestill?size=8"
               pricing={pricing}
@@ -678,9 +697,9 @@ export default function Page() {
               personCount={pageCopy.personCount12}
               mealsCount={pageCopy.meals12}
               freezerNote={pageCopy.freezer12}
-              price={pricing?.box_12kg_price}
-              deposit={pricing ? Math.floor(pricing.box_12kg_price * pricing.box_12kg_deposit_percentage / 100) : undefined}
-              balance={pricing ? pricing.box_12kg_price - Math.floor(pricing.box_12kg_price * pricing.box_12kg_deposit_percentage / 100) : undefined}
+              price={box12Price ?? undefined}
+              deposit={box12Deposit ?? undefined}
+              balance={box12Balance ?? undefined}
               ctaText={t.product.reserve12kg}
               ctaHref="/bestill?size=12"
               isFeatured={true}

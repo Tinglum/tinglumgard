@@ -70,6 +70,11 @@ function StickyCTABar({
   );
 }
 
+function getFinitePrice(value: unknown): number | null {
+  const parsed = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
 export default function ProductPage() {
   const { t, lang } = useLanguage();
   const copy = t.productPage;
@@ -122,16 +127,20 @@ export default function ProductPage() {
   const isSoldOut = inventory?.isSoldOut ?? false;
   const isLowStock = inventory?.isLowStock ?? false;
 
-  const box8Price = pricing?.box_8kg_price;
-  const box12Price = pricing?.box_12kg_price;
-  const box8Deposit = pricing
-    ? Math.floor(pricing.box_8kg_price * pricing.box_8kg_deposit_percentage / 100)
-    : null;
-  const box12Deposit = pricing
-    ? Math.floor(pricing.box_12kg_price * pricing.box_12kg_deposit_percentage / 100)
-    : null;
-  const box8Balance = pricing && box8Deposit !== null ? pricing.box_8kg_price - box8Deposit : null;
-  const box12Balance = pricing && box12Deposit !== null ? pricing.box_12kg_price - box12Deposit : null;
+  const box8Price = getFinitePrice(pricing?.box_8kg_price);
+  const box12Price = getFinitePrice(pricing?.box_12kg_price);
+  const box8DepositPercentage = getFinitePrice(pricing?.box_8kg_deposit_percentage);
+  const box12DepositPercentage = getFinitePrice(pricing?.box_12kg_deposit_percentage);
+  const box8Deposit =
+    box8Price !== null && box8DepositPercentage !== null
+      ? Math.floor((box8Price * box8DepositPercentage) / 100)
+      : null;
+  const box12Deposit =
+    box12Price !== null && box12DepositPercentage !== null
+      ? Math.floor((box12Price * box12DepositPercentage) / 100)
+      : null;
+  const box8Balance = box8Price !== null && box8Deposit !== null ? box8Price - box8Deposit : null;
+  const box12Balance = box12Price !== null && box12Deposit !== null ? box12Price - box12Deposit : null;
 
   const contents = useMemo(
     () => [
@@ -257,13 +266,13 @@ export default function ProductPage() {
                     <div className="flex items-center justify-between">
                       <span>{t.product.box8}</span>
                       <span className="tabular-nums">
-                        {box8Price ? `${box8Price.toLocaleString(locale)} ${t.common.currency}` : t.common.loading}
+                        {box8Price !== null ? `${box8Price.toLocaleString(locale)} ${t.common.currency}` : t.common.loading}
                       </span>
                     </div>
                     <div className="flex items-center justify-between">
                       <span>{t.product.box12}</span>
                       <span className="tabular-nums">
-                        {box12Price ? `${box12Price.toLocaleString(locale)} ${t.common.currency}` : t.common.loading}
+                        {box12Price !== null ? `${box12Price.toLocaleString(locale)} ${t.common.currency}` : t.common.loading}
                       </span>
                     </div>
                   </div>
@@ -418,7 +427,7 @@ export default function ProductPage() {
                     {t.product.totalPrice}
                   </p>
                   <p className="mt-2 text-3xl font-light text-neutral-900 tabular-nums">
-                    {box8Price ? `${box8Price.toLocaleString(locale)} ${t.common.currency}` : t.common.loading}
+                    {box8Price !== null ? `${box8Price.toLocaleString(locale)} ${t.common.currency}` : t.common.loading}
                   </p>
                 </div>
 
@@ -469,7 +478,7 @@ export default function ProductPage() {
                     {t.product.totalPrice}
                   </p>
                   <p className="mt-2 text-3xl font-light tabular-nums">
-                    {box12Price ? `${box12Price.toLocaleString(locale)} ${t.common.currency}` : t.common.loading}
+                    {box12Price !== null ? `${box12Price.toLocaleString(locale)} ${t.common.currency}` : t.common.loading}
                   </p>
                 </div>
 

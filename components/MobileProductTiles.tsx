@@ -29,9 +29,18 @@ interface TileConfig {
   featured?: boolean;
 }
 
+function getFinitePrice(value: unknown): number | null {
+  const parsed = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
 export function MobileProductTiles({ pricing }: MobileProductTilesProps) {
   const { t, lang } = useLanguage();
   const locale = lang === "no" ? "nb-NO" : "en-US";
+  const box8Price = getFinitePrice(pricing?.box_8kg_price);
+  const box12Price = getFinitePrice(pricing?.box_12kg_price);
+  const box8DepositPercentage = getFinitePrice(pricing?.box_8kg_deposit_percentage);
+  const box12DepositPercentage = getFinitePrice(pricing?.box_12kg_deposit_percentage);
 
   const tiles: TileConfig[] = [
     {
@@ -47,10 +56,11 @@ export function MobileProductTiles({ pricing }: MobileProductTilesProps) {
       personCount: lang === "no" ? "2-3 pers" : "2-3 people",
       mealsCount: lang === "no" ? "12-16 maltider" : "12-16 meals",
       freezerNote: lang === "no" ? "Lite fryserom" : "Less freezer space",
-      price: pricing?.box_8kg_price ?? null,
-      deposit: pricing
-        ? Math.floor((pricing.box_8kg_price * pricing.box_8kg_deposit_percentage) / 100)
-        : null,
+      price: box8Price,
+      deposit:
+        box8Price !== null && box8DepositPercentage !== null
+          ? Math.floor((box8Price * box8DepositPercentage) / 100)
+          : null,
       href: "/bestill?size=8",
       cta: t.product.reserve8kg,
     },
@@ -67,10 +77,11 @@ export function MobileProductTiles({ pricing }: MobileProductTilesProps) {
       personCount: lang === "no" ? "4-6 pers" : "4-6 people",
       mealsCount: lang === "no" ? "20-28 maltider" : "20-28 meals",
       freezerNote: lang === "no" ? "Mer fryserom" : "More freezer space",
-      price: pricing?.box_12kg_price ?? null,
-      deposit: pricing
-        ? Math.floor((pricing.box_12kg_price * pricing.box_12kg_deposit_percentage) / 100)
-        : null,
+      price: box12Price,
+      deposit:
+        box12Price !== null && box12DepositPercentage !== null
+          ? Math.floor((box12Price * box12DepositPercentage) / 100)
+          : null,
       href: "/bestill?size=12",
       cta: t.product.reserve12kg,
       featured: true,
