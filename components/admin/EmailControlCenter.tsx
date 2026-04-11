@@ -316,6 +316,38 @@ export function EmailControlCenter({
   }, [initialTab, onInitialTabHandled]);
   const [lifecyclePreviewLoadingId, setLifecyclePreviewLoadingId] = useState<string | null>(null);
 
+  const lifecycleFlowMatrix = useMemo<LifecycleFlowMatrixRow[]>(
+    () =>
+      ((lifecycle?.flowMatrix ||
+        lifecycle?.canonicalMatrix ||
+        lifecycle?.canonicalFlowMatrix ||
+        []) as LifecycleFlowMatrixRow[]),
+    [lifecycle]
+  );
+
+  const lifecycleStatusCounts = useMemo(
+    () =>
+      lifecycle?.statusCounts || {
+        scheduled: Number(lifecycle?.overview?.scheduled || 0),
+        enqueued: Number(lifecycle?.overview?.enqueued || 0),
+        failed: Number(lifecycle?.overview?.failed || 0),
+      },
+    [lifecycle]
+  );
+
+  const lifecycleConsistency = useMemo(
+    () =>
+      lifecycle?.consistency || {
+        staleScheduled: Number(lifecycle?.overview?.staleScheduled || 0),
+        failedInstances: Number(lifecycle?.overview?.failedInstances || 0),
+        enqueuedWithoutQueue: Number(lifecycle?.overview?.enqueuedWithoutQueue || 0),
+        ok: Boolean(lifecycle?.overview?.ok),
+      },
+    [lifecycle]
+  );
+
+  const lifecycleSchemaStatus = lifecycle?.schemaStatus || schemaStatus;
+
   const upcomingLifecycleInstances = useMemo(() => {
     const nowIso = new Date().toISOString();
     return (lifecycle?.instances || []).filter((instance: any) => {
@@ -1307,36 +1339,49 @@ export function EmailControlCenter({
             <Card className="p-4">
               <h3 className="text-lg font-medium">Flow Health</h3>
               <p className="text-sm text-neutral-600">
-                Scheduled: {lifecycle?.statusCounts?.scheduled || 0} - Enqueued:{' '}
-                {lifecycle?.statusCounts?.enqueued || 0} - Failed: {lifecycle?.statusCounts?.failed || 0}
+                Scheduled: {lifecycleStatusCounts?.scheduled || 0} - Enqueued: {lifecycleStatusCounts?.enqueued || 0}{' '}
+                - Failed: {lifecycleStatusCounts?.failed || 0}
               </p>
               <p className="text-sm text-neutral-600">
-                Materialized this refresh: {Number(lifecycle?.materializedInserted || 0)}
+                Materialized this refresh: {Number(lifecycle?.materializedInserted || lifecycle?.overview?.materializedInserted || 0)}
               </p>
               <p className="text-sm text-neutral-600">
-                Missing email alerts: {Array.isArray(lifecycle?.missingAlerts) ? lifecycle.missingAlerts.length : 0}
+                Missing email alerts:{' '}
+                {Array.isArray(lifecycle?.missingAlerts)
+                  ? lifecycle.missingAlerts.length
+                  : Number(lifecycle?.overview?.missingAlertsCount || 0)}
               </p>
               <p className="text-sm text-neutral-600">
-                Stale scheduled: {Number(lifecycle?.consistency?.staleScheduled || 0)} - Failed instances:{' '}
-                {Number(lifecycle?.consistency?.failedInstances || 0)} - Enqueued w/o queue id:{' '}
-                {Number(lifecycle?.consistency?.enqueuedWithoutQueue || 0)}
+                Stale scheduled: {Number(lifecycleConsistency?.staleScheduled || 0)} - Failed instances:{' '}
+                {Number(lifecycleConsistency?.failedInstances || 0)} - Enqueued w/o queue id:{' '}
+                {Number(lifecycleConsistency?.enqueuedWithoutQueue || 0)}
               </p>
               <p
                 className={cn(
                   'text-sm font-medium',
-                  lifecycle?.consistency?.ok ? 'text-emerald-700' : 'text-amber-700'
+                  lifecycleConsistency?.ok ? 'text-emerald-700' : 'text-amber-700'
                 )}
               >
-                {lifecycle?.consistency?.ok
+                {lifecycleConsistency?.ok
                   ? 'Lifecycle consistency looks good.'
                   : 'Lifecycle consistency has issues that need attention.'}
               </p>
+              {lifecycleSchemaStatus && !lifecycleSchemaStatus.ready ? (
+                <div className="mt-3 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                  Missing lifecycle schema tables: {lifecycleSchemaStatus.missingTables.join(', ')}
+                </div>
+              ) : null}
+              {typeof lifecycle?.materializeError === 'string' && lifecycle.materializeError.trim() ? (
+                <div className="mt-3 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                  {lifecycle.materializeError}
+                </div>
+              ) : null}
             </Card>
 
             <Card className="p-4 space-y-2">
               <h3 className="text-lg font-medium">Canonical Flow Matrix</h3>
               <div className="max-h-[260px] overflow-y-auto space-y-2">
-                {((lifecycle?.flowMatrix || []) as LifecycleFlowMatrixRow[]).map((row) => (
+                {lifecycleFlowMatrix.map((row) => (
                   <div key={row.flowKey} className="rounded-md border border-neutral-200 p-2">
                     <p className="text-sm font-medium">{row.flowKey}</p>
                     <p className="text-xs text-neutral-600">
@@ -1347,7 +1392,7 @@ export function EmailControlCenter({
                     <p className="text-xs text-neutral-500">stop rules: {row.stopRules.join(', ')}</p>
                   </div>
                 ))}
-                {(lifecycle?.flowMatrix || []).length === 0 ? (
+                {lifecycleFlowMatrix.length === 0 ? (
                   <p className="text-sm text-neutral-500">No flow matrix loaded.</p>
                 ) : null}
               </div>

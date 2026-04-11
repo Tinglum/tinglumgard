@@ -2892,13 +2892,35 @@ export async function getLifecycleOverview() {
   const config = await getLifecycleConfig();
   const seedStatus = await ensureLifecycleSeedData();
   if (!seedStatus.ok) {
+    const emptyOverview = {
+      scheduled: 0,
+      enqueued: 0,
+      failed: 0,
+      materializedInserted: 0,
+      missingAlertsCount: 0,
+      staleScheduled: 0,
+      failedInstances: 0,
+      enqueuedWithoutQueue: 0,
+      ok: false,
+    };
     return {
       config,
+      flowMatrix: LIFECYCLE_FLOW_MATRIX,
+      canonicalMatrix: LIFECYCLE_FLOW_MATRIX,
       flows: [],
       instances: [],
       statusCounts: {},
+      overview: emptyOverview,
+      consistency: {
+        staleScheduled: 0,
+        failedInstances: 0,
+        enqueuedWithoutQueue: 0,
+        ok: false,
+      },
       missingAlerts: [],
       runs: [],
+      materializedInserted: 0,
+      materializeError: `Missing email schema tables: ${seedStatus.missingTables.join(', ')}`,
       schemaStatus: {
         ready: false,
         missingTables: seedStatus.missingTables,
@@ -2956,19 +2978,33 @@ export async function getLifecycleOverview() {
     const queueId = String((row as { queue_id?: string | null }).queue_id || '');
     return status === 'enqueued' && !queueId;
   }).length;
+  const consistency = {
+    staleScheduled,
+    failedInstances,
+    enqueuedWithoutQueue,
+    ok: staleScheduled === 0 && failedInstances === 0 && enqueuedWithoutQueue === 0,
+  };
+  const overview = {
+    scheduled: Number(statusCounts.scheduled || 0),
+    enqueued: Number(statusCounts.enqueued || 0),
+    failed: Number(statusCounts.failed || 0),
+    materializedInserted: Number(materializeResult.inserted || 0),
+    missingAlertsCount: missingAlerts.length,
+    staleScheduled,
+    failedInstances,
+    enqueuedWithoutQueue,
+    ok: consistency.ok,
+  };
 
   return {
     config,
     flowMatrix: LIFECYCLE_FLOW_MATRIX,
+    canonicalMatrix: LIFECYCLE_FLOW_MATRIX,
     flows: flowRows.data || [],
     instances: instanceRows.data || [],
     statusCounts,
-    consistency: {
-      staleScheduled,
-      failedInstances,
-      enqueuedWithoutQueue,
-      ok: staleScheduled === 0 && failedInstances === 0 && enqueuedWithoutQueue === 0,
-    },
+    overview,
+    consistency,
     missingAlerts,
     runs: runRows.data || [],
     materializedInserted: materializeResult.inserted,
