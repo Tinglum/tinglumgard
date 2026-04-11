@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase/server'
 import { logError } from '@/lib/logger'
-import { createOrderAccessToken } from '@/lib/auth/order-access'
 
 interface EggCheckoutRequest {
   productType?: 'eggs'
@@ -79,18 +78,22 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Orders are closed for this delivery week' }, { status: 400 })
     }
 
+    const requiredBaseQty = (slug: string) => (slug === 'ayam-cemani' ? 6 : 10)
     const totalEggs = items.reduce((sum, item) => sum + item.quantity, 0)
-    const isPureAyamCemani = items.every((item) => {
+    const hasBaseQuantity = items.some((item) => {
       const inventory = inventoryMap.get(item.inventoryId)
       const slug = inventory?.egg_breeds?.slug || ''
-      return slug === 'ayam-cemani'
+      return item.quantity >= requiredBaseQty(slug)
     })
 
-    if (isPureAyamCemani && totalEggs < 6) {
-      return NextResponse.json({ error: 'Below minimum order quantity' }, { status: 400 })
-    }
-
-    if (!isPureAyamCemani && totalEggs < 10) {
+    if (items.length === 1) {
+      const onlyItem = items[0]
+      const inventory = inventoryMap.get(onlyItem.inventoryId)
+      const slug = inventory?.egg_breeds?.slug || ''
+      if (onlyItem.quantity < requiredBaseQty(slug)) {
+        return NextResponse.json({ error: 'Below minimum order quantity' }, { status: 400 })
+      }
+    } else if (!hasBaseQuantity && totalEggs < 12) {
       return NextResponse.json({ error: 'Below minimum order quantity' }, { status: 400 })
     }
 
@@ -100,15 +103,11 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Inventory not found' }, { status: 404 })
       }
 
-      if (inventory.status !== 'open') {
-        return NextResponse.json({ error: 'Inventory is not open for ordering' }, { status: 400 })
-      }
-
       if (inventory.breed_id !== item.breedId) {
         return NextResponse.json({ error: 'Inventory mismatch' }, { status: 400 })
       }
 
-      const eggsRemaining = Math.max(0, inventory.eggs_available - inventory.eggs_allocated)
+      const eggsRemaining = inventory.eggs_remaining ?? (inventory.eggs_available - inventory.eggs_allocated)
       if (eggsRemaining < item.quantity) {
         return NextResponse.json({ error: 'Not enough eggs available' }, { status: 400 })
       }
@@ -181,6 +180,21 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to create order' }, { status: 500 })
     }
 
+    for (const item of items) {
+      const inventory = inventoryMap.get(item.inventoryId)
+      if (!inventory) continue
+
+      const nextAllocated = (inventory.eggs_allocated || 0) + item.quantity
+      const { error: updateError } = await supabaseAdmin
+        .from('egg_inventory')
+        .update({ eggs_allocated: nextAllocated })
+        .eq('id', inventory.id)
+
+      if (updateError) {
+        logError('egg-checkout-inventory-update', updateError)
+      }
+    }
+
     const additions = items.slice(1).map((item) => {
       const inventory = inventoryMap.get(item.inventoryId)
       const pricePerEgg = inventory?.egg_breeds?.price_per_egg || 0
@@ -204,17 +218,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const orderAccessToken = await createOrderAccessToken({
-      scope: 'eggs',
-      orderId: order.id,
-    })
-
-    return NextResponse.json({
-      success: true,
-      orderId: order.id,
-      orderNumber: order.order_number,
-      orderAccessToken,
-    })
+    return NextResponse.json({ success: true, orderId: order.id, orderNumber: order.order_number })
   } catch (error) {
     logError('egg-checkout-main', error)
     const errorMessage = error instanceof Error ? error.message : 'Failed to process checkout'

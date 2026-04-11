@@ -1,6 +1,6 @@
-﻿'use client';
+'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -39,14 +39,10 @@ interface Payment {
   amount_nok: number;
   paid_at: string | null;
 }
-
 interface Order {
   id: string;
   order_number: string;
-  box_size: number | null;
-  effective_box_size?: number;
-  display_box_name_no?: string | null;
-  display_box_name_en?: string | null;
+  box_size: number;
   status: string;
   delivery_type: string;
   fresh_delivery: boolean;
@@ -91,14 +87,6 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
   const [showTimelineModal, setShowTimelineModal] = useState(false);
   const [addingExtras, setAddingExtras] = useState(false);
   const [reordering, setReordering] = useState(false);
-  const [extrasError, setExtrasError] = useState<string | null>(null);
-  const [contactInfo, setContactInfo] = useState<{
-    email: string;
-    phone: string;
-  }>({
-    email: copy.contactEmail,
-    phone: copy.contactPhone,
-  });
 
   const depositPayment = order.payments?.find((p) => p.payment_type === 'deposit');
   const depositPaid = depositPayment?.status === 'completed';
@@ -116,40 +104,6 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
     month: 'long',
     year: 'numeric',
   });
-  const boxName = lang === 'no' ? order.display_box_name_no : order.display_box_name_en;
-  const fallbackBoxName = t.common.defaultBoxName;
-  const boxLabel = boxName || fallbackBoxName;
-  const currentExtrasForModal = useMemo(
-    () => order.extra_products?.map((e: any) => ({ slug: e.slug, quantity: Number(e.quantity) })) || [],
-    [order.extra_products]
-  );
-
-  useEffect(() => {
-    let isMounted = true;
-
-    async function loadPublicConfig() {
-      try {
-        const response = await fetch('/api/config', { cache: 'no-store' });
-        const data = await response.json().catch(() => null);
-        if (!response.ok || !data?.contact || !isMounted) {
-          return;
-        }
-
-        setContactInfo({
-          email: data.contact.email || copy.contactEmail,
-          phone: data.contact.phone || copy.contactPhone,
-        });
-      } catch {
-        // Keep fallback contact info from translations.
-      }
-    }
-
-    loadPublicConfig();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [copy.contactEmail, copy.contactPhone]);
 
   // Determine next action
   function getNextAction() {
@@ -206,7 +160,6 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
 
   async function handleAddExtras(selectedExtras: { slug: string; quantity: number }[], proceedToPayment = false) {
     setAddingExtras(true);
-    setExtrasError(null);
     try {
       const response = await fetch(`/api/orders/${order.id}/add-extras`, {
         method: 'POST',
@@ -233,11 +186,15 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
         await onRefresh();
         window.location.href = `/min-side/ordre/${order.id}/betaling`;
       } else {
-        await onRefresh();
+        onRefresh();
       }
     } catch (error: any) {
       console.error('Error adding extras:', error);
-      setExtrasError(error?.message || copy.addExtrasError);
+      toast({
+        title: copy.errorTitle,
+        description: error?.message || copy.addExtrasError,
+        variant: 'destructive'
+      });
     } finally {
       setAddingExtras(false);
     }
@@ -248,13 +205,11 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
   }
 
   function handleExtrasModalClose() {
-    setExtrasError(null);
     setShowExtrasModal(false);
   }
 
   function handleExtrasConfirm(selectedExtras: { slug: string; quantity: number }[]) {
     // For standalone extras button (not payment flow)
-    setExtrasError(null);
     handleAddExtras(selectedExtras, false);
   }
 
@@ -271,10 +226,7 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
         body: JSON.stringify(modifications),
       });
 
-      if (!response.ok) {
-        const data = await response.json().catch(() => null);
-        throw new Error(data?.error || copy.saveModificationsError);
-      }
+      if (!response.ok) throw new Error(copy.saveModificationsError);
 
       setShowModificationModal(false);
       onRefresh();
@@ -331,7 +283,7 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
 
   return (
     <>
-      <Card className="overflow-hidden border-neutral-200 bg-white shadow-[0_20px_60px_-15px_rgba(0,0,0,0.08)]">
+      <Card className={cn('overflow-hidden', theme.bgCard)}>
         {/* Next Action Banner */}
         <div
           className={cn(
@@ -438,7 +390,6 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
 
             <div className="flex gap-2">
               <button
-                type="button"
                 onClick={handleDownloadReceipt}
                 className={cn(
                   'p-2 rounded-lg transition-colors',
@@ -450,7 +401,6 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
                 <Download className="w-5 h-5" />
               </button>
               <button
-                type="button"
                 onClick={() => window.print()}
                 className={cn(
                   'p-2 rounded-lg transition-colors',
@@ -482,7 +432,7 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
             <div className="space-y-2">
               <div className="flex justify-between">
                 <span className={theme.textSecondary}>
-                  {copy.depositBoxLabel.replace('{box}', boxLabel)}</span>
+                  {copy.depositBoxLabel.replace('{size}', String(order.box_size))}</span>
                 <div className="flex items-center gap-2">
                   <span className={cn('font-semibold', theme.textPrimary)}>
                     {currency} {depositPaid && depositPayment
@@ -543,7 +493,7 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <span className={cn('font-medium', theme.textPrimary)}>
-                  {boxLabel}
+                  {copy.porkBoxLabel.replace('{size}', String(order.box_size))}
                 </span>
               </div>
               <div>
@@ -615,8 +565,8 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
           </div>
 
           {/* Order Actions */}
-          <div className={cn('p-4 rounded-xl border bg-white', theme.borderSecondary)}>
-            <h4 className={cn('font-semibold mb-4 flex items-center gap-2', theme.textPrimary)}>
+          <div className={cn('p-4 rounded-xl border bg-gradient-to-r from-blue-50 to-indigo-50', theme.borderSecondary)}>
+            <h4 className={cn('font-semibold mb-4 flex items-center gap-2 text-blue-900')}>
               <MessageSquare className="w-5 h-5" />
               {copy.orderActions}
             </h4>
@@ -656,27 +606,27 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
                 {copy.print}
               </Button>
             </div>
-            <div className="mt-4 pt-4 border-t border-neutral-200 space-y-2">
-              <div className="flex items-center gap-2 text-neutral-700 text-sm">
+            <div className="mt-4 pt-4 border-t border-blue-200 space-y-2">
+              <div className="flex items-center gap-2 text-blue-700 text-sm">
                 <Mail className="w-4 h-4" />
-                <span>{contactInfo.email}</span>
+                <span>{copy.contactEmail}</span>
               </div>
-              <div className="flex items-center gap-2 text-neutral-700 text-sm">
+              <div className="flex items-center gap-2 text-blue-700 text-sm">
                 <Phone className="w-4 h-4" />
-                <span>{contactInfo.phone}</span>
+                <span>{copy.contactPhone}</span>
               </div>
             </div>
           </div>
 
           {/* Estimated Delivery Date */}
           {!order.marked_delivered_at && (
-            <div className={cn('p-4 rounded-xl border bg-neutral-50 border-neutral-200')}>
-              <div className="flex items-center gap-2 text-neutral-900 mb-1">
+            <div className={cn('p-4 rounded-xl border bg-purple-50 border-purple-200')}>
+              <div className="flex items-center gap-2 text-purple-900 mb-1">
                 <Calendar className="w-5 h-5" />
                 <p className="font-medium">{copy.estimatedDeliveryDate}</p>
               </div>
-              <p className="text-lg font-bold text-neutral-900">{getEstimatedDeliveryDate()}</p>
-              <p className="text-sm text-neutral-600 mt-1">
+              <p className="text-lg font-bold text-purple-900">{getEstimatedDeliveryDate()}</p>
+              <p className="text-sm text-purple-700 mt-1">
                 {copy.notifyReady}
               </p>
             </div>
@@ -741,12 +691,12 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
         isOpen={showExtrasModal}
         onClose={handleExtrasModalClose}
         onConfirm={(extras) => handleExtrasConfirm(extras)}
-        currentExtras={currentExtrasForModal}
+        currentExtras={
+          order.extra_products?.map((e: any) => ({ slug: e.slug, quantity: e.quantity })) || []
+        }
         loading={addingExtras}
         isPaymentFlow={false}
         baseRemainderAmount={order.remainder_amount}
-        errorMessage={extrasError}
-        onClearError={() => setExtrasError(null)}
       />
 
       {/* Order Modification Modal */}
@@ -756,10 +706,6 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
           isOpen={showModificationModal}
           onClose={() => setShowModificationModal(false)}
           onSave={handleSaveModifications}
-          onManageExtras={() => {
-            setShowModificationModal(false);
-            setShowExtrasModal(true);
-          }}
         />
       )}
 
@@ -776,15 +722,12 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
       <ContactAdminModal
         isOpen={showContactModal}
         onClose={() => setShowContactModal(false)}
-        orderId={order.id}
         orderNumber={order.order_number}
-        orderDetails={`${copy.contactDetailsBoxSize}: ${boxLabel}
+        orderDetails={`${copy.contactDetailsBoxSize}: ${order.box_size}kg
 ${copy.contactDetailsRibChoice}: ${ribbeChoiceLabels[order.ribbe_choice] || order.ribbe_choice}
 ${copy.contactDetailsDeliveryType}: ${deliveryTypeLabels[order.delivery_type] || order.delivery_type}
 ${copy.contactDetailsStatus}: ${order.status}
 ${copy.contactDetailsTotalAmount}: ${currency} ${order.total_amount.toLocaleString(locale)}`}
-        contactEmail={contactInfo.email}
-        contactPhone={contactInfo.phone}
       />
 
       {/* Order Timeline Modal */}

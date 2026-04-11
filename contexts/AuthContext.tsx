@@ -1,14 +1,14 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useRef, useState, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import { useLanguage } from '@/contexts/LanguageContext';
 
 interface User {
   name: string;
   email: string;
   phoneNumber: string;
   isAdmin?: boolean;
+  role?: string | null;
   isImpersonating?: boolean;
   impersonatorName?: string | null;
 }
@@ -23,152 +23,138 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const SESSION_TIMEOUT = 10 * 60 * 1000; // 10 minutes inactivity timeout
-const LAST_ACTIVITY_WRITE_THROTTLE = 5000;
+const SESSION_TIMEOUT = 5 * 60 * 1000; // 5 minutes in milliseconds
 const LAST_ACTIVITY_KEY = 'lastActivityTime';
 const SESSION_EXPIRED_KEY = 'tinglum_session_expired';
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
-  const { t } = useLanguage();
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const lastPersistedActivityRef = useRef<number>(0);
+  const [timeoutId, setTimeoutId] = useState<NodeJS.Timeout | null>(null);
 
-  const clearSessionTimeout = useCallback(() => {
-    if (!timeoutRef.current) return;
-    clearTimeout(timeoutRef.current);
-    timeoutRef.current = null;
-  }, []);
-
-  const updateLastActivity = useCallback((force = false) => {
-    const now = Date.now();
-    if (!force && now - lastPersistedActivityRef.current < LAST_ACTIVITY_WRITE_THROTTLE) {
-      return;
-    }
-    localStorage.setItem(LAST_ACTIVITY_KEY, now.toString());
-    lastPersistedActivityRef.current = now;
-  }, []);
-
-  const getInactiveMs = useCallback(() => {
-    const lastActivity = localStorage.getItem(LAST_ACTIVITY_KEY);
-    if (!lastActivity) return 0;
-    const parsed = parseInt(lastActivity, 10);
-    if (!Number.isFinite(parsed)) return 0;
-    return Date.now() - parsed;
-  }, []);
-
-  const logout = useCallback(async (reason?: 'expired' | 'manual') => {
-    try {
-      if (reason === 'expired') {
-        localStorage.setItem(SESSION_EXPIRED_KEY, '1');
-      }
-      await fetch('/api/auth/vipps/logout', { method: 'POST' });
-      setUser(null);
-      localStorage.removeItem(LAST_ACTIVITY_KEY);
-      clearSessionTimeout();
-      window.location.href = '/';
-    } catch (error) {
-      console.error('Logout failed:', error);
-    }
-  }, [clearSessionTimeout]);
-
-  const scheduleSessionTimeout = useCallback(() => {
-    if (!user) return;
-    clearSessionTimeout();
-    timeoutRef.current = setTimeout(() => {
-      const inactiveMs = getInactiveMs();
-      if (inactiveMs < SESSION_TIMEOUT) {
-        scheduleSessionTimeout();
-        return;
-      }
-      console.log('Session timed out after 10 minutes of inactivity');
-      logout('expired');
-    }, SESSION_TIMEOUT);
-  }, [clearSessionTimeout, getInactiveMs, logout, user]);
-
-  const checkAuth = useCallback(async () => {
+  const checkAuth = async () => {
     try {
       const response = await fetch('/api/auth/session');
       if (response.ok) {
         const data = await response.json();
         if (data.authenticated) {
           setUser(data.user);
-          updateLastActivity(true);
+          updateLastActivity();
         } else {
           setUser(null);
-          clearSessionTimeout();
         }
       } else {
         setUser(null);
-        clearSessionTimeout();
       }
     } catch (error) {
       console.error('Auth check failed:', error);
       setUser(null);
-      clearSessionTimeout();
     } finally {
       setIsLoading(false);
     }
-  }, [clearSessionTimeout, updateLastActivity]);
+  };
+
+  const logout = async (reason?: 'expired' | 'reload' | 'manual') => {
+    try {
+      if (reason && reason !== 'manual') {
+        localStorage.setItem(SESSION_EXPIRED_KEY, '1');
+      }
+      await fetch('/api/auth/vipps/logout', { method: 'POST' });
+      setUser(null);
+      localStorage.removeItem(LAST_ACTIVITY_KEY);
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+      // Redirect to home page
+      window.location.href = '/';
+    } catch (error) {
+      console.error('Logout failed:', error);
+    }
+  };
+
+  const updateLastActivity = () => {
+    localStorage.setItem(LAST_ACTIVITY_KEY, Date.now().toString());
+  };
+
+  const checkSessionTimeout = () => {
+    const lastActivity = localStorage.getItem(LAST_ACTIVITY_KEY);
+    if (lastActivity) {
+      const timeSinceLastActivity = Date.now() - parseInt(lastActivity);
+      if (timeSinceLastActivity > SESSION_TIMEOUT) {
+        console.log('Session timed out after 30 minutes of inactivity');
+        logout('expired');
+        return;
+      }
+    }
+  };
+
+  const resetTimeout = () => {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+
+    if (user) {
+      updateLastActivity();
+      const newTimeoutId = setTimeout(() => {
+        console.log('Auto-logout triggered');
+        logout('expired');
+      }, SESSION_TIMEOUT);
+      setTimeoutId(newTimeoutId);
+    }
+  };
 
   useEffect(() => {
     const expiredFlag = localStorage.getItem(SESSION_EXPIRED_KEY);
     if (!expiredFlag) return;
     localStorage.removeItem(SESSION_EXPIRED_KEY);
     toast({
-      title: t.common.sessionExpiredTitle,
-      description: t.common.sessionExpiredDescription,
+      title: 'Sesjonen er utlopet',
+      description: 'Logg inn igjen for a fortsette.',
     });
-  }, [toast, t.common.sessionExpiredDescription, t.common.sessionExpiredTitle]);
+  }, [toast]);
 
   // Check auth on mount
   useEffect(() => {
+    const navEntry = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined;
+    if (navEntry?.type === 'reload') {
+      logout('reload');
+      return;
+    }
     checkAuth();
-  }, [checkAuth]);
+  }, []);
 
   // Setup activity listeners and timeout
   useEffect(() => {
-    if (!user) {
-      clearSessionTimeout();
-      return;
-    }
+    if (!user) return;
 
-    if (getInactiveMs() > SESSION_TIMEOUT) {
-      logout('expired');
-      return;
-    }
+    // Check if session already timed out
+    checkSessionTimeout();
 
-    scheduleSessionTimeout();
+    // Setup timeout
+    resetTimeout();
 
-    // User activity events that reset inactivity timeout.
+    // Activity events that reset the timeout
     const events = ['mousedown', 'keydown', 'scroll', 'touchstart', 'click'];
 
     const handleActivity = () => {
-      updateLastActivity();
-      scheduleSessionTimeout();
-    };
-
-    // Keep tabs in sync: activity in one tab should keep session alive in others.
-    const handleStorage = (event: StorageEvent) => {
-      if (event.key !== LAST_ACTIVITY_KEY) return;
-      scheduleSessionTimeout();
+      resetTimeout();
     };
 
     events.forEach(event => {
-      document.addEventListener(event, handleActivity, { passive: true });
+      document.addEventListener(event, handleActivity);
     });
-    window.addEventListener('storage', handleStorage);
 
+    // Cleanup
     return () => {
       events.forEach(event => {
         document.removeEventListener(event, handleActivity);
       });
-      window.removeEventListener('storage', handleStorage);
-      clearSessionTimeout();
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
     };
-  }, [clearSessionTimeout, getInactiveMs, logout, scheduleSessionTimeout, updateLastActivity, user]);
+  }, [user]);
 
   return (
     <AuthContext.Provider value={{ user, isAuthenticated: !!user, isLoading, checkAuth, logout }}>
