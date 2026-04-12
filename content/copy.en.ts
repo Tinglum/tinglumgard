@@ -675,6 +675,8 @@
       titleFailed: "Payment failed",
       titlePending: "Payment is being processed",
       leadCompleted: "We have registered your deposit payment.",
+      thankYouNote:
+        "Thank you for your order! We will be in touch when the eggs are ready for shipment. You can track the status under \"My orders\".",
       leadFailed: "The Vipps payment was not completed.",
       leadPending: "Please wait while we confirm your payment.",
       failedHelp:

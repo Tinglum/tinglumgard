@@ -152,7 +152,9 @@ export default function EggConfirmationPage() {
           </div>
           <h1 className="text-4xl font-normal text-neutral-900">{statusTitle}</h1>
           <p className="text-neutral-600">{statusLead}</p>
-          <p className="text-sm text-neutral-500">{t.eggs.payment.nonRefundableNote}</p>
+          {paymentStatus === 'completed' && (
+            <p className="text-sm text-neutral-500">{confirmation.thankYouNote}</p>
+          )}
         </div>
 
         <GlassCard className="p-6 space-y-4">

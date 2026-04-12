@@ -678,8 +678,8 @@ export async function POST(request: NextRequest) {
       }
 
       // If deposit covers the full amount (or remainder is zero), set status to fully_paid
-      const depositAmount = Number(order?.deposit_amount || 0);
-      const totalAmount = Number(order?.total_amount || 0);
+      const depositAmount = Number(isChickenPayment ? (order?.deposit_amount_nok || 0) : (order?.deposit_amount || 0));
+      const totalAmount = Number(isChickenPayment ? (order?.total_amount_nok || 0) : (order?.total_amount || 0));
       const remainderAmount = Number(isEggPayment ? (order?.remainder_amount || 0) : (order?.remainder_amount_nok || 0));
       const newStatus = (remainderAmount <= 0 || (depositAmount > 0 && totalAmount > 0 && depositAmount >= totalAmount)) ? 'fully_paid' : 'deposit_paid';
       console.log(`Updating order status to ${newStatus} (deposit: ${depositAmount}, total: ${totalAmount}, remainder: ${remainderAmount})`);

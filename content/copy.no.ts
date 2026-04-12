@@ -676,6 +676,8 @@
       titleFailed: "Betaling feilet",
       titlePending: "Betaling håndteres",
       leadCompleted: "Vi har registrert forskuddsbetalingen.",
+      thankYouNote:
+        "Tusen takk for bestillingen! Vi tar kontakt når eggene er klare for forsendelse. Du kan følge med på status under «Mine bestillinger».",
       leadFailed: "Vipps-betalingen ble ikke fullført.",
       leadPending: "Vennligst vent mens vi bekrefter betalingen din.",
       failedHelp:
