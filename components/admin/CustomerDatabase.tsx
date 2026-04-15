@@ -446,9 +446,12 @@ export function CustomerDatabase({
         `/api/admin/customers?action=profile&customerId=${encodeURIComponent(customerId)}`,
         { cache: 'no-store' }
       );
-      const body = await response.json().catch(() => ({}));
+      const body = await response.json().catch(() => null);
       if (!response.ok) {
-        throw new Error(body?.error || 'Failed to load customer profile');
+        throw new Error(body?.error || `Failed to load customer profile (${response.status})`);
+      }
+      if (!body) {
+        throw new Error('Failed to load customer profile (invalid response)');
       }
       setSelectedCustomer(body.profile || null);
       setShowProfile(true);

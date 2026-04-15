@@ -916,13 +916,13 @@ async function fetchWishlistRequestsForCustomer(params: {
 }
 
 export async function GET(request: NextRequest) {
-  const session = await getSession();
-
-  if (!session?.isAdmin) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
-  }
-
   try {
+    const session = await getSession();
+
+    if (!session?.isAdmin) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
+    }
+
     const { searchParams } = new URL(request.url);
     const action = searchParams.get('action');
     const customerId = searchParams.get('customerId');
@@ -1158,21 +1158,25 @@ async function getCustomerProfile(customerId: string) {
   } | null = null;
 
   if (bestEmail) {
-    const { data: suppressionData, error: suppressionError } = await supabaseAdmin
-      .from('email_suppression_list')
-      .select('email, reason, source, created_at')
-      .ilike('email', bestEmail)
-      .maybeSingle();
+    try {
+      const { data: suppressionData, error: suppressionError } = await supabaseAdmin
+        .from('email_suppression_list')
+        .select('email, reason, source, created_at')
+        .ilike('email', bestEmail)
+        .maybeSingle();
 
-    if (suppressionError) {
-      if (
-        !isMissingColumnOrRelationError(suppressionError) &&
-        !isMissingEmailRelationError(suppressionError)
-      ) {
-        throw suppressionError;
+      if (suppressionError) {
+        if (
+          !isMissingColumnOrRelationError(suppressionError) &&
+          !isMissingEmailRelationError(suppressionError)
+        ) {
+          console.error('Customer profile suppression check degraded:', suppressionError);
+        }
+      } else {
+        suppression = suppressionData as typeof suppression;
       }
-    } else {
-      suppression = suppressionData as typeof suppression;
+    } catch (error) {
+      console.error('Customer profile suppression check degraded:', error);
     }
   }
 
