@@ -142,7 +142,7 @@ export function EggShippingModal({ orderId, open, onClose, lang }: EggShippingMo
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'mark_shipped',
-          trackingNumber: trackingNumber.trim(),
+          data: { trackingNumber: trackingNumber.trim() },
         }),
       })
       if (!res.ok) {
