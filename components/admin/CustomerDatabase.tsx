@@ -384,6 +384,7 @@ export function CustomerDatabase({
   const [expandedOrder, setExpandedOrder] = useState<string | null>(null);
   const [orderDetails, setOrderDetails] = useState<Record<string, Record<string, unknown>>>({});
   const [orderDrafts, setOrderDrafts] = useState<Record<string, Record<string, unknown>>>({});
+  const [profileLoading, setProfileLoading] = useState(false);
   const [loadingOrder, setLoadingOrder] = useState<string | null>(null);
   const [savingOrder, setSavingOrder] = useState<string | null>(null);
   const [emailActionLoading, setEmailActionLoading] = useState<string | null>(null);
@@ -439,6 +440,7 @@ export function CustomerDatabase({
   }, [loadCustomers]);
 
   async function viewCustomerProfile(customerId: string) {
+    setProfileLoading(true);
     try {
       const response = await fetch(
         `/api/admin/customers?action=profile&customerId=${encodeURIComponent(customerId)}`,
@@ -467,6 +469,8 @@ export function CustomerDatabase({
         description: error instanceof Error ? error.message : copy.profileLoadErrorDescription,
         variant: 'destructive',
       });
+    } finally {
+      setProfileLoading(false);
     }
   }
 
@@ -2535,8 +2539,8 @@ export function CustomerDatabase({
                 </div>
               </div>
               <div className="flex items-center gap-4">
-                <Button onClick={() => viewCustomerProfile(customer.customer_id || customer.email)} variant="outline" size="sm">
-                  <Eye className="mr-1 h-4 w-4" />
+                <Button onClick={() => viewCustomerProfile(customer.customer_id || customer.email)} variant="outline" size="sm" disabled={profileLoading}>
+                  {profileLoading ? <div className="mr-1 h-4 w-4 animate-spin rounded-full border-2 border-neutral-300 border-t-neutral-600" /> : <Eye className="mr-1 h-4 w-4" />}
                   {copy.viewProfileButton}
                 </Button>
                 <Button onClick={() => impersonateCustomer(customer)} variant="outline" size="sm">

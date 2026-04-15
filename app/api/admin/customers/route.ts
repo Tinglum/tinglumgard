@@ -533,7 +533,7 @@ async function fetchSupportThreadsForCustomer(args: {
   phone?: string | null;
   orders: UnifiedOrder[];
 }): Promise<SupportThreadRow[]> {
-  const selectClause = `
+  const fullSelectClause = `
     id,
     order_id,
     related_order_source,
@@ -563,6 +563,34 @@ async function fetchSupportThreadsForCustomer(args: {
     )
   `;
 
+  const fallbackSelectClause = `
+    id,
+    order_id,
+    customer_phone,
+    customer_name,
+    customer_email,
+    subject,
+    message,
+    message_type,
+    status,
+    priority,
+    email_thread_id,
+    last_viewed_at,
+    created_at,
+    updated_at,
+    message_replies (
+      id,
+      admin_name,
+      reply_text,
+      is_internal,
+      is_from_customer,
+      source,
+      created_at
+    )
+  `;
+
+  let selectClause = fullSelectClause;
+
   const email = normalizeEmail(args.email || args.parsed.email);
   const phone = normalizePhone(args.phone);
   const digits = phoneDigits(phone || args.parsed.phoneDigits);
@@ -574,38 +602,36 @@ async function fetchSupportThreadsForCustomer(args: {
     { pig: [] as string[], egg: [] as string[], chicken: [] as string[] }
   );
 
-  const queries: Array<Promise<{ data: SupportThreadRow[] | null; error: unknown }>> = [];
+  type ThreadQueryResult = { data: SupportThreadRow[] | null; error: unknown };
+  const queries: Array<Promise<ThreadQueryResult>> = [];
 
   if (email) {
     queries.push(
-      (async () =>
-        await supabaseAdmin
-          .from('customer_messages')
-          .select(selectClause)
-          .ilike('customer_email', email)
-          .order('updated_at', { ascending: false }))()
+      supabaseAdmin
+        .from('customer_messages')
+        .select(selectClause)
+        .ilike('customer_email', email)
+        .order('updated_at', { ascending: false }) as unknown as Promise<ThreadQueryResult>
     );
   }
 
   if (phone) {
     queries.push(
-      (async () =>
-        await supabaseAdmin
-          .from('customer_messages')
-          .select(selectClause)
-          .eq('customer_phone', phone)
-          .order('updated_at', { ascending: false }))()
+      supabaseAdmin
+        .from('customer_messages')
+        .select(selectClause)
+        .eq('customer_phone', phone)
+        .order('updated_at', { ascending: false }) as unknown as Promise<ThreadQueryResult>
     );
   }
 
   if (digits.length >= 8) {
     queries.push(
-      (async () =>
-        await supabaseAdmin
-          .from('customer_messages')
-          .select(selectClause)
-          .ilike('customer_phone', `%${digits.slice(-8)}`)
-          .order('updated_at', { ascending: false }))()
+      supabaseAdmin
+        .from('customer_messages')
+        .select(selectClause)
+        .ilike('customer_phone', `%${digits.slice(-8)}`)
+        .order('updated_at', { ascending: false }) as unknown as Promise<ThreadQueryResult>
     );
   }
 
@@ -615,30 +641,70 @@ async function fetchSupportThreadsForCustomer(args: {
     if (ids.length === 0) continue;
 
     queries.push(
-      (async () =>
-        await supabaseAdmin
-          .from('customer_messages')
-          .select(selectClause)
-          .eq('related_order_source', source)
-          .in('related_order_id', ids)
-          .order('updated_at', { ascending: false }))()
+      supabaseAdmin
+        .from('customer_messages')
+        .select(selectClause)
+        .eq('related_order_source', source)
+        .in('related_order_id', ids)
+        .order('updated_at', { ascending: false }) as unknown as Promise<ThreadQueryResult>
     );
 
     if (source === 'pig') {
       queries.push(
-        (async () =>
-          await supabaseAdmin
-            .from('customer_messages')
-            .select(selectClause)
-            .in('order_id', ids)
-            .order('updated_at', { ascending: false }))()
+        supabaseAdmin
+          .from('customer_messages')
+          .select(selectClause)
+          .in('order_id', ids)
+          .order('updated_at', { ascending: false }) as unknown as Promise<ThreadQueryResult>
       );
     }
   }
 
   if (queries.length === 0) return [];
 
-  const results = await Promise.all(queries);
+  let results = await Promise.all(queries);
+
+  // If any query failed due to missing columns, retry all with fallback select
+  const hasMissingColumnError = results.some(
+    (r) => r.error && isMissingColumnOrRelationError(r.error)
+  );
+  if (hasMissingColumnError && selectClause !== fallbackSelectClause) {
+    selectClause = fallbackSelectClause;
+    const retryQueries: Array<Promise<ThreadQueryResult>> = [];
+    if (email) {
+      retryQueries.push(
+        supabaseAdmin
+          .from('customer_messages')
+          .select(selectClause)
+          .ilike('customer_email', email)
+          .order('updated_at', { ascending: false }) as unknown as Promise<ThreadQueryResult>
+      );
+    }
+    if (phone) {
+      retryQueries.push(
+        supabaseAdmin
+          .from('customer_messages')
+          .select(selectClause)
+          .eq('customer_phone', phone)
+          .order('updated_at', { ascending: false }) as unknown as Promise<ThreadQueryResult>
+      );
+    }
+    if (digits.length >= 8) {
+      retryQueries.push(
+        supabaseAdmin
+          .from('customer_messages')
+          .select(selectClause)
+          .ilike('customer_phone', `%${digits.slice(-8)}`)
+          .order('updated_at', { ascending: false }) as unknown as Promise<ThreadQueryResult>
+      );
+    }
+    if (retryQueries.length > 0) {
+      results = await Promise.all(retryQueries);
+    } else {
+      results = [];
+    }
+  }
+
   const threadMap = new Map<string, SupportThreadRow>();
   const orderKeys = new Set(args.orders.map((order) => `${order.source}:${order.id}`));
 
