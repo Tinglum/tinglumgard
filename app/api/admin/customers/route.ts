@@ -1077,94 +1077,61 @@ async function getCustomerProfile(customerId: string) {
   const pigOrderIds = sortedOrders.filter((order) => order.source === 'pig').map((order) => order.id);
   const eggOrderIds = sortedOrders.filter((order) => order.source === 'egg').map((order) => order.id);
   const chickenOrderIds = sortedOrders.filter((order) => order.source === 'chicken').map((order) => order.id);
-  let communications = [] as Awaited<ReturnType<typeof fetchCommunicationHistory>>;
-  try {
-    communications = await fetchCommunicationHistory({
+  // Run all independent queries in parallel to avoid Netlify function timeout
+  const [
+    communicationsResult,
+    scheduledCommunicationsResult,
+    wishlistResult,
+    supportThreadsResult,
+    suppressionResult,
+    lifecycleMaterializeResult,
+  ] = await Promise.all([
+    fetchCommunicationHistory({
       email: bestEmail || undefined,
       phone: bestPhone || undefined,
       pigOrderIds,
       eggOrderIds,
       chickenOrderIds,
       limit: 300,
-    });
-  } catch (error) {
-    console.error('Customer profile communication history degraded:', error);
-  }
-
-  let lifecycleMaterialize: Awaited<ReturnType<typeof materializeLifecycleInstancesOnly>> | null = null;
-  try {
-    lifecycleMaterialize = await materializeLifecycleInstancesOnly();
-  } catch (error) {
-    console.error('Customer profile lifecycle materialization degraded:', error);
-  }
-
-  try {
-    const eggOrdersThatShouldNotHavePaymentFlows = sortedOrders.filter((order) => {
-      return (
-        order.source === 'egg' &&
-        ['fully_paid', 'preparing', 'shipped', 'delivered'].includes(order.status)
-      );
-    });
-
-    for (const order of eggOrdersThatShouldNotHavePaymentFlows) {
-      await reconcileEggPaymentDependentFlowInstances(order.id, 'order_fully_paid');
-    }
-  } catch (error) {
-    console.error('Customer profile egg flow reconciliation degraded:', error);
-  }
-
-  let scheduledCommunications = [] as Awaited<ReturnType<typeof fetchScheduledCommunications>>;
-  try {
-    scheduledCommunications = await fetchScheduledCommunications({
+    }).catch((error) => {
+      console.error('Customer profile communication history degraded:', error);
+      return [] as Awaited<ReturnType<typeof fetchCommunicationHistory>>;
+    }),
+    fetchScheduledCommunications({
       pigOrderIds,
       eggOrderIds,
       chickenOrderIds,
       statuses: ['scheduled'],
       limit: 300,
-    });
-  } catch (error) {
-    console.error('Customer profile scheduled communication fetch degraded:', error);
-  }
-
-  let wishlistRequests: WishlistRequestRow[] = [];
-  try {
-    wishlistRequests = await fetchWishlistRequestsForCustomer({
+    }).catch((error) => {
+      console.error('Customer profile scheduled communication fetch degraded:', error);
+      return [] as Awaited<ReturnType<typeof fetchScheduledCommunications>>;
+    }),
+    fetchWishlistRequestsForCustomer({
       email: bestEmail || parsed.email || undefined,
       phoneDigits: bestPhoneDigits || parsed.phoneDigits || undefined,
       customerId: customerId || undefined,
       eggOrderIds,
-    });
-  } catch (error) {
-    console.error('Customer profile wishlist fetch degraded:', error);
-  }
-
-  let supportThreads: SupportThreadRow[] = [];
-  try {
-    supportThreads = await fetchSupportThreadsForCustomer({
+    }).catch((error) => {
+      console.error('Customer profile wishlist fetch degraded:', error);
+      return [] as WishlistRequestRow[];
+    }),
+    fetchSupportThreadsForCustomer({
       parsed,
       email: bestEmail || parsed.email || undefined,
       phone: bestPhone || parsed.phoneDigits || undefined,
       orders: sortedOrders,
-    });
-  } catch (error) {
-    console.error('Customer profile support thread fetch degraded:', error);
-  }
-
-  let suppression: {
-    email: string;
-    reason: string;
-    source: string;
-    created_at: string;
-  } | null = null;
-
-  if (bestEmail) {
-    try {
-      const { data: suppressionData, error: suppressionError } = await supabaseAdmin
+    }).catch((error) => {
+      console.error('Customer profile support thread fetch degraded:', error);
+      return [] as SupportThreadRow[];
+    }),
+    (async () => {
+      if (!bestEmail) return null;
+      const { data, error: suppressionError } = await supabaseAdmin
         .from('email_suppression_list')
         .select('email, reason, source, created_at')
         .ilike('email', bestEmail)
         .maybeSingle();
-
       if (suppressionError) {
         if (
           !isMissingColumnOrRelationError(suppressionError) &&
@@ -1172,12 +1139,38 @@ async function getCustomerProfile(customerId: string) {
         ) {
           console.error('Customer profile suppression check degraded:', suppressionError);
         }
-      } else {
-        suppression = suppressionData as typeof suppression;
+        return null;
       }
-    } catch (error) {
-      console.error('Customer profile suppression check degraded:', error);
-    }
+      return data as { email: string; reason: string; source: string; created_at: string } | null;
+    })(),
+    materializeLifecycleInstancesOnly().catch((error) => {
+      console.error('Customer profile lifecycle materialization degraded:', error);
+      return null as Awaited<ReturnType<typeof materializeLifecycleInstancesOnly>> | null;
+    }),
+  ]);
+
+  const communications = communicationsResult;
+  const scheduledCommunications = scheduledCommunicationsResult;
+  const wishlistRequests = wishlistResult;
+  const supportThreads = supportThreadsResult;
+  const suppression = suppressionResult;
+  const lifecycleMaterialize = lifecycleMaterializeResult;
+
+  // Fire and forget egg flow reconciliation — don't block profile response
+  const eggOrdersThatShouldNotHavePaymentFlows = sortedOrders.filter((order) => {
+    return (
+      order.source === 'egg' &&
+      ['fully_paid', 'preparing', 'shipped', 'delivered'].includes(order.status)
+    );
+  });
+  if (eggOrdersThatShouldNotHavePaymentFlows.length > 0) {
+    Promise.all(
+      eggOrdersThatShouldNotHavePaymentFlows.map((order) =>
+        reconcileEggPaymentDependentFlowInstances(order.id, 'order_fully_paid').catch((error) =>
+          console.error('Customer profile egg flow reconciliation degraded:', error)
+        )
+      )
+    ).catch(() => {});
   }
 
   const communicationStats = communications.reduce(
