@@ -42,8 +42,11 @@ jobs:
             if [ "$RECONCILE_HTTP_CODE" = "503" ] && grep -q "Email schema is not fully migrated" "$RECONCILE_RESPONSE_FILE"; then
               echo "::warning::Email reconcile skipped because schema is not fully migrated. Continuing."
             else
-              echo "::error::Email flow reconcile endpoint failed with HTTP $RECONCILE_HTTP_CODE"
-              exit 1
+              # Do NOT abort here — reconcile is a maintenance task that can retry
+              # next tick. Aborting would prevent the dispatch step from running and
+              # would leave customer-facing emails stuck in the queue indefinitely
+              # (which is exactly what happened when reconcile kept returning 504).
+              echo "::warning::Email flow reconcile endpoint failed with HTTP $RECONCILE_HTTP_CODE — continuing to dispatch so queued emails still go out."
             fi
           fi
 
@@ -65,8 +68,8 @@ jobs:
             if [ "$FLOW_HTTP_CODE" = "503" ] && grep -q "Email schema is not fully migrated" "$FLOW_RESPONSE_FILE"; then
               echo "::warning::Email flow runner skipped because flow schema is not fully migrated. Continuing to dispatch queue."
             else
-              echo "::error::Email flow runner endpoint failed with HTTP $FLOW_HTTP_CODE"
-              exit 1
+              # Do NOT abort — the dispatch step must still run so queued emails go out.
+              echo "::warning::Email flow runner endpoint failed with HTTP $FLOW_HTTP_CODE — continuing to dispatch."
             fi
           fi
 
