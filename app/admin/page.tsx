@@ -106,8 +106,25 @@ export default function AdminPage() {
   // Message badge
   const [unresolvedCount, setUnresolvedCount] = useState(0);
 
+  // Check if existing session cookie is valid on mount — avoids forcing
+  // a password re-entry on every page refresh while the 7-day cookie is alive.
   useEffect(() => {
-    setLoading(false);
+    let cancelled = false;
+    (async () => {
+      try {
+        const response = await fetch('/api/admin/session', { cache: 'no-store' });
+        if (!cancelled && response.ok) {
+          setIsAuthenticated(true);
+        }
+      } catch {
+        // Ignore — user will see the password prompt
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -194,13 +211,21 @@ export default function AdminPage() {
   useEffect(() => {
     if (!isAuthenticated) return;
 
+    // Require two consecutive 401s before logging out — a single transient
+    // 401 from a cold-start or network blip shouldn't kick the admin out.
+    let consecutive401s = 0;
+
     async function loadMessageStats() {
       try {
-        const response = await fetch('/api/admin/messages');
+        const response = await fetch('/api/admin/messages', { cache: 'no-store' });
         if (!response.ok) {
-          if (response.status === 401) setIsAuthenticated(false);
+          if (response.status === 401) {
+            consecutive401s += 1;
+            if (consecutive401s >= 2) setIsAuthenticated(false);
+          }
           return;
         }
+        consecutive401s = 0;
         const data = await response.json();
         if (data?.stats) {
           setUnresolvedCount(
@@ -210,7 +235,7 @@ export default function AdminPage() {
           );
         }
       } catch {
-        // Non-critical
+        // Non-critical — don't count network errors as 401
       }
     }
 
