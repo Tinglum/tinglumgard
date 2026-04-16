@@ -3,7 +3,6 @@ import { getSession } from '@/lib/auth/session';
 import { supabaseAdmin } from '@/lib/supabase/server';
 import { fetchCommunicationHistory, fetchScheduledCommunications } from '@/lib/email/history';
 import { isMissingEmailRelationError } from '@/lib/email/schema';
-import { materializeLifecycleInstancesOnly, reconcileEggPaymentDependentFlowInstances } from '@/lib/email/lifecycle';
 
 type PaymentRow = {
   amount_nok: number | null;
@@ -1077,14 +1076,16 @@ async function getCustomerProfile(customerId: string) {
   const pigOrderIds = sortedOrders.filter((order) => order.source === 'pig').map((order) => order.id);
   const eggOrderIds = sortedOrders.filter((order) => order.source === 'egg').map((order) => order.id);
   const chickenOrderIds = sortedOrders.filter((order) => order.source === 'chicken').map((order) => order.id);
-  // Run all independent queries in parallel to avoid Netlify function timeout
+  // Run all independent queries in parallel to avoid Netlify function timeout.
+  // NOTE: materializeLifecycleInstancesOnly() and reconcileEggPaymentDependentFlowInstances()
+  // are intentionally NOT called here — they perform global write operations across all
+  // orders (not customer-scoped) and are handled by cron jobs.
   const [
     communicationsResult,
     scheduledCommunicationsResult,
     wishlistResult,
     supportThreadsResult,
     suppressionResult,
-    lifecycleMaterializeResult,
   ] = await Promise.all([
     fetchCommunicationHistory({
       email: bestEmail || undefined,
@@ -1143,10 +1144,6 @@ async function getCustomerProfile(customerId: string) {
       }
       return data as { email: string; reason: string; source: string; created_at: string } | null;
     })(),
-    materializeLifecycleInstancesOnly().catch((error) => {
-      console.error('Customer profile lifecycle materialization degraded:', error);
-      return null as Awaited<ReturnType<typeof materializeLifecycleInstancesOnly>> | null;
-    }),
   ]);
 
   const communications = communicationsResult;
@@ -1154,24 +1151,6 @@ async function getCustomerProfile(customerId: string) {
   const wishlistRequests = wishlistResult;
   const supportThreads = supportThreadsResult;
   const suppression = suppressionResult;
-  const lifecycleMaterialize = lifecycleMaterializeResult;
-
-  // Fire and forget egg flow reconciliation — don't block profile response
-  const eggOrdersThatShouldNotHavePaymentFlows = sortedOrders.filter((order) => {
-    return (
-      order.source === 'egg' &&
-      ['fully_paid', 'preparing', 'shipped', 'delivered'].includes(order.status)
-    );
-  });
-  if (eggOrdersThatShouldNotHavePaymentFlows.length > 0) {
-    Promise.all(
-      eggOrdersThatShouldNotHavePaymentFlows.map((order) =>
-        reconcileEggPaymentDependentFlowInstances(order.id, 'order_fully_paid').catch((error) =>
-          console.error('Customer profile egg flow reconciliation degraded:', error)
-        )
-      )
-    ).catch(() => {});
-  }
 
   const communicationStats = communications.reduce(
     (acc, entry) => {
@@ -1398,10 +1377,10 @@ async function getCustomerProfile(customerId: string) {
         })),
     })),
     lifecycle_materialization: {
-      ok: lifecycleMaterialize?.ok ?? false,
-      inserted: lifecycleMaterialize?.inserted ?? 0,
-      error: lifecycleMaterialize?.error || 'degraded',
-      missing_tables: lifecycleMaterialize?.missingTables || [],
+      ok: true,
+      inserted: 0,
+      error: 'skipped',
+      missing_tables: [],
     },
     email_consistency: emailConsistency,
     email_controls: {
