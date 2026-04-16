@@ -271,7 +271,7 @@ export function MessagingPanel({
       ready_for_pickup: locale === 'en-US' ? 'Ready for pickup' : 'Klar for henting',
       picked_up: locale === 'en-US' ? 'Picked up' : 'Hentet',
       paid: locale === 'en-US' ? 'Paid' : 'Betalt',
-      completed: locale === 'en-US' ? 'Completed' : 'Fullfort',
+      completed: locale === 'en-US' ? 'Completed' : 'Fullført',
       cancelled: locale === 'en-US' ? 'Cancelled' : 'Kansellert',
       forfeited: locale === 'en-US' ? 'Forfeited' : 'Forfalt',
     };
