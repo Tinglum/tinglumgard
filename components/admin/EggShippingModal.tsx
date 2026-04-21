@@ -90,6 +90,14 @@ interface ShippingMeta {
   estimatedWeightGrams: number
 }
 
+interface FulfillmentAvailabilityEntry {
+  remaining: number
+  source: 'actual_collected' | 'inventory_fallback'
+  actualCollected: number | null
+  eggsAllocated: number
+  collectionDaysRecorded: number
+}
+
 interface EggShippingModalProps {
   orderId: string | null
   open: boolean
@@ -114,6 +122,7 @@ export function EggShippingModal({ orderId, open, onClose, lang }: EggShippingMo
   const [wishlist, setWishlist] = useState<WishlistRequest[]>([])
   const [meta, setMeta] = useState<ShippingMeta | null>(null)
   const [trackingNumber, setTrackingNumber] = useState('')
+  const [fulfillmentAvailability, setFulfillmentAvailability] = useState<Record<string, FulfillmentAvailabilityEntry>>({})
 
   const [fulfillMode, setFulfillMode] = useState(false)
   const [fulfillItems, setFulfillItems] = useState<FulfillItem[]>([])
@@ -128,6 +137,7 @@ export function EggShippingModal({ orderId, open, onClose, lang }: EggShippingMo
       const data = await res.json()
       setOrder(data.order)
       setWishlist(data.wishlistRequests || [])
+      setFulfillmentAvailability(data.fulfillmentAvailability || {})
       setMeta(data.shippingMeta)
       setTrackingNumber(data.order.tracking_number || '')
     } catch {
@@ -147,6 +157,7 @@ export function EggShippingModal({ orderId, open, onClose, lang }: EggShippingMo
     } else {
       setOrder(null)
       setWishlist([])
+      setFulfillmentAvailability({})
       setMeta(null)
       setTrackingNumber('')
       setFulfillMode(false)
@@ -198,17 +209,36 @@ export function EggShippingModal({ orderId, open, onClose, lang }: EggShippingMo
 
   function enterFulfillMode() {
     const items: FulfillItem[] = []
+    const remainingByBreed = new Map<string, number>(
+      Object.entries(fulfillmentAvailability).map(([breedId, entry]) => [
+        breedId,
+        Math.max(0, Number(entry?.remaining || 0)),
+      ])
+    )
+
     for (const req of wishlist) {
       for (const item of req.egg_wishlist_items || []) {
         if (item.qty_remaining > 0) {
+          const breedRemaining = remainingByBreed.has(item.breed_id)
+            ? remainingByBreed.get(item.breed_id) || 0
+            : item.qty_remaining
+          const qtyMax = Math.min(item.qty_remaining, breedRemaining)
+          if (qtyMax <= 0) {
+            continue
+          }
+
           items.push({
             wishlistItemId: item.id,
             breedId: item.breed_id,
             breedName: item.egg_breeds?.name || 'Ukjent rase',
-            qtyMax: item.qty_remaining,
-            qty: item.qty_remaining,
+            qtyMax,
+            qty: qtyMax,
             pricePerEggOre: item.egg_breeds?.price_per_egg || 0,
           })
+
+          if (remainingByBreed.has(item.breed_id)) {
+            remainingByBreed.set(item.breed_id, Math.max(0, breedRemaining - qtyMax))
+          }
         }
       }
     }
@@ -308,7 +338,11 @@ export function EggShippingModal({ orderId, open, onClose, lang }: EggShippingMo
   }
 
   const fulfillableItems = wishlist.flatMap((req) =>
-    (req.egg_wishlist_items || []).filter((item) => item.qty_remaining > 0)
+    (req.egg_wishlist_items || []).filter((item) => {
+      if (item.qty_remaining <= 0) return false
+      const available = fulfillmentAvailability[item.breed_id]?.remaining
+      return available === undefined ? true : available > 0
+    })
   )
   const hasFulfillable = fulfillableItems.length > 0
 

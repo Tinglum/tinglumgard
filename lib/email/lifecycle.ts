@@ -5,6 +5,8 @@ import { renderManagedTemplate } from '@/lib/email/render';
 import { getEmailSchemaStatus } from '@/lib/email/schema';
 import { buildCustomerOrderLink, buildCustomerPathLink } from '@/lib/email/links';
 import { buildChickenBreedAgeLabel, buildChickenOrderLinesHtml, buildTotalBirdsLabel, summarizeChickenOrderLines } from '@/lib/chickens/email-lines';
+import { getEggAdditionOfferState } from '@/lib/eggs/addition-offer';
+import { getDayBeforeOfferAvailabilityForWeek } from '@/lib/eggs/day-before-offer-availability';
 import { buildEggOrderLinesHtml, summarizeEggOrderLines } from '@/lib/eggs/email-lines';
 import { supabaseAdmin } from '@/lib/supabase/server';
 
@@ -103,7 +105,7 @@ const DEFAULT_LIFECYCLE_CONFIG: LifecycleConfig = {
   appBaseUrl: process.env.NEXT_PUBLIC_APP_URL || 'https://tinglumgard.no',
 };
 
-const EGG_DAY_BEFORE_ADD_MORE_HOUR = 9;
+const EGG_DAY_BEFORE_ADD_MORE_HOUR = 12;
 const EGG_SHIPPED_PLUS_ONE_DELAY_DAYS = 1;
 const EGG_SHIPPED_PLUS_ONE_CATCHUP_HOURS = 48;
 const EGG_HATCH_FOLLOWUP_DELAY_DAYS = 5;
@@ -484,7 +486,7 @@ const LIFECYCLE_FLOW_MATRIX: FlowMatrixRow[] = [
     eventType: 'egg.order.day_before_add_more',
     templateKey: 'egg.order.add_more.day_before',
     triggerRule: 'delivery_monday - 1 day (only when extra eggs are available)',
-    scheduleLocalTime: '09:00 Europe/Oslo',
+    scheduleLocalTime: '12:00 Europe/Oslo',
     stopRules: ['no_additional_eggs_available', 'order.cancelled', 'order.forfeited', 'status_not_eligible'],
   },
   {
@@ -848,13 +850,41 @@ async function fetchEggAddMoreAvailability(order: {
   delivery_monday?: string | null;
 }) {
   const weekNumber = Math.round(Number(order.week_number || 0));
+  const deliveryMonday = String(order.delivery_monday || '').trim();
   const derivedYear =
-    Math.round(Number(order.year || 0)) || getYearFromYmd(parseIsoDate(String(order.delivery_monday || '')));
-  if (!weekNumber || !derivedYear) {
+    Math.round(Number(order.year || 0)) || getYearFromYmd(parseIsoDate(deliveryMonday));
+  if (!weekNumber || !derivedYear || !deliveryMonday) {
     return {
       totalAvailable: 0,
       htmlNo: '',
       htmlEn: '',
+    };
+  }
+
+  const offerState = getEggAdditionOfferState(deliveryMonday);
+  if (offerState.useActualCollectedStock) {
+    const availability = await getDayBeforeOfferAvailabilityForWeek({
+      year: derivedYear,
+      weekNumber,
+      deliveryMonday,
+    });
+
+    const rows = availability.rows.map((row) => ({
+      remaining: row.remaining,
+      breedNameNo: row.breedName,
+      breedNameEn: row.breedName || 'Hatching eggs',
+    }));
+
+    return {
+      totalAvailable: availability.totalAvailable,
+      htmlNo: buildEggAvailabilityHtml(
+        rows.map((row) => ({ breedName: row.breedNameNo, remaining: row.remaining })),
+        'no'
+      ),
+      htmlEn: buildEggAvailabilityHtml(
+        rows.map((row) => ({ breedName: row.breedNameEn, remaining: row.remaining })),
+        'en'
+      ),
     };
   }
 
@@ -1807,53 +1837,47 @@ async function materializeEggFlowInstances(flowMap: Map<string, FlowDefinition>,
       }
 
       if (['deposit_paid', 'fully_paid', 'preparing'].includes(eggStatus)) {
-        const addMoreAvailability = await fetchEggAddMoreAvailability(detailedOrder as any);
-        if (addMoreAvailability.totalAvailable > 0) {
-          const dayBeforeTarget = zonedDateTimeToUtc(
-            addDays(deliveryYmdSafe, -1),
-            EGG_DAY_BEFORE_ADD_MORE_HOUR,
-            0,
-            config.timezone
-          );
-          const scheduledDayBeforeAt =
-            dayBeforeTarget.getTime() > nowUtc.getTime() && nowUtc.getTime() < zonedDateTimeToUtc(deliveryYmdSafe, 0, 0, config.timezone).getTime()
-              ? dayBeforeTarget
-              : nowUtc.getTime() < zonedDateTimeToUtc(deliveryYmdSafe, 0, 0, config.timezone).getTime()
-                ? nowUtc
-                : null;
+        const dayBeforeTarget = zonedDateTimeToUtc(
+          addDays(deliveryYmdSafe, -1),
+          EGG_DAY_BEFORE_ADD_MORE_HOUR,
+          0,
+          config.timezone
+        );
+        const scheduledDayBeforeAt =
+          dayBeforeTarget.getTime() > nowUtc.getTime() && nowUtc.getTime() < zonedDateTimeToUtc(deliveryYmdSafe, 0, 0, config.timezone).getTime()
+            ? dayBeforeTarget
+            : nowUtc.getTime() < zonedDateTimeToUtc(deliveryYmdSafe, 0, 0, config.timezone).getTime()
+              ? nowUtc
+              : null;
 
-          if (scheduledDayBeforeAt) {
-              const dayBeforeInserted = await insertFlowInstance({
-                flowId: dayBeforeFlow.id,
-                flowKey: dayBeforeFlow.flow_key,
-                productScope: dayBeforeFlow.product_scope,
-                entityType: 'egg_order',
-                entityId: orderId,
-                // Use a distinct trigger key for the restored add-more-eggs nudge so
-                // old cancelled day-before rows do not block future scheduling.
-                triggerDateKey: `day-before-add-more:${ymdToKey(deliveryYmdSafe)}`,
-                scheduledFor: scheduledDayBeforeAt.toISOString(),
-                toEmail: toEmail || null,
-                locale,
-                payload: {
-                customer_name: String(order.customer_name || 'Kunde'),
-                order_number: String(order.order_number || ''),
-                delivery_date: deliveryDateNo,
-                delivery_date_en: deliveryDateEn,
-                available_eggs_total: addMoreAvailability.totalAvailable,
-                available_breeds_html: addMoreAvailability.htmlNo,
-                available_breeds_html_en: addMoreAvailability.htmlEn,
-                order_url: orderUrl,
-              },
-              metadata: {
-                product_scope: 'eggs',
-                flow_key: dayBeforeFlow.flow_key,
-                trigger_offset_days: 1,
-                delivery_anchor: ymdToKey(deliveryYmdSafe),
-              },
-            });
-            if (dayBeforeInserted) inserted += 1;
-          }
+        if (scheduledDayBeforeAt) {
+            const dayBeforeInserted = await insertFlowInstance({
+              flowId: dayBeforeFlow.id,
+              flowKey: dayBeforeFlow.flow_key,
+              productScope: dayBeforeFlow.product_scope,
+              entityType: 'egg_order',
+              entityId: orderId,
+              // Use a distinct trigger key for the restored add-more-eggs nudge so
+              // old cancelled day-before rows do not block future scheduling.
+              triggerDateKey: `day-before-add-more:${ymdToKey(deliveryYmdSafe)}`,
+              scheduledFor: scheduledDayBeforeAt.toISOString(),
+              toEmail: toEmail || null,
+              locale,
+              payload: {
+              customer_name: String(order.customer_name || 'Kunde'),
+              order_number: String(order.order_number || ''),
+              delivery_date: deliveryDateNo,
+              delivery_date_en: deliveryDateEn,
+              order_url: orderUrl,
+            },
+            metadata: {
+              product_scope: 'eggs',
+              flow_key: dayBeforeFlow.flow_key,
+              trigger_offset_days: 1,
+              delivery_anchor: ymdToKey(deliveryYmdSafe),
+            },
+          });
+          if (dayBeforeInserted) inserted += 1;
         }
       }
 

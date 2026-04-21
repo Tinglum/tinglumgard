@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth/session'
+import { getFulfillmentAvailabilityByBreed } from '@/lib/eggs/fulfillment-availability'
 import { supabaseAdmin } from '@/lib/supabase/server'
 
 export async function GET(
@@ -42,6 +43,23 @@ export async function GET(
     .eq('order_id', order.id)
     .not('status', 'in', '(cancelled,expired)')
 
+  const wishlistBreedIds = Array.from(
+    new Set(
+      (wishlistRequests || []).flatMap((request: any) =>
+        (request.egg_wishlist_items || [])
+          .map((item: any) => String(item?.breed_id || '').trim())
+          .filter(Boolean)
+      )
+    )
+  )
+
+  const fulfillmentAvailability = await getFulfillmentAvailabilityByBreed({
+    breedIds: wishlistBreedIds,
+    year: order.year,
+    weekNumber: order.week_number,
+    deliveryMonday: order.delivery_monday,
+  })
+
   // Compute total egg count and weight estimate
   const baseQuantity = order.quantity || 0
   const additionsQuantity = ((order as any).egg_order_additions || []).reduce(
@@ -55,6 +73,18 @@ export async function GET(
   return NextResponse.json({
     order,
     wishlistRequests: wishlistRequests || [],
+    fulfillmentAvailability: Object.fromEntries(
+      Array.from(fulfillmentAvailability.entries()).map(([breedId, availability]) => [
+        breedId,
+        {
+          remaining: availability.remaining,
+          source: availability.source,
+          actualCollected: availability.actualCollected,
+          eggsAllocated: availability.eggsAllocated,
+          collectionDaysRecorded: availability.collectionDaysRecorded,
+        },
+      ])
+    ),
     shippingMeta: {
       totalEggs,
       estimatedWeightGrams,

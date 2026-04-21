@@ -1,6 +1,7 @@
 ﻿import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth/session'
 import { finalizeConfirmedEggOrder } from '@/lib/eggs/order-confirmation'
+import { getFulfillmentAvailabilityByBreed } from '@/lib/eggs/fulfillment-availability'
 import { supabaseAdmin } from '@/lib/supabase/server'
 import { initiateVippsRefund } from '@/lib/vipps/refund'
 import { vippsClient } from '@/lib/vipps/api-client'
@@ -922,6 +923,18 @@ async function fulfillWishlistItems(
   }
 
   const wishlistItemMap = new Map(dbWishlistItems.map((item) => [item.id, item]))
+  const availabilityByBreed = await getFulfillmentAvailabilityByBreed({
+    breedIds: validItems.map((item) => item.breedId),
+    year: order.year,
+    weekNumber: order.week_number,
+    deliveryMonday: order.delivery_monday,
+  })
+  const remainingByBreed = new Map(
+    Array.from(availabilityByBreed.entries()).map(([breedId, availability]) => [
+      breedId,
+      availability.remaining,
+    ])
+  )
 
   // Resolve inventory and build addition rows
   type AdditionRow = {
@@ -947,27 +960,22 @@ async function fulfillWishlistItems(
       }, { status: 400 })
     }
 
-    // Look up inventory for this breed in the order's delivery week
-    const { data: inventory, error: invError } = await supabaseAdmin
-      .from('egg_inventory')
-      .select('id, eggs_available, eggs_allocated, eggs_remaining')
-      .eq('breed_id', fulfillItem.breedId)
-      .eq('year', order.year)
-      .eq('week_number', order.week_number)
-      .maybeSingle()
-
-    if (invError || !inventory) {
+    const availability = availabilityByBreed.get(fulfillItem.breedId)
+    if (!availability?.inventoryId) {
       return NextResponse.json({
         error: `No inventory found for this breed in week ${order.week_number}/${order.year}`,
       }, { status: 400 })
     }
 
-    const eggsRemaining = inventory.eggs_remaining ?? (inventory.eggs_available - (inventory.eggs_allocated || 0))
+    const eggsRemaining = remainingByBreed.get(fulfillItem.breedId) ?? 0
     if (eggsRemaining < fulfillItem.qty) {
+      const breedName = String((dbItem as any).egg_breeds?.name || fulfillItem.breedId)
+      const stockLabel = availability.source === 'actual_collected' ? 'collected eggs' : 'eggs'
       return NextResponse.json({
-        error: `Not enough eggs available: need ${fulfillItem.qty}, have ${eggsRemaining}`,
+        error: `Not enough ${stockLabel} available for ${breedName}: need ${fulfillItem.qty}, have ${eggsRemaining}`,
       }, { status: 400 })
     }
+    remainingByBreed.set(fulfillItem.breedId, Math.max(0, eggsRemaining - fulfillItem.qty))
 
     const fullPriceOre = Number((dbItem as any).egg_breeds?.price_per_egg || 0)
     const discountedPriceOre = Math.round(fullPriceOre * WISHLIST_DISCOUNT_FACTOR)
@@ -975,7 +983,7 @@ async function fulfillWishlistItems(
 
     additions.push({
       breed_id: fulfillItem.breedId,
-      inventory_id: inventory.id,
+      inventory_id: availability.inventoryId,
       quantity: fulfillItem.qty,
       price_per_egg: discountedPriceOre,
       subtotal: subtotalOre,
@@ -1146,6 +1154,52 @@ async function fulfillWishlistItems(
   return NextResponse.json({ success: true, totalOre, paymentUrl })
 }
 
+async function sendRemainderReminder(orderId: string) {
+  const { data: order, error } = await supabaseAdmin
+    .from('egg_orders')
+    .select('id, order_number, customer_name, customer_email, week_number, remainder_amount, remainder_due_date, delivery_monday, egg_breeds(name)')
+    .eq('id', orderId)
+    .maybeSingle()
+
+  if (error || !order) {
+    return NextResponse.json({ error: 'Order not found' }, { status: 404 })
+  }
+  if (!order.customer_email || order.customer_email === 'pending@vipps.no') {
+    return NextResponse.json({ error: 'No valid email for this order' }, { status: 400 })
+  }
+
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://tinglum.no'
+  const breedName = Array.isArray((order as any).egg_breeds)
+    ? (order as any).egg_breeds[0]?.name || 'Rugeegg'
+    : (order as any).egg_breeds?.name || 'Rugeegg'
+  const remainderNok = Math.round((order.remainder_amount || 0) / 100).toLocaleString('nb-NO')
+  const dueLabel = order.remainder_due_date
+    ? new Date(order.remainder_due_date).toLocaleDateString('nb-NO')
+    : new Date(order.delivery_monday).toLocaleDateString('nb-NO')
+
+  const html = `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8">
+<style>body{font-family:-apple-system,sans-serif;line-height:1.6;color:#111827}.container{max-width:600px;margin:0 auto;padding:20px}.card{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:24px}.title{font-size:20px;font-weight:700;margin-bottom:10px}.muted{color:#6b7280;font-size:14px}.amount{font-size:18px;font-weight:700;margin:12px 0}.button{display:inline-block;background:#111827;color:#fff;padding:12px 18px;border-radius:8px;text-decoration:none}</style>
+</head>
+<body><div class="container"><div class="card">
+<div class="title">Påminnelse om restbetaling</div>
+<p>Hei ${order.customer_name},</p>
+<p class="muted">Bestilling ${order.order_number} · ${breedName} · Uke ${order.week_number}</p>
+<div class="amount">Restbeløp: kr ${remainderNok}</div>
+<p>Vennligst betal innen ${dueLabel} for å beholde bestillingen.</p>
+<p><a class="button" href="${appUrl}/rugeegg/mine-bestillinger">Betal restbeløp</a></p>
+</div></div></body></html>`
+
+  await dispatchEmail({
+    to: order.customer_email,
+    subject: `Påminnelse om restbetaling - ${order.order_number}`,
+    html,
+  })
+
+  return NextResponse.json({ success: true })
+}
+
 export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -1197,6 +1251,8 @@ export async function POST(
         return await markEggOrderShipped(params.id, data?.trackingNumber, data?.reason)
       case 'fulfill_wishlist':
         return await fulfillWishlistItems(params.id, data?.items || [], data?.reason)
+      case 'send_remainder_reminder':
+        return await sendRemainderReminder(params.id)
       default:
         return NextResponse.json({ error: 'Unknown action' }, { status: 400 })
     }

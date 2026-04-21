@@ -6,6 +6,7 @@ import { useParams, useSearchParams } from 'next/navigation'
 import { GlassCard } from '@/components/eggs/GlassCard'
 import { useLanguage } from '@/contexts/LanguageContext'
 import { useCart } from '@/contexts/eggs/EggCartContext'
+import { getEggAdditionOfferState } from '@/lib/eggs/addition-offer'
 import { formatDate, formatPrice } from '@/lib/eggs/utils'
 import { ArrowRight, Minus, Plus } from 'lucide-react'
 
@@ -45,6 +46,9 @@ interface WeekInventoryItem {
   eggs_available: number
   eggs_allocated: number
   eggs_remaining?: number
+  effective_remaining?: number
+  availability_source?: 'actual_collected' | 'inventory'
+  actual_collected?: number | null
   status: string
   delivery_monday: string
   egg_breeds: {
@@ -112,9 +116,14 @@ export default function EggRemainderPage() {
     async function loadInventory() {
       if (!order) return
       try {
-        const response = await fetch(
-          `/api/eggs/inventory?year=${order.delivery_monday.slice(0, 4)}&week=${order.week_number}`
-        )
+        const inventoryUrl = new URL('/api/eggs/inventory', window.location.origin)
+        inventoryUrl.searchParams.set('year', order.delivery_monday.slice(0, 4))
+        inventoryUrl.searchParams.set('week', String(order.week_number))
+        if (getEggAdditionOfferState(order.delivery_monday).useActualCollectedStock) {
+          inventoryUrl.searchParams.set('stock_mode', 'day_before_actual')
+        }
+
+        const response = await fetch(inventoryUrl.toString())
         const data = await response.json()
         if (!response.ok) {
           throw new Error(data?.error || t.eggs.errors.couldNotFetchInventory)
@@ -194,29 +203,17 @@ export default function EggRemainderPage() {
     return Math.max(0, order.total_amount - savedAdditionsTotal)
   }, [order, savedAdditionsTotal])
 
-  const deliveryMondayLocal = useMemo(() => {
-    if (!order) return null
-    return new Date(`${order.delivery_monday}T00:00:00`)
-  }, [order])
-
-  const dayBeforeStart = useMemo(() => {
-    if (!deliveryMondayLocal) return null
-    const start = new Date(deliveryMondayLocal)
-    start.setDate(start.getDate() - 1)
-    return start
-  }, [deliveryMondayLocal])
+  const offerState = order ? getEggAdditionOfferState(order.delivery_monday) : null
 
   const canAdd = useMemo(() => {
-    if (!deliveryMondayLocal || !order) return false
-    const now = new Date()
-    return now < deliveryMondayLocal && ['deposit_paid', 'fully_paid', 'preparing'].includes(order.status)
-  }, [deliveryMondayLocal, order])
+    if (!offerState || !order) return false
+    return offerState.canAdd && ['deposit_paid', 'fully_paid', 'preparing'].includes(order.status)
+  }, [offerState, order])
 
   const discountEligible = useMemo(() => {
-    if (!deliveryMondayLocal || !dayBeforeStart || !order) return false
-    const now = new Date()
-    return now >= dayBeforeStart && now < deliveryMondayLocal && ['deposit_paid', 'fully_paid', 'preparing'].includes(order.status)
-  }, [deliveryMondayLocal, dayBeforeStart, order])
+    if (!offerState || !order) return false
+    return offerState.discountEligible && ['deposit_paid', 'fully_paid', 'preparing'].includes(order.status)
+  }, [offerState, order])
 
   const additionsTotal = useMemo(() => {
     const multiplier = discountEligible ? 0.7 : 1
@@ -412,7 +409,10 @@ export default function EggRemainderPage() {
             )}
 
             {inventory.map((item) => {
-              const remaining = Math.max(0, item.eggs_available - item.eggs_allocated)
+              const remaining = Math.max(
+                0,
+                item.effective_remaining ?? (item.eggs_available - item.eggs_allocated)
+              )
               const selected = selectedQuantities[item.id] || 0
               const existingQty =
                 order.egg_order_additions?.find((addition) => addition.inventory_id === item.id)?.quantity || 0

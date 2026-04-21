@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { getEggAdditionOfferState } from '@/lib/eggs/addition-offer'
+import { getDayBeforeOfferAvailabilityForInventoryRows } from '@/lib/eggs/day-before-offer-availability'
 import { supabaseAdmin } from '@/lib/supabase/server'
 import { logError } from '@/lib/logger'
 
@@ -32,14 +34,13 @@ export async function POST(
     }
 
     const now = new Date()
-    const deliveryMondayLocal = new Date(`${order.delivery_monday}T00:00:00`)
-    if (now >= deliveryMondayLocal) {
+    const offerState = getEggAdditionOfferState(order.delivery_monday, now)
+
+    if (!offerState.canAdd) {
       return NextResponse.json({ error: 'Additions are closed for this delivery week' }, { status: 400 })
     }
 
-    const dayBeforeStart = new Date(deliveryMondayLocal)
-    dayBeforeStart.setDate(dayBeforeStart.getDate() - 1)
-    const discountEligible = now >= dayBeforeStart && now < deliveryMondayLocal
+    const discountEligible = offerState.discountEligible
     const discountMultiplier = discountEligible ? 0.7 : 1
 
     const { data: remainderPayments } = await supabaseAdmin
@@ -126,6 +127,16 @@ export async function POST(
       return NextResponse.json({ error: 'Failed to load inventory' }, { status: 500 })
     }
 
+    const actualAvailabilityMap = offerState.useActualCollectedStock
+      ? await getDayBeforeOfferAvailabilityForInventoryRows(
+          (inventories || []).map((row) => ({
+            ...row,
+            delivery_monday: order.delivery_monday,
+          })),
+          { now }
+        )
+      : new Map()
+
     const inventoryMap = new Map<string, any>()
     for (const row of inventories || []) {
       inventoryMap.set(row.id, row)
@@ -146,10 +157,20 @@ export async function POST(
       }
 
       const existingQty = existingMap.get(addition.inventoryId)?.quantity || 0
-      const available = (inventory.eggs_available - inventory.eggs_allocated) + existingQty
+      const actualAvailability = actualAvailabilityMap.get(addition.inventoryId)
+      const available = offerState.useActualCollectedStock
+        ? Math.max(0, Number(actualAvailability?.remaining || 0) + existingQty)
+        : (inventory.eggs_available - inventory.eggs_allocated) + existingQty
 
       if (addition.quantity > available) {
-        return NextResponse.json({ error: 'Not enough eggs available for additions' }, { status: 400 })
+        return NextResponse.json(
+          {
+            error: offerState.useActualCollectedStock
+              ? 'Not enough collected eggs available for additions'
+              : 'Not enough eggs available for additions',
+          },
+          { status: 400 }
+        )
       }
     }
 

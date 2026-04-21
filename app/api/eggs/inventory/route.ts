@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { getDayBeforeOfferAvailabilityForInventoryRows } from '@/lib/eggs/day-before-offer-availability'
 import { supabaseServer } from '@/lib/supabase/server'
 
 export const dynamic = 'force-dynamic'
@@ -9,6 +10,7 @@ export async function GET(request: Request) {
     const breedId = searchParams.get('breed_id')
     const yearParam = searchParams.get('year')
     const weekParam = searchParams.get('week')
+    const stockMode = searchParams.get('stock_mode')
 
     let query = supabaseServer
       .from('egg_inventory')
@@ -44,6 +46,37 @@ export async function GET(request: Request) {
           return now < cutoff
         })
       : (data || [])
+
+    if (stockMode === 'day_before_actual' && filtered.length > 0) {
+      const availabilityByInventoryId = await getDayBeforeOfferAvailabilityForInventoryRows(
+        filtered.map((row: any) => ({
+          id: row.id,
+          breed_id: row.breed_id,
+          eggs_allocated: row.eggs_allocated,
+          eggs_available: row.eggs_available,
+          delivery_monday: row.delivery_monday,
+        })),
+        { now }
+      )
+
+      return NextResponse.json(
+        filtered.map((row: any) => {
+          const availability = availabilityByInventoryId.get(String(row.id))
+          return {
+            ...row,
+            effective_remaining: availability ? availability.remaining : 0,
+            availability_source: availability ? availability.source : 'actual_collected',
+            actual_collected: availability ? availability.actualCollected : 0,
+            availability_cutoff_at: availability?.cutoffAt || null,
+            availability_cutoff_date: availability?.cutoffDate || null,
+            availability_cutoff_hour: availability?.cutoffHour ?? null,
+            availability_cutoff_minute: availability?.cutoffMinute ?? null,
+            collection_window_start: availability?.collectionStart || null,
+            collection_window_end: availability?.collectionEnd || null,
+          }
+        })
+      )
+    }
 
     return NextResponse.json(filtered)
   } catch (error: any) {

@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { getEggAdditionOfferState } from '@/lib/eggs/addition-offer'
+import { getDayBeforeOfferAvailabilityForWeek } from '@/lib/eggs/day-before-offer-availability'
 import { supabaseAdmin } from '@/lib/supabase/server'
 import { sendEmail } from '@/lib/email/client'
 import { logError } from '@/lib/logger'
@@ -325,6 +327,20 @@ export async function GET(request: NextRequest) {
         const deliveryDate = toDateOnly(order.delivery_monday)
         const daysUntil = daysBetween(deliveryDate, today)
         if (daysUntil !== 1) continue
+
+        const offerState = getEggAdditionOfferState(order.delivery_monday)
+        if (!offerState.useActualCollectedStock || offerState.actualCutoffHour !== 12) continue
+
+        const deliveryYear = Number.parseInt(String(order.delivery_monday || '').slice(0, 4), 10)
+        if (!deliveryYear || !order.week_number) continue
+
+        const availability = await getDayBeforeOfferAvailabilityForWeek({
+          year: deliveryYear,
+          weekNumber: Number(order.week_number || 0),
+          deliveryMonday: String(order.delivery_monday || ''),
+        })
+
+        if (availability.totalAvailable <= 0) continue
 
         await sendEmail({
           to: order.customer_email,
