@@ -20,6 +20,16 @@ import {
   Unlock,
 } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 /* ------ types --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- */
 
@@ -137,6 +147,9 @@ export function EggInventoryManagement() {
 
   // Bulk actions
   const [selectedWeeks, setSelectedWeeks] = useState<Set<string>>(new Set()); // "year-week"
+
+  // Confirm close dialog
+  const [confirmCloseOpen, setConfirmCloseOpen] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -284,6 +297,26 @@ export function EggInventoryManagement() {
   }
 
   /* ------ bulk close/open ------------------------------------------------------------------------------------------------------------------------------------ */
+
+  async function reopenWeek(weekKey: string) {
+    const row = weekRows.find((r) => `${r.year}-${r.week_number}` === weekKey);
+    if (!row) return;
+    const itemIds = Object.values(row.items).map((i) => i.id);
+    try {
+      await Promise.all(
+        itemIds.map((id) =>
+          fetch(`/api/admin/eggs/inventory/${id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: 'open' }),
+          })
+        )
+      );
+      await loadData();
+    } catch (e) {
+      console.error('Reopen week failed:', e);
+    }
+  }
 
   async function bulkSetStatus(status: 'open' | 'closed') {
     const itemIds: string[] = [];
@@ -498,7 +531,7 @@ export function EggInventoryManagement() {
             {ei.bulkSelectedWeeks.replace('{count}', String(selectedWeeks.size))}
           </p>
           <div className="flex gap-2 ml-auto">
-            <Button size="sm" variant="outline" onClick={() => bulkSetStatus('closed')}>
+            <Button size="sm" variant="outline" onClick={() => setConfirmCloseOpen(true)}>
               <Lock className="w-3.5 h-3.5 mr-1" />
               {ei.bulkCloseAll}
             </Button>
@@ -810,26 +843,41 @@ export function EggInventoryManagement() {
                               })}
                               {/* row total */}
                               <td className="text-center px-3 py-2">
-                                <div className="text-xs">
-                                  <span className="font-bold text-neutral-800">
-                                    {rowAllocated}/{rowAvailable}
-                                  </span>
-                                  <div className="w-full bg-neutral-200 rounded-full h-1 mt-1 mx-auto max-w-[60px]">
-                                    <div
-                                      className={cn(
-                                        'h-1 rounded-full transition-all',
-                                        rowAvailable > 0 && rowAllocated / rowAvailable >= 0.9
-                                          ? 'bg-red-500'
-                                          : rowAvailable > 0 && rowAllocated / rowAvailable >= 0.7
-                                          ? 'bg-amber-500'
-                                          : 'bg-green-500'
-                                      )}
-                                      style={{
-                                        width: `${rowAvailable > 0 ? Math.min((rowAllocated / rowAvailable) * 100, 100) : 0}%`,
-                                      }}
-                                    />
-                                  </div>
-                                </div>
+                                {(() => {
+                                  const allClosed = Object.values(row.items).length > 0 && Object.values(row.items).every((i) => i.status === 'closed');
+                                  return allClosed ? (
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="text-xs h-7 px-2"
+                                      onClick={() => reopenWeek(weekKey)}
+                                    >
+                                      <Unlock className="w-3 h-3 mr-1" />
+                                      {copy.reopenButton || 'Åpne igjen'}
+                                    </Button>
+                                  ) : (
+                                    <div className="text-xs">
+                                      <span className="font-bold text-neutral-800">
+                                        {rowAllocated}/{rowAvailable}
+                                      </span>
+                                      <div className="w-full bg-neutral-200 rounded-full h-1 mt-1 mx-auto max-w-[60px]">
+                                        <div
+                                          className={cn(
+                                            'h-1 rounded-full transition-all',
+                                            rowAvailable > 0 && rowAllocated / rowAvailable >= 0.9
+                                              ? 'bg-red-500'
+                                              : rowAvailable > 0 && rowAllocated / rowAvailable >= 0.7
+                                              ? 'bg-amber-500'
+                                              : 'bg-green-500'
+                                          )}
+                                          style={{
+                                            width: `${rowAvailable > 0 ? Math.min((rowAllocated / rowAvailable) * 100, 100) : 0}%`,
+                                          }}
+                                        />
+                                      </div>
+                                    </div>
+                                  );
+                                })()}
                               </td>
                             </tr>
                             {/* Edit panel row */}
@@ -957,6 +1005,29 @@ export function EggInventoryManagement() {
         <span className="text-neutral-400">•</span>
         <span>{ei.legendHelp}</span>
       </div>
+
+      {/* ------ confirm close dialog --------------------------------------------------------------------------------------------------------------------------------- */}
+      <AlertDialog open={confirmCloseOpen} onOpenChange={setConfirmCloseOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{copy.confirmCloseTitle || 'Bekreft stenging'}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {copy.confirmCloseDescription || 'Er du sikker på at du vil stenge alle valgte uker? Eksisterende ordre påvirkes ikke, men nye bestillinger vil ikke være mulige.'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{lang === 'en' ? 'Cancel' : 'Avbryt'}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setConfirmCloseOpen(false);
+                bulkSetStatus('closed');
+              }}
+            >
+              {copy.confirmCloseButton || 'Steng uker'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

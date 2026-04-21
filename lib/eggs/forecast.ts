@@ -415,9 +415,14 @@ export async function recomputeForecastForBreed(params: {
           })
         )
 
+    // Cap long-horizon trend at 30% above the 2-week baseline to prevent
+    // unbounded growth from a short positive production slope (e.g. spring ramp-up).
+    const cappedTrendBase = isShortHorizon
+      ? twoWeekAverage
+      : Math.min(trendBase, twoWeekAverage * 1.3)
     const rawForecastEggs = isShortHorizon
       ? Math.round(twoWeekAverage)
-      : Math.round(trendBase + expectedAdditions)
+      : Math.round(cappedTrendBase + expectedAdditions)
 
     const forecastEggs = Math.max(
       0,

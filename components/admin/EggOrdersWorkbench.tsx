@@ -20,6 +20,9 @@ import {
   Download,
   ExternalLink,
   FileText,
+  KanbanSquare,
+  LayoutGrid,
+  List,
   Loader2,
   Mail,
   MapPin,
@@ -29,6 +32,7 @@ import {
   Search,
   Settings,
   ShieldAlert,
+  Timer,
   Truck,
   UserRound,
   X,
@@ -41,6 +45,16 @@ import {
   DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 
 type PaymentState = 'deposit_pending' | 'remainder_due' | 'fully_paid' | 'refunded' | 'failed'
 
@@ -315,6 +329,12 @@ function hasMissingShipping(order: EggOrder): boolean {
   return !(hasShippingName && hasShippingPhone && hasShippingAddress && hasShippingPostalCode && hasShippingCity)
 }
 
+function daysUntilDate(dateStr: string): number {
+  const due = new Date(dateStr)
+  const today = new Date(new Date().toISOString().split('T')[0])
+  return Math.floor((due.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+}
+
 function getEggQuantities(order: Pick<EggOrder, 'quantity' | 'egg_order_additions'>) {
   const base = Number(order.quantity || 0)
   const additions = (order.egg_order_additions || []).reduce(
@@ -416,6 +436,24 @@ export function EggOrdersWorkbench({
   const [markShippedLoading, setMarkShippedLoading] = useState(false)
   const [initialOrderHandled, setInitialOrderHandled] = useState(false)
 
+  // View mode: table | cards | pipeline | monitor
+  const [viewMode, setViewMode] = useState<'table' | 'cards' | 'pipeline' | 'monitor'>('table')
+
+  // Confirm dialog for destructive actions
+  const [confirmDialog, setConfirmDialog] = useState<{
+    open: boolean
+    action: string
+    title: string
+    description: string
+  }>({ open: false, action: '', title: '', description: '' })
+
+  // Remainder monitor: per-row sending state
+  const [monitorSending, setMonitorSending] = useState<Set<string>>(new Set())
+  const [monitorSent, setMonitorSent] = useState<Set<string>>(new Set())
+
+  // Panel: show advanced (destructive) actions
+  const [showAdvancedActions, setShowAdvancedActions] = useState(false)
+
   const statusOptions = useMemo(
     () =>
       STATUS_OPTIONS.map((value) => ({
@@ -488,6 +526,35 @@ export function EggOrdersWorkbench({
   function getPaymentStatusLabel(status: string): string {
     const labels = copy.paymentStatusLabels as Record<string, string>
     return labels[status] || status
+  }
+
+  function getUnifiedStatePill(order: EggOrder): { label: string; className: string } {
+    const us = (copy as any).unifiedState as Record<string, string>
+    const status = order.status
+    if (status === 'cancelled') return { label: us.cancelled, className: 'bg-neutral-100 text-neutral-600' }
+    if (status === 'forfeited') return { label: us.forfeited, className: 'bg-neutral-200 text-neutral-600' }
+    if (status === 'delivered') return { label: us.delivered, className: 'bg-emerald-100 text-emerald-800' }
+    if (status === 'shipped') return { label: us.shipped, className: 'bg-blue-100 text-blue-800' }
+
+    const paymentState = getPaymentState(order)
+    if (paymentState === 'deposit_pending') return { label: us.depositPending, className: 'bg-orange-100 text-orange-800' }
+    if (paymentState === 'refunded') return { label: us.refunded, className: 'bg-slate-200 text-slate-700' }
+    if (paymentState === 'failed') return { label: us.failed, className: 'bg-red-100 text-red-800' }
+
+    if (paymentState === 'remainder_due') {
+      if (order.remainder_due_date) {
+        const days = daysUntilDate(order.remainder_due_date)
+        if (days < 0) return { label: us.remainderOverdue, className: 'bg-red-100 text-red-800' }
+        const label = (us.remainderDueDays || 'Restbeløp - {days}d').replace('{days}', String(days))
+        return { label, className: days <= 3 ? 'bg-red-100 text-red-800' : 'bg-amber-100 text-amber-800' }
+      }
+      return { label: us.remainderDue, className: 'bg-amber-100 text-amber-800' }
+    }
+
+    if (status === 'preparing') return { label: us.preparing, className: 'bg-violet-100 text-violet-800' }
+    if (status === 'fully_paid') return { label: us.fullyPaid, className: 'bg-emerald-100 text-emerald-800' }
+    if (status === 'deposit_paid') return { label: us.depositPaid, className: 'bg-sky-100 text-sky-800' }
+    return { label: getStatusLabel(status), className: 'bg-neutral-100 text-neutral-800' }
   }
 
   useEffect(() => {
@@ -824,6 +891,42 @@ export function EggOrdersWorkbench({
     }
   }
 
+  async function sendMonitorReminder(orderId: string) {
+    setMonitorSending((prev) => new Set([...Array.from(prev), orderId]))
+    try {
+      const response = await fetch(`/api/admin/eggs/orders/${orderId}/actions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'send_remainder_reminder', data: {} }),
+      })
+      const result = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(result?.error || copy.errors.orderActionFailed)
+      setMonitorSent((prev) => new Set([...Array.from(prev), orderId]))
+    } catch (err: any) {
+      toast({ title: copy.toast.errorTitle, description: err?.message || copy.errors.orderActionFailed, variant: 'destructive' })
+    } finally {
+      setMonitorSending((prev) => {
+        const next = new Set(Array.from(prev)); next.delete(orderId); return next
+      })
+    }
+  }
+
+  function openConfirmDialog(action: string, title: string, description: string) {
+    setConfirmDialog({ open: true, action, title, description })
+  }
+
+  async function handleConfirmedAction() {
+    const { action } = confirmDialog
+    setConfirmDialog((prev) => ({ ...prev, open: false }))
+    if (action === 'cancel_order') {
+      await runOrderAction('cancel_order', { releaseInventory: true, reason: actionReason || undefined })
+    } else if (action === 'cancel_and_refund') {
+      await runOrderAction('cancel_and_refund', { releaseInventory: true, reason: actionReason || undefined })
+    } else if (action === 'refund_deposit') {
+      await runOrderAction('refund_deposit', { reason: actionReason || undefined })
+    }
+  }
+
   async function exportCsv() {
     try {
       const params = new URLSearchParams()
@@ -910,7 +1013,30 @@ export function EggOrdersWorkbench({
           <h2 className="text-3xl font-light tracking-tight text-neutral-900">{copy.title}</h2>
           <p className="text-sm text-neutral-600 mt-1">{copy.subtitle}</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* View mode toggles */}
+          <div className="flex rounded-md border border-neutral-200 overflow-hidden">
+            {([
+              { mode: 'table', icon: <List className="w-4 h-4" />, label: (copy as any).viewModes?.table ?? 'Tabell' },
+              { mode: 'cards', icon: <LayoutGrid className="w-4 h-4" />, label: (copy as any).viewModes?.cards ?? 'Kort' },
+              { mode: 'pipeline', icon: <KanbanSquare className="w-4 h-4" />, label: (copy as any).viewModes?.pipeline ?? 'Pipeline' },
+              { mode: 'monitor', icon: <Timer className="w-4 h-4" />, label: (copy as any).viewModes?.monitor ?? 'Restbetaling' },
+            ] as const).map(({ mode, icon, label }) => (
+              <button
+                key={mode}
+                onClick={() => setViewMode(mode as any)}
+                className={cn(
+                  'flex items-center gap-1.5 px-3 py-2 text-sm transition-colors',
+                  viewMode === mode
+                    ? 'bg-neutral-900 text-white'
+                    : 'bg-white text-neutral-700 hover:bg-neutral-50'
+                )}
+              >
+                {icon}
+                <span className="hidden sm:inline">{label}</span>
+              </button>
+            ))}
+          </div>
           <Button
             variant="outline"
             onClick={() => fetchOrders(true)}
@@ -1170,186 +1296,437 @@ export function EggOrdersWorkbench({
         </Card>
       )}
 
-      {loading ? (
-        <Card className="p-12 flex items-center justify-center">
-          <Loader2 className="w-6 h-6 animate-spin text-neutral-500" />
-        </Card>
-      ) : errorText ? (
-        <Card className="p-8 text-center">
-          <p className="text-red-600 font-medium">{copy.states.loadErrorTitle}</p>
-          <p className="text-sm text-neutral-600 mt-2">{errorText}</p>
-          <Button variant="outline" className="mt-4" onClick={() => fetchOrders()}>
-            {copy.states.retryButton}
-          </Button>
-        </Card>
-      ) : orders.length === 0 ? (
-        <Card className="p-8 text-center text-neutral-600">{copy.states.empty}</Card>
-      ) : (
-        <Card className="overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[1100px]">
-              <thead className="bg-neutral-50 border-b border-neutral-200">
-                <tr>
-                  <th className="px-4 py-3 text-left">
-                    <input
-                      type="checkbox"
-                      checked={allSelected}
-                      onChange={toggleSelectAll}
-                      className="rounded border-neutral-300"
-                    />
-                  </th>
-                  <SortableHeader label={copy.table.order} sortKey="newest" currentSort={sortBy} onSort={setSortBy} ascKey="oldest" descKey="newest" />
-                  <SortableHeader label={copy.table.customer} sortKey="customer" currentSort={sortBy} onSort={setSortBy} ascKey="customer_asc" descKey="customer_desc" />
-                  <SortableHeader label={copy.table.delivery} sortKey="delivery" currentSort={sortBy} onSort={setSortBy} ascKey="delivery_asc" descKey="delivery_desc" />
-                  <SortableHeader label={copy.table.payment} sortKey="payment" currentSort={sortBy} onSort={setSortBy} ascKey="payment_asc" descKey="payment_desc" />
-                  <SortableHeader label={copy.table.status} sortKey="status" currentSort={sortBy} onSort={setSortBy} ascKey="status_asc" descKey="status_desc" />
-                  <SortableHeader label={copy.table.amount} sortKey="amount" currentSort={sortBy} onSort={setSortBy} ascKey="amount_asc" descKey="amount_desc" />
-                  <th className="px-4 py-3 text-right text-sm font-medium text-neutral-700">{copy.table.action}</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-neutral-100">
-                {orders.map((order) => {
-                  const paymentState = getPaymentState(order)
-                  const orderAtRisk = isAtRiskOrder(order)
-                  const shippingMissing = hasMissingShipping(order)
-                  const statusLabel = getStatusLabel(order.status)
-                  const eggQuantities = getEggQuantities(order)
+      {/* ── Week checklist (#2) ── shown when a week is selected */}
+      {weekFilter !== 'all' && !loading && viewMode !== 'monitor' && (() => {
+        const wc = (copy as any).weekChecklist as Record<string, string>
+        const weekOrders = orders
+        const totalCount = weekOrders.length
+        const missingCount = weekOrders.filter(hasMissingShipping).length
+        const remainderCount = weekOrders.filter((o) => getPaymentState(o) === 'remainder_due' && (!o.remainder_due_date || daysUntilDate(o.remainder_due_date) >= 0)).length
+        const overdueCount = weekOrders.filter((o) => {
+          const ps = getPaymentState(o)
+          return ps === 'remainder_due' && o.remainder_due_date && daysUntilDate(o.remainder_due_date) < 0
+        }).length
+        const selectedWeek = availableWeeks.find((w) => w.value === weekFilter)
+        const weekLabel = selectedWeek ? `${selectedWeek.week}/${selectedWeek.year}` : weekFilter
+        const allGood = missingCount === 0 && remainderCount === 0 && overdueCount === 0 && totalCount > 0
+        return (
+          <Card className={cn('p-4 border', allGood ? 'border-emerald-200 bg-emerald-50' : overdueCount > 0 ? 'border-red-200 bg-red-50' : 'border-amber-200 bg-amber-50')}>
+            <div className="flex flex-wrap items-center gap-4">
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-neutral-900">
+                  {(wc.title || 'Ukessjekkliste — Uke {week}/{year}').replace('{week}/{year}', weekLabel)}
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-3 text-sm">
+                <span className="text-neutral-700">
+                  {(wc.totalOrders || '{count} ordre').replace('{count}', String(totalCount))}
+                </span>
+                {missingCount > 0 && (
+                  <span className="text-amber-700 font-medium flex items-center gap-1">
+                    <Truck className="w-3.5 h-3.5" />
+                    {(wc.missingShipping || '{count} mangler fraktadresse').replace('{count}', String(missingCount))}
+                  </span>
+                )}
+                {remainderCount > 0 && (
+                  <span className="text-amber-700 font-medium flex items-center gap-1">
+                    <CircleDollarSign className="w-3.5 h-3.5" />
+                    {(wc.outstandingRemainder || '{count} med ubetalt restbeløp').replace('{count}', String(remainderCount))}
+                  </span>
+                )}
+                {overdueCount > 0 && (
+                  <span className="text-red-700 font-medium flex items-center gap-1">
+                    <AlertTriangle className="w-3.5 h-3.5" />
+                    {(wc.overdueRemainder || '{count} med forfalt restbeløp').replace('{count}', String(overdueCount))}
+                  </span>
+                )}
+                {allGood && (
+                  <span className="text-emerald-700 font-medium flex items-center gap-1">
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    {wc.allGood || 'Alt klart for forsendelse!'}
+                  </span>
+                )}
+                {totalCount === 0 && (
+                  <span className="text-neutral-500">{wc.noOrdersThisWeek || 'Ingen ordre for valgt uke.'}</span>
+                )}
+              </div>
+            </div>
+          </Card>
+        )
+      })()}
 
-                  return (
-                    <tr key={order.id} className="hover:bg-neutral-50/60 transition-colors">
-                      <td className="px-4 py-3">
-                        <input
-                          type="checkbox"
-                          checked={selectedIds.has(order.id)}
-                          onChange={() => toggleSelect(order.id)}
-                          className="rounded border-neutral-300"
-                        />
-                      </td>
-                      <td className="px-4 py-3">
-                        <div>
-                          <button
-                            className="font-semibold text-blue-700 hover:text-blue-900"
-                            onClick={() => fetchOrderDetail(order.id)}
-                          >
-                            {order.order_number}
-                          </button>
-                          <p className="text-xs text-neutral-500 mt-1">
-                            {replaceTokens(copy.table.breedEggsValue, {
-                              breed: order.egg_breeds?.name || copy.fallbackBreed,
-                              quantity: eggQuantities.total,
-                            })}
-                          </p>
-                          {eggQuantities.additions > 0 && (
-                            <p className="text-xs text-neutral-500">
-                              {replaceTokens(copy.table.quantityBreakdownValue || '{base} + {additions} = {total}', {
-                                base: eggQuantities.base,
-                                additions: eggQuantities.additions,
-                                total: eggQuantities.total,
-                              })}
-                            </p>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 text-sm">
-                        <div className="space-y-1">
-                          <button
-                            type="button"
-                            onClick={() => navigateToCustomerProfile(order.customer_email, order.customer_phone)}
-                            className="font-medium text-left text-neutral-900 underline-offset-4 transition hover:text-neutral-700 hover:underline"
-                          >
-                            {order.customer_name}
-                          </button>
-                          <a
-                            href={`mailto:${order.customer_email}`}
-                            className="block text-neutral-600 underline-offset-4 hover:text-neutral-800 hover:underline"
-                          >
-                            {order.customer_email}
-                          </a>
-                          {order.customer_phone && <p className="text-neutral-500">{order.customer_phone}</p>}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 text-sm">
-                        <p className="text-neutral-900">
-                          {replaceTokens(copy.table.weekValue, {
-                            week: order.week_number,
-                            year: order.year,
-                          })}
-                        </p>
-                        <p className="text-neutral-600">{getDeliveryLabel(order.delivery_method)}</p>
-                        <p className="text-neutral-500">{formatDate(order.delivery_monday)}</p>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span
-                          className={cn(
-                            'inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium',
-                            paymentBadgeClass(paymentState)
-                          )}
-                        >
-                          {getPaymentStateLabel(paymentState)}
-                        </span>
-                        {(orderAtRisk || shippingMissing) && (
-                          <div className="mt-2 flex flex-wrap gap-1">
-                            {orderAtRisk && (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] bg-red-100 text-red-800">
-                                <AlertTriangle className="w-3 h-3" />
-                                {copy.table.riskBadge}
-                              </span>
-                            )}
-                            {shippingMissing && (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] bg-amber-100 text-amber-800">
-                                <Truck className="w-3 h-3" />
-                                {copy.table.shippingBadge}
-                              </span>
-                            )}
-                          </div>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-sm">
-                        <span className="inline-flex items-center px-2 py-1 rounded-full bg-neutral-100 text-neutral-800 text-xs font-medium">
-                          {statusLabel}
-                        </span>
-                        {order.locked_at && <p className="text-xs text-neutral-500 mt-1">{copy.table.locked}</p>}
-                      </td>
-                      <td className="px-4 py-3 text-sm">
-                        <p className="font-semibold text-neutral-900">{formatOre(order.total_amount)}</p>
-                        <p className="text-neutral-600">
-                          {replaceTokens(copy.table.depositValue, { amount: formatOre(order.deposit_amount) })}
-                        </p>
-                        <p className="text-neutral-500">
-                          {replaceTokens(copy.table.remainderValue, { amount: formatOre(Math.max(0, (order.remainder_amount || 0) - (order.egg_payments || []).filter(p => p.payment_type === 'remainder' && p.status === 'completed').reduce((sum, p) => sum + Math.round((p.amount_nok || 0) * 100), 0))) })}
-                        </p>
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <div className="inline-flex items-center gap-2">
-                          {order.delivery_method === 'posten' &&
-                            ['fully_paid', 'preparing'].includes(order.status) && (
+      {/* ── Remainder monitor view (#10) ── */}
+      {viewMode === 'monitor' && (() => {
+        const mc = (copy as any).monitor as Record<string, string>
+        const today = new Date(new Date().toISOString().split('T')[0])
+        const cutoffDate = new Date(today.getTime() + 14 * 24 * 60 * 60 * 1000)
+        const monitorOrders = orders
+          .filter((o) => {
+            const ps = getPaymentState(o)
+            if (ps !== 'remainder_due') return false
+            if (!o.remainder_due_date) return true
+            const due = new Date(o.remainder_due_date)
+            return due <= cutoffDate
+          })
+          .sort((a, b) => {
+            const da = a.remainder_due_date ? new Date(a.remainder_due_date).getTime() : 0
+            const db = b.remainder_due_date ? new Date(b.remainder_due_date).getTime() : 0
+            return da - db
+          })
+        return (
+          <div className="space-y-4">
+            <div>
+              <h3 className="text-lg font-medium text-neutral-900">{mc.title}</h3>
+              <p className="text-sm text-neutral-600">{mc.subtitle}</p>
+            </div>
+            {monitorOrders.length === 0 ? (
+              <Card className="p-8 text-center text-neutral-600">{mc.empty}</Card>
+            ) : (
+              <Card className="overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[700px]">
+                    <thead className="bg-neutral-50 border-b border-neutral-200">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-neutral-600">{mc.columnCustomer}</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-neutral-600">{mc.columnOrder}</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-neutral-600">{mc.columnBreed}</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-neutral-600">{mc.columnAmount}</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-neutral-600">{mc.columnDue}</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-neutral-600">{mc.columnDays}</th>
+                        <th className="px-4 py-3 text-right text-xs font-medium text-neutral-600">{mc.columnAction}</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-neutral-100">
+                      {monitorOrders.map((order) => {
+                        const days = order.remainder_due_date ? daysUntilDate(order.remainder_due_date) : null
+                        const dueOre = Math.max(0, (order.remainder_amount || 0) - (order.egg_payments || []).filter((p) => p.payment_type === 'remainder' && p.status === 'completed').reduce((sum, p) => sum + Math.round((p.amount_nok || 0) * 100), 0))
+                        const isSending = monitorSending.has(order.id)
+                        const isSent = monitorSent.has(order.id)
+                        const daysClass = days === null ? 'text-neutral-500' : days < 0 ? 'text-red-700 font-bold' : days === 0 ? 'text-red-700 font-semibold' : days <= 3 ? 'text-red-600 font-medium' : 'text-amber-600'
+                        const daysLabel = days === null ? '-' : days < 0 ? mc.overdue : days === 0 ? mc.today : days === 1 ? mc.tomorrow : (mc.daysRemaining || '{days} dager').replace('{days}', String(days))
+                        return (
+                          <tr key={order.id} className="hover:bg-neutral-50/60 transition-colors">
+                            <td className="px-4 py-3 text-sm">
+                              <button className="font-medium text-neutral-900 hover:underline text-left" onClick={() => fetchOrderDetail(order.id)}>
+                                {order.customer_name}
+                              </button>
+                              <p className="text-xs text-neutral-500">{order.customer_email}</p>
+                            </td>
+                            <td className="px-4 py-3 text-sm">
+                              <button className="font-semibold text-blue-700 hover:text-blue-900" onClick={() => fetchOrderDetail(order.id)}>
+                                {order.order_number}
+                              </button>
+                            </td>
+                            <td className="px-4 py-3 text-sm text-neutral-700">
+                              <p>{order.egg_breeds?.name || copy.fallbackBreedShort}</p>
+                              <p className="text-xs text-neutral-500">{replaceTokens(copy.table.weekValue, { week: order.week_number, year: order.year })}</p>
+                            </td>
+                            <td className="px-4 py-3 text-sm font-semibold text-neutral-900">{formatOre(dueOre)}</td>
+                            <td className="px-4 py-3 text-sm text-neutral-600">{order.remainder_due_date ? formatDate(order.remainder_due_date) : copy.emptyDate}</td>
+                            <td className={cn('px-4 py-3 text-sm', daysClass)}>{daysLabel}</td>
+                            <td className="px-4 py-3 text-right">
                               <Button
                                 size="sm"
-                                variant="outline"
-                                disabled={markShippedLoading}
-                                onClick={() => handleMarkAsSent(order)}
+                                variant={isSent ? 'outline' : 'default'}
+                                disabled={isSending || isSent}
+                                onClick={() => sendMonitorReminder(order.id)}
                               >
-                                {markShippedLoading ? (
-                                  <Loader2 className="w-4 h-4 mr-1 animate-spin" />
-                                ) : (
-                                  <Package className="w-4 h-4 mr-1" />
-                                )}
-                                {copy.markSent.button}
+                                {isSending ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : null}
+                                {isSent ? mc.reminderSent : mc.sendReminder}
                               </Button>
-                            )}
-                          <Button size="sm" variant="outline" onClick={() => fetchOrderDetail(order.id)}>
-                            <Settings className="w-4 h-4 mr-1" />
-                            {copy.table.manageButton}
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </Card>
+            )}
           </div>
-        </Card>
+        )
+      })()}
+
+      {/* ── Mobile card view (#7) ── */}
+      {viewMode === 'cards' && !loading && !errorText && (
+        orders.length === 0 ? (
+          <Card className="p-8 text-center text-neutral-600">{copy.states.empty}</Card>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {orders.map((order) => {
+              const pill = getUnifiedStatePill(order)
+              const eggQ = getEggQuantities(order)
+              const canShip = order.delivery_method === 'posten' && ['fully_paid', 'preparing'].includes(order.status)
+              return (
+                <Card key={order.id} className="p-4 flex flex-col gap-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <button className="font-bold text-blue-700 text-lg leading-tight" onClick={() => fetchOrderDetail(order.id)}>
+                        {order.order_number}
+                      </button>
+                      <p className="text-sm text-neutral-700 font-medium mt-0.5">{order.customer_name}</p>
+                    </div>
+                    <span className={cn('inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold shrink-0', pill.className)}>
+                      {pill.label}
+                    </span>
+                  </div>
+                  <div className="text-sm text-neutral-600 space-y-1">
+                    <p>{order.egg_breeds?.name || copy.fallbackBreedShort} · {eggQ.total} egg</p>
+                    <p>{replaceTokens(copy.table.weekValue, { week: order.week_number, year: order.year })} · {getDeliveryLabel(order.delivery_method)}</p>
+                    <p className="font-medium text-neutral-900">{formatOre(order.total_amount)}</p>
+                  </div>
+                  <div className="flex gap-2 mt-auto">
+                    {canShip && (
+                      <Button size="sm" variant="default" className="flex-1" disabled={markShippedLoading} onClick={() => handleMarkAsSent(order)}>
+                        <Package className="w-4 h-4 mr-1" />
+                        {(copy as any).mobileCards?.shipButton ?? copy.markSent.button}
+                      </Button>
+                    )}
+                    <Button size="sm" variant="outline" className="flex-1" onClick={() => fetchOrderDetail(order.id)}>
+                      <Settings className="w-4 h-4 mr-1" />
+                      {(copy as any).mobileCards?.manageButton ?? copy.table.manageButton}
+                    </Button>
+                  </div>
+                </Card>
+              )
+            })}
+          </div>
+        )
+      )}
+
+      {/* ── Pipeline / kanban view (#1) ── */}
+      {viewMode === 'pipeline' && !loading && !errorText && (() => {
+        const pc = (copy as any).pipeline as Record<string, any>
+        if (weekFilter === 'all') {
+          return (
+            <Card className="p-8 text-center text-neutral-600">
+              <KanbanSquare className="w-8 h-8 mx-auto mb-3 text-neutral-400" />
+              <p>{pc.noWeekSelected || 'Velg en uke i filteret for å se pipeline-visning.'}</p>
+            </Card>
+          )
+        }
+        const PIPELINE_COLS: Array<{ key: string; label: string; color: string }> = [
+          { key: 'pending', label: pc.columns?.pending ?? 'Venter forskudd', color: 'border-orange-200 bg-orange-50' },
+          { key: 'deposit_paid', label: pc.columns?.deposit_paid ?? 'Forskudd betalt', color: 'border-sky-200 bg-sky-50' },
+          { key: 'fully_paid', label: pc.columns?.fully_paid ?? 'Fullt betalt', color: 'border-emerald-200 bg-emerald-50' },
+          { key: 'preparing', label: pc.columns?.preparing ?? 'Forberedes', color: 'border-violet-200 bg-violet-50' },
+          { key: 'shipped', label: pc.columns?.shipped ?? 'Sendt', color: 'border-blue-200 bg-blue-50' },
+          { key: 'delivered', label: pc.columns?.delivered ?? 'Levert', color: 'border-neutral-200 bg-neutral-50' },
+        ]
+        return (
+          <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
+            {PIPELINE_COLS.map((col) => {
+              const colOrders = orders.filter((o) => o.status === col.key)
+              return (
+                <div key={col.key} className={cn('rounded-xl border p-3 space-y-2 min-h-[120px]', col.color)}>
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-xs font-semibold text-neutral-700 uppercase tracking-wide">{col.label}</p>
+                    <span className="text-xs font-bold text-neutral-900 bg-white rounded-full px-1.5 py-0.5 border border-neutral-200">{colOrders.length}</span>
+                  </div>
+                  {colOrders.length === 0 ? (
+                    <p className="text-xs text-neutral-400 text-center py-2">—</p>
+                  ) : colOrders.map((order) => {
+                    const eggQ = getEggQuantities(order)
+                    const canShip = order.delivery_method === 'posten' && ['fully_paid', 'preparing'].includes(order.status)
+                    return (
+                      <div key={order.id} className="bg-white rounded-lg border border-white/80 p-2.5 shadow-sm space-y-1">
+                        <button className="font-semibold text-blue-700 text-sm leading-tight text-left w-full hover:underline" onClick={() => fetchOrderDetail(order.id)}>
+                          {order.order_number}
+                        </button>
+                        <p className="text-xs text-neutral-700 truncate">{order.customer_name}</p>
+                        <p className="text-xs text-neutral-500">{order.egg_breeds?.name || copy.fallbackBreedShort} · {eggQ.total}</p>
+                        <p className="text-xs text-neutral-500">{getDeliveryLabel(order.delivery_method)}</p>
+                        {canShip && (
+                          <Button size="sm" className="w-full h-7 text-xs mt-1" disabled={markShippedLoading} onClick={() => handleMarkAsSent(order)}>
+                            <Package className="w-3 h-3 mr-1" />
+                            {(copy as any).mobileCards?.shipButton ?? 'Send'}
+                          </Button>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              )
+            })}
+          </div>
+        )
+      })()}
+
+      {/* ── Table view (default) ── */}
+      {viewMode === 'table' && (
+        loading ? (
+          <Card className="p-12 flex items-center justify-center">
+            <Loader2 className="w-6 h-6 animate-spin text-neutral-500" />
+          </Card>
+        ) : errorText ? (
+          <Card className="p-8 text-center">
+            <p className="text-red-600 font-medium">{copy.states.loadErrorTitle}</p>
+            <p className="text-sm text-neutral-600 mt-2">{errorText}</p>
+            <Button variant="outline" className="mt-4" onClick={() => fetchOrders()}>
+              {copy.states.retryButton}
+            </Button>
+          </Card>
+        ) : orders.length === 0 ? (
+          <Card className="p-8 text-center text-neutral-600">{copy.states.empty}</Card>
+        ) : (
+          <Card className="overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[900px]">
+                <thead className="bg-neutral-50 border-b border-neutral-200">
+                  <tr>
+                    <th className="px-4 py-3 text-left">
+                      <input
+                        type="checkbox"
+                        checked={allSelected}
+                        onChange={toggleSelectAll}
+                        className="rounded border-neutral-300"
+                      />
+                    </th>
+                    <SortableHeader label={copy.table.order} sortKey="newest" currentSort={sortBy} onSort={setSortBy} ascKey="oldest" descKey="newest" />
+                    <SortableHeader label={copy.table.customer} sortKey="customer" currentSort={sortBy} onSort={setSortBy} ascKey="customer_asc" descKey="customer_desc" />
+                    <SortableHeader label={copy.table.delivery} sortKey="delivery" currentSort={sortBy} onSort={setSortBy} ascKey="delivery_asc" descKey="delivery_desc" />
+                    <SortableHeader label={copy.table.status} sortKey="status" currentSort={sortBy} onSort={setSortBy} ascKey="status_asc" descKey="status_desc" />
+                    <SortableHeader label={copy.table.amount} sortKey="amount" currentSort={sortBy} onSort={setSortBy} ascKey="amount_asc" descKey="amount_desc" />
+                    <th className="px-4 py-3 text-right text-sm font-medium text-neutral-700">{copy.table.action}</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-neutral-100">
+                  {orders.map((order) => {
+                    const orderAtRisk = isAtRiskOrder(order)
+                    const shippingMissing = hasMissingShipping(order)
+                    const eggQuantities = getEggQuantities(order)
+                    const unifiedPill = getUnifiedStatePill(order)
+
+                    return (
+                      <tr key={order.id} className="hover:bg-neutral-50/60 transition-colors">
+                        <td className="px-4 py-3">
+                          <input
+                            type="checkbox"
+                            checked={selectedIds.has(order.id)}
+                            onChange={() => toggleSelect(order.id)}
+                            className="rounded border-neutral-300"
+                          />
+                        </td>
+                        <td className="px-4 py-3">
+                          <div>
+                            <button
+                              className="font-semibold text-blue-700 hover:text-blue-900"
+                              onClick={() => fetchOrderDetail(order.id)}
+                            >
+                              {order.order_number}
+                            </button>
+                            <p className="text-xs text-neutral-500 mt-1">
+                              {replaceTokens(copy.table.breedEggsValue, {
+                                breed: order.egg_breeds?.name || copy.fallbackBreed,
+                                quantity: eggQuantities.total,
+                              })}
+                            </p>
+                            {eggQuantities.additions > 0 && (
+                              <p className="text-xs text-neutral-500">
+                                {replaceTokens(copy.table.quantityBreakdownValue || '{base} + {additions} = {total}', {
+                                  base: eggQuantities.base,
+                                  additions: eggQuantities.additions,
+                                  total: eggQuantities.total,
+                                })}
+                              </p>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-sm">
+                          <div className="space-y-1">
+                            <button
+                              type="button"
+                              onClick={() => navigateToCustomerProfile(order.customer_email, order.customer_phone)}
+                              className="font-medium text-left text-neutral-900 underline-offset-4 transition hover:text-neutral-700 hover:underline"
+                            >
+                              {order.customer_name}
+                            </button>
+                            <a
+                              href={`mailto:${order.customer_email}`}
+                              className="block text-neutral-600 underline-offset-4 hover:text-neutral-800 hover:underline"
+                            >
+                              {order.customer_email}
+                            </a>
+                            {order.customer_phone && <p className="text-neutral-500">{order.customer_phone}</p>}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-sm">
+                          <p className="text-neutral-900">
+                            {replaceTokens(copy.table.weekValue, {
+                              week: order.week_number,
+                              year: order.year,
+                            })}
+                          </p>
+                          <p className="text-neutral-600">{getDeliveryLabel(order.delivery_method)}</p>
+                          <p className="text-neutral-500">{formatDate(order.delivery_monday)}</p>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className={cn('inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold', unifiedPill.className)}>
+                            {unifiedPill.label}
+                          </span>
+                          {(orderAtRisk || shippingMissing || order.locked_at) && (
+                            <div className="mt-1.5 flex flex-wrap gap-1">
+                              {orderAtRisk && (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] bg-red-100 text-red-800">
+                                  <AlertTriangle className="w-3 h-3" />
+                                  {copy.table.riskBadge}
+                                </span>
+                              )}
+                              {shippingMissing && (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] bg-amber-100 text-amber-800">
+                                  <Truck className="w-3 h-3" />
+                                  {copy.table.shippingBadge}
+                                </span>
+                              )}
+                              {order.locked_at && (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] bg-neutral-200 text-neutral-600">
+                                  {copy.table.locked}
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-sm">
+                          <p className="font-semibold text-neutral-900">{formatOre(order.total_amount)}</p>
+                          <p className="text-neutral-600">
+                            {replaceTokens(copy.table.depositValue, { amount: formatOre(order.deposit_amount) })}
+                          </p>
+                          <p className="text-neutral-500">
+                            {replaceTokens(copy.table.remainderValue, { amount: formatOre(Math.max(0, (order.remainder_amount || 0) - (order.egg_payments || []).filter(p => p.payment_type === 'remainder' && p.status === 'completed').reduce((sum, p) => sum + Math.round((p.amount_nok || 0) * 100), 0))) })}
+                          </p>
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <div className="inline-flex items-center gap-2">
+                            {order.delivery_method === 'posten' &&
+                              ['fully_paid', 'preparing'].includes(order.status) && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  disabled={markShippedLoading}
+                                  onClick={() => handleMarkAsSent(order)}
+                                >
+                                  {markShippedLoading ? (
+                                    <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                                  ) : (
+                                    <Package className="w-4 h-4 mr-1" />
+                                  )}
+                                  {copy.markSent.button}
+                                </Button>
+                              )}
+                            <Button size="sm" variant="outline" onClick={() => fetchOrderDetail(order.id)}>
+                              <Settings className="w-4 h-4 mr-1" />
+                              {copy.table.manageButton}
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        )
       )}
 
       {panelOpen && (
@@ -1749,75 +2126,9 @@ export function EggOrdersWorkbench({
 
                 <Card className="p-4 border-neutral-200">
                   <h4 className="font-medium text-neutral-900 mb-3">{copy.panel.quickActionsTitle}</h4>
-                  <div className="grid grid-cols-2 xl:grid-cols-4 gap-2">
-                    <Button
-                      variant="outline"
-                      disabled={actionLoading !== null}
-                      onClick={() => runOrderAction('mark_deposit_paid', { reason: actionReason || undefined })}
-                    >
-                      {copy.panel.actions.markDepositPaid}
-                    </Button>
-                    <Button
-                      variant="outline"
-                      disabled={actionLoading !== null}
-                      onClick={() => runOrderAction('mark_remainder_paid', { reason: actionReason || undefined })}
-                    >
-                      {copy.panel.actions.markRemainderPaid}
-                    </Button>
-                    <Button
-                      variant="outline"
-                      disabled={actionLoading !== null}
-                      onClick={() => runOrderAction('sync_status', { reason: actionReason || undefined })}
-                    >
-                      {copy.panel.actions.syncStatus}
-                    </Button>
-                    <Button
-                      variant="outline"
-                      disabled={actionLoading !== null}
-                      onClick={() => runOrderAction('refund_deposit', { reason: actionReason || undefined })}
-                    >
-                      {copy.panel.actions.refundDeposit}
-                    </Button>
-                    <Button
-                      variant="outline"
-                      disabled={actionLoading !== null}
-                      onClick={() =>
-                        runOrderAction('cancel_order', {
-                          releaseInventory: true,
-                          reason: actionReason || undefined,
-                        })
-                      }
-                    >
-                      {copy.panel.actions.cancel}
-                    </Button>
-                    <Button
-                      variant="outline"
-                      disabled={actionLoading !== null}
-                      onClick={() =>
-                        runOrderAction('cancel_and_refund', {
-                          releaseInventory: true,
-                          reason: actionReason || undefined,
-                        })
-                      }
-                    >
-                      {copy.panel.actions.cancelAndRefund}
-                    </Button>
-                    <Button
-                      variant="outline"
-                      disabled={actionLoading !== null}
-                      onClick={() => runOrderAction('mark_deposit_refunded', { reason: actionReason || undefined })}
-                    >
-                      {copy.panel.actions.markDepositRefunded}
-                    </Button>
-                    <Button
-                      variant="outline"
-                      disabled={actionLoading !== null}
-                      onClick={() => runOrderAction('mark_remainder_refunded', { reason: actionReason || undefined })}
-                    >
-                      {copy.panel.actions.markRemainderRefunded}
-                    </Button>
-                  </div>
-                  <div className="mt-3">
+
+                  {/* Reason input */}
+                  <div className="mb-4">
                     <Label className="text-xs text-neutral-500">{copy.panel.actionReasonLabel}</Label>
                     <Input
                       value={actionReason}
@@ -1825,6 +2136,117 @@ export function EggOrdersWorkbench({
                       placeholder={copy.panel.actionReasonPlaceholder}
                       className="mt-1"
                     />
+                  </div>
+
+                  {/* Primary payment actions */}
+                  <div className="space-y-2">
+                    <p className="text-xs font-medium text-neutral-500 uppercase tracking-wide">Betalingshandlinger</p>
+                    <div className="grid grid-cols-2 xl:grid-cols-3 gap-2">
+                      <Button
+                        variant="outline"
+                        disabled={actionLoading !== null}
+                        onClick={() => runOrderAction('mark_deposit_paid', { reason: actionReason || undefined })}
+                        className="justify-start"
+                      >
+                        {actionLoading === 'mark_deposit_paid' ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                        {copy.panel.actions.markDepositPaid}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        disabled={actionLoading !== null}
+                        onClick={() => runOrderAction('mark_remainder_paid', { reason: actionReason || undefined })}
+                        className="justify-start"
+                      >
+                        {actionLoading === 'mark_remainder_paid' ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                        {copy.panel.actions.markRemainderPaid}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        disabled={actionLoading !== null}
+                        onClick={() => runOrderAction('sync_status', { reason: actionReason || undefined })}
+                        className="justify-start"
+                      >
+                        {actionLoading === 'sync_status' ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                        {copy.panel.actions.syncStatus}
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Advanced / destructive actions toggle */}
+                  <div className="mt-4">
+                    <button
+                      type="button"
+                      onClick={() => setShowAdvancedActions((prev) => !prev)}
+                      className="flex items-center gap-1.5 text-xs text-neutral-500 hover:text-neutral-800 transition-colors"
+                    >
+                      {showAdvancedActions ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                      {showAdvancedActions ? 'Skjul avanserte handlinger' : 'Vis avanserte handlinger'}
+                    </button>
+
+                    {showAdvancedActions && (
+                      <div className="mt-3 space-y-2">
+                        <p className="text-xs font-medium text-red-600 uppercase tracking-wide">Avanserte handlinger</p>
+                        <div className="grid grid-cols-2 xl:grid-cols-4 gap-2">
+                          <Button
+                            variant="outline"
+                            disabled={actionLoading !== null}
+                            className="justify-start border-red-200 text-red-700 hover:bg-red-50"
+                            onClick={() => openConfirmDialog(
+                              'cancel_order',
+                              (copy as any).confirm?.cancelTitle ?? 'Bekreft kansellering',
+                              (copy as any).confirm?.cancelDescription ?? 'Er du sikker på at du vil kansellere denne ordren?'
+                            )}
+                          >
+                            {actionLoading === 'cancel_order' ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                            {copy.panel.actions.cancel}
+                          </Button>
+                          <Button
+                            variant="outline"
+                            disabled={actionLoading !== null}
+                            className="justify-start border-red-200 text-red-700 hover:bg-red-50"
+                            onClick={() => openConfirmDialog(
+                              'cancel_and_refund',
+                              (copy as any).confirm?.cancelAndRefundTitle ?? 'Bekreft kansellering og refusjon',
+                              (copy as any).confirm?.cancelAndRefundDescription ?? 'Er du sikker? Ordren kanselleres og depositum refunderes.'
+                            )}
+                          >
+                            {actionLoading === 'cancel_and_refund' ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                            {copy.panel.actions.cancelAndRefund}
+                          </Button>
+                          <Button
+                            variant="outline"
+                            disabled={actionLoading !== null}
+                            className="justify-start border-amber-200 text-amber-700 hover:bg-amber-50"
+                            onClick={() => openConfirmDialog(
+                              'refund_deposit',
+                              (copy as any).confirm?.refundDepositTitle ?? 'Bekreft refusjon',
+                              (copy as any).confirm?.refundDepositDescription ?? 'Er du sikker på at du vil refundere depositum?'
+                            )}
+                          >
+                            {actionLoading === 'refund_deposit' ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                            {copy.panel.actions.refundDeposit}
+                          </Button>
+                          <Button
+                            variant="outline"
+                            disabled={actionLoading !== null}
+                            className="justify-start"
+                            onClick={() => runOrderAction('mark_deposit_refunded', { reason: actionReason || undefined })}
+                          >
+                            {actionLoading === 'mark_deposit_refunded' ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                            {copy.panel.actions.markDepositRefunded}
+                          </Button>
+                          <Button
+                            variant="outline"
+                            disabled={actionLoading !== null}
+                            className="justify-start"
+                            onClick={() => runOrderAction('mark_remainder_refunded', { reason: actionReason || undefined })}
+                          >
+                            {actionLoading === 'mark_remainder_refunded' ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                            {copy.panel.actions.markRemainderRefunded}
+                          </Button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </Card>
 
@@ -2230,6 +2652,29 @@ export function EggOrdersWorkbench({
           </div>
         </div>
       )}
+
+      {/* Confirm dialog for destructive actions */}
+      <AlertDialog open={confirmDialog.open} onOpenChange={(open) => setConfirmDialog((prev) => ({ ...prev, open }))}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{confirmDialog.title}</AlertDialogTitle>
+            <AlertDialogDescription>{confirmDialog.description}</AlertDialogDescription>
+          </AlertDialogHeader>
+          {actionReason && (
+            <p className="text-sm text-neutral-600 px-1">
+              Årsak: <em>{actionReason}</em>
+            </p>
+          )}
+          <AlertDialogFooter>
+            <AlertDialogCancel>
+              {(copy as any).confirm?.cancelButton ?? 'Avbryt'}
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmedAction}>
+              {(copy as any).confirm?.confirmButton ?? 'Bekreft'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <Dialog open={trackingModalOpen} onOpenChange={setTrackingModalOpen}>
         <DialogContent>
