@@ -3,9 +3,10 @@ import { getSession } from '@/lib/auth/session'
 import { finalizeConfirmedEggOrder } from '@/lib/eggs/order-confirmation'
 import { supabaseAdmin } from '@/lib/supabase/server'
 import { initiateVippsRefund } from '@/lib/vipps/refund'
+import { vippsClient } from '@/lib/vipps/api-client'
 import { dispatchEmail } from '@/lib/email/dispatch'
 import { reconcileEggPaymentDependentFlowInstances } from '@/lib/email/lifecycle'
-import { renderManagedTemplate } from '@/lib/email/render'
+import { renderManagedTemplate, emailButton, emailDivider, emailTipBox, emailStoryFooter, ensureHtmlDocument } from '@/lib/email/render'
 import { buildCustomerOrderLink } from '@/lib/email/links'
 import { buildEggOrderLinesHtml, summarizeEggOrderLines } from '@/lib/eggs/email-lines'
 import { logError } from '@/lib/logger'
@@ -793,6 +794,338 @@ async function markEggOrderShipped(
   return NextResponse.json({ success: true, trackingNumber: effective })
 }
 
+const WISHLIST_DISCOUNT_FACTOR = 0.70 // 30% off
+
+function buildWishlistFulfillmentEmail(options: {
+  customerName: string
+  orderNumber: string
+  items: Array<{ breedName: string; qty: number; discountedPriceOre: number; subtotalOre: number }>
+  totalOre: number
+  discountPct: number
+  paymentUrl: string
+  orderUrl: string
+}): string {
+  const { customerName, orderNumber, items, totalOre, discountPct, paymentUrl, orderUrl } = options
+  const firstName = customerName.trim().split(/\s+/)[0] || customerName
+  const totalNok = Math.round(totalOre / 100)
+  const totalQty = items.reduce((s, i) => s + i.qty, 0)
+
+  const itemRowsHtml = items
+    .map((item) => {
+      const unitNok = Math.round(item.discountedPriceOre / 100)
+      const subNok = Math.round(item.subtotalOre / 100)
+      return `<tr>
+        <td style="padding:10px 14px;font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#1C1210;border-bottom:1px solid #E8DFD5;">${item.breedName}</td>
+        <td style="padding:10px 14px;font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#1C1210;border-bottom:1px solid #E8DFD5;text-align:center;">${item.qty} stk</td>
+        <td style="padding:10px 14px;font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#1C1210;border-bottom:1px solid #E8DFD5;text-align:right;">kr ${unitNok}/egg</td>
+        <td style="padding:10px 14px;font-family:Arial,Helvetica,sans-serif;font-size:14px;font-weight:700;color:#2C1810;border-bottom:1px solid #E8DFD5;text-align:right;">kr ${subNok}</td>
+      </tr>`
+    })
+    .join('')
+
+  const tableHtml = `<table role="presentation" cellspacing="0" cellpadding="0" style="width:100%;border-collapse:collapse;border:1px solid #E8DFD5;border-radius:8px;overflow:hidden;margin:0 0 24px;">
+    <thead>
+      <tr style="background:#FAF8F5;">
+        <th style="padding:10px 14px;font-family:Arial,Helvetica,sans-serif;font-size:12px;font-weight:700;color:#6B5B4E;text-transform:uppercase;letter-spacing:0.4px;text-align:left;border-bottom:1px solid #E8DFD5;">Rase</th>
+        <th style="padding:10px 14px;font-family:Arial,Helvetica,sans-serif;font-size:12px;font-weight:700;color:#6B5B4E;text-transform:uppercase;letter-spacing:0.4px;text-align:center;border-bottom:1px solid #E8DFD5;">Antall</th>
+        <th style="padding:10px 14px;font-family:Arial,Helvetica,sans-serif;font-size:12px;font-weight:700;color:#6B5B4E;text-transform:uppercase;letter-spacing:0.4px;text-align:right;border-bottom:1px solid #E8DFD5;">Pris/egg</th>
+        <th style="padding:10px 14px;font-family:Arial,Helvetica,sans-serif;font-size:12px;font-weight:700;color:#6B5B4E;text-transform:uppercase;letter-spacing:0.4px;text-align:right;border-bottom:1px solid #E8DFD5;">Sum</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${itemRowsHtml}
+      <tr style="background:#FAF8F5;">
+        <td colspan="3" style="padding:12px 14px;font-family:Arial,Helvetica,sans-serif;font-size:14px;font-weight:700;color:#1C1210;text-align:right;">Totalt å betale</td>
+        <td style="padding:12px 14px;font-family:Arial,Helvetica,sans-serif;font-size:15px;font-weight:700;color:#2C1810;text-align:right;">kr ${totalNok}</td>
+      </tr>
+    </tbody>
+  </table>`
+
+  const body = [
+    `<p style="margin:0 0 18px;"><span style="display:inline-block;font-family:Arial,Helvetica,sans-serif;font-size:12px;font-weight:700;color:#2D6A4F;background:#ECFDF5;border:1px solid #BBF7D0;border-radius:20px;padding:5px 14px;letter-spacing:0.4px;text-transform:uppercase;">${discountPct}% rabatt — ønskelistegg</span></p>`,
+    `<p style="font-size:16px;line-height:1.6;margin:0 0 16px;font-family:Arial,Helvetica,sans-serif;color:#1C1210;">Hei ${firstName},</p>`,
+    `<p style="font-size:16px;line-height:1.6;margin:0 0 16px;font-family:Arial,Helvetica,sans-serif;color:#1C1210;">Vi hadde ekstra rugeegg tilgjengelig i dag og la <strong>${totalQty} egg</strong> i pakken din (<strong>${orderNumber}</strong>) — akkurat som du ønsket!</p>`,
+    `<p style="font-size:15px;line-height:1.6;margin:0 0 24px;font-family:Arial,Helvetica,sans-serif;color:#6B5B4E;">Som takk for at du stod på ønskelisten, gir vi deg <strong>${discountPct}% rabatt</strong> på disse eggene. Eggene er allerede pakket og sendes i dag.</p>`,
+    tableHtml,
+    `<p style="font-size:15px;line-height:1.6;margin:0 0 8px;font-family:Arial,Helvetica,sans-serif;color:#1C1210;font-weight:700;">Betal enkelt og trygt med Vipps:</p>`,
+    emailButton(`Betal kr ${totalNok} med Vipps`, paymentUrl, 'primary'),
+    `<p style="font-size:13px;line-height:1.6;margin:0 0 24px;font-family:Arial,Helvetica,sans-serif;color:#6B5B4E;">Betalingslenken er gyldig i 24 timer. Har du spørsmål, logger du inn på <a href="${orderUrl}" style="color:#8B6914;text-decoration:none;font-weight:600;">Min side</a> og sender oss en melding.</p>`,
+    emailDivider(),
+    emailTipBox('eggs', 3),
+    emailStoryFooter('eggs', 2),
+  ].join('')
+
+  return ensureHtmlDocument(
+    body,
+    'no',
+    `${totalQty} ekstra egg lagt i pakken — betal kr ${totalNok} med Vipps`,
+    { productScope: 'eggs', classification: 'transactional' }
+  )
+}
+
+async function fulfillWishlistItems(
+  orderId: string,
+  items: Array<{ wishlistItemId: string; breedId: string; qty: number }>,
+  reason?: string
+): Promise<NextResponse> {
+  if (!Array.isArray(items) || items.length === 0) {
+    return NextResponse.json({ error: 'No items provided' }, { status: 400 })
+  }
+
+  const validItems = items.filter(
+    (item) => item.wishlistItemId && item.breedId && Number.isFinite(item.qty) && item.qty > 0
+  )
+  if (validItems.length === 0) {
+    return NextResponse.json({ error: 'All items have qty 0' }, { status: 400 })
+  }
+
+  // Fetch order
+  const { data: order, error: orderError } = await supabaseAdmin
+    .from('egg_orders')
+    .select('id, order_number, status, customer_email, customer_name, year, week_number, admin_notes, delivery_monday')
+    .eq('id', orderId)
+    .single()
+
+  if (orderError || !order) {
+    return NextResponse.json({ error: 'Order not found' }, { status: 404 })
+  }
+
+  // Fetch and validate wishlist items
+  const wishlistItemIds = validItems.map((i) => i.wishlistItemId)
+  const { data: dbWishlistItems, error: wishlistError } = await supabaseAdmin
+    .from('egg_wishlist_items')
+    .select('id, breed_id, qty_requested, qty_allocated, qty_remaining, request_id, egg_breeds(name, price_per_egg)')
+    .in('id', wishlistItemIds)
+
+  if (wishlistError || !dbWishlistItems || dbWishlistItems.length !== wishlistItemIds.length) {
+    return NextResponse.json({ error: 'One or more wishlist items not found' }, { status: 404 })
+  }
+
+  const wishlistItemMap = new Map(dbWishlistItems.map((item) => [item.id, item]))
+
+  // Resolve inventory and build addition rows
+  type AdditionRow = {
+    breed_id: string
+    inventory_id: string
+    quantity: number
+    price_per_egg: number
+    subtotal: number
+    breedName: string
+  }
+  const additions: AdditionRow[] = []
+
+  for (const fulfillItem of validItems) {
+    const dbItem = wishlistItemMap.get(fulfillItem.wishlistItemId)
+    if (!dbItem) {
+      return NextResponse.json({ error: `Wishlist item not found: ${fulfillItem.wishlistItemId}` }, { status: 404 })
+    }
+
+    const remaining = dbItem.qty_remaining ?? (dbItem.qty_requested - (dbItem.qty_allocated || 0))
+    if (fulfillItem.qty > remaining) {
+      return NextResponse.json({
+        error: `Qty ${fulfillItem.qty} exceeds remaining ${remaining} for ${(dbItem as any).egg_breeds?.name || fulfillItem.breedId}`,
+      }, { status: 400 })
+    }
+
+    // Look up inventory for this breed in the order's delivery week
+    const { data: inventory, error: invError } = await supabaseAdmin
+      .from('egg_inventory')
+      .select('id, eggs_available, eggs_allocated, eggs_remaining')
+      .eq('breed_id', fulfillItem.breedId)
+      .eq('year', order.year)
+      .eq('week_number', order.week_number)
+      .maybeSingle()
+
+    if (invError || !inventory) {
+      return NextResponse.json({
+        error: `No inventory found for this breed in week ${order.week_number}/${order.year}`,
+      }, { status: 400 })
+    }
+
+    const eggsRemaining = inventory.eggs_remaining ?? (inventory.eggs_available - (inventory.eggs_allocated || 0))
+    if (eggsRemaining < fulfillItem.qty) {
+      return NextResponse.json({
+        error: `Not enough eggs available: need ${fulfillItem.qty}, have ${eggsRemaining}`,
+      }, { status: 400 })
+    }
+
+    const fullPriceOre = Number((dbItem as any).egg_breeds?.price_per_egg || 0)
+    const discountedPriceOre = Math.round(fullPriceOre * WISHLIST_DISCOUNT_FACTOR)
+    const subtotalOre = fulfillItem.qty * discountedPriceOre
+
+    additions.push({
+      breed_id: fulfillItem.breedId,
+      inventory_id: inventory.id,
+      quantity: fulfillItem.qty,
+      price_per_egg: discountedPriceOre,
+      subtotal: subtotalOre,
+      breedName: String((dbItem as any).egg_breeds?.name || 'Rugeegg'),
+    })
+  }
+
+  // All validations passed — execute
+
+  // 1. Create egg_order_additions
+  const { error: additionsError } = await supabaseAdmin
+    .from('egg_order_additions')
+    .insert(
+      additions.map((a) => ({
+        egg_order_id: orderId,
+        breed_id: a.breed_id,
+        inventory_id: a.inventory_id,
+        quantity: a.quantity,
+        price_per_egg: a.price_per_egg,
+        subtotal: a.subtotal,
+      }))
+    )
+
+  if (additionsError) {
+    logError('fulfill-wishlist-additions-insert', additionsError)
+    return NextResponse.json({ error: 'Failed to create order additions' }, { status: 500 })
+  }
+
+  // 2. Allocate inventory for each addition
+  for (const addition of additions) {
+    try {
+      await allocateInventory(addition.inventory_id, addition.quantity)
+    } catch (e) {
+      logError('fulfill-wishlist-inventory-allocate', e)
+    }
+  }
+
+  // 3. Update wishlist items qty_allocated
+  for (const fulfillItem of validItems) {
+    const dbItem = wishlistItemMap.get(fulfillItem.wishlistItemId)!
+    const nextAllocated = (dbItem.qty_allocated || 0) + fulfillItem.qty
+    await supabaseAdmin
+      .from('egg_wishlist_items')
+      .update({ qty_allocated: nextAllocated })
+      .eq('id', fulfillItem.wishlistItemId)
+  }
+
+  // 4. Update parent wishlist request status
+  const requestIds = [...new Set(dbWishlistItems.map((item) => item.request_id).filter(Boolean))]
+  for (const requestId of requestIds) {
+    const { data: reqItems } = await supabaseAdmin
+      .from('egg_wishlist_items')
+      .select('id, qty_requested, qty_allocated')
+      .eq('request_id', requestId)
+
+    if (!reqItems) continue
+
+    // Build a map of items we just updated so we can compute the accurate new remaining
+    const updatesForRequest = new Map(
+      validItems
+        .filter((vi) => wishlistItemMap.get(vi.wishlistItemId)?.request_id === requestId)
+        .map((vi) => [vi.wishlistItemId, vi.qty])
+    )
+
+    const totalRemaining = reqItems.reduce((sum, item) => {
+      const additionalAllocation = updatesForRequest.get(item.id) || 0
+      const newAllocated = (item.qty_allocated || 0) + additionalAllocation
+      return sum + Math.max(0, (item.qty_requested || 0) - newAllocated)
+    }, 0)
+
+    const nextStatus = totalRemaining <= 0 ? 'allocated' : 'partially_allocated'
+    await supabaseAdmin
+      .from('egg_wishlist_requests')
+      .update({ status: nextStatus })
+      .eq('id', requestId)
+  }
+
+  // 5. Create Vipps payment session
+  const totalOre = additions.reduce((sum, a) => sum + a.subtotal, 0)
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_BASE_URL || 'https://tinglumgard.no'
+  const shortReference = `EGG-WISH-${order.order_number}-${Date.now()}`
+  const { randomBytes } = await import('crypto')
+  const callbackToken = randomBytes(16).toString('hex')
+
+  let paymentUrl = `${appUrl}/rugeegg/mine-bestillinger/${orderId}/betaling`
+
+  try {
+    const sessionData = {
+      merchantInfo: {
+        callbackUrl: `${appUrl}/api/webhooks/vipps`,
+        returnUrl: `${appUrl}/rugeegg/mine-bestillinger/${orderId}/betaling-bekreftet?orderId=${orderId}&paymentType=addition_deposit`,
+        termsAndConditionsUrl: `${appUrl}/vilkar`,
+        callbackAuthorizationToken: callbackToken,
+      },
+      transaction: {
+        amount: { currency: 'NOK', value: totalOre },
+        reference: shortReference,
+        paymentDescription: `Ønskelistegg (30% rabatt) ${order.order_number}`,
+      },
+      configuration: {
+        userFlow: 'WEB_REDIRECT',
+        elements: 'PaymentOnly',
+      },
+    }
+
+    const vippsResult = await vippsClient.createCheckoutSession(sessionData)
+
+    await supabaseAdmin.from('egg_payments').insert({
+      egg_order_id: orderId,
+      payment_type: 'addition_deposit',
+      amount_nok: Math.round(totalOre / 100),
+      vipps_order_id: vippsResult.sessionId,
+      vipps_callback_token: callbackToken,
+      status: 'pending',
+      idempotency_key: shortReference,
+    })
+
+    if (vippsResult.checkoutFrontendUrl) {
+      paymentUrl = vippsResult.checkoutFrontendUrl
+    }
+  } catch (e) {
+    logError('fulfill-wishlist-vipps', e)
+    // Continue — email will fall back to order page link
+  }
+
+  // 6. Send fulfillment email
+  try {
+    const emailItems = additions.map((a, i) => ({
+      breedName: a.breedName,
+      qty: a.quantity,
+      discountedPriceOre: a.price_per_egg,
+      subtotalOre: a.subtotal,
+    }))
+
+    const emailHtml = buildWishlistFulfillmentEmail({
+      customerName: order.customer_name || 'Kunde',
+      orderNumber: order.order_number,
+      items: emailItems,
+      totalOre,
+      discountPct: 30,
+      paymentUrl,
+      orderUrl: buildCustomerOrderLink(appUrl, 'egg', orderId),
+    })
+
+    await dispatchEmail({
+      to: order.customer_email,
+      subject: `Ekstra egg lagt til i pakken din (${order.order_number})`,
+      html: emailHtml,
+      classification: 'transactional',
+      locale: 'no',
+      sourcePath: '/api/admin/eggs/orders/[id]/actions',
+      eggOrderId: orderId,
+      templateKey: 'egg.wishlist.fulfillment',
+      metadata: { flow_key: 'egg.wishlist.fulfillment', total_ore: totalOre, discount_pct: 30 },
+    })
+  } catch (e) {
+    logError('fulfill-wishlist-email', e)
+  }
+
+  // 7. Admin note
+  const noteLines = additions.map((a) => `${a.quantity}× ${a.breedName} @ 70%`).join(', ')
+  await appendAdminNote(
+    orderId,
+    order.admin_notes,
+    `Admin: wishlist fulfillment — ${noteLines}, total kr ${Math.round(totalOre / 100)} (30% rabatt)${reason ? ` - ${reason}` : ''}`
+  )
+
+  return NextResponse.json({ success: true, totalOre, paymentUrl })
+}
+
 export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -842,6 +1175,8 @@ export async function POST(
         return await setEggOrderStatus(params.id, data?.status, data?.reason)
       case 'mark_shipped':
         return await markEggOrderShipped(params.id, data?.trackingNumber, data?.reason)
+      case 'fulfill_wishlist':
+        return await fulfillWishlistItems(params.id, data?.items || [], data?.reason)
       default:
         return NextResponse.json({ error: 'Unknown action' }, { status: 400 })
     }

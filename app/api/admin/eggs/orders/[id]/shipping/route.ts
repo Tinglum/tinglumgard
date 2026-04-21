@@ -37,7 +37,7 @@ export async function GET(
     .from('egg_wishlist_requests')
     .select(
       `id, status, year, week_number, delivery_monday, notes,
-       egg_wishlist_items(id, breed_id, qty_requested, qty_allocated, qty_remaining, egg_breeds(name))`
+       egg_wishlist_items(id, breed_id, qty_requested, qty_allocated, qty_remaining, egg_breeds(name, price_per_egg))`
     )
     .eq('order_id', order.id)
     .not('status', 'in', '(cancelled,expired)')

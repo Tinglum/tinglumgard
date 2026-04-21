@@ -14,6 +14,7 @@ import {
   CheckCircle2,
   Copy,
   Egg,
+  Gift,
   Loader2,
   MapPin,
   Package,
@@ -22,7 +23,10 @@ import {
   Star,
   User,
   Mail,
+  X,
 } from 'lucide-react'
+
+const WISHLIST_DISCOUNT = 0.30
 
 interface ShippingOrder {
   id: string
@@ -62,6 +66,15 @@ interface ShippingOrder {
   }>
 }
 
+interface WishlistItem {
+  id: string
+  breed_id: string
+  qty_requested: number
+  qty_allocated: number
+  qty_remaining: number
+  egg_breeds?: { name: string; price_per_egg?: number } | null
+}
+
 interface WishlistRequest {
   id: string
   status: string
@@ -69,14 +82,7 @@ interface WishlistRequest {
   week_number: number
   delivery_monday: string | null
   notes: string | null
-  egg_wishlist_items?: Array<{
-    id: string
-    breed_id: string
-    qty_requested: number
-    qty_allocated: number
-    qty_remaining: number
-    egg_breeds?: { name: string } | null
-  }>
+  egg_wishlist_items?: WishlistItem[]
 }
 
 interface ShippingMeta {
@@ -91,6 +97,15 @@ interface EggShippingModalProps {
   lang: string
 }
 
+interface FulfillItem {
+  wishlistItemId: string
+  breedId: string
+  breedName: string
+  qtyMax: number
+  qty: number
+  pricePerEggOre: number
+}
+
 export function EggShippingModal({ orderId, open, onClose, lang }: EggShippingModalProps) {
   const { toast } = useToast()
   const [loading, setLoading] = useState(false)
@@ -99,6 +114,10 @@ export function EggShippingModal({ orderId, open, onClose, lang }: EggShippingMo
   const [wishlist, setWishlist] = useState<WishlistRequest[]>([])
   const [meta, setMeta] = useState<ShippingMeta | null>(null)
   const [trackingNumber, setTrackingNumber] = useState('')
+
+  const [fulfillMode, setFulfillMode] = useState(false)
+  const [fulfillItems, setFulfillItems] = useState<FulfillItem[]>([])
+  const [fulfillSubmitting, setFulfillSubmitting] = useState(false)
 
   const fetchData = useCallback(async () => {
     if (!orderId) return
@@ -130,6 +149,8 @@ export function EggShippingModal({ orderId, open, onClose, lang }: EggShippingMo
       setWishlist([])
       setMeta(null)
       setTrackingNumber('')
+      setFulfillMode(false)
+      setFulfillItems([])
     }
   }, [open, orderId, fetchData])
 
@@ -175,6 +196,88 @@ export function EggShippingModal({ orderId, open, onClose, lang }: EggShippingMo
     })
   }
 
+  function enterFulfillMode() {
+    const items: FulfillItem[] = []
+    for (const req of wishlist) {
+      for (const item of req.egg_wishlist_items || []) {
+        if (item.qty_remaining > 0) {
+          items.push({
+            wishlistItemId: item.id,
+            breedId: item.breed_id,
+            breedName: item.egg_breeds?.name || 'Ukjent rase',
+            qtyMax: item.qty_remaining,
+            qty: item.qty_remaining,
+            pricePerEggOre: item.egg_breeds?.price_per_egg || 0,
+          })
+        }
+      }
+    }
+    setFulfillItems(items)
+    setFulfillMode(true)
+  }
+
+  function updateFulfillQty(wishlistItemId: string, qty: number) {
+    setFulfillItems((prev) =>
+      prev.map((item) =>
+        item.wishlistItemId === wishlistItemId
+          ? { ...item, qty: Math.min(item.qtyMax, Math.max(0, Math.round(qty))) }
+          : item
+      )
+    )
+  }
+
+  const totalFulfillOre = fulfillItems
+    .filter((item) => item.qty > 0)
+    .reduce((sum, item) => {
+      const discountedPrice = Math.round(item.pricePerEggOre * (1 - WISHLIST_DISCOUNT))
+      return sum + item.qty * discountedPrice
+    }, 0)
+
+  async function handleFulfillWishlist() {
+    if (!order) return
+    const activeItems = fulfillItems.filter((item) => item.qty > 0)
+    if (activeItems.length === 0) return
+
+    setFulfillSubmitting(true)
+    try {
+      const res = await fetch(`/api/admin/eggs/orders/${order.id}/actions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'fulfill_wishlist',
+          data: {
+            items: activeItems.map((item) => ({
+              wishlistItemId: item.wishlistItemId,
+              breedId: item.breedId,
+              qty: item.qty,
+            })),
+          },
+        }),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.error || 'Failed')
+      }
+      const totalNok = Math.round(totalFulfillOre / 100)
+      toast({
+        title: lang === 'no' ? 'Betalingslink sendt!' : 'Payment link sent!',
+        description: lang === 'no'
+          ? `${order.customer_email} har fått e-post med betalingslink — kr ${totalNok}`
+          : `Payment link sent to ${order.customer_email} — kr ${totalNok}`,
+      })
+      setFulfillMode(false)
+      await fetchData()
+    } catch (e: any) {
+      toast({
+        title: lang === 'no' ? 'Feil' : 'Error',
+        description: e.message || 'Unknown error',
+        variant: 'destructive',
+      })
+    } finally {
+      setFulfillSubmitting(false)
+    }
+  }
+
   const shippingName = order?.shipping_name || order?.customer_name || ''
   const shippingPhone = order?.shipping_phone || order?.customer_phone || ''
   const shippingEmail = order?.shipping_email || order?.customer_email || ''
@@ -188,7 +291,6 @@ export function EggShippingModal({ orderId, open, onClose, lang }: EggShippingMo
 
   const isAlreadyShipped = order?.status === 'shipped' || order?.status === 'delivered'
 
-  // Build egg lines: base order + additions
   const eggLines: Array<{ breed: string; quantity: number; pricePerEgg: number }> = []
   if (order) {
     eggLines.push({
@@ -204,6 +306,11 @@ export function EggShippingModal({ orderId, open, onClose, lang }: EggShippingMo
       })
     }
   }
+
+  const fulfillableItems = wishlist.flatMap((req) =>
+    (req.egg_wishlist_items || []).filter((item) => item.qty_remaining > 0)
+  )
+  const hasFulfillable = fulfillableItems.length > 0
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
@@ -275,35 +382,154 @@ export function EggShippingModal({ orderId, open, onClose, lang }: EggShippingMo
                   <Star className="w-4 h-4" />
                   {lang === 'no' ? 'Ønskeliste' : 'Wishlist'}
                 </h3>
-                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 space-y-2">
-                  {wishlist.map((req) => (
-                    <div key={req.id}>
-                      <p className="text-xs text-amber-700 mb-1">
-                        {lang === 'no' ? 'Uke' : 'Week'} {req.week_number}/{req.year} — {req.status}
-                      </p>
-                      {(req.egg_wishlist_items || []).map((item) => (
-                        <div key={item.id} className="flex items-center justify-between text-sm">
-                          <span className="text-neutral-900">{item.egg_breeds?.name || 'Ukjent'}</span>
-                          <span className="text-neutral-600 tabular-nums">
-                            {item.qty_allocated}/{item.qty_requested}
-                            {item.qty_remaining > 0 && (
-                              <span className="text-amber-600 ml-1">
-                                ({item.qty_remaining} {lang === 'no' ? 'gjenstår' : 'remaining'})
+
+                {!fulfillMode ? (
+                  <>
+                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 space-y-2">
+                      {wishlist.map((req) => (
+                        <div key={req.id}>
+                          <p className="text-xs text-amber-700 mb-1">
+                            {lang === 'no' ? 'Uke' : 'Week'} {req.week_number}/{req.year} — {req.status}
+                          </p>
+                          {(req.egg_wishlist_items || []).map((item) => (
+                            <div key={item.id} className="flex items-center justify-between text-sm">
+                              <span className="text-neutral-900">{item.egg_breeds?.name || 'Ukjent'}</span>
+                              <span className="text-neutral-600 tabular-nums">
+                                {item.qty_allocated}/{item.qty_requested}
+                                {item.qty_remaining > 0 && (
+                                  <span className="text-amber-600 ml-1">
+                                    ({item.qty_remaining} {lang === 'no' ? 'gjenstår' : 'remaining'})
+                                  </span>
+                                )}
                               </span>
-                            )}
-                          </span>
+                            </div>
+                          ))}
+                          {req.notes && (
+                            <p className="text-xs text-amber-600 mt-1 italic">{req.notes}</p>
+                          )}
                         </div>
                       ))}
-                      {req.notes && (
-                        <p className="text-xs text-amber-600 mt-1 italic">{req.notes}</p>
-                      )}
                     </div>
-                  ))}
-                </div>
+
+                    {hasFulfillable && !isAlreadyShipped && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={enterFulfillMode}
+                        className="w-full mt-2 border-amber-300 text-amber-800 hover:bg-amber-50 hover:border-amber-400"
+                      >
+                        <Gift className="w-4 h-4 mr-2" />
+                        {lang === 'no'
+                          ? `Tildel ønskelistegg — 30% rabatt`
+                          : `Fulfill wishlist eggs — 30% off`}
+                      </Button>
+                    )}
+                  </>
+                ) : (
+                  /* Fulfillment panel */
+                  <div className="bg-amber-50 border border-amber-300 rounded-lg p-4 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-semibold text-amber-900 flex items-center gap-1.5">
+                        <Gift className="w-4 h-4" />
+                        {lang === 'no' ? 'Tildel ekstra egg — 30% rabatt' : 'Fulfill extra eggs — 30% off'}
+                      </p>
+                      <button
+                        onClick={() => setFulfillMode(false)}
+                        className="text-amber-600 hover:text-amber-900 p-0.5 rounded"
+                        aria-label="Cancel"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+
+                    <p className="text-xs text-amber-700 leading-relaxed">
+                      {lang === 'no'
+                        ? 'Velg antall per rase. Kunden mottar e-post med Vipps-betalingslink.'
+                        : 'Choose qty per breed. Customer receives email with Vipps payment link.'}
+                    </p>
+
+                    <div className="space-y-3">
+                      {fulfillItems.map((item) => {
+                        const discountedOre = Math.round(item.pricePerEggOre * (1 - WISHLIST_DISCOUNT))
+                        const subtotalOre = item.qty * discountedOre
+                        return (
+                          <div key={item.wishlistItemId} className="space-y-1.5">
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm font-medium text-neutral-900">
+                                {item.breedName}
+                              </span>
+                              <div className="flex items-center gap-2 text-xs">
+                                {item.pricePerEggOre > 0 && (
+                                  <span className="text-neutral-400 line-through">
+                                    kr {Math.round(item.pricePerEggOre / 100)}/egg
+                                  </span>
+                                )}
+                                {discountedOre > 0 && (
+                                  <span className="text-green-700 font-semibold">
+                                    kr {Math.round(discountedOre / 100)}/egg
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <input
+                                type="number"
+                                min={0}
+                                max={item.qtyMax}
+                                value={item.qty}
+                                onChange={(e) =>
+                                  updateFulfillQty(item.wishlistItemId, Number(e.target.value))
+                                }
+                                className="w-20 text-sm border border-amber-200 rounded-md px-2 py-1.5 bg-white tabular-nums focus:outline-none focus:ring-2 focus:ring-amber-400"
+                              />
+                              <span className="text-xs text-amber-700">
+                                {lang === 'no' ? `maks ${item.qtyMax}` : `max ${item.qtyMax}`}
+                              </span>
+                              {subtotalOre > 0 && (
+                                <span className="ml-auto text-sm font-semibold text-neutral-800">
+                                  kr {Math.round(subtotalOre / 100)}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+
+                    <div className="border-t border-amber-200 pt-3 flex items-center justify-between">
+                      <span className="text-sm font-medium text-neutral-700">
+                        {lang === 'no' ? 'Totalt å betale' : 'Total to pay'}
+                      </span>
+                      <span className="text-base font-bold text-neutral-900">
+                        kr {Math.round(totalFulfillOre / 100)}
+                      </span>
+                    </div>
+
+                    <Button
+                      onClick={handleFulfillWishlist}
+                      disabled={fulfillSubmitting || totalFulfillOre <= 0}
+                      size="sm"
+                      className="w-full bg-amber-700 hover:bg-amber-800 text-white"
+                    >
+                      {fulfillSubmitting ? (
+                        <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                      ) : (
+                        <Send className="w-4 h-4 mr-2" />
+                      )}
+                      {lang === 'no' ? 'Send betalingslink til kunde' : 'Send payment link to customer'}
+                    </Button>
+
+                    <p className="text-xs text-amber-700 text-center">
+                      {lang === 'no'
+                        ? `Kunden får e-post med Vipps-link til kr ${Math.round(totalFulfillOre / 100)}`
+                        : `Customer gets email with Vipps link for kr ${Math.round(totalFulfillOre / 100)}`}
+                    </p>
+                  </div>
+                )}
               </section>
             )}
 
-            {/* Shipping address — Posten data */}
+            {/* Shipping address */}
             <section>
               <h3 className="text-sm font-medium text-neutral-700 mb-2 flex items-center gap-1.5">
                 <MapPin className="w-4 h-4" />
@@ -320,7 +546,6 @@ export function EggShippingModal({ orderId, open, onClose, lang }: EggShippingMo
                 {shippingEmail && (
                   <CopyRow icon={<Mail className="w-3.5 h-3.5" />} label={shippingEmail} onCopy={() => copyToClipboard(shippingEmail)} />
                 )}
-
                 {!shippingAddress && (
                   <p className="text-xs text-red-600 flex items-center gap-1">
                     ⚠ {lang === 'no' ? 'Adresse mangler!' : 'Address missing!'}
@@ -339,7 +564,7 @@ export function EggShippingModal({ orderId, open, onClose, lang }: EggShippingMo
               </section>
             )}
 
-            {/* Tracking number input + Ship button */}
+            {/* Tracking number + Ship button */}
             {!isAlreadyShipped && (
               <section className="border-t border-neutral-200 pt-4 space-y-3">
                 <div>
