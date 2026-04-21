@@ -695,25 +695,47 @@ async function markEggOrderShipped(
     return NextResponse.json({ error: 'Order must be fully paid or preparing' }, { status: 400 })
   }
 
-  const effective = trackingNumber || order.tracking_number
-  if (!effective) {
+  const raw = (trackingNumber || order.tracking_number || '').trim()
+  if (!raw) {
     return NextResponse.json({ error: 'Tracking number required' }, { status: 400 })
   }
-  // Accept: Posten tracking URL, ND-prefixed code, or numeric tracking number (10+ digits)
-  const isValidTracking =
-    /^https?:\/\/(sporing|tracking)\.posten\.no\b/i.test(effective) ||
-    /^(ND|NO)\d+$/i.test(effective) ||
-    /^\d{10,}$/.test(effective)
-  if (!isValidTracking) {
+
+  // Normalise any Posten input format into a clean tracking ID + URL.
+  // Accepts:
+  //   1. Full URL  — https://sporing.posten.no/sporing/370722152417281240
+  //   2. Item number or consignment number — 370722152417281240 (pure digits, 10+)
+  //   3. Legacy ND/NO prefix — ND123456789NO
+  function resolvePostenTracking(input: string): { trackingId: string; trackingUrl: string } | null {
+    // Full sporing/tracking URL → extract the path segment after /sporing/
+    const urlMatch = input.match(/^https?:\/\/(?:sporing|tracking)\.posten\.no\/sporing\/([^\s/?#]+)/i)
+    if (urlMatch) {
+      const id = urlMatch[1]
+      return { trackingId: id, trackingUrl: `https://sporing.posten.no/sporing/${id}` }
+    }
+    // Pure numeric (item number / consignment number), 10+ digits
+    if (/^\d{10,}$/.test(input)) {
+      return { trackingId: input, trackingUrl: `https://sporing.posten.no/sporing/${input}` }
+    }
+    // Legacy ND/NO prefix codes
+    if (/^(ND|NO)\d+$/i.test(input)) {
+      const id = input.toUpperCase()
+      return { trackingId: id, trackingUrl: `https://sporing.posten.no/sporing/${id}` }
+    }
+    return null
+  }
+
+  const resolved = resolvePostenTracking(raw)
+  if (!resolved) {
     return NextResponse.json({ error: 'Invalid tracking number or link' }, { status: 400 })
   }
+  const { trackingId, trackingUrl } = resolved
 
   const markedShippedAt = new Date().toISOString()
   const { error: updErr } = await supabaseAdmin
     .from('egg_orders')
     .update({
       status: 'shipped',
-      tracking_number: effective,
+      tracking_number: trackingId,
       marked_shipped_at: markedShippedAt,
       marked_delivered_at: markedShippedAt, // Posten orders: shipped = done from admin side
     })
@@ -726,10 +748,8 @@ async function markEggOrderShipped(
   await appendAdminNote(
     orderId,
     order.admin_notes,
-    `Admin: marked shipped, tracking: ${effective}${reason ? ` - ${reason}` : ''}`
+    `Admin: marked shipped, tracking: ${trackingId}${reason ? ` - ${reason}` : ''}`
   )
-
-  const trackingUrl = `https://sporing.posten.no/sporing/${effective}`
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_BASE_URL || 'https://tinglumgard.no'
   const eggSummaryNo = summarizeEggOrderLines(order as any, 'no')
   const eggSummaryEn = summarizeEggOrderLines(order as any, 'en')
@@ -754,7 +774,7 @@ async function markEggOrderShipped(
         customer_name: order.customer_name || 'Kunde',
         order_number: order.order_number,
         breed_name: eggSummaryNo.breedLabel || String((order as any)?.egg_breeds?.name || 'Rugeegg'),
-        tracking_number: effective,
+        tracking_number: trackingId,
         tracking_url: trackingUrl,
         order_lines_html: orderLinesHtml,
         order_lines_html_en: orderLinesHtmlEn,
@@ -784,14 +804,14 @@ async function markEggOrderShipped(
       templateKey: rendered.templateKey,
       metadata: {
         flow_key: 'egg.order.shipped.customer',
-        tracking_number: effective,
+        tracking_number: trackingId,
       },
     })
   } catch (e) {
     logError('admin-egg-mark-shipped-email', e)
   }
 
-  return NextResponse.json({ success: true, trackingNumber: effective })
+  return NextResponse.json({ success: true, trackingNumber: trackingId })
 }
 
 const WISHLIST_DISCOUNT_FACTOR = 0.70 // 30% off

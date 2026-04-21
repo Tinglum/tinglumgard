@@ -569,10 +569,12 @@ export function EggShippingModal({ orderId, open, onClose, lang }: EggShippingMo
               <section className="border-t border-neutral-200 pt-4 space-y-3">
                 <div>
                   <label className="text-sm font-medium text-neutral-700 block mb-1.5">
-                    {lang === 'no' ? 'Sporingsnummer (Posten)' : 'Tracking number (Posten)'}
+                    {lang === 'no'
+                      ? 'Sporingsnummer — varenummer, sending​snummer eller Posten-lenke'
+                      : 'Tracking — item number, consignment number or Posten URL'}
                   </label>
                   <Input
-                    placeholder={lang === 'no' ? 'F.eks. ND123456789NO' : 'e.g. ND123456789NO'}
+                    placeholder="370722152417281240 / sporing.posten.no/sporing/..."
                     value={trackingNumber}
                     onChange={(e) => setTrackingNumber(e.target.value)}
                     className="font-mono text-sm"
