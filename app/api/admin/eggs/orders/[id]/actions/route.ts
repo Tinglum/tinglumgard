@@ -1004,7 +1004,7 @@ async function fulfillWishlistItems(
   }
 
   // 4. Update parent wishlist request status
-  const requestIds = [...new Set(dbWishlistItems.map((item) => item.request_id).filter(Boolean))]
+  const requestIds = Array.from(new Set(dbWishlistItems.map((item) => item.request_id).filter(Boolean)))
   for (const requestId of requestIds) {
     const { data: reqItems } = await supabaseAdmin
       .from('egg_wishlist_items')
