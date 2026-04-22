@@ -997,6 +997,105 @@
     failedForecast: "Kunne ikke laste prognose",
     failedAlerts: "Kunne ikke laste varsler",
     failedSave: "Kunne ikke lagre",
+
+    // Day-close modal
+    today: "I dag",
+    closeDayTitle: "Avslutt dagen",
+    closeSummaryCollected: "Samlet inn",
+    closeSummarySellable: "Selgbare",
+    closeSummaryQuality: "Kvalitetsrate",
+    closeSummaryBreeds: "Raser registrert",
+    closeSummaryMissing: "rase(r) mangler data",
+    cancelBtn: "Avbryt",
+    confirmCloseBtn: "Bekreft og avslutt",
+
+    // Quick-action buttons
+    copiedFlash: "Kopiert! ✓",
+    allSellable: "Alle sellable ✓",
+
+    // Offline banner
+    offlineChangesCount: "endring(er) lagret offline",
+
+    // Best/worst & week-over-week
+    bestDay: "↑ Beste",
+    worstDay: "↓ Svakeste",
+    weekVsPrev: "Uke vs forrige uke",
+    prevLabel: "forrige",
+
+    // Reports section
+    reports: "Rapporter",
+    reportReject: "Forkastninger",
+    reportAccuracy: "Prognose nøyaktighet",
+    reportWeekday: "Ukedag-mønster",
+    reportConsistency: "Konsistens",
+
+    // Reject report categories
+    rejectCatTooSmall: "For små",
+    rejectCatDirty: "Skitne",
+    rejectCatCracked: "Knust",
+    rejectCatShell: "Skallfeil",
+    rejectCatOther: "Andre",
+
+    // Accuracy report table headers
+    accColBreed: "Rase",
+    accColAvgError: "Snitt feil %",
+    accColBias: "Bias",
+    accColWeeks: "Uker",
+    accColUnderOver: "Under/Over",
+    accColWeek: "Uke",
+    accColForecast: "Prognose",
+    accColActual: "Faktisk",
+    accColError: "Feil",
+    accWeekLabel: "Uke",
+
+    // Weekday report
+    farmAvgByDay: "Gårdssnitt — selgbar per ukedag",
+    breedCol: "Rase",
+
+    // Consistency report
+    conAvgHours: "Snitt timer til lukking",
+    conLate: "Sent lukket",
+    conReopened: "Gjenåpnet",
+    conCorrections: "Korreksjoner",
+    conColDate: "Dato",
+    conColStatus: "Status",
+    conColHours: "Timer",
+    conColLate: "Sent",
+    conColCorr: "Korr.",
+    conYes: "Ja",
+    mostCorrectedBreeds: "Mest korrigerte raser (topp 5):",
+
+    // Info tooltip texts
+    // Input field info tips
+    infoTotalEggs: "Totalt antall egg hentet fra denne rasen i dag, alle kvaliteter inkludert.",
+    infoKeepEggs: "Egg som oppfyller kravene for rugeegg eller salg — ingen sprekker, rene og normal størrelse.",
+    infoTooSmall: "Egg som er for små og ikke kan selges eller brukes til ruging.",
+    infoDirty: "Egg med skitt, møkk eller annen overflateforurensning.",
+    infoCracked: "Egg med synlige sprekker eller ødelagt skall.",
+    infoShellDefect: "Egg med feilformet, tynt eller på annen måte defekt skall.",
+    infoOtherUnsellable: "Andre forkastede egg som ikke passer i kategoriene over.",
+    infoDuckEggs: "Andeegg samlet i dag — registreres separat fra høne-/raseegg.",
+    infoOtherEggsExtra: "Andre diverse egg som ikke tilhører noen registrert rase.",
+    infoNotes: "Valgfritt notat om denne rasens innsamling i dag — f.eks. uvanlig atferd, vær.",
+    infoMiscSection: "Andre egg (and, diverse) inngår ikke i totaler eller prognoser for rasene.",
+    infoAuditLog: "Historikk over alle endringer gjort på dagens registrering — hvem endret hva og når.",
+    infoAlerts: "Systemvarsler og flyt-varsler som krever oppfølging — kritiske varsler bør behandles samme dag.",
+    infoForecastCard: "Ukentlig prognose for salgbare egg per rase, basert på historisk snitt og mønster.",
+    auditShow: "Vis",
+    auditHide: "Skjul",
+
+    // KPI info tips
+    infoKpiCollected: "Totalt antall egg samlet inn i dag, alle raser inkludert.",
+    infoKpiSellable: "Antall egg som oppfyller kravene for salg — uten kasserte egg.",
+    infoKpiRate: "Andel egg som er salgbare: (salgbare ÷ totalt) × 100. Trend viser endring mot 7-dagerssnitt.",
+    infoKpiForecast: "Estimert antall salgbare egg neste uke basert på historisk snitt.",
+    infoKpiLow: "Antall raser der beholdningen er under minstenivå denne uken.",
+    infoBestWorst: "Dag med høyest og lavest antall salgbare egg de siste 7 dagene.",
+    infoWeekVsPrev: "Gjennomsnittlig daglig produksjon per rase: siste 7 dager vs. de foregående 7 dagene.",
+    infoReportReject: "Fordeling av kasserte egg per rase og uke, siste 8 uker. Stablede søyler viser andel per årsak.",
+    infoReportAccuracy: "Sammenligner lagret ukesprognoser mot faktisk innsamling. Bias > 0 = prognosen var for lav.",
+    infoReportWeekday: "Gjennomsnittlig antall salgbare egg per ukedag over analyseperioden.",
+    infoReportConsistency: "Oversikt over daglig driftsatferd: lukketid, sene lukkinger, gjenåpninger og korreksjoner.",
   },
 
   terms: {

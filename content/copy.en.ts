@@ -996,6 +996,105 @@
     failedForecast: "Could not load forecast",
     failedAlerts: "Could not load alerts",
     failedSave: "Could not save",
+
+    // Day-close modal
+    today: "Today",
+    closeDayTitle: "Close day",
+    closeSummaryCollected: "Collected",
+    closeSummarySellable: "Sellable",
+    closeSummaryQuality: "Quality rate",
+    closeSummaryBreeds: "Breeds registered",
+    closeSummaryMissing: "breed(s) missing data",
+    cancelBtn: "Cancel",
+    confirmCloseBtn: "Confirm & close",
+
+    // Quick-action buttons
+    copiedFlash: "Copied! ✓",
+    allSellable: "All sellable ✓",
+
+    // Offline banner
+    offlineChangesCount: "change(s) saved offline",
+
+    // Best/worst & week-over-week
+    bestDay: "↑ Best",
+    worstDay: "↓ Worst",
+    weekVsPrev: "Week vs previous week",
+    prevLabel: "prev",
+
+    // Reports section
+    reports: "Reports",
+    reportReject: "Rejections",
+    reportAccuracy: "Forecast accuracy",
+    reportWeekday: "Weekday pattern",
+    reportConsistency: "Consistency",
+
+    // Reject report categories
+    rejectCatTooSmall: "Too small",
+    rejectCatDirty: "Dirty",
+    rejectCatCracked: "Cracked",
+    rejectCatShell: "Shell defect",
+    rejectCatOther: "Other",
+
+    // Accuracy report table headers
+    accColBreed: "Breed",
+    accColAvgError: "Avg error %",
+    accColBias: "Bias",
+    accColWeeks: "Weeks",
+    accColUnderOver: "Under/Over",
+    accColWeek: "Week",
+    accColForecast: "Forecast",
+    accColActual: "Actual",
+    accColError: "Error",
+    accWeekLabel: "Wk",
+
+    // Weekday report
+    farmAvgByDay: "Farm avg — sellable by weekday",
+    breedCol: "Breed",
+
+    // Consistency report
+    conAvgHours: "Avg hours to close",
+    conLate: "Closed late",
+    conReopened: "Reopened",
+    conCorrections: "Corrections",
+    conColDate: "Date",
+    conColStatus: "Status",
+    conColHours: "Hours",
+    conColLate: "Late",
+    conColCorr: "Corr.",
+    conYes: "Yes",
+    mostCorrectedBreeds: "Most corrected breeds (top 5):",
+
+    // Info tooltip texts
+    // Input field info tips
+    infoTotalEggs: "Total eggs collected from this breed today, all qualities included.",
+    infoKeepEggs: "Eggs meeting quality standards for hatching or sale — no cracks, clean, normal size.",
+    infoTooSmall: "Undersized eggs that cannot be sold or used for hatching.",
+    infoDirty: "Eggs with dirt, manure, or other surface contamination.",
+    infoCracked: "Eggs with visible cracks or broken shells.",
+    infoShellDefect: "Eggs with misshapen, thin, or otherwise defective shells.",
+    infoOtherUnsellable: "Any other rejected eggs that don't fit the categories above.",
+    infoDuckEggs: "Duck eggs collected today — tracked separately from breed/chicken eggs.",
+    infoOtherEggsExtra: "Miscellaneous eggs not belonging to any registered breed.",
+    infoNotes: "Optional note about this breed's collection today — e.g. unusual behaviour, weather.",
+    infoMiscSection: "Other eggs (duck, misc) are excluded from breed totals and forecasts.",
+    infoAuditLog: "History of all changes made to today's registrations — who changed what and when.",
+    infoAlerts: "System and flow alerts requiring attention — critical alerts should be handled same day.",
+    infoForecastCard: "Weekly forecast of sellable eggs per breed, based on historical average and patterns.",
+    auditShow: "Show",
+    auditHide: "Hide",
+
+    // KPI info tips
+    infoKpiCollected: "Total eggs collected today across all breeds.",
+    infoKpiSellable: "Eggs meeting quality standards — excludes all rejected categories.",
+    infoKpiRate: "Share of eggs that are sellable: (sellable ÷ total) × 100. Trend shows change vs 7-day average.",
+    infoKpiForecast: "Estimated sellable eggs next week based on historical average.",
+    infoKpiLow: "Number of breeds where inventory is below minimum level this week.",
+    infoBestWorst: "Day with the highest and lowest sellable egg count in the last 7 days.",
+    infoWeekVsPrev: "Average daily production per breed: last 7 days vs. the prior 7 days.",
+    infoReportReject: "Breakdown of rejected eggs per breed per week, last 8 weeks. Stacked bars show share per reason.",
+    infoReportAccuracy: "Compares stored weekly forecasts against actual collections. Bias > 0 means forecast was too low.",
+    infoReportWeekday: "Average sellable eggs by day of week over the analysis period.",
+    infoReportConsistency: "Overview of daily operational behaviour: close time, late closings, reopens, and corrections.",
   },
 
   terms: {

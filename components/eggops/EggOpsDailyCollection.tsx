@@ -1,7 +1,7 @@
 ﻿'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { AlertTriangle, CheckCircle2, Minus, Plus, RefreshCw } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, Info, Minus, Plus, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/sheet'
 import { Textarea } from '@/components/ui/textarea'
 import { useLanguage } from '@/contexts/LanguageContext'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 
 type DailyRow = {
@@ -1393,9 +1394,9 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
       {/* #20 Offline banner */}
       {(offlineQueue.length > 0 || syncingOffline) && (
         <div className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between bg-amber-500 px-4 py-2 text-sm font-semibold text-white shadow-lg">
-          <span>{offlineQueue.length} endring(er) lagret offline</span>
+          <span>{offlineQueue.length} {copy.offlineChangesCount}</span>
           <Button size="sm" variant="outline" className="h-7 border-white/40 bg-transparent text-white hover:bg-amber-600 hover:text-white text-xs" onClick={flushOfflineQueue} disabled={syncingOffline}>
-            {syncingOffline ? 'Synkroniserer...' : 'Synk nå'}
+            {syncingOffline ? copy.syncing : copy.syncNow}
           </Button>
         </div>
       )}
@@ -1437,7 +1438,12 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
 
         <SheetContent side="right" className="w-[92vw] max-w-md overflow-y-auto">
           <SheetHeader className="mb-5">
-            <SheetTitle>{copy.alertsTitle}</SheetTitle>
+            <SheetTitle>
+              <span className="flex items-center gap-1">
+                {copy.alertsTitle}
+                <InfoTip text={copy.infoAlerts} />
+              </span>
+            </SheetTitle>
             <SheetDescription>{copy.openAlerts}</SheetDescription>
           </SheetHeader>
 
@@ -1621,7 +1627,7 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
                 onClick={() => setSelectedDate(todayDateOslo())}
                 disabled={selectedDate === todayDateOslo()}
               >
-                I dag
+                {copy.today}
               </Button>
               <div className="flex-1">
                 <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-neutral-600">{copy.date}</label>
@@ -1788,36 +1794,36 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
               <div className="w-full max-w-sm rounded-2xl border border-neutral-200 bg-white shadow-2xl">
                 <div className="border-b border-neutral-200 bg-gradient-to-r from-emerald-100 via-white to-sky-100 px-4 py-3">
-                  <h3 className="text-lg font-semibold text-neutral-900">Avslutt dagen</h3>
+                  <h3 className="text-lg font-semibold text-neutral-900">{copy.closeDayTitle}</h3>
                 </div>
                 <div className="p-4 space-y-3">
                   <div className="grid grid-cols-2 gap-3">
                     <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-3 text-center">
-                      <p className="text-[11px] uppercase tracking-wide text-neutral-500">Samlet inn</p>
+                      <p className="text-[11px] uppercase tracking-wide text-neutral-500">{copy.closeSummaryCollected}</p>
                       <p className="text-2xl font-bold text-neutral-900">{easyTotals.total}</p>
                     </div>
                     <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-center">
-                      <p className="text-[11px] uppercase tracking-wide text-neutral-500">Selgbare</p>
+                      <p className="text-[11px] uppercase tracking-wide text-neutral-500">{copy.closeSummarySellable}</p>
                       <p className="text-2xl font-bold text-emerald-800">{easyTotals.sellable}</p>
                     </div>
                   </div>
                   <div className="flex items-center justify-between rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2">
-                    <span className="text-sm text-neutral-600">Kvalitetsrate</span>
+                    <span className="text-sm text-neutral-600">{copy.closeSummaryQuality}</span>
                     <span className="font-semibold text-neutral-900">{easyTotals.total > 0 ? ((easyTotals.sellable / easyTotals.total) * 100).toFixed(1) : '0'}%</span>
                   </div>
                   <div className="flex items-center justify-between rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2">
-                    <span className="text-sm text-neutral-600">Raser registrert</span>
+                    <span className="text-sm text-neutral-600">{copy.closeSummaryBreeds}</span>
                     <span className="font-semibold text-neutral-900">{easyStoredRows} / {rows.length}</span>
                   </div>
                   {easyStoredRows < rows.length && (
                     <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-                      ⚠ {rows.length - easyStoredRows} rase(r) mangler data
+                      ⚠ {rows.length - easyStoredRows} {copy.closeSummaryMissing}
                     </div>
                   )}
                 </div>
                 <div className="flex gap-2 border-t border-neutral-200 p-3">
-                  <Button variant="outline" className="flex-1 border-neutral-300" onClick={() => setCloseSummaryOpen(false)}>Avbryt</Button>
-                  <Button className="flex-1 bg-emerald-700 text-white hover:bg-emerald-600" onClick={() => { void completeEasyDay(); setCloseSummaryOpen(false) }}>Bekreft og avslutt</Button>
+                  <Button variant="outline" className="flex-1 border-neutral-300" onClick={() => setCloseSummaryOpen(false)}>{copy.cancelBtn}</Button>
+                  <Button className="flex-1 bg-emerald-700 text-white hover:bg-emerald-600" onClick={() => { void completeEasyDay(); setCloseSummaryOpen(false) }}>{copy.confirmCloseBtn}</Button>
                 </div>
               </div>
             </div>
@@ -1869,11 +1875,11 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
                   <div className="mb-2.5 flex gap-2">
                     <Button type="button" size="sm" variant="outline" className="h-7 flex-1 border-neutral-300 bg-neutral-50 text-xs"
                       onClick={() => void copyYesterdayForBreed(easyModalRow.breed_id)}>
-                      {copyYesterdayFlash ? 'Kopiert! ✓' : 'Kopier i går'}
+                      {copyYesterdayFlash ? copy.copiedFlash : copy.copyYesterday}
                     </Button>
                     <Button type="button" size="sm" variant="outline" className="h-7 flex-1 border-emerald-400 bg-white text-xs font-semibold text-emerald-700"
                       onClick={() => fillAllSellable(easyModalRow.breed_id)}>
-                      Alle sellable ✓
+                      {copy.allSellable}
                     </Button>
                   </div>
                   <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
@@ -1885,6 +1891,7 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
                       onChange={(value) => updateRowField(easyModalRow.breed_id, 'total_collected', value)}
                       onIncrementFive={() => stepField(easyModalRow.breed_id, 'total_collected', 5)}
                       onIncrementTen={() => stepField(easyModalRow.breed_id, 'total_collected', 10)}
+                      info={copy.infoTotalEggs}
                     />
                     <PhoneEggStepperField
                       label={copy.keepEggs}
@@ -1894,6 +1901,7 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
                       onChange={(value) => updateRowField(easyModalRow.breed_id, 'sellable_standard', value)}
                       onIncrementFive={() => stepField(easyModalRow.breed_id, 'sellable_standard', 5)}
                       onIncrementTen={() => stepField(easyModalRow.breed_id, 'sellable_standard', 10)}
+                      info={copy.infoKeepEggs}
                     />
                     <PhoneEggStepperField
                       label={copy.tooSmall}
@@ -1903,6 +1911,7 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
                       onChange={(value) => updateRowField(easyModalRow.breed_id, 'too_small', value)}
                       onIncrementFive={() => stepField(easyModalRow.breed_id, 'too_small', 5)}
                       onIncrementTen={() => stepField(easyModalRow.breed_id, 'too_small', 10)}
+                      info={copy.infoTooSmall}
                     />
                     <PhoneEggStepperField
                       label={copy.dirty}
@@ -1912,6 +1921,7 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
                       onChange={(value) => updateRowField(easyModalRow.breed_id, 'dirty', value)}
                       onIncrementFive={() => stepField(easyModalRow.breed_id, 'dirty', 5)}
                       onIncrementTen={() => stepField(easyModalRow.breed_id, 'dirty', 10)}
+                      info={copy.infoDirty}
                     />
                     <PhoneEggStepperField
                       label={copy.cracked}
@@ -1921,6 +1931,7 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
                       onChange={(value) => updateRowField(easyModalRow.breed_id, 'cracked', value)}
                       onIncrementFive={() => stepField(easyModalRow.breed_id, 'cracked', 5)}
                       onIncrementTen={() => stepField(easyModalRow.breed_id, 'cracked', 10)}
+                      info={copy.infoCracked}
                     />
                     <PhoneEggStepperField
                       label={copy.shellDefect}
@@ -1930,6 +1941,7 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
                       onChange={(value) => updateRowField(easyModalRow.breed_id, 'shell_defect', value)}
                       onIncrementFive={() => stepField(easyModalRow.breed_id, 'shell_defect', 5)}
                       onIncrementTen={() => stepField(easyModalRow.breed_id, 'shell_defect', 10)}
+                      info={copy.infoShellDefect}
                     />
                     <PhoneEggStepperField
                       label={copy.other}
@@ -1939,6 +1951,7 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
                       onChange={(value) => updateRowField(easyModalRow.breed_id, 'other_unsellable', value)}
                       onIncrementFive={() => stepField(easyModalRow.breed_id, 'other_unsellable', 5)}
                       onIncrementTen={() => stepField(easyModalRow.breed_id, 'other_unsellable', 10)}
+                      info={copy.infoOtherUnsellable}
                     />
                   </div>
                 </div>
@@ -1959,11 +1972,11 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
                       <div className="mb-2 grid grid-cols-2 gap-2">
                         <Button type="button" size="sm" variant="outline" className="h-9 border-neutral-300 bg-white text-xs"
                           disabled={idx <= 0} onClick={() => setEasyModalBreedId(rows[idx - 1].breed_id)}>
-                          ← Forrige
+                          ← {copy.keypadPrev}
                         </Button>
                         <Button type="button" size="sm" variant="outline" className="h-9 border-neutral-300 bg-white text-xs"
                           disabled={idx >= rows.length - 1} onClick={() => setEasyModalBreedId(rows[idx + 1].breed_id)}>
-                          Neste →
+                          {copy.keypadNext} →
                         </Button>
                       </div>
                     )
@@ -2101,13 +2114,14 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
       </Card>
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
-        <KpiTile label={copy.kpiCollected} value={`${daily?.kpi.total_collected || 0}`} colorClass="border-sky-200 bg-sky-50" />
-        <KpiTile label={copy.kpiSellable} value={`${daily?.kpi.total_sellable || 0}`} colorClass="border-emerald-200 bg-emerald-50" />
+        <KpiTile label={copy.kpiCollected} value={`${daily?.kpi.total_collected || 0}`} colorClass="border-sky-200 bg-sky-50" info={copy.infoKpiCollected} />
+        <KpiTile label={copy.kpiSellable} value={`${daily?.kpi.total_sellable || 0}`} colorClass="border-emerald-200 bg-emerald-50" info={copy.infoKpiSellable} />
         {/* #12 Sellable rate with trend */}
         <KpiTile label={copy.kpiRate} value={`${daily?.kpi.sellable_rate || 0}%`} colorClass="border-violet-200 bg-violet-50"
-          trend={trend7 ? { delta: Math.round(((daily?.kpi.sellable_rate || 0) - (trend7?.sellable_rate || 0)) * 10) / 10, label: 'vs 7d' } : undefined} />
-        <KpiTile label={copy.kpiForecast} value={`${daily?.kpi.next_week_estimate || 0}`} colorClass="border-amber-200 bg-amber-50" />
-        <KpiTile label={copy.kpiLow} value={`${daily?.kpi.low_stock_breeds || 0}`} colorClass="border-rose-200 bg-rose-50" />
+          trend={trend7 ? { delta: Math.round(((daily?.kpi.sellable_rate || 0) - (trend7?.sellable_rate || 0)) * 10) / 10, label: 'vs 7d' } : undefined}
+          info={copy.infoKpiRate} />
+        <KpiTile label={copy.kpiForecast} value={`${daily?.kpi.next_week_estimate || 0}`} colorClass="border-amber-200 bg-amber-50" info={copy.infoKpiForecast} />
+        <KpiTile label={copy.kpiLow} value={`${daily?.kpi.low_stock_breeds || 0}`} colorClass="border-rose-200 bg-rose-50" info={copy.infoKpiLow} />
       </div>
 
       {/* #15 Best/worst day this week */}
@@ -2123,9 +2137,10 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
         const fmt = (d: string) => new Date(`${d}T00:00:00`).toLocaleDateString(lang === 'en' ? 'en-GB' : 'nb-NO', { weekday: 'short', day: 'numeric' })
         return (
           <Card className="border-neutral-200 p-3">
-            <div className="flex flex-wrap gap-4 text-sm">
-              <span><span className="font-semibold text-emerald-700">↑ Beste:</span> <span className="text-neutral-900 font-medium">{fmt(best.date)}</span> — {best.sellable} egg</span>
-              <span><span className="font-semibold text-red-600">↓ Svakeste:</span> <span className="text-neutral-900 font-medium">{fmt(worst.date)}</span> — {worst.sellable} egg</span>
+            <div className="flex flex-wrap items-center gap-4 text-sm">
+              <span><span className="font-semibold text-emerald-700">{copy.bestDay}:</span> <span className="text-neutral-900 font-medium">{fmt(best.date)}</span> — {best.sellable} egg</span>
+              <span><span className="font-semibold text-red-600">{copy.worstDay}:</span> <span className="text-neutral-900 font-medium">{fmt(worst.date)}</span> — {worst.sellable} egg</span>
+              <InfoTip text={copy.infoBestWorst} />
             </div>
           </Card>
         )
@@ -2134,7 +2149,10 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
       {/* #19 Week-over-week summary */}
       {(dashboard?.summary || []).length > 0 && (
         <Card className="border-neutral-200 p-4">
-          <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide text-neutral-800">Uke vs forrige uke</h3>
+          <div className="mb-2 flex items-center gap-1">
+            <h3 className="text-sm font-semibold uppercase tracking-wide text-neutral-800">{copy.weekVsPrev}</h3>
+            <InfoTip text={copy.infoWeekVsPrev} />
+          </div>
           <div className="space-y-1">
             {(dashboard?.summary || []).map(breed => {
               const d7w = dashboard?.windows.d7.find(w => w.breed_id === breed.breed_id)
@@ -2149,7 +2167,7 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
                   <span className={cn('w-5 text-center font-bold', delta === null ? 'text-neutral-400' : delta > 0 ? 'text-emerald-600' : delta < 0 ? 'text-red-600' : 'text-neutral-400')}>
                     {delta === null ? '–' : delta > 0 ? '▲' : delta < 0 ? '▼' : '='}
                   </span>
-                  <span className="text-xs text-neutral-500">{prior7 !== null ? prior7 : '–'} forrige</span>
+                  <span className="text-xs text-neutral-500">{prior7 !== null ? prior7 : '–'} {copy.prevLabel}</span>
                 </div>
               )
             })}
@@ -2159,7 +2177,10 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
 
       <Card className="border-neutral-200 p-4 md:p-5">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h3 className="text-sm font-semibold uppercase tracking-wide text-neutral-800">{copy.miscEggs}</h3>
+          <div className="flex items-center gap-1">
+            <h3 className="text-sm font-semibold uppercase tracking-wide text-neutral-800">{copy.miscEggs}</h3>
+            <InfoTip text={copy.infoMiscSection} />
+          </div>
           {miscState.saving ? (
             <span className="text-xs font-medium text-neutral-600">{copy.saving}</span>
           ) : miscState.success ? (
@@ -2175,6 +2196,7 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
             onIncrement={() => stepDayMiscField('duck_eggs', 1)}
             onDecrement={() => stepDayMiscField('duck_eggs', -1)}
             onChange={(value) => setDayMiscField('duck_eggs', value)}
+            info={copy.infoDuckEggs}
           />
           <StepperField
             label={copy.otherEggsExtra}
@@ -2182,6 +2204,7 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
             onIncrement={() => stepDayMiscField('other_eggs', 1)}
             onDecrement={() => stepDayMiscField('other_eggs', -1)}
             onChange={(value) => setDayMiscField('other_eggs', value)}
+            info={copy.infoOtherEggsExtra}
           />
         </div>
 
@@ -2357,6 +2380,7 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
                   onDecrement={() => stepField(selectedRow.breed_id, 'total_collected', -1)}
                   colorClass="from-sky-100 to-cyan-50"
                   onFocus={() => fastEntryMode && setActiveFastField('total_collected')}
+                  info={copy.infoTotalEggs}
                 />
                 <LargeEggInput
                   label={copy.keepEggs}
@@ -2366,6 +2390,7 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
                   onDecrement={() => stepField(selectedRow.breed_id, 'sellable_standard', -1)}
                   colorClass="from-emerald-100 to-lime-50"
                   onFocus={() => fastEntryMode && setActiveFastField('sellable_standard')}
+                  info={copy.infoKeepEggs}
                 />
               </div>
             </Card>
@@ -2380,6 +2405,7 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
                   onDecrement={() => stepField(selectedRow.breed_id, 'too_small', -1)}
                   onChange={(value) => updateRowField(selectedRow.breed_id, 'too_small', value)}
                   onFocus={() => fastEntryMode && setActiveFastField('too_small')}
+                  info={copy.infoTooSmall}
                 />
                 <StepperField
                   label={copy.dirty}
@@ -2388,6 +2414,7 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
                   onDecrement={() => stepField(selectedRow.breed_id, 'dirty', -1)}
                   onChange={(value) => updateRowField(selectedRow.breed_id, 'dirty', value)}
                   onFocus={() => fastEntryMode && setActiveFastField('dirty')}
+                  info={copy.infoDirty}
                 />
                 <StepperField
                   label={copy.cracked}
@@ -2396,6 +2423,7 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
                   onDecrement={() => stepField(selectedRow.breed_id, 'cracked', -1)}
                   onChange={(value) => updateRowField(selectedRow.breed_id, 'cracked', value)}
                   onFocus={() => fastEntryMode && setActiveFastField('cracked')}
+                  info={copy.infoCracked}
                 />
                 <StepperField
                   label={copy.shellDefect}
@@ -2404,6 +2432,7 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
                   onDecrement={() => stepField(selectedRow.breed_id, 'shell_defect', -1)}
                   onChange={(value) => updateRowField(selectedRow.breed_id, 'shell_defect', value)}
                   onFocus={() => fastEntryMode && setActiveFastField('shell_defect')}
+                  info={copy.infoShellDefect}
                 />
                 <StepperField
                   label={copy.other}
@@ -2412,6 +2441,7 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
                   onDecrement={() => stepField(selectedRow.breed_id, 'other_unsellable', -1)}
                   onChange={(value) => updateRowField(selectedRow.breed_id, 'other_unsellable', value)}
                   onFocus={() => fastEntryMode && setActiveFastField('other_unsellable')}
+                  info={copy.infoOtherUnsellable}
                 />
               </div>
 
@@ -2558,7 +2588,10 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
       )}
 
       <Card className="border-neutral-200 p-4 md:p-5">
-        <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-neutral-800">{copy.forecastTitle}</h3>
+        <div className="mb-3 flex items-center gap-1">
+          <h3 className="text-sm font-semibold uppercase tracking-wide text-neutral-800">{copy.forecastTitle}</h3>
+          <InfoTip text={copy.infoForecastCard} />
+        </div>
         {selectedForecastRows.length === 0 ? (
           <p className="text-sm text-neutral-500">{copy.forecastEmpty}</p>
         ) : (
@@ -2695,8 +2728,10 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
         </div>
 
         <div className="mt-4">
-          <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-neutral-600">{copy.heatmapTitle}</h4>
-          <p className="mb-2 text-xs text-neutral-600">{copy.heatmapHelp}</p>
+          <div className="mb-2 flex items-center gap-1">
+            <h4 className="text-xs font-semibold uppercase tracking-wide text-neutral-600">{copy.heatmapTitle}</h4>
+            <InfoTip text={copy.heatmapHelp} />
+          </div>
           <div className="overflow-x-auto">
             <div className="min-w-[820px] space-y-1">
               {/* #13 Heatmap header row */}
@@ -2735,17 +2770,17 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
         {(() => {
           const filtered = selectedBreedId ? forecastAccuracy.filter(r => r.breed_id === selectedBreedId) : forecastAccuracy
           const recent = filtered.slice(-6)
-          if (recent.length === 0) return <p className="text-sm text-neutral-500">Ikke nok historiske data ennå</p>
+          if (recent.length === 0) return <p className="text-sm text-neutral-500">{copy.forecastEmpty}</p>
           return (
             <div className="overflow-x-auto">
               <table className="min-w-full text-xs">
-                <thead><tr className="text-left text-neutral-500">{['Uke','Rase','Prognose','Faktisk','Feil'].map(h => <th key={h} className="pb-1 pr-3 font-semibold">{h}</th>)}</tr></thead>
+                <thead><tr className="text-left text-neutral-500">{[copy.accColWeek, copy.accColBreed, copy.accColForecast, copy.accColActual, copy.accColError].map(h => <th key={h} className="pb-1 pr-3 font-semibold">{h}</th>)}</tr></thead>
                 <tbody>
                   {recent.map((r: any) => {
                     const err = r.error
                     return (
                       <tr key={`${r.breed_id}-${r.year}-${r.week_number}`} className="border-t border-neutral-100">
-                        <td className="py-1 pr-3 text-neutral-600">Uke {r.week_number}/{r.year}</td>
+                        <td className="py-1 pr-3 text-neutral-600">{copy.accWeekLabel} {r.week_number}/{r.year}</td>
                         <td className="py-1 pr-3 font-medium text-neutral-900">{r.breed_name}</td>
                         <td className="py-1 pr-3">{r.forecast_eggs}</td>
                         <td className="py-1 pr-3">{r.actual_eggs}</td>
@@ -2763,9 +2798,12 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
       {/* #17 Audit log collapsible */}
       <Card className="border-neutral-200 p-4 md:p-5">
         <div className="mb-3 flex items-center justify-between">
-          <h3 className="text-sm font-semibold uppercase tracking-wide text-neutral-800">{copy.auditTitle}</h3>
+          <div className="flex items-center gap-1">
+            <h3 className="text-sm font-semibold uppercase tracking-wide text-neutral-800">{copy.auditTitle}</h3>
+            <InfoTip text={copy.infoAuditLog} />
+          </div>
           <Button size="sm" variant="outline" className="h-7 border-neutral-300 bg-white text-xs" onClick={() => setAuditCollapsed(p => !p)}>
-            {auditCollapsed ? `Vis (${auditRows.length}) ↓` : 'Skjul ↑'}
+            {auditCollapsed ? `${copy.auditShow} (${auditRows.length}) ↓` : `${copy.auditHide} ↑`}
           </Button>
         </div>
         {!auditCollapsed && (
@@ -2796,17 +2834,21 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
 
       {/* Reports section */}
       <Card className="border-neutral-200 p-4 md:p-5">
-        <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-neutral-800">Rapporter</h3>
+        <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-neutral-800">{copy.reports}</h3>
         <div className="flex flex-wrap gap-2 mb-4">
           {(['reject','accuracy','weekday','consistency'] as const).map(type => {
-            const labels: Record<string, string> = { reject: 'Forkastninger', accuracy: 'Prognose nøyaktighet', weekday: 'Ukedag-mønster', consistency: 'Konsistens' }
+            const labels: Record<string, string> = { reject: copy.reportReject, accuracy: copy.reportAccuracy, weekday: copy.reportWeekday, consistency: copy.reportConsistency }
+            const infos: Record<string, string> = { reject: copy.infoReportReject, accuracy: copy.infoReportAccuracy, weekday: copy.infoReportWeekday, consistency: copy.infoReportConsistency }
             return (
-              <Button key={type} size="sm"
-                variant={activeReport === type ? 'default' : 'outline'}
-                className={cn('text-xs', activeReport === type ? 'bg-neutral-900 text-white' : 'border-neutral-300 bg-white')}
-                onClick={() => { const next = activeReport === type ? null : type; setActiveReport(next); if (next) void loadReport(next) }}>
-                {labels[type]}
-              </Button>
+              <div key={type} className="flex items-center gap-1">
+                <Button size="sm"
+                  variant={activeReport === type ? 'default' : 'outline'}
+                  className={cn('text-xs', activeReport === type ? 'bg-neutral-900 text-white' : 'border-neutral-300 bg-white')}
+                  onClick={() => { const next = activeReport === type ? null : type; setActiveReport(next); if (next) void loadReport(next) }}>
+                  {labels[type]}
+                </Button>
+                <InfoTip text={infos[type]} />
+              </div>
             )
           })}
         </div>
@@ -2820,11 +2862,11 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
         {activeReport === 'reject' && reportData.reject && (() => {
           const data = reportData.reject
           const CATS = [
-            { key: 'too_small', label: 'For små', color: '#f59e0b' },
-            { key: 'dirty', label: 'Skitne', color: '#f97316' },
-            { key: 'cracked', label: 'Knust', color: '#ef4444' },
-            { key: 'shell_defect', label: 'Skallfeil', color: '#fb7185' },
-            { key: 'other_unsellable', label: 'Andre', color: '#9ca3af' },
+            { key: 'too_small', label: copy.rejectCatTooSmall, color: '#f59e0b' },
+            { key: 'dirty', label: copy.rejectCatDirty, color: '#f97316' },
+            { key: 'cracked', label: copy.rejectCatCracked, color: '#ef4444' },
+            { key: 'shell_defect', label: copy.rejectCatShell, color: '#fb7185' },
+            { key: 'other_unsellable', label: copy.rejectCatOther, color: '#9ca3af' },
           ] as const
           return (
             <div className="space-y-4">
@@ -2866,7 +2908,7 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
             <div className="space-y-4">
               <div className="overflow-x-auto">
                 <table className="min-w-full text-xs">
-                  <thead><tr className="text-left text-neutral-500">{['Rase','Snitt feil %','Bias','Uker','Under/Over'].map(h => <th key={h} className="pb-2 pr-4 font-semibold">{h}</th>)}</tr></thead>
+                  <thead><tr className="text-left text-neutral-500">{[copy.accColBreed, copy.accColAvgError, copy.accColBias, copy.accColWeeks, copy.accColUnderOver].map(h => <th key={h} className="pb-2 pr-4 font-semibold">{h}</th>)}</tr></thead>
                   <tbody>
                     {(data.summary || []).map((s: any) => (
                       <tr key={s.breed_id} className="border-t border-neutral-100">
@@ -2882,11 +2924,11 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
               </div>
               <div className="overflow-x-auto">
                 <table className="min-w-full text-xs">
-                  <thead><tr className="text-left text-neutral-500">{['Uke','Rase','Prognose','Faktisk','Feil'].map(h => <th key={h} className="pb-1 pr-3 font-semibold">{h}</th>)}</tr></thead>
+                  <thead><tr className="text-left text-neutral-500">{[copy.accColWeek, copy.accColBreed, copy.accColForecast, copy.accColActual, copy.accColError].map(h => <th key={h} className="pb-1 pr-3 font-semibold">{h}</th>)}</tr></thead>
                   <tbody>
                     {(data.rows || []).slice(-12).map((r: any) => (
                       <tr key={`${r.breed_id}-${r.year}-${r.week_number}`} className="border-t border-neutral-100">
-                        <td className="py-1 pr-3 text-neutral-600">Uke {r.week_number}/{r.year}</td>
+                        <td className="py-1 pr-3 text-neutral-600">{copy.accWeekLabel} {r.week_number}/{r.year}</td>
                         <td className="py-1 pr-3 font-medium">{r.breed_name}</td>
                         <td className="py-1 pr-3">{r.forecast_eggs}</td>
                         <td className="py-1 pr-3">{r.actual_eggs}</td>
@@ -2907,7 +2949,7 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
           return (
             <div className="space-y-4">
               <div>
-                <p className="text-xs font-semibold text-neutral-600 mb-2">Gårdssnitt — selgbar per ukedag</p>
+                <p className="text-xs font-semibold text-neutral-600 mb-2">{copy.farmAvgByDay}</p>
                 <div className="flex items-end gap-2" style={{ height: '80px' }}>
                   {farmWide.map((d: any) => (
                     <div key={d.day} className="flex-1 flex flex-col items-center gap-1">
@@ -2920,7 +2962,7 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
               </div>
               <div className="overflow-x-auto">
                 <table className="min-w-full text-xs">
-                  <thead><tr className="text-left text-neutral-500"><th className="pb-1 pr-2 font-semibold">Rase</th>{farmWide.map((d: any) => <th key={d.day} className="pb-1 pr-1 font-semibold text-center">{d.day}</th>)}</tr></thead>
+                  <thead><tr className="text-left text-neutral-500"><th className="pb-1 pr-2 font-semibold">{copy.breedCol}</th>{farmWide.map((d: any) => <th key={d.day} className="pb-1 pr-1 font-semibold text-center">{d.day}</th>)}</tr></thead>
                   <tbody>
                     {(data.breeds || []).map((breed: any) => {
                       const avg = breed.dow.reduce((s: number, d: any) => s + d.avg_sellable, 0) / 7
@@ -2949,10 +2991,10 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                 {[
-                  { label: 'Snitt timer til lukking', val: s.avg_hours_to_close !== null && s.avg_hours_to_close !== undefined ? `${s.avg_hours_to_close}t` : '–' },
-                  { label: 'Sent lukket', val: s.late_closings ?? 0 },
-                  { label: 'Gjenåpnet', val: s.reopened_days ?? 0 },
-                  { label: 'Korreksjoner', val: s.total_corrections ?? 0 },
+                  { label: copy.conAvgHours, val: s.avg_hours_to_close !== null && s.avg_hours_to_close !== undefined ? `${s.avg_hours_to_close}t` : '–' },
+                  { label: copy.conLate, val: s.late_closings ?? 0 },
+                  { label: copy.conReopened, val: s.reopened_days ?? 0 },
+                  { label: copy.conCorrections, val: s.total_corrections ?? 0 },
                 ].map(tile => (
                   <div key={tile.label} className="rounded-xl border border-neutral-200 bg-neutral-50 p-3">
                     <p className="text-[11px] uppercase tracking-wide text-neutral-500">{tile.label}</p>
@@ -2962,14 +3004,14 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
               </div>
               <div className="overflow-x-auto">
                 <table className="min-w-full text-xs">
-                  <thead><tr className="text-left text-neutral-500">{['Dato','Status','Timer','Sent','Korr.'].map(h => <th key={h} className="pb-1 pr-3 font-semibold">{h}</th>)}</tr></thead>
+                  <thead><tr className="text-left text-neutral-500">{[copy.conColDate, copy.conColStatus, copy.conColHours, copy.conColLate, copy.conColCorr].map(h => <th key={h} className="pb-1 pr-3 font-semibold">{h}</th>)}</tr></thead>
                   <tbody>
                     {(data.days || []).slice(-30).map((d: any) => (
                       <tr key={d.collection_date} className="border-t border-neutral-100">
                         <td className="py-1 pr-3 text-neutral-700">{d.collection_date}</td>
                         <td className="py-1 pr-3"><span className={cn('rounded-full px-1.5 py-0.5 text-[10px] font-semibold', d.status === 'closed' ? 'bg-neutral-200 text-neutral-700' : d.status === 'in_progress' ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-700')}>{d.status}</span></td>
                         <td className="py-1 pr-3">{d.hours_to_close !== null ? `${d.hours_to_close}t` : '–'}</td>
-                        <td className="py-1 pr-3">{d.closed_late ? <span className="text-amber-700 font-semibold">Ja</span> : '–'}</td>
+                        <td className="py-1 pr-3">{d.closed_late ? <span className="text-amber-700 font-semibold">{copy.conYes}</span> : '–'}</td>
                         <td className="py-1 pr-3">{d.corrections > 0 ? <span className="font-semibold text-red-700">{d.corrections}</span> : '0'}</td>
                       </tr>
                     ))}
@@ -2978,7 +3020,7 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
               </div>
               {(data.breed_corrections || []).length > 0 && (
                 <div>
-                  <p className="text-xs font-semibold text-neutral-600 mb-1">Mest korrigerte raser (topp 5):</p>
+                  <p className="text-xs font-semibold text-neutral-600 mb-1">{copy.mostCorrectedBreeds}</p>
                   {(data.breed_corrections || []).slice(0, 5).map((b: any) => (
                     <div key={b.breed_id} className="flex justify-between text-xs py-0.5 text-neutral-700">
                       <span>{b.breed_id}</span><span className="font-semibold">{b.count}</span>
@@ -2996,20 +3038,48 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
   )
 }
 
+function InfoTip({ text }: { text: string }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <TooltipProvider delayDuration={0}>
+      <Tooltip open={open} onOpenChange={setOpen}>
+        <TooltipTrigger asChild>
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); setOpen((o) => !o) }}
+            className="ml-1 inline-flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full border border-neutral-300 bg-neutral-100 text-neutral-500 hover:bg-neutral-200 focus:outline-none"
+            aria-label="Info"
+          >
+            <Info className="h-2.5 w-2.5" />
+          </button>
+        </TooltipTrigger>
+        <TooltipContent side="top" className="max-w-[240px] text-xs leading-relaxed">
+          {text}
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  )
+}
+
 function KpiTile({
   label,
   value,
   colorClass,
   trend,
+  info,
 }: {
   label: string
   value: string
   colorClass: string
   trend?: { delta: number; label: string }
+  info?: string
 }) {
   return (
     <Card className={cn('border p-3', colorClass)}>
-      <p className="text-[11px] font-semibold uppercase tracking-wide text-neutral-600">{label}</p>
+      <div className="flex items-center">
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-neutral-600">{label}</p>
+        {info && <InfoTip text={info} />}
+      </div>
       <p className="mt-1 text-2xl font-semibold text-neutral-900">{value}</p>
       {trend && (
         <p className={cn('mt-0.5 text-xs font-semibold', trend.delta > 0 ? 'text-emerald-700' : trend.delta < 0 ? 'text-red-700' : 'text-neutral-500')}>
@@ -3028,6 +3098,7 @@ function LargeEggInput({
   onDecrement,
   colorClass,
   onFocus,
+  info,
 }: {
   label: string
   value: number
@@ -3036,10 +3107,14 @@ function LargeEggInput({
   onDecrement?: () => void
   colorClass: string
   onFocus?: () => void
+  info?: string
 }) {
   return (
     <div className={cn('rounded-xl border border-neutral-200 bg-gradient-to-br p-4', colorClass)}>
-      <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-neutral-600">{label}</label>
+      <div className="mb-2 flex items-center gap-1">
+        <label className="text-xs font-semibold uppercase tracking-wide text-neutral-600">{label}</label>
+        {info && <InfoTip text={info} />}
+      </div>
       <Input
         inputMode="numeric"
         value={inputDisplayValue(value)}
@@ -3072,6 +3147,7 @@ function StepperField({
   onDecrement,
   onChange,
   onFocus,
+  info,
 }: {
   label: string
   value: number
@@ -3079,10 +3155,14 @@ function StepperField({
   onDecrement: () => void
   onChange: (value: string) => void
   onFocus?: () => void
+  info?: string
 }) {
   return (
     <div className="rounded-xl border border-neutral-200 bg-white p-3">
-      <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-neutral-600">{label}</label>
+      <div className="mb-2 flex items-center gap-1">
+        <label className="text-xs font-semibold uppercase tracking-wide text-neutral-600">{label}</label>
+        {info && <InfoTip text={info} />}
+      </div>
       <div className="flex items-center gap-2">
         <Button type="button" size="icon" variant="outline" onClick={onDecrement} className="h-10 w-10 border-neutral-300">
           <Minus className="h-4 w-4" />
@@ -3114,6 +3194,7 @@ function PhoneEggStepperField({
   onChange,
   onIncrementFive,
   onIncrementTen,
+  info,
 }: {
   label: string
   value: number
@@ -3122,10 +3203,14 @@ function PhoneEggStepperField({
   onChange: (value: string) => void
   onIncrementFive?: () => void
   onIncrementTen?: () => void
+  info?: string
 }) {
   return (
     <div className="min-w-0 rounded-xl border border-neutral-300 bg-gradient-to-br from-white to-neutral-50 p-2 shadow-sm">
-      <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-neutral-700">{label}</label>
+      <div className="mb-1.5 flex items-center gap-1">
+        <label className="text-[11px] font-semibold uppercase tracking-wide text-neutral-700">{label}</label>
+        {info && <InfoTip text={info} />}
+      </div>
       {/* #7 Larger tap targets: 56px */}
       <div className="grid grid-cols-[56px_minmax(0,1fr)_56px] items-center gap-2">
         <Button
