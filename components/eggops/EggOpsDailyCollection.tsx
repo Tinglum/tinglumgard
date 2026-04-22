@@ -248,6 +248,16 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
   const [offlineQueue, setOfflineQueue] = useState<OfflineQueueItem[]>([])
   const [syncingOffline, setSyncingOffline] = useState(false)
   const [miscState, setMiscState] = useState<RowSaveState>(DEFAULT_SAVE_STATE)
+  // New state for 20 UI improvements
+  const [closeSummaryOpen, setCloseSummaryOpen] = useState(false)
+  const [auditCollapsed, setAuditCollapsed] = useState(true)
+  const [activeReport, setActiveReport] = useState<'reject'|'accuracy'|'weekday'|'consistency'|null>(null)
+  const [reportData, setReportData] = useState<Record<string, any>>({})
+  const [loadingReport, setLoadingReport] = useState(false)
+  const [forecastAccuracy, setForecastAccuracy] = useState<any[]>([])
+  const [copyYesterdayFlash, setCopyYesterdayFlash] = useState(false)
+  const touchStartXRef = useRef<number | null>(null)
+  const autoAdvanceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const postSaveRefreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const rowAutosaveTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
   const rowAutosaveQueuedRef = useRef<Record<string, boolean>>({})
@@ -352,6 +362,31 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
       setEasyCompleteOpen(false)
     }
   }, [easyInputMode])
+
+  // Auto-advance: when current modal breed is valid + saved, move to next after 600ms
+  useEffect(() => {
+    if (autoAdvanceTimerRef.current) {
+      clearTimeout(autoAdvanceTimerRef.current)
+      autoAdvanceTimerRef.current = null
+    }
+    if (!easyModalBreedId) return
+    const modalRow = rows.find(r => r.breed_id === easyModalBreedId)
+    if (!modalRow) return
+    const state = rowStates[easyModalBreedId]
+    if (!state?.success || !rowIsValid(modalRow)) return
+    autoAdvanceTimerRef.current = setTimeout(() => {
+      const idx = rows.findIndex(r => r.breed_id === easyModalBreedId)
+      if (idx >= 0 && idx < rows.length - 1) {
+        setEasyModalBreedId(rows[idx + 1].breed_id)
+      } else {
+        setEasyModalBreedId(null)
+      }
+    }, 600)
+    return () => {
+      if (autoAdvanceTimerRef.current) clearTimeout(autoAdvanceTimerRef.current)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [easyModalBreedId, rowStates])
 
   function clearRowAutosaveTimer(breedId: string) {
     const timer = rowAutosaveTimersRef.current[breedId]
@@ -909,6 +944,71 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
     scheduleRowAutosave(breedId)
   }
 
+  function fillAllSellable(breedId: string) {
+    setRows((prev) =>
+      prev.map((row) => {
+        if (row.breed_id !== breedId) return row
+        return { ...row, sellable_standard: row.total_collected, too_small: 0, dirty: 0, cracked: 0, shell_defect: 0, other_unsellable: 0 }
+      })
+    )
+    setRowState(breedId, { success: false, error: null })
+    scheduleRowAutosave(breedId)
+  }
+
+  async function copyYesterdayForBreed(breedId: string) {
+    try {
+      const response = await fetch('/api/admin/eggs/daily/prefill', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ collection_date: selectedDate }),
+      })
+      if (!response.ok) return
+      const data = await response.json()
+      const matchingRow = (data.rows || []).find((r: any) => r.breed_id === breedId)
+      if (!matchingRow) return
+      setRows((prev) =>
+        prev.map((row) => {
+          if (row.breed_id !== breedId) return row
+          return {
+            ...row,
+            total_collected: matchingRow.total_collected || 0,
+            sellable_standard: matchingRow.sellable_standard || 0,
+            too_small: matchingRow.too_small || 0,
+            dirty: matchingRow.dirty || 0,
+            cracked: matchingRow.cracked || 0,
+            shell_defect: matchingRow.shell_defect || 0,
+            other_unsellable: matchingRow.other_unsellable || 0,
+            notes: matchingRow.notes || '',
+          }
+        })
+      )
+      setRowState(breedId, { success: false, error: null })
+      scheduleRowAutosave(breedId)
+      setCopyYesterdayFlash(true)
+      setTimeout(() => setCopyYesterdayFlash(false), 1500)
+    } catch { /* ignore */ }
+  }
+
+  async function loadReport(type: 'reject'|'accuracy'|'weekday'|'consistency') {
+    if (reportData[type]) return
+    setLoadingReport(true)
+    try {
+      const urls: Record<string, string> = {
+        reject: '/api/admin/eggs/ops-dashboard/reject-trends?days=90',
+        accuracy: '/api/admin/eggs/forecast/accuracy?weeks=12',
+        weekday: '/api/admin/eggs/ops-dashboard/weekday-patterns?days=90',
+        consistency: '/api/admin/eggs/ops-dashboard/consistency?weeks=8',
+      }
+      const res = await fetch(urls[type])
+      if (res.ok) {
+        const data = await res.json()
+        setReportData(prev => ({ ...prev, [type]: data }))
+      }
+    } catch { /* ignore */ } finally {
+      setLoadingReport(false)
+    }
+  }
+
   async function clearAllInputsForDay() {
     if (rows.length === 0) return
     if (typeof window !== 'undefined' && !window.confirm(copy.clearDayConfirm)) return
@@ -1092,6 +1192,7 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
       }
 
       setRowState(row.breed_id, { saving: false, success: true })
+      if (typeof navigator !== 'undefined' && 'vibrate' in navigator) { navigator.vibrate(30) }
       window.setTimeout(() => setRowState(row.breed_id, { success: false }), 2500)
 
       if (fastReturn) {
@@ -1142,10 +1243,18 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
   }
 
   async function loadDashboardOnly() {
-    const res = await fetch('/api/admin/eggs/ops-dashboard?days=30')
-    if (!res.ok) return
-    const data: OpsDashboardResponse = await res.json()
-    setDashboard(data)
+    const [res, accuracyRes] = await Promise.all([
+      fetch('/api/admin/eggs/ops-dashboard?days=30'),
+      fetch('/api/admin/eggs/forecast/accuracy?weeks=8'),
+    ])
+    if (res.ok) {
+      const data: OpsDashboardResponse = await res.json()
+      setDashboard(data)
+    }
+    if (accuracyRes.ok) {
+      const accuracyData = await accuracyRes.json()
+      setForecastAccuracy(accuracyData.rows || [])
+    }
   }
 
   async function loadAuditOnly(date: string) {
@@ -1281,6 +1390,15 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
 
   return (
     <div className={cn('relative space-y-6', embedded ? '' : 'max-w-7xl mx-auto px-4 py-6')}>
+      {/* #20 Offline banner */}
+      {(offlineQueue.length > 0 || syncingOffline) && (
+        <div className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between bg-amber-500 px-4 py-2 text-sm font-semibold text-white shadow-lg">
+          <span>{offlineQueue.length} endring(er) lagret offline</span>
+          <Button size="sm" variant="outline" className="h-7 border-white/40 bg-transparent text-white hover:bg-amber-600 hover:text-white text-xs" onClick={flushOfflineQueue} disabled={syncingOffline}>
+            {syncingOffline ? 'Synkroniserer...' : 'Synk nå'}
+          </Button>
+        </div>
+      )}
       <div
         className={cn(
           'fixed right-4 z-40',
@@ -1494,6 +1612,17 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
               >
                 {copy.prevDay}
               </Button>
+              {/* #9 Today shortcut */}
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="h-9 border-neutral-300 bg-white px-2 text-xs"
+                onClick={() => setSelectedDate(todayDateOslo())}
+                disabled={selectedDate === todayDateOslo()}
+              >
+                I dag
+              </Button>
               <div className="flex-1">
                 <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-neutral-600">{copy.date}</label>
                 <Input
@@ -1580,16 +1709,6 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
             </div>
 
             <p className="mt-2 text-xs font-medium text-neutral-700">{copy.easyPickBreed}</p>
-            {(offlineQueue.length > 0 || syncingOffline) && (
-              <div className="mt-1 flex items-center justify-between rounded-lg border border-amber-200 bg-amber-100 px-2 py-1.5 text-xs text-amber-900">
-                <span>
-                  {copy.offlineQueued}: {offlineQueue.length}
-                </span>
-                <Button size="sm" variant="outline" className="h-7 border-amber-300 bg-white text-xs" onClick={flushOfflineQueue} disabled={syncingOffline}>
-                  {syncingOffline ? copy.syncing : copy.syncNow}
-                </Button>
-              </div>
-            )}
           </Card>
 
           <Card className="border-amber-200 bg-white/90 p-2">
@@ -1656,7 +1775,7 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
             <Button
               size="lg"
               className="h-14 w-full gap-2 bg-emerald-700 text-lg font-semibold text-white hover:bg-emerald-600"
-              onClick={completeEasyDay}
+              onClick={() => setCloseSummaryOpen(true)}
               disabled={miscState.saving || dayState?.status === 'closed'}
             >
               <CheckCircle2 className="h-6 w-6" />
@@ -1664,22 +1783,99 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
             </Button>
           </div>
 
-          {easyModalRow && (
-            <div className="fixed inset-0 z-50 bg-black/50 p-2">
-              <div className="mx-auto grid h-[calc(100dvh-1rem)] w-full max-w-md grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-2xl">
-                <div className="flex items-center justify-between gap-2 border-b border-neutral-200 bg-gradient-to-r from-sky-100 via-white to-emerald-100 px-3 py-2">
-                  <div className="min-w-0">
-                    <h3 className="truncate text-lg font-semibold text-neutral-900">{easyModalRow.breed_name}</h3>
-                    <p className="text-xs font-medium text-neutral-600">
-                      {copy.lineTotal}: {easyModalRow.total_collected} - {copy.lineSellable}: {easyModalRow.sellable_standard}
-                    </p>
+          {/* #10 Day-close summary modal */}
+          {closeSummaryOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+              <div className="w-full max-w-sm rounded-2xl border border-neutral-200 bg-white shadow-2xl">
+                <div className="border-b border-neutral-200 bg-gradient-to-r from-emerald-100 via-white to-sky-100 px-4 py-3">
+                  <h3 className="text-lg font-semibold text-neutral-900">Avslutt dagen</h3>
+                </div>
+                <div className="p-4 space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-3 text-center">
+                      <p className="text-[11px] uppercase tracking-wide text-neutral-500">Samlet inn</p>
+                      <p className="text-2xl font-bold text-neutral-900">{easyTotals.total}</p>
+                    </div>
+                    <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-center">
+                      <p className="text-[11px] uppercase tracking-wide text-neutral-500">Selgbare</p>
+                      <p className="text-2xl font-bold text-emerald-800">{easyTotals.sellable}</p>
+                    </div>
                   </div>
-                  <Button size="sm" variant="outline" className="border-neutral-300 bg-white" onClick={() => setEasyModalBreedId(null)}>
-                    {copy.close}
-                  </Button>
+                  <div className="flex items-center justify-between rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2">
+                    <span className="text-sm text-neutral-600">Kvalitetsrate</span>
+                    <span className="font-semibold text-neutral-900">{easyTotals.total > 0 ? ((easyTotals.sellable / easyTotals.total) * 100).toFixed(1) : '0'}%</span>
+                  </div>
+                  <div className="flex items-center justify-between rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2">
+                    <span className="text-sm text-neutral-600">Raser registrert</span>
+                    <span className="font-semibold text-neutral-900">{easyStoredRows} / {rows.length}</span>
+                  </div>
+                  {easyStoredRows < rows.length && (
+                    <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                      ⚠ {rows.length - easyStoredRows} rase(r) mangler data
+                    </div>
+                  )}
+                </div>
+                <div className="flex gap-2 border-t border-neutral-200 p-3">
+                  <Button variant="outline" className="flex-1 border-neutral-300" onClick={() => setCloseSummaryOpen(false)}>Avbryt</Button>
+                  <Button className="flex-1 bg-emerald-700 text-white hover:bg-emerald-600" onClick={() => { void completeEasyDay(); setCloseSummaryOpen(false) }}>Bekreft og avslutt</Button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {easyModalRow && (
+            <div
+              className="fixed inset-0 z-50 bg-black/50 p-2"
+              onTouchStart={(e) => { touchStartXRef.current = e.touches[0].clientX }}
+              onTouchEnd={(e) => {
+                if (touchStartXRef.current === null) return
+                const delta = e.changedTouches[0].clientX - touchStartXRef.current
+                touchStartXRef.current = null
+                if (Math.abs(delta) < 50) return
+                const idx = rows.findIndex(r => r.breed_id === easyModalBreedId)
+                if (delta < 0 && idx < rows.length - 1) setEasyModalBreedId(rows[idx + 1].breed_id)
+                if (delta > 0 && idx > 0) setEasyModalBreedId(rows[idx - 1].breed_id)
+              }}
+            >
+              <div className="mx-auto grid h-[calc(100dvh-1rem)] w-full max-w-md grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-2xl">
+                {/* #5 Progress dots + header */}
+                <div className="flex flex-col border-b border-neutral-200 bg-gradient-to-r from-sky-100 via-white to-emerald-100 px-3 py-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <h3 className="truncate text-lg font-semibold text-neutral-900">{easyModalRow.breed_name}</h3>
+                      <p className="text-xs font-medium text-neutral-600">
+                        {copy.lineTotal}: {easyModalRow.total_collected} - {copy.lineSellable}: {easyModalRow.sellable_standard}
+                      </p>
+                    </div>
+                    <Button size="sm" variant="outline" className="border-neutral-300 bg-white" onClick={() => setEasyModalBreedId(null)}>
+                      {copy.close}
+                    </Button>
+                  </div>
+                  <div className="mt-2 flex flex-wrap justify-center gap-1.5">
+                    {rows.map((r) => {
+                      const isCurrentModal = r.breed_id === easyModalBreedId
+                      const isStored = Boolean(r.updated_at) || Boolean(rowStates[r.breed_id]?.success)
+                      return (
+                        <button key={r.breed_id} type="button" aria-label={r.breed_name} onClick={() => setEasyModalBreedId(r.breed_id)}
+                          className={cn('h-3 w-3 rounded-full border transition-all', isCurrentModal ? 'bg-neutral-900 border-neutral-900 scale-125' : isStored ? 'bg-emerald-500 border-emerald-500' : 'bg-neutral-200 border-neutral-300')}
+                        />
+                      )
+                    })}
+                  </div>
                 </div>
 
                 <div className="min-h-0 overflow-y-auto p-2.5">
+                  {/* #6 Copy yesterday per-breed + #4 All sellable */}
+                  <div className="mb-2.5 flex gap-2">
+                    <Button type="button" size="sm" variant="outline" className="h-7 flex-1 border-neutral-300 bg-neutral-50 text-xs"
+                      onClick={() => void copyYesterdayForBreed(easyModalRow.breed_id)}>
+                      {copyYesterdayFlash ? 'Kopiert! ✓' : 'Kopier i går'}
+                    </Button>
+                    <Button type="button" size="sm" variant="outline" className="h-7 flex-1 border-emerald-400 bg-white text-xs font-semibold text-emerald-700"
+                      onClick={() => fillAllSellable(easyModalRow.breed_id)}>
+                      Alle sellable ✓
+                    </Button>
+                  </div>
                   <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
                     <PhoneEggStepperField
                       label={copy.totalEggs}
@@ -1687,6 +1883,8 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
                       onIncrement={() => stepField(easyModalRow.breed_id, 'total_collected', 1)}
                       onDecrement={() => stepField(easyModalRow.breed_id, 'total_collected', -1)}
                       onChange={(value) => updateRowField(easyModalRow.breed_id, 'total_collected', value)}
+                      onIncrementFive={() => stepField(easyModalRow.breed_id, 'total_collected', 5)}
+                      onIncrementTen={() => stepField(easyModalRow.breed_id, 'total_collected', 10)}
                     />
                     <PhoneEggStepperField
                       label={copy.keepEggs}
@@ -1694,6 +1892,8 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
                       onIncrement={() => stepField(easyModalRow.breed_id, 'sellable_standard', 1)}
                       onDecrement={() => stepField(easyModalRow.breed_id, 'sellable_standard', -1)}
                       onChange={(value) => updateRowField(easyModalRow.breed_id, 'sellable_standard', value)}
+                      onIncrementFive={() => stepField(easyModalRow.breed_id, 'sellable_standard', 5)}
+                      onIncrementTen={() => stepField(easyModalRow.breed_id, 'sellable_standard', 10)}
                     />
                     <PhoneEggStepperField
                       label={copy.tooSmall}
@@ -1701,6 +1901,8 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
                       onIncrement={() => stepField(easyModalRow.breed_id, 'too_small', 1)}
                       onDecrement={() => stepField(easyModalRow.breed_id, 'too_small', -1)}
                       onChange={(value) => updateRowField(easyModalRow.breed_id, 'too_small', value)}
+                      onIncrementFive={() => stepField(easyModalRow.breed_id, 'too_small', 5)}
+                      onIncrementTen={() => stepField(easyModalRow.breed_id, 'too_small', 10)}
                     />
                     <PhoneEggStepperField
                       label={copy.dirty}
@@ -1708,6 +1910,8 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
                       onIncrement={() => stepField(easyModalRow.breed_id, 'dirty', 1)}
                       onDecrement={() => stepField(easyModalRow.breed_id, 'dirty', -1)}
                       onChange={(value) => updateRowField(easyModalRow.breed_id, 'dirty', value)}
+                      onIncrementFive={() => stepField(easyModalRow.breed_id, 'dirty', 5)}
+                      onIncrementTen={() => stepField(easyModalRow.breed_id, 'dirty', 10)}
                     />
                     <PhoneEggStepperField
                       label={copy.cracked}
@@ -1715,6 +1919,8 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
                       onIncrement={() => stepField(easyModalRow.breed_id, 'cracked', 1)}
                       onDecrement={() => stepField(easyModalRow.breed_id, 'cracked', -1)}
                       onChange={(value) => updateRowField(easyModalRow.breed_id, 'cracked', value)}
+                      onIncrementFive={() => stepField(easyModalRow.breed_id, 'cracked', 5)}
+                      onIncrementTen={() => stepField(easyModalRow.breed_id, 'cracked', 10)}
                     />
                     <PhoneEggStepperField
                       label={copy.shellDefect}
@@ -1722,6 +1928,8 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
                       onIncrement={() => stepField(easyModalRow.breed_id, 'shell_defect', 1)}
                       onDecrement={() => stepField(easyModalRow.breed_id, 'shell_defect', -1)}
                       onChange={(value) => updateRowField(easyModalRow.breed_id, 'shell_defect', value)}
+                      onIncrementFive={() => stepField(easyModalRow.breed_id, 'shell_defect', 5)}
+                      onIncrementTen={() => stepField(easyModalRow.breed_id, 'shell_defect', 10)}
                     />
                     <PhoneEggStepperField
                       label={copy.other}
@@ -1729,6 +1937,8 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
                       onIncrement={() => stepField(easyModalRow.breed_id, 'other_unsellable', 1)}
                       onDecrement={() => stepField(easyModalRow.breed_id, 'other_unsellable', -1)}
                       onChange={(value) => updateRowField(easyModalRow.breed_id, 'other_unsellable', value)}
+                      onIncrementFive={() => stepField(easyModalRow.breed_id, 'other_unsellable', 5)}
+                      onIncrementTen={() => stepField(easyModalRow.breed_id, 'other_unsellable', 10)}
                     />
                   </div>
                 </div>
@@ -1742,6 +1952,22 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
                       <span className="rounded-full bg-red-100 px-2 py-1 text-xs font-semibold text-red-700">{copy.mismatchTitle}</span>
                     )}
                   </div>
+                  {/* #1 Prev/next breed navigation */}
+                  {(() => {
+                    const idx = rows.findIndex(r => r.breed_id === easyModalBreedId)
+                    return (
+                      <div className="mb-2 grid grid-cols-2 gap-2">
+                        <Button type="button" size="sm" variant="outline" className="h-9 border-neutral-300 bg-white text-xs"
+                          disabled={idx <= 0} onClick={() => setEasyModalBreedId(rows[idx - 1].breed_id)}>
+                          ← Forrige
+                        </Button>
+                        <Button type="button" size="sm" variant="outline" className="h-9 border-neutral-300 bg-white text-xs"
+                          disabled={idx >= rows.length - 1} onClick={() => setEasyModalBreedId(rows[idx + 1].breed_id)}>
+                          Neste →
+                        </Button>
+                      </div>
+                    )
+                  })()}
                   <div className="grid grid-cols-2 gap-2">
                     <Button
                       type="button"
@@ -1871,25 +2097,65 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
           </div>
         </div>
 
-        {(offlineQueue.length > 0 || syncingOffline) && (
-          <div className="mt-3 flex items-center justify-between rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-            <span>
-              {copy.offlineQueued}: {offlineQueue.length}
-            </span>
-            <Button size="sm" variant="outline" className="h-7 border-amber-300 bg-white text-xs" onClick={flushOfflineQueue} disabled={syncingOffline}>
-              {syncingOffline ? copy.syncing : copy.syncNow}
-            </Button>
-          </div>
-        )}
+        {/* Offline indicator moved to fixed top banner */}
       </Card>
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
         <KpiTile label={copy.kpiCollected} value={`${daily?.kpi.total_collected || 0}`} colorClass="border-sky-200 bg-sky-50" />
         <KpiTile label={copy.kpiSellable} value={`${daily?.kpi.total_sellable || 0}`} colorClass="border-emerald-200 bg-emerald-50" />
-        <KpiTile label={copy.kpiRate} value={`${daily?.kpi.sellable_rate || 0}%`} colorClass="border-violet-200 bg-violet-50" />
+        {/* #12 Sellable rate with trend */}
+        <KpiTile label={copy.kpiRate} value={`${daily?.kpi.sellable_rate || 0}%`} colorClass="border-violet-200 bg-violet-50"
+          trend={trend7 ? { delta: Math.round(((daily?.kpi.sellable_rate || 0) - (trend7?.sellable_rate || 0)) * 10) / 10, label: 'vs 7d' } : undefined} />
         <KpiTile label={copy.kpiForecast} value={`${daily?.kpi.next_week_estimate || 0}`} colorClass="border-amber-200 bg-amber-50" />
         <KpiTile label={copy.kpiLow} value={`${daily?.kpi.low_stock_breeds || 0}`} colorClass="border-rose-200 bg-rose-50" />
       </div>
+
+      {/* #15 Best/worst day this week */}
+      {(() => {
+        const last7dates = heatmapDates.slice(-7)
+        if (last7dates.length < 2) return null
+        const totals = last7dates.map(date => ({
+          date,
+          sellable: (dashboard?.heatmap || []).filter(h => h.date === date).reduce((s, h) => s + h.sellable, 0)
+        }))
+        const best = totals.reduce((a, b) => b.sellable > a.sellable ? b : a)
+        const worst = totals.reduce((a, b) => b.sellable < a.sellable ? b : a)
+        const fmt = (d: string) => new Date(`${d}T00:00:00`).toLocaleDateString(lang === 'en' ? 'en-GB' : 'nb-NO', { weekday: 'short', day: 'numeric' })
+        return (
+          <Card className="border-neutral-200 p-3">
+            <div className="flex flex-wrap gap-4 text-sm">
+              <span><span className="font-semibold text-emerald-700">↑ Beste:</span> <span className="text-neutral-900 font-medium">{fmt(best.date)}</span> — {best.sellable} egg</span>
+              <span><span className="font-semibold text-red-600">↓ Svakeste:</span> <span className="text-neutral-900 font-medium">{fmt(worst.date)}</span> — {worst.sellable} egg</span>
+            </div>
+          </Card>
+        )
+      })()}
+
+      {/* #19 Week-over-week summary */}
+      {(dashboard?.summary || []).length > 0 && (
+        <Card className="border-neutral-200 p-4">
+          <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide text-neutral-800">Uke vs forrige uke</h3>
+          <div className="space-y-1">
+            {(dashboard?.summary || []).map(breed => {
+              const d7w = dashboard?.windows.d7.find(w => w.breed_id === breed.breed_id)
+              const d14w = dashboard?.windows.d14.find(w => w.breed_id === breed.breed_id)
+              const last7 = d7w?.avg_sellable ?? 0
+              const prior7 = d14w ? Math.max(0, Math.round((d14w.avg_sellable * 2 - last7) * 10) / 10) : null
+              const delta = prior7 !== null ? Math.round((last7 - prior7) * 10) / 10 : null
+              return (
+                <div key={breed.breed_id} className="flex items-center gap-3 text-sm">
+                  <span className="w-36 truncate font-medium text-neutral-700">{breed.breed_name}</span>
+                  <span className="w-8 text-right font-semibold text-neutral-900">{last7}</span>
+                  <span className={cn('w-5 text-center font-bold', delta === null ? 'text-neutral-400' : delta > 0 ? 'text-emerald-600' : delta < 0 ? 'text-red-600' : 'text-neutral-400')}>
+                    {delta === null ? '–' : delta > 0 ? '▲' : delta < 0 ? '▼' : '='}
+                  </span>
+                  <span className="text-xs text-neutral-500">{prior7 !== null ? prior7 : '–'} forrige</span>
+                </div>
+              )
+            })}
+          </div>
+        </Card>
+      )}
 
       <Card className="border-neutral-200 p-4 md:p-5">
         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -2026,6 +2292,15 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
                       <p className="font-semibold text-neutral-900">{qualityRate}%</p>
                     </div>
                   </div>
+                  {/* #11 Sparkline */}
+                  {(() => {
+                    const pts = (dashboard?.heatmap || []).filter(h => h.breed_id === row.breed_id).slice(-7)
+                    if (pts.length < 2) return null
+                    const max = Math.max(...pts.map(p => p.sellable), 1)
+                    const W = 120, H = 24
+                    const path = pts.map((p, i) => `${(i / (pts.length - 1)) * W},${H - (p.sellable / max) * H}`).join(' ')
+                    return <svg width="100%" height={H} viewBox={`0 0 ${W} ${H}`} className="mt-2 opacity-60" preserveAspectRatio="none"><polyline points={path} fill="none" stroke={row.accent_color || '#6b7280'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                  })()}
                 </button>
               )
             })}
@@ -2168,6 +2443,27 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
                     </Button>
                   </div>
                 )}
+                {/* #14 Reject breakdown stacked bar */}
+                {rowRejectedTotal(selectedRow) > 0 && (() => {
+                  const total = Math.max(selectedRow.total_collected, 1)
+                  const segs = [
+                    { label: copy.tooSmall, val: selectedRow.too_small, color: '#f59e0b' },
+                    { label: copy.dirty, val: selectedRow.dirty, color: '#f97316' },
+                    { label: copy.cracked, val: selectedRow.cracked, color: '#ef4444' },
+                    { label: copy.shellDefect, val: selectedRow.shell_defect, color: '#fb7185' },
+                    { label: copy.other, val: selectedRow.other_unsellable, color: '#9ca3af' },
+                  ].filter(s => s.val > 0)
+                  return (
+                    <div className="mt-3 pt-2 border-t border-neutral-200">
+                      <div className="flex h-3 overflow-hidden rounded-full">
+                        {segs.map(s => <div key={s.label} style={{ width: `${(s.val / total) * 100}%`, backgroundColor: s.color }} title={`${s.label}: ${s.val}`} />)}
+                      </div>
+                      <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1">
+                        {segs.map(s => <span key={s.label} className="flex items-center gap-1 text-[11px] text-neutral-600"><span className="h-2 w-2 rounded-full inline-block" style={{ backgroundColor: s.color }} />{s.label}: {s.val}</span>)}
+                      </div>
+                    </div>
+                  )
+                })()}
               </div>
             </Card>
 
@@ -2402,48 +2698,297 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
           <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-neutral-600">{copy.heatmapTitle}</h4>
           <p className="mb-2 text-xs text-neutral-600">{copy.heatmapHelp}</p>
           <div className="overflow-x-auto">
-            <div className="min-w-[760px] space-y-1">
-              {(dashboard?.summary || []).map((breed) => (
-                <div key={breed.breed_id} className="grid grid-cols-[180px_repeat(14,minmax(0,1fr))] items-center gap-1">
-                  <div className="truncate text-xs font-medium text-neutral-700">{breed.breed_name}</div>
-                  {heatmapDates.map((date) => {
-                    const point = heatmapByBreedDate.get(`${breed.breed_id}:${date}`)
-                    const rate = point?.sellable_rate ?? 0
-                    const level =
-                      rate >= 90 ? 'bg-emerald-500' : rate >= 75 ? 'bg-emerald-300' : rate >= 60 ? 'bg-amber-300' : 'bg-red-300'
-                    return <div key={`${breed.breed_id}-${date}`} title={`${date}: ${rate}%`} className={cn('h-5 rounded', level)} />
-                  })}
-                </div>
-              ))}
+            <div className="min-w-[820px] space-y-1">
+              {/* #13 Heatmap header row */}
+              <div className="grid grid-cols-[180px_repeat(14,minmax(0,1fr))_44px_44px] items-center gap-1">
+                <div />
+                {heatmapDates.map(date => <div key={date} className="text-[9px] text-neutral-400 text-center truncate">{date.slice(5)}</div>)}
+                <div className="text-[9px] text-neutral-500 text-center font-semibold">7d</div>
+                <div className="text-[9px] text-neutral-500 text-center font-semibold">14d</div>
+              </div>
+              {(dashboard?.summary || []).map((breed) => {
+                const sum7 = heatmapDates.slice(-7).reduce((s, d) => s + (heatmapByBreedDate.get(`${breed.breed_id}:${d}`)?.sellable ?? 0), 0)
+                const sum14 = heatmapDates.reduce((s, d) => s + (heatmapByBreedDate.get(`${breed.breed_id}:${d}`)?.sellable ?? 0), 0)
+                return (
+                  <div key={breed.breed_id} className="grid grid-cols-[180px_repeat(14,minmax(0,1fr))_44px_44px] items-center gap-1">
+                    <div className="truncate text-xs font-medium text-neutral-700">{breed.breed_name}</div>
+                    {heatmapDates.map((date) => {
+                      const point = heatmapByBreedDate.get(`${breed.breed_id}:${date}`)
+                      const rate = point?.sellable_rate ?? 0
+                      const hasData = Boolean(point)
+                      const opacity = rate >= 90 ? 1 : rate >= 75 ? 0.7 : rate >= 60 ? 0.45 : rate >= 40 ? 0.25 : 0.1
+                      return <div key={`${breed.breed_id}-${date}`} title={`${date}: ${point?.sellable ?? 0} egg (${rate}%)`} className="h-5 rounded" style={{ backgroundColor: hasData ? (breed.accent_color || '#22c55e') : '#e5e7eb', opacity: hasData ? opacity : 0.3 }} />
+                    })}
+                    <div className="text-[10px] font-semibold text-neutral-700 text-center">{sum7}</div>
+                    <div className="text-[10px] font-semibold text-neutral-500 text-center">{sum14}</div>
+                  </div>
+                )
+              })}
             </div>
           </div>
         </div>
       </Card>
 
+      {/* #16 Forecast vs actual */}
       <Card className="border-neutral-200 p-4 md:p-5">
-        <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-neutral-800">{copy.auditTitle}</h3>
-        <div className="space-y-2">
-          {auditRows.length === 0 ? (
-            <p className="text-sm text-neutral-500">{copy.noAuditRows}</p>
-          ) : (
-            auditRows.map((row) => {
-              const relation = row.egg_daily_collections
-              const breedRelation = relation?.egg_breeds
-              const breedName = Array.isArray(breedRelation) ? breedRelation[0]?.name : breedRelation?.name
-              return (
-                <div key={row.id} className="rounded-lg border border-neutral-200 bg-neutral-50 p-2 text-xs text-neutral-700">
-                  <p className="font-medium">
-                    {breedName || copy.auditFallbackBreed} - {relation?.collection_date || '-'}
-                  </p>
-                  <p>
-                    {row.change_reason || copy.auditFallbackUpdated} - {row.changed_by || copy.auditFallbackUnknown} -{' '}
-                    {new Date(row.changed_at).toLocaleString(lang === 'en' ? 'en-GB' : 'nb-NO')}
-                  </p>
-                </div>
-              )
-            })
-          )}
+        <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-neutral-800">Prognose vs faktisk</h3>
+        {(() => {
+          const filtered = selectedBreedId ? forecastAccuracy.filter(r => r.breed_id === selectedBreedId) : forecastAccuracy
+          const recent = filtered.slice(-6)
+          if (recent.length === 0) return <p className="text-sm text-neutral-500">Ikke nok historiske data ennå</p>
+          return (
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-xs">
+                <thead><tr className="text-left text-neutral-500">{['Uke','Rase','Prognose','Faktisk','Feil'].map(h => <th key={h} className="pb-1 pr-3 font-semibold">{h}</th>)}</tr></thead>
+                <tbody>
+                  {recent.map((r: any) => {
+                    const err = r.error
+                    return (
+                      <tr key={`${r.breed_id}-${r.year}-${r.week_number}`} className="border-t border-neutral-100">
+                        <td className="py-1 pr-3 text-neutral-600">Uke {r.week_number}/{r.year}</td>
+                        <td className="py-1 pr-3 font-medium text-neutral-900">{r.breed_name}</td>
+                        <td className="py-1 pr-3">{r.forecast_eggs}</td>
+                        <td className="py-1 pr-3">{r.actual_eggs}</td>
+                        <td className={cn('py-1 pr-3 font-semibold', err > 3 ? 'text-emerald-700' : err < -3 ? 'text-red-700' : 'text-neutral-600')}>{err > 0 ? '+' : ''}{err}</td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )
+        })()}
+      </Card>
+
+      {/* #17 Audit log collapsible */}
+      <Card className="border-neutral-200 p-4 md:p-5">
+        <div className="mb-3 flex items-center justify-between">
+          <h3 className="text-sm font-semibold uppercase tracking-wide text-neutral-800">{copy.auditTitle}</h3>
+          <Button size="sm" variant="outline" className="h-7 border-neutral-300 bg-white text-xs" onClick={() => setAuditCollapsed(p => !p)}>
+            {auditCollapsed ? `Vis (${auditRows.length}) ↓` : 'Skjul ↑'}
+          </Button>
         </div>
+        {!auditCollapsed && (
+          <div className="space-y-2">
+            {auditRows.length === 0 ? (
+              <p className="text-sm text-neutral-500">{copy.noAuditRows}</p>
+            ) : (
+              auditRows.map((row) => {
+                const relation = row.egg_daily_collections
+                const breedRelation = relation?.egg_breeds
+                const breedName = Array.isArray(breedRelation) ? breedRelation[0]?.name : breedRelation?.name
+                return (
+                  <div key={row.id} className="rounded-lg border border-neutral-200 bg-neutral-50 p-2 text-xs text-neutral-700">
+                    <p className="font-medium">
+                      {breedName || copy.auditFallbackBreed} - {relation?.collection_date || '-'}
+                    </p>
+                    <p>
+                      {row.change_reason || copy.auditFallbackUpdated} - {row.changed_by || copy.auditFallbackUnknown} -{' '}
+                      {new Date(row.changed_at).toLocaleString(lang === 'en' ? 'en-GB' : 'nb-NO')}
+                    </p>
+                  </div>
+                )
+              })
+            )}
+          </div>
+        )}
+      </Card>
+
+      {/* Reports section */}
+      <Card className="border-neutral-200 p-4 md:p-5">
+        <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-neutral-800">Rapporter</h3>
+        <div className="flex flex-wrap gap-2 mb-4">
+          {(['reject','accuracy','weekday','consistency'] as const).map(type => {
+            const labels: Record<string, string> = { reject: 'Forkastninger', accuracy: 'Prognose nøyaktighet', weekday: 'Ukedag-mønster', consistency: 'Konsistens' }
+            return (
+              <Button key={type} size="sm"
+                variant={activeReport === type ? 'default' : 'outline'}
+                className={cn('text-xs', activeReport === type ? 'bg-neutral-900 text-white' : 'border-neutral-300 bg-white')}
+                onClick={() => { const next = activeReport === type ? null : type; setActiveReport(next); if (next) void loadReport(next) }}>
+                {labels[type]}
+              </Button>
+            )
+          })}
+        </div>
+
+        {loadingReport && (
+          <div className="flex justify-center py-6">
+            <div className="w-8 h-8 border-2 border-neutral-300 border-t-neutral-700 rounded-full animate-spin" />
+          </div>
+        )}
+
+        {activeReport === 'reject' && reportData.reject && (() => {
+          const data = reportData.reject
+          const CATS = [
+            { key: 'too_small', label: 'For små', color: '#f59e0b' },
+            { key: 'dirty', label: 'Skitne', color: '#f97316' },
+            { key: 'cracked', label: 'Knust', color: '#ef4444' },
+            { key: 'shell_defect', label: 'Skallfeil', color: '#fb7185' },
+            { key: 'other_unsellable', label: 'Andre', color: '#9ca3af' },
+          ] as const
+          return (
+            <div className="space-y-4">
+              <div className="flex flex-wrap gap-3 text-xs">
+                {CATS.map(c => <span key={c.key} className="flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-full inline-block" style={{ backgroundColor: c.color }} />{c.label}</span>)}
+              </div>
+              {(data.breeds || []).map((breed: any) => {
+                const weeks = breed.weeks.slice(-8)
+                const maxT = Math.max(...weeks.map((w: any) => w.total_collected), 1)
+                return (
+                  <div key={breed.breed_id}>
+                    <p className="text-xs font-semibold text-neutral-700 mb-1">{breed.breed_name}</p>
+                    <div className="flex gap-1 items-end" style={{ height: '60px' }}>
+                      {weeks.map((w: any) => {
+                        const barH = Math.round((w.total_collected / maxT) * 52)
+                        return (
+                          <div key={w.week} className="flex-1 flex flex-col-reverse" style={{ height: barH + 'px' }} title={w.week}>
+                            {CATS.map(c => {
+                              const pct = w.total_collected > 0 ? (w[c.key] / w.total_collected) * 100 : 0
+                              return pct > 0 ? <div key={c.key} style={{ height: pct + '%', backgroundColor: c.color }} /> : null
+                            })}
+                          </div>
+                        )
+                      })}
+                    </div>
+                    <div className="flex gap-1 mt-0.5">
+                      {weeks.map((w: any) => <div key={w.week} className="flex-1 text-[8px] text-neutral-400 text-center truncate">{w.week.slice(5)}</div>)}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )
+        })()}
+
+        {activeReport === 'accuracy' && reportData.accuracy && (() => {
+          const data = reportData.accuracy
+          return (
+            <div className="space-y-4">
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-xs">
+                  <thead><tr className="text-left text-neutral-500">{['Rase','Snitt feil %','Bias','Uker','Under/Over'].map(h => <th key={h} className="pb-2 pr-4 font-semibold">{h}</th>)}</tr></thead>
+                  <tbody>
+                    {(data.summary || []).map((s: any) => (
+                      <tr key={s.breed_id} className="border-t border-neutral-100">
+                        <td className="py-1.5 pr-4 font-medium text-neutral-900">{s.breed_name}</td>
+                        <td className="py-1.5 pr-4">{s.avg_pct_error}%</td>
+                        <td className={cn('py-1.5 pr-4 font-semibold', s.avg_bias > 2 ? 'text-emerald-700' : s.avg_bias < -2 ? 'text-red-700' : 'text-neutral-600')}>{s.avg_bias > 0 ? '+' : ''}{s.avg_bias}</td>
+                        <td className="py-1.5 pr-4">{s.total_weeks}</td>
+                        <td className="py-1.5 text-neutral-600">{s.weeks_under}U / {s.weeks_over}O</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-xs">
+                  <thead><tr className="text-left text-neutral-500">{['Uke','Rase','Prognose','Faktisk','Feil'].map(h => <th key={h} className="pb-1 pr-3 font-semibold">{h}</th>)}</tr></thead>
+                  <tbody>
+                    {(data.rows || []).slice(-12).map((r: any) => (
+                      <tr key={`${r.breed_id}-${r.year}-${r.week_number}`} className="border-t border-neutral-100">
+                        <td className="py-1 pr-3 text-neutral-600">Uke {r.week_number}/{r.year}</td>
+                        <td className="py-1 pr-3 font-medium">{r.breed_name}</td>
+                        <td className="py-1 pr-3">{r.forecast_eggs}</td>
+                        <td className="py-1 pr-3">{r.actual_eggs}</td>
+                        <td className={cn('py-1 pr-3 font-semibold', r.error > 3 ? 'text-emerald-700' : r.error < -3 ? 'text-red-700' : 'text-neutral-600')}>{r.error > 0 ? '+' : ''}{r.error}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )
+        })()}
+
+        {activeReport === 'weekday' && reportData.weekday && (() => {
+          const data = reportData.weekday
+          const farmWide: any[] = data.farm_wide || []
+          const maxVal = Math.max(...farmWide.map((d: any) => d.avg_sellable), 1)
+          return (
+            <div className="space-y-4">
+              <div>
+                <p className="text-xs font-semibold text-neutral-600 mb-2">Gårdssnitt — selgbar per ukedag</p>
+                <div className="flex items-end gap-2" style={{ height: '80px' }}>
+                  {farmWide.map((d: any) => (
+                    <div key={d.day} className="flex-1 flex flex-col items-center gap-1">
+                      <span className="text-[10px] font-semibold text-neutral-700">{d.avg_sellable}</span>
+                      <div className="w-full rounded-t bg-neutral-500" style={{ height: Math.round((d.avg_sellable / maxVal) * 52) + 'px' }} />
+                      <span className="text-[10px] text-neutral-500">{d.day}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-xs">
+                  <thead><tr className="text-left text-neutral-500"><th className="pb-1 pr-2 font-semibold">Rase</th>{farmWide.map((d: any) => <th key={d.day} className="pb-1 pr-1 font-semibold text-center">{d.day}</th>)}</tr></thead>
+                  <tbody>
+                    {(data.breeds || []).map((breed: any) => {
+                      const avg = breed.dow.reduce((s: number, d: any) => s + d.avg_sellable, 0) / 7
+                      return (
+                        <tr key={breed.breed_id} className="border-t border-neutral-100">
+                          <td className="py-1 pr-2 font-medium text-neutral-900 max-w-[100px] truncate">{breed.breed_name}</td>
+                          {breed.dow.map((d: any) => (
+                            <td key={d.day} className="py-1 pr-1 text-center" style={{ color: d.avg_sellable > avg * 1.1 ? '#15803d' : d.avg_sellable < avg * 0.9 ? '#b91c1c' : '#374151', fontWeight: (d.avg_sellable > avg * 1.1 || d.avg_sellable < avg * 0.9) ? 600 : 400 }}>
+                              {d.avg_sellable}
+                            </td>
+                          ))}
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )
+        })()}
+
+        {activeReport === 'consistency' && reportData.consistency && (() => {
+          const data = reportData.consistency
+          const s = data.summary || {}
+          return (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                {[
+                  { label: 'Snitt timer til lukking', val: s.avg_hours_to_close !== null && s.avg_hours_to_close !== undefined ? `${s.avg_hours_to_close}t` : '–' },
+                  { label: 'Sent lukket', val: s.late_closings ?? 0 },
+                  { label: 'Gjenåpnet', val: s.reopened_days ?? 0 },
+                  { label: 'Korreksjoner', val: s.total_corrections ?? 0 },
+                ].map(tile => (
+                  <div key={tile.label} className="rounded-xl border border-neutral-200 bg-neutral-50 p-3">
+                    <p className="text-[11px] uppercase tracking-wide text-neutral-500">{tile.label}</p>
+                    <p className="mt-1 text-xl font-semibold text-neutral-900">{tile.val}</p>
+                  </div>
+                ))}
+              </div>
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-xs">
+                  <thead><tr className="text-left text-neutral-500">{['Dato','Status','Timer','Sent','Korr.'].map(h => <th key={h} className="pb-1 pr-3 font-semibold">{h}</th>)}</tr></thead>
+                  <tbody>
+                    {(data.days || []).slice(-30).map((d: any) => (
+                      <tr key={d.collection_date} className="border-t border-neutral-100">
+                        <td className="py-1 pr-3 text-neutral-700">{d.collection_date}</td>
+                        <td className="py-1 pr-3"><span className={cn('rounded-full px-1.5 py-0.5 text-[10px] font-semibold', d.status === 'closed' ? 'bg-neutral-200 text-neutral-700' : d.status === 'in_progress' ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-700')}>{d.status}</span></td>
+                        <td className="py-1 pr-3">{d.hours_to_close !== null ? `${d.hours_to_close}t` : '–'}</td>
+                        <td className="py-1 pr-3">{d.closed_late ? <span className="text-amber-700 font-semibold">Ja</span> : '–'}</td>
+                        <td className="py-1 pr-3">{d.corrections > 0 ? <span className="font-semibold text-red-700">{d.corrections}</span> : '0'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {(data.breed_corrections || []).length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-neutral-600 mb-1">Mest korrigerte raser (topp 5):</p>
+                  {(data.breed_corrections || []).slice(0, 5).map((b: any) => (
+                    <div key={b.breed_id} className="flex justify-between text-xs py-0.5 text-neutral-700">
+                      <span>{b.breed_id}</span><span className="font-semibold">{b.count}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )
+        })()}
       </Card>
         </>
       )}
@@ -2455,15 +3000,22 @@ function KpiTile({
   label,
   value,
   colorClass,
+  trend,
 }: {
   label: string
   value: string
   colorClass: string
+  trend?: { delta: number; label: string }
 }) {
   return (
     <Card className={cn('border p-3', colorClass)}>
       <p className="text-[11px] font-semibold uppercase tracking-wide text-neutral-600">{label}</p>
       <p className="mt-1 text-2xl font-semibold text-neutral-900">{value}</p>
+      {trend && (
+        <p className={cn('mt-0.5 text-xs font-semibold', trend.delta > 0 ? 'text-emerald-700' : trend.delta < 0 ? 'text-red-700' : 'text-neutral-500')}>
+          {trend.delta > 0 ? '▲' : trend.delta < 0 ? '▼' : '–'} {Math.abs(trend.delta).toFixed(1)}% {trend.label}
+        </p>
+      )}
     </Card>
   )
 }
@@ -2560,23 +3112,28 @@ function PhoneEggStepperField({
   onIncrement,
   onDecrement,
   onChange,
+  onIncrementFive,
+  onIncrementTen,
 }: {
   label: string
   value: number
   onIncrement: () => void
   onDecrement: () => void
   onChange: (value: string) => void
+  onIncrementFive?: () => void
+  onIncrementTen?: () => void
 }) {
   return (
     <div className="min-w-0 rounded-xl border border-neutral-300 bg-gradient-to-br from-white to-neutral-50 p-2 shadow-sm">
       <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-neutral-700">{label}</label>
-      <div className="grid grid-cols-[44px_minmax(0,1fr)_44px] items-center gap-2 sm:grid-cols-[48px_minmax(0,1fr)_48px]">
+      {/* #7 Larger tap targets: 56px */}
+      <div className="grid grid-cols-[56px_minmax(0,1fr)_56px] items-center gap-2">
         <Button
           type="button"
           size="icon"
           variant="outline"
           onClick={onDecrement}
-          className="h-11 w-11 border-neutral-300 bg-neutral-900 text-white hover:bg-neutral-800 sm:h-12 sm:w-12"
+          className="h-14 w-14 border-neutral-300 bg-neutral-900 text-white hover:bg-neutral-800"
         >
           <Minus className="h-5 w-5" />
         </Button>
@@ -2586,18 +3143,31 @@ function PhoneEggStepperField({
           onChange={(event) => onChange(event.target.value)}
           onFocus={(event) => event.currentTarget.select()}
           placeholder="0"
-          className="h-11 min-w-0 border-neutral-300 bg-white px-1 text-center text-xl font-semibold sm:h-12 sm:text-2xl"
+          className="h-12 min-w-0 border-neutral-300 bg-white px-1 text-center text-2xl font-semibold"
         />
         <Button
           type="button"
           size="icon"
           variant="outline"
           onClick={onIncrement}
-          className="h-11 w-11 border-neutral-300 bg-neutral-900 text-white hover:bg-neutral-800 sm:h-12 sm:w-12"
+          className="h-14 w-14 border-neutral-300 bg-neutral-900 text-white hover:bg-neutral-800"
         >
           <Plus className="h-5 w-5" />
         </Button>
       </div>
+      {/* #3 +5 / +10 shortcuts */}
+      {(onIncrementFive || onIncrementTen) && (
+        <div className="mt-1.5 grid grid-cols-2 gap-1.5">
+          {onIncrementFive && (
+            <Button type="button" size="sm" variant="outline" onClick={onIncrementFive}
+              className="h-7 border-neutral-300 bg-white text-xs font-semibold text-neutral-700">+5</Button>
+          )}
+          {onIncrementTen && (
+            <Button type="button" size="sm" variant="outline" onClick={onIncrementTen}
+              className="h-7 border-neutral-300 bg-white text-xs font-semibold text-neutral-700">+10</Button>
+          )}
+        </div>
+      )}
     </div>
   )
 }

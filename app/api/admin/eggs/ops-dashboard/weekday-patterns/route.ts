@@ -6,6 +6,18 @@ export const dynamic = 'force-dynamic'
 
 const DOW_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 
+type DowBucket = { total_sum: number; sellable_sum: number; sample_days: number }
+
+function bucketsToDow(dow: Record<number, DowBucket>) {
+  return Array.from({ length: 7 }, (_, i) => {
+    const b = dow[i]
+    const avg_total = b.sample_days > 0 ? Math.round((b.total_sum / b.sample_days) * 10) / 10 : 0
+    const avg_sellable = b.sample_days > 0 ? Math.round((b.sellable_sum / b.sample_days) * 10) / 10 : 0
+    const sellable_rate = b.total_sum > 0 ? Math.round((b.sellable_sum / b.total_sum) * 100 * 10) / 10 : 0
+    return { day: DOW_NAMES[i], day_index: i, avg_total, avg_sellable, sellable_rate, sample_days: b.sample_days }
+  })
+}
+
 export async function GET(request: NextRequest) {
   const access = await enforceEggOpsAccess(request, { allowUnauthenticatedWhenDisabled: true })
   if (!access.ok) return access.response
@@ -34,12 +46,6 @@ export async function GET(request: NextRequest) {
     if (error) throw error
 
     // DOW buckets per breed: day_index 0=Mon..6=Sun
-    type DowBucket = {
-      total_sum: number
-      sellable_sum: number
-      sample_days: number
-    }
-
     type BreedAcc = {
       breed_id: string
       breed_name: string
@@ -87,24 +93,6 @@ export async function GET(request: NextRequest) {
       farmWide[dayIndex].total_sum += total
       farmWide[dayIndex].sellable_sum += sellable
       farmWide[dayIndex].sample_days += 1
-    }
-
-    function bucketsToDow(dow: Record<number, DowBucket>) {
-      return Array.from({ length: 7 }, (_, i) => {
-        const b = dow[i]
-        const avg_total = b.sample_days > 0 ? Math.round((b.total_sum / b.sample_days) * 10) / 10 : 0
-        const avg_sellable = b.sample_days > 0 ? Math.round((b.sellable_sum / b.sample_days) * 10) / 10 : 0
-        const sellable_rate =
-          b.total_sum > 0 ? Math.round((b.sellable_sum / b.total_sum) * 100 * 10) / 10 : 0
-        return {
-          day: DOW_NAMES[i],
-          day_index: i,
-          avg_total,
-          avg_sellable,
-          sellable_rate,
-          sample_days: b.sample_days,
-        }
-      })
     }
 
     const breeds = Object.values(breedMap).map((b) => ({
