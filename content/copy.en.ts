@@ -733,6 +733,13 @@
       trackParcel: "Track parcel with Posten",
       quantityBreakdown: "Base {base} + additions {additions} = total {total}",
       wishlistMore: "Wish for more eggs",
+      pickupDay: 'Pickup day',
+      choosePickupDay: 'Choose pickup day (Sunday, Monday, or Tuesday)',
+      choosePickupTime: 'Choose pickup time',
+      atTime: 'at',
+      changePickupDay: 'Change',
+      pickupDaySet: 'Pickup day set',
+      pickupDayNotChosen: 'Not chosen yet',
     },
       remainderPayment: {
         unavailable: "Remainder payment is not available for this order.",

@@ -1,13 +1,14 @@
 'use client'
 
 import Link from 'next/link'
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useLanguage } from '@/contexts/LanguageContext'
 import { GlassCard } from '@/components/eggs/GlassCard'
 import { formatDateFull, formatPrice } from '@/lib/eggs/utils'
 import { ArrowRight } from 'lucide-react'
 import { StepTimeline } from '@/components/orders/StepTimeline'
 import { cn } from '@/lib/utils'
+import { useToast } from '@/hooks/use-toast'
 
 type EggPayment = {
   payment_type: string
@@ -40,6 +41,8 @@ type EggOrder = {
   tracking_number?: string | null
   marked_shipped_at?: string | null
   created_at?: string | null
+  pickup_date?: string | null
+  pickup_time?: string | null
   egg_breeds?: { name?: string; accent_color?: string } | null
   egg_payments?: EggPayment[]
   egg_order_additions?: EggOrderAddition[]
@@ -62,10 +65,33 @@ const buildTrackingUrl = (trackingNumber?: string | null) => {
   return `https://sporing.posten.no/sporing/${encodeURIComponent(value)}`
 }
 
+const PICKUP_TIME_SLOTS = ['11:00', '17:00'] as const
+
+/** Returns the 3 eligible pickup dates: Sun (Mon-1), Mon (delivery), Tue (Mon+1) */
+function getEggPickupDays(deliveryMonday: string, locale: string): Array<{ iso: string; dayName: string; date: Date }> {
+  const monday = new Date(`${deliveryMonday}T00:00:00Z`)
+  return [-1, 0, 1].map((offset) => {
+    const d = new Date(monday)
+    d.setUTCDate(monday.getUTCDate() + offset)
+    return {
+      date: d,
+      iso: d.toISOString().split('T')[0],
+      dayName: d.toLocaleDateString(locale, { weekday: 'short', day: 'numeric', month: 'short' }),
+    }
+  })
+}
+
 export function EggOrderUnifiedCard({ order, onPayDeposit }: { order: EggOrder; onPayDeposit?: (orderId: string) => void }) {
   const { lang, t } = useLanguage()
+  const { toast } = useToast()
   const ordersCopy = t.eggs.myOrders
   const common = t.eggs.common
+
+  const [chosenPickupDate, setChosenPickupDate] = useState<string | null>(order.pickup_date || null)
+  const [chosenPickupTime, setChosenPickupTime] = useState<string | null>(order.pickup_time || null)
+  const [pendingDay, setPendingDay] = useState<string | null>(null)
+  const [pickingDay, setPickingDay] = useState(false)
+  const [savingPickupDay, setSavingPickupDay] = useState(false)
 
   const today = useMemo(() => toDateOnly(new Date()), [])
 
@@ -141,6 +167,59 @@ export function EggOrderUnifiedCard({ order, onPayDeposit }: { order: EggOrder; 
   const shipmentStarted = ['shipped', 'delivered'].includes(order.status)
   const shipmentDone = order.status === 'delivered'
   const trackingUrl = buildTrackingUrl(order.tracking_number)
+  const locale = lang === 'no' ? 'nb-NO' : 'en-US'
+
+  const isPickupOrder = ['farm_pickup', 'e6_pickup'].includes(order.delivery_method)
+  const pickupDays = useMemo(
+    () => getEggPickupDays(order.delivery_monday, locale),
+    [order.delivery_monday, locale]
+  )
+  // Show picker while the latest pickup day (Tuesday) is still in the future
+  const lastPickupDay = pickupDays[2]?.date
+  const canChoosePickupDay =
+    isPickupOrder &&
+    !['cancelled', 'delivered', 'forfeited'].includes(order.status) &&
+    lastPickupDay != null &&
+    daysBetween(lastPickupDay, today) >= 0
+
+  const effectivePickupDate = chosenPickupDate
+    ? toDateOnly(chosenPickupDate)
+    : toDateOnly(order.delivery_monday)
+
+  const pickupDateLabel = chosenPickupDate
+    ? effectivePickupDate.toLocaleDateString(locale, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+    : null
+
+  const handlePickupTimeSelect = async (time: string) => {
+    const dateToSave = pendingDay || chosenPickupDate
+    if (!dateToSave) return
+    setSavingPickupDay(true)
+    try {
+      const res = await fetch(`/api/eggs/orders/${order.id}/pickup-date`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pickupDate: dateToSave, pickupTime: time }),
+      })
+      if (!res.ok) throw new Error('Failed')
+      setChosenPickupDate(dateToSave)
+      setChosenPickupTime(time)
+      setPendingDay(null)
+      setPickingDay(false)
+      const atLabel = (ordersCopy as any).atTime || (lang === 'no' ? 'kl.' : 'at')
+      toast({
+        title: (ordersCopy as any).pickupDaySet || (lang === 'no' ? 'Hentedag valgt' : 'Pickup day set'),
+        description: `${new Date(`${dateToSave}T00:00:00`).toLocaleDateString(locale, {
+          weekday: 'long',
+          day: 'numeric',
+          month: 'long',
+        })} ${atLabel} ${time}`,
+      })
+    } catch {
+      toast({ title: lang === 'no' ? 'Feil' : 'Error', variant: 'destructive' })
+    } finally {
+      setSavingPickupDay(false)
+    }
+  }
 
   const timelineSteps = [
     {
@@ -396,6 +475,102 @@ export function EggOrderUnifiedCard({ order, onPayDeposit }: { order: EggOrder; 
           </div>
         </div>
       </div>
+
+      {canChoosePickupDay && (
+        <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-4">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-xs uppercase tracking-[0.2em] text-neutral-500">
+              {(ordersCopy as any).pickupDay || (lang === 'no' ? 'Hentedag' : 'Pickup day')}
+            </p>
+            {chosenPickupDate && chosenPickupTime && !pickingDay && (
+              <button
+                type="button"
+                onClick={() => { setPickingDay(true); setPendingDay(null) }}
+                className="text-xs text-neutral-500 underline hover:text-neutral-700"
+              >
+                {(ordersCopy as any).changePickupDay || (lang === 'no' ? 'Endre' : 'Change')}
+              </button>
+            )}
+          </div>
+
+          {chosenPickupDate && chosenPickupTime && !pickingDay ? (
+            <p className="text-sm font-medium text-neutral-900">
+              {pickupDateLabel} {(ordersCopy as any).atTime || (lang === 'no' ? 'kl.' : 'at')} {chosenPickupTime}
+            </p>
+          ) : (
+            <>
+              {/* Step 1: choose day */}
+              {!pendingDay && (
+                <>
+                  <p className="text-sm text-neutral-600 mb-3">
+                    {(ordersCopy as any).choosePickupDay || (lang === 'no' ? 'Velg hentedag (søndag, mandag eller tirsdag)' : 'Choose pickup day (Sunday, Monday, or Tuesday)')}
+                  </p>
+                  <div className="flex gap-2 flex-wrap">
+                    {pickupDays.map((day) => {
+                      const isPast = day.date < today
+                      const isSelected = !pendingDay && chosenPickupDate === day.iso
+                      return (
+                        <button
+                          key={day.iso}
+                          type="button"
+                          disabled={isPast || savingPickupDay}
+                          onClick={() => setPendingDay(day.iso)}
+                          className={cn(
+                            'flex-1 min-w-[90px] rounded-md border px-3 py-2 text-center text-xs transition-colors',
+                            isSelected
+                              ? 'border-neutral-900 bg-neutral-900 text-white'
+                              : isPast
+                              ? 'border-neutral-100 bg-neutral-100 text-neutral-300 cursor-not-allowed'
+                              : 'border-neutral-200 bg-white text-neutral-700 hover:border-neutral-400 hover:bg-neutral-100'
+                          )}
+                        >
+                          {day.dayName}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </>
+              )}
+
+              {/* Step 2: choose time */}
+              {pendingDay && (
+                <>
+                  <p className="text-sm text-neutral-600 mb-1">
+                    {new Date(`${pendingDay}T00:00:00`).toLocaleDateString(locale, {
+                      weekday: 'long',
+                      day: 'numeric',
+                      month: 'long',
+                    })}
+                  </p>
+                  <p className="text-sm text-neutral-600 mb-3">
+                    {(ordersCopy as any).choosePickupTime || (lang === 'no' ? 'Velg hentetid' : 'Choose pickup time')}
+                  </p>
+                  <div className="flex gap-2">
+                    {PICKUP_TIME_SLOTS.map((time) => (
+                      <button
+                        key={time}
+                        type="button"
+                        disabled={savingPickupDay}
+                        onClick={() => handlePickupTimeSelect(time)}
+                        className="flex-1 rounded-md border border-neutral-200 bg-white px-3 py-2 text-center text-sm text-neutral-700 hover:border-neutral-400 hover:bg-neutral-100 transition-colors"
+                      >
+                        {time}
+                      </button>
+                    ))}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setPendingDay(null)}
+                    className="mt-2 text-xs text-neutral-500 underline"
+                  >
+                    {lang === 'no' ? 'Tilbake' : 'Back'}
+                  </button>
+                </>
+              )}
+            </>
+          )}
+        </div>
+      )}
 
       <div className={cn('rounded-lg border px-3 py-2 text-sm', nextActionClass)}>
         <p className="font-medium">{nextAction.text}</p>

@@ -734,6 +734,13 @@
       trackParcel: "Spor pakken hos Posten",
       quantityBreakdown: "Grunn {base} + tillegg {additions} = totalt {total}",
       wishlistMore: "Ønsk flere egg",
+      pickupDay: 'Hentedag',
+      choosePickupDay: 'Velg hentedag (søndag, mandag eller tirsdag)',
+      choosePickupTime: 'Velg hentetid',
+      atTime: 'kl.',
+      changePickupDay: 'Endre',
+      pickupDaySet: 'Hentedag valgt',
+      pickupDayNotChosen: 'Ikke valgt ennå',
     },
       remainderPayment: {
         unavailable: "Restbetaling er ikke tilgjengelig for denne bestillingen.",
