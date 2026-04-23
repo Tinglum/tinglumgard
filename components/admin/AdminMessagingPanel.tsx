@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Send, X, Clock, AlertCircle, CheckCircle, MessageSquare, Filter } from 'lucide-react';
+import { Send, X, Clock, AlertCircle, CheckCircle, MessageSquare, Filter, ChevronDown, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useLanguage } from '@/contexts/LanguageContext';
 
@@ -78,6 +78,7 @@ export function AdminMessagingPanel({
   const [messages, setMessages] = useState<CustomerMessage[]>([]);
   const [selectedMessage, setSelectedMessage] = useState<CustomerMessage | null>(null);
   const [loading, setLoading] = useState(true);
+  const [debugOpen, setDebugOpen] = useState(false);
   const [replyText, setReplyText] = useState('');
   const [replyLoading, setReplyLoading] = useState(false);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
@@ -152,6 +153,7 @@ export function AdminMessagingPanel({
 
   const openMessage = useCallback(async (message: CustomerMessage) => {
     setSelectedMessage(message);
+    setDebugOpen(false);
     await loadMessageDetail(message.id);
     await loadMessages(false);
   }, [loadMessageDetail, loadMessages]);
@@ -648,11 +650,20 @@ export function AdminMessagingPanel({
       </Card>
 
       {/* Email Debug Trail */}
-      <Card className="p-6">
-        <div className="mb-4">
-          <h3 className="font-semibold text-gray-900">{copy.emailDebugTitle}</h3>
-          <p className="text-sm text-gray-600 mt-1">{copy.emailDebugDescription}</p>
-        </div>
+      <Card className="overflow-hidden">
+        <button
+          type="button"
+          onClick={() => setDebugOpen((o) => !o)}
+          className="flex w-full items-center justify-between px-6 py-4 text-left hover:bg-gray-50 transition-colors"
+        >
+          <span className="text-sm font-medium text-gray-500">{copy.emailDebugTitle}</span>
+          {debugOpen ? (
+            <ChevronDown className="h-4 w-4 text-gray-400 shrink-0" />
+          ) : (
+            <ChevronRight className="h-4 w-4 text-gray-400 shrink-0" />
+          )}
+        </button>
+        {debugOpen && <div className="px-6 pb-6 border-t border-gray-100 pt-4">
         {selectedMessage.email_debug_events && selectedMessage.email_debug_events.length > 0 ? (
           <div className="space-y-3 max-h-96 overflow-y-auto pr-1">
             {selectedMessage.email_debug_events.map((event) => {
@@ -722,6 +733,7 @@ export function AdminMessagingPanel({
         ) : (
           <p className="text-sm text-gray-500">{copy.emailDebugEmpty}</p>
         )}
+        </div>}
       </Card>
 
       {/* Reply Form */}
