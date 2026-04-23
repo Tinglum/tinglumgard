@@ -6,10 +6,13 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { InstagramFeed } from "@/components/InstagramFeed";
 import { getHeroStyles, getBannerStyles, getInventoryStyles } from "@/lib/theme-utils";
+import { fixMojibake } from "@/lib/utils/text";
 import { useIsMobile } from "@/hooks/useMediaQuery";
 import { MobileHero } from "@/components/MobileHero";
 import { MobileProductTiles } from "@/components/MobileProductTiles";
 import { MobileTimeline } from "@/components/MobileTimeline";
+import { FrontpageVideoDialog } from "@/components/FrontpageVideoDialog";
+import { useToast } from "@/hooks/use-toast";
 
 interface InventoryData {
   season: string;
@@ -18,6 +21,29 @@ interface InventoryData {
   isLowStock: boolean;
   isSoldOut: boolean;
   active: boolean;
+}
+
+interface MangalitsaPreset {
+  id: string;
+  slug: string;
+  name_no: string;
+  name_en: string;
+  short_pitch_no: string;
+  short_pitch_en: string;
+  description_no?: string | null;
+  description_en?: string | null;
+  target_audience_no?: string | null;
+  target_audience_en?: string | null;
+  scarcity_message_no?: string | null;
+  scarcity_message_en?: string | null;
+  target_weight_kg: number;
+  price_nok: number;
+  display_order?: number;
+  contents?: Array<{
+    content_name_no: string;
+    content_name_en: string;
+    display_order?: number;
+  }>;
 }
 
 // Meta Label Component
@@ -64,7 +90,6 @@ function ParallaxLayer({
 
 // Product Card with refined animations - KEPT (scroll-triggered stagger)
 function ProductCard({
-  size,
   label,
   description,
   features,
@@ -77,10 +102,8 @@ function ProductCard({
   ctaText,
   ctaHref,
   isFeatured = false,
-  pricing,
   delay = 0
 }: {
-  size: string;
   label: string;
   description: string;
   features: string[];
@@ -93,7 +116,6 @@ function ProductCard({
   ctaText: string;
   ctaHref: string;
   isFeatured?: boolean;
-  pricing: any;
   delay?: number;
 }) {
   const { t, lang } = useLanguage();
@@ -121,12 +143,12 @@ function ProductCard({
   return (
     <div
       ref={cardRef}
-      className={`group relative transition-all duration-700 ${
+      className={`group relative h-full transition-all duration-700 ${
         isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-12'
       }`}
       style={{ transitionDelay: `${delay}ms` }}
     >
-      <div className="bg-white border border-neutral-200 rounded-lg p-8 transition-all duration-500 hover:shadow-[0_30px_80px_-20px_rgba(0,0,0,0.2)] hover:-translate-y-3">
+      <div className="bg-white border border-neutral-200 rounded-lg p-8 h-full flex flex-col transition-all duration-500 hover:shadow-[0_30px_80px_-20px_rgba(0,0,0,0.2)] hover:-translate-y-3">
 
         {isFeatured && (
           <div className="absolute -top-3 left-1/2 -translate-x-1/2">
@@ -136,15 +158,15 @@ function ProductCard({
           </div>
         )}
 
-        <div className="space-y-6">
+        <div className="flex h-full flex-col gap-6">
           {/* Header */}
           <div className="space-y-3 pb-6 border-b border-neutral-200">
-            <MetaLabel>{label}</MetaLabel>
-            <h3 className="text-7xl font-light tracking-tight text-neutral-900 tabular-nums">
-              {size} <span className="text-2xl text-neutral-500">{t.common.kg}</span>
+            <MetaLabel>{t.mangalitsa.pageTitle}</MetaLabel>
+            <h3 className="text-4xl font-light tracking-tight text-neutral-900 font-[family:var(--font-playfair)]">
+              {label}
             </h3>
             <p className="text-base text-neutral-600 leading-relaxed">{description}</p>
-            <div className="flex items-center gap-3 text-xs text-neutral-500 font-medium">
+            <div className="flex flex-wrap items-center gap-3 text-xs text-neutral-500 font-medium">
               <span>{personCount}</span>
               <span className="w-1 h-1 rounded-full bg-neutral-400" />
               <span>{mealsCount}</span>
@@ -168,37 +190,39 @@ function ProductCard({
             </ul>
           </div>
 
-          {/* Pricing */}
-          <div className="space-y-3 pt-6 border-t border-neutral-200">
-            <div className="flex items-baseline justify-between">
-              <span className="text-xs uppercase tracking-wider text-neutral-500 font-semibold">
-                {t.product.totalPrice}
-              </span>
-              <span className="text-4xl font-light tracking-tight text-neutral-900 tabular-nums">
-                {price?.toLocaleString(locale)} <span className="text-base text-neutral-500">{t.common.currency}</span>
-              </span>
+          <div className="mt-auto space-y-6">
+            {/* Pricing */}
+            <div className="space-y-3 pt-6 border-t border-neutral-200">
+              <div className="flex items-baseline justify-between">
+                <span className="text-xs uppercase tracking-wider text-neutral-500 font-semibold">
+                  {t.product.totalPrice}
+                </span>
+                <span className="text-2xl font-light tracking-tight text-neutral-900 tabular-nums">
+                  {price?.toLocaleString(locale)} <span className="text-base text-neutral-500">{t.common.currency}</span>
+                </span>
+              </div>
+              <div className="flex items-baseline justify-between text-sm">
+                <span className="text-neutral-600">{t.product.deposit50}</span>
+                <span className="text-neutral-900 font-medium tabular-nums">
+                  {deposit?.toLocaleString(locale)} {t.common.currency}
+                </span>
+              </div>
+              <div className="flex items-baseline justify-between text-sm">
+                <span className="text-neutral-600">{t.product.balanceOnDelivery}</span>
+                <span className="text-neutral-900 font-medium tabular-nums">
+                  {balance?.toLocaleString(locale)} {t.common.currency}
+                </span>
+              </div>
             </div>
-            <div className="flex items-baseline justify-between text-sm">
-              <span className="text-neutral-600">{t.product.deposit50}</span>
-              <span className="text-neutral-900 font-medium tabular-nums">
-                {deposit?.toLocaleString(locale)} {t.common.currency}
-              </span>
-            </div>
-            <div className="flex items-baseline justify-between text-sm">
-              <span className="text-neutral-600">{t.product.balanceOnDelivery}</span>
-              <span className="text-neutral-900 font-medium tabular-nums">
-                {balance?.toLocaleString(locale)} {t.common.currency}
-              </span>
-            </div>
-          </div>
 
-          {/* CTA */}
-          <Link
-            href={ctaHref}
-            className="block w-full text-center px-6 py-4 bg-neutral-900 text-white rounded-lg text-sm font-bold uppercase tracking-wider hover:bg-neutral-800 transition-all duration-300 hover:shadow-[0_20px_50px_-15px_rgba(0,0,0,0.4)] hover:-translate-y-1"
-          >
-            {ctaText}
-          </Link>
+            {/* CTA */}
+            <Link
+              href={ctaHref}
+              className="block w-full text-center px-6 py-4 bg-neutral-900 text-white rounded-lg text-sm font-bold uppercase tracking-wider hover:bg-neutral-800 transition-all duration-300 hover:shadow-[0_20px_50px_-15px_rgba(0,0,0,0.4)] hover:-translate-y-1"
+            >
+              {ctaText}
+            </Link>
+          </div>
         </div>
       </div>
     </div>
@@ -270,14 +294,19 @@ function TimelineStep({
 
 export default function Page() {
   const { t, lang } = useLanguage();
+  const { toast } = useToast();
   const { getThemeClasses } = useTheme();
   const theme = getThemeClasses();
   const heroStyles = getHeroStyles(theme);
   const bannerStyles = getBannerStyles(theme);
   const inventoryStyles = getInventoryStyles(theme);
   const [inventory, setInventory] = useState<InventoryData | null>(null);
+  const [presets, setPresets] = useState<MangalitsaPreset[]>([]);
   const [loading, setLoading] = useState(true);
-  const [pricing, setPricing] = useState<any>(null);
+  const [waitlistEmail, setWaitlistEmail] = useState('');
+  const [waitlistName, setWaitlistName] = useState('');
+  const [waitlistSubmitting, setWaitlistSubmitting] = useState(false);
+  const [waitlistSuccess, setWaitlistSuccess] = useState(false);
   const [scrollY, setScrollY] = useState(0);
 
   // Parallax scroll effect
@@ -300,6 +329,11 @@ export default function Page() {
         }
       } catch (error) {
         console.error('Failed to fetch inventory:', error);
+        toast({
+          title: 'Tinglum Gård',
+          description: lang === 'no' ? 'Kunne ikke laste lagerstatus.' : 'Could not load inventory status.',
+          variant: 'destructive',
+        });
       } finally {
         setLoading(false);
       }
@@ -308,18 +342,18 @@ export default function Page() {
   }, []);
 
   useEffect(() => {
-    async function fetchPricing() {
+    async function fetchPresets() {
       try {
-        const res = await fetch('/api/config/pricing');
+        const res = await fetch('/api/mangalitsa/presets');
         if (res.ok) {
           const data = await res.json();
-          setPricing(data);
+          setPresets(data.presets || []);
         }
       } catch (error) {
-        console.error('Failed to fetch pricing:', error);
+        console.error('Failed to fetch presets:', error);
       }
     }
-    fetchPricing();
+    fetchPresets();
   }, []);
 
   const boxesLeft = inventory?.boxesRemaining ?? 0;
@@ -335,29 +369,35 @@ export default function Page() {
   const desktopEmptyClass = 'bg-neutral-200';
   const mobileFillColor = isSoldOut ? '#D7CEC3' : isLowStock ? '#B35A2A' : '#0F6C6F';
   const mobileEmptyColor = '#E9E1D6';
-  const box8Price = getFinitePrice(pricing?.box_8kg_price);
-  const box12Price = getFinitePrice(pricing?.box_12kg_price);
-  const box8DepositPercentage = getFinitePrice(pricing?.box_8kg_deposit_percentage);
-  const box12DepositPercentage = getFinitePrice(pricing?.box_12kg_deposit_percentage);
-  const box8Deposit = box8Price !== null && box8DepositPercentage !== null
-    ? Math.floor((box8Price * box8DepositPercentage) / 100)
-    : null;
-  const box12Deposit = box12Price !== null && box12DepositPercentage !== null
-    ? Math.floor((box12Price * box12DepositPercentage) / 100)
-    : null;
-  const box8Balance = box8Price !== null && box8Deposit !== null ? box8Price - box8Deposit : null;
-  const box12Balance = box12Price !== null && box12Deposit !== null ? box12Price - box12Deposit : null;
-  const minPrice =
-    box8Price !== null && box12Price !== null
-      ? Math.min(box8Price, box12Price)
-      : box8Price ?? box12Price;
-  const minDeposit =
-    minPrice === null
-      ? null
-      : minPrice === box8Price
-        ? box8Deposit
-        : box12Deposit;
+  const sortedPresets = [...presets].sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
+  const minPresetPrice = presets.length > 0 ? Math.min(...presets.map(p => p.price_nok)) : null;
+  const minPrice = minPresetPrice;
+  const minDeposit = minPresetPrice ? Math.floor(minPresetPrice * 0.5) : null;
   const locale = lang === 'no' ? 'nb-NO' : 'en-US';
+
+  async function handleWaitlistSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!waitlistEmail.trim()) return;
+    setWaitlistSubmitting(true);
+    try {
+      const response = await fetch('/api/waitlist', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: waitlistEmail.trim(), name: waitlistName.trim() || undefined }),
+      });
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null);
+        throw new Error(payload?.error || t.checkout.somethingWentWrong);
+      }
+      setWaitlistSuccess(true);
+      setWaitlistEmail('');
+      setWaitlistName('');
+    } catch (error: any) {
+      toast({ title: t.common.error, description: error?.message || t.checkout.somethingWentWrong, variant: 'destructive' });
+    } finally {
+      setWaitlistSubmitting(false);
+    }
+  }
   const pageCopy = lang === 'no'
     ? {
         updatedToday: 'Oppdatert i dag',
@@ -372,12 +412,6 @@ export default function Page() {
         timelineDate2: 'Uke 46',
         timelineDate3: 'Uke 48',
         timelineDate4: 'Uke 50/51',
-        personCount8: '2-3 pers',
-        personCount12: '4-6 pers',
-        meals8: '12-16 maltider',
-        meals12: '20-28 maltider',
-        freezer8: 'Lite fryserom',
-        freezer12: 'Mer fryserom',
       }
     : {
         updatedToday: 'Updated today',
@@ -392,12 +426,6 @@ export default function Page() {
         timelineDate2: 'Week 46',
         timelineDate3: 'Week 48',
         timelineDate4: 'Week 50/51',
-        personCount8: '2-3 people',
-        personCount12: '4-6 people',
-        meals8: '12-16 meals',
-        meals12: '20-28 meals',
-        freezer8: 'Less freezer space',
-        freezer12: 'More freezer space',
       };
 
   // Mobile version - keep existing design
@@ -412,7 +440,7 @@ export default function Page() {
 
         <MobileHero isSoldOut={isSoldOut} minPrice={minPrice} minDeposit={minDeposit} />
 
-        <MobileProductTiles pricing={pricing} />
+        <MobileProductTiles presets={presets} />
 
         <section className="px-5 py-10">
           <div className="mx-auto max-w-md rounded-[28px] border border-[#E4DED5] bg-white p-6 shadow-[0_20px_45px_rgba(30,27,22,0.12)]">
@@ -646,66 +674,52 @@ export default function Page() {
         <div className="max-w-6xl mx-auto">
 
           <div className="max-w-2xl mb-16">
-            <MetaLabel>{t.product.choosePackage}</MetaLabel>
+            <MetaLabel>{t.mangalitsa.pageTitle}</MetaLabel>
             <h2 className="text-6xl font-light tracking-tight text-neutral-900 mt-3 mb-6">
-              {t.product.twoSizes}
+              {t.mangalitsa.hero.title}
             </h2>
             <p className="text-lg leading-relaxed text-neutral-600">
-              {t.product.sameQuality}
+              {t.mangalitsa.hero.subtitle}
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-8">
-            <ProductCard
-              size="8"
-              label={t.product.smallerPackage}
-              description={t.product.perfectFor2to3}
-              features={[
-                t.boxContents.ribbe8kg,
-                t.boxContents.nakkekoteletter8kg,
-                t.boxContents.julepolse8kg,
-                t.boxContents.svinesteik8kg,
-                t.boxContents.medisterfarse8kg,
-                t.boxContents.knoke,
-                t.boxContents.butchersChoice8kg
-              ]}
-              personCount={pageCopy.personCount8}
-              mealsCount={pageCopy.meals8}
-              freezerNote={pageCopy.freezer8}
-              price={box8Price ?? undefined}
-              deposit={box8Deposit ?? undefined}
-              balance={box8Balance ?? undefined}
-              ctaText={t.product.reserve8kg}
-              ctaHref="/bestill?size=8"
-              pricing={pricing}
-              delay={0}
-            />
-
-            <ProductCard
-              size="12"
-              label={t.product.largerPackage}
-              description={t.product.idealFor4to6}
-              features={[
-                t.boxContents.ribbe12kg,
-                t.boxContents.nakkekoteletter12kg,
-                t.boxContents.julepolse12kg,
-                t.boxContents.svinesteik12kg,
-                t.boxContents.medisterfarse12kg,
-                t.boxContents.knoke,
-                t.boxContents.butchersChoice12kg
-              ]}
-              personCount={pageCopy.personCount12}
-              mealsCount={pageCopy.meals12}
-              freezerNote={pageCopy.freezer12}
-              price={box12Price ?? undefined}
-              deposit={box12Deposit ?? undefined}
-              balance={box12Balance ?? undefined}
-              ctaText={t.product.reserve12kg}
-              ctaHref="/bestill?size=12"
-              isFeatured={true}
-              pricing={pricing}
-              delay={150}
-            />
+          <div className="grid md:grid-cols-2 gap-8 items-stretch">
+            {sortedPresets.length === 0 && (
+              <div className="md:col-span-2 text-center py-12 text-neutral-500">
+                {t.mangalitsa.noPresets}
+              </div>
+            )}
+            {sortedPresets.map((preset, index) => {
+              const label = fixMojibake(lang === 'no' ? preset.name_no : preset.name_en);
+              const description = fixMojibake(
+                (lang === 'no' ? preset.description_no : preset.description_en) ||
+                (lang === 'no' ? preset.short_pitch_no : preset.short_pitch_en)
+              );
+              const audience = fixMojibake((lang === 'no' ? preset.target_audience_no : preset.target_audience_en) || '');
+              const scarcity = fixMojibake((lang === 'no' ? preset.scarcity_message_no : preset.scarcity_message_en) || '');
+              const weightMeta = `${t.common.approx} ${preset.target_weight_kg} ${t.common.kg}`;
+              const features = [...(preset.contents || [])]
+                .sort((a, b) => (a.display_order || 0) - (b.display_order || 0))
+                .map(c => fixMojibake(lang === 'no' ? c.content_name_no : c.content_name_en));
+              return (
+                <ProductCard
+                  key={preset.id}
+                  label={label}
+                  description={description}
+                  features={features}
+                  personCount={audience}
+                  mealsCount={weightMeta}
+                  freezerNote={scarcity}
+                  price={preset.price_nok}
+                  deposit={Math.floor(preset.price_nok * 0.5)}
+                  balance={preset.price_nok - Math.floor(preset.price_nok * 0.5)}
+                  ctaText={t.mangalitsa.reserveBox}
+                  ctaHref={`/bestill?preset=${preset.slug}`}
+                  isFeatured={index === 0}
+                  delay={index * 120}
+                />
+              );
+            })}
           </div>
 
         </div>

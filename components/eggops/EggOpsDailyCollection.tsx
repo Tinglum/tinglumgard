@@ -257,6 +257,7 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
   const [loadingReport, setLoadingReport] = useState(false)
   const [forecastAccuracy, setForecastAccuracy] = useState<any[]>([])
   const [copyYesterdayFlash, setCopyYesterdayFlash] = useState(false)
+  const [showDefectWarning, setShowDefectWarning] = useState(false)
   const touchStartXRef = useRef<number | null>(null)
   const autoAdvanceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const postSaveRefreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -641,14 +642,27 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
     }
   }
 
+  const DEFECT_FIELDS: (keyof DailyRow)[] = ['dirty', 'cracked', 'shell_defect', 'other_unsellable']
+
+  function checkDefectWarning(field: keyof DailyRow, newValue: number) {
+    if (!DEFECT_FIELDS.includes(field) || newValue <= 0) return
+    const key = `defect-warning-${selectedDate}`
+    if (typeof sessionStorage !== 'undefined' && !sessionStorage.getItem(key)) {
+      sessionStorage.setItem(key, '1')
+      setShowDefectWarning(true)
+    }
+  }
+
   function updateRowField(breedId: string, field: keyof DailyRow, value: string) {
+    const numValue = numberOrZero(value)
+    checkDefectWarning(field, numValue)
     setRows((prev) =>
       prev.map((row) => {
         if (row.breed_id !== breedId) return row
         if (field === 'notes') {
           return { ...row, notes: value }
         }
-        return { ...row, [field]: numberOrZero(value) }
+        return { ...row, [field]: numValue }
       })
     )
     setRowState(breedId, { success: false, error: null })
@@ -656,13 +670,16 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
   }
 
   function stepField(breedId: string, field: keyof DailyRow, delta: number) {
+    let nextValue = 0
     setRows((prev) =>
       prev.map((row) => {
         if (row.breed_id !== breedId) return row
         const current = numberOrZero(row[field])
-        return { ...row, [field]: Math.max(0, current + delta) }
+        nextValue = Math.max(0, current + delta)
+        return { ...row, [field]: nextValue }
       })
     )
+    if (delta > 0) checkDefectWarning(field, nextValue === 0 ? 1 : nextValue)
     setRowState(breedId, { success: false, error: null })
     scheduleRowAutosave(breedId)
   }
@@ -1788,6 +1805,28 @@ export function EggOpsDailyCollection({ embedded = false }: EggOpsDailyCollectio
               {miscState.saving ? copy.saving : copy.easyFinish}
             </Button>
           </div>
+
+          {/* Defect categorisation warning modal */}
+          {showDefectWarning && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+              <div className="w-full max-w-sm rounded-2xl border border-amber-200 bg-white shadow-2xl">
+                <div className="border-b border-amber-200 bg-gradient-to-r from-amber-100 via-white to-orange-100 px-4 py-3">
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle className="h-5 w-5 flex-shrink-0 text-amber-600" />
+                    <h3 className="text-base font-semibold text-neutral-900">{copy.defectWarningTitle}</h3>
+                  </div>
+                </div>
+                <div className="p-4">
+                  <p className="text-sm leading-relaxed text-neutral-700">{copy.defectWarningBody}</p>
+                </div>
+                <div className="border-t border-neutral-200 p-3">
+                  <Button className="w-full bg-amber-600 text-white hover:bg-amber-500" onClick={() => setShowDefectWarning(false)}>
+                    {copy.defectWarningConfirm}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* #10 Day-close summary modal */}
           {closeSummaryOpen && (

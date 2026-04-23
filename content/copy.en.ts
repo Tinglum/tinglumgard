@@ -1083,6 +1083,11 @@
     auditShow: "Show",
     auditHide: "Hide",
 
+    // Defect categorisation warning
+    defectWarningTitle: "Important: how to categorise rejected eggs",
+    defectWarningBody: "If an egg is too small, always register it as \"Too small\" — even if it is also dirty, cracked, or has a shell defect. Only use the Dirty, Cracked, Shell defect, and Other categories when the egg size is normal.",
+    defectWarningConfirm: "Got it",
+
     // KPI info tips
     infoKpiCollected: "Total eggs collected today across all breeds.",
     infoKpiSellable: "Eggs meeting quality standards — excludes all rejected categories.",

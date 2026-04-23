@@ -1084,6 +1084,11 @@
     auditShow: "Vis",
     auditHide: "Skjul",
 
+    // Defect categorisation warning
+    defectWarningTitle: "Viktig: slik kategoriserer du kasserte egg",
+    defectWarningBody: "Hvis et egg er for lite, skal det alltid registreres som «For lite» — selv om det også er skittent, sprukket eller har skallfeil. Bruk kategoriene Skitne, Sprukne, Skallfeil og Andre kun når størrelsen er normal.",
+    defectWarningConfirm: "Forstått",
+
     // KPI info tips
     infoKpiCollected: "Totalt antall egg samlet inn i dag, alle raser inkludert.",
     infoKpiSellable: "Antall egg som oppfyller kravene for salg — uten kasserte egg.",
