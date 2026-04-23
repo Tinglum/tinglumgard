@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase/server'
 import { getSession } from '@/lib/auth/session'
+import { renderManagedTemplate } from '@/lib/email/render'
+import { dispatchEmail } from '@/lib/email/dispatch'
+import { buildCustomerOrderLink } from '@/lib/email/links'
 
 function normalizeEmail(value?: string | null): string {
   return String(value || '').trim().toLowerCase()
@@ -93,7 +96,7 @@ export async function PATCH(
 
     const { data: order, error: orderError } = await supabaseAdmin
       .from('egg_orders')
-      .select('id, status, delivery_monday, delivery_method, user_id, customer_email, customer_phone')
+      .select('id, status, delivery_monday, delivery_method, user_id, customer_email, customer_phone, customer_name, order_number, week_number')
       .eq('id', params.id)
       .single()
 
@@ -129,6 +132,46 @@ export async function PATCH(
       .eq('id', params.id)
 
     if (updateError) throw updateError
+
+    // Send pickup confirmation email (best-effort — don't fail the request on email error)
+    try {
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL || ''
+      const orderUrl = buildCustomerOrderLink(appUrl, 'egg', String(order.id))
+      const formattedDate = new Intl.DateTimeFormat('nb-NO', {
+        timeZone: 'Europe/Oslo',
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+      }).format(new Date(`${pickupDate}T12:00:00Z`))
+
+      const rendered = await renderManagedTemplate({
+        templateKey: 'egg.pickup.confirmation',
+        locale: 'no',
+        variables: {
+          customer_name: String(order.customer_name || 'Kunde'),
+          order_number: String(order.order_number || ''),
+          pickup_date: formattedDate,
+          pickup_time: pickupTime,
+          order_url: orderUrl,
+        },
+      })
+
+      if (rendered && order.customer_email) {
+        await dispatchEmail({
+          to: order.customer_email,
+          subject: rendered.subject,
+          html: rendered.html,
+          classification: 'transactional',
+          locale: 'no',
+          sourcePath: '/api/eggs/orders/[id]/pickup-date',
+          eggOrderId: String(order.id),
+          templateKey: rendered.templateKey,
+          metadata: { flow_key: 'egg.pickup.confirmation' },
+        })
+      }
+    } catch (emailError) {
+      console.error('Failed to send egg pickup confirmation email:', emailError)
+    }
 
     return NextResponse.json({ success: true, pickupDate, pickupTime })
   } catch (error) {

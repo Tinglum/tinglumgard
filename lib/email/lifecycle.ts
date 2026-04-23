@@ -256,6 +256,30 @@ const LIFECYCLE_TEMPLATE_SEEDS: LifecycleTemplateSeed[] = [
     variables: ['customer_name', 'customer_first_name', 'order_number', 'order_url'],
   },
   {
+    templateKey: 'egg.pickup.choose_day',
+    classification: 'transactional',
+    productScope: 'eggs',
+    subjectNo: 'Velg hentedag for rugeeggene – {{order_number}}',
+    subjectEn: 'Choose your egg pickup day – {{order_number}}',
+    bodyNo:
+      '<p>Hei {{customer_first_name}},</p><p>Uken for henting av rugeegg-bestilling <strong>{{order_number}}</strong> nærmer seg (uke {{delivery_week}}).</p><p>Gå inn på Min side og velg hentedag (søndag, mandag eller tirsdag) og tidspunkt (kl. 11 eller 17), slik at vi er klare for deg.</p><p><a href="{{order_url}}" style="display:inline-block;background:#111827;color:#ffffff;text-decoration:none;padding:10px 16px;border-radius:8px;">Velg hentedag og tid</a></p>',
+    bodyEn:
+      '<p>Hi {{customer_first_name}},</p><p>The pickup week for hatching egg order <strong>{{order_number}}</strong> is approaching (week {{delivery_week}}).</p><p>Go to My Page and choose your pickup day (Sunday, Monday, or Tuesday) and time (11:00 or 17:00) so we are ready for you.</p><p><a href="{{order_url}}" style="display:inline-block;background:#111827;color:#ffffff;text-decoration:none;padding:10px 16px;border-radius:8px;">Choose pickup day &amp; time</a></p>',
+    variables: ['customer_name', 'customer_first_name', 'order_number', 'delivery_week', 'order_url'],
+  },
+  {
+    templateKey: 'egg.pickup.confirmation',
+    classification: 'transactional',
+    productScope: 'eggs',
+    subjectNo: 'Hentedag bekreftet – {{order_number}}',
+    subjectEn: 'Pickup day confirmed – {{order_number}}',
+    bodyNo:
+      '<p>Hei {{customer_first_name}},</p><p>Vi har registrert hentedag for bestilling <strong>{{order_number}}</strong>.</p><p><strong>Dag:</strong> {{pickup_date}}<br/><strong>Tidspunkt:</strong> kl. {{pickup_time}}</p><p>Vi gleder oss til å se deg! Vil du endre dagen, kan du gjøre det på Min side.</p><p><a href="{{order_url}}">Se bestillingen på Min side</a></p>',
+    bodyEn:
+      '<p>Hi {{customer_first_name}},</p><p>We have registered your pickup day for order <strong>{{order_number}}</strong>.</p><p><strong>Day:</strong> {{pickup_date}}<br/><strong>Time:</strong> {{pickup_time}}</p><p>Looking forward to seeing you! You can change your pickup day on My Page if needed.</p><p><a href="{{order_url}}">View your order on My Page</a></p>',
+    variables: ['customer_name', 'customer_first_name', 'order_number', 'pickup_date', 'pickup_time', 'order_url'],
+  },
+  {
     templateKey: 'chicken.ready_for_pickup',
     classification: 'transactional',
     productScope: 'chickens',
@@ -401,6 +425,15 @@ const LIFECYCLE_FLOW_SEEDS: LifecycleFlowSeed[] = [
     eventType: 'egg.overdue_forfeit',
     productScope: 'eggs',
     templateKey: 'egg.order.forfeited',
+    mode: 'active',
+    active: true,
+    sendOffsetMinutes: 0,
+  },
+  {
+    flowKey: 'egg.pickup.choose_day',
+    eventType: 'egg.pickup.choose_day',
+    productScope: 'eggs',
+    templateKey: 'egg.pickup.choose_day',
     mode: 'active',
     active: true,
     sendOffsetMinutes: 0,
@@ -1700,12 +1733,13 @@ async function materializeEggFlowInstances(flowMap: Map<string, FlowDefinition>,
   const shippedPlusOneFlow = flowMap.get('egg.order.shipped.plus_one');
   const hatchFollowupFlow = flowMap.get('egg.hatch.followup');
   const forfeitFlow = flowMap.get('egg.order.forfeited');
+  const choosePickupDayFlow = flowMap.get('egg.pickup.choose_day');
   if (!reminderFlow || !dayBeforeFlow || !forfeitFlow) return 0;
 
   const { data: orders } = await supabaseAdmin
     .from('egg_orders')
     .select(
-      'id, order_number, customer_name, customer_email, status, week_number, delivery_monday, remainder_due_date, remainder_amount, deposit_amount, total_amount, quantity, tracking_number, marked_shipped_at, updated_at, egg_breeds(name)'
+      'id, order_number, customer_name, customer_email, status, week_number, delivery_monday, remainder_due_date, remainder_amount, deposit_amount, total_amount, quantity, tracking_number, marked_shipped_at, updated_at, delivery_method, pickup_date, egg_breeds(name)'
     )
     .in('status', ['deposit_paid', 'fully_paid', 'preparing', 'shipped', 'delivered']);
 
@@ -1959,6 +1993,43 @@ async function materializeEggFlowInstances(flowMap: Map<string, FlowDefinition>,
               if (shippedPlusOneInserted) inserted += 1;
             }
           }
+        }
+      }
+
+      // "Choose your egg pickup day" — 7 days before delivery_monday, only for pickup orders without a chosen day
+      if (
+        choosePickupDayFlow &&
+        ['deposit_paid', 'fully_paid', 'preparing'].includes(eggStatus) &&
+        ['farm_pickup', 'e6_pickup'].includes(String((detailedOrder as any).delivery_method || '')) &&
+        !(detailedOrder as any).pickup_date
+      ) {
+        const chooseYmd = addDays(deliveryYmdSafe, -7);
+        const chooseWhen = zonedDateTimeToUtc(chooseYmd, 8, 0, config.timezone);
+        if (chooseWhen.getTime() > Date.now()) {
+          const chooseInserted = await insertFlowInstance({
+            flowId: choosePickupDayFlow.id,
+            flowKey: choosePickupDayFlow.flow_key,
+            productScope: choosePickupDayFlow.product_scope,
+            entityType: 'egg_order',
+            entityId: orderId,
+            triggerDateKey: `choose-pickup-day:${ymdToKey(deliveryYmdSafe)}`,
+            scheduledFor: chooseWhen.toISOString(),
+            toEmail: toEmail || null,
+            locale,
+            payload: {
+              customer_name: String(order.customer_name || 'Kunde'),
+              order_number: String(order.order_number || ''),
+              delivery_week: String((detailedOrder as any).week_number || order.week_number || ''),
+              order_url: orderUrl,
+            },
+            metadata: {
+              product_scope: 'eggs',
+              flow_key: choosePickupDayFlow.flow_key,
+              trigger_offset_days: 7,
+              delivery_anchor: ymdToKey(deliveryYmdSafe),
+            },
+          });
+          if (chooseInserted) inserted += 1;
         }
       }
 
