@@ -135,6 +135,22 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       updates.delivery_method = deliveryMethod;
     }
 
+    if (body.pickupDate !== undefined) {
+      const pickupDate = typeof body.pickupDate === 'string' ? body.pickupDate.trim() : null;
+      if (pickupDate && !/^\d{4}-\d{2}-\d{2}$/.test(pickupDate)) {
+        return NextResponse.json({ error: 'Invalid pickup date format' }, { status: 400 });
+      }
+      updates.pickup_date = pickupDate || null;
+    }
+
+    if (body.pickupTime !== undefined) {
+      const pickupTime = typeof body.pickupTime === 'string' ? body.pickupTime.trim() : null;
+      if (pickupTime && !['11:00', '17:00'].includes(pickupTime)) {
+        return NextResponse.json({ error: 'Invalid pickup time. Must be 11:00 or 17:00' }, { status: 400 });
+      }
+      updates.pickup_time = pickupTime || null;
+    }
+
     if (body.status !== undefined) {
       const status = String(body.status || '').trim();
       if (!ALLOWED_STATUSES.has(status)) {

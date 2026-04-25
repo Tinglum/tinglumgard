@@ -959,14 +959,14 @@ async function fetchUpcomingDates() {
     // Pig orders pending pickup (no specific date, just undelivered)
     const { data: pigOrders } = await supabaseAdmin
       .from('orders')
-      .select('id, order_number, customer_name, delivery_type, status')
+      .select('id, order_number, customer_name, delivery_type, status, pickup_date, pickup_time')
       .not('status', 'in', '(cancelled,forfeited,draft,pending)')
       .is('marked_delivered_at', null);
 
     // Egg orders this week — shipping (Posten)
     const { data: eggPostenOrders } = await supabaseAdmin
       .from('egg_orders')
-      .select('id, order_number, customer_name, delivery_method, delivery_monday, status')
+      .select('id, order_number, customer_name, delivery_method, delivery_monday, status, pickup_date, pickup_time')
       .eq('delivery_method', 'posten')
       .not('status', 'in', '(cancelled,forfeited,delivered,shipped,pending)')
       .gte('delivery_monday', weekStartStr)
@@ -976,7 +976,7 @@ async function fetchUpcomingDates() {
     // Egg orders this week — pickup
     const { data: eggPickupOrders } = await supabaseAdmin
       .from('egg_orders')
-      .select('id, order_number, customer_name, delivery_method, delivery_monday, status')
+      .select('id, order_number, customer_name, delivery_method, delivery_monday, status, pickup_date, pickup_time')
       .neq('delivery_method', 'posten')
       .not('status', 'in', '(cancelled,forfeited,delivered)')
       .gte('delivery_monday', weekStartStr)
@@ -986,7 +986,7 @@ async function fetchUpcomingDates() {
     // Chicken orders this week
     const { data: chickenOrders } = await supabaseAdmin
       .from('chicken_orders')
-      .select('id, order_number, customer_name, delivery_method, pickup_monday, status')
+      .select('id, order_number, customer_name, delivery_method, pickup_monday, status, pickup_date, pickup_time')
       .not('status', 'in', '(cancelled,forfeited,picked_up)')
       .gte('pickup_monday', weekStartStr)
       .lte('pickup_monday', weekEndStr)
@@ -999,6 +999,8 @@ async function fetchUpcomingDates() {
       customer_name: o.customer_name || '',
       delivery_method: o.delivery_method || o.delivery_type || '',
       status: o.status,
+      pickup_date: o.pickup_date || null,
+      pickup_time: o.pickup_time || null,
       type,
     });
 

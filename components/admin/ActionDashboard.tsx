@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { DeferredPaymentsCard } from './DeferredPaymentsCard';
 import { EggShippingModal } from './EggShippingModal';
+import { PickupFulfillmentModal } from './PickupFulfillmentModal';
 
 interface ActionDashboardProps {
   onNavigate: (tab: string, subTab?: string) => void;
@@ -51,6 +52,7 @@ export function ActionDashboard({
   const [eggWeekLoading, setEggWeekLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [shippingModalOrderId, setShippingModalOrderId] = useState<string | null>(null);
+  const [pickupModalOrder, setPickupModalOrder] = useState<any>(null);
 
   const loadDashboard = useCallback(async (weekOffset = 0) => {
     setLoading(true);
@@ -259,6 +261,7 @@ export function ActionDashboard({
       <WeekScheduleSection
         upcomingDates={upcomingDates}
         onNavigateToOrder={onNavigateToOrder}
+        onPickupOrderClick={(order: any) => setPickupModalOrder(order)}
         onShipmentOrderClick={(order: any) => {
           if (order.type === 'egg') {
             setShippingModalOrderId(order.order_number);
@@ -407,6 +410,12 @@ export function ActionDashboard({
           loadDashboard(eggWeekOffset);
         }}
         lang={lang}
+      />
+
+      <PickupFulfillmentModal
+        order={pickupModalOrder}
+        onClose={() => setPickupModalOrder(null)}
+        onRefresh={() => loadDashboard(eggWeekOffset)}
       />
     </div>
   );
@@ -986,9 +995,10 @@ function formatEmailActivityDate(dateValue: string, locale: string) {
   }).format(date);
 }
 
-function WeekScheduleSection({ upcomingDates, onNavigateToOrder, onShipmentOrderClick, lang, locale }: {
+function WeekScheduleSection({ upcomingDates, onNavigateToOrder, onPickupOrderClick, onShipmentOrderClick, lang, locale }: {
   upcomingDates: any;
   onNavigateToOrder?: (id: string) => void;
+  onPickupOrderClick?: (order: any) => void;
   onShipmentOrderClick?: (order: any) => void;
   lang: string;
   locale: string;
@@ -1043,7 +1053,7 @@ function WeekScheduleSection({ upcomingDates, onNavigateToOrder, onShipmentOrder
           {(currentPickups.length > 0 || (!showNextWeek && pendingPigPickups.length > 0)) ? (
             <div className="space-y-4">
               {currentPickups.map((group: any) => (
-                <DateGroup key={group.date} group={group} onNavigateToOrder={onNavigateToOrder} lang={lang} locale={locale} />
+                <DateGroup key={group.date} group={group} onOrderClick={onPickupOrderClick} lang={lang} locale={locale} />
               ))}
               {!showNextWeek && pendingPigPickups.length > 0 && (
                 <div>
@@ -1053,7 +1063,7 @@ function WeekScheduleSection({ upcomingDates, onNavigateToOrder, onShipmentOrder
                   </p>
                   <div className="space-y-1">
                     {pendingPigPickups.map((order: any) => (
-                      <OrderRow key={order.order_number} order={order} onNavigateToOrder={onNavigateToOrder} lang={lang} />
+                      <OrderRow key={order.order_number} order={order} onOrderClick={onPickupOrderClick} lang={lang} />
                     ))}
                   </div>
                 </div>

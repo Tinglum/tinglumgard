@@ -2,6 +2,40 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth/session';
 import { supabaseAdmin } from '@/lib/supabase/server';
 
+export async function GET(
+  _request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  const session = await getSession();
+  if (!session?.isAdmin) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
+  }
+
+  try {
+    const { data: order, error: orderError } = await supabaseAdmin
+      .from('orders')
+      .select('*, order_extras(*, extras_catalog(*))')
+      .eq('id', params.id)
+      .maybeSingle();
+
+    if (orderError || !order) {
+      return NextResponse.json({ error: 'Order not found' }, { status: 404 });
+    }
+
+    const [{ data: boxConfigs }, { data: extrasOptions }, { data: mangalitsaPresets }] =
+      await Promise.all([
+        supabaseAdmin.from('box_configurations').select('box_size, price').order('box_size'),
+        supabaseAdmin.from('extras_catalog').select('id, name_no, price_nok').order('name_no'),
+        supabaseAdmin.from('mangalitsa_box_presets').select('id, name_no, price_nok').order('price_nok'),
+      ]);
+
+    return NextResponse.json({ order, boxConfigs, extrasOptions, mangalitsaPresets });
+  } catch (error) {
+    console.error('Error fetching pig order:', error);
+    return NextResponse.json({ error: 'Failed to fetch order' }, { status: 500 });
+  }
+}
+
 export async function PATCH(
   request: NextRequest,
   { params }: { params: { id: string } }
