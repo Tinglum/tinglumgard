@@ -49,6 +49,106 @@ interface AdjustBirdLine {
   onRoostersDelta: (d: number) => void
 }
 
+type EggPaymentLike = {
+  payment_type?: string | null
+  status?: string | null
+  amount_nok?: number | null
+}
+
+function relationName(relation: any): string {
+  if (Array.isArray(relation)) {
+    return String(relation[0]?.name || '').trim()
+  }
+  return String(relation?.name || '').trim()
+}
+
+function getEggOrderLines(order: any): Array<{ key: string; quantity: number; breedName: string }> {
+  const lines: Array<{ key: string; quantity: number; breedName: string }> = []
+  const baseBreedName = relationName(order?.egg_breeds) || 'Rugeegg'
+
+  if (Number(order?.quantity || 0) > 0) {
+    lines.push({
+      key: `base:${baseBreedName}`,
+      quantity: Number(order.quantity || 0),
+      breedName: baseBreedName,
+    })
+  }
+
+  for (const addition of order?.egg_order_additions || []) {
+    const breedName = relationName(addition?.egg_breeds) || relationName(addition?.egg_inventory?.egg_breeds) || 'Tillegg'
+    lines.push({
+      key: String(addition?.id || `${breedName}:${addition?.quantity || 0}`),
+      quantity: Number(addition?.quantity || 0),
+      breedName,
+    })
+  }
+
+  return lines
+}
+
+function getEggOrderAdditionsTotalOre(order: any): number {
+  return (order?.egg_order_additions || []).reduce(
+    (sum: number, addition: any) => sum + Number(addition?.subtotal || 0),
+    0
+  )
+}
+
+function getEggOutstandingRemainderOre(order: any): number {
+  const remainderTargetOre = Number(order?.remainder_amount || 0)
+  const remainderPaidOre = (order?.egg_payments || []).reduce((sum: number, payment: EggPaymentLike) => {
+    if (payment?.payment_type !== 'remainder' || payment?.status !== 'completed') return sum
+    return sum + Math.round(Number(payment?.amount_nok || 0) * 100)
+  }, 0)
+
+  return Math.max(0, remainderTargetOre - remainderPaidOre)
+}
+
+function getDisplayStatus(order: any, type?: OrderType): string {
+  const currentStatus = String(order?.status || '').trim()
+  if (type !== 'egg') return currentStatus || '—'
+
+  if (['preparing', 'shipped', 'delivered', 'cancelled', 'forfeited'].includes(currentStatus)) {
+    return currentStatus
+  }
+
+  const depositPaid = (order?.egg_payments || []).some(
+    (payment: EggPaymentLike) => payment?.payment_type === 'deposit' && payment?.status === 'completed'
+  )
+
+  if (!depositPaid) return currentStatus || 'pending'
+  if (getEggOutstandingRemainderOre(order) <= 0) return 'fully_paid'
+  return currentStatus || 'deposit_paid'
+}
+
+function toCustomerProfileHref(order: any, type?: OrderType): string | null {
+  if (!order || !type) return null
+
+  const email = String(order.customer_email || '').trim().toLowerCase()
+  const phoneDigits = String(order.customer_phone || '').replace(/\D+/g, '')
+  const userId = String(order.user_id || '').trim()
+
+  let customerId = ''
+  if (email && email !== 'pending@vipps.no') {
+    customerId = `email:${email}`
+  } else if (phoneDigits) {
+    customerId = `phone:${phoneDigits}`
+  } else if (userId) {
+    customerId = `user:${userId}`
+  } else if (order.id) {
+    customerId = `order:${type}:${order.id}`
+  }
+
+  if (!customerId) return null
+
+  const params = new URLSearchParams({
+    tab: 'customers',
+    subTab: 'database',
+    customerId,
+  })
+
+  return `/admin?${params.toString()}`
+}
+
 // ─── helper components ────────────────────────────────────────────────────────
 
 function SectionToggle({
@@ -521,13 +621,23 @@ export function PickupFulfillmentModal({ order, onClose, onRefresh }: Props) {
 
   const remainder = (() => {
     if (!fullOrder) return 0
-    if (order?.type === 'egg') return Number(fullOrder.remainder_amount || 0)
+    if (order?.type === 'egg') return getEggOutstandingRemainderOre(fullOrder)
     if (order?.type === 'chicken') return Number(fullOrder.remainder_amount_nok || 0)
     if (order?.type === 'pig') return Number(fullOrder.remainder_amount || 0)
     return 0
   })()
 
-  const formatMoney = (n: number) => `kr ${Math.round(n).toLocaleString('nb-NO')}`
+  const formatMoney = (n: number) => {
+    const normalized = order?.type === 'egg' ? Number(n || 0) / 100 : Number(n || 0)
+    return `kr ${Math.round(normalized).toLocaleString('nb-NO')}`
+  }
+
+  const displayStatus = fullOrder ? getDisplayStatus(fullOrder, order?.type) : (order?.status || '—')
+  const customerProfileHref = fullOrder ? toCustomerProfileHref(fullOrder, order?.type) : null
+  const paymentSummaryOrder =
+    fullOrder && order?.type === 'egg'
+      ? { ...fullOrder, remainder_amount: remainder }
+      : fullOrder
 
   const formatPickupDate = (d: string) =>
     new Date(d + 'T12:00:00').toLocaleDateString('nb-NO', {
@@ -573,7 +683,13 @@ export function PickupFulfillmentModal({ order, onClose, onRefresh }: Props) {
             <div className="rounded-xl border border-neutral-200 bg-neutral-50 px-5 py-4 space-y-1.5">
               <div className="flex items-center gap-2 text-sm">
                 <User className="w-4 h-4 text-neutral-400 shrink-0" />
-                <span className="font-medium">{fullOrder.customer_name}</span>
+                {customerProfileHref ? (
+                  <a href={customerProfileHref} className="font-medium text-neutral-900 hover:underline">
+                    {fullOrder.customer_name}
+                  </a>
+                ) : (
+                  <span className="font-medium">{fullOrder.customer_name}</span>
+                )}
                 {fullOrder.customer_email && (
                   <span className="text-neutral-500 text-xs">{fullOrder.customer_email}</span>
                 )}
@@ -582,12 +698,12 @@ export function PickupFulfillmentModal({ order, onClose, onRefresh }: Props) {
                 <p className="text-xs text-neutral-500 pl-6">{fullOrder.customer_phone}</p>
               )}
               {/* Order summary line */}
-              <div className="flex items-center gap-2 text-sm pl-6">
+              <div className="flex items-start gap-2 text-sm pl-6">
                 <Package className="w-3.5 h-3.5 text-neutral-400 shrink-0" />
                 <OrderSummaryLine order={fullOrder} type={order!.type} />
               </div>
               <div className="flex items-center gap-2 pl-6">
-                <StatusBadge status={fullOrder.status} />
+                <StatusBadge status={displayStatus} />
                 {remainder > 0 && (
                   <span className="text-xs text-amber-700 font-medium">
                     Restbetaling: {formatMoney(remainder)}
@@ -758,7 +874,11 @@ export function PickupFulfillmentModal({ order, onClose, onRefresh }: Props) {
               onToggle={() => setSectionPayment((v) => !v)}
             >
               <div className="space-y-4">
-                <PaymentSummary order={fullOrder} type={order!.type} formatMoney={formatMoney} />
+                <PaymentSummary
+                  order={paymentSummaryOrder}
+                  type={order!.type}
+                  formatMoney={formatMoney}
+                />
                 {remainder > 0 && (
                   <div className="border-t border-neutral-100 pt-4">
                     <p className="text-sm text-neutral-600 mb-3">
@@ -794,6 +914,22 @@ export function PickupFulfillmentModal({ order, onClose, onRefresh }: Props) {
 
 function OrderSummaryLine({ order, type }: { order: any; type: OrderType }) {
   if (type === 'egg') {
+    const lines = getEggOrderLines(order)
+    const totalQuantity = lines.reduce((sum, line) => sum + line.quantity, 0)
+    return (
+      <div className="space-y-0.5 text-xs text-neutral-600">
+        <p>{totalQuantity} egg totalt</p>
+        <div className="flex flex-wrap gap-x-2 gap-y-0.5">
+          {lines.map((line) => (
+            <span key={line.key}>
+              {line.quantity} egg – {line.breedName}
+            </span>
+          ))}
+        </div>
+      </div>
+    )
+  }
+  if (false) {
     const breed = order.egg_breeds?.name || ''
     return (
       <span className="text-xs text-neutral-600">
@@ -916,17 +1052,32 @@ function EggAdjustPanel({
   saving: boolean
   formatMoney: (n: number) => string
 }) {
+  const orderLines = getEggOrderLines(fullOrder)
+  const additionsTotal = getEggOrderAdditionsTotalOre(fullOrder)
+  const totalOrderEggs = orderLines.reduce((sum, line) => sum + line.quantity, 0)
   const currentQty = Number(fullOrder.quantity || 0)
   const newQty = currentQty + delta
   const pricePerEgg = Number(fullOrder.price_per_egg || 0)
   const newSubtotal = newQty * pricePerEgg
   const deliveryFee = Number(fullOrder.delivery_fee || 0)
-  const newTotal = newSubtotal + deliveryFee
+  const newTotal = newSubtotal + additionsTotal + deliveryFee
   const deposit = Number(fullOrder.deposit_amount || 0)
   const newRemainder = Math.max(0, newTotal - deposit)
 
   return (
     <div className="space-y-4">
+      {orderLines.length > 0 && (
+        <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-3 text-xs text-neutral-600 space-y-1">
+          <p className="font-medium text-neutral-700">{totalOrderEggs} egg i ordren totalt</p>
+          <div className="flex flex-wrap gap-x-2 gap-y-0.5">
+            {orderLines.map((line) => (
+              <span key={line.key}>
+                {line.quantity} egg – {line.breedName}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
       <div className="flex items-center gap-4">
         <div>
           <p className="text-xs text-neutral-500 mb-1">Antall egg</p>
