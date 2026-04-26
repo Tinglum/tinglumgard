@@ -416,6 +416,7 @@ export function ActionDashboard({
         order={pickupModalOrder}
         onClose={() => setPickupModalOrder(null)}
         onRefresh={() => loadDashboard(eggWeekOffset)}
+        onNavigateToCustomer={onNavigateToCustomer}
       />
     </div>
   );

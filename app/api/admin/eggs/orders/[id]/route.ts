@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth/session'
+import {
+  fetchAdminEggWeekInventory,
+  getAdminEggAvailabilityForInventoryRows,
+} from '@/lib/eggs/admin-order-adjustments'
 import { supabaseAdmin } from '@/lib/supabase/server'
 
 type EggPaymentRow = {
@@ -134,7 +138,48 @@ export async function GET(
       return NextResponse.json({ error: 'Order not found' }, { status: 404 })
     }
 
-    return NextResponse.json(data)
+    const year = Number(data.year || 0)
+    const weekNumber = Number(data.week_number || 0)
+    const deliveryMonday = String(data.delivery_monday || '').trim() || null
+
+    let weeklyInventoryRows: unknown[] = []
+    let adjustmentAvailability: Record<string, unknown> = {}
+
+    if (year > 0 && weekNumber > 0) {
+      const inventoryRows = await fetchAdminEggWeekInventory({ year, weekNumber })
+      const availability = await getAdminEggAvailabilityForInventoryRows({
+        inventoryRows,
+        year,
+        weekNumber,
+        deliveryMonday,
+      })
+
+      weeklyInventoryRows = inventoryRows
+      adjustmentAvailability = Object.fromEntries(
+        Array.from(availability.entries()).map(([inventoryId, row]) => [
+          inventoryId,
+          {
+            inventoryId: row.inventoryId,
+            breedId: row.breedId,
+            breedName: row.breedName,
+            remaining: row.remaining,
+            source: row.source,
+            actualCollected: row.actualCollected,
+            eggsAvailable: row.eggsAvailable,
+            eggsAllocated: row.eggsAllocated,
+            inventoryRemaining: row.inventoryRemaining,
+            collectionDaysRecorded: row.collectionDaysRecorded,
+            manualOverride: row.manualOverride,
+          },
+        ])
+      )
+    }
+
+    return NextResponse.json({
+      ...data,
+      weekly_inventory_rows: weeklyInventoryRows,
+      adjustment_availability: adjustmentAvailability,
+    })
   } catch (error: any) {
     console.error('Failed to fetch admin egg order:', error)
     return NextResponse.json({ error: 'Failed to fetch egg order' }, { status: 500 })

@@ -1,5 +1,11 @@
 ﻿import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth/session'
+import {
+  buildEggOrderLineComponents,
+  fetchAdminEggWeekInventory,
+  getAdminEggAvailabilityForInventoryRows,
+  getEggOrderCurrentQuantitiesByInventory,
+} from '@/lib/eggs/admin-order-adjustments'
 import { finalizeConfirmedEggOrder } from '@/lib/eggs/order-confirmation'
 import { getFulfillmentAvailabilityByBreed } from '@/lib/eggs/fulfillment-availability'
 import { supabaseAdmin } from '@/lib/supabase/server'
@@ -37,6 +43,40 @@ interface EggOrderPaymentView {
   remainder_amount: number
   admin_notes: string | null
   egg_payments?: EggPaymentRow[]
+}
+
+interface EggOrderAdjustLineInput {
+  inventoryId: string
+  quantity: number
+  overrideRemaining?: number | null
+}
+
+interface EggOrderAdjustView {
+  id: string
+  order_number: string
+  status: string
+  admin_notes: string | null
+  inventory_id: string
+  breed_id: string
+  quantity: number
+  price_per_egg: number
+  subtotal: number
+  delivery_fee: number
+  deposit_amount: number
+  total_amount: number
+  remainder_amount: number
+  year: number
+  week_number: number
+  delivery_monday: string | null
+  egg_payments?: EggPaymentRow[] | null
+  egg_order_additions?: Array<{
+    id: string
+    inventory_id: string
+    breed_id: string
+    quantity: number
+    price_per_egg: number
+    subtotal: number
+  }> | null
 }
 
 const STATUS_LOCK = new Set(['preparing', 'shipped', 'delivered', 'cancelled', 'forfeited'])
@@ -151,6 +191,412 @@ function deriveStatusFromPayments(
   }
 
   return 'deposit_paid'
+}
+
+function toNonNegativeInteger(value: unknown): number | null {
+  const parsed = Number(value)
+  if (!Number.isFinite(parsed)) return null
+  const rounded = Math.round(parsed)
+  if (rounded < 0) return null
+  return rounded
+}
+
+function getBreedPricePerEgg(value: any): number {
+  if (Array.isArray(value)) {
+    return Math.max(0, Number(value[0]?.price_per_egg || 0))
+  }
+  return Math.max(0, Number(value?.price_per_egg || 0))
+}
+
+function getUniqueInventoryOrder(
+  originalBaseInventoryId: string,
+  currentInventoryIds: string[],
+  allInventoryIds: string[]
+) {
+  return Array.from(
+    new Set(
+      [originalBaseInventoryId, ...currentInventoryIds, ...allInventoryIds]
+        .map((value) => String(value || '').trim())
+        .filter(Boolean)
+    )
+  )
+}
+
+async function applyManualRemainingOverride(
+  inventoryRow: any,
+  overrideRemaining: number
+) {
+  const currentAllocated = Math.max(0, Number(inventoryRow?.eggs_allocated || 0))
+  const nextEggsAvailable = currentAllocated + overrideRemaining
+  const baseline =
+    Number.isFinite(Number(inventoryRow?.auto_forecast_eggs))
+      ? Number(inventoryRow.auto_forecast_eggs)
+      : Math.max(
+          0,
+          Number(inventoryRow?.eggs_available || 0) - Number(inventoryRow?.manual_adjustment || 0)
+        )
+  const nextManualOverride = nextEggsAvailable !== baseline
+  const nextAdjustment = nextManualOverride ? nextEggsAvailable - baseline : 0
+  let nextStatus = String(inventoryRow?.status || 'open')
+
+  if (nextStatus !== 'closed') {
+    if (nextEggsAvailable <= currentAllocated) {
+      nextStatus = 'sold_out'
+    } else if (nextStatus === 'sold_out' || nextStatus === 'locked') {
+      nextStatus = 'open'
+    }
+  }
+
+  const updatePayload: Record<string, unknown> = {
+    eggs_available: nextEggsAvailable,
+    auto_forecast_eggs: baseline,
+    manual_adjustment: nextAdjustment,
+    manual_override: nextManualOverride,
+    forecast_source: nextManualOverride ? 'manual' : 'auto',
+    auto_forecast_at: new Date().toISOString(),
+    deficit_alert: nextEggsAvailable < currentAllocated,
+    status: nextStatus,
+  }
+
+  const { data, error } = await supabaseAdmin
+    .from('egg_inventory')
+    .update(updatePayload)
+    .eq('id', inventoryRow.id)
+    .select('id, breed_id, year, week_number, delivery_monday, eggs_available, eggs_allocated, eggs_remaining, status, manual_override, manual_adjustment, auto_forecast_eggs, egg_breeds(id, name, price_per_egg)')
+    .single()
+
+  if (error || !data) {
+    throw new Error('Failed to apply inventory override')
+  }
+
+  return data
+}
+
+async function adjustEggOrderLines(
+  orderId: string,
+  linesInput: EggOrderAdjustLineInput[],
+  reason: string | undefined
+) {
+  const { data: orderRaw, error: orderError } = await supabaseAdmin
+    .from('egg_orders')
+    .select(
+      'id, order_number, status, admin_notes, inventory_id, breed_id, quantity, price_per_egg, subtotal, delivery_fee, deposit_amount, total_amount, remainder_amount, year, week_number, delivery_monday, egg_payments(*), egg_order_additions(id, inventory_id, breed_id, quantity, price_per_egg, subtotal)'
+    )
+    .eq('id', orderId)
+    .single()
+
+  if (orderError || !orderRaw) {
+    return NextResponse.json({ error: 'Order not found' }, { status: 404 })
+  }
+
+  const order = orderRaw as EggOrderAdjustView
+  const inventoryRows = (await fetchAdminEggWeekInventory({
+    year: Number(order.year || 0),
+    weekNumber: Number(order.week_number || 0),
+  })) as any[]
+
+  const inventoryById = new Map(
+    inventoryRows.map((row) => [String(row.id), row])
+  )
+
+  const currentQuantities = getEggOrderCurrentQuantitiesByInventory(order)
+  const requestedLines = new Map<string, { quantity: number; overrideRemaining: number | null }>()
+
+  for (const line of linesInput || []) {
+    const inventoryId = String(line?.inventoryId || '').trim()
+    if (!inventoryId) continue
+
+    const quantity = toNonNegativeInteger(line?.quantity)
+    if (quantity === null) {
+      return NextResponse.json({ error: 'Invalid quantity in line adjustment' }, { status: 400 })
+    }
+
+    const rawOverrideRemaining = line?.overrideRemaining
+    const overrideRemaining =
+      rawOverrideRemaining === undefined || rawOverrideRemaining === null
+        ? null
+        : toNonNegativeInteger(rawOverrideRemaining)
+
+    if (rawOverrideRemaining !== undefined && rawOverrideRemaining !== null && overrideRemaining === null) {
+      return NextResponse.json({ error: 'Invalid override value' }, { status: 400 })
+    }
+
+    requestedLines.set(inventoryId, { quantity, overrideRemaining })
+  }
+
+  const touchedInventoryIds = Array.from(
+    new Set([
+      ...Array.from(currentQuantities.keys()),
+      ...Array.from(requestedLines.keys()),
+    ])
+  )
+
+  for (const inventoryId of touchedInventoryIds) {
+    if (!inventoryById.has(inventoryId)) {
+      return NextResponse.json({ error: 'One or more breeds are invalid for this delivery week' }, { status: 400 })
+    }
+  }
+
+  const availabilityByInventoryId = await getAdminEggAvailabilityForInventoryRows({
+    inventoryRows,
+    year: Number(order.year || 0),
+    weekNumber: Number(order.week_number || 0),
+    deliveryMonday: order.delivery_monday,
+  })
+
+  const currentComponents = buildEggOrderLineComponents(order)
+
+  for (const inventoryId of touchedInventoryIds) {
+    const inventoryRow = inventoryById.get(inventoryId)
+    const availability = availabilityByInventoryId.get(inventoryId)
+    const currentQty = currentQuantities.get(inventoryId) || 0
+    const requested = requestedLines.get(inventoryId)
+    const finalQty = requested ? requested.quantity : currentQty
+    const overrideRemaining = requested?.overrideRemaining ?? null
+    const remainingFree =
+      overrideRemaining !== null
+        ? overrideRemaining
+        : Math.max(0, Number(availability?.remaining || 0))
+    const maxWithoutError = currentQty + remainingFree
+
+    if (finalQty > maxWithoutError) {
+      return NextResponse.json(
+        {
+          error: `${availability?.breedName || 'Breed'}: need ${finalQty}, max ${maxWithoutError} without override`,
+        },
+        { status: 400 }
+      )
+    }
+
+    if (overrideRemaining !== null && inventoryRow) {
+      const updatedRow = await applyManualRemainingOverride(inventoryRow, overrideRemaining)
+      inventoryById.set(inventoryId, updatedRow)
+    }
+  }
+
+  for (const inventoryId of touchedInventoryIds) {
+    const inventoryRow = inventoryById.get(inventoryId)
+    if (!inventoryRow) continue
+
+    const currentQty = currentQuantities.get(inventoryId) || 0
+    const requested = requestedLines.get(inventoryId)
+    const finalQty = requested ? requested.quantity : currentQty
+    const delta = finalQty - currentQty
+
+    if (delta === 0) continue
+
+    const currentAllocated = Math.max(0, Number(inventoryRow.eggs_allocated || 0))
+    const nextAllocated = Math.max(0, currentAllocated + delta)
+    const eggsAvailable = Math.max(0, Number(inventoryRow.eggs_available || 0))
+    let nextStatus = String(inventoryRow.status || 'open')
+
+    if (nextStatus !== 'closed') {
+      if (eggsAvailable <= nextAllocated) {
+        nextStatus = 'sold_out'
+      } else if (nextStatus === 'sold_out' || nextStatus === 'locked') {
+        nextStatus = 'open'
+      }
+    }
+
+    const { error: updateError } = await supabaseAdmin
+      .from('egg_inventory')
+      .update({ eggs_allocated: nextAllocated, status: nextStatus })
+      .eq('id', inventoryId)
+
+    if (updateError) {
+      return NextResponse.json({ error: 'Failed to update inventory allocation' }, { status: 500 })
+    }
+
+    inventoryById.set(inventoryId, {
+      ...inventoryRow,
+      eggs_allocated: nextAllocated,
+      status: nextStatus,
+    })
+  }
+
+  const allInventoryIds = inventoryRows.map((row) => String(row.id))
+  const inventoryOrder = getUniqueInventoryOrder(
+    String(order.inventory_id || ''),
+    currentComponents.map((component) => component.inventoryId),
+    allInventoryIds
+  )
+
+  const finalPositiveQuantities = new Map<string, number>()
+  for (const inventoryId of inventoryOrder) {
+    const currentQty = currentQuantities.get(inventoryId) || 0
+    const finalQty = requestedLines.has(inventoryId)
+      ? requestedLines.get(inventoryId)?.quantity || 0
+      : currentQty
+    if (finalQty > 0) {
+      finalPositiveQuantities.set(inventoryId, finalQty)
+    }
+  }
+
+  if (finalPositiveQuantities.size === 0) {
+    return NextResponse.json({ error: 'Order must contain at least one egg line' }, { status: 400 })
+  }
+
+  const originalBaseInventoryId = String(order.inventory_id || '')
+  const baseInventoryId = finalPositiveQuantities.has(originalBaseInventoryId)
+    ? originalBaseInventoryId
+    : inventoryOrder.find((inventoryId) => finalPositiveQuantities.has(inventoryId)) || originalBaseInventoryId
+
+  const segmentsByInventory = new Map<
+    string,
+    Array<{ inventoryId: string; breedId: string; quantity: number; pricePerEgg: number; source: 'base' | 'addition' | 'new' }>
+  >()
+
+  for (const [inventoryId, finalQty] of Array.from(finalPositiveQuantities.entries())) {
+    const existingSegments = currentComponents.filter((component) => component.inventoryId === inventoryId)
+    const inventoryRow = inventoryById.get(inventoryId)
+    const standardPrice = Math.max(0, getBreedPricePerEgg(inventoryRow?.egg_breeds))
+    let remaining = finalQty
+    const nextSegments: Array<{ inventoryId: string; breedId: string; quantity: number; pricePerEgg: number; source: 'base' | 'addition' | 'new' }> = []
+
+    for (const segment of existingSegments) {
+      if (remaining <= 0) break
+      const take = Math.min(remaining, Math.max(0, Number(segment.quantity || 0)))
+      if (take <= 0) continue
+      nextSegments.push({
+        inventoryId,
+        breedId: segment.breedId,
+        quantity: take,
+        pricePerEgg: Math.max(0, Number(segment.pricePerEgg || 0)),
+        source: segment.source,
+      })
+      remaining -= take
+    }
+
+    if (remaining > 0) {
+      nextSegments.push({
+        inventoryId,
+        breedId: String(inventoryRow?.breed_id || ''),
+        quantity: remaining,
+        pricePerEgg: standardPrice,
+        source: 'new',
+      })
+    }
+
+    segmentsByInventory.set(inventoryId, nextSegments)
+  }
+
+  const baseSegments = segmentsByInventory.get(baseInventoryId) || []
+  const baseSegment =
+    baseSegments.find((segment) => segment.source === 'base') ||
+    baseSegments[0]
+
+  if (!baseSegment) {
+    return NextResponse.json({ error: 'Failed to determine base egg line' }, { status: 500 })
+  }
+
+  const additionRows: Array<{
+    egg_order_id: string
+    inventory_id: string
+    breed_id: string
+    quantity: number
+    price_per_egg: number
+    subtotal: number
+  }> = []
+
+  for (const [inventoryId, segments] of Array.from(segmentsByInventory.entries())) {
+    for (const segment of segments) {
+      const isChosenBaseSegment = inventoryId === baseInventoryId && segment === baseSegment
+      if (isChosenBaseSegment) continue
+      additionRows.push({
+        egg_order_id: orderId,
+        inventory_id: segment.inventoryId,
+        breed_id: segment.breedId,
+        quantity: segment.quantity,
+        price_per_egg: segment.pricePerEgg,
+        subtotal: segment.quantity * segment.pricePerEgg,
+      })
+    }
+  }
+
+  const nextSubtotal = baseSegment.quantity * baseSegment.pricePerEgg
+  const additionsTotal = additionRows.reduce((sum, row) => sum + row.subtotal, 0)
+  const nextTotalAmount = nextSubtotal + Number(order.delivery_fee || 0) + additionsTotal
+  const nextRemainderAmount = Math.max(0, nextTotalAmount - Number(order.deposit_amount || 0))
+  const nextStatus = deriveStatusFromPayments(
+    order.status,
+    order.egg_payments || [],
+    nextRemainderAmount
+  )
+
+  const { error: orderUpdateError } = await supabaseAdmin
+    .from('egg_orders')
+    .update({
+      inventory_id: baseSegment.inventoryId,
+      breed_id: baseSegment.breedId,
+      quantity: baseSegment.quantity,
+      price_per_egg: baseSegment.pricePerEgg,
+      subtotal: nextSubtotal,
+      total_amount: nextTotalAmount,
+      remainder_amount: nextRemainderAmount,
+      status: nextStatus,
+    })
+    .eq('id', orderId)
+
+  if (orderUpdateError) {
+    return NextResponse.json({ error: 'Failed to update base egg line' }, { status: 500 })
+  }
+
+  const { error: deleteAdditionsError } = await supabaseAdmin
+    .from('egg_order_additions')
+    .delete()
+    .eq('egg_order_id', orderId)
+
+  if (deleteAdditionsError) {
+    return NextResponse.json({ error: 'Failed to refresh egg additions' }, { status: 500 })
+  }
+
+  if (additionRows.length > 0) {
+    const { error: insertAdditionsError } = await supabaseAdmin
+      .from('egg_order_additions')
+      .insert(additionRows)
+
+    if (insertAdditionsError) {
+      return NextResponse.json({ error: 'Failed to save egg additions' }, { status: 500 })
+    }
+  }
+
+  const summaryParts = inventoryOrder
+    .filter((inventoryId) => finalPositiveQuantities.has(inventoryId))
+    .map((inventoryId) => {
+      const inventoryRow = inventoryById.get(inventoryId)
+      const qty = finalPositiveQuantities.get(inventoryId) || 0
+      const breedName = Array.isArray(inventoryRow?.egg_breeds)
+        ? inventoryRow?.egg_breeds?.[0]?.name || 'Rugeegg'
+        : inventoryRow?.egg_breeds?.name || 'Rugeegg'
+      return `${qty}x ${breedName}`
+    })
+
+  const overrideParts = touchedInventoryIds
+    .map((inventoryId) => {
+      const requested = requestedLines.get(inventoryId)
+      if (!requested || requested.overrideRemaining === null || requested.overrideRemaining === undefined) return ''
+      const inventoryRow = inventoryById.get(inventoryId)
+      const breedName = Array.isArray(inventoryRow?.egg_breeds)
+        ? inventoryRow?.egg_breeds?.[0]?.name || 'Rugeegg'
+        : inventoryRow?.egg_breeds?.name || 'Rugeegg'
+      return `${breedName}: ${requested.overrideRemaining} fri`
+    })
+    .filter(Boolean)
+
+  await appendAdminNote(
+    orderId,
+    order.admin_notes,
+    `Admin: adjusted egg lines - ${summaryParts.join(', ')}${overrideParts.length > 0 ? ` | override ${overrideParts.join(', ')}` : ''}${reason ? ` - ${reason}` : ''}`
+  )
+
+  return NextResponse.json({
+    success: true,
+    totals: {
+      subtotal: nextSubtotal,
+      total_amount: nextTotalAmount,
+      remainder_amount: nextRemainderAmount,
+    },
+  })
 }
 
 async function getOrderForPaymentActions(orderId: string) {
@@ -1249,6 +1695,8 @@ export async function POST(
         return await setEggOrderStatus(params.id, data?.status, data?.reason)
       case 'mark_shipped':
         return await markEggOrderShipped(params.id, data?.trackingNumber, data?.reason)
+      case 'adjust_order_lines':
+        return await adjustEggOrderLines(params.id, data?.lines || [], data?.reason)
       case 'fulfill_wishlist':
         return await fulfillWishlistItems(params.id, data?.items || [], data?.reason)
       case 'send_remainder_reminder':

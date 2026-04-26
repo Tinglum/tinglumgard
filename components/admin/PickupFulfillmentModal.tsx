@@ -55,6 +55,52 @@ type EggPaymentLike = {
   amount_nok?: number | null
 }
 
+type EggOrderLine = {
+  key: string
+  quantity: number
+  breedName: string
+  kind: 'base' | 'addition'
+}
+
+type EggOrderBreakdown = {
+  lines: EggOrderLine[]
+  groupedLines: Array<{ key: string; breedName: string; quantity: number }>
+  baseQuantity: number
+  additionsQuantity: number
+  totalQuantity: number
+}
+
+type EggAdjustAvailabilitySource = 'actual_collected' | 'inventory_fallback' | 'manual_override'
+
+type EggAdjustAvailabilityEntry = {
+  inventoryId: string
+  breedId: string
+  breedName: string
+  remaining: number
+  source: EggAdjustAvailabilitySource
+  actualCollected: number | null
+  eggsAvailable: number
+  eggsAllocated: number
+  inventoryRemaining: number
+  collectionDaysRecorded: number
+  manualOverride: boolean
+}
+
+type EggAdjustInventoryRow = {
+  id: string
+  breed_id: string
+  eggs_available?: number | null
+  eggs_allocated?: number | null
+  manual_override?: boolean | null
+  status?: string | null
+  egg_breeds?: { id?: string | null; name?: string | null; price_per_egg?: number | null } | Array<{ id?: string | null; name?: string | null; price_per_egg?: number | null }> | null
+}
+
+type EggAdjustState = {
+  quantity: number
+  overrideRemaining: string
+}
+
 function relationName(relation: any): string {
   if (Array.isArray(relation)) {
     return String(relation[0]?.name || '').trim()
@@ -62,8 +108,8 @@ function relationName(relation: any): string {
   return String(relation?.name || '').trim()
 }
 
-function getEggOrderLines(order: any): Array<{ key: string; quantity: number; breedName: string }> {
-  const lines: Array<{ key: string; quantity: number; breedName: string }> = []
+function getEggOrderLines(order: any): EggOrderLine[] {
+  const lines: EggOrderLine[] = []
   const baseBreedName = relationName(order?.egg_breeds) || 'Rugeegg'
 
   if (Number(order?.quantity || 0) > 0) {
@@ -71,6 +117,7 @@ function getEggOrderLines(order: any): Array<{ key: string; quantity: number; br
       key: `base:${baseBreedName}`,
       quantity: Number(order.quantity || 0),
       breedName: baseBreedName,
+      kind: 'base',
     })
   }
 
@@ -80,10 +127,45 @@ function getEggOrderLines(order: any): Array<{ key: string; quantity: number; br
       key: String(addition?.id || `${breedName}:${addition?.quantity || 0}`),
       quantity: Number(addition?.quantity || 0),
       breedName,
+      kind: 'addition',
     })
   }
 
   return lines
+}
+
+function getEggOrderBreakdown(order: any): EggOrderBreakdown {
+  const lines = getEggOrderLines(order)
+  const grouped = new Map<string, { key: string; breedName: string; quantity: number }>()
+  let baseQuantity = 0
+  let additionsQuantity = 0
+
+  for (const line of lines) {
+    if (line.kind === 'base') {
+      baseQuantity += line.quantity
+    } else {
+      additionsQuantity += line.quantity
+    }
+
+    const existing = grouped.get(line.breedName)
+    if (existing) {
+      existing.quantity += line.quantity
+    } else {
+      grouped.set(line.breedName, {
+        key: line.breedName,
+        breedName: line.breedName,
+        quantity: line.quantity,
+      })
+    }
+  }
+
+  return {
+    lines,
+    groupedLines: Array.from(grouped.values()),
+    baseQuantity,
+    additionsQuantity,
+    totalQuantity: baseQuantity + additionsQuantity,
+  }
 }
 
 function getEggOrderAdditionsTotalOre(order: any): number {
@@ -91,6 +173,54 @@ function getEggOrderAdditionsTotalOre(order: any): number {
     (sum: number, addition: any) => sum + Number(addition?.subtotal || 0),
     0
   )
+}
+
+function getEggCurrentQuantitiesByInventory(order: any): Map<string, number> {
+  const quantities = new Map<string, number>()
+  const baseInventoryId = String(order?.inventory_id || '').trim()
+  const baseQuantity = Math.max(0, Number(order?.quantity || 0))
+
+  if (baseInventoryId && baseQuantity > 0) {
+    quantities.set(baseInventoryId, baseQuantity)
+  }
+
+  for (const addition of order?.egg_order_additions || []) {
+    const inventoryId = String(addition?.inventory_id || '').trim()
+    const quantity = Math.max(0, Number(addition?.quantity || 0))
+    if (!inventoryId || quantity <= 0) continue
+    quantities.set(inventoryId, (quantities.get(inventoryId) || 0) + quantity)
+  }
+
+  return quantities
+}
+
+function getEggAdjustInventoryRows(order: any): EggAdjustInventoryRow[] {
+  return Array.isArray(order?.weekly_inventory_rows) ? order.weekly_inventory_rows : []
+}
+
+function getEggAdjustAvailability(order: any): Record<string, EggAdjustAvailabilityEntry> {
+  return order?.adjustment_availability || {}
+}
+
+function buildEggAdjustInitialState(order: any): Record<string, EggAdjustState> {
+  const quantitiesByInventory = getEggCurrentQuantitiesByInventory(order)
+  const availability = getEggAdjustAvailability(order)
+  const nextState: Record<string, EggAdjustState> = {}
+
+  for (const inventoryRow of getEggAdjustInventoryRows(order)) {
+    const inventoryId = String(inventoryRow?.id || '').trim()
+    if (!inventoryId) continue
+    const currentQty = quantitiesByInventory.get(inventoryId) || 0
+    const availabilityEntry = availability[inventoryId]
+    nextState[inventoryId] = {
+      quantity: currentQty,
+      overrideRemaining: availabilityEntry?.manualOverride
+        ? String(Math.max(0, Number(availabilityEntry.eggsAvailable || 0) - Number(availabilityEntry.eggsAllocated || 0)))
+        : '',
+    }
+  }
+
+  return nextState
 }
 
 function getEggOutstandingRemainderOre(order: any): number {
@@ -120,7 +250,7 @@ function getDisplayStatus(order: any, type?: OrderType): string {
   return currentStatus || 'deposit_paid'
 }
 
-function toCustomerProfileHref(order: any, type?: OrderType): string | null {
+function resolveCustomerLookupId(order: any, type?: OrderType): string | null {
   if (!order || !type) return null
 
   const email = String(order.customer_email || '').trim().toLowerCase()
@@ -138,15 +268,7 @@ function toCustomerProfileHref(order: any, type?: OrderType): string | null {
     customerId = `order:${type}:${order.id}`
   }
 
-  if (!customerId) return null
-
-  const params = new URLSearchParams({
-    tab: 'customers',
-    subTab: 'database',
-    customerId,
-  })
-
-  return `/admin?${params.toString()}`
+  return customerId || null
 }
 
 // ─── helper components ────────────────────────────────────────────────────────
@@ -266,9 +388,10 @@ interface Props {
   order: PickupOrder | null
   onClose: () => void
   onRefresh: () => void
+  onNavigateToCustomer?: (customerId: string) => void
 }
 
-export function PickupFulfillmentModal({ order, onClose, onRefresh }: Props) {
+export function PickupFulfillmentModal({ order, onClose, onRefresh, onNavigateToCustomer }: Props) {
   const { toast } = useToast()
   const open = !!order
 
@@ -296,6 +419,7 @@ export function PickupFulfillmentModal({ order, onClose, onRefresh }: Props) {
 
   // ── egg quantity adjustment state ──────────────────────────────────────────
   const [eggQtyDelta, setEggQtyDelta] = useState(0)
+  const [eggAdjustments, setEggAdjustments] = useState<Record<string, EggAdjustState>>({})
   const [eggSaving, setEggSaving] = useState(false)
 
   // ── pig box/extras adjustment state ────────────────────────────────────────
@@ -363,7 +487,7 @@ export function PickupFulfillmentModal({ order, onClose, onRefresh }: Props) {
 
       // Init egg delta
       if (order.type === 'egg') {
-        setEggQtyDelta(0)
+        setEggAdjustments(buildEggAdjustInitialState(fo))
       }
     } catch (err: any) {
       toast({ title: 'Feil', description: err.message || 'Kunne ikke hente bestilling', variant: 'destructive' })
@@ -551,6 +675,76 @@ export function PickupFulfillmentModal({ order, onClose, onRefresh }: Props) {
 
   // ─── pig adjustment helper ─────────────────────────────────────────────────
 
+  const updateEggLineQuantity = (inventoryId: string, nextQuantity: number) => {
+    setEggAdjustments((prev) => {
+      const existing = prev[inventoryId] || { quantity: 0, overrideRemaining: '' }
+      return {
+        ...prev,
+        [inventoryId]: {
+          ...existing,
+          quantity: Math.max(0, Math.round(nextQuantity)),
+        },
+      }
+    })
+  }
+
+  const updateEggOverrideRemaining = (inventoryId: string, nextValue: string) => {
+    setEggAdjustments((prev) => {
+      const existing = prev[inventoryId] || { quantity: 0, overrideRemaining: '' }
+      return {
+        ...prev,
+        [inventoryId]: {
+          ...existing,
+          overrideRemaining: nextValue,
+        },
+      }
+    })
+  }
+
+  const submitEggAdjustments = async () => {
+    if (!fullOrder) return
+    setEggSaving(true)
+    try {
+      const payloadLines = getEggAdjustInventoryRows(fullOrder).map((inventoryRow) => {
+        const inventoryId = String(inventoryRow?.id || '').trim()
+        const adjustment = eggAdjustments[inventoryId] || { quantity: 0, overrideRemaining: '' }
+        const trimmedOverride = String(adjustment.overrideRemaining || '').trim()
+
+        return {
+          inventoryId,
+          quantity: Math.max(0, Math.round(Number(adjustment.quantity || 0))),
+          overrideRemaining: trimmedOverride === '' ? null : Number(trimmedOverride),
+        }
+      })
+
+      if (!payloadLines.some((line) => line.quantity > 0)) {
+        throw new Error('Bestillingen må ha minst én eggrase med antall over 0')
+      }
+
+      const res = await fetch(`/api/admin/eggs/orders/${fullOrder.id}/actions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'adjust_order_lines',
+          data: { lines: payloadLines },
+        }),
+      })
+      const result = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(result?.error || 'Feil ved oppdatering')
+
+      toast({
+        title: 'Oppdatert',
+        description: 'Egglinjene og lagerreservasjonen er oppdatert.',
+      })
+      await fetchOrder()
+      onRefresh()
+    } catch (err: any) {
+      toast({ title: 'Feil', description: err.message, variant: 'destructive' })
+    } finally {
+      setEggSaving(false)
+    }
+  }
+
   const submitPigAdjust = async () => {
     if (!fullOrder) return
     setPigSaving(true)
@@ -633,11 +827,29 @@ export function PickupFulfillmentModal({ order, onClose, onRefresh }: Props) {
   }
 
   const displayStatus = fullOrder ? getDisplayStatus(fullOrder, order?.type) : (order?.status || '—')
-  const customerProfileHref = fullOrder ? toCustomerProfileHref(fullOrder, order?.type) : null
+  const customerLookupId = fullOrder ? resolveCustomerLookupId(fullOrder, order?.type) : null
   const paymentSummaryOrder =
     fullOrder && order?.type === 'egg'
       ? { ...fullOrder, remainder_amount: remainder }
       : fullOrder
+
+  const navigateToCustomerProfile = () => {
+    if (!customerLookupId) return
+
+    if (onNavigateToCustomer) {
+      onClose()
+      onNavigateToCustomer(customerLookupId)
+      return
+    }
+
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search)
+      params.set('tab', 'customers')
+      params.set('subTab', 'database')
+      params.set('customerId', customerLookupId)
+      window.location.href = `/admin?${params.toString()}`
+    }
+  }
 
   const formatPickupDate = (d: string) =>
     new Date(d + 'T12:00:00').toLocaleDateString('nb-NO', {
@@ -681,22 +893,28 @@ export function PickupFulfillmentModal({ order, onClose, onRefresh }: Props) {
 
             {/* Customer overview */}
             <div className="rounded-xl border border-neutral-200 bg-neutral-50 px-5 py-4 space-y-1.5">
-              <div className="flex items-center gap-2 text-sm">
+              <div className="flex items-start gap-2 text-sm">
                 <User className="w-4 h-4 text-neutral-400 shrink-0" />
-                {customerProfileHref ? (
-                  <a href={customerProfileHref} className="font-medium text-neutral-900 hover:underline">
-                    {fullOrder.customer_name}
-                  </a>
-                ) : (
-                  <span className="font-medium">{fullOrder.customer_name}</span>
-                )}
-                {fullOrder.customer_email && (
-                  <span className="text-neutral-500 text-xs">{fullOrder.customer_email}</span>
-                )}
+                <div className="min-w-0 space-y-0.5">
+                  {customerLookupId ? (
+                    <button
+                      type="button"
+                      onClick={navigateToCustomerProfile}
+                      className="font-medium text-left text-neutral-900 hover:text-blue-700 hover:underline transition-colors"
+                    >
+                      {fullOrder.customer_name}
+                    </button>
+                  ) : (
+                    <p className="font-medium text-neutral-900">{fullOrder.customer_name}</p>
+                  )}
+                  {fullOrder.customer_email && (
+                    <p className="text-neutral-500 text-xs break-all">{fullOrder.customer_email}</p>
+                  )}
+                  {fullOrder.customer_phone && (
+                    <p className="text-xs text-neutral-500">{fullOrder.customer_phone}</p>
+                  )}
+                </div>
               </div>
-              {fullOrder.customer_phone && (
-                <p className="text-xs text-neutral-500 pl-6">{fullOrder.customer_phone}</p>
-              )}
               {/* Order summary line */}
               <div className="flex items-start gap-2 text-sm pl-6">
                 <Package className="w-3.5 h-3.5 text-neutral-400 shrink-0" />
@@ -818,11 +1036,11 @@ export function PickupFulfillmentModal({ order, onClose, onRefresh }: Props) {
               {order?.type === 'egg' && (
                 <EggAdjustPanel
                   fullOrder={fullOrder}
-                  delta={eggQtyDelta}
-                  onDelta={setEggQtyDelta}
-                  onSave={submitEggQty}
+                  adjustments={eggAdjustments}
+                  onQuantityChange={updateEggLineQuantity}
+                  onOverrideRemainingChange={updateEggOverrideRemaining}
+                  onSave={submitEggAdjustments}
                   saving={eggSaving}
-                  formatMoney={formatMoney}
                 />
               )}
 
@@ -912,18 +1130,120 @@ export function PickupFulfillmentModal({ order, onClose, onRefresh }: Props) {
 
 // ─── sub-panels ───────────────────────────────────────────────────────────────
 
+function LegacyEggOrderSummaryBlock({
+  breakdown,
+  showAdjustmentHint = false,
+}: {
+  breakdown: EggOrderBreakdown
+  showAdjustmentHint?: boolean
+}) {
+  return (
+    <div className="w-full space-y-2 text-xs text-neutral-600">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="font-medium text-neutral-800">{breakdown.totalQuantity} egg totalt</span>
+        <span className="rounded-full border border-neutral-200 bg-white px-2 py-0.5">
+          Grunnbestilling {breakdown.baseQuantity}
+        </span>
+        {breakdown.additionsQuantity > 0 && (
+          <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-amber-800">
+            Ekstra egg {breakdown.additionsQuantity}
+          </span>
+        )}
+      </div>
+      <div className="grid gap-1 sm:grid-cols-2">
+        {breakdown.groupedLines.map((line) => (
+          <div
+            key={line.key}
+            className="flex items-center justify-between gap-3 rounded-md border border-neutral-200 bg-white px-2.5 py-1.5"
+          >
+            <span className="truncate">{line.breedName}</span>
+            <span className="font-medium text-neutral-800">{line.quantity} egg</span>
+          </div>
+        ))}
+      </div>
+      {showAdjustmentHint && (
+        <p className="text-neutral-500">
+          Endringen under gjelder bare grunnbestillingen. Ekstra egg beholdes som de er.
+        </p>
+      )}
+    </div>
+  )
+}
+
+function EggOrderSummaryBlock({
+  breakdown,
+  showAdjustmentHint = false,
+}: {
+  breakdown: EggOrderBreakdown
+  showAdjustmentHint?: boolean
+}) {
+  return (
+    <div className="w-full space-y-3 text-sm">
+      <div className="grid gap-2 sm:grid-cols-3">
+        <div className="rounded-lg border border-neutral-200 bg-white px-3 py-2">
+          <p className="text-xs uppercase tracking-wide text-neutral-500">Totalt</p>
+          <p className="mt-1 font-semibold text-neutral-900">{breakdown.totalQuantity} egg</p>
+        </div>
+        <div className="rounded-lg border border-neutral-200 bg-white px-3 py-2">
+          <p className="text-xs uppercase tracking-wide text-neutral-500">Grunnbestilling</p>
+          <p className="mt-1 font-semibold text-neutral-900">{breakdown.baseQuantity} egg</p>
+        </div>
+        <div className="rounded-lg border border-neutral-200 bg-white px-3 py-2">
+          <p className="text-xs uppercase tracking-wide text-neutral-500">Ekstra egg</p>
+          <p className="mt-1 font-semibold text-neutral-900">{breakdown.additionsQuantity} egg</p>
+        </div>
+      </div>
+
+      <div className="overflow-hidden rounded-lg border border-neutral-200 bg-white">
+        <div className="grid grid-cols-[minmax(0,1fr)_90px] gap-3 border-b border-neutral-200 bg-neutral-50 px-3 py-2 text-xs font-medium uppercase tracking-wide text-neutral-500">
+          <span>Rase</span>
+          <span className="text-right">Antall</span>
+        </div>
+        {breakdown.groupedLines.map((line, index) => (
+          <div
+            key={line.key}
+            className={`grid grid-cols-[minmax(0,1fr)_90px] gap-3 px-3 py-2 text-sm ${index > 0 ? 'border-t border-neutral-100' : ''}`}
+          >
+            <span className="truncate text-neutral-700">{line.breedName}</span>
+            <span className="text-right font-medium text-neutral-900">{line.quantity}</span>
+          </div>
+        ))}
+      </div>
+
+      {showAdjustmentHint && (
+        <p className="text-xs text-neutral-500">
+          Juster én rase per rad under. Lageret oppdateres når du lagrer.
+        </p>
+      )}
+    </div>
+  )
+}
+
 function OrderSummaryLine({ order, type }: { order: any; type: OrderType }) {
   if (type === 'egg') {
-    const lines = getEggOrderLines(order)
-    const totalQuantity = lines.reduce((sum, line) => sum + line.quantity, 0)
+    const breakdown = getEggOrderBreakdown(order)
+    return <EggOrderSummaryBlock breakdown={breakdown} />
     return (
-      <div className="space-y-0.5 text-xs text-neutral-600">
-        <p>{totalQuantity} egg totalt</p>
-        <div className="flex flex-wrap gap-x-2 gap-y-0.5">
-          {lines.map((line) => (
-            <span key={line.key}>
-              {line.quantity} egg – {line.breedName}
+      <div className="w-full space-y-2 text-xs text-neutral-600">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="font-medium text-neutral-800">{breakdown.totalQuantity} egg totalt</span>
+          <span className="rounded-full border border-neutral-200 bg-white px-2 py-0.5">
+            Grunnbestilling {breakdown.baseQuantity}
+          </span>
+          {breakdown.additionsQuantity > 0 && (
+            <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-amber-800">
+              Ekstra egg {breakdown.additionsQuantity}
             </span>
+          )}
+        </div>
+        <div className="grid gap-1 sm:grid-cols-2">
+          {breakdown.groupedLines.map((line) => (
+            <div
+              key={line.key}
+              className="flex items-center justify-between gap-3 rounded-md border border-neutral-200 bg-white px-2.5 py-1.5"
+            >
+              {line.quantity} egg – {line.breedName}
+            </div>
           ))}
         </div>
       </div>
@@ -1037,7 +1357,7 @@ function PaymentSummary({
 
 // ── Egg panel ────────────────────────────────────────────────────────────────
 
-function EggAdjustPanel({
+function LegacyEggAdjustPanel({
   fullOrder,
   delta,
   onDelta,
@@ -1052,11 +1372,12 @@ function EggAdjustPanel({
   saving: boolean
   formatMoney: (n: number) => string
 }) {
-  const orderLines = getEggOrderLines(fullOrder)
+  const breakdown = getEggOrderBreakdown(fullOrder)
+  const orderLines = breakdown.lines
   const additionsTotal = getEggOrderAdditionsTotalOre(fullOrder)
-  const totalOrderEggs = orderLines.reduce((sum, line) => sum + line.quantity, 0)
   const currentQty = Number(fullOrder.quantity || 0)
   const newQty = currentQty + delta
+  const newTotalEggs = newQty + breakdown.additionsQuantity
   const pricePerEgg = Number(fullOrder.price_per_egg || 0)
   const newSubtotal = newQty * pricePerEgg
   const deliveryFee = Number(fullOrder.delivery_fee || 0)
@@ -1066,21 +1387,23 @@ function EggAdjustPanel({
 
   return (
     <div className="space-y-4">
-      {orderLines.length > 0 && (
-        <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-3 text-xs text-neutral-600 space-y-1">
-          <p className="font-medium text-neutral-700">{totalOrderEggs} egg i ordren totalt</p>
-          <div className="flex flex-wrap gap-x-2 gap-y-0.5">
+      {breakdown.groupedLines.length > 0 && (
+        <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-3">
+          <EggOrderSummaryBlock breakdown={breakdown} showAdjustmentHint />
+          {false && (
+            <div className="flex flex-wrap gap-x-2 gap-y-0.5">
             {orderLines.map((line) => (
               <span key={line.key}>
                 {line.quantity} egg – {line.breedName}
               </span>
             ))}
-          </div>
+            </div>
+          )}
         </div>
       )}
-      <div className="flex items-center gap-4">
+      <div className="flex items-start gap-4">
         <div>
-          <p className="text-xs text-neutral-500 mb-1">Antall egg</p>
+          <p className="text-xs text-neutral-500 mb-1">Grunnbestilling</p>
           <div className="flex items-center gap-2">
             <Button
               size="sm"
@@ -1109,15 +1432,19 @@ function EggAdjustPanel({
             </Button>
           </div>
         </div>
-        {delta !== 0 && (
-          <div className="text-xs text-neutral-600 space-y-0.5">
-            <p>Ny subtotal: {formatMoney(newSubtotal)}</p>
-            <p>Ny total: {formatMoney(newTotal)}</p>
-            <p className={newRemainder > 0 ? 'text-amber-700 font-medium' : 'text-green-700 font-medium'}>
-              Ny rest: {formatMoney(newRemainder)}
-            </p>
-          </div>
-        )}
+        <div className="text-xs text-neutral-600 space-y-0.5">
+          <p>Ekstra egg: {breakdown.additionsQuantity}</p>
+          <p>Ordre totalt: {newTotalEggs} egg</p>
+          {delta !== 0 && (
+            <>
+              <p>Ny grunnsum: {formatMoney(newSubtotal)}</p>
+              <p>Ny total: {formatMoney(newTotal)}</p>
+              <p className={newRemainder > 0 ? 'text-amber-700 font-medium' : 'text-green-700 font-medium'}>
+                Ny rest: {formatMoney(newRemainder)}
+              </p>
+            </>
+          )}
+        </div>
       </div>
       {delta !== 0 && (
         <Button onClick={onSave} disabled={saving}>
@@ -1130,6 +1457,286 @@ function EggAdjustPanel({
 }
 
 // ── Chicken panel ─────────────────────────────────────────────────────────────
+
+function EggAdjustPanel({
+  fullOrder,
+  adjustments,
+  onQuantityChange,
+  onOverrideRemainingChange,
+  onSave,
+  saving,
+}: {
+  fullOrder: any
+  adjustments: Record<string, EggAdjustState>
+  onQuantityChange: (inventoryId: string, nextQuantity: number) => void
+  onOverrideRemainingChange: (inventoryId: string, nextValue: string) => void
+  onSave: () => void
+  saving: boolean
+}) {
+  const breakdown = getEggOrderBreakdown(fullOrder)
+  const currentQuantities = getEggCurrentQuantitiesByInventory(fullOrder)
+  const initialState = buildEggAdjustInitialState(fullOrder)
+  const availability = getEggAdjustAvailability(fullOrder)
+  const inventoryRows = [...getEggAdjustInventoryRows(fullOrder)].sort((a, b) => {
+    const quantityDelta =
+      (currentQuantities.get(String(b?.id || '')) || 0) - (currentQuantities.get(String(a?.id || '')) || 0)
+    if (quantityDelta !== 0) return quantityDelta
+    return relationName(a?.egg_breeds).localeCompare(relationName(b?.egg_breeds), 'nb')
+  })
+
+  const sourceLabel = (source: EggAdjustAvailabilitySource) => {
+    if (source === 'actual_collected') return 'Faktisk samlet'
+    if (source === 'manual_override') return 'Manuelt overstyrt'
+    return 'Systeminventar'
+  }
+
+  const rows = inventoryRows.map((inventoryRow) => {
+    const inventoryId = String(inventoryRow?.id || '').trim()
+    const breedName = relationName(inventoryRow?.egg_breeds) || 'Rugeegg'
+    const currentQuantity = currentQuantities.get(inventoryId) || 0
+    const state =
+      adjustments[inventoryId] ||
+      initialState[inventoryId] ||
+      {
+        quantity: currentQuantity,
+        overrideRemaining: '',
+      }
+    const availabilityEntry = availability[inventoryId]
+    const systemFreeNow = Math.max(
+      0,
+      Number(
+        availabilityEntry?.remaining ??
+          (Number(inventoryRow?.eggs_available || 0) - Number(inventoryRow?.eggs_allocated || 0))
+      )
+    )
+    const source: EggAdjustAvailabilitySource =
+      availabilityEntry?.source || (inventoryRow?.manual_override ? 'manual_override' : 'inventory_fallback')
+    const trimmedOverride = String(state.overrideRemaining || '').trim()
+    const hasOverrideInput = trimmedOverride !== ''
+    const parsedOverride = hasOverrideInput && /^\d+$/.test(trimmedOverride) ? Number(trimmedOverride) : null
+    const invalidOverrideInput = hasOverrideInput && parsedOverride === null
+    const freeNow = parsedOverride ?? systemFreeNow
+    const requestedQuantity = Math.max(0, Number(state.quantity || 0))
+    const projectedFree = freeNow - (requestedQuantity - currentQuantity)
+    const maxWithoutOverride = currentQuantity + systemFreeNow
+    const requiresOverride = requestedQuantity > maxWithoutOverride
+    const hasError =
+      invalidOverrideInput ||
+      (requiresOverride && parsedOverride === null) ||
+      (parsedOverride !== null && requestedQuantity > currentQuantity + parsedOverride)
+
+    return {
+      inventoryId,
+      breedName,
+      currentQuantity,
+      requestedQuantity,
+      systemFreeNow,
+      freeNow,
+      projectedFree,
+      source,
+      actualCollected: availabilityEntry?.actualCollected ?? null,
+      collectionDaysRecorded: availabilityEntry?.collectionDaysRecorded || 0,
+      hasOverrideInput,
+      invalidOverrideInput,
+      overrideValue: String(state.overrideRemaining || ''),
+      requiresOverride,
+      hasError,
+      manualOverrideActive: availabilityEntry?.manualOverride || hasOverrideInput,
+    }
+  })
+
+  const nextTotalEggs = rows.reduce((sum, row) => sum + row.requestedQuantity, 0)
+  const totalDelta = nextTotalEggs - breakdown.totalQuantity
+  const invalidRows = rows.filter((row) => row.hasError)
+  const hasChanges = rows.some((row) => {
+    const initialRow = initialState[row.inventoryId] || { quantity: row.currentQuantity, overrideRemaining: '' }
+    return (
+      row.requestedQuantity !== Math.max(0, Number(initialRow.quantity || 0)) ||
+      row.overrideValue !== String(initialRow.overrideRemaining || '')
+    )
+  })
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-3">
+        <EggOrderSummaryBlock breakdown={breakdown} showAdjustmentHint />
+      </div>
+
+      <div className="rounded-lg border border-neutral-200 bg-white">
+        <div className="border-b border-neutral-200 bg-neutral-50 px-4 py-3">
+          <p className="text-sm font-medium text-neutral-900">Juster bestilling per rase</p>
+          <p className="mt-1 text-xs text-neutral-500">
+            Tallene under viser fritt lager for denne uken. Override brukes bare når dere fysisk har flere egg enn systemet viser.
+          </p>
+        </div>
+
+        {rows.length === 0 && (
+          <div className="px-4 py-6 text-sm text-neutral-500">
+            Ingen lagerlinjer funnet for denne uken ennå.
+          </div>
+        )}
+
+        <div className="divide-y divide-neutral-200">
+          {rows.map((row) => (
+            <div key={row.inventoryId} className="space-y-3 px-4 py-4">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="space-y-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-sm font-medium text-neutral-900">{row.breedName}</span>
+                    {row.currentQuantity > 0 && (
+                      <span className="rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-xs text-blue-800">
+                        I ordre nå {row.currentQuantity}
+                      </span>
+                    )}
+                    {row.manualOverrideActive && (
+                      <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs text-amber-800">
+                        Override
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-neutral-500">
+                    {sourceLabel(row.source)}
+                    {row.actualCollected !== null ? ` • samlet ${row.actualCollected} egg` : ''}
+                    {row.collectionDaysRecorded > 0 ? ` • ${row.collectionDaysRecorded} dager registrert` : ''}
+                  </p>
+                </div>
+
+                <div className="grid gap-3 text-sm sm:grid-cols-3 sm:text-right">
+                  <div>
+                    <p className="text-xs uppercase tracking-wide text-neutral-500">Fri nå</p>
+                    <p className="font-medium text-neutral-900">{row.freeNow} egg</p>
+                    {row.hasOverrideInput && !row.invalidOverrideInput && (
+                      <p className="text-xs text-neutral-500">Systemet viste {row.systemFreeNow}</p>
+                    )}
+                  </div>
+                  <div>
+                    <p className="text-xs uppercase tracking-wide text-neutral-500">I ordre etter lagring</p>
+                    <p className="font-medium text-neutral-900">{row.requestedQuantity} egg</p>
+                  </div>
+                  <div>
+                    <p className="text-xs uppercase tracking-wide text-neutral-500">Fri etter lagring</p>
+                    <p
+                      className={
+                        row.hasError
+                          ? 'font-medium text-red-700'
+                          : row.projectedFree <= 0
+                            ? 'font-medium text-amber-700'
+                            : 'font-medium text-green-700'
+                      }
+                    >
+                      {row.hasError ? 'For lav beholdning' : `${Math.max(0, row.projectedFree)} egg`}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid gap-3 lg:grid-cols-[220px_minmax(0,1fr)]">
+                <div>
+                  <p className="mb-1 text-xs font-medium uppercase tracking-wide text-neutral-500">Antall i ordre</p>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-9 w-9 p-0"
+                      onClick={() => onQuantityChange(row.inventoryId, row.requestedQuantity - 1)}
+                      disabled={row.requestedQuantity <= 0}
+                    >
+                      -
+                    </Button>
+                    <div className="w-16 rounded-md border border-neutral-200 bg-neutral-50 px-3 py-2 text-center text-sm font-medium text-neutral-900">
+                      {row.requestedQuantity}
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-9 w-9 p-0"
+                      onClick={() => onQuantityChange(row.inventoryId, row.requestedQuantity + 1)}
+                    >
+                      +
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <label className="text-xs font-medium uppercase tracking-wide text-neutral-500">
+                      Override fri beholdning
+                    </label>
+                    {row.overrideValue && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-auto px-0 py-0 text-xs text-neutral-500 hover:text-neutral-800"
+                        onClick={() => onOverrideRemainingChange(row.inventoryId, '')}
+                      >
+                        Bruk systemtall
+                      </Button>
+                    )}
+                  </div>
+                  <Input
+                    type="number"
+                    min="0"
+                    step="1"
+                    value={row.overrideValue}
+                    onChange={(event) => onOverrideRemainingChange(row.inventoryId, event.target.value)}
+                    placeholder={String(row.systemFreeNow)}
+                    className="max-w-[180px]"
+                  />
+                  <p className="text-xs text-neutral-500">
+                    Skriv inn hvor mange frie egg dere faktisk har tilgjengelig nå hvis fysisk beholdning er høyere enn systemet.
+                  </p>
+                  {row.invalidOverrideInput && (
+                    <p className="text-xs text-red-600">Override må være et helt tall fra 0 og oppover.</p>
+                  )}
+                  {!row.invalidOverrideInput && row.requiresOverride && !row.hasOverrideInput && (
+                    <p className="text-xs text-red-600">
+                      Systemet tillater maks {row.currentQuantity + row.systemFreeNow} egg på denne raden uten override.
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="grid gap-2 sm:grid-cols-3">
+        <div className="rounded-lg border border-neutral-200 bg-white px-3 py-2">
+          <p className="text-xs uppercase tracking-wide text-neutral-500">I ordre nå</p>
+          <p className="mt-1 font-semibold text-neutral-900">{breakdown.totalQuantity} egg</p>
+        </div>
+        <div className="rounded-lg border border-neutral-200 bg-white px-3 py-2">
+          <p className="text-xs uppercase tracking-wide text-neutral-500">Etter lagring</p>
+          <p className="mt-1 font-semibold text-neutral-900">{nextTotalEggs} egg</p>
+        </div>
+        <div className="rounded-lg border border-neutral-200 bg-white px-3 py-2">
+          <p className="text-xs uppercase tracking-wide text-neutral-500">Endring</p>
+          <p className={`mt-1 font-semibold ${totalDelta === 0 ? 'text-neutral-900' : totalDelta > 0 ? 'text-green-700' : 'text-red-700'}`}>
+            {totalDelta > 0 ? '+' : ''}
+            {totalDelta} egg
+          </p>
+        </div>
+      </div>
+
+      {invalidRows.length > 0 && (
+        <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+          <div>
+            <p className="font-medium">Noen rader kan ikke lagres ennå.</p>
+            <p className="text-xs text-red-600">
+              Rett opp radene med for lav beholdning eller legg inn override der dere fysisk har flere egg.
+            </p>
+          </div>
+        </div>
+      )}
+
+      <Button onClick={onSave} disabled={saving || !hasChanges || invalidRows.length > 0}>
+        {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+        Lagre bestilling og oppdater lager
+      </Button>
+    </div>
+  )
+}
 
 function ChickenAdjustPanel({
   fullOrder,
