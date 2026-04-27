@@ -2,6 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth/session';
 import { supabaseAdmin } from '@/lib/supabase/server';
 
+function normalizeUuid(value?: string | null): string | null {
+  if (!value) return null;
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
+    ? value
+    : null;
+}
+
 export async function GET(
   _request: NextRequest,
   { params }: { params: { id: string } }
@@ -62,7 +69,7 @@ export async function PATCH(
 
     if (markDelivered) {
       updateData.marked_delivered_at = new Date().toISOString();
-      updateData.marked_delivered_by = session.userId;
+      updateData.marked_delivered_by = normalizeUuid(session.userId);
       updateData.status = 'completed';
     }
 

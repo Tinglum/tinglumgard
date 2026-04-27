@@ -31,6 +31,13 @@ type EggOrderRow = {
 const DELIVERY_METHODS = new Set(['posten', 'e6_pickup', 'farm_pickup'])
 const MANUAL_STATUS_LOCK = new Set(['preparing', 'shipped', 'delivered', 'cancelled', 'forfeited'])
 
+function normalizeUuid(value?: string | null): string | null {
+  if (!value) return null
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
+    ? value
+    : null
+}
+
 function toNonNegativeInt(value: unknown): number | null {
   const numberValue = Number(value)
   if (!Number.isFinite(numberValue)) return null
@@ -262,7 +269,7 @@ export async function PATCH(
 
     if (body.markDelivered) {
       updates.marked_delivered_at = new Date().toISOString()
-      updates.marked_delivered_by = session.userId
+      updates.marked_delivered_by = normalizeUuid(session.userId)
       updates.status = 'delivered'
     }
 

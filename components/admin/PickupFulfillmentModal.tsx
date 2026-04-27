@@ -831,15 +831,20 @@ export function PickupFulfillmentModal({ order, onClose, onRefresh, onNavigateTo
     try {
       let url: string
       let body: Record<string, unknown>
+      const targetId = String(fullOrder.id || order.id || '').trim()
+
+      if (!targetId) {
+        throw new Error(no ? 'Kunne ikke finne bestillings-ID' : 'Could not find order ID')
+      }
 
       if (order.type === 'egg') {
-        url = `/api/admin/eggs/orders/${order.id}`
+        url = `/api/admin/eggs/orders/${targetId}`
         body = { markDelivered: true }
       } else if (order.type === 'chicken') {
-        url = `/api/admin/chickens/orders/${order.id}`
+        url = `/api/admin/chickens/orders/${targetId}`
         body = { status: 'picked_up' }
       } else {
-        url = `/api/admin/orders/${order.id}`
+        url = `/api/admin/orders/${targetId}`
         body = { markDelivered: true }
       }
 
