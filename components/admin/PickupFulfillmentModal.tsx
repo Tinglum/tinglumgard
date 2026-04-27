@@ -21,6 +21,7 @@ import {
   Calendar,
   User,
   Package,
+  PackageCheck,
 } from 'lucide-react'
 
 // ─── types ────────────────────────────────────────────────────────────────────
@@ -436,6 +437,9 @@ export function PickupFulfillmentModal({ order, onClose, onRefresh, onNavigateTo
   // ── payment state ──────────────────────────────────────────────────────────
   const [paymentSending, setPaymentSending] = useState(false)
 
+  // ── confirm pickup state ───────────────────────────────────────────────────
+  const [confirmingPickup, setConfirmingPickup] = useState(false)
+
   // ─── fetch full order on open ─────────────────────────────────────────────
   const fetchOrder = useCallback(async () => {
     if (!order) return
@@ -809,6 +813,47 @@ export function PickupFulfillmentModal({ order, onClose, onRefresh, onNavigateTo
     }
   }
 
+  // ─── confirm pickup ───────────────────────────────────────────────────────
+
+  const confirmPickup = async () => {
+    if (!order || !fullOrder) return
+    setConfirmingPickup(true)
+    try {
+      let url: string
+      let body: Record<string, unknown>
+
+      if (order.type === 'egg') {
+        url = `/api/admin/eggs/orders/${order.id}`
+        body = { markDelivered: true }
+      } else if (order.type === 'chicken') {
+        url = `/api/admin/chickens/orders/${order.id}`
+        body = { status: 'picked_up' }
+      } else {
+        url = `/api/admin/orders/${order.id}`
+        body = { markDelivered: true }
+      }
+
+      const res = await fetch(url, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.error || 'Kunne ikke oppdatere status')
+      }
+      const label =
+        order.type === 'chicken' ? 'hentet' : order.type === 'pig' ? 'fullført' : 'levert'
+      toast({ title: 'Henting bekreftet', description: `Bestillingen er markert som ${label}.` })
+      onRefresh()
+      onClose()
+    } catch (err: any) {
+      toast({ title: 'Feil', description: err.message, variant: 'destructive' })
+    } finally {
+      setConfirmingPickup(false)
+    }
+  }
+
   // ─── derived values ────────────────────────────────────────────────────────
 
   const pickupDayIsSet = !!(fullOrder?.pickup_date)
@@ -1120,6 +1165,47 @@ export function PickupFulfillmentModal({ order, onClose, onRefresh, onNavigateTo
                 )}
               </div>
             </SectionToggle>
+
+            {/* ── Confirm pickup ── */}
+            {(() => {
+              const terminal = ['delivered', 'picked_up', 'completed', 'cancelled', 'forfeited']
+              const alreadyDone = terminal.includes(displayStatus)
+              if (alreadyDone) {
+                return (
+                  <div className="flex items-center gap-2 rounded-xl border border-green-200 bg-green-50 px-5 py-4 text-sm text-green-700">
+                    <CheckCircle2 className="w-5 h-5 shrink-0" />
+                    <span className="font-medium">
+                      {displayStatus === 'delivered' && 'Bestillingen er markert som levert'}
+                      {displayStatus === 'picked_up' && 'Bestillingen er markert som hentet'}
+                      {displayStatus === 'completed' && 'Bestillingen er fullført'}
+                      {displayStatus === 'cancelled' && 'Bestillingen er kansellert'}
+                      {displayStatus === 'forfeited' && 'Bestillingen er forkastet'}
+                    </span>
+                  </div>
+                )
+              }
+              const confirmLabel =
+                order?.type === 'chicken' ? 'Bekreft henting' : order?.type === 'pig' ? 'Bekreft utlevering' : 'Bekreft henting'
+              return (
+                <div className="rounded-xl border border-neutral-200 bg-white px-5 py-4">
+                  <p className="text-sm text-neutral-600 mb-3">
+                    Kunden har hentet bestillingen på gården. Klikk for å markere salget som fullført.
+                  </p>
+                  <Button
+                    onClick={confirmPickup}
+                    disabled={confirmingPickup}
+                    className="w-full bg-green-700 hover:bg-green-800 text-white"
+                  >
+                    {confirmingPickup ? (
+                      <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                    ) : (
+                      <PackageCheck className="w-4 h-4 mr-2" />
+                    )}
+                    {confirmLabel}
+                  </Button>
+                </div>
+              )
+            })()}
 
           </div>
         )}
