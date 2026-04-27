@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
+import { useLanguage } from '@/contexts/LanguageContext'
 import {
   Dialog,
   DialogContent,
@@ -107,6 +108,11 @@ function relationName(relation: any): string {
     return String(relation[0]?.name || '').trim()
   }
   return String(relation?.name || '').trim()
+}
+
+function useIsNorwegian() {
+  const { lang } = useLanguage()
+  return lang === 'no'
 }
 
 function getEggOrderLines(order: any): EggOrderLine[] {
@@ -315,6 +321,8 @@ function BirdAdjustLine({
   onHensDelta,
   onRoostersDelta,
 }: AdjustBirdLine) {
+  const no = useIsNorwegian()
+
   return (
     <div className="rounded border border-neutral-200 p-3 space-y-2">
       <div>
@@ -323,7 +331,7 @@ function BirdAdjustLine({
       </div>
       <div className="flex items-center gap-6">
         <div className="flex items-center gap-2">
-          <span className="text-xs text-neutral-500 w-12">Høner</span>
+          <span className="text-xs text-neutral-500 w-12">{no ? 'Høner' : 'Hens'}</span>
           <Button
             size="sm"
             variant="outline"
@@ -351,7 +359,7 @@ function BirdAdjustLine({
           </Button>
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-xs text-neutral-500 w-12">Haner</span>
+          <span className="text-xs text-neutral-500 w-12">{no ? 'Haner' : 'Roosters'}</span>
           <Button
             size="sm"
             variant="outline"
@@ -394,6 +402,8 @@ interface Props {
 
 export function PickupFulfillmentModal({ order, onClose, onRefresh, onNavigateToCustomer }: Props) {
   const { toast } = useToast()
+  const { lang } = useLanguage()
+  const no = lang === 'no'
   const open = !!order
 
   // ── full order data ────────────────────────────────────────────────────────
@@ -494,7 +504,7 @@ export function PickupFulfillmentModal({ order, onClose, onRefresh, onNavigateTo
         setEggAdjustments(buildEggAdjustInitialState(fo))
       }
     } catch (err: any) {
-      toast({ title: 'Feil', description: err.message || 'Kunne ikke hente bestilling', variant: 'destructive' })
+      toast({ title: no ? 'Feil' : 'Error', description: err.message || (no ? 'Kunne ikke hente bestilling' : 'Failed to load order'), variant: 'destructive' })
     } finally {
       setFetchLoading(false)
     }
@@ -538,13 +548,13 @@ export function PickupFulfillmentModal({ order, onClose, onRefresh, onNavigateTo
       })
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))
-        throw new Error(err.error || 'Feil ved lagring')
+        throw new Error(err.error || (no ? 'Feil ved lagring' : 'Save failed'))
       }
-      toast({ title: 'Lagret', description: 'Hentedag oppdatert.' })
+      toast({ title: no ? 'Lagret' : 'Saved', description: no ? 'Hentedag oppdatert.' : 'Pickup day updated.' })
       await fetchOrder()
       onRefresh()
     } catch (err: any) {
-      toast({ title: 'Feil', description: err.message, variant: 'destructive' })
+      toast({ title: no ? 'Feil' : 'Error', description: err.message, variant: 'destructive' })
     } finally {
       setPickupDaySaving(false)
     }
@@ -565,11 +575,11 @@ export function PickupFulfillmentModal({ order, onClose, onRefresh, onNavigateTo
       const res = await fetch(url, { method: 'POST' })
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))
-        throw new Error(err.error || 'Feil ved sending')
+        throw new Error(err.error || (no ? 'Feil ved sending' : 'Failed to send'))
       }
-      toast({ title: 'E-post sendt', description: 'Påminnelse om hentedag er sendt.' })
+      toast({ title: no ? 'E-post sendt' : 'Email sent', description: no ? 'Påminnelse om hentedag er sendt.' : 'Pickup day reminder sent.' })
     } catch (err: any) {
-      toast({ title: 'Feil', description: err.message, variant: 'destructive' })
+      toast({ title: no ? 'Feil' : 'Error', description: err.message, variant: 'destructive' })
     } finally {
       setReminderSending(false)
     }
@@ -637,15 +647,15 @@ export function PickupFulfillmentModal({ order, onClose, onRefresh, onNavigateTo
         body: JSON.stringify({ adjustments, adminNote: birdNote }),
       })
       const result = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(result?.error || 'Feil ved justering')
+      if (!res.ok) throw new Error(result?.error || (no ? 'Feil ved justering' : 'Adjustment failed'))
 
-      toast({ title: 'Bestilling oppdatert', description: 'Antall fugler justert.' })
+      toast({ title: no ? 'Bestilling oppdatert' : 'Order updated', description: no ? 'Antall fugler justert.' : 'Bird count adjusted.' })
       setBirdStep('edit')
       setBirdNote('')
       await fetchOrder()
       onRefresh()
     } catch (err: any) {
-      toast({ title: 'Feil', description: err.message, variant: 'destructive' })
+      toast({ title: no ? 'Feil' : 'Error', description: err.message, variant: 'destructive' })
     } finally {
       setBirdSaving(false)
     }
@@ -658,20 +668,20 @@ export function PickupFulfillmentModal({ order, onClose, onRefresh, onNavigateTo
     setEggSaving(true)
     try {
       const newQty = Number(fullOrder.quantity) + eggQtyDelta
-      if (newQty <= 0) throw new Error('Antall kan ikke være 0 eller negativt')
+      if (newQty <= 0) throw new Error(no ? 'Antall kan ikke være 0 eller negativt' : 'Quantity cannot be 0 or negative')
       const res = await fetch(`/api/admin/eggs/orders/${fullOrder.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ quantity: newQty }),
       })
       const result = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(result?.error || 'Feil ved oppdatering')
-      toast({ title: 'Oppdatert', description: `Antall egg endret til ${newQty}.` })
+      if (!res.ok) throw new Error(result?.error || (no ? 'Feil ved oppdatering' : 'Update failed'))
+      toast({ title: no ? 'Oppdatert' : 'Updated', description: no ? `Antall egg endret til ${newQty}.` : `Egg count changed to ${newQty}.` })
       setEggQtyDelta(0)
       await fetchOrder()
       onRefresh()
     } catch (err: any) {
-      toast({ title: 'Feil', description: err.message, variant: 'destructive' })
+      toast({ title: no ? 'Feil' : 'Error', description: err.message, variant: 'destructive' })
     } finally {
       setEggSaving(false)
     }
@@ -722,7 +732,7 @@ export function PickupFulfillmentModal({ order, onClose, onRefresh, onNavigateTo
       })
 
       if (!payloadLines.some((line) => line.quantity > 0)) {
-        throw new Error('Bestillingen må ha minst én eggrase med antall over 0')
+        throw new Error(no ? 'Bestillingen må ha minst én eggrase med antall over 0' : 'Order must have at least one egg breed with quantity above 0')
       }
 
       const res = await fetch(`/api/admin/eggs/orders/${fullOrder.id}/actions`, {
@@ -734,16 +744,16 @@ export function PickupFulfillmentModal({ order, onClose, onRefresh, onNavigateTo
         }),
       })
       const result = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(result?.error || 'Feil ved oppdatering')
+      if (!res.ok) throw new Error(result?.error || (no ? 'Feil ved oppdatering' : 'Update failed'))
 
       toast({
-        title: 'Oppdatert',
-        description: 'Egglinjene og lagerreservasjonen er oppdatert.',
+        title: no ? 'Oppdatert' : 'Updated',
+        description: no ? 'Egglinjene og lagerreservasjonen er oppdatert.' : 'Egg lines and inventory updated.',
       })
       await fetchOrder()
       onRefresh()
     } catch (err: any) {
-      toast({ title: 'Feil', description: err.message, variant: 'destructive' })
+      toast({ title: no ? 'Feil' : 'Error', description: err.message, variant: 'destructive' })
     } finally {
       setEggSaving(false)
     }
@@ -766,8 +776,8 @@ export function PickupFulfillmentModal({ order, onClose, onRefresh, onNavigateTo
         body: JSON.stringify(body),
       })
       const result = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(result?.error || 'Feil ved oppdatering')
-      toast({ title: 'Oppdatert', description: 'Boks og tilbehør lagret.' })
+      if (!res.ok) throw new Error(result?.error || (no ? 'Feil ved oppdatering' : 'Update failed'))
+      toast({ title: no ? 'Oppdatert' : 'Updated', description: no ? 'Boks og tilbehør lagret.' : 'Box and extras saved.' })
       setPigNote('')
       await fetchOrder()
       onRefresh()
@@ -804,10 +814,10 @@ export function PickupFulfillmentModal({ order, onClose, onRefresh, onNavigateTo
         }),
       })
       const result = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(result?.error || 'Feil ved sending')
-      toast({ title: 'Betalingslenke sendt', description: `E-post sendt til ${customerEmail}.` })
+      if (!res.ok) throw new Error(result?.error || (no ? 'Feil ved sending' : 'Failed to send'))
+      toast({ title: no ? 'Betalingslenke sendt' : 'Payment link sent', description: no ? `E-post sendt til ${customerEmail}.` : `Email sent to ${customerEmail}.` })
     } catch (err: any) {
-      toast({ title: 'Feil', description: err.message, variant: 'destructive' })
+      toast({ title: no ? 'Feil' : 'Error', description: err.message, variant: 'destructive' })
     } finally {
       setPaymentSending(false)
     }
@@ -840,15 +850,18 @@ export function PickupFulfillmentModal({ order, onClose, onRefresh, onNavigateTo
       })
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))
-        throw new Error(err.error || 'Kunne ikke oppdatere status')
+        throw new Error(err.error || (no ? 'Kunne ikke oppdatere status' : 'Could not update status'))
       }
-      const label =
-        order.type === 'chicken' ? 'hentet' : order.type === 'pig' ? 'fullført' : 'levert'
-      toast({ title: 'Henting bekreftet', description: `Bestillingen er markert som ${label}.` })
+      const label = order.type === 'chicken'
+        ? (no ? 'hentet' : 'picked up')
+        : order.type === 'pig'
+          ? (no ? 'fullført' : 'completed')
+          : (no ? 'levert' : 'delivered')
+      toast({ title: no ? 'Henting bekreftet' : 'Pickup confirmed', description: no ? `Bestillingen er markert som ${label}.` : `Order marked as ${label}.` })
       onRefresh()
       onClose()
     } catch (err: any) {
-      toast({ title: 'Feil', description: err.message, variant: 'destructive' })
+      toast({ title: no ? 'Feil' : 'Error', description: err.message, variant: 'destructive' })
     } finally {
       setConfirmingPickup(false)
     }
@@ -897,7 +910,7 @@ export function PickupFulfillmentModal({ order, onClose, onRefresh, onNavigateTo
   }
 
   const formatPickupDate = (d: string) =>
-    new Date(d + 'T12:00:00').toLocaleDateString('nb-NO', {
+    new Date(d + 'T12:00:00').toLocaleDateString(no ? 'nb-NO' : 'en-GB', {
       weekday: 'long',
       day: 'numeric',
       month: 'long',
@@ -912,7 +925,11 @@ export function PickupFulfillmentModal({ order, onClose, onRefresh, onNavigateTo
         : 'bg-amber-100 text-amber-800'
 
   const typeLabel =
-    order?.type === 'egg' ? 'Rugeegg' : order?.type === 'chicken' ? 'Kylling' : 'Gris'
+    order?.type === 'egg'
+      ? (no ? 'Rugeegg' : 'Hatching eggs')
+      : order?.type === 'chicken'
+        ? (no ? 'Kylling' : 'Chicken')
+        : (no ? 'Gris' : 'Pig')
 
   // ─── render ───────────────────────────────────────────────────────────────
   return (
@@ -969,7 +986,7 @@ export function PickupFulfillmentModal({ order, onClose, onRefresh, onNavigateTo
                 <StatusBadge status={displayStatus} />
                 {remainder > 0 && (
                   <span className="text-xs text-amber-700 font-medium">
-                    Restbetaling: {formatMoney(remainder)}
+                    {no ? 'Restbetaling' : 'Remainder'}: {formatMoney(remainder)}
                   </span>
                 )}
               </div>
@@ -977,7 +994,7 @@ export function PickupFulfillmentModal({ order, onClose, onRefresh, onNavigateTo
 
             {/* ── Section: Hentedag ── */}
             <SectionToggle
-              title="Hentedag"
+              title={no ? 'Hentedag' : 'Pickup day'}
               open={sectionPickup}
               onToggle={() => setSectionPickup((v) => !v)}
             >
@@ -986,14 +1003,14 @@ export function PickupFulfillmentModal({ order, onClose, onRefresh, onNavigateTo
                   <div className="flex items-center gap-2 text-sm">
                     <CheckCircle2 className="w-4 h-4 text-green-600 shrink-0" />
                     <span className="font-medium text-green-700">
-                      {formatPickupDate(fullOrder.pickup_date!)} kl. {fullOrder.pickup_time || '—'}
+                      {formatPickupDate(fullOrder.pickup_date!)} {no ? 'kl.' : 'at'} {fullOrder.pickup_time || '—'}
                     </span>
                   </div>
                 ) : (
                   <div className="flex items-center gap-3">
                     <div className="flex items-center gap-2 text-sm text-amber-700">
                       <AlertTriangle className="w-4 h-4 shrink-0" />
-                      <span>Hentedag ikke valgt av kunde</span>
+                      <span>{no ? 'Hentedag ikke valgt av kunde' : 'Pickup day not chosen by customer'}</span>
                     </div>
                     <Button
                       size="sm"
@@ -1007,7 +1024,7 @@ export function PickupFulfillmentModal({ order, onClose, onRefresh, onNavigateTo
                       ) : (
                         <Mail className="w-3 h-3 mr-1" />
                       )}
-                      Send påminnelse
+                      {no ? 'Send påminnelse' : 'Send reminder'}
                     </Button>
                   </div>
                 )}
@@ -1015,11 +1032,11 @@ export function PickupFulfillmentModal({ order, onClose, onRefresh, onNavigateTo
                 {/* Pickup day editor */}
                 <div className="border-t border-neutral-100 pt-4 space-y-3">
                   <p className="text-xs font-medium text-neutral-500 uppercase tracking-wide">
-                    {pickupDayIsSet ? 'Endre hentedag' : 'Velg hentedag'}
+                    {pickupDayIsSet ? (no ? 'Endre hentedag' : 'Change pickup day') : (no ? 'Velg hentedag' : 'Set pickup day')}
                   </p>
                   <div className="flex items-end gap-3">
                     <div className="flex-1">
-                      <label className="text-xs text-neutral-500 mb-1 block">Dato</label>
+                      <label className="text-xs text-neutral-500 mb-1 block">{no ? 'Dato' : 'Date'}</label>
                       <Input
                         type="date"
                         value={pickupDate}
@@ -1027,7 +1044,7 @@ export function PickupFulfillmentModal({ order, onClose, onRefresh, onNavigateTo
                       />
                     </div>
                     <div>
-                      <label className="text-xs text-neutral-500 mb-1 block">Tid</label>
+                      <label className="text-xs text-neutral-500 mb-1 block">{no ? 'Tid' : 'Time'}</label>
                       <div className="flex gap-2">
                         {(['11:00', '17:00'] as const).map((t) => (
                           <button
@@ -1050,7 +1067,7 @@ export function PickupFulfillmentModal({ order, onClose, onRefresh, onNavigateTo
                       className="shrink-0"
                     >
                       {pickupDaySaving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-                      Lagre
+                      {no ? 'Lagre' : 'Save'}
                     </Button>
                   </div>
                   {pickupDayIsSet && (
@@ -1065,7 +1082,7 @@ export function PickupFulfillmentModal({ order, onClose, onRefresh, onNavigateTo
                       ) : (
                         <Mail className="w-3 h-3 mr-1" />
                       )}
-                      Send påminnelse på e-post
+                      {no ? 'Send påminnelse på e-post' : 'Send email reminder'}
                     </Button>
                   )}
                 </div>
@@ -1074,7 +1091,7 @@ export function PickupFulfillmentModal({ order, onClose, onRefresh, onNavigateTo
 
             {/* ── Section: Juster bestilling ── */}
             <SectionToggle
-              title="Juster bestilling"
+              title={no ? 'Juster bestilling' : 'Adjust order'}
               open={sectionAdjust}
               onToggle={() => setSectionAdjust((v) => !v)}
             >
@@ -1132,7 +1149,7 @@ export function PickupFulfillmentModal({ order, onClose, onRefresh, onNavigateTo
 
             {/* ── Section: Betaling ── */}
             <SectionToggle
-              title={`Betaling${remainder > 0 ? ` – ${formatMoney(remainder)} gjenstår` : ''}`}
+              title={no ? `Betaling${remainder > 0 ? ` – ${formatMoney(remainder)} gjenstår` : ''}` : `Payment${remainder > 0 ? ` – ${formatMoney(remainder)} remaining` : ''}`}
               open={sectionPayment}
               onToggle={() => setSectionPayment((v) => !v)}
             >
@@ -1145,7 +1162,7 @@ export function PickupFulfillmentModal({ order, onClose, onRefresh, onNavigateTo
                 {remainder > 0 && (
                   <div className="border-t border-neutral-100 pt-4">
                     <p className="text-sm text-neutral-600 mb-3">
-                      Send kunden en e-post med lenke til å betale restbeløpet via Vipps.
+                      {no ? 'Send kunden en e-post med lenke til å betale restbeløpet via Vipps.' : 'Send the customer an email with a link to pay the remainder via Vipps.'}
                     </p>
                     <Button onClick={sendPaymentRequest} disabled={paymentSending}>
                       {paymentSending ? (
@@ -1153,14 +1170,14 @@ export function PickupFulfillmentModal({ order, onClose, onRefresh, onNavigateTo
                       ) : (
                         <CreditCard className="w-4 h-4 mr-2" />
                       )}
-                      Send Vipps-betalingslenke
+                      {no ? 'Send Vipps-betalingslenke' : 'Send Vipps payment link'}
                     </Button>
                   </div>
                 )}
                 {remainder <= 0 && (
                   <div className="flex items-center gap-2 text-sm text-green-700">
                     <CheckCircle2 className="w-4 h-4" />
-                    Fullt betalt
+                    {no ? 'Fullt betalt' : 'Fully paid'}
                   </div>
                 )}
               </div>
@@ -1175,21 +1192,27 @@ export function PickupFulfillmentModal({ order, onClose, onRefresh, onNavigateTo
                   <div className="flex items-center gap-2 rounded-xl border border-green-200 bg-green-50 px-5 py-4 text-sm text-green-700">
                     <CheckCircle2 className="w-5 h-5 shrink-0" />
                     <span className="font-medium">
-                      {displayStatus === 'delivered' && 'Bestillingen er markert som levert'}
-                      {displayStatus === 'picked_up' && 'Bestillingen er markert som hentet'}
-                      {displayStatus === 'completed' && 'Bestillingen er fullført'}
-                      {displayStatus === 'cancelled' && 'Bestillingen er kansellert'}
-                      {displayStatus === 'forfeited' && 'Bestillingen er forkastet'}
+                      {displayStatus === 'delivered' && (no ? 'Bestillingen er markert som levert' : 'The order has been marked as delivered')}
+                      {displayStatus === 'picked_up' && (no ? 'Bestillingen er markert som hentet' : 'The order has been marked as picked up')}
+                      {displayStatus === 'completed' && (no ? 'Bestillingen er fullført' : 'The order has been completed')}
+                      {displayStatus === 'cancelled' && (no ? 'Bestillingen er kansellert' : 'The order has been cancelled')}
+                      {displayStatus === 'forfeited' && (no ? 'Bestillingen er forkastet' : 'The order has been forfeited')}
                     </span>
                   </div>
                 )
               }
               const confirmLabel =
-                order?.type === 'chicken' ? 'Bekreft henting' : order?.type === 'pig' ? 'Bekreft utlevering' : 'Bekreft henting'
+                order?.type === 'chicken'
+                  ? (no ? 'Bekreft henting' : 'Confirm pickup')
+                  : order?.type === 'pig'
+                    ? (no ? 'Bekreft utlevering' : 'Confirm handoff')
+                    : (no ? 'Bekreft henting' : 'Confirm pickup')
               return (
                 <div className="rounded-xl border border-neutral-200 bg-white px-5 py-4">
                   <p className="text-sm text-neutral-600 mb-3">
-                    Kunden har hentet bestillingen på gården. Klikk for å markere salget som fullført.
+                    {no
+                      ? 'Kunden har hentet bestillingen på gården. Klikk for å markere salget som fullført.'
+                      : 'The customer has collected the order at the farm. Click to mark the sale as completed.'}
                   </p>
                   <Button
                     onClick={confirmPickup}
@@ -1223,16 +1246,20 @@ function LegacyEggOrderSummaryBlock({
   breakdown: EggOrderBreakdown
   showAdjustmentHint?: boolean
 }) {
+  const no = useIsNorwegian()
+
   return (
     <div className="w-full space-y-2 text-xs text-neutral-600">
       <div className="flex flex-wrap items-center gap-2">
-        <span className="font-medium text-neutral-800">{breakdown.totalQuantity} egg totalt</span>
+        <span className="font-medium text-neutral-800">
+          {breakdown.totalQuantity} {no ? 'egg totalt' : 'eggs total'}
+        </span>
         <span className="rounded-full border border-neutral-200 bg-white px-2 py-0.5">
-          Grunnbestilling {breakdown.baseQuantity}
+          {no ? 'Grunnbestilling' : 'Base order'} {breakdown.baseQuantity}
         </span>
         {breakdown.additionsQuantity > 0 && (
           <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-amber-800">
-            Ekstra egg {breakdown.additionsQuantity}
+            {no ? 'Ekstra egg' : 'Extra eggs'} {breakdown.additionsQuantity}
           </span>
         )}
       </div>
@@ -1243,13 +1270,17 @@ function LegacyEggOrderSummaryBlock({
             className="flex items-center justify-between gap-3 rounded-md border border-neutral-200 bg-white px-2.5 py-1.5"
           >
             <span className="truncate">{line.breedName}</span>
-            <span className="font-medium text-neutral-800">{line.quantity} egg</span>
+            <span className="font-medium text-neutral-800">
+              {line.quantity} {no ? 'egg' : 'eggs'}
+            </span>
           </div>
         ))}
       </div>
       {showAdjustmentHint && (
         <p className="text-neutral-500">
-          Endringen under gjelder bare grunnbestillingen. Ekstra egg beholdes som de er.
+          {no
+            ? 'Endringen under gjelder bare grunnbestillingen. Ekstra egg beholdes som de er.'
+            : 'The change below applies only to the base order. Extra eggs stay as they are.'}
         </p>
       )}
     </div>
@@ -1263,27 +1294,35 @@ function EggOrderSummaryBlock({
   breakdown: EggOrderBreakdown
   showAdjustmentHint?: boolean
 }) {
+  const no = useIsNorwegian()
+
   return (
     <div className="w-full space-y-3 text-sm">
       <div className="grid gap-2 sm:grid-cols-3">
         <div className="rounded-lg border border-neutral-200 bg-white px-3 py-2">
-          <p className="text-xs uppercase tracking-wide text-neutral-500">Totalt</p>
-          <p className="mt-1 font-semibold text-neutral-900">{breakdown.totalQuantity} egg</p>
+          <p className="text-xs uppercase tracking-wide text-neutral-500">{no ? 'Totalt' : 'Total'}</p>
+          <p className="mt-1 font-semibold text-neutral-900">
+            {breakdown.totalQuantity} {no ? 'egg' : 'eggs'}
+          </p>
         </div>
         <div className="rounded-lg border border-neutral-200 bg-white px-3 py-2">
-          <p className="text-xs uppercase tracking-wide text-neutral-500">Grunnbestilling</p>
-          <p className="mt-1 font-semibold text-neutral-900">{breakdown.baseQuantity} egg</p>
+          <p className="text-xs uppercase tracking-wide text-neutral-500">{no ? 'Grunnbestilling' : 'Base order'}</p>
+          <p className="mt-1 font-semibold text-neutral-900">
+            {breakdown.baseQuantity} {no ? 'egg' : 'eggs'}
+          </p>
         </div>
         <div className="rounded-lg border border-neutral-200 bg-white px-3 py-2">
-          <p className="text-xs uppercase tracking-wide text-neutral-500">Ekstra egg</p>
-          <p className="mt-1 font-semibold text-neutral-900">{breakdown.additionsQuantity} egg</p>
+          <p className="text-xs uppercase tracking-wide text-neutral-500">{no ? 'Ekstra egg' : 'Extra eggs'}</p>
+          <p className="mt-1 font-semibold text-neutral-900">
+            {breakdown.additionsQuantity} {no ? 'egg' : 'eggs'}
+          </p>
         </div>
       </div>
 
       <div className="overflow-hidden rounded-lg border border-neutral-200 bg-white">
         <div className="grid grid-cols-[minmax(0,1fr)_90px] gap-3 border-b border-neutral-200 bg-neutral-50 px-3 py-2 text-xs font-medium uppercase tracking-wide text-neutral-500">
-          <span>Rase</span>
-          <span className="text-right">Antall</span>
+          <span>{no ? 'Rase' : 'Breed'}</span>
+          <span className="text-right">{no ? 'Antall' : 'Qty'}</span>
         </div>
         {breakdown.groupedLines.map((line, index) => (
           <div
@@ -1298,7 +1337,9 @@ function EggOrderSummaryBlock({
 
       {showAdjustmentHint && (
         <p className="text-xs text-neutral-500">
-          Juster én rase per rad under. Lageret oppdateres når du lagrer.
+          {no
+            ? 'Juster én rase per rad under. Lageret oppdateres når du lagrer.'
+            : 'Adjust one breed per row below. Inventory updates when you save.'}
         </p>
       )}
     </div>
@@ -1306,6 +1347,8 @@ function EggOrderSummaryBlock({
 }
 
 function OrderSummaryLine({ order, type }: { order: any; type: OrderType }) {
+  const no = useIsNorwegian()
+
   if (type === 'egg') {
     const breakdown = getEggOrderBreakdown(order)
     return <EggOrderSummaryBlock breakdown={breakdown} />
@@ -1350,16 +1393,17 @@ function OrderSummaryLine({ order, type }: { order: any; type: OrderType }) {
     const additions = (order.chicken_order_additions || []).length
     return (
       <span className="text-xs text-neutral-600">
-        {hens} høner + {roosters} haner{breed ? ` – ${breed}` : ''}
-        {additions > 0 ? ` (+${additions} tillegg)` : ''}
+        {hens} {no ? 'høner' : 'hens'} + {roosters} {no ? 'haner' : 'roosters'}
+        {breed ? ` – ${breed}` : ''}
+        {additions > 0 ? ` (+${additions} ${no ? 'tillegg' : 'additions'})` : ''}
       </span>
     )
   }
   if (type === 'pig') {
     if (order.is_mangalitsa) {
-      return <span className="text-xs text-neutral-600">Mangalitsa</span>
+      return <span className="text-xs text-neutral-600">{no ? 'Mangalitsa' : 'Mangalitsa'}</span>
     }
-    return <span className="text-xs text-neutral-600">{order.box_size ?? '?'}kg boks</span>
+    return <span className="text-xs text-neutral-600">{order.box_size ?? '?'}kg {no ? 'boks' : 'box'}</span>
   }
   return null
 }
@@ -1392,31 +1436,32 @@ function PaymentSummary({
   type: OrderType
   formatMoney: (n: number) => string
 }) {
+  const no = useIsNorwegian()
   const rows: { label: string; value: string; bold?: boolean; highlight?: boolean }[] = []
 
   if (type === 'egg') {
-    rows.push({ label: 'Totalt', value: formatMoney(Number(order.total_amount || 0)) })
-    rows.push({ label: 'Depositum betalt', value: formatMoney(Number(order.deposit_amount || 0)) })
+    rows.push({ label: no ? 'Totalt' : 'Total', value: formatMoney(Number(order.total_amount || 0)) })
+    rows.push({ label: no ? 'Depositum betalt' : 'Deposit paid', value: formatMoney(Number(order.deposit_amount || 0)) })
     rows.push({
-      label: 'Restbeløp',
+      label: no ? 'Restbeløp' : 'Remaining balance',
       value: formatMoney(Number(order.remainder_amount || 0)),
       bold: true,
       highlight: Number(order.remainder_amount || 0) > 0,
     })
   } else if (type === 'chicken') {
-    rows.push({ label: 'Totalt', value: formatMoney(Number(order.total_amount_nok || 0)) })
-    rows.push({ label: 'Depositum betalt', value: formatMoney(Number(order.deposit_amount_nok || 0)) })
+    rows.push({ label: no ? 'Totalt' : 'Total', value: formatMoney(Number(order.total_amount_nok || 0)) })
+    rows.push({ label: no ? 'Depositum betalt' : 'Deposit paid', value: formatMoney(Number(order.deposit_amount_nok || 0)) })
     rows.push({
-      label: 'Restbeløp',
+      label: no ? 'Restbeløp' : 'Remaining balance',
       value: formatMoney(Number(order.remainder_amount_nok || 0)),
       bold: true,
       highlight: Number(order.remainder_amount_nok || 0) > 0,
     })
   } else {
-    rows.push({ label: 'Totalt', value: formatMoney(Number(order.total_amount || 0)) })
-    rows.push({ label: 'Depositum betalt', value: formatMoney(Number(order.deposit_amount || 0)) })
+    rows.push({ label: no ? 'Totalt' : 'Total', value: formatMoney(Number(order.total_amount || 0)) })
+    rows.push({ label: no ? 'Depositum betalt' : 'Deposit paid', value: formatMoney(Number(order.deposit_amount || 0)) })
     rows.push({
-      label: 'Restbeløp',
+      label: no ? 'Restbeløp' : 'Remaining balance',
       value: formatMoney(Number(order.remainder_amount || 0)),
       bold: true,
       highlight: Number(order.remainder_amount || 0) > 0,
@@ -1458,6 +1503,7 @@ function LegacyEggAdjustPanel({
   saving: boolean
   formatMoney: (n: number) => string
 }) {
+  const no = useIsNorwegian()
   const breakdown = getEggOrderBreakdown(fullOrder)
   const orderLines = breakdown.lines
   const additionsTotal = getEggOrderAdditionsTotalOre(fullOrder)
@@ -1489,7 +1535,7 @@ function LegacyEggAdjustPanel({
       )}
       <div className="flex items-start gap-4">
         <div>
-          <p className="text-xs text-neutral-500 mb-1">Grunnbestilling</p>
+          <p className="text-xs text-neutral-500 mb-1">{no ? 'Grunnbestilling' : 'Base order'}</p>
           <div className="flex items-center gap-2">
             <Button
               size="sm"
@@ -1519,14 +1565,14 @@ function LegacyEggAdjustPanel({
           </div>
         </div>
         <div className="text-xs text-neutral-600 space-y-0.5">
-          <p>Ekstra egg: {breakdown.additionsQuantity}</p>
-          <p>Ordre totalt: {newTotalEggs} egg</p>
+          <p>{no ? 'Ekstra egg' : 'Extra eggs'}: {breakdown.additionsQuantity}</p>
+          <p>{no ? 'Ordre totalt' : 'Order total'}: {newTotalEggs} {no ? 'egg' : 'eggs'}</p>
           {delta !== 0 && (
             <>
-              <p>Ny grunnsum: {formatMoney(newSubtotal)}</p>
-              <p>Ny total: {formatMoney(newTotal)}</p>
+              <p>{no ? 'Ny grunnsum' : 'New base subtotal'}: {formatMoney(newSubtotal)}</p>
+              <p>{no ? 'Ny total' : 'New total'}: {formatMoney(newTotal)}</p>
               <p className={newRemainder > 0 ? 'text-amber-700 font-medium' : 'text-green-700 font-medium'}>
-                Ny rest: {formatMoney(newRemainder)}
+                {no ? 'Ny rest' : 'New remainder'}: {formatMoney(newRemainder)}
               </p>
             </>
           )}
@@ -1535,7 +1581,7 @@ function LegacyEggAdjustPanel({
       {delta !== 0 && (
         <Button onClick={onSave} disabled={saving}>
           {saving && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
-          Lagre endring
+          {no ? 'Lagre endring' : 'Save change'}
         </Button>
       )}
     </div>
@@ -1559,6 +1605,7 @@ function EggAdjustPanel({
   onSave: () => void
   saving: boolean
 }) {
+  const no = useIsNorwegian()
   const breakdown = getEggOrderBreakdown(fullOrder)
   const currentQuantities = getEggCurrentQuantitiesByInventory(fullOrder)
   const initialState = buildEggAdjustInitialState(fullOrder)
@@ -1571,9 +1618,9 @@ function EggAdjustPanel({
   })
 
   const sourceLabel = (source: EggAdjustAvailabilitySource) => {
-    if (source === 'actual_collected') return 'Faktisk samlet'
-    if (source === 'manual_override') return 'Manuelt overstyrt'
-    return 'Systeminventar'
+    if (source === 'actual_collected') return no ? 'Faktisk samlet' : 'Actually collected'
+    if (source === 'manual_override') return no ? 'Manuelt overstyrt' : 'Manually overridden'
+    return no ? 'Systeminventar' : 'System inventory'
   }
 
   const rows = inventoryRows.map((inventoryRow) => {
@@ -1650,15 +1697,19 @@ function EggAdjustPanel({
 
       <div className="rounded-lg border border-neutral-200 bg-white">
         <div className="border-b border-neutral-200 bg-neutral-50 px-4 py-3">
-          <p className="text-sm font-medium text-neutral-900">Juster bestilling per rase</p>
+          <p className="text-sm font-medium text-neutral-900">
+            {no ? 'Juster bestilling per rase' : 'Adjust order by breed'}
+          </p>
           <p className="mt-1 text-xs text-neutral-500">
-            Tallene under viser fritt lager for denne uken. Override brukes bare når dere fysisk har flere egg enn systemet viser.
+            {no
+              ? 'Tallene under viser fritt lager for denne uken. Override brukes bare når dere fysisk har flere egg enn systemet viser.'
+              : 'The numbers below show free stock for this week. Use override only when you physically have more eggs than the system shows.'}
           </p>
         </div>
 
         {rows.length === 0 && (
           <div className="px-4 py-6 text-sm text-neutral-500">
-            Ingen lagerlinjer funnet for denne uken ennå.
+            {no ? 'Ingen lagerlinjer funnet for denne uken ennå.' : 'No inventory rows found for this week yet.'}
           </div>
         )}
 
@@ -1671,36 +1722,38 @@ function EggAdjustPanel({
                     <span className="text-sm font-medium text-neutral-900">{row.breedName}</span>
                     {row.currentQuantity > 0 && (
                       <span className="rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-xs text-blue-800">
-                        I ordre nå {row.currentQuantity}
+                        {no ? 'I ordre nå' : 'In order now'} {row.currentQuantity}
                       </span>
                     )}
                     {row.manualOverrideActive && (
                       <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs text-amber-800">
-                        Override
+                        {no ? 'Override' : 'Override'}
                       </span>
                     )}
                   </div>
                   <p className="text-xs text-neutral-500">
                     {sourceLabel(row.source)}
-                    {row.actualCollected !== null ? ` • samlet ${row.actualCollected} egg` : ''}
-                    {row.collectionDaysRecorded > 0 ? ` • ${row.collectionDaysRecorded} dager registrert` : ''}
+                    {row.actualCollected !== null ? ` • ${no ? 'samlet' : 'collected'} ${row.actualCollected} ${no ? 'egg' : 'eggs'}` : ''}
+                    {row.collectionDaysRecorded > 0 ? ` • ${row.collectionDaysRecorded} ${no ? 'dager registrert' : 'days recorded'}` : ''}
                   </p>
                 </div>
 
                 <div className="grid gap-3 text-sm sm:grid-cols-3 sm:text-right">
                   <div>
-                    <p className="text-xs uppercase tracking-wide text-neutral-500">Fri nå</p>
-                    <p className="font-medium text-neutral-900">{row.freeNow} egg</p>
+                    <p className="text-xs uppercase tracking-wide text-neutral-500">{no ? 'Fri nå' : 'Free now'}</p>
+                    <p className="font-medium text-neutral-900">{row.freeNow} {no ? 'egg' : 'eggs'}</p>
                     {row.hasOverrideInput && !row.invalidOverrideInput && (
-                      <p className="text-xs text-neutral-500">Systemet viste {row.systemFreeNow}</p>
+                      <p className="text-xs text-neutral-500">
+                        {no ? 'Systemet viste' : 'System showed'} {row.systemFreeNow}
+                      </p>
                     )}
                   </div>
                   <div>
-                    <p className="text-xs uppercase tracking-wide text-neutral-500">I ordre etter lagring</p>
-                    <p className="font-medium text-neutral-900">{row.requestedQuantity} egg</p>
+                    <p className="text-xs uppercase tracking-wide text-neutral-500">{no ? 'I ordre etter lagring' : 'In order after save'}</p>
+                    <p className="font-medium text-neutral-900">{row.requestedQuantity} {no ? 'egg' : 'eggs'}</p>
                   </div>
                   <div>
-                    <p className="text-xs uppercase tracking-wide text-neutral-500">Fri etter lagring</p>
+                    <p className="text-xs uppercase tracking-wide text-neutral-500">{no ? 'Fri etter lagring' : 'Free after save'}</p>
                     <p
                       className={
                         row.hasError
@@ -1710,7 +1763,9 @@ function EggAdjustPanel({
                             : 'font-medium text-green-700'
                       }
                     >
-                      {row.hasError ? 'For lav beholdning' : `${Math.max(0, row.projectedFree)} egg`}
+                      {row.hasError
+                        ? (no ? 'For lav beholdning' : 'Stock too low')
+                        : `${Math.max(0, row.projectedFree)} ${no ? 'egg' : 'eggs'}`}
                     </p>
                   </div>
                 </div>
@@ -1718,7 +1773,7 @@ function EggAdjustPanel({
 
               <div className="grid gap-3 lg:grid-cols-[220px_minmax(0,1fr)]">
                 <div>
-                  <p className="mb-1 text-xs font-medium uppercase tracking-wide text-neutral-500">Antall i ordre</p>
+                  <p className="mb-1 text-xs font-medium uppercase tracking-wide text-neutral-500">{no ? 'Antall i ordre' : 'Quantity in order'}</p>
                   <div className="flex items-center gap-2">
                     <Button
                       size="sm"
@@ -1746,7 +1801,7 @@ function EggAdjustPanel({
                 <div className="space-y-2">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <label className="text-xs font-medium uppercase tracking-wide text-neutral-500">
-                      Override fri beholdning
+                      {no ? 'Override fri beholdning' : 'Override free stock'}
                     </label>
                     {row.overrideValue && (
                       <Button
@@ -1755,7 +1810,7 @@ function EggAdjustPanel({
                         className="h-auto px-0 py-0 text-xs text-neutral-500 hover:text-neutral-800"
                         onClick={() => onOverrideRemainingChange(row.inventoryId, '')}
                       >
-                        Bruk systemtall
+                        {no ? 'Bruk systemtall' : 'Use system value'}
                       </Button>
                     )}
                   </div>
@@ -1769,14 +1824,20 @@ function EggAdjustPanel({
                     className="max-w-[180px]"
                   />
                   <p className="text-xs text-neutral-500">
-                    Skriv inn hvor mange frie egg dere faktisk har tilgjengelig nå hvis fysisk beholdning er høyere enn systemet.
+                    {no
+                      ? 'Skriv inn hvor mange frie egg dere faktisk har tilgjengelig nå hvis fysisk beholdning er høyere enn systemet.'
+                      : 'Enter how many free eggs you actually have available now if the physical stock is higher than the system.'}
                   </p>
                   {row.invalidOverrideInput && (
-                    <p className="text-xs text-red-600">Override må være et helt tall fra 0 og oppover.</p>
+                    <p className="text-xs text-red-600">
+                      {no ? 'Override må være et helt tall fra 0 og oppover.' : 'Override must be a whole number from 0 and up.'}
+                    </p>
                   )}
                   {!row.invalidOverrideInput && row.requiresOverride && !row.hasOverrideInput && (
                     <p className="text-xs text-red-600">
-                      Systemet tillater maks {row.currentQuantity + row.systemFreeNow} egg på denne raden uten override.
+                      {no
+                        ? `Systemet tillater maks ${row.currentQuantity + row.systemFreeNow} egg på denne raden uten override.`
+                        : `The system allows a maximum of ${row.currentQuantity + row.systemFreeNow} eggs on this row without override.`}
                     </p>
                   )}
                 </div>
@@ -1788,18 +1849,18 @@ function EggAdjustPanel({
 
       <div className="grid gap-2 sm:grid-cols-3">
         <div className="rounded-lg border border-neutral-200 bg-white px-3 py-2">
-          <p className="text-xs uppercase tracking-wide text-neutral-500">I ordre nå</p>
-          <p className="mt-1 font-semibold text-neutral-900">{breakdown.totalQuantity} egg</p>
+          <p className="text-xs uppercase tracking-wide text-neutral-500">{no ? 'I ordre nå' : 'In order now'}</p>
+          <p className="mt-1 font-semibold text-neutral-900">{breakdown.totalQuantity} {no ? 'egg' : 'eggs'}</p>
         </div>
         <div className="rounded-lg border border-neutral-200 bg-white px-3 py-2">
-          <p className="text-xs uppercase tracking-wide text-neutral-500">Etter lagring</p>
-          <p className="mt-1 font-semibold text-neutral-900">{nextTotalEggs} egg</p>
+          <p className="text-xs uppercase tracking-wide text-neutral-500">{no ? 'Etter lagring' : 'After save'}</p>
+          <p className="mt-1 font-semibold text-neutral-900">{nextTotalEggs} {no ? 'egg' : 'eggs'}</p>
         </div>
         <div className="rounded-lg border border-neutral-200 bg-white px-3 py-2">
-          <p className="text-xs uppercase tracking-wide text-neutral-500">Endring</p>
+          <p className="text-xs uppercase tracking-wide text-neutral-500">{no ? 'Endring' : 'Change'}</p>
           <p className={`mt-1 font-semibold ${totalDelta === 0 ? 'text-neutral-900' : totalDelta > 0 ? 'text-green-700' : 'text-red-700'}`}>
             {totalDelta > 0 ? '+' : ''}
-            {totalDelta} egg
+            {totalDelta} {no ? 'egg' : 'eggs'}
           </p>
         </div>
       </div>
@@ -1808,9 +1869,11 @@ function EggAdjustPanel({
         <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
           <div>
-            <p className="font-medium">Noen rader kan ikke lagres ennå.</p>
+            <p className="font-medium">{no ? 'Noen rader kan ikke lagres ennå.' : 'Some rows cannot be saved yet.'}</p>
             <p className="text-xs text-red-600">
-              Rett opp radene med for lav beholdning eller legg inn override der dere fysisk har flere egg.
+              {no
+                ? 'Rett opp radene med for lav beholdning eller legg inn override der dere fysisk har flere egg.'
+                : 'Fix the rows with too little stock or enter an override where you physically have more eggs.'}
             </p>
           </div>
         </div>
@@ -1818,7 +1881,7 @@ function EggAdjustPanel({
 
       <Button onClick={onSave} disabled={saving || !hasChanges || invalidRows.length > 0}>
         {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-        Lagre bestilling og oppdater lager
+        {no ? 'Lagre bestilling og oppdater lager' : 'Save order and update inventory'}
       </Button>
     </div>
   )
@@ -1857,6 +1920,7 @@ function ChickenAdjustPanel({
   saving: boolean
   formatMoney: (n: number) => string
 }) {
+  const no = useIsNorwegian()
   const additions: any[] = fullOrder.chicken_order_additions || []
 
   // ── step: edit ──
@@ -1864,12 +1928,14 @@ function ChickenAdjustPanel({
     return (
       <div className="space-y-3">
         <p className="text-xs text-neutral-500">
-          Bruk +/− for å justere antall på hver bestillingslinje.
+          {no
+            ? 'Bruk +/- for å justere antall på hver bestillingslinje.'
+            : 'Use +/- to adjust the quantity on each order line.'}
         </p>
         {/* Main order line */}
         <BirdAdjustLine
           label={fullOrder.chicken_breeds?.name || '—'}
-          subLabel={`Hovedbestilling · ${fullOrder.age_weeks_at_pickup} uker`}
+          subLabel={`${no ? 'Hovedbestilling' : 'Main order'} · ${fullOrder.age_weeks_at_pickup} ${no ? 'uker' : 'weeks'}`}
           currentHens={Number(fullOrder.quantity_hens || 0)}
           currentRoosters={Number(fullOrder.quantity_roosters || 0)}
           hensDelta={adjustDeltas['main']?.hensDelta || 0}
@@ -1885,7 +1951,7 @@ function ChickenAdjustPanel({
           <BirdAdjustLine
             key={addition.id}
             label={addition.chicken_breeds?.name || '—'}
-            subLabel={`Tillegg`}
+            subLabel={no ? 'Tillegg' : 'Addition'}
             currentHens={Number(addition.quantity_hens || 0)}
             currentRoosters={Number(addition.quantity_roosters || 0)}
             hensDelta={adjustDeltas[addition.id]?.hensDelta || 0}
@@ -1900,7 +1966,7 @@ function ChickenAdjustPanel({
         ))}
         <div className="flex justify-end pt-2">
           <Button onClick={onNext} disabled={!hasChanges} size="sm">
-            Neste
+            {no ? 'Neste' : 'Next'}
           </Button>
         </div>
       </div>
@@ -1912,8 +1978,9 @@ function ChickenAdjustPanel({
     return (
       <div className="space-y-3">
         <p className="text-xs text-neutral-500">
-          Hvor mange av de fjernede fuglene skal tilbake til lageret? Fugler som ikke legges tilbake
-          regnes som korreksjoner.
+          {no
+            ? 'Hvor mange av de fjernede fuglene skal tilbake til lageret? Fugler som ikke legges tilbake regnes som korreksjoner.'
+            : 'How many of the removed birds should go back into inventory? Birds not returned are treated as corrections.'}
         </p>
         {Object.entries(adjustDeltas)
           .filter(([, d]) => d.hensDelta < 0 || d.roostersDelta < 0)
@@ -1928,13 +1995,13 @@ function ChickenAdjustPanel({
             return (
               <div key={key} className="rounded border border-neutral-200 p-3 space-y-2">
                 <p className="text-sm font-medium">
-                  {breedName} {isMain ? '(Hoved)' : '(Tillegg)'}
+                  {breedName} {isMain ? (no ? '(Hoved)' : '(Main)') : (no ? '(Tillegg)' : '(Addition)')}
                 </p>
                 {delta.hensDelta < 0 && (
                   <div className="flex items-center justify-between text-sm">
-                    <span>{Math.abs(delta.hensDelta)} høner fjernet</span>
+                    <span>{Math.abs(delta.hensDelta)} {no ? 'høner fjernet' : 'hens removed'}</span>
                     <div className="flex items-center gap-2">
-                      <span className="text-xs text-neutral-500">Tilbake til lager:</span>
+                      <span className="text-xs text-neutral-500">{no ? 'Tilbake til lager:' : 'Back to inventory:'}</span>
                       <Button
                         size="sm"
                         variant="outline"
@@ -1972,9 +2039,9 @@ function ChickenAdjustPanel({
                 )}
                 {delta.roostersDelta < 0 && (
                   <div className="flex items-center justify-between text-sm">
-                    <span>{Math.abs(delta.roostersDelta)} haner fjernet</span>
+                    <span>{Math.abs(delta.roostersDelta)} {no ? 'haner fjernet' : 'roosters removed'}</span>
                     <div className="flex items-center gap-2">
-                      <span className="text-xs text-neutral-500">Tilbake til lager:</span>
+                      <span className="text-xs text-neutral-500">{no ? 'Tilbake til lager:' : 'Back to inventory:'}</span>
                       <Button
                         size="sm"
                         variant="outline"
@@ -2021,10 +2088,10 @@ function ChickenAdjustPanel({
           })}
         <div className="flex justify-between pt-2">
           <Button variant="outline" onClick={onBack} size="sm">
-            Tilbake
+            {no ? 'Tilbake' : 'Back'}
           </Button>
           <Button onClick={onNext} size="sm">
-            Neste
+            {no ? 'Neste' : 'Next'}
           </Button>
         </div>
       </div>
@@ -2046,26 +2113,30 @@ function ChickenAdjustPanel({
             const pr = poolReturns[key] || { poolHensReturn: 0, poolRoostersReturn: 0 }
             return (
               <div key={key}>
-                <p className="font-medium">{breedName} {isMain ? '(Hoved)' : '(Tillegg)'}:</p>
+                <p className="font-medium">
+                  {breedName} {isMain ? (no ? '(Hoved)' : '(Main)') : (no ? '(Tillegg)' : '(Addition)')}:
+                </p>
                 {delta.hensDelta !== 0 && (
                   <p className="ml-3 text-xs">
-                    Høner: {delta.hensDelta > 0 ? '+' : ''}{delta.hensDelta}
+                    {no ? 'Høner' : 'Hens'}: {delta.hensDelta > 0 ? '+' : ''}{delta.hensDelta}
                     {delta.hensDelta < 0 && pr.poolHensReturn > 0 && (
                       <span className="text-green-700 ml-1">
-                        ({pr.poolHensReturn} tilbake til lager)
+                        ({pr.poolHensReturn} {no ? 'tilbake til lager' : 'back to inventory'})
                       </span>
                     )}
                     {delta.hensDelta > 0 && (
-                      <span className="text-blue-700 ml-1">(øker lager)</span>
+                      <span className="text-blue-700 ml-1">
+                        {no ? '(øker lager)' : '(increases inventory)'}
+                      </span>
                     )}
                   </p>
                 )}
                 {delta.roostersDelta !== 0 && (
                   <p className="ml-3 text-xs">
-                    Haner: {delta.roostersDelta > 0 ? '+' : ''}{delta.roostersDelta}
+                    {no ? 'Haner' : 'Roosters'}: {delta.roostersDelta > 0 ? '+' : ''}{delta.roostersDelta}
                     {delta.roostersDelta < 0 && pr.poolRoostersReturn > 0 && (
                       <span className="text-green-700 ml-1">
-                        ({pr.poolRoostersReturn} tilbake til lager)
+                        ({pr.poolRoostersReturn} {no ? 'tilbake til lager' : 'back to inventory'})
                       </span>
                     )}
                   </p>
@@ -2075,21 +2146,21 @@ function ChickenAdjustPanel({
           })}
       </div>
       <div>
-        <label className="text-xs font-medium text-neutral-600">Notat (valgfritt)</label>
+        <label className="text-xs font-medium text-neutral-600">{no ? 'Notat (valgfritt)' : 'Note (optional)'}</label>
         <Input
           value={note}
           onChange={(e) => onNoteChange(e.target.value)}
-          placeholder="Årsak til justering..."
+          placeholder={no ? 'Årsak til justering...' : 'Reason for adjustment...'}
           className="mt-1"
         />
       </div>
       <div className="flex justify-between pt-1">
         <Button variant="outline" onClick={onBack} size="sm">
-          Tilbake
+          {no ? 'Tilbake' : 'Back'}
         </Button>
         <Button onClick={onSubmit} disabled={saving} size="sm">
           {saving && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
-          Bekreft endring
+          {no ? 'Bekreft endring' : 'Confirm change'}
         </Button>
       </div>
     </div>
@@ -2131,6 +2202,8 @@ function PigAdjustPanel({
   saving: boolean
   formatMoney: (n: number) => string
 }) {
+  const no = useIsNorwegian()
+
   const toggleExtra = (id: string) => {
     if (extraIds.includes(id)) {
       onExtraIds(extraIds.filter((e) => e !== id))
@@ -2145,7 +2218,7 @@ function PigAdjustPanel({
       {boxConfigs.length > 0 && (
         <div>
           <p className="text-xs font-medium text-neutral-500 mb-2 uppercase tracking-wide">
-            Standard boks
+            {no ? 'Standard boks' : 'Standard box'}
           </p>
           <div className="flex gap-2 flex-wrap">
             {boxConfigs.map((bc) => (
@@ -2169,7 +2242,7 @@ function PigAdjustPanel({
       {mangalitsaPresets.length > 0 && (
         <div>
           <p className="text-xs font-medium text-neutral-500 mb-2 uppercase tracking-wide">
-            Mangalitsa-pakke
+            {no ? 'Mangalitsa-pakke' : 'Mangalitsa pack'}
           </p>
           <div className="flex gap-2 flex-wrap">
             {mangalitsaPresets.map((mp) => (
@@ -2193,7 +2266,7 @@ function PigAdjustPanel({
       {extrasOptions.length > 0 && (
         <div>
           <p className="text-xs font-medium text-neutral-500 mb-2 uppercase tracking-wide">
-            Tilbehør
+            {no ? 'Tilbehør' : 'Extras'}
           </p>
           <div className="space-y-1.5">
             {extrasOptions.map((extra) => (
@@ -2217,11 +2290,13 @@ function PigAdjustPanel({
 
       {/* Note */}
       <div>
-        <label className="text-xs text-neutral-500 mb-1 block">Notat (valgfritt)</label>
+        <label className="text-xs text-neutral-500 mb-1 block">
+          {no ? 'Notat (valgfritt)' : 'Note (optional)'}
+        </label>
         <Input
           value={note}
           onChange={(e) => onNote(e.target.value)}
-          placeholder="Årsak til endring..."
+          placeholder={no ? 'Årsak til endring...' : 'Reason for change...'}
         />
       </div>
 
@@ -2241,25 +2316,27 @@ function PigAdjustPanel({
         return (
           <div className="rounded-lg bg-neutral-50 border border-neutral-200 p-3 text-xs space-y-1">
             <div className="flex justify-between">
-              <span className="text-neutral-500">Boks/pakke</span>
+              <span className="text-neutral-500">{no ? 'Boks/pakke' : 'Box/pack'}</span>
               <span>{formatMoney(Number(selectedBoxPrice))}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-neutral-500">Tilbehør ({extraIds.length})</span>
+              <span className="text-neutral-500">
+                {no ? 'Tilbehør' : 'Extras'} ({extraIds.length})
+              </span>
               <span>{formatMoney(extrasTotal)}</span>
             </div>
             <div className="flex justify-between font-medium border-t border-neutral-200 pt-1 mt-1">
-              <span>Ny total</span>
+              <span>{no ? 'Ny total' : 'New total'}</span>
               <span>{formatMoney(newTotal)}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-neutral-500">Depositum betalt</span>
+              <span className="text-neutral-500">{no ? 'Depositum betalt' : 'Deposit paid'}</span>
               <span>{formatMoney(deposit)}</span>
             </div>
             <div
               className={`flex justify-between font-medium ${newRemainder > 0 ? 'text-amber-700' : 'text-green-700'}`}
             >
-              <span>Ny rest</span>
+              <span>{no ? 'Ny rest' : 'New remainder'}</span>
               <span>{formatMoney(newRemainder)}</span>
             </div>
           </div>
@@ -2268,7 +2345,7 @@ function PigAdjustPanel({
 
       <Button onClick={onSave} disabled={saving}>
         {saving && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
-        Lagre endringer
+        {no ? 'Lagre endringer' : 'Save changes'}
       </Button>
     </div>
   )
