@@ -49,7 +49,7 @@ export default function EggCheckoutPage() {
             </Link>
           )}
           <Link
-            href="/rugeegg/mine-bestillinger"
+            href="/min-side"
             className="inline-flex items-center justify-center rounded-md border border-neutral-300 px-6 py-3 text-sm font-medium text-neutral-700 hover:bg-neutral-100 transition-colors"
           >
             {lang === 'no' ? 'Mine bestillinger' : 'My orders'}

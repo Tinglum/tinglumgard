@@ -203,7 +203,7 @@ export default function EggConfirmationPage() {
           <Link href="/rugeegg/raser" className="btn-secondary w-full sm:w-auto justify-center">
             {t.eggs.common.backToBreeds}
           </Link>
-          <Link href="/rugeegg/mine-bestillinger" className="btn-primary w-full sm:w-auto justify-center">
+          <Link href="/min-side" className="btn-primary w-full sm:w-auto justify-center">
             {confirmation.goToMyOrders}
           </Link>
         </div>
