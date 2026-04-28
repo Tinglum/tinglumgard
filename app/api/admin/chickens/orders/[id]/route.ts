@@ -26,6 +26,13 @@ function toFinite(value: unknown): number {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
+function getCompletedPaymentTotalNok(payments: any[] = []): number {
+  return payments.reduce((sum, payment) => {
+    if (payment?.status !== 'completed') return sum;
+    return sum + Math.round(Number(payment?.amount_nok || 0));
+  }, 0);
+}
+
 function normalizeChickenOrderFinancials<T extends Record<string, any>>(order: T): T {
   const additionsSubtotal = ((order.chicken_order_additions as Array<any> | undefined) || []).reduce(
     (sum, row) => sum + toFinite(row?.subtotal_nok),
@@ -272,6 +279,21 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       updates.total_amount_nok = Math.max(0, totalAmountNok);
       updates.deposit_amount_nok = Math.max(0, Math.min(depositAmountNok, totalAmountNok));
       updates.remainder_amount_nok = Math.max(0, remainderAmountNok);
+    }
+
+    const requestedStatus = String(updates.status || '');
+    if (requestedStatus === 'picked_up') {
+      const effectiveTotalAmountNok = Number(
+        updates.total_amount_nok !== undefined ? updates.total_amount_nok : existingOrder.total_amount_nok
+      );
+      const completedPaidNok = getCompletedPaymentTotalNok(existingOrder.chicken_payments || []);
+
+      if (completedPaidNok < Math.round(effectiveTotalAmountNok)) {
+        return NextResponse.json(
+          { error: 'Order must be fully paid before pickup can be confirmed' },
+          { status: 400 }
+        );
+      }
     }
 
     if (Object.keys(updates).length === 0) {

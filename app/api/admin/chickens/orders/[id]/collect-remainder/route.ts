@@ -3,7 +3,6 @@ import { getSession } from '@/lib/auth/session';
 import { dispatchEmail } from '@/lib/email/dispatch';
 import { renderManagedTemplate } from '@/lib/email/render';
 import { buildCustomerOrderLink } from '@/lib/email/links';
-import { reconcileChickenPickupDependentFlowInstances } from '@/lib/email/lifecycle';
 import { supabaseAdmin } from '@/lib/supabase/server';
 
 function normalizeEmail(value: unknown): string {
@@ -68,7 +67,9 @@ export async function POST(
   const totalPaidAfterCollection = alreadyPaidNok + remainderAmountNok;
   const isFullyPaidAfterCollection = totalPaidAfterCollection >= totalAmountNok;
   const nextStatus = isFullyPaidAfterCollection
-    ? 'picked_up'
+    ? status === 'ready_for_pickup'
+      ? 'ready_for_pickup'
+      : 'fully_paid'
     : status === 'ready_for_pickup'
       ? 'ready_for_pickup'
       : 'deposit_paid';
@@ -155,17 +156,6 @@ export async function POST(
       if (!emailSent) {
         emailError = result.error || result.skipReason || 'dispatch_failed';
       }
-    }
-  }
-
-  if (nextStatus === 'picked_up') {
-    try {
-      await reconcileChickenPickupDependentFlowInstances(String(order.id), {
-        reason: 'order_picked_up',
-        pickedUpAt: nowIso,
-      });
-    } catch (followupError) {
-      console.error('chicken-followup-schedule', followupError);
     }
   }
 

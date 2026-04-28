@@ -103,6 +103,35 @@ type EggAdjustState = {
   overrideRemaining: string
 }
 
+type BirdAdjustmentState = {
+  hensDelta: number
+  roostersDelta: number
+}
+
+type BirdPoolReturnState = {
+  poolHensReturn: number
+  poolRoostersReturn: number
+}
+
+type ChickenHatchOverrideState = {
+  hensFreeNow: string
+  roostersFreeNow: string
+}
+
+type ChickenAdjustLineItem = {
+  key: string
+  kind: 'main' | 'addition'
+  hatchId: string
+  breedName: string
+  ageWeeks: number | null
+  currentHens: number
+  currentRoosters: number
+  pricePerHen: number
+  pricePerRooster: number
+  systemFreeHens: number
+  systemFreeRoosters: number
+}
+
 function relationName(relation: any): string {
   if (Array.isArray(relation)) {
     return String(relation[0]?.name || '').trim()
@@ -238,6 +267,74 @@ function getEggOutstandingRemainderOre(order: any): number {
   }, 0)
 
   return Math.max(0, remainderTargetOre - remainderPaidOre)
+}
+
+function getChickenOutstandingRemainderNok(order: any): number {
+  const remainderTargetNok = Math.round(Number(order?.remainder_amount_nok || 0))
+  const remainderPaidNok = (order?.chicken_payments || []).reduce((sum: number, payment: any) => {
+    if (payment?.payment_type !== 'remainder' || payment?.status !== 'completed') return sum
+    return sum + Math.round(Number(payment?.amount_nok || 0))
+  }, 0)
+
+  return Math.max(0, remainderTargetNok - remainderPaidNok)
+}
+
+function getChickenAdditionAgeWeeks(order: any, addition: any): number | null {
+  const explicitAge = Number(addition?.age_weeks_at_pickup || 0)
+  if (Number.isFinite(explicitAge) && explicitAge > 0) {
+    return explicitAge
+  }
+
+  const hatchDate = String(addition?.chicken_hatches?.hatch_date || '').trim()
+  const pickupMonday = String(order?.pickup_monday || '').trim()
+  if (!hatchDate || !pickupMonday) return null
+
+  const hatch = new Date(`${hatchDate}T12:00:00`)
+  const pickup = new Date(`${pickupMonday}T12:00:00`)
+  if (Number.isNaN(hatch.getTime()) || Number.isNaN(pickup.getTime())) return null
+
+  const diffMs = pickup.getTime() - hatch.getTime()
+  if (!Number.isFinite(diffMs) || diffMs < 0) return null
+  return Math.floor(diffMs / (7 * 24 * 60 * 60 * 1000))
+}
+
+function getChickenAdjustLineItems(order: any): ChickenAdjustLineItem[] {
+  const lines: ChickenAdjustLineItem[] = []
+
+  lines.push({
+    key: 'main',
+    kind: 'main',
+    hatchId: String(order?.hatch_id || '').trim(),
+    breedName: String(order?.chicken_breeds?.name || '—').trim() || '—',
+    ageWeeks: Number.isFinite(Number(order?.age_weeks_at_pickup)) ? Number(order.age_weeks_at_pickup) : null,
+    currentHens: Math.max(0, Number(order?.quantity_hens || 0)),
+    currentRoosters: Math.max(0, Number(order?.quantity_roosters || 0)),
+    pricePerHen: Math.max(0, Number(order?.price_per_hen_nok || 0)),
+    pricePerRooster: Math.max(0, Number(order?.price_per_rooster_nok || 0)),
+    systemFreeHens: Math.max(0, Number(order?.chicken_hatches?.available_hens || 0)),
+    systemFreeRoosters: Math.max(0, Number(order?.chicken_hatches?.available_roosters || 0)),
+  })
+
+  for (const addition of order?.chicken_order_additions || []) {
+    lines.push({
+      key: String(addition?.id || '').trim(),
+      kind: 'addition',
+      hatchId: String(addition?.hatch_id || '').trim(),
+      breedName: String(addition?.chicken_breeds?.name || '—').trim() || '—',
+      ageWeeks: getChickenAdditionAgeWeeks(order, addition),
+      currentHens: Math.max(0, Number(addition?.quantity_hens || 0)),
+      currentRoosters: Math.max(0, Number(addition?.quantity_roosters || 0)),
+      pricePerHen: Math.max(0, Number(addition?.price_per_hen_nok || 0)),
+      pricePerRooster: Math.max(
+        0,
+        Number(addition?.price_per_rooster_nok || addition?.chicken_breeds?.rooster_price_nok || 0)
+      ),
+      systemFreeHens: Math.max(0, Number(addition?.chicken_hatches?.available_hens || 0)),
+      systemFreeRoosters: Math.max(0, Number(addition?.chicken_hatches?.available_roosters || 0)),
+    })
+  }
+
+  return lines
 }
 
 function getDisplayStatus(order: any, type?: OrderType): string {
@@ -423,8 +520,9 @@ export function PickupFulfillmentModal({ order, onClose, onRefresh, onNavigateTo
 
   // ── chicken bird adjustment state ──────────────────────────────────────────
   const [birdStep, setBirdStep] = useState<'edit' | 'pool' | 'confirm'>('edit')
-  const [adjustDeltas, setAdjustDeltas] = useState<Record<string, { hensDelta: number; roostersDelta: number }>>({})
-  const [poolReturns, setPoolReturns] = useState<Record<string, { poolHensReturn: number; poolRoostersReturn: number }>>({})
+  const [adjustDeltas, setAdjustDeltas] = useState<Record<string, BirdAdjustmentState>>({})
+  const [poolReturns, setPoolReturns] = useState<Record<string, BirdPoolReturnState>>({})
+  const [birdHatchOverrides, setBirdHatchOverrides] = useState<Record<string, ChickenHatchOverrideState>>({})
   const [birdNote, setBirdNote] = useState('')
   const [birdSaving, setBirdSaving] = useState(false)
 
@@ -488,13 +586,14 @@ export function PickupFulfillmentModal({ order, onClose, onRefresh, onNavigateTo
 
       // Init chicken deltas
       if (order.type === 'chicken') {
-        const initial: Record<string, { hensDelta: number; roostersDelta: number }> = {}
+        const initial: Record<string, BirdAdjustmentState> = {}
         initial['main'] = { hensDelta: 0, roostersDelta: 0 }
         for (const addition of (data.chicken_order_additions || [])) {
           initial[addition.id] = { hensDelta: 0, roostersDelta: 0 }
         }
         setAdjustDeltas(initial)
         setPoolReturns({})
+        setBirdHatchOverrides({})
         setBirdStep('edit')
         setBirdNote('')
       }
@@ -587,6 +686,23 @@ export function PickupFulfillmentModal({ order, onClose, onRefresh, onNavigateTo
 
   // ─── chicken bird adjustment helpers ──────────────────────────────────────
 
+  const updateBirdHatchOverride = (
+    hatchId: string,
+    field: keyof ChickenHatchOverrideState,
+    nextValue: string
+  ) => {
+    setBirdHatchOverrides((prev) => {
+      const existing = prev[hatchId] || { hensFreeNow: '', roostersFreeNow: '' }
+      return {
+        ...prev,
+        [hatchId]: {
+          ...existing,
+          [field]: nextValue,
+        },
+      }
+    })
+  }
+
   const birdHasSubtractions = () =>
     Object.values(adjustDeltas).some((d) => d.hensDelta < 0 || d.roostersDelta < 0)
 
@@ -624,6 +740,22 @@ export function PickupFulfillmentModal({ order, onClose, onRefresh, onNavigateTo
     if (!fullOrder) return
     setBirdSaving(true)
     try {
+      const lineItems = getChickenAdjustLineItems(fullOrder)
+      const hatchOverrides = Array.from(
+        new Set(lineItems.map((line) => line.hatchId).filter((hatchId) => Boolean(hatchId)))
+      )
+        .map((hatchId) => {
+          const override = birdHatchOverrides[hatchId] || { hensFreeNow: '', roostersFreeNow: '' }
+          const trimmedHens = String(override.hensFreeNow || '').trim()
+          const trimmedRoosters = String(override.roostersFreeNow || '').trim()
+          return {
+            hatchId,
+            hensFreeNow: trimmedHens === '' ? null : Number(trimmedHens),
+            roostersFreeNow: trimmedRoosters === '' ? null : Number(trimmedRoosters),
+          }
+        })
+        .filter((entry) => entry.hensFreeNow !== null || entry.roostersFreeNow !== null)
+
       const adjustments = Object.entries(adjustDeltas)
         .filter(([, d]) => d.hensDelta !== 0 || d.roostersDelta !== 0)
         .map(([key, d]) => {
@@ -636,15 +768,13 @@ export function PickupFulfillmentModal({ order, onClose, onRefresh, onNavigateTo
             roostersDelta: d.roostersDelta,
             poolHensReturn: d.hensDelta < 0 ? pr.poolHensReturn : 0,
             poolRoostersReturn: d.roostersDelta < 0 ? pr.poolRoostersReturn : 0,
-            poolHensIncrease: d.hensDelta > 0 ? d.hensDelta : 0,
-            poolRoostersIncrease: d.roostersDelta > 0 ? d.roostersDelta : 0,
           }
         })
 
       const res = await fetch(`/api/admin/chickens/orders/${fullOrder.id}/adjust-birds`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ adjustments, adminNote: birdNote }),
+        body: JSON.stringify({ adjustments, hatchOverrides, adminNote: birdNote }),
       })
       const result = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(result?.error || (no ? 'Feil ved justering' : 'Adjustment failed'))
@@ -652,8 +782,12 @@ export function PickupFulfillmentModal({ order, onClose, onRefresh, onNavigateTo
       toast({ title: no ? 'Bestilling oppdatert' : 'Order updated', description: no ? 'Antall fugler justert.' : 'Bird count adjusted.' })
       setBirdStep('edit')
       setBirdNote('')
+      setBirdHatchOverrides({})
       await fetchOrder()
       onRefresh()
+      if (getChickenOutstandingRemainderNok(result?.order) > 0) {
+        setSectionPayment(true)
+      }
     } catch (err: any) {
       toast({ title: no ? 'Feil' : 'Error', description: err.message, variant: 'destructive' })
     } finally {
@@ -794,28 +928,53 @@ export function PickupFulfillmentModal({ order, onClose, onRefresh, onNavigateTo
 
   const sendPaymentRequest = async () => {
     if (!order || !fullOrder) return
-    const customerEmail =
-      fullOrder.customer_email
-    const orderNumber = fullOrder.order_number || order.order_number
-    const productType =
-      order.type === 'egg' ? 'eggs' : order.type === 'chicken' ? 'chickens' : 'pigs'
-
     setPaymentSending(true)
     try {
-      const res = await fetch('/api/admin/deferred-payments/request-payment', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          orderId: fullOrder.id,
-          productType,
-          customerName: fullOrder.customer_name,
-          customerEmail,
-          orderNumber,
-        }),
-      })
+      let res: Response
+
+      if (order.type === 'chicken') {
+        res = await fetch(`/api/admin/chickens/orders/${fullOrder.id}/enable-remainder`, {
+          method: 'POST',
+        })
+      } else {
+        const customerEmail = fullOrder.customer_email
+        const orderNumber = fullOrder.order_number || order.order_number
+        const productType = order.type === 'egg' ? 'eggs' : 'pigs'
+
+        res = await fetch('/api/admin/deferred-payments/request-payment', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            orderId: fullOrder.id,
+            productType,
+            customerName: fullOrder.customer_name,
+            customerEmail,
+            orderNumber,
+          }),
+        })
+      }
+
       const result = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(result?.error || (no ? 'Feil ved sending' : 'Failed to send'))
-      toast({ title: no ? 'Betalingslenke sendt' : 'Payment link sent', description: no ? `E-post sendt til ${customerEmail}.` : `Email sent to ${customerEmail}.` })
+
+      if (order.type === 'chicken') {
+        const enabledTitle = no ? 'Restbetaling aktivert' : 'Remainder payment enabled'
+        const enabledDescription = result?.alreadyEnabled
+          ? (no ? 'Restbetaling var allerede aktivert på Min side.' : 'Remainder payment was already enabled on Min side.')
+          : result?.emailSent
+            ? (no ? 'Restbetaling er aktivert, og kunden har fått e-post om å betale på Min side.' : 'Remainder payment is enabled and the customer was emailed to pay on Min side.')
+            : (no ? 'Restbetaling er aktivert på Min side.' : 'Remainder payment is enabled on Min side.')
+        toast({ title: enabledTitle, description: enabledDescription })
+        await fetchOrder()
+        onRefresh()
+        setSectionPayment(true)
+      } else {
+        const customerEmail = fullOrder.customer_email
+        toast({
+          title: no ? 'Betalingslenke sendt' : 'Payment link sent',
+          description: no ? `E-post sendt til ${customerEmail}.` : `Email sent to ${customerEmail}.`,
+        })
+      }
     } catch (err: any) {
       toast({ title: no ? 'Feil' : 'Error', description: err.message, variant: 'destructive' })
     } finally {
@@ -879,7 +1038,7 @@ export function PickupFulfillmentModal({ order, onClose, onRefresh, onNavigateTo
   const remainder = (() => {
     if (!fullOrder) return 0
     if (order?.type === 'egg') return getEggOutstandingRemainderOre(fullOrder)
-    if (order?.type === 'chicken') return Number(fullOrder.remainder_amount_nok || 0)
+    if (order?.type === 'chicken') return getChickenOutstandingRemainderNok(fullOrder)
     if (order?.type === 'pig') return Number(fullOrder.remainder_amount || 0)
     return 0
   })()
@@ -894,7 +1053,12 @@ export function PickupFulfillmentModal({ order, onClose, onRefresh, onNavigateTo
   const paymentSummaryOrder =
     fullOrder && order?.type === 'egg'
       ? { ...fullOrder, remainder_amount: remainder }
-      : fullOrder
+      : fullOrder && order?.type === 'chicken'
+        ? { ...fullOrder, remainder_amount_nok: remainder }
+        : fullOrder
+
+  const chickenRemainderEnabled = order?.type === 'chicken' && fullOrder?.remainder_payment_enabled === true
+  const chickenNeedsRemainderBeforePickup = order?.type === 'chicken' && remainder > 0
 
   const navigateToCustomerProfile = () => {
     if (!customerLookupId) return
@@ -1117,10 +1281,12 @@ export function PickupFulfillmentModal({ order, onClose, onRefresh, onNavigateTo
                   step={birdStep}
                   adjustDeltas={adjustDeltas}
                   poolReturns={poolReturns}
+                  hatchOverrides={birdHatchOverrides}
                   note={birdNote}
                   onNoteChange={setBirdNote}
                   onDeltaChange={setAdjustDeltas}
                   onPoolChange={setPoolReturns}
+                  onHatchOverrideChange={updateBirdHatchOverride}
                   hasChanges={birdHasChanges()}
                   hasSubtractions={birdHasSubtractions()}
                   onNext={handleBirdNext}
@@ -1164,7 +1330,7 @@ export function PickupFulfillmentModal({ order, onClose, onRefresh, onNavigateTo
                   type={order!.type}
                   formatMoney={formatMoney}
                 />
-                {remainder > 0 && (
+                {remainder > 0 && order?.type !== 'chicken' && (
                   <div className="border-t border-neutral-100 pt-4">
                     <p className="text-sm text-neutral-600 mb-3">
                       {no ? 'Send kunden en e-post med lenke til å betale restbeløpet via Vipps.' : 'Send the customer an email with a link to pay the remainder via Vipps.'}
@@ -1177,6 +1343,40 @@ export function PickupFulfillmentModal({ order, onClose, onRefresh, onNavigateTo
                       )}
                       {no ? 'Send Vipps-betalingslenke' : 'Send Vipps payment link'}
                     </Button>
+                  </div>
+                )}
+                {order?.type === 'chicken' && remainder > 0 && (
+                  <div className="border-t border-neutral-100 pt-4">
+                    <div className="space-y-3">
+                      <p className="text-sm text-neutral-600">
+                        {chickenRemainderEnabled
+                          ? (no
+                              ? 'Restbetalingen er aktivert på Min side. Kunden må betale der før henting kan bekreftes.'
+                              : 'Remainder payment is enabled on Min side. The customer must pay there before pickup can be confirmed.')
+                          : (no
+                              ? 'Godkjenn restbetalingen for Min side etter at endringene er lagret. Kunden får e-post og kan betale derfra.'
+                              : 'Approve the remainder payment for Min side after saving the changes. The customer will receive an email and can pay there.')}
+                      </p>
+                      {!chickenRemainderEnabled ? (
+                        <Button onClick={sendPaymentRequest} disabled={paymentSending}>
+                          {paymentSending ? (
+                            <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                          ) : (
+                            <CreditCard className="w-4 h-4 mr-2" />
+                          )}
+                          {no ? 'Aktiver restbetaling i Min side' : 'Enable remainder payment in Min side'}
+                        </Button>
+                      ) : (
+                        <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                          <span>
+                            {no
+                              ? 'Venter på at kunden betaler restbeløpet. Oppdater bestillingen når betalingen er registrert.'
+                              : 'Waiting for the customer to pay the remainder. Refresh the order once the payment is registered.'}
+                          </span>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
                 {remainder <= 0 && (
@@ -1203,6 +1403,31 @@ export function PickupFulfillmentModal({ order, onClose, onRefresh, onNavigateTo
                       {displayStatus === 'cancelled' && (no ? 'Bestillingen er kansellert' : 'The order has been cancelled')}
                       {displayStatus === 'forfeited' && (no ? 'Bestillingen er forkastet' : 'The order has been forfeited')}
                     </span>
+                  </div>
+                )
+              }
+              if (chickenNeedsRemainderBeforePickup) {
+                return (
+                  <div className="rounded-xl border border-amber-200 bg-amber-50 px-5 py-4">
+                    <div className="flex items-start gap-2 text-sm text-amber-900">
+                      <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" />
+                      <div className="space-y-1">
+                        <p className="font-medium">
+                          {no
+                            ? 'Restbeløpet må betales før henting kan bekreftes.'
+                            : 'The remainder must be paid before pickup can be confirmed.'}
+                        </p>
+                        <p className="text-amber-800">
+                          {chickenRemainderEnabled
+                            ? (no
+                                ? 'Kunden kan allerede betale på Min side. Vent til betalingen er registrert, så blir knappen aktiv.'
+                                : 'The customer can already pay on Min side. Wait until the payment is registered and the button will unlock.')
+                            : (no
+                                ? 'Aktiver restbetaling i betalingsseksjonen først, så får kunden e-post og kan betale på Min side.'
+                                : 'Enable remainder payment in the payment section first so the customer gets an email and can pay on Min side.')}
+                        </p>
+                      </div>
+                    </div>
                   </div>
                 )
               }
@@ -1897,10 +2122,12 @@ function ChickenAdjustPanel({
   step,
   adjustDeltas,
   poolReturns,
+  hatchOverrides,
   note,
   onNoteChange,
   onDeltaChange,
   onPoolChange,
+  onHatchOverrideChange,
   hasChanges,
   hasSubtractions,
   onNext,
@@ -1911,12 +2138,14 @@ function ChickenAdjustPanel({
 }: {
   fullOrder: any
   step: 'edit' | 'pool' | 'confirm'
-  adjustDeltas: Record<string, { hensDelta: number; roostersDelta: number }>
-  poolReturns: Record<string, { poolHensReturn: number; poolRoostersReturn: number }>
+  adjustDeltas: Record<string, BirdAdjustmentState>
+  poolReturns: Record<string, BirdPoolReturnState>
+  hatchOverrides: Record<string, ChickenHatchOverrideState>
   note: string
   onNoteChange: (v: string) => void
-  onDeltaChange: (v: Record<string, { hensDelta: number; roostersDelta: number }>) => void
-  onPoolChange: (v: Record<string, { poolHensReturn: number; poolRoostersReturn: number }>) => void
+  onDeltaChange: (v: Record<string, BirdAdjustmentState>) => void
+  onPoolChange: (v: Record<string, BirdPoolReturnState>) => void
+  onHatchOverrideChange: (hatchId: string, field: keyof ChickenHatchOverrideState, nextValue: string) => void
   hasChanges: boolean
   hasSubtractions: boolean
   onNext: () => void
@@ -1926,7 +2155,98 @@ function ChickenAdjustPanel({
   formatMoney: (n: number) => string
 }) {
   const no = useIsNorwegian()
+  const lineItems = getChickenAdjustLineItems(fullOrder)
+  const lineByKey = new Map(lineItems.map((line) => [line.key, line]))
   const additions: any[] = fullOrder.chicken_order_additions || []
+  const currentTotalNok = Math.max(0, Math.round(Number(fullOrder?.total_amount_nok || 0)))
+  const depositPaidNok = Math.max(0, Math.round(Number(fullOrder?.deposit_amount_nok || 0)))
+  const currentOutstandingRemainderNok = getChickenOutstandingRemainderNok(fullOrder)
+  const completedRemainderPaidNok = Math.max(
+    0,
+    Math.round(Number(fullOrder?.remainder_amount_nok || 0)) - currentOutstandingRemainderNok
+  )
+  const deltaAmountNok = lineItems.reduce((sum, line) => {
+    const delta = adjustDeltas[line.key] || { hensDelta: 0, roostersDelta: 0 }
+    return sum + delta.hensDelta * line.pricePerHen + delta.roostersDelta * line.pricePerRooster
+  }, 0)
+  const nextTotalNok = Math.max(0, currentTotalNok + deltaAmountNok)
+  const nextRemainderTargetNok = Math.max(0, nextTotalNok - Math.min(depositPaidNok, nextTotalNok))
+  const nextOutstandingRemainderNok = Math.max(0, nextRemainderTargetNok - completedRemainderPaidNok)
+  const hatchSummaryMap = lineItems.reduce((map, line) => {
+      const summary = map.get(line.hatchId) || {
+        hatchId: line.hatchId,
+        breedName: line.breedName,
+        systemFreeHens: line.systemFreeHens,
+        systemFreeRoosters: line.systemFreeRoosters,
+        addedHens: 0,
+        addedRoosters: 0,
+        returnedHens: 0,
+        returnedRoosters: 0,
+      }
+
+      const delta = adjustDeltas[line.key] || { hensDelta: 0, roostersDelta: 0 }
+      const returns = poolReturns[line.key] || { poolHensReturn: 0, poolRoostersReturn: 0 }
+
+      summary.addedHens += Math.max(0, delta.hensDelta)
+      summary.addedRoosters += Math.max(0, delta.roostersDelta)
+      summary.returnedHens += Math.max(0, Math.min(Math.abs(Math.min(0, delta.hensDelta)), returns.poolHensReturn || 0))
+      summary.returnedRoosters += Math.max(0, Math.min(Math.abs(Math.min(0, delta.roostersDelta)), returns.poolRoostersReturn || 0))
+
+      map.set(line.hatchId, summary)
+      return map
+    }, new Map<string, {
+      hatchId: string
+      breedName: string
+      systemFreeHens: number
+      systemFreeRoosters: number
+      addedHens: number
+      addedRoosters: number
+      returnedHens: number
+      returnedRoosters: number
+    }>())
+  const hatchSummaries = Array.from(hatchSummaryMap.values()).map((summary) => {
+    const override = hatchOverrides[summary.hatchId] || { hensFreeNow: '', roostersFreeNow: '' }
+    const hensRaw = String(override.hensFreeNow || '').trim()
+    const roostersRaw = String(override.roostersFreeNow || '').trim()
+    const hensParsed = hensRaw !== '' && /^\d+$/.test(hensRaw) ? Number(hensRaw) : null
+    const roostersParsed = roostersRaw !== '' && /^\d+$/.test(roostersRaw) ? Number(roostersRaw) : null
+    const invalidHensOverride = hensRaw !== '' && hensParsed === null
+    const invalidRoostersOverride = roostersRaw !== '' && roostersParsed === null
+    const freeHensNow = hensParsed ?? summary.systemFreeHens
+    const freeRoostersNow = roostersParsed ?? summary.systemFreeRoosters
+    const projectedFreeHens = freeHensNow + summary.returnedHens - summary.addedHens
+    const projectedFreeRoosters = freeRoostersNow + summary.returnedRoosters - summary.addedRoosters
+
+    return {
+      ...summary,
+      overrideHensValue: hensRaw,
+      overrideRoostersValue: roostersRaw,
+      freeHensNow,
+      freeRoostersNow,
+      projectedFreeHens,
+      projectedFreeRoosters,
+      invalidHensOverride,
+      invalidRoostersOverride,
+      hasError:
+        invalidHensOverride ||
+        invalidRoostersOverride ||
+        projectedFreeHens < 0 ||
+        projectedFreeRoosters < 0,
+    }
+  })
+  const hatchSummaryById = new Map(hatchSummaries.map((summary) => [summary.hatchId, summary]))
+  const invalidHatches = hatchSummaries.filter((summary) => summary.hasError)
+  const canSubmit = hasChanges && invalidHatches.length === 0
+  const canAdvanceFromEdit = hasChanges
+  const canAdvanceFromPool = invalidHatches.length === 0
+
+  const getLineSubLabel = (line: ChickenAdjustLineItem) => {
+    const prefix = line.kind === 'main' ? (no ? 'Hovedbestilling' : 'Main order') : (no ? 'Tillegg' : 'Addition')
+    if (line.ageWeeks !== null && Number.isFinite(line.ageWeeks)) {
+      return `${prefix} · ${line.ageWeeks} ${no ? 'uker' : 'weeks'}`
+    }
+    return prefix
+  }
 
   // ── step: edit ──
   if (step === 'edit') {
@@ -1969,8 +2289,93 @@ function ChickenAdjustPanel({
             }
           />
         ))}
+        <div className="space-y-3 rounded-lg border border-neutral-200 bg-neutral-50 p-3">
+          <p className="text-xs text-neutral-500">
+            {no
+              ? 'Systemet bruker bare fritt lager som ikke allerede er reservert. Legg inn override kun hvis dere fysisk har flere frie fugler enn systemet viser.'
+              : 'The system only uses free stock that is not already reserved. Enter an override only if you physically have more free birds than the system shows.'}
+          </p>
+          {hatchSummaries.map((summary) => (
+            <div key={summary.hatchId} className="rounded-lg border border-neutral-200 bg-white p-3 space-y-3">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-medium text-neutral-900">{summary.breedName}</p>
+                  <p className="text-xs text-neutral-500">
+                    {no ? 'Fritt lager for kullet som brukes i denne bestillingen.' : 'Free stock for the hatch used by this order.'}
+                  </p>
+                </div>
+                {summary.hasError && (
+                  <span className="rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-xs text-red-700">
+                    {no ? 'For lav beholdning' : 'Stock too low'}
+                  </span>
+                )}
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="rounded-md border border-neutral-200 bg-neutral-50 px-3 py-2">
+                  <p className="text-xs uppercase tracking-wide text-neutral-500">{no ? 'Fri høner nå' : 'Free hens now'}</p>
+                  <p className="mt-1 font-medium text-neutral-900">{summary.freeHensNow}</p>
+                  <p className={`text-xs ${summary.projectedFreeHens < 0 ? 'text-red-600' : 'text-neutral-500'}`}>
+                    {no ? 'Fri etter lagring' : 'Free after save'}: {Math.max(0, summary.projectedFreeHens)}
+                  </p>
+                </div>
+                <div className="rounded-md border border-neutral-200 bg-neutral-50 px-3 py-2">
+                  <p className="text-xs uppercase tracking-wide text-neutral-500">{no ? 'Fri haner nå' : 'Free roosters now'}</p>
+                  <p className="mt-1 font-medium text-neutral-900">{summary.freeRoostersNow}</p>
+                  <p className={`text-xs ${summary.projectedFreeRoosters < 0 ? 'text-red-600' : 'text-neutral-500'}`}>
+                    {no ? 'Fri etter lagring' : 'Free after save'}: {Math.max(0, summary.projectedFreeRoosters)}
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <label className="text-xs font-medium uppercase tracking-wide text-neutral-500">
+                    {no ? 'Override fri høner' : 'Override free hens'}
+                  </label>
+                  <Input
+                    type="number"
+                    min="0"
+                    step="1"
+                    value={summary.overrideHensValue}
+                    onChange={(event) => onHatchOverrideChange(summary.hatchId, 'hensFreeNow', event.target.value)}
+                    placeholder={String(summary.systemFreeHens)}
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-medium uppercase tracking-wide text-neutral-500">
+                    {no ? 'Override fri haner' : 'Override free roosters'}
+                  </label>
+                  <Input
+                    type="number"
+                    min="0"
+                    step="1"
+                    value={summary.overrideRoostersValue}
+                    onChange={(event) => onHatchOverrideChange(summary.hatchId, 'roostersFreeNow', event.target.value)}
+                    placeholder={String(summary.systemFreeRoosters)}
+                    className="mt-1"
+                  />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+        {invalidHatches.length > 0 && (
+          <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+            <div>
+              <p className="font-medium">{no ? 'Noen kull har for lav fri beholdning.' : 'Some hatches do not have enough free stock.'}</p>
+              <p className="text-xs text-red-600">
+                {no
+                  ? 'Reduser antallene, legg flere fugler tilbake til lageret, eller legg inn override der dere faktisk har flere fugler fysisk.'
+                  : 'Reduce the quantities, return more birds to inventory, or add an override where you physically have more birds on hand.'}
+              </p>
+            </div>
+          </div>
+        )}
         <div className="flex justify-end pt-2">
-          <Button onClick={onNext} disabled={!hasChanges} size="sm">
+          <Button onClick={onNext} disabled={!canAdvanceFromEdit} size="sm">
             {no ? 'Neste' : 'Next'}
           </Button>
         </div>
@@ -2095,7 +2500,7 @@ function ChickenAdjustPanel({
           <Button variant="outline" onClick={onBack} size="sm">
             {no ? 'Tilbake' : 'Back'}
           </Button>
-          <Button onClick={onNext} size="sm">
+          <Button onClick={onNext} disabled={!canAdvanceFromPool} size="sm">
             {no ? 'Neste' : 'Next'}
           </Button>
         </div>
@@ -2150,6 +2555,34 @@ function ChickenAdjustPanel({
             )
           })}
       </div>
+      <div className="rounded border border-neutral-200 bg-white p-3 text-sm space-y-1">
+        <div className="flex justify-between gap-3">
+          <span className="text-neutral-600">{no ? 'Total nå' : 'Current total'}</span>
+          <span className="font-medium">{formatMoney(currentTotalNok)}</span>
+        </div>
+        <div className="flex justify-between gap-3">
+          <span className="text-neutral-600">{no ? 'Ny total' : 'New total'}</span>
+          <span className="font-medium">{formatMoney(nextTotalNok)}</span>
+        </div>
+        <div className="flex justify-between gap-3">
+          <span className="text-neutral-600">{no ? 'Depositum betalt' : 'Deposit paid'}</span>
+          <span>{formatMoney(depositPaidNok)}</span>
+        </div>
+        {completedRemainderPaidNok > 0 && (
+          <div className="flex justify-between gap-3">
+            <span className="text-neutral-600">{no ? 'Rest allerede betalt' : 'Remainder already paid'}</span>
+            <span>{formatMoney(completedRemainderPaidNok)}</span>
+          </div>
+        )}
+        <div className="flex justify-between gap-3 border-t border-neutral-100 pt-2">
+          <span className="font-medium text-neutral-800">
+            {no ? 'Ny rest til betaling' : 'New remainder due'}
+          </span>
+          <span className={nextOutstandingRemainderNok > 0 ? 'font-medium text-amber-700' : 'font-medium text-green-700'}>
+            {formatMoney(nextOutstandingRemainderNok)}
+          </span>
+        </div>
+      </div>
       <div>
         <label className="text-xs font-medium text-neutral-600">{no ? 'Notat (valgfritt)' : 'Note (optional)'}</label>
         <Input
@@ -2163,7 +2596,7 @@ function ChickenAdjustPanel({
         <Button variant="outline" onClick={onBack} size="sm">
           {no ? 'Tilbake' : 'Back'}
         </Button>
-        <Button onClick={onSubmit} disabled={saving} size="sm">
+        <Button onClick={onSubmit} disabled={saving || !canSubmit} size="sm">
           {saving && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
           {no ? 'Bekreft endring' : 'Confirm change'}
         </Button>

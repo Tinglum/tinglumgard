@@ -4,7 +4,6 @@ import crypto from "node:crypto";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import { dispatchEmail } from "@/lib/email/dispatch";
 import {
-  reconcileChickenPickupDependentFlowInstances,
   reconcileEggPaymentDependentFlowInstances,
 } from "@/lib/email/lifecycle";
 import { renderManagedTemplate } from "@/lib/email/render";
@@ -962,7 +961,11 @@ export async function POST(request: NextRequest) {
         : Number(order?.total_amount || 0);
       const isActuallyFullyPaid = totalPaidOre >= totalAmountOre;
 
-      const paidStatus = isChickenPayment ? "picked_up" : isEggPayment ? "fully_paid" : "paid";
+      const paidStatus = isChickenPayment
+        ? (String(order?.status || '') === 'ready_for_pickup' ? "ready_for_pickup" : "fully_paid")
+        : isEggPayment
+          ? "fully_paid"
+          : "paid";
       const remainderStatus = isActuallyFullyPaid ? paidStatus : 'deposit_paid';
       console.log(`Remainder payment: totalPaid=${totalPaidOre} ore, totalAmount=${totalAmountOre} ore, status=${remainderStatus}`);
 
@@ -973,7 +976,7 @@ export async function POST(request: NextRequest) {
         remainder_collected_at: isActuallyFullyPaid ? chickenRemainderCollectedAt : null,
         remainder_collected_by: isActuallyFullyPaid ? 'vipps_remainder' : null,
         remainder_collection_note: isActuallyFullyPaid
-          ? 'Customer completed remainder payment via Vipps at pickup'
+          ? 'Customer completed remainder payment via Vipps before pickup confirmation'
           : null,
       };
       let { error: orderErr } = await supabaseAdmin
@@ -1004,19 +1007,6 @@ export async function POST(request: NextRequest) {
           await reconcileEggPaymentDependentFlowInstances(String(remainderOrderId), 'order_fully_paid');
         } catch (cleanupError) {
           logError('vipps-webhook-egg-flow-cleanup', cleanupError, {
-            orderId: String(remainderOrderId),
-          });
-        }
-      }
-
-      if (isChickenPayment && remainderStatus === 'picked_up') {
-        try {
-          await reconcileChickenPickupDependentFlowInstances(String(remainderOrderId), {
-            reason: 'order_picked_up',
-            pickedUpAt: chickenRemainderCollectedAt,
-          });
-        } catch (cleanupError) {
-          logError('vipps-webhook-chicken-flow-cleanup', cleanupError, {
             orderId: String(remainderOrderId),
           });
         }

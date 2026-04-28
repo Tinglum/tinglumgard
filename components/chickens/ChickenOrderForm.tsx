@@ -100,6 +100,7 @@ export function ChickenOrderForm({ selection, onClose, onRemoveLine }: OrderForm
   const remainder = total - deposit
 
   const totalHens = selectedLines.reduce((sum, line) => sum + line.quantityHens, 0)
+  const hasCreamLegbarSelection = selectedLines.some((line) => line.breedSlug === 'cream-legbar')
   const summaryLines: ChickenSummaryLine[] = selectedLines.map((line) => ({
     id: line.id,
     breedName: line.breedName,
@@ -229,6 +230,11 @@ export function ChickenOrderForm({ selection, onClose, onRemoveLine }: OrderForm
           <p className="text-xs text-neutral-500 mt-2">
             {formCopy.sexDisclaimer}
           </p>
+          {hasCreamLegbarSelection && (
+            <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900">
+              {formCopy.creamLegbarDisclaimer}
+            </div>
+          )}
         </div>
         <button onClick={onClose} className="text-neutral-400 hover:text-neutral-600 text-xl">&times;</button>
       </div>

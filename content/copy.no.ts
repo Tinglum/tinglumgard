@@ -4252,6 +4252,7 @@
       orderWithVipps: 'Bestill med Vipps',
       depositInfo: 'Du betaler 30% forskudd (kr {deposit}) nå. Rest (kr {remainder}) betales før henting.',
       sexDisclaimer: 'Merk: Før uke 10 selger vi kyllinger usortert. Fra uke 10 kan du velge høner eller haner, og vi gir deg pengene tilbake om det skal vise seg at hønen var en hane.',
+      creamLegbarDisclaimer: 'Cream Legbar er kjønnsvisende fra klekk, så disse er garantert høner fra fødsel.',
     },
     orderSummary: {
       title: 'Bestillingssammendrag',

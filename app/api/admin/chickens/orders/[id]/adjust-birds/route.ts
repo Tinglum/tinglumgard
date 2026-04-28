@@ -10,8 +10,119 @@ interface Adjustment {
   roostersDelta: number;
   poolHensReturn?: number;
   poolRoostersReturn?: number;
-  poolHensIncrease?: number;
-  poolRoostersIncrease?: number;
+}
+
+interface HatchOverride {
+  hatchId: string;
+  hensFreeNow?: number | null;
+  roostersFreeNow?: number | null;
+}
+
+interface LineItem {
+  key: string;
+  type: 'main' | 'addition';
+  additionId: string | null;
+  hatchId: string;
+  breedName: string;
+  currentHens: number;
+  currentRoosters: number;
+  pricePerHen: number;
+  pricePerRooster: number;
+  systemFreeHens: number;
+  systemFreeRoosters: number;
+}
+
+class ValidationError extends Error {}
+
+function toInt(value: unknown): number {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? Math.round(parsed) : 0;
+}
+
+function toNonNegativeInt(value: unknown): number | null {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < 0) return null;
+  return Math.round(parsed);
+}
+
+function normalizeText(value: unknown): string {
+  return String(value || '').trim();
+}
+
+function hasCompletedDeposit(payments: any[] = []): boolean {
+  return payments.some((payment) => payment?.payment_type === 'deposit' && payment?.status === 'completed');
+}
+
+function getCompletedRemainderPaidNok(payments: any[] = []): number {
+  return payments.reduce((sum, payment) => {
+    if (payment?.payment_type !== 'remainder' || payment?.status !== 'completed') return sum;
+    return sum + toInt(payment?.amount_nok);
+  }, 0);
+}
+
+function getLineItems(order: any): LineItem[] {
+  const items: LineItem[] = [
+    {
+      key: 'main',
+      type: 'main',
+      additionId: null,
+      hatchId: normalizeText(order?.hatch_id),
+      breedName: normalizeText(order?.chicken_breeds?.name) || 'Unknown',
+      currentHens: Math.max(0, toInt(order?.quantity_hens)),
+      currentRoosters: Math.max(0, toInt(order?.quantity_roosters)),
+      pricePerHen: Math.max(0, Number(order?.price_per_hen_nok || 0)),
+      pricePerRooster: Math.max(0, Number(order?.price_per_rooster_nok || 0)),
+      systemFreeHens: Math.max(0, toInt(order?.chicken_hatches?.available_hens)),
+      systemFreeRoosters: Math.max(0, toInt(order?.chicken_hatches?.available_roosters)),
+    },
+  ];
+
+  for (const addition of order?.chicken_order_additions || []) {
+    items.push({
+      key: normalizeText(addition?.id),
+      type: 'addition',
+      additionId: normalizeText(addition?.id) || null,
+      hatchId: normalizeText(addition?.hatch_id),
+      breedName: normalizeText(addition?.chicken_breeds?.name) || 'Unknown',
+      currentHens: Math.max(0, toInt(addition?.quantity_hens)),
+      currentRoosters: Math.max(0, toInt(addition?.quantity_roosters)),
+      pricePerHen: Math.max(0, Number(addition?.price_per_hen_nok || 0)),
+      pricePerRooster: Math.max(
+        0,
+        Number(addition?.price_per_rooster_nok || addition?.chicken_breeds?.rooster_price_nok || 0)
+      ),
+      systemFreeHens: Math.max(0, toInt(addition?.chicken_hatches?.available_hens)),
+      systemFreeRoosters: Math.max(0, toInt(addition?.chicken_hatches?.available_roosters)),
+    });
+  }
+
+  return items;
+}
+
+function getNextStatus(order: any, remainderAmountNok: number, remainderPaidNok: number): string {
+  const currentStatus = normalizeText(order?.status);
+  if (currentStatus === 'cancelled' || currentStatus === 'picked_up') return currentStatus;
+
+  const outstandingRemainder = Math.max(0, remainderAmountNok - remainderPaidNok);
+  const preserveReadyForPickup = currentStatus === 'ready_for_pickup';
+
+  if (outstandingRemainder > 0) {
+    if (preserveReadyForPickup) return 'ready_for_pickup';
+    return hasCompletedDeposit(order?.chicken_payments || []) ? 'deposit_paid' : currentStatus || 'pending';
+  }
+
+  if (preserveReadyForPickup) return 'ready_for_pickup';
+  return hasCompletedDeposit(order?.chicken_payments || []) ? 'fully_paid' : currentStatus || 'pending';
+}
+
+async function loadOrder(orderId: string) {
+  return supabaseAdmin
+    .from('chicken_orders')
+    .select(
+      '*, chicken_breeds(*), chicken_hatches(*), chicken_payments(*), chicken_order_additions(*, chicken_breeds(*), chicken_hatches(*))'
+    )
+    .eq('id', orderId)
+    .maybeSingle();
 }
 
 export async function POST(
@@ -25,44 +136,189 @@ export async function POST(
 
   try {
     const body = await request.json();
-    const adjustments: Adjustment[] = body.adjustments || [];
+    const rawAdjustments: Adjustment[] = Array.isArray(body.adjustments) ? body.adjustments : [];
+    const rawOverrides: HatchOverride[] = Array.isArray(body.hatchOverrides) ? body.hatchOverrides : [];
     const adminNote = typeof body.adminNote === 'string' ? body.adminNote.trim() : '';
 
-    if (!Array.isArray(adjustments) || adjustments.length === 0) {
+    if (rawAdjustments.length === 0) {
       return NextResponse.json({ error: 'No adjustments provided' }, { status: 400 });
     }
 
-    // Fetch full order with relations
-    const { data: order, error: orderError } = await supabaseAdmin
-      .from('chicken_orders')
-      .select(
-        '*, chicken_breeds(*), chicken_hatches(*), chicken_payments(*), chicken_order_additions(*, chicken_breeds(*), chicken_hatches(*))'
-      )
-      .eq('id', params.id)
-      .maybeSingle();
-
+    const { data: order, error: orderError } = await loadOrder(params.id);
     if (orderError || !order) {
       return NextResponse.json({ error: 'Order not found' }, { status: 404 });
     }
 
+    const lineItems = getLineItems(order);
+    const lineByKey = new Map(lineItems.map((line) => [line.key, line]));
     const changes: string[] = [];
 
-    for (const adj of adjustments) {
-      const hensDelta = Math.round(Number(adj.hensDelta || 0));
-      const roostersDelta = Math.round(Number(adj.roostersDelta || 0));
+    const overridesByHatchId = new Map<
+      string,
+      { hensFreeNow: number | null; roostersFreeNow: number | null }
+    >();
 
-      if (hensDelta === 0 && roostersDelta === 0) continue;
+    for (const override of rawOverrides) {
+      const hatchId = normalizeText(override?.hatchId);
+      if (!hatchId) {
+        return NextResponse.json({ error: 'Each hatch override must include a hatchId' }, { status: 400 });
+      }
 
-      if (adj.type === 'main') {
-        // --- Adjust main order line ---
-        const newHens = Math.max(0, (order.quantity_hens || 0) + hensDelta);
-        const newRoosters = Math.max(0, (order.quantity_roosters || 0) + roostersDelta);
-        const hatchId = order.hatch_id;
+      const hensFreeNow =
+        override?.hensFreeNow === null || override?.hensFreeNow === undefined
+          ? null
+          : toNonNegativeInt(override.hensFreeNow);
+      const roostersFreeNow =
+        override?.roostersFreeNow === null || override?.roostersFreeNow === undefined
+          ? null
+          : toNonNegativeInt(override.roostersFreeNow);
 
-        // Update order quantities
+      if (
+        (override?.hensFreeNow !== null && override?.hensFreeNow !== undefined && hensFreeNow === null) ||
+        (override?.roostersFreeNow !== null && override?.roostersFreeNow !== undefined && roostersFreeNow === null)
+      ) {
+        return NextResponse.json({ error: 'Override values must be whole numbers 0 or greater' }, { status: 400 });
+      }
+
+      overridesByHatchId.set(hatchId, { hensFreeNow, roostersFreeNow });
+    }
+
+    const normalizedAdjustments = rawAdjustments
+      .map((raw) => {
+        const type = raw?.type === 'addition' ? 'addition' : 'main';
+        const key = type === 'main' ? 'main' : normalizeText(raw?.additionId);
+        const line = lineByKey.get(key);
+
+        if (!line) {
+          throw new ValidationError(type === 'main' ? 'Main order line not found' : `Addition ${key} not found`);
+        }
+
+        const hensDelta = toInt(raw?.hensDelta);
+        const roostersDelta = toInt(raw?.roostersDelta);
+        const poolHensReturn = hensDelta < 0 ? Math.max(0, toInt(raw?.poolHensReturn)) : 0;
+        const poolRoostersReturn = roostersDelta < 0 ? Math.max(0, toInt(raw?.poolRoostersReturn)) : 0;
+
+        if (poolHensReturn > Math.abs(Math.min(0, hensDelta))) {
+          throw new ValidationError(`Too many hens returned to inventory for ${line.breedName}`);
+        }
+        if (poolRoostersReturn > Math.abs(Math.min(0, roostersDelta))) {
+          throw new ValidationError(`Too many roosters returned to inventory for ${line.breedName}`);
+        }
+
+        const nextHens = line.currentHens + hensDelta;
+        const nextRoosters = line.currentRoosters + roostersDelta;
+
+        if (nextHens < 0 || nextRoosters < 0) {
+          throw new ValidationError(`Adjusted quantities for ${line.breedName} cannot go below 0`);
+        }
+
+        return {
+          ...line,
+          hensDelta,
+          roostersDelta,
+          poolHensReturn,
+          poolRoostersReturn,
+          nextHens,
+          nextRoosters,
+        };
+      })
+      .filter((line) => line.hensDelta !== 0 || line.roostersDelta !== 0);
+
+    if (normalizedAdjustments.length === 0) {
+      return NextResponse.json({ error: 'No adjustments provided' }, { status: 400 });
+    }
+
+    const hatchStateById = new Map<
+      string,
+      {
+        hatchId: string;
+        breedName: string;
+        systemFreeHens: number;
+        systemFreeRoosters: number;
+        addedHens: number;
+        addedRoosters: number;
+        returnedHens: number;
+        returnedRoosters: number;
+      }
+    >();
+
+    for (const line of lineItems) {
+      if (!line.hatchId) continue;
+      if (!hatchStateById.has(line.hatchId)) {
+        hatchStateById.set(line.hatchId, {
+          hatchId: line.hatchId,
+          breedName: line.breedName,
+          systemFreeHens: line.systemFreeHens,
+          systemFreeRoosters: line.systemFreeRoosters,
+          addedHens: 0,
+          addedRoosters: 0,
+          returnedHens: 0,
+          returnedRoosters: 0,
+        });
+      }
+    }
+
+    for (const adjustment of normalizedAdjustments) {
+      if (!adjustment.hatchId) {
+        return NextResponse.json(
+          { error: `Order line for ${adjustment.breedName} is missing a hatch reference` },
+          { status: 400 }
+        );
+      }
+
+      const hatchState = hatchStateById.get(adjustment.hatchId);
+      if (!hatchState) {
+        return NextResponse.json(
+          { error: `Could not find hatch stock for ${adjustment.breedName}` },
+          { status: 400 }
+        );
+      }
+
+      hatchState.addedHens += Math.max(0, adjustment.hensDelta);
+      hatchState.addedRoosters += Math.max(0, adjustment.roostersDelta);
+      hatchState.returnedHens += adjustment.poolHensReturn;
+      hatchState.returnedRoosters += adjustment.poolRoostersReturn;
+    }
+
+    const hatchUpdates = Array.from(hatchStateById.values()).map((state) => {
+      const override = overridesByHatchId.get(state.hatchId);
+      const freeHensNow = override?.hensFreeNow ?? state.systemFreeHens;
+      const freeRoostersNow = override?.roostersFreeNow ?? state.systemFreeRoosters;
+      const projectedFreeHens = freeHensNow + state.returnedHens - state.addedHens;
+      const projectedFreeRoosters = freeRoostersNow + state.returnedRoosters - state.addedRoosters;
+
+      if (projectedFreeHens < 0) {
+        throw new ValidationError(
+          `Not enough free hens for ${state.breedName}: need ${state.addedHens}, have ${freeHensNow + state.returnedHens}`
+        );
+      }
+      if (projectedFreeRoosters < 0) {
+        throw new ValidationError(
+          `Not enough free roosters for ${state.breedName}: need ${state.addedRoosters}, have ${freeRoostersNow + state.returnedRoosters}`
+        );
+      }
+
+      return {
+        hatchId: state.hatchId,
+        breedName: state.breedName,
+        nextAvailableHens: projectedFreeHens,
+        nextAvailableRoosters: projectedFreeRoosters,
+        overrideApplied: Boolean(
+          override && (override.hensFreeNow !== null || override.roostersFreeNow !== null)
+        ),
+        freeHensNow,
+        freeRoostersNow,
+      };
+    });
+
+    for (const adjustment of normalizedAdjustments) {
+      if (adjustment.type === 'main') {
         const { error: updateErr } = await supabaseAdmin
           .from('chicken_orders')
-          .update({ quantity_hens: newHens, quantity_roosters: newRoosters })
+          .update({
+            quantity_hens: adjustment.nextHens,
+            quantity_roosters: adjustment.nextRoosters,
+          })
           .eq('id', order.id);
 
         if (updateErr) {
@@ -70,118 +326,96 @@ export async function POST(
           return NextResponse.json({ error: 'Failed to update order quantities' }, { status: 500 });
         }
 
-        // Adjust hatch pool
-        await adjustHatchPool(hatchId, adj, hensDelta, roostersDelta);
-
-        const breedName = order.chicken_breeds?.name || 'Ukjent';
         changes.push(
-          `Hovedlinje (${breedName}): høner ${order.quantity_hens}→${newHens}, haner ${order.quantity_roosters}→${newRoosters}`
+          `Main order (${adjustment.breedName}): hens ${adjustment.currentHens}->${adjustment.nextHens}, roosters ${adjustment.currentRoosters}->${adjustment.nextRoosters}`
         );
-      } else if (adj.type === 'addition' && adj.additionId) {
-        // --- Adjust addition line ---
-        const addition = (order.chicken_order_additions || []).find(
-          (a: any) => a.id === adj.additionId
-        );
-        if (!addition) {
-          return NextResponse.json({ error: `Addition ${adj.additionId} not found` }, { status: 404 });
+        continue;
+      }
+
+      const newSubtotal =
+        adjustment.nextHens * adjustment.pricePerHen + adjustment.nextRoosters * adjustment.pricePerRooster;
+
+      if (adjustment.nextHens === 0 && adjustment.nextRoosters === 0) {
+        const { error: deleteErr } = await supabaseAdmin
+          .from('chicken_order_additions')
+          .delete()
+          .eq('id', adjustment.additionId);
+
+        if (deleteErr) {
+          logError('adjust-birds-delete-addition', deleteErr);
+          return NextResponse.json({ error: 'Failed to delete empty addition' }, { status: 500 });
         }
+      } else {
+        const { error: updateErr } = await supabaseAdmin
+          .from('chicken_order_additions')
+          .update({
+            quantity_hens: adjustment.nextHens,
+            quantity_roosters: adjustment.nextRoosters,
+            subtotal_nok: newSubtotal,
+          })
+          .eq('id', adjustment.additionId);
 
-        const newHens = Math.max(0, (addition.quantity_hens || 0) + hensDelta);
-        const newRoosters = Math.max(0, (addition.quantity_roosters || 0) + roostersDelta);
-        const pricePerHen = Number(addition.price_per_hen_nok || 0);
-        const pricePerRooster = Number(addition.price_per_rooster_nok || 0);
-        const newSubtotal = newHens * pricePerHen + newRoosters * pricePerRooster;
-        const hatchId = addition.hatch_id;
-
-        if (newHens === 0 && newRoosters === 0) {
-          // Delete the addition if empty
-          const { error: delErr } = await supabaseAdmin
-            .from('chicken_order_additions')
-            .delete()
-            .eq('id', addition.id);
-
-          if (delErr) {
-            logError('adjust-birds-delete-addition', delErr);
-            return NextResponse.json({ error: 'Failed to delete empty addition' }, { status: 500 });
-          }
-        } else {
-          const { error: updateErr } = await supabaseAdmin
-            .from('chicken_order_additions')
-            .update({
-              quantity_hens: newHens,
-              quantity_roosters: newRoosters,
-              subtotal_nok: newSubtotal,
-            })
-            .eq('id', addition.id);
-
-          if (updateErr) {
-            logError('adjust-birds-update-addition', updateErr);
-            return NextResponse.json({ error: 'Failed to update addition' }, { status: 500 });
-          }
+        if (updateErr) {
+          logError('adjust-birds-update-addition', updateErr);
+          return NextResponse.json({ error: 'Failed to update addition' }, { status: 500 });
         }
+      }
 
-        // Adjust hatch pool
-        await adjustHatchPool(hatchId, adj, hensDelta, roostersDelta);
+      changes.push(
+        `Addition (${adjustment.breedName}): hens ${adjustment.currentHens}->${adjustment.nextHens}, roosters ${adjustment.currentRoosters}->${adjustment.nextRoosters}`
+      );
+    }
 
-        const breedName = addition.chicken_breeds?.name || 'Ukjent';
+    for (const hatch of hatchUpdates) {
+      const { error: hatchUpdateErr } = await supabaseAdmin
+        .from('chicken_hatches')
+        .update({
+          available_hens: hatch.nextAvailableHens,
+          available_roosters: hatch.nextAvailableRoosters,
+        })
+        .eq('id', hatch.hatchId);
+
+      if (hatchUpdateErr) {
+        logError('adjust-birds-update-hatch', hatchUpdateErr, {
+          hatchId: hatch.hatchId,
+        });
+        return NextResponse.json({ error: 'Failed to update hatch inventory' }, { status: 500 });
+      }
+
+      if (hatch.overrideApplied) {
         changes.push(
-          `Tillegg (${breedName}): høner ${addition.quantity_hens}→${newHens}, haner ${addition.quantity_roosters}→${newRoosters}`
+          `Stock override (${hatch.breedName}): hens ${hatch.freeHensNow}->${hatch.nextAvailableHens}, roosters ${hatch.freeRoostersNow}->${hatch.nextAvailableRoosters}`
         );
       }
     }
 
-    // Recalculate order totals
-    const { data: updatedOrder, error: refetchErr } = await supabaseAdmin
-      .from('chicken_orders')
-      .select('*, chicken_order_additions(*), chicken_payments(*)')
-      .eq('id', order.id)
-      .single();
-
+    const { data: updatedOrder, error: refetchErr } = await loadOrder(order.id);
     if (refetchErr || !updatedOrder) {
       return NextResponse.json({ error: 'Failed to reload order' }, { status: 500 });
     }
 
     const baseSubtotal =
-      (updatedOrder.quantity_hens || 0) * Number(updatedOrder.price_per_hen_nok || 0) +
-      (updatedOrder.quantity_roosters || 0) * Number(updatedOrder.price_per_rooster_nok || 0);
+      Math.max(0, toInt(updatedOrder.quantity_hens)) * Math.max(0, Number(updatedOrder.price_per_hen_nok || 0)) +
+      Math.max(0, toInt(updatedOrder.quantity_roosters)) * Math.max(0, Number(updatedOrder.price_per_rooster_nok || 0));
 
     const additionsSubtotal = (updatedOrder.chicken_order_additions || []).reduce(
-      (sum: number, row: any) => sum + Number(row.subtotal_nok || 0),
+      (sum: number, row: any) => sum + Math.max(0, Number(row?.subtotal_nok || 0)),
       0
     );
 
-    const deliveryFee = Number(updatedOrder.delivery_fee_nok || 0);
-    const totalAmountNok = baseSubtotal + additionsSubtotal + deliveryFee;
-    const depositAmountNok = Math.min(Number(updatedOrder.deposit_amount_nok || 0), totalAmountNok);
-    const remainderAmountNok = Math.max(0, totalAmountNok - depositAmountNok);
-
-    // Determine status based on payments
-    const remainderPaidNok = (updatedOrder.chicken_payments || []).reduce(
-      (sum: number, p: any) => {
-        if (p.payment_type !== 'remainder' || p.status !== 'completed') return sum;
-        return sum + Number(p.amount_nok || 0);
-      },
-      0
+    const deliveryFee = Math.max(0, Number(updatedOrder.delivery_fee_nok || 0));
+    const totalAmountNok = Math.max(0, baseSubtotal + additionsSubtotal + deliveryFee);
+    const depositAmountNok = Math.max(
+      0,
+      Math.min(Math.round(Number(updatedOrder.deposit_amount_nok || 0)), Math.round(totalAmountNok))
     );
+    const remainderAmountNok = Math.max(0, Math.round(totalAmountNok - depositAmountNok));
+    const remainderPaidNok = getCompletedRemainderPaidNok(updatedOrder.chicken_payments || []);
+    const nextStatus = getNextStatus(updatedOrder, remainderAmountNok, remainderPaidNok);
 
-    let newStatus = updatedOrder.status;
-    if (
-      updatedOrder.status === 'fully_paid' &&
-      remainderAmountNok > 0 &&
-      remainderPaidNok < remainderAmountNok
-    ) {
-      newStatus = 'deposit_paid';
-    } else if (
-      updatedOrder.status === 'deposit_paid' &&
-      (remainderAmountNok <= 0 || remainderPaidNok >= remainderAmountNok)
-    ) {
-      newStatus = 'fully_paid';
-    }
-
-    // Build admin note
     const noteLines = changes.slice();
-    if (adminNote) noteLines.push(`Notat: ${adminNote}`);
-    const fullNote = `[${new Date().toISOString().slice(0, 16)}] Antall justert: ${noteLines.join('; ')}`;
+    if (adminNote) noteLines.push(`Admin note: ${adminNote}`);
+    const fullNote = `[${new Date().toISOString().slice(0, 16)}] Bird adjustment: ${noteLines.join('; ')}`;
     const existingNotes = updatedOrder.admin_notes || '';
     const newNotes = [existingNotes, fullNote].filter(Boolean).join('\n');
 
@@ -190,8 +424,10 @@ export async function POST(
       .update({
         subtotal_nok: Math.max(0, baseSubtotal),
         total_amount_nok: Math.max(0, totalAmountNok),
-        remainder_amount_nok: Math.max(0, remainderAmountNok),
-        status: newStatus,
+        deposit_amount_nok: depositAmountNok,
+        remainder_amount_nok: remainderAmountNok,
+        remainder_payment_enabled: false,
+        status: nextStatus,
         admin_notes: newNotes,
       })
       .eq('id', order.id);
@@ -201,14 +437,10 @@ export async function POST(
       return NextResponse.json({ error: 'Failed to recalculate totals' }, { status: 500 });
     }
 
-    // Refetch final state
-    const { data: finalOrder } = await supabaseAdmin
-      .from('chicken_orders')
-      .select(
-        '*, chicken_breeds(*), chicken_hatches(*), chicken_payments(*), chicken_order_additions(*, chicken_breeds(*), chicken_hatches(*))'
-      )
-      .eq('id', order.id)
-      .single();
+    const { data: finalOrder, error: finalOrderError } = await loadOrder(order.id);
+    if (finalOrderError || !finalOrder) {
+      return NextResponse.json({ error: 'Updated order could not be reloaded' }, { status: 500 });
+    }
 
     return NextResponse.json({
       success: true,
@@ -216,65 +448,11 @@ export async function POST(
       order: finalOrder,
     });
   } catch (error) {
+    const message = error instanceof Error ? error.message : 'Internal server error';
+    if (error instanceof ValidationError) {
+      return NextResponse.json({ error: message }, { status: 400 });
+    }
     logError('adjust-birds-unexpected', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
-  }
-}
-
-async function adjustHatchPool(
-  hatchId: string,
-  adj: Adjustment,
-  hensDelta: number,
-  roostersDelta: number
-) {
-  if (!hatchId) return;
-
-  const { data: hatch, error } = await supabaseAdmin
-    .from('chicken_hatches')
-    .select('available_hens, available_roosters')
-    .eq('id', hatchId)
-    .single();
-
-  if (error || !hatch) {
-    logError('adjust-birds-fetch-hatch', error);
-    return;
-  }
-
-  let poolHensDelta = 0;
-  let poolRoostersDelta = 0;
-
-  if (hensDelta > 0) {
-    // Adding birds: increase pool by poolIncrease, then deduct what we're adding to order
-    const poolIncrease = Math.max(0, Math.round(Number(adj.poolHensIncrease || 0)));
-    poolHensDelta = poolIncrease - hensDelta;
-  } else if (hensDelta < 0) {
-    // Subtracting birds: return specified amount to pool
-    const poolReturn = Math.min(Math.abs(hensDelta), Math.max(0, Math.round(Number(adj.poolHensReturn || 0))));
-    poolHensDelta = poolReturn;
-  }
-
-  if (roostersDelta > 0) {
-    const poolIncrease = Math.max(0, Math.round(Number(adj.poolRoostersIncrease || 0)));
-    poolRoostersDelta = poolIncrease - roostersDelta;
-  } else if (roostersDelta < 0) {
-    const poolReturn = Math.min(Math.abs(roostersDelta), Math.max(0, Math.round(Number(adj.poolRoostersReturn || 0))));
-    poolRoostersDelta = poolReturn;
-  }
-
-  if (poolHensDelta === 0 && poolRoostersDelta === 0) return;
-
-  const newAvailableHens = Math.max(0, (hatch.available_hens || 0) + poolHensDelta);
-  const newAvailableRoosters = Math.max(0, (hatch.available_roosters || 0) + poolRoostersDelta);
-
-  const { error: updateErr } = await supabaseAdmin
-    .from('chicken_hatches')
-    .update({
-      available_hens: newAvailableHens,
-      available_roosters: newAvailableRoosters,
-    })
-    .eq('id', hatchId);
-
-  if (updateErr) {
-    logError('adjust-birds-update-hatch', updateErr);
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
