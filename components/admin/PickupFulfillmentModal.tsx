@@ -518,6 +518,23 @@ export function PickupFulfillmentModal({ order, onClose, onRefresh, onNavigateTo
   const [pickupDaySaving, setPickupDaySaving] = useState(false)
   const [reminderSending, setReminderSending] = useState(false)
 
+  // ── chicken demand summary state ───────────────────────────────────────────
+  type DemandRow = { hatch_id: string; breed_id: string; breed_name: string; age_weeks: number | null; total_hens: number; total_roosters: number; order_count: number }
+  const [demandSummary, setDemandSummary] = useState<DemandRow[]>([])
+  const [demandLoading, setDemandLoading] = useState(false)
+
+  useEffect(() => {
+    if (!sectionAdjust || order?.type !== 'chicken') return
+    let active = true
+    setDemandLoading(true)
+    fetch('/api/admin/chickens/demand-summary')
+      .then((r) => r.json())
+      .then((json) => { if (active) setDemandSummary(json.rows || []) })
+      .catch(() => {})
+      .finally(() => { if (active) setDemandLoading(false) })
+    return () => { active = false }
+  }, [sectionAdjust, order?.type])
+
   // ── chicken bird adjustment state ──────────────────────────────────────────
   const [birdStep, setBirdStep] = useState<'edit' | 'pool' | 'confirm'>('edit')
   const [adjustDeltas, setAdjustDeltas] = useState<Record<string, BirdAdjustmentState>>({})
@@ -1324,6 +1341,8 @@ export function PickupFulfillmentModal({ order, onClose, onRefresh, onNavigateTo
                   onSubmit={submitBirds}
                   saving={birdSaving}
                   formatMoney={formatMoney}
+                  demandSummary={demandSummary}
+                  demandLoading={demandLoading}
                 />
               )}
 
@@ -2175,6 +2194,8 @@ function EggAdjustPanel({
   )
 }
 
+type ChickenDemandRow = { hatch_id: string; breed_id: string; breed_name: string; age_weeks: number | null; total_hens: number; total_roosters: number; order_count: number }
+
 function ChickenAdjustPanel({
   fullOrder,
   step,
@@ -2193,6 +2214,8 @@ function ChickenAdjustPanel({
   onSubmit,
   saving,
   formatMoney,
+  demandSummary = [],
+  demandLoading = false,
 }: {
   fullOrder: any
   step: 'edit' | 'pool' | 'confirm'
@@ -2211,6 +2234,8 @@ function ChickenAdjustPanel({
   onSubmit: () => void
   saving: boolean
   formatMoney: (n: number) => string
+  demandSummary?: ChickenDemandRow[]
+  demandLoading?: boolean
 }) {
   const no = useIsNorwegian()
   const lineItems = getChickenAdjustLineItems(fullOrder)
@@ -2310,6 +2335,51 @@ function ChickenAdjustPanel({
   if (step === 'edit') {
     return (
       <div className="space-y-3">
+        {/* ── Demand overview ── */}
+        <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-3 space-y-2">
+          <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
+            {no ? 'Totalt bestilt (ikke hentet ennå)' : 'Total ordered (not yet picked up)'}
+          </p>
+          {demandLoading ? (
+            <div className="flex items-center gap-2 text-xs text-neutral-400">
+              <Loader2 className="w-3 h-3 animate-spin" />
+              {no ? 'Laster...' : 'Loading...'}
+            </div>
+          ) : demandSummary.length === 0 ? (
+            <p className="text-xs text-neutral-400">{no ? 'Ingen aktive bestillinger.' : 'No active orders.'}</p>
+          ) : (
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="text-neutral-400 border-b border-neutral-200">
+                  <th className="text-left pb-1 font-normal">{no ? 'Rase' : 'Breed'}</th>
+                  <th className="text-left pb-1 font-normal">{no ? 'Alder' : 'Age'}</th>
+                  <th className="text-right pb-1 font-normal">{no ? 'Høner' : 'Hens'}</th>
+                  <th className="text-right pb-1 font-normal">{no ? 'Haner' : 'Roosters'}</th>
+                  <th className="text-right pb-1 font-normal">{no ? 'Ordre' : 'Orders'}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {demandSummary.map((row) => {
+                  const isThisOrder =
+                    row.hatch_id === fullOrder.hatch_id ||
+                    (fullOrder.chicken_order_additions || []).some((a: any) => a.hatch_id === row.hatch_id)
+                  return (
+                    <tr
+                      key={`${row.hatch_id}__${row.breed_id}__${row.age_weeks}`}
+                      className={isThisOrder ? 'text-neutral-900 font-medium' : 'text-neutral-600'}
+                    >
+                      <td className="py-0.5">{row.breed_name}</td>
+                      <td className="py-0.5">{row.age_weeks != null ? `${row.age_weeks} ${no ? 'uker' : 'wks'}` : '—'}</td>
+                      <td className="py-0.5 text-right">{row.total_hens}</td>
+                      <td className="py-0.5 text-right">{row.total_roosters}</td>
+                      <td className="py-0.5 text-right text-neutral-400">{row.order_count}</td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          )}
+        </div>
         <p className="text-xs text-neutral-500">
           {no
             ? 'Bruk +/- for å justere antall på hver bestillingslinje.'
