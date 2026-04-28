@@ -169,6 +169,10 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       }
     }
 
+    if (body.remainderPaymentEnabled !== undefined) {
+      updates.remainder_payment_enabled = Boolean(body.remainderPaymentEnabled);
+    }
+
     const intFields: Array<[string, string]> = [
       ['pickupYear', 'pickup_year'],
       ['pickupWeek', 'pickup_week'],

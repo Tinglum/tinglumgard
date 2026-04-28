@@ -982,6 +982,36 @@ export function PickupFulfillmentModal({ order, onClose, onRefresh, onNavigateTo
     }
   }
 
+  // ─── disable remainder payment ───────────────────────────────────────────
+
+  const [remainderDisabling, setRemainderDisabling] = useState(false)
+
+  const disableRemainder = async () => {
+    if (!order || !fullOrder) return
+    setRemainderDisabling(true)
+    try {
+      const res = await fetch(`/api/admin/chickens/orders/${fullOrder.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ remainderPaymentEnabled: false }),
+      })
+      if (!res.ok) {
+        const result = await res.json().catch(() => ({}))
+        throw new Error(result?.error || (no ? 'Kunne ikke deaktivere restbetaling' : 'Could not disable remainder payment'))
+      }
+      toast({
+        title: no ? 'Restbetaling deaktivert' : 'Remainder payment disabled',
+        description: no ? 'Kunden kan ikke lenger betale restbeløpet via Min side.' : 'The customer can no longer pay the remainder via Min side.',
+      })
+      await fetchOrder()
+      onRefresh()
+    } catch (err: any) {
+      toast({ title: no ? 'Feil' : 'Error', description: err.message, variant: 'destructive' })
+    } finally {
+      setRemainderDisabling(false)
+    }
+  }
+
   // ─── confirm pickup ───────────────────────────────────────────────────────
 
   const confirmPickup = async () => {
@@ -1367,13 +1397,27 @@ export function PickupFulfillmentModal({ order, onClose, onRefresh, onNavigateTo
                           {no ? 'Aktiver restbetaling i Min side' : 'Enable remainder payment in Min side'}
                         </Button>
                       ) : (
-                        <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-                          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-                          <span>
-                            {no
-                              ? 'Venter på at kunden betaler restbeløpet. Oppdater bestillingen når betalingen er registrert.'
-                              : 'Waiting for the customer to pay the remainder. Refresh the order once the payment is registered.'}
-                          </span>
+                        <div className="space-y-2">
+                          <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                            <span>
+                              {no
+                                ? 'Venter på at kunden betaler restbeløpet. Oppdater bestillingen når betalingen er registrert.'
+                                : 'Waiting for the customer to pay the remainder. Refresh the order once the payment is registered.'}
+                            </span>
+                          </div>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={disableRemainder}
+                            disabled={remainderDisabling}
+                            className="w-full text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700"
+                          >
+                            {remainderDisabling ? (
+                              <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                            ) : null}
+                            {no ? 'Angre – deaktiver restbetaling' : 'Undo – disable remainder payment'}
+                          </Button>
                         </div>
                       )}
                     </div>
@@ -1408,7 +1452,7 @@ export function PickupFulfillmentModal({ order, onClose, onRefresh, onNavigateTo
               }
               if (chickenNeedsRemainderBeforePickup) {
                 return (
-                  <div className="rounded-xl border border-amber-200 bg-amber-50 px-5 py-4">
+                  <div className="rounded-xl border border-amber-200 bg-amber-50 px-5 py-4 space-y-3">
                     <div className="flex items-start gap-2 text-sm text-amber-900">
                       <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" />
                       <div className="space-y-1">
@@ -1423,11 +1467,25 @@ export function PickupFulfillmentModal({ order, onClose, onRefresh, onNavigateTo
                                 ? 'Kunden kan allerede betale på Min side. Vent til betalingen er registrert, så blir knappen aktiv.'
                                 : 'The customer can already pay on Min side. Wait until the payment is registered and the button will unlock.')
                             : (no
-                                ? 'Aktiver restbetaling i betalingsseksjonen først, så får kunden e-post og kan betale på Min side.'
-                                : 'Enable remainder payment in the payment section first so the customer gets an email and can pay on Min side.')}
+                                ? 'Kunden får e-post og kan betale restbeløpet via Min side.'
+                                : 'The customer will receive an email and can pay the remainder via Min side.')}
                         </p>
                       </div>
                     </div>
+                    {!chickenRemainderEnabled && (
+                      <Button
+                        onClick={sendPaymentRequest}
+                        disabled={paymentSending}
+                        className="w-full"
+                      >
+                        {paymentSending ? (
+                          <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                        ) : (
+                          <CreditCard className="w-4 h-4 mr-2" />
+                        )}
+                        {no ? 'Aktiver restbetaling' : 'Enable remainder payment'}
+                      </Button>
+                    )}
                   </div>
                 )
               }
