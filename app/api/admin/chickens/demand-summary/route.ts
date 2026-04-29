@@ -7,13 +7,13 @@ export type ChickenDemandRow = {
   hatch_id: string
   breed_id: string
   breed_name: string
-  age_weeks: number | null
-  total_hens: number
-  total_roosters: number
+  hatch_date: string
+  available_hens: number
+  available_roosters: number
+  demanded_hens: number
+  demanded_roosters: number
   order_count: number
 }
-
-const TERMINAL_STATUSES = ['picked_up', 'cancelled', 'forfeited']
 
 export async function GET() {
   const session = await getSession()
@@ -22,111 +22,84 @@ export async function GET() {
   }
 
   try {
-    // Fetch all active orders (main lines)
+    // 1. All active hatches — these are always shown even if no orders yet
+    const { data: hatches, error: hatchesError } = await supabaseAdmin
+      .from('chicken_hatches')
+      .select('id, breed_id, hatch_date, available_hens, available_roosters, chicken_breeds(name)')
+      .eq('active', true)
+      .order('hatch_date', { ascending: true })
+
+    if (hatchesError) {
+      logError('admin-chicken-demand-summary-hatches', hatchesError)
+      return NextResponse.json({ error: hatchesError.message }, { status: 500 })
+    }
+
+    // 2. Active orders (main lines) — bare status values, no quotes
     const { data: orders, error: ordersError } = await supabaseAdmin
       .from('chicken_orders')
-      .select('id, hatch_id, breed_id, age_weeks_at_pickup, quantity_hens, quantity_roosters, chicken_breeds(name)')
-      .not('status', 'in', `(${TERMINAL_STATUSES.map((s) => `"${s}"`).join(',')})`)
+      .select('id, hatch_id, quantity_hens, quantity_roosters')
+      .not('status', 'in', '(picked_up,cancelled,forfeited)')
 
     if (ordersError) {
       logError('admin-chicken-demand-summary-orders', ordersError)
       return NextResponse.json({ error: ordersError.message }, { status: 500 })
     }
 
-    // Fetch all active additions
-    const { data: additions, error: additionsError } = await supabaseAdmin
-      .from('chicken_order_additions')
-      .select('id, order_id, hatch_id, breed_id, age_weeks_at_pickup, quantity_hens, quantity_roosters, chicken_breeds(name), chicken_orders!inner(status)')
-      .not('chicken_orders.status', 'in', `(${TERMINAL_STATUSES.map((s) => `"${s}"`).join(',')})`)
+    // 3. Additions for active orders
+    const activeOrderIds = (orders || []).map((o) => o.id)
+    let additions: Array<{ order_id: string; hatch_id: string; quantity_hens: number; quantity_roosters: number }> = []
+    if (activeOrderIds.length > 0) {
+      const { data: addData, error: addError } = await supabaseAdmin
+        .from('chicken_order_additions')
+        .select('order_id, hatch_id, quantity_hens, quantity_roosters')
+        .in('order_id', activeOrderIds)
 
-    if (additionsError) {
-      logError('admin-chicken-demand-summary-additions', additionsError)
-      return NextResponse.json({ error: additionsError.message }, { status: 500 })
+      if (addError) {
+        logError('admin-chicken-demand-summary-additions', addError)
+        return NextResponse.json({ error: addError.message }, { status: 500 })
+      }
+      additions = addData || []
     }
 
-    // Aggregate by hatch_id + breed_id + age_weeks
-    type Key = string
-    type Entry = {
-      hatch_id: string
-      breed_id: string
-      breed_name: string
-      age_weeks: number | null
-      total_hens: number
-      total_roosters: number
-      order_ids: Set<string>
-    }
+    // 4. Aggregate demand per hatch_id
+    type Demand = { hens: number; roosters: number; orderIds: Set<string> }
+    const demandMap = new Map<string, Demand>()
 
-    const map = new Map<Key, Entry>()
-
-    const upsert = (
-      hatchId: string,
-      breedId: string,
-      breedName: string,
-      ageWeeks: number | null,
-      hens: number,
-      roosters: number,
-      orderId: string
-    ) => {
-      const key = `${hatchId}__${breedId}__${ageWeeks ?? 'null'}`
-      const existing = map.get(key)
+    const addDemand = (hatchId: string, orderId: string, hens: number, roosters: number) => {
+      const existing = demandMap.get(hatchId)
       if (existing) {
-        existing.total_hens += hens
-        existing.total_roosters += roosters
-        existing.order_ids.add(orderId)
+        existing.hens += hens
+        existing.roosters += roosters
+        existing.orderIds.add(orderId)
       } else {
-        map.set(key, {
-          hatch_id: hatchId,
-          breed_id: breedId,
-          breed_name: breedName,
-          age_weeks: ageWeeks,
-          total_hens: hens,
-          total_roosters: roosters,
-          order_ids: new Set([orderId]),
-        })
+        demandMap.set(hatchId, { hens, roosters, orderIds: new Set([orderId]) })
       }
     }
 
     for (const order of orders || []) {
-      if (!order.hatch_id || !order.breed_id) continue
-      upsert(
-        order.hatch_id,
-        order.breed_id,
-        (order.chicken_breeds as any)?.name || order.breed_id,
-        order.age_weeks_at_pickup ?? null,
-        Number(order.quantity_hens || 0),
-        Number(order.quantity_roosters || 0),
-        order.id
-      )
+      if (!order.hatch_id) continue
+      addDemand(order.hatch_id, order.id, Number(order.quantity_hens || 0), Number(order.quantity_roosters || 0))
+    }
+    for (const addition of additions) {
+      if (!addition.hatch_id) continue
+      addDemand(addition.hatch_id, addition.order_id, Number(addition.quantity_hens || 0), Number(addition.quantity_roosters || 0))
     }
 
-    for (const addition of additions || []) {
-      if (!addition.hatch_id || !addition.breed_id) continue
-      upsert(
-        addition.hatch_id,
-        addition.breed_id,
-        (addition.chicken_breeds as any)?.name || addition.breed_id,
-        addition.age_weeks_at_pickup ?? null,
-        Number(addition.quantity_hens || 0),
-        Number(addition.quantity_roosters || 0),
-        addition.order_id
-      )
-    }
-
-    const rows: ChickenDemandRow[] = Array.from(map.values())
-      .map((entry) => ({
-        hatch_id: entry.hatch_id,
-        breed_id: entry.breed_id,
-        breed_name: entry.breed_name,
-        age_weeks: entry.age_weeks,
-        total_hens: entry.total_hens,
-        total_roosters: entry.total_roosters,
-        order_count: entry.order_ids.size,
-      }))
-      .sort((a, b) => {
-        const nameCompare = a.breed_name.localeCompare(b.breed_name)
-        if (nameCompare !== 0) return nameCompare
-        return (a.age_weeks ?? 0) - (b.age_weeks ?? 0)
-      })
+    // 5. Build one row per hatch, always including all hatches
+    const rows: ChickenDemandRow[] = (hatches || []).map((hatch) => {
+      const demand = demandMap.get(hatch.id)
+      return {
+        hatch_id: hatch.id,
+        breed_id: hatch.breed_id,
+        breed_name: (hatch.chicken_breeds as any)?.name || hatch.breed_id,
+        hatch_date: hatch.hatch_date,
+        available_hens: Number(hatch.available_hens || 0),
+        available_roosters: Number(hatch.available_roosters || 0),
+        demanded_hens: demand?.hens ?? 0,
+        demanded_roosters: demand?.roosters ?? 0,
+        order_count: demand?.orderIds.size ?? 0,
+      }
+    })
 
     return NextResponse.json({ rows })
   } catch (error) {

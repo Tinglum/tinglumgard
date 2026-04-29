@@ -519,7 +519,7 @@ export function PickupFulfillmentModal({ order, onClose, onRefresh, onNavigateTo
   const [reminderSending, setReminderSending] = useState(false)
 
   // ── chicken demand summary state ───────────────────────────────────────────
-  type DemandRow = { hatch_id: string; breed_id: string; breed_name: string; age_weeks: number | null; total_hens: number; total_roosters: number; order_count: number }
+  type DemandRow = { hatch_id: string; breed_id: string; breed_name: string; hatch_date: string; available_hens: number; available_roosters: number; demanded_hens: number; demanded_roosters: number; order_count: number }
   const [demandSummary, setDemandSummary] = useState<DemandRow[]>([])
   const [demandLoading, setDemandLoading] = useState(false)
 
@@ -2194,7 +2194,7 @@ function EggAdjustPanel({
   )
 }
 
-type ChickenDemandRow = { hatch_id: string; breed_id: string; breed_name: string; age_weeks: number | null; total_hens: number; total_roosters: number; order_count: number }
+type ChickenDemandRow = { hatch_id: string; breed_id: string; breed_name: string; hatch_date: string; available_hens: number; available_roosters: number; demanded_hens: number; demanded_roosters: number; order_count: number }
 
 function ChickenAdjustPanel({
   fullOrder,
@@ -2335,10 +2335,10 @@ function ChickenAdjustPanel({
   if (step === 'edit') {
     return (
       <div className="space-y-3">
-        {/* ── Demand overview ── */}
+        {/* ── Inventory + demand overview ── */}
         <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-3 space-y-2">
           <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
-            {no ? 'Totalt bestilt (ikke hentet ennå)' : 'Total ordered (not yet picked up)'}
+            {no ? 'Alle kull – lager og bestillinger' : 'All hatches – stock & orders'}
           </p>
           {demandLoading ? (
             <div className="flex items-center gap-2 text-xs text-neutral-400">
@@ -2346,33 +2346,39 @@ function ChickenAdjustPanel({
               {no ? 'Laster...' : 'Loading...'}
             </div>
           ) : demandSummary.length === 0 ? (
-            <p className="text-xs text-neutral-400">{no ? 'Ingen aktive bestillinger.' : 'No active orders.'}</p>
+            <p className="text-xs text-neutral-400">{no ? 'Ingen aktive kull.' : 'No active hatches.'}</p>
           ) : (
-            <table className="w-full text-xs">
+            <table className="w-full text-xs border-collapse">
               <thead>
                 <tr className="text-neutral-400 border-b border-neutral-200">
-                  <th className="text-left pb-1 font-normal">{no ? 'Rase' : 'Breed'}</th>
-                  <th className="text-left pb-1 font-normal">{no ? 'Alder' : 'Age'}</th>
-                  <th className="text-right pb-1 font-normal">{no ? 'Høner' : 'Hens'}</th>
-                  <th className="text-right pb-1 font-normal">{no ? 'Haner' : 'Roosters'}</th>
-                  <th className="text-right pb-1 font-normal">{no ? 'Ordre' : 'Orders'}</th>
+                  <th className="text-left pb-1 font-normal pr-2">{no ? 'Rase' : 'Breed'}</th>
+                  <th className="text-left pb-1 font-normal pr-2">{no ? 'Klekket' : 'Hatched'}</th>
+                  <th className="text-right pb-1 font-normal pr-2" title={no ? 'Fritt lager nå' : 'Free stock now'}>{no ? 'Fri ♀' : 'Free ♀'}</th>
+                  <th className="text-right pb-1 font-normal pr-2" title={no ? 'Fritt lager nå' : 'Free stock now'}>{no ? 'Fri ♂' : 'Free ♂'}</th>
+                  <th className="text-right pb-1 font-normal pr-2" title={no ? 'Totalt bestilt, ikke hentet' : 'Total ordered, not yet picked up'}>{no ? 'Best ♀' : 'Ord ♀'}</th>
+                  <th className="text-right pb-1 font-normal" title={no ? 'Totalt bestilt, ikke hentet' : 'Total ordered, not yet picked up'}>{no ? 'Best ♂' : 'Ord ♂'}</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-neutral-100">
                 {demandSummary.map((row) => {
                   const isThisOrder =
                     row.hatch_id === fullOrder.hatch_id ||
                     (fullOrder.chicken_order_additions || []).some((a: any) => a.hatch_id === row.hatch_id)
+                  const hatchLabel = row.hatch_date
+                    ? new Date(row.hatch_date).toLocaleDateString(no ? 'nb-NO' : 'en-GB', { day: '2-digit', month: 'short', year: '2-digit' })
+                    : '—'
+                  const lowStock = row.available_hens - row.demanded_hens < 0 || row.available_roosters - row.demanded_roosters < 0
                   return (
                     <tr
-                      key={`${row.hatch_id}__${row.breed_id}__${row.age_weeks}`}
-                      className={isThisOrder ? 'text-neutral-900 font-medium' : 'text-neutral-600'}
+                      key={row.hatch_id}
+                      className={isThisOrder ? 'font-semibold text-neutral-900' : 'text-neutral-600'}
                     >
-                      <td className="py-0.5">{row.breed_name}</td>
-                      <td className="py-0.5">{row.age_weeks != null ? `${row.age_weeks} ${no ? 'uker' : 'wks'}` : '—'}</td>
-                      <td className="py-0.5 text-right">{row.total_hens}</td>
-                      <td className="py-0.5 text-right">{row.total_roosters}</td>
-                      <td className="py-0.5 text-right text-neutral-400">{row.order_count}</td>
+                      <td className="py-1 pr-2">{row.breed_name}{isThisOrder ? ' ★' : ''}</td>
+                      <td className="py-1 pr-2 text-neutral-400">{hatchLabel}</td>
+                      <td className={`py-1 pr-2 text-right ${lowStock && row.demanded_hens > 0 ? 'text-red-600' : ''}`}>{row.available_hens}</td>
+                      <td className={`py-1 pr-2 text-right ${lowStock && row.demanded_roosters > 0 ? 'text-red-600' : ''}`}>{row.available_roosters}</td>
+                      <td className="py-1 pr-2 text-right">{row.demanded_hens > 0 ? row.demanded_hens : <span className="text-neutral-300">—</span>}</td>
+                      <td className="py-1 text-right">{row.demanded_roosters > 0 ? row.demanded_roosters : <span className="text-neutral-300">—</span>}</td>
                     </tr>
                   )
                 })}
