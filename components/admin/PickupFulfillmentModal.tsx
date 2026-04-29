@@ -49,6 +49,14 @@ interface AdjustBirdLine {
   roostersDelta: number
   onHensDelta: (d: number) => void
   onRoostersDelta: (d: number) => void
+  ageWeeks?: number | null
+  breedSlug?: string | null
+}
+
+/** Cream Legbar is sexed from birth; all other breeds are sexed at 10 weeks */
+function isBirdSexed(ageWeeks: number | null | undefined, breedSlug?: string | null): boolean {
+  if (breedSlug === 'cream-legbar') return true
+  return (ageWeeks ?? 0) >= 10
 }
 
 type EggPaymentLike = {
@@ -123,6 +131,7 @@ type ChickenAdjustLineItem = {
   kind: 'main' | 'addition'
   hatchId: string
   breedName: string
+  breedSlug: string | null
   ageWeeks: number | null
   currentHens: number
   currentRoosters: number
@@ -306,6 +315,7 @@ function getChickenAdjustLineItems(order: any): ChickenAdjustLineItem[] {
     kind: 'main',
     hatchId: String(order?.hatch_id || '').trim(),
     breedName: String(order?.chicken_breeds?.name || '—').trim() || '—',
+    breedSlug: String(order?.chicken_breeds?.slug || '').trim() || null,
     ageWeeks: Number.isFinite(Number(order?.age_weeks_at_pickup)) ? Number(order.age_weeks_at_pickup) : null,
     currentHens: Math.max(0, Number(order?.quantity_hens || 0)),
     currentRoosters: Math.max(0, Number(order?.quantity_roosters || 0)),
@@ -321,6 +331,7 @@ function getChickenAdjustLineItems(order: any): ChickenAdjustLineItem[] {
       kind: 'addition',
       hatchId: String(addition?.hatch_id || '').trim(),
       breedName: String(addition?.chicken_breeds?.name || '—').trim() || '—',
+      breedSlug: String(addition?.chicken_breeds?.slug || '').trim() || null,
       ageWeeks: getChickenAdditionAgeWeeks(order, addition),
       currentHens: Math.max(0, Number(addition?.quantity_hens || 0)),
       currentRoosters: Math.max(0, Number(addition?.quantity_roosters || 0)),
@@ -417,8 +428,33 @@ function BirdAdjustLine({
   roostersDelta,
   onHensDelta,
   onRoostersDelta,
+  ageWeeks,
+  breedSlug,
 }: AdjustBirdLine) {
   const no = useIsNorwegian()
+  const sexed = isBirdSexed(ageWeeks, breedSlug)
+
+  if (!sexed) {
+    const totalCurrent = currentHens + currentRoosters
+    const totalDelta = hensDelta
+    return (
+      <div className="rounded border border-neutral-200 p-3 space-y-2">
+        <div>
+          <p className="text-sm font-medium">{label}</p>
+          <p className="text-xs text-neutral-500">{subLabel}</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-neutral-500 w-16">{no ? 'Kyllinger' : 'Chicks'}</span>
+          <Button size="sm" variant="outline" className="h-7 w-7 p-0" onClick={() => onHensDelta(hensDelta - 1)} disabled={totalCurrent + totalDelta <= 0}>−</Button>
+          <span className={`w-10 text-center text-sm font-medium ${totalDelta !== 0 ? (totalDelta > 0 ? 'text-green-700' : 'text-red-700') : ''}`}>
+            {totalCurrent + totalDelta}
+            {totalDelta !== 0 && <span className="text-xs"> ({totalDelta > 0 ? '+' : ''}{totalDelta})</span>}
+          </span>
+          <Button size="sm" variant="outline" className="h-7 w-7 p-0" onClick={() => onHensDelta(hensDelta + 1)}>+</Button>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="rounded border border-neutral-200 p-3 space-y-2">
@@ -2555,6 +2591,8 @@ function ChickenAdjustPanel({
           onRoostersDelta={(d) =>
             onDeltaChange({ ...adjustDeltas, main: { ...adjustDeltas['main'], roostersDelta: d } })
           }
+          ageWeeks={fullOrder.age_weeks_at_pickup}
+          breedSlug={fullOrder.chicken_breeds?.slug ?? null}
         />
         {additions.map((addition: any) => (
           <BirdAdjustLine
@@ -2571,6 +2609,8 @@ function ChickenAdjustPanel({
             onRoostersDelta={(d) =>
               onDeltaChange({ ...adjustDeltas, [addition.id]: { ...adjustDeltas[addition.id], roostersDelta: d } })
             }
+            ageWeeks={fullOrder.age_weeks_at_pickup}
+            breedSlug={addition.chicken_breeds?.slug ?? null}
           />
         ))}
         <div className="space-y-3 rounded-lg border border-neutral-200 bg-neutral-50 p-3">
