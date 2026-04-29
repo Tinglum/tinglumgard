@@ -1307,7 +1307,7 @@ export function PickupFulfillmentModal({ order, onClose, onRefresh, onNavigateTo
 
             {/* ── Section: Juster bestilling ── */}
             <SectionToggle
-              title={no ? 'Juster bestilling' : 'Adjust order'}
+              title={no ? 'Juster bestilling' : 'Adjust order details'}
               open={sectionAdjust}
               onToggle={() => setSectionAdjust((v) => !v)}
             >
