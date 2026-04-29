@@ -2354,30 +2354,76 @@ function ChickenAdjustPanel({
     return prefix
   }
 
+  // ── group demand rows by breed, filter out all-zero rows ──
+  type BreedGroup = {
+    breed_id: string
+    breed_name: string
+    available_hens: number
+    available_roosters: number
+    demanded_hens: number
+    demanded_roosters: number
+    isThisOrder: boolean
+    hatches: Array<{ hatch_id: string; hatch_date: string; available_hens: number; available_roosters: number }>
+  }
+  const breedGroups: BreedGroup[] = (() => {
+    const map = new Map<string, BreedGroup>()
+    const orderHatchIds = new Set<string>(
+      [fullOrder.hatch_id, ...(fullOrder.chicken_order_additions || []).map((a: any) => a.hatch_id)].filter(Boolean)
+    )
+    for (const row of demandSummary) {
+      const existing = map.get(row.breed_id)
+      if (existing) {
+        existing.available_hens += row.available_hens
+        existing.available_roosters += row.available_roosters
+        existing.demanded_hens += row.demanded_hens
+        existing.demanded_roosters += row.demanded_roosters
+        existing.hatches.push({ hatch_id: row.hatch_id, hatch_date: row.hatch_date, available_hens: row.available_hens, available_roosters: row.available_roosters })
+        if (orderHatchIds.has(row.hatch_id)) existing.isThisOrder = true
+      } else {
+        map.set(row.breed_id, {
+          breed_id: row.breed_id,
+          breed_name: row.breed_name,
+          available_hens: row.available_hens,
+          available_roosters: row.available_roosters,
+          demanded_hens: row.demanded_hens,
+          demanded_roosters: row.demanded_roosters,
+          isThisOrder: orderHatchIds.has(row.hatch_id),
+          hatches: [{ hatch_id: row.hatch_id, hatch_date: row.hatch_date, available_hens: row.available_hens, available_roosters: row.available_roosters }],
+        })
+      }
+    }
+    return Array.from(map.values()).filter(
+      (g) => g.isThisOrder || g.available_hens > 0 || g.available_roosters > 0 || g.demanded_hens > 0 || g.demanded_roosters > 0
+    )
+  })()
+
   // ── inline add-breed state ──
-  const [addingHatchId, setAddingHatchId] = useState<string | null>(null)
+  const [addingBreedId, setAddingBreedId] = useState<string | null>(null)
+  const [addHatchId, setAddHatchId] = useState<string>('')
   const [addHens, setAddHens] = useState(0)
   const [addRoosters, setAddRoosters] = useState(0)
   const [addAge, setAddAge] = useState(Number(fullOrder?.age_weeks_at_pickup || 0))
   const [addSaving, setAddSaving] = useState(false)
   const [addError, setAddError] = useState<string | null>(null)
 
-  const openAddForm = (hatchId: string) => {
-    setAddingHatchId(hatchId)
+  const openAddForm = (group: BreedGroup) => {
+    const bestHatch = group.hatches.slice().sort((a, b) => (b.available_hens + b.available_roosters) - (a.available_hens + a.available_roosters))[0]
+    setAddingBreedId(group.breed_id)
+    setAddHatchId(bestHatch?.hatch_id || '')
     setAddHens(0)
     setAddRoosters(0)
     setAddAge(Number(fullOrder?.age_weeks_at_pickup || 0))
     setAddError(null)
   }
-  const closeAddForm = () => { setAddingHatchId(null); setAddError(null) }
+  const closeAddForm = () => { setAddingBreedId(null); setAddError(null) }
 
-  const submitAddBreed = async (row: ChickenDemandRow) => {
-    if (!onAddBreed) return
+  const submitAddBreed = async () => {
+    if (!onAddBreed || !addHatchId) return
     if (addHens === 0 && addRoosters === 0) { setAddError(no ? 'Angi minst én fugl' : 'Enter at least one bird'); return }
     setAddSaving(true)
     setAddError(null)
     try {
-      await onAddBreed(row.hatch_id, addHens, addRoosters, addAge)
+      await onAddBreed(addHatchId, addHens, addRoosters, addAge)
       closeAddForm()
     } catch (err: any) {
       setAddError(err.message)
@@ -2402,58 +2448,62 @@ function ChickenAdjustPanel({
             </div>
           ) : demandError ? (
             <p className="text-xs text-red-500">Feil: {demandError}</p>
-          ) : demandSummary.length === 0 ? (
+          ) : breedGroups.length === 0 ? (
             <p className="text-xs text-neutral-400">{no ? 'Ingen aktive kull.' : 'No active hatches.'}</p>
           ) : (
             <div className="space-y-1">
-              {/* header */}
-              <div className="grid grid-cols-[1fr_auto_auto_auto_auto_auto] gap-x-2 text-xs text-neutral-400 border-b border-neutral-200 pb-1">
-                <span>{no ? 'Rase / klekket' : 'Breed / hatched'}</span>
-                <span className="text-right" title={no ? 'Fritt lager' : 'Free stock'}>{no ? 'Fri ♀' : 'Free ♀'}</span>
-                <span className="text-right">{no ? 'Fri ♂' : 'Free ♂'}</span>
-                <span className="text-right" title={no ? 'Totalt bestilt' : 'Total ordered'}>{no ? 'Best ♀' : 'Ord ♀'}</span>
-                <span className="text-right">{no ? 'Best ♂' : 'Ord ♂'}</span>
+              <div className="grid grid-cols-[1fr_auto_auto_auto_auto_auto] gap-x-3 text-xs text-neutral-400 border-b border-neutral-200 pb-1 px-1">
+                <span>{no ? 'Rase' : 'Breed'}</span>
+                <span className="text-right">{no ? 'Ledig ♀' : 'Avail ♀'}</span>
+                <span className="text-right">{no ? 'Ledig ♂' : 'Avail ♂'}</span>
+                <span className="text-right">{no ? 'Bestilt ♀' : 'Ordered ♀'}</span>
+                <span className="text-right">{no ? 'Bestilt ♂' : 'Ordered ♂'}</span>
                 <span />
               </div>
-              {demandSummary.map((row) => {
-                const isThisOrder =
-                  row.hatch_id === fullOrder.hatch_id ||
-                  (fullOrder.chicken_order_additions || []).some((a: any) => a.hatch_id === row.hatch_id)
-                const hatchLabel = row.hatch_date
-                  ? new Date(row.hatch_date).toLocaleDateString(no ? 'nb-NO' : 'en-GB', { day: '2-digit', month: 'short', year: '2-digit' })
-                  : '—'
-                const isAdding = addingHatchId === row.hatch_id
+              {breedGroups.map((group) => {
+                const isAdding = addingBreedId === group.breed_id
                 return (
-                  <div key={row.hatch_id} className={`rounded-md ${isThisOrder ? 'bg-neutral-100' : ''}`}>
-                    {/* summary row */}
-                    <div className="grid grid-cols-[1fr_auto_auto_auto_auto_auto] gap-x-2 items-center text-xs py-1 px-1">
-                      <div>
-                        <span className={isThisOrder ? 'font-semibold text-neutral-900' : 'text-neutral-700'}>
-                          {row.breed_name}{isThisOrder ? ' ★' : ''}
-                        </span>
-                        <span className="ml-1 text-neutral-400">{hatchLabel}</span>
-                      </div>
-                      <span className={`text-right ${row.available_hens === 0 ? 'text-neutral-300' : 'text-neutral-700'}`}>{row.available_hens}</span>
-                      <span className={`text-right ${row.available_roosters === 0 ? 'text-neutral-300' : 'text-neutral-700'}`}>{row.available_roosters}</span>
-                      <span className="text-right text-neutral-500">{row.demanded_hens > 0 ? row.demanded_hens : <span className="text-neutral-300">—</span>}</span>
-                      <span className="text-right text-neutral-500">{row.demanded_roosters > 0 ? row.demanded_roosters : <span className="text-neutral-300">—</span>}</span>
+                  <div key={group.breed_id} className={`rounded-md ${group.isThisOrder ? 'bg-neutral-100' : ''}`}>
+                    <div className="grid grid-cols-[1fr_auto_auto_auto_auto_auto] gap-x-3 items-center text-xs py-1.5 px-1">
+                      <span className={group.isThisOrder ? 'font-semibold text-neutral-900' : 'text-neutral-700'}>
+                        {group.breed_name}{group.isThisOrder ? ' ★' : ''}
+                      </span>
+                      <span className={`text-right tabular-nums ${group.available_hens === 0 ? 'text-neutral-300' : 'text-neutral-700'}`}>{group.available_hens}</span>
+                      <span className={`text-right tabular-nums ${group.available_roosters === 0 ? 'text-neutral-300' : 'text-neutral-700'}`}>{group.available_roosters}</span>
+                      <span className="text-right tabular-nums text-neutral-500">{group.demanded_hens > 0 ? group.demanded_hens : <span className="text-neutral-300">—</span>}</span>
+                      <span className="text-right tabular-nums text-neutral-500">{group.demanded_roosters > 0 ? group.demanded_roosters : <span className="text-neutral-300">—</span>}</span>
                       <span className="text-right">
                         {onAddBreed && !isAdding && (
-                          <button
-                            onClick={() => openAddForm(row.hatch_id)}
-                            className="text-xs text-blue-600 hover:text-blue-800 font-medium px-1"
-                          >
+                          <button onClick={() => openAddForm(group)} className="text-xs text-blue-600 hover:text-blue-800 font-medium">
                             + {no ? 'Legg til' : 'Add'}
                           </button>
                         )}
-                        {isAdding && (
-                          <button onClick={closeAddForm} className="text-xs text-neutral-400 hover:text-neutral-600 px-1">✕</button>
-                        )}
+                        {isAdding && <button onClick={closeAddForm} className="text-xs text-neutral-400 hover:text-neutral-600">✕</button>}
                       </span>
                     </div>
-                    {/* inline add form */}
                     {isAdding && (
                       <div className="mx-1 mb-2 rounded-md border border-blue-200 bg-blue-50 p-3 space-y-3">
+                        {group.hatches.length > 1 && (
+                          <div>
+                            <label className="text-xs text-neutral-500 block mb-1">{no ? 'Velg kull' : 'Select hatch'}</label>
+                            <select
+                              value={addHatchId}
+                              onChange={(e) => setAddHatchId(e.target.value)}
+                              className="w-full rounded-md border border-neutral-200 bg-white px-2 py-1.5 text-sm"
+                            >
+                              {group.hatches.map((h) => {
+                                const label = h.hatch_date
+                                  ? new Date(h.hatch_date).toLocaleDateString(no ? 'nb-NO' : 'en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+                                  : h.hatch_id
+                                return (
+                                  <option key={h.hatch_id} value={h.hatch_id}>
+                                    {label} — {no ? `${h.available_hens} ledig ♀, ${h.available_roosters} ledig ♂` : `${h.available_hens} avail ♀, ${h.available_roosters} avail ♂`}
+                                  </option>
+                                )
+                              })}
+                            </select>
+                          </div>
+                        )}
                         <div className="grid grid-cols-3 gap-2">
                           <div>
                             <label className="text-xs text-neutral-500 block mb-1">{no ? 'Høner' : 'Hens'}</label>
@@ -2468,11 +2518,9 @@ function ChickenAdjustPanel({
                             <Input type="number" min="0" step="1" value={addAge} onChange={(e) => setAddAge(Math.max(0, parseInt(e.target.value) || 0))} className="h-8 text-sm" />
                           </div>
                         </div>
-                        {addError && (
-                          <p className="text-xs text-red-600">{addError}</p>
-                        )}
+                        {addError && <p className="text-xs text-red-600">{addError}</p>}
                         <div className="flex gap-2">
-                          <Button size="sm" onClick={() => submitAddBreed(row)} disabled={addSaving} className="h-7 text-xs">
+                          <Button size="sm" onClick={submitAddBreed} disabled={addSaving} className="h-7 text-xs">
                             {addSaving ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : null}
                             {no ? 'Legg til' : 'Add to order'}
                           </Button>
