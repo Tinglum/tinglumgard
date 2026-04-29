@@ -34,7 +34,6 @@ export async function GET() {
         id, breed_id, hatch_date, available_hens, available_roosters,
         chicken_breeds(name, start_price_nok, weekly_increase_nok, adult_price_nok, rooster_price_nok)
       `)
-      .eq('active', true)
       .order('hatch_date', { ascending: true })
 
     if (hatchesError) {
