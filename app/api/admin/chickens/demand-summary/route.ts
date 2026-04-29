@@ -13,6 +13,11 @@ export type ChickenDemandRow = {
   demanded_hens: number
   demanded_roosters: number
   order_count: number
+  // pricing — so caller can show estimated cost when adding
+  start_price_nok: number
+  weekly_increase_nok: number
+  adult_price_nok: number
+  rooster_price_nok: number | null
 }
 
 export async function GET() {
@@ -22,10 +27,13 @@ export async function GET() {
   }
 
   try {
-    // 1. All active hatches — these are always shown even if no orders yet
+    // 1. All active hatches — always shown even if no orders yet
     const { data: hatches, error: hatchesError } = await supabaseAdmin
       .from('chicken_hatches')
-      .select('id, breed_id, hatch_date, available_hens, available_roosters, chicken_breeds(name)')
+      .select(`
+        id, breed_id, hatch_date, available_hens, available_roosters,
+        chicken_breeds(name, start_price_nok, weekly_increase_nok, adult_price_nok, rooster_price_nok)
+      `)
       .eq('active', true)
       .order('hatch_date', { ascending: true })
 
@@ -34,7 +42,7 @@ export async function GET() {
       return NextResponse.json({ error: hatchesError.message }, { status: 500 })
     }
 
-    // 2. Active orders (main lines) — bare status values, no quotes
+    // 2. Active orders (main lines)
     const { data: orders, error: ordersError } = await supabaseAdmin
       .from('chicken_orders')
       .select('id, hatch_id, quantity_hens, quantity_roosters')
@@ -85,19 +93,24 @@ export async function GET() {
       addDemand(addition.hatch_id, addition.order_id, Number(addition.quantity_hens || 0), Number(addition.quantity_roosters || 0))
     }
 
-    // 5. Build one row per hatch, always including all hatches
+    // 5. Build one row per hatch
     const rows: ChickenDemandRow[] = (hatches || []).map((hatch) => {
       const demand = demandMap.get(hatch.id)
+      const breed = hatch.chicken_breeds as any
       return {
         hatch_id: hatch.id,
         breed_id: hatch.breed_id,
-        breed_name: (hatch.chicken_breeds as any)?.name || hatch.breed_id,
+        breed_name: breed?.name || hatch.breed_id,
         hatch_date: hatch.hatch_date,
         available_hens: Number(hatch.available_hens || 0),
         available_roosters: Number(hatch.available_roosters || 0),
         demanded_hens: demand?.hens ?? 0,
         demanded_roosters: demand?.roosters ?? 0,
         order_count: demand?.orderIds.size ?? 0,
+        start_price_nok: Number(breed?.start_price_nok || 0),
+        weekly_increase_nok: Number(breed?.weekly_increase_nok || 0),
+        adult_price_nok: Number(breed?.adult_price_nok || 0),
+        rooster_price_nok: breed?.rooster_price_nok != null ? Number(breed.rooster_price_nok) : null,
       }
     })
 

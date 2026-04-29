@@ -519,7 +519,7 @@ export function PickupFulfillmentModal({ order, onClose, onRefresh, onNavigateTo
   const [reminderSending, setReminderSending] = useState(false)
 
   // ── chicken demand summary state ───────────────────────────────────────────
-  type DemandRow = { hatch_id: string; breed_id: string; breed_name: string; hatch_date: string; available_hens: number; available_roosters: number; demanded_hens: number; demanded_roosters: number; order_count: number }
+  type DemandRow = { hatch_id: string; breed_id: string; breed_name: string; hatch_date: string; available_hens: number; available_roosters: number; demanded_hens: number; demanded_roosters: number; order_count: number; start_price_nok: number; weekly_increase_nok: number; adult_price_nok: number; rooster_price_nok: number | null }
   const [demandSummary, setDemandSummary] = useState<DemandRow[]>([])
   const [demandLoading, setDemandLoading] = useState(false)
 
@@ -1343,6 +1343,18 @@ export function PickupFulfillmentModal({ order, onClose, onRefresh, onNavigateTo
                   formatMoney={formatMoney}
                   demandSummary={demandSummary}
                   demandLoading={demandLoading}
+                  onAddBreed={async (hatchId, quantityHens, quantityRoosters, ageWeeksAtPickup) => {
+                    const res = await fetch(`/api/admin/chickens/orders/${fullOrder.id}/add-addition`, {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ hatchId, quantityHens, quantityRoosters, ageWeeksAtPickup }),
+                    })
+                    const json = await res.json().catch(() => ({}))
+                    if (!res.ok) throw new Error(json?.error || (no ? 'Kunne ikke legge til rase' : 'Could not add breed'))
+                    await fetchOrder()
+                    onRefresh()
+                    setDemandSummary([]) // triggers refetch on next render
+                  }}
                 />
               )}
 
@@ -2194,7 +2206,7 @@ function EggAdjustPanel({
   )
 }
 
-type ChickenDemandRow = { hatch_id: string; breed_id: string; breed_name: string; hatch_date: string; available_hens: number; available_roosters: number; demanded_hens: number; demanded_roosters: number; order_count: number }
+type ChickenDemandRow = { hatch_id: string; breed_id: string; breed_name: string; hatch_date: string; available_hens: number; available_roosters: number; demanded_hens: number; demanded_roosters: number; order_count: number; start_price_nok: number; weekly_increase_nok: number; adult_price_nok: number; rooster_price_nok: number | null }
 
 function ChickenAdjustPanel({
   fullOrder,
@@ -2216,6 +2228,7 @@ function ChickenAdjustPanel({
   formatMoney,
   demandSummary = [],
   demandLoading = false,
+  onAddBreed,
 }: {
   fullOrder: any
   step: 'edit' | 'pool' | 'confirm'
@@ -2236,6 +2249,7 @@ function ChickenAdjustPanel({
   formatMoney: (n: number) => string
   demandSummary?: ChickenDemandRow[]
   demandLoading?: boolean
+  onAddBreed?: (hatchId: string, quantityHens: number, quantityRoosters: number, ageWeeksAtPickup: number) => Promise<void>
 }) {
   const no = useIsNorwegian()
   const lineItems = getChickenAdjustLineItems(fullOrder)
@@ -2331,6 +2345,38 @@ function ChickenAdjustPanel({
     return prefix
   }
 
+  // ── inline add-breed state ──
+  const [addingHatchId, setAddingHatchId] = useState<string | null>(null)
+  const [addHens, setAddHens] = useState(0)
+  const [addRoosters, setAddRoosters] = useState(0)
+  const [addAge, setAddAge] = useState(Number(fullOrder?.age_weeks_at_pickup || 0))
+  const [addSaving, setAddSaving] = useState(false)
+  const [addError, setAddError] = useState<string | null>(null)
+
+  const openAddForm = (hatchId: string) => {
+    setAddingHatchId(hatchId)
+    setAddHens(0)
+    setAddRoosters(0)
+    setAddAge(Number(fullOrder?.age_weeks_at_pickup || 0))
+    setAddError(null)
+  }
+  const closeAddForm = () => { setAddingHatchId(null); setAddError(null) }
+
+  const submitAddBreed = async (row: ChickenDemandRow) => {
+    if (!onAddBreed) return
+    if (addHens === 0 && addRoosters === 0) { setAddError(no ? 'Angi minst én fugl' : 'Enter at least one bird'); return }
+    setAddSaving(true)
+    setAddError(null)
+    try {
+      await onAddBreed(row.hatch_id, addHens, addRoosters, addAge)
+      closeAddForm()
+    } catch (err: any) {
+      setAddError(err.message)
+    } finally {
+      setAddSaving(false)
+    }
+  }
+
   // ── step: edit ──
   if (step === 'edit') {
     return (
@@ -2348,42 +2394,87 @@ function ChickenAdjustPanel({
           ) : demandSummary.length === 0 ? (
             <p className="text-xs text-neutral-400">{no ? 'Ingen aktive kull.' : 'No active hatches.'}</p>
           ) : (
-            <table className="w-full text-xs border-collapse">
-              <thead>
-                <tr className="text-neutral-400 border-b border-neutral-200">
-                  <th className="text-left pb-1 font-normal pr-2">{no ? 'Rase' : 'Breed'}</th>
-                  <th className="text-left pb-1 font-normal pr-2">{no ? 'Klekket' : 'Hatched'}</th>
-                  <th className="text-right pb-1 font-normal pr-2" title={no ? 'Fritt lager nå' : 'Free stock now'}>{no ? 'Fri ♀' : 'Free ♀'}</th>
-                  <th className="text-right pb-1 font-normal pr-2" title={no ? 'Fritt lager nå' : 'Free stock now'}>{no ? 'Fri ♂' : 'Free ♂'}</th>
-                  <th className="text-right pb-1 font-normal pr-2" title={no ? 'Totalt bestilt, ikke hentet' : 'Total ordered, not yet picked up'}>{no ? 'Best ♀' : 'Ord ♀'}</th>
-                  <th className="text-right pb-1 font-normal" title={no ? 'Totalt bestilt, ikke hentet' : 'Total ordered, not yet picked up'}>{no ? 'Best ♂' : 'Ord ♂'}</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-neutral-100">
-                {demandSummary.map((row) => {
-                  const isThisOrder =
-                    row.hatch_id === fullOrder.hatch_id ||
-                    (fullOrder.chicken_order_additions || []).some((a: any) => a.hatch_id === row.hatch_id)
-                  const hatchLabel = row.hatch_date
-                    ? new Date(row.hatch_date).toLocaleDateString(no ? 'nb-NO' : 'en-GB', { day: '2-digit', month: 'short', year: '2-digit' })
-                    : '—'
-                  const lowStock = row.available_hens - row.demanded_hens < 0 || row.available_roosters - row.demanded_roosters < 0
-                  return (
-                    <tr
-                      key={row.hatch_id}
-                      className={isThisOrder ? 'font-semibold text-neutral-900' : 'text-neutral-600'}
-                    >
-                      <td className="py-1 pr-2">{row.breed_name}{isThisOrder ? ' ★' : ''}</td>
-                      <td className="py-1 pr-2 text-neutral-400">{hatchLabel}</td>
-                      <td className={`py-1 pr-2 text-right ${lowStock && row.demanded_hens > 0 ? 'text-red-600' : ''}`}>{row.available_hens}</td>
-                      <td className={`py-1 pr-2 text-right ${lowStock && row.demanded_roosters > 0 ? 'text-red-600' : ''}`}>{row.available_roosters}</td>
-                      <td className="py-1 pr-2 text-right">{row.demanded_hens > 0 ? row.demanded_hens : <span className="text-neutral-300">—</span>}</td>
-                      <td className="py-1 text-right">{row.demanded_roosters > 0 ? row.demanded_roosters : <span className="text-neutral-300">—</span>}</td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
+            <div className="space-y-1">
+              {/* header */}
+              <div className="grid grid-cols-[1fr_auto_auto_auto_auto_auto] gap-x-2 text-xs text-neutral-400 border-b border-neutral-200 pb-1">
+                <span>{no ? 'Rase / klekket' : 'Breed / hatched'}</span>
+                <span className="text-right" title={no ? 'Fritt lager' : 'Free stock'}>{no ? 'Fri ♀' : 'Free ♀'}</span>
+                <span className="text-right">{no ? 'Fri ♂' : 'Free ♂'}</span>
+                <span className="text-right" title={no ? 'Totalt bestilt' : 'Total ordered'}>{no ? 'Best ♀' : 'Ord ♀'}</span>
+                <span className="text-right">{no ? 'Best ♂' : 'Ord ♂'}</span>
+                <span />
+              </div>
+              {demandSummary.map((row) => {
+                const isThisOrder =
+                  row.hatch_id === fullOrder.hatch_id ||
+                  (fullOrder.chicken_order_additions || []).some((a: any) => a.hatch_id === row.hatch_id)
+                const hatchLabel = row.hatch_date
+                  ? new Date(row.hatch_date).toLocaleDateString(no ? 'nb-NO' : 'en-GB', { day: '2-digit', month: 'short', year: '2-digit' })
+                  : '—'
+                const isAdding = addingHatchId === row.hatch_id
+                return (
+                  <div key={row.hatch_id} className={`rounded-md ${isThisOrder ? 'bg-neutral-100' : ''}`}>
+                    {/* summary row */}
+                    <div className="grid grid-cols-[1fr_auto_auto_auto_auto_auto] gap-x-2 items-center text-xs py-1 px-1">
+                      <div>
+                        <span className={isThisOrder ? 'font-semibold text-neutral-900' : 'text-neutral-700'}>
+                          {row.breed_name}{isThisOrder ? ' ★' : ''}
+                        </span>
+                        <span className="ml-1 text-neutral-400">{hatchLabel}</span>
+                      </div>
+                      <span className={`text-right ${row.available_hens === 0 ? 'text-neutral-300' : 'text-neutral-700'}`}>{row.available_hens}</span>
+                      <span className={`text-right ${row.available_roosters === 0 ? 'text-neutral-300' : 'text-neutral-700'}`}>{row.available_roosters}</span>
+                      <span className="text-right text-neutral-500">{row.demanded_hens > 0 ? row.demanded_hens : <span className="text-neutral-300">—</span>}</span>
+                      <span className="text-right text-neutral-500">{row.demanded_roosters > 0 ? row.demanded_roosters : <span className="text-neutral-300">—</span>}</span>
+                      <span className="text-right">
+                        {onAddBreed && !isAdding && (
+                          <button
+                            onClick={() => openAddForm(row.hatch_id)}
+                            className="text-xs text-blue-600 hover:text-blue-800 font-medium px-1"
+                          >
+                            + {no ? 'Legg til' : 'Add'}
+                          </button>
+                        )}
+                        {isAdding && (
+                          <button onClick={closeAddForm} className="text-xs text-neutral-400 hover:text-neutral-600 px-1">✕</button>
+                        )}
+                      </span>
+                    </div>
+                    {/* inline add form */}
+                    {isAdding && (
+                      <div className="mx-1 mb-2 rounded-md border border-blue-200 bg-blue-50 p-3 space-y-3">
+                        <div className="grid grid-cols-3 gap-2">
+                          <div>
+                            <label className="text-xs text-neutral-500 block mb-1">{no ? 'Høner' : 'Hens'}</label>
+                            <Input type="number" min="0" step="1" value={addHens} onChange={(e) => setAddHens(Math.max(0, parseInt(e.target.value) || 0))} className="h-8 text-sm" />
+                          </div>
+                          <div>
+                            <label className="text-xs text-neutral-500 block mb-1">{no ? 'Haner' : 'Roosters'}</label>
+                            <Input type="number" min="0" step="1" value={addRoosters} onChange={(e) => setAddRoosters(Math.max(0, parseInt(e.target.value) || 0))} className="h-8 text-sm" />
+                          </div>
+                          <div>
+                            <label className="text-xs text-neutral-500 block mb-1">{no ? 'Alder (uker)' : 'Age (weeks)'}</label>
+                            <Input type="number" min="0" step="1" value={addAge} onChange={(e) => setAddAge(Math.max(0, parseInt(e.target.value) || 0))} className="h-8 text-sm" />
+                          </div>
+                        </div>
+                        {addError && (
+                          <p className="text-xs text-red-600">{addError}</p>
+                        )}
+                        <div className="flex gap-2">
+                          <Button size="sm" onClick={() => submitAddBreed(row)} disabled={addSaving} className="h-7 text-xs">
+                            {addSaving ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : null}
+                            {no ? 'Legg til' : 'Add to order'}
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={closeAddForm} disabled={addSaving} className="h-7 text-xs">
+                            {no ? 'Avbryt' : 'Cancel'}
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
           )}
         </div>
         <p className="text-xs text-neutral-500">
