@@ -93,15 +93,13 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     const { error: insertError } = await supabaseAdmin
       .from('chicken_order_additions')
       .insert({
-        order_id: order.id,
+        chicken_order_id: order.id,
         hatch_id: hatchId,
         breed_id: hatch.breed_id,
         quantity_hens: quantityHens,
         quantity_roosters: quantityRoosters,
         price_per_hen_nok: pricePerHen,
-        price_per_rooster_nok: pricePerRooster,
         subtotal_nok: subtotalNok,
-        age_weeks_at_pickup: ageWeeksAtPickup,
       })
 
     if (insertError) {

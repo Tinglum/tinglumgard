@@ -46,12 +46,12 @@ export async function GET() {
 
     // 3. Additions for active orders
     const activeOrderIds = (orders || []).map((o) => o.id)
-    let additions: Array<{ order_id: string; hatch_id: string; quantity_hens: number; quantity_roosters: number }> = []
+    let additions: Array<{ chicken_order_id: string; hatch_id: string; quantity_hens: number; quantity_roosters: number }> = []
     if (activeOrderIds.length > 0) {
       const { data: addData, error: addError } = await supabaseAdmin
         .from('chicken_order_additions')
-        .select('order_id, hatch_id, quantity_hens, quantity_roosters')
-        .in('order_id', activeOrderIds)
+        .select('chicken_order_id, hatch_id, quantity_hens, quantity_roosters')
+        .in('chicken_order_id', activeOrderIds)
 
       if (addError) {
         logError('admin-chicken-demand-summary-additions', addError)
@@ -81,7 +81,7 @@ export async function GET() {
     }
     for (const addition of additions) {
       if (!addition.hatch_id) continue
-      addDemand(addition.hatch_id, addition.order_id, Number(addition.quantity_hens || 0), Number(addition.quantity_roosters || 0))
+      addDemand(addition.hatch_id, addition.chicken_order_id, Number(addition.quantity_hens || 0), Number(addition.quantity_roosters || 0))
     }
 
     // 5. Build one row per hatch
