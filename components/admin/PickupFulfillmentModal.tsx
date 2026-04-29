@@ -522,15 +522,21 @@ export function PickupFulfillmentModal({ order, onClose, onRefresh, onNavigateTo
   type DemandRow = { hatch_id: string; breed_id: string; breed_name: string; hatch_date: string; available_hens: number; available_roosters: number; demanded_hens: number; demanded_roosters: number; order_count: number }
   const [demandSummary, setDemandSummary] = useState<DemandRow[]>([])
   const [demandLoading, setDemandLoading] = useState(false)
+  const [demandError, setDemandError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!sectionAdjust || order?.type !== 'chicken') return
     let active = true
     setDemandLoading(true)
+    setDemandError(null)
     fetch('/api/admin/chickens/demand-summary')
       .then((r) => r.json())
-      .then((json) => { if (active) setDemandSummary(json.rows || []) })
-      .catch(() => {})
+      .then((json) => {
+        if (!active) return
+        if (json.error) setDemandError(json.error)
+        else setDemandSummary(json.rows || [])
+      })
+      .catch((err) => { if (active) setDemandError(err?.message || 'Fetch failed') })
       .finally(() => { if (active) setDemandLoading(false) })
     return () => { active = false }
   }, [sectionAdjust, order?.type])
@@ -1343,6 +1349,7 @@ export function PickupFulfillmentModal({ order, onClose, onRefresh, onNavigateTo
                   formatMoney={formatMoney}
                   demandSummary={demandSummary}
                   demandLoading={demandLoading}
+                  demandError={demandError}
                   onAddBreed={async (hatchId, quantityHens, quantityRoosters, ageWeeksAtPickup) => {
                     const res = await fetch(`/api/admin/chickens/orders/${fullOrder.id}/add-addition`, {
                       method: 'POST',
@@ -2228,6 +2235,7 @@ function ChickenAdjustPanel({
   formatMoney,
   demandSummary = [],
   demandLoading = false,
+  demandError = null,
   onAddBreed,
 }: {
   fullOrder: any
@@ -2249,6 +2257,7 @@ function ChickenAdjustPanel({
   formatMoney: (n: number) => string
   demandSummary?: ChickenDemandRow[]
   demandLoading?: boolean
+  demandError?: string | null
   onAddBreed?: (hatchId: string, quantityHens: number, quantityRoosters: number, ageWeeksAtPickup: number) => Promise<void>
 }) {
   const no = useIsNorwegian()
@@ -2391,6 +2400,8 @@ function ChickenAdjustPanel({
               <Loader2 className="w-3 h-3 animate-spin" />
               {no ? 'Laster...' : 'Loading...'}
             </div>
+          ) : demandError ? (
+            <p className="text-xs text-red-500">Feil: {demandError}</p>
           ) : demandSummary.length === 0 ? (
             <p className="text-xs text-neutral-400">{no ? 'Ingen aktive kull.' : 'No active hatches.'}</p>
           ) : (
