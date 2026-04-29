@@ -2488,26 +2488,24 @@ function ChickenAdjustPanel({
             <p className="text-xs text-neutral-400">{no ? 'Ingen aktive kull.' : 'No active hatches.'}</p>
           ) : (
             <div className="space-y-1">
-              <div className="grid grid-cols-[1fr_auto_auto_auto_auto_auto] gap-x-3 text-xs text-neutral-400 border-b border-neutral-200 pb-1 px-1">
+              <div className="grid grid-cols-[1fr_auto_auto_auto] gap-x-3 text-xs text-neutral-400 border-b border-neutral-200 pb-1 px-1">
                 <span>{no ? 'Rase' : 'Breed'}</span>
-                <span className="text-right">{no ? 'Ledig ♀' : 'Avail ♀'}</span>
-                <span className="text-right">{no ? 'Ledig ♂' : 'Avail ♂'}</span>
-                <span className="text-right">{no ? 'Bestilt ♀' : 'Ordered ♀'}</span>
-                <span className="text-right">{no ? 'Bestilt ♂' : 'Ordered ♂'}</span>
+                <span className="text-right">{no ? 'Ledig' : 'Avail'}</span>
+                <span className="text-right">{no ? 'Bestilt' : 'Ordered'}</span>
                 <span />
               </div>
               {breedGroups.map((group) => {
                 const isAdding = addingBreedId === group.breed_id
+                const totalAvail = group.available_hens + group.available_roosters
+                const totalDemanded = group.demanded_hens + group.demanded_roosters
                 return (
                   <div key={group.breed_id} className={`rounded-md ${group.isThisOrder ? 'bg-neutral-100' : ''}`}>
-                    <div className="grid grid-cols-[1fr_auto_auto_auto_auto_auto] gap-x-3 items-center text-xs py-1.5 px-1">
+                    <div className="grid grid-cols-[1fr_auto_auto_auto] gap-x-3 items-center text-xs py-1.5 px-1">
                       <span className={group.isThisOrder ? 'font-semibold text-neutral-900' : 'text-neutral-700'}>
                         {group.breed_name}{group.isThisOrder ? ' ★' : ''}
                       </span>
-                      <span className={`text-right tabular-nums ${group.available_hens === 0 ? 'text-neutral-300' : 'text-neutral-700'}`}>{group.available_hens}</span>
-                      <span className={`text-right tabular-nums ${group.available_roosters === 0 ? 'text-neutral-300' : 'text-neutral-700'}`}>{group.available_roosters}</span>
-                      <span className="text-right tabular-nums text-neutral-500">{group.demanded_hens > 0 ? group.demanded_hens : <span className="text-neutral-300">—</span>}</span>
-                      <span className="text-right tabular-nums text-neutral-500">{group.demanded_roosters > 0 ? group.demanded_roosters : <span className="text-neutral-300">—</span>}</span>
+                      <span className={`text-right tabular-nums ${totalAvail === 0 ? 'text-neutral-300' : 'text-neutral-700'}`}>{totalAvail}</span>
+                      <span className="text-right tabular-nums text-neutral-500">{totalDemanded > 0 ? totalDemanded : <span className="text-neutral-300">—</span>}</span>
                       <span className="text-right">
                         {onAddBreed && !isAdding && (
                           <button onClick={() => openAddForm(group)} className="text-xs text-blue-600 hover:text-blue-800 font-medium">
@@ -2533,7 +2531,7 @@ function ChickenAdjustPanel({
                                   : h.hatch_id
                                 return (
                                   <option key={h.hatch_id} value={h.hatch_id}>
-                                    {label} — {no ? `${h.available_hens} ledig ♀, ${h.available_roosters} ledig ♂` : `${h.available_hens} avail ♀, ${h.available_roosters} avail ♂`}
+                                    {label} — {h.available_hens + h.available_roosters} {no ? 'ledig' : 'avail'}
                                   </option>
                                 )
                               })}
