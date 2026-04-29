@@ -2593,8 +2593,7 @@ function ChickenAdjustPanel({
                     )
                   })}
                 </div>
-              ))
-              })}
+              ))}
             </div>
           )}
         </div>
