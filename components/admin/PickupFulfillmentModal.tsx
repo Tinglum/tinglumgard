@@ -2504,10 +2504,11 @@ function ChickenAdjustPanel({
           ) : (
             <div className="space-y-3">
               {/* column header */}
-              <div className="grid grid-cols-[1fr_auto_auto_auto] gap-x-3 text-xs text-neutral-400 border-b border-neutral-200 pb-1 px-1">
+              <div className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-x-3 text-xs text-neutral-400 border-b border-neutral-200 pb-1 px-1">
                 <span>{no ? 'Kull / alder' : 'Hatch / age'}</span>
-                <span className="text-right">{no ? 'Ledig' : 'Avail'}</span>
+                <span className="text-right">{no ? 'Har' : 'Total'}</span>
                 <span className="text-right">{no ? 'Bestilt' : 'Ordered'}</span>
+                <span className="text-right">{no ? 'Ledig' : 'Free'}</span>
                 <span />
               </div>
               {breedGroups.map((group) => (
@@ -2525,7 +2526,7 @@ function ChickenAdjustPanel({
                     const sexed = isBirdSexed(hatch.age_weeks, group.breed_id)
                     return (
                       <div key={hatch.hatch_id} className={`rounded-md ${hatch.isThisOrder ? 'bg-blue-50 border border-blue-100' : 'bg-white border border-neutral-100'}`}>
-                        <div className="grid grid-cols-[1fr_auto_auto_auto] gap-x-3 items-center text-xs py-1.5 px-2">
+                        <div className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-x-3 items-center text-xs py-1.5 px-2">
                           <span className="text-neutral-600">
                             <span className="font-medium">{hatchLabel}</span>
                             <span className="ml-1.5 text-neutral-400">
@@ -2533,11 +2534,14 @@ function ChickenAdjustPanel({
                               {!sexed && <span className="ml-1 text-neutral-300">· {no ? 'ukjent kjønn' : 'unsexed'}</span>}
                             </span>
                           </span>
-                          <span className={`text-right tabular-nums ${hatch.available === 0 ? 'text-neutral-300' : 'text-neutral-700'}`}>
-                            {hatch.available}
+                          <span className="text-right tabular-nums text-neutral-700">
+                            {hatch.available + hatch.demanded}
                           </span>
                           <span className="text-right tabular-nums text-neutral-500">
                             {hatch.demanded > 0 ? hatch.demanded : <span className="text-neutral-300">—</span>}
+                          </span>
+                          <span className={`text-right tabular-nums font-medium ${hatch.available === 0 ? 'text-neutral-300' : hatch.available < hatch.demanded ? 'text-red-600' : 'text-green-700'}`}>
+                            {hatch.available}
                           </span>
                           <span className="text-right">
                             {onAddBreed && !isAdding && (
