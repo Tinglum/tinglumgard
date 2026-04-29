@@ -519,7 +519,7 @@ export function PickupFulfillmentModal({ order, onClose, onRefresh, onNavigateTo
   const [reminderSending, setReminderSending] = useState(false)
 
   // ── chicken demand summary state ───────────────────────────────────────────
-  type DemandRow = { hatch_id: string; breed_id: string; breed_name: string; hatch_date: string; available_hens: number; available_roosters: number; demanded_hens: number; demanded_roosters: number; order_count: number; start_price_nok: number; weekly_increase_nok: number; adult_price_nok: number; rooster_price_nok: number | null }
+  type DemandRow = { hatch_id: string; breed_id: string; breed_name: string; hatch_date: string; available_hens: number; available_roosters: number; demanded_hens: number; demanded_roosters: number; order_count: number }
   const [demandSummary, setDemandSummary] = useState<DemandRow[]>([])
   const [demandLoading, setDemandLoading] = useState(false)
 
@@ -2206,7 +2206,7 @@ function EggAdjustPanel({
   )
 }
 
-type ChickenDemandRow = { hatch_id: string; breed_id: string; breed_name: string; hatch_date: string; available_hens: number; available_roosters: number; demanded_hens: number; demanded_roosters: number; order_count: number; start_price_nok: number; weekly_increase_nok: number; adult_price_nok: number; rooster_price_nok: number | null }
+type ChickenDemandRow = { hatch_id: string; breed_id: string; breed_name: string; hatch_date: string; available_hens: number; available_roosters: number; demanded_hens: number; demanded_roosters: number; order_count: number }
 
 function ChickenAdjustPanel({
   fullOrder,

@@ -13,11 +13,6 @@ export type ChickenDemandRow = {
   demanded_hens: number
   demanded_roosters: number
   order_count: number
-  // pricing — so caller can show estimated cost when adding
-  start_price_nok: number
-  weekly_increase_nok: number
-  adult_price_nok: number
-  rooster_price_nok: number | null
 }
 
 export async function GET() {
@@ -30,10 +25,7 @@ export async function GET() {
     // 1. All active hatches — always shown even if no orders yet
     const { data: hatches, error: hatchesError } = await supabaseAdmin
       .from('chicken_hatches')
-      .select(`
-        id, breed_id, hatch_date, available_hens, available_roosters,
-        chicken_breeds(name, start_price_nok, weekly_increase_nok, adult_price_nok, rooster_price_nok)
-      `)
+      .select('id, breed_id, hatch_date, available_hens, available_roosters, chicken_breeds(name)')
       .order('hatch_date', { ascending: true })
 
     if (hatchesError) {
@@ -106,10 +98,6 @@ export async function GET() {
         demanded_hens: demand?.hens ?? 0,
         demanded_roosters: demand?.roosters ?? 0,
         order_count: demand?.orderIds.size ?? 0,
-        start_price_nok: Number(breed?.start_price_nok || 0),
-        weekly_increase_nok: Number(breed?.weekly_increase_nok || 0),
-        adult_price_nok: Number(breed?.adult_price_nok || 0),
-        rooster_price_nok: breed?.rooster_price_nok != null ? Number(breed.rooster_price_nok) : null,
       }
     })
 
