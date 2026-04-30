@@ -824,6 +824,8 @@ async function markPaymentRefunded(
   return NextResponse.json({ success: true })
 }
 
+const LIVE_STATUSES = new Set(['pending', 'deposit_paid', 'fully_paid', 'preparing', 'shipped', 'delivered'])
+
 async function setEggOrderStatus(orderId: string, nextStatus: string, reason: string | undefined) {
   if (!nextStatus || typeof nextStatus !== 'string') {
     return NextResponse.json({ error: 'Missing status value' }, { status: 400 })
@@ -831,7 +833,7 @@ async function setEggOrderStatus(orderId: string, nextStatus: string, reason: st
 
   const { data: order, error } = await supabaseAdmin
     .from('egg_orders')
-    .select('id, admin_notes, marked_shipped_at')
+    .select('id, status, admin_notes, marked_shipped_at, forfeited_at, inventory_id, quantity, egg_order_additions(inventory_id, quantity)')
     .eq('id', orderId)
     .single()
 
@@ -839,12 +841,23 @@ async function setEggOrderStatus(orderId: string, nextStatus: string, reason: st
     return NextResponse.json({ error: 'Order not found' }, { status: 404 })
   }
 
+  const isRestoreFromForfeit =
+    (order.status === 'forfeited' || order.forfeited_at) &&
+    LIVE_STATUSES.has(nextStatus)
+
   const updatePayload: Record<string, unknown> = { status: nextStatus }
+
   if (nextStatus === 'delivered') {
     updatePayload.marked_delivered_at = new Date().toISOString()
   }
   if (nextStatus === 'shipped' && !order.marked_shipped_at) {
     updatePayload.marked_shipped_at = new Date().toISOString()
+  }
+
+  // Restoring a forfeited order: clear forfeit markers
+  if (isRestoreFromForfeit) {
+    updatePayload.forfeited_at = null
+    updatePayload.forfeit_reason = null
   }
 
   const { error: updateError } = await supabaseAdmin
@@ -856,10 +869,35 @@ async function setEggOrderStatus(orderId: string, nextStatus: string, reason: st
     return NextResponse.json({ error: 'Failed to set status' }, { status: 500 })
   }
 
+  // Re-allocate inventory when restoring a forfeited/cancelled order to a live status
+  if (isRestoreFromForfeit && (nextStatus === 'deposit_paid' || nextStatus === 'fully_paid' || nextStatus === 'pending')) {
+    try {
+      await allocateInventory(order.inventory_id, order.quantity)
+      for (const addition of (order.egg_order_additions as any[]) || []) {
+        await allocateInventory(addition.inventory_id, addition.quantity)
+      }
+    } catch (allocErr: any) {
+      // Log but don't fail — admin is making a deliberate restore.
+      // Inventory may be overallocated; surface in admin note.
+      logError('admin-egg-restore-inventory', allocErr, { orderId })
+      await appendAdminNote(
+        orderId,
+        order.admin_notes,
+        `Admin: WARNING — inventory re-allocation failed on restore: ${allocErr?.message || 'unknown error'}`
+      )
+      notifyInventoryOverallocation({
+        orderId,
+        orderNumber: orderId,
+        errorMessage: allocErr?.message || 'unknown',
+        source: 'admin-restore-order',
+      }).catch(() => {})
+    }
+  }
+
   await appendAdminNote(
     orderId,
     order.admin_notes,
-    `Admin: status set to ${nextStatus}${reason ? ` - ${reason}` : ''}`
+    `Admin: status set to ${nextStatus}${isRestoreFromForfeit ? ' (restored from forfeit — inventory re-allocated)' : ''}${reason ? ` - ${reason}` : ''}`
   )
 
   return NextResponse.json({ success: true })
