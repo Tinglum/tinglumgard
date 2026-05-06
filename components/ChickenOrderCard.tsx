@@ -60,25 +60,31 @@ type AddOption = {
   hatchId: string
   breedId: string
   breedName: string
+  breedSlug: string
   ageWeeks: number
+  sexed: boolean
+  isCreamLegbar: boolean
   pricePerHen: number
+  pricePerRooster: number
   availableHens: number
+  availableRoosters: number
   quantityHens: number
+  quantityRoosters: number
 }
 
-type AvailabilityWeek = {
-  weekNumber: number
-  year: number
-  breeds: Array<{
-    breedId: string
-    breedName: string
-    hatches: Array<{
-      hatchId: string
-      ageWeeks: number
-      pricePerHen: number
-      availableHens: number
-    }>
-  }>
+type WalkinHatch = {
+  hatchId: string
+  breedId: string
+  breedName: string
+  breedSlug: string
+  hatchDate: string
+  ageWeeks: number
+  sexed: boolean
+  isCreamLegbar: boolean
+  pricePerHen: number
+  pricePerRooster: number
+  availableHens: number
+  availableRoosters: number
 }
 
 const toDateOnly = (value: string | Date) => {
@@ -430,44 +436,31 @@ export function ChickenOrderCard({ order, onPayRemainder, onPayDeposit, onRefres
     async function loadAddOptions() {
       setLoadingAddOptions(true)
       try {
-        const response = await fetch('/api/chickens/availability', { cache: 'no-store' })
+        const response = await fetch('/api/chickens/availability/walkin', { cache: 'no-store' })
         const body = await response.json().catch(() => null)
         if (!response.ok) {
           throw new Error(body?.error || myOrdersCopy.additionsLoadFailed || 'Failed to load available chickens')
         }
 
-        const rows = Array.isArray(body) ? (body as AvailabilityWeek[]) : []
-        const targetWeek = rows.find(
-          (item) => Number(item.weekNumber) === Number(order.pickup_week) && Number(item.year) === Number(order.pickup_year)
-        )
-
-        if (!targetWeek) {
-          if (active) setAddOptions([])
-          return
-        }
-
-        const options: AddOption[] = []
-        for (const breed of targetWeek.breeds || []) {
-          for (const hatch of breed.hatches || []) {
-            if (!hatch.hatchId || Number(hatch.availableHens || 0) <= 0) continue
-            options.push({
-              key: `${breed.breedId}:${hatch.hatchId}`,
-              hatchId: hatch.hatchId,
-              breedId: breed.breedId,
-              breedName: breed.breedName,
-              ageWeeks: Number(hatch.ageWeeks || 0),
-              pricePerHen: Number(hatch.pricePerHen || 0),
-              availableHens: Number(hatch.availableHens || 0),
-              quantityHens: 0,
-            })
-          }
-        }
-
-        options.sort((a, b) => {
-          const byBreed = a.breedName.localeCompare(b.breedName, locale)
-          if (byBreed !== 0) return byBreed
-          return a.ageWeeks - b.ageWeeks
-        })
+        const rows = Array.isArray(body) ? (body as WalkinHatch[]) : []
+        const options: AddOption[] = rows
+          .filter((h) => h.availableHens > 0 || h.availableRoosters > 0)
+          .map((h) => ({
+            key: `${h.breedId}:${h.hatchId}`,
+            hatchId: h.hatchId,
+            breedId: h.breedId,
+            breedName: h.breedName,
+            breedSlug: h.breedSlug,
+            ageWeeks: h.ageWeeks,
+            sexed: h.sexed,
+            isCreamLegbar: h.isCreamLegbar,
+            pricePerHen: h.pricePerHen,
+            pricePerRooster: h.pricePerRooster,
+            availableHens: h.availableHens,
+            availableRoosters: h.availableRoosters,
+            quantityHens: 0,
+            quantityRoosters: 0,
+          }))
 
         if (active) setAddOptions(options)
       } catch (error) {
@@ -496,16 +489,17 @@ export function ChickenOrderCard({ order, onPayRemainder, onPayDeposit, onRefres
     locale,
     myOrdersCopy.additionsLoadFailed,
     myOrdersCopy.additionsLoadFailedTitle,
-    order.pickup_week,
-    order.pickup_year,
     toast,
   ])
 
-  const selectedAdditions = addOptions.filter((row) => row.quantityHens > 0)
-  const selectedAdditionsCount = selectedAdditions.reduce((sum, row) => sum + row.quantityHens, 0)
-  const selectedAdditionsTotal = selectedAdditions.reduce((sum, row) => sum + row.quantityHens * row.pricePerHen, 0)
+  const selectedAdditions = addOptions.filter((row) => row.quantityHens > 0 || row.quantityRoosters > 0)
+  const selectedAdditionsCount = selectedAdditions.reduce((sum, row) => sum + row.quantityHens + row.quantityRoosters, 0)
+  const selectedAdditionsTotal = selectedAdditions.reduce(
+    (sum, row) => sum + row.quantityHens * row.pricePerHen + row.quantityRoosters * row.pricePerRooster,
+    0
+  )
 
-  const updateAddQuantity = (key: string, quantity: number) => {
+  const updateHenQty = (key: string, quantity: number) => {
     setAddOptions((current) =>
       current.map((row) => {
         if (row.key !== key) return row
@@ -515,8 +509,18 @@ export function ChickenOrderCard({ order, onPayRemainder, onPayDeposit, onRefres
     )
   }
 
+  const updateRoosterQty = (key: string, quantity: number) => {
+    setAddOptions((current) =>
+      current.map((row) => {
+        if (row.key !== key) return row
+        const clamped = Math.max(0, Math.min(row.availableRoosters, Math.round(quantity)))
+        return { ...row, quantityRoosters: clamped }
+      })
+    )
+  }
+
   const clearAdditionsDraft = () => {
-    setAddOptions((current) => current.map((row) => ({ ...row, quantityHens: 0 })))
+    setAddOptions((current) => current.map((row) => ({ ...row, quantityHens: 0, quantityRoosters: 0 })))
   }
 
   const handleSaveAdditions = async () => {
@@ -539,7 +543,7 @@ export function ChickenOrderCard({ order, onPayRemainder, onPayDeposit, onRefres
             hatchId: row.hatchId,
             breedId: row.breedId,
             quantityHens: row.quantityHens,
-            quantityRoosters: 0,
+            quantityRoosters: row.quantityRoosters,
           }),
         })
 
@@ -809,11 +813,11 @@ export function ChickenOrderCard({ order, onPayRemainder, onPayDeposit, onRefres
       <Dialog open={addOpen} onOpenChange={setAddOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>{myOrdersCopy.addMoreTitle || myOrdersCopy.addMore}</DialogTitle>
+            <DialogTitle>{lang === 'no' ? 'Legg til kyllinger' : 'Add chickens'}</DialogTitle>
             <DialogDescription>
-              {(myOrdersCopy.addMoreDescription || 'Pickup week {week}, {year}')
-                .replace('{week}', String(order.pickup_week))
-                .replace('{year}', String(order.pickup_year))}
+              {lang === 'no'
+                ? 'Alle tilgjengelige kyllinger på gården akkurat nå.'
+                : 'All chickens currently available on the farm.'}
             </DialogDescription>
           </DialogHeader>
 
@@ -821,53 +825,83 @@ export function ChickenOrderCard({ order, onPayRemainder, onPayDeposit, onRefres
             <div className="py-6 text-sm text-neutral-600">{myOrdersCopy.loading || common.loading}</div>
           ) : addOptions.length === 0 ? (
             <div className="py-6 text-sm text-neutral-600">
-              {myOrdersCopy.noAdditionsAvailable || 'No additional chickens available for this pickup week.'}
+              {lang === 'no' ? 'Ingen kyllinger tilgjengelig akkurat nå.' : 'No chickens available right now.'}
             </div>
           ) : (
-            <div className="space-y-3 max-h-[50vh] overflow-y-auto pr-1">
-              {addOptions.map((row) => (
-                <div key={row.key} className="rounded-lg border border-neutral-200 p-3 space-y-2">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-sm font-medium text-neutral-900">{row.breedName}</p>
-                      <p className="text-xs text-neutral-600">
-                        {(myOrdersCopy.additionRowMeta || '{age} weeks - {price} each - {available} available')
-                          .replace('{age}', String(row.ageWeeks))
-                          .replace('{price}', `${common.currency} ${row.pricePerHen.toLocaleString(locale)}`)
-                          .replace('{available}', String(row.availableHens))}
-                      </p>
+            <div className="space-y-2 max-h-[55vh] overflow-y-auto pr-1">
+              {addOptions.map((row) => {
+                const label = row.sexed && !row.isCreamLegbar
+                  ? (lang === 'no' ? 'kjønnsbestemt' : 'sexed')
+                  : row.isCreamLegbar
+                    ? (lang === 'no' ? 'alltid høner' : 'always hens')
+                    : (lang === 'no' ? 'ukjent kjønn' : 'unsexed')
+                return (
+                  <div key={row.key} className="rounded-lg border border-neutral-200 p-3">
+                    <div className="flex items-center justify-between gap-2 mb-2">
+                      <div>
+                        <span className="text-sm font-medium text-neutral-900">{row.breedName}</span>
+                        <span className="ml-2 text-xs text-neutral-400">
+                          {row.ageWeeks} {lang === 'no' ? 'uker' : 'wks'} · {label}
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        onClick={() => updateAddQuantity(row.key, row.quantityHens - 1)}
-                        disabled={row.quantityHens <= 0}
-                      >
-                        -
-                      </Button>
-                      <Input
-                        type="number"
-                        min={0}
-                        max={row.availableHens}
-                        value={row.quantityHens === 0 ? '' : row.quantityHens}
-                        onChange={(event) => updateAddQuantity(row.key, Number(event.target.value || 0))}
-                        className="w-20 text-center"
-                      />
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        onClick={() => updateAddQuantity(row.key, row.quantityHens + 1)}
-                        disabled={row.quantityHens >= row.availableHens}
-                      >
-                        +
-                      </Button>
+                    <div className="space-y-1.5">
+                      {/* Hens / unsexed chicks */}
+                      {row.availableHens > 0 && (
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-xs text-neutral-600 w-28">
+                            {row.sexed
+                              ? (lang === 'no' ? 'Høner' : 'Hens')
+                              : (lang === 'no' ? 'Kyllinger' : 'Chicks')}
+                            <span className="text-neutral-400 ml-1">
+                              ({row.availableHens} · kr {row.pricePerHen.toLocaleString(locale)})
+                            </span>
+                          </span>
+                          <div className="flex items-center gap-1.5">
+                            <Button type="button" size="sm" variant="outline" className="h-7 w-7 p-0"
+                              onClick={() => updateHenQty(row.key, row.quantityHens - 1)}
+                              disabled={row.quantityHens <= 0}>−</Button>
+                            <Input
+                              type="number" min={0} max={row.availableHens}
+                              value={row.quantityHens === 0 ? '' : row.quantityHens}
+                              onChange={(e) => updateHenQty(row.key, Number(e.target.value || 0))}
+                              className="w-14 text-center h-7 text-sm"
+                            />
+                            <Button type="button" size="sm" variant="outline" className="h-7 w-7 p-0"
+                              onClick={() => updateHenQty(row.key, row.quantityHens + 1)}
+                              disabled={row.quantityHens >= row.availableHens}>+</Button>
+                          </div>
+                        </div>
+                      )}
+                      {/* Roosters — only for sexed non-Cream-Legbar */}
+                      {row.sexed && !row.isCreamLegbar && row.availableRoosters > 0 && (
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-xs text-neutral-600 w-28">
+                            {lang === 'no' ? 'Haner' : 'Roosters'}
+                            <span className="text-neutral-400 ml-1">
+                              ({row.availableRoosters} · kr {row.pricePerRooster.toLocaleString(locale)})
+                            </span>
+                          </span>
+                          <div className="flex items-center gap-1.5">
+                            <Button type="button" size="sm" variant="outline" className="h-7 w-7 p-0"
+                              onClick={() => updateRoosterQty(row.key, row.quantityRoosters - 1)}
+                              disabled={row.quantityRoosters <= 0}>−</Button>
+                            <Input
+                              type="number" min={0} max={row.availableRoosters}
+                              value={row.quantityRoosters === 0 ? '' : row.quantityRoosters}
+                              onChange={(e) => updateRoosterQty(row.key, Number(e.target.value || 0))}
+                              className="w-14 text-center h-7 text-sm"
+                            />
+                            <Button type="button" size="sm" variant="outline" className="h-7 w-7 p-0"
+                              onClick={() => updateRoosterQty(row.key, row.quantityRoosters + 1)}
+                              disabled={row.quantityRoosters >= row.availableRoosters}>+</Button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           )}
 
@@ -887,7 +921,7 @@ export function ChickenOrderCard({ order, onPayRemainder, onPayDeposit, onRefres
               <Button
                 type="button"
                 onClick={handleSaveAdditions}
-                disabled={savingAdditions || loadingAddOptions || addOptions.length === 0}
+                disabled={savingAdditions || loadingAddOptions || selectedAdditions.length === 0}
               >
                 {savingAdditions ? myOrdersCopy.additionsSaving || common.processing : myOrdersCopy.additionsSave || common.save}
               </Button>
