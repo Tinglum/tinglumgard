@@ -1154,7 +1154,17 @@ const typeBadge: Record<string, { bg: string; text: string; labelNo: string; lab
 function OrderRow({ order, onNavigateToOrder, onOrderClick, lang }: { order: any; onNavigateToOrder?: (id: string) => void; onOrderClick?: (order: any) => void; lang: string }) {
   const badge = typeBadge[order.type] || typeBadge.egg;
   const firstName = (order.customer_name || '').split(/\s+/)[0] || '';
-  const pickupTime = order.pickup_time ? String(order.pickup_time).trim() : null;
+  const locale = lang === 'no' ? 'nb-NO' : 'en-GB';
+
+  const pickupLabel = (() => {
+    const date = order.pickup_date ? String(order.pickup_date).trim() : null;
+    const time = order.pickup_time ? String(order.pickup_time).trim() : null;
+    if (!date) return time ? `kl. ${time}` : null;
+    const formatted = new Date(`${date}T12:00:00`).toLocaleDateString(locale, {
+      weekday: 'short', day: 'numeric', month: 'short',
+    });
+    return time ? `${formatted} kl. ${time}` : formatted;
+  })();
 
   return (
     <button
@@ -1165,8 +1175,8 @@ function OrderRow({ order, onNavigateToOrder, onOrderClick, lang }: { order: any
         {order.order_number}
       </span>
       <span className="text-sm text-neutral-600 truncate flex-1">{firstName}</span>
-      {pickupTime && (
-        <span className="text-xs text-neutral-400 whitespace-nowrap">kl. {pickupTime}</span>
+      {pickupLabel && (
+        <span className="text-xs text-neutral-400 whitespace-nowrap">{pickupLabel}</span>
       )}
       <span className={`px-2 py-0.5 text-xs rounded-full ${badge.bg} ${badge.text}`}>
         {lang === 'no' ? badge.labelNo : badge.labelEn}
