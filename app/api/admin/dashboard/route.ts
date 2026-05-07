@@ -999,7 +999,7 @@ async function fetchUpcomingDates() {
       customer_name: o.customer_name || '',
       delivery_method: o.delivery_method || o.delivery_type || '',
       status: o.status,
-      pickup_date: o.pickup_date || null,
+      pickup_date: o.pickup_date || o.pickup_monday || o.delivery_monday || null,
       pickup_time: o.pickup_time || null,
       type,
     });
