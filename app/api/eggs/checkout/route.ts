@@ -93,7 +93,7 @@ export async function POST(request: NextRequest) {
       if (onlyItem.quantity < requiredBaseQty(slug)) {
         return NextResponse.json({ error: 'Below minimum order quantity' }, { status: 400 })
       }
-    } else if (!hasBaseQuantity && totalEggs < 12) {
+    } else if (!hasBaseQuantity && totalEggs < 10) {
       return NextResponse.json({ error: 'Below minimum order quantity' }, { status: 400 })
     }
 
