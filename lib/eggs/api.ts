@@ -33,6 +33,9 @@ type EggInventoryRow = {
   eggs_remaining?: number | null
   status: 'open' | 'closed' | 'locked' | 'sold_out'
   egg_breeds?: EggBreedRow | null
+  is_estimate?: boolean
+  divergence_alert?: boolean
+  divergence_pct?: number | null
 }
 
 export function mapBreed(row: EggBreedRow): Breed {
@@ -93,6 +96,9 @@ export function mapInventory(row: EggInventoryRow, breed?: Breed): WeekInventory
     isLocked: row.status === 'locked',
     e6PickupAvailable: true,
     status: resolvedStatus,
+    isEstimate: row.is_estimate ?? false,
+    divergenceAlert: row.divergence_alert ?? false,
+    divergencePct: row.divergence_pct ?? null,
   }
 }
 

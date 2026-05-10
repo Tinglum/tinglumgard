@@ -46,6 +46,13 @@ export interface WeekInventory {
   e6PickupAvailable: boolean
 
   status: 'available' | 'low_stock' | 'sold_out' | 'closed' | 'locked'
+
+  /** True for delivery weeks >4 weeks out — numbers are estimates, not actuals */
+  isEstimate?: boolean
+  /** True when within 3 weeks of delivery and forecast has shifted >20% from earlier prediction */
+  divergenceAlert?: boolean
+  /** Signed percentage change vs earlier forecast (positive = more than predicted) */
+  divergencePct?: number | null
 }
 
 export type DeliveryMethod = 'posten' | 'farm_pickup' | 'e6_pickup'

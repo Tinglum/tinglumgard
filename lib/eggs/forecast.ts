@@ -1,630 +1,671 @@
+/**
+ * Egg forecast v2 — single code path, no buffers in the math.
+ *
+ * Rules:
+ *  Week +1 (imminent, eggs being collected NOW)
+ *    Sunday:   actual sum of week's collections — no buffer, no projection
+ *    Weekday:  collected so far + (remaining days × recent daily avg)
+ *
+ *  Week +2:   last 1 complete collection week × BUFFER_FACTOR
+ *  Week +3:   avg of last 2 complete collection weeks × BUFFER_FACTOR
+ *  Week +4:   avg of last 3 complete collection weeks × BUFFER_FACTOR
+ *  Week +5+:  avg of last 4 complete collection weeks × BUFFER_FACTOR
+ *             → is_estimate = true (flagged for UI warning on order page)
+ *
+ *  Buffer factor: 0.80 (20% held back). Removed for Sunday +1 run.
+ *
+ *  Flock event markers: if one exists for a breed, only data on/after that
+ *  date is used for averages — ignores disruption periods.
+ *
+ *  Divergence alerts: when a week is now 1–3 weeks out and the current
+ *  estimate differs >20% from the last stored forecast for that week.
+ *
+ *  Structural change detection: 3 consecutive days ≥40% above/below
+ *  recent daily avg → egg_ops_alert.
+ *
+ *  Missing day detection: a breed with entries the day before and after
+ *  a day but not on that day → egg_ops_alert.
+ *
+ *  Floor rule: auto-forecast never reduces eggs_available below
+ *  eggs_allocated once orders exist. Only manual override can do that.
+ *
+ *  Accuracy log: on Sunday +1 finalisation, record actual vs prior forecasts.
+ */
+
 import { supabaseAdmin } from '@/lib/supabase/server'
-import { getEggOpsConfig, getLowStockThresholdForBreed } from '@/lib/eggs/ops-config'
-import { syncForecastBatchToInventory, type SyncForecastInput } from '@/lib/eggs/inventory-sync'
 import { logError } from '@/lib/logger'
 
-type EggBreed = {
-  id: string
-  slug: string | null
-  name: string
-}
+// ─── Constants ───────────────────────────────────────────────────────────────
 
-type ForecastRow = {
-  id: string
-  breed_id: string
-  year: number
-  week_number: number
-  delivery_monday: string
-  avg_14d_sellable: number
-  forecast_eggs: number
-  low_stock: boolean
-  deficit: boolean
-  computed_at: string
-  created_at: string
-  updated_at: string
-}
+const BUFFER_FACTOR = 0.80          // 20% buffer for week +2 and beyond
+const DIVERGENCE_THRESHOLD = 0.20   // 20% difference triggers divergence alert
+const STREAK_THRESHOLD = 0.40       // 40% above/below avg triggers structural alert
+const STREAK_DAYS = 3               // consecutive days needed for structural alert
+const HORIZON_WEEKS = 12            // how many future delivery weeks to forecast
 
-type ForecastPlanRow = {
-  year: number
-  week: number
-  deliveryMonday: string
-  avgForRow: number
-  forecastEggs: number
-  lowStock: boolean
-}
-
-function buildInventoryKey(breedId: string, year: number, weekNumber: number) {
-  return `${breedId}:${year}:${weekNumber}`
-}
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function toDateString(date: Date): string {
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
+  return date.toISOString().split('T')[0]
 }
 
 function addDays(date: Date, days: number): Date {
-  const next = new Date(date)
-  next.setDate(next.getDate() + days)
-  return next
+  const d = new Date(date)
+  d.setDate(d.getDate() + days)
+  return d
 }
 
 function startOfIsoWeek(date: Date): Date {
-  const next = new Date(date)
-  const day = next.getDay()
+  const d = new Date(date)
+  const day = d.getDay()
   const diff = day === 0 ? -6 : 1 - day
-  next.setDate(next.getDate() + diff)
-  next.setHours(0, 0, 0, 0)
-  return next
+  d.setDate(d.getDate() + diff)
+  d.setHours(0, 0, 0, 0)
+  return d
 }
 
-function isoWeekYearAndNumber(date: Date): { year: number; week: number } {
+function isoWeekOf(date: Date): { year: number; week: number } {
   const target = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()))
   const dayNum = target.getUTCDay() || 7
   target.setUTCDate(target.getUTCDate() + 4 - dayNum)
   const yearStart = new Date(Date.UTC(target.getUTCFullYear(), 0, 1))
-  const week = Math.ceil((((target.getTime() - yearStart.getTime()) / 86400000) + 1) / 7)
+  const week = Math.ceil(((target.getTime() - yearStart.getTime()) / 86400000 + 1) / 7)
   return { year: target.getUTCFullYear(), week }
 }
 
-function numberOrZero(value: unknown): number {
-  if (typeof value === 'number' && Number.isFinite(value)) return value
-  if (typeof value === 'string' && value.length > 0) {
-    const parsed = Number(value)
-    if (Number.isFinite(parsed)) return parsed
-  }
-  return 0
+function osloDateString(date: Date): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Europe/Oslo',
+    year: 'numeric', month: '2-digit', day: '2-digit',
+  }).format(date)
 }
 
-function getOsloDateAndHour(date: Date): { date: string; hour: number } {
-  const dateInOslo = new Intl.DateTimeFormat('en-CA', {
+function isSundayOslo(date: Date): boolean {
+  const day = new Intl.DateTimeFormat('en-US', {
     timeZone: 'Europe/Oslo',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
+    weekday: 'short',
   }).format(date)
-
-  const hourText = new Intl.DateTimeFormat('en-GB', {
-    timeZone: 'Europe/Oslo',
-    hour: '2-digit',
-    hour12: false,
-  }).format(date)
-
-  return {
-    date: dateInOslo,
-    hour: Number.parseInt(hourText, 10),
-  }
+  return day === 'Sun'
 }
 
-async function ensureDataGapAlert(params: {
-  breedId: string
-  message: string
-  metadata?: Record<string, unknown>
-}) {
-  const { data: existing } = await supabaseAdmin
-    .from('egg_ops_alerts')
-    .select('id')
-    .eq('alert_type', 'data_gap')
-    .eq('breed_id', params.breedId)
-    .is('resolved_at', null)
+function safeNum(v: unknown): number {
+  const n = typeof v === 'string' ? Number(v) : (v as number)
+  return Number.isFinite(n) ? n : 0
+}
+
+// ─── Flock event marker ───────────────────────────────────────────────────────
+
+async function getFlockEventCutoff(breedId: string, asOfDate: string): Promise<string | null> {
+  const { data } = await supabaseAdmin
+    .from('egg_flock_events')
+    .select('event_date')
+    .eq('breed_id', breedId)
+    .lte('event_date', asOfDate)
+    .order('event_date', { ascending: false })
     .limit(1)
-
-  if (existing && existing.length > 0) {
-    await supabaseAdmin
-      .from('egg_ops_alerts')
-      .update({
-        severity: 'info',
-        message: params.message,
-        metadata: params.metadata || {},
-      })
-      .eq('id', existing[0].id)
-    return
-  }
-
-  await supabaseAdmin
-    .from('egg_ops_alerts')
-    .insert({
-      alert_type: 'data_gap',
-      severity: 'info',
-      breed_id: params.breedId,
-      message: params.message,
-      metadata: params.metadata || {},
-    })
+    .maybeSingle()
+  return data?.event_date ?? null
 }
 
-async function resolveDataGapAlert(breedId: string) {
-  await supabaseAdmin
-    .from('egg_ops_alerts')
-    .update({ resolved_at: new Date().toISOString() })
-    .eq('alert_type', 'data_gap')
-    .eq('breed_id', breedId)
-    .is('resolved_at', null)
-}
+// ─── Collection data ──────────────────────────────────────────────────────────
 
-async function getActiveEggBreeds(): Promise<EggBreed[]> {
-  const { data, error } = await supabaseAdmin
-    .from('egg_breeds')
-    .select('id, slug, name')
-    .eq('active', true)
-    .order('display_order', { ascending: true })
-
-  if (error) {
-    throw error
-  }
-
-  return (data || []) as EggBreed[]
-}
-
-async function computeRollingAverageSellable(
-  breedId: string,
-  asOfDate: string,
-  windowDays: number
-): Promise<number> {
-  const asOf = new Date(`${asOfDate}T00:00:00`)
-  const start = addDays(asOf, -(windowDays - 1))
-  const startDate = toDateString(start)
-
+async function getCollectionsSince(breedId: string, fromDate: string, toDate: string) {
   const { data, error } = await supabaseAdmin
     .from('egg_daily_collections')
     .select('collection_date, sellable_standard')
     .eq('breed_id', breedId)
-    .gte('collection_date', startDate)
-    .lte('collection_date', asOfDate)
+    .gte('collection_date', fromDate)
+    .lte('collection_date', toDate)
+    .order('collection_date', { ascending: true })
 
-  if (error) {
-    throw error
+  if (error) throw error
+  return (data || []) as { collection_date: string; sellable_standard: number }[]
+}
+
+// Build a map of date → sellable count from raw rows
+function buildDayMap(rows: { collection_date: string; sellable_standard: number }[]): Map<string, number> {
+  const map = new Map<string, number>()
+  for (const row of rows) {
+    map.set(row.collection_date, safeNum(row.sellable_standard))
   }
+  return map
+}
 
-  const byDate = new Map<string, number>()
-  for (const row of data || []) {
-    byDate.set(row.collection_date, numberOrZero(row.sellable_standard))
-  }
-
+// Sum a contiguous range from a day-map (missing days = 0)
+function sumRange(dayMap: Map<string, number>, from: Date, to: Date): number {
   let sum = 0
-  for (let i = 0; i < windowDays; i += 1) {
-    const day = addDays(start, i)
-    const key = toDateString(day)
-    sum += byDate.get(key) || 0
+  const cursor = new Date(from)
+  while (cursor <= to) {
+    sum += dayMap.get(toDateString(cursor)) ?? 0
+    cursor.setDate(cursor.getDate() + 1)
   }
-
-  return sum / windowDays
+  return sum
 }
 
-async function computeRecentWeeklySellableTotals(
-  breedId: string,
-  asOfDate: string,
-  weekCount: number
-): Promise<number[]> {
-  const asOf = new Date(`${asOfDate}T00:00:00`)
-  const thisWeekMonday = startOfIsoWeek(asOf)
-  const startDate = toDateString(addDays(thisWeekMonday, -weekCount * 7))
-  const endDate = toDateString(addDays(thisWeekMonday, -1))
-
-  const { data, error } = await supabaseAdmin
-    .from('egg_daily_collections')
-    .select('collection_date, sellable_standard')
-    .eq('breed_id', breedId)
-    .gte('collection_date', startDate)
-    .lte('collection_date', endDate)
-
-  if (error) {
-    throw error
-  }
-
-  const byDate = new Map<string, number>()
-  for (const row of data || []) {
-    byDate.set(row.collection_date, numberOrZero(row.sellable_standard))
-  }
-
+// Get totals for up to N complete ISO weeks ending the week before thisWeekMonday
+function getCompleteWeeklyTotals(
+  dayMap: Map<string, number>,
+  thisWeekMonday: Date,
+  maxWeeks: number,
+  cutoffDate: string | null,
+): number[] {
   const totals: number[] = []
-  for (let w = weekCount; w >= 1; w -= 1) {
+  for (let w = maxWeeks; w >= 1; w--) {
     const weekStart = addDays(thisWeekMonday, -w * 7)
-    let weekSum = 0
-    for (let day = 0; day < 7; day += 1) {
-      weekSum += byDate.get(toDateString(addDays(weekStart, day))) || 0
+    // Respect flock event cutoff: if this whole week predates the cutoff, skip it
+    if (cutoffDate) {
+      const weekEnd = addDays(weekStart, 6)
+      if (toDateString(weekEnd) < cutoffDate) continue
+      // Partial week after cutoff: only count days on/after cutoff
+      const effectiveStart = toDateString(weekStart) < cutoffDate
+        ? new Date(`${cutoffDate}T00:00:00`)
+        : weekStart
+      totals.push(sumRange(dayMap, effectiveStart, addDays(weekStart, 6)))
+      continue
     }
-    totals.push(weekSum)
+    totals.push(sumRange(dayMap, weekStart, addDays(weekStart, 6)))
   }
-
   return totals
 }
 
-function computeLinearSlope(values: number[]): number {
-  if (values.length < 2) return 0
-  return (values[values.length - 1] - values[0]) / (values.length - 1)
+// Average the last N entries of an array
+function avgLast(arr: number[], n: number): number {
+  if (arr.length === 0) return 0
+  const slice = arr.slice(-n)
+  return slice.reduce((a, b) => a + b, 0) / slice.length
 }
 
-function resolveExpectedAdditionsFromEntry(entry: unknown, weekAhead: number): number | undefined {
-  if (typeof entry === 'number' && Number.isFinite(entry)) {
-    return Math.round(entry)
-  }
+// ─── Alert helpers ────────────────────────────────────────────────────────────
 
-  if (!entry || typeof entry !== 'object' || Array.isArray(entry)) {
-    return undefined
-  }
-
-  const map = entry as Record<string, unknown>
-  const exact = map[String(weekAhead)]
-  if (typeof exact === 'number' && Number.isFinite(exact)) {
-    return Math.round(exact)
-  }
-
-  const fallback = map.default
-  if (typeof fallback === 'number' && Number.isFinite(fallback)) {
-    return Math.round(fallback)
-  }
-
-  return undefined
-}
-
-function getExpectedAdditionsForWeek(params: {
-  expectedAdditions: Record<string, unknown>
+async function upsertAlert(params: {
+  alertType: string
   breedId: string
-  breedSlug: string | null
-  weekAhead: number
-}): number {
-  const candidates = [
-    params.expectedAdditions[params.breedId],
-    params.breedSlug ? params.expectedAdditions[params.breedSlug] : undefined,
-    params.expectedAdditions.default,
-  ]
+  year?: number
+  weekNumber?: number
+  severity: 'critical' | 'warning' | 'info'
+  message: string
+  metadata?: Record<string, unknown>
+}) {
+  const filter = supabaseAdmin
+    .from('egg_ops_alerts')
+    .select('id')
+    .eq('alert_type', params.alertType)
+    .eq('breed_id', params.breedId)
+    .is('resolved_at', null)
 
-  for (const candidate of candidates) {
-    const value = resolveExpectedAdditionsFromEntry(candidate, params.weekAhead)
-    if (value !== undefined) return Math.max(0, value)
+  const { data: existing } = await filter.limit(1).maybeSingle()
+
+  if (existing) {
+    await supabaseAdmin
+      .from('egg_ops_alerts')
+      .update({ severity: params.severity, message: params.message, metadata: params.metadata ?? {} })
+      .eq('id', existing.id)
+  } else {
+    await supabaseAdmin.from('egg_ops_alerts').insert({
+      alert_type: params.alertType,
+      severity: params.severity,
+      breed_id: params.breedId,
+      year: params.year ?? null,
+      week_number: params.weekNumber ?? null,
+      message: params.message,
+      metadata: params.metadata ?? {},
+    })
+  }
+}
+
+async function resolveAlert(alertType: string, breedId: string, weekNumber?: number) {
+  const q = supabaseAdmin
+    .from('egg_ops_alerts')
+    .update({ resolved_at: new Date().toISOString() })
+    .eq('alert_type', alertType)
+    .eq('breed_id', breedId)
+    .is('resolved_at', null)
+  if (weekNumber != null) q.eq('week_number', weekNumber)
+  await q
+}
+
+// ─── Structural change detection ──────────────────────────────────────────────
+
+async function checkStructuralChange(
+  breedId: string,
+  breedName: string,
+  dayMap: Map<string, number>,
+  asOfDate: string,
+  recentDailyAvg: number,
+) {
+  if (recentDailyAvg === 0) return
+
+  // Look at last STREAK_DAYS days ending today
+  const streakDays: number[] = []
+  for (let i = STREAK_DAYS - 1; i >= 0; i--) {
+    const d = toDateString(addDays(new Date(`${asOfDate}T00:00:00`), -i))
+    streakDays.push(dayMap.get(d) ?? 0)
   }
 
-  return 0
+  if (streakDays.some(v => v === 0)) return // gap in data, skip
+
+  const streakAvg = streakDays.reduce((a, b) => a + b, 0) / streakDays.length
+  const ratio = (streakAvg - recentDailyAvg) / recentDailyAvg
+
+  if (Math.abs(ratio) >= STREAK_THRESHOLD) {
+    const direction = ratio > 0 ? 'above' : 'below'
+    const pct = Math.round(Math.abs(ratio) * 100)
+    await upsertAlert({
+      alertType: 'structural_change',
+      breedId,
+      severity: 'warning',
+      message: `${breedName}: ${STREAK_DAYS} consecutive days ${pct}% ${direction} recent average (avg ${recentDailyAvg.toFixed(1)}/day, recent ${streakAvg.toFixed(1)}/day). Possible flock change.`,
+      metadata: { recent_daily_avg: recentDailyAvg, streak_avg: streakAvg, ratio, as_of: asOfDate },
+    })
+  } else {
+    await resolveAlert('structural_change', breedId)
+  }
 }
 
-function scaleExpectedAdditions(value: number): number {
-  return Math.max(0, Math.round(value * 0.5))
+// ─── Missing day detection ────────────────────────────────────────────────────
+
+async function checkMissingDays(
+  breedId: string,
+  breedName: string,
+  dayMap: Map<string, number>,
+  asOfDate: string,
+) {
+  // Check last 3 days: if middle day is missing but surrounding days have entries
+  const yesterday = toDateString(addDays(new Date(`${asOfDate}T00:00:00`), -1))
+  const dayBefore = toDateString(addDays(new Date(`${asOfDate}T00:00:00`), -2))
+  const twoDaysBefore = toDateString(addDays(new Date(`${asOfDate}T00:00:00`), -3))
+
+  const hasTwoDaysBefore = dayMap.has(twoDaysBefore)
+  const hasDayBefore = dayMap.has(dayBefore)
+  const hasYesterday = dayMap.has(yesterday)
+
+  // Gap = day before yesterday has no entry, but surrounding days do
+  if (hasTwoDaysBefore && !hasDayBefore && hasYesterday) {
+    await upsertAlert({
+      alertType: 'data_gap',
+      breedId,
+      severity: 'info',
+      message: `${breedName}: no collection entry for ${dayBefore}. Was this day missed? Forecast is using 0 for that day.`,
+      metadata: { missing_date: dayBefore },
+    })
+  } else {
+    await resolveAlert('data_gap', breedId)
+  }
 }
+
+// ─── Divergence check ─────────────────────────────────────────────────────────
+
+async function checkDivergence(
+  breedId: string,
+  breedName: string,
+  year: number,
+  weekNumber: number,
+  deliveryMonday: string,
+  weeksOut: number,
+  newForecast: number,
+) {
+  if (weeksOut > 3) return // only flag when close
+
+  // Look up the previous stored forecast for this week
+  const { data: prev } = await supabaseAdmin
+    .from('egg_inventory')
+    .select('eggs_available, auto_forecast_eggs')
+    .eq('breed_id', breedId)
+    .eq('year', year)
+    .eq('week_number', weekNumber)
+    .maybeSingle()
+
+  if (!prev) return
+  const prevForecast = safeNum(prev.auto_forecast_eggs || prev.eggs_available)
+  if (prevForecast === 0) return
+
+  const divergence = (newForecast - prevForecast) / prevForecast
+  const pct = Math.round(divergence * 100)
+
+  if (Math.abs(divergence) >= DIVERGENCE_THRESHOLD) {
+    const direction = divergence > 0 ? 'higher' : 'lower'
+    await upsertAlert({
+      alertType: 'forecast_divergence',
+      breedId,
+      year,
+      weekNumber,
+      severity: weeksOut === 1 ? 'critical' : 'warning',
+      message: `${breedName} week ${weekNumber}: forecast revised to ${newForecast} (${Math.abs(pct)}% ${direction} than previous ${prevForecast}). ${weeksOut} week${weeksOut === 1 ? '' : 's'} to delivery.`,
+      metadata: { prev_forecast: prevForecast, new_forecast: newForecast, divergence_pct: pct, weeks_out: weeksOut, delivery_monday: deliveryMonday },
+    })
+  } else {
+    await resolveAlert('forecast_divergence', breedId, weekNumber)
+  }
+}
+
+// ─── Accuracy log ─────────────────────────────────────────────────────────────
+
+async function updateAccuracyLog(
+  breedId: string,
+  year: number,
+  weekNumber: number,
+  deliveryMonday: string,
+  weeksOut: number,
+  forecastValue: number,
+  actualEggs?: number,
+) {
+  const columnMap: Record<number, string> = {
+    1: 'forecast_1wk_out',
+    2: 'forecast_2wk_out',
+    3: 'forecast_3wk_out',
+    4: 'forecast_4wk_out',
+  }
+  const col = columnMap[weeksOut]
+
+  const update: Record<string, unknown> = { updated_at: new Date().toISOString() }
+  if (col) update[col] = forecastValue
+  if (weeksOut === 1 && actualEggs != null) {
+    update['actual_eggs'] = actualEggs
+    update['finalised_at'] = new Date().toISOString()
+  }
+  if (weeksOut >= 5) update['forecast_5wk_out'] = forecastValue
+
+  await supabaseAdmin
+    .from('egg_forecast_accuracy_log')
+    .upsert(
+      { breed_id: breedId, year, week_number: weekNumber, delivery_monday: deliveryMonday, ...update },
+      { onConflict: 'breed_id,year,week_number' },
+    )
+}
+
+// ─── Inventory write ──────────────────────────────────────────────────────────
+
+async function writeInventory(params: {
+  breedId: string
+  year: number
+  weekNumber: number
+  deliveryMonday: string
+  eggsAvailable: number
+  isEstimate: boolean
+  divergenceAlert: boolean
+  divergencePct: number | null
+}) {
+  const { data: existing } = await supabaseAdmin
+    .from('egg_inventory')
+    .select('id, eggs_allocated, manual_override, status')
+    .eq('breed_id', params.breedId)
+    .eq('year', params.year)
+    .eq('week_number', params.weekNumber)
+    .maybeSingle()
+
+  // Floor: never auto-reduce below already-allocated eggs
+  const eggsAllocated = safeNum(existing?.eggs_allocated)
+  const safeAvailable = existing && eggsAllocated > 0
+    ? Math.max(params.eggsAvailable, eggsAllocated)
+    : params.eggsAvailable
+
+  if (existing?.manual_override) {
+    // Manual override: only update metadata flags, never touch eggs_available
+    await supabaseAdmin
+      .from('egg_inventory')
+      .update({
+        is_estimate: params.isEstimate,
+        divergence_alert: params.divergenceAlert,
+        divergence_pct: params.divergencePct,
+        auto_forecast_eggs: params.eggsAvailable,
+        auto_forecast_at: new Date().toISOString(),
+      })
+      .eq('id', existing.id)
+    return
+  }
+
+  const prevStatus = (existing?.status ?? 'open') as string
+  const status = prevStatus === 'closed' ? 'closed'
+    : safeAvailable < eggsAllocated ? 'locked'
+    : safeAvailable <= eggsAllocated ? 'sold_out'
+    : 'open'
+
+  if (existing) {
+    await supabaseAdmin
+      .from('egg_inventory')
+      .update({
+        eggs_available: safeAvailable,
+        auto_forecast_eggs: params.eggsAvailable,
+        auto_forecast_at: new Date().toISOString(),
+        forecast_source: 'auto',
+        status,
+        is_estimate: params.isEstimate,
+        divergence_alert: params.divergenceAlert,
+        divergence_pct: params.divergencePct,
+        deficit_alert: safeAvailable < eggsAllocated,
+      })
+      .eq('id', existing.id)
+  } else {
+    await supabaseAdmin
+      .from('egg_inventory')
+      .insert({
+        breed_id: params.breedId,
+        year: params.year,
+        week_number: params.weekNumber,
+        delivery_monday: params.deliveryMonday,
+        eggs_available: safeAvailable,
+        eggs_allocated: 0,
+        auto_forecast_eggs: params.eggsAvailable,
+        auto_forecast_at: new Date().toISOString(),
+        forecast_source: 'auto',
+        manual_override: false,
+        manual_adjustment: 0,
+        status: safeAvailable > 0 ? 'open' : 'sold_out',
+        is_estimate: params.isEstimate,
+        divergence_alert: params.divergenceAlert,
+        divergence_pct: params.divergencePct,
+        deficit_alert: false,
+      })
+  }
+}
+
+// ─── Core per-breed recompute ─────────────────────────────────────────────────
 
 export async function recomputeForecastForBreed(params: {
   breedId: string
   date?: string
   weeksOverride?: number
 }) {
-  const config = await getEggOpsConfig()
-  const asOfDate = params.date || toDateString(new Date())
-  const horizonWeeks = params.weeksOverride || config.forecastHorizonWeeks
+  const { breedId } = params
+  const asOfDate = params.date ?? osloDateString(new Date())
+  const horizonWeeks = params.weeksOverride ?? HORIZON_WEEKS
+  const isSunday = isSundayOslo(new Date(`${asOfDate}T12:00:00`))
 
+  // 1. Load breed
   const { data: breed } = await supabaseAdmin
     .from('egg_breeds')
     .select('id, slug, name')
-    .eq('id', params.breedId)
+    .eq('id', breedId)
     .maybeSingle()
 
-  if (!breed) {
-    return { ok: false, reason: 'breed_not_found' as const, created: 0, updated: 0, rows: [] as ForecastRow[] }
-  }
+  if (!breed) return { ok: false, reason: 'breed_not_found' as const }
 
-  const avg14d = await computeRollingAverageSellable(params.breedId, asOfDate, config.forecastWindowDays)
-  const recentWeeklyTotals = await computeRecentWeeklySellableTotals(params.breedId, asOfDate, 4)
-  const lastTwoWeekTotals = recentWeeklyTotals.slice(-2)
-  const twoWeekAverage =
-    lastTwoWeekTotals.length > 0
-      ? lastTwoWeekTotals.reduce((sum, value) => sum + value, 0) / lastTwoWeekTotals.length
-      : Math.round(avg14d * 7)
-  const fourWeekTrendSlope = computeLinearSlope(recentWeeklyTotals)
-  const shortHorizonWeeks = Math.max(1, Math.min(config.forecastShortHorizonWeeks, horizonWeeks))
-  const firstWeekForecastEggs = Math.max(0, Math.round(twoWeekAverage) - config.forecastShortHorizonBufferEggs)
-  const threshold = getLowStockThresholdForBreed(breed.id, breed.slug, config)
+  // 2. Flock event cutoff
+  const cutoffDate = await getFlockEventCutoff(breedId, asOfDate)
 
-  const twoDaysAgo = addDays(new Date(`${asOfDate}T00:00:00`), -2)
-  const twoDaysAgoDate = toDateString(twoDaysAgo)
-  const { data: recentRows } = await supabaseAdmin
-    .from('egg_daily_collections')
-    .select('collection_date')
-    .eq('breed_id', params.breedId)
-    .gte('collection_date', twoDaysAgoDate)
-    .lte('collection_date', asOfDate)
+  // 3. Load all relevant collection data
+  const asOf = new Date(`${asOfDate}T00:00:00`)
+  const thisWeekMonday = startOfIsoWeek(asOf)
+  const lookbackStart = cutoffDate
+    ? new Date(`${cutoffDate}T00:00:00`)
+    : addDays(thisWeekMonday, -(4 * 7)) // max 4 complete weeks back + current week
+  const collectionsFrom = toDateString(lookbackStart)
 
-  if (!recentRows || recentRows.length === 0) {
-    await ensureDataGapAlert({
-      breedId: params.breedId,
-      message: `No collection rows in the last 2 days for ${breed.name}. Forecast uses historical data.`,
-      metadata: {
-        as_of_date: asOfDate,
-        lookback_start: twoDaysAgoDate,
-      },
-    })
-  } else {
-    await resolveDataGapAlert(params.breedId)
-  }
+  const rows = await getCollectionsSince(breedId, collectionsFrom, asOfDate)
+  const dayMap = buildDayMap(rows)
 
+  // 4. Complete weekly totals (weeks before this one)
+  const weeklyTotals = getCompleteWeeklyTotals(dayMap, thisWeekMonday, 4, cutoffDate)
+
+  // 5. Recent daily average (for projection on non-Sunday +1 and structural check)
+  const totalCollectedInWindow = weeklyTotals.reduce((a, b) => a + b, 0)
+  const windowDays = weeklyTotals.length * 7
+  const recentDailyAvg = windowDays > 0 ? totalCollectedInWindow / windowDays : 0
+
+  // 6. Structural change and missing day checks
+  await checkStructuralChange(breedId, breed.name, dayMap, asOfDate, recentDailyAvg)
+  await checkMissingDays(breedId, breed.name, dayMap, asOfDate)
+
+  // 7. Compute and write each delivery week
   const nowIso = new Date().toISOString()
-  const startMonday = addDays(startOfIsoWeek(new Date(`${asOfDate}T00:00:00`)), 7)
-  // ── Current collection week (Mon..today) updates next delivery Monday row ─
-  // Use actual collected so far + projected production for remaining days.
-  if (config.forecastSyncEnabled) {
-    const thisWeekMonday = startOfIsoWeek(new Date(`${asOfDate}T00:00:00`))
-    const thisWeekMondayStr = toDateString(thisWeekMonday)
-    const deliveryWeekMonday = addDays(thisWeekMonday, 7)
-    const { year: deliveryYear, week: deliveryWeek } = isoWeekYearAndNumber(deliveryWeekMonday)
 
-    const { data: thisWeekCollections } = await supabaseAdmin
-      .from('egg_daily_collections')
-      .select('sellable_standard')
-      .eq('breed_id', params.breedId)
-      .gte('collection_date', thisWeekMondayStr)
-      .lte('collection_date', asOfDate)
+  for (let i = 0; i < horizonWeeks; i++) {
+    const deliveryMonday = addDays(thisWeekMonday, (i + 1) * 7)
+    const deliveryMondayStr = toDateString(deliveryMonday)
+    const { year, week: weekNumber } = isoWeekOf(deliveryMonday)
+    const weekOffset = i + 1 // 1 = next Monday, 2 = week after, etc.
+    const isEstimate = weekOffset > 4
 
-    const collectedSoFar = (thisWeekCollections || []).reduce(
-      (sum, r) => sum + numberOrZero(r.sellable_standard),
-      0
-    )
+    let eggsAvailable: number
 
-    const asOf = new Date(`${asOfDate}T00:00:00`)
-    const jsDay = asOf.getDay() // 0=Sun, 1=Mon, ... 6=Sat
-    const isoDayIndex = jsDay === 0 ? 6 : jsDay - 1 // Mon=0 ... Sun=6
-    const daysAfterToday = Math.max(0, 6 - isoDayIndex)
-    const osloNow = getOsloDateAndHour(new Date())
-    const includeTodayProjection = asOfDate === osloNow.date && osloNow.hour < 20
-    const projectedDays = daysAfterToday + (includeTodayProjection ? 1 : 0)
-    const projectedRemaining = Math.max(0, Math.round(avg14d * projectedDays))
-    const currentWeekForecastEggs = Math.max(
-      0,
-      collectedSoFar + projectedRemaining - config.forecastCurrentWeekBufferEggs
-    )
+    if (weekOffset === 1) {
+      // Imminent week: use actual collected + projection if not Sunday
+      const collectedSoFar = sumRange(dayMap, thisWeekMonday, asOf)
 
-    const { data: cwInventory } = await supabaseAdmin
-      .from('egg_inventory')
-      .select('id, eggs_allocated, status')
-      .eq('breed_id', params.breedId)
-      .eq('year', deliveryYear)
-      .eq('week_number', deliveryWeek)
-      .maybeSingle()
-
-    if (cwInventory) {
-      const eggsAllocated = numberOrZero(cwInventory.eggs_allocated)
-      const previousStatus = (cwInventory.status || 'open') as 'open' | 'closed' | 'locked' | 'sold_out'
-      const deficit = currentWeekForecastEggs < eggsAllocated
-      const nextStatus =
-        previousStatus === 'closed' ? 'closed'
-        : deficit ? 'locked'
-        : currentWeekForecastEggs <= eggsAllocated ? 'sold_out'
-        : 'open'
-
-      await supabaseAdmin
-        .from('egg_inventory')
-        .update({ eggs_available: currentWeekForecastEggs, status: nextStatus })
-        .eq('id', cwInventory.id)
-    }
-  }
-
-  const plans: ForecastPlanRow[] = []
-  for (let i = 0; i < horizonWeeks; i += 1) {
-    const monday = addDays(startMonday, i * 7)
-    const deliveryMonday = toDateString(monday)
-    const { year, week } = isoWeekYearAndNumber(monday)
-    const weekAhead = i + 1
-    const isShortHorizon = weekAhead <= shortHorizonWeeks
-    const trendWeeksAhead = Math.max(0, weekAhead - shortHorizonWeeks)
-    const trendBase = twoWeekAverage + (fourWeekTrendSlope * trendWeeksAhead)
-    const expectedAdditions = isShortHorizon
-      ? 0
-      : scaleExpectedAdditions(
-          getExpectedAdditionsForWeek({
-            expectedAdditions: config.forecastExpectedAdditions,
-            breedId: params.breedId,
-            breedSlug: breed.slug,
-            weekAhead,
-          })
-        )
-
-    // Cap long-horizon trend at 30% above the 2-week baseline to prevent
-    // unbounded growth from a short positive production slope (e.g. spring ramp-up).
-    const cappedTrendBase = isShortHorizon
-      ? twoWeekAverage
-      : Math.min(trendBase, twoWeekAverage * 1.3)
-    const rawForecastEggs = isShortHorizon
-      ? Math.round(twoWeekAverage)
-      : Math.round(cappedTrendBase + expectedAdditions)
-
-    const forecastEggs = Math.max(
-      0,
-      rawForecastEggs - (isShortHorizon ? config.forecastShortHorizonBufferEggs : config.forecastLongHorizonBufferEggs)
-    )
-    const avgForRow = Math.max(0, (isShortHorizon ? twoWeekAverage : trendBase) / 7)
-    const lowStock = forecastEggs < threshold
-
-    plans.push({
-      year,
-      week,
-      deliveryMonday,
-      avgForRow,
-      forecastEggs,
-      lowStock,
-    })
-  }
-
-  const inventoryYears = Array.from(new Set(plans.map((plan) => plan.year)))
-  const inventoryByKey = new Map<string, { eggs_allocated: number }>()
-
-  if (inventoryYears.length > 0) {
-    const { data: inventoryRows, error: inventoryError } = await supabaseAdmin
-      .from('egg_inventory')
-      .select('breed_id, year, week_number, eggs_allocated')
-      .eq('breed_id', params.breedId)
-      .in('year', inventoryYears)
-
-    if (inventoryError) {
-      logError('egg-forecast-fetch-inventory-allocations', inventoryError, {
-        breedId: params.breedId,
-        years: inventoryYears,
-      })
+      if (isSunday) {
+        // Full week collected — lock in actual, no buffer
+        eggsAvailable = collectedSoFar
+      } else {
+        // Project remaining days at recent daily avg
+        const isoDayIndex = asOf.getDay() === 0 ? 6 : asOf.getDay() - 1
+        const daysRemaining = 6 - isoDayIndex
+        const projected = Math.round(recentDailyAvg * daysRemaining)
+        eggsAvailable = collectedSoFar + projected
+        // Light 10% buffer mid-week (collection not complete yet)
+        eggsAvailable = Math.round(eggsAvailable * 0.90)
+      }
     } else {
-      for (const row of inventoryRows || []) {
-        inventoryByKey.set(buildInventoryKey(row.breed_id, row.year, row.week_number), row)
+      // Future weeks: average of recent complete weeks × BUFFER_FACTOR
+      const weeksToUse = weekOffset === 2 ? 1 : weekOffset === 3 ? 2 : weekOffset === 4 ? 3 : 4
+      const avg = avgLast(weeklyTotals, weeksToUse)
+      eggsAvailable = Math.round(avg * BUFFER_FACTOR)
+    }
+
+    eggsAvailable = Math.max(0, eggsAvailable)
+
+    // 8. Divergence check (weeks 1–3 only)
+    let divergenceAlert = false
+    let divergencePct: number | null = null
+
+    if (weekOffset <= 3) {
+      const { data: prev } = await supabaseAdmin
+        .from('egg_inventory')
+        .select('auto_forecast_eggs, eggs_available')
+        .eq('breed_id', breedId)
+        .eq('year', year)
+        .eq('week_number', weekNumber)
+        .maybeSingle()
+
+      if (prev) {
+        const prevForecast = safeNum(prev.auto_forecast_eggs || prev.eggs_available)
+        if (prevForecast > 0) {
+          const divergence = (eggsAvailable - prevForecast) / prevForecast
+          divergencePct = Math.round(divergence * 100)
+          if (Math.abs(divergence) >= DIVERGENCE_THRESHOLD) {
+            divergenceAlert = true
+            await checkDivergence(breedId, breed.name, year, weekNumber, deliveryMondayStr, weekOffset, eggsAvailable)
+          } else {
+            await resolveAlert('forecast_divergence', breedId, weekNumber)
+          }
+        }
       }
     }
-  }
 
-  const rows: ForecastRow[] = []
-  const syncInputs: SyncForecastInput[] = []
-  let created = 0
-  let updated = 0
+    // 9. Write to inventory
+    await writeInventory({
+      breedId,
+      year,
+      weekNumber,
+      deliveryMonday: deliveryMondayStr,
+      eggsAvailable,
+      isEstimate,
+      divergenceAlert,
+      divergencePct,
+    })
 
-  for (const plan of plans) {
-    const eggsAllocated = numberOrZero(
-      inventoryByKey.get(buildInventoryKey(params.breedId, plan.year, plan.week))?.eggs_allocated
+    // 10. Accuracy log
+    await updateAccuracyLog(
+      breedId, year, weekNumber, deliveryMondayStr,
+      weekOffset,
+      eggsAvailable,
+      weekOffset === 1 && isSunday ? eggsAvailable : undefined,
     )
-    const deficit = plan.forecastEggs < eggsAllocated
-    const { data: forecastUpserted, error: forecastError } = await supabaseAdmin
-      .from('egg_weekly_forecasts')
-      .upsert(
-        {
-          breed_id: params.breedId,
-          year: plan.year,
-          week_number: plan.week,
-          delivery_monday: plan.deliveryMonday,
-          avg_14d_sellable: plan.avgForRow,
-          forecast_eggs: plan.forecastEggs,
-          low_stock: plan.lowStock,
-          deficit,
-          computed_at: nowIso,
-        },
-        { onConflict: 'breed_id,year,week_number' }
-      )
-      .select('*')
-      .single()
-
-    if (forecastError || !forecastUpserted) {
-      logError('egg-forecast-upsert', forecastError, {
-        breedId: params.breedId,
-        year: plan.year,
-        week: plan.week,
-      })
-      continue
-    }
-
-    if (new Date(forecastUpserted.created_at).getTime() === new Date(forecastUpserted.updated_at).getTime()) {
-      created += 1
-    } else {
-      updated += 1
-    }
-
-    if (config.forecastSyncEnabled) {
-      syncInputs.push({
-        breedId: params.breedId,
-        year: plan.year,
-        weekNumber: plan.week,
-        deliveryMonday: plan.deliveryMonday,
-        forecastEggs: plan.forecastEggs,
-        lowStock: plan.lowStock,
-        threshold,
-      })
-    }
-    rows.push(forecastUpserted as ForecastRow)
   }
 
-  if (config.forecastSyncEnabled && syncInputs.length > 0) {
-    await syncForecastBatchToInventory(syncInputs)
-  }
-
-  return {
-    ok: true,
-    reason: 'ok' as const,
-    created,
-    updated,
-    rows,
-    avg14d,
-    forecastEggs: firstWeekForecastEggs,
-    threshold,
-  }
+  return { ok: true, reason: 'ok' as const, breedId, breedName: breed.name, isSunday }
 }
+
+// ─── All breeds ───────────────────────────────────────────────────────────────
 
 export async function recomputeForecastsForAllBreeds(params?: { date?: string; weeksOverride?: number }) {
   try {
-    const breeds = await getActiveEggBreeds()
+    const { data: breeds, error } = await supabaseAdmin
+      .from('egg_breeds')
+      .select('id, slug, name')
+      .eq('active', true)
+      .order('display_order', { ascending: true })
+
+    if (error) throw error
+
     const results = await Promise.all(
-      breeds.map((breed) =>
-        recomputeForecastForBreed({
-          breedId: breed.id,
-          date: params?.date,
-          weeksOverride: params?.weeksOverride,
-        })
+      (breeds || []).map((breed) =>
+        recomputeForecastForBreed({ breedId: breed.id, date: params?.date, weeksOverride: params?.weeksOverride })
+          .catch((err) => {
+            logError('egg-forecast-v2-breed', err, { breedId: breed.id })
+            return { ok: false, reason: 'exception' as const, breedId: breed.id }
+          })
       )
     )
 
-    const okCount = results.filter((result) => result.ok).length
     return {
       ok: true,
-      totalBreeds: breeds.length,
-      processed: okCount,
+      totalBreeds: breeds?.length ?? 0,
+      processed: results.filter((r) => r.ok).length,
       results,
     }
   } catch (error) {
-    logError('egg-forecast-recompute-all', error)
-    return {
-      ok: false,
-      totalBreeds: 0,
-      processed: 0,
-      results: [],
-      error: error instanceof Error ? error.message : 'Unknown error',
-    }
+    logError('egg-forecast-v2-all', error)
+    return { ok: false, totalBreeds: 0, processed: 0, results: [] }
   }
 }
+
+// ─── getForecastRows (used by GET /api/admin/eggs/forecast) ──────────────────
 
 export async function getForecastRows(weeks = 4) {
   const horizon = Math.max(1, Math.min(12, weeks))
   const today = new Date()
   const startMonday = addDays(startOfIsoWeek(today), 7)
   const cutoff = addDays(startMonday, horizon * 7)
-  const cutoffDate = toDateString(cutoff)
-  const startDate = toDateString(startMonday)
 
-  const { data: forecasts, error: forecastError } = await supabaseAdmin
-    .from('egg_weekly_forecasts')
-    .select('id, breed_id, year, week_number, delivery_monday, avg_14d_sellable, forecast_eggs, low_stock, deficit, computed_at')
-    .gte('delivery_monday', startDate)
-    .lt('delivery_monday', cutoffDate)
+  const { data: inventoryRows, error } = await supabaseAdmin
+    .from('egg_inventory')
+    .select(`
+      id, breed_id, year, week_number, delivery_monday,
+      eggs_available, eggs_allocated, auto_forecast_eggs,
+      status, manual_override, deficit_alert, is_estimate,
+      divergence_alert, divergence_pct
+    `)
+    .gte('delivery_monday', toDateString(startMonday))
+    .lt('delivery_monday', toDateString(cutoff))
     .order('delivery_monday', { ascending: true })
 
-  if (forecastError) {
-    throw forecastError
-  }
+  if (error) throw error
 
-  const breedIds = Array.from(new Set((forecasts || []).map((row) => row.breed_id)))
-  const [breedResponse, inventoryResponse] = await Promise.all([
-    supabaseAdmin
-      .from('egg_breeds')
-      .select('id, name, slug, accent_color')
-      .in('id', breedIds.length > 0 ? breedIds : ['00000000-0000-0000-0000-000000000000']),
-    supabaseAdmin
-      .from('egg_inventory')
-      .select('id, breed_id, year, week_number, eggs_available, eggs_allocated, status, manual_override, deficit_alert')
-      .gte('delivery_monday', startDate)
-      .lt('delivery_monday', cutoffDate),
-  ])
+  const breedIds = Array.from(new Set((inventoryRows || []).map((r) => r.breed_id)))
+  const { data: breeds } = await supabaseAdmin
+    .from('egg_breeds')
+    .select('id, name, slug, accent_color')
+    .in('id', breedIds.length > 0 ? breedIds : ['00000000-0000-0000-0000-000000000000'])
 
-  if (breedResponse.error) throw breedResponse.error
-  if (inventoryResponse.error) throw inventoryResponse.error
+  const breedMap = new Map((breeds || []).map((b) => [b.id, b]))
 
-  const breedMap = new Map((breedResponse.data || []).map((breed) => [breed.id, breed]))
-  const inventoryMap = new Map(
-    (inventoryResponse.data || []).map((row) => [`${row.breed_id}:${row.year}:${row.week_number}`, row])
-  )
-
-  return (forecasts || []).map((row) => {
-    const key = `${row.breed_id}:${row.year}:${row.week_number}`
-    const inventory = inventoryMap.get(key)
+  return (inventoryRows || []).map((row) => {
     const breed = breedMap.get(row.breed_id)
-
     return {
       ...row,
-      breed_name: breed?.name || 'Unknown',
-      breed_slug: breed?.slug || null,
-      breed_accent_color: breed?.accent_color || '#111111',
-      inventory_id: inventory?.id || null,
-      eggs_available: inventory?.eggs_available ?? null,
-      eggs_allocated: inventory?.eggs_allocated ?? null,
-      inventory_status: inventory?.status || null,
-      manual_override: Boolean(inventory?.manual_override),
-      deficit_alert: Boolean(inventory?.deficit_alert),
+      breed_name: breed?.name ?? 'Unknown',
+      breed_slug: breed?.slug ?? null,
+      breed_accent_color: breed?.accent_color ?? '#111111',
     }
   })
 }

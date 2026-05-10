@@ -3,7 +3,7 @@ import { type Language, WeekInventory } from '@/lib/eggs/types'
 import { useLanguage } from '@/lib/eggs/language-context'
 import { formatDate, daysUntil, getWeekNumber } from '@/lib/eggs/utils'
 import { GlassCard } from './GlassCard'
-import { ChevronLeft } from 'lucide-react'
+import { ChevronLeft, FlaskConical, TrendingUp, TrendingDown } from 'lucide-react'
 
 interface WeekSelectorProps {
   inventory: WeekInventory[]
@@ -247,8 +247,18 @@ export function WeekSelector({ inventory, accentColor, onSelectWeek }: WeekSelec
                     >
                       {week ? (
                         <div className="flex h-full flex-col justify-between">
-                          <div className="text-[10px] font-semibold text-neutral-600">
-                            {copy.weekShort} {weekNumber ?? ''}
+                          <div className="flex items-center gap-1">
+                            <div className="text-[10px] font-semibold text-neutral-600">
+                              {copy.weekShort} {weekNumber ?? ''}
+                            </div>
+                            {week.isEstimate && (
+                              <FlaskConical className="w-2.5 h-2.5 text-amber-500 shrink-0" />
+                            )}
+                            {week.divergenceAlert && (
+                              week.divergencePct != null && week.divergencePct > 0
+                                ? <TrendingUp className="w-2.5 h-2.5 text-blue-500 shrink-0" />
+                                : <TrendingDown className="w-2.5 h-2.5 text-orange-500 shrink-0" />
+                            )}
                           </div>
                           <span
                             className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ${
@@ -319,7 +329,7 @@ function WeekTooltip({
   const eggs = week?.eggsAvailable ?? 0
 
   return (
-    <div className="pointer-events-none absolute left-0 top-full z-10 mt-2 w-52 rounded-xl border border-neutral-200 bg-white px-3 py-2 text-[11px] text-neutral-700 opacity-0 shadow-lg transition-opacity group-hover:opacity-100">
+    <div className="pointer-events-none absolute left-0 top-full z-10 mt-2 w-56 rounded-xl border border-neutral-200 bg-white px-3 py-2 text-[11px] text-neutral-700 opacity-0 shadow-lg transition-opacity group-hover:opacity-100">
       <div className="font-semibold text-neutral-900">
         {copy.weekShort} {weekNumber ?? getWeekNumber(monday)}
       </div>
@@ -337,6 +347,30 @@ function WeekTooltip({
       <div className="mt-1 text-neutral-500">
         {copy.shipsIn} {daysUntil(monday)} {copy.days}
       </div>
+      {week?.isEstimate && (
+        <div className="mt-2 flex items-start gap-1 rounded-lg bg-amber-50 px-2 py-1.5 text-[10px] text-amber-700">
+          <FlaskConical className="w-3 h-3 mt-0.5 shrink-0" />
+          <span>
+            {language === 'no'
+              ? 'Antall egg er et estimat basert på siste ukers produksjon. Endelig antall settes søndagen uken før levering.'
+              : 'Egg count is an estimate based on recent production. Final count is set the Sunday before delivery week.'}
+          </span>
+        </div>
+      )}
+      {week?.divergenceAlert && week.divergencePct != null && (
+        <div className={`mt-2 flex items-start gap-1 rounded-lg px-2 py-1.5 text-[10px] ${
+          week.divergencePct > 0 ? 'bg-blue-50 text-blue-700' : 'bg-orange-50 text-orange-700'
+        }`}>
+          {week.divergencePct > 0
+            ? <TrendingUp className="w-3 h-3 mt-0.5 shrink-0" />
+            : <TrendingDown className="w-3 h-3 mt-0.5 shrink-0" />}
+          <span>
+            {language === 'no'
+              ? `Estimat revidert ${Math.abs(week.divergencePct)}% ${week.divergencePct > 0 ? 'opp' : 'ned'} fra tidligere prognose.`
+              : `Estimate revised ${Math.abs(week.divergencePct)}% ${week.divergencePct > 0 ? 'up' : 'down'} from earlier forecast.`}
+          </span>
+        </div>
+      )}
     </div>
   )
 }
