@@ -1146,10 +1146,10 @@ async function fetchEggWeekTracker(weekOffset = 0) {
             .lte('collection_date', collectionEndStr)
         : Promise.resolve({ data: [], error: null }),
 
-      // 3. Forecast for this collection week (keyed by delivery_monday = next Monday)
+      // 3. Forecast for this collection week — read from egg_inventory (v2 forecast)
       supabaseAdmin
-        .from('egg_weekly_forecasts')
-        .select('breed_id, forecast_eggs')
+        .from('egg_inventory')
+        .select('breed_id, auto_forecast_eggs, eggs_available')
         .eq('delivery_monday', nextMondayStr),
 
       // 4. Active breeds for names and colors
@@ -1187,7 +1187,7 @@ async function fetchEggWeekTracker(weekOffset = 0) {
     // Forecast by breed
     const forecastByBreed = new Map<string, number>();
     for (const f of forecastRes.data || []) {
-      forecastByBreed.set(f.breed_id, f.forecast_eggs || 0);
+      forecastByBreed.set(f.breed_id, f.auto_forecast_eggs || f.eggs_available || 0);
     }
 
     // Collect all breed IDs that appear in any dataset
@@ -1270,7 +1270,7 @@ async function fetchEggWeekTracker(weekOffset = 0) {
       ordersTotal,
       collectedTotal,
       forecastTotal,
-      missingNow: ordersTotal - collectedTotal,
+      missingNow: collectionStarted ? ordersTotal - collectedTotal : 0,
       predictedEndOfWeek: ordersTotal - forecastTotal,
       breeds,
     };
