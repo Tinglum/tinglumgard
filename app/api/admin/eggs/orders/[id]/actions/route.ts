@@ -1613,6 +1613,66 @@ async function fulfillWishlistItems(
   return NextResponse.json({ success: true, totalOre, remainderAmount: currentRemainder + totalOre })
 }
 
+async function sendWishlistRemainderEmail(
+  orderId: string,
+  sinceDate: string // ISO date — only include additions created on or after this
+): Promise<NextResponse> {
+  const { data: order, error: orderError } = await supabaseAdmin
+    .from('egg_orders')
+    .select('id, order_number, customer_name, customer_email, week_number, remainder_amount')
+    .eq('id', orderId)
+    .maybeSingle()
+
+  if (orderError || !order) return NextResponse.json({ error: 'Order not found' }, { status: 404 })
+  if (!order.customer_email || order.customer_email === 'pending@vipps.no') {
+    return NextResponse.json({ error: 'No valid email' }, { status: 400 })
+  }
+
+  const { data: additions } = await supabaseAdmin
+    .from('egg_order_additions')
+    .select('quantity, price_per_egg, subtotal, breed_id, egg_breeds(name)')
+    .eq('egg_order_id', orderId)
+    .gte('created_at', sinceDate)
+
+  if (!additions || additions.length === 0) {
+    return NextResponse.json({ error: 'No wishlist additions found for given date' }, { status: 400 })
+  }
+
+  const items = additions.map((a: any) => ({
+    breedName: Array.isArray(a.egg_breeds) ? a.egg_breeds[0]?.name : a.egg_breeds?.name || 'Ukjent rase',
+    qty: a.quantity,
+    discountedPriceOre: a.price_per_egg,
+    subtotalOre: a.subtotal,
+  }))
+
+  const totalOre = items.reduce((sum, i) => sum + i.subtotalOre, 0)
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://tinglumgard.no'
+
+  const emailHtml = buildWishlistRemainderEmail({
+    customerName: order.customer_name || 'Kunde',
+    orderNumber: order.order_number,
+    weekNumber: order.week_number,
+    items,
+    totalOre,
+    discountPct: 30,
+    orderPageUrl: `${appUrl}/rugeegg/mine-bestillinger`,
+  })
+
+  await dispatchEmail({
+    to: order.customer_email,
+    subject: `Ønskelisten din er oppfylt – restbeløp kr ${Math.round(totalOre / 100)} (${order.order_number})`,
+    html: emailHtml,
+    classification: 'transactional',
+    locale: 'no',
+    sourcePath: '/api/admin/eggs/orders/[id]/actions',
+    eggOrderId: orderId,
+    templateKey: 'egg.wishlist.remainder',
+    metadata: { flow_key: 'egg.wishlist.remainder', total_ore: totalOre, discount_pct: 30 },
+  })
+
+  return NextResponse.json({ success: true, totalOre, sentTo: order.customer_email })
+}
+
 async function sendRemainderReminder(orderId: string) {
   const { data: order, error } = await supabaseAdmin
     .from('egg_orders')
@@ -1714,6 +1774,8 @@ export async function POST(
         return await fulfillWishlistItems(params.id, data?.items || [], data?.reason)
       case 'send_remainder_reminder':
         return await sendRemainderReminder(params.id)
+      case 'send_wishlist_remainder':
+        return await sendWishlistRemainderEmail(params.id, data?.sinceDate || new Date().toISOString().slice(0, 10))
       default:
         return NextResponse.json({ error: 'Unknown action' }, { status: 400 })
     }
