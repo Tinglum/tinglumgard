@@ -1641,7 +1641,7 @@ async function sendWishlistRemainderEmail(
     return NextResponse.json({ error: 'No wishlist additions found for given date' }, { status: 400 })
   }
 
-  const breedIds = [...new Set(additions.map((a) => a.breed_id))]
+  const breedIds = Array.from(new Set(additions.map((a) => a.breed_id)))
   const { data: breeds, error: breedErr } = await supabaseAdmin
     .from('egg_breeds')
     .select('id, name')
