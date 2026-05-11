@@ -1655,27 +1655,36 @@ async function sendWishlistRemainderEmail(
   const totalOre = items.reduce((sum, i) => sum + i.subtotalOre, 0)
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://tinglumgard.no'
 
-  const emailHtml = buildWishlistRemainderEmail({
-    customerName: order.customer_name || 'Kunde',
-    orderNumber: order.order_number,
-    weekNumber: order.week_number,
-    items,
-    totalOre,
-    discountPct: 30,
-    orderPageUrl: `${appUrl}/rugeegg/mine-bestillinger`,
-  })
+  let emailHtml: string
+  try {
+    emailHtml = buildWishlistRemainderEmail({
+      customerName: order.customer_name || 'Kunde',
+      orderNumber: order.order_number,
+      weekNumber: order.week_number,
+      items,
+      totalOre,
+      discountPct: 30,
+      orderPageUrl: `${appUrl}/rugeegg/mine-bestillinger`,
+    })
+  } catch (e: any) {
+    return NextResponse.json({ error: 'buildEmail failed', detail: e?.message }, { status: 500 })
+  }
 
-  await dispatchEmail({
-    to: order.customer_email,
-    subject: `Ønskelisten din er oppfylt – restbeløp kr ${Math.round(totalOre / 100)} (${order.order_number})`,
-    html: emailHtml,
-    classification: 'transactional',
-    locale: 'no',
-    sourcePath: '/api/admin/eggs/orders/[id]/actions',
-    eggOrderId: orderId,
-    templateKey: 'egg.wishlist.remainder',
-    metadata: { flow_key: 'egg.wishlist.remainder', total_ore: totalOre, discount_pct: 30 },
-  })
+  try {
+    await dispatchEmail({
+      to: order.customer_email,
+      subject: `Ønskelisten din er oppfylt – restbeløp kr ${Math.round(totalOre / 100)} (${order.order_number})`,
+      html: emailHtml,
+      classification: 'transactional',
+      locale: 'no',
+      sourcePath: '/api/admin/eggs/orders/[id]/actions',
+      eggOrderId: orderId,
+      templateKey: 'egg.wishlist.remainder',
+      metadata: { flow_key: 'egg.wishlist.remainder', total_ore: totalOre, discount_pct: 30 },
+    })
+  } catch (e: any) {
+    return NextResponse.json({ error: 'dispatchEmail failed', detail: e?.message }, { status: 500 })
+  }
 
   return NextResponse.json({ success: true, totalOre, sentTo: order.customer_email })
 }
