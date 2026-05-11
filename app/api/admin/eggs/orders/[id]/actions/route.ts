@@ -1595,7 +1595,6 @@ async function fulfillWishlistItems(
       locale: 'no',
       sourcePath: '/api/admin/eggs/orders/[id]/actions',
       eggOrderId: orderId,
-      templateKey: 'egg.wishlist.remainder',
       metadata: { flow_key: 'egg.wishlist.remainder', total_ore: totalOre, discount_pct: 30 },
     })
   } catch (e) {
@@ -1683,7 +1682,6 @@ async function sendWishlistRemainderEmail(
       locale: 'no',
       sourcePath: '/api/admin/eggs/orders/[id]/actions',
       eggOrderId: orderId,
-      templateKey: 'egg.wishlist.remainder',
       metadata: { flow_key: 'egg.wishlist.remainder', total_ore: totalOre, discount_pct: 30 },
     })
   } catch (e: any) {
