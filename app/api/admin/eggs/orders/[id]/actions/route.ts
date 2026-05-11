@@ -1617,32 +1617,36 @@ async function sendWishlistRemainderEmail(
   orderId: string,
   sinceDate: string // ISO date — only include additions created on or after this
 ): Promise<NextResponse> {
+  try {
+
   const { data: order, error: orderError } = await supabaseAdmin
     .from('egg_orders')
     .select('id, order_number, customer_name, customer_email, week_number, remainder_amount')
     .eq('id', orderId)
     .maybeSingle()
 
-  if (orderError || !order) return NextResponse.json({ error: 'Order not found' }, { status: 404 })
+  if (orderError || !order) return NextResponse.json({ error: 'Order not found', detail: orderError?.message }, { status: 404 })
   if (!order.customer_email || order.customer_email === 'pending@vipps.no') {
     return NextResponse.json({ error: 'No valid email' }, { status: 400 })
   }
 
-  const { data: additions } = await supabaseAdmin
+  const { data: additions, error: addErr } = await supabaseAdmin
     .from('egg_order_additions')
     .select('quantity, price_per_egg, subtotal, breed_id')
     .eq('egg_order_id', orderId)
     .gte('created_at', sinceDate)
 
+  if (addErr) return NextResponse.json({ error: 'additions fetch failed', detail: addErr.message }, { status: 500 })
   if (!additions || additions.length === 0) {
     return NextResponse.json({ error: 'No wishlist additions found for given date' }, { status: 400 })
   }
 
   const breedIds = [...new Set(additions.map((a) => a.breed_id))]
-  const { data: breeds } = await supabaseAdmin
+  const { data: breeds, error: breedErr } = await supabaseAdmin
     .from('egg_breeds')
     .select('id, name')
     .in('id', breedIds)
+  if (breedErr) return NextResponse.json({ error: 'breeds fetch failed', detail: breedErr.message }, { status: 500 })
   const breedNameMap = new Map((breeds || []).map((b) => [b.id, b.name]))
 
   const items = additions.map((a) => ({
@@ -1687,6 +1691,10 @@ async function sendWishlistRemainderEmail(
   }
 
   return NextResponse.json({ success: true, totalOre, sentTo: order.customer_email })
+
+  } catch (e: any) {
+    return NextResponse.json({ error: 'wishlist_remainder_unhandled', detail: e?.message }, { status: 500 })
+  }
 }
 
 async function sendRemainderReminder(orderId: string) {
