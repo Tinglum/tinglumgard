@@ -1630,7 +1630,7 @@ async function sendWishlistRemainderEmail(
 
   const { data: additions } = await supabaseAdmin
     .from('egg_order_additions')
-    .select('quantity, price_per_egg, subtotal, breed_id, egg_breeds(name)')
+    .select('quantity, price_per_egg, subtotal, breed_id')
     .eq('egg_order_id', orderId)
     .gte('created_at', sinceDate)
 
@@ -1638,8 +1638,15 @@ async function sendWishlistRemainderEmail(
     return NextResponse.json({ error: 'No wishlist additions found for given date' }, { status: 400 })
   }
 
-  const items = additions.map((a: any) => ({
-    breedName: Array.isArray(a.egg_breeds) ? a.egg_breeds[0]?.name : a.egg_breeds?.name || 'Ukjent rase',
+  const breedIds = [...new Set(additions.map((a) => a.breed_id))]
+  const { data: breeds } = await supabaseAdmin
+    .from('egg_breeds')
+    .select('id, name')
+    .in('id', breedIds)
+  const breedNameMap = new Map((breeds || []).map((b) => [b.id, b.name]))
+
+  const items = additions.map((a) => ({
+    breedName: breedNameMap.get(a.breed_id) || 'Ukjent rase',
     qty: a.quantity,
     discountedPriceOre: a.price_per_egg,
     subtotalOre: a.subtotal,
