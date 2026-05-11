@@ -1301,16 +1301,16 @@ async function markEggOrderShipped(
 
 const WISHLIST_DISCOUNT_FACTOR = 0.70 // 30% off
 
-function buildWishlistFulfillmentEmail(options: {
+function buildWishlistRemainderEmail(options: {
   customerName: string
   orderNumber: string
+  weekNumber: number
   items: Array<{ breedName: string; qty: number; discountedPriceOre: number; subtotalOre: number }>
   totalOre: number
   discountPct: number
-  paymentUrl: string
-  orderUrl: string
+  orderPageUrl: string
 }): string {
-  const { customerName, orderNumber, items, totalOre, discountPct, paymentUrl, orderUrl } = options
+  const { customerName, orderNumber, weekNumber, items, totalOre, discountPct, orderPageUrl } = options
   const firstName = customerName.trim().split(/\s+/)[0] || customerName
   const totalNok = Math.round(totalOre / 100)
   const totalQty = items.reduce((s, i) => s + i.qty, 0)
@@ -1340,21 +1340,22 @@ function buildWishlistFulfillmentEmail(options: {
     <tbody>
       ${itemRowsHtml}
       <tr style="background:#FAF8F5;">
-        <td colspan="3" style="padding:12px 14px;font-family:Arial,Helvetica,sans-serif;font-size:14px;font-weight:700;color:#1C1210;text-align:right;">Totalt å betale</td>
+        <td colspan="3" style="padding:12px 14px;font-family:Arial,Helvetica,sans-serif;font-size:14px;font-weight:700;color:#1C1210;text-align:right;">Restbeløp for ønskelistegg</td>
         <td style="padding:12px 14px;font-family:Arial,Helvetica,sans-serif;font-size:15px;font-weight:700;color:#2C1810;text-align:right;">kr ${totalNok}</td>
       </tr>
     </tbody>
   </table>`
 
   const body = [
-    `<p style="margin:0 0 18px;"><span style="display:inline-block;font-family:Arial,Helvetica,sans-serif;font-size:12px;font-weight:700;color:#2D6A4F;background:#ECFDF5;border:1px solid #BBF7D0;border-radius:20px;padding:5px 14px;letter-spacing:0.4px;text-transform:uppercase;">${discountPct}% rabatt — ønskelistegg</span></p>`,
+    `<p style="margin:0 0 18px;"><span style="display:inline-block;font-family:Arial,Helvetica,sans-serif;font-size:12px;font-weight:700;color:#2D6A4F;background:#ECFDF5;border:1px solid #BBF7D0;border-radius:20px;padding:5px 14px;letter-spacing:0.4px;text-transform:uppercase;">Ønskelisten din er oppfylt ✓</span></p>`,
     `<p style="font-size:16px;line-height:1.6;margin:0 0 16px;font-family:Arial,Helvetica,sans-serif;color:#1C1210;">Hei ${firstName},</p>`,
-    `<p style="font-size:16px;line-height:1.6;margin:0 0 16px;font-family:Arial,Helvetica,sans-serif;color:#1C1210;">Vi hadde ekstra rugeegg tilgjengelig i dag og la <strong>${totalQty} egg</strong> i pakken din (<strong>${orderNumber}</strong>) — akkurat som du ønsket!</p>`,
-    `<p style="font-size:15px;line-height:1.6;margin:0 0 24px;font-family:Arial,Helvetica,sans-serif;color:#6B5B4E;">Som takk for at du stod på ønskelisten, gir vi deg <strong>${discountPct}% rabatt</strong> på disse eggene. Eggene er allerede pakket og sendes i dag.</p>`,
+    `<p style="font-size:16px;line-height:1.6;margin:0 0 16px;font-family:Arial,Helvetica,sans-serif;color:#1C1210;">Vi hadde ekstra rugeegg tilgjengelig og har lagt <strong>${totalQty} egg</strong> til i bestillingen din (<strong>${orderNumber}</strong>, uke ${weekNumber}) — akkurat som du ønsket!</p>`,
+    `<p style="font-size:15px;line-height:1.6;margin:0 0 24px;font-family:Arial,Helvetica,sans-serif;color:#6B5B4E;">Som takk for tålmodigheten får du <strong>${discountPct}% rabatt</strong> på disse eggene. Nedenfor ser du hva som er lagt til, og hva du skylder for ønskelisteggene.</p>`,
     tableHtml,
-    `<p style="font-size:15px;line-height:1.6;margin:0 0 8px;font-family:Arial,Helvetica,sans-serif;color:#1C1210;font-weight:700;">Betal enkelt og trygt med Vipps:</p>`,
-    emailButton(`Betal kr ${totalNok} med Vipps`, paymentUrl, 'primary'),
-    `<p style="font-size:13px;line-height:1.6;margin:0 0 24px;font-family:Arial,Helvetica,sans-serif;color:#6B5B4E;">Betalingslenken er gyldig i 24 timer. Har du spørsmål, logger du inn på <a href="${orderUrl}" style="color:#8B6914;text-decoration:none;font-weight:600;">Min side</a> og sender oss en melding.</p>`,
+    `<p style="font-size:15px;line-height:1.6;margin:0 0 8px;font-family:Arial,Helvetica,sans-serif;color:#1C1210;font-weight:700;">Betal restbeløpet på Min side:</p>`,
+    `<p style="font-size:14px;line-height:1.6;margin:0 0 16px;font-family:Arial,Helvetica,sans-serif;color:#6B5B4E;">Restbeløpet på <strong>kr ${totalNok}</strong> er lagt til i bestillingen din. Logg inn på Min side for å betale enkelt og trygt med Vipps.</p>`,
+    emailButton('Betal restbeløp på Min side', orderPageUrl, 'primary'),
+    `<p style="font-size:13px;line-height:1.6;margin:0 0 24px;font-family:Arial,Helvetica,sans-serif;color:#6B5B4E;">Har du spørsmål? Logg inn på Min side og ta kontakt.</p>`,
     emailDivider(),
     emailTipBox('eggs', 3),
     emailStoryFooter('eggs', 2),
@@ -1363,7 +1364,7 @@ function buildWishlistFulfillmentEmail(options: {
   return ensureHtmlDocument(
     body,
     'no',
-    `${totalQty} ekstra egg lagt i pakken — betal kr ${totalNok} med Vipps`,
+    `Ønskelisten din er oppfylt — ${totalQty} egg lagt til i bestilling ${orderNumber}`,
     { productScope: 'eggs', classification: 'transactional' }
   )
 }
@@ -1387,7 +1388,7 @@ async function fulfillWishlistItems(
   // Fetch order
   const { data: order, error: orderError } = await supabaseAdmin
     .from('egg_orders')
-    .select('id, order_number, status, customer_email, customer_name, year, week_number, admin_notes, delivery_monday')
+    .select('id, order_number, status, customer_email, customer_name, year, week_number, admin_notes, delivery_monday, remainder_amount, total_amount')
     .eq('id', orderId)
     .single()
 
@@ -1545,83 +1546,57 @@ async function fulfillWishlistItems(
       .eq('id', requestId)
   }
 
-  // 5. Create Vipps payment session
+  // 5. Update order: add wishlist total to remainder_amount, set status back to deposit_paid
   const totalOre = additions.reduce((sum, a) => sum + a.subtotal, 0)
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_BASE_URL || 'https://tinglumgard.no'
-  const shortReference = `EGG-WISH-${order.order_number}-${Date.now()}`
-  const { randomBytes } = await import('crypto')
-  const callbackToken = randomBytes(16).toString('hex')
 
-  let paymentUrl = `${appUrl}/rugeegg/mine-bestillinger/${orderId}/betaling`
+  const currentRemainder = order.remainder_amount || 0
+  const currentTotal = order.total_amount || 0
 
-  try {
-    const sessionData = {
-      merchantInfo: {
-        callbackUrl: `${appUrl}/api/webhooks/vipps`,
-        returnUrl: `${appUrl}/rugeegg/mine-bestillinger/${orderId}/betaling-bekreftet?orderId=${orderId}&paymentType=addition_deposit`,
-        termsAndConditionsUrl: `${appUrl}/vilkar`,
-        callbackAuthorizationToken: callbackToken,
-      },
-      transaction: {
-        amount: { currency: 'NOK', value: totalOre },
-        reference: shortReference,
-        paymentDescription: `Ønskelistegg (30% rabatt) ${order.order_number}`,
-      },
-      configuration: {
-        userFlow: 'WEB_REDIRECT',
-        elements: 'PaymentOnly',
-      },
-    }
-
-    const vippsResult = await vippsClient.createCheckoutSession(sessionData)
-
-    await supabaseAdmin.from('egg_payments').insert({
-      egg_order_id: orderId,
-      payment_type: 'addition_deposit',
-      amount_nok: Math.round(totalOre / 100),
-      vipps_order_id: vippsResult.sessionId,
-      vipps_callback_token: callbackToken,
-      status: 'pending',
-      idempotency_key: shortReference,
+  const { error: updateOrderError } = await supabaseAdmin
+    .from('egg_orders')
+    .update({
+      remainder_amount: currentRemainder + totalOre,
+      total_amount: currentTotal + totalOre,
+      status: 'deposit_paid',
     })
+    .eq('id', orderId)
 
-    if (vippsResult.checkoutFrontendUrl) {
-      paymentUrl = vippsResult.checkoutFrontendUrl
-    }
-  } catch (e) {
-    logError('fulfill-wishlist-vipps', e)
-    // Continue — email will fall back to order page link
+  if (updateOrderError) {
+    logError('fulfill-wishlist-update-order', updateOrderError)
+    return NextResponse.json({ error: 'Failed to update order remainder' }, { status: 500 })
   }
 
-  // 6. Send fulfillment email
+  // 6. Send wishlist remainder email
+  const orderPageUrl = `${appUrl}/rugeegg/mine-bestillinger`
   try {
-    const emailItems = additions.map((a, i) => ({
+    const emailItems = additions.map((a) => ({
       breedName: a.breedName,
       qty: a.quantity,
       discountedPriceOre: a.price_per_egg,
       subtotalOre: a.subtotal,
     }))
 
-    const emailHtml = buildWishlistFulfillmentEmail({
+    const emailHtml = buildWishlistRemainderEmail({
       customerName: order.customer_name || 'Kunde',
       orderNumber: order.order_number,
+      weekNumber: order.week_number,
       items: emailItems,
       totalOre,
       discountPct: 30,
-      paymentUrl,
-      orderUrl: buildCustomerOrderLink(appUrl, 'egg', orderId),
+      orderPageUrl,
     })
 
     await dispatchEmail({
       to: order.customer_email,
-      subject: `Ekstra egg lagt til i pakken din (${order.order_number})`,
+      subject: `Ønskelisten din er oppfylt – restbeløp kr ${Math.round(totalOre / 100)} (${order.order_number})`,
       html: emailHtml,
       classification: 'transactional',
       locale: 'no',
       sourcePath: '/api/admin/eggs/orders/[id]/actions',
       eggOrderId: orderId,
-      templateKey: 'egg.wishlist.fulfillment',
-      metadata: { flow_key: 'egg.wishlist.fulfillment', total_ore: totalOre, discount_pct: 30 },
+      templateKey: 'egg.wishlist.remainder',
+      metadata: { flow_key: 'egg.wishlist.remainder', total_ore: totalOre, discount_pct: 30 },
     })
   } catch (e) {
     logError('fulfill-wishlist-email', e)
@@ -1632,10 +1607,10 @@ async function fulfillWishlistItems(
   await appendAdminNote(
     orderId,
     order.admin_notes,
-    `Admin: wishlist fulfillment — ${noteLines}, total kr ${Math.round(totalOre / 100)} (30% rabatt)${reason ? ` - ${reason}` : ''}`
+    `Admin: wishlist oppfylt — ${noteLines}, restbeløp +kr ${Math.round(totalOre / 100)} (30% rabatt), status → deposit_paid${reason ? ` - ${reason}` : ''}`
   )
 
-  return NextResponse.json({ success: true, totalOre, paymentUrl })
+  return NextResponse.json({ success: true, totalOre, remainderAmount: currentRemainder + totalOre })
 }
 
 async function sendRemainderReminder(orderId: string) {
