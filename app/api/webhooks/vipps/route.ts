@@ -1,4 +1,6 @@
 ﻿// app/api/webhooks/vipps/route.ts
+
+// ─── Imports ───────────────────────────────────────────────────────────────
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "node:crypto";
 import { supabaseAdmin } from "@/lib/supabase/server";
@@ -21,8 +23,25 @@ import {
   summarizeChickenOrderLines,
 } from "@/lib/chickens/email-lines";
 import { sendChickenDepositConfirmationEmails } from '@/lib/chickens/notifications';
-import { logError } from "@/lib/logger";
+import { logError, logInfo, logWarning } from "@/lib/logger";
+import {
+  VIPPS_PENDING_EMAIL,
+  ADMIN_EMAIL,
+  DELIVERY_LABEL_PICKUP_FARM,
+  DELIVERY_LABEL_PICKUP_E6,
+  DELIVERY_LABEL_DELIVERY_TRONDHEIM,
+  DELIVERY_LABEL_DEFAULT_PIG,
+  DELIVERY_LABEL_POSTEN,
+  DELIVERY_LABEL_E6_PICKUP,
+  DELIVERY_LABEL_FARM_PICKUP,
+  DELIVERY_LABEL_DEFAULT_EGG,
+  DELIVERY_LABEL_CHICKEN_FARM_PICKUP,
+  DELIVERY_LABEL_CHICKEN_DELIVERY_NAMSOS,
+  DELIVERY_LABEL_DEFAULT_CHICKEN,
+} from "@/lib/constants";
 import { vippsClient } from "@/lib/vipps/api-client";
+
+// ─── HMAC & Auth Verification ──────────────────────────────────────────────
 
 /**
  * Vipps Webhooks API uses HMAC verification.
@@ -119,6 +138,8 @@ function extractIncomingCallbackToken(request: NextRequest): string {
   return authorizationHeader;
 }
 
+// ─── Formatting Helpers ────────────────────────────────────────────────────
+
 function formatNok(amount: number): string {
   return `kr ${Math.round(Number(amount) || 0).toLocaleString('nb-NO')}`;
 }
@@ -128,26 +149,26 @@ function formatOreToNokWithPrefix(amountOre: number): string {
 }
 
 function getPigDeliveryLabel(deliveryType: string): string {
-  if (deliveryType === 'pickup_farm') return 'Henting på gården';
-  if (deliveryType === 'pickup_e6') return 'Henting ved E6';
-  if (deliveryType === 'delivery_trondheim') return 'Levering i Trondheim';
-  return deliveryType || 'Henting';
+  if (deliveryType === 'pickup_farm') return DELIVERY_LABEL_PICKUP_FARM;
+  if (deliveryType === 'pickup_e6') return DELIVERY_LABEL_PICKUP_E6;
+  if (deliveryType === 'delivery_trondheim') return DELIVERY_LABEL_DELIVERY_TRONDHEIM;
+  return deliveryType || DELIVERY_LABEL_DEFAULT_PIG;
 }
 
 function getEggDeliveryLabel(deliveryMethod: string): string {
-  if (deliveryMethod === 'posten') return 'Posten';
-  if (deliveryMethod === 'e6_pickup') return 'E6 møtepunkt';
-  if (deliveryMethod === 'farm_pickup') return 'Henting på gården';
-  return deliveryMethod || 'Levering';
+  if (deliveryMethod === 'posten') return DELIVERY_LABEL_POSTEN;
+  if (deliveryMethod === 'e6_pickup') return DELIVERY_LABEL_E6_PICKUP;
+  if (deliveryMethod === 'farm_pickup') return DELIVERY_LABEL_FARM_PICKUP;
+  return deliveryMethod || DELIVERY_LABEL_DEFAULT_EGG;
 }
 
 function getChickenDeliveryLabel(deliveryMethod: string): string {
-  if (deliveryMethod === 'farm_pickup') return 'Henting på gården';
-  if (deliveryMethod === 'delivery_namsos_trondheim') return 'Levering Namsos/Trondheim';
-  return deliveryMethod || 'Henting';
+  if (deliveryMethod === 'farm_pickup') return DELIVERY_LABEL_CHICKEN_FARM_PICKUP;
+  if (deliveryMethod === 'delivery_namsos_trondheim') return DELIVERY_LABEL_CHICKEN_DELIVERY_NAMSOS;
+  return deliveryMethod || DELIVERY_LABEL_DEFAULT_CHICKEN;
 }
 
-function buildPigExtrasHtml(extraProducts: any[]): string {
+function buildPigExtrasHtml(extraProducts: Array<{ name: string; quantity: number; unit_type: string }>): string {
   if (!Array.isArray(extraProducts) || extraProducts.length === 0) return '';
   let html = '<p><strong>Tilleggsprodukter:</strong></p><ul>';
   for (const extra of extraProducts) {
@@ -168,6 +189,8 @@ function buildAdminUrl(appUrl: string, scope: 'order' | 'egg_order' | 'chicken_o
   if (scope === 'chicken_order') return buildAdminOrderLink(appUrl, 'chicken', id);
   return buildAdminOrderLink(appUrl, 'pig', id);
 }
+
+// ─── Contact Normalization ─────────────────────────────────────────────────
 
 function normalizeEmail(value: unknown): string {
   if (typeof value !== 'string') return '';
@@ -205,7 +228,7 @@ function buildVippsContactUpdate(details: any): Record<string, string> {
 
   const update: Record<string, string> = {};
   if (fullName) update.customer_name = fullName;
-  if (email && email !== 'pending@vipps.no') update.customer_email = email;
+  if (email && email !== VIPPS_PENDING_EMAIL) update.customer_email = email;
   if (phone) update.customer_phone = phone;
   if (address) update.shipping_address = address;
   if (postalCode) update.shipping_postal_code = postalCode;
@@ -232,13 +255,15 @@ async function getVippsCheckoutSessionFromPayment(payment: any): Promise<any | n
   return null;
 }
 
+// ─── Order Contact Enrichment ──────────────────────────────────────────────
+
 async function enrichEggOrderContact(order: any, payment: any): Promise<any> {
   if (!order) return order;
 
   const currentEmail = normalizeEmail(order.customer_email);
   const currentPhone = normalizePhone(order.customer_phone);
   const needsContactUpdate =
-    !currentEmail || currentEmail === 'pending@vipps.no' || !currentPhone || !String(order.customer_name || '').trim();
+    !currentEmail || currentEmail === VIPPS_PENDING_EMAIL || !currentPhone || !String(order.customer_name || '').trim();
 
   if (!needsContactUpdate) return order;
 
@@ -267,7 +292,7 @@ async function enrichChickenOrderContact(order: any, payment: any): Promise<any>
   const currentEmail = normalizeEmail(order.customer_email);
   const currentPhone = normalizePhone(order.customer_phone);
   const needsContactUpdate =
-    !currentEmail || currentEmail === 'pending@vipps.no' || !currentPhone || !String(order.customer_name || '').trim();
+    !currentEmail || currentEmail === VIPPS_PENDING_EMAIL || !currentPhone || !String(order.customer_name || '').trim();
 
   if (!needsContactUpdate) return order;
 
@@ -297,7 +322,7 @@ async function attachChickenOrderToVippsUser(order: any): Promise<any> {
   const phone = normalizePhone(order.customer_phone);
   let resolvedUserId: string | null = null;
 
-  if (email && email !== 'pending@vipps.no') {
+  if (email && email !== VIPPS_PENDING_EMAIL) {
     const { data: userByEmail } = await supabaseAdmin
       .from('vipps_users')
       .select('id')
@@ -331,6 +356,8 @@ async function attachChickenOrderToVippsUser(order: any): Promise<any> {
   return { ...order, user_id: resolvedUserId };
 }
 
+// ─── Webhook Handler ───────────────────────────────────────────────────────
+
 export async function POST(request: NextRequest) {
   try {
     const bodyText = await request.text();
@@ -350,7 +377,7 @@ export async function POST(request: NextRequest) {
       [k: string]: unknown;
     };
 
-    console.log('Vipps webhook received', {
+    logInfo('Vipps webhook received', {
       sessionId: payload.sessionId || null,
       reference: payload.reference || null,
       sessionState: payload.sessionState || null,
@@ -359,17 +386,17 @@ export async function POST(request: NextRequest) {
       hasCallbackAuthHeader:
         !!request.headers.get('x-vipps-callback-auth-token') ||
         !!request.headers.get('x-vipps-callback-authorization-token'),
-    });
+    } as Record<string, unknown>);
 
     // CRITICAL: Check if payment was actually successful
     const sessionState = payload.sessionState as string | undefined;
     const paymentState = payload.paymentDetails?.state as string | undefined;
 
-    console.log('Payment states:', { sessionState, paymentState });
+    logInfo('Payment states', { sessionState, paymentState } as Record<string, unknown>);
 
     // Only process successful payments
     if (sessionState !== 'PaymentSuccessful' || paymentState !== 'AUTHORIZED') {
-      console.log('Payment not successful, ignoring webhook', { sessionState, paymentState });
+      logInfo('Payment not successful, ignoring webhook', { sessionState, paymentState } as Record<string, unknown>);
       return NextResponse.json(
         { 
           message: "Payment not successful, no action taken",
@@ -393,7 +420,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('Looking for payment with vipps_session_id:', vippsId);
+    logInfo('Looking for payment with vipps_session_id', { vippsId });
 
     // Find payment row by vipps_session_id (not vipps_payment_id)
     const { data: payment, error: paymentError } = await supabaseAdmin
@@ -473,7 +500,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('Found payment:', resolvedPayment.id, 'type:', resolvedPayment.payment_type, 'egg:', isEggPayment, 'chicken:', isChickenPayment);
+    logInfo('Found payment', { paymentId: resolvedPayment.id, type: resolvedPayment.payment_type, isEggPayment, isChickenPayment });
 
     const incomingCallbackToken = extractIncomingCallbackToken(request);
     const storedCallbackToken = (resolvedPayment.vipps_callback_token || '').trim();
@@ -511,53 +538,17 @@ export async function POST(request: NextRequest) {
     }
 
     if (allowLegacyMissingStoredToken) {
-      console.warn('Vipps webhook accepted with legacy fallback (missing stored callback token)', {
+      logWarning('Vipps webhook accepted with legacy fallback (missing stored callback token)', {
         paymentId: resolvedPayment.id,
         sessionId: payload.sessionId || null,
       });
     }
 
-    // Idempotency guard: if payment is already completed, skip duplicate side effects.
+    // Idempotency guard: payment already completed — return immediately with no side effects.
+    // Side effects (finalizeConfirmedEggOrder, order status updates, emails) must only run
+    // on the first successful processing path, never on duplicate webhook deliveries.
     if (resolvedPayment.status === 'completed') {
-      if (isEggPayment && resolvedPayment.payment_type === 'deposit' && resolvedPayment.egg_order_id) {
-        try {
-          await finalizeConfirmedEggOrder(resolvedPayment.egg_order_id)
-
-          const { data: existingEggOrder } = await supabaseAdmin
-            .from('egg_orders')
-            .select('id, status, deposit_amount, total_amount, remainder_amount')
-            .eq('id', resolvedPayment.egg_order_id)
-            .maybeSingle()
-
-          if (existingEggOrder && existingEggOrder.status === 'pending') {
-            const depositAmount = Number(existingEggOrder.deposit_amount || 0)
-            const totalAmount = Number(existingEggOrder.total_amount || 0)
-            const remainderAmount = Number(existingEggOrder.remainder_amount || 0)
-            const nextStatus =
-              remainderAmount <= 0 || (depositAmount > 0 && totalAmount > 0 && depositAmount >= totalAmount)
-                ? 'fully_paid'
-                : 'deposit_paid'
-
-            await supabaseAdmin
-              .from('egg_orders')
-              .update({ status: nextStatus })
-              .eq('id', existingEggOrder.id)
-          }
-        } catch (error) {
-          logError('vipps-webhook-duplicate-egg-finalization', error, {
-            paymentId: resolvedPayment.id,
-            orderId: resolvedPayment.egg_order_id,
-          })
-          notifyInventoryOverallocation({
-            orderId: resolvedPayment.egg_order_id,
-            orderNumber: resolvedPayment.egg_order_id,
-            errorMessage: error instanceof Error ? error.message : 'Unknown error',
-            source: 'vipps-webhook-duplicate',
-          }).catch(() => {})
-        }
-      }
-
-      console.log('Payment already completed, skipping duplicate webhook', { paymentId: resolvedPayment.id });
+      logInfo('Payment already completed, skipping duplicate webhook', { paymentId: resolvedPayment.id });
       return NextResponse.json({ received: true, duplicate: true });
     }
 
@@ -580,11 +571,11 @@ export async function POST(request: NextRequest) {
 
     // Race condition guard: if no rows were updated, another webhook already processed this payment
     if (!updatedRows || updatedRows.length === 0) {
-      console.log('Payment was already processed by another webhook call, skipping', { paymentId: resolvedPayment.id });
+      logInfo('Payment was already processed by another webhook call, skipping', { paymentId: resolvedPayment.id });
       return NextResponse.json({ received: true, duplicate: true });
     }
 
-    console.log('Payment marked as completed with timestamp');
+    logInfo('Payment marked as completed with timestamp');
 
     // Fetch the order details for email notification
     let order: any = null;
@@ -681,7 +672,7 @@ export async function POST(request: NextRequest) {
       const totalAmount = Number(isChickenPayment ? (order?.total_amount_nok || 0) : (order?.total_amount || 0));
       const remainderAmount = Number(isEggPayment ? (order?.remainder_amount || 0) : (order?.remainder_amount_nok || 0));
       const newStatus = (remainderAmount <= 0 || (depositAmount > 0 && totalAmount > 0 && depositAmount >= totalAmount)) ? 'fully_paid' : 'deposit_paid';
-      console.log(`Updating order status to ${newStatus} (deposit: ${depositAmount}, total: ${totalAmount}, remainder: ${remainderAmount})`);
+      logInfo(`Updating order status to ${newStatus}`, { deposit: depositAmount, total: totalAmount, remainder: remainderAmount });
 
       const { error: orderErr } = await supabaseAdmin
         .from(orderTable)
@@ -693,10 +684,10 @@ export async function POST(request: NextRequest) {
         throw orderErr;
       }
 
-      console.log('Order status updated successfully');
+      logInfo('Order status updated successfully');
 
       const customerEmailForSend = normalizeEmail(order?.customer_email);
-      if (order && customerEmailForSend && customerEmailForSend !== 'pending@vipps.no') {
+      if (order && customerEmailForSend && customerEmailForSend !== VIPPS_PENDING_EMAIL) {
         try {
           const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_BASE_URL || 'https://tinglumgard.no';
 
@@ -797,7 +788,7 @@ export async function POST(request: NextRequest) {
         }
       }
       // Send admin notification email
-      const adminEmail = process.env.EMAIL_FROM || 'post@tinglum.com';
+      const adminEmail = process.env.EMAIL_FROM || ADMIN_EMAIL;
       if (order && adminEmail) {
         try {
           const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_BASE_URL || 'https://tinglumgard.no';
@@ -932,7 +923,7 @@ export async function POST(request: NextRequest) {
         throw additionDepositErr;
       }
 
-      console.log('Egg order updated after addition deposit payment', {
+      logInfo('Egg order updated after addition deposit payment', {
         orderId: resolvedPayment.egg_order_id,
         paidOre,
         nextDepositAmount,
@@ -967,7 +958,7 @@ export async function POST(request: NextRequest) {
           ? "fully_paid"
           : "paid";
       const remainderStatus = isActuallyFullyPaid ? paidStatus : 'deposit_paid';
-      console.log(`Remainder payment: totalPaid=${totalPaidOre} ore, totalAmount=${totalAmountOre} ore, status=${remainderStatus}`);
+      logInfo('Remainder payment processed', { totalPaidOre, totalAmountOre, remainderStatus });
 
       const chickenRemainderCollectedAt = new Date().toISOString();
       const chickenRemainderUpdate = {
@@ -1000,7 +991,7 @@ export async function POST(request: NextRequest) {
         throw orderErr;
       }
 
-      console.log('Order status updated to paid');
+      logInfo('Order status updated to paid');
 
       if (isEggPayment && remainderStatus === 'fully_paid') {
         try {
@@ -1013,7 +1004,7 @@ export async function POST(request: NextRequest) {
       }
 
       const customerEmailForSend = normalizeEmail(order?.customer_email);
-      if (order && customerEmailForSend && customerEmailForSend !== 'pending@vipps.no') {
+      if (order && customerEmailForSend && customerEmailForSend !== VIPPS_PENDING_EMAIL) {
         try {
           const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_BASE_URL || 'https://tinglumgard.no';
 

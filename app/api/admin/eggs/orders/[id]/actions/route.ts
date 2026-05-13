@@ -16,7 +16,7 @@ import { reconcileEggPaymentDependentFlowInstances } from '@/lib/email/lifecycle
 import { renderManagedTemplate, emailButton, emailDivider, emailTipBox, emailStoryFooter, ensureHtmlDocument } from '@/lib/email/render'
 import { buildCustomerOrderLink } from '@/lib/email/links'
 import { buildEggOrderLinesHtml, summarizeEggOrderLines } from '@/lib/eggs/email-lines'
-import { logError } from '@/lib/logger'
+import { logError, logWarning } from '@/lib/logger'
 import { notifyInventoryOverallocation } from '@/lib/notifications/inventory-overallocation'
 
 interface EggOrderAddition {
@@ -145,13 +145,20 @@ async function allocateInventory(inventoryId: string, quantity: number) {
     nextStatus = 'open'
   }
 
-  const { error: updateError } = await supabaseAdmin
+  const currentAllocatedValue = inventory.eggs_allocated || 0
+  const { data: updatedRows, error: updateError } = await supabaseAdmin
     .from('egg_inventory')
     .update({ eggs_allocated: nextAllocated, status: nextStatus })
     .eq('id', inventoryId)
+    .eq('eggs_allocated', currentAllocatedValue) // optimistic lock — reject if changed concurrently
+    .select('id')
 
   if (updateError) {
     throw updateError
+  }
+
+  if (!updatedRows || updatedRows.length === 0) {
+    throw new Error('Inventory changed concurrently — please retry')
   }
 }
 
@@ -166,19 +173,38 @@ async function appendAdminNote(orderId: string, existingNotes: string | null, no
 function deriveStatusFromPayments(
   currentStatus: string,
   payments: EggPaymentRow[] = [],
-  remainderTargetOre: number
+  remainderTargetOre: number,
+  expectedDepositOre: number = 0
 ): string {
   if (STATUS_LOCK.has(currentStatus)) {
     return currentStatus
   }
 
-  const depositCompleted = payments.some(
+  const completedDeposit = payments.find(
     (payment) => payment.payment_type === 'deposit' && payment.status === 'completed'
   )
 
-  if (!depositCompleted) {
+  if (!completedDeposit) {
     return 'pending'
   }
+
+  // Validate deposit amount — must be within 90% of expected to guard against
+  // miscreated payment rows with near-zero amounts being treated as valid deposits.
+  if (expectedDepositOre > 0) {
+    const depositPaidOre = Math.round((completedDeposit.amount_nok || 0) * 100)
+    const minimumAcceptable = Math.round(expectedDepositOre * 0.9)
+    if (depositPaidOre < minimumAcceptable) {
+      logWarning('deriveStatusFromPayments: deposit amount below expected threshold', {
+        depositPaidOre,
+        expectedDepositOre,
+        minimumAcceptable,
+        paymentId: completedDeposit.id,
+      } as Record<string, unknown>)
+      return 'pending'
+    }
+  }
+
+  const depositCompleted = true
 
   const remainderPaidOre =
     payments.reduce((sum, payment) => {
@@ -272,15 +298,29 @@ async function applyManualRemainingOverride(
   return data
 }
 
+const PICKUP_DELIVERY_METHODS_ACTIONS = new Set(['farm_pickup', 'e6_pickup'])
+
+function getPreviousISOWeek(year: number, week: number): { year: number; week: number } {
+  if (week > 1) return { year, week: week - 1 }
+  const dec28 = new Date(Date.UTC(year - 1, 11, 28))
+  const dayNum = dec28.getUTCDay() || 7
+  const d = new Date(dec28)
+  d.setUTCDate(dec28.getUTCDate() + 4 - dayNum)
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1))
+  const prevYearWeeks = Math.ceil(((d.getTime() - yearStart.getTime()) / 86400000 + 1) / 7)
+  return { year: year - 1, week: prevYearWeeks }
+}
+
 async function adjustEggOrderLines(
   orderId: string,
   linesInput: EggOrderAdjustLineInput[],
-  reason: string | undefined
+  reason: string | undefined,
+  priceAdjustmentOre?: number | null
 ) {
   const { data: orderRaw, error: orderError } = await supabaseAdmin
     .from('egg_orders')
     .select(
-      'id, order_number, status, admin_notes, inventory_id, breed_id, quantity, price_per_egg, subtotal, delivery_fee, deposit_amount, total_amount, remainder_amount, year, week_number, delivery_monday, egg_payments(*), egg_order_additions(id, inventory_id, breed_id, quantity, price_per_egg, subtotal)'
+      'id, order_number, status, admin_notes, inventory_id, breed_id, quantity, price_per_egg, subtotal, delivery_fee, deposit_amount, total_amount, remainder_amount, year, week_number, delivery_monday, delivery_method, price_adjustment_ore, egg_payments(*), egg_order_additions(id, inventory_id, breed_id, quantity, price_per_egg, subtotal)'
     )
     .eq('id', orderId)
     .single()
@@ -290,6 +330,8 @@ async function adjustEggOrderLines(
   }
 
   const order = orderRaw as EggOrderAdjustView
+  const isPickup = PICKUP_DELIVERY_METHODS_ACTIONS.has(String((order as any).delivery_method || ''))
+
   const inventoryRows = (await fetchAdminEggWeekInventory({
     year: Number(order.year || 0),
     weekNumber: Number(order.week_number || 0),
@@ -298,6 +340,21 @@ async function adjustEggOrderLines(
   const inventoryById = new Map(
     inventoryRows.map((row) => [String(row.id), row])
   )
+
+  // For pickup orders, also load previous week inventory so admins can
+  // allocate eggs collected over the past 10 days across both weeks
+  let allInventoryRowsForOrder = [...inventoryRows]
+  if (isPickup && Number(order.year) > 0 && Number(order.week_number) > 0) {
+    const prev = getPreviousISOWeek(Number(order.year), Number(order.week_number))
+    const prevRows = (await fetchAdminEggWeekInventory({ year: prev.year, weekNumber: prev.week })) as any[]
+    for (const row of prevRows) {
+      const id = String(row.id)
+      if (!inventoryById.has(id)) {
+        inventoryById.set(id, row)
+        allInventoryRowsForOrder.push(row)
+      }
+    }
+  }
 
   const currentQuantities = getEggOrderCurrentQuantitiesByInventory(order)
   const requestedLines = new Map<string, { quantity: number; overrideRemaining: number | null }>()
@@ -338,7 +395,7 @@ async function adjustEggOrderLines(
   }
 
   const availabilityByInventoryId = await getAdminEggAvailabilityForInventoryRows({
-    inventoryRows,
+    inventoryRows: allInventoryRowsForOrder,
     year: Number(order.year || 0),
     weekNumber: Number(order.week_number || 0),
     deliveryMonday: order.delivery_monday,
@@ -398,13 +455,22 @@ async function adjustEggOrderLines(
       }
     }
 
-    const { error: updateError } = await supabaseAdmin
+    const { data: updatedAllocationRows, error: updateError } = await supabaseAdmin
       .from('egg_inventory')
       .update({ eggs_allocated: nextAllocated, status: nextStatus })
       .eq('id', inventoryId)
+      .eq('eggs_allocated', currentAllocated) // optimistic lock — reject if changed concurrently
+      .select('id')
 
     if (updateError) {
       return NextResponse.json({ error: 'Failed to update inventory allocation' }, { status: 500 })
+    }
+
+    if (!updatedAllocationRows || updatedAllocationRows.length === 0) {
+      return NextResponse.json(
+        { error: 'Inventory changed concurrently — please refresh and retry' },
+        { status: 409 }
+      )
     }
 
     inventoryById.set(inventoryId, {
@@ -414,7 +480,7 @@ async function adjustEggOrderLines(
     })
   }
 
-  const allInventoryIds = inventoryRows.map((row) => String(row.id))
+  const allInventoryIds = allInventoryRowsForOrder.map((row) => String(row.id))
   const inventoryOrder = getUniqueInventoryOrder(
     String(order.inventory_id || ''),
     currentComponents.map((component) => component.inventoryId),
@@ -515,12 +581,17 @@ async function adjustEggOrderLines(
 
   const nextSubtotal = baseSegment.quantity * baseSegment.pricePerEgg
   const additionsTotal = additionRows.reduce((sum, row) => sum + row.subtotal, 0)
-  const nextTotalAmount = nextSubtotal + Number(order.delivery_fee || 0) + additionsTotal
+  // price_adjustment_ore can be negative (discount) or positive (surcharge)
+  const nextAdjustmentOre = priceAdjustmentOre != null
+    ? Math.round(Number(priceAdjustmentOre))
+    : Number((order as any).price_adjustment_ore || 0)
+  const nextTotalAmount = nextSubtotal + Number(order.delivery_fee || 0) + additionsTotal + nextAdjustmentOre
   const nextRemainderAmount = Math.max(0, nextTotalAmount - Number(order.deposit_amount || 0))
   const nextStatus = deriveStatusFromPayments(
     order.status,
     order.egg_payments || [],
-    nextRemainderAmount
+    nextRemainderAmount,
+    Number(order.deposit_amount || 0)
   )
 
   const { error: orderUpdateError } = await supabaseAdmin
@@ -531,6 +602,7 @@ async function adjustEggOrderLines(
       quantity: baseSegment.quantity,
       price_per_egg: baseSegment.pricePerEgg,
       subtotal: nextSubtotal,
+      price_adjustment_ore: nextAdjustmentOre,
       total_amount: nextTotalAmount,
       remainder_amount: nextRemainderAmount,
       status: nextStatus,
@@ -622,7 +694,8 @@ async function syncEggOrderStatus(orderId: string, reason: string | undefined) {
   const nextStatus = deriveStatusFromPayments(
     order.status,
     order.egg_payments || [],
-    order.remainder_amount || 0
+    order.remainder_amount || 0,
+    Number(order.deposit_amount || 0)
   )
 
   const updatePayload: Record<string, unknown> = { status: nextStatus }
@@ -1003,6 +1076,10 @@ async function moveEggOrder(orderId: string, year: number, weekNumber: number, r
     return NextResponse.json({ error: 'Target week not found for this breed' }, { status: 404 })
   }
 
+  if (targetInventory.status === 'closed') {
+    return NextResponse.json({ error: 'Target week is closed and cannot accept new allocations' }, { status: 400 })
+  }
+
   const additions: EggOrderAddition[] = order.egg_order_additions || []
   const targetByAdditionId = new Map<string, { id: string; quantity: number }>()
   const requiredByInventory = new Map<string, number>()
@@ -1049,18 +1126,17 @@ async function moveEggOrder(orderId: string, year: number, weekNumber: number, r
     }
   }
 
+  // Step 1: Allocate in new week
   for (const [inventoryId, requiredQty] of Array.from(requiredByInventory.entries())) {
     await allocateInventory(inventoryId, requiredQty)
   }
 
-  await releaseInventory(order.inventory_id, order.quantity)
-
+  // Step 2: Update order row BEFORE releasing old inventory.
+  // If the release fails after this point, the order already reflects the new week
+  // and a retry will skip the allocation (already done) and just complete the release.
   for (const addition of additions) {
     const target = targetByAdditionId.get(addition.id)
     if (!target) continue
-
-    await releaseInventory(addition.inventory_id, addition.quantity)
-
     await supabaseAdmin
       .from('egg_order_additions')
       .update({ inventory_id: target.id })
@@ -1076,6 +1152,15 @@ async function moveEggOrder(orderId: string, year: number, weekNumber: number, r
       delivery_monday: targetInventory.delivery_monday,
     })
     .eq('id', orderId)
+
+  // Step 3: Release old inventory — done last so order is already on new week if this fails
+  await releaseInventory(order.inventory_id, order.quantity)
+
+  for (const addition of additions) {
+    const target = targetByAdditionId.get(addition.id)
+    if (!target) continue
+    await releaseInventory(addition.inventory_id, addition.quantity)
+  }
 
   await appendAdminNote(
     orderId,
@@ -1791,7 +1876,7 @@ export async function POST(
       case 'mark_shipped':
         return await markEggOrderShipped(params.id, data?.trackingNumber, data?.reason)
       case 'adjust_order_lines':
-        return await adjustEggOrderLines(params.id, data?.lines || [], data?.reason)
+        return await adjustEggOrderLines(params.id, data?.lines || [], data?.reason, data?.priceAdjustmentOre ?? null)
       case 'fulfill_wishlist':
         return await fulfillWishlistItems(params.id, data?.items || [], data?.reason)
       case 'send_remainder_reminder':

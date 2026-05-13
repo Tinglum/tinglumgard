@@ -33,6 +33,7 @@ type EggOrder = {
   total_amount: number
   deposit_amount: number
   remainder_amount: number
+  price_adjustment_ore?: number | null
   remainder_due_date?: string | null
   delivery_monday: string
   week_number: number
@@ -409,9 +410,21 @@ export function EggOrderUnifiedCard({ order, onPayDeposit }: { order: EggOrder; 
               {formatPrice(order.deposit_amount, lang)}
             </span>
           </div>
+          {order.price_adjustment_ore != null && order.price_adjustment_ore !== 0 && (
+            <div className="flex items-center justify-between text-sm">
+              <span className={order.price_adjustment_ore < 0 ? 'text-emerald-700' : 'text-amber-700'}>
+                {order.price_adjustment_ore < 0
+                  ? (lang === 'no' ? 'Rabatt / justering' : 'Discount / adjustment')
+                  : (lang === 'no' ? 'Tillegg / justering' : 'Surcharge / adjustment')}
+              </span>
+              <span className={`font-normal ${order.price_adjustment_ore < 0 ? 'text-emerald-700' : 'text-amber-700'}`}>
+                {order.price_adjustment_ore < 0 ? '−' : '+'}{formatPrice(Math.abs(order.price_adjustment_ore), lang)}
+              </span>
+            </div>
+          )}
           <div className="flex items-center justify-between text-sm">
             <span className="text-neutral-500">{common.remainder}</span>
-            <span className="font-normal text-neutral-900">
+            <span className={`font-normal ${remainderDue > 0 ? 'text-amber-700 font-medium' : 'text-neutral-900'}`}>
               {formatPrice(remainderDue, lang)}
             </span>
           </div>

@@ -93,3 +93,12 @@ export function getMondayOfWeek(year: number, week: number): Date {
   targetMonday.setUTCDate(mondayOfWeek1.getUTCDate() + (week - 1) * 7)
   return targetMonday
 }
+
+/**
+ * Returns the number of ISO weeks in a given year (52 or 53).
+ * A year has 53 ISO weeks if Dec 28 falls in week 53.
+ */
+export function getISOWeeksInYear(year: number): number {
+  const dec28 = new Date(Date.UTC(year, 11, 28))
+  return getISOWeekNumber(dec28)
+}

@@ -22,10 +22,8 @@ interface CheckoutRequest {
   customerEmail?: string;
   customerPhone?: string;
   referralCode?: string;
-  referralDiscount?: number;
   referredByPhone?: string;
   rebateCode?: string;
-  rebateDiscount?: number;
 }
 
 function normalizeReferralCodeBase(name?: string | null, phone?: string | null) {
@@ -115,7 +113,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body: CheckoutRequest = await request.json();
-    const { mangalitsaPresetId, ribbeChoice, extraProducts, deliveryType, freshDelivery, notes, customerName, customerEmail, customerPhone, referralCode, referralDiscount, referredByPhone, rebateCode, rebateDiscount } = body;
+    const { mangalitsaPresetId, ribbeChoice, extraProducts, deliveryType, freshDelivery, notes, customerName, customerEmail, customerPhone, referralCode, referredByPhone, rebateCode } = body;
 
     const normalizedExtraProducts: ExtraProduct[] = Array.isArray(extraProducts)
       ? extraProducts
@@ -148,15 +146,33 @@ export async function POST(request: NextRequest) {
 
     // Customer details are optional - they will be populated from Vipps after payment
 
-    // Check inventory
+    // Check and atomically lock inventory before order creation.
+    // Using a conditional UPDATE (.gte guard) so concurrent checkouts can't both
+    // pass the availability check against the same stock snapshot.
     const inventory = await supabaseAdmin
       .from('inventory')
       .select('*')
       .eq('active', true)
       .maybeSingle();
 
-    if (!inventory.data || inventory.data.kg_remaining < effectiveBoxSize) {
-      return NextResponse.json({ error: 'Failed to update inventory' }, { status: 500 });
+    if (inventory.error || !inventory.data) {
+      return NextResponse.json({ error: 'Inventory unavailable' }, { status: 500 });
+    }
+
+    const { data: lockedInventory, error: lockError } = await supabaseAdmin
+      .from('inventory')
+      .update({ kg_remaining: inventory.data.kg_remaining - effectiveBoxSize })
+      .eq('id', inventory.data.id)
+      .gte('kg_remaining', effectiveBoxSize) // only succeeds if stock hasn't changed
+      .select('id');
+
+    if (lockError) {
+      logError('checkout-inventory-lock', lockError);
+      return NextResponse.json({ error: 'Failed to reserve inventory' }, { status: 500 });
+    }
+
+    if (!lockedInventory || lockedInventory.length === 0) {
+      return NextResponse.json({ error: 'Sold out' }, { status: 409 });
     }
 
     // Fetch dynamic pricing from config
@@ -172,8 +188,18 @@ export async function POST(request: NextRequest) {
     const freshFee = freshDelivery ? pricing.fresh_delivery_fee : 0;
 
     // Calculate extra products total from database
+    interface OrderLineExtra {
+      slug: string;
+      name: string;
+      quantity: number;
+      unit_type: string;
+      price_per_unit: number;
+      size_from_kg: number | null;
+      size_to_kg: number | null;
+      total_price: number;
+    }
     let extrasTotal = 0;
-    const extraProductsData: any[] = [];
+    const extraProductsData: OrderLineExtra[] = [];
     const cutRangesById = new Map<string, { size_from_kg: number | null; size_to_kg: number | null }>();
 
     if (normalizedExtraProducts.length > 0) {
@@ -251,9 +277,41 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Apply discount to deposit only (referral OR rebate OR auto-benefit - cannot stack)
-    const referralDiscountAmount = Math.round(referralDiscount || 0);
-    const rebateDiscountAmount = Math.round(rebateDiscount || 0);
+    // Resolve referral discount server-side — never trust client-supplied amount
+    let referralDiscountAmount = 0;
+    if (referralCode) {
+      const { data: referralCodeRecord } = await supabaseAdmin
+        .from('referral_codes')
+        .select('id, is_active, max_uses, current_uses')
+        .eq('code', referralCode)
+        .maybeSingle();
+      if (referralCodeRecord?.is_active && (referralCodeRecord.max_uses == null || referralCodeRecord.current_uses < referralCodeRecord.max_uses)) {
+        // Referral discount is a fixed 20% of the base deposit
+        referralDiscountAmount = Math.round(baseDepositAmount * 0.20);
+      }
+    }
+
+    // Resolve rebate discount server-side — never trust client-supplied amount
+    let rebateDiscountAmount = 0;
+    if (rebateCode) {
+      const now = new Date().toISOString();
+      const { data: rebateRecord } = await supabaseAdmin
+        .from('rebate_codes')
+        .select('id, is_active, discount_type, discount_value, max_uses, current_uses, valid_from, valid_until')
+        .eq('code', rebateCode)
+        .maybeSingle();
+      const validFrom = rebateRecord?.valid_from ? rebateRecord.valid_from <= now : true;
+      const validUntil = rebateRecord?.valid_until ? rebateRecord.valid_until >= now : true;
+      const withinUses = rebateRecord?.max_uses == null || (rebateRecord.current_uses ?? 0) < rebateRecord.max_uses;
+      if (rebateRecord?.is_active && validFrom && validUntil && withinUses) {
+        if (rebateRecord.discount_type === 'percentage') {
+          rebateDiscountAmount = Math.round(baseDepositAmount * (Number(rebateRecord.discount_value) / 100));
+        } else {
+          rebateDiscountAmount = Math.round(Number(rebateRecord.discount_value));
+        }
+      }
+    }
+
     const manualDiscount = referralDiscountAmount || rebateDiscountAmount;
     // Manual discounts (referral/rebate) take priority; auto-benefit only if no manual discount
     const totalDiscountAmount = manualDiscount || autoBenefitDiscount;
@@ -417,17 +475,6 @@ export async function POST(request: NextRequest) {
       } catch (benefitError) {
         logError('checkout-benefit-usage', benefitError);
       }
-    }
-
-    // Update inventory
-    const { error: inventoryError } = await supabaseAdmin
-      .from('inventory')
-      .update({ kg_remaining: inventory.data.kg_remaining - effectiveBoxSize })
-      .eq('id', inventory.data.id);
-
-    if (inventoryError) {
-      logError('checkout-inventory-update', inventoryError);
-      // Don't fail the order, but log the error
     }
 
     // Note: Order confirmation email is sent AFTER payment completes in the Vipps webhook

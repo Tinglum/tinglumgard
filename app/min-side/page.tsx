@@ -34,7 +34,7 @@ interface Order {
   delivery_type: string;
   fresh_delivery: boolean;
   ribbe_choice: string;
-  extra_products: any[];
+  extra_products: Array<{ slug: string; name: string; quantity: number; unit_type?: string; price_per_unit?: number; total_price?: number }>;
   notes: string;
   admin_notes: string;
   total_amount: number;
@@ -60,6 +60,7 @@ interface EggOrder {
   total_amount: number;
   deposit_amount: number;
   remainder_amount: number;
+  price_adjustment_ore?: number | null;
   remainder_due_date?: string | null;
   delivery_monday: string;
   week_number: number;
@@ -151,7 +152,13 @@ export default function CustomerPortalPage() {
   const [orderViewMode, setOrderViewMode] = useState<OrderViewMode>('chronological');
   const [eggOrders, setEggOrders] = useState<EggOrder[]>([]);
   const [chickenOrders, setChickenOrders] = useState<ChickenOrder[]>([]);
-  const [eggWishlistRequests, setEggWishlistRequests] = useState<any[]>([]);
+  const [eggWishlistRequests, setEggWishlistRequests] = useState<Array<{
+    id: string;
+    status: string;
+    delivery_monday?: string | null;
+    egg_orders?: { order_number?: string | null } | null;
+    egg_wishlist_items?: Array<{ breed_id?: string; quantity?: number }>;
+  }>>([]);
   const [eggWishlistLoading, setEggWishlistLoading] = useState(false);
   const [eggOrdersLoading, setEggOrdersLoading] = useState(false);
   const [chickenOrdersLoading, setChickenOrdersLoading] = useState(false);

@@ -1,5 +1,5 @@
 import { ChickenBreed, ChickenHatch, ChickenWeekAvailability } from './types'
-import { getAgeWeeks, getHenPrice, getEstimatedSurvivors, getISOWeekNumber, getMondayOfWeek } from './pricing'
+import { getAgeWeeks, getHenPrice, getEstimatedSurvivors, getISOWeekNumber, getMondayOfWeek, getISOWeeksInYear } from './pricing'
 
 /** Map a DB breed row to ChickenBreed interface */
 export function mapBreed(row: any): ChickenBreed {
@@ -68,9 +68,9 @@ export function buildAvailabilityCalendar(
     // Calculate target week/year
     let targetWeek = currentWeek + offset
     let targetYear = currentYear
-    // Handle year overflow (simplified — assumes ~52 weeks/year)
-    while (targetWeek > 52) {
-      targetWeek -= 52
+    // Handle year overflow using actual ISO week count (some years have 53 weeks)
+    while (targetWeek > getISOWeeksInYear(targetYear)) {
+      targetWeek -= getISOWeeksInYear(targetYear)
       targetYear++
     }
 
@@ -152,7 +152,7 @@ export function buildAvailabilityCalendar(
     calendar.push({
       weekNumber: targetWeek,
       year: targetYear,
-      pickupMonday: pickupMonday.toISOString().split('T')[0],
+      pickupMonday: pickupMonday.toLocaleDateString('sv-SE', { timeZone: 'Europe/Oslo' }),
       breeds: breedAvailabilities,
     })
   }

@@ -6,6 +6,39 @@ import {
 } from '@/lib/eggs/admin-order-adjustments'
 import { supabaseAdmin } from '@/lib/supabase/server'
 
+const PICKUP_DELIVERY_METHODS = new Set(['farm_pickup', 'e6_pickup'])
+
+/**
+ * Given a year/week, return the ISO year/week of the previous week,
+ * handling new-year boundary correctly.
+ */
+function getPreviousWeek(year: number, week: number): { year: number; week: number } {
+  if (week > 1) return { year, week: week - 1 }
+  // Week 1 → last week of previous year
+  const dec28 = new Date(Date.UTC(year - 1, 11, 28))
+  const prevYearWeeks = getISOWeekNumber(dec28)
+  return { year: year - 1, week: prevYearWeeks }
+}
+
+function getISOWeekNumber(date: Date): number {
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()))
+  const dayNum = d.getUTCDay() || 7
+  d.setUTCDate(d.getUTCDate() + 4 - dayNum)
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1))
+  return Math.ceil(((d.getTime() - yearStart.getTime()) / 86400000 + 1) / 7)
+}
+
+/**
+ * For the previous week's collection window we use the 7 days before the
+ * current week's standard window (delivery_monday - 14 to delivery_monday - 8).
+ * This gives the full previous week of egg collections.
+ */
+function getPrevWeekDeliveryMonday(deliveryMonday: string): string {
+  const d = new Date(`${deliveryMonday}T00:00:00Z`)
+  d.setUTCDate(d.getUTCDate() - 7)
+  return d.toISOString().slice(0, 10)
+}
+
 type EggPaymentRow = {
   payment_type: 'deposit' | 'addition_deposit' | 'remainder'
   status: string
@@ -148,11 +181,35 @@ export async function GET(
     const year = Number(data.year || 0)
     const weekNumber = Number(data.week_number || 0)
     const deliveryMonday = String(data.delivery_monday || '').trim() || null
+    const deliveryMethod = String((data as any).delivery_method || '').trim()
+    const isPickup = PICKUP_DELIVERY_METHODS.has(deliveryMethod)
 
     let weeklyInventoryRows: unknown[] = []
+    let prevWeeklyInventoryRows: unknown[] = []
     let adjustmentAvailability: Record<string, unknown> = {}
 
+    function serializeAvailabilityEntry(inventoryId: string, row: any, weekLabel: 'current' | 'previous') {
+      return [
+        inventoryId,
+        {
+          inventoryId: row.inventoryId,
+          breedId: row.breedId,
+          breedName: row.breedName,
+          remaining: row.remaining,
+          source: row.source,
+          actualCollected: row.actualCollected,
+          eggsAvailable: row.eggsAvailable,
+          eggsAllocated: row.eggsAllocated,
+          inventoryRemaining: row.inventoryRemaining,
+          collectionDaysRecorded: row.collectionDaysRecorded,
+          manualOverride: row.manualOverride,
+          weekLabel,
+        },
+      ]
+    }
+
     if (year > 0 && weekNumber > 0) {
+      // Current week
       const inventoryRows = await fetchAdminEggWeekInventory({ year, weekNumber })
       const availability = await getAdminEggAvailabilityForInventoryRows({
         inventoryRows,
@@ -160,31 +217,47 @@ export async function GET(
         weekNumber,
         deliveryMonday,
       })
-
       weeklyInventoryRows = inventoryRows
-      adjustmentAvailability = Object.fromEntries(
-        Array.from(availability.entries()).map(([inventoryId, row]) => [
-          inventoryId,
-          {
-            inventoryId: row.inventoryId,
-            breedId: row.breedId,
-            breedName: row.breedName,
-            remaining: row.remaining,
-            source: row.source,
-            actualCollected: row.actualCollected,
-            eggsAvailable: row.eggsAvailable,
-            eggsAllocated: row.eggsAllocated,
-            inventoryRemaining: row.inventoryRemaining,
-            collectionDaysRecorded: row.collectionDaysRecorded,
-            manualOverride: row.manualOverride,
-          },
-        ])
-      )
+      for (const [inventoryId, row] of availability.entries()) {
+        const [k, v] = serializeAvailabilityEntry(inventoryId, row, 'current')
+        adjustmentAvailability[k] = v
+      }
+
+      // Previous week — only for pickup orders
+      if (isPickup && deliveryMonday) {
+        const prev = getPreviousWeek(year, weekNumber)
+        const prevDeliveryMonday = getPrevWeekDeliveryMonday(deliveryMonday)
+        const prevInventoryRows = await fetchAdminEggWeekInventory({ year: prev.year, weekNumber: prev.week })
+
+        if (prevInventoryRows.length > 0) {
+          const prevAvailability = await getAdminEggAvailabilityForInventoryRows({
+            inventoryRows: prevInventoryRows,
+            year: prev.year,
+            weekNumber: prev.week,
+            deliveryMonday: prevDeliveryMonday,
+          })
+
+          // Only include breeds that actually have collected eggs in the previous week
+          const prevRowsWithEggs = prevInventoryRows.filter((row: any) => {
+            const avail = prevAvailability.get(String(row.id || ''))
+            return avail && (avail.actualCollected ?? 0) > 0
+          })
+
+          prevWeeklyInventoryRows = prevRowsWithEggs
+          for (const [inventoryId, row] of prevAvailability.entries()) {
+            if (prevRowsWithEggs.some((r: any) => String(r.id) === inventoryId)) {
+              const [k, v] = serializeAvailabilityEntry(inventoryId, row, 'previous')
+              adjustmentAvailability[k] = v
+            }
+          }
+        }
+      }
     }
 
     return NextResponse.json({
       ...data,
       weekly_inventory_rows: weeklyInventoryRows,
+      prev_weekly_inventory_rows: prevWeeklyInventoryRows,
       adjustment_availability: adjustmentAvailability,
     })
   } catch (error: any) {

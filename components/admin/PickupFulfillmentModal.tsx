@@ -108,7 +108,6 @@ type EggAdjustInventoryRow = {
 
 type EggAdjustState = {
   quantity: number
-  overrideRemaining: string
 }
 
 type BirdAdjustmentState = {
@@ -239,8 +238,16 @@ function getEggCurrentQuantitiesByInventory(order: any): Map<string, number> {
   return quantities
 }
 
-function getEggAdjustInventoryRows(order: any): EggAdjustInventoryRow[] {
-  return Array.isArray(order?.weekly_inventory_rows) ? order.weekly_inventory_rows : []
+type TaggedInventoryRow = EggAdjustInventoryRow & { weekLabel?: 'current' | 'previous' }
+
+function getEggAdjustInventoryRows(order: any): TaggedInventoryRow[] {
+  const current: TaggedInventoryRow[] = Array.isArray(order?.weekly_inventory_rows)
+    ? order.weekly_inventory_rows.map((r: any) => ({ ...r, weekLabel: 'current' as const }))
+    : []
+  const prev: TaggedInventoryRow[] = Array.isArray(order?.prev_weekly_inventory_rows)
+    ? order.prev_weekly_inventory_rows.map((r: any) => ({ ...r, weekLabel: 'previous' as const }))
+    : []
+  return [...current, ...prev]
 }
 
 function getEggAdjustAvailability(order: any): Record<string, EggAdjustAvailabilityEntry> {
@@ -249,19 +256,13 @@ function getEggAdjustAvailability(order: any): Record<string, EggAdjustAvailabil
 
 function buildEggAdjustInitialState(order: any): Record<string, EggAdjustState> {
   const quantitiesByInventory = getEggCurrentQuantitiesByInventory(order)
-  const availability = getEggAdjustAvailability(order)
   const nextState: Record<string, EggAdjustState> = {}
 
   for (const inventoryRow of getEggAdjustInventoryRows(order)) {
     const inventoryId = String(inventoryRow?.id || '').trim()
     if (!inventoryId) continue
-    const currentQty = quantitiesByInventory.get(inventoryId) || 0
-    const availabilityEntry = availability[inventoryId]
     nextState[inventoryId] = {
-      quantity: currentQty,
-      overrideRemaining: availabilityEntry?.manualOverride
-        ? String(Math.max(0, Number(availabilityEntry.eggsAvailable || 0) - Number(availabilityEntry.eggsAllocated || 0)))
-        : '',
+      quantity: quantitiesByInventory.get(inventoryId) || 0,
     }
   }
 
@@ -588,6 +589,7 @@ export function PickupFulfillmentModal({ order, onClose, onRefresh, onNavigateTo
   // ── egg quantity adjustment state ──────────────────────────────────────────
   const [eggQtyDelta, setEggQtyDelta] = useState(0)
   const [eggAdjustments, setEggAdjustments] = useState<Record<string, EggAdjustState>>({})
+  const [eggPriceAdjNok, setEggPriceAdjNok] = useState('')
   const [eggSaving, setEggSaving] = useState(false)
 
   // ── pig box/extras adjustment state ────────────────────────────────────────
@@ -660,6 +662,8 @@ export function PickupFulfillmentModal({ order, onClose, onRefresh, onNavigateTo
       // Init egg delta
       if (order.type === 'egg') {
         setEggAdjustments(buildEggAdjustInitialState(fo))
+        const existingAdj = Number(fo?.price_adjustment_ore ?? 0)
+        setEggPriceAdjNok(existingAdj !== 0 ? String(existingAdj / 100) : '')
       }
     } catch (err: any) {
       toast({ title: no ? 'Feil' : 'Error', description: err.message || (no ? 'Kunne ikke hente bestilling' : 'Failed to load order'), variant: 'destructive' })
@@ -884,7 +888,7 @@ export function PickupFulfillmentModal({ order, onClose, onRefresh, onNavigateTo
 
   const updateEggLineQuantity = (inventoryId: string, nextQuantity: number) => {
     setEggAdjustments((prev) => {
-      const existing = prev[inventoryId] || { quantity: 0, overrideRemaining: '' }
+      const existing = prev[inventoryId] || { quantity: 0 }
       return {
         ...prev,
         [inventoryId]: {
@@ -895,32 +899,18 @@ export function PickupFulfillmentModal({ order, onClose, onRefresh, onNavigateTo
     })
   }
 
-  const updateEggOverrideRemaining = (inventoryId: string, nextValue: string) => {
-    setEggAdjustments((prev) => {
-      const existing = prev[inventoryId] || { quantity: 0, overrideRemaining: '' }
-      return {
-        ...prev,
-        [inventoryId]: {
-          ...existing,
-          overrideRemaining: nextValue,
-        },
-      }
-    })
-  }
-
   const submitEggAdjustments = async () => {
     if (!fullOrder) return
     setEggSaving(true)
     try {
+      const isPickup = ['farm_pickup', 'e6_pickup'].includes(fullOrder?.delivery_method || '')
+
       const payloadLines = getEggAdjustInventoryRows(fullOrder).map((inventoryRow) => {
         const inventoryId = String(inventoryRow?.id || '').trim()
-        const adjustment = eggAdjustments[inventoryId] || { quantity: 0, overrideRemaining: '' }
-        const trimmedOverride = String(adjustment.overrideRemaining || '').trim()
-
+        const adjustment = eggAdjustments[inventoryId] || { quantity: 0 }
         return {
           inventoryId,
           quantity: Math.max(0, Math.round(Number(adjustment.quantity || 0))),
-          overrideRemaining: trimmedOverride === '' ? null : Number(trimmedOverride),
         }
       })
 
@@ -928,12 +918,20 @@ export function PickupFulfillmentModal({ order, onClose, onRefresh, onNavigateTo
         throw new Error(no ? 'Bestillingen må ha minst én eggrase med antall over 0' : 'Order must have at least one egg breed with quantity above 0')
       }
 
+      const rawAdj = eggPriceAdjNok.trim()
+      const priceAdjustmentOre = isPickup && rawAdj !== ''
+        ? Math.round(parseFloat(rawAdj) * 100)
+        : isPickup ? 0 : undefined
+
       const res = await fetch(`/api/admin/eggs/orders/${fullOrder.id}/actions`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'adjust_order_lines',
-          data: { lines: payloadLines },
+          data: {
+            lines: payloadLines,
+            ...(priceAdjustmentOre !== undefined ? { priceAdjustmentOre } : {}),
+          },
         }),
       })
       const result = await res.json().catch(() => ({}))
@@ -1149,6 +1147,9 @@ export function PickupFulfillmentModal({ order, onClose, onRefresh, onNavigateTo
   const chickenRemainderEnabled = order?.type === 'chicken' && fullOrder?.remainder_payment_enabled === true
   const chickenNeedsRemainderBeforePickup = order?.type === 'chicken' && remainder > 0
 
+  const isEggPickup = order?.type === 'egg' && ['farm_pickup', 'e6_pickup'].includes(fullOrder?.delivery_method || '')
+  const eggPickupNeedsRemainder = isEggPickup && remainder > 0
+
   const navigateToCustomerProfile = () => {
     if (!customerLookupId) return
 
@@ -1358,7 +1359,8 @@ export function PickupFulfillmentModal({ order, onClose, onRefresh, onNavigateTo
                   fullOrder={fullOrder}
                   adjustments={eggAdjustments}
                   onQuantityChange={updateEggLineQuantity}
-                  onOverrideRemainingChange={updateEggOverrideRemaining}
+                  priceAdjustmentNok={eggPriceAdjNok}
+                  onPriceAdjustmentChange={setEggPriceAdjNok}
                   onSave={submitEggAdjustments}
                   saving={eggSaving}
                 />
@@ -1560,6 +1562,40 @@ export function PickupFulfillmentModal({ order, onClose, onRefresh, onNavigateTo
                         {no ? 'Aktiver restbetaling' : 'Enable remainder payment'}
                       </Button>
                     )}
+                  </div>
+                )
+              }
+              if (eggPickupNeedsRemainder) {
+                return (
+                  <div className="rounded-xl border border-amber-200 bg-amber-50 px-5 py-4 space-y-3">
+                    <div className="flex items-start gap-2 text-sm text-amber-900">
+                      <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" />
+                      <div className="space-y-1">
+                        <p className="font-medium">
+                          {no
+                            ? `Restbeløpet (${formatMoney(remainder)}) må betales før henting kan bekreftes.`
+                            : `The remainder (${formatMoney(remainder)}) must be paid before pickup can be confirmed.`}
+                        </p>
+                        <p className="text-amber-800">
+                          {no
+                            ? 'Kunden kan betale direkte på Min side. Send en e-postpåminnelse om ønskelig.'
+                            : 'The customer can pay on Min side. Send an email reminder if needed.'}
+                        </p>
+                      </div>
+                    </div>
+                    <Button
+                      onClick={sendPaymentRequest}
+                      disabled={paymentSending}
+                      variant="outline"
+                      className="w-full border-amber-300 bg-white hover:bg-amber-50"
+                    >
+                      {paymentSending ? (
+                        <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                      ) : (
+                        <Mail className="w-4 h-4 mr-2" />
+                      )}
+                      {no ? 'Send betalingspåminnelse på e-post' : 'Send payment reminder by email'}
+                    </Button>
                   </div>
                 )
               }
@@ -1950,105 +1986,284 @@ function LegacyEggAdjustPanel({
   )
 }
 
-// ── Chicken panel ─────────────────────────────────────────────────────────────
+// ── Egg panel ────────────────────────────────────────────────────────────────
 
 function EggAdjustPanel({
   fullOrder,
   adjustments,
   onQuantityChange,
-  onOverrideRemainingChange,
+  priceAdjustmentNok,
+  onPriceAdjustmentChange,
   onSave,
   saving,
 }: {
   fullOrder: any
   adjustments: Record<string, EggAdjustState>
   onQuantityChange: (inventoryId: string, nextQuantity: number) => void
-  onOverrideRemainingChange: (inventoryId: string, nextValue: string) => void
+  priceAdjustmentNok: string
+  onPriceAdjustmentChange: (v: string) => void
   onSave: () => void
   saving: boolean
 }) {
   const no = useIsNorwegian()
+  const isPickup = ['farm_pickup', 'e6_pickup'].includes(fullOrder?.delivery_method || '')
   const breakdown = getEggOrderBreakdown(fullOrder)
   const currentQuantities = getEggCurrentQuantitiesByInventory(fullOrder)
   const initialState = buildEggAdjustInitialState(fullOrder)
   const availability = getEggAdjustAvailability(fullOrder)
-  const inventoryRows = [...getEggAdjustInventoryRows(fullOrder)].sort((a, b) => {
-    const quantityDelta =
-      (currentQuantities.get(String(b?.id || '')) || 0) - (currentQuantities.get(String(a?.id || '')) || 0)
-    if (quantityDelta !== 0) return quantityDelta
-    return relationName(a?.egg_breeds).localeCompare(relationName(b?.egg_breeds), 'nb')
-  })
+  const allInventoryRows = getEggAdjustInventoryRows(fullOrder)
 
-  const sourceLabel = (source: EggAdjustAvailabilitySource) => {
-    if (source === 'actual_collected') return no ? 'Faktisk samlet' : 'Actually collected'
-    if (source === 'manual_override') return no ? 'Manuelt overstyrt' : 'Manually overridden'
-    return no ? 'Systeminventar' : 'System inventory'
-  }
-
-  const rows = inventoryRows.map((inventoryRow) => {
+  const rowData = allInventoryRows.map((inventoryRow) => {
     const inventoryId = String(inventoryRow?.id || '').trim()
     const breedName = relationName(inventoryRow?.egg_breeds) || 'Rugeegg'
+    const weekLabel = inventoryRow.weekLabel
     const currentQuantity = currentQuantities.get(inventoryId) || 0
-    const state =
-      adjustments[inventoryId] ||
-      initialState[inventoryId] ||
-      {
-        quantity: currentQuantity,
-        overrideRemaining: '',
-      }
+    const state = adjustments[inventoryId] || initialState[inventoryId] || { quantity: currentQuantity }
+    const requestedQuantity = Math.max(0, Math.round(Number(state.quantity || 0)))
     const availabilityEntry = availability[inventoryId]
-    const systemFreeNow = Math.max(
-      0,
-      Number(
-        availabilityEntry?.remaining ??
-          (Number(inventoryRow?.eggs_available || 0) - Number(inventoryRow?.eggs_allocated || 0))
-      )
-    )
-    const source: EggAdjustAvailabilitySource =
-      availabilityEntry?.source || (inventoryRow?.manual_override ? 'manual_override' : 'inventory_fallback')
-    const trimmedOverride = String(state.overrideRemaining || '').trim()
-    const hasOverrideInput = trimmedOverride !== ''
-    const parsedOverride = hasOverrideInput && /^\d+$/.test(trimmedOverride) ? Number(trimmedOverride) : null
-    const invalidOverrideInput = hasOverrideInput && parsedOverride === null
-    const freeNow = parsedOverride ?? systemFreeNow
-    const requestedQuantity = Math.max(0, Number(state.quantity || 0))
-    const projectedFree = freeNow - (requestedQuantity - currentQuantity)
-    const maxWithoutOverride = currentQuantity + systemFreeNow
-    const requiresOverride = requestedQuantity > maxWithoutOverride
-    const hasError =
-      invalidOverrideInput ||
-      (requiresOverride && parsedOverride === null) ||
-      (parsedOverride !== null && requestedQuantity > currentQuantity + parsedOverride)
+    const systemFreeNow = Math.max(0, Number(
+      availabilityEntry?.remaining ?? (Number(inventoryRow?.eggs_available || 0) - Number(inventoryRow?.eggs_allocated || 0))
+    ))
+    const actualCollected = availabilityEntry?.actualCollected ?? null
+    const maxQuantity = isPickup
+      ? (actualCollected !== null ? actualCollected : currentQuantity + systemFreeNow)
+      : currentQuantity + systemFreeNow
+    const hasError = requestedQuantity > maxQuantity
 
     return {
       inventoryId,
       breedName,
+      weekLabel,
       currentQuantity,
       requestedQuantity,
+      maxQuantity,
       systemFreeNow,
-      freeNow,
-      projectedFree,
-      source,
-      actualCollected: availabilityEntry?.actualCollected ?? null,
-      collectionDaysRecorded: availabilityEntry?.collectionDaysRecorded || 0,
-      hasOverrideInput,
-      invalidOverrideInput,
-      overrideValue: String(state.overrideRemaining || ''),
-      requiresOverride,
+      actualCollected,
       hasError,
-      manualOverrideActive: availabilityEntry?.manualOverride || hasOverrideInput,
     }
   })
 
-  const nextTotalEggs = rows.reduce((sum, row) => sum + row.requestedQuantity, 0)
+  const nextTotalEggs = rowData.reduce((sum, row) => sum + row.requestedQuantity, 0)
   const totalDelta = nextTotalEggs - breakdown.totalQuantity
-  const invalidRows = rows.filter((row) => row.hasError)
-  const hasChanges = rows.some((row) => {
-    const initialRow = initialState[row.inventoryId] || { quantity: row.currentQuantity, overrideRemaining: '' }
+  const invalidRows = rowData.filter((row) => row.hasError)
+
+  const hasQtyChanges = rowData.some(
+    (row) => row.requestedQuantity !== Math.max(0, Number(initialState[row.inventoryId]?.quantity ?? row.currentQuantity))
+  )
+  const initialPriceAdjNok = (Number(fullOrder?.price_adjustment_ore ?? 0) !== 0)
+    ? String((fullOrder?.price_adjustment_ore || 0) / 100)
+    : ''
+  const priceAdjRaw = priceAdjustmentNok.trim()
+  const priceAdjParsed = priceAdjRaw === '' ? 0 : parseFloat(priceAdjRaw)
+  const priceAdjValid = priceAdjRaw === '' || (!isNaN(priceAdjParsed) && isFinite(priceAdjParsed))
+  const hasPriceAdjChange = isPickup && priceAdjustmentNok !== initialPriceAdjNok
+  const hasChanges = hasQtyChanges || hasPriceAdjChange
+
+  const footer = (
+    <>
+      <div className="grid gap-2 sm:grid-cols-3">
+        <div className="rounded-lg border border-neutral-200 bg-white px-3 py-2">
+          <p className="text-xs uppercase tracking-wide text-neutral-500">{no ? 'I ordre nå' : 'In order now'}</p>
+          <p className="mt-1 font-semibold text-neutral-900">{breakdown.totalQuantity} {no ? 'egg' : 'eggs'}</p>
+        </div>
+        <div className="rounded-lg border border-neutral-200 bg-white px-3 py-2">
+          <p className="text-xs uppercase tracking-wide text-neutral-500">{no ? 'Etter lagring' : 'After save'}</p>
+          <p className="mt-1 font-semibold text-neutral-900">{nextTotalEggs} {no ? 'egg' : 'eggs'}</p>
+        </div>
+        <div className="rounded-lg border border-neutral-200 bg-white px-3 py-2">
+          <p className="text-xs uppercase tracking-wide text-neutral-500">{no ? 'Endring' : 'Change'}</p>
+          <p className={`mt-1 font-semibold ${totalDelta === 0 ? 'text-neutral-900' : totalDelta > 0 ? 'text-green-700' : 'text-red-700'}`}>
+            {totalDelta > 0 ? '+' : ''}{totalDelta} {no ? 'egg' : 'eggs'}
+          </p>
+        </div>
+      </div>
+
+      {invalidRows.length > 0 && (
+        <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+          <div>
+            <p className="font-medium">{no ? 'Noen rader overskrider tilgjengelig beholdning.' : 'Some rows exceed available inventory.'}</p>
+            <p className="text-xs text-red-600">
+              {no ? 'Reduser antallet til maks per rad.' : 'Reduce quantities to the per-row max.'}
+            </p>
+          </div>
+        </div>
+      )}
+
+      <Button onClick={onSave} disabled={saving || !hasChanges || invalidRows.length > 0 || !priceAdjValid}>
+        {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+        {no ? 'Lagre bestilling og oppdater lager' : 'Save order and update inventory'}
+      </Button>
+    </>
+  )
+
+  // ── Pickup view: grouped by breed, current + previous week ────────────────
+
+  if (isPickup) {
+    const breedGroupMap = new Map<string, typeof rowData>()
+    for (const row of rowData) {
+      const group = breedGroupMap.get(row.breedName) || []
+      group.push(row)
+      breedGroupMap.set(row.breedName, group)
+    }
+    const breedGroups = Array.from(breedGroupMap.entries()).map(([breedName, rows]) => ({
+      breedName,
+      rows: [...rows].sort((a, b) => {
+        if (a.weekLabel === 'current' && b.weekLabel === 'previous') return -1
+        if (a.weekLabel === 'previous' && b.weekLabel === 'current') return 1
+        return 0
+      }),
+    }))
+
     return (
-      row.requestedQuantity !== Math.max(0, Number(initialRow.quantity || 0)) ||
-      row.overrideValue !== String(initialRow.overrideRemaining || '')
+      <div className="space-y-4">
+        <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-3">
+          <EggOrderSummaryBlock breakdown={breakdown} showAdjustmentHint />
+        </div>
+
+        <div className="rounded-lg border border-neutral-200 bg-white">
+          <div className="border-b border-neutral-200 bg-neutral-50 px-4 py-3">
+            <p className="text-sm font-medium text-neutral-900">
+              {no ? 'Juster bestilling per rase' : 'Adjust order by breed'}
+            </p>
+            <p className="mt-1 text-xs text-neutral-500">
+              {no
+                ? 'Antall begrenses til faktisk samlede egg. Dere kan bruke egg fra forrige uke ved henting.'
+                : 'Quantities are limited to actually collected eggs. Previous week eggs can be used at pickup.'}
+            </p>
+          </div>
+
+          {breedGroups.length === 0 && (
+            <div className="px-4 py-6 text-sm text-neutral-500">
+              {no ? 'Ingen lagerlinjer funnet.' : 'No inventory rows found.'}
+            </div>
+          )}
+
+          <div className="divide-y divide-neutral-200">
+            {breedGroups.map(({ breedName, rows }) => (
+              <div key={breedName} className="px-4 py-4 space-y-2">
+                <p className="text-sm font-medium text-neutral-900">{breedName}</p>
+                <div className="space-y-2">
+                  {rows.map((row) => {
+                    const weekText = row.weekLabel === 'previous'
+                      ? (no ? 'Forrige uke' : 'Previous week')
+                      : (no ? 'Denne uken' : 'This week')
+                    return (
+                      <div key={row.inventoryId} className="flex items-center justify-between gap-3 rounded-lg border border-neutral-100 bg-neutral-50 px-3 py-2.5">
+                        <div className="space-y-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                              row.weekLabel === 'previous'
+                                ? 'bg-amber-100 text-amber-800 border border-amber-200'
+                                : 'bg-blue-100 text-blue-800 border border-blue-200'
+                            }`}>
+                              {weekText}
+                            </span>
+                            {row.currentQuantity > 0 && (
+                              <span className="text-xs text-neutral-500">
+                                {no ? 'I ordre' : 'In order'}: {row.currentQuantity}
+                              </span>
+                            )}
+                          </div>
+                          {row.actualCollected !== null ? (
+                            <p className="text-xs text-neutral-500">
+                              {no ? 'Samlet' : 'Collected'}: {row.actualCollected} · {no ? 'maks' : 'max'} {row.maxQuantity}
+                            </p>
+                          ) : (
+                            <p className="text-xs text-neutral-500">
+                              {no ? 'Fri beholdning' : 'Free stock'}: {row.systemFreeNow}
+                            </p>
+                          )}
+                          {row.hasError && (
+                            <p className="text-xs font-medium text-red-600">
+                              {no ? `Maks ${row.maxQuantity} egg` : `Max ${row.maxQuantity} eggs`}
+                            </p>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-2 shrink-0">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-8 w-8 p-0"
+                            onClick={() => onQuantityChange(row.inventoryId, row.requestedQuantity - 1)}
+                            disabled={row.requestedQuantity <= 0}
+                          >
+                            −
+                          </Button>
+                          <div className={`w-10 text-center text-sm font-semibold ${
+                            row.hasError ? 'text-red-700'
+                              : row.requestedQuantity > row.currentQuantity ? 'text-green-700'
+                              : row.requestedQuantity < row.currentQuantity ? 'text-amber-700'
+                              : 'text-neutral-900'
+                          }`}>
+                            {row.requestedQuantity}
+                          </div>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-8 w-8 p-0"
+                            onClick={() => onQuantityChange(row.inventoryId, row.requestedQuantity + 1)}
+                            disabled={row.requestedQuantity >= row.maxQuantity}
+                          >
+                            +
+                          </Button>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Price adjustment */}
+        <div className="rounded-lg border border-neutral-200 bg-white px-4 py-4 space-y-2">
+          <div>
+            <p className="text-sm font-medium text-neutral-900">
+              {no ? 'Prisregulering' : 'Price adjustment'}
+            </p>
+            <p className="mt-0.5 text-xs text-neutral-500">
+              {no
+                ? 'Negativt beløp = rabatt, positivt = tillegg. Brukes for rabattegg, pristillegg o.l.'
+                : 'Negative = discount, positive = surcharge. Used for discount eggs, surcharges, etc.'}
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-neutral-600 w-5">kr</span>
+            <Input
+              type="number"
+              step="1"
+              value={priceAdjustmentNok}
+              onChange={(e) => onPriceAdjustmentChange(e.target.value)}
+              placeholder="0"
+              className="max-w-[140px]"
+            />
+            {priceAdjRaw !== '' && priceAdjValid && priceAdjParsed !== 0 && (
+              <span className={`text-xs font-medium ${priceAdjParsed < 0 ? 'text-green-700' : 'text-amber-700'}`}>
+                {priceAdjParsed < 0
+                  ? (no ? `Rabatt ${Math.abs(priceAdjParsed)} kr` : `Discount ${Math.abs(priceAdjParsed)} kr`)
+                  : (no ? `Tillegg ${priceAdjParsed} kr` : `Surcharge ${priceAdjParsed} kr`)}
+              </span>
+            )}
+            {priceAdjRaw !== '' && !priceAdjValid && (
+              <span className="text-xs text-red-600">{no ? 'Ugyldig beløp' : 'Invalid amount'}</span>
+            )}
+          </div>
+        </div>
+
+        {footer}
+      </div>
     )
+  }
+
+  // ── Shipping view: flat list ───────────────────────────────────────────────
+
+  const sortedRows = [...rowData].sort((a, b) => {
+    const delta = b.currentQuantity - a.currentQuantity
+    if (delta !== 0) return delta
+    return a.breedName.localeCompare(b.breedName, 'nb')
   })
 
   return (
@@ -2064,144 +2279,67 @@ function EggAdjustPanel({
           </p>
           <p className="mt-1 text-xs text-neutral-500">
             {no
-              ? 'Tallene under viser fritt lager for denne uken. Override brukes bare når dere fysisk har flere egg enn systemet viser.'
-              : 'The numbers below show free stock for this week. Use override only when you physically have more eggs than the system shows.'}
+              ? 'Tallene under viser fritt lager for denne uken.'
+              : 'The numbers below show free stock for this week.'}
           </p>
         </div>
 
-        {rows.length === 0 && (
+        {sortedRows.length === 0 && (
           <div className="px-4 py-6 text-sm text-neutral-500">
             {no ? 'Ingen lagerlinjer funnet for denne uken ennå.' : 'No inventory rows found for this week yet.'}
           </div>
         )}
 
         <div className="divide-y divide-neutral-200">
-          {rows.map((row) => (
-            <div key={row.inventoryId} className="space-y-3 px-4 py-4">
-              <div className="flex flex-wrap items-start justify-between gap-3">
+          {sortedRows.map((row) => (
+            <div key={row.inventoryId} className="px-4 py-4 space-y-2">
+              <div className="flex items-start justify-between gap-3">
                 <div className="space-y-1">
-                  <div className="flex flex-wrap items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-sm font-medium text-neutral-900">{row.breedName}</span>
                     {row.currentQuantity > 0 && (
                       <span className="rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-xs text-blue-800">
                         {no ? 'I ordre nå' : 'In order now'} {row.currentQuantity}
                       </span>
                     )}
-                    {row.manualOverrideActive && (
-                      <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs text-amber-800">
-                        {no ? 'Override' : 'Override'}
-                      </span>
-                    )}
                   </div>
                   <p className="text-xs text-neutral-500">
-                    {sourceLabel(row.source)}
-                    {row.actualCollected !== null ? ` • ${no ? 'samlet' : 'collected'} ${row.actualCollected} ${no ? 'egg' : 'eggs'}` : ''}
-                    {row.collectionDaysRecorded > 0 ? ` • ${row.collectionDaysRecorded} ${no ? 'dager registrert' : 'days recorded'}` : ''}
+                    {no ? 'Fri nå' : 'Free now'}: {row.systemFreeNow} {no ? 'egg' : 'eggs'}
+                    {row.actualCollected !== null ? ` · ${no ? 'samlet' : 'collected'}: ${row.actualCollected}` : ''}
                   </p>
-                </div>
-
-                <div className="grid gap-3 text-sm sm:grid-cols-3 sm:text-right">
-                  <div>
-                    <p className="text-xs uppercase tracking-wide text-neutral-500">{no ? 'Fri nå' : 'Free now'}</p>
-                    <p className="font-medium text-neutral-900">{row.freeNow} {no ? 'egg' : 'eggs'}</p>
-                    {row.hasOverrideInput && !row.invalidOverrideInput && (
-                      <p className="text-xs text-neutral-500">
-                        {no ? 'Systemet viste' : 'System showed'} {row.systemFreeNow}
-                      </p>
-                    )}
-                  </div>
-                  <div>
-                    <p className="text-xs uppercase tracking-wide text-neutral-500">{no ? 'I ordre etter lagring' : 'In order after save'}</p>
-                    <p className="font-medium text-neutral-900">{row.requestedQuantity} {no ? 'egg' : 'eggs'}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs uppercase tracking-wide text-neutral-500">{no ? 'Fri etter lagring' : 'Free after save'}</p>
-                    <p
-                      className={
-                        row.hasError
-                          ? 'font-medium text-red-700'
-                          : row.projectedFree <= 0
-                            ? 'font-medium text-amber-700'
-                            : 'font-medium text-green-700'
-                      }
-                    >
-                      {row.hasError
-                        ? (no ? 'For lav beholdning' : 'Stock too low')
-                        : `${Math.max(0, row.projectedFree)} ${no ? 'egg' : 'eggs'}`}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid gap-3 lg:grid-cols-[220px_minmax(0,1fr)]">
-                <div>
-                  <p className="mb-1 text-xs font-medium uppercase tracking-wide text-neutral-500">{no ? 'Antall i ordre' : 'Quantity in order'}</p>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-9 w-9 p-0"
-                      onClick={() => onQuantityChange(row.inventoryId, row.requestedQuantity - 1)}
-                      disabled={row.requestedQuantity <= 0}
-                    >
-                      -
-                    </Button>
-                    <div className="w-16 rounded-md border border-neutral-200 bg-neutral-50 px-3 py-2 text-center text-sm font-medium text-neutral-900">
-                      {row.requestedQuantity}
-                    </div>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-9 w-9 p-0"
-                      onClick={() => onQuantityChange(row.inventoryId, row.requestedQuantity + 1)}
-                    >
-                      +
-                    </Button>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <label className="text-xs font-medium uppercase tracking-wide text-neutral-500">
-                      {no ? 'Override fri beholdning' : 'Override free stock'}
-                    </label>
-                    {row.overrideValue && (
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-auto px-0 py-0 text-xs text-neutral-500 hover:text-neutral-800"
-                        onClick={() => onOverrideRemainingChange(row.inventoryId, '')}
-                      >
-                        {no ? 'Bruk systemtall' : 'Use system value'}
-                      </Button>
-                    )}
-                  </div>
-                  <Input
-                    type="number"
-                    min="0"
-                    step="1"
-                    value={row.overrideValue}
-                    onChange={(event) => onOverrideRemainingChange(row.inventoryId, event.target.value)}
-                    placeholder={String(row.systemFreeNow)}
-                    className="max-w-[180px]"
-                  />
-                  <p className="text-xs text-neutral-500">
-                    {no
-                      ? 'Skriv inn hvor mange frie egg dere faktisk har tilgjengelig nå hvis fysisk beholdning er høyere enn systemet.'
-                      : 'Enter how many free eggs you actually have available now if the physical stock is higher than the system.'}
-                  </p>
-                  {row.invalidOverrideInput && (
+                  {row.hasError && (
                     <p className="text-xs text-red-600">
-                      {no ? 'Override må være et helt tall fra 0 og oppover.' : 'Override must be a whole number from 0 and up.'}
+                      {no ? `Systemet tillater maks ${row.maxQuantity} egg.` : `System allows max ${row.maxQuantity} eggs.`}
                     </p>
                   )}
-                  {!row.invalidOverrideInput && row.requiresOverride && !row.hasOverrideInput && (
-                    <p className="text-xs text-red-600">
-                      {no
-                        ? `Systemet tillater maks ${row.currentQuantity + row.systemFreeNow} egg på denne raden uten override.`
-                        : `The system allows a maximum of ${row.currentQuantity + row.systemFreeNow} eggs on this row without override.`}
-                    </p>
-                  )}
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-9 w-9 p-0"
+                    onClick={() => onQuantityChange(row.inventoryId, row.requestedQuantity - 1)}
+                    disabled={row.requestedQuantity <= 0}
+                  >
+                    −
+                  </Button>
+                  <div className={`w-12 rounded-md border px-2 py-2 text-center text-sm font-medium ${
+                    row.hasError
+                      ? 'border-red-300 bg-red-50 text-red-700'
+                      : 'border-neutral-200 bg-neutral-50 text-neutral-900'
+                  }`}>
+                    {row.requestedQuantity}
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-9 w-9 p-0"
+                    onClick={() => onQuantityChange(row.inventoryId, row.requestedQuantity + 1)}
+                    disabled={row.requestedQuantity >= row.maxQuantity}
+                  >
+                    +
+                  </Button>
                 </div>
               </div>
             </div>
@@ -2209,42 +2347,7 @@ function EggAdjustPanel({
         </div>
       </div>
 
-      <div className="grid gap-2 sm:grid-cols-3">
-        <div className="rounded-lg border border-neutral-200 bg-white px-3 py-2">
-          <p className="text-xs uppercase tracking-wide text-neutral-500">{no ? 'I ordre nå' : 'In order now'}</p>
-          <p className="mt-1 font-semibold text-neutral-900">{breakdown.totalQuantity} {no ? 'egg' : 'eggs'}</p>
-        </div>
-        <div className="rounded-lg border border-neutral-200 bg-white px-3 py-2">
-          <p className="text-xs uppercase tracking-wide text-neutral-500">{no ? 'Etter lagring' : 'After save'}</p>
-          <p className="mt-1 font-semibold text-neutral-900">{nextTotalEggs} {no ? 'egg' : 'eggs'}</p>
-        </div>
-        <div className="rounded-lg border border-neutral-200 bg-white px-3 py-2">
-          <p className="text-xs uppercase tracking-wide text-neutral-500">{no ? 'Endring' : 'Change'}</p>
-          <p className={`mt-1 font-semibold ${totalDelta === 0 ? 'text-neutral-900' : totalDelta > 0 ? 'text-green-700' : 'text-red-700'}`}>
-            {totalDelta > 0 ? '+' : ''}
-            {totalDelta} {no ? 'egg' : 'eggs'}
-          </p>
-        </div>
-      </div>
-
-      {invalidRows.length > 0 && (
-        <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-          <div>
-            <p className="font-medium">{no ? 'Noen rader kan ikke lagres ennå.' : 'Some rows cannot be saved yet.'}</p>
-            <p className="text-xs text-red-600">
-              {no
-                ? 'Rett opp radene med for lav beholdning eller legg inn override der dere fysisk har flere egg.'
-                : 'Fix the rows with too little stock or enter an override where you physically have more eggs.'}
-            </p>
-          </div>
-        </div>
-      )}
-
-      <Button onClick={onSave} disabled={saving || !hasChanges || invalidRows.length > 0}>
-        {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-        {no ? 'Lagre bestilling og oppdater lager' : 'Save order and update inventory'}
-      </Button>
+      {footer}
     </div>
   )
 }

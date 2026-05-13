@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth/session';
 import { supabaseAdmin } from '@/lib/supabase/server';
+import { logError, logInfo, logWarning } from '@/lib/logger';
 import { vippsClient } from '@/lib/vipps/api-client';
 import { POST as checkoutPost } from '@/app/api/checkout/route';
 import { normalizeOrderForDisplay } from '@/lib/orders/display';
@@ -10,6 +11,9 @@ function isUuid(value?: string | null): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 }
 
+// NOTE: Similar contact normalization exists in app/api/webhooks/vipps/route.ts (buildVippsContactUpdate).
+// That function writes to customer_* fields only; this one writes to both shipping_* and customer_* fields.
+// The logic is intentionally different — extract to a shared util only if field mapping converges.
 function buildShippingUpdate(details: any) {
   if (!details || typeof details !== 'object') return null;
 
@@ -75,6 +79,17 @@ async function getCheckoutSessionFromPayment(payment: any) {
   return null;
 }
 
+/**
+ * Returns true only when both Vipps session fields confirm a real, authorized payment.
+ * Checking sessionState alone is insufficient — paymentDetails.state can be TERMINATED
+ * even when sessionState shows PaymentSuccessful.
+ */
+function isVippsPaymentConfirmed(session: any): boolean {
+  const sessionState = session?.sessionState as string | undefined
+  const paymentState = session?.paymentDetails?.state as string | undefined
+  return sessionState === 'PaymentSuccessful' && paymentState === 'AUTHORIZED'
+}
+
 async function reconcilePigOrder(order: any) {
   const completedDeposit = (order.payments || []).find(
     (payment: any) => payment.payment_type === 'deposit' && payment.status === 'completed'
@@ -87,7 +102,7 @@ async function reconcilePigOrder(order: any) {
       .eq('id', order.id);
 
     if (statusErr) {
-      console.error('Failed to self-heal pig order status:', statusErr);
+      logError('Failed to self-heal pig order status', statusErr);
       return order;
     }
 
@@ -113,9 +128,7 @@ async function reconcilePigOrder(order: any) {
       return order;
     }
 
-    const sessionState = session?.sessionState as string | undefined;
-
-    if (sessionState !== 'PaymentSuccessful') {
+    if (!isVippsPaymentConfirmed(session)) {
       return order;
     }
 
@@ -153,7 +166,7 @@ async function reconcilePigOrder(order: any) {
       ),
     };
   } catch (error) {
-    console.error('Failed to reconcile pig order payment:', {
+    logError('Failed to reconcile pig order payment', {
       orderId: order.id,
       orderNumber: order.order_number,
       paymentId: depositPayment.id,
@@ -205,7 +218,7 @@ export async function GET() {
 
     // Link matching anonymous orders to the current user
     if (isUuid(session.userId) && anonymousOrders && anonymousOrders.length > 0) {
-      console.log(`Linking ${anonymousOrders.length} anonymous orders to user ${session.userId} by phone/email match`);
+      logInfo(`Linking ${anonymousOrders.length} anonymous orders to user by phone/email match`, { userId: session.userId });
 
       const { error: updateError } = await supabaseAdmin
         .from('orders')
@@ -216,7 +229,7 @@ export async function GET() {
         // If foreign key constraint fails, the user doesn't exist in auth.users yet
         // This can happen with Vipps login where the session exists but user record doesn't
         // Just log and continue - orders will still be shown via phone/email match
-        console.warn('Could not link anonymous orders (user may not exist in auth.users yet):', updateError.message);
+        logWarning('Could not link anonymous orders (user may not exist in auth.users yet)', { message: updateError.message });
       } else {
         // Update the orders in memory to reflect the change
         anonymousOrders.forEach(order => {
@@ -243,7 +256,7 @@ export async function GET() {
 
     return NextResponse.json({ orders: reconciledOrders.map((order) => normalizeOrderForDisplay(order)) });
   } catch (error) {
-    console.error('Error fetching orders:', error);
+    logError('Error fetching orders', error);
     return NextResponse.json(
       { error: 'Failed to fetch orders' },
       { status: 500 }
