@@ -1836,7 +1836,9 @@ async function sendRemainderReminder(orderId: string) {
   const remainderNok = Math.round((order.remainder_amount || 0) / 100).toLocaleString('nb-NO')
   const dueLabel = order.remainder_due_date
     ? new Date(order.remainder_due_date).toLocaleDateString('nb-NO')
-    : new Date(order.delivery_monday).toLocaleDateString('nb-NO')
+    : order.delivery_monday
+      ? new Date(order.delivery_monday).toLocaleDateString('nb-NO')
+      : 'snarest'
 
   const html = `<!DOCTYPE html>
 <html>
@@ -1852,16 +1854,25 @@ async function sendRemainderReminder(orderId: string) {
 <p><a class="button" href="${appUrl}/rugeegg/mine-bestillinger">Betal restbeløp</a></p>
 </div></div></body></html>`
 
-  await dispatchEmail({
-    to: order.customer_email,
-    subject: `Påminnelse om restbetaling - ${order.order_number}`,
-    html,
-    eggOrderId: order.id,
-    sourcePath: 'admin.egg.remainder-reminder',
-    templateKey: 'egg-remainder-reminder',
-    classification: 'transactional',
-    sendImmediately: true,
-  })
+  try {
+    await dispatchEmail({
+      to: order.customer_email,
+      subject: `Påminnelse om restbetaling - ${order.order_number}`,
+      html,
+      eggOrderId: order.id,
+      sourcePath: 'admin.egg.remainder-reminder',
+      templateKey: 'egg-remainder-reminder',
+      classification: 'transactional',
+      sendImmediately: true,
+    })
+  } catch (dispatchError: any) {
+    logError('send-remainder-reminder-dispatch', dispatchError, { orderId })
+    return NextResponse.json({
+      error: 'Email dispatch failed',
+      detail: dispatchError?.message || String(dispatchError),
+      code: dispatchError?.code,
+    }, { status: 500 })
+  }
 
   return NextResponse.json({ success: true })
 }
