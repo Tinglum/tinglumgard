@@ -333,7 +333,7 @@ export default function CheckoutPage() {
 
     const requestedExtras = requestedExtraSlugs
       .map((slug) => availableExtras.find((extra) => extra.slug === slug) || null)
-      .filter((extra): extra is ExtraProductLike => Boolean(extra));
+      .filter((extra): extra is Extra => Boolean(extra));
 
     let matchedByRecipeExtra: MangalitsaPreset | null = null;
     if (!hasExplicitPresetSelection && requestedExtras.length > 0) {
