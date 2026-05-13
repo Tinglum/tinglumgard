@@ -26,6 +26,7 @@ export type Extra = {
   fixed_quantity?: number | null;
   cut_size_from_kg?: number | null;
   cut_size_to_kg?: number | null;
+  display_order?: number | null;
   recipe_suggestions?: unknown;
   [key: string]: unknown;
 };
