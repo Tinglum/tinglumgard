@@ -188,7 +188,7 @@ export async function GET(
     let prevWeeklyInventoryRows: unknown[] = []
     let adjustmentAvailability: Record<string, unknown> = {}
 
-    function serializeAvailabilityEntry(inventoryId: string, row: any, weekLabel: 'current' | 'previous') {
+    const serializeAvailabilityEntry = (inventoryId: string, row: any, weekLabel: 'current' | 'previous') => {
       return [
         inventoryId,
         {
