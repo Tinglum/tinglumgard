@@ -31,8 +31,9 @@ export interface Extra {
   preparation_tips_en?: string | null;
 
   price_nok: number;
-  pricing_type: 'per_unit' | 'per_kg';
+  pricing_type: 'per_unit' | 'per_kg' | 'fixed' | string;
   default_quantity?: number | null;
+  fixed_quantity?: number | null;
   active: boolean;
   display_order?: number;
   created_at?: string;
