@@ -203,7 +203,7 @@ export function SystemHealth() {
                   </div>
                   <div className="flex justify-between">
                     <span>{copy.webhooks.failedLabel}</span>
-                    <span className={cn('font-semibold', data.failed_webhooks_24h > 0 && 'text-red-600')}>
+                    <span className={cn('font-semibold', (data.failed_webhooks_24h ?? 0) > 0 && 'text-red-600')}>
                       {data.failed_webhooks_24h}
                     </span>
                   </div>
@@ -238,7 +238,7 @@ export function SystemHealth() {
                   </div>
                   <div className="flex justify-between">
                     <span>{copy.payments.stuckPaymentsLabel}</span>
-                    <span className={cn('font-semibold', data.stuck_payments > 0 && 'text-amber-600')}>
+                    <span className={cn('font-semibold', (data.stuck_payments ?? 0) > 0 && 'text-amber-600')}>
                       {data.stuck_payments}
                     </span>
                   </div>
@@ -269,7 +269,7 @@ export function SystemHealth() {
                   </div>
                   <div className="flex justify-between">
                     <span>{copy.inventory.remainingLabel}</span>
-                    <span className={cn('font-semibold', data.remaining_kg < 100 && 'text-amber-600')}>
+                    <span className={cn('font-semibold', (data.remaining_kg ?? Infinity) < 100 && 'text-amber-600')}>
                       {data.remaining_kg} {t.common.kg}
                     </span>
                   </div>
@@ -305,7 +305,7 @@ export function SystemHealth() {
                   </div>
                   <div className="flex justify-between">
                     <span>{copy.orders.integrityIssuesLabel}</span>
-                    <span className={cn('font-semibold', data.integrity_issues > 0 && 'text-red-600')}>
+                    <span className={cn('font-semibold', (data.integrity_issues ?? 0) > 0 && 'text-red-600')}>
                       {data.integrity_issues}
                     </span>
                   </div>
