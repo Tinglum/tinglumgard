@@ -188,25 +188,20 @@ export async function GET(
     let prevWeeklyInventoryRows: unknown[] = []
     let adjustmentAvailability: Record<string, unknown> = {}
 
-    const serializeAvailabilityEntry = (inventoryId: string, row: any, weekLabel: 'current' | 'previous') => {
-      return [
-        inventoryId,
-        {
-          inventoryId: row.inventoryId,
-          breedId: row.breedId,
-          breedName: row.breedName,
-          remaining: row.remaining,
-          source: row.source,
-          actualCollected: row.actualCollected,
-          eggsAvailable: row.eggsAvailable,
-          eggsAllocated: row.eggsAllocated,
-          inventoryRemaining: row.inventoryRemaining,
-          collectionDaysRecorded: row.collectionDaysRecorded,
-          manualOverride: row.manualOverride,
-          weekLabel,
-        },
-      ]
-    }
+    const buildAvailabilityValue = (row: any, weekLabel: 'current' | 'previous') => ({
+      inventoryId: row.inventoryId,
+      breedId: row.breedId,
+      breedName: row.breedName,
+      remaining: row.remaining,
+      source: row.source,
+      actualCollected: row.actualCollected,
+      eggsAvailable: row.eggsAvailable,
+      eggsAllocated: row.eggsAllocated,
+      inventoryRemaining: row.inventoryRemaining,
+      collectionDaysRecorded: row.collectionDaysRecorded,
+      manualOverride: row.manualOverride,
+      weekLabel,
+    })
 
     if (year > 0 && weekNumber > 0) {
       // Current week
@@ -219,8 +214,7 @@ export async function GET(
       })
       weeklyInventoryRows = inventoryRows
       Array.from(availability.entries()).forEach(([inventoryId, row]) => {
-        const [k, v] = serializeAvailabilityEntry(inventoryId, row, 'current')
-        adjustmentAvailability[k] = v
+        adjustmentAvailability[inventoryId] = buildAvailabilityValue(row, 'current')
       })
 
       // Previous week — only for pickup orders
@@ -246,8 +240,7 @@ export async function GET(
           prevWeeklyInventoryRows = prevRowsWithEggs
           Array.from(prevAvailability.entries()).forEach(([inventoryId, row]) => {
             if (prevRowsWithEggs.some((r: any) => String(r.id) === inventoryId)) {
-              const [k, v] = serializeAvailabilityEntry(inventoryId, row, 'previous')
-              adjustmentAvailability[k] = v
+              adjustmentAvailability[inventoryId] = buildAvailabilityValue(row, 'previous')
             }
           })
         }
