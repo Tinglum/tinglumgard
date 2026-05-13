@@ -1066,7 +1066,7 @@ async function moveEggOrder(orderId: string, year: number, weekNumber: number, r
 
   const { data: targetInventory, error: targetError } = await supabaseAdmin
     .from('egg_inventory')
-    .select('id, eggs_available, eggs_allocated, delivery_monday, year, week_number')
+    .select('id, eggs_available, eggs_allocated, delivery_monday, year, week_number, status')
     .eq('breed_id', order.breed_id)
     .eq('year', year)
     .eq('week_number', weekNumber)
