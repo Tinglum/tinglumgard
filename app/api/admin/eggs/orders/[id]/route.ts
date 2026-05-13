@@ -218,10 +218,10 @@ export async function GET(
         deliveryMonday,
       })
       weeklyInventoryRows = inventoryRows
-      for (const [inventoryId, row] of availability.entries()) {
+      Array.from(availability.entries()).forEach(([inventoryId, row]) => {
         const [k, v] = serializeAvailabilityEntry(inventoryId, row, 'current')
         adjustmentAvailability[k] = v
-      }
+      })
 
       // Previous week — only for pickup orders
       if (isPickup && deliveryMonday) {
@@ -244,12 +244,12 @@ export async function GET(
           })
 
           prevWeeklyInventoryRows = prevRowsWithEggs
-          for (const [inventoryId, row] of prevAvailability.entries()) {
+          Array.from(prevAvailability.entries()).forEach(([inventoryId, row]) => {
             if (prevRowsWithEggs.some((r: any) => String(r.id) === inventoryId)) {
               const [k, v] = serializeAvailabilityEntry(inventoryId, row, 'previous')
               adjustmentAvailability[k] = v
             }
-          }
+          })
         }
       }
     }
