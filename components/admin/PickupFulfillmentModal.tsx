@@ -2029,6 +2029,9 @@ function EggAdjustPanel({
       ? (actualCollected !== null ? actualCollected : currentQuantity + systemFreeNow)
       : currentQuantity + systemFreeNow
     const hasError = requestedQuantity > maxQuantity
+    const eggsAllocated = Number(availabilityEntry?.eggsAllocated ?? inventoryRow?.eggs_allocated ?? 0)
+    const allocatedToOthers = Math.max(0, eggsAllocated - currentQuantity)
+    const inventoryRemaining = availabilityEntry?.inventoryRemaining ?? null
 
     return {
       inventoryId,
@@ -2040,6 +2043,8 @@ function EggAdjustPanel({
       systemFreeNow,
       actualCollected,
       hasError,
+      allocatedToOthers,
+      inventoryRemaining,
     }
   })
 
@@ -2168,10 +2173,25 @@ function EggAdjustPanel({
                           {row.actualCollected !== null ? (
                             <p className="text-xs text-neutral-500">
                               {no ? 'Samlet' : 'Collected'}: {row.actualCollected} · {no ? 'maks' : 'max'} {row.maxQuantity}
+                              {row.weekLabel === 'previous' && row.inventoryRemaining !== null && (
+                                <> · <span className={row.inventoryRemaining <= 0 ? 'text-red-500 font-medium' : ''}>
+                                  {no ? 'Gjenværende' : 'Remaining'}: {row.inventoryRemaining}
+                                </span></>
+                              )}
+                              {row.weekLabel === 'current' && row.allocatedToOthers > 0 && (
+                                <> · <span className="text-amber-600 font-medium">
+                                  {no ? `Andre ordre: ${row.allocatedToOthers}` : `Other orders: ${row.allocatedToOthers}`}
+                                </span></>
+                              )}
                             </p>
                           ) : (
                             <p className="text-xs text-neutral-500">
                               {no ? 'Fri beholdning' : 'Free stock'}: {row.systemFreeNow}
+                              {row.weekLabel === 'current' && row.allocatedToOthers > 0 && (
+                                <> · <span className="text-amber-600 font-medium">
+                                  {no ? `Andre ordre: ${row.allocatedToOthers}` : `Other orders: ${row.allocatedToOthers}`}
+                                </span></>
+                              )}
                             </p>
                           )}
                           {row.hasError && (
