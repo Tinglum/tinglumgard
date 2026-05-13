@@ -326,7 +326,8 @@ async function adjustEggOrderLines(
     .single()
 
   if (orderError || !orderRaw) {
-    return NextResponse.json({ error: 'Order not found' }, { status: 404 })
+    logError('adjustEggOrderLines: order fetch failed', orderError, { orderId })
+    return NextResponse.json({ error: orderError?.message || 'Order not found' }, { status: 404 })
   }
 
   const order = orderRaw as EggOrderAdjustView
