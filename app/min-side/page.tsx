@@ -156,6 +156,8 @@ export default function CustomerPortalPage() {
     id: string;
     status: string;
     delivery_monday?: string | null;
+    week_number?: number | null;
+    year?: number | null;
     egg_orders?: { order_number?: string | null } | null;
     egg_wishlist_items?: Array<{ breed_id?: string; quantity?: number }>;
   }>>([]);
