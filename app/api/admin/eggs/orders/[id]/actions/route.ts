@@ -1856,6 +1856,11 @@ async function sendRemainderReminder(orderId: string) {
     to: order.customer_email,
     subject: `Påminnelse om restbetaling - ${order.order_number}`,
     html,
+    eggOrderId: order.id,
+    sourcePath: 'admin.egg.remainder-reminder',
+    templateKey: 'egg-remainder-reminder',
+    classification: 'transactional',
+    sendImmediately: true,
   })
 
   return NextResponse.json({ success: true })
