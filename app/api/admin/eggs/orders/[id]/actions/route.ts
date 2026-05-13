@@ -395,12 +395,38 @@ async function adjustEggOrderLines(
     }
   }
 
-  const availabilityByInventoryId = await getAdminEggAvailabilityForInventoryRows({
-    inventoryRows: allInventoryRowsForOrder,
+  // Compute availability separately for current and previous week rows so
+  // that actualCollected uses the correct collection window for each week.
+  const prevWeekRows = isPickup
+    ? allInventoryRowsForOrder.filter((r) => !inventoryRows.some((cr) => String(cr.id) === String(r.id)))
+    : []
+
+  const currentAvailability = await getAdminEggAvailabilityForInventoryRows({
+    inventoryRows,
     year: Number(order.year || 0),
     weekNumber: Number(order.week_number || 0),
     deliveryMonday: order.delivery_monday,
   })
+
+  const availabilityByInventoryId: Map<string, any> = new Map(currentAvailability)
+
+  if (prevWeekRows.length > 0) {
+    const prev = getPreviousISOWeek(Number(order.year || 0), Number(order.week_number || 0))
+    const prevDeliveryMonday = order.delivery_monday
+      ? (() => {
+          const d = new Date(`${order.delivery_monday}T00:00:00Z`)
+          d.setUTCDate(d.getUTCDate() - 7)
+          return d.toISOString().slice(0, 10)
+        })()
+      : null
+    const prevMap = await getAdminEggAvailabilityForInventoryRows({
+      inventoryRows: prevWeekRows,
+      year: prev.year,
+      weekNumber: prev.week,
+      deliveryMonday: prevDeliveryMonday,
+    })
+    prevMap.forEach((v, k) => availabilityByInventoryId.set(k, v))
+  }
 
   const currentComponents = buildEggOrderLineComponents(order)
 
