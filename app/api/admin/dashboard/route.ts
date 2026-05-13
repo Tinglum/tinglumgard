@@ -184,7 +184,7 @@ export async function GET(request: NextRequest) {
         .map((o: any) => ({
           order_number: o.order_number,
           customer_name: o.customer_name,
-          product_type: 'pig',
+          product_type: 'pig' as const,
           amount: o.total_amount,
           created_at: o.created_at,
         }));
@@ -193,7 +193,7 @@ export async function GET(request: NextRequest) {
         .map((o: any) => ({
           order_number: o.order_number,
           customer_name: o.customer_name,
-          product_type: 'egg',
+          product_type: 'egg' as const,
           // egg order amounts are stored in ore
           amount: Number(o.total_amount || 0) / 100,
           created_at: o.created_at,
@@ -203,7 +203,7 @@ export async function GET(request: NextRequest) {
         .map((o: any) => ({
           order_number: o.order_number,
           customer_name: o.customer_name,
-          product_type: 'chicken',
+          product_type: 'chicken' as const,
           amount: o.total_amount_nok,
           created_at: o.created_at,
         }));
