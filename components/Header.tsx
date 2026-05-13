@@ -8,6 +8,7 @@ import { useTheme, type ThemeMode } from "@/contexts/ThemeContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 import { ShoppingBag } from "lucide-react";
+import { logError } from "@/lib/logger";
 
 export function Header() {
   const { t, lang, setLang } = useLanguage();
@@ -53,7 +54,7 @@ export function Header() {
         setUnreadMessageCount(data.unreadCount || 0);
       }
     } catch (error) {
-      console.error('Failed to fetch unread message count:', error);
+      logError('Failed to fetch unread message count', error);
     }
   }
 

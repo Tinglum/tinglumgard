@@ -46,7 +46,7 @@ async function createAutoCode(params: {
       .single();
 
     if (!error) return data?.code || null;
-    if ((error as any)?.code !== '23505') throw error;
+    if ((error as { code?: string })?.code !== '23505') throw error;
   }
 
   return null;

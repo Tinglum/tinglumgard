@@ -25,6 +25,7 @@ import {
   getFixedExtraQuantity,
   normalizeExtraQuantity,
 } from '@/lib/extras/fixedQuantities';
+import type { Extra } from '@/lib/types';
 
 /* ── Category inference for extras filter chips ── */
 const EXTRAS_FILTER_CHIPS = [
@@ -111,8 +112,8 @@ export default function CheckoutPage() {
   const [ribbeChoice, setRibbeChoice] = useState<'tynnribbe' | 'familieribbe' | 'porchetta' | 'butchers_choice' | ''>('butchers_choice');
   const [extraProducts, setExtraProducts] = useState<string[]>([]);
   const [extraQuantities, setExtraQuantities] = useState<Record<string, number>>({});
-  const [availableExtras, setAvailableExtras] = useState<any[]>([]);
-  const [infoModalExtra, setInfoModalExtra] = useState<any | null>(null);
+  const [availableExtras, setAvailableExtras] = useState<Extra[]>([]);
+  const [infoModalExtra, setInfoModalExtra] = useState<Extra | null>(null);
   const [recipeModalTarget, setRecipeModalTarget] = useState<{ slug: string; title: string } | null>(null);
   const [deliveryType, setDeliveryType] = useState<'farm' | 'trondheim' | 'e6'>('farm');
   const [freshDelivery, setFreshDelivery] = useState(false);

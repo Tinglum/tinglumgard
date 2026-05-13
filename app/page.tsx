@@ -1,6 +1,8 @@
 ﻿'use client';
 
 import { useEffect, useState, useRef } from "react";
+import { logError } from "@/lib/logger";
+import { TOTAL_BOXES } from "@/lib/constants";
 import Link from "next/link";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -46,7 +48,10 @@ interface MangalitsaPreset {
   }>;
 }
 
-// Meta Label Component
+// ─── Shared Interfaces ─────────────────────────────────────────────────────
+
+// ─── Sub-Components ────────────────────────────────────────────────────────
+
 function MetaLabel({ children }: { children: React.ReactNode }) {
   return (
     <div className="text-xs uppercase tracking-wider text-neutral-500 font-semibold">
@@ -292,6 +297,8 @@ function TimelineStep({
   );
 }
 
+// ─── Page Component ────────────────────────────────────────────────────────
+
 export default function Page() {
   const { t, lang } = useLanguage();
   const { toast } = useToast();
@@ -328,7 +335,7 @@ export default function Page() {
           setInventory(data);
         }
       } catch (error) {
-        console.error('Failed to fetch inventory:', error);
+        logError('Failed to fetch inventory:', error);
         toast({
           title: 'Tinglum Gård',
           description: lang === 'no' ? 'Kunne ikke laste lagerstatus.' : 'Could not load inventory status.',
@@ -350,7 +357,7 @@ export default function Page() {
           setPresets(data.presets || []);
         }
       } catch (error) {
-        console.error('Failed to fetch presets:', error);
+        logError('Failed to fetch presets:', error);
       }
     }
     fetchPresets();
@@ -360,7 +367,7 @@ export default function Page() {
   const isSoldOut = inventory?.isSoldOut ?? false;
   const isLowStock = inventory?.isLowStock ?? false;
   const isMobile = useIsMobile();
-  const totalBoxes = 50;
+  const totalBoxes = TOTAL_BOXES;
   const availabilityRatio = totalBoxes > 0 ? Math.min(1, boxesLeft / totalBoxes) : 0;
   const availabilitySegments = 10;
   const availabilityFilled = loading ? 0 : Math.round(availabilityRatio * availabilitySegments);
@@ -392,8 +399,8 @@ export default function Page() {
       setWaitlistSuccess(true);
       setWaitlistEmail('');
       setWaitlistName('');
-    } catch (error: any) {
-      toast({ title: t.common.error, description: error?.message || t.checkout.somethingWentWrong, variant: 'destructive' });
+    } catch (error) {
+      toast({ title: t.common.error, description: error instanceof Error ? error.message : t.checkout.somethingWentWrong, variant: 'destructive' });
     } finally {
       setWaitlistSubmitting(false);
     }
@@ -428,7 +435,7 @@ export default function Page() {
         timelineDate4: 'Week 50/51',
       };
 
-  // Mobile version - keep existing design
+  // ─── Mobile Layout ─────────────────────────────────────────────────────
   if (isMobile) {
     return (
       <div className="relative min-h-screen bg-[#F6F4EF] text-[#1E1B16] pb-28 font-[family:var(--font-manrope)]">
@@ -591,7 +598,7 @@ export default function Page() {
     );
   }
 
-  // Desktop version - REFINED with best animations only
+  // ─── Desktop Layout ────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-white">
 

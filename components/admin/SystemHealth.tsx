@@ -6,10 +6,33 @@ import { Button } from '@/components/ui/button';
 import { RefreshCw, CheckCircle2, AlertTriangle, XCircle, Activity, Zap, Database, Mail, ShoppingCart } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { logError } from '@/lib/logger';
 
 interface HealthCheck {
   status: 'healthy' | 'degraded' | 'unhealthy' | 'error' | 'critical' | 'unknown';
-  [key: string]: any;
+  // Webhook check fields
+  total_webhooks_24h?: number;
+  failed_webhooks_24h?: number;
+  success_rate?: number;
+  recent_failures?: Array<{ order_id: string; error: string }>;
+  // Payment check fields
+  pending_deposits?: number;
+  pending_remainders?: number;
+  stuck_payments?: number;
+  at_risk_orders?: Array<{ order_number: string; days_pending: number }>;
+  // Inventory check fields
+  max_kg?: number;
+  allocated_kg?: number;
+  remaining_kg?: number;
+  utilization_rate?: number;
+  warning?: string;
+  // Email check fields
+  emails_sent_24h?: number;
+  message?: string;
+  // Orders check fields
+  total_orders?: number;
+  integrity_issues?: number;
+  issues?: Array<{ order_number: string; issue: string }>;
 }
 
 export function SystemHealth() {
@@ -17,7 +40,7 @@ export function SystemHealth() {
   const copy = t.systemHealth;
   const locale = lang === 'en' ? 'en-US' : 'nb-NO';
 
-  const [health, setHealth] = useState<any>(null);
+  const [health, setHealth] = useState<{ status: string; checks?: Record<string, HealthCheck> } | null>(null);
   const [loading, setLoading] = useState(true);
   const [lastChecked, setLastChecked] = useState<Date | null>(null);
 
@@ -33,7 +56,7 @@ export function SystemHealth() {
       setHealth(data);
       setLastChecked(new Date());
     } catch (error) {
-      console.error('Health check error:', error);
+      logError('Health check error', error);
     } finally {
       setLoading(false);
     }
@@ -192,7 +215,7 @@ export function SystemHealth() {
                     <div className="mt-3 p-3 rounded-xl bg-red-50 border border-red-100">
                       <p className="font-semibold text-red-900 mb-2 text-xs">{copy.webhooks.recentFailuresTitle}</p>
                       <div className="space-y-1">
-                        {data.recent_failures.map((failure: any, i: number) => (
+                        {data.recent_failures.map((failure, i: number) => (
                           <p key={i} className="text-xs text-red-800">
                             {copy.webhooks.orderLabel}: {failure.order_id} - {failure.error}
                           </p>
@@ -223,7 +246,7 @@ export function SystemHealth() {
                     <div className="mt-3 p-3 rounded-xl bg-amber-50 border border-amber-100">
                       <p className="font-semibold text-amber-900 mb-2 text-xs">{copy.payments.atRiskTitle}</p>
                       <div className="space-y-1">
-                        {data.at_risk_orders.slice(0, 3).map((order: any, i: number) => (
+                        {data.at_risk_orders.slice(0, 3).map((order, i: number) => (
                           <p key={i} className="text-xs text-amber-800">
                             {order.order_number} - {copy.payments.daysPending.replace('{count}', String(order.days_pending))}
                           </p>
@@ -290,7 +313,7 @@ export function SystemHealth() {
                     <div className="mt-3 p-3 rounded-xl bg-red-50 border border-red-100">
                       <p className="font-semibold text-red-900 mb-2 text-xs">{copy.orders.issuesFoundTitle}</p>
                       <div className="space-y-1">
-                        {data.issues.map((issue: any, i: number) => (
+                        {data.issues.map((issue, i: number) => (
                           <p key={i} className="text-xs text-red-800">
                             {issue.order_number}: {issue.issue}
                           </p>

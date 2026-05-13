@@ -5,8 +5,9 @@ import { useLanguage } from '@/contexts/LanguageContext'
 import { ChickenBreedCard } from '@/components/chickens/ChickenBreedCard'
 import { ChickenCalendarGrid } from '@/components/chickens/ChickenCalendarGrid'
 import { ChickenOrderForm } from '@/components/chickens/ChickenOrderForm'
-import type { ChickenWeekAvailability } from '@/lib/chickens/types'
+import type { ChickenBreed, ChickenWeekAvailability } from '@/lib/chickens/types'
 import { trackChickenFunnel } from '@/lib/chickens/analytics'
+import { logError } from '@/lib/logger'
 import { useToast } from '@/hooks/use-toast'
 import { OtherProductsRow } from '@/components/OtherProductsRow'
 import { MobileProductDock } from '@/components/MobileProductDock'
@@ -43,7 +44,7 @@ export default function KyllingerPage() {
       timeZone: 'UTC',
     })
 
-  const [breeds, setBreeds] = useState<any[]>([])
+  const [breeds, setBreeds] = useState<ChickenBreed[]>([])
   const [calendar, setCalendar] = useState<ChickenWeekAvailability[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedWeek, setSelectedWeek] = useState<ChickenWeekAvailability | null>(null)
@@ -62,7 +63,7 @@ export default function KyllingerPage() {
         if (breedsRes.ok) setBreeds(await breedsRes.json())
         if (calendarRes.ok) setCalendar(await calendarRes.json())
       } catch (err) {
-        console.error('Failed to load chicken data:', err)
+        logError('Failed to load chicken data', err)
         toast({
           title: chickens.pageTitle,
           description: lang === 'no' ? 'Kunne ikke laste data. Prøv å laste siden på nytt.' : 'Could not load data. Try reloading the page.',

@@ -1,9 +1,13 @@
+// ─── Imports ───────────────────────────────────────────────────────────────
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth/session';
 import { isMissingEmailRelationError } from '@/lib/email/schema';
 import { supabaseAdmin } from '@/lib/supabase/server';
 import { getEffectiveBoxSize, normalizeOrderForDisplay } from '@/lib/orders/display';
 import { needsAdminAttention } from '@/lib/messages/admin-attention';
+import { logError, logWarning } from '@/lib/logger';
+
+// ─── Route Handler ─────────────────────────────────────────────────────────
 
 export async function GET(request: NextRequest) {
   const session = await getSession();
@@ -88,7 +92,7 @@ export async function GET(request: NextRequest) {
       }, 0);
     }, 0);
 
-    // Egg shipping missing (Posten orders not in terminal status missing fields)
+    // Egg orders sent via Posten that are missing required shipping fields (not yet in a terminal status)
     const eggShippingMissing = eggOrders.filter((o: any) => {
       if (o.delivery_method !== 'posten') return false;
       if (['shipped', 'delivered', 'cancelled', 'forfeited'].includes(o.status)) return false;
@@ -116,8 +120,8 @@ export async function GET(request: NextRequest) {
     const pigUnpaidRemainders = pigMetrics.outstanding_remainders;
     const totalUnpaidCount = pigUnpaidDeposits.length + pigUnpaidRemainders.length +
       eggUnpaidDeposits.length + eggUnpaidRemainders.length;
-    // NOTE: Pig amounts are stored in NOK, egg amounts are stored in ore.
-    // Convert egg values to NOK before summing to avoid 100x inflated totals.
+    // NOTE: Pig amounts are stored in NOK (integers), egg amounts are stored in øre (1/100 NOK).
+    // Divide egg amounts by 100 to convert to NOK before summing — avoids 100x inflated totals.
     const eggUnpaidDepositsNok = eggUnpaidDeposits.reduce(
       (sum: number, o: any) => sum + Number(o.deposit_amount || 0) / 100,
       0
@@ -165,7 +169,14 @@ export async function GET(request: NextRequest) {
     };
 
     // New orders since last login
-    let newOrders: any[] = [];
+    interface OrderSummary {
+      order_number: string | null;
+      customer_name: string | null;
+      product_type: 'pig' | 'egg' | 'chicken';
+      amount: number;
+      created_at: string;
+    }
+    let newOrders: OrderSummary[] = [];
     if (lastLogin) {
       const since = new Date(lastLogin);
       const recentPig = pigResult
@@ -226,13 +237,15 @@ export async function GET(request: NextRequest) {
       healthAlerts: healthResult,
     });
   } catch (error) {
-    console.error('Error fetching dashboard data:', error);
+    logError('Error fetching dashboard data', error);
     return NextResponse.json(
       { error: 'Failed to fetch dashboard data' },
       { status: 500 }
     );
   }
 }
+
+// ─── Data Fetch Functions ──────────────────────────────────────────────────
 
 function parseEggWeekOffset(raw: string | null) {
   const parsed = Number.parseInt(raw || '0', 10);
@@ -293,7 +306,7 @@ async function fetchMessageStats() {
     `);
 
   if (error) {
-    console.warn('Could not fetch messages:', error.message);
+    logWarning('Could not fetch messages', { message: error.message });
     return { total: 0, open: 0, in_progress: 0, resolved: 0, attention_required: 0 };
   }
 
@@ -306,6 +319,8 @@ async function fetchMessageStats() {
     attention_required: messages.filter(needsAdminAttention).length,
   };
 }
+
+// ─── Email Activity Types & Helpers ───────────────────────────────────────
 
 type DashboardEmailOrderSource = 'pig' | 'egg' | 'chicken';
 
@@ -459,7 +474,7 @@ async function fetchDashboardOrderLookup(orderIds: {
     ['pig', pigResult],
     ['egg', eggResult],
     ['chicken', chickenResult],
-  ] as Array<[DashboardEmailOrderSource, { data: any[] | null; error: any }]>) {
+  ] as Array<[DashboardEmailOrderSource, { data: Array<{ id: unknown; order_number?: unknown; customer_name?: unknown; customer_email?: unknown; customer_phone?: unknown }> | null; error: unknown }]>) {
     if (result.error) throw result.error;
 
     for (const row of result.data || []) {
@@ -874,11 +889,13 @@ async function fetchEmailActivity() {
     };
   } catch (error: any) {
     if (!isMissingEmailRelationError(error)) {
-      console.warn('Could not build dashboard email activity:', error?.message || error);
+      logWarning('Could not build dashboard email activity', { message: error?.message || String(error) });
     }
     return emptyResult;
   }
 }
+
+// ─── Health & Calendar ─────────────────────────────────────────────────────
 
 async function fetchHealthAlerts() {
   const alerts: Array<{ level: 'warning' | 'error'; message: string }> = [];
@@ -922,8 +939,9 @@ async function fetchHealthAlerts() {
         message: `${stuckOrders.length} grisbestilling(er) venter på forskudd i over 7 dager`,
       });
     }
-  } catch {
-    // Health alerts are non-critical
+  } catch (err) {
+    // Health alerts are non-critical — log but do not surface to caller
+    logWarning('Could not fetch health alerts', { message: err instanceof Error ? err.message : String(err) });
   }
 
   return alerts;
@@ -1005,8 +1023,9 @@ async function fetchUpcomingDates() {
     });
 
     // Group by date helper
+    type OrderGroup = ReturnType<typeof formatOrder>;
     const groupByDate = (orders: any[], dateField: string, type: 'egg' | 'chicken') => {
-      const groups: Record<string, any[]> = {};
+      const groups: Record<string, OrderGroup[]> = {};
       for (const o of orders || []) {
         const date = o[dateField];
         if (!date) continue;
@@ -1069,7 +1088,8 @@ async function fetchUpcomingDates() {
       shipments: { thisWeek: shipmentWeeks.thisWeek, nextWeek: shipmentWeeks.nextWeek },
       pendingPigPickups,
     };
-  } catch {
+  } catch (err) {
+    logWarning('Could not fetch upcoming dates', { message: err instanceof Error ? err.message : String(err) });
     return {
       pickups: { thisWeek: [], nextWeek: [] },
       shipments: { thisWeek: [], nextWeek: [] },
@@ -1077,6 +1097,8 @@ async function fetchUpcomingDates() {
     };
   }
 }
+
+// ─── Egg Week Tracker ─────────────────────────────────────────────────────
 
 async function fetchEggWeekTracker(weekOffset = 0) {
   try {
@@ -1275,10 +1297,12 @@ async function fetchEggWeekTracker(weekOffset = 0) {
       breeds,
     };
   } catch (err) {
-    console.error('Failed to fetch egg week tracker:', err);
+    logError('Failed to fetch egg week tracker', err);
     return null;
   }
 }
+
+// ─── Metrics Calculation ──────────────────────────────────────────────────
 
 function calculateDashboardMetrics(orders: any[]) {
   // Payment tracking
