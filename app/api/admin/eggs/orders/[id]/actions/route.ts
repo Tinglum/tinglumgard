@@ -1854,25 +1854,16 @@ async function sendRemainderReminder(orderId: string) {
 <p><a class="button" href="${appUrl}/rugeegg/mine-bestillinger">Betal restbeløp</a></p>
 </div></div></body></html>`
 
-  try {
-    await dispatchEmail({
-      to: order.customer_email,
-      subject: `Påminnelse om restbetaling - ${order.order_number}`,
-      html,
-      eggOrderId: order.id,
-      sourcePath: 'admin.egg.remainder-reminder',
-      templateKey: 'egg-remainder-reminder',
-      classification: 'transactional',
-      sendImmediately: true,
-    })
-  } catch (dispatchError: any) {
-    logError('send-remainder-reminder-dispatch', dispatchError, { orderId })
-    return NextResponse.json({
-      error: 'Email dispatch failed',
-      detail: dispatchError?.message || String(dispatchError),
-      code: dispatchError?.code,
-    }, { status: 500 })
-  }
+  await dispatchEmail({
+    to: order.customer_email,
+    subject: `Påminnelse om restbetaling - ${order.order_number}`,
+    html,
+    eggOrderId: order.id,
+    sourcePath: 'admin.egg.remainder-reminder',
+    classification: 'transactional',
+    sendImmediately: true,
+    metadata: { flow_key: 'egg.remainder.reminder' },
+  })
 
   return NextResponse.json({ success: true })
 }
