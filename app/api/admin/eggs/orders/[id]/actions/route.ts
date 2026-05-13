@@ -415,12 +415,20 @@ async function adjustEggOrderLines(
       overrideRemaining !== null
         ? overrideRemaining
         : Math.max(0, Number(availability?.remaining || 0))
-    const maxWithoutError = currentQty + remainingFree
+
+    // For pickup orders the hard ceiling is physically collected eggs,
+    // not the reservation-based "remaining" (which may be lower because
+    // other orders have pre-reserved from the same pool).
+    const actualCollected = availability?.actualCollected ?? null
+    const maxWithoutError =
+      isPickup && actualCollected !== null
+        ? actualCollected
+        : currentQty + remainingFree
 
     if (finalQty > maxWithoutError) {
       return NextResponse.json(
         {
-          error: `${availability?.breedName || 'Breed'}: need ${finalQty}, max ${maxWithoutError} without override`,
+          error: `${availability?.breedName || 'Breed'}: need ${finalQty}, max ${maxWithoutError}`,
         },
         { status: 400 }
       )
