@@ -57,6 +57,7 @@ interface EggOrder {
   breed_id?: string | null;
   status: string;
   quantity: number;
+  subtotal?: number | null;
   total_amount: number;
   deposit_amount: number;
   remainder_amount: number;
@@ -69,14 +70,25 @@ interface EggOrder {
   tracking_number?: string | null;
   marked_shipped_at?: string | null;
   created_at?: string | null;
+  pickup_date?: string | null;
+  pickup_time?: string | null;
   egg_breeds?: { name?: string; accent_color?: string } | null;
   egg_payments?: Array<{
     payment_type: string;
     status: string;
     amount_nok?: number;
     paid_at?: string | null;
+    created_at?: string | null;
   }>;
-  egg_order_additions?: Array<{ breed_id?: string | null; quantity: number; subtotal: number }>;
+  egg_order_additions?: Array<{
+    id?: string;
+    breed_id?: string | null;
+    quantity: number;
+    subtotal: number;
+    created_at?: string | null;
+    price_per_egg?: number | null;
+    egg_breeds?: { name?: string } | null;
+  }>;
 }
 
 interface ChickenOrder {
