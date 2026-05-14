@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth/session'
 import { supabaseAdmin } from '@/lib/supabase/server'
+import { dispatchEmail } from '@/lib/email/dispatch'
+import { logError } from '@/lib/logger'
+import { VIPPS_PENDING_EMAIL } from '@/lib/constants/app'
 
 type EggPaymentType = 'deposit' | 'addition_deposit' | 'remainder'
 type EggPaymentStatus = 'pending' | 'completed' | 'failed' | 'refunded'
@@ -421,7 +424,7 @@ export async function GET(request: NextRequest) {
       availableWeeks,
     })
   } catch (error: any) {
-    console.error('Failed to list admin egg orders:', error)
+    logError('admin-eggs-orders-get', error)
     return NextResponse.json({ error: 'Failed to list egg orders' }, { status: 500 })
   }
 }
@@ -531,9 +534,216 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true, affected: orderIds.length })
     }
 
+    if (action === 'delete_orders') {
+      const DELETABLE_STATUSES = new Set(['pending', 'cancelled', 'forfeited'])
+      const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+      const uuids = orderIds.filter((id) => UUID_RE.test(id))
+      const orderNumbers = orderIds.filter((id) => !UUID_RE.test(id))
+
+      // Resolve order numbers to rows
+      let query = supabaseAdmin
+        .from('egg_orders')
+        .select('id, order_number, status, inventory_id, quantity')
+      if (uuids.length && orderNumbers.length) {
+        query = query.or(`id.in.(${uuids.join(',')}),order_number.in.(${orderNumbers.join(',')})`)
+      } else if (uuids.length) {
+        query = query.in('id', uuids)
+      } else {
+        query = query.in('order_number', orderNumbers)
+      }
+
+      const { data: toDelete, error: fetchError } = await query
+
+      if (fetchError) throw fetchError
+
+      const blocked = (toDelete || []).filter((o) => !DELETABLE_STATUSES.has(o.status))
+      if (blocked.length > 0) {
+        return NextResponse.json(
+          {
+            error: 'Cannot delete orders that are not in pending/cancelled/forfeited status',
+            blocked: blocked.map((o) => ({ id: o.id, order_number: o.order_number, status: o.status })),
+          },
+          { status: 400 }
+        )
+      }
+
+      const safeIds = (toDelete || []).map((o) => o.id)
+      if (safeIds.length === 0) {
+        return NextResponse.json({ success: true, affected: 0 })
+      }
+
+      // Release inventory for any pending orders being deleted
+      const pendingOrders = (toDelete || []).filter((o) => o.status === 'pending')
+      for (const order of pendingOrders) {
+        const { data: inv } = await supabaseAdmin
+          .from('egg_inventory')
+          .select('eggs_allocated, eggs_available, status')
+          .eq('id', order.inventory_id)
+          .maybeSingle()
+
+        if (inv) {
+          const nextAllocated = Math.max(0, (inv.eggs_allocated || 0) - order.quantity)
+          const remaining = (inv.eggs_available || 0) - nextAllocated
+          const nextStatus = remaining <= 0 ? 'sold_out' : inv.status === 'sold_out' ? 'open' : inv.status
+          await supabaseAdmin
+            .from('egg_inventory')
+            .update({ eggs_allocated: nextAllocated, status: nextStatus })
+            .eq('id', order.inventory_id)
+        }
+
+        // Also handle additions for pending orders
+        const { data: additions } = await supabaseAdmin
+          .from('egg_order_additions')
+          .select('inventory_id, quantity')
+          .eq('egg_order_id', order.id)
+
+        for (const addition of additions || []) {
+          const { data: addInv } = await supabaseAdmin
+            .from('egg_inventory')
+            .select('eggs_allocated, eggs_available, status')
+            .eq('id', addition.inventory_id)
+            .maybeSingle()
+
+          if (addInv) {
+            const nextAllocated = Math.max(0, (addInv.eggs_allocated || 0) - addition.quantity)
+            const remaining = (addInv.eggs_available || 0) - nextAllocated
+            const nextStatus =
+              remaining <= 0 ? 'sold_out' : addInv.status === 'sold_out' ? 'open' : addInv.status
+            await supabaseAdmin
+              .from('egg_inventory')
+              .update({ eggs_allocated: nextAllocated, status: nextStatus })
+              .eq('id', addition.inventory_id)
+          }
+        }
+      }
+
+      // Delete child records first, then the orders
+      await supabaseAdmin.from('egg_order_additions').delete().in('egg_order_id', safeIds)
+      await supabaseAdmin.from('egg_payments').delete().in('egg_order_id', safeIds)
+
+      const { error: deleteError } = await supabaseAdmin
+        .from('egg_orders')
+        .delete()
+        .in('id', safeIds)
+
+      if (deleteError) throw deleteError
+
+      return NextResponse.json({ success: true, affected: safeIds.length })
+    }
+
+    if (action === 'export_production') {
+      const { data: orders, error } = await supabaseAdmin
+        .from('egg_orders')
+        .select('*, egg_breeds(*), egg_inventory(*), egg_payments(*), egg_order_additions(*, egg_breeds(*), egg_inventory(*))')
+        .in('id', orderIds)
+        .order('delivery_monday', { ascending: true })
+
+      if (error) throw error
+
+      const allOrders = (orders || []) as EggOrderRow[]
+
+      // Per-breed/week breakdown
+      type BreedWeekKey = string
+      type BreedWeekSummary = { breed: string; year: number; week: number; delivery_monday: string; orders: number; eggs: number; delivery_method_split: Record<string, number> }
+      const bwMap = new Map<BreedWeekKey, BreedWeekSummary>()
+
+      for (const order of allOrders) {
+        const breed = order.egg_breeds?.name || 'Unknown'
+        const key: BreedWeekKey = `${breed}|${order.year}|${order.week_number}`
+        const existing = bwMap.get(key) ?? { breed, year: order.year, week: order.week_number, delivery_monday: order.delivery_monday, orders: 0, eggs: 0, delivery_method_split: {} }
+        existing.orders += 1
+        existing.eggs += order.quantity || 0
+        existing.delivery_method_split[order.delivery_method] = (existing.delivery_method_split[order.delivery_method] || 0) + 1
+
+        for (const addition of order.egg_order_additions || []) {
+          const addBreed = (addition as any).egg_breeds?.name || breed
+          const addKey: BreedWeekKey = `${addBreed}|${order.year}|${order.week_number}`
+          const addExisting = bwMap.get(addKey) ?? { breed: addBreed, year: order.year, week: order.week_number, delivery_monday: order.delivery_monday, orders: 0, eggs: 0, delivery_method_split: {} }
+          addExisting.eggs += (addition as any).quantity || 0
+          bwMap.set(addKey, addExisting)
+        }
+
+        bwMap.set(key, existing)
+      }
+
+      const breedWeekSummary = Array.from(bwMap.values()).sort((a, b) =>
+        a.year === b.year ? a.week - b.week : a.year - b.year
+      )
+
+      // Per-customer lines
+      const customerLines = allOrders.map((order) => ({
+        order_number: order.order_number,
+        customer_name: order.customer_name,
+        breed: order.egg_breeds?.name || '',
+        quantity: order.quantity,
+        year: order.year,
+        week_number: order.week_number,
+        delivery_monday: order.delivery_monday,
+        delivery_method: order.delivery_method,
+        payment_state: getPaymentState(order),
+        total_amount: order.total_amount,
+        remainder_due: getAmountDueOre(order),
+      }))
+
+      const totals = {
+        orders: allOrders.length,
+        total_eggs: breedWeekSummary.reduce((s, b) => s + b.eggs, 0),
+        pickup_count: customerLines.filter((l) => l.delivery_method === 'pickup').length,
+        posten_count: customerLines.filter((l) => l.delivery_method === 'posten').length,
+        total_revenue_ore: allOrders.reduce((s, o) => s + (o.total_amount || 0), 0),
+        outstanding_remainder_ore: customerLines.reduce((s, l) => s + l.remainder_due, 0),
+      }
+
+      return NextResponse.json({ success: true, breed_week_summary: breedWeekSummary, customer_lines: customerLines, totals })
+    }
+
+    if (action === 'send_email') {
+      const subject = String(body?.data?.subject || '').trim()
+      const message = String(body?.data?.message || '').trim()
+      if (!subject || !message) {
+        return NextResponse.json({ error: 'Missing subject or message' }, { status: 400 })
+      }
+
+      const { data: emailOrders } = await supabaseAdmin
+        .from('egg_orders')
+        .select('id, customer_name, customer_email, order_number')
+        .in('id', orderIds)
+
+      const results: Array<{ order_number: string; success: boolean }> = []
+      for (const order of emailOrders || []) {
+        if (!order.customer_email || order.customer_email === VIPPS_PENDING_EMAIL) continue
+        try {
+          await dispatchEmail({
+            to: order.customer_email,
+            subject: subject.replace('{ORDER_NUMBER}', order.order_number),
+            html: `<!DOCTYPE html><html><body style="font-family:sans-serif;color:#333">
+              <div style="max-width:600px;margin:0 auto;padding:20px">
+                <h2 style="color:#2C1810">Tinglumgard</h2>
+                <p>Hei ${order.customer_name},</p>
+                ${message.replace('{ORDER_NUMBER}', order.order_number).replace('{CUSTOMER_NAME}', order.customer_name)}
+                <p>Vennlig hilsen,<br>Tinglumgard</p>
+              </div></body></html>`,
+            classification: 'support',
+            sourcePath: '/api/admin/eggs/orders',
+            eggOrderId: order.id,
+          })
+          results.push({ order_number: order.order_number, success: true })
+        } catch (e) {
+          results.push({ order_number: order.order_number, success: false })
+        }
+      }
+
+      return NextResponse.json({
+        success: true,
+        sent: results.filter((r) => r.success).length,
+        failed: results.filter((r) => !r.success).length,
+        results,
+      })
+    }
+
     return NextResponse.json({ error: 'Unknown action' }, { status: 400 })
   } catch (error: any) {
-    console.error('Failed bulk egg order action:', error)
+    logError('admin-eggs-orders-bulk-action', error)
     return NextResponse.json({ error: 'Failed to execute bulk action' }, { status: 500 })
   }
 }
