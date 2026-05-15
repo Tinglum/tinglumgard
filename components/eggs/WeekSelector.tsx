@@ -107,7 +107,7 @@ export function WeekSelector({ inventory, accentColor, onSelectWeek }: WeekSelec
               const cells = buildCalendarCells(month.year, month.month, inventoryByDate)
               const rows = chunk(cells, 7).filter((row) => {
                 const monday = getRowMonday(row)
-                return monday ? monday.getMonth() === month.month : false
+                return monday ? monday.getUTCMonth() === month.month : false
               })
 
               return (
@@ -407,28 +407,31 @@ function getRowMonday(row: CalendarCell[]): Date | null {
   if (!firstCell?.date) return null
   const offset = row.indexOf(firstCell)
   const monday = new Date(firstCell.date)
-  monday.setDate(firstCell.date.getDate() - offset)
+  monday.setUTCDate(firstCell.date.getUTCDate() - offset)
   return monday
 }
 
 function dateKey(date: Date): string {
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
+  // Use UTC getters: delivery_monday is parsed from a date-only string (UTC midnight).
+  // Using local getters would shift the date by one day in UTC- timezones.
+  const year = date.getUTCFullYear()
+  const month = String(date.getUTCMonth() + 1).padStart(2, '0')
+  const day = String(date.getUTCDate()).padStart(2, '0')
   return `${year}-${month}-${day}`
 }
 
 function getMondaysInMonth(year: number, month: number): Date[] {
-  const firstOfMonth = new Date(year, month, 1)
-  const day = firstOfMonth.getDay()
+  // Build dates as UTC midnight so dateKey(getUTCDate) is stable across timezones.
+  const firstOfMonth = new Date(Date.UTC(year, month, 1))
+  const day = firstOfMonth.getUTCDay()
   const offset = (8 - day) % 7
-  const firstMonday = new Date(year, month, 1 + offset)
+  const firstMonday = new Date(Date.UTC(year, month, 1 + offset))
   const mondays: Date[] = []
   const cursor = new Date(firstMonday)
 
-  while (cursor.getMonth() === month) {
+  while (cursor.getUTCMonth() === month) {
     mondays.push(new Date(cursor))
-    cursor.setDate(cursor.getDate() + 7)
+    cursor.setUTCDate(cursor.getUTCDate() + 7)
   }
 
   return mondays
@@ -445,9 +448,9 @@ function buildCalendarCells(
   month: number,
   inventoryByDate: Map<string, WeekInventory>
 ): CalendarCell[] {
-  const firstOfMonth = new Date(year, month, 1)
-  const daysInMonth = new Date(year, month + 1, 0).getDate()
-  const startDayIndex = (firstOfMonth.getDay() + 6) % 7
+  const firstOfMonth = new Date(Date.UTC(year, month, 1))
+  const daysInMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate()
+  const startDayIndex = (firstOfMonth.getUTCDay() + 6) % 7
   const totalCells = Math.ceil((startDayIndex + daysInMonth) / 7) * 7
 
   return Array.from({ length: totalCells }, (_, index) => {
@@ -465,8 +468,8 @@ function buildCalendarCells(
       }
     }
 
-    const date = new Date(year, month, dayNumber)
-    const isMonday = date.getDay() === 1
+    const date = new Date(Date.UTC(year, month, dayNumber))
+    const isMonday = date.getUTCDay() === 1
     const week = isMonday ? inventoryByDate.get(dateKey(date)) || null : null
 
     return {

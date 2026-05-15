@@ -72,9 +72,18 @@ function resolveInventoryStatus(
 }
 
 export function mapInventory(row: EggInventoryRow, breed?: Breed): WeekInventory {
-  const deliveryMonday = new Date(row.delivery_monday)
+  // Parse as UTC then normalize to Monday using UTC methods.
+  // The DB may store the Sunday before the delivery week; normalising here
+  // ensures the date key used by WeekSelector always matches the Monday
+  // that getMondaysInMonth generates.
+  const raw = new Date(row.delivery_monday)
+  const dow = raw.getUTCDay() // 0 = Sun, 1 = Mon, …
+  if (dow !== 1) {
+    raw.setUTCDate(raw.getUTCDate() + (dow === 0 ? 1 : 1 - dow))
+  }
+  const deliveryMonday = raw
   const orderCutoffDate = new Date(deliveryMonday)
-  orderCutoffDate.setDate(orderCutoffDate.getDate() - 6)
+  orderCutoffDate.setUTCDate(orderCutoffDate.getUTCDate() - 6)
 
   const eggsRemaining = Math.max(0, row.eggs_available - row.eggs_allocated)
   const resolvedStatus = resolveInventoryStatus(row.status, eggsRemaining)
