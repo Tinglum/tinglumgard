@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase/server'
 import { buildAvailabilityCalendar } from '@/lib/chickens/api'
+import { logError } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
 
@@ -14,7 +15,7 @@ export async function GET() {
       .order('display_order')
 
     if (breedsError) {
-      console.error('Error fetching chicken breeds:', breedsError)
+      logError('chickens-availability-breeds', breedsError)
       return NextResponse.json({ error: breedsError.message }, { status: 500 })
     }
 
@@ -24,7 +25,7 @@ export async function GET() {
       .eq('active', true)
 
     if (hatchesError) {
-      console.error('Error fetching chicken hatches:', hatchesError)
+      logError('chickens-availability-hatches', hatchesError)
       return NextResponse.json({ error: hatchesError.message }, { status: 500 })
     }
 
@@ -32,7 +33,7 @@ export async function GET() {
 
     return NextResponse.json(calendar)
   } catch (error: any) {
-    console.error('Unexpected error:', error)
+    logError('chickens-availability-get', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

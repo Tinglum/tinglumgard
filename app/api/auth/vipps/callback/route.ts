@@ -5,6 +5,14 @@ import { supabaseAdmin } from '@/lib/supabase/server';
 import { cookies } from 'next/headers';
 import { sanitizeReturnToPath } from '@/lib/email/links';
 import { notifyDeferredPayment } from '@/lib/notifications/deferred-payment';
+import { SESSION_COOKIE_NAME, SESSION_COOKIE_OPTIONS, APP_BASE_URL } from '@/lib/constants/app';
+import { logError } from '@/lib/logger';
+
+/** Attach the session cookie to any NextResponse and return it. */
+function withSession(response: NextResponse, token: string): NextResponse {
+  response.cookies.set(SESSION_COOKIE_NAME, token, SESSION_COOKIE_OPTIONS);
+  return response;
+}
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
@@ -15,17 +23,17 @@ export async function GET(request: NextRequest) {
   const savedState = cookieStore.get('vipps_state')?.value;
 
   if (!code) {
-    console.error('Vipps Callback - No code received');
+    logError('vipps-callback-no-code', new Error('No code received'));
     return NextResponse.redirect(new URL('/?error=no_code', request.url));
   }
 
   if (!state) {
-    console.error('Vipps Callback - No state received');
+    logError('vipps-callback-no-state', new Error('No state received'));
     return NextResponse.redirect(new URL('/?error=no_state', request.url));
   }
 
   if (state !== savedState) {
-    console.error('Vipps Callback - State mismatch');
+    logError('vipps-callback-state-mismatch', new Error('State mismatch'));
     return NextResponse.redirect(new URL('/?error=state_mismatch', request.url));
   }
 
@@ -80,7 +88,12 @@ export async function GET(request: NextRequest) {
 
     console.log('Vipps Callback - Creating session token');
 
-    const stateData = JSON.parse(Buffer.from(state, 'base64').toString());
+    let stateData: Record<string, unknown>;
+    try {
+      stateData = JSON.parse(Buffer.from(state, 'base64').toString());
+    } catch {
+      return NextResponse.redirect(new URL('/?error=invalid_state', request.url));
+    }
 
     // Delete the CSRF state cookie
     const cookieStoreForDelete = await cookies();
@@ -105,7 +118,7 @@ export async function GET(request: NextRequest) {
           : '/api/orders';
 
       // Create the order with customer details from Vipps
-      const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+      const appUrl = APP_BASE_URL;
       const createOrderResponse = await fetch(
         `${appUrl}${createOrderPath}`,
         {
@@ -123,18 +136,11 @@ export async function GET(request: NextRequest) {
       });
 
       if (!createOrderResponse.ok) {
-        console.error('Failed to create order', { status: createOrderResponse.status });
-        const errorRedirect = NextResponse.redirect(
-          new URL(`${orderPagePath}?error=order_creation_failed`, request.url)
+        logError('vipps-callback-create-order', new Error(`Failed to create order: ${createOrderResponse.status}`));
+        return withSession(
+          NextResponse.redirect(new URL(`${orderPagePath}?error=order_creation_failed`, request.url)),
+          sessionToken
         );
-        errorRedirect.cookies.set('tinglum_session', sessionToken, {
-          httpOnly: true,
-          secure: process.env.NODE_ENV === 'production',
-          sameSite: 'lax',
-          maxAge: 60 * 60 * 24 * 7,
-          path: '/',
-        });
-        return errorRedirect;
       }
 
       const orderResult = await createOrderResponse.json();
@@ -154,7 +160,7 @@ export async function GET(request: NextRequest) {
       });
 
       if (!depositResponse.ok) {
-        console.error('Failed to create deposit payment', { status: depositResponse.status });
+        logError('vipps-callback-deposit-payment', new Error(`Failed to create deposit payment: ${depositResponse.status}`));
 
         // Notify admin about deferred payment (fire-and-forget)
         notifyDeferredPayment({
@@ -164,7 +170,7 @@ export async function GET(request: NextRequest) {
           customerName: userInfo.name || '',
           customerEmail: userInfo.email || '',
           depositStatus: depositResponse.status,
-        }).catch((err) => console.error('Failed to send deferred payment notification:', err));
+        }).catch((err) => logError('vipps-callback-deferred-payment-notify', err));
 
         // Vipps payment unavailable — accept order without deposit and redirect to confirmation
         const confirmationPath = isEggOrder
@@ -172,31 +178,16 @@ export async function GET(request: NextRequest) {
           : isChickenOrder
             ? `/kyllinger/bekreftelse?orderId=${orderResult.orderId}&payment_deferred=true`
             : `/bestill/bekreftelse?orderId=${orderResult.orderId}&payment_deferred=true`;
-        const deferredRedirect = NextResponse.redirect(
-          new URL(confirmationPath, request.url)
+        return withSession(
+          NextResponse.redirect(new URL(confirmationPath, request.url)),
+          sessionToken
         );
-        deferredRedirect.cookies.set('tinglum_session', sessionToken, {
-          httpOnly: true,
-          secure: process.env.NODE_ENV === 'production',
-          sameSite: 'lax',
-          maxAge: 60 * 60 * 24 * 7,
-          path: '/',
-        });
-        return deferredRedirect;
       }
 
       const depositResult = await depositResponse.json();
 
       // Redirect user to Vipps payment - also set session cookie
-      const paymentRedirect = NextResponse.redirect(depositResult.redirectUrl);
-      paymentRedirect.cookies.set('tinglum_session', sessionToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        maxAge: 60 * 60 * 24 * 7,
-        path: '/',
-      });
-      return paymentRedirect;
+      return withSession(NextResponse.redirect(depositResult.redirectUrl), sessionToken);
     }
 
     const returnTo = sanitizeReturnToPath(stateData.returnTo || '/bestill');
@@ -227,22 +218,9 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    // Set the session cookie
-    response.cookies.set('tinglum_session', sessionToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 60 * 60 * 24 * 7, // 7 days
-      path: '/',
-    });
-
-    console.log('Vipps Callback - Set session cookie in HTML response');
-
-    return response;
+    return withSession(response, sessionToken);
   } catch (error) {
-    console.error('Vipps callback error:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    console.error('Vipps callback error details:', errorMessage);
+    logError('vipps-callback', error);
     return NextResponse.redirect(new URL('/?error=auth_failed', request.url));
   }
 }

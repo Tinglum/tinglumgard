@@ -18,6 +18,7 @@ import { buildCustomerOrderLink } from '@/lib/email/links'
 import { buildEggOrderLinesHtml, summarizeEggOrderLines } from '@/lib/eggs/email-lines'
 import { logError, logWarning } from '@/lib/logger'
 import { notifyInventoryOverallocation } from '@/lib/notifications/inventory-overallocation'
+import { APP_BASE_URL, VIPPS_PENDING_EMAIL, WISHLIST_DISCOUNT_PCT } from '@/lib/constants/app'
 
 interface EggOrderAddition {
   id: string
@@ -869,7 +870,7 @@ async function markPaymentCompleted(
         orderNumber: order.order_number || orderId,
         errorMessage: error instanceof Error ? error.message : 'Unknown error',
         source: 'admin-mark-deposit-paid',
-      }).catch(() => {})
+      }).catch((e) => logError('admin-egg-notify-overallocation', e))
     }
   }
 
@@ -998,7 +999,7 @@ async function setEggOrderStatus(orderId: string, nextStatus: string, reason: st
         orderNumber: orderId,
         errorMessage: allocErr?.message || 'unknown',
         source: 'admin-restore-order',
-      }).catch(() => {})
+      }).catch((e) => logError('admin-egg-notify-overallocation', e))
     }
   }
 
@@ -1355,7 +1356,7 @@ async function markEggOrderShipped(
     order.admin_notes,
     `Admin: marked shipped, tracking: ${trackingId}${reason ? ` - ${reason}` : ''}`
   )
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_BASE_URL || 'https://tinglumgard.no'
+  const appUrl = APP_BASE_URL
   const eggSummaryNo = summarizeEggOrderLines(order as any, 'no')
   const eggSummaryEn = summarizeEggOrderLines(order as any, 'en')
   const orderLinesHtml = buildEggOrderLinesHtml(eggSummaryNo.lines, 'no', {
@@ -1419,7 +1420,7 @@ async function markEggOrderShipped(
   return NextResponse.json({ success: true, trackingNumber: trackingId })
 }
 
-const WISHLIST_DISCOUNT_FACTOR = 0.70 // 30% off
+const WISHLIST_DISCOUNT_FACTOR = 1 - WISHLIST_DISCOUNT_PCT / 100
 
 function buildWishlistRemainderEmail(options: {
   customerName: string
@@ -1668,7 +1669,7 @@ async function fulfillWishlistItems(
 
   // 5. Update order: add wishlist total to remainder_amount, set status back to deposit_paid
   const totalOre = additions.reduce((sum, a) => sum + a.subtotal, 0)
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_BASE_URL || 'https://tinglumgard.no'
+  const appUrl = APP_BASE_URL
 
   const currentRemainder = order.remainder_amount || 0
   const currentTotal = order.total_amount || 0
@@ -1714,8 +1715,10 @@ async function fulfillWishlistItems(
       classification: 'transactional',
       locale: 'no',
       sourcePath: '/api/admin/eggs/orders/[id]/actions',
+      templateKey: 'egg.wishlist.remainder.customer',
+      flowKey: 'egg.wishlist.remainder',
       eggOrderId: orderId,
-      metadata: { flow_key: 'egg.wishlist.remainder', total_ore: totalOre, discount_pct: 30 },
+      metadata: { total_ore: totalOre, discount_pct: 30 },
     })
   } catch (e) {
     logError('fulfill-wishlist-email', e)
@@ -1745,7 +1748,7 @@ async function sendWishlistRemainderEmail(
     .maybeSingle()
 
   if (orderError || !order) return NextResponse.json({ error: 'Order not found', detail: orderError?.message }, { status: 404 })
-  if (!order.customer_email || order.customer_email === 'pending@vipps.no') {
+  if (!order.customer_email || order.customer_email === VIPPS_PENDING_EMAIL) {
     return NextResponse.json({ error: 'No valid email' }, { status: 400 })
   }
 
@@ -1776,7 +1779,7 @@ async function sendWishlistRemainderEmail(
   }))
 
   const totalOre = items.reduce((sum, i) => sum + i.subtotalOre, 0)
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://tinglumgard.no'
+  const appUrl = APP_BASE_URL
 
   let emailHtml: string
   try {
@@ -1801,8 +1804,10 @@ async function sendWishlistRemainderEmail(
       classification: 'transactional',
       locale: 'no',
       sourcePath: '/api/admin/eggs/orders/[id]/actions',
+      templateKey: 'egg.wishlist.remainder.customer',
+      flowKey: 'egg.wishlist.remainder',
       eggOrderId: orderId,
-      metadata: { flow_key: 'egg.wishlist.remainder', total_ore: totalOre, discount_pct: 30 },
+      metadata: { total_ore: totalOre, discount_pct: 30 },
     })
   } catch (e: any) {
     return NextResponse.json({ error: 'dispatchEmail failed', detail: e?.message }, { status: 500 })
@@ -1818,51 +1823,54 @@ async function sendWishlistRemainderEmail(
 async function sendRemainderReminder(orderId: string) {
   const { data: order, error } = await supabaseAdmin
     .from('egg_orders')
-    .select('id, order_number, customer_name, customer_email, week_number, remainder_amount, remainder_due_date, delivery_monday, egg_breeds(name)')
+    .select('id, order_number, customer_name, customer_email, week_number, remainder_amount, remainder_due_date, delivery_monday, delivery_method, egg_breeds(name)')
     .eq('id', orderId)
     .maybeSingle()
 
   if (error || !order) {
     return NextResponse.json({ error: 'Order not found' }, { status: 404 })
   }
-  if (!order.customer_email || order.customer_email === 'pending@vipps.no') {
+  if (!order.customer_email || order.customer_email === VIPPS_PENDING_EMAIL) {
     return NextResponse.json({ error: 'No valid email for this order' }, { status: 400 })
   }
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://tinglum.no'
-  const breedName = Array.isArray((order as any).egg_breeds)
-    ? (order as any).egg_breeds[0]?.name || 'Rugeegg'
-    : (order as any).egg_breeds?.name || 'Rugeegg'
-  const remainderNok = Math.round((order.remainder_amount || 0) / 100).toLocaleString('nb-NO')
+  const isPickup = ['farm_pickup', 'e6_pickup'].includes((order as any).delivery_method || '')
+  const templateKey = isPickup ? 'egg.remainder.reminder.pickup' : 'egg.remainder.reminder'
+  const customerFirstName = String(order.customer_name || 'Kunde').split(' ')[0]
+  const remainderNok = `kr ${Math.round((order.remainder_amount || 0) / 100).toLocaleString('nb-NO')}`
   const dueLabel = order.remainder_due_date
     ? new Date(order.remainder_due_date).toLocaleDateString('nb-NO')
     : order.delivery_monday
       ? new Date(order.delivery_monday).toLocaleDateString('nb-NO')
       : 'snarest'
 
-  const html = `<!DOCTYPE html>
-<html>
-<head><meta charset="utf-8">
-<style>body{font-family:-apple-system,sans-serif;line-height:1.6;color:#111827}.container{max-width:600px;margin:0 auto;padding:20px}.card{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:24px}.title{font-size:20px;font-weight:700;margin-bottom:10px}.muted{color:#6b7280;font-size:14px}.amount{font-size:18px;font-weight:700;margin:12px 0}.button{display:inline-block;background:#111827;color:#fff;padding:12px 18px;border-radius:8px;text-decoration:none}</style>
-</head>
-<body><div class="container"><div class="card">
-<div class="title">Påminnelse om restbetaling</div>
-<p>Hei ${order.customer_name},</p>
-<p class="muted">Bestilling ${order.order_number} · ${breedName} · Uke ${order.week_number}</p>
-<div class="amount">Restbeløp: kr ${remainderNok}</div>
-<p>Vennligst betal innen ${dueLabel} for å beholde bestillingen.</p>
-<p><a class="button" href="${appUrl}/rugeegg/mine-bestillinger">Betal restbeløp</a></p>
-</div></div></body></html>`
+  const rendered = await renderManagedTemplate({
+    templateKey,
+    locale: 'no',
+    variables: {
+      customer_name: order.customer_name || 'Kunde',
+      customer_first_name: customerFirstName,
+      order_number: order.order_number,
+      remainder_amount_nok: remainderNok,
+      due_date: dueLabel,
+      order_url: `${APP_BASE_URL}/rugeegg/mine-bestillinger`,
+    },
+  })
+
+  if (!rendered) {
+    return NextResponse.json({ error: `Missing template: ${templateKey}` }, { status: 500 })
+  }
 
   await dispatchEmail({
     to: order.customer_email,
-    subject: `Påminnelse om restbetaling - ${order.order_number}`,
-    html,
+    subject: rendered.subject,
+    html: rendered.html,
     eggOrderId: order.id,
     sourcePath: 'admin.egg.remainder-reminder',
     classification: 'transactional',
+    templateKey: rendered.templateKey,
+    flowKey: templateKey,
     sendImmediately: true,
-    metadata: { flow_key: 'egg.remainder.reminder' },
   })
 
   return NextResponse.json({ success: true })

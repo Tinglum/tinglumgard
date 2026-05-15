@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth/session';
 import { supabaseAdmin } from '@/lib/supabase/server';
 import { normalizeOrderForDisplay } from '@/lib/orders/display';
+import { logError } from '@/lib/logger';
 
 export async function GET(request: NextRequest) {
   const session = await getSession();
@@ -54,7 +55,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ orders: normalizedOrders });
   } catch (error) {
-    console.error('Error fetching orders:', error);
+    logError('admin-orders-get', error);
     return NextResponse.json(
       { error: 'Failed to fetch orders' },
       { status: 500 }

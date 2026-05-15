@@ -3,6 +3,7 @@ import { vippsClient } from '@/lib/vipps/api-client';
 import { randomBytes } from 'crypto';
 import { cookies } from 'next/headers';
 import { sanitizeReturnToPath } from '@/lib/email/links';
+import { logError } from '@/lib/logger';
 
 export async function GET(request: NextRequest) {
   try {
@@ -39,7 +40,7 @@ export async function GET(request: NextRequest) {
     // Redirect to Vipps OAuth
     return NextResponse.redirect(authUrl);
   } catch (error) {
-    console.error('Vipps login error:', error);
+    logError('vipps-login-get', error);
     return NextResponse.redirect(new URL('/?error=vipps_login_failed', request.url));
   }
 }
@@ -92,7 +93,7 @@ export async function POST(request: NextRequest) {
     // Return the auth URL so the client can redirect
     return NextResponse.json({ authUrl });
   } catch (error) {
-    console.error('Vipps login error:', error);
+    logError('vipps-login-post', error);
     return NextResponse.json(
       { error: 'Failed to initiate Vipps login' },
       { status: 500 }

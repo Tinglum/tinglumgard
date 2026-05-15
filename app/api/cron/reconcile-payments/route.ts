@@ -121,7 +121,7 @@ async function reconcilePendingPayments(cutoff: string): Promise<ResultEntry[]> 
         if (p.payment_type === 'deposit') {
           try { await finalizeConfirmedEggOrder(p.egg_order_id) } catch (finErr) {
             logError('cron-reconcile-egg-finalize', finErr, { paymentId: p.id })
-            notifyInventoryOverallocation({ orderId: p.egg_order_id, orderNumber: p.egg_order_id, errorMessage: finErr instanceof Error ? finErr.message : 'Unknown', source: 'cron-reconcile' }).catch(() => {})
+            notifyInventoryOverallocation({ orderId: p.egg_order_id, orderNumber: p.egg_order_id, errorMessage: finErr instanceof Error ? finErr.message : 'Unknown', source: 'cron-reconcile' }).catch((e) => logError('cron-reconcile-notify-overallocation', e))
           }
           const { data: order } = await supabaseAdmin.from('egg_orders').select('deposit_amount, total_amount, remainder_amount').eq('id', p.egg_order_id).maybeSingle()
           const remainder = Number(order?.remainder_amount || 0)

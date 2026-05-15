@@ -3,6 +3,8 @@ import { getSession } from '@/lib/auth/session';
 import { verifyOrderAccessToken } from '@/lib/auth/order-access';
 import { supabaseAdmin } from '@/lib/supabase/server';
 import { vippsClient } from '@/lib/vipps/api-client';
+import { logError } from '@/lib/logger';
+import { APP_BASE_URL } from '@/lib/constants/app';
 
 export async function POST(
   request: NextRequest,
@@ -88,9 +90,8 @@ export async function POST(
           }
         }
       } catch (error) {
-        console.error('Error fetching existing Vipps payment:', error);
+        logError('orders-deposit-fetch-vipps-session', error);
         // If we can't fetch the session (404, expired, etc), delete and create new
-        console.log('Deleting failed/expired payment record');
         await supabaseAdmin
           .from('payments')
           .delete()
@@ -103,7 +104,7 @@ export async function POST(
 
     // Create shorter reference (max 50 chars) using order number
     const shortReference = `DEP-${order.order_number}`;
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_BASE_URL || 'https://tinglumgard.no';
+    const appUrl = APP_BASE_URL;
     const needsShippingAddress = order.delivery_type === 'delivery_trondheim';
 
     // Generate callback authorization token
@@ -180,7 +181,7 @@ export async function POST(
       .single();
 
     if (paymentError) {
-      console.error('Failed to create payment record:', paymentError);
+      logError('orders-deposit-create-payment', paymentError);
       return NextResponse.json(
         { error: 'Failed to create payment record' },
         { status: 500 }
@@ -202,7 +203,7 @@ export async function POST(
       amount: depositAmount,
     });
   } catch (error) {
-    console.error('Error creating deposit payment:', error);
+    logError('orders-deposit-create', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json(
       { error: 'Failed to create payment', details: errorMessage },

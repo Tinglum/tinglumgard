@@ -9,6 +9,7 @@ import { getCustomerFacingAdminName } from '@/lib/messages/admin-sender';
 import { recordMessageEmailDebugEvent } from '@/lib/messages/email-debug';
 import { buildSupportThreadMessageId } from '@/lib/messages/threading';
 import { getNoReplyAddress } from '@/lib/messages/no-reply-address';
+import { APP_BASE_URL } from '@/lib/constants/app';
 
 // POST /api/admin/messages/[id]/replies - Add reply to a message
 export async function POST(
@@ -68,7 +69,7 @@ export async function POST(
         .single();
 
       if (message && message.customer_email) {
-        const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://tinglumgard.no';
+        const appUrl = APP_BASE_URL;
         const isAdminInitiated = message.initiated_by === 'admin';
         const threadId = String(message.email_thread_id || `msg_${message.id}`);
         const outboundMessageId = buildSupportThreadMessageId(threadId, 'admin-reply');

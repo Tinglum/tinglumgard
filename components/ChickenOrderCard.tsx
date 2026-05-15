@@ -18,7 +18,9 @@ type ChickenOrderAddition = {
   quantity_hens: number
   quantity_roosters: number
   subtotal_nok: number
-  price_per_hen_nok?: number
+  price_per_hen_nok?: number | null
+  price_per_rooster_nok?: number | null
+  created_at?: string | null
   chicken_hatches?: { hatch_date?: string | null } | null
   chicken_breeds?: { name?: string; accent_color?: string } | null
 }
@@ -48,7 +50,14 @@ interface ChickenOrderCardProps {
     created_at: string
     chicken_breeds?: { name?: string; accent_color?: string } | null
     chicken_order_additions?: ChickenOrderAddition[]
-    chicken_payments?: Array<{ payment_type: string; status: string; amount_nok: number }>
+    chicken_payments?: Array<{
+      id?: string
+      payment_type: string
+      status: string
+      amount_nok: number
+      paid_at?: string | null
+      created_at?: string | null
+    }>
   }
   onPayRemainder?: (orderId: string) => void
   onPayDeposit?: (orderId: string) => void
@@ -146,6 +155,10 @@ export function ChickenOrderCard({ order, onPayRemainder, onPayDeposit, onRefres
   const baseSubtotal =
     (Number(order.quantity_hens || 0) * Number(order.price_per_hen_nok || 0)) +
     (Number(order.quantity_roosters || 0) * Number(order.price_per_rooster_nok || 0))
+  const formatBirdLine = (hens: number, roosters: number) =>
+    roosters > 0
+      ? `${hens.toLocaleString(locale)} ${myOrdersCopy.hensLabel} + ${roosters.toLocaleString(locale)} ${myOrdersCopy.roostersLabel}`
+      : `${hens.toLocaleString(locale)} ${myOrdersCopy.hensLabel}`
 
   const orderLines = useMemo(() => {
     const pickupDate = getIsoWeekMondayDate(order.pickup_year, order.pickup_week)
@@ -238,26 +251,147 @@ export function ChickenOrderCard({ order, onPayRemainder, onPayDeposit, onRefres
     return `${uniqueAges[0]}-${uniqueAges[uniqueAges.length - 1]} ${myOrdersCopy.weeksLabel}`
   }, [myOrdersCopy.weeksLabel, order.age_weeks_at_pickup, uniqueAges])
 
-  const totalHens = orderLines.reduce((sum, line) => sum + line.hens, 0)
-  const totalRoosters = orderLines.reduce((sum, line) => sum + line.roosters, 0)
+  const baseBirds = Number(order.quantity_hens || 0) + Number(order.quantity_roosters || 0)
+  const additionsBirds = (order.chicken_order_additions || []).reduce(
+    (sum, addition) => sum + Number(addition.quantity_hens || 0) + Number(addition.quantity_roosters || 0),
+    0
+  )
+  const totalBirds = baseBirds + additionsBirds
+  const quantityBreakdown =
+    lang === 'en'
+      ? `Base ${baseBirds} + additions ${additionsBirds} = total ${totalBirds}`
+      : `Grunn ${baseBirds} + tillegg ${additionsBirds} = totalt ${totalBirds}`
+  const orderDisplayLines = useMemo(() => {
+    const lines: Array<{
+      key: string
+      label: string
+      breedName: string
+      quantityLabel: string
+      amountNok: number
+      createdAt?: string | null
+      ageWeeksAtPickup?: number | null
+    }> = []
+
+    if (baseBirds > 0) {
+      lines.push({
+        key: 'base-order',
+        label: lang === 'en' ? 'Base order' : 'Grunnbestilling',
+        breedName: order.chicken_breeds?.name || common.defaultChickenName,
+        quantityLabel: formatBirdLine(Number(order.quantity_hens || 0), Number(order.quantity_roosters || 0)),
+        amountNok: Math.max(0, baseSubtotal),
+        createdAt: order.created_at,
+        ageWeeksAtPickup:
+          Number.isFinite(Number(order.age_weeks_at_pickup)) && Number(order.age_weeks_at_pickup) > 0
+            ? Number(order.age_weeks_at_pickup)
+            : null,
+      })
+    }
+
+    const pickupDate = getIsoWeekMondayDate(order.pickup_year, order.pickup_week)
+    ;(order.chicken_order_additions || []).forEach((addition, index) => {
+      const explicitAge =
+        Number.isFinite(Number(addition.age_weeks_at_pickup)) && Number(addition.age_weeks_at_pickup) > 0
+          ? Number(addition.age_weeks_at_pickup)
+          : null
+      const computedAge = getAgeWeeks(addition.chicken_hatches?.hatch_date || null, pickupDate)
+      const ageWeeksAtPickup = explicitAge ?? (computedAge > 0 ? computedAge : null)
+      const additionSubtotal =
+        Number(addition.subtotal_nok || 0) > 0
+          ? Number(addition.subtotal_nok || 0)
+          : Number(addition.quantity_hens || 0) * Number(addition.price_per_hen_nok || order.price_per_hen_nok || 0) +
+            Number(addition.quantity_roosters || 0) * Number(addition.price_per_rooster_nok || order.price_per_rooster_nok || 0)
+
+      lines.push({
+        key: addition.id || `addition-${index}`,
+        label: lang === 'en' ? 'Extra chickens' : 'Ekstra kyllinger',
+        breedName: addition.chicken_breeds?.name || common.defaultChickenName,
+        quantityLabel: formatBirdLine(Number(addition.quantity_hens || 0), Number(addition.quantity_roosters || 0)),
+        amountNok: additionSubtotal,
+        createdAt: addition.created_at || null,
+        ageWeeksAtPickup,
+      })
+    })
+
+    return lines
+  }, [
+    baseBirds,
+    baseSubtotal,
+    common.defaultChickenName,
+    formatBirdLine,
+    lang,
+    order.age_weeks_at_pickup,
+    order.chicken_breeds?.name,
+    order.chicken_order_additions,
+    order.created_at,
+    order.pickup_week,
+    order.pickup_year,
+    order.price_per_hen_nok,
+    order.price_per_rooster_nok,
+    order.quantity_hens,
+    order.quantity_roosters,
+  ])
   const breedLabel = useMemo(() => {
     const uniqueBreeds = Array.from(new Set(orderLines.map((line) => line.breedName)))
     if (uniqueBreeds.length <= 2) return uniqueBreeds.join(', ')
     return `${uniqueBreeds.slice(0, 2).join(', ')} +${uniqueBreeds.length - 2}`
   }, [orderLines])
 
-  const depositPaid = order.chicken_payments?.some(
+  const completedDepositPayments = (order.chicken_payments || []).filter(
     (payment) => payment.payment_type === 'deposit' && payment.status === 'completed'
   )
-  const remainderPaid = order.chicken_payments?.some(
+  const completedRemainderPayments = (order.chicken_payments || []).filter(
     (payment) => payment.payment_type === 'remainder' && payment.status === 'completed'
   )
-  const remainderPaidNok =
-    order.chicken_payments?.reduce((sum, payment) => {
-      if (payment.payment_type !== 'remainder' || payment.status !== 'completed') return sum
-      return sum + (payment.amount_nok || 0)
-    }, 0) || 0
+  const depositPaid =
+    completedDepositPayments.length > 0 ||
+    ['deposit_paid', 'fully_paid', 'ready_for_pickup', 'picked_up'].includes(order.status)
+  const remainderPaidNok = completedRemainderPayments.reduce((sum, payment) => sum + Number(payment.amount_nok || 0), 0)
   const remainderDueNok = Math.max(0, order.remainder_amount_nok - remainderPaidNok)
+  const hasLaterChangeBalance = remainderDueNok > 0 && completedRemainderPayments.length > 0
+  const currentBalanceLabel = hasLaterChangeBalance
+    ? (lang === 'en' ? 'New changes' : 'Nye endringer')
+    : (lang === 'en' ? 'Outstanding now' : 'Utestaende na')
+  const payBalanceLabel =
+    hasLaterChangeBalance && remainderDueNok > 0
+      ? (lang === 'en' ? 'Pay changes' : 'Betal endringer')
+      : myOrdersCopy.payRemainder
+  const paymentHistoryRows = useMemo(() => {
+    const rows: Array<{
+      key: string
+      label: string
+      amountNok: number
+      paidAt?: string | null
+    }> = []
+
+    completedDepositPayments.forEach((payment, index) => {
+      rows.push({
+        key: `deposit-${String(payment.id || index)}`,
+        label: lang === 'en' ? 'Deposit paid' : 'Forskudd betalt',
+        amountNok: Number(payment.amount_nok || 0),
+        paidAt: payment.paid_at || payment.created_at || null,
+      })
+    })
+
+    completedRemainderPayments.forEach((payment, index) => {
+      rows.push({
+        key: `remainder-${String(payment.id || index)}`,
+        label: lang === 'en' ? 'Remainder paid' : 'Restbetaling betalt',
+        amountNok: Number(payment.amount_nok || 0),
+        paidAt: payment.paid_at || payment.created_at || null,
+      })
+    })
+
+    return rows
+  }, [completedDepositPayments, completedRemainderPayments, lang])
+  const paymentHistoryTitle = lang === 'en' ? 'Payment history' : 'Betalingshistorikk'
+  const paymentHistoryEmpty = lang === 'en' ? 'No registered payments yet.' : 'Ingen registrerte betalinger ennå.'
+  const paidOnLabel = lang === 'en' ? 'paid' : 'betalt'
+  const extraBalanceNote =
+    hasLaterChangeBalance && completedRemainderPayments.length > 0
+      ? (lang === 'en'
+          ? 'The earlier remainder was already paid. The balance shown now comes from later order changes.'
+          : 'Tidligere restbetaling er allerede mottatt. Belopet som star igjen kommer fra senere endringer i ordren.')
+      : null
 
   const showPayRemainder =
     order.remainder_payment_enabled === true &&
@@ -341,9 +475,9 @@ export function ChickenOrderCard({ order, onPayRemainder, onPayDeposit, onRefres
   const daysToDue = dueDate ? daysBetween(dueDate, today) : null
   const daysToDueLabel = daysToDue !== null ? Math.max(daysToDue, 0) : null
   const depositDone =
-    Boolean(depositPaid) || ['deposit_paid', 'fully_paid', 'ready_for_pickup', 'picked_up'].includes(order.status)
+    depositPaid || ['deposit_paid', 'fully_paid', 'ready_for_pickup', 'picked_up'].includes(order.status)
   const remainderDone =
-    Boolean(remainderPaid) || ['fully_paid', 'ready_for_pickup', 'picked_up'].includes(order.status)
+    remainderDueNok <= 0 || ['fully_paid', 'ready_for_pickup', 'picked_up'].includes(order.status)
   const pickupDone = ['picked_up'].includes(order.status)
   const timelineSteps = [
     {
@@ -365,15 +499,27 @@ export function ChickenOrderCard({ order, onPayRemainder, onPayDeposit, onRefres
       label: myOrdersCopy.stepRemainder,
       summary:
         dueDateLabel && !remainderDone
-          ? `${myOrdersCopy.duePrefix} ${dueDateLabel}${
+          ? `${hasLaterChangeBalance ? currentBalanceLabel : myOrdersCopy.duePrefix} ${
+              hasLaterChangeBalance ? `${common.currency} ${remainderDueNok.toLocaleString(locale)}` : dueDateLabel
+            }${
+              hasLaterChangeBalance && dueDateLabel ? ` - ${myOrdersCopy.duePrefix.toLowerCase()} ${dueDateLabel}` : ''
+            }${
               daysToDueLabel !== null && daysToDue !== null && daysToDue >= 0
                 ? ` - ${daysToDueLabel} ${myOrdersCopy.daysLeftLabel}`
                 : ''
             }`
           : myOrdersCopy.remainderPaidPrefix,
       detail: remainderDone
-        ? `${myOrdersCopy.remainderPaidPrefix}`
-        : `${myOrdersCopy.remainderLabel}: ${common.currency} ${remainderDueNok.toLocaleString(locale)}`,
+        ? `${myOrdersCopy.remainderPaidPrefix}${
+            remainderPaidNok > 0 ? ` - ${common.currency} ${remainderPaidNok.toLocaleString(locale)}` : ''
+          }`
+        : hasLaterChangeBalance
+          ? `${currentBalanceLabel}: ${common.currency} ${remainderDueNok.toLocaleString(locale)}${
+              completedRemainderPayments.length > 0
+                ? ` | ${lang === 'en' ? 'Earlier remainder paid' : 'Tidligere rest betalt'}: ${common.currency} ${remainderPaidNok.toLocaleString(locale)}`
+                : ''
+            }`
+          : `${myOrdersCopy.remainderLabel}: ${common.currency} ${remainderDueNok.toLocaleString(locale)}`,
       done: remainderDone,
     },
     {
@@ -404,11 +550,15 @@ export function ChickenOrderCard({ order, onPayRemainder, onPayDeposit, onRefres
     if (order.status === 'ready_for_pickup') {
       return { text: myOrdersCopy.nextActionReadyForPickup, tone: 'warning' as const }
     }
-    if (order.status === 'deposit_paid' && remainderDueNok > 0) {
-      const pickupPaymentText =
-        myOrdersCopy.nextActionRemainderAtPickup ||
-        `Restbetaling (${common.currency} ${remainderDueNok.toLocaleString(locale)}) betales ved henting.`
-      return { text: pickupPaymentText, tone: 'warning' as const }
+    if (showPayRemainder) {
+      const remainderActionText = hasLaterChangeBalance
+        ? (lang === 'en'
+            ? `New changes (${common.currency} ${remainderDueNok.toLocaleString(locale)}) are ready to pay on My page.`
+            : `Nye endringer (${common.currency} ${remainderDueNok.toLocaleString(locale)}) er klare for betaling pa Min side.`)
+        : (lang === 'en'
+            ? `The remaining balance (${common.currency} ${remainderDueNok.toLocaleString(locale)}) is ready to pay on My page.`
+            : `Restbetalingen (${common.currency} ${remainderDueNok.toLocaleString(locale)}) er klar for betaling pa Min side.`)
+      return { text: remainderActionText, tone: 'warning' as const }
     }
     if (order.status === 'fully_paid') {
       return { text: myOrdersCopy.nextActionFullyPaid, tone: 'info' as const }
@@ -592,33 +742,43 @@ export function ChickenOrderCard({ order, onPayRemainder, onPayDeposit, onRefres
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="space-y-3">
             <div>
-              <p className="text-xs uppercase tracking-[0.2em] text-neutral-500">{myOrdersCopy.hensLabel}</p>
-              <p className="text-2xl font-normal text-neutral-900">{totalHens}</p>
+              <p className="text-xs uppercase tracking-[0.2em] text-neutral-500">
+                {lang === 'en' ? 'Quantity' : 'Mengde'}
+              </p>
+              <p className="text-2xl font-normal text-neutral-900">{totalBirds}</p>
+              <p className="text-xs text-neutral-500">{quantityBreakdown}</p>
             </div>
-            {totalRoosters > 0 && (
-              <div>
-                <p className="text-xs uppercase tracking-[0.2em] text-neutral-500">{myOrdersCopy.roostersLabel}</p>
-                <p className="text-lg font-normal text-neutral-900">{totalRoosters}</p>
-              </div>
-            )}
             <div>
               <p className="text-xs uppercase tracking-[0.2em] text-neutral-500">{myOrdersCopy.orderLinesLabel || 'Order lines'}</p>
               <div className="mt-2 space-y-2">
-                {orderLines.map((line) => (
+                {orderDisplayLines.map((line) => (
                   <div key={line.key} className="rounded-md border border-neutral-200 bg-neutral-50 px-3 py-2 text-sm">
-                    <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-start justify-between gap-3">
                       <div>
+                        <p className="text-[10px] uppercase tracking-[0.16em] text-neutral-500">{line.label}</p>
                         <span className="text-neutral-800">{line.breedName}</span>
                         {line.ageWeeksAtPickup !== null && (
                           <p className="text-xs text-neutral-500">
                             {myOrdersCopy.ageLabel}: {line.ageWeeksAtPickup} {myOrdersCopy.weeksLabel}
                           </p>
                         )}
+                        {line.createdAt && (
+                          <p className="text-xs text-neutral-500">
+                            {lang === 'en' ? 'Added' : 'Lagt til'}{' '}
+                            {new Date(line.createdAt).toLocaleDateString(locale, {
+                              day: 'numeric',
+                              month: 'long',
+                              year: 'numeric',
+                            })}
+                          </p>
+                        )}
                       </div>
-                      <span className="text-neutral-600">
-                        {line.hens} {myOrdersCopy.hensLabel}
-                        {line.roosters > 0 ? ` + ${line.roosters} ${myOrdersCopy.roostersLabel}` : ''}
-                      </span>
+                      <div className="text-right">
+                        <p className="text-neutral-600">{line.quantityLabel}</p>
+                        <p className="text-xs text-neutral-500">
+                          {common.currency} {line.amountNok.toLocaleString(locale)}
+                        </p>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -634,7 +794,7 @@ export function ChickenOrderCard({ order, onPayRemainder, onPayDeposit, onRefres
               </span>
             </div>
             <div className="flex items-center justify-between text-sm">
-              <span className="text-neutral-500">{myOrdersCopy.remainderLabel}</span>
+              <span className="text-neutral-500">{currentBalanceLabel}</span>
               <span className="font-normal text-neutral-900">
                 {common.currency} {remainderDueNok.toLocaleString(locale)}
               </span>
@@ -645,6 +805,36 @@ export function ChickenOrderCard({ order, onPayRemainder, onPayDeposit, onRefres
                 {common.currency} {Number(order.total_amount_nok || 0).toLocaleString(locale)}
               </span>
             </div>
+            <div className="rounded-md border border-neutral-200 bg-neutral-50 px-3 py-3">
+              <p className="text-[11px] uppercase tracking-[0.16em] text-neutral-500">{paymentHistoryTitle}</p>
+              {paymentHistoryRows.length > 0 ? (
+                <div className="mt-2 space-y-2">
+                  {paymentHistoryRows.map((payment) => (
+                    <div key={payment.key} className="flex items-start justify-between gap-3 text-sm">
+                      <div>
+                        <p className="text-neutral-900">{payment.label}</p>
+                        {payment.paidAt && (
+                          <p className="text-xs text-neutral-500">
+                            {paidOnLabel}{' '}
+                            {new Date(payment.paidAt).toLocaleDateString(locale, {
+                              day: 'numeric',
+                              month: 'long',
+                              year: 'numeric',
+                            })}
+                          </p>
+                        )}
+                      </div>
+                      <p className="font-medium text-neutral-900">
+                        {common.currency} {payment.amountNok.toLocaleString(locale)}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="mt-2 text-sm text-neutral-500">{paymentHistoryEmpty}</p>
+              )}
+            </div>
+            {extraBalanceNote && <p className="text-xs text-neutral-500">{extraBalanceNote}</p>}
           </div>
 
           <div className="space-y-3">
@@ -804,7 +994,7 @@ export function ChickenOrderCard({ order, onPayRemainder, onPayDeposit, onRefres
         {showPayRemainder && (
           <div className="mt-5 pt-5 border-t border-neutral-200">
             <Button className="btn-primary" onClick={() => onPayRemainder?.(order.id)}>
-              {myOrdersCopy.payRemainder}
+              {payBalanceLabel}
             </Button>
           </div>
         )}

@@ -1,12 +1,15 @@
 import { SignJWT, jwtVerify } from 'jose';
 import { cookies } from 'next/headers';
+import { SESSION_COOKIE_NAME, SESSION_COOKIE_OPTIONS } from '@/lib/constants/app';
 
-function getSecretKey() {
+// Memoised so TextEncoder is not re-instantiated on every request.
+let _secretKey: Uint8Array | null = null;
+function getSecretKey(): Uint8Array {
+  if (_secretKey) return _secretKey;
   const jwtSecret = process.env.JWT_SECRET;
-  if (!jwtSecret) {
-    throw new Error('Missing required environment variable: JWT_SECRET');
-  }
-  return new TextEncoder().encode(jwtSecret);
+  if (!jwtSecret) throw new Error('Missing required environment variable: JWT_SECRET');
+  _secretKey = new TextEncoder().encode(jwtSecret);
+  return _secretKey;
 }
 
 export interface SessionData {
@@ -17,22 +20,19 @@ export interface SessionData {
   name?: string;
   isAdmin?: boolean;
   role?: 'admin' | 'operations' | 'customer';
-  [key: string]: unknown;
 }
 
 export async function createSession(data: SessionData): Promise<string> {
-  const secretKey = getSecretKey();
-  return new SignJWT(data)
+  return new SignJWT(data as Record<string, unknown>)
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
     .setExpirationTime('7d')
-    .sign(secretKey);
+    .sign(getSecretKey());
 }
 
 export async function verifySession(token: string): Promise<SessionData | null> {
-  const secretKey = getSecretKey();
   try {
-    const { payload } = await jwtVerify(token, secretKey);
+    const { payload } = await jwtVerify(token, getSecretKey());
     return payload as unknown as SessionData;
   } catch {
     return null;
@@ -41,25 +41,17 @@ export async function verifySession(token: string): Promise<SessionData | null> 
 
 export async function getSession(): Promise<SessionData | null> {
   const cookieStore = await cookies();
-  const token = cookieStore.get('tinglum_session')?.value;
-
+  const token = cookieStore.get(SESSION_COOKIE_NAME)?.value;
   if (!token) return null;
-
   return verifySession(token);
 }
 
 export async function setSessionCookie(token: string) {
   const cookieStore = await cookies();
-  cookieStore.set('tinglum_session', token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    maxAge: 60 * 60 * 24 * 7, // 7 days
-    path: '/',
-  });
+  cookieStore.set(SESSION_COOKIE_NAME, token, SESSION_COOKIE_OPTIONS);
 }
 
 export async function clearSessionCookie() {
   const cookieStore = await cookies();
-  cookieStore.delete('tinglum_session');
+  cookieStore.delete(SESSION_COOKIE_NAME);
 }

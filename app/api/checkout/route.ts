@@ -5,6 +5,7 @@ import { getPricingConfig } from '@/lib/config/pricing';
 import { logError } from '@/lib/logger';
 import { getFixedExtraQuantityForSlug } from '@/lib/extras/fixedQuantities';
 import { createOrderAccessToken } from '@/lib/auth/order-access';
+import { VIPPS_PENDING_EMAIL } from '@/lib/constants';
 
 interface ExtraProduct {
   slug: string;
@@ -229,8 +230,9 @@ export async function POST(request: NextRequest) {
           }
         }
 
+        const extrasMap = new Map(extras.map((e: any) => [e.slug, e]));
         for (const extra of normalizedExtraProducts) {
-          const catalogItem = extras.find(e => e.slug === extra.slug);
+          const catalogItem = extrasMap.get(extra.slug);
           if (catalogItem) {
             const cutRange = catalogItem.cut_id ? cutRangesById.get(catalogItem.cut_id) : null;
             const itemTotal = catalogItem.price_nok * extra.quantity;
@@ -259,7 +261,7 @@ export async function POST(request: NextRequest) {
     let autoBenefitId: string | null = null;
     let autoBenefitSource: string | null = null;
     const normalizedBenefitEmail = (customerEmail || '').trim().toLowerCase();
-    if (normalizedBenefitEmail && normalizedBenefitEmail !== 'pending@vipps.no') {
+    if (normalizedBenefitEmail && normalizedBenefitEmail !== VIPPS_PENDING_EMAIL) {
       const { data: benefit } = await supabaseAdmin
         .from('customer_benefits')
         .select('id, discount_percent, granted_by_order_type')
@@ -325,10 +327,8 @@ export async function POST(request: NextRequest) {
     // Delivery fees and extras are paid with the remainder.
     const remainderAmount = Math.round(totalAmount - depositAmount);
 
-    // Generate order number (max 7 characters: TL + 5 random alphanumerics)
-    // Using base36 (0-9, A-Z) for compact representation
-    const randomPart = Math.random().toString(36).substring(2, 7).toUpperCase();
-    const orderNumber = `TL${randomPart}`;
+    // Generate order number: TL + 5 hex chars from cryptographic random source
+    const orderNumber = `TL${randomBytes(3).toString('hex').toUpperCase().slice(0, 5)}`;
 
     // Create order
     const { data: order, error: orderError } = await supabaseAdmin
@@ -344,7 +344,7 @@ export async function POST(request: NextRequest) {
         remainder_amount: remainderAmount,
         total_amount: totalAmount,
         customer_name: customerName || 'Vipps kunde',
-        customer_email: customerEmail || 'pending@vipps.no',
+        customer_email: customerEmail || VIPPS_PENDING_EMAIL,
         customer_phone: customerPhone || null,
         delivery_type: deliveryType,
         fresh_delivery: freshDelivery,
@@ -361,12 +361,6 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (orderError || !order) {
-      console.error('Order creation failed:', {
-        error: orderError,
-        code: orderError?.code,
-        message: orderError?.message,
-        details: orderError?.details,
-      });
       logError('checkout-order-creation', orderError);
       if (
         orderError?.code === '23502' &&

@@ -4,6 +4,7 @@ import { supabaseAdmin } from '@/lib/supabase/server';
 import { randomBytes } from 'crypto';
 import { getPricingConfig } from '@/lib/config/pricing';
 import { getFixedExtraQuantityForSlug } from '@/lib/extras/fixedQuantities';
+import { logError } from '@/lib/logger';
 
 function isMissingColumnError(error: any, columnName: string) {
   const message = String(error?.message || '').toLowerCase();
@@ -166,7 +167,7 @@ export async function POST(request: NextRequest) {
       orderId: newOrder.id,
     });
   } catch (error) {
-    console.error('Error reordering:', error);
+    logError('orders-reorder', error);
     return NextResponse.json(
       { error: 'Failed to create reorder' },
       { status: 500 }

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth/session';
 import { supabaseAdmin } from '@/lib/supabase/server';
+import { logError } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
 
@@ -41,7 +42,7 @@ export async function PATCH(
 
     return NextResponse.json(data);
   } catch (error: any) {
-    console.error('Error updating breed:', error);
+    logError('admin-eggs-breeds-id-patch', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
@@ -94,7 +95,7 @@ export async function DELETE(
 
     return NextResponse.json({ success: true });
   } catch (error: any) {
-    console.error('Error deleting breed:', error);
+    logError('admin-eggs-breeds-id-delete', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

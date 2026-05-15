@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth/session'
 import { supabaseAdmin } from '@/lib/supabase/server'
+import { logError } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
 
@@ -49,13 +50,13 @@ export async function POST(request: Request) {
       .single()
 
     if (error) {
-      console.error('Error creating egg order:', error)
+      logError('eggs-orders-create', error)
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
     return NextResponse.json(data)
   } catch (error: any) {
-    console.error('Unexpected error:', error)
+    logError('eggs-orders-create', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
@@ -74,13 +75,13 @@ export async function GET() {
       .order('created_at', { ascending: false })
 
     if (error) {
-      console.error('Error fetching egg orders:', error)
+      logError('eggs-orders-get', error)
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
     return NextResponse.json(data || [])
   } catch (error: any) {
-    console.error('Unexpected error:', error)
+    logError('eggs-orders-get', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

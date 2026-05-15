@@ -4,6 +4,8 @@ import { supabaseAdmin } from '@/lib/supabase/server';
 import { dispatchEmail } from '@/lib/email/dispatch';
 import { ensureHtmlDocument } from '@/lib/email/render';
 import { resolveCampaignRecipients, upsertCampaignRecipients } from '@/lib/email/campaigns';
+import { VIPPS_PENDING_EMAIL } from '@/lib/constants';
+import { logError } from '@/lib/logger';
 
 type LegacyFlowTemplate = {
   slug: string;
@@ -70,7 +72,7 @@ async function sendIndividualEmail(orderId: string, subject: string, message: st
     .eq('id', orderId)
     .single();
 
-  if (!order || !order.customer_email || order.customer_email === 'pending@vipps.no') {
+  if (!order || !order.customer_email || order.customer_email === VIPPS_PENDING_EMAIL) {
     return NextResponse.json({ error: 'No valid recipient found' }, { status: 400 });
   }
 
@@ -117,7 +119,7 @@ async function sendBulkEmail(orderIds: string[], subject: string, message: strin
   const results: Array<{ order_number: string; success: boolean; queue_id?: string; error?: string }> = [];
 
   for (const order of orders || []) {
-    if (!order.customer_email || order.customer_email === 'pending@vipps.no') continue;
+    if (!order.customer_email || order.customer_email === VIPPS_PENDING_EMAIL) continue;
 
     const renderedSubject = replaceOrderVariables(subject, order.customer_name || 'Kunde', order.order_number);
     const renderedBody = ensureHtmlDocument(
@@ -315,7 +317,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
     }
   } catch (error) {
-    console.error('legacy communication route error', error);
+    logError('admin-communication', error);
     return NextResponse.json({ error: 'Communication operation failed' }, { status: 500 });
   }
 }

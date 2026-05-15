@@ -88,7 +88,6 @@ export async function GET(request: NextRequest) {
     const { data: messages, error } = await query;
 
     if (error) {
-      console.error('Supabase error:', error);
       logError('messages-unread-count', error);
       // Return 0 instead of 500 if there's an error - graceful degradation
       return NextResponse.json({ unreadCount: 0 });
@@ -129,7 +128,6 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ unreadCount });
   } catch (error) {
-    console.error('Unread count error:', error);
     logError('messages-unread-count-main', error);
     // Return 0 as fallback - user experience is better than showing error
     return NextResponse.json({ unreadCount: 0 });

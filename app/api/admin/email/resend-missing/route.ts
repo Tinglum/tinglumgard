@@ -5,6 +5,8 @@ import { dispatchEmail } from '@/lib/email/dispatch';
 import { renderManagedTemplate } from '@/lib/email/render';
 import { buildCustomerOrderLink } from '@/lib/email/links';
 import { buildEggOrderLinesHtml, summarizeEggOrderLines } from '@/lib/eggs/email-lines';
+import { VIPPS_PENDING_EMAIL } from '@/lib/constants';
+import { APP_BASE_URL } from '@/lib/constants/app';
 
 /**
  * One-time admin endpoint to resend missing deposit/remainder confirmation
@@ -25,7 +27,7 @@ export async function POST() {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://tinglumgard.no';
+  const appUrl = APP_BASE_URL;
   const results: Array<{
     orderId: string;
     orderNumber: string;
@@ -54,7 +56,7 @@ export async function POST() {
 
   for (const order of eggOrders) {
     const email = String(order.customer_email || '').trim().toLowerCase();
-    if (!email || email === 'pending@vipps.no') continue;
+    if (!email || email === VIPPS_PENDING_EMAIL) continue;
 
     const orderId = String(order.id);
     const orderNumber = String(order.order_number || '');

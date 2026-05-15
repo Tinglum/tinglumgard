@@ -4,6 +4,7 @@ import { verifyOrderAccessToken } from '@/lib/auth/order-access'
 import { validateEggOrderInventoryAvailability } from '@/lib/eggs/order-confirmation'
 import { supabaseAdmin } from '@/lib/supabase/server'
 import { vippsClient } from '@/lib/vipps/api-client'
+import { APP_BASE_URL } from '@/lib/constants/app'
 
 export async function POST(
   request: NextRequest,
@@ -89,7 +90,7 @@ export async function POST(
 
     const depositAmount = order.deposit_amount
     const shortReference = `EGG-DEP-${order.order_number}`
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_BASE_URL || 'https://tinglumgard.no'
+    const appUrl = APP_BASE_URL
     const needsShippingAddress = order.delivery_method === 'posten'
 
     const { randomBytes } = await import('crypto')

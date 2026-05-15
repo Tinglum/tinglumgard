@@ -2,6 +2,7 @@ import { dispatchEmail } from '@/lib/email/dispatch'
 import { renderManagedTemplate } from '@/lib/email/render'
 import { logError } from '@/lib/logger'
 import { supabaseAdmin } from '@/lib/supabase/server'
+import { APP_BASE_URL } from '@/lib/constants/app'
 import { getSingleBreedMinimumEggs } from './minimums'
 
 const WAITLIST_EMAIL_INTERVAL_MINUTES = 10
@@ -394,7 +395,7 @@ export async function processEggWaitlistQueue(options?: { inventoryIds?: string[
   }
 
   const now = new Date()
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://xn--tinglumgrd-85a.no'
+  const appUrl = APP_BASE_URL
   const inventoryRows = (inventories || []) as unknown as InventoryWithBreed[]
 
   for (const inventory of inventoryRows) {

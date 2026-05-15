@@ -2,6 +2,7 @@ import { supabaseAdmin } from '@/lib/supabase/server';
 import { getEffectiveBoxSize } from '@/lib/orders/display';
 import { evaluateEmailConsent } from '@/lib/email/consent';
 import { dispatchEmail } from '@/lib/email/dispatch';
+import { VIPPS_PENDING_EMAIL } from '@/lib/constants';
 
 export interface CampaignRecipient {
   email: string;
@@ -100,7 +101,7 @@ async function getRecipientsFromOrders(filter: Record<string, unknown>): Promise
 
   for (const order of orders || []) {
     const email = normalizeEmail(String(order.customer_email || ''));
-    if (!email || email === 'pending@vipps.no') continue;
+    if (!email || email === VIPPS_PENDING_EMAIL) continue;
 
     if (boxSize && getEffectiveBoxSize(order as any) !== boxSize) continue;
 

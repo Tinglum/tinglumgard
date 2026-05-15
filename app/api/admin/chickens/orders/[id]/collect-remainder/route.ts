@@ -1,9 +1,11 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+﻿import { randomBytes } from 'node:crypto';
+import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth/session';
 import { dispatchEmail } from '@/lib/email/dispatch';
 import { renderManagedTemplate } from '@/lib/email/render';
 import { buildCustomerOrderLink } from '@/lib/email/links';
 import { supabaseAdmin } from '@/lib/supabase/server';
+import { APP_BASE_URL, VIPPS_PENDING_EMAIL } from '@/lib/constants/app';
 
 function normalizeEmail(value: unknown): string {
   return String(value || '')
@@ -54,6 +56,10 @@ export async function POST(
     ? Math.max(0, Math.round(requestedAmount))
     : Math.max(0, Math.round(Number(order.remainder_amount_nok || 0)));
 
+  if (remainderAmountNok <= 0) {
+    return NextResponse.json({ error: 'Collection amount must be greater than 0' }, { status: 400 });
+  }
+
   const nowIso = new Date().toISOString();
   const collectedBy = session.email || session.name || 'admin';
   const status = String(order.status || '');
@@ -73,6 +79,22 @@ export async function POST(
     : status === 'ready_for_pickup'
       ? 'ready_for_pickup'
       : 'deposit_paid';
+
+  const { data: existingRemainderPayments } = await supabaseAdmin
+    .from('chicken_payments')
+    .select('amount_nok, status')
+    .eq('chicken_order_id', order.id)
+    .eq('payment_type', 'remainder')
+    .eq('status', 'completed');
+
+  const totalCompletedRemainder = (existingRemainderPayments || []).reduce(
+    (sum, p) => sum + Math.round(Number(p.amount_nok || 0)),
+    0
+  );
+  const orderRemainderDue = Math.max(0, Math.round(Number(order.remainder_amount_nok || 0)));
+  if (totalCompletedRemainder >= orderRemainderDue && orderRemainderDue > 0) {
+    return NextResponse.json({ error: 'Remainder already fully collected' }, { status: 400 });
+  }
 
   const primaryOrderUpdate = {
     status: nextStatus,
@@ -109,7 +131,7 @@ export async function POST(
     amount_nok: remainderAmountNok,
     status: 'completed',
     paid_at: nowIso,
-    idempotency_key: `manual-collect-${order.id}-${Date.now()}`,
+    idempotency_key: `manual-collect-${order.id}-${randomBytes(8).toString('hex')}`,
   });
 
   const customerEmail = normalizeEmail(order.customer_email);
@@ -117,8 +139,8 @@ export async function POST(
   let emailError: string | null = null;
   let emailSent = false;
 
-  if (sendReceipt && customerEmail && customerEmail !== 'pending@vipps.no') {
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_BASE_URL || 'https://tinglumgard.no';
+  if (sendReceipt && customerEmail && customerEmail !== VIPPS_PENDING_EMAIL) {
+    const appUrl = APP_BASE_URL;
     const rendered = await renderManagedTemplate({
       templateKey: 'chicken.remainder.collected',
       locale,
@@ -157,6 +179,20 @@ export async function POST(
         emailError = result.error || result.skipReason || 'dispatch_failed';
       }
     }
+  }
+
+  // Non-blocking admin alert
+  const adminEmailAddr = process.env.EMAIL_FROM ? String(process.env.EMAIL_FROM).trim().toLowerCase() : '';
+  if (adminEmailAddr) {
+    dispatchEmail({
+      to: adminEmailAddr,
+      subject: `Restbetaling registrert – ${order.order_number}`,
+      html: `<p>Restbetaling på kr ${remainderAmountNok.toLocaleString('nb-NO')} er registrert manuelt for ordre ${order.order_number} (${order.customer_name}) av ${collectedBy}.</p>`,
+      classification: 'system',
+      templateKey: 'admin.chicken.remainder.collected',
+      sourcePath: '/api/admin/chickens/orders/[id]/collect-remainder',
+      chickenOrderId: order.id,
+    }).catch(() => {});
   }
 
   return NextResponse.json({

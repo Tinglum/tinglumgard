@@ -96,7 +96,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ code: newCode });
   } catch (error) {
-    console.error('Error creating rebate code:', error);
+    logError('admin-rebate-codes-create', error);
     return NextResponse.json({ error: 'Failed to create rebate code' }, { status: 500 });
   }
 }
@@ -126,7 +126,7 @@ export async function DELETE(request: NextRequest) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Error deleting rebate code:', error);
+    logError('admin-rebate-codes-delete', error);
     return NextResponse.json({ error: 'Failed to delete rebate code' }, { status: 500 });
   }
 }
@@ -160,7 +160,7 @@ export async function PATCH(request: NextRequest) {
 
     return NextResponse.json({ code: data });
   } catch (error) {
-    console.error('Error updating rebate code:', error);
+    logError('admin-rebate-codes-patch', error);
     return NextResponse.json({ error: 'Failed to update rebate code' }, { status: 500 });
   }
 }

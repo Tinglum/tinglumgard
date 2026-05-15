@@ -1,5 +1,6 @@
 import { supabaseAdmin } from '@/lib/supabase/server'
-import { sendViaMailgun } from '@/lib/email/provider-mailgun'
+import { dispatchEmail } from '@/lib/email/dispatch'
+import { APP_BASE_URL } from '@/lib/constants/app'
 
 interface InventoryOverallocationParams {
   orderId: string
@@ -31,9 +32,9 @@ export async function notifyInventoryOverallocation(params: InventoryOverallocat
   const adminEmail = process.env.ADMIN_NOTIFICATION_EMAIL || process.env.EMAIL_FROM || ''
   if (!adminEmail || adminEmail === 'noreply@yourdomain.com') return
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://tinglumgard.no'
+  const appUrl = APP_BASE_URL
 
-  await sendViaMailgun({
+  await dispatchEmail({
     to: adminEmail,
     subject: `⚠️ Eggreservasjon feilet – ${orderNumber}`,
     html: `
@@ -49,5 +50,10 @@ export async function notifyInventoryOverallocation(params: InventoryOverallocat
         <p><a href="${appUrl}/admin" style="display: inline-block; background: #171717; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none;">Gå til admin</a></p>
       </div>
     `,
+    eggOrderId: orderId,
+    classification: 'operational',
+    sourcePath: 'lib.notifications.inventory-overallocation',
+    flowKey: 'admin.inventory_overallocation.alert',
+    sendImmediately: true,
   })
 }

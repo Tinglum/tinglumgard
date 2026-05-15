@@ -26,6 +26,10 @@ function toFinite(value: unknown): number {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
+function hasCompletedDeposit(payments: any[]): boolean {
+  return payments.some(p => p?.payment_type === 'deposit' && p?.status === 'completed')
+}
+
 function getCompletedPaymentTotalNok(payments: any[] = []): number {
   return payments.reduce((sum, payment) => {
     if (payment?.status !== 'completed') return sum;
@@ -167,6 +171,12 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       if (status === 'picked_up') {
         updates.remainder_payment_enabled = false;
       }
+      if (['ready_for_pickup', 'fully_paid'].includes(status)) {
+        const payments = existingOrder.chicken_payments || []
+        if (!hasCompletedDeposit(payments)) {
+          return NextResponse.json({ error: 'Cannot set this status without a completed deposit payment' }, { status: 400 })
+        }
+      }
     }
 
     if (body.remainderPaymentEnabled !== undefined) {
@@ -286,12 +296,12 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     }
 
     const requestedStatus = String(updates.status || '');
-    if (requestedStatus === 'picked_up') {
-      const effectiveTotalAmountNok = Number(
-        updates.total_amount_nok !== undefined ? updates.total_amount_nok : existingOrder.total_amount_nok
-      );
-      const completedPaidNok = getCompletedPaymentTotalNok(existingOrder.chicken_payments || []);
+    const effectiveTotalAmountNok = Number(
+      updates.total_amount_nok !== undefined ? updates.total_amount_nok : existingOrder.total_amount_nok
+    );
+    const completedPaidNok = getCompletedPaymentTotalNok(existingOrder.chicken_payments || []);
 
+    if (requestedStatus === 'picked_up') {
       if (completedPaidNok < Math.round(effectiveTotalAmountNok)) {
         return NextResponse.json(
           { error: 'Order must be fully paid before pickup can be confirmed' },
@@ -299,6 +309,10 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
         );
       }
     }
+
+    const outstandingWarning = requestedStatus === 'picked_up' && completedPaidNok < Math.round(effectiveTotalAmountNok)
+      ? 'Warning: order marked picked_up with outstanding balance'
+      : null
 
     if (Object.keys(updates).length === 0) {
       return NextResponse.json(normalizeChickenOrderFinancials(existingOrder));
@@ -332,7 +346,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       }
     }
 
-    return NextResponse.json(normalizeChickenOrderFinancials(updatedOrder));
+    return NextResponse.json({ ...normalizeChickenOrderFinancials(updatedOrder), outstandingWarning });
   } catch (error) {
     logError('admin-chicken-order-update-unexpected', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

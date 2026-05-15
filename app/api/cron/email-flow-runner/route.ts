@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { timingSafeEqual } from 'crypto';
 import { runEmailFlowRunner } from '@/lib/email/lifecycle';
 import { getEmailSchemaStatus } from '@/lib/email/schema';
 
@@ -18,17 +19,25 @@ function getCronAuth(request: NextRequest): {
     };
   }
 
-  const token = request.headers.get('x-cron-secret') || request.nextUrl.searchParams.get('token');
+  // Accept token only from the header — never from query params (logged in server/proxy logs).
+  const token = request.headers.get('x-cron-secret');
   if (!token) {
     return {
       ok: false,
       status: 401,
       error: 'Missing cron token',
-      detail: 'Send token in x-cron-secret header or ?token= query parameter',
+      detail: 'Send token in x-cron-secret header',
     };
   }
 
-  if (token !== secret) {
+  // Timing-safe comparison prevents secret-length oracle attacks.
+  const secretBuf = Buffer.from(secret);
+  const tokenBuf = Buffer.from(token);
+  const valid =
+    secretBuf.length === tokenBuf.length &&
+    timingSafeEqual(secretBuf, tokenBuf);
+
+  if (!valid) {
     return {
       ok: false,
       status: 401,

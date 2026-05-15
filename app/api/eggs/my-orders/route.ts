@@ -4,6 +4,7 @@ import { finalizeConfirmedEggOrder } from '@/lib/eggs/order-confirmation'
 import { supabaseAdmin } from '@/lib/supabase/server'
 import { vippsClient } from '@/lib/vipps/api-client'
 import { notifyInventoryOverallocation } from '@/lib/notifications/inventory-overallocation'
+import { logError } from '@/lib/logger'
 
 function isUuid(value?: string | null): boolean {
   if (!value) return false
@@ -83,7 +84,7 @@ async function reconcileEggOrder(order: any) {
     try {
       await finalizeConfirmedEggOrder(order.id)
     } catch (error) {
-      console.error('Failed to finalize egg order after completed deposit:', error)
+      logError('egg-my-orders-finalize-after-deposit', error)
     }
 
     if (order.status === 'pending') {
@@ -93,7 +94,7 @@ async function reconcileEggOrder(order: any) {
         .eq('id', order.id)
 
       if (statusErr) {
-        console.error('Failed to self-heal egg order status:', statusErr)
+        logError('egg-my-orders-self-heal-status', statusErr)
         return order
       }
 
@@ -154,17 +155,14 @@ async function reconcileEggOrder(order: any) {
     try {
       await finalizeConfirmedEggOrder(order.id)
     } catch (finErr) {
-      console.error('Egg inventory reservation failed during reconciliation (payment still registered):', {
-        orderId: order.id,
-        error: finErr instanceof Error ? finErr.message : finErr,
-      })
+      logError('egg-my-orders-reconcile-finalize', finErr, { orderId: order.id })
       notifyInventoryOverallocation({
         orderId: order.id,
         orderNumber: order.order_number || order.id,
         customerName: order.customer_name,
         errorMessage: finErr instanceof Error ? finErr.message : 'Unknown error',
         source: 'on-load-reconciliation',
-      }).catch(() => {})
+      }).catch((e) => logError('egg-my-orders-notify-overallocation', e))
     }
 
     return {
@@ -178,14 +176,7 @@ async function reconcileEggOrder(order: any) {
       ),
     }
   } catch (error) {
-    console.error('Failed to reconcile egg order payment:', {
-      orderId: order.id,
-      orderNumber: order.order_number,
-      paymentId: depositPayment.id,
-      vippsOrderId: depositPayment.vipps_order_id,
-      idempotencyKey: depositPayment.idempotency_key,
-      error: error instanceof Error ? error.message : error,
-    })
+    logError('egg-my-orders-reconcile-payment', error)
     return order
   }
 }
@@ -233,7 +224,7 @@ export async function GET() {
     const results = await Promise.all(queries)
     for (const result of results) {
       if (result.error) {
-        console.error('Error fetching egg orders:', result.error)
+        logError('egg-my-orders-fetch', result.error)
         return NextResponse.json({ error: result.error.message }, { status: 500 })
       }
     }
@@ -258,7 +249,7 @@ export async function GET() {
 
     return NextResponse.json(reconciled)
   } catch (error: any) {
-    console.error('Unexpected error:', error)
+    logError('egg-my-orders-get', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

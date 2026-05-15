@@ -3,6 +3,8 @@ import { getSession } from '@/lib/auth/session';
 import { supabaseAdmin } from '@/lib/supabase/server';
 import { fetchCommunicationHistory, fetchScheduledCommunications } from '@/lib/email/history';
 import { isMissingEmailRelationError } from '@/lib/email/schema';
+import { VIPPS_PENDING_EMAIL } from '@/lib/constants';
+import { logError } from '@/lib/logger';
 
 type PaymentRow = {
   amount_nok: number | null;
@@ -204,7 +206,7 @@ type ParsedCustomerId = {
   orderKey: string;
 };
 
-const NON_CUSTOMER_EMAILS = new Set(['pending@vipps.no']);
+const NON_CUSTOMER_EMAILS = new Set([VIPPS_PENDING_EMAIL]);
 
 function normalizeEmail(value?: string | null): string {
   return (value || '').trim().toLowerCase();
@@ -954,7 +956,7 @@ export async function GET(request: NextRequest) {
         return await getCustomerList();
     }
   } catch (error) {
-    console.error('Customer API error:', error);
+    logError('admin-customers-get', error);
     return NextResponse.json(
       { error: 'Failed to fetch customer data' },
       { status: 500 }
@@ -1095,7 +1097,7 @@ async function getCustomerProfile(customerId: string) {
       chickenOrderIds,
       limit: 300,
     }).catch((error) => {
-      console.error('Customer profile communication history degraded:', error);
+      logError('admin-customers-profile-comm-history', error);
       return [] as Awaited<ReturnType<typeof fetchCommunicationHistory>>;
     }),
     fetchScheduledCommunications({
@@ -1105,7 +1107,7 @@ async function getCustomerProfile(customerId: string) {
       statuses: ['scheduled'],
       limit: 300,
     }).catch((error) => {
-      console.error('Customer profile scheduled communication fetch degraded:', error);
+      logError('admin-customers-profile-scheduled-comm', error);
       return [] as Awaited<ReturnType<typeof fetchScheduledCommunications>>;
     }),
     fetchWishlistRequestsForCustomer({
@@ -1114,7 +1116,7 @@ async function getCustomerProfile(customerId: string) {
       customerId: customerId || undefined,
       eggOrderIds,
     }).catch((error) => {
-      console.error('Customer profile wishlist fetch degraded:', error);
+      logError('admin-customers-profile-wishlist', error);
       return [] as WishlistRequestRow[];
     }),
     fetchSupportThreadsForCustomer({
@@ -1123,7 +1125,7 @@ async function getCustomerProfile(customerId: string) {
       phone: bestPhone || parsed.phoneDigits || undefined,
       orders: sortedOrders,
     }).catch((error) => {
-      console.error('Customer profile support thread fetch degraded:', error);
+      logError('admin-customers-profile-support-threads', error);
       return [] as SupportThreadRow[];
     }),
     (async () => {
@@ -1138,7 +1140,7 @@ async function getCustomerProfile(customerId: string) {
           !isMissingColumnOrRelationError(suppressionError) &&
           !isMissingEmailRelationError(suppressionError)
         ) {
-          console.error('Customer profile suppression check degraded:', suppressionError);
+          logError('admin-customers-profile-suppression', suppressionError);
         }
         return null;
       }

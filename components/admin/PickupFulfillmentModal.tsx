@@ -587,7 +587,6 @@ export function PickupFulfillmentModal({ order, onClose, onRefresh, onNavigateTo
   const [birdSaving, setBirdSaving] = useState(false)
 
   // ── egg quantity adjustment state ──────────────────────────────────────────
-  const [eggQtyDelta, setEggQtyDelta] = useState(0)
   const [eggAdjustments, setEggAdjustments] = useState<Record<string, EggAdjustState>>({})
   const [eggPriceAdjNok, setEggPriceAdjNok] = useState('')
   const [eggSaving, setEggSaving] = useState(false)
@@ -855,32 +854,6 @@ export function PickupFulfillmentModal({ order, onClose, onRefresh, onNavigateTo
       toast({ title: no ? 'Feil' : 'Error', description: err.message, variant: 'destructive' })
     } finally {
       setBirdSaving(false)
-    }
-  }
-
-  // ─── egg adjustment helper ─────────────────────────────────────────────────
-
-  const submitEggQty = async () => {
-    if (!fullOrder || eggQtyDelta === 0) return
-    setEggSaving(true)
-    try {
-      const newQty = Number(fullOrder.quantity) + eggQtyDelta
-      if (newQty <= 0) throw new Error(no ? 'Antall kan ikke være 0 eller negativt' : 'Quantity cannot be 0 or negative')
-      const res = await fetch(`/api/admin/eggs/orders/${fullOrder.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ quantity: newQty }),
-      })
-      const result = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(result?.error || (no ? 'Feil ved oppdatering' : 'Update failed'))
-      toast({ title: no ? 'Oppdatert' : 'Updated', description: no ? `Antall egg endret til ${newQty}.` : `Egg count changed to ${newQty}.` })
-      setEggQtyDelta(0)
-      await fetchOrder()
-      onRefresh()
-    } catch (err: any) {
-      toast({ title: no ? 'Feil' : 'Error', description: err.message, variant: 'destructive' })
-    } finally {
-      setEggSaving(false)
     }
   }
 

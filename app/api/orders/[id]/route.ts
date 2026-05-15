@@ -4,6 +4,7 @@ import { supabaseAdmin } from '@/lib/supabase/server';
 import { isBeforeCutoff } from '@/lib/utils/date';
 import { getPricingConfig } from '@/lib/config/pricing';
 import { normalizeOrderForDisplay } from '@/lib/orders/display';
+import { logError } from '@/lib/logger';
 
 function normalizeEmail(value?: string | null) {
   return (value || '').trim().toLowerCase();
@@ -77,7 +78,7 @@ export async function GET(
     // Order belongs to someone else
     return NextResponse.json({ error: 'Order not found' }, { status: 404 });
   } catch (error) {
-    console.error('Error fetching order:', error);
+    logError('orders-id-get', error);
     return NextResponse.json(
       { error: 'Failed to fetch order' },
       { status: 500 }
@@ -285,7 +286,7 @@ export async function PATCH(
 
     return NextResponse.json({ order: normalizeOrderForDisplay(updatedOrder) });
   } catch (error) {
-    console.error('Error updating order:', error);
+    logError('orders-id-patch', error);
     return NextResponse.json(
       { error: 'Failed to update order' },
       { status: 500 }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth/session';
 import { supabaseAdmin } from '@/lib/supabase/server';
 import { randomBytes } from 'crypto';
+import { logError } from '@/lib/logger';
 
 function buildReferralCodeBase(name?: string | null, phone?: string | null) {
   const cleanedName = (name || '')
@@ -166,7 +167,7 @@ export async function GET() {
       hasPlacedOrder,
     });
   } catch (error) {
-    console.error('Error fetching referral data:', error);
+    logError('referrals-get', error);
     return NextResponse.json({ error: 'Failed to fetch referral data' }, { status: 500 });
   }
 }
@@ -353,7 +354,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
   } catch (error) {
-    console.error('Error managing referral code:', error);
+    logError('referrals-post', error);
     return NextResponse.json({ error: 'Failed to manage referral code' }, { status: 500 });
   }
 }

@@ -37,6 +37,7 @@ interface Payment {
   status: string
   amount_nok: number
   paid_at: string | null
+  created_at?: string | null
 }
 
 interface Order {
@@ -92,6 +93,7 @@ export function PigOrderUnifiedCard({ order, canEdit, onPayRemainder, onPayDepos
   const copy = t.orderDetailsCard
   const statusTimelineCopy = t.orderStatusTimeline
   const currency = t.common.currency
+  const notProvidedLabel = lang === 'en' ? 'Not provided' : 'Ikke oppgitt'
   const daysLeftLabel = t.eggs.common.daysLeft
 
   const [showExtrasModal, setShowExtrasModal] = useState(false)
@@ -110,17 +112,34 @@ export function PigOrderUnifiedCard({ order, canEdit, onPayRemainder, onPayDepos
     phone: copy.contactPhone,
   })
 
-  const depositPayment = order.payments?.find((p) => p.payment_type === 'deposit')
-  const depositPaid = depositPayment?.status === 'completed'
-  const remainderPayment = order.payments?.find((p) => p.payment_type === 'remainder')
-  const remainderPaid = remainderPayment?.status === 'completed'
-  const needsRemainderPayment = depositPaid && !remainderPaid && !order.locked_at
+  const completedDepositPayments = (order.payments || []).filter(
+    (payment) => payment.payment_type === 'deposit' && payment.status === 'completed'
+  )
+  const completedRemainderPayments = (order.payments || []).filter(
+    (payment) => payment.payment_type === 'remainder' && payment.status === 'completed'
+  )
+  const depositPaid =
+    completedDepositPayments.length > 0 ||
+    ['deposit_paid', 'paid', 'ready_for_pickup', 'completed'].includes(order.status)
   const extrasTotal = order.extra_products?.reduce(
     (sum: number, extra: any) => sum + (extra.total_price || 0),
     0
   ) || 0
-  const baseRemainder = Math.max(0, order.remainder_amount - extrasTotal)
+  const remainderPaidNok = completedRemainderPayments.reduce((sum, payment) => sum + Number(payment.amount_nok || 0), 0)
   const remainderTotal = Math.max(0, order.remainder_amount)
+  const remainderDueNok = Math.max(0, remainderTotal - remainderPaidNok)
+  const hasLaterChangeBalance = remainderDueNok > 0 && completedRemainderPayments.length > 0
+  const needsRemainderPayment =
+    depositPaid &&
+    remainderDueNok > 0 &&
+    !['completed', 'cancelled'].includes(order.status)
+  const currentBalanceLabel = hasLaterChangeBalance
+    ? (lang === 'en' ? 'New changes' : 'Nye endringer')
+    : (lang === 'en' ? 'Outstanding now' : 'Utestaende na')
+  const payBalanceLabel =
+    hasLaterChangeBalance && remainderDueNok > 0
+      ? (lang === 'en' ? 'Pay changes' : 'Betal endringer')
+      : copy.payRemainder
   const remainderDueDate = new Date('2026-11-16')
   const today = useMemo(() => toDateOnly(new Date()), [])
   const dueDate = toDateOnly(remainderDueDate)
@@ -143,6 +162,79 @@ export function PigOrderUnifiedCard({ order, canEdit, onPayRemainder, onPayDepos
     : copy.estimatedWeekRange
   const boxName = lang === 'no' ? order.display_box_name_no : order.display_box_name_en
   const boxLabel = boxName || t.common.defaultBoxName
+  const baseOrderTotal = Math.max(0, Number(order.total_amount || 0) - extrasTotal)
+  const orderDisplayLines = useMemo(() => {
+    const lines: Array<{
+      key: string
+      label: string
+      title: string
+      quantity: string
+      amountNok: number
+      createdAt?: string | null
+    }> = [
+      {
+        key: 'base-order',
+        label: lang === 'en' ? 'Base order' : 'Grunnbestilling',
+        title: boxLabel,
+        quantity: order.ribbe_choice || '-',
+        amountNok: baseOrderTotal,
+        createdAt: order.created_at,
+      },
+    ]
+
+    ;(order.extra_products || []).forEach((extra: any, index: number) => {
+      const qty = Number(extra.quantity || 0)
+      const amountNok = Number(extra.total_price || 0)
+      const extraName = String(extra.name || extra.name_no || extra.slug || notProvidedLabel)
+      lines.push({
+        key: extra.id || `${String(extra.slug || 'extra')}-${index}`,
+        label: lang === 'en' ? 'Extra product' : 'Tilleggsprodukt',
+        title: extraName,
+        quantity: qty > 0 ? `${qty.toLocaleString(locale)} x` : '-',
+        amountNok,
+        createdAt: extra.created_at || order.last_modified_at || null,
+      })
+    })
+
+    return lines
+  }, [baseOrderTotal, boxLabel, lang, locale, notProvidedLabel, order.created_at, order.extra_products, order.last_modified_at, order.ribbe_choice])
+  const paymentHistoryRows = useMemo(() => {
+    const rows: Array<{
+      key: string
+      label: string
+      amountNok: number
+      paidAt?: string | null
+    }> = []
+
+    completedDepositPayments.forEach((payment, index) => {
+      rows.push({
+        key: `deposit-${String(payment.id || index)}`,
+        label: lang === 'en' ? 'Deposit paid' : 'Forskudd betalt',
+        amountNok: Number(payment.amount_nok || 0),
+        paidAt: payment.paid_at || payment.created_at || null,
+      })
+    })
+
+    completedRemainderPayments.forEach((payment, index) => {
+      rows.push({
+        key: `remainder-${String(payment.id || index)}`,
+        label: lang === 'en' ? 'Remainder paid' : 'Restbetaling betalt',
+        amountNok: Number(payment.amount_nok || 0),
+        paidAt: payment.paid_at || payment.created_at || null,
+      })
+    })
+
+    return rows
+  }, [completedDepositPayments, completedRemainderPayments, lang])
+  const paymentHistoryTitle = lang === 'en' ? 'Payment history' : 'Betalingshistorikk'
+  const paymentHistoryEmpty = lang === 'en' ? 'No registered payments yet.' : 'Ingen registrerte betalinger ennå.'
+  const paidOnLabel = lang === 'en' ? 'paid' : 'betalt'
+  const extraBalanceNote =
+    hasLaterChangeBalance && completedRemainderPayments.length > 0
+      ? (lang === 'en'
+          ? 'The earlier remainder was already paid. The balance shown now comes from later changes or extras.'
+          : 'Tidligere restbetaling er allerede mottatt. Belopet som star igjen kommer fra senere endringer eller tillegg.')
+      : null
 
   const currentExtrasForModal = useMemo(
     () => order.extra_products?.map((extra: any) => ({ slug: extra.slug, quantity: Number(extra.quantity) })) || [],
@@ -187,11 +279,11 @@ export function PigOrderUnifiedCard({ order, canEdit, onPayRemainder, onPayDepos
   }
 
   const statusMeta = (() => {
+    if (depositPaid && remainderDueNok > 0 && !['completed', 'cancelled'].includes(order.status)) {
+      return { label: copy.statusPaymentRemaining, className: 'bg-amber-50 text-amber-700' }
+    }
     switch (order.status) {
       case 'deposit_paid':
-        if (baseRemainder > 0) {
-          return { label: copy.statusPaymentRemaining, className: 'bg-amber-50 text-amber-700' }
-        }
         return { label: copy.statusDepositPaid, className: 'bg-emerald-50 text-emerald-700' }
       case 'paid':
         return { label: copy.statusPaid, className: 'bg-emerald-50 text-emerald-700' }
@@ -209,6 +301,7 @@ export function PigOrderUnifiedCard({ order, canEdit, onPayRemainder, onPayDepos
   const growingDone = Boolean(depositPaid) || ['deposit_paid', 'paid', 'ready_for_pickup', 'completed'].includes(order.status)
   const slaughterDone = Boolean(order.locked_at) || ['paid', 'ready_for_pickup', 'completed'].includes(order.status)
   const deliveryDone = Boolean(order.marked_delivered_at) || ['completed'].includes(order.status)
+  const remainderDone = remainderDueNok <= 0 || ['paid', 'ready_for_pickup', 'completed'].includes(order.status)
   const deliveryTimelineSummary =
     order.status === 'ready_for_pickup' ? `${copy.timelinePickupPrefix} ${timelineDeliveryText}` : statusTimelineCopy.deliveryHint
   const timelineSteps = [
@@ -234,14 +327,22 @@ export function PigOrderUnifiedCard({ order, canEdit, onPayRemainder, onPayDepos
       key: 'slaughter',
       label: statusTimelineCopy.slaughter,
       summary: needsRemainderPayment
-        ? `${copy.dueDate}: ${formattedDueDate}${daysToDue >= 0 ? ` - ${daysToDueLabel} ${daysLeftLabel}` : ''}`
+        ? `${hasLaterChangeBalance ? currentBalanceLabel : copy.dueDate}: ${
+            hasLaterChangeBalance ? `${currency} ${remainderDueNok.toLocaleString(locale)}` : formattedDueDate
+          }${
+            hasLaterChangeBalance ? ` - ${copy.dueDate.toLowerCase()}: ${formattedDueDate}` : ''
+          }${daysToDue >= 0 ? ` - ${daysToDueLabel} ${daysLeftLabel}` : ''}`
         : slaughterDone
         ? copy.timelineRemainderPaid
         : statusTimelineCopy.slaughterHint,
       detail: needsRemainderPayment
-        ? `${currency} ${remainderTotal.toLocaleString(locale)}`
+        ? hasLaterChangeBalance
+          ? `${currentBalanceLabel}: ${currency} ${remainderDueNok.toLocaleString(locale)} | ${
+              lang === 'en' ? 'Earlier remainder paid' : 'Tidligere rest betalt'
+            }: ${currency} ${remainderPaidNok.toLocaleString(locale)}`
+          : `${currency} ${remainderDueNok.toLocaleString(locale)}`
         : statusTimelineCopy.slaughterHint,
-      done: slaughterDone,
+      done: remainderDone,
     },
     {
       key: 'delivery',
@@ -261,13 +362,17 @@ export function PigOrderUnifiedCard({ order, canEdit, onPayRemainder, onPayDepos
     }
     if (needsRemainderPayment) {
       return {
-        text: copy.nextActionPaymentDue
-          .replace('{currency}', currency)
-          .replace('{amount}', remainderTotal.toLocaleString(locale)),
+        text: hasLaterChangeBalance
+          ? (lang === 'en'
+              ? `New changes (${currency} ${remainderDueNok.toLocaleString(locale)}) are ready to pay on My page.`
+              : `Nye endringer (${currency} ${remainderDueNok.toLocaleString(locale)}) er klare for betaling pa Min side.`)
+          : copy.nextActionPaymentDue
+              .replace('{currency}', currency)
+              .replace('{amount}', remainderDueNok.toLocaleString(locale)),
         tone: 'warning' as const,
       }
     }
-    if (order.locked_at && !remainderPaid) {
+    if (order.locked_at && !remainderDone) {
       return { text: copy.nextActionLocked, tone: 'warning' as const }
     }
     if (!depositPaid) {
@@ -442,8 +547,35 @@ export function PigOrderUnifiedCard({ order, canEdit, onPayRemainder, onPayDepos
               <p className="text-lg font-normal text-neutral-900">{boxLabel}</p>
             </div>
             <div>
-              <p className="text-xs uppercase tracking-[0.2em] text-neutral-500">{t.minSide.ribbe}</p>
-              <p className="text-sm text-neutral-700">{ribbeChoiceLabels[order.ribbe_choice] || order.ribbe_choice}</p>
+              <p className="text-xs uppercase tracking-[0.2em] text-neutral-500">
+                {lang === 'en' ? 'Order lines' : 'Ordrelinjer'}
+              </p>
+              <div className="mt-2 space-y-2">
+                {orderDisplayLines.map((line) => (
+                  <div key={line.key} className="rounded-md border border-neutral-200 bg-neutral-50 px-3 py-2 text-sm">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-[10px] uppercase tracking-[0.16em] text-neutral-500">{line.label}</p>
+                        <p className="text-neutral-900">{line.title}</p>
+                        <p className="text-xs text-neutral-500">{line.quantity}</p>
+                        {line.createdAt && (
+                          <p className="text-xs text-neutral-500">
+                            {lang === 'en' ? 'Added' : 'Lagt til'}{' '}
+                            {new Date(line.createdAt).toLocaleDateString(locale, {
+                              day: 'numeric',
+                              month: 'long',
+                              year: 'numeric',
+                            })}
+                          </p>
+                        )}
+                      </div>
+                      <p className="text-right text-xs text-neutral-500">
+                        {currency} {line.amountNok.toLocaleString(locale)}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
 
@@ -453,19 +585,43 @@ export function PigOrderUnifiedCard({ order, canEdit, onPayRemainder, onPayDepos
               <span className="font-normal text-neutral-900">{currency} {order.deposit_amount.toLocaleString(locale)}</span>
             </div>
             <div className="flex items-center justify-between text-sm">
-              <span className="text-neutral-500">{copy.boxRemainder}</span>
-              <span className="font-normal text-neutral-900">{currency} {baseRemainder.toLocaleString(locale)}</span>
+              <span className="text-neutral-500">{currentBalanceLabel}</span>
+              <span className="font-normal text-neutral-900">{currency} {remainderDueNok.toLocaleString(locale)}</span>
             </div>
             <div className="flex items-center justify-between text-sm">
-              <span className="text-neutral-500">{copy.extraProducts}</span>
-              <span className="font-normal text-neutral-900">
-                {extrasTotal > 0 ? '+' : ''}{currency} {extrasTotal.toLocaleString(locale)}
-              </span>
+              <span className="text-neutral-500">{t.common.total}</span>
+              <span className="font-normal text-neutral-900">{currency} {Number(order.total_amount || 0).toLocaleString(locale)}</span>
             </div>
-            <div className="pt-2 mt-1 border-t border-neutral-200 flex items-center justify-between text-sm">
-              <span className="text-neutral-500">{copy.remainderTotal}</span>
-              <span className="font-normal text-neutral-900">{currency} {remainderTotal.toLocaleString(locale)}</span>
+            <div className="rounded-md border border-neutral-200 bg-neutral-50 px-3 py-3">
+              <p className="text-[11px] uppercase tracking-[0.16em] text-neutral-500">{paymentHistoryTitle}</p>
+              {paymentHistoryRows.length > 0 ? (
+                <div className="mt-2 space-y-2">
+                  {paymentHistoryRows.map((payment) => (
+                    <div key={payment.key} className="flex items-start justify-between gap-3 text-sm">
+                      <div>
+                        <p className="text-neutral-900">{payment.label}</p>
+                        {payment.paidAt && (
+                          <p className="text-xs text-neutral-500">
+                            {paidOnLabel}{' '}
+                            {new Date(payment.paidAt).toLocaleDateString(locale, {
+                              day: 'numeric',
+                              month: 'long',
+                              year: 'numeric',
+                            })}
+                          </p>
+                        )}
+                      </div>
+                      <p className="font-medium text-neutral-900">
+                        {currency} {payment.amountNok.toLocaleString(locale)}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="mt-2 text-sm text-neutral-500">{paymentHistoryEmpty}</p>
+              )}
             </div>
+            {extraBalanceNote && <p className="text-xs text-neutral-500">{extraBalanceNote}</p>}
           </div>
 
           <div className="space-y-3">
@@ -507,7 +663,7 @@ export function PigOrderUnifiedCard({ order, canEdit, onPayRemainder, onPayDepos
           )}
           {needsRemainderPayment && (
             <Button onClick={() => onPayRemainder(order.id)} className="btn-primary">
-              {copy.payRemainder}
+              {payBalanceLabel}
             </Button>
           )}
           {!order.locked_at && canEdit && (
@@ -553,7 +709,10 @@ export function PigOrderUnifiedCard({ order, canEdit, onPayRemainder, onPayDepos
       <PaymentHistoryModal
         isOpen={showPaymentHistoryModal}
         onClose={() => setShowPaymentHistoryModal(false)}
-        payments={order.payments || []}
+        payments={(order.payments || []).map((payment) => ({
+          ...payment,
+          created_at: payment.created_at || undefined,
+        }))}
         orderNumber={order.order_number}
         extraProducts={order.extra_products}
       />

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth/session';
 import { supabaseAdmin } from '@/lib/supabase/server';
 import { getEffectiveBoxSize } from '@/lib/orders/display';
+import { logError } from '@/lib/logger';
 
 export async function GET(request: NextRequest) {
   const session = await getSession();
@@ -35,7 +36,7 @@ export async function GET(request: NextRequest) {
         return await performFullHealthCheck();
     }
   } catch (error) {
-    console.error('Health check error:', error);
+    logError('admin-health-check', error);
     return NextResponse.json(
       { error: 'Health check failed', status: 'unhealthy' },
       { status: 500 }

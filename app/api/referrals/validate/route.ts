@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth/session';
 import { supabaseAdmin } from '@/lib/supabase/server';
+import { logError } from '@/lib/logger';
 
 // POST /api/referrals/validate - Validate a referral code
 export async function POST(request: NextRequest) {
@@ -69,7 +70,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(data);
   } catch (error) {
-    console.error('Error validating referral code:', error);
+    logError('referrals-validate', error);
     return NextResponse.json(
       { error: 'Failed to validate referral code' },
       { status: 500 }

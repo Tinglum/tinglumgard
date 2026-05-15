@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth/session';
 import { supabaseAdmin } from '@/lib/supabase/server';
+import { logError } from '@/lib/logger';
 
 function asNumber(value: unknown, fallback: number): number {
   if (typeof value === 'number' && Number.isFinite(value)) return value;
@@ -102,7 +103,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ config });
   } catch (error) {
-    console.error('Configuration GET error:', error);
+    logError('admin-configuration-get', error);
     return NextResponse.json({ error: 'Failed to fetch configuration' }, { status: 500 });
   }
 }
@@ -218,7 +219,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Configuration POST error:', error);
+    logError('admin-configuration-post', error);
     return NextResponse.json({ error: 'Failed to update configuration' }, { status: 500 });
   }
 }

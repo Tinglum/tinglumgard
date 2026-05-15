@@ -1,5 +1,6 @@
 import crypto from 'node:crypto';
 import { supabaseAdmin } from '@/lib/supabase/server';
+import { logError } from '@/lib/logger';
 import type {
   EmailDispatchSettings,
   EmailQueueRecord,
@@ -182,7 +183,7 @@ export async function recoverStaleProcessingLocks(): Promise<number> {
     .select('id');
 
   if (error) {
-    console.error('recoverStaleProcessingLocks failed', error);
+    logError('recoverStaleProcessingLocks', error);
     return 0;
   }
 
@@ -211,7 +212,7 @@ export async function fetchDueQueueEntries(limit: number): Promise<EmailQueueRec
     .limit(limit);
 
   if (error) {
-    console.error('fetchDueQueueEntries failed', error);
+    logError('fetchDueQueueEntries', error);
     return [];
   }
 

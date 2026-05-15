@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth/session';
 import { supabaseAdmin } from '@/lib/supabase/server';
+import { logError } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
 
@@ -108,7 +109,7 @@ export async function GET() {
       summary,
     });
   } catch (error: any) {
-    console.error('Error fetching egg analytics:', error);
+    logError('admin-eggs-analytics-get', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

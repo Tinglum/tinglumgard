@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth/session';
 import { supabaseAdmin } from '@/lib/supabase/server';
+import { logError } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,7 +22,7 @@ export async function GET() {
 
     return NextResponse.json(data);
   } catch (error: any) {
-    console.error('Error fetching breeds:', error);
+    logError('admin-eggs-breeds-get', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
@@ -59,7 +60,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json(data, { status: 201 });
   } catch (error: any) {
-    console.error('Error creating breed:', error);
+    logError('admin-eggs-breeds-create', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

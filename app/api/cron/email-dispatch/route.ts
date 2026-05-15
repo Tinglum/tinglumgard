@@ -2,12 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { processEmailDispatchBatch } from '@/lib/email/dispatch';
 import { getEmailSchemaStatus } from '@/lib/email/schema';
 
-function getCronAuth(request: NextRequest): {
+async function getCronAuth(request: NextRequest): Promise<{
   ok: boolean;
   status: number;
   error?: string;
   detail?: string;
-} {
+}> {
   const secret = process.env.CRON_SECRET;
   if (!secret) {
     return {
@@ -18,17 +18,21 @@ function getCronAuth(request: NextRequest): {
     };
   }
 
-  const token = request.headers.get('x-cron-secret') || request.nextUrl.searchParams.get('token');
+  const token = request.headers.get('x-cron-secret');
   if (!token) {
     return {
       ok: false,
       status: 401,
       error: 'Missing cron token',
-      detail: 'Send token in x-cron-secret header or ?token= query parameter',
+      detail: 'Send token in x-cron-secret header',
     };
   }
 
-  if (token !== secret) {
+  const { timingSafeEqual } = await import('crypto');
+  const secretBuf = Buffer.from(secret);
+  const tokenBuf = Buffer.from(token);
+  const valid = secretBuf.length === tokenBuf.length && timingSafeEqual(secretBuf, tokenBuf);
+  if (!valid) {
     return {
       ok: false,
       status: 401,
@@ -43,7 +47,7 @@ function getCronAuth(request: NextRequest): {
 export async function POST(request: NextRequest) {
   let stage: 'auth' | 'schema' | 'run' = 'auth';
   try {
-    const auth = getCronAuth(request);
+    const auth = await getCronAuth(request);
     if (!auth.ok) {
       return NextResponse.json({ error: auth.error, detail: auth.detail }, { status: auth.status });
     }

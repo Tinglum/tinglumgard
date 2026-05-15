@@ -149,6 +149,10 @@ export async function POST(
       return NextResponse.json({ error: 'Order not found' }, { status: 404 });
     }
 
+    if (['cancelled', 'picked_up'].includes(String(order.status || ''))) {
+      return NextResponse.json({ error: 'Cannot modify a cancelled or completed order' }, { status: 400 });
+    }
+
     const lineItems = getLineItems(order);
     const lineByKey = new Map(lineItems.map((line) => [line.key, line]));
     const changes: string[] = [];
@@ -384,7 +388,7 @@ export async function POST(
 
       if (hatch.overrideApplied) {
         changes.push(
-          `Stock override (${hatch.breedName}): hens ${hatch.freeHensNow}->${hatch.nextAvailableHens}, roosters ${hatch.freeRoostersNow}->${hatch.nextAvailableRoosters}`
+          `Inventory override (${hatch.breedName}): hens set to ${hatch.freeHensNow}, roosters set to ${hatch.freeRoostersNow}${adminNote ? '' : ' — no reason provided'}`
         );
       }
     }
@@ -419,6 +423,13 @@ export async function POST(
     const existingNotes = updatedOrder.admin_notes || '';
     const newNotes = [existingNotes, fullNote].filter(Boolean).join('\n');
 
+    // Only disable remainder payment if the remainder drops to zero after adjustment.
+    // Otherwise, preserve the existing flag so a previously-enabled payment link stays active.
+    const remainderNowZero = remainderAmountNok <= 0;
+    const preservedRemainderEnabled = remainderNowZero
+      ? false
+      : Boolean(order.remainder_payment_enabled);
+
     const { error: finalErr } = await supabaseAdmin
       .from('chicken_orders')
       .update({
@@ -426,7 +437,7 @@ export async function POST(
         total_amount_nok: Math.max(0, totalAmountNok),
         deposit_amount_nok: depositAmountNok,
         remainder_amount_nok: remainderAmountNok,
-        remainder_payment_enabled: false,
+        remainder_payment_enabled: preservedRemainderEnabled,
         status: nextStatus,
         admin_notes: newNotes,
       })

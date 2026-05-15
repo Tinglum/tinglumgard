@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth/session';
 import { fetchCommunicationHistory } from '@/lib/email/history';
+import { logError } from '@/lib/logger';
 
 export async function GET() {
   const session = await getSession();
@@ -32,7 +33,7 @@ export async function GET() {
 
     return NextResponse.json({ communications });
   } catch (error) {
-    console.error('messages-history-get', error);
+    logError('messages-history-get', error);
     return NextResponse.json({ error: 'Failed to fetch communication history' }, { status: 500 });
   }
 }

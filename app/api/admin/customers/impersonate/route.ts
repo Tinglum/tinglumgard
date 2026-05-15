@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createSession, getSession } from '@/lib/auth/session';
 import { supabaseAdmin } from '@/lib/supabase/server';
+import { logError } from '@/lib/logger';
 
 function normalizeEmail(value?: string | null) {
   return (value || '').trim().toLowerCase();
@@ -303,7 +304,7 @@ export async function POST(request: NextRequest) {
 
     return response;
   } catch (error) {
-    console.error('Failed to impersonate customer:', error);
+    logError('admin-customers-impersonate', error);
     return NextResponse.json({ error: 'Failed to impersonate customer' }, { status: 500 });
   }
 }

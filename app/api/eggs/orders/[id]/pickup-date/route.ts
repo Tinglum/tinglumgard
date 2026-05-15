@@ -4,6 +4,7 @@ import { getSession } from '@/lib/auth/session'
 import { renderManagedTemplate } from '@/lib/email/render'
 import { dispatchEmail } from '@/lib/email/dispatch'
 import { buildCustomerOrderLink } from '@/lib/email/links'
+import { logError } from '@/lib/logger'
 
 function normalizeEmail(value?: string | null): string {
   return String(value || '').trim().toLowerCase()
@@ -170,12 +171,12 @@ export async function PATCH(
         })
       }
     } catch (emailError) {
-      console.error('Failed to send egg pickup confirmation email:', emailError)
+      logError('egg-pickup-date-email', emailError)
     }
 
     return NextResponse.json({ success: true, pickupDate, pickupTime })
   } catch (error) {
-    console.error('Error setting egg pickup date:', error)
+    logError('egg-pickup-date', error)
     return NextResponse.json({ error: 'Failed to update pickup date' }, { status: 500 })
   }
 }

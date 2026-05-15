@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase/server'
 import { logError } from '@/lib/logger'
+import { VIPPS_PENDING_EMAIL } from '@/lib/constants'
 
 interface EggCheckoutRequest {
   productType?: 'eggs'
@@ -148,7 +149,7 @@ export async function POST(request: NextRequest) {
         user_id: null,
         order_number: orderNumber,
         customer_name: body.customerName || 'Vipps kunde',
-        customer_email: body.customerEmail || 'pending@vipps.no',
+        customer_email: body.customerEmail || VIPPS_PENDING_EMAIL,
         customer_phone: body.customerPhone || null,
         breed_id: primaryItem.breedId,
         inventory_id: primaryItem.inventoryId,

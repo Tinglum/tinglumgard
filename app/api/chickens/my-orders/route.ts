@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth/session'
 import { supabaseAdmin } from '@/lib/supabase/server'
+import { logError } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
 
@@ -156,7 +157,7 @@ export async function GET() {
     const results = await Promise.all(queries)
     const firstError = results.find((result) => result.error)?.error
     if (firstError) {
-      console.error('Error fetching chicken orders:', firstError)
+      logError('chickens-my-orders-fetch', firstError)
       return NextResponse.json({ error: firstError.message || 'Failed to load chicken orders' }, { status: 500 })
     }
 
@@ -213,7 +214,7 @@ export async function GET() {
         ])
 
       if (paymentError) {
-        console.error('Error fetching chicken payments for my-orders:', paymentError)
+        logError('chickens-my-orders-payments', paymentError)
       } else {
         for (const row of (paymentRows as Array<any>) || []) {
           const key = String(row.chicken_order_id || '')
@@ -223,7 +224,7 @@ export async function GET() {
       }
 
       if (additionError) {
-        console.error('Error fetching chicken additions for my-orders:', additionError)
+        logError('chickens-my-orders-additions', additionError)
       } else {
         for (const row of (additionRows as Array<any>) || []) {
           const key = String(row.chicken_order_id || '')
@@ -251,7 +252,7 @@ export async function GET() {
           .in('id', Array.from(breedIds))
 
         if (breedError) {
-          console.error('Error fetching chicken breeds for my-orders:', breedError)
+          logError('chickens-my-orders-breeds', breedError)
         } else {
           for (const breed of (breedRows as Array<any>) || []) {
             breedById.set(String(breed.id), breed)
@@ -278,7 +279,7 @@ export async function GET() {
           .in('id', Array.from(hatchIds))
 
         if (hatchError) {
-          console.error('Error fetching chicken hatches for my-orders:', hatchError)
+          logError('chickens-my-orders-hatches', hatchError)
         } else {
           for (const hatch of (hatchRows as Array<any>) || []) {
             hatchById.set(String(hatch.id), hatch)
@@ -347,7 +348,7 @@ export async function GET() {
 
     return NextResponse.json(normalized)
   } catch (error: any) {
-    console.error('Unexpected error:', error)
+    logError('chickens-my-orders-get', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

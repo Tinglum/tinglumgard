@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth/session';
 import { supabaseAdmin } from '@/lib/supabase/server';
 import { getFixedExtraQuantityForSlug } from '@/lib/extras/fixedQuantities';
+import { logError } from '@/lib/logger';
 
 interface ExtraProduct {
   slug: string;
@@ -151,7 +152,7 @@ export async function POST(
         .is('user_id', null);
 
       if (claimOrderError) {
-        console.error('Failed to claim anonymous order for session user:', claimOrderError);
+        logError('orders-add-extras-claim-anonymous', claimOrderError);
       } else {
         order.user_id = session.userId;
       }
@@ -171,7 +172,7 @@ export async function POST(
       .eq('order_id', order.id);
 
     if (existingExtrasError) {
-      console.error('Failed to fetch existing order extras:', existingExtrasError);
+      logError('orders-add-extras-fetch-existing', existingExtrasError);
     }
 
     let extrasCatalog: any[] = [];
@@ -206,7 +207,7 @@ export async function POST(
           .in('id', cutIds);
 
         if (cutRowsError) {
-          console.error('Failed to fetch cut ranges for extras:', cutRowsError);
+          logError('orders-add-extras-fetch-cuts', cutRowsError);
         } else {
           for (const cut of cutRows || []) {
             cutRangesById.set(cut.id, {
@@ -263,7 +264,7 @@ export async function POST(
       .eq('order_id', order.id);
 
     if (deleteExtrasError) {
-      console.error('Failed to delete order extras:', deleteExtrasError);
+      logError('orders-add-extras-delete', deleteExtrasError);
       return NextResponse.json({ error: 'Failed to update order extras' }, { status: 500 });
     }
 
@@ -294,7 +295,7 @@ export async function POST(
         );
 
         if (insertExtrasError) {
-          console.error('Failed to insert order extras:', insertExtrasError);
+          logError('orders-add-extras-insert', insertExtrasError);
           return NextResponse.json({ error: 'Failed to update order extras' }, { status: 500 });
         }
       }
@@ -320,7 +321,7 @@ export async function POST(
       .single();
 
     if (updateError) {
-      console.error('Failed to update order:', updateError);
+      logError('orders-add-extras-update', updateError);
       return NextResponse.json({ error: 'Failed to update order' }, { status: 500 });
     }
 
@@ -334,7 +335,7 @@ export async function POST(
       newRemainderAmount,
     });
   } catch (error) {
-    console.error('Error adding extras to order:', error);
+    logError('orders-add-extras', error);
     return NextResponse.json({ error: 'Failed to add extras' }, { status: 500 });
   }
 }

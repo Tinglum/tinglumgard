@@ -4,6 +4,7 @@ import { supabaseAdmin } from '@/lib/supabase/server';
 import { dispatchEmail } from '@/lib/email/dispatch';
 import { renderManagedTemplate } from '@/lib/email/render';
 import { logError } from '@/lib/logger';
+import { APP_BASE_URL } from '@/lib/constants/app';
 import { getCustomerFacingAdminName } from '@/lib/messages/admin-sender';
 import { buildCustomerMessageEmail, buildCustomerMessagePortalUrl } from '@/lib/messages/customer-email';
 import { recordMessageEmailDebugEvent } from '@/lib/messages/email-debug';
@@ -125,21 +126,21 @@ async function findMessageByProviderReferences(messageIds: string[]) {
     return null;
   }
 
-  for (const row of queueRows) {
-    if (!row.customer_message_id) continue;
+  // Collect unique IDs in priority order (most recent first) then batch fetch
+  const orderedIds = Array.from(
+    new Set(queueRows.map((r) => r.customer_message_id).filter(Boolean))
+  ) as string[];
 
-    const { data: message } = await supabaseAdmin
-      .from('customer_messages')
-      .select('*, orders(order_number)')
-      .eq('id', row.customer_message_id)
-      .maybeSingle();
+  const { data: messages } = await supabaseAdmin
+    .from('customer_messages')
+    .select('*, orders(order_number)')
+    .in('id', orderedIds);
 
-    if (message) {
-      return message;
-    }
-  }
+  if (!messages || messages.length === 0) return null;
 
-  return null;
+  // Return in original priority order from queue
+  const byId = new Map(messages.map((m) => [m.id, m]));
+  return orderedIds.map((id) => byId.get(id)).find(Boolean) || null;
 }
 
 async function findMessageByThreadId(threadId: string | null) {
@@ -433,7 +434,7 @@ export async function POST(request: NextRequest) {
 
     if (isFromAdmin && message.customer_email) {
       try {
-        const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://tinglumgard.no';
+        const appUrl = APP_BASE_URL;
         const isAdminInitiated = message.initiated_by === 'admin';
         const portalUrl = buildCustomerMessagePortalUrl(appUrl, message.id, { replyId: reply.id });
         const rendered = isAdminInitiated

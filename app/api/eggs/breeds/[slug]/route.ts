@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { supabaseServer } from '@/lib/supabase/server'
+import { logError } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
 
@@ -16,7 +17,7 @@ export async function GET(
       .single()
 
     if (error) {
-      console.error('Error fetching breed:', error)
+      logError('eggs-breeds-slug-get', error)
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
@@ -26,7 +27,7 @@ export async function GET(
 
     return NextResponse.json(data)
   } catch (error: any) {
-    console.error('Unexpected error:', error)
+    logError('eggs-breeds-slug-get', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

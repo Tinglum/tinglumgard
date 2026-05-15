@@ -2,6 +2,7 @@
 import { dispatchEmail } from '@/lib/email/dispatch';
 import { renderManagedTemplate } from '@/lib/email/render';
 import { buildAdminOrderLink, buildCustomerOrderLink } from '@/lib/email/links';
+import { APP_BASE_URL, VIPPS_PENDING_EMAIL } from '@/lib/constants/app';
 import {
   buildChickenBreedAgeLabel,
   buildChickenOrderLinesHtml,
@@ -17,7 +18,7 @@ function isMissingChickenEmailColumnError(error: unknown): boolean {
 }
 
 async function fetchChickenOrderForEmail(orderId: string) {
-  type LookupError = { message?: string | null; code?: string | null } | null
+  type ChickenLookupError = { message?: string | null; code?: string | null } | null
   const selectClauses = [
     '*, chicken_breeds(*), chicken_hatches(hatch_date), chicken_order_additions(*, chicken_breeds(*), chicken_hatches(hatch_date))',
     'id, order_number, customer_name, customer_email, customer_phone, status, pickup_monday, pickup_date, pickup_time, pickup_week, delivery_method, delivery_fee_nok, total_amount_nok, deposit_amount_nok, remainder_amount_nok, quantity_hens, quantity_roosters, price_per_hen_nok, price_per_rooster_nok, age_weeks_at_pickup, chicken_breeds(*), chicken_hatches(hatch_date), chicken_order_additions(*, chicken_breeds(*), chicken_hatches(hatch_date))',
@@ -26,7 +27,7 @@ async function fetchChickenOrderForEmail(orderId: string) {
 
   const runLookup = async (
     selectClauseToUse: string
-  ): Promise<{ order: any; error: LookupError }> => {
+  ): Promise<{ order: any; error: ChickenLookupError }> => {
     const { data: byId, error: byIdError } = await supabaseAdmin
       .from('chicken_orders')
       .select(selectClauseToUse)
@@ -46,7 +47,7 @@ async function fetchChickenOrderForEmail(orderId: string) {
     return { order: byOrderNumber, error: byOrderNumberError };
   };
 
-  let lastResult: { order: any; error: LookupError } = { order: null, error: null };
+  let lastResult: { order: any; error: ChickenLookupError } = { order: null, error: null };
   for (const selectClause of selectClauses) {
     lastResult = await runLookup(selectClause);
     if (!lastResult.error || !isMissingChickenEmailColumnError(lastResult.error)) {
@@ -78,7 +79,7 @@ export async function sendChickenDepositConfirmationEmails(params: {
   idempotencySuffix?: string;
 }) {
   const includeAdmin = params.includeAdmin !== false;
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_BASE_URL || 'https://tinglumgard.no';
+  const appUrl = APP_BASE_URL;
 
   const { order, error: queryError } = await fetchChickenOrderForEmail(params.orderId);
 
@@ -118,7 +119,7 @@ export async function sendChickenDepositConfirmationEmails(params: {
   let customerSent = false;
   let customerReason: string | null = null;
 
-  if (customerEmail && customerEmail !== 'pending@vipps.no') {
+  if (customerEmail && customerEmail !== VIPPS_PENDING_EMAIL) {
     const rendered = await renderManagedTemplate({
       templateKey: 'chicken.order.deposit.confirmed.customer',
       locale: 'no',
@@ -175,7 +176,7 @@ export async function sendChickenDepositConfirmationEmails(params: {
   let adminSent = false;
   let adminReason: string | null = null;
   if (includeAdmin) {
-    const adminEmail = normalizeEmail(process.env.EMAIL_FROM || '');
+    const adminEmail = normalizeEmail(process.env.EMAIL_FROM ?? '');
     if (adminEmail) {
       const rendered = await renderManagedTemplate({
         templateKey: 'admin.order.deposit.confirmed.chicken',
@@ -246,7 +247,7 @@ export async function sendChickenRemainderEnabledEmail(params: {
   sourcePath: string;
   idempotencySuffix?: string;
 }) {
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_BASE_URL || 'https://tinglumgard.no';
+  const appUrl = APP_BASE_URL;
 
   const { order, error: queryError } = await fetchChickenOrderForEmail(params.orderId);
 
@@ -271,7 +272,7 @@ export async function sendChickenRemainderEnabledEmail(params: {
   }
 
   const customerEmail = normalizeEmail(order.customer_email);
-  if (!customerEmail || customerEmail === 'pending@vipps.no') {
+  if (!customerEmail || customerEmail === VIPPS_PENDING_EMAIL) {
     return {
       ok: false as const,
       reason: 'missing_customer_email' as const,
@@ -338,6 +339,21 @@ export async function sendChickenRemainderEnabledEmail(params: {
   });
 
   const customerSent = result.success && !result.skipped;
+
+  // Send admin alert for financial state change
+  const adminEmail = process.env.EMAIL_FROM ? String(process.env.EMAIL_FROM).trim().toLowerCase() : ''
+  if (adminEmail && customerSent) {
+    await dispatchEmail({
+      to: adminEmail,
+      subject: `Restbetaling aktivert – ${order.order_number}`,
+      html: `<p>Restbetaling aktivert for ordre ${order.order_number} (${order.customer_name}). Beløp: kr ${Math.round(Number(order.remainder_amount_nok || 0)).toLocaleString('nb-NO')}.</p>`,
+      classification: 'system',
+      templateKey: 'admin.chicken.remainder.enabled',
+      sourcePath: params.sourcePath,
+      chickenOrderId: order.id,
+    }).catch(() => {}) // non-blocking — don't fail the customer send
+  }
+
   return {
     ok: true as const,
     customerSent,

@@ -159,6 +159,11 @@ async function sendLegacyDirect(input: {
 }
 
 export async function dispatchEmail(input: DispatchEmailInput): Promise<DispatchEmailResult> {
+  const normalisedTo = String(input.to || '').trim().toLowerCase();
+  if (!normalisedTo) {
+    return { success: false, skipped: true, skipReason: 'missing_recipient' };
+  }
+
   const classification = input.classification || 'transactional';
   const locale = input.locale || 'no';
   const html = ensureHtmlDocument(input.html, locale);

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/server';
 import { getSession } from '@/lib/auth/session';
 import { getEffectiveBoxSize } from '@/lib/orders/display';
+import { logError } from '@/lib/logger';
 
 function asNumber(value: unknown, fallback: number): number {
   if (typeof value === 'number' && Number.isFinite(value)) return value;
@@ -79,7 +80,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
   } catch (error) {
-    console.error('Inventory GET error:', error);
+    logError('admin-inventory-get', error);
     return NextResponse.json({ error: 'Failed to fetch inventory' }, { status: 500 });
   }
 }
@@ -109,7 +110,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
   } catch (error) {
-    console.error('Inventory POST error:', error);
+    logError('admin-inventory-post', error);
     return NextResponse.json({ error: 'Failed to update inventory' }, { status: 500 });
   }
 }

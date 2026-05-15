@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth/session';
 import { supabaseAdmin } from '@/lib/supabase/server';
+import { logError } from '@/lib/logger';
 
 /**
  * Customer-facing email preview endpoint.
@@ -31,7 +32,7 @@ export async function GET(request: NextRequest) {
         .maybeSingle();
 
       if (error) {
-        console.error('email-preview-queue', error);
+        logError('email-preview-queue', error);
         return NextResponse.json({ error: 'Failed to fetch email' }, { status: 500 });
       }
       if (!data) {
@@ -65,7 +66,7 @@ export async function GET(request: NextRequest) {
       .maybeSingle();
 
     if (error) {
-      console.error('email-preview-legacy', error);
+      logError('email-preview-legacy', error);
       return NextResponse.json({ error: 'Failed to fetch email' }, { status: 500 });
     }
     if (!data) {
@@ -89,7 +90,7 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (err) {
-    console.error('email-preview-error', err);
+    logError('email-preview-error', err);
     return NextResponse.json({ error: 'Failed to fetch email preview' }, { status: 500 });
   }
 }

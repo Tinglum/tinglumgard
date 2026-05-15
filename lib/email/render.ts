@@ -30,7 +30,7 @@ const BRAND = {
 
 const FONT_HEADING = "Georgia, 'Times New Roman', serif";
 const FONT_BODY = "Arial, Helvetica, sans-serif";
-const APP_URL = 'https://tinglumgard.no';
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://tinglumgard.no';
 
 // Template interpolation
 
@@ -154,6 +154,40 @@ function normalizeEggReminderVariables(
   vars.reminder_consequence_html =
     vars.reminder_consequence_html ||
     '<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 24px;border-left:4px solid #B45309;background:#FFFBEB;border-radius:0 8px 8px 0;"><tr><td style="padding:16px 20px;"><p style="font-size:14px;line-height:1.6;color:#B45309;margin:0;">Hvis restbel&oslash;pet ikke betales innen fristen, vil bestillingen bli kansellert og eggene frigitt til andre kunder.</p></td></tr></table>';
+
+  return vars;
+}
+
+function normalizeEggPickupReminderVariables(
+  input: Record<string, unknown>,
+  locale: EmailLocale,
+): Record<string, unknown> {
+  const vars = { ...input };
+
+  // Pickup orders: eggs are already collected — no delivery framing, no "release to other customers"
+  if (locale === 'en') {
+    vars.reminder_badge_label = vars.reminder_badge_label || 'Reminder';
+    vars.reminder_intro_html =
+      vars.reminder_intro_html ||
+      '<p style="font-size:16px;line-height:1.6;margin:0 0 8px;">The hatching eggs for order <strong>{{order_number}}</strong> have been collected, but the remaining balance has not yet been registered.</p><p style="font-size:16px;line-height:1.6;margin:0 0 24px;">Please pay the outstanding amount as soon as possible to close the order.</p>';
+    vars.reminder_support_html =
+      vars.reminder_support_html ||
+      '<div style="margin:0 0 20px;padding:16px 20px;background:#FAF8F5;border:1px solid #E8DFD5;border-radius:10px;"><p style="font-size:14px;line-height:1.6;color:#6B5B4E;margin:0;">If you have already paid, you can ignore this email. If you have any questions, sign in to My Page or contact us directly.</p></div>';
+    vars.reminder_consequence_html =
+      vars.reminder_consequence_html ||
+      '<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 24px;border-left:4px solid #FDE68A;background:#FFFBEB;border-radius:0 8px 8px 0;"><tr><td style="padding:16px 20px;"><p style="font-size:14px;line-height:1.6;color:#B45309;margin:0;">The payment deadline has passed. Please settle the remaining balance as soon as possible.</p></td></tr></table>';
+  } else {
+    vars.reminder_badge_label = vars.reminder_badge_label || 'P&aring;minnelse';
+    vars.reminder_intro_html =
+      vars.reminder_intro_html ||
+      '<p style="font-size:16px;line-height:1.6;margin:0 0 8px;">Rugeeggene fra bestilling <strong>{{order_number}}</strong> er hentet, men restbetalingen gjenst&aring;r.</p><p style="font-size:16px;line-height:1.6;margin:0 0 24px;">Vennligst betal det utest&aring;ende bel&oslash;pet snarest for &aring; avslutte ordren.</p>';
+    vars.reminder_support_html =
+      vars.reminder_support_html ||
+      '<div style="margin:0 0 20px;padding:16px 20px;background:#FAF8F5;border:1px solid #E8DFD5;border-radius:10px;"><p style="font-size:14px;line-height:1.6;color:#6B5B4E;margin:0;">Hvis du allerede har betalt, kan du se bort fra denne e-posten. Har du sp&oslash;rsm&aring;l, kan du logge inn p&aring; Min side eller ta kontakt med oss direkte.</p></div>';
+    vars.reminder_consequence_html =
+      vars.reminder_consequence_html ||
+      '<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 24px;border-left:4px solid #FDE68A;background:#FFFBEB;border-radius:0 8px 8px 0;"><tr><td style="padding:16px 20px;"><p style="font-size:14px;line-height:1.6;color:#B45309;margin:0;">Betalingsfristen er passert. Vennligst betal restbel&oslash;pet s&aring; snart som mulig.</p></td></tr></table>';
+  }
 
   return vars;
 }
@@ -778,6 +812,10 @@ export async function renderManagedTemplate(options: {
 
   if (options.templateKey === 'egg.remainder.reminder') {
     Object.assign(vars, normalizeEggReminderVariables(vars, locale));
+  }
+
+  if (options.templateKey === 'egg.remainder.reminder.pickup') {
+    Object.assign(vars, normalizeEggPickupReminderVariables(vars, locale));
   }
 
   const { data, error } = await supabaseAdmin

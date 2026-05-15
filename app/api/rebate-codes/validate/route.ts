@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/server';
+import { logError } from '@/lib/logger';
 
 // POST /api/rebate-codes/validate - Validate a rebate code (no auth required)
 export async function POST(request: NextRequest) {
@@ -24,13 +25,13 @@ export async function POST(request: NextRequest) {
     });
 
     if (error) {
-      console.error('Rebate validation error:', error);
+      logError('rebate-codes-validate', error);
       throw error;
     }
 
     return NextResponse.json(data);
   } catch (error) {
-    console.error('Error validating rebate code:', error);
+    logError('rebate-codes-validate', error);
     return NextResponse.json(
       { error: 'Failed to validate rebate code' },
       { status: 500 }

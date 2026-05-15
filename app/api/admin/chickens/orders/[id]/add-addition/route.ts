@@ -55,6 +55,10 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       return NextResponse.json({ error: 'Order not found' }, { status: 404 })
     }
 
+    if (['cancelled', 'picked_up'].includes(String(order.status || ''))) {
+      return NextResponse.json({ error: 'Cannot modify a cancelled or completed order' }, { status: 400 })
+    }
+
     // Load the hatch with breed pricing
     const { data: hatch, error: hatchError } = await supabaseAdmin
       .from('chicken_hatches')
@@ -90,7 +94,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     const subtotalNok = quantityHens * pricePerHen + quantityRoosters * pricePerRooster
 
     // Insert new addition
-    const { error: insertError } = await supabaseAdmin
+    const { data: insertedAddition, error: insertError } = await supabaseAdmin
       .from('chicken_order_additions')
       .insert({
         chicken_order_id: order.id,
@@ -101,6 +105,8 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
         price_per_hen_nok: pricePerHen,
         subtotal_nok: subtotalNok,
       })
+      .select('id')
+      .single()
 
     if (insertError) {
       logError('add-addition-insert', insertError)
@@ -118,6 +124,13 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
 
     if (hatchUpdateError) {
       logError('add-addition-hatch-update', hatchUpdateError)
+      const { error: rollbackError } = await supabaseAdmin
+        .from('chicken_order_additions')
+        .delete()
+        .eq('id', insertedAddition.id)
+      if (rollbackError) {
+        logError('add-addition-hatch-rollback', rollbackError)
+      }
       return NextResponse.json({ error: 'Failed to update hatch inventory' }, { status: 500 })
     }
 

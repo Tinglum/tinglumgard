@@ -3,6 +3,7 @@ import { getSession } from '@/lib/auth/session'
 import { verifyOrderAccessToken } from '@/lib/auth/order-access'
 import { supabaseAdmin } from '@/lib/supabase/server'
 import { vippsClient } from '@/lib/vipps/api-client'
+import { APP_BASE_URL } from '@/lib/constants/app'
 
 export async function POST(
   request: NextRequest,
@@ -79,7 +80,7 @@ export async function POST(
     const depositAmountNok = Number(order.deposit_amount_nok)
     const depositAmountOre = Math.round(depositAmountNok * 100)
     const shortReference = `CHICK-DEP-${order.order_number}`
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_BASE_URL || 'https://tinglumgard.no'
+    const appUrl = APP_BASE_URL
 
     const { randomBytes } = await import('crypto')
     const callbackToken = randomBytes(16).toString('hex')

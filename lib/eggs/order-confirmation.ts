@@ -1,6 +1,7 @@
 import { logError } from '@/lib/logger'
 import { supabaseAdmin } from '@/lib/supabase/server'
 import { markWaitlistPurchase } from '@/lib/eggs/waitlist'
+import { VIPPS_PENDING_EMAIL } from '@/lib/constants'
 
 type EggOrderAdditionRow = {
   inventory_id: string | null
@@ -194,7 +195,7 @@ async function rollbackReservation(orderId: string, claimedAt: string, appliedLi
 
 async function runNonBlockingPostDepositSideEffects(order: EggOrderReservationRow) {
   const normalizedEmail = normalizeEmail(order.customer_email)
-  if (normalizedEmail && normalizedEmail !== 'pending@vipps.no') {
+  if (normalizedEmail && normalizedEmail !== VIPPS_PENDING_EMAIL) {
     const uniqueInventoryIds = Array.from(
       new Set(
         collectReservationLines(order)

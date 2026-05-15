@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth/session'
 import { supabaseAdmin } from '@/lib/supabase/server'
 import { vippsClient } from '@/lib/vipps/api-client'
+import { logError } from '@/lib/logger'
+import { APP_BASE_URL } from '@/lib/constants/app'
 
 export async function POST(
   request: NextRequest,
@@ -85,7 +87,7 @@ export async function POST(
     }
 
     const shortReference = `EGG-ADD-${order.order_number}-${Date.now()}`
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_BASE_URL || 'https://tinglumgard.no'
+    const appUrl = APP_BASE_URL
     const { randomBytes } = await import('crypto')
     const callbackToken = randomBytes(16).toString('hex')
 
@@ -137,7 +139,7 @@ export async function POST(
       amount: amountDue,
     })
   } catch (error) {
-    console.error('Error creating addition deposit payment:', error)
+    logError('eggs-orders-addition-deposit', error)
     return NextResponse.json({ error: 'Failed to create payment' }, { status: 500 })
   }
 }

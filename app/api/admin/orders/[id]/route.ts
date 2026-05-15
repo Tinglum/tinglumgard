@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth/session';
 import { supabaseAdmin } from '@/lib/supabase/server';
+import { logError } from '@/lib/logger';
 
 function normalizeUuid(value?: string | null): string | null {
   if (!value) return null;
@@ -38,7 +39,7 @@ export async function GET(
 
     return NextResponse.json({ order, boxConfigs, extrasOptions, mangalitsaPresets });
   } catch (error) {
-    console.error('Error fetching pig order:', error);
+    logError('admin-orders-fetch', error);
     return NextResponse.json({ error: 'Failed to fetch order' }, { status: 500 });
   }
 }
@@ -84,7 +85,7 @@ export async function PATCH(
 
     return NextResponse.json({ success: true, order });
   } catch (error) {
-    console.error('Error updating order:', error);
+    logError('admin-orders-update', error);
     return NextResponse.json(
       { success: false, error: 'Failed to update order' },
       { status: 500 }

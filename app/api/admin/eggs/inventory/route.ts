@@ -1,54 +1,42 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth/session';
 import { supabaseAdmin } from '@/lib/supabase/server';
+import { logError } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
 
-// Get all inventory
 export async function GET() {
   const session = await getSession();
-  if (!session?.isAdmin) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
-  }
+  if (!session?.isAdmin) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
 
   try {
     const { data, error } = await supabaseAdmin
       .from('egg_inventory')
       .select(`
-        *,
-        egg_breeds (
-          id,
-          name,
-          slug,
-          accent_color
-        )
+        id, breed_id, year, week_number, delivery_monday,
+        eggs_available, eggs_allocated, status, forecast_source,
+        auto_forecast_eggs, manual_adjustment, manual_override,
+        egg_breeds (id, name, slug, accent_color)
       `)
       .order('year', { ascending: false })
       .order('week_number', { ascending: false });
 
     if (error) throw error;
-
     return NextResponse.json(data);
-  } catch (error: any) {
-    console.error('Error fetching inventory:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error) {
+    logError('inventory-get', error);
+    return NextResponse.json({ error: 'Failed to fetch inventory' }, { status: 500 });
   }
 }
 
-// Create new inventory week
 export async function POST(request: Request) {
   const session = await getSession();
-  if (!session?.isAdmin) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
-  }
+  if (!session?.isAdmin) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
 
   try {
     const body = await request.json();
 
-    // build insert object; extra fields should only be included if the
-    // schema supports them. we'll try the full object first and fall back if we
-    // get a "column does not exist" error.
-    const insertObj: any = {
+    const insertObj: Record<string, unknown> = {
       breed_id: body.breed_id,
       year: body.year,
       week_number: body.week_number,
@@ -60,44 +48,34 @@ export async function POST(request: Request) {
       eggs_allocated: 0,
       status: body.status || 'open',
       forecast_source: 'manual',
-    }
+    };
 
-    let data: any
-    let error: any
+    let { data, error } = await supabaseAdmin
+      .from('egg_inventory')
+      .insert([insertObj])
+      .select()
+      .single();
 
-    try {
-      const res = await supabaseAdmin
-        .from('egg_inventory')
-        .insert([insertObj])
-        .select()
-        .single()
-      data = res.data
-      error = res.error
-    } catch (e: any) {
-      error = e
-    }
-
-    if (error && String(error.message).includes('does not exist')) {
-      // remove optional columns and retry
-      delete insertObj.auto_forecast_eggs
-      delete insertObj.manual_adjustment
-      delete insertObj.manual_override
-      delete insertObj.forecast_source
+    // code 42703 = column does not exist — schema predates optional columns; retry without them.
+    if (error?.code === '42703') {
+      delete insertObj.auto_forecast_eggs;
+      delete insertObj.manual_adjustment;
+      delete insertObj.manual_override;
+      delete insertObj.forecast_source;
 
       const retry = await supabaseAdmin
         .from('egg_inventory')
         .insert([insertObj])
         .select()
-        .single()
-      data = retry.data
-      error = retry.error
+        .single();
+      data = retry.data;
+      error = retry.error;
     }
 
     if (error) throw error;
-
     return NextResponse.json(data, { status: 201 });
-  } catch (error: any) {
-    console.error('Error creating inventory:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error) {
+    logError('inventory-post', error);
+    return NextResponse.json({ error: 'Failed to create inventory week' }, { status: 500 });
   }
 }

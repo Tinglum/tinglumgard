@@ -40,6 +40,7 @@ import {
   DELIVERY_LABEL_DEFAULT_CHICKEN,
 } from "@/lib/constants";
 import { vippsClient } from "@/lib/vipps/api-client";
+import { APP_BASE_URL } from '@/lib/constants/app';
 
 // ─── HMAC & Auth Verification ──────────────────────────────────────────────
 
@@ -356,6 +357,10 @@ async function attachChickenOrderToVippsUser(order: any): Promise<any> {
   return { ...order, user_id: resolvedUserId };
 }
 
+// ─── Constants ────────────────────────────────────────────────────────────
+
+const appUrl = APP_BASE_URL;
+
 // ─── Webhook Handler ───────────────────────────────────────────────────────
 
 export async function POST(request: NextRequest) {
@@ -663,7 +668,7 @@ export async function POST(request: NextRequest) {
             customerName: order.customer_name,
             errorMessage: finErr instanceof Error ? finErr.message : 'Unknown error',
             source: 'vipps-webhook',
-          }).catch(() => {})
+          }).catch((e) => logError('vipps-webhook-notify-overallocation', e))
         }
       }
 
@@ -689,8 +694,6 @@ export async function POST(request: NextRequest) {
       const customerEmailForSend = normalizeEmail(order?.customer_email);
       if (order && customerEmailForSend && customerEmailForSend !== VIPPS_PENDING_EMAIL) {
         try {
-          const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_BASE_URL || 'https://tinglumgard.no';
-
           if (isEggPayment) {
             const breedName = eggSummary?.breedLabel || eggBreedName || order.breed_name || 'Rugeegg';
             const baseQuantity = eggSummary?.baseQuantity ?? Number(order.quantity || 0);
@@ -791,7 +794,7 @@ export async function POST(request: NextRequest) {
       const adminEmail = process.env.EMAIL_FROM || ADMIN_EMAIL;
       if (order && adminEmail) {
         try {
-          const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_BASE_URL || 'https://tinglumgard.no';
+          // appUrl is defined at module scope
           let templateKey = 'admin.order.deposit.confirmed.pig';
           let entityScope: 'order' | 'egg_order' | 'chicken_order' = 'order';
           let variables: Record<string, unknown>;
@@ -1006,8 +1009,6 @@ export async function POST(request: NextRequest) {
       const customerEmailForSend = normalizeEmail(order?.customer_email);
       if (order && customerEmailForSend && customerEmailForSend !== VIPPS_PENDING_EMAIL) {
         try {
-          const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_BASE_URL || 'https://tinglumgard.no';
-
           if (isEggPayment) {
             const baseQuantity = eggSummary?.baseQuantity ?? Number(order.quantity || 0);
             const additionsQuantity = eggSummary?.additionsQuantity ?? 0;

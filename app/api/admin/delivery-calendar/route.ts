@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth/session';
 import { supabaseAdmin } from '@/lib/supabase/server';
 import { getEffectiveBoxSize } from '@/lib/orders/display';
+import { logError } from '@/lib/logger';
 
 function isoWeekMonday(year: number, week: number): string {
   const januaryFourth = new Date(Date.UTC(year, 0, 4));
@@ -201,7 +202,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ groups: groupsArray });
   } catch (error) {
-    console.error('Delivery calendar error:', error);
+    logError('admin-delivery-calendar-get', error);
     return NextResponse.json({ error: 'Failed to fetch delivery calendar' }, { status: 500 });
   }
 }
@@ -250,7 +251,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Delivery calendar POST error:', error);
+    logError('admin-delivery-calendar-post', error);
     return NextResponse.json({ error: 'Failed to update delivery' }, { status: 500 });
   }
 }

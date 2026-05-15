@@ -9,6 +9,7 @@ import { recordMessageEmailDebugEvent } from '@/lib/messages/email-debug';
 import { buildSupportThreadMessageId } from '@/lib/messages/threading';
 import { needsAdminAttention } from '@/lib/messages/admin-attention';
 import { getNoReplyAddress } from '@/lib/messages/no-reply-address';
+import { APP_BASE_URL } from '@/lib/constants/app';
 
 const MESSAGE_TYPES = new Set(['support', 'inquiry', 'complaint', 'feedback', 'referral_question']);
 const PRIORITIES = new Set(['low', 'normal', 'high', 'urgent']);
@@ -224,7 +225,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to create message thread' }, { status: 500 });
     }
 
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://tinglumgard.no';
+    const appUrl = APP_BASE_URL;
     const threadId = String(newMessage.email_thread_id || `msg_${newMessage.id}`);
     const orderNumber = await resolveOrderNumber(relatedOrderSource, relatedOrderId);
     let emailDispatched = false;

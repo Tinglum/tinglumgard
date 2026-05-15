@@ -1018,6 +1018,10 @@ export function CustomerDatabase({
       const hens = baseHens + extraHens;
       const roosters = baseRoosters + extraRoosters;
       const breed = String(details.breed_name || '').trim();
+      const additionsLabel =
+        additions.length > 0
+          ? `${lang === 'en' ? ' + ' : ' + '}${additions.length} ${lang === 'en' ? 'additions' : 'tillegg'}`
+          : '';
 
       return {
         primary:
@@ -1026,19 +1030,22 @@ export function CustomerDatabase({
             : `${hens.toLocaleString(locale)} ${copy.fieldLabels.hens}`,
         secondary:
           uniqueAges.length === 0
-            ? breed || null
+            ? (breed ? `${breed}${additionsLabel}` : additions.length > 0 ? additionsLabel.trim() : null)
             : uniqueAges.length === 1
-              ? `${breed ? `${breed} · ` : ''}${uniqueAges[0]} ${lang === 'en' ? 'weeks' : 'uker'}`
-              : `${breed ? `${breed} · ` : ''}${uniqueAges[0]}-${uniqueAges[uniqueAges.length - 1]} ${
+              ? `${breed ? `${breed} - ` : ''}${uniqueAges[0]} ${lang === 'en' ? 'weeks' : 'uker'}${additionsLabel}`
+              : `${breed ? `${breed} - ` : ''}${uniqueAges[0]}-${uniqueAges[uniqueAges.length - 1]} ${
                   lang === 'en' ? 'weeks' : 'uker'
-                }`,
+                }${additionsLabel}`,
       };
     }
 
     const boxSize = toNumber(details.box_size);
+    const extras = Array.isArray(details.order_extras) ? (details.order_extras as Array<Record<string, unknown>>) : [];
+    const extrasLabel =
+      extras.length > 0 ? `${lang === 'en' ? ' + ' : ' + '}${extras.length} ${lang === 'en' ? 'extras' : 'tillegg'}` : '';
     return {
       primary: boxSize > 0 ? `${boxSize.toLocaleString(locale)} kg` : copy.notProvided,
-      secondary: String(details.ribbe_choice || '').trim() || null,
+      secondary: `${String(details.ribbe_choice || '').trim() || ''}${extrasLabel}` || null,
     };
   }
 
@@ -1056,10 +1063,75 @@ export function CustomerDatabase({
     }
   }
 
+  function getOrderPaymentRows(
+    order: CustomerOrderSummary,
+    detailArg?: Record<string, unknown>
+  ) {
+    const detail = (detailArg || orderDetails[orderKey(order)] || order.details || {}) as Record<string, unknown>;
+    const payments =
+      order.source === 'egg'
+        ? ((detail.egg_payments as Array<Record<string, unknown>> | undefined) || [])
+        : order.source === 'chicken'
+          ? ((detail.chicken_payments as Array<Record<string, unknown>> | undefined) || [])
+          : ((detail.payments as Array<Record<string, unknown>> | undefined) || []);
+
+    return payments.map((payment, index) => {
+      const paymentType = String(payment.payment_type || '').trim();
+      const status = String(payment.status || '').trim();
+      const label =
+        paymentType === 'deposit'
+          ? (lang === 'en' ? 'Deposit paid' : 'Forskudd betalt')
+          : paymentType === 'remainder'
+            ? (lang === 'en' ? 'Remainder paid' : 'Restbetaling betalt')
+            : paymentType === 'addition_deposit'
+              ? (lang === 'en' ? 'Extra eggs paid' : 'Ekstra egg betalt')
+              : paymentType === 'refund'
+                ? (lang === 'en' ? 'Refund' : 'Refusjon')
+                : paymentType || copy.notProvided;
+
+      return {
+        key: `${orderKey(order)}:payment:${String(payment.id || index)}`,
+        kind: paymentType,
+        label,
+        amountNok: toNumber(payment.amount_nok),
+        status,
+        statusLabel: copy.statusLabels[status as keyof typeof copy.statusLabels] || status || copy.notProvided,
+        date: String(payment.paid_at || payment.created_at || '').trim() || null,
+        dateLabel: payment.paid_at ? (lang === 'en' ? 'Paid' : 'Betalt') : orderCreatedLabel,
+      };
+    });
+  }
+
+  function getOrderBalanceMeta(
+    order: CustomerOrderSummary,
+    paymentRows: Array<{ kind: string; status: string }>
+  ) {
+    const total = toNumber(order.total_amount);
+    const paid = toNumber(order.paid_amount);
+    const remaining = Math.max(0, total - paid);
+    const hasCompletedRemainder = paymentRows.some(
+      (payment) => payment.kind === 'remainder' && payment.status === 'completed'
+    );
+    const currentBalanceLabel =
+      remaining > 0 && hasCompletedRemainder
+        ? (lang === 'en' ? 'New changes' : 'Nye endringer')
+        : ((copy as any).orderCardRemainingLabel || (lang === 'en' ? 'Remaining' : 'Rest'));
+    const balanceNote =
+      remaining > 0 && hasCompletedRemainder
+        ? (lang === 'en'
+            ? 'The earlier remainder was already paid. The amount left now comes from later changes or additions.'
+            : 'Tidligere restbetaling er allerede mottatt. Belopet som star igjen kommer fra senere endringer eller tillegg.')
+        : null;
+
+    return { total, paid, remaining, currentBalanceLabel, balanceNote };
+  }
+
   function getOrderContentModalData(order: CustomerOrderSummary) {
     const key = orderKey(order);
     const detail = (orderDetails[key] || order.details || {}) as Record<string, unknown>;
     const lines: Array<{ key: string; label: string; quantity: string; amount?: string | null }> = [];
+    const paymentRows = getOrderPaymentRows(order, detail);
+    const balanceMeta = getOrderBalanceMeta(order, paymentRows);
 
     if (order.source === 'egg') {
       const baseBreed = String(
@@ -1068,7 +1140,7 @@ export function CustomerDatabase({
       const baseQty = toNumber(detail.quantity);
       lines.push({
         key: `${key}:base`,
-        label: baseBreed,
+        label: lang === 'en' ? 'Base order' : 'Grunnbestilling',
         quantity: `${baseQty.toLocaleString(locale)} ${copy.fieldLabels.quantity}`,
       });
 
@@ -1084,7 +1156,7 @@ export function CustomerDatabase({
         const subtotalOre = toNumber(addition.subtotal);
         lines.push({
           key: `${key}:addition:${index}`,
-          label: additionBreed,
+          label: lang === 'en' ? 'Extra eggs' : 'Ekstra egg',
           quantity: `${qty.toLocaleString(locale)} ${copy.fieldLabels.quantity}`,
           amount: subtotalOre > 0 ? `${currency} ${(subtotalOre / 100).toLocaleString(locale)}` : null,
         });
@@ -1098,6 +1170,9 @@ export function CustomerDatabase({
       return {
         summary: `${totalQty.toLocaleString(locale)} ${copy.fieldLabels.quantity}`,
         lines,
+        paymentRows,
+        currentBalanceLabel: balanceMeta.currentBalanceLabel,
+        balanceNote: balanceMeta.balanceNote,
       };
     }
 
@@ -1150,8 +1225,8 @@ export function CustomerDatabase({
 
       lines.push({
         key: `${key}:base`,
-        label: baseBreed,
-        quantity: `${formatBirds(baseHens, baseRoosters)}${
+        label: lang === 'en' ? 'Base order' : 'Grunnbestilling',
+        quantity: `${baseBreed} - ${formatBirds(baseHens, baseRoosters)}${
           toNumber(detail.age_weeks_at_pickup, 0) > 0
             ? ` · ${toNumber(detail.age_weeks_at_pickup, 0)} ${lang === 'en' ? 'weeks' : 'uker'}`
             : ''
@@ -1169,8 +1244,8 @@ export function CustomerDatabase({
         const additionAge = getAdditionAgeWeeks(addition);
         lines.push({
           key: `${key}:addition:${index}`,
-          label: additionBreed,
-          quantity: `${formatBirds(hens, roosters)}${
+          label: lang === 'en' ? 'Extra chickens' : 'Ekstra kyllinger',
+          quantity: `${additionBreed} - ${formatBirds(hens, roosters)}${
             additionAge > 0 ? ` · ${additionAge} ${lang === 'en' ? 'weeks' : 'uker'}` : ''
           }`,
           amount: additionSubtotal > 0 ? `${currency} ${additionSubtotal.toLocaleString(locale)}` : null,
@@ -1200,28 +1275,38 @@ export function CustomerDatabase({
             ? `${totals.hens.toLocaleString(locale)} ${copy.fieldLabels.hens} + ${totals.roosters.toLocaleString(locale)} ${copy.fieldLabels.roosters}`
             : `${totals.hens.toLocaleString(locale)} ${copy.fieldLabels.hens}`,
         lines,
+        paymentRows,
+        currentBalanceLabel: balanceMeta.currentBalanceLabel,
+        balanceNote: balanceMeta.balanceNote,
       };
     }
 
     const boxSize = toNumber(detail.box_size);
     const boxLabel = boxSize > 0 ? `${boxSize.toLocaleString(locale)} kg` : copy.notProvided;
+    const extras = (detail.order_extras as Array<Record<string, unknown>> | undefined) || [];
+    const extrasTotal = extras.reduce((sum, extra) => sum + toNumber(extra.total_price || extra.price_nok), 0);
+    const baseOrderTotal = Math.max(0, toNumber(order.total_amount) - extrasTotal);
     lines.push({
       key: `${key}:base`,
-      label: (copy as any).orderCardItemsLabel || (lang === 'en' ? 'Items' : 'Innhold'),
-      quantity: boxLabel,
+      label: lang === 'en' ? 'Base order' : 'Grunnbestilling',
+      quantity: `${boxLabel} - ${String(detail.ribbe_choice || copy.notProvided)}`,
+      amount: baseOrderTotal > 0 ? `${currency} ${baseOrderTotal.toLocaleString(locale)}` : null,
     });
 
-    const extras = (detail.order_extras as Array<Record<string, unknown>> | undefined) || [];
     extras.forEach((extra, index) => {
       const name = String(
-        (extra.extras_catalog as Record<string, unknown> | undefined)?.name_no || copy.notProvided
+        (lang === 'en'
+          ? (extra.extras_catalog as Record<string, unknown> | undefined)?.name_en
+          : (extra.extras_catalog as Record<string, unknown> | undefined)?.name_no) ||
+          extra.name ||
+          copy.notProvided
       );
       const qty = toNumber(extra.quantity);
       const totalPrice = toNumber(extra.total_price || extra.price_nok);
       lines.push({
         key: `${key}:extra:${index}`,
-        label: name,
-        quantity: `${qty.toLocaleString(locale)}x`,
+        label: lang === 'en' ? 'Extra product' : 'Tilleggsprodukt',
+        quantity: `${name} - ${qty.toLocaleString(locale)}x`,
         amount: totalPrice > 0 ? `${currency} ${totalPrice.toLocaleString(locale)}` : null,
       });
     });
@@ -1229,6 +1314,9 @@ export function CustomerDatabase({
     return {
       summary: boxLabel,
       lines,
+      paymentRows,
+      currentBalanceLabel: balanceMeta.currentBalanceLabel,
+      balanceNote: balanceMeta.balanceNote,
     };
   }
 
@@ -1270,13 +1358,6 @@ export function CustomerDatabase({
           ? ['farm_pickup', 'delivery_namsos_trondheim']
           : [];
 
-    const payments =
-      order.source === 'egg'
-        ? ((detail.egg_payments as Array<Record<string, unknown>> | undefined) || [])
-        : order.source === 'chicken'
-          ? ((detail.chicken_payments as Array<Record<string, unknown>> | undefined) || [])
-          : ((detail.payments as Array<Record<string, unknown>> | undefined) || []);
-
     const additions =
       order.source === 'egg'
         ? ((detail.egg_order_additions as Array<Record<string, unknown>> | undefined) || [])
@@ -1285,6 +1366,9 @@ export function CustomerDatabase({
           : [];
 
     const hasBaseLine = order.source === 'egg' || order.source === 'chicken';
+    const content = getOrderContentModalData(order);
+    const paymentRows = getOrderPaymentRows(order, detail);
+    const balanceMeta = getOrderBalanceMeta(order, paymentRows);
 
     return (
       <div className="mt-3 space-y-3 rounded-xl border border-neutral-200 bg-white p-4">
@@ -1350,68 +1434,61 @@ export function CustomerDatabase({
           </Button>
         </div>
 
+        {balanceMeta.balanceNote ? (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+            <p className="font-medium">
+              {balanceMeta.currentBalanceLabel}: {currency} {balanceMeta.remaining.toLocaleString(locale)}
+            </p>
+            <p className="mt-1 text-xs">{balanceMeta.balanceNote}</p>
+          </div>
+        ) : null}
+
         <div>
           <h4 className="font-semibold text-neutral-900">{copy.paymentsInfoTitle}</h4>
-          {payments.length === 0 ? (
+          {paymentRows.length === 0 ? (
             <p className="mt-1 text-sm text-neutral-500">{copy.noPayments}</p>
           ) : (
             <div className="mt-2 space-y-1 text-sm">
-              {payments.map((payment, index) => (
-                <div key={`${String(payment.id || index)}-${index}`} className="rounded border p-2">
-                  {String(payment.payment_type || '-')} • {copy.statusLabels[String(payment.status || '') as keyof typeof copy.statusLabels] || String(payment.status || '-')} • {currency}{' '}
-                  {toNumber(payment.amount_nok).toLocaleString(locale)}
+              {paymentRows.map((payment) => (
+                <div key={payment.key} className="rounded border p-2">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="font-medium text-neutral-900">{payment.label}</p>
+                      <p className="text-xs text-neutral-500">{payment.statusLabel}</p>
+                      {payment.date ? (
+                        <p className="text-xs text-neutral-500">
+                          {payment.dateLabel}: {new Date(payment.date).toLocaleString(locale)}
+                        </p>
+                      ) : null}
+                    </div>
+                    <p className="font-semibold text-neutral-900">
+                      {currency} {payment.amountNok.toLocaleString(locale)}
+                    </p>
+                  </div>
                 </div>
               ))}
             </div>
           )}
         </div>
 
-        {(hasBaseLine || additions.length > 0) && (
+        {(hasBaseLine || additions.length > 0 || content.lines.length > 0) && (
           <div>
             <h4 className="font-semibold text-neutral-900">{copy.additionsInfoTitle}</h4>
             <div className="mt-2 space-y-1 text-sm">
-              {order.source === 'egg' && (
-                <div className="rounded border p-2">
-                  {String((detail.egg_breeds as Record<string, unknown> | null | undefined)?.name || copy.notProvided)} •{' '}
-                  {toNumber(detail.quantity).toLocaleString(locale)} {copy.fieldLabels.quantity}
-                </div>
-              )}
-              {order.source === 'chicken' && (
-                <div className="rounded border p-2">
-                  {String((detail.chicken_breeds as Record<string, unknown> | null | undefined)?.name || copy.notProvided)} •{' '}
-                  {toNumber(detail.quantity_hens).toLocaleString(locale)} {copy.fieldLabels.hens}
-                  {toNumber(detail.quantity_roosters) > 0
-                    ? ` + ${toNumber(detail.quantity_roosters).toLocaleString(locale)} ${copy.fieldLabels.roosters}`
-                    : ''}
-                </div>
-              )}
-              {additions.length === 0 ? (
+              {content.lines.length === 0 ? (
                 <p className="text-sm text-neutral-500">{copy.noAdditions}</p>
               ) : (
-                additions.map((addition, index) => {
-                  if (order.source === 'egg') {
-                    const breedName = String(
-                      (addition.egg_breeds as Record<string, unknown> | null | undefined)?.name || copy.notProvided
-                    );
-                    return (
-                      <div key={`${String(addition.id || index)}-${index}`} className="rounded border p-2">
-                        {breedName} • {toNumber(addition.quantity).toLocaleString(locale)} {copy.fieldLabels.quantity}
+                content.lines.map((line) => (
+                  <div key={line.key} className="rounded border p-2">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="font-medium text-neutral-900">{line.label}</p>
+                        <p className="text-xs text-neutral-500">{line.quantity}</p>
                       </div>
-                    );
-                  }
-
-                  const breedName = String(
-                    (addition.chicken_breeds as Record<string, unknown> | null | undefined)?.name || copy.notProvided
-                  );
-                  const hens = toNumber(addition.quantity_hens);
-                  const roosters = toNumber(addition.quantity_roosters);
-                  return (
-                    <div key={`${String(addition.id || index)}-${index}`} className="rounded border p-2">
-                      {breedName} • {hens.toLocaleString(locale)} {copy.fieldLabels.hens}
-                      {roosters > 0 ? ` + ${roosters.toLocaleString(locale)} ${copy.fieldLabels.roosters}` : ''}
+                      {line.amount ? <p className="font-semibold text-neutral-900">{line.amount}</p> : null}
                     </div>
-                  );
-                })
+                  </div>
+                ))
               )}
             </div>
           </div>
@@ -2073,9 +2150,10 @@ export function CustomerDatabase({
               const key = orderKey(contentModalOrder);
               const isLoadingContent = contentModalLoadingKey === key && !orderDetails[key];
               const content = getOrderContentModalData(contentModalOrder);
-              const total = toNumber(contentModalOrder.total_amount);
-              const paid = toNumber(contentModalOrder.paid_amount);
-              const remaining = Math.max(0, total - paid);
+              const balanceMeta = getOrderBalanceMeta(contentModalOrder, content.paymentRows || []);
+              const total = balanceMeta.total;
+              const paid = balanceMeta.paid;
+              const remaining = balanceMeta.remaining;
 
               if (isLoadingContent) {
                 return (
@@ -2109,13 +2187,22 @@ export function CustomerDatabase({
                     </div>
                     <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-3">
                       <p className="text-xs uppercase tracking-wide text-neutral-500">
-                        {(copy as any).orderCardRemainingLabel || (lang === 'en' ? 'Remaining' : 'Rest')}
+                        {content.currentBalanceLabel || (copy as any).orderCardRemainingLabel || (lang === 'en' ? 'Remaining' : 'Rest')}
                       </p>
                       <p className="mt-1 text-sm font-semibold text-neutral-900">
                         {currency} {remaining.toLocaleString(locale)}
                       </p>
                     </div>
                   </div>
+
+                  {content.balanceNote ? (
+                    <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                      <p className="font-medium">
+                        {(content.currentBalanceLabel || balanceMeta.currentBalanceLabel)}: {currency} {remaining.toLocaleString(locale)}
+                      </p>
+                      <p className="mt-1 text-xs">{content.balanceNote}</p>
+                    </div>
+                  ) : null}
 
                   <div className="rounded-lg border border-neutral-200">
                     <div className="flex items-center justify-between border-b border-neutral-200 bg-neutral-50 px-3 py-2">
@@ -2138,6 +2225,34 @@ export function CustomerDatabase({
                           )}
                         </div>
                       ))}
+                    </div>
+                  </div>
+
+                  <div className="rounded-lg border border-neutral-200">
+                    <div className="flex items-center justify-between border-b border-neutral-200 bg-neutral-50 px-3 py-2">
+                      <p className="text-sm font-medium text-neutral-900">{copy.paymentsInfoTitle}</p>
+                    </div>
+                    <div className="divide-y divide-neutral-200">
+                      {content.paymentRows && content.paymentRows.length > 0 ? (
+                        content.paymentRows.map((payment: any) => (
+                          <div key={payment.key} className="flex items-center justify-between gap-3 px-3 py-2">
+                            <div>
+                              <p className="text-sm font-medium text-neutral-900">{payment.label}</p>
+                              <p className="text-xs text-neutral-600">{payment.statusLabel}</p>
+                              {payment.date ? (
+                                <p className="text-xs text-neutral-500">
+                                  {payment.dateLabel}: {new Date(payment.date).toLocaleString(locale)}
+                                </p>
+                              ) : null}
+                            </div>
+                            <p className="text-sm font-semibold text-neutral-900">
+                              {currency} {Number(payment.amountNok || 0).toLocaleString(locale)}
+                            </p>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="px-3 py-2 text-sm text-neutral-500">{copy.noPayments}</div>
+                      )}
                     </div>
                   </div>
                 </div>

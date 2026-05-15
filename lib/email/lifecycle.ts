@@ -159,7 +159,19 @@ const LIFECYCLE_TEMPLATE_SEEDS: LifecycleTemplateSeed[] = [
       '<p>Hei {{customer_first_name}},</p><p>Restbetalingen for rugeeggordren <strong>{{order_number}}</strong> gjenstår.</p><p><strong>Beløp:</strong> {{remainder_amount_nok}}<br/><strong>Forfall:</strong> {{due_date}}</p><p><a href="{{order_url}}">Åpne bestillingen på Min side</a></p>',
     bodyEn:
       '<p>Hi {{customer_first_name}},</p><p>The remainder for hatching egg order <strong>{{order_number}}</strong> is still outstanding.</p><p>Amount: <strong>{{remainder_amount_nok}}</strong><br/>Due date: <strong>{{due_date}}</strong></p><p><a href="{{order_url}}">Open your order on My Page</a></p>',
-    variables: ['customer_name', 'customer_first_name', 'order_number', 'remainder_amount_nok', 'due_date', 'days_left', 'order_url'],
+    variables: ['customer_name', 'customer_first_name', 'order_number', 'remainder_amount_nok', 'due_date', 'order_url'],
+  },
+  {
+    templateKey: 'egg.remainder.reminder.pickup',
+    classification: 'transactional',
+    productScope: 'eggs',
+    subjectNo: 'Påminnelse om restbetaling – {{order_number}}',
+    subjectEn: 'Remainder payment reminder – {{order_number}}',
+    bodyNo:
+      '<p>Hei {{customer_first_name}},</p><p>Restbetalingen for rugeeggordren <strong>{{order_number}}</strong> gjenstår. Eggene er allerede hentet fra gården.</p><p><strong>Beløp:</strong> {{remainder_amount_nok}}</p><p><a href="{{order_url}}">Åpne bestillingen på Min side</a></p>',
+    bodyEn:
+      '<p>Hi {{customer_first_name}},</p><p>The remainder for hatching egg order <strong>{{order_number}}</strong> is still outstanding. The eggs have already been collected from the farm.</p><p>Amount: <strong>{{remainder_amount_nok}}</strong></p><p><a href="{{order_url}}">Open your order on My Page</a></p>',
+    variables: ['customer_name', 'customer_first_name', 'order_number', 'remainder_amount_nok', 'due_date', 'days_left', 'order_url', 'payment_url', 'reminder_number', 'total_reminders', 'tip_html', 'reminder_badge_label', 'reminder_intro_html', 'reminder_support_html', 'reminder_consequence_html'],
   },
   {
     templateKey: 'egg.order.add_more.day_before',
@@ -277,7 +289,7 @@ const LIFECYCLE_TEMPLATE_SEEDS: LifecycleTemplateSeed[] = [
       '<p>Hei {{customer_first_name}},</p><p>Vi har registrert hentedag for bestilling <strong>{{order_number}}</strong>.</p><p><strong>Dag:</strong> {{pickup_date}}<br/><strong>Tidspunkt:</strong> kl. {{pickup_time}}</p><p>Vi gleder oss til å se deg! Vil du endre dagen, kan du gjøre det på Min side.</p><p><a href="{{order_url}}">Se bestillingen på Min side</a></p>',
     bodyEn:
       '<p>Hi {{customer_first_name}},</p><p>We have registered your pickup day for order <strong>{{order_number}}</strong>.</p><p><strong>Day:</strong> {{pickup_date}}<br/><strong>Time:</strong> {{pickup_time}}</p><p>Looking forward to seeing you! You can change your pickup day on My Page if needed.</p><p><a href="{{order_url}}">View your order on My Page</a></p>',
-    variables: ['customer_name', 'customer_first_name', 'order_number', 'pickup_date', 'pickup_time', 'order_url'],
+    variables: ['customer_first_name', 'order_number', 'pickup_date', 'pickup_time', 'order_url'],
   },
   {
     templateKey: 'chicken.ready_for_pickup',
@@ -325,7 +337,7 @@ const LIFECYCLE_TEMPLATE_SEEDS: LifecycleTemplateSeed[] = [
       '<p>Hei {{customer_first_name}},</p><p>Takk for at du hentet kyllingene dine hos oss.</p><p>Vi håper de har fått en god start hjemme hos deg. Hvis du lurer på noe underveis, er det bare å sende oss en melding på Min side.</p><p><a href="{{message_url}}">Send melding på Min side</a></p><hr/><p><strong>Har du lyst til å prøve ullgris til jul?</strong> Som kyllingkunde får du <strong>10% rabatt på forskuddet</strong> på en Mangalitsa-kasse fra Tinglum Gård.</p><p><a href="{{pork_url}}">Se ullgris-kasser</a></p><p><strong>Vennerabatt:</strong> Del vennerabattkoden din videre. Vennene dine får <strong>20% rabatt på forskuddet</strong>, og du kan tjene kreditt tilsvarende opptil <strong>50% av forskuddet</strong> på kassen din.</p>',
     bodyEn:
       '<p>Hi {{customer_first_name}},</p><p>Thank you for picking up your chickens from us.</p><p>We hope they have settled in well. If you have any questions, just send us a message on My Page.</p><p><a href="{{message_url}}">Send a message on My Page</a></p><hr/><p><strong>Would you like to try Mangalitsa pork for Christmas?</strong> As a chicken customer, you get <strong>10% off the deposit</strong> on a Mangalitsa box from Tinglum Gård.</p><p><a href="{{pork_url}}">See Mangalitsa boxes</a></p><p><strong>Referral bonus:</strong> Share your referral code. Your friends get <strong>20% off the deposit</strong>, and you can earn credit worth up to <strong>50% of the deposit</strong> on your own box.</p>',
-    variables: ['customer_name', 'customer_first_name', 'order_number', 'message_url', 'pork_url', 'order_url'],
+    variables: ['customer_first_name', 'order_number', 'message_url', 'pork_url'],
   },
   {
     templateKey: 'chicken.choose_pickup_day',
@@ -362,6 +374,42 @@ const LIFECYCLE_TEMPLATE_SEEDS: LifecycleTemplateSeed[] = [
     bodyEn:
       '<p>Hi {{customer_first_name}},</p><p>Tomorrow is the start of the pickup week for order <strong>{{order_number}}</strong>, but you haven\'t specified a pickup day or time.</p><p><strong>If you do not choose a pickup day by Sunday this week, your order will be cancelled, your deposit forfeited, and the chickens released for other clients.</strong></p><p><a href="{{order_url}}" style="display:inline-block;background:#dc2626;color:#ffffff;text-decoration:none;padding:10px 16px;border-radius:8px;">Choose pickup day &amp; time now</a></p>',
     variables: ['customer_name', 'customer_first_name', 'order_number', 'order_url'],
+  },
+  {
+    templateKey: 'pig.pickup.choose_day',
+    classification: 'transactional',
+    productScope: 'pig',
+    subjectNo: 'Velg hentedag – {{order_number}}',
+    subjectEn: 'Choose your pickup day – {{order_number}}',
+    bodyNo:
+      '<p>Hei {{customer_first_name}},</p><p>Grisbestilling <strong>{{order_number}}</strong> er klar til henting.</p><p>Logg inn p&aring; Min side for &aring; velge hentedag og tidspunkt, s&aring; er vi klare for deg.</p><p><a href="{{order_url}}" style="display:inline-block;background:#111827;color:#ffffff;text-decoration:none;padding:10px 16px;border-radius:8px;">Velg hentedag</a></p>',
+    bodyEn:
+      '<p>Hi {{customer_first_name}},</p><p>Your pork order <strong>{{order_number}}</strong> is ready for pickup.</p><p>Log in to My Page to choose your pickup day and time.</p><p><a href="{{order_url}}" style="display:inline-block;background:#111827;color:#ffffff;text-decoration:none;padding:10px 16px;border-radius:8px;">Choose pickup day</a></p>',
+    variables: ['customer_name', 'customer_first_name', 'order_number', 'order_url'],
+  },
+  {
+    templateKey: 'deferred.deposit.request',
+    classification: 'transactional',
+    productScope: 'shared',
+    subjectNo: 'Betal depositum for din bestilling {{order_number}} – Tinglum G&aring;rd',
+    subjectEn: 'Pay deposit for your order {{order_number}} – Tinglum G&aring;rd',
+    bodyNo:
+      '<p>Hei {{customer_first_name}},</p><p>Da du la inn bestilling <strong>{{order_number}}</strong> hos Tinglum G&aring;rd, var betalingstjenesten midlertidig nede. Bestillingen din er registrert og reservert.</p><p>N&aring; er betalingen oppe igjen, og du kan betale depositum ved &aring; klikke knappen under.</p><p><a href="{{payment_url}}" style="display:inline-block;background:#171717;color:#ffffff;text-decoration:none;padding:14px 28px;border-radius:8px;font-weight:500;">Betal depositum n&aring;</a></p><p style="color:#666;font-size:14px;">Hvis du har sp&oslash;rsm&aring;l, svar p&aring; denne e-posten.</p>',
+    bodyEn:
+      '<p>Hi {{customer_first_name}},</p><p>When you placed order <strong>{{order_number}}</strong> with Tinglum G&aring;rd, the payment service was temporarily unavailable. Your order has been registered and reserved.</p><p>Payment is now available again. Click the button below to pay your deposit.</p><p><a href="{{payment_url}}" style="display:inline-block;background:#171717;color:#ffffff;text-decoration:none;padding:14px 28px;border-radius:8px;font-weight:500;">Pay deposit now</a></p><p style="color:#666;font-size:14px;">If you have any questions, reply to this email.</p>',
+    variables: ['customer_name', 'customer_first_name', 'order_number', 'payment_url'],
+  },
+  {
+    templateKey: 'egg.wishlist.remainder.customer',
+    classification: 'transactional',
+    productScope: 'eggs',
+    subjectNo: '&Oslash;nskelisten din er oppfylt – restbel&oslash;p kr {{remainder_amount_nok}} ({{order_number}})',
+    subjectEn: 'Your wishlist has been fulfilled – remaining balance kr {{remainder_amount_nok}} ({{order_number}})',
+    bodyNo:
+      '<p>Hei {{customer_first_name}},</p><p>Vi har n&aring; oppfylt &oslash;nskelisten din for bestilling <strong>{{order_number}}</strong>. Eggene er lagt til i bestillingen din med <strong>30% rabatt</strong>.</p>{{items_html}}<p><strong>Restbel&oslash;p:</strong> kr {{remainder_amount_nok}}</p><p>Betal restbel&oslash;pet p&aring; Min side f&oslash;r leveransen.</p><p><a href="{{order_url}}" style="display:inline-block;background:#2C1810;color:#ffffff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;">Betal restbel&oslash;p</a></p>',
+    bodyEn:
+      '<p>Hi {{customer_first_name}},</p><p>We have now fulfilled your wishlist for order <strong>{{order_number}}</strong>. The eggs have been added to your order at <strong>30% discount</strong>.</p>{{items_html}}<p><strong>Remaining balance:</strong> kr {{remainder_amount_nok}}</p><p>Pay the remaining balance on My Page before your delivery.</p><p><a href="{{order_url}}" style="display:inline-block;background:#2C1810;color:#ffffff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;">Pay remaining balance</a></p>',
+    variables: ['customer_name', 'customer_first_name', 'order_number', 'remainder_amount_nok', 'items_html', 'order_url'],
   },
 ];
 
@@ -597,7 +645,9 @@ const LIFECYCLE_FLOW_MATRIX: FlowMatrixRow[] = [
 ];
 
 function asRecord(value: unknown): Record<string, unknown> {
-  return value && typeof value === 'object' ? (value as Record<string, unknown>) : {};
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
 }
 
 function parseJsonString(value: unknown, fallback: string): string {
@@ -705,6 +755,8 @@ function getTimeZoneOffsetMillis(date: Date, timeZone: string): number {
 
 function zonedDateTimeToUtc(ymd: Ymd, hour: number, minute: number, timeZone: string): Date {
   let utcGuess = new Date(Date.UTC(ymd.year, ymd.month - 1, ymd.day, hour, minute, 0));
+  // Two iterations: the first pass computes an approximate UTC offset; the second corrects
+  // for DST boundaries where the initial guess falls on the wrong side of a clock change.
   for (let i = 0; i < 2; i += 1) {
     const offset = getTimeZoneOffsetMillis(utcGuess, timeZone);
     utcGuess = new Date(Date.UTC(ymd.year, ymd.month - 1, ymd.day, hour, minute, 0) - offset);

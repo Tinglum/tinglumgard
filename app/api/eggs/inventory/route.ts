@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getDayBeforeOfferAvailabilityForInventoryRows } from '@/lib/eggs/day-before-offer-availability'
 import { supabaseServer } from '@/lib/supabase/server'
+import { logError } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
 
@@ -32,7 +33,7 @@ export async function GET(request: Request) {
     const { data, error } = await query
 
     if (error) {
-      console.error('Error fetching inventory:', error)
+      logError('eggs-inventory-get', error)
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
@@ -80,7 +81,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json(filtered)
   } catch (error: any) {
-    console.error('Unexpected error:', error)
+    logError('eggs-inventory-get', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

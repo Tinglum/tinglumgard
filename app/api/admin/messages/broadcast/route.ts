@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth/session';
 import { supabaseAdmin } from '@/lib/supabase/server';
 import { getEffectiveBoxSize } from '@/lib/orders/display';
+import { logError } from '@/lib/logger';
+import { VIPPS_PENDING_EMAIL } from '@/lib/constants';
 
 type BroadcastFilters = {
   awaitingFinalPayment?: boolean;
@@ -101,7 +103,7 @@ async function getRecipientsFromOrders(filters: BroadcastFilters, excludePhones:
   for (const order of orders || []) {
     if (order.customer_phone && excluded.has(order.customer_phone)) continue;
     const email = normalizeEmail(String(order.customer_email || ''));
-    if (!email || email === 'pending@vipps.no') continue;
+    if (!email || email === VIPPS_PENDING_EMAIL) continue;
     if (boxSize && getEffectiveBoxSize(order as any) !== boxSize) continue;
 
     const extras = Array.isArray(order.extra_products) ? order.extra_products : [];
@@ -196,7 +198,7 @@ export async function POST(request: NextRequest) {
       queuedByCron: true,
     });
   } catch (error) {
-    console.error('admin messages broadcast compatibility route failed', error);
+    logError('admin-messages-broadcast', error);
     return NextResponse.json({ error: 'Server error' }, { status: 500 });
   }
 }

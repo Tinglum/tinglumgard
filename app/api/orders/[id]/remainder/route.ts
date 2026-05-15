@@ -2,6 +2,8 @@
 import { getSession } from '@/lib/auth/session';
 import { supabaseAdmin } from '@/lib/supabase/server';
 import { vippsClient } from '@/lib/vipps/api-client';
+import { logError } from '@/lib/logger';
+import { APP_BASE_URL } from '@/lib/constants/app';
 
 export async function POST(
   request: NextRequest,
@@ -101,7 +103,7 @@ export async function POST(
 
     // Create shorter reference (max 50 chars) using order number
     const shortReference = `REM-${order.order_number}`;
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_BASE_URL || 'https://tinglumgard.no';
+    const appUrl = APP_BASE_URL;
 
     // Generate callback authorization token
     const { randomBytes } = await import('crypto');
@@ -170,7 +172,7 @@ export async function POST(
           .single();
 
         if (updateError) {
-          console.error('Failed to update payment record:', updateError);
+          logError('orders-remainder-update-payment', updateError);
           return NextResponse.json(
             { error: 'Failed to update payment record' },
             { status: 500 }
@@ -178,7 +180,7 @@ export async function POST(
         }
         payment = updatedPayment;
       } else {
-        console.error('Failed to create payment record:', paymentError);
+        logError('orders-remainder-create-payment', paymentError);
         return NextResponse.json(
           { error: 'Failed to create payment record' },
           { status: 500 }
@@ -202,7 +204,7 @@ export async function POST(
       amount: remainderAmount,
     });
   } catch (error) {
-    console.error('Error creating remainder payment:', error);
+    logError('orders-remainder-create', error);
     return NextResponse.json(
       { error: 'Failed to create payment' },
       { status: 500 }

@@ -2,11 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getEggAdditionOfferState } from '@/lib/eggs/addition-offer'
 import { getDayBeforeOfferAvailabilityForWeek } from '@/lib/eggs/day-before-offer-availability'
 import { supabaseAdmin } from '@/lib/supabase/server'
-import { sendEmail } from '@/lib/email/client'
+import { dispatchEmail } from '@/lib/email/dispatch'
+import { renderManagedTemplate } from '@/lib/email/render'
 import { logError } from '@/lib/logger'
+import { VIPPS_PENDING_EMAIL, PENDING_ORDER_EXPIRY_HOURS, APP_BASE_URL } from '@/lib/constants/app'
 
 const REMINDER_DAYS = [11, 9, 7, 6]
-const PENDING_EXPIRY_HOURS = 6
 
 function toDateOnly(value: string | Date) {
   const date = new Date(value)
@@ -170,13 +171,18 @@ async function releaseInventory(inventoryId: string, quantity: number) {
 export async function GET(request: NextRequest) {
   try {
     const secret = process.env.CRON_SECRET
-    const token = request.headers.get('x-cron-secret') || request.nextUrl.searchParams.get('token')
-    if (secret && token !== secret) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const token = request.headers.get('x-cron-secret')
+    if (secret) {
+      if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      const { timingSafeEqual } = await import('crypto')
+      const secretBuf = Buffer.from(secret)
+      const tokenBuf = Buffer.from(token)
+      const valid = secretBuf.length === tokenBuf.length && timingSafeEqual(secretBuf, tokenBuf)
+      if (!valid) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     const today = toDateOnly(new Date())
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://tinglum.no'
+    const appUrl = APP_BASE_URL
 
     const { data: pendingOrders, error: pendingError } = await supabaseAdmin
       .from('egg_orders')
@@ -187,7 +193,7 @@ export async function GET(request: NextRequest) {
       logError('egg-pending-fetch', pendingError)
     } else {
       const cutoff = new Date()
-      cutoff.setHours(cutoff.getHours() - PENDING_EXPIRY_HOURS)
+      cutoff.setHours(cutoff.getHours() - PENDING_ORDER_EXPIRY_HOURS)
 
       for (const order of pendingOrders || []) {
         if (!order.created_at) continue
@@ -232,7 +238,7 @@ export async function GET(request: NextRequest) {
       )
 
       if (!depositPaid || remainderPaid) continue
-      if (!order.customer_email || order.customer_email === 'pending@vipps.no') continue
+      if (!order.customer_email || order.customer_email === VIPPS_PENDING_EMAIL) continue
 
       const deliveryDate = toDateOnly(order.delivery_monday)
       const daysUntil = daysBetween(deliveryDate, today)
@@ -258,15 +264,34 @@ export async function GET(request: NextRequest) {
           })
           .eq('id', order.id)
 
-        await sendEmail({
+        const renderedForfeit = await renderManagedTemplate({
+          templateKey: 'egg.order.forfeited',
+          locale: 'no',
+          variables: {
+            customer_name: order.customer_name,
+            order_number: order.order_number,
+            breed_name: resolveBreedName(order.egg_breeds),
+            week_number: order.week_number,
+          },
+        })
+        const forfeitHtml = renderedForfeit?.html ?? buildForfeitHtml({
+          customerName: order.customer_name,
+          orderNumber: order.order_number,
+          breedName: resolveBreedName(order.egg_breeds),
+          weekNumber: order.week_number,
+        })
+        const forfeitSubject = renderedForfeit?.subject ?? `Bestilling kansellert - ${order.order_number}`
+
+        await dispatchEmail({
           to: order.customer_email,
-          subject: `Bestilling kansellert - ${order.order_number}`,
-          html: buildForfeitHtml({
-            customerName: order.customer_name,
-            orderNumber: order.order_number,
-            breedName: resolveBreedName(order.egg_breeds),
-            weekNumber: order.week_number,
-          }),
+          subject: forfeitSubject,
+          html: forfeitHtml,
+          eggOrderId: order.id,
+          classification: 'transactional',
+          sourcePath: 'cron.egg-remainders',
+          templateKey: 'egg.order.forfeited',
+          flowKey: 'egg.remainder.forfeit',
+          sendImmediately: true,
         })
 
         forfeits += 1
@@ -290,18 +315,39 @@ export async function GET(request: NextRequest) {
         ? remainderDueDate.toLocaleDateString('nb-NO')
         : deliveryDate.toLocaleDateString('nb-NO')
 
-      await sendEmail({
+      const renderedReminder = await renderManagedTemplate({
+        templateKey: 'egg.remainder.reminder',
+        locale: 'no',
+        variables: {
+          customer_name: order.customer_name,
+          order_number: order.order_number,
+          breed_name: resolveBreedName(order.egg_breeds),
+          week_number: order.week_number,
+          remainder_amount_nok: `kr ${Math.round(order.remainder_amount / 100).toLocaleString('nb-NO')}`,
+          due_date: dueDateLabel,
+        },
+      })
+      const reminderHtml = renderedReminder?.html ?? buildReminderHtml({
+        customerName: order.customer_name,
+        orderNumber: order.order_number,
+        breedName: resolveBreedName(order.egg_breeds),
+        weekNumber: order.week_number,
+        remainderNok: Math.round(order.remainder_amount / 100).toLocaleString('nb-NO'),
+        dueDate: dueDateLabel,
+        appUrl,
+      })
+      const reminderSubject = renderedReminder?.subject ?? `Påminnelse om restbetaling - ${order.order_number}`
+
+      await dispatchEmail({
         to: order.customer_email,
-        subject: `Påminnelse om restbetaling - ${order.order_number}`,
-        html: buildReminderHtml({
-          customerName: order.customer_name,
-          orderNumber: order.order_number,
-          breedName: resolveBreedName(order.egg_breeds),
-          weekNumber: order.week_number,
-          remainderNok: Math.round(order.remainder_amount / 100).toLocaleString('nb-NO'),
-          dueDate: dueDateLabel,
-          appUrl,
-        }),
+        subject: reminderSubject,
+        html: reminderHtml,
+        eggOrderId: order.id,
+        classification: 'transactional',
+        sourcePath: 'cron.egg-remainders',
+        templateKey: 'egg.remainder.reminder',
+        flowKey: 'egg.remainder.reminder',
+        sendImmediately: true,
       })
 
       await supabaseAdmin
@@ -321,7 +367,7 @@ export async function GET(request: NextRequest) {
       logError('egg-day-before-fetch', paidError)
     } else {
       for (const order of paidOrders || []) {
-        if (!order.customer_email || order.customer_email === 'pending@vipps.no') continue
+        if (!order.customer_email || order.customer_email === VIPPS_PENDING_EMAIL) continue
         if (order.reminder_day_before_sent) continue
 
         const deliveryDate = toDateOnly(order.delivery_monday)
@@ -342,17 +388,38 @@ export async function GET(request: NextRequest) {
 
         if (availability.totalAvailable <= 0) continue
 
-        await sendEmail({
+        const renderedDayBefore = await renderManagedTemplate({
+          templateKey: 'egg.order.add_more.day_before',
+          locale: 'no',
+          variables: {
+            customer_name: order.customer_name,
+            order_id: order.id,
+            order_number: order.order_number,
+            breed_name: resolveBreedName(order.egg_breeds),
+            week_number: order.week_number,
+            app_url: appUrl,
+          },
+        })
+        const dayBeforeHtml = renderedDayBefore?.html ?? buildDayBeforeHtml({
+          customerName: order.customer_name,
+          orderId: order.id,
+          orderNumber: order.order_number,
+          breedName: resolveBreedName(order.egg_breeds),
+          weekNumber: order.week_number,
+          appUrl,
+        })
+        const dayBeforeSubject = renderedDayBefore?.subject ?? `Levering i morgen - ${order.order_number}`
+
+        await dispatchEmail({
           to: order.customer_email,
-          subject: `Levering i morgen - ${order.order_number}`,
-          html: buildDayBeforeHtml({
-            customerName: order.customer_name,
-            orderId: order.id,
-            orderNumber: order.order_number,
-            breedName: resolveBreedName(order.egg_breeds),
-            weekNumber: order.week_number,
-            appUrl,
-          }),
+          subject: dayBeforeSubject,
+          html: dayBeforeHtml,
+          eggOrderId: order.id,
+          classification: 'transactional',
+          sourcePath: 'cron.egg-remainders',
+          templateKey: 'egg.order.add_more.day_before',
+          flowKey: 'egg.order.day_before',
+          sendImmediately: true,
         })
 
         await supabaseAdmin
@@ -364,11 +431,177 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // === CHICKEN REMAINDER REMINDERS ===
+    const CHICKEN_REMINDER_DAYS = [7, 5, 3, 1]
+
+    const { data: chickenOrders } = await supabaseAdmin
+      .from('chicken_orders')
+      .select('id, order_number, customer_name, customer_email, status, pickup_monday, remainder_due_date, remainder_amount_nok, reminder_7_sent, reminder_5_sent, reminder_3_sent, reminder_1_sent, chicken_breeds(name)')
+      .eq('status', 'deposit_paid')
+      .eq('remainder_payment_enabled', true)
+
+    let chickenRemindersSent = 0
+
+    for (const order of chickenOrders || []) {
+      if (!order.customer_email || order.customer_email === VIPPS_PENDING_EMAIL) continue
+
+      const dueDate = order.remainder_due_date ? toDateOnly(order.remainder_due_date) : null
+      if (!dueDate) continue
+
+      const daysUntil = daysBetween(dueDate, today)
+      if (!CHICKEN_REMINDER_DAYS.includes(daysUntil)) continue
+
+      const reminderField = daysUntil === 7 ? 'reminder_7_sent'
+        : daysUntil === 5 ? 'reminder_5_sent'
+        : daysUntil === 3 ? 'reminder_3_sent'
+        : 'reminder_1_sent'
+
+      if (order[reminderField]) continue
+
+      const breedName = resolveBreedName(order.chicken_breeds)
+      const renderedReminder = await renderManagedTemplate({
+        templateKey: 'chicken.remainder.reminder',
+        locale: 'no',
+        variables: {
+          customer_name: order.customer_name,
+          order_number: order.order_number,
+          breed_name: breedName,
+          remainder_amount_nok: `kr ${Math.round(order.remainder_amount_nok || 0).toLocaleString('nb-NO')}`,
+          due_date: dueDate.toLocaleDateString('nb-NO'),
+        },
+      })
+
+      await dispatchEmail({
+        to: order.customer_email,
+        subject: renderedReminder?.subject ?? `Påminnelse om restbetaling - ${order.order_number}`,
+        html: renderedReminder?.html ?? buildReminderHtml({
+          customerName: order.customer_name,
+          orderNumber: order.order_number,
+          breedName,
+          weekNumber: 0,
+          remainderNok: Math.round(order.remainder_amount_nok || 0).toLocaleString('nb-NO'),
+          dueDate: dueDate.toLocaleDateString('nb-NO'),
+          appUrl,
+        }),
+        chickenOrderId: order.id,
+        classification: 'transactional',
+        sourcePath: 'cron.egg-remainders',
+        templateKey: 'chicken.remainder.reminder',
+        sendImmediately: true,
+      })
+
+      await supabaseAdmin.from('chicken_orders').update({ [reminderField]: true }).eq('id', order.id)
+      chickenRemindersSent += 1
+    }
+
+    // === PORK REMAINDER REMINDERS ===
+    const PORK_REMINDER_DAYS = [7, 5, 3, 1]
+
+    const { data: porkOrders } = await supabaseAdmin
+      .from('orders')
+      .select('id, order_number, customer_name, customer_email, status, remainder_due_date')
+      .in('status', ['deposit_paid'])
+      .eq('remainder_payment_enabled', true)
+      .not('remainder_due_date', 'is', null)
+
+    let porkRemindersSent = 0
+
+    for (const order of porkOrders || []) {
+      if (!order.customer_email || order.customer_email === VIPPS_PENDING_EMAIL) continue
+
+      const dueDate = order.remainder_due_date ? toDateOnly(order.remainder_due_date) : null
+      if (!dueDate) continue
+
+      const daysUntil = daysBetween(dueDate, today)
+      if (!PORK_REMINDER_DAYS.includes(daysUntil)) continue
+
+      const renderedReminder = await renderManagedTemplate({
+        templateKey: 'pig.order.remainder.reminder',
+        locale: 'no',
+        variables: {
+          customer_name: order.customer_name,
+          order_number: order.order_number,
+          due_date: dueDate.toLocaleDateString('nb-NO'),
+        },
+      })
+
+      await dispatchEmail({
+        to: order.customer_email,
+        subject: renderedReminder?.subject ?? `Påminnelse om restbetaling - ${order.order_number}`,
+        html: renderedReminder?.html ?? `<p>Hei ${order.customer_name}, husk restbetaling for bestilling ${order.order_number} innen ${dueDate.toLocaleDateString('nb-NO')}.</p>`,
+        orderId: order.id,
+        classification: 'transactional',
+        sourcePath: 'cron.egg-remainders',
+        templateKey: 'pig.order.remainder.reminder',
+        sendImmediately: true,
+      })
+
+      porkRemindersSent += 1
+    }
+
+    // === CHICKEN DAY-BEFORE ADDITION OFFER ===
+    const { data: chickenReadyOrders } = await supabaseAdmin
+      .from('chicken_orders')
+      .select('id, order_number, customer_name, customer_email, status, pickup_monday, pickup_week, reminder_day_before_sent, chicken_breeds(name)')
+      .in('status', ['fully_paid', 'ready_for_pickup'])
+
+    let chickenDayBeforeSent = 0
+
+    for (const order of chickenReadyOrders || []) {
+      if (!order.customer_email || order.customer_email === VIPPS_PENDING_EMAIL) continue
+      if (order.reminder_day_before_sent) continue
+
+      const pickupDate = toDateOnly(order.pickup_monday)
+      const daysUntil = daysBetween(pickupDate, today)
+      if (daysUntil !== 1) continue
+
+      // Check if any hatch has available birds
+      const { data: hatches } = await supabaseAdmin
+        .from('chicken_hatches')
+        .select('id, available_hens, available_roosters, chicken_breeds(name)')
+        .gt('available_hens', 0)
+
+      if (!hatches || hatches.length === 0) continue
+
+      const rendered = await renderManagedTemplate({
+        templateKey: 'chicken.order.add_more.day_before',
+        locale: 'no',
+        variables: {
+          customer_name: order.customer_name,
+          order_number: order.order_number,
+          breed_name: resolveBreedName(order.chicken_breeds),
+          pickup_week: order.pickup_week ? String(order.pickup_week) : '',
+          order_url: `${APP_BASE_URL}/kyllinger/mine-bestillinger/${order.id}`,
+        },
+      })
+
+      await dispatchEmail({
+        to: order.customer_email,
+        subject: rendered?.subject ?? `Ekstra kyllinger i morgen? - ${order.order_number}`,
+        html: rendered?.html ?? `<p>Hei ${order.customer_name}! Vi har ekstra kyllinger tilgjengelig i morgen. <a href="${APP_BASE_URL}/kyllinger/mine-bestillinger/${order.id}">Legg til her</a>.</p>`,
+        chickenOrderId: order.id,
+        classification: 'transactional',
+        sourcePath: 'cron.egg-remainders',
+        templateKey: 'chicken.order.add_more.day_before',
+        sendImmediately: true,
+      })
+
+      await supabaseAdmin
+        .from('chicken_orders')
+        .update({ reminder_day_before_sent: true })
+        .eq('id', order.id)
+
+      chickenDayBeforeSent += 1
+    }
+
     return NextResponse.json({
       success: true,
       remindersSent,
       forfeits,
       dayBeforeSent,
+      chickenRemindersSent,
+      porkRemindersSent,
+      chickenDayBeforeSent,
     })
   } catch (error) {
     logError('egg-reminders-main', error)

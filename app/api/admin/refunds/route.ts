@@ -6,6 +6,7 @@ import { renderManagedTemplate } from '@/lib/email/render';
 import { buildCustomerOrderLink } from '@/lib/email/links';
 import { initiateVippsRefund } from '@/lib/vipps/refund';
 import { logError } from '@/lib/logger';
+import { VIPPS_PENDING_EMAIL, APP_BASE_URL } from '@/lib/constants/app';
 
 export async function POST(request: NextRequest) {
   const session = await getSession();
@@ -84,9 +85,9 @@ async function cancelOrder(orderId: string, reason: string, restoreInventory: bo
     created_at: new Date().toISOString(),
   });
 
-  if (order.customer_email && order.customer_email !== 'pending@vipps.no') {
+  if (order.customer_email && order.customer_email !== VIPPS_PENDING_EMAIL) {
     try {
-      const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_BASE_URL || 'https://tinglumgard.no';
+      const appUrl = APP_BASE_URL;
       const rendered = await renderManagedTemplate({
         templateKey: 'pig.order.cancelled',
         locale: 'no',
@@ -242,9 +243,9 @@ async function issueRefund(
     created_at: new Date().toISOString(),
   });
 
-  if (order.customer_email && order.customer_email !== 'pending@vipps.no') {
+  if (order.customer_email && order.customer_email !== VIPPS_PENDING_EMAIL) {
     try {
-      const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_BASE_URL || 'https://tinglumgard.no';
+      const appUrl = APP_BASE_URL;
       const refundTypeLabel =
         type === 'full'
           ? 'Full refundering'

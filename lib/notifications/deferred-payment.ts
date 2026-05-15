@@ -1,5 +1,6 @@
 import { supabaseAdmin } from '@/lib/supabase/server';
-import { sendViaMailgun } from '@/lib/email/provider-mailgun';
+import { APP_BASE_URL } from '@/lib/constants/app';
+import { dispatchEmail } from '@/lib/email/dispatch';
 
 interface DeferredPaymentParams {
   orderId: string;
@@ -19,7 +20,7 @@ const productLabels: Record<string, string> = {
 export async function notifyDeferredPayment(params: DeferredPaymentParams): Promise<void> {
   const { orderId, orderNumber, productType, customerName, customerEmail, depositStatus } = params;
 
-  console.log('Deferred payment notification:', { orderId, orderNumber, productType, customerName });
+  // Logged for admin visibility — no logError since this is a normal operational event.
 
   // Store in app_notifications table for admin dashboard
   await supabaseAdmin.from('app_notifications').insert({
@@ -41,9 +42,9 @@ export async function notifyDeferredPayment(params: DeferredPaymentParams): Prom
   const adminEmail = process.env.ADMIN_NOTIFICATION_EMAIL || process.env.EMAIL_FROM || '';
   if (!adminEmail || adminEmail === 'noreply@yourdomain.com') return;
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://tinglumgard.no';
+  const appUrl = APP_BASE_URL;
 
-  await sendViaMailgun({
+  await dispatchEmail({
     to: adminEmail,
     subject: `⚠️ Utsatt betaling – ${orderNumber} (${productLabels[productType] || productType})`,
     html: `
@@ -60,5 +61,12 @@ export async function notifyDeferredPayment(params: DeferredPaymentParams): Prom
         <p><a href="${appUrl}/admin" style="display: inline-block; background: #171717; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none;">Gå til admin</a></p>
       </div>
     `,
+    ...(productType === 'eggs' ? { eggOrderId: orderId } : {}),
+    ...(productType === 'chickens' ? { chickenOrderId: orderId } : {}),
+    ...(productType === 'pork' ? { orderId } : {}),
+    classification: 'operational',
+    sourcePath: 'lib.notifications.deferred-payment',
+    flowKey: 'admin.deferred_payment.alert',
+    sendImmediately: true,
   });
 }

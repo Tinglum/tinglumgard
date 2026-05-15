@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/server';
 import { getSession } from '@/lib/auth/session';
+import { logError } from '@/lib/logger';
 
 /**
  * Admin endpoint to fix remainder_amount for all orders
@@ -65,7 +66,7 @@ export async function POST() {
       fixes,
     });
   } catch (error: any) {
-    console.error('Error fixing remainders:', error);
+    logError('admin-fix-remainders', error);
     return NextResponse.json(
       { error: 'Failed to fix remainders' },
       { status: 500 }

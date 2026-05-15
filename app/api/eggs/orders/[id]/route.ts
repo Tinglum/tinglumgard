@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth/session'
 import { supabaseAdmin } from '@/lib/supabase/server'
+import { logError } from '@/lib/logger'
 
 export async function GET(
   request: NextRequest,
@@ -24,7 +25,7 @@ export async function GET(
 
     return NextResponse.json(order)
   } catch (error) {
-    console.error('Error fetching egg order:', error)
+    logError('eggs-orders-id-get', error)
     return NextResponse.json({ error: 'Failed to fetch order' }, { status: 500 })
   }
 }

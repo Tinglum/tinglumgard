@@ -8,6 +8,7 @@ import { recordMessageEmailDebugEvent } from '@/lib/messages/email-debug';
 import { buildSupportThreadMessageId } from '@/lib/messages/threading';
 import { getNoReplyAddress } from '@/lib/messages/no-reply-address';
 import { buildCustomerMessagePortalUrl } from '@/lib/messages/customer-email';
+import { APP_BASE_URL } from '@/lib/constants/app';
 
 const MESSAGE_TYPES = new Set(['support', 'inquiry', 'complaint', 'feedback', 'referral_question']);
 const RELATED_ORDER_SOURCES = new Set(['pig', 'egg', 'chicken']);
@@ -177,7 +178,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to create message', details: error?.message }, { status: 500 });
     }
 
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://tinglumgard.no';
+    const appUrl = APP_BASE_URL;
     const threadId = String(newMessage.email_thread_id || `msg_${newMessage.id}`);
     let orderNumber: string | null = null;
 

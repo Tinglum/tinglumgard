@@ -4,6 +4,7 @@ import { supabaseAdmin } from '@/lib/supabase/server'
 import { renderManagedTemplate } from '@/lib/email/render'
 import { dispatchEmail } from '@/lib/email/dispatch'
 import { buildCustomerOrderLink } from '@/lib/email/links'
+import { logError } from '@/lib/logger'
 
 // POST /api/admin/eggs/orders/[id]/send-pickup-email
 // Manually sends the "choose your pickup day" email to the customer.
@@ -70,7 +71,7 @@ export async function POST(
 
     return NextResponse.json({ success: true, to: order.customer_email, orderNumber: order.order_number })
   } catch (error) {
-    console.error('Error sending egg pickup email:', error)
+    logError('admin-eggs-orders-send-pickup-email', error)
     return NextResponse.json({ error: 'Failed to send email' }, { status: 500 })
   }
 }

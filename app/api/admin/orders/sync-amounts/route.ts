@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth/session';
 import { supabaseAdmin } from '@/lib/supabase/server';
+import { logError } from '@/lib/logger';
 
 export async function POST(request: NextRequest) {
   const session = await getSession();
@@ -89,7 +90,7 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('Sync amounts error:', error);
+    logError('admin-orders-sync-amounts', error);
     return NextResponse.json(
       { error: 'Failed to sync amounts' },
       { status: 500 }

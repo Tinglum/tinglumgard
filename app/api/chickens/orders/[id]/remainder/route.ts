@@ -4,6 +4,7 @@ import { getSession } from '@/lib/auth/session'
 import { verifyOrderAccessToken } from '@/lib/auth/order-access'
 import { supabaseAdmin } from '@/lib/supabase/server'
 import { vippsClient } from '@/lib/vipps/api-client'
+import { APP_BASE_URL } from '@/lib/constants/app'
 
 function normalizeEmail(value: unknown): string {
   return String(value || '').trim().toLowerCase()
@@ -120,8 +121,8 @@ export async function POST(
     }
 
     const amountDueOre = remainderDueNok * 100
-    const shortReference = `CHICK-REM-${order.order_number}-${Date.now()}`
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_BASE_URL || 'https://tinglumgard.no'
+    const shortReference = `CHICK-REM-${order.order_number}-${randomBytes(3).toString('hex').toUpperCase()}`
+    const appUrl = APP_BASE_URL
     const callbackToken = randomBytes(16).toString('hex')
 
     const sessionData: any = {

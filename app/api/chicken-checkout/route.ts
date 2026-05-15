@@ -4,6 +4,7 @@ import { logError } from '@/lib/logger'
 import { getAgeWeeks, getHenPrice, getDepositAmount, getMondayOfWeek } from '@/lib/chickens/pricing'
 import { createOrderAccessToken } from '@/lib/auth/order-access'
 import { getSession } from '@/lib/auth/session'
+import { VIPPS_PENDING_EMAIL } from '@/lib/constants'
 
 interface ChickenCheckoutLineItem {
   hatchId: string
@@ -206,7 +207,7 @@ export async function POST(request: NextRequest) {
     const primaryLine = computedLines[0]
     const normalizedBodyEmail = normalizeEmail(body.customerEmail)
     const normalizedSessionEmail = normalizeEmail(session?.email as string | undefined)
-    const customerEmail = normalizedBodyEmail || normalizedSessionEmail || 'pending@vipps.no'
+    const customerEmail = normalizedBodyEmail || normalizedSessionEmail || VIPPS_PENDING_EMAIL
     const customerPhone =
       normalizePhone(body.customerPhone) || normalizePhone(session?.phoneNumber as string | undefined) || null
     const customerName = String(body.customerName || session?.name || '').trim() || 'Vipps kunde'
@@ -288,7 +289,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Grant pork deposit discount benefit to chicken customers
-    if (customerEmail && customerEmail !== 'pending@vipps.no') {
+    if (customerEmail && customerEmail !== VIPPS_PENDING_EMAIL) {
       await supabaseAdmin
         .from('customer_benefits')
         .upsert({

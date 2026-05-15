@@ -5,6 +5,7 @@ import {
   getAdminEggAvailabilityForInventoryRows,
 } from '@/lib/eggs/admin-order-adjustments'
 import { supabaseAdmin } from '@/lib/supabase/server'
+import { logError } from '@/lib/logger'
 
 const PICKUP_DELIVERY_METHODS = new Set(['farm_pickup', 'e6_pickup'])
 
@@ -254,7 +255,7 @@ export async function GET(
       adjustment_availability: adjustmentAvailability,
     })
   } catch (error: any) {
-    console.error('Failed to fetch admin egg order:', error)
+    logError('admin-eggs-orders-id-get', error)
     return NextResponse.json({ error: 'Failed to fetch egg order' }, { status: 500 })
   }
 }
@@ -445,7 +446,7 @@ export async function PATCH(
 
     return NextResponse.json({ success: true, order: updatedOrder })
   } catch (error: any) {
-    console.error('Failed to patch admin egg order:', error)
+    logError('admin-eggs-orders-id-patch', error)
     return NextResponse.json({ error: error?.message || 'Failed to update egg order' }, { status: 500 })
   }
 }

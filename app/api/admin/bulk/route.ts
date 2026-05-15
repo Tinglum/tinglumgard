@@ -5,6 +5,8 @@ import { dispatchEmail } from '@/lib/email/dispatch';
 import { renderManagedTemplate } from '@/lib/email/render';
 import { buildCustomerOrderLink } from '@/lib/email/links';
 import { getEffectiveBoxSize } from '@/lib/orders/display';
+import { logError } from '@/lib/logger';
+import { VIPPS_PENDING_EMAIL, APP_BASE_URL } from '@/lib/constants/app';
 
 function getDeliveryLabel(deliveryType: string) {
   if (deliveryType === 'pickup_farm') return 'Henting på gård';
@@ -37,6 +39,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
     }
   } catch (error) {
+    logError('admin-bulk-main', error);
     return NextResponse.json(
       { error: 'Bulk operation failed' },
       { status: 500 }
@@ -54,10 +57,10 @@ async function bulkUpdateStatus(orderIds: string[], newStatus: string) {
   if (error) throw error;
 
   if (newStatus === 'ready_for_pickup') {
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_BASE_URL || 'https://tinglumgard.no';
+    const appUrl = APP_BASE_URL;
 
     for (const order of data) {
-      if (order.customer_email && order.customer_email !== 'pending@vipps.no') {
+      if (order.customer_email && order.customer_email !== VIPPS_PENDING_EMAIL) {
         try {
           const rendered = await renderManagedTemplate({
             templateKey: 'pig.order.ready_for_pickup',
@@ -81,8 +84,8 @@ async function bulkUpdateStatus(orderIds: string[], newStatus: string) {
             sourcePath: '/api/admin/bulk',
             orderId: order.id,
           });
-        } catch {
-          // Continue sending to next recipient
+        } catch (emailError) {
+          logError('admin-bulk-send-email', emailError, { orderId: order.id });
         }
       }
     }
@@ -105,7 +108,7 @@ async function bulkSendEmail(orderIds: string[], subject: string, message: strin
 
   const results = [];
   for (const order of orders) {
-    if (order.customer_email && order.customer_email !== 'pending@vipps.no') {
+    if (order.customer_email && order.customer_email !== VIPPS_PENDING_EMAIL) {
       try {
         await dispatchEmail({
           to: order.customer_email,
@@ -165,10 +168,10 @@ async function bulkLockOrders(orderIds: string[]) {
 
   if (error) throw error;
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_BASE_URL || 'https://tinglumgard.no';
+  const appUrl = APP_BASE_URL;
 
   for (const order of data) {
-    if (order.customer_email && order.customer_email !== 'pending@vipps.no') {
+    if (order.customer_email && order.customer_email !== VIPPS_PENDING_EMAIL) {
       try {
         const rendered = await renderManagedTemplate({
           templateKey: 'pig.order.locked.finalized',

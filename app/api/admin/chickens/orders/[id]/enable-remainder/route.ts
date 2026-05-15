@@ -118,6 +118,7 @@ export async function POST(
       success: true,
       remainderPaymentEnabled: true,
       remainderDueNok,
+      remainderPaidNok,
       alreadyEnabled: true,
       emailSent: false,
       emailReason: 'already_enabled',
@@ -166,5 +167,6 @@ export async function POST(
     remainderDueNok,
     emailSent,
     emailReason,
+    emailWarning: !emailSent ? 'Remainder payment enabled but customer notification failed — resend manually' : null,
   })
 }
