@@ -51,7 +51,7 @@ export async function notifyInventoryOverallocation(params: InventoryOverallocat
       </div>
     `,
     eggOrderId: orderId,
-    classification: 'operational',
+    classification: 'system',
     sourcePath: 'lib.notifications.inventory-overallocation',
     flowKey: 'admin.inventory_overallocation.alert',
     sendImmediately: true,

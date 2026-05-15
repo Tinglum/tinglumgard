@@ -27,7 +27,7 @@ export interface SessionData {
 }
 
 export async function createSession(data: SessionData): Promise<string> {
-  return new SignJWT(data as Record<string, unknown>)
+  return new SignJWT(data as unknown as Record<string, unknown>)
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
     .setExpirationTime('7d')

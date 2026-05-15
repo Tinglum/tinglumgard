@@ -101,7 +101,7 @@ export async function GET(request: NextRequest) {
 
     // If there's a pending order, create it with customer details and redirect to payment
     if (stateData.pendingOrder) {
-      const orderData = stateData.pendingOrder;
+      const orderData = stateData.pendingOrder as Record<string, unknown>;
       const productType = String(orderData.productType || '').toLowerCase();
       const isEggOrder = productType === 'eggs';
       const isChickenOrder = productType === 'chickens' || productType === 'chicken';
@@ -190,7 +190,7 @@ export async function GET(request: NextRequest) {
       return withSession(NextResponse.redirect(depositResult.redirectUrl), sessionToken);
     }
 
-    const returnTo = sanitizeReturnToPath(stateData.returnTo || '/bestill');
+    const returnTo = sanitizeReturnToPath(String(stateData.returnTo || '/bestill'));
 
     // Create an HTML response that sets the cookie and redirects
     // This is a workaround for Netlify Functions cookie issues

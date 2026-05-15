@@ -64,7 +64,7 @@ export async function notifyDeferredPayment(params: DeferredPaymentParams): Prom
     ...(productType === 'eggs' ? { eggOrderId: orderId } : {}),
     ...(productType === 'chickens' ? { chickenOrderId: orderId } : {}),
     ...(productType === 'pork' ? { orderId } : {}),
-    classification: 'operational',
+    classification: 'system',
     sourcePath: 'lib.notifications.deferred-payment',
     flowKey: 'admin.deferred_payment.alert',
     sendImmediately: true,
