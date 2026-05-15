@@ -363,7 +363,7 @@ export function MobileCheckout(props: MobileCheckoutProps) {
                   <DialogTrigger asChild>
                     <button
                       type="button"
-                      className="h-9 w-9 flex items-center justify-center rounded-full border border-[#D7CEC1] bg-white text-[#6A6258] shadow-sm"
+                      className="h-11 w-11 flex items-center justify-center rounded-full border border-[#D7CEC1] bg-white text-[#6A6258] shadow-sm active:scale-95 transition-transform"
                       aria-label={t.checkout.showProductInfoAria}
                     >
                       <Info className="h-4 w-4" />
@@ -456,7 +456,7 @@ export function MobileCheckout(props: MobileCheckoutProps) {
                         [extra.slug]: newQty,
                       });
                     }}
-                    className="h-9 w-9 rounded-full border border-[#D7CEC1] bg-white text-[#1E1B16] flex items-center justify-center"
+                    className="h-11 w-11 rounded-full border border-[#D7CEC1] bg-white text-[#1E1B16] flex items-center justify-center active:scale-95 transition-transform"
                     aria-label={`${t.common.remove} ${stepValue} ${unitLabel}`}
                   >
                     <Minus className="h-4 w-4" />
@@ -473,7 +473,7 @@ export function MobileCheckout(props: MobileCheckoutProps) {
                         [extra.slug]: newQty,
                       });
                     }}
-                    className="h-9 w-9 rounded-full border border-[#D7CEC1] bg-white text-[#1E1B16] flex items-center justify-center"
+                    className="h-11 w-11 rounded-full border border-[#D7CEC1] bg-white text-[#1E1B16] flex items-center justify-center active:scale-95 transition-transform"
                     aria-label={`${t.common.add} ${stepValue} ${unitLabel}`}
                   >
                     <Plus className="h-4 w-4" />
@@ -489,7 +489,7 @@ export function MobileCheckout(props: MobileCheckoutProps) {
 
   useEffect(() => {
     if (!stepRef.current) return;
-    stepRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    stepRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' }); // scroll-mt handles header offset (#10)
   }, [step]);
 
   useEffect(() => {
@@ -506,7 +506,7 @@ export function MobileCheckout(props: MobileCheckoutProps) {
 
   return (
     <div className="space-y-8 pb-36 text-[#1E1B16] font-[family:var(--font-manrope)]">
-      <div ref={stepRef} className={`${sectionCard} scroll-mt-6`}>
+      <div ref={stepRef} className={`${sectionCard} scroll-mt-[60px] sm:scroll-mt-[84px]`}>
         <div className="flex items-center justify-between text-[10px] font-semibold uppercase tracking-[0.2em] text-[#6A6258]">
           <span>{mobileCopy.step} {progressStep}/4</span>
           {step > 1 && (

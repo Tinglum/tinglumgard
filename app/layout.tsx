@@ -35,6 +35,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="no">
+      <head>
+        {/* Fix #2: viewport-fit=cover activates env(safe-area-inset-*) on notched iPhones */}
+        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+      </head>
       <body className="antialiased text-neutral-900">
         <ThemeProvider>
           <LanguageProvider>

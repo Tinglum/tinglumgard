@@ -49,15 +49,13 @@ export function MobileHero({ isSoldOut, minPrice, minDeposit }: MobileHeroProps)
           {t.hero.season}
         </motion.div>
 
-        <motion.h1
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.05 }}
+        {/* Fix #15: h1 is LCP — render immediately, no opacity:0 delay */}
+        <h1
           className="mt-6 text-4xl font-semibold leading-[1.05] text-[#1E1B16] font-[family:var(--font-playfair)]"
         >
           {t.hero.porkFrom}
           <span className="mt-2 block text-[#0F6C6F]">{t.hero.farmName}</span>
-        </motion.h1>
+        </h1>
 
         <motion.p
           initial={{ opacity: 0, y: 20 }}

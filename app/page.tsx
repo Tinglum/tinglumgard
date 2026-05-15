@@ -542,14 +542,20 @@ export default function Page() {
               </span>
             </div>
             <div className="mt-6 space-y-3">
+              {/* Fix #9: custom open/close chevron since list-none removes browser default */}
               {[
                 { q: t.faq.q1, a: t.faq.a1 },
                 { q: t.faq.q2, a: t.faq.a2 },
                 { q: t.faq.q3, a: t.faq.a3 },
               ].map((faq) => (
-                <details key={faq.q} className="rounded-2xl border border-[#E9E1D6] bg-[#FBFAF7] px-4 py-3">
-                  <summary className="cursor-pointer list-none text-sm font-semibold text-[#1E1B16]">
-                    {faq.q}
+                <details key={faq.q} className="group rounded-2xl border border-[#E9E1D6] bg-[#FBFAF7] px-4 py-3">
+                  <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-semibold text-[#1E1B16]">
+                    <span>{faq.q}</span>
+                    <span className="flex-shrink-0 text-[#6A6258] transition-transform duration-200 group-open:rotate-45">
+                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                        <path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                      </svg>
+                    </span>
                   </summary>
                   <p className="mt-2 text-sm text-[#5E5A50]">{faq.a}</p>
                 </details>
@@ -576,7 +582,9 @@ export default function Page() {
           </div>
         </section>
 
-        <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-[#E4DED5] bg-[#F6F4EF]/95 backdrop-blur">
+        {/* Fix #3 + #8: safe-area-inset-bottom so home indicator doesn't cover CTA; py-3 min on button */}
+        <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-[#E4DED5] bg-[#F6F4EF]/95 backdrop-blur"
+          style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
           <div className="mx-auto flex max-w-md items-center justify-between gap-4 px-5 py-3">
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-[#6A6258]">{pageCopy.reserveBox}</p>
@@ -588,7 +596,7 @@ export default function Page() {
             </div>
             <Link
               href="/bestill"
-              className="rounded-2xl bg-[#1E1B16] px-4 py-2 text-xs font-bold uppercase tracking-[0.2em] text-[#F6F4EF]"
+              className="rounded-2xl bg-[#1E1B16] px-5 py-3 text-xs font-bold uppercase tracking-[0.2em] text-[#F6F4EF] active:scale-95 transition-transform"
             >
               {t.hero.reserveNow}
             </Link>

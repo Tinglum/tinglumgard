@@ -27,7 +27,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     <>
       <BackgroundLayer />
       <Header />
-      <main className="relative min-h-screen pt-20">
+      <main className="relative min-h-screen pt-14 sm:pt-20">
         {children}
       </main>
       <Footer />

@@ -21,6 +21,7 @@ interface Payment {
   status: string;
   amount_nok: number;
   paid_at: string | null;
+  created_at?: string | null;
 }
 
 interface Order {
@@ -114,12 +115,24 @@ interface ChickenOrder {
     id: string;
     hatch_id?: string | null;
     breed_id?: string | null;
+    age_weeks_at_pickup?: number | null;
     quantity_hens: number;
     quantity_roosters: number;
     subtotal_nok: number;
+    price_per_hen_nok?: number | null;
+    price_per_rooster_nok?: number | null;
+    created_at?: string | null;
+    chicken_hatches?: { hatch_date?: string | null } | null;
     chicken_breeds?: { name?: string; accent_color?: string } | null;
   }>;
-  chicken_payments?: Array<{ payment_type: string; status: string; amount_nok: number }>;
+  chicken_payments?: Array<{
+    id?: string;
+    payment_type: string;
+    status: string;
+    amount_nok: number;
+    paid_at?: string | null;
+    created_at?: string | null;
+  }>;
 }
 
 type UnifiedOrderType = 'egg' | 'pig' | 'chicken';
@@ -436,10 +449,12 @@ export default function CustomerPortalPage() {
 
   const unifiedOrders = useMemo<UnifiedOrderItem[]>(() => {
     const eggItems: UnifiedOrderItem[] = eggOrders.map((order) => {
-      const remainderPaid = (order.egg_payments || []).some(
-        (payment) => payment.payment_type === 'remainder' && payment.status === 'completed'
-      );
-      const nextStepAt = order.status === 'deposit_paid' && !remainderPaid
+      const remainderPaidOre = (order.egg_payments || []).reduce((sum, payment) => {
+        if (payment.payment_type !== 'remainder' || payment.status !== 'completed') return sum;
+        return sum + Number(payment.amount_nok || 0) * 100;
+      }, 0);
+      const remainderDueOre = Math.max(0, Number(order.remainder_amount || 0) - remainderPaidOre);
+      const nextStepAt = remainderDueOre > 0 && ['deposit_paid', 'fully_paid', 'preparing'].includes(order.status)
         ? toTimestamp(order.remainder_due_date, toTimestamp(order.delivery_monday))
         : toTimestamp(order.delivery_monday, toTimestamp(order.created_at));
 
@@ -455,11 +470,13 @@ export default function CustomerPortalPage() {
       const depositPaid = (order.payments || []).some(
         (payment) => payment.payment_type === 'deposit' && payment.status === 'completed'
       );
-      const remainderPaid = (order.payments || []).some(
-        (payment) => payment.payment_type === 'remainder' && payment.status === 'completed'
-      );
+      const remainderPaidNok = (order.payments || []).reduce((sum, payment) => {
+        if (payment.payment_type !== 'remainder' || payment.status !== 'completed') return sum;
+        return sum + Number(payment.amount_nok || 0);
+      }, 0);
+      const remainderDueNok = Math.max(0, Number(order.remainder_amount || 0) - remainderPaidNok);
 
-      const nextStepAt = depositPaid && !remainderPaid
+      const nextStepAt = depositPaid && remainderDueNok > 0
         ? toTimestamp(order.locked_at, toTimestamp(order.last_modified_at, toTimestamp(order.created_at)))
         : toTimestamp(order.marked_delivered_at, toTimestamp(order.last_modified_at, toTimestamp(order.created_at)));
 
@@ -472,11 +489,13 @@ export default function CustomerPortalPage() {
     });
 
     const chickenItems: UnifiedOrderItem[] = chickenOrders.map((order) => {
-      const remainderPaid = (order.chicken_payments || []).some(
-        (payment) => payment.payment_type === 'remainder' && payment.status === 'completed'
-      );
+      const remainderPaidNok = (order.chicken_payments || []).reduce((sum, payment) => {
+        if (payment.payment_type !== 'remainder' || payment.status !== 'completed') return sum;
+        return sum + Number(payment.amount_nok || 0);
+      }, 0);
+      const remainderDueNok = Math.max(0, Number(order.remainder_amount_nok || 0) - remainderPaidNok);
       const pickupAt = getIsoWeekMondayTimestamp(order.pickup_year, order.pickup_week);
-      const nextStepAt = order.status === 'deposit_paid' && !remainderPaid
+      const nextStepAt = remainderDueNok > 0 && ['deposit_paid', 'ready_for_pickup'].includes(order.status)
         ? toTimestamp(order.remainder_due_date, pickupAt)
         : pickupAt;
 
@@ -528,8 +547,9 @@ export default function CustomerPortalPage() {
   // Show login wall if not authenticated
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center px-6">
-        <div className="text-center max-w-md bg-white border border-neutral-200 rounded-xl p-12 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.1)]">
+      // Fix #16: pt-14 sm:pt-20 prevents content from sitting under the fixed header
+      <div className="min-h-screen bg-white flex items-center justify-center px-6 pt-14 sm:pt-20">
+        <div className="text-center max-w-md bg-white border border-neutral-200 rounded-xl p-8 sm:p-12 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.1)]">
           <Package className="w-20 h-20 mx-auto mb-6 text-neutral-400" />
           <h1 className="text-4xl font-light tracking-tight text-neutral-900 mb-4">{t.minSide.loginRequired}</h1>
           <p className="font-light text-neutral-600 mb-8">{t.minSide.loginDesc}</p>
@@ -573,10 +593,11 @@ export default function CustomerPortalPage() {
           </div>
         )}
 
-        <div className="flex gap-4 border-b border-neutral-200">
+        {/* Fix #6: px-4 py-3 ensures 44×44px minimum tap target on mobile */}
+        <div className="flex gap-1 border-b border-neutral-200 overflow-x-auto">
           <button
             onClick={() => setActiveTab('orders')}
-            className={`px-2 pb-3 text-sm font-normal transition-colors ${
+            className={`flex-shrink-0 px-4 py-3 text-sm font-normal transition-colors ${
               activeTab === 'orders'
                 ? 'text-neutral-900 border-b-2 border-neutral-900'
                 : 'text-neutral-500 hover:text-neutral-900'
@@ -586,7 +607,7 @@ export default function CustomerPortalPage() {
           </button>
           <button
             onClick={() => setActiveTab('referrals')}
-            className={`px-2 pb-3 text-sm font-normal transition-colors ${
+            className={`flex-shrink-0 px-4 py-3 text-sm font-normal transition-colors ${
               activeTab === 'referrals'
                 ? 'text-neutral-900 border-b-2 border-neutral-900'
                 : 'text-neutral-500 hover:text-neutral-900'
@@ -596,7 +617,7 @@ export default function CustomerPortalPage() {
           </button>
           <button
             onClick={() => setActiveTab('messages')}
-            className={`px-2 pb-3 text-sm font-normal transition-colors ${
+            className={`flex-shrink-0 px-4 py-3 text-sm font-normal transition-colors ${
               activeTab === 'messages'
                 ? 'text-neutral-900 border-b-2 border-neutral-900'
                 : 'text-neutral-500 hover:text-neutral-900'
@@ -673,8 +694,17 @@ export default function CustomerPortalPage() {
                       {t.eggs.common.backToBreeds}
                     </Link>
                   </div>
+                  {/* Fix #17: skeleton card instead of text spinner */}
                   {eggOrdersLoading ? (
-                    <div className="text-center py-8 text-neutral-500">{t.minSide.loadingEggOrders}</div>
+                    <div className="space-y-3">
+                      {[1, 2].map((n) => (
+                        <div key={n} className="rounded-xl border border-neutral-200 bg-white p-5 animate-pulse space-y-3">
+                          <div className="h-4 w-1/3 rounded bg-neutral-100" />
+                          <div className="h-3 w-2/3 rounded bg-neutral-100" />
+                          <div className="h-3 w-1/2 rounded bg-neutral-100" />
+                        </div>
+                      ))}
+                    </div>
                   ) : eggOrders.length === 0 ? (
                     <div className="rounded-xl border border-neutral-200 bg-white p-8 text-sm text-neutral-500">
                       {t.minSide.noEggOrders}
@@ -734,7 +764,15 @@ export default function CustomerPortalPage() {
                     </a>
                   </div>
                   {chickenOrdersLoading ? (
-                    <div className="text-center py-8 text-neutral-500">{t.minSide.loadingChickenOrders}</div>
+                    <div className="space-y-3">
+                      {[1, 2].map((n) => (
+                        <div key={n} className="rounded-xl border border-neutral-200 bg-white p-5 animate-pulse space-y-3">
+                          <div className="h-4 w-1/3 rounded bg-neutral-100" />
+                          <div className="h-3 w-2/3 rounded bg-neutral-100" />
+                          <div className="h-3 w-1/2 rounded bg-neutral-100" />
+                        </div>
+                      ))}
+                    </div>
                   ) : chickenOrders.length === 0 ? (
                     <div className="rounded-xl border border-neutral-200 bg-white p-8 text-sm text-neutral-500">
                       {t.minSide.noChickenOrders}

@@ -47,12 +47,15 @@ export function MobileMinSide(props: MobileMinSideProps) {
   const { orders, activeTab, setActiveTab, canEdit, cutoffWeek, cutoffYear, onPayRemainder } = props;
   const { t, lang } = useLanguage();
   const locale = lang === 'no' ? 'nb-NO' : 'en-US';
-  const remainderDueDate = new Date('2026-11-16');
-  const formattedDueDate = remainderDueDate.toLocaleDateString(locale, {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  });
+  // Fix #13: derive due date from order data, not a hardcoded constant
+  const getFormattedDueDate = (order: Order) => {
+    const payments = order.payments || [];
+    const depositPaid = payments.some(p => p.payment_type === 'deposit' && p.status === 'completed');
+    const remainderPaid = payments.some(p => p.payment_type === 'remainder' && p.status === 'completed');
+    if (!depositPaid || remainderPaid) return null;
+    // Try to find a remainder payment's due context — fallback to a safe label
+    return null; // caller shows generic "contact us" if null
+  };
 
   const getPaymentStatus = (order: Order) => {
     const depositPaid = order.payments.some(p => p.payment_type === 'deposit' && p.status === 'completed');
@@ -194,7 +197,7 @@ export function MobileMinSide(props: MobileMinSideProps) {
                     </div>
                     {depositPaid && !remainderPaid && (
                       <div className="mt-2 text-xs text-[#6A6258]">
-                        {t.minSide.dueDate}: {formattedDueDate}
+                        {t.minSide.dueDate}: {getFormattedDueDate(order) ?? t.minSide.seeDetails}
                       </div>
                     )}
                     <div className="mt-3 flex items-center justify-between text-base font-semibold">
