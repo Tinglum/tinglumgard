@@ -151,6 +151,13 @@ export function EggInventoryManagement() {
   // Confirm close dialog
   const [confirmCloseOpen, setConfirmCloseOpen] = useState(false);
 
+  // Bulk restore state
+  const [showRestorePanel, setShowRestorePanel] = useState(false);
+  const [restoreEggs, setRestoreEggs] = useState<Record<string, string>>({});
+  const [restoreUntil, setRestoreUntil] = useState(`${new Date().getFullYear()}-07-31`);
+  const [restoringBreed, setRestoringBreed] = useState<string | null>(null);
+  const [restoreResult, setRestoreResult] = useState<{ updated: number; created: number } | null>(null);
+
   useEffect(() => {
     loadData();
   }, []);
@@ -439,6 +446,27 @@ export function EggInventoryManagement() {
     });
   }
 
+  async function runBulkRestore(breedId: string) {
+    const eggsPerWeek = Number(restoreEggs[breedId] || '0');
+    if (!Number.isInteger(eggsPerWeek) || eggsPerWeek < 0) return;
+    setRestoringBreed(breedId);
+    setRestoreResult(null);
+    try {
+      const res = await fetch('/api/admin/eggs/inventory/bulk-restore', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ breed_id: breedId, eggs_per_week: eggsPerWeek, until: restoreUntil }),
+      });
+      if (res.ok) {
+        const result = await res.json();
+        setRestoreResult(result);
+        await loadData();
+      }
+    } finally {
+      setRestoringBreed(null);
+    }
+  }
+
   /* ------ render --------------------------------------------------------------------------------------------------------------------------------------------------------------- */
 
   if (loading) {
@@ -467,6 +495,10 @@ export function EggInventoryManagement() {
           <Button size="sm" variant="outline" onClick={cloneLastWeek} disabled={weekRows.length === 0}>
             <Copy className="w-4 h-4 mr-1.5" />
             {ei.cloneLastWeek}
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => { setShowRestorePanel(!showRestorePanel); setRestoreResult(null); }}>
+            <RefreshCw className="w-4 h-4 mr-1.5" />
+            {lang === 'en' ? 'Restore weeks' : 'Gjenopprett uker'}
           </Button>
           <Button size="sm" onClick={() => setShowAddForm(!showAddForm)}>
             <Plus className="w-4 h-4 mr-1.5" />
@@ -522,6 +554,77 @@ export function EggInventoryManagement() {
             {summary.lowStockBreeds.map((b) => `${b.breed.name} (${b.remaining} ${ei.warningEggsLabel})`).join(', ')}
           </p>
         </div>
+      )}
+
+      {/* ------ bulk restore panel ---------------------------------------------------------------------------------------------------------------- */}
+      {showRestorePanel && (
+        <Card className="p-5 border border-blue-200 bg-blue-50 space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-base font-semibold text-neutral-900">
+                {lang === 'en' ? 'Restore / initialize upcoming weeks' : 'Gjenopprett / initialiser kommende uker'}
+              </h3>
+              <p className="text-xs text-neutral-500 mt-0.5">
+                {lang === 'en'
+                  ? 'Sets eggs_available and opens all weeks up to the chosen date. Existing orders are never reduced.'
+                  : 'Setter egg-antall og åpner alle uker frem til valgt dato. Eksisterende bestillinger påvirkes ikke.'}
+              </p>
+            </div>
+            <Button type="button" variant="ghost" size="sm" onClick={() => setShowRestorePanel(false)}>
+              <X className="w-4 h-4" />
+            </Button>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <Label className="text-xs whitespace-nowrap">{lang === 'en' ? 'Until date:' : 'Frem til:'}</Label>
+            <Input
+              type="date"
+              value={restoreUntil}
+              onChange={(e) => setRestoreUntil(e.target.value)}
+              className="w-40 h-8 text-sm bg-white"
+            />
+          </div>
+
+          <div className="space-y-2">
+            {breeds.map((breed) => (
+              <div key={breed.id} className="flex items-center gap-3 rounded-lg bg-white border border-neutral-200 px-4 py-2">
+                <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: breed.accent_color }} />
+                <span className="text-sm font-medium text-neutral-800 min-w-[160px]">{breed.name}</span>
+                <div className="flex items-center gap-2 ml-auto">
+                  <Label className="text-xs text-neutral-500">{lang === 'en' ? 'Eggs/week:' : 'Egg/uke:'}</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    className="w-24 h-8 text-sm bg-white"
+                    placeholder="0"
+                    value={restoreEggs[breed.id] || ''}
+                    onChange={(e) => setRestoreEggs({ ...restoreEggs, [breed.id]: e.target.value })}
+                  />
+                  <Button
+                    size="sm"
+                    disabled={restoringBreed === breed.id || !restoreEggs[breed.id]}
+                    onClick={() => runBulkRestore(breed.id)}
+                  >
+                    {restoringBreed === breed.id ? (
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <Check className="w-3.5 h-3.5" />
+                    )}
+                    <span className="ml-1.5">{lang === 'en' ? 'Apply' : 'Bruk'}</span>
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {restoreResult && (
+            <p className="text-sm text-green-700 font-medium">
+              {lang === 'en'
+                ? `Done: ${restoreResult.updated} weeks updated, ${restoreResult.created} weeks created.`
+                : `Ferdig: ${restoreResult.updated} uker oppdatert, ${restoreResult.created} uker opprettet.`}
+            </p>
+          )}
+        </Card>
       )}
 
       {/* ------ bulk actions bar ------------------------------------------------------------------------------------------------------------------ */}
