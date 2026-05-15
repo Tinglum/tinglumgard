@@ -20,6 +20,10 @@ export interface SessionData {
   name?: string;
   isAdmin?: boolean;
   role?: 'admin' | 'operations' | 'customer';
+  isImpersonating?: boolean;
+  impersonatorId?: string;
+  impersonatorEmail?: string;
+  impersonatorName?: string;
 }
 
 export async function createSession(data: SessionData): Promise<string> {
