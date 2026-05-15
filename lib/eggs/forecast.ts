@@ -502,6 +502,11 @@ export async function recomputeForecastForBreed(params: {
   const windowDays = weeklyTotals.length * 7
   const recentDailyAvg = windowDays > 0 ? totalCollectedInWindow / windowDays : 0
 
+  // If there is no collection data at all, do not overwrite existing inventory rows
+  // with a 0-egg forecast — the farm simply hasn't entered data yet, not that they
+  // have 0 eggs. Admin-set values must be preserved until real data arrives.
+  const hasCollectionData = rows.length > 0
+
   // 6. Structural change and missing day checks
   await checkStructuralChange(breedId, breed.name, dayMap, asOfDate, recentDailyAvg)
   await checkMissingDays(breedId, breed.name, dayMap, asOfDate)
@@ -542,6 +547,11 @@ export async function recomputeForecastForBreed(params: {
     }
 
     eggsAvailable = Math.max(0, eggsAvailable)
+
+    // If forecast is 0 and we have no collection data, skip the write entirely.
+    // This prevents zeroing out admin-configured inventory when the farm hasn't
+    // entered collection batches yet.
+    if (!hasCollectionData && eggsAvailable === 0) continue
 
     // 8. Divergence check (weeks 1–3 only)
     let divergenceAlert = false
