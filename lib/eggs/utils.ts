@@ -25,16 +25,21 @@ export function formatPrice(amountInOre: number, language: Language = 'no'): str
  * Format date in Norwegian or English
  */
 export function formatDate(date: Date, language: Language = 'no'): string {
+  // Always use timeZone: 'UTC' so a date-only value stored as UTC midnight
+  // (e.g. "2026-05-18T00:00:00Z") renders as the correct calendar date
+  // regardless of the browser/server timezone.
   if (language === 'no') {
     return new Intl.DateTimeFormat('nb-NO', {
       day: 'numeric',
       month: 'long',
+      timeZone: 'UTC',
     }).format(date)
   }
 
   return new Intl.DateTimeFormat('en-GB', {
     day: 'numeric',
     month: 'long',
+    timeZone: 'UTC',
   }).format(date)
 }
 
