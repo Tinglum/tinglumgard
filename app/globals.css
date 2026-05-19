@@ -235,6 +235,15 @@ button, .button {
            focus-ring flex items-center gap-2;
   }
 
+  /* Hide scrollbar visually while keeping scroll functionality */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
   /* Nordic card utility */
   .nordic-card {
     @apply bg-white border border-neutral-200 rounded-xl p-6
