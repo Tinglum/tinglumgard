@@ -169,7 +169,7 @@ export function MangalitsaExtrasManager() {
               </button>
             </div>
 
-            <div className="grid grid-cols-3 gap-4 text-sm">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
               <div>
                 <span className="text-neutral-500">Pris:</span>
                 <span className="ml-2 font-normal text-neutral-900">{extra.price_nok} kr/{extra.pricing_type === 'per_kg' ? 'kg' : 'stk'}</span>

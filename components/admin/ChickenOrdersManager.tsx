@@ -761,7 +761,7 @@ export function ChickenOrdersManager({
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap gap-3 items-center">
-        <div className="relative flex-1 min-w-[200px]">
+        <div className="relative flex-1 w-full sm:min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <Input className="pl-10" placeholder={co.searchPlaceholder} value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)} />
@@ -779,16 +779,16 @@ export function ChickenOrdersManager({
         <table className="w-full text-sm">
           <thead>
             <tr className="text-left text-gray-500 border-b">
-              <th className="pb-2 pr-3">{co.tableHeaderOrder}</th>
-              <th className="pb-2 pr-3">{co.tableHeaderCustomer}</th>
-              <th className="pb-2 pr-3">{co.tableHeaderBreed}</th>
-              <th className="pb-2 pr-3">{co.tableHeaderQuantity}</th>
-              <th className="pb-2 pr-3">{co.tableHeaderPickup}</th>
-              <th className="pb-2 pr-3">{co.tableHeaderAge}</th>
-              <th className="pb-2 pr-3">{co.tableHeaderPricePerHen}</th>
-              <th className="pb-2 pr-3">{co.tableHeaderTotal}</th>
-              <th className="pb-2 pr-3">{co.tableHeaderStatus}</th>
-              <th className="pb-2">{co.tableHeaderAction}</th>
+              <th className="pb-2 pr-3 text-xs sm:text-sm">{co.tableHeaderOrder}</th>
+              <th className="pb-2 pr-3 text-xs sm:text-sm">{co.tableHeaderCustomer}</th>
+              <th className="hidden sm:table-cell pb-2 pr-3 text-xs sm:text-sm">{co.tableHeaderBreed}</th>
+              <th className="pb-2 pr-3 text-xs sm:text-sm">{co.tableHeaderQuantity}</th>
+              <th className="hidden md:table-cell pb-2 pr-3 text-xs sm:text-sm">{co.tableHeaderPickup}</th>
+              <th className="hidden lg:table-cell pb-2 pr-3 text-xs sm:text-sm">{co.tableHeaderAge}</th>
+              <th className="hidden lg:table-cell pb-2 pr-3 text-xs sm:text-sm">{co.tableHeaderPricePerHen}</th>
+              <th className="pb-2 pr-3 text-xs sm:text-sm">{co.tableHeaderTotal}</th>
+              <th className="pb-2 pr-3 text-xs sm:text-sm">{co.tableHeaderStatus}</th>
+              <th className="pb-2 text-xs sm:text-sm">{co.tableHeaderAction}</th>
             </tr>
           </thead>
           <tbody>
@@ -844,11 +844,11 @@ export function ChickenOrdersManager({
                     </button>
                   </td>
                   <td className="py-2 pr-3">
-                    <div className="font-medium">{safeText(order.customer_name) || co.notAvailable}</div>
-                    <div className="text-xs text-gray-500">{safeText(order.customer_email) || co.notAvailable}</div>
+                    <div className="font-medium text-xs sm:text-sm">{safeText(order.customer_name) || co.notAvailable}</div>
+                    <div className="text-xs text-gray-500 hidden sm:block">{safeText(order.customer_email) || co.notAvailable}</div>
                   </td>
-                  <td className="py-2 pr-3">
-                    <div className="flex items-center gap-1">
+                  <td className="hidden sm:table-cell py-2 pr-3">
+                    <div className="flex items-center gap-1 text-xs sm:text-sm">
                       <div className="w-2 h-2 rounded-full" style={{ backgroundColor: order.chicken_breeds?.accent_color || '#ccc' }} />
                       {order.chicken_breeds?.name || co.unknownBreed}
                     </div>
@@ -862,10 +862,10 @@ export function ChickenOrdersManager({
                       </div>
                     )}
                   </td>
-                  <td className="py-2 pr-3">{co.pickupWeekLabel.replace('{week}', String(order.pickup_week)).replace('{year}', String(order.pickup_year))}</td>
-                  <td className="py-2 pr-3">{ageSummary}</td>
-                  <td className="py-2 pr-3">{formatMoney(order.price_per_hen_nok)}</td>
-                  <td className="py-2 pr-3 font-medium">{formatMoney(order.total_amount_nok)}</td>
+                  <td className="hidden md:table-cell py-2 pr-3 text-xs sm:text-sm">{co.pickupWeekLabel.replace('{week}', String(order.pickup_week)).replace('{year}', String(order.pickup_year))}</td>
+                  <td className="hidden lg:table-cell py-2 pr-3 text-xs sm:text-sm">{ageSummary}</td>
+                  <td className="hidden lg:table-cell py-2 pr-3 text-xs sm:text-sm">{formatMoney(order.price_per_hen_nok)}</td>
+                  <td className="py-2 pr-3 font-medium text-xs sm:text-sm">{formatMoney(order.total_amount_nok)}</td>
                   <td className="py-2 pr-3">
                     <span className={`text-xs px-2 py-0.5 rounded ${STATUS_COLORS[order.status] || 'bg-gray-100'}`}>
                       {statusLabelMap[order.status] || order.status}
@@ -933,7 +933,7 @@ export function ChickenOrdersManager({
       </div>
 
       <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
-        <DialogContent className="max-h-[90vh] max-w-6xl overflow-y-auto !bg-white !text-neutral-900 shadow-2xl ring-1 ring-neutral-200">
+        <DialogContent className="max-h-[90vh] w-full max-w-[calc(100vw-2rem)] sm:max-w-6xl overflow-y-auto !bg-white !text-neutral-900 shadow-2xl ring-1 ring-neutral-200">
           <DialogHeader>
             <DialogTitle className="text-xl font-semibold text-neutral-900">
               {co.detailTitle.replace('{order}', selectedOrder?.order_number || co.notAvailable)}

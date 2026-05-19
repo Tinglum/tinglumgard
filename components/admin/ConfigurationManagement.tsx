@@ -161,7 +161,7 @@ export function ConfigurationManagement() {
           {copy.pricingTitle}
         </h3>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
           <div>
             <Label>{copy.e6FeeLabel.replace('{currency}', currency)}</Label>
             <Input
@@ -213,7 +213,7 @@ export function ConfigurationManagement() {
           {copy.cutoffTitle}
         </h3>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
           <div>
             <Label>{copy.yearLabel}</Label>
             <Input
@@ -246,7 +246,7 @@ export function ConfigurationManagement() {
           {copy.contactTitle}
         </h3>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
           <div>
             <Label>{copy.contactEmailLabel}</Label>
             <Input

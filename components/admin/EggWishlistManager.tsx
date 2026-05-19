@@ -246,8 +246,8 @@ export function EggWishlistManager() {
 
       <Card className="border-neutral-200 p-4">
         <div className="flex flex-wrap items-end gap-3">
-          <div><Label>{lang === 'no' ? 'År' : 'Year'}</Label><Input value={year} onChange={(e) => setYear(e.target.value.replace(/[^0-9]/g, ''))} /></div>
-          <div><Label>{lang === 'no' ? 'Uke' : 'Week'}</Label><Input value={week} onChange={(e) => setWeek(e.target.value.replace(/[^0-9]/g, ''))} /></div>
+          <div className="min-w-0 w-24"><Label>{lang === 'no' ? 'År' : 'Year'}</Label><Input value={year} onChange={(e) => setYear(e.target.value.replace(/[^0-9]/g, ''))} /></div>
+          <div className="min-w-0 w-20"><Label>{lang === 'no' ? 'Uke' : 'Week'}</Label><Input value={week} onChange={(e) => setWeek(e.target.value.replace(/[^0-9]/g, ''))} /></div>
           <Button variant="outline" onClick={() => void fetchData(true)} disabled={refreshing}>
             {refreshing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}<span className="ml-2">{lang === 'no' ? 'Oppdater' : 'Refresh'}</span>
           </Button>

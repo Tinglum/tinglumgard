@@ -200,7 +200,7 @@ export function RecipeManager() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {recipes.map((recipe) => (
           <div
             key={recipe.id}
@@ -410,7 +410,7 @@ function EditRecipeModal({ recipe, onSave, onClose }: {
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 p-4 overflow-y-auto">
-      <div className="bg-white rounded-xl p-8 max-w-4xl w-full shadow-xl my-8">
+      <div className="bg-white rounded-xl p-6 sm:p-8 w-full max-w-[calc(100vw-2rem)] sm:max-w-4xl shadow-xl my-8">
         <div className="flex items-center justify-between mb-6">
           <h3 className="text-2xl font-normal">
             {isNew ? copy.modalTitleNew : copy.modalTitleEdit.replace('{title}', recipe.title_no)}

@@ -607,16 +607,16 @@ export function ChickenHatchManager() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="text-left text-gray-500 border-b">
-                    <th className="pb-2 pr-3">{ch.tableHeaderRase}</th>
-                    <th className="pb-2 pr-3">{ch.tableHeaderEggInn}</th>
-                    <th className="pb-2 pr-3">{ch.tableHeaderEstKlekk}</th>
-                    <th className="pb-2 pr-3">{ch.tableHeaderFactualHatched}</th>
-                    <th className="pb-2 pr-3">{ch.tableHeaderAvailableHens}</th>
-                    <th className="pb-2 pr-3">{ch.tableHeaderAvailableRoosters}</th>
-                    <th className="pb-2 pr-3">{ch.tableHeaderAgeNow}</th>
-                    <th className="pb-2 pr-3">{ch.tableHeaderPriceNow}</th>
-                    <th className="pb-2 pr-3">{ch.tableHeaderStatus}</th>
-                    <th className="pb-2">{ch.tableHeaderActions}</th>
+                    <th className="pb-2 pr-3 text-xs sm:text-sm">{ch.tableHeaderRase}</th>
+                    <th className="pb-2 pr-3 text-xs sm:text-sm">{ch.tableHeaderEggInn}</th>
+                    <th className="hidden sm:table-cell pb-2 pr-3 text-xs sm:text-sm">{ch.tableHeaderEstKlekk}</th>
+                    <th className="pb-2 pr-3 text-xs sm:text-sm">{ch.tableHeaderFactualHatched}</th>
+                    <th className="pb-2 pr-3 text-xs sm:text-sm">{ch.tableHeaderAvailableHens}</th>
+                    <th className="pb-2 pr-3 text-xs sm:text-sm">{ch.tableHeaderAvailableRoosters}</th>
+                    <th className="hidden md:table-cell pb-2 pr-3 text-xs sm:text-sm">{ch.tableHeaderAgeNow}</th>
+                    <th className="hidden md:table-cell pb-2 pr-3 text-xs sm:text-sm">{ch.tableHeaderPriceNow}</th>
+                    <th className="pb-2 pr-3 text-xs sm:text-sm">{ch.tableHeaderStatus}</th>
+                    <th className="pb-2 text-xs sm:text-sm">{ch.tableHeaderActions}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -636,8 +636,8 @@ export function ChickenHatchManager() {
 
                     return (
                       <tr key={hatch.id} className="border-b last:border-0">
-                        <td className="py-2 pr-3">{breed?.name || ch.labelUnknownBreed}</td>
-                        <td className="py-2 pr-3">
+                        <td className="py-2 pr-3 text-xs sm:text-sm">{breed?.name || ch.labelUnknownBreed}</td>
+                        <td className="py-2 pr-3 text-xs sm:text-sm">
                           {isEditing ? (
                             <Input
                               type="number"
@@ -649,7 +649,7 @@ export function ChickenHatchManager() {
                             hatch.eggs_set_count
                           )}
                         </td>
-                        <td className="py-2 pr-3">
+                        <td className="hidden sm:table-cell py-2 pr-3 text-xs sm:text-sm">
                           {isEditing ? (
                             <Input
                               type="number"
@@ -661,7 +661,7 @@ export function ChickenHatchManager() {
                             hatch.expected_hatch_count
                           )}
                         </td>
-                        <td className="py-2 pr-3">
+                        <td className="py-2 pr-3 text-xs sm:text-sm">
                           {isEditing ? (
                             <Input
                               type="number"
@@ -674,7 +674,7 @@ export function ChickenHatchManager() {
                             hatch.actual_hatched_count ?? '-'
                           )}
                         </td>
-                        <td className="py-2 pr-3">
+                        <td className="py-2 pr-3 text-xs sm:text-sm">
                           {isEditing ? (
                             <Input
                               type="number"
@@ -686,7 +686,7 @@ export function ChickenHatchManager() {
                             hatch.available_hens
                           )}
                         </td>
-                        <td className="py-2 pr-3">
+                        <td className="py-2 pr-3 text-xs sm:text-sm">
                           {isEditing ? (
                             <Input
                               type="number"
@@ -698,8 +698,8 @@ export function ChickenHatchManager() {
                             hatch.available_roosters
                           )}
                         </td>
-                        <td className="py-2 pr-3">{ch.labelAgeWeeks.replace('{weeks}', String(ageWeeks))}</td>
-                        <td className="py-2 pr-3">{ch.labelPrice.replace('{price}', String(price))}</td>
+                        <td className="hidden md:table-cell py-2 pr-3 text-xs sm:text-sm">{ch.labelAgeWeeks.replace('{weeks}', String(ageWeeks))}</td>
+                        <td className="hidden md:table-cell py-2 pr-3 text-xs sm:text-sm">{ch.labelPrice.replace('{price}', String(price))}</td>
                         <td className="py-2 pr-3">
                           {hatch.active ? (
                             <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">{ch.badgeActive}</span>

@@ -396,20 +396,20 @@ export function PigOrdersTable({
                       className="rounded"
                     />
                   </th>
-                  <th className="px-4 py-3 text-left text-sm font-normal text-gray-700">{copy.table.orderNumber}</th>
-                  <th className="px-4 py-3 text-left text-sm font-normal text-gray-700">{copy.table.customer}</th>
-                  <th className="px-4 py-3 text-left text-sm font-normal text-gray-700">{copy.table.product}</th>
-                  <th className="px-4 py-3 text-left text-sm font-normal text-gray-700">{copy.table.status}</th>
-                  <th className="px-4 py-3 text-left text-sm font-normal text-gray-700">{copy.table.delivery}</th>
-                  <th className="px-4 py-3 text-left text-sm font-normal text-gray-700">{copy.table.amount}</th>
-                  <th className="px-4 py-3 text-left text-sm font-normal text-gray-700">{copy.table.date}</th>
-                  <th className="px-4 py-3 text-right text-sm font-normal text-gray-700">{copy.table.actions}</th>
+                  <th className="px-3 py-2 sm:px-4 sm:py-3 text-left text-xs sm:text-sm font-normal text-gray-700">{copy.table.orderNumber}</th>
+                  <th className="px-3 py-2 sm:px-4 sm:py-3 text-left text-xs sm:text-sm font-normal text-gray-700">{copy.table.customer}</th>
+                  <th className="hidden sm:table-cell px-3 py-2 sm:px-4 sm:py-3 text-left text-xs sm:text-sm font-normal text-gray-700">{copy.table.product}</th>
+                  <th className="px-3 py-2 sm:px-4 sm:py-3 text-left text-xs sm:text-sm font-normal text-gray-700">{copy.table.status}</th>
+                  <th className="hidden md:table-cell px-3 py-2 sm:px-4 sm:py-3 text-left text-xs sm:text-sm font-normal text-gray-700">{copy.table.delivery}</th>
+                  <th className="px-3 py-2 sm:px-4 sm:py-3 text-left text-xs sm:text-sm font-normal text-gray-700">{copy.table.amount}</th>
+                  <th className="hidden lg:table-cell px-3 py-2 sm:px-4 sm:py-3 text-left text-xs sm:text-sm font-normal text-gray-700">{copy.table.date}</th>
+                  <th className="px-3 py-2 sm:px-4 sm:py-3 text-right text-xs sm:text-sm font-normal text-gray-700">{copy.table.actions}</th>
                 </tr>
               </thead>
               <tbody className="divide-y">
                 {filteredOrders.map((order) => (
                   <tr key={order.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-4 py-3">
+                    <td className="px-3 py-2 sm:px-4 sm:py-3">
                       <input
                         type="checkbox"
                         checked={selectedOrders.has(order.id)}
@@ -417,29 +417,29 @@ export function PigOrdersTable({
                         className="rounded"
                       />
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-3 py-2 sm:px-4 sm:py-3">
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => { setSelectedOrder(order); setShowOrderDetail(true); }}
-                          className="font-medium text-blue-600 hover:text-blue-800"
+                          className="font-medium text-blue-600 hover:text-blue-800 text-xs sm:text-sm"
                         >
                           {order.order_number}
                         </button>
                         {(order.is_mangalitsa || order.mangalitsa_preset_id) && (
-                          <span className="px-2 py-0.5 bg-amber-100 text-amber-800 text-xs rounded-full font-medium">Mangalitsa</span>
+                          <span className="px-2 py-0.5 bg-amber-100 text-amber-800 text-xs rounded-full font-medium hidden sm:inline">Mangalitsa</span>
                         )}
                       </div>
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-3 py-2 sm:px-4 sm:py-3">
                       <div>
-                        <p className="font-medium text-gray-900">{order.customer_name}</p>
-                        <p className="text-sm text-gray-600">{order.customer_email}</p>
+                        <p className="font-medium text-gray-900 text-xs sm:text-sm">{order.customer_name}</p>
+                        <p className="text-xs text-gray-600 hidden sm:block">{order.customer_email}</p>
                       </div>
                     </td>
-                    <td className="px-4 py-3">
-                      <span className="text-gray-900">{getPigProductLabel(order)}</span>
+                    <td className="hidden sm:table-cell px-3 py-2 sm:px-4 sm:py-3">
+                      <span className="text-xs sm:text-sm text-gray-900">{getPigProductLabel(order)}</span>
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-3 py-2 sm:px-4 sm:py-3">
                       <span className={cn(
                         'px-2 py-1 rounded-full text-xs font-medium',
                         order.status === 'completed' ? 'bg-neutral-100 text-neutral-900' :
@@ -452,14 +452,14 @@ export function PigOrdersTable({
                         {statusOptions.find((s) => s.value === order.status)?.label || order.status}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{order.delivery_type}</td>
-                    <td className="px-4 py-3 font-medium text-gray-900">
+                    <td className="hidden md:table-cell px-3 py-2 sm:px-4 sm:py-3 text-xs sm:text-sm text-gray-600">{order.delivery_type}</td>
+                    <td className="px-3 py-2 sm:px-4 sm:py-3 font-medium text-xs sm:text-sm text-gray-900">
                       {currency} {order.total_amount.toLocaleString(locale)}
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-600">
+                    <td className="hidden lg:table-cell px-3 py-2 sm:px-4 sm:py-3 text-xs sm:text-sm text-gray-600">
                       {new Date(order.created_at).toLocaleDateString(locale)}
                     </td>
-                    <td className="px-4 py-3 text-right">
+                    <td className="px-3 py-2 sm:px-4 sm:py-3 text-right">
                       <Button size="sm" variant="outline" onClick={() => { setSelectedOrder(order); setShowOrderDetail(true); }}>
                         <Eye className="w-4 h-4" />
                       </Button>

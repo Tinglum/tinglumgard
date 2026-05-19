@@ -196,7 +196,7 @@ export function RebateCodesManager() {
         <Card className="p-6">
           <h3 className="text-lg font-semibold mb-4">{copy.createTitle}</h3>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <Label htmlFor="code">{copy.codeLabel}</Label>
               <Input
@@ -372,7 +372,7 @@ export function RebateCodesManager() {
         ) : (
           codes.map((code) => (
             <Card key={code.id} className={`p-6 ${!code.is_active ? 'opacity-60' : ''}`}>
-              <div className="flex items-start justify-between">
+              <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-2">
                     <h3 className="text-2xl font-bold font-mono">{code.code}</h3>
@@ -391,7 +391,7 @@ export function RebateCodesManager() {
                     <p className="text-gray-600 mb-3">{code.description}</p>
                   )}
 
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                     <div className="flex items-center gap-2">
                       {code.discount_type === 'percentage' ? (
                         <Percent className="h-4 w-4 text-blue-600" />

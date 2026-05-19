@@ -241,7 +241,7 @@ export function MangalitsaBoxManager() {
         <div className="text-sm font-light text-neutral-600">Total per gris: {totalPerPig.toLocaleString('nb-NO')} kr</div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {presets.map((preset) => (
           <div key={preset.id} className="bg-white border border-neutral-200 rounded-xl p-6 shadow-sm">
             <div className="flex items-center justify-between mb-4">
@@ -581,7 +581,7 @@ function EditContentsModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 overflow-y-auto">
-      <div className="bg-white rounded-xl p-8 max-w-4xl w-full shadow-xl my-8">
+      <div className="bg-white rounded-xl p-6 sm:p-8 w-full max-w-[calc(100vw-2rem)] sm:max-w-4xl shadow-xl my-8">
         <div className="flex items-center justify-between mb-6">
           <h3 className="text-2xl font-normal">Innhold: {preset.name_no}</h3>
           <button onClick={onClose} className="p-2 hover:bg-neutral-50 rounded-xl">

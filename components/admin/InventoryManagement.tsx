@@ -296,7 +296,7 @@ export function InventoryManagement() {
         </Card>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
         <Card className="p-6 bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
           <div className="flex items-center gap-3 mb-2">
             <Package className="w-8 h-8 text-blue-600" />
@@ -357,7 +357,7 @@ export function InventoryManagement() {
 
       <Card className="p-6">
         <h3 className="font-semibold text-lg mb-4">{copy.boxBreakdownTitle}</h3>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
           {sortedBoxEntries.map(([label, count]) => (
             <div key={label} className="p-4 rounded-xl bg-blue-50 border border-blue-200">
               <p className="text-sm text-blue-700 mb-1 truncate" title={label}>{label}</p>
@@ -479,7 +479,7 @@ export function InventoryManagement() {
             <Egg className="w-5 h-5" />
             {copy.eggOverviewTitle}
           </h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
             <div className="p-4 rounded-xl bg-neutral-50 border border-neutral-200">
               <p className="text-sm text-neutral-600">{copy.eggWeeksOnSale}</p>
               <p className="text-2xl font-semibold text-neutral-900">{eggSummary.upcoming_weeks}</p>

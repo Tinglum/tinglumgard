@@ -236,11 +236,11 @@ function SortableHeader({ label, sortKey, currentSort, onSort, ascKey, descKey }
   }
 
   return (
-    <th className="px-4 py-3 text-left">
+    <th className="px-3 py-2 sm:px-4 sm:py-3 text-left">
       <button
         onClick={handleClick}
         className={cn(
-          'flex items-center gap-1 text-sm font-medium transition-colors',
+          'flex items-center gap-1 text-xs sm:text-sm font-medium transition-colors',
           isActive ? 'text-neutral-900' : 'text-neutral-700 hover:text-neutral-900'
         )}
       >
@@ -1587,7 +1587,7 @@ export function EggOrdersWorkbench({
                     <SortableHeader label={copy.table.delivery} sortKey="delivery" currentSort={sortBy} onSort={setSortBy} ascKey="delivery_asc" descKey="delivery_desc" />
                     <SortableHeader label={copy.table.status} sortKey="status" currentSort={sortBy} onSort={setSortBy} ascKey="status_asc" descKey="status_desc" />
                     <SortableHeader label={copy.table.amount} sortKey="amount" currentSort={sortBy} onSort={setSortBy} ascKey="amount_asc" descKey="amount_desc" />
-                    <th className="px-4 py-3 text-right text-sm font-medium text-neutral-700">{copy.table.action}</th>
+                    <th className="px-3 py-2 sm:px-4 sm:py-3 text-right text-xs sm:text-sm font-medium text-neutral-700">{copy.table.action}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-neutral-100">
@@ -1599,7 +1599,7 @@ export function EggOrdersWorkbench({
 
                     return (
                       <tr key={order.id} className="hover:bg-neutral-50/60 transition-colors">
-                        <td className="px-4 py-3">
+                        <td className="px-3 py-2 sm:px-4 sm:py-3">
                           <input
                             type="checkbox"
                             checked={selectedIds.has(order.id)}
@@ -1607,10 +1607,10 @@ export function EggOrdersWorkbench({
                             className="rounded border-neutral-300"
                           />
                         </td>
-                        <td className="px-4 py-3">
+                        <td className="px-3 py-2 sm:px-4 sm:py-3">
                           <div>
                             <button
-                              className="font-semibold text-blue-700 hover:text-blue-900"
+                              className="font-semibold text-xs sm:text-sm text-blue-700 hover:text-blue-900"
                               onClick={() => fetchOrderDetail(order.id)}
                             >
                               {order.order_number}
@@ -1632,7 +1632,7 @@ export function EggOrdersWorkbench({
                             )}
                           </div>
                         </td>
-                        <td className="px-4 py-3 text-sm">
+                        <td className="px-3 py-2 sm:px-4 sm:py-3 text-xs sm:text-sm">
                           <div className="space-y-1">
                             <button
                               type="button"
@@ -1643,14 +1643,14 @@ export function EggOrdersWorkbench({
                             </button>
                             <a
                               href={`mailto:${order.customer_email}`}
-                              className="block text-neutral-600 underline-offset-4 hover:text-neutral-800 hover:underline"
+                              className="hidden sm:block text-neutral-600 underline-offset-4 hover:text-neutral-800 hover:underline"
                             >
                               {order.customer_email}
                             </a>
-                            {order.customer_phone && <p className="text-neutral-500">{order.customer_phone}</p>}
+                            {order.customer_phone && <p className="hidden sm:block text-neutral-500">{order.customer_phone}</p>}
                           </div>
                         </td>
-                        <td className="px-4 py-3 text-sm">
+                        <td className="px-3 py-2 sm:px-4 sm:py-3 text-xs sm:text-sm">
                           <p className="text-neutral-900">
                             {replaceTokens(copy.table.weekValue, {
                               week: order.week_number,
@@ -1660,7 +1660,7 @@ export function EggOrdersWorkbench({
                           <p className="text-neutral-600">{getDeliveryLabel(order.delivery_method)}</p>
                           <p className="text-neutral-500">{formatDate(order.delivery_monday)}</p>
                         </td>
-                        <td className="px-4 py-3">
+                        <td className="px-3 py-2 sm:px-4 sm:py-3">
                           <span className={cn('inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold', unifiedPill.className)}>
                             {unifiedPill.label}
                           </span>
@@ -1686,7 +1686,7 @@ export function EggOrdersWorkbench({
                             </div>
                           )}
                         </td>
-                        <td className="px-4 py-3 text-sm">
+                        <td className="px-3 py-2 sm:px-4 sm:py-3 text-xs sm:text-sm">
                           <p className="font-semibold text-neutral-900">{formatOre(order.total_amount)}</p>
                           <p className="text-neutral-600">
                             {replaceTokens(copy.table.depositValue, { amount: formatOre(order.deposit_amount) })}
@@ -1695,7 +1695,7 @@ export function EggOrdersWorkbench({
                             {replaceTokens(copy.table.remainderValue, { amount: formatOre(Math.max(0, (order.remainder_amount || 0) - (order.egg_payments || []).filter(p => p.payment_type === 'remainder' && p.status === 'completed').reduce((sum, p) => sum + Math.round((p.amount_nok || 0) * 100), 0))) })}
                           </p>
                         </td>
-                        <td className="px-4 py-3 text-right">
+                        <td className="px-3 py-2 sm:px-4 sm:py-3 text-right">
                           <div className="inline-flex items-center gap-2">
                             {order.delivery_method === 'posten' &&
                               ['fully_paid', 'preparing'].includes(order.status) && (

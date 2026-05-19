@@ -124,7 +124,7 @@ export function MangalitsaCutsManager() {
         <div className="text-sm font-light text-neutral-600">{copy.countLabel.replace('{count}', String(cuts.length))}</div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {cuts.map((cut) => {
           const part = cut.part_id ? cut.part || partsById.get(cut.part_id) || null : null;
           return (
