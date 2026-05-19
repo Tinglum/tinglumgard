@@ -8,11 +8,17 @@ import {
   ChevronUp,
   Eye,
   Loader2,
+  Lock,
   LogIn,
   Mail,
   MessageSquare,
+  Package,
   Phone,
   Search,
+  Truck,
+  Unlock,
+  Wallet,
+  Zap,
 } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useToast } from '@/hooks/use-toast';
@@ -399,6 +405,14 @@ export function CustomerDatabase({
   const [supportMessageDraft, setSupportMessageDraft] = useState<SupportMessageDraft>(createSupportMessageDraft());
   const [supportMessageSending, setSupportMessageSending] = useState(false);
   const [initialCustomerHandled, setInitialCustomerHandled] = useState(false);
+
+  // Order action state
+  const [orderActionLoading, setOrderActionLoading] = useState<string | null>(null);
+  const [collectRemainderModal, setCollectRemainderModal] = useState<{ order: CustomerOrderSummary; defaultAmount: number } | null>(null);
+  const [collectAmountInput, setCollectAmountInput] = useState('');
+  const [collectNoteInput, setCollectNoteInput] = useState('');
+  const [shipModal, setShipModal] = useState<CustomerOrderSummary | null>(null);
+  const [trackingNumberInput, setTrackingNumberInput] = useState('');
 
   const supportThreadStatusLabels = {
     open: t.customerMessagingPanel.statusOpen,
@@ -935,29 +949,22 @@ export function CustomerDatabase({
           const details = typeof body?.details === 'string' && body.details.trim() ? `: ${body.details}` : '';
           throw new Error(`${body?.error || copy.orderSaveErrorDescription}${details}`);
         }
-      } else {
-        const queueEntry = findQueueCommunicationForOrder(order);
-        if (!queueEntry) {
-          throw new Error(
-            (copy as any).resendConfirmationMissingDescription ||
-              (lang === 'en'
-                ? 'No previous email was found for this order yet.'
-                : 'Fant ingen tidligere e-post på denne ordren enda.')
-          );
-        }
-
-        const response = await fetch('/api/admin/customers/email', {
+      } else if (order.source === 'egg') {
+        const response = await fetch(`/api/admin/eggs/orders/${order.order_id}/resend-confirmation`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: 'resend',
-            queueId: queueEntry.id,
-          }),
+          body: JSON.stringify({ includeAdmin: true }),
         });
         const body = await response.json().catch(() => ({}));
-        if (!response.ok) {
-          throw new Error(body?.error || copy.orderSaveErrorDescription);
-        }
+        if (!response.ok) throw new Error(body?.error || copy.orderSaveErrorDescription);
+      } else if (order.source === 'pig') {
+        const response = await fetch(`/api/admin/orders/${order.order_id}/resend-confirmation`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ includeAdmin: true }),
+        });
+        const body = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(body?.error || copy.orderSaveErrorDescription);
       }
 
       toast({
@@ -984,6 +991,116 @@ export function CustomerDatabase({
       });
     } finally {
       setEmailActionLoading((current) => (current === actionKey ? null : current));
+    }
+  }
+
+  async function collectRemainder(order: CustomerOrderSummary, amountInput: string, note: string) {
+    const key = orderKey(order);
+    const actionKey = `collect-remainder:${key}`;
+    setOrderActionLoading(actionKey);
+    try {
+      let response: Response;
+      if (order.source === 'egg') {
+        const amountOre = Math.round(parseFloat(amountInput) * 100);
+        response = await fetch(`/api/admin/eggs/orders/${order.order_id}/collect-remainder`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ amountOre, note, locale: lang }),
+        });
+      } else if (order.source === 'chicken') {
+        const amountNok = parseFloat(amountInput);
+        response = await fetch(`/api/admin/chickens/orders/${order.order_id}/collect-remainder`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ amountNok, note, locale: lang }),
+        });
+      } else {
+        const amountNok = parseFloat(amountInput);
+        response = await fetch(`/api/admin/orders/${order.order_id}/collect-remainder`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ amountNok, note }),
+        });
+      }
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body?.error || copy.orderSaveErrorDescription);
+      toast({ title: lang === 'en' ? 'Remainder collected' : 'Restbetaling registrert' });
+      setCollectRemainderModal(null);
+      setCollectAmountInput('');
+      setCollectNoteInput('');
+      if (selectedCustomer) await viewCustomerProfile(selectedCustomer.customer_id);
+    } catch (error) {
+      toast({ title: lang === 'en' ? 'Error' : 'Feil', description: error instanceof Error ? error.message : copy.orderSaveErrorDescription, variant: 'destructive' });
+    } finally {
+      setOrderActionLoading((c) => (c === actionKey ? null : c));
+    }
+  }
+
+  async function enableRemainder(order: CustomerOrderSummary) {
+    const key = orderKey(order);
+    const actionKey = `enable-remainder:${key}`;
+    setOrderActionLoading(actionKey);
+    try {
+      const url = order.source === 'chicken'
+        ? `/api/admin/chickens/orders/${order.order_id}/enable-remainder`
+        : `/api/admin/orders/${order.order_id}/enable-remainder`;
+      const response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body?.error || copy.orderSaveErrorDescription);
+      toast({ title: lang === 'en' ? 'Remainder payment enabled' : 'Restbetaling aktivert', description: lang === 'en' ? 'Customer can now pay the remainder.' : 'Kunden kan nå betale restbeløpet.' });
+      if (selectedCustomer) await viewCustomerProfile(selectedCustomer.customer_id);
+    } catch (error) {
+      toast({ title: lang === 'en' ? 'Error' : 'Feil', description: error instanceof Error ? error.message : copy.orderSaveErrorDescription, variant: 'destructive' });
+    } finally {
+      setOrderActionLoading((c) => (c === actionKey ? null : c));
+    }
+  }
+
+  async function markShipped(order: CustomerOrderSummary, trackingNumber: string) {
+    const key = orderKey(order);
+    const actionKey = `mark-shipped:${key}`;
+    setOrderActionLoading(actionKey);
+    try {
+      const response = await fetch(`/api/admin/eggs/orders/${order.order_id}/actions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'mark_shipped', data: { trackingNumber: trackingNumber.trim() } }),
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body?.error || copy.orderSaveErrorDescription);
+      toast({ title: lang === 'en' ? 'Marked as shipped' : 'Merket som sendt' });
+      setShipModal(null);
+      setTrackingNumberInput('');
+      if (selectedCustomer) await viewCustomerProfile(selectedCustomer.customer_id);
+    } catch (error) {
+      toast({ title: lang === 'en' ? 'Error' : 'Feil', description: error instanceof Error ? error.message : copy.orderSaveErrorDescription, variant: 'destructive' });
+    } finally {
+      setOrderActionLoading((c) => (c === actionKey ? null : c));
+    }
+  }
+
+  async function toggleLockOrder(order: CustomerOrderSummary) {
+    const key = orderKey(order);
+    const details = (order.details || {}) as Record<string, unknown>;
+    const isLocked = Boolean(details.locked_at);
+    const action = isLocked ? 'unlock_orders' : 'lock_orders';
+    const actionKey = `lock:${key}`;
+    setOrderActionLoading(actionKey);
+    try {
+      const url = order.source === 'egg' ? '/api/admin/eggs/orders' : '/api/admin/orders';
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, orderIds: [order.order_id] }),
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body?.error || copy.orderSaveErrorDescription);
+      toast({ title: isLocked ? (lang === 'en' ? 'Order unlocked' : 'Ordre låst opp') : (lang === 'en' ? 'Order locked' : 'Ordre låst') });
+      if (selectedCustomer) await viewCustomerProfile(selectedCustomer.customer_id);
+    } catch (error) {
+      toast({ title: lang === 'en' ? 'Error' : 'Feil', description: error instanceof Error ? error.message : copy.orderSaveErrorDescription, variant: 'destructive' });
+    } finally {
+      setOrderActionLoading((c) => (c === actionKey ? null : c));
     }
   }
 
@@ -1634,6 +1751,16 @@ export function CustomerDatabase({
                   const itemSummary = getOrderItemSummary(order);
                   const isResending = emailActionLoading === `order-resend:${key}`;
                   const isOpeningContents = contentModalLoadingKey === key;
+                  const orderDets = (order.details || {}) as Record<string, unknown>;
+                  const isLocked = Boolean(orderDets.locked_at);
+                  const canLock = order.source === 'egg' || order.source === 'pig';
+                  const canCollectRemainder = (order.source === 'egg' || order.source === 'chicken' || order.source === 'pig') && remaining > 0;
+                  const canEnableRemainder = (order.source === 'chicken' || order.source === 'pig') && remaining > 0;
+                  const canMarkShipped = order.source === 'egg' && !['shipped', 'completed', 'cancelled'].includes(order.status);
+                  const isCollecting = orderActionLoading === `collect-remainder:${key}`;
+                  const isEnabling = orderActionLoading === `enable-remainder:${key}`;
+                  const isShipping = orderActionLoading === `mark-shipped:${key}`;
+                  const isLocking = orderActionLoading === `lock:${key}`;
                   return (
                     <div key={key} className="rounded-2xl border border-neutral-200 bg-white p-4">
                       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
@@ -1646,6 +1773,11 @@ export function CustomerDatabase({
                             <span className="rounded-full bg-neutral-900 px-2 py-0.5 text-xs font-medium text-white">
                               {orderStatus}
                             </span>
+                            {isLocked && (
+                              <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
+                                {lang === 'en' ? 'Locked' : 'Låst'}
+                              </span>
+                            )}
                           </div>
                           <p className="mt-1 text-sm text-neutral-600">
                             {orderCreatedLabel}:{' '}
@@ -1675,17 +1807,57 @@ export function CustomerDatabase({
                             onClick={() => resendOrderConfirmation(order)}
                             disabled={isResending}
                           >
-                            {isResending ? (
-                              <Loader2 className="mr-1 h-4 w-4 animate-spin" />
-                            ) : (
-                              <Mail className="mr-1 h-4 w-4" />
-                            )}
-                            {isResending
-                              ? ((copy as any).resendConfirmationLoading ||
-                                (lang === 'en' ? 'Sending...' : 'Sender...'))
-                              : ((copy as any).resendConfirmationButton ||
-                                (lang === 'en' ? 'Resend confirmation' : 'Send bekreftelse på nytt'))}
+                            {isResending ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Mail className="mr-1 h-4 w-4" />}
+                            {isResending ? (lang === 'en' ? 'Sending...' : 'Sender...') : (lang === 'en' ? 'Resend' : 'Send bekr.')}
                           </Button>
+                          {canCollectRemainder && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setCollectRemainderModal({ order, defaultAmount: remaining });
+                                setCollectAmountInput(String(remaining));
+                                setCollectNoteInput('');
+                              }}
+                              disabled={isCollecting}
+                            >
+                              {isCollecting ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Wallet className="mr-1 h-4 w-4" />}
+                              {lang === 'en' ? 'Collect' : 'Innkrev rest'}
+                            </Button>
+                          )}
+                          {canEnableRemainder && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => enableRemainder(order)}
+                              disabled={isEnabling}
+                            >
+                              {isEnabling ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Zap className="mr-1 h-4 w-4" />}
+                              {lang === 'en' ? 'Enable remainder' : 'Aktiver rest'}
+                            </Button>
+                          )}
+                          {canMarkShipped && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => { setShipModal(order); setTrackingNumberInput(''); }}
+                              disabled={isShipping}
+                            >
+                              {isShipping ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Truck className="mr-1 h-4 w-4" />}
+                              {lang === 'en' ? 'Mark shipped' : 'Merk sendt'}
+                            </Button>
+                          )}
+                          {canLock && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => toggleLockOrder(order)}
+                              disabled={isLocking}
+                            >
+                              {isLocking ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : isLocked ? <Unlock className="mr-1 h-4 w-4" /> : <Lock className="mr-1 h-4 w-4" />}
+                              {isLocked ? (lang === 'en' ? 'Unlock' : 'Lås opp') : (lang === 'en' ? 'Lock' : 'Lås')}
+                            </Button>
+                          )}
                         </div>
                       </div>
 
@@ -2672,6 +2844,93 @@ export function CustomerDatabase({
 
         {filteredCustomers.length === 0 && <div className="py-12 text-center text-gray-500">{copy.emptyResults}</div>}
       </Card>
+
+      {/* Collect Remainder Modal */}
+      <Dialog open={!!collectRemainderModal} onOpenChange={(open) => { if (!open) { setCollectRemainderModal(null); setCollectAmountInput(''); setCollectNoteInput(''); } }}>
+        <DialogContent className="w-full max-w-[calc(100vw-2rem)] sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{lang === 'en' ? 'Collect remainder payment' : 'Registrer restbetaling'}</DialogTitle>
+            <DialogDescription>
+              {collectRemainderModal?.order.order_number} — {lang === 'en' ? 'remaining' : 'restbeløp'}:{' '}
+              {currency} {collectRemainderModal?.defaultAmount.toLocaleString(locale)}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            <div>
+              <label className="mb-1 block text-sm font-medium text-neutral-700">
+                {lang === 'en' ? `Amount (${currency})` : `Beløp (${currency})`}
+              </label>
+              <input
+                type="number"
+                className="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                value={collectAmountInput}
+                onChange={(e) => setCollectAmountInput(e.target.value)}
+                min="0"
+                step="1"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-neutral-700">
+                {lang === 'en' ? 'Note (optional)' : 'Notat (valgfritt)'}
+              </label>
+              <Textarea
+                value={collectNoteInput}
+                onChange={(e) => setCollectNoteInput(e.target.value)}
+                rows={2}
+                className="border-neutral-200 text-sm"
+              />
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="outline" onClick={() => { setCollectRemainderModal(null); setCollectAmountInput(''); setCollectNoteInput(''); }}>
+                {lang === 'en' ? 'Cancel' : 'Avbryt'}
+              </Button>
+              <Button
+                onClick={() => collectRemainderModal && collectRemainder(collectRemainderModal.order, collectAmountInput, collectNoteInput)}
+                disabled={!collectAmountInput || parseFloat(collectAmountInput) <= 0 || orderActionLoading === `collect-remainder:${collectRemainderModal ? orderKey(collectRemainderModal.order) : ''}`}
+              >
+                {orderActionLoading?.startsWith('collect-remainder:') ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Package className="mr-2 h-4 w-4" />}
+                {lang === 'en' ? 'Confirm collection' : 'Bekreft innkreving'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Mark Shipped Modal */}
+      <Dialog open={!!shipModal} onOpenChange={(open) => { if (!open) { setShipModal(null); setTrackingNumberInput(''); } }}>
+        <DialogContent className="w-full max-w-[calc(100vw-2rem)] sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{lang === 'en' ? 'Mark as shipped' : 'Merk som sendt'}</DialogTitle>
+            <DialogDescription>{shipModal?.order_number}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            <div>
+              <label className="mb-1 block text-sm font-medium text-neutral-700">
+                {lang === 'en' ? 'Tracking number (optional)' : 'Sporingsnummer (valgfritt)'}
+              </label>
+              <input
+                type="text"
+                className="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                value={trackingNumberInput}
+                onChange={(e) => setTrackingNumberInput(e.target.value)}
+                placeholder="e.g. 12345678901"
+              />
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="outline" onClick={() => { setShipModal(null); setTrackingNumberInput(''); }}>
+                {lang === 'en' ? 'Cancel' : 'Avbryt'}
+              </Button>
+              <Button
+                onClick={() => shipModal && markShipped(shipModal, trackingNumberInput)}
+                disabled={orderActionLoading === `mark-shipped:${shipModal ? orderKey(shipModal) : ''}`}
+              >
+                {orderActionLoading?.startsWith('mark-shipped:') ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Truck className="mr-2 h-4 w-4" />}
+                {lang === 'en' ? 'Mark shipped' : 'Merk sendt'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
