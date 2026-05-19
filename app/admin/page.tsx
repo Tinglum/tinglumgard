@@ -207,25 +207,32 @@ export default function AdminPage() {
     setDeepLinkParsed(true);
   }, [deepLinkParsed, isAuthenticated]);
 
-  // Load message stats for badge
+  // Dedicated session heartbeat — checks auth every 5 minutes independently
+  // of the message badge poll. This avoids the badge poll driving logout.
   useEffect(() => {
     if (!isAuthenticated) return;
 
-    // Require two consecutive 401s before logging out — a single transient
-    // 401 from a cold-start or network blip shouldn't kick the admin out.
-    let consecutive401s = 0;
+    const checkSession = async () => {
+      try {
+        const res = await fetch('/api/admin/session', { cache: 'no-store' });
+        if (res.status === 401) setIsAuthenticated(false);
+      } catch {
+        // Network error — don't log out
+      }
+    };
+
+    const interval = setInterval(checkSession, 5 * 60 * 1000); // every 5 min
+    return () => clearInterval(interval);
+  }, [isAuthenticated]);
+
+  // Load message stats for badge — never drives logout
+  useEffect(() => {
+    if (!isAuthenticated) return;
 
     async function loadMessageStats() {
       try {
         const response = await fetch('/api/admin/messages', { cache: 'no-store' });
-        if (!response.ok) {
-          if (response.status === 401) {
-            consecutive401s += 1;
-            if (consecutive401s >= 2) setIsAuthenticated(false);
-          }
-          return;
-        }
-        consecutive401s = 0;
+        if (!response.ok) return; // silently skip — session heartbeat handles auth
         const data = await response.json();
         if (data?.stats) {
           setUnresolvedCount(
@@ -235,7 +242,7 @@ export default function AdminPage() {
           );
         }
       } catch {
-        // Non-critical — don't count network errors as 401
+        // Non-critical
       }
     }
 
