@@ -178,17 +178,17 @@ export function OrderDetailModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-      <div className="relative w-full max-w-5xl max-h-[90vh] overflow-hidden rounded-3xl shadow-2xl bg-white">
-        <div className="sticky top-0 z-10 px-8 py-6 border-b bg-white">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/50 backdrop-blur-sm">
+      <div className="relative w-full max-w-[calc(100vw-1rem)] sm:max-w-5xl max-h-[90vh] overflow-hidden rounded-2xl sm:rounded-3xl shadow-2xl bg-white">
+        <div className="sticky top-0 z-10 px-4 sm:px-8 py-4 sm:py-6 border-b bg-white">
           <button
             onClick={onClose}
-            className="absolute top-6 right-6 p-2 rounded-full hover:bg-gray-100 transition-colors"
+            className="absolute top-4 right-4 sm:top-6 sm:right-6 p-2 rounded-full hover:bg-gray-100 transition-colors"
           >
             <X className="w-6 h-6" />
           </button>
           <div className="pr-12">
-            <h2 className="text-3xl font-bold text-gray-900 mb-2">
+            <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
               {copy.orderTitle} {order.order_number}
             </h2>
             <div className="flex items-center gap-4">
@@ -209,7 +209,7 @@ export function OrderDetailModal({
           </div>
         </div>
 
-        <div className="px-8 py-6 overflow-y-auto max-h-[calc(90vh-180px)]">
+        <div className="px-4 sm:px-8 py-4 sm:py-6 overflow-y-auto max-h-[calc(90vh-180px)]">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div className="p-6 rounded-xl border border-gray-200">
               <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
@@ -494,8 +494,8 @@ export function OrderDetailModal({
           </div>
         </div>
 
-        <div className="sticky bottom-0 px-8 py-6 border-t bg-white">
-          <div className="flex items-center justify-between gap-6">
+        <div className="sticky bottom-0 px-4 sm:px-8 py-4 sm:py-6 border-t bg-white">
+          <div className="flex flex-wrap items-center justify-between gap-3 sm:gap-6">
             <div className="flex-1">
               <Label className="text-sm font-medium text-gray-700 mb-2 block">{copy.changeStatusLabel}</Label>
               <select

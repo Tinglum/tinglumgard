@@ -174,7 +174,7 @@ export function ChickenBreedManager() {
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-wrap justify-between items-center gap-3">
         <h3 className="text-lg font-semibold">{cb.title} ({breeds.length})</h3>
         <Button size="sm" onClick={() => { setEditing({ ...emptyBreed }); setIsNew(true) }}>
           <Plus className="w-4 h-4 mr-1" /> {cb.newBreed}

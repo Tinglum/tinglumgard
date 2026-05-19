@@ -503,9 +503,9 @@ export function AdminMessagingPanel({
       {/* Message Detail Card */}
       <Card className={cn('p-6', getPriorityColor(selectedMessage.priority))}>
         <div className="mb-4">
-          <div className="flex items-start justify-between mb-4">
-            <div>
-              <h2 className="text-2xl font-bold text-gray-900">{selectedMessage.subject}</h2>
+          <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
+            <div className="min-w-0 flex-1">
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-900">{selectedMessage.subject}</h2>
               <p className="text-gray-600">
                 {onNavigateToCustomer && resolveCustomerId(selectedMessage) ? (
                   <button
@@ -540,7 +540,7 @@ export function AdminMessagingPanel({
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-4 text-sm mb-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm mb-4">
             <div>
               <span className="text-gray-600">{copy.typeLabel}</span>
               <p className="font-semibold text-gray-900">{selectedMessage.message_type}</p>

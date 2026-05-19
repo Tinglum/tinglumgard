@@ -2128,7 +2128,7 @@ export function CustomerDatabase({
             }
           }}
         >
-          <DialogContent className="max-h-[86vh] max-w-3xl overflow-y-auto">
+          <DialogContent className="mx-4 sm:mx-auto w-full max-w-[calc(100vw-2rem)] sm:max-w-3xl max-h-[86vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>
                 {(copy as any).orderCardItemsLabel || (lang === 'en' ? 'Items' : 'Innhold')}
@@ -2272,7 +2272,7 @@ export function CustomerDatabase({
             }
           }}
         >
-          <DialogContent className="max-h-[90vh] max-w-5xl overflow-y-auto">
+          <DialogContent className="mx-4 sm:mx-auto w-full max-w-[calc(100vw-2rem)] sm:max-w-5xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>
                 {(copy as any).communicationModalTitle ||
@@ -2452,7 +2452,7 @@ export function CustomerDatabase({
             }
           }}
         >
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="mx-4 sm:mx-auto w-full max-w-[calc(100vw-2rem)] sm:max-w-2xl">
             <DialogHeader>
               <DialogTitle>
                 {copy.messageComposerTitle}

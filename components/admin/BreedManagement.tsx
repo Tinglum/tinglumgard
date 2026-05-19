@@ -169,12 +169,12 @@ export function BreedManagement() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">{copy.title}</h2>
           <p className="text-sm text-gray-600 mt-1">{copy.subtitle}</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <Button onClick={loadBreeds} variant="outline" size="sm">
             <RefreshCw className="w-4 h-4 mr-2" />
             {copy.refreshButton}

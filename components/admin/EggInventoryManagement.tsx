@@ -482,12 +482,12 @@ export function EggInventoryManagement() {
   return (
     <div className="space-y-6">
       {/* ------ header ------------------------------------------------------------------------------------------------------------------------------------------------ */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="text-2xl font-bold text-neutral-900">{copy.title}</h2>
           <p className="text-sm text-neutral-500 mt-0.5">{copy.subtitle}</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Button onClick={loadData} variant="outline" size="sm">
             <RefreshCw className="w-4 h-4 mr-1.5" />
             {copy.refreshButton}
@@ -587,9 +587,9 @@ export function EggInventoryManagement() {
 
           <div className="space-y-2">
             {breeds.map((breed) => (
-              <div key={breed.id} className="flex items-center gap-3 rounded-lg bg-white border border-neutral-200 px-4 py-2">
+              <div key={breed.id} className="flex flex-wrap items-center gap-3 rounded-lg bg-white border border-neutral-200 px-4 py-2">
                 <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: breed.accent_color }} />
-                <span className="text-sm font-medium text-neutral-800 min-w-[160px]">{breed.name}</span>
+                <span className="text-sm font-medium text-neutral-800 flex-1 min-w-0">{breed.name}</span>
                 <div className="flex items-center gap-2 ml-auto">
                   <Label className="text-xs text-neutral-500">{lang === 'en' ? 'Eggs/week:' : 'Egg/uke:'}</Label>
                   <Input
@@ -660,7 +660,7 @@ export function EggInventoryManagement() {
               </Button>
             </div>
 
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
                 <Label className="text-xs">{copy.weekNumberLabel}</Label>
                 <Input

@@ -543,7 +543,7 @@ export function UnifiedEggChickenOrdersManager() {
 
       <Card className="border-neutral-200 p-4">
         <div className="flex flex-wrap items-center gap-3">
-          <div className="relative min-w-[260px] flex-1">
+          <div className="relative w-full sm:min-w-[260px] sm:flex-1 min-w-0">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
             <Input
               className="pl-9"
@@ -593,11 +593,14 @@ export function UnifiedEggChickenOrdersManager() {
             <table className="w-full text-sm">
               <thead className="bg-neutral-50 text-neutral-600">
                 <tr>
-                  {l.cols.map((header) => (
-                    <th key={header} className="px-4 py-3 text-left font-medium">
-                      {header}
-                    </th>
-                  ))}
+                  <th className="px-3 py-2 sm:px-4 sm:py-3 text-left text-xs sm:text-sm font-medium">{l.cols[0]}</th>
+                  <th className="px-3 py-2 sm:px-4 sm:py-3 text-left text-xs sm:text-sm font-medium">{l.cols[1]}</th>
+                  <th className="hidden sm:table-cell px-3 py-2 sm:px-4 sm:py-3 text-left text-xs sm:text-sm font-medium">{l.cols[2]}</th>
+                  <th className="hidden md:table-cell px-3 py-2 sm:px-4 sm:py-3 text-left text-xs sm:text-sm font-medium">{l.cols[3]}</th>
+                  <th className="hidden md:table-cell px-3 py-2 sm:px-4 sm:py-3 text-left text-xs sm:text-sm font-medium">{l.cols[4]}</th>
+                  <th className="hidden lg:table-cell px-3 py-2 sm:px-4 sm:py-3 text-left text-xs sm:text-sm font-medium">{l.cols[5]}</th>
+                  <th className="hidden sm:table-cell px-3 py-2 sm:px-4 sm:py-3 text-left text-xs sm:text-sm font-medium">{l.cols[6]}</th>
+                  <th className="px-3 py-2 sm:px-4 sm:py-3 text-left text-xs sm:text-sm font-medium">{l.cols[7]}</th>
                 </tr>
               </thead>
               <tbody>
@@ -608,7 +611,7 @@ export function UnifiedEggChickenOrdersManager() {
                       key={`${row.source}-${row.id}`}
                       className="border-t border-neutral-100 hover:bg-neutral-50"
                     >
-                      <td className="align-top px-4 py-3">
+                      <td className="align-top px-3 py-2 sm:px-4 sm:py-3">
                         <span
                           className={cn(
                             'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium',
@@ -623,7 +626,7 @@ export function UnifiedEggChickenOrdersManager() {
                           {row.source === 'egg' ? l.egg : l.chicken}
                         </span>
                       </td>
-                      <td className="align-top px-4 py-3">
+                      <td className="align-top px-3 py-2 sm:px-4 sm:py-3">
                         <button
                           className="text-left font-mono text-xs underline-offset-2 hover:underline"
                           onClick={() => void open(row.source, row.id)}
@@ -635,12 +638,12 @@ export function UnifiedEggChickenOrdersManager() {
                         </div>
                         <div className="text-xs text-neutral-500">{row.weekLabel}</div>
                       </td>
-                      <td className="align-top px-4 py-3">
-                        <div className="font-medium text-neutral-900">{row.customerName}</div>
+                      <td className="hidden sm:table-cell align-top px-3 py-2 sm:px-4 sm:py-3">
+                        <div className="font-medium text-neutral-900 text-xs sm:text-sm">{row.customerName}</div>
                         <div className="text-xs text-neutral-600">{row.customerEmail}</div>
                       </td>
-                      <td className="align-top px-4 py-3">
-                        <div className="font-medium text-neutral-900">{row.lines[0]?.label || '-'}</div>
+                      <td className="hidden md:table-cell align-top px-3 py-2 sm:px-4 sm:py-3">
+                        <div className="font-medium text-neutral-900 text-xs sm:text-sm">{row.lines[0]?.label || '-'}</div>
                         <div className="text-xs text-neutral-600">{row.lines[0]?.qty || ''}</div>
                         {typeof row.lines[0]?.ageWeeksAtPickup === 'number' ? (
                           <div className="text-xs text-neutral-500">
@@ -650,14 +653,14 @@ export function UnifiedEggChickenOrdersManager() {
                         ) : null}
                         {row.lines.length > 1 ? <div className="text-xs text-neutral-500">+{row.lines.length - 1}</div> : null}
                       </td>
-                      <td className="align-top px-4 py-3 text-xs">
+                      <td className="hidden md:table-cell align-top px-3 py-2 sm:px-4 sm:py-3 text-xs">
                         <div>{money(row.paidOre)}</div>
                         <div className="text-neutral-500">{money(row.totalOre)}</div>
                       </td>
-                      <td className="align-top px-4 py-3">
+                      <td className="hidden lg:table-cell align-top px-3 py-2 sm:px-4 sm:py-3">
                         <div
                           className={cn(
-                            'text-sm font-semibold',
+                            'text-xs sm:text-sm font-semibold',
                             row.dueOre > 0 ? 'text-amber-700' : 'text-emerald-700'
                           )}
                         >
@@ -665,7 +668,7 @@ export function UnifiedEggChickenOrdersManager() {
                         </div>
                         <div className="text-xs text-neutral-500">{date(row.dueDate)}</div>
                       </td>
-                      <td className="align-top px-4 py-3">
+                      <td className="hidden sm:table-cell align-top px-3 py-2 sm:px-4 sm:py-3">
                         <span
                           className={cn(
                             'inline-flex rounded-full px-2 py-0.5 text-xs font-medium',
@@ -681,7 +684,7 @@ export function UnifiedEggChickenOrdersManager() {
                           {statusLabel(row.status)}
                         </span>
                       </td>
-                      <td className="align-top px-4 py-3">
+                      <td className="align-top px-3 py-2 sm:px-4 sm:py-3">
                         <div className="flex flex-col gap-2">
                           <Button size="sm" variant="outline" onClick={() => void open(row.source, row.id)}>
                             {l.details}
@@ -721,7 +724,7 @@ export function UnifiedEggChickenOrdersManager() {
       </Card>
 
       <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
-        <DialogContent className="max-h-[92vh] max-w-5xl overflow-y-auto bg-white text-neutral-900">
+        <DialogContent className="mx-4 sm:mx-auto w-full max-w-[calc(100vw-2rem)] sm:max-w-5xl max-h-[92vh] overflow-y-auto bg-white text-neutral-900">
           <DialogHeader>
             <DialogTitle>
               {l.panel}
