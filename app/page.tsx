@@ -15,6 +15,7 @@ import { MobileProductTiles } from "@/components/MobileProductTiles";
 import { MobileTimeline } from "@/components/MobileTimeline";
 import { FrontpageVideoDialog } from "@/components/FrontpageVideoDialog";
 import { useToast } from "@/hooks/use-toast";
+import { usePageTrack } from "@/hooks/usePageTrack";
 
 interface InventoryData {
   season: string;
@@ -302,6 +303,7 @@ function TimelineStep({
 export default function Page() {
   const { t, lang } = useLanguage();
   const { toast } = useToast();
+  usePageTrack('pig_browse', '/');
   const { getThemeClasses } = useTheme();
   const theme = getThemeClasses();
   const heroStyles = getHeroStyles(theme);

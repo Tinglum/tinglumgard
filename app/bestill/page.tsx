@@ -19,6 +19,7 @@ import { ExtraProductDetails } from '@/components/ExtraProductDetails';
 import { ExtraProductModal } from '@/components/ExtraProductModal';
 import { RecipeQuickViewModal } from '@/components/RecipeQuickViewModal';
 import { useToast } from '@/hooks/use-toast';
+import { usePageTrack } from '@/hooks/usePageTrack';
 import {
   getDefaultExtraQuantity,
   getExtraStep,
@@ -98,6 +99,7 @@ export default function CheckoutPage() {
   const { t, lang } = useLanguage();
   const locale = lang === 'no' ? 'nb-NO' : 'en-US';
   const searchParams = useSearchParams();
+  usePageTrack('pig_checkout_start', '/bestill');
   const isMobile = useIsMobile();
   const { toast } = useToast();
   const mainContentRef = useRef<HTMLDivElement>(null);

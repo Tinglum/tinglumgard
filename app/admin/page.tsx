@@ -41,6 +41,7 @@ import { ChickenHatchManager } from '@/components/admin/ChickenHatchManager';
 import { ChickenOrdersManager } from '@/components/admin/ChickenOrdersManager';
 import { EggWishlistManager } from '@/components/admin/EggWishlistManager';
 import { EggOpsDailyCollection } from '@/components/eggops/EggOpsDailyCollection';
+import { PigFunnelAnalytics } from '@/components/admin/PigFunnelAnalytics';
 
 type TabType = 'dashboard' | 'orders' | 'products' | 'customers' | 'settings';
 
@@ -51,7 +52,7 @@ type OrdersSubTab = 'pig' | 'egg' | 'wishlist' | 'chicken' | 'calendar';
 type ProductsL1 = 'mangalitsa' | 'eggs' | 'chickens';
 
 // Products L2 sub-tabs
-type MangalitsaL2 = 'boxes' | 'extras' | 'cuts' | 'recipes' | 'inventory';
+type MangalitsaL2 = 'boxes' | 'extras' | 'cuts' | 'recipes' | 'inventory' | 'funnel';
 type EggsL2 = 'daily' | 'inventory' | 'breeds' | 'analytics';
 type ChickensL2 = 'hatches' | 'breeds';
 
@@ -588,6 +589,7 @@ export default function AdminPage() {
                     { id: 'cuts', label: lang === 'no' ? 'Stykker' : 'Cuts' },
                     { id: 'recipes', label: lang === 'no' ? 'Oppskrifter' : 'Recipes' },
                     { id: 'inventory', label: lang === 'no' ? 'Lager' : 'Inventory' },
+                    { id: 'funnel', label: lang === 'no' ? 'Analyse' : 'Analytics' },
                   ]}
                   active={mangalitsaL2}
                   onChange={(id) => setMangalitsaL2(id as MangalitsaL2)}
@@ -597,6 +599,7 @@ export default function AdminPage() {
                 {mangalitsaL2 === 'cuts' && <MangalitsaCutsManager />}
                 {mangalitsaL2 === 'recipes' && <RecipeManager />}
                 {mangalitsaL2 === 'inventory' && <InventoryManagement />}
+                {mangalitsaL2 === 'funnel' && <PigFunnelAnalytics />}
               </div>
             )}
 
