@@ -1753,10 +1753,19 @@ export function CustomerDatabase({
                   const isOpeningContents = contentModalLoadingKey === key;
                   const orderDets = (order.details || {}) as Record<string, unknown>;
                   const isLocked = Boolean(orderDets.locked_at);
+                  const remainderEnabled = Boolean(orderDets.remainder_payment_enabled);
+                  // Statuses where payment is complete or the order is closed
+                  const paymentClosedStatuses = ['fully_paid', 'completed', 'cancelled', 'forfeited', 'picked_up'];
+                  const paymentOpen = !paymentClosedStatuses.includes(order.status);
                   const canLock = order.source === 'egg' || order.source === 'pig';
-                  const canCollectRemainder = (order.source === 'egg' || order.source === 'chicken' || order.source === 'pig') && remaining > 0;
-                  const canEnableRemainder = (order.source === 'chicken' || order.source === 'pig') && remaining > 0;
-                  const canMarkShipped = order.source === 'egg' && !['shipped', 'completed', 'cancelled'].includes(order.status);
+                  const canCollectRemainder = remaining > 0 && paymentOpen;
+                  // Enable remainder: only if not already enabled and deposit-stage statuses
+                  const depositPaidStatuses = ['deposit_paid', 'partially_paid'];
+                  const canEnableRemainder = (order.source === 'chicken' || order.source === 'pig')
+                    && remaining > 0
+                    && !remainderEnabled
+                    && depositPaidStatuses.includes(order.status);
+                  const canMarkShipped = order.source === 'egg' && !['shipped', 'completed', 'cancelled', 'fully_paid'].includes(order.status);
                   const isCollecting = orderActionLoading === `collect-remainder:${key}`;
                   const isEnabling = orderActionLoading === `enable-remainder:${key}`;
                   const isShipping = orderActionLoading === `mark-shipped:${key}`;
@@ -1776,6 +1785,11 @@ export function CustomerDatabase({
                             {isLocked && (
                               <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
                                 {lang === 'en' ? 'Locked' : 'Låst'}
+                              </span>
+                            )}
+                          {!paymentOpen && remaining > 0 && (
+                              <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700" title={lang === 'en' ? 'Status says paid but amount does not match' : 'Status sier betalt, men beløp stemmer ikke'}>
+                                {lang === 'en' ? 'Data mismatch' : 'Dataavvik'}
                               </span>
                             )}
                           </div>
