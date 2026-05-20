@@ -37,6 +37,16 @@ import {
 
 type OrderSource = 'pig' | 'egg' | 'chicken';
 
+type EggInventoryOption = {
+  id: string;
+  year: number;
+  week_number: number;
+  delivery_monday: string;
+  eggs_available: number;
+  eggs_allocated: number;
+  egg_breeds: { id: string; name: string; price_per_egg: number } | null;
+};
+
 type Customer = {
   customer_id: string;
   email: string;
@@ -413,6 +423,17 @@ export function CustomerDatabase({
   const [collectNoteInput, setCollectNoteInput] = useState('');
   const [shipModal, setShipModal] = useState<CustomerOrderSummary | null>(null);
   const [trackingNumberInput, setTrackingNumberInput] = useState('');
+
+  // Manual egg order creation
+  const [createEggOrderModal, setCreateEggOrderModal] = useState(false);
+  const [eggInventoryOptions, setEggInventoryOptions] = useState<EggInventoryOption[]>([]);
+  const [eggInventoryLoading, setEggInventoryLoading] = useState(false);
+  const [newEggInventoryId, setNewEggInventoryId] = useState('');
+  const [newEggQuantity, setNewEggQuantity] = useState('6');
+  const [newEggDeliveryMethod, setNewEggDeliveryMethod] = useState('farm_pickup');
+  const [newEggAdminNote, setNewEggAdminNote] = useState('');
+  const [newEggPriceOverride, setNewEggPriceOverride] = useState('');
+  const [createEggOrderLoading, setCreateEggOrderLoading] = useState(false);
 
   const supportThreadStatusLabels = {
     open: t.customerMessagingPanel.statusOpen,
@@ -1056,6 +1077,109 @@ export function CustomerDatabase({
     }
   }
 
+  async function correctOrderStatus(order: CustomerOrderSummary) {
+    const key = orderKey(order);
+    const actionKey = `correct-status:${key}`;
+    setOrderActionLoading(actionKey);
+    try {
+      const response = await fetch(`/api/admin/chickens/orders/${order.order_id}/correct-status`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body?.error || copy.orderSaveErrorDescription);
+      toast({
+        title: lang === 'en' ? 'Status corrected' : 'Status korrigert',
+        description: lang === 'en'
+          ? 'Order reset to deposit_paid. Phantom payments voided.'
+          : 'Ordre tilbakestilt til innbetalt depositum. Phantom-betalinger annullert.',
+      });
+      if (selectedCustomer) await viewCustomerProfile(selectedCustomer.customer_id);
+    } catch (error) {
+      toast({ title: lang === 'en' ? 'Error' : 'Feil', description: error instanceof Error ? error.message : copy.orderSaveErrorDescription, variant: 'destructive' });
+    } finally {
+      setOrderActionLoading((c) => (c === actionKey ? null : c));
+    }
+  }
+
+  async function openCreateEggOrderModal() {
+    setCreateEggOrderModal(true);
+    setEggInventoryLoading(true);
+    setNewEggInventoryId('');
+    setNewEggQuantity('6');
+    setNewEggDeliveryMethod('farm_pickup');
+    setNewEggAdminNote('');
+    setNewEggPriceOverride('');
+    try {
+      const [inventoryRes, breedsRes] = await Promise.all([
+        fetch('/api/admin/eggs/inventory', { cache: 'no-store' }),
+        fetch('/api/admin/eggs/breeds', { cache: 'no-store' }),
+      ]);
+      const inventoryData = await inventoryRes.json();
+      const breedsData = await breedsRes.json();
+      // Build a breed price map: breedId → price_per_egg (øre)
+      const breedPriceMap = new Map<string, number>();
+      if (Array.isArray(breedsData)) {
+        for (const breed of breedsData) {
+          if (breed?.id) breedPriceMap.set(breed.id, Number(breed.price_per_egg || 0));
+        }
+      }
+      const rows: EggInventoryOption[] = (Array.isArray(inventoryData) ? inventoryData : []).map((r: any) => ({
+        ...r,
+        egg_breeds: r.egg_breeds
+          ? { ...r.egg_breeds, price_per_egg: breedPriceMap.get(r.egg_breeds.id ?? r.breed_id) ?? Number(r.egg_breeds.price_per_egg || 0) }
+          : null,
+      }));
+      // Show rows with available eggs — sort newest first
+      const relevant = rows
+        .filter((r) => (r.eggs_available - r.eggs_allocated) > 0)
+        .sort((a, b) => (a.year === b.year ? b.week_number - a.week_number : b.year - a.year));
+      setEggInventoryOptions(relevant);
+      // Pre-select the most recent maran week, else first option
+      const maranRow = relevant.find((r) => r.egg_breeds?.name?.toLowerCase().includes('maran'));
+      setNewEggInventoryId(maranRow?.id || relevant[0]?.id || '');
+    } catch {
+      // leave empty, user can still pick
+    } finally {
+      setEggInventoryLoading(false);
+    }
+  }
+
+  async function createManualEggOrder() {
+    if (!selectedCustomer || !newEggInventoryId) return;
+    setCreateEggOrderLoading(true);
+    try {
+      const priceOverrideOre = newEggPriceOverride ? Math.round(parseFloat(newEggPriceOverride) * 100) : undefined;
+      const response = await fetch('/api/admin/eggs/orders/create-manual', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customerName: selectedCustomer.name,
+          customerEmail: selectedCustomer.email,
+          customerPhone: selectedCustomer.phone || undefined,
+          inventoryId: newEggInventoryId,
+          quantity: parseInt(newEggQuantity, 10),
+          deliveryMethod: newEggDeliveryMethod,
+          adminNote: newEggAdminNote || undefined,
+          ...(priceOverrideOre ? { pricePerEggOre: priceOverrideOre } : {}),
+        }),
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body?.error || copy.orderSaveErrorDescription);
+      toast({
+        title: lang === 'en' ? 'Egg order created' : 'Rugeeggordre opprettet',
+        description: `${body.orderNumber} — ${body.quantity} egg${body.quantity !== 1 ? (lang === 'en' ? 's' : '') : ''} (${body.breed})`,
+      });
+      setCreateEggOrderModal(false);
+      if (selectedCustomer) await viewCustomerProfile(selectedCustomer.customer_id);
+    } catch (error) {
+      toast({ title: lang === 'en' ? 'Error' : 'Feil', description: error instanceof Error ? error.message : copy.orderSaveErrorDescription, variant: 'destructive' });
+    } finally {
+      setCreateEggOrderLoading(false);
+    }
+  }
+
   async function markShipped(order: CustomerOrderSummary, trackingNumber: string) {
     const key = orderKey(order);
     const actionKey = `mark-shipped:${key}`;
@@ -1662,12 +1786,18 @@ export function CustomerDatabase({
                   (lang === 'en' ? 'Unified customer profile across all products.' : 'Samlet kundeprofil på tvers av alle produkter.')}
               </p>
             </div>
-            {Boolean(customers.find((entry) => entry.customer_id === selectedCustomer.customer_id)?.at_risk) && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-3 py-1 text-xs font-medium text-red-700">
-                <AlertTriangle className="h-3 w-3" />
-                {copy.atRiskTag}
-              </span>
-            )}
+            <div className="flex flex-wrap items-center gap-2">
+              {Boolean(customers.find((entry) => entry.customer_id === selectedCustomer.customer_id)?.at_risk) && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-3 py-1 text-xs font-medium text-red-700">
+                  <AlertTriangle className="h-3 w-3" />
+                  {copy.atRiskTag}
+                </span>
+              )}
+              <Button variant="outline" size="sm" onClick={openCreateEggOrderModal}>
+                <Package className="mr-1.5 h-4 w-4" />
+                {lang === 'en' ? 'Add egg order' : 'Ny rugeeggordre'}
+              </Button>
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -1766,10 +1896,15 @@ export function CustomerDatabase({
                     && !remainderEnabled
                     && depositPaidStatuses.includes(order.status);
                   const canMarkShipped = order.source === 'egg' && !['shipped', 'completed', 'cancelled', 'fully_paid'].includes(order.status);
+                  // Dataavvik correction: chicken orders only — status closed but remainder unpaid
+                  const canCorrectStatus = order.source === 'chicken'
+                    && ['fully_paid', 'completed'].includes(order.status)
+                    && remaining > 0;
                   const isCollecting = orderActionLoading === `collect-remainder:${key}`;
                   const isEnabling = orderActionLoading === `enable-remainder:${key}`;
                   const isShipping = orderActionLoading === `mark-shipped:${key}`;
                   const isLocking = orderActionLoading === `lock:${key}`;
+                  const isCorrecting = orderActionLoading === `correct-status:${key}`;
                   return (
                     <div key={key} className="rounded-2xl border border-neutral-200 bg-white p-4">
                       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
@@ -1830,7 +1965,7 @@ export function CustomerDatabase({
                               size="sm"
                               onClick={() => {
                                 setCollectRemainderModal({ order, defaultAmount: remaining });
-                                setCollectAmountInput(String(remaining));
+                                setCollectAmountInput('');
                                 setCollectNoteInput('');
                               }}
                               disabled={isCollecting}
@@ -1848,6 +1983,18 @@ export function CustomerDatabase({
                             >
                               {isEnabling ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Zap className="mr-1 h-4 w-4" />}
                               {lang === 'en' ? 'Enable remainder' : 'Aktiver rest'}
+                            </Button>
+                          )}
+                          {canCorrectStatus && (
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              onClick={() => correctOrderStatus(order)}
+                              disabled={isCorrecting}
+                              title={lang === 'en' ? 'Reset status to deposit_paid and void phantom payments' : 'Tilbakestill status og annuller phantom-betalinger'}
+                            >
+                              {isCorrecting ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <AlertTriangle className="mr-1 h-4 w-4" />}
+                              {lang === 'en' ? 'Correct status' : 'Korriger status'}
                             </Button>
                           )}
                           {canMarkShipped && (
@@ -2877,10 +3024,13 @@ export function CustomerDatabase({
               <input
                 type="number"
                 className="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                placeholder={lang === 'en' ? `Enter amount (max ${collectRemainderModal?.defaultAmount ?? ''})` : `Skriv inn beløp (maks ${collectRemainderModal?.defaultAmount ?? ''})`}
                 value={collectAmountInput}
                 onChange={(e) => setCollectAmountInput(e.target.value)}
-                min="0"
+                min="1"
+                max={collectRemainderModal?.defaultAmount}
                 step="1"
+                autoFocus
               />
             </div>
             <div>
@@ -2900,7 +3050,12 @@ export function CustomerDatabase({
               </Button>
               <Button
                 onClick={() => collectRemainderModal && collectRemainder(collectRemainderModal.order, collectAmountInput, collectNoteInput)}
-                disabled={!collectAmountInput || parseFloat(collectAmountInput) <= 0 || orderActionLoading === `collect-remainder:${collectRemainderModal ? orderKey(collectRemainderModal.order) : ''}`}
+                disabled={
+                  !collectAmountInput ||
+                  parseFloat(collectAmountInput) <= 0 ||
+                  (collectRemainderModal != null && parseFloat(collectAmountInput) > collectRemainderModal.defaultAmount) ||
+                  orderActionLoading === `collect-remainder:${collectRemainderModal ? orderKey(collectRemainderModal.order) : ''}`
+                }
               >
                 {orderActionLoading?.startsWith('collect-remainder:') ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Package className="mr-2 h-4 w-4" />}
                 {lang === 'en' ? 'Confirm collection' : 'Bekreft innkreving'}
@@ -2940,6 +3095,168 @@ export function CustomerDatabase({
               >
                 {orderActionLoading?.startsWith('mark-shipped:') ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Truck className="mr-2 h-4 w-4" />}
                 {lang === 'en' ? 'Mark shipped' : 'Merk sendt'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+      {/* Create Manual Egg Order Modal */}
+      <Dialog open={createEggOrderModal} onOpenChange={(open) => { if (!open) setCreateEggOrderModal(false); }}>
+        <DialogContent className="w-full max-w-[calc(100vw-2rem)] sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{lang === 'en' ? 'Add egg order' : 'Opprett rugeeggordre'}</DialogTitle>
+            <DialogDescription>
+              {lang === 'en'
+                ? 'Walk-in order — no deposit collected. Full amount enabled for customer payment.'
+                : 'Gårdsalg — ingen depositum. Fullt beløp aktiveres som restbetaling for kunden.'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            {/* Inventory week selector */}
+            <div>
+              <label className="mb-1 block text-sm font-medium text-neutral-700">
+                {lang === 'en' ? 'Inventory week' : 'Lagersaldo / uke'}
+              </label>
+              {eggInventoryLoading ? (
+                <div className="flex items-center gap-2 text-sm text-neutral-500">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  {lang === 'en' ? 'Loading...' : 'Laster...'}
+                </div>
+              ) : eggInventoryOptions.length === 0 ? (
+                <p className="text-sm text-red-600">{lang === 'en' ? 'No inventory with available eggs found.' : 'Ingen lager med ledige egg funnet.'}</p>
+              ) : (
+                <select
+                  className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                  value={newEggInventoryId}
+                  onChange={(e) => setNewEggInventoryId(e.target.value)}
+                >
+                  {eggInventoryOptions.map((opt) => {
+                    const free = opt.eggs_available - opt.eggs_allocated;
+                    return (
+                      <option key={opt.id} value={opt.id}>
+                        {opt.egg_breeds?.name ?? '—'} · Uke {opt.week_number}/{opt.year} · {free} ledige · kr {Math.round((opt.egg_breeds?.price_per_egg ?? 0) / 100)}/egg
+                      </option>
+                    );
+                  })}
+                </select>
+              )}
+            </div>
+
+            {/* Quantity + price row */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="mb-1 block text-sm font-medium text-neutral-700">
+                  {lang === 'en' ? 'Quantity' : 'Antall egg'}
+                </label>
+                <input
+                  type="number"
+                  className="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                  value={newEggQuantity}
+                  onChange={(e) => setNewEggQuantity(e.target.value)}
+                  min="1"
+                  step="1"
+                  autoFocus
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-neutral-700">
+                  {lang === 'en' ? 'Price/egg override (kr)' : 'Pris per egg (kr, valgfritt)'}
+                </label>
+                <input
+                  type="number"
+                  className="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                  placeholder={(() => {
+                    const selected = eggInventoryOptions.find((o) => o.id === newEggInventoryId);
+                    return selected ? String(Math.round((selected.egg_breeds?.price_per_egg ?? 0) / 100)) : '';
+                  })()}
+                  value={newEggPriceOverride}
+                  onChange={(e) => setNewEggPriceOverride(e.target.value)}
+                  min="1"
+                  step="1"
+                />
+              </div>
+            </div>
+
+            {/* Delivery method */}
+            <div>
+              <label className="mb-1 block text-sm font-medium text-neutral-700">
+                {lang === 'en' ? 'Delivery method' : 'Leveringsmåte'}
+              </label>
+              <select
+                className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                value={newEggDeliveryMethod}
+                onChange={(e) => setNewEggDeliveryMethod(e.target.value)}
+              >
+                <option value="farm_pickup">{lang === 'en' ? 'Farm pickup (free)' : 'Hentes på gård (gratis)'}</option>
+                <option value="e6_pickup">{lang === 'en' ? 'E6 pickup (+kr 200)' : 'E6 hentepunkt (+kr 200)'}</option>
+                <option value="posten">{lang === 'en' ? 'Postal (+kr 300)' : 'Posten (+kr 300)'}</option>
+              </select>
+            </div>
+
+            {/* Live total preview */}
+            {newEggInventoryId && newEggQuantity && (
+              (() => {
+                const selected = eggInventoryOptions.find((o) => o.id === newEggInventoryId);
+                const priceOre = newEggPriceOverride
+                  ? Math.round(parseFloat(newEggPriceOverride) * 100)
+                  : (selected?.egg_breeds?.price_per_egg ?? 0);
+                const qty = parseInt(newEggQuantity, 10);
+                const deliveryFeeOre = newEggDeliveryMethod === 'posten' ? 30000 : newEggDeliveryMethod === 'e6_pickup' ? 20000 : 0;
+                const totalOre = (Number.isFinite(qty) && qty > 0 && priceOre > 0)
+                  ? qty * priceOre + deliveryFeeOre
+                  : 0;
+                if (!totalOre) return null;
+                return (
+                  <div className="rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm">
+                    <div className="flex justify-between text-neutral-600">
+                      <span>{qty} × kr {Math.round(priceOre / 100)}</span>
+                      <span>kr {Math.round(qty * priceOre / 100).toLocaleString('nb-NO')}</span>
+                    </div>
+                    {deliveryFeeOre > 0 && (
+                      <div className="flex justify-between text-neutral-600">
+                        <span>{lang === 'en' ? 'Delivery' : 'Levering'}</span>
+                        <span>kr {Math.round(deliveryFeeOre / 100).toLocaleString('nb-NO')}</span>
+                      </div>
+                    )}
+                    <div className="mt-2 flex justify-between border-t border-neutral-200 pt-2 font-semibold text-neutral-900">
+                      <span>{lang === 'en' ? 'Total (full remainder due)' : 'Total (fullt restbeløp)'}</span>
+                      <span>kr {Math.round(totalOre / 100).toLocaleString('nb-NO')}</span>
+                    </div>
+                  </div>
+                );
+              })()
+            )}
+
+            {/* Admin note */}
+            <div>
+              <label className="mb-1 block text-sm font-medium text-neutral-700">
+                {lang === 'en' ? 'Admin note (optional)' : 'Adminnotat (valgfritt)'}
+              </label>
+              <Textarea
+                value={newEggAdminNote}
+                onChange={(e) => setNewEggAdminNote(e.target.value)}
+                placeholder={lang === 'en' ? 'e.g. Picked up at farm, invoice to be sent.' : 'F.eks. hentet på gård, faktura sendes.'}
+                rows={2}
+                className="border-neutral-200 text-sm"
+              />
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="outline" onClick={() => setCreateEggOrderModal(false)} disabled={createEggOrderLoading}>
+                {lang === 'en' ? 'Cancel' : 'Avbryt'}
+              </Button>
+              <Button
+                onClick={createManualEggOrder}
+                disabled={
+                  createEggOrderLoading ||
+                  !newEggInventoryId ||
+                  !newEggQuantity ||
+                  parseInt(newEggQuantity, 10) <= 0 ||
+                  eggInventoryLoading
+                }
+              >
+                {createEggOrderLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Package className="mr-2 h-4 w-4" />}
+                {lang === 'en' ? 'Create order' : 'Opprett ordre'}
               </Button>
             </div>
           </div>
