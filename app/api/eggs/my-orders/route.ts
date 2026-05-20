@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth/session'
 import { finalizeConfirmedEggOrder } from '@/lib/eggs/order-confirmation'
+import { getEggDepositStatus, sendEggDepositConfirmationEmail } from '@/lib/eggs/notifications'
 import { supabaseAdmin } from '@/lib/supabase/server'
 import { vippsClient } from '@/lib/vipps/api-client'
 import { notifyInventoryOverallocation } from '@/lib/notifications/inventory-overallocation'
@@ -81,30 +82,38 @@ async function reconcileEggOrder(order: any) {
   )
 
   if (completedDeposit) {
+    const nextStatus = getEggDepositStatus(order)
+
     try {
       await finalizeConfirmedEggOrder(order.id)
     } catch (error) {
       logError('egg-my-orders-finalize-after-deposit', error)
     }
 
-    if (order.status === 'pending') {
+    if (order.status !== nextStatus) {
       const { error: statusErr } = await supabaseAdmin
         .from('egg_orders')
-        .update({ status: 'deposit_paid' })
+        .update({ status: nextStatus })
         .eq('id', order.id)
 
       if (statusErr) {
         logError('egg-my-orders-self-heal-status', statusErr)
         return order
       }
-
-      return {
-        ...order,
-        status: 'deposit_paid',
-      }
     }
 
-    return order
+    const reconciledOrder = {
+      ...order,
+      status: nextStatus,
+    }
+
+    try {
+      await sendEggDepositConfirmationEmail(reconciledOrder, { sourcePath: '/api/eggs/my-orders' })
+    } catch (error) {
+      logError('egg-my-orders-deposit-email', error, { orderId: order.id })
+    }
+
+    return reconciledOrder
   }
 
   const depositPayment = pickLatestPendingDeposit(order.egg_payments || [])
@@ -146,9 +155,11 @@ async function reconcileEggOrder(order: any) {
       .eq('id', depositPayment.id)
       .throwOnError()
 
+    const nextStatus = getEggDepositStatus(order)
+
     await supabaseAdmin
       .from('egg_orders')
-      .update({ status: 'deposit_paid' })
+      .update({ status: nextStatus })
       .eq('id', order.id)
       .throwOnError()
 
@@ -165,9 +176,9 @@ async function reconcileEggOrder(order: any) {
       }).catch((e) => logError('egg-my-orders-notify-overallocation', e))
     }
 
-    return {
+    const reconciledOrder = {
       ...order,
-      status: 'deposit_paid',
+      status: nextStatus,
       ...(shippingUpdate ? shippingUpdate : {}),
       egg_payments: (order.egg_payments || []).map((payment: any) =>
         payment.id === depositPayment.id
@@ -175,6 +186,14 @@ async function reconcileEggOrder(order: any) {
           : payment
       ),
     }
+
+    try {
+      await sendEggDepositConfirmationEmail(reconciledOrder, { sourcePath: '/api/eggs/my-orders' })
+    } catch (error) {
+      logError('egg-my-orders-deposit-email', error, { orderId: order.id })
+    }
+
+    return reconciledOrder
   } catch (error) {
     logError('egg-my-orders-reconcile-payment', error)
     return order

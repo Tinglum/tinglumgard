@@ -11,6 +11,7 @@ import {
 import { renderManagedTemplate } from "@/lib/email/render";
 import { buildAdminOrderLink, buildCustomerOrderLink } from "@/lib/email/links";
 import { finalizeConfirmedEggOrder } from '@/lib/eggs/order-confirmation'
+import { getEggDepositStatus, sendEggDepositConfirmationEmail } from '@/lib/eggs/notifications'
 import { notifyInventoryOverallocation } from '@/lib/notifications/inventory-overallocation'
 import {
   buildEggOrderLinesHtml,
@@ -676,7 +677,9 @@ export async function POST(request: NextRequest) {
       const depositAmount = Number(isChickenPayment ? (order?.deposit_amount_nok || 0) : (order?.deposit_amount || 0));
       const totalAmount = Number(isChickenPayment ? (order?.total_amount_nok || 0) : (order?.total_amount || 0));
       const remainderAmount = Number(isEggPayment ? (order?.remainder_amount || 0) : (order?.remainder_amount_nok || 0));
-      const newStatus = (remainderAmount <= 0 || (depositAmount > 0 && totalAmount > 0 && depositAmount >= totalAmount)) ? 'fully_paid' : 'deposit_paid';
+      const newStatus = isEggPayment
+        ? getEggDepositStatus(order)
+        : (remainderAmount <= 0 || (depositAmount > 0 && totalAmount > 0 && depositAmount >= totalAmount)) ? 'fully_paid' : 'deposit_paid';
       logInfo(`Updating order status to ${newStatus}`, { deposit: depositAmount, total: totalAmount, remainder: remainderAmount });
 
       const { error: orderErr } = await supabaseAdmin
@@ -695,43 +698,7 @@ export async function POST(request: NextRequest) {
       if (order && customerEmailForSend && customerEmailForSend !== VIPPS_PENDING_EMAIL) {
         try {
           if (isEggPayment) {
-            const breedName = eggSummary?.breedLabel || eggBreedName || order.breed_name || 'Rugeegg';
-            const baseQuantity = eggSummary?.baseQuantity ?? Number(order.quantity || 0);
-            const additionsQuantity = eggSummary?.additionsQuantity ?? 0;
-            const totalQuantity = eggSummary?.totalQuantity ?? baseQuantity;
-            const rendered = await renderManagedTemplate({
-              templateKey: 'egg.order.deposit.confirmed.customer',
-              locale: 'no',
-              variables: {
-                customer_name: order.customer_name || 'Kunde',
-                order_number: order.order_number,
-                breed_name: breedName,
-                week_number: order.week_number,
-                base_quantity: baseQuantity,
-                additions_quantity: additionsQuantity,
-                total_quantity: totalQuantity,
-                order_lines_html: eggOrderLinesHtmlNo,
-                order_lines_html_en: eggOrderLinesHtmlEn,
-                total_amount_nok: formatOreToNokWithPrefix(order.total_amount),
-                deposit_amount_nok: formatOreToNokWithPrefix(order.deposit_amount),
-                remainder_amount_nok: formatOreToNokWithPrefix(order.remainder_amount),
-                order_url: buildOrderUrl(appUrl, 'egg_order', order.id),
-                tip_index: 0,
-              },
-            });
-
-            if (!rendered) {
-              throw new Error('Missing template egg.order.deposit.confirmed.customer');
-            }
-            await dispatchEmail({
-              to: customerEmailForSend,
-              subject: rendered.subject,
-              html: rendered.html,
-              classification: 'transactional',
-              templateKey: rendered.templateKey,
-              sourcePath: '/api/webhooks/vipps',
-              eggOrderId: order.id,
-            });
+            await sendEggDepositConfirmationEmail(order, { sourcePath: '/api/webhooks/vipps' })
           } else if (isChickenPayment) {
             const result = await sendChickenDepositConfirmationEmails({
               orderId: String(order.id),

@@ -167,6 +167,7 @@ export async function POST(request: NextRequest) {
         remainder_due_date: isFullPayment ? null : remainderDueDate.toISOString().split('T')[0],
         notes: body.notes || null,
         status: 'pending',
+        inventory_reserved_at: now.toISOString(),
         policy_version: 'v1-2026',
         shipping_address: body.shippingAddress || null,
         shipping_postal_code: body.shippingPostalCode || null,

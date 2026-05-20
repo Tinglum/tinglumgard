@@ -233,6 +233,8 @@ export function EggOrderUnifiedCard({ order, onPayDeposit }: { order: EggOrder; 
   const daysToDelivery = daysBetween(deliveryDate, today)
   const remainderPaid =
     remainderDue <= 0 || ['fully_paid', 'preparing', 'shipped', 'delivered'].includes(order.status)
+  const hasNoRemainderStage = !hasLaterExtraBalance && Number(order.remainder_amount || 0) <= 0
+  const fullyPaidNow = depositPaid && remainderDue <= 0
   const payBalanceLabel =
     hasLaterExtraBalance && remainderDue > 0
       ? (lang === 'no' ? 'Betal tillegg' : 'Pay extras')
@@ -241,6 +243,10 @@ export function EggOrderUnifiedCard({ order, onPayDeposit }: { order: EggOrder; 
   const shipmentDone = order.status === 'delivered'
   const trackingUrl = buildTrackingUrl(order.tracking_number)
   const locale = lang === 'no' ? 'nb-NO' : 'en-US'
+  const paymentSummaryLabel =
+    hasNoRemainderStage && fullyPaidNow
+      ? (lang === 'no' ? 'Betalt' : 'Paid')
+      : common.deposit
   const paymentHistoryRows = useMemo(() => {
     const rows: Array<{
       key: string
@@ -360,8 +366,9 @@ export function EggOrderUnifiedCard({ order, onPayDeposit }: { order: EggOrder; 
     {
       key: 'remainder',
       label: ordersCopy.stepRemainder,
-      summary:
-        dueDate && !remainderPaid
+      summary: hasNoRemainderStage
+        ? (lang === 'no' ? 'Ingen restbetaling' : 'No remainder due')
+        : dueDate && !remainderPaid
           ? `${hasLaterExtraBalance ? currentBalanceLabel : ordersCopy.duePrefix} ${
               hasLaterExtraBalance ? formatPrice(remainderDue, lang) : formatDateFull(dueDate, lang)
             }${
@@ -372,8 +379,11 @@ export function EggOrderUnifiedCard({ order, onPayDeposit }: { order: EggOrder; 
               daysToDueLabel !== null ? ` - ${daysToDueLabel} ${common.daysLeft}` : ''
             }`
           : ordersCopy.statusPaid,
-      detail:
-        dueDate && !remainderPaid
+      detail: hasNoRemainderStage
+        ? (lang === 'no'
+            ? 'Ordren var fullt betalt ved bestilling.'
+            : 'This order was fully paid at checkout.')
+        : dueDate && !remainderPaid
           ? hasLaterExtraBalance
             ? `${currentBalanceLabel}: ${formatPrice(remainderDue, lang)}${
                 completedRemainderPayments.length > 0
@@ -428,6 +438,9 @@ export function EggOrderUnifiedCard({ order, onPayDeposit }: { order: EggOrder; 
           : ordersCopy.nextActionRemainderDueNoDate.replace('{amount}', formatPrice(remainderDue, lang))
       return { text: dueText, tone: 'warning' as const }
     }
+    if (order.status === 'deposit_paid' && fullyPaidNow) {
+      return { text: ordersCopy.nextActionPreparing, tone: 'info' as const }
+    }
     if (order.status === 'fully_paid' || order.status === 'preparing') {
       return { text: ordersCopy.nextActionPreparing, tone: 'info' as const }
     }
@@ -454,7 +467,7 @@ export function EggOrderUnifiedCard({ order, onPayDeposit }: { order: EggOrder; 
           }
         }
         return {
-          label: ordersCopy.statusDepositPaid,
+          label: fullyPaidNow ? ordersCopy.statusPaid : ordersCopy.statusDepositPaid,
           className: 'bg-emerald-50 text-emerald-700',
         }
       case 'fully_paid':
@@ -554,7 +567,7 @@ export function EggOrderUnifiedCard({ order, onPayDeposit }: { order: EggOrder; 
 
         <div className="space-y-3">
           <div className="flex items-center justify-between text-sm">
-            <span className="text-neutral-500">{common.deposit}</span>
+            <span className="text-neutral-500">{paymentSummaryLabel}</span>
             <span className="font-normal text-neutral-900">
               {formatPrice(order.deposit_amount, lang)}
             </span>
