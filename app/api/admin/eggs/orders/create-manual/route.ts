@@ -92,6 +92,11 @@ export async function POST(request: NextRequest) {
     const nowIso = new Date().toISOString()
     const createdBy = session.email || session.name || 'admin'
 
+    // Walk-in orders: remainder due 30 days from today, not tied to the (possibly past) inventory delivery date
+    const remainderDueDate = new Date()
+    remainderDueDate.setDate(remainderDueDate.getDate() + 30)
+    const remainderDueDateStr = remainderDueDate.toISOString().split('T')[0]
+
     const { data: order, error: orderError } = await supabaseAdmin
       .from('egg_orders')
       .insert({
@@ -112,7 +117,7 @@ export async function POST(request: NextRequest) {
         year: inventory.year,
         week_number: inventory.week_number,
         delivery_monday: inventory.delivery_monday,
-        remainder_due_date: inventory.delivery_monday,
+        remainder_due_date: remainderDueDateStr,
         status: 'deposit_paid',
         admin_notes: adminNote
           ? `[${nowIso.slice(0, 16)}] Walk-in created by ${createdBy}: ${adminNote}`
