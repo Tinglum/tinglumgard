@@ -2940,71 +2940,6 @@ export function CustomerDatabase({
             </div>
           </DialogContent>
         </Dialog>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold">{copy.title}</h2>
-        <p className="text-gray-600">{copy.totalCustomers.replace('{count}', String(customers.length))}</p>
-      </div>
-
-      <Card className="p-6">
-        <div className="relative mb-6">
-          <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
-          <Input
-            type="text"
-            placeholder={copy.searchPlaceholder}
-            value={searchTerm}
-            onChange={(event) => setSearchTerm(event.target.value)}
-            className="pl-10"
-          />
-        </div>
-
-        <div className="space-y-2">
-          {filteredCustomers.map((customer) => (
-            <div key={customer.customer_id || customer.email} className="flex items-center justify-between rounded-xl border p-4 hover:bg-gray-50">
-              <div className="flex-1">
-                <div className="mb-2 flex items-center gap-3">
-                  <h3 className="text-lg font-semibold">{customer.name}</h3>
-                  {customer.at_risk && (
-                    <span className="flex items-center gap-1 rounded-full bg-red-100 px-2 py-1 text-xs font-medium text-red-700">
-                      <AlertTriangle className="h-3 w-3" />
-                      {copy.atRiskTag}
-                    </span>
-                  )}
-                </div>
-                <div className="flex items-center gap-6 text-sm text-gray-600">
-                  <span className="flex items-center gap-1">
-                    <Mail className="h-4 w-4" />
-                    {customer.email}
-                  </span>
-                  {customer.phone && (
-                    <span className="flex items-center gap-1">
-                      <Phone className="h-4 w-4" />
-                      {customer.phone}
-                    </span>
-                  )}
-                </div>
-              </div>
-              <div className="flex items-center gap-4">
-                <Button onClick={() => viewCustomerProfile(customer.customer_id || customer.email)} variant="outline" size="sm" disabled={profileLoading}>
-                  {profileLoading ? <div className="mr-1 h-4 w-4 animate-spin rounded-full border-2 border-neutral-300 border-t-neutral-600" /> : <Eye className="mr-1 h-4 w-4" />}
-                  {copy.viewProfileButton}
-                </Button>
-                <Button onClick={() => impersonateCustomer(customer)} variant="outline" size="sm">
-                  <LogIn className="mr-1 h-4 w-4" />
-                  {copy.impersonateButton}
-                </Button>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {filteredCustomers.length === 0 && <div className="py-12 text-center text-gray-500">{copy.emptyResults}</div>}
-      </Card>
 
       {/* Collect Remainder Modal */}
       <Dialog open={!!collectRemainderModal} onOpenChange={(open) => { if (!open) { setCollectRemainderModal(null); setCollectAmountInput(''); setCollectNoteInput(''); } }}>
@@ -3100,6 +3035,7 @@ export function CustomerDatabase({
           </div>
         </DialogContent>
       </Dialog>
+
       {/* Create Manual Egg Order Modal */}
       <Dialog open={createEggOrderModal} onOpenChange={(open) => { if (!open) setCreateEggOrderModal(false); }}>
         <DialogContent className="w-full max-w-[calc(100vw-2rem)] sm:max-w-lg">
@@ -3112,7 +3048,6 @@ export function CustomerDatabase({
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 pt-2">
-            {/* Inventory week selector */}
             <div>
               <label className="mb-1 block text-sm font-medium text-neutral-700">
                 {lang === 'en' ? 'Inventory week' : 'Lagersaldo / uke'}
@@ -3141,8 +3076,6 @@ export function CustomerDatabase({
                 </select>
               )}
             </div>
-
-            {/* Quantity + price row */}
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="mb-1 block text-sm font-medium text-neutral-700">
@@ -3176,8 +3109,6 @@ export function CustomerDatabase({
                 />
               </div>
             </div>
-
-            {/* Delivery method */}
             <div>
               <label className="mb-1 block text-sm font-medium text-neutral-700">
                 {lang === 'en' ? 'Delivery method' : 'Leveringsmåte'}
@@ -3192,8 +3123,6 @@ export function CustomerDatabase({
                 <option value="posten">{lang === 'en' ? 'Postal (+kr 300)' : 'Posten (+kr 300)'}</option>
               </select>
             </div>
-
-            {/* Live total preview */}
             {newEggInventoryId && newEggQuantity && (
               (() => {
                 const selected = eggInventoryOptions.find((o) => o.id === newEggInventoryId);
@@ -3203,8 +3132,7 @@ export function CustomerDatabase({
                 const qty = parseInt(newEggQuantity, 10);
                 const deliveryFeeOre = newEggDeliveryMethod === 'posten' ? 30000 : newEggDeliveryMethod === 'e6_pickup' ? 20000 : 0;
                 const totalOre = (Number.isFinite(qty) && qty > 0 && priceOre > 0)
-                  ? qty * priceOre + deliveryFeeOre
-                  : 0;
+                  ? qty * priceOre + deliveryFeeOre : 0;
                 if (!totalOre) return null;
                 return (
                   <div className="rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm">
@@ -3226,8 +3154,6 @@ export function CustomerDatabase({
                 );
               })()
             )}
-
-            {/* Admin note */}
             <div>
               <label className="mb-1 block text-sm font-medium text-neutral-700">
                 {lang === 'en' ? 'Admin note (optional)' : 'Adminnotat (valgfritt)'}
@@ -3240,20 +3166,13 @@ export function CustomerDatabase({
                 className="border-neutral-200 text-sm"
               />
             </div>
-
             <div className="flex justify-end gap-2 pt-2">
               <Button variant="outline" onClick={() => setCreateEggOrderModal(false)} disabled={createEggOrderLoading}>
                 {lang === 'en' ? 'Cancel' : 'Avbryt'}
               </Button>
               <Button
                 onClick={createManualEggOrder}
-                disabled={
-                  createEggOrderLoading ||
-                  !newEggInventoryId ||
-                  !newEggQuantity ||
-                  parseInt(newEggQuantity, 10) <= 0 ||
-                  eggInventoryLoading
-                }
+                disabled={createEggOrderLoading || !newEggInventoryId || !newEggQuantity || parseInt(newEggQuantity, 10) <= 0 || eggInventoryLoading}
               >
                 {createEggOrderLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Package className="mr-2 h-4 w-4" />}
                 {lang === 'en' ? 'Create order' : 'Opprett ordre'}
@@ -3262,7 +3181,74 @@ export function CustomerDatabase({
           </div>
         </DialogContent>
       </Dialog>
+
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-2xl font-bold">{copy.title}</h2>
+        <p className="text-gray-600">{copy.totalCustomers.replace('{count}', String(customers.length))}</p>
+      </div>
+
+      <Card className="p-6">
+        <div className="relative mb-6">
+          <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
+          <Input
+            type="text"
+            placeholder={copy.searchPlaceholder}
+            value={searchTerm}
+            onChange={(event) => setSearchTerm(event.target.value)}
+            className="pl-10"
+          />
+        </div>
+
+        <div className="space-y-2">
+          {filteredCustomers.map((customer) => (
+            <div key={customer.customer_id || customer.email} className="flex items-center justify-between rounded-xl border p-4 hover:bg-gray-50">
+              <div className="flex-1">
+                <div className="mb-2 flex items-center gap-3">
+                  <h3 className="text-lg font-semibold">{customer.name}</h3>
+                  {customer.at_risk && (
+                    <span className="flex items-center gap-1 rounded-full bg-red-100 px-2 py-1 text-xs font-medium text-red-700">
+                      <AlertTriangle className="h-3 w-3" />
+                      {copy.atRiskTag}
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-6 text-sm text-gray-600">
+                  <span className="flex items-center gap-1">
+                    <Mail className="h-4 w-4" />
+                    {customer.email}
+                  </span>
+                  {customer.phone && (
+                    <span className="flex items-center gap-1">
+                      <Phone className="h-4 w-4" />
+                      {customer.phone}
+                    </span>
+                  )}
+                </div>
+              </div>
+              <div className="flex items-center gap-4">
+                <Button onClick={() => viewCustomerProfile(customer.customer_id || customer.email)} variant="outline" size="sm" disabled={profileLoading}>
+                  {profileLoading ? <div className="mr-1 h-4 w-4 animate-spin rounded-full border-2 border-neutral-300 border-t-neutral-600" /> : <Eye className="mr-1 h-4 w-4" />}
+                  {copy.viewProfileButton}
+                </Button>
+                <Button onClick={() => impersonateCustomer(customer)} variant="outline" size="sm">
+                  <LogIn className="mr-1 h-4 w-4" />
+                  {copy.impersonateButton}
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {filteredCustomers.length === 0 && <div className="py-12 text-center text-gray-500">{copy.emptyResults}</div>}
+      </Card>
     </div>
   );
 }
+
 
