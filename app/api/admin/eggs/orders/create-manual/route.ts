@@ -12,7 +12,7 @@ import { logError } from '@/lib/logger'
  * Walk-in model:
  *   - deposit_amount = 0  (no deposit collected)
  *   - remainder_amount = total_amount  (full price owed)
- *   - remainder_payment_enabled = true  (customer can pay online)
+ *   - status = 'deposit_paid' means remainder link is live (egg orders have no separate enable flag)
  *   - status = 'deposit_paid'  (deposit phase satisfied since deposit = 0)
  *
  * Amounts are in øre throughout.
@@ -114,7 +114,6 @@ export async function POST(request: NextRequest) {
         delivery_monday: inventory.delivery_monday,
         remainder_due_date: inventory.delivery_monday,
         status: 'deposit_paid',
-        remainder_payment_enabled: true,
         admin_notes: adminNote
           ? `[${nowIso.slice(0, 16)}] Walk-in created by ${createdBy}: ${adminNote}`
           : `[${nowIso.slice(0, 16)}] Walk-in order created by ${createdBy}`,
