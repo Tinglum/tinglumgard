@@ -1179,6 +1179,15 @@ async function moveEggOrder(orderId: string, year: number, weekNumber: number, r
       .eq('id', addition.id)
   }
 
+  // Recalculate remainder_due_date based on the new delivery_monday (delivery - 6 days)
+  const newDeliveryMonday = targetInventory.delivery_monday
+  let newRemainderDueDate: string | null = null
+  if (newDeliveryMonday) {
+    const d = new Date(`${newDeliveryMonday}T00:00:00Z`)
+    d.setUTCDate(d.getUTCDate() - 6)
+    newRemainderDueDate = d.toISOString().slice(0, 10)
+  }
+
   await supabaseAdmin
     .from('egg_orders')
     .update({
@@ -1186,6 +1195,7 @@ async function moveEggOrder(orderId: string, year: number, weekNumber: number, r
       week_number: targetInventory.week_number,
       year: targetInventory.year,
       delivery_monday: targetInventory.delivery_monday,
+      ...(newRemainderDueDate ? { remainder_due_date: newRemainderDueDate } : {}),
     })
     .eq('id', orderId)
 
