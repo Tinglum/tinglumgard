@@ -13,6 +13,6 @@ CREATE INDEX IF NOT EXISTS page_events_event_type_idx ON page_events(event_type)
 CREATE INDEX IF NOT EXISTS page_events_created_at_idx ON page_events(created_at DESC);
 CREATE INDEX IF NOT EXISTS page_events_customer_id_idx ON page_events(customer_id);
 
--- Deduplicate: only allow one event per customer per event_type per hour
-CREATE UNIQUE INDEX IF NOT EXISTS page_events_dedup_idx
-  ON page_events(event_type, customer_id, date_trunc('hour', created_at));
+-- Composite index for deduplication lookups (event_type + customer_id + time)
+CREATE INDEX IF NOT EXISTS page_events_dedup_idx
+  ON page_events(event_type, customer_id, created_at);

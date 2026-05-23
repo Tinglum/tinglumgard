@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   AlertTriangle,
+  ArrowLeftRight,
+  Bird,
   Calendar,
   ChevronDown,
   ChevronUp,
@@ -12,12 +14,17 @@ import {
   LogIn,
   Mail,
   MessageSquare,
+  Minus,
   Package,
   Phone,
+  Plus,
+  RefreshCw,
   Search,
+  Send,
   Truck,
   Unlock,
   Wallet,
+  XCircle,
   Zap,
 } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -423,6 +430,47 @@ export function CustomerDatabase({
   const [collectNoteInput, setCollectNoteInput] = useState('');
   const [shipModal, setShipModal] = useState<CustomerOrderSummary | null>(null);
   const [trackingNumberInput, setTrackingNumberInput] = useState('');
+
+  // Egg order action overrides
+  const [eggActionLoading, setEggActionLoading] = useState<string | null>(null);
+  const [eggActionConfirm, setEggActionConfirm] = useState<{
+    order: CustomerOrderSummary;
+    action: string;
+    title: string;
+    description: string;
+  } | null>(null);
+  const [eggActionReason, setEggActionReason] = useState('');
+  const [moveWeekModal, setMoveWeekModal] = useState<{ order: CustomerOrderSummary; currentWeek: number } | null>(null);
+  const [moveWeekInput, setMoveWeekInput] = useState('');
+
+  // Chicken order actions
+  const [markPickedUpLoading, setMarkPickedUpLoading] = useState<string | null>(null);
+  const [sendPickupEmailLoading, setSendPickupEmailLoading] = useState<string | null>(null);
+  const [adjustBirdsModal, setAdjustBirdsModal] = useState<{ order: CustomerOrderSummary } | null>(null);
+  const [adjustDeltas, setAdjustDeltas] = useState<Record<string, { hensDelta: number; roostersDelta: number }>>({});
+  const [adjustPoolReturns, setAdjustPoolReturns] = useState<Record<string, { poolHensReturn: number; poolRoostersReturn: number }>>({});
+  const [adjustNote, setAdjustNote] = useState('');
+  const [adjustBirdsStep, setAdjustBirdsStep] = useState<'edit' | 'pool' | 'confirm'>('edit');
+  const [adjustBirdsLoading, setAdjustBirdsLoading] = useState(false);
+
+  // Pig pickup date
+  const [pickupDateModal, setPickupDateModal] = useState<{ order: CustomerOrderSummary; currentDate: string; currentTime: string } | null>(null);
+  const [pickupDateInput, setPickupDateInput] = useState('');
+  const [pickupTimeInput, setPickupTimeInput] = useState('11:00');
+  const [pickupDateLoading, setPickupDateLoading] = useState<string | null>(null);
+
+  // Pig order actions
+  const [syncAmountsLoading, setSyncAmountsLoading] = useState<string | null>(null);
+
+  // Add chicken addition
+  type ChickenHatchOption = { hatch_id: string; breed_id: string; breed_name: string; hatch_date: string; available_hens: number; available_roosters: number };
+  const [addAdditionModal, setAddAdditionModal] = useState<{ order: CustomerOrderSummary } | null>(null);
+  const [addAdditionHatches, setAddAdditionHatches] = useState<ChickenHatchOption[]>([]);
+  const [addAdditionHatchId, setAddAdditionHatchId] = useState('');
+  const [addAdditionHens, setAddAdditionHens] = useState('0');
+  const [addAdditionRoosters, setAddAdditionRoosters] = useState('0');
+  const [addAdditionAge, setAddAdditionAge] = useState('0');
+  const [addAdditionLoading, setAddAdditionLoading] = useState(false);
 
   // Manual egg order creation
   const [createEggOrderModal, setCreateEggOrderModal] = useState(false);
@@ -1228,6 +1276,275 @@ export function CustomerDatabase({
     }
   }
 
+  // ── Egg order actions ─────────────────────────────────────────────────────
+
+  async function runEggOrderAction(order: CustomerOrderSummary, action: string, data: Record<string, unknown> = {}) {
+    const loadingKey = `${action}:${order.order_id}`;
+    setEggActionLoading(loadingKey);
+    try {
+      const res = await fetch(`/api/admin/eggs/orders/${order.order_id}/actions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, data }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body?.error || copy.orderSaveErrorDescription);
+      toast({ title: lang === 'en' ? 'Order updated' : 'Bestilling oppdatert' });
+      await loadOrderDetail(order, true);
+      if (selectedCustomer) void viewCustomerProfile(selectedCustomer.customer_id);
+    } catch (error) {
+      toast({ title: lang === 'en' ? 'Error' : 'Feil', description: error instanceof Error ? error.message : copy.orderSaveErrorDescription, variant: 'destructive' });
+    } finally {
+      setEggActionLoading((c) => (c === loadingKey ? null : c));
+    }
+  }
+
+  async function handleConfirmedEggAction() {
+    if (!eggActionConfirm) return;
+    const { order, action } = eggActionConfirm;
+    setEggActionConfirm(null);
+    await runEggOrderAction(order, action, { releaseInventory: true, reason: eggActionReason || undefined });
+    setEggActionReason('');
+  }
+
+  async function moveEggWeek() {
+    if (!moveWeekModal) return;
+    const weekNum = Number(moveWeekInput);
+    if (!Number.isFinite(weekNum) || weekNum < 1 || weekNum > 53) {
+      toast({ title: lang === 'en' ? 'Invalid week number' : 'Ugyldig ukenummer', variant: 'destructive' });
+      return;
+    }
+    await runEggOrderAction(moveWeekModal.order, 'move_week', { weekNumber: weekNum });
+    setMoveWeekModal(null);
+    setMoveWeekInput('');
+  }
+
+  // ── Pig order actions ──────────────────────────────────────────────────────
+
+  async function syncPigAmounts(order: CustomerOrderSummary) {
+    setSyncAmountsLoading(order.order_id);
+    try {
+      const res = await fetch('/api/admin/orders/sync-amounts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId: order.order_id }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body?.error || copy.orderSaveErrorDescription);
+      toast({ title: lang === 'en' ? 'Amounts synced' : 'Beløp synkronisert' });
+      await loadOrderDetail(order, true);
+      if (selectedCustomer) void viewCustomerProfile(selectedCustomer.customer_id);
+    } catch (error) {
+      toast({ title: lang === 'en' ? 'Error' : 'Feil', description: error instanceof Error ? error.message : copy.orderSaveErrorDescription, variant: 'destructive' });
+    } finally {
+      setSyncAmountsLoading(null);
+    }
+  }
+
+  async function setPigPickupDate(order: CustomerOrderSummary, date: string, time: string) {
+    setPickupDateLoading(order.order_id);
+    try {
+      const res = await fetch(`/api/admin/orders/${order.order_id}/pickup-date`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pickupDate: date, pickupTime: time }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body?.error || copy.orderSaveErrorDescription);
+      toast({ title: lang === 'en' ? 'Pickup date set' : 'Hentedato satt', description: `${date} ${time}` });
+      setPickupDateModal(null);
+      await loadOrderDetail(order, true);
+      if (selectedCustomer) void viewCustomerProfile(selectedCustomer.customer_id);
+    } catch (error) {
+      toast({ title: lang === 'en' ? 'Error' : 'Feil', description: error instanceof Error ? error.message : copy.orderSaveErrorDescription, variant: 'destructive' });
+    } finally {
+      setPickupDateLoading(null);
+    }
+  }
+
+  // ── Chicken order actions ──────────────────────────────────────────────────
+
+  async function markChickenPickedUp(order: CustomerOrderSummary) {
+    setMarkPickedUpLoading(order.order_id);
+    try {
+      const res = await fetch(`/api/admin/chickens/orders/${order.order_id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'picked_up' }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body?.error || copy.orderSaveErrorDescription);
+      toast({ title: lang === 'en' ? 'Marked as picked up' : 'Merket som hentet' });
+      await loadOrderDetail(order, true);
+      if (selectedCustomer) void viewCustomerProfile(selectedCustomer.customer_id);
+    } catch (error) {
+      toast({ title: lang === 'en' ? 'Error' : 'Feil', description: error instanceof Error ? error.message : copy.orderSaveErrorDescription, variant: 'destructive' });
+    } finally {
+      setMarkPickedUpLoading(null);
+    }
+  }
+
+  async function sendPickupEmail(order: CustomerOrderSummary) {
+    setSendPickupEmailLoading(order.order_id);
+    try {
+      const endpoint = order.source === 'chicken'
+        ? `/api/admin/chickens/orders/${order.order_id}/send-pickup-email`
+        : `/api/admin/orders/${order.order_id}/send-pickup-email`;
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ locale: lang }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body?.error || copy.orderSaveErrorDescription);
+      toast({ title: lang === 'en' ? 'Pickup email sent' : 'Hentemelding sendt' });
+    } catch (error) {
+      toast({ title: lang === 'en' ? 'Error' : 'Feil', description: error instanceof Error ? error.message : copy.orderSaveErrorDescription, variant: 'destructive' });
+    } finally {
+      setSendPickupEmailLoading(null);
+    }
+  }
+
+  function openAdjustBirdsModal(order: CustomerOrderSummary) {
+    const detail = orderDetails[orderKey(order)] || {};
+    const additions = (detail.chicken_order_additions as Array<Record<string, unknown>> | undefined) || [];
+    const initial: Record<string, { hensDelta: number; roostersDelta: number }> = {
+      main: { hensDelta: 0, roostersDelta: 0 },
+    };
+    for (const a of additions) {
+      initial[String(a.id)] = { hensDelta: 0, roostersDelta: 0 };
+    }
+    setAdjustDeltas(initial);
+    setAdjustPoolReturns({});
+    setAdjustNote('');
+    setAdjustBirdsStep('edit');
+    setAdjustBirdsModal({ order });
+  }
+
+  function adjustBirdsHasSubtractions() {
+    return Object.values(adjustDeltas).some((d) => d.hensDelta < 0 || d.roostersDelta < 0);
+  }
+
+  function adjustBirdsHasChanges() {
+    return Object.values(adjustDeltas).some((d) => d.hensDelta !== 0 || d.roostersDelta !== 0);
+  }
+
+  function handleAdjustBirdsNext() {
+    if (adjustBirdsStep === 'edit') {
+      if (adjustBirdsHasSubtractions()) {
+        const returns: Record<string, { poolHensReturn: number; poolRoostersReturn: number }> = {};
+        for (const [key, delta] of Object.entries(adjustDeltas)) {
+          if (delta.hensDelta < 0 || delta.roostersDelta < 0) {
+            returns[key] = { poolHensReturn: 0, poolRoostersReturn: 0 };
+          }
+        }
+        setAdjustPoolReturns(returns);
+        setAdjustBirdsStep('pool');
+      } else {
+        setAdjustBirdsStep('confirm');
+      }
+    } else if (adjustBirdsStep === 'pool') {
+      setAdjustBirdsStep('confirm');
+    }
+  }
+
+  function handleAdjustBirdsBack() {
+    if (adjustBirdsStep === 'pool') setAdjustBirdsStep('edit');
+    else if (adjustBirdsStep === 'confirm') {
+      if (adjustBirdsHasSubtractions()) setAdjustBirdsStep('pool');
+      else setAdjustBirdsStep('edit');
+    }
+  }
+
+  async function submitAdjustBirds() {
+    if (!adjustBirdsModal) return;
+    setAdjustBirdsLoading(true);
+    try {
+      const adjustments = Object.entries(adjustDeltas)
+        .filter(([, d]) => d.hensDelta !== 0 || d.roostersDelta !== 0)
+        .map(([key, d]) => {
+          const isMain = key === 'main';
+          const pr = adjustPoolReturns[key] || { poolHensReturn: 0, poolRoostersReturn: 0 };
+          return {
+            type: isMain ? 'main' : 'addition',
+            additionId: isMain ? null : key,
+            hensDelta: d.hensDelta,
+            roostersDelta: d.roostersDelta,
+            poolHensReturn: d.hensDelta < 0 ? pr.poolHensReturn : 0,
+            poolRoostersReturn: d.roostersDelta < 0 ? pr.poolRoostersReturn : 0,
+            poolHensIncrease: d.hensDelta > 0 ? d.hensDelta : 0,
+            poolRoostersIncrease: d.roostersDelta > 0 ? d.roostersDelta : 0,
+          };
+        });
+      const order = adjustBirdsModal.order;
+      const res = await fetch(`/api/admin/chickens/orders/${order.order_id}/adjust-birds`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ adjustments, adminNote: adjustNote }),
+      });
+      const result = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(result?.error || copy.orderSaveErrorDescription);
+      toast({ title: lang === 'en' ? 'Birds adjusted' : 'Antall fugler justert' });
+      setAdjustBirdsModal(null);
+      await loadOrderDetail(order, true);
+      if (selectedCustomer) void viewCustomerProfile(selectedCustomer.customer_id);
+    } catch (error) {
+      toast({ title: lang === 'en' ? 'Error' : 'Feil', description: error instanceof Error ? error.message : copy.orderSaveErrorDescription, variant: 'destructive' });
+    } finally {
+      setAdjustBirdsLoading(false);
+    }
+  }
+
+  async function openAddChickenAdditionModal(order: CustomerOrderSummary) {
+    setAddAdditionHens('0');
+    setAddAdditionRoosters('0');
+    setAddAdditionAge('0');
+    setAddAdditionHatchId('');
+    setAddAdditionHatches([]);
+    setAddAdditionModal({ order });
+    try {
+      const res = await fetch('/api/admin/chickens/demand-summary', { cache: 'no-store' });
+      const rows = await res.json().catch(() => []);
+      const options = (Array.isArray(rows) ? rows : []).filter(
+        (r: ChickenHatchOption) => r.available_hens > 0 || r.available_roosters > 0
+      );
+      setAddAdditionHatches(options);
+      if (options.length > 0) setAddAdditionHatchId(options[0].hatch_id);
+    } catch {
+      // leave empty, user can see no options
+    }
+  }
+
+  async function submitChickenAddition() {
+    if (!addAdditionModal || !addAdditionHatchId) return;
+    const hens = Number(addAdditionHens);
+    const roosters = Number(addAdditionRoosters);
+    const age = Number(addAdditionAge);
+    if (hens === 0 && roosters === 0) {
+      toast({ title: lang === 'en' ? 'Add at least one bird' : 'Legg til minst én fugl', variant: 'destructive' });
+      return;
+    }
+    setAddAdditionLoading(true);
+    try {
+      const order = addAdditionModal.order;
+      const res = await fetch(`/api/admin/chickens/orders/${order.order_id}/add-addition`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ hatchId: addAdditionHatchId, quantityHens: hens, quantityRoosters: roosters, ageWeeksAtPickup: age }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body?.error || copy.orderSaveErrorDescription);
+      toast({ title: lang === 'en' ? 'Addition added' : 'Tillegg lagt til' });
+      setAddAdditionModal(null);
+      await loadOrderDetail(order, true);
+      if (selectedCustomer) void viewCustomerProfile(selectedCustomer.customer_id);
+    } catch (error) {
+      toast({ title: lang === 'en' ? 'Error' : 'Feil', description: error instanceof Error ? error.message : copy.orderSaveErrorDescription, variant: 'destructive' });
+    } finally {
+      setAddAdditionLoading(false);
+    }
+  }
+
   function getOrderItemSummary(order: CustomerOrderSummary) {
     const details = (order.details || {}) as Record<string, unknown>;
 
@@ -1905,6 +2222,28 @@ export function CustomerDatabase({
                   const isShipping = orderActionLoading === `mark-shipped:${key}`;
                   const isLocking = orderActionLoading === `lock:${key}`;
                   const isCorrecting = orderActionLoading === `correct-status:${key}`;
+
+                  // Egg action loading helpers
+                  const eggActionIs = (action: string) => eggActionLoading === `${action}:${order.order_id}`;
+
+                  // Source-specific capability flags
+                  const canMarkPickedUp = order.source === 'chicken' && order.status === 'ready_for_pickup';
+                  const canSendPickupEmail = (order.source === 'chicken' || order.source === 'pig')
+                    && ['deposit_paid', 'fully_paid', 'ready_for_pickup'].includes(order.status);
+                  const canAdjustBirds = order.source === 'chicken'
+                    && !['cancelled', 'picked_up'].includes(order.status);
+                  const canSyncPigAmounts = order.source === 'pig';
+                  const canSetPickupDate = order.source === 'pig'
+                    && !['cancelled', 'forfeited', 'completed'].includes(order.status);
+                  const canEggFinancials = order.source === 'egg'
+                    && !['cancelled', 'forfeited'].includes(order.status);
+                  const canMoveWeek = order.source === 'egg'
+                    && !['cancelled', 'forfeited', 'delivered', 'completed'].includes(order.status);
+                  const canSendRemainderReminder = order.source === 'egg'
+                    && order.status === 'deposit_paid';
+                  const canAddChickenAddition = order.source === 'chicken'
+                    && !['cancelled', 'picked_up'].includes(order.status);
+                  const pigDetail = order.source === 'pig' ? (orderDetails[key] || {}) as Record<string, unknown> : null;
                   return (
                     <div key={key} className="rounded-2xl border border-neutral-200 bg-white p-4">
                       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
@@ -2017,6 +2356,190 @@ export function CustomerDatabase({
                             >
                               {isLocking ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : isLocked ? <Unlock className="mr-1 h-4 w-4" /> : <Lock className="mr-1 h-4 w-4" />}
                               {isLocked ? (lang === 'en' ? 'Unlock' : 'Lås opp') : (lang === 'en' ? 'Lock' : 'Lås')}
+                            </Button>
+                          )}
+
+                          {/* ── Egg financial overrides ─────────────────────── */}
+                          {canEggFinancials && (
+                            <>
+                              <Button
+                                variant="outline" size="sm"
+                                onClick={() => runEggOrderAction(order, 'mark_deposit_paid')}
+                                disabled={!!eggActionLoading}
+                              >
+                                {eggActionIs('mark_deposit_paid') ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Wallet className="mr-1 h-4 w-4" />}
+                                {lang === 'en' ? 'Dep. paid' : 'Dep. betalt'}
+                              </Button>
+                              <Button
+                                variant="outline" size="sm"
+                                onClick={() => runEggOrderAction(order, 'mark_remainder_paid')}
+                                disabled={!!eggActionLoading}
+                              >
+                                {eggActionIs('mark_remainder_paid') ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Wallet className="mr-1 h-4 w-4" />}
+                                {lang === 'en' ? 'Rest paid' : 'Rest betalt'}
+                              </Button>
+                              <Button
+                                variant="outline" size="sm"
+                                onClick={() => runEggOrderAction(order, 'sync_status')}
+                                disabled={!!eggActionLoading}
+                              >
+                                {eggActionIs('sync_status') ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-1 h-4 w-4" />}
+                                {lang === 'en' ? 'Sync' : 'Synkroniser'}
+                              </Button>
+                              <Button
+                                variant="outline" size="sm"
+                                onClick={() => runEggOrderAction(order, 'mark_deposit_refunded')}
+                                disabled={!!eggActionLoading}
+                              >
+                                {eggActionIs('mark_deposit_refunded') ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : null}
+                                {lang === 'en' ? 'Dep. refunded' : 'Dep. refundert'}
+                              </Button>
+                              <Button
+                                variant="outline" size="sm"
+                                onClick={() => runEggOrderAction(order, 'mark_remainder_refunded')}
+                                disabled={!!eggActionLoading}
+                              >
+                                {eggActionIs('mark_remainder_refunded') ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : null}
+                                {lang === 'en' ? 'Rest refunded' : 'Rest refundert'}
+                              </Button>
+                              <Button
+                                variant="destructive" size="sm"
+                                onClick={() => setEggActionConfirm({
+                                  order,
+                                  action: 'refund_deposit',
+                                  title: lang === 'en' ? 'Refund deposit' : 'Refunder depositum',
+                                  description: lang === 'en' ? 'This will initiate a Vipps refund for the deposit.' : 'Dette starter en Vipps-refusjon for depositumet.',
+                                })}
+                                disabled={!!eggActionLoading}
+                              >
+                                {lang === 'en' ? 'Refund dep.' : 'Refunder dep.'}
+                              </Button>
+                              <Button
+                                variant="destructive" size="sm"
+                                onClick={() => setEggActionConfirm({
+                                  order,
+                                  action: 'cancel_order',
+                                  title: lang === 'en' ? 'Cancel order' : 'Kanseller ordre',
+                                  description: lang === 'en' ? 'Cancel and release inventory. No refund will be issued.' : 'Kansellerer og frigjør lager. Ingen refusjon utføres.',
+                                })}
+                                disabled={!!eggActionLoading}
+                              >
+                                <XCircle className="mr-1 h-4 w-4" />
+                                {lang === 'en' ? 'Cancel' : 'Kanseller'}
+                              </Button>
+                              <Button
+                                variant="destructive" size="sm"
+                                onClick={() => setEggActionConfirm({
+                                  order,
+                                  action: 'cancel_and_refund',
+                                  title: lang === 'en' ? 'Cancel & refund' : 'Kanseller og refunder',
+                                  description: lang === 'en' ? 'Cancel, release inventory, and initiate a full Vipps refund.' : 'Kansellerer, frigjør lager og starter full Vipps-refusjon.',
+                                })}
+                                disabled={!!eggActionLoading}
+                              >
+                                <XCircle className="mr-1 h-4 w-4" />
+                                {lang === 'en' ? 'Cancel & refund' : 'Kanseller & refunder'}
+                              </Button>
+                            </>
+                          )}
+
+                          {/* ── Egg week move ─────────────────────────────── */}
+                          {canMoveWeek && (
+                            <Button
+                              variant="outline" size="sm"
+                              onClick={() => {
+                                const dets = (order.details || {}) as Record<string, unknown>;
+                                setMoveWeekModal({ order, currentWeek: Number(dets.week_number || 0) });
+                                setMoveWeekInput(String((order.details as any)?.week_number || ''));
+                              }}
+                              disabled={!!eggActionLoading}
+                            >
+                              <ArrowLeftRight className="mr-1 h-4 w-4" />
+                              {lang === 'en' ? 'Move week' : 'Flytt uke'}
+                            </Button>
+                          )}
+
+                          {/* ── Chicken actions ───────────────────────────── */}
+                          {canMarkPickedUp && (
+                            <Button
+                              variant="outline" size="sm"
+                              onClick={() => markChickenPickedUp(order)}
+                              disabled={markPickedUpLoading === order.order_id}
+                            >
+                              {markPickedUpLoading === order.order_id ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Package className="mr-1 h-4 w-4" />}
+                              {lang === 'en' ? 'Mark picked up' : 'Merk hentet'}
+                            </Button>
+                          )}
+                          {canSendPickupEmail && (
+                            <Button
+                              variant="outline" size="sm"
+                              onClick={() => sendPickupEmail(order)}
+                              disabled={sendPickupEmailLoading === order.order_id}
+                            >
+                              {sendPickupEmailLoading === order.order_id ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Send className="mr-1 h-4 w-4" />}
+                              {lang === 'en' ? 'Pickup email' : 'Send hentemelding'}
+                            </Button>
+                          )}
+                          {canAdjustBirds && (
+                            <Button
+                              variant="outline" size="sm"
+                              onClick={() => openAdjustBirdsModal(order)}
+                            >
+                              <Bird className="mr-1 h-4 w-4" />
+                              {lang === 'en' ? 'Adjust birds' : 'Juster fugler'}
+                            </Button>
+                          )}
+
+                          {/* ── Egg remainder reminder ────────────────────── */}
+                          {canSendRemainderReminder && (
+                            <Button
+                              variant="outline" size="sm"
+                              onClick={() => runEggOrderAction(order, 'send_remainder_reminder')}
+                              disabled={!!eggActionLoading}
+                            >
+                              {eggActionIs('send_remainder_reminder') ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Mail className="mr-1 h-4 w-4" />}
+                              {lang === 'en' ? 'Send reminder' : 'Send påminnelse'}
+                            </Button>
+                          )}
+
+                          {/* ── Pig actions ───────────────────────────────── */}
+                          {canSyncPigAmounts && (
+                            <Button
+                              variant="outline" size="sm"
+                              onClick={() => syncPigAmounts(order)}
+                              disabled={syncAmountsLoading === order.order_id}
+                            >
+                              {syncAmountsLoading === order.order_id ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-1 h-4 w-4" />}
+                              {lang === 'en' ? 'Sync amounts' : 'Synk beløp'}
+                            </Button>
+                          )}
+                          {canSetPickupDate && (
+                            <Button
+                              variant="outline" size="sm"
+                              onClick={() => {
+                                const d = String(pigDetail?.pickup_date || '');
+                                const t = String(pigDetail?.pickup_time || '11:00');
+                                setPickupDateModal({ order, currentDate: d, currentTime: t });
+                                setPickupDateInput(d);
+                                setPickupTimeInput(t || '11:00');
+                              }}
+                              disabled={pickupDateLoading === order.order_id}
+                            >
+                              {pickupDateLoading === order.order_id ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Calendar className="mr-1 h-4 w-4" />}
+                              {pigDetail?.pickup_date
+                                ? `${String(pigDetail.pickup_date)} ${String(pigDetail.pickup_time || '')}`
+                                : (lang === 'en' ? 'Set pickup' : 'Sett henting')}
+                            </Button>
+                          )}
+
+                          {/* ── Chicken add addition ─────────────────────── */}
+                          {canAddChickenAddition && (
+                            <Button
+                              variant="outline" size="sm"
+                              onClick={() => void openAddChickenAdditionModal(order)}
+                            >
+                              <Plus className="mr-1 h-4 w-4" />
+                              {lang === 'en' ? 'Add breed' : 'Legg til rase'}
                             </Button>
                           )}
                         </div>
@@ -3032,6 +3555,328 @@ export function CustomerDatabase({
                 {lang === 'en' ? 'Mark shipped' : 'Merk sendt'}
               </Button>
             </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Egg Action Confirm Modal */}
+      <Dialog open={!!eggActionConfirm} onOpenChange={(open) => { if (!open) { setEggActionConfirm(null); setEggActionReason(''); } }}>
+        <DialogContent className="w-full max-w-[calc(100vw-2rem)] sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{eggActionConfirm?.title}</DialogTitle>
+            <DialogDescription>
+              {eggActionConfirm?.order.order_number} — {eggActionConfirm?.description}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            <div>
+              <label className="mb-1 block text-sm font-medium text-neutral-700">
+                {lang === 'en' ? 'Reason (optional)' : 'Årsak (valgfritt)'}
+              </label>
+              <Textarea
+                value={eggActionReason}
+                onChange={(e) => setEggActionReason(e.target.value)}
+                rows={2}
+                className="border-neutral-200 text-sm"
+                placeholder={lang === 'en' ? 'Admin note for the log' : 'Admin-notat til loggen'}
+              />
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="outline" onClick={() => { setEggActionConfirm(null); setEggActionReason(''); }}>
+                {lang === 'en' ? 'Back' : 'Avbryt'}
+              </Button>
+              <Button variant="destructive" onClick={() => void handleConfirmedEggAction()}>
+                {lang === 'en' ? 'Confirm' : 'Bekreft'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Move Egg Week Modal */}
+      <Dialog open={!!moveWeekModal} onOpenChange={(open) => { if (!open) { setMoveWeekModal(null); setMoveWeekInput(''); } }}>
+        <DialogContent className="w-full max-w-[calc(100vw-2rem)] sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{lang === 'en' ? 'Move to different week' : 'Flytt til annen uke'}</DialogTitle>
+            <DialogDescription>
+              {moveWeekModal?.order.order_number}
+              {moveWeekModal?.currentWeek ? ` — ${lang === 'en' ? 'current week' : 'nåværende uke'} ${moveWeekModal.currentWeek}` : ''}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            <div>
+              <label className="mb-1 block text-sm font-medium text-neutral-700">
+                {lang === 'en' ? 'Target week number' : 'Måluke'}
+              </label>
+              <Input
+                type="number"
+                min={1}
+                max={53}
+                value={moveWeekInput}
+                onChange={(e) => setMoveWeekInput(e.target.value)}
+                placeholder={lang === 'en' ? 'e.g. 24' : 'f.eks. 24'}
+                autoFocus
+              />
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="outline" onClick={() => { setMoveWeekModal(null); setMoveWeekInput(''); }}>
+                {lang === 'en' ? 'Cancel' : 'Avbryt'}
+              </Button>
+              <Button onClick={() => void moveEggWeek()} disabled={!moveWeekInput || !!eggActionLoading}>
+                {eggActionLoading?.startsWith('move_week:') ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ArrowLeftRight className="mr-2 h-4 w-4" />}
+                {lang === 'en' ? 'Move' : 'Flytt'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Adjust Birds Modal */}
+      <Dialog open={!!adjustBirdsModal} onOpenChange={(open) => { if (!open) setAdjustBirdsModal(null); }}>
+        <DialogContent className="w-full max-w-[calc(100vw-2rem)] sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>
+              {lang === 'en' ? 'Adjust bird quantities' : 'Juster antall fugler'}
+            </DialogTitle>
+            <DialogDescription>
+              {adjustBirdsModal?.order.order_number}
+              {adjustBirdsStep === 'pool' && (lang === 'en' ? ' — Pool returns' : ' — Retur til pool')}
+              {adjustBirdsStep === 'confirm' && (lang === 'en' ? ' — Confirm changes' : ' — Bekreft endringer')}
+            </DialogDescription>
+          </DialogHeader>
+
+          {adjustBirdsStep === 'edit' && (
+            <div className="space-y-4 pt-2">
+              {Object.entries(adjustDeltas).map(([key, delta]) => {
+                const label = key === 'main'
+                  ? (lang === 'en' ? 'Main order' : 'Hovedordre')
+                  : `${lang === 'en' ? 'Addition' : 'Tillegg'} ${key.slice(0, 6)}…`;
+                return (
+                  <div key={key} className="rounded-lg border border-neutral-200 p-3">
+                    <p className="mb-2 text-sm font-medium text-neutral-700">{label}</p>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <p className="mb-1 text-xs text-neutral-500">{lang === 'en' ? 'Hens Δ' : 'Høner Δ'}</p>
+                        <div className="flex items-center gap-2">
+                          <button type="button" className="flex h-7 w-7 items-center justify-center rounded border border-neutral-200 hover:bg-neutral-50" onClick={() => setAdjustDeltas((p) => ({ ...p, [key]: { ...p[key], hensDelta: p[key].hensDelta - 1 } }))}>
+                            <Minus className="h-3 w-3" />
+                          </button>
+                          <span className={`w-8 text-center text-sm font-medium ${delta.hensDelta < 0 ? 'text-red-600' : delta.hensDelta > 0 ? 'text-green-700' : 'text-neutral-500'}`}>
+                            {delta.hensDelta > 0 ? `+${delta.hensDelta}` : delta.hensDelta}
+                          </span>
+                          <button type="button" className="flex h-7 w-7 items-center justify-center rounded border border-neutral-200 hover:bg-neutral-50" onClick={() => setAdjustDeltas((p) => ({ ...p, [key]: { ...p[key], hensDelta: p[key].hensDelta + 1 } }))}>
+                            <Plus className="h-3 w-3" />
+                          </button>
+                        </div>
+                      </div>
+                      <div>
+                        <p className="mb-1 text-xs text-neutral-500">{lang === 'en' ? 'Roosters Δ' : 'Haner Δ'}</p>
+                        <div className="flex items-center gap-2">
+                          <button type="button" className="flex h-7 w-7 items-center justify-center rounded border border-neutral-200 hover:bg-neutral-50" onClick={() => setAdjustDeltas((p) => ({ ...p, [key]: { ...p[key], roostersDelta: p[key].roostersDelta - 1 } }))}>
+                            <Minus className="h-3 w-3" />
+                          </button>
+                          <span className={`w-8 text-center text-sm font-medium ${delta.roostersDelta < 0 ? 'text-red-600' : delta.roostersDelta > 0 ? 'text-green-700' : 'text-neutral-500'}`}>
+                            {delta.roostersDelta > 0 ? `+${delta.roostersDelta}` : delta.roostersDelta}
+                          </span>
+                          <button type="button" className="flex h-7 w-7 items-center justify-center rounded border border-neutral-200 hover:bg-neutral-50" onClick={() => setAdjustDeltas((p) => ({ ...p, [key]: { ...p[key], roostersDelta: p[key].roostersDelta + 1 } }))}>
+                            <Plus className="h-3 w-3" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+              <div>
+                <label className="mb-1 block text-sm font-medium text-neutral-700">
+                  {lang === 'en' ? 'Admin note (optional)' : 'Admin-notat (valgfritt)'}
+                </label>
+                <Textarea value={adjustNote} onChange={(e) => setAdjustNote(e.target.value)} rows={2} className="border-neutral-200 text-sm" />
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <Button variant="outline" onClick={() => setAdjustBirdsModal(null)}>{lang === 'en' ? 'Cancel' : 'Avbryt'}</Button>
+                <Button onClick={handleAdjustBirdsNext} disabled={!adjustBirdsHasChanges()}>
+                  {lang === 'en' ? 'Next' : 'Neste'}
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {adjustBirdsStep === 'pool' && (
+            <div className="space-y-4 pt-2">
+              <p className="text-sm text-neutral-600">
+                {lang === 'en'
+                  ? 'For each reduction, specify how many birds return to the available pool.'
+                  : 'For hvert trekk, angi hvor mange fugler som returneres til tilgjengelig pool.'}
+              </p>
+              {Object.entries(adjustPoolReturns).map(([key, pr]) => {
+                const delta = adjustDeltas[key] || { hensDelta: 0, roostersDelta: 0 };
+                const label = key === 'main' ? (lang === 'en' ? 'Main order' : 'Hovedordre') : `${lang === 'en' ? 'Addition' : 'Tillegg'} ${key.slice(0, 6)}…`;
+                return (
+                  <div key={key} className="rounded-lg border border-neutral-200 p-3">
+                    <p className="mb-2 text-sm font-medium text-neutral-700">{label}</p>
+                    <div className="grid grid-cols-2 gap-4">
+                      {delta.hensDelta < 0 && (
+                        <div>
+                          <label className="mb-1 block text-xs text-neutral-500">{lang === 'en' ? `Hens back to pool (max ${Math.abs(delta.hensDelta)})` : `Høner tilbake til pool (maks ${Math.abs(delta.hensDelta)})`}</label>
+                          <Input type="number" min={0} max={Math.abs(delta.hensDelta)} value={pr.poolHensReturn} onChange={(e) => setAdjustPoolReturns((p) => ({ ...p, [key]: { ...p[key], poolHensReturn: Number(e.target.value) } }))} className="h-8 text-sm" />
+                        </div>
+                      )}
+                      {delta.roostersDelta < 0 && (
+                        <div>
+                          <label className="mb-1 block text-xs text-neutral-500">{lang === 'en' ? `Roosters back to pool (max ${Math.abs(delta.roostersDelta)})` : `Haner tilbake til pool (maks ${Math.abs(delta.roostersDelta)})`}</label>
+                          <Input type="number" min={0} max={Math.abs(delta.roostersDelta)} value={pr.poolRoostersReturn} onChange={(e) => setAdjustPoolReturns((p) => ({ ...p, [key]: { ...p[key], poolRoostersReturn: Number(e.target.value) } }))} className="h-8 text-sm" />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+              <div className="flex justify-end gap-2 pt-2">
+                <Button variant="outline" onClick={handleAdjustBirdsBack}>{lang === 'en' ? 'Back' : 'Tilbake'}</Button>
+                <Button onClick={handleAdjustBirdsNext}>{lang === 'en' ? 'Next' : 'Neste'}</Button>
+              </div>
+            </div>
+          )}
+
+          {adjustBirdsStep === 'confirm' && (
+            <div className="space-y-4 pt-2">
+              <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-3 text-sm space-y-1">
+                {Object.entries(adjustDeltas)
+                  .filter(([, d]) => d.hensDelta !== 0 || d.roostersDelta !== 0)
+                  .map(([key, d]) => {
+                    const label = key === 'main' ? (lang === 'en' ? 'Main' : 'Hoved') : `${lang === 'en' ? 'Add.' : 'Tillegg'} ${key.slice(0, 6)}`;
+                    return (
+                      <p key={key} className="text-neutral-700">
+                        {label}: {d.hensDelta !== 0 && `${lang === 'en' ? 'hens' : 'høner'} ${d.hensDelta > 0 ? '+' : ''}${d.hensDelta}`}
+                        {d.hensDelta !== 0 && d.roostersDelta !== 0 && ', '}
+                        {d.roostersDelta !== 0 && `${lang === 'en' ? 'roosters' : 'haner'} ${d.roostersDelta > 0 ? '+' : ''}${d.roostersDelta}`}
+                      </p>
+                    );
+                  })}
+                {adjustNote && <p className="mt-2 text-xs text-neutral-500">{lang === 'en' ? 'Note:' : 'Notat:'} {adjustNote}</p>}
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <Button variant="outline" onClick={handleAdjustBirdsBack}>{lang === 'en' ? 'Back' : 'Tilbake'}</Button>
+                <Button onClick={() => void submitAdjustBirds()} disabled={adjustBirdsLoading}>
+                  {adjustBirdsLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Bird className="mr-2 h-4 w-4" />}
+                  {lang === 'en' ? 'Confirm' : 'Bekreft'}
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Pig Pickup Date Modal */}
+      <Dialog open={!!pickupDateModal} onOpenChange={(open) => { if (!open) setPickupDateModal(null); }}>
+        <DialogContent className="w-full max-w-[calc(100vw-2rem)] sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{lang === 'en' ? 'Set pickup date & time' : 'Sett hentedato og tidspunkt'}</DialogTitle>
+            <DialogDescription>{pickupDateModal?.order.order_number}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            <div>
+              <label className="mb-1 block text-sm font-medium text-neutral-700">
+                {lang === 'en' ? 'Pickup date' : 'Hentedato'}
+              </label>
+              <Input
+                type="date"
+                value={pickupDateInput}
+                onChange={(e) => setPickupDateInput(e.target.value)}
+                autoFocus
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-neutral-700">
+                {lang === 'en' ? 'Pickup time' : 'Hentetidspunkt'}
+              </label>
+              <select
+                className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                value={pickupTimeInput}
+                onChange={(e) => setPickupTimeInput(e.target.value)}
+              >
+                <option value="11:00">11:00</option>
+                <option value="17:00">17:00</option>
+              </select>
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="outline" onClick={() => setPickupDateModal(null)}>
+                {lang === 'en' ? 'Cancel' : 'Avbryt'}
+              </Button>
+              <Button
+                onClick={() => pickupDateModal && void setPigPickupDate(pickupDateModal.order, pickupDateInput, pickupTimeInput)}
+                disabled={!pickupDateInput || pickupDateLoading !== null}
+              >
+                {pickupDateLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Calendar className="mr-2 h-4 w-4" />}
+                {lang === 'en' ? 'Save' : 'Lagre'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Chicken Breed/Addition Modal */}
+      <Dialog open={!!addAdditionModal} onOpenChange={(open) => { if (!open) setAddAdditionModal(null); }}>
+        <DialogContent className="w-full max-w-[calc(100vw-2rem)] sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{lang === 'en' ? 'Add breed to order' : 'Legg til rase på bestilling'}</DialogTitle>
+            <DialogDescription>{addAdditionModal?.order.order_number}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            {addAdditionHatches.length === 0 ? (
+              <p className="text-sm text-neutral-500">
+                {lang === 'en' ? 'No hatches with available birds.' : 'Ingen kull med ledige fugler.'}
+              </p>
+            ) : (
+              <>
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-neutral-700">
+                    {lang === 'en' ? 'Hatch' : 'Kull'}
+                  </label>
+                  <select
+                    className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                    value={addAdditionHatchId}
+                    onChange={(e) => setAddAdditionHatchId(e.target.value)}
+                  >
+                    {addAdditionHatches.map((h) => (
+                      <option key={h.hatch_id} value={h.hatch_id}>
+                        {h.breed_name} — {h.hatch_date} ({lang === 'en' ? 'hens' : 'høner'}: {h.available_hens}, {lang === 'en' ? 'roosters' : 'haner'}: {h.available_roosters})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-neutral-700">
+                      {lang === 'en' ? 'Hens' : 'Høner'}
+                    </label>
+                    <Input type="number" min={0} value={addAdditionHens} onChange={(e) => setAddAdditionHens(e.target.value)} className="h-9" />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-neutral-700">
+                      {lang === 'en' ? 'Roosters' : 'Haner'}
+                    </label>
+                    <Input type="number" min={0} value={addAdditionRoosters} onChange={(e) => setAddAdditionRoosters(e.target.value)} className="h-9" />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-neutral-700">
+                      {lang === 'en' ? 'Age (wks)' : 'Alder (uker)'}
+                    </label>
+                    <Input type="number" min={0} value={addAdditionAge} onChange={(e) => setAddAdditionAge(e.target.value)} className="h-9" />
+                  </div>
+                </div>
+                <div className="flex justify-end gap-2 pt-2">
+                  <Button variant="outline" onClick={() => setAddAdditionModal(null)}>
+                    {lang === 'en' ? 'Cancel' : 'Avbryt'}
+                  </Button>
+                  <Button onClick={() => void submitChickenAddition()} disabled={addAdditionLoading || !addAdditionHatchId}>
+                    {addAdditionLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
+                    {lang === 'en' ? 'Add' : 'Legg til'}
+                  </Button>
+                </div>
+              </>
+            )}
           </div>
         </DialogContent>
       </Dialog>

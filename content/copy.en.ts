@@ -1563,10 +1563,13 @@
       updateToastDescription: 'Hatch row updated.',
       errorUpdateTitle: 'Error',
       errorUpdateDescription: 'Could not update',
+      batchUpdateDescription: 'Batch updated.',
       deactivateToastTitle: 'Deactivated',
-      deactivateToastDescription: 'Row set to inactive.',
+      deactivateToastDescription: 'Batch deactivated.',
+      activateToastTitle: 'Activated',
+      activateToastDescription: 'Batch activated.',
       errorDeactivateTitle: 'Error',
-      errorDeactivateDescription: 'Could not deactivate',
+      errorDeactivateDescription: 'Could not change status',
       title: 'Chicken hatches',
       buttonNewHatch: 'New hatch',
       formTitle: 'Add new hatch (multiple breeds at once)',
@@ -1592,6 +1595,9 @@
       badgeHatching: 'Hatching',
       badgeLockdown: 'Day 18 lockdown',
       badgeIncubating: 'Incubating',
+      labelDay0: 'Day 0 - Eggs in',
+      labelDay18: 'Day 18 - Lockdown',
+      labelDay21: 'Day 21 - Hatch',
       infoDay0: 'Day 0: {date}',
       infoDay18: 'Day 18 lockdown: {date}',
       infoDay21: 'Day 21 hatch: {date}',
@@ -1615,7 +1621,72 @@
       badgeInactive: 'Inactive',
       buttonEdit: 'Edit',
       buttonDeactivate: 'Deactivate',
+      buttonActivate: 'Activate',
+      buttonSaveBatch: 'Save changes',
+      saving: 'Saving...',
+      editBatchFields: 'Edit batch',
       labelUnknownBreed: 'Unknown',
+
+      // Temp & humidity
+      labelTargetTemp: 'Target temp (°C)',
+      labelTargetHumidity: 'Target humidity (%)',
+      labelTemp: 'Temp',
+      labelHumidity: 'Humidity',
+      labelNote: 'Note',
+      placeholderClimateNote: 'Optional',
+
+      // Quick hatch
+      buttonQuickHatch: 'Hatch',
+      modalHatchTitle: 'Register hatch results',
+      buttonRegisterHatch: 'Register',
+      labelEggsSet: 'Eggs in',
+      labelEggsShort: 'eggs',
+      hatchRegisteredTitle: 'Registered',
+      hatchRegisteredDescription: 'Hatch results saved.',
+
+      // Candling
+      buttonCandling: 'Candle',
+      modalCandlingTitle: 'Register candling (day 7-10)',
+      labelCandlingDate: 'Candling date',
+      labelFertile: 'fertile',
+      labelRemoved: 'removed',
+      buttonRegisterCandling: 'Register',
+      tableHeaderCandled: 'Candled',
+      candlingRegisteredTitle: 'Registered',
+      candlingRegisteredDescription: 'Candling results saved.',
+
+      // Duplicate
+      buttonDuplicateShort: 'Copy',
+      modalDuplicateTitle: 'Copy batch as template',
+      modalDuplicateDescription: 'Creates a new batch with the same breeds and egg counts.',
+      labelNewEggDate: 'New eggs in date',
+      buttonDuplicate: 'Create copy',
+      duplicateToastTitle: 'Copied',
+      duplicateToastDescription: 'New batch created from template.',
+
+      // Breed stats
+      buttonBreedStats: 'Breed stats',
+      breedStatsTitle: 'Historical hatch rate per breed',
+      statAvgRate: 'Avg',
+      statBatches: 'Batches',
+      statHistoricRate: 'Historical hatch rate',
+
+      // Timeline
+      buttonTimeline: 'History',
+      timelineTitle: 'Event log',
+      timelineEmpty: 'No events recorded yet.',
+
+      // Climate log
+      buttonClimateLog: 'Climate log',
+      climateTitle: 'Temperature & humidity log',
+      climateEmpty: 'No readings recorded yet.',
+      buttonAddReading: 'Add reading',
+      climateHeaderTime: 'Time',
+      climateHeaderTemp: 'Temp',
+      climateHeaderHumidity: 'Humidity',
+      climateHeaderNote: 'Note',
+      climateLoggedTitle: 'Saved',
+      climateLoggedDescription: 'Climate reading recorded.',
     },
 
     // Chicken order management

@@ -1564,10 +1564,13 @@
       updateToastDescription: 'Kull-raden ble oppdatert.',
       errorUpdateTitle: 'Feil',
       errorUpdateDescription: 'Kunne ikke oppdatere',
+      batchUpdateDescription: 'Kullet er oppdatert.',
       deactivateToastTitle: 'Deaktivert',
-      deactivateToastDescription: 'Raden er satt inaktiv.',
+      deactivateToastDescription: 'Kullet er deaktivert.',
+      activateToastTitle: 'Aktivert',
+      activateToastDescription: 'Kullet er aktivert.',
       errorDeactivateTitle: 'Feil',
-      errorDeactivateDescription: 'Kunne ikke deaktivere',
+      errorDeactivateDescription: 'Kunne ikke endre status',
       title: 'Kyllingkull',
       buttonNewHatch: 'Nytt kull',
       formTitle: 'Legg til nytt kull (flere raser samtidig)',
@@ -1593,6 +1596,9 @@
       badgeHatching: 'Klekking',
       badgeLockdown: 'Dag 18 lockdown',
       badgeIncubating: 'Inkubering',
+      labelDay0: 'Dag 0 - Egg inn',
+      labelDay18: 'Dag 18 - Lockdown',
+      labelDay21: 'Dag 21 - Klekk',
       infoDay0: 'Dag 0: {date}',
       infoDay18: 'Dag 18 lockdown: {date}',
       infoDay21: 'Dag 21 klekk: {date}',
@@ -1616,7 +1622,72 @@
       badgeInactive: 'Inaktiv',
       buttonEdit: 'Rediger',
       buttonDeactivate: 'Deaktiver',
+      buttonActivate: 'Aktiver',
+      buttonSaveBatch: 'Lagre endringer',
+      saving: 'Lagrer...',
+      editBatchFields: 'Rediger kull',
       labelUnknownBreed: 'Ukjent',
+
+      // Temp & humidity
+      labelTargetTemp: 'Mål-temperatur (°C)',
+      labelTargetHumidity: 'Mål-fuktighet (%)',
+      labelTemp: 'Temp',
+      labelHumidity: 'Fukt',
+      labelNote: 'Notat',
+      placeholderClimateNote: 'Valgfritt',
+
+      // Quick hatch
+      buttonQuickHatch: 'Klekk',
+      modalHatchTitle: 'Registrer klekking',
+      buttonRegisterHatch: 'Registrer',
+      labelEggsSet: 'Egg inn',
+      labelEggsShort: 'egg',
+      hatchRegisteredTitle: 'Registrert',
+      hatchRegisteredDescription: 'Klekkeresultater er lagret.',
+
+      // Candling
+      buttonCandling: 'Lysing',
+      modalCandlingTitle: 'Registrer lysing (dag 7-10)',
+      labelCandlingDate: 'Lysingsdato',
+      labelFertile: 'fertile',
+      labelRemoved: 'fjernet',
+      buttonRegisterCandling: 'Registrer',
+      tableHeaderCandled: 'Lyst',
+      candlingRegisteredTitle: 'Registrert',
+      candlingRegisteredDescription: 'Lysingsresultater er lagret.',
+
+      // Duplicate
+      buttonDuplicateShort: 'Kopier',
+      modalDuplicateTitle: 'Kopier kull som mal',
+      modalDuplicateDescription: 'Oppretter et nytt kull med samme raser og eggantall.',
+      labelNewEggDate: 'Ny egg inn dato',
+      buttonDuplicate: 'Opprett kopi',
+      duplicateToastTitle: 'Kopiert',
+      duplicateToastDescription: 'Nytt kull opprettet fra mal.',
+
+      // Breed stats
+      buttonBreedStats: 'Rasestatistikk',
+      breedStatsTitle: 'Historisk klekkerate per rase',
+      statAvgRate: 'Snitt',
+      statBatches: 'Kull',
+      statHistoricRate: 'Historisk klekkerate',
+
+      // Timeline
+      buttonTimeline: 'Historikk',
+      timelineTitle: 'Hendelseslogg',
+      timelineEmpty: 'Ingen hendelser registrert ennå.',
+
+      // Climate log
+      buttonClimateLog: 'Klimalogg',
+      climateTitle: 'Temperatur- og fuktighetslogg',
+      climateEmpty: 'Ingen målinger registrert ennå.',
+      buttonAddReading: 'Legg til',
+      climateHeaderTime: 'Tidspunkt',
+      climateHeaderTemp: 'Temp',
+      climateHeaderHumidity: 'Fuktighet',
+      climateHeaderNote: 'Notat',
+      climateLoggedTitle: 'Lagret',
+      climateLoggedDescription: 'Klimamåling registrert.',
     },
 
     // Chicken order management

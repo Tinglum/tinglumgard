@@ -70,7 +70,9 @@ export async function GET() {
           hatch_due_date,
           total_eggs_set,
           notes,
-          active
+          active,
+          target_temperature,
+          target_humidity
         )
       `)
       .order('hatch_date', { ascending: false })
@@ -125,6 +127,8 @@ export async function POST(request: NextRequest) {
           total_eggs_set: totalEggsSet,
           notes: body.notes || '',
           active: body.active !== false,
+          target_temperature: body.target_temperature ?? null,
+          target_humidity: body.target_humidity ?? null,
         })
         .select()
         .single()
