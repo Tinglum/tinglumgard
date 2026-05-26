@@ -14,6 +14,138 @@ type HatchLineInput = {
   active?: boolean
 }
 
+type HatchOrderRow = {
+  id: string
+  order_number: string
+  customer_name: string | null
+  status: string | null
+  pickup_date: string | null
+  pickup_time: string | null
+  pickup_monday: string | null
+  hatch_id: string | null
+  quantity_hens: number | null
+  quantity_roosters: number | null
+  chicken_order_additions?: Array<{
+    id: string
+    hatch_id: string | null
+    quantity_hens: number | null
+    quantity_roosters: number | null
+    status: string | null
+  }> | null
+}
+
+type HatchOrderAllocation = {
+  order_id: string
+  order_number: string
+  customer_name: string
+  status: string
+  pickup_date: string | null
+  pickup_time: string | null
+  pickup_monday: string | null
+  base_hens: number
+  base_roosters: number
+  addition_hens: number
+  addition_roosters: number
+  total_hens: number
+  total_roosters: number
+  total_birds: number
+  addition_line_count: number
+}
+
+const RESERVED_ORDER_STATUSES = new Set([
+  'pending',
+  'deposit_paid',
+  'fully_paid',
+  'ready_for_pickup',
+])
+
+function normalizeAllocationsByHatch(orders: HatchOrderRow[] | null) {
+  const hatchMap = new Map<string, {
+    ordered_hens: number
+    ordered_roosters: number
+    order_allocations: HatchOrderAllocation[]
+  }>()
+
+  for (const order of orders || []) {
+    const orderStatus = String(order.status || '')
+    if (!RESERVED_ORDER_STATUSES.has(orderStatus)) continue
+
+    const ensureEntry = (hatchId: string) => {
+      const existing = hatchMap.get(hatchId)
+      if (existing) return existing
+      const created = { ordered_hens: 0, ordered_roosters: 0, order_allocations: [] as HatchOrderAllocation[] }
+      hatchMap.set(hatchId, created)
+      return created
+    }
+
+    const ensureOrderAllocation = (entry: { order_allocations: HatchOrderAllocation[] }, hatchId: string) => {
+      const existing = entry.order_allocations.find((allocation) => allocation.order_id === order.id)
+      if (existing) return existing
+      const created: HatchOrderAllocation = {
+        order_id: order.id,
+        order_number: String(order.order_number || ''),
+        customer_name: String(order.customer_name || ''),
+        status: orderStatus,
+        pickup_date: order.pickup_date || null,
+        pickup_time: order.pickup_time || null,
+        pickup_monday: order.pickup_monday || null,
+        base_hens: 0,
+        base_roosters: 0,
+        addition_hens: 0,
+        addition_roosters: 0,
+        total_hens: 0,
+        total_roosters: 0,
+        total_birds: 0,
+        addition_line_count: 0,
+      }
+      entry.order_allocations.push(created)
+      return created
+    }
+
+    if (order.hatch_id) {
+      const entry = ensureEntry(order.hatch_id)
+      const allocation = ensureOrderAllocation(entry, order.hatch_id)
+      const hens = toNonNegativeInt(order.quantity_hens)
+      const roosters = toNonNegativeInt(order.quantity_roosters)
+      entry.ordered_hens += hens
+      entry.ordered_roosters += roosters
+      allocation.base_hens += hens
+      allocation.base_roosters += roosters
+      allocation.total_hens += hens
+      allocation.total_roosters += roosters
+      allocation.total_birds += hens + roosters
+    }
+
+    for (const addition of order.chicken_order_additions || []) {
+      const additionStatus = String(addition?.status || '')
+      if (additionStatus === 'cancelled' || !addition?.hatch_id) continue
+      const entry = ensureEntry(addition.hatch_id)
+      const allocation = ensureOrderAllocation(entry, addition.hatch_id)
+      const hens = toNonNegativeInt(addition.quantity_hens)
+      const roosters = toNonNegativeInt(addition.quantity_roosters)
+      entry.ordered_hens += hens
+      entry.ordered_roosters += roosters
+      allocation.addition_hens += hens
+      allocation.addition_roosters += roosters
+      allocation.total_hens += hens
+      allocation.total_roosters += roosters
+      allocation.total_birds += hens + roosters
+      allocation.addition_line_count += 1
+    }
+  }
+
+  Array.from(hatchMap.values()).forEach((entry) => {
+    entry.order_allocations.sort((a: HatchOrderAllocation, b: HatchOrderAllocation) => {
+      const aDate = a.pickup_monday || a.pickup_date || ''
+      const bDate = b.pickup_monday || b.pickup_date || ''
+      if (aDate !== bDate) return aDate.localeCompare(bDate)
+      return a.order_number.localeCompare(b.order_number, 'nb')
+    })
+  })
+
+  return hatchMap
+}
+
 function toNonNegativeInt(value: unknown, fallback: number = 0): number {
   const parsed = Number(value)
   if (!Number.isFinite(parsed)) return fallback
@@ -43,6 +175,7 @@ function makeBatchCode(eggsSetDate: string): string {
 
 export async function GET() {
   const session = await getSession()
+  console.log('[hatches GET] session:', !!session, 'isAdmin:', session?.isAdmin)
   if (!session?.isAdmin) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
@@ -70,19 +203,67 @@ export async function GET() {
           hatch_due_date,
           total_eggs_set,
           notes,
-          active,
-          target_temperature,
-          target_humidity
+          active
         )
       `)
       .order('hatch_date', { ascending: false })
 
+    const { data: orderRows, error: orderError } = await supabaseAdmin
+      .from('chicken_orders')
+      .select(`
+        id,
+        order_number,
+        customer_name,
+        status,
+        pickup_date,
+        pickup_time,
+        pickup_monday,
+        hatch_id,
+        quantity_hens,
+        quantity_roosters,
+        chicken_order_additions(
+          id,
+          hatch_id,
+          quantity_hens,
+          quantity_roosters,
+          status
+        )
+      `)
+
     if (error) {
+      console.error('[hatches GET] supabase error:', error.message, error.code)
       logError('admin-chicken-hatches-get', error)
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
+    if (orderError) {
+      logError('admin-chicken-hatches-get-orders', orderError)
+      return NextResponse.json({ error: orderError.message }, { status: 500 })
+    }
 
-    return NextResponse.json(data)
+    const allocationMap = normalizeAllocationsByHatch((orderRows as HatchOrderRow[] | null) || [])
+    const enrichedRows = (data || []).map((row) => {
+      const allocation = allocationMap.get(String(row.id))
+      const orderedHens = allocation?.ordered_hens || 0
+      const orderedRoosters = allocation?.ordered_roosters || 0
+      const remainingHens = toNonNegativeInt((row as Record<string, unknown>).available_hens)
+      const remainingRoosters = toNonNegativeInt((row as Record<string, unknown>).available_roosters)
+      return {
+        ...row,
+        ordered_hens: orderedHens,
+        ordered_roosters: orderedRoosters,
+        ordered_total: orderedHens + orderedRoosters,
+        remaining_hens: remainingHens,
+        remaining_roosters: remainingRoosters,
+        remaining_total: remainingHens + remainingRoosters,
+        on_farm_now_hens: remainingHens + orderedHens,
+        on_farm_now_roosters: remainingRoosters + orderedRoosters,
+        on_farm_now_total: remainingHens + remainingRoosters + orderedHens + orderedRoosters,
+        order_allocations: allocation?.order_allocations || [],
+      }
+    })
+
+    console.log('[hatches GET] returned', enrichedRows.length, 'rows')
+    return NextResponse.json(enrichedRows)
   } catch (error) {
     logError('admin-chicken-hatches-get-unexpected', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
@@ -127,8 +308,8 @@ export async function POST(request: NextRequest) {
           total_eggs_set: totalEggsSet,
           notes: body.notes || '',
           active: body.active !== false,
-          target_temperature: body.target_temperature ?? null,
-          target_humidity: body.target_humidity ?? null,
+          ...(body.target_temperature != null ? { target_temperature: body.target_temperature } : {}),
+          ...(body.target_humidity != null ? { target_humidity: body.target_humidity } : {}),
         })
         .select()
         .single()

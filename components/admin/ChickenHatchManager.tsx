@@ -47,6 +47,16 @@ interface Hatch {
   candling_date: string | null
   candling_fertile_count: number | null
   candling_removed_count: number | null
+  ordered_hens?: number
+  ordered_roosters?: number
+  ordered_total?: number
+  remaining_hens?: number
+  remaining_roosters?: number
+  remaining_total?: number
+  on_farm_now_hens?: number
+  on_farm_now_roosters?: number
+  on_farm_now_total?: number
+  order_allocations?: HatchOrderAllocation[]
   chicken_breeds?: {
     name: string
     slug: string
@@ -56,6 +66,24 @@ interface Hatch {
     adult_price_nok: number
   }
   chicken_incubation_batches?: IncubationBatch | null
+}
+
+interface HatchOrderAllocation {
+  order_id: string
+  order_number: string
+  customer_name: string
+  status: string
+  pickup_date: string | null
+  pickup_time: string | null
+  pickup_monday: string | null
+  base_hens: number
+  base_roosters: number
+  addition_hens: number
+  addition_roosters: number
+  total_hens: number
+  total_roosters: number
+  total_birds: number
+  addition_line_count: number
 }
 
 interface Breed {
@@ -127,7 +155,11 @@ type BatchGroup = {
   rows: Hatch[]
 }
 
-type ModalType = 'none' | 'hatch' | 'candling' | 'climate' | 'timeline' | 'duplicate'
+type ModalType = 'none' | 'hatch' | 'candling' | 'climate' | 'timeline' | 'duplicate' | 'orders'
+
+type ChickenHatchManagerProps = {
+  onNavigateToOrder?: (orderId: string) => void
+}
 
 // ─── Helpers ─────────────────────────────────────────────────────
 
@@ -179,15 +211,17 @@ const EVENT_ICONS: Record<string, string> = {
 
 // ─── Component ───────────────────────────────────────────────────
 
-export function ChickenHatchManager() {
+export function ChickenHatchManager({ onNavigateToOrder }: ChickenHatchManagerProps = {}) {
   const { toast } = useToast()
-  const { t } = useLanguage()
+  const { t, lang } = useLanguage()
+  const no = lang === 'no'
   const ch = (t as any).admin.chickenHatches
 
   // Core state
   const [hatches, setHatches] = useState<Hatch[]>([])
   const [breeds, setBreeds] = useState<Breed[]>([])
   const [loading, setLoading] = useState(true)
+  const [fetchError, setFetchError] = useState<string | null>(null)
   const [breedStats, setBreedStats] = useState<BreedStat[]>([])
   const [showBreedStats, setShowBreedStats] = useState(false)
 
@@ -206,6 +240,7 @@ export function ChickenHatchManager() {
   // Modal state
   const [modalType, setModalType] = useState<ModalType>('none')
   const [modalBatchId, setModalBatchId] = useState<string | null>(null)
+  const [modalHatchId, setModalHatchId] = useState<string | null>(null)
   const [modalData, setModalData] = useState<Record<string, string>>({})
 
   // Expandable sections per batch
@@ -221,6 +256,7 @@ export function ChickenHatchManager() {
 
   const fetchData = useCallback(async () => {
     setLoading(true)
+    setFetchError(null)
     try {
       const [hatchRes, breedRes] = await Promise.all([
         fetch('/api/admin/chickens/hatches'),
@@ -230,10 +266,13 @@ export function ChickenHatchManager() {
       if (hatchRes.ok) {
         const payload = await hatchRes.json()
         setHatches(Array.isArray(payload) ? payload : Array.isArray(payload?.hatches) ? payload.hatches : [])
+      } else {
+        const errBody = await hatchRes.json().catch(() => ({}))
+        setFetchError(`${hatchRes.status}: ${errBody?.error || 'Unknown error'}`)
       }
       if (breedRes.ok) setBreeds(await breedRes.json())
     } catch {
-      toast({ title: ch.errorFetchTitle, description: ch.errorFetchDescription, variant: 'destructive' })
+      setFetchError('Network error')
     } finally {
       setLoading(false)
     }
@@ -279,6 +318,39 @@ export function ChickenHatchManager() {
       .map((g) => ({ ...g, rows: [...g.rows].sort((a, b) => (a.chicken_breeds?.name || '').localeCompare(b.chicken_breeds?.name || '', 'nb')) }))
       .sort(sortGroupsDesc)
   }, [hatches])
+
+  const modalOrderHatch = useMemo(
+    () => (modalHatchId ? hatches.find((hatch) => hatch.id === modalHatchId) || null : null),
+    [hatches, modalHatchId]
+  )
+
+  const stockMetricLabel = useCallback((hens: number, roosters: number) => (
+    no
+      ? `${hens} kyllinger / ${roosters} haner`
+      : `${hens} hens / ${roosters} roosters`
+  ), [no])
+
+  const statusLabel = useCallback((status: string) => {
+    const normalized = String(status || '').trim()
+    if (normalized === 'pending') return no ? 'Venter' : 'Pending'
+    if (normalized === 'deposit_paid') return no ? 'Forskudd betalt' : 'Deposit paid'
+    if (normalized === 'fully_paid') return no ? 'Fullt betalt' : 'Fully paid'
+    if (normalized === 'ready_for_pickup') return no ? 'Klar for henting' : 'Ready for pickup'
+    if (normalized === 'picked_up') return no ? 'Hentet' : 'Picked up'
+    if (normalized === 'cancelled') return no ? 'Kansellert' : 'Cancelled'
+    return normalized || '-'
+  }, [no])
+
+  const statusBadgeClass = useCallback((status: string) => {
+    const normalized = String(status || '').trim()
+    if (normalized === 'pending') return 'bg-amber-100 text-amber-800'
+    if (normalized === 'deposit_paid') return 'bg-blue-100 text-blue-800'
+    if (normalized === 'fully_paid') return 'bg-emerald-100 text-emerald-800'
+    if (normalized === 'ready_for_pickup') return 'bg-purple-100 text-purple-800'
+    if (normalized === 'picked_up') return 'bg-neutral-200 text-neutral-700'
+    if (normalized === 'cancelled') return 'bg-red-100 text-red-700'
+    return 'bg-neutral-100 text-neutral-700'
+  }, [])
 
   const createTotals = useMemo(() => {
     const totalEggsSet = activeBreeds.reduce((s, b) => s + toNonNegativeInt(newBatch.lines[b.id]?.eggs_set_count), 0)
@@ -431,6 +503,7 @@ export function ChickenHatchManager() {
   const openModal = (type: ModalType, batchId: string, rows: Hatch[]) => {
     setModalType(type)
     setModalBatchId(batchId)
+    setModalHatchId(null)
     const data: Record<string, string> = {}
     if (type === 'hatch') {
       for (const r of rows) data[`hatch_${r.id}`] = r.actual_hatched_count != null ? String(r.actual_hatched_count) : ''
@@ -448,7 +521,19 @@ export function ChickenHatchManager() {
     setModalData(data)
   }
 
-  const closeModal = () => { setModalType('none'); setModalBatchId(null); setModalData({}) }
+  const openOrdersModal = (hatchId: string) => {
+    setModalType('orders')
+    setModalBatchId(null)
+    setModalHatchId(hatchId)
+    setModalData({})
+  }
+
+  const closeModal = () => {
+    setModalType('none')
+    setModalBatchId(null)
+    setModalHatchId(null)
+    setModalData({})
+  }
 
   const handleQuickHatch = async (rows: Hatch[]) => {
     if (!modalBatchId) return
@@ -656,12 +741,22 @@ export function ChickenHatchManager() {
         </Card>
       )}
 
-      {groupedBatches.length === 0 && <Card className="p-6 text-center text-neutral-500">{ch.emptyState}</Card>}
+      {fetchError && (
+        <Card className="p-4 border-red-200 bg-red-50">
+          <p className="text-sm text-red-700 font-medium">Feil ved henting av data: {fetchError}</p>
+          <Button size="sm" variant="outline" className="mt-2" onClick={fetchData}>Prøv igjen</Button>
+        </Card>
+      )}
+
+      {!fetchError && groupedBatches.length === 0 && !loading && <Card className="p-6 text-center text-neutral-500">{ch.emptyState}</Card>}
 
       {/* ─── Modal overlay ──────────────────────────────────── */}
-      {modalType !== 'none' && modalBatchId && (
+      {modalType !== 'none' && (modalBatchId || modalHatchId) && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={closeModal}>
-          <Card className="p-5 w-full max-w-lg mx-4 space-y-4 max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+          <Card
+            className={`p-5 w-full mx-4 space-y-4 max-h-[80vh] overflow-y-auto ${modalType === 'orders' ? 'max-w-2xl' : 'max-w-lg'}`}
+            onClick={(e) => e.stopPropagation()}
+          >
             {/* Quick hatch modal */}
             {modalType === 'hatch' && (() => {
               const group = groupedBatches.find(g => g.batch?.id === modalBatchId)
@@ -751,6 +846,110 @@ export function ChickenHatchManager() {
                 </div>
               </>
             )}
+
+            {modalType === 'orders' && modalOrderHatch && (
+              <>
+                <div className="space-y-1">
+                  <h4 className="font-semibold">
+                    {no ? 'Bestilte fugler fra dette kullet' : 'Ordered birds from this hatch'}
+                  </h4>
+                  <p className="text-sm text-neutral-600">
+                    {(modalOrderHatch.chicken_breeds?.name || ch.labelUnknownBreed)} · {formatDate(modalOrderHatch.hatch_date)}
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="rounded-lg border bg-neutral-50 px-3 py-2">
+                    <div className="text-[11px] uppercase tracking-wide text-neutral-500">{no ? 'På gården nå' : 'On farm now'}</div>
+                    <div className="text-lg font-semibold text-neutral-900">{modalOrderHatch.on_farm_now_total ?? 0}</div>
+                    <div className="text-xs text-neutral-500">{stockMetricLabel(modalOrderHatch.on_farm_now_hens ?? 0, modalOrderHatch.on_farm_now_roosters ?? 0)}</div>
+                  </div>
+                  <div className="rounded-lg border bg-neutral-50 px-3 py-2">
+                    <div className="text-[11px] uppercase tracking-wide text-neutral-500">{no ? 'Bestilt' : 'Ordered'}</div>
+                    <div className="text-lg font-semibold text-neutral-900">{modalOrderHatch.ordered_total ?? 0}</div>
+                    <div className="text-xs text-neutral-500">{stockMetricLabel(modalOrderHatch.ordered_hens ?? 0, modalOrderHatch.ordered_roosters ?? 0)}</div>
+                  </div>
+                  <div className="rounded-lg border bg-neutral-50 px-3 py-2">
+                    <div className="text-[11px] uppercase tracking-wide text-neutral-500">{no ? 'Igjen' : 'Remaining'}</div>
+                    <div className="text-lg font-semibold text-neutral-900">{modalOrderHatch.remaining_total ?? 0}</div>
+                    <div className="text-xs text-neutral-500">{stockMetricLabel(modalOrderHatch.remaining_hens ?? 0, modalOrderHatch.remaining_roosters ?? 0)}</div>
+                  </div>
+                </div>
+
+                {(modalOrderHatch.order_allocations || []).length === 0 ? (
+                  <p className="text-sm text-neutral-500">
+                    {no ? 'Ingen åpne ordre er koblet til dette kullet akkurat nå.' : 'No open orders are linked to this hatch right now.'}
+                  </p>
+                ) : (
+                  <div className="space-y-3">
+                    {(modalOrderHatch.order_allocations || []).map((allocation) => (
+                      <div key={allocation.order_id} className="rounded-lg border p-3 space-y-2">
+                        <div className="flex flex-wrap items-start justify-between gap-2">
+                          <div>
+                            <div className="font-medium text-sm">{allocation.customer_name || (no ? 'Ukjent kunde' : 'Unknown customer')}</div>
+                            <div className="text-xs text-neutral-500">{allocation.order_number}</div>
+                          </div>
+                          <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${statusBadgeClass(allocation.status)}`}>
+                            {statusLabel(allocation.status)}
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                          <div className="space-y-1">
+                            <div className="text-neutral-900 font-medium">
+                              {allocation.total_birds} {no ? 'fugler' : 'birds'}
+                            </div>
+                            <div className="text-neutral-500">
+                              {stockMetricLabel(allocation.total_hens, allocation.total_roosters)}
+                            </div>
+                            <div className="text-xs text-neutral-500">
+                              {no ? 'Grunnordre' : 'Base order'}: {stockMetricLabel(allocation.base_hens, allocation.base_roosters)}
+                            </div>
+                            {allocation.addition_line_count > 0 && (
+                              <div className="text-xs text-neutral-500">
+                                {no ? 'Tillegg' : 'Additions'}: {stockMetricLabel(allocation.addition_hens, allocation.addition_roosters)}
+                              </div>
+                            )}
+                          </div>
+                          <div className="space-y-1 text-sm text-neutral-500">
+                            <div>
+                              {no ? 'Henting' : 'Pickup'}:{' '}
+                              <span className="text-neutral-900">
+                                {allocation.pickup_date ? formatDate(allocation.pickup_date) : (allocation.pickup_monday ? formatDate(allocation.pickup_monday) : '-')}
+                                {allocation.pickup_time ? ` ${allocation.pickup_time}` : ''}
+                              </span>
+                            </div>
+                            <div>
+                              {no ? 'Inneholder tillegg fra dette kullet' : 'Includes additions from this hatch'}:{' '}
+                              <span className="text-neutral-900">{allocation.addition_line_count > 0 ? (no ? 'Ja' : 'Yes') : (no ? 'Nei' : 'No')}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex justify-end">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              onNavigateToOrder?.(allocation.order_number)
+                              closeModal()
+                            }}
+                          >
+                            {no ? 'Åpne ordre' : 'Open order'}
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div className="flex justify-end pt-1">
+                  <Button size="sm" variant="outline" onClick={closeModal}>
+                    <X className="w-3 h-3 mr-1" /> {t.common.cancel}
+                  </Button>
+                </div>
+              </>
+            )}
           </Card>
         </div>
       )}
@@ -768,6 +967,9 @@ export function ChickenHatchManager() {
         const knownActualRows = group.rows.filter((r) => r.actual_hatched_count !== null)
         const totalActual = knownActualRows.reduce((s, r) => s + toNonNegativeInt(r.actual_hatched_count), 0)
         const hatchRate = totalEggsSet > 0 && knownActualRows.length > 0 ? Math.round((totalActual / totalEggsSet) * 100) : null
+        const totalOnFarmNow = group.rows.reduce((s, r) => s + toNonNegativeInt(r.on_farm_now_total), 0)
+        const totalOrdered = group.rows.reduce((s, r) => s + toNonNegativeInt(r.ordered_total), 0)
+        const totalRemaining = group.rows.reduce((s, r) => s + toNonNegativeInt(r.remaining_total ?? r.available_hens + r.available_roosters), 0)
 
         const hasCandling = group.rows.some(r => r.candling_date)
         const isTimelineOpen = expandedTimeline === batchId
@@ -878,11 +1080,19 @@ export function ChickenHatchManager() {
                 <span>{ch.summaryEstClekk.split('{total}')[0]}<span className="font-semibold">{totalExpected}</span></span>
                 <span>{ch.summaryActualHatched.split('{total}')[0]}<span className="font-semibold">{totalActual}</span></span>
                 {hatchRate !== null && <span>{ch.summaryHatchRate.split('{rate}')[0]}<span className="font-semibold">{hatchRate}%</span></span>}
+                <span>{no ? 'På gården nå: ' : 'On farm now: '}<span className="font-semibold">{totalOnFarmNow}</span></span>
+                <span>{no ? 'Bestilt: ' : 'Ordered: '}<span className="font-semibold">{totalOrdered}</span></span>
+                <span>{no ? 'Igjen: ' : 'Remaining: '}<span className="font-semibold">{totalRemaining}</span></span>
               </div>
             )}
 
             {/* Table */}
             <div className="overflow-x-auto">
+              {!isEditing && (
+                <p className="pb-3 text-xs text-neutral-500">
+                  {no ? 'På gården nå = bestilt + igjen.' : 'On farm now = ordered + remaining.'}
+                </p>
+              )}
               <table className="w-full text-sm">
                 <thead>
                   <tr className="text-left text-neutral-500 border-b">
@@ -891,10 +1101,16 @@ export function ChickenHatchManager() {
                     {hasCandling && <th className="pb-2 pr-3 text-xs font-medium">{ch.tableHeaderCandled}</th>}
                     <th className="hidden sm:table-cell pb-2 pr-3 text-xs font-medium">{ch.tableHeaderEstKlekk}</th>
                     <th className="pb-2 pr-3 text-xs font-medium">{ch.tableHeaderFactualHatched}</th>
-                    <th className="pb-2 pr-3 text-xs font-medium">{ch.tableHeaderAvailableHens}</th>
-                    <th className="pb-2 pr-3 text-xs font-medium">{ch.tableHeaderAvailableRoosters}</th>
-                    {!isEditing && (
+                    {isEditing ? (
                       <>
+                        <th className="pb-2 pr-3 text-xs font-medium">{ch.tableHeaderAvailableHens}</th>
+                        <th className="pb-2 pr-3 text-xs font-medium">{ch.tableHeaderAvailableRoosters}</th>
+                      </>
+                    ) : (
+                      <>
+                        <th className="pb-2 pr-3 text-xs font-medium">{no ? 'På gården nå' : 'On farm now'}</th>
+                        <th className="pb-2 pr-3 text-xs font-medium">{no ? 'Bestilt' : 'Ordered'}</th>
+                        <th className="pb-2 pr-3 text-xs font-medium">{no ? 'Igjen' : 'Remaining'}</th>
                         <th className="hidden md:table-cell pb-2 pr-3 text-xs font-medium">{ch.tableHeaderAgeNow}</th>
                         <th className="hidden md:table-cell pb-2 pr-3 text-xs font-medium">{ch.tableHeaderPriceNow}</th>
                       </>
@@ -909,6 +1125,15 @@ export function ChickenHatchManager() {
                     const editRow = isEditing && batchEditForm ? batchEditForm.rows[hatch.id] : null
                     const expectedFromEdit = editRow ? Math.round(toNonNegativeInt(editRow.eggs_set_count) * 0.5) : hatch.expected_hatch_count
                     const stat = breedStatsMap.get(hatch.breed_id)
+                    const orderedHens = toNonNegativeInt(hatch.ordered_hens)
+                    const orderedRoosters = toNonNegativeInt(hatch.ordered_roosters)
+                    const orderedTotal = toNonNegativeInt(hatch.ordered_total)
+                    const remainingHens = toNonNegativeInt(hatch.remaining_hens ?? hatch.available_hens)
+                    const remainingRoosters = toNonNegativeInt(hatch.remaining_roosters ?? hatch.available_roosters)
+                    const remainingTotal = toNonNegativeInt(hatch.remaining_total ?? remainingHens + remainingRoosters)
+                    const onFarmNowHens = toNonNegativeInt(hatch.on_farm_now_hens ?? remainingHens + orderedHens)
+                    const onFarmNowRoosters = toNonNegativeInt(hatch.on_farm_now_roosters ?? remainingRoosters + orderedRoosters)
+                    const onFarmNowTotal = toNonNegativeInt(hatch.on_farm_now_total ?? onFarmNowHens + onFarmNowRoosters)
 
                     return (
                       <tr key={hatch.id} className="border-b last:border-0">
@@ -939,18 +1164,46 @@ export function ChickenHatchManager() {
                         <td className="py-2.5 pr-3">
                           {editRow ? (
                             <Input type="number" min={0} className="w-24 h-8 text-sm" value={editRow.available_hens} onChange={(e) => updateEditRow(hatch.id, 'available_hens', e.target.value)} />
-                          ) : <span className="text-sm">{hatch.available_hens}</span>}
+                          ) : (
+                            <div className="space-y-0.5">
+                              <div className="text-sm font-medium text-neutral-900">{onFarmNowTotal}</div>
+                              <div className="text-[11px] text-neutral-500">{stockMetricLabel(onFarmNowHens, onFarmNowRoosters)}</div>
+                            </div>
+                          )}
                         </td>
                         <td className="py-2.5 pr-3">
                           {editRow ? (
                             <Input type="number" min={0} className="w-24 h-8 text-sm" value={editRow.available_roosters} onChange={(e) => updateEditRow(hatch.id, 'available_roosters', e.target.value)} />
-                          ) : <span className="text-sm">{hatch.available_roosters}</span>}
+                          ) : (
+                            <button
+                              type="button"
+                              className={`text-left rounded-md px-2 py-1 transition-colors ${orderedTotal > 0 ? 'hover:bg-neutral-100' : ''}`}
+                              onClick={() => orderedTotal > 0 && openOrdersModal(hatch.id)}
+                              disabled={orderedTotal <= 0}
+                            >
+                              <div className={`text-sm font-medium ${orderedTotal > 0 ? 'text-blue-700' : 'text-neutral-900'}`}>{orderedTotal}</div>
+                              <div className="text-[11px] text-neutral-500">{stockMetricLabel(orderedHens, orderedRoosters)}</div>
+                              <div className="text-[11px] text-neutral-400">
+                                {orderedTotal > 0
+                                  ? `${(hatch.order_allocations || []).length} ${no ? ((hatch.order_allocations || []).length === 1 ? 'ordre' : 'ordre') : ((hatch.order_allocations || []).length === 1 ? 'order' : 'orders')}`
+                                  : (no ? 'Ingen ordre' : 'No orders')}
+                              </div>
+                            </button>
+                          )}
                         </td>
-                        {!isEditing && (
+                        {!isEditing ? (
                           <>
+                            <td className="py-2.5 pr-3">
+                              <div className="space-y-0.5">
+                                <div className="text-sm font-medium text-neutral-900">{remainingTotal}</div>
+                                <div className="text-[11px] text-neutral-500">{stockMetricLabel(remainingHens, remainingRoosters)}</div>
+                              </div>
+                            </td>
                             <td className="hidden md:table-cell py-2.5 pr-3 text-sm text-neutral-500">{ch.labelAgeWeeks.replace('{weeks}', String(ageWeeks))}</td>
                             <td className="hidden md:table-cell py-2.5 pr-3 text-sm text-neutral-500">{ch.labelPrice.replace('{price}', String(price))}</td>
                           </>
+                        ) : (
+                          <></>
                         )}
                       </tr>
                     )

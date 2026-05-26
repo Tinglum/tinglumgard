@@ -634,7 +634,7 @@ export default function AdminPage() {
                   active={chickensL2}
                   onChange={(id) => setChickensL2(id as ChickensL2)}
                 />
-                {chickensL2 === 'hatches' && <ChickenHatchManager />}
+                {chickensL2 === 'hatches' && <ChickenHatchManager onNavigateToOrder={handleNavigateToOrder} />}
                 {chickensL2 === 'breeds' && <ChickenBreedManager />}
               </div>
             )}
