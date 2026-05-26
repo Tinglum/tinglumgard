@@ -30,7 +30,6 @@ type HatchOrderRow = {
     hatch_id: string | null
     quantity_hens: number | null
     quantity_roosters: number | null
-    status: string | null
   }> | null
 }
 
@@ -117,8 +116,7 @@ function normalizeAllocationsByHatch(orders: HatchOrderRow[] | null) {
     }
 
     for (const addition of order.chicken_order_additions || []) {
-      const additionStatus = String(addition?.status || '')
-      if (additionStatus === 'cancelled' || !addition?.hatch_id) continue
+      if (!addition?.hatch_id) continue
       const entry = ensureEntry(addition.hatch_id)
       const allocation = ensureOrderAllocation(entry, addition.hatch_id)
       const hens = toNonNegativeInt(addition.quantity_hens)
@@ -225,8 +223,7 @@ export async function GET() {
           id,
           hatch_id,
           quantity_hens,
-          quantity_roosters,
-          status
+          quantity_roosters
         )
       `)
 
