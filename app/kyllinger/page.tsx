@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLanguage } from '@/contexts/LanguageContext'
 import { ChickenBreedCard } from '@/components/chickens/ChickenBreedCard'
 import { ChickenCalendarGrid } from '@/components/chickens/ChickenCalendarGrid'
@@ -52,6 +52,9 @@ export default function KyllingerPage() {
   const [activeBreedFilter, setActiveBreedFilter] = useState<string>('all')
   const [hatchSort, setHatchSort] = useState<'age' | 'price'>('age')
   const [selectedOptions, setSelectedOptions] = useState<Record<string, SelectedHatchOption>>({})
+  const weekOptionsRef = useRef<HTMLElement | null>(null)
+  const orderFormRef = useRef<HTMLElement | null>(null)
+  const previousSelectedCountRef = useRef(0)
 
   useEffect(() => {
     async function loadData() {
@@ -145,6 +148,17 @@ export default function KyllingerPage() {
       return 'all'
     })
   }, [selectedWeekBookableBreeds, selectedWeekKey])
+
+  useEffect(() => {
+    if (!selectedWeekKey) return
+
+    window.requestAnimationFrame(() => {
+      weekOptionsRef.current?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start',
+      })
+    })
+  }, [selectedWeekKey])
 
   const visibleBreeds = activeBreedFilter === 'all'
     ? selectedWeekBookableBreeds
@@ -248,6 +262,21 @@ export default function KyllingerPage() {
     })
   }, [breedById, selectedOptions, selectedWeekBookableBreeds])
 
+  useEffect(() => {
+    const previousSelectedCount = previousSelectedCountRef.current
+
+    if (selectedOrderLines.length > 0 && previousSelectedCount === 0) {
+      window.requestAnimationFrame(() => {
+        orderFormRef.current?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'start',
+        })
+      })
+    }
+
+    previousSelectedCountRef.current = selectedOrderLines.length
+  }, [selectedOrderLines.length])
+
   return (
     <div className="min-h-screen bg-stone-50 pb-28 md:pb-10">
       <section className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-screen-xl py-16 md:py-24">
@@ -340,7 +369,7 @@ export default function KyllingerPage() {
             </section>
 
             {selectedWeek && (
-              <section id="week-options">
+              <section id="week-options" ref={weekOptionsRef}>
                 <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
                   <h2 className="text-2xl font-light text-neutral-900">
                     {formatCopy(chickens.page.chooseForWeek, { week: selectedWeek.weekNumber })}
@@ -473,7 +502,7 @@ export default function KyllingerPage() {
             )}
 
             {selectedWeek && selectedOrderLines.length > 0 && (
-              <section id="order-form" className="space-y-4">
+              <section id="order-form" ref={orderFormRef} className="space-y-4">
                 <ChickenOrderForm
                   selection={{
                     weekNumber: selectedWeek.weekNumber,

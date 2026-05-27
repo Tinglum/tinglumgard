@@ -62,6 +62,28 @@ type CustomersSubTab = 'database' | 'messages' | 'email';
 // Settings sub-tabs
 type SettingsSubTab = 'config' | 'rebates' | 'health';
 
+interface PersistedAdminUiState {
+  activeTab: TabType;
+  ordersSubTab: OrdersSubTab;
+  productsL1: ProductsL1;
+  mangalitsaL2: MangalitsaL2;
+  eggsL2: EggsL2;
+  chickensL2: ChickensL2;
+  customersSubTab: CustomersSubTab;
+  settingsSubTab: SettingsSubTab;
+  scrollY: number;
+}
+
+const ADMIN_UI_STATE_KEY = 'tinglum-admin-ui-state-v1';
+const TAB_TYPES: TabType[] = ['dashboard', 'orders', 'products', 'customers', 'settings'];
+const ORDERS_SUB_TABS: OrdersSubTab[] = ['pig', 'egg', 'wishlist', 'chicken', 'calendar'];
+const PRODUCTS_L1_TABS: ProductsL1[] = ['mangalitsa', 'eggs', 'chickens'];
+const MANGALITSA_L2_TABS: MangalitsaL2[] = ['boxes', 'extras', 'cuts', 'recipes', 'inventory', 'funnel'];
+const EGGS_L2_TABS: EggsL2[] = ['daily', 'inventory', 'breeds', 'analytics'];
+const CHICKENS_L2_TABS: ChickensL2[] = ['hatches', 'breeds'];
+const CUSTOMERS_SUB_TABS: CustomersSubTab[] = ['database', 'messages', 'email'];
+const SETTINGS_SUB_TABS: SettingsSubTab[] = ['config', 'rebates', 'health'];
+
 const EMAIL_SUB_TABS: EmailSubTab[] = [
   'overview',
   'templates',
@@ -75,6 +97,44 @@ const EMAIL_SUB_TABS: EmailSubTab[] = [
 
 function isEmailSubTab(value: string): value is EmailSubTab {
   return EMAIL_SUB_TABS.includes(value as EmailSubTab);
+}
+
+function readPersistedAdminUiState(): PersistedAdminUiState | null {
+  if (typeof window === 'undefined') return null;
+
+  try {
+    const raw = window.sessionStorage.getItem(ADMIN_UI_STATE_KEY);
+    if (!raw) return null;
+
+    const parsed = JSON.parse(raw) as Partial<PersistedAdminUiState>;
+    if (
+      !parsed ||
+      !TAB_TYPES.includes(parsed.activeTab as TabType) ||
+      !ORDERS_SUB_TABS.includes(parsed.ordersSubTab as OrdersSubTab) ||
+      !PRODUCTS_L1_TABS.includes(parsed.productsL1 as ProductsL1) ||
+      !MANGALITSA_L2_TABS.includes(parsed.mangalitsaL2 as MangalitsaL2) ||
+      !EGGS_L2_TABS.includes(parsed.eggsL2 as EggsL2) ||
+      !CHICKENS_L2_TABS.includes(parsed.chickensL2 as ChickensL2) ||
+      !CUSTOMERS_SUB_TABS.includes(parsed.customersSubTab as CustomersSubTab) ||
+      !SETTINGS_SUB_TABS.includes(parsed.settingsSubTab as SettingsSubTab)
+    ) {
+      return null;
+    }
+
+    return {
+      activeTab: parsed.activeTab as TabType,
+      ordersSubTab: parsed.ordersSubTab as OrdersSubTab,
+      productsL1: parsed.productsL1 as ProductsL1,
+      mangalitsaL2: parsed.mangalitsaL2 as MangalitsaL2,
+      eggsL2: parsed.eggsL2 as EggsL2,
+      chickensL2: parsed.chickensL2 as ChickensL2,
+      customersSubTab: parsed.customersSubTab as CustomersSubTab,
+      settingsSubTab: parsed.settingsSubTab as SettingsSubTab,
+      scrollY: Math.max(0, Number(parsed.scrollY) || 0),
+    };
+  } catch {
+    return null;
+  }
 }
 
 export default function AdminPage() {
@@ -103,6 +163,7 @@ export default function AdminPage() {
   const [deepLinkMessageId, setDeepLinkMessageId] = useState<string | null>(null);
   const [deepLinkCustomerId, setDeepLinkCustomerId] = useState<string | null>(null);
   const [deepLinkEmailTab, setDeepLinkEmailTab] = useState<EmailSubTab | null>(null);
+  const [pendingScrollRestore, setPendingScrollRestore] = useState<number | null>(null);
 
   // Message badge
   const [unresolvedCount, setUnresolvedCount] = useState(0);
@@ -146,6 +207,18 @@ export default function AdminPage() {
       customerId.length > 0;
 
     if (!hasParams) {
+      const persistedState = readPersistedAdminUiState();
+      if (persistedState) {
+        setActiveTab(persistedState.activeTab);
+        setOrdersSubTab(persistedState.ordersSubTab);
+        setProductsL1(persistedState.productsL1);
+        setMangalitsaL2(persistedState.mangalitsaL2);
+        setEggsL2(persistedState.eggsL2);
+        setChickensL2(persistedState.chickensL2);
+        setCustomersSubTab(persistedState.customersSubTab);
+        setSettingsSubTab(persistedState.settingsSubTab);
+        setPendingScrollRestore(persistedState.scrollY);
+      }
       setDeepLinkParsed(true);
       return;
     }
@@ -207,6 +280,92 @@ export default function AdminPage() {
 
     setDeepLinkParsed(true);
   }, [deepLinkParsed, isAuthenticated]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !deepLinkParsed || pendingScrollRestore === null || typeof window === 'undefined') {
+      return;
+    }
+
+    const restoreScroll = () => {
+      window.scrollTo({ top: pendingScrollRestore, left: 0, behavior: 'auto' });
+    };
+
+    const frameId = window.requestAnimationFrame(restoreScroll);
+    const shortDelay = window.setTimeout(restoreScroll, 120);
+    const longDelay = window.setTimeout(() => {
+      restoreScroll();
+      setPendingScrollRestore(null);
+    }, 400);
+
+    return () => {
+      window.cancelAnimationFrame(frameId);
+      window.clearTimeout(shortDelay);
+      window.clearTimeout(longDelay);
+    };
+  }, [
+    activeTab,
+    chickensL2,
+    customersSubTab,
+    deepLinkParsed,
+    eggsL2,
+    isAuthenticated,
+    mangalitsaL2,
+    ordersSubTab,
+    pendingScrollRestore,
+    productsL1,
+    settingsSubTab,
+  ]);
+
+  useEffect(() => {
+    if (!isAuthenticated || typeof window === 'undefined') return;
+
+    const persistUiState = () => {
+      const snapshot: PersistedAdminUiState = {
+        activeTab,
+        ordersSubTab,
+        productsL1,
+        mangalitsaL2,
+        eggsL2,
+        chickensL2,
+        customersSubTab,
+        settingsSubTab,
+        scrollY: window.scrollY,
+      };
+
+      window.sessionStorage.setItem(ADMIN_UI_STATE_KEY, JSON.stringify(snapshot));
+    };
+
+    let frameId: number | null = null;
+    const handleScroll = () => {
+      if (frameId !== null) {
+        window.cancelAnimationFrame(frameId);
+      }
+      frameId = window.requestAnimationFrame(persistUiState);
+    };
+
+    persistUiState();
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    window.addEventListener('beforeunload', persistUiState);
+
+    return () => {
+      if (frameId !== null) {
+        window.cancelAnimationFrame(frameId);
+      }
+      persistUiState();
+      window.removeEventListener('scroll', handleScroll);
+      window.removeEventListener('beforeunload', persistUiState);
+    };
+  }, [
+    activeTab,
+    chickensL2,
+    customersSubTab,
+    eggsL2,
+    isAuthenticated,
+    mangalitsaL2,
+    ordersSubTab,
+    productsL1,
+    settingsSubTab,
+  ]);
 
   // Dedicated session heartbeat — checks auth every 5 minutes independently
   // of the message badge poll. This avoids the badge poll driving logout.
