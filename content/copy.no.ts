@@ -4323,6 +4323,8 @@
       orderWithVipps: 'Bestill med Vipps',
       depositInfo: 'Du betaler 30% forskudd (kr {deposit}) nå. Rest (kr {remainder}) betales før henting.',
       sexDisclaimer: 'Merk: Før uke 10 selger vi kyllinger usortert. Fra uke 10 kan du velge høner eller haner, og vi gir deg pengene tilbake om det skal vise seg at hønen var en hane.',
+      unhatchedWishlistDisclaimer: 'Merk: Noen av disse kyllingene er ikke klekket ennå. Antall kyllinger, kjønnsfordeling og overlevelse er derfor usikkert, så denne bestillingen fungerer i praksis som en ønskeliste. Hvis noe skulle skje, får du selvfølgelig full refusjon.',
+      futureLiveBirdDisclaimer: 'Merk: Dette er levende dyr, og når du bestiller mer enn to uker fram i tid kan det skje endringer underveis. Vi kan derfor ikke garantere at bestillingen kan oppfylles nøyaktig som ønsket, men du får full refusjon hvis vi ikke kan levere.',
       creamLegbarDisclaimer: 'Cream Legbar er kjønnsvisende fra klekk, så disse er garantert høner fra fødsel.',
     },
     orderSummary: {

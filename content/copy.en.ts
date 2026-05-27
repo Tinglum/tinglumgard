@@ -4321,6 +4321,8 @@
       orderWithVipps: 'Order with Vipps',
       depositInfo: 'You pay a 30% deposit (kr {deposit}) now. Remainder (kr {remainder}) due before pickup.',
       sexDisclaimer: 'Note: Before week 10, chickens are sold without sex guarantee. From week 10 you can choose roosters, and we guarantee hens if you do not.',
+      unhatchedWishlistDisclaimer: 'Note: Some of these chickens have not hatched yet. The final number of chicks, the hen/rooster split, and survival are therefore uncertain, so this order works more like a wishlist for now. If anything happens, you will of course receive a full refund.',
+      futureLiveBirdDisclaimer: 'Note: These are live birds, and when you order more than two weeks ahead things can still happen along the way. We therefore cannot guarantee the order exactly as requested, but a full refund will be given if we cannot fulfil it.',
       creamLegbarDisclaimer: 'Cream Legbar chicks are sex-linked from hatch, so these are guaranteed female from day one.',
     },
     orderSummary: {

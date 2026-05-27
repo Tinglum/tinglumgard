@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label'
 import { useChickenCart, type ChickenDeliveryMethod } from '@/contexts/chickens/ChickenCartContext'
 import { ChickenOrderSummary, type ChickenSummaryLine } from './ChickenOrderSummary'
 import { trackChickenFunnel } from '@/lib/chickens/analytics'
+import { getMondayOfWeek } from '@/lib/chickens/pricing'
 
 interface ChickenOrderSelectionLine {
   id: string
@@ -16,6 +17,7 @@ interface ChickenOrderSelectionLine {
   breedSlug: string
   accentColor: string
   hatchId: string
+  hatchDate: string
   ageWeeks: number
   pricePerHen: number
   pricePerRooster: number
@@ -60,6 +62,7 @@ export function ChickenOrderForm({ selection, onClose, onRemoveLine }: OrderForm
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
   const [summaryOpen, setSummaryOpen] = useState(false)
+  const today = useMemo(() => new Date(), [])
 
   useEffect(() => {
     setQuantitiesByLine((prev) => {
@@ -101,6 +104,14 @@ export function ChickenOrderForm({ selection, onClose, onRemoveLine }: OrderForm
 
   const totalHens = selectedLines.reduce((sum, line) => sum + line.quantityHens, 0)
   const hasCreamLegbarSelection = selectedLines.some((line) => line.breedSlug === 'cream-legbar')
+  const hasUnhatchedSelection = selectedLines.some((line) => {
+    const hatchDate = new Date(`${line.hatchDate}T12:00:00Z`)
+    return Number.isFinite(hatchDate.getTime()) && hatchDate.getTime() > today.getTime()
+  })
+  const selectedPickupMonday = useMemo(() => {
+    return getMondayOfWeek(selection.year, selection.weekNumber)
+  }, [selection.weekNumber, selection.year])
+  const isMoreThanTwoWeeksOut = selectedPickupMonday.getTime() - today.getTime() > 14 * 24 * 60 * 60 * 1000
   const summaryLines: ChickenSummaryLine[] = selectedLines.map((line) => ({
     id: line.id,
     breedName: line.breedName,
@@ -230,6 +241,16 @@ export function ChickenOrderForm({ selection, onClose, onRemoveLine }: OrderForm
           <p className="text-xs text-neutral-500 mt-2">
             {formCopy.sexDisclaimer}
           </p>
+          {hasUnhatchedSelection && (
+            <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+              {formCopy.unhatchedWishlistDisclaimer}
+            </div>
+          )}
+          {isMoreThanTwoWeeksOut && (
+            <div className="mt-3 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-900">
+              {formCopy.futureLiveBirdDisclaimer}
+            </div>
+          )}
           {hasCreamLegbarSelection && (
             <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900">
               {formCopy.creamLegbarDisclaimer}

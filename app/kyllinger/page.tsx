@@ -18,6 +18,7 @@ interface SelectedHatchOption {
   year: number
   breedId: string
   hatchId: string
+  hatchDate: string
   ageWeeks: number
   pricePerHen: number
   availableHens: number
@@ -187,6 +188,7 @@ export default function KyllingerPage() {
           year: week.year,
           breedId: breed.breedId,
           hatchId: hatch.hatchId,
+          hatchDate: hatch.hatchDate,
           ageWeeks: hatch.ageWeeks,
           pricePerHen: hatch.pricePerHen,
           availableHens: hatch.availableHens,
@@ -228,6 +230,7 @@ export default function KyllingerPage() {
         breedSlug: breed?.slug || weekBreed?.breedSlug || '',
         accentColor: breed?.accent_color || weekBreed?.accentColor || '#6B7280',
         hatchId: item.hatchId,
+        hatchDate: item.hatchDate,
         ageWeeks: item.ageWeeks,
         pricePerHen: item.pricePerHen,
         pricePerRooster: (() => {

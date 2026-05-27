@@ -124,6 +124,7 @@ export function buildAvailabilityCalendar(
         if (availableHens > 0) {
           hatchEntries.push({
             hatchId: hatch.id,
+            hatchDate: hatch.hatch_date,
             ageWeeks,
             pricePerHen,
             availableHens,

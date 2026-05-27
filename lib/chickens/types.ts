@@ -121,6 +121,7 @@ export interface ChickenWeekAvailability {
     accentColor: string
     hatches: Array<{
       hatchId: string
+      hatchDate: string
       ageWeeks: number
       pricePerHen: number
       availableHens: number
