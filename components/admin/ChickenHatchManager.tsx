@@ -146,6 +146,7 @@ interface BatchEditForm {
     actual_hatched_count: string
     available_hens: string
     available_roosters: string
+    active: boolean
   }>
 }
 
@@ -183,6 +184,12 @@ function formatDate(isoDate?: string | null): string {
 function formatDateTime(isoDate?: string | null): string {
   if (!isoDate) return '-'
   return new Date(isoDate).toLocaleString('nb-NO', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+}
+
+function lineStatusBadgeClass(isActive: boolean): string {
+  return isActive
+    ? 'bg-emerald-100 text-emerald-700'
+    : 'bg-red-100 text-red-700'
 }
 
 function batchStage(batch: IncubationBatch | null, rows: Hatch[]): { labelKey: string; className: string } {
@@ -432,6 +439,7 @@ export function ChickenHatchManager({ onNavigateToOrder }: ChickenHatchManagerPr
         actual_hatched_count: row.actual_hatched_count == null ? '' : String(row.actual_hatched_count),
         available_hens: String(row.available_hens ?? ''),
         available_roosters: String(row.available_roosters ?? ''),
+        active: row.active !== false,
       }
     }
     setBatchEditForm({
@@ -459,6 +467,7 @@ export function ChickenHatchManager({ onNavigateToOrder }: ChickenHatchManagerPr
         actual_hatched_count: v.actual_hatched_count.trim() === '' ? null : toNonNegativeInt(v.actual_hatched_count),
         available_hens: toNonNegativeInt(v.available_hens),
         available_roosters: toNonNegativeInt(v.available_roosters),
+        active: v.active,
       }))
 
       const res = await fetch(`/api/admin/chickens/batches/${editingBatchId}`, {
@@ -1101,10 +1110,12 @@ export function ChickenHatchManager({ onNavigateToOrder }: ChickenHatchManagerPr
                     {hasCandling && <th className="pb-2 pr-3 text-xs font-medium">{ch.tableHeaderCandled}</th>}
                     <th className="hidden sm:table-cell pb-2 pr-3 text-xs font-medium">{ch.tableHeaderEstKlekk}</th>
                     <th className="pb-2 pr-3 text-xs font-medium">{ch.tableHeaderFactualHatched}</th>
+                    <th className="pb-2 pr-3 text-xs font-medium">{ch.tableHeaderStatus}</th>
                     {isEditing ? (
                       <>
                         <th className="pb-2 pr-3 text-xs font-medium">{ch.tableHeaderAvailableHens}</th>
                         <th className="pb-2 pr-3 text-xs font-medium">{ch.tableHeaderAvailableRoosters}</th>
+                        <th className="pb-2 pr-3 text-xs font-medium">{ch.tableHeaderActions}</th>
                       </>
                     ) : (
                       <>
@@ -1125,6 +1136,7 @@ export function ChickenHatchManager({ onNavigateToOrder }: ChickenHatchManagerPr
                     const editRow = isEditing && batchEditForm ? batchEditForm.rows[hatch.id] : null
                     const expectedFromEdit = editRow ? Math.round(toNonNegativeInt(editRow.eggs_set_count) * 0.5) : hatch.expected_hatch_count
                     const stat = breedStatsMap.get(hatch.breed_id)
+                    const lineIsActive = editRow ? editRow.active : hatch.active !== false
                     const orderedHens = toNonNegativeInt(hatch.ordered_hens)
                     const orderedRoosters = toNonNegativeInt(hatch.ordered_roosters)
                     const orderedTotal = toNonNegativeInt(hatch.ordered_total)
@@ -1162,6 +1174,11 @@ export function ChickenHatchManager({ onNavigateToOrder }: ChickenHatchManagerPr
                           ) : <span className="text-sm">{hatch.actual_hatched_count ?? <span className="text-neutral-400">-</span>}</span>}
                         </td>
                         <td className="py-2.5 pr-3">
+                          <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${lineStatusBadgeClass(lineIsActive)}`}>
+                            {lineIsActive ? ch.badgeActive : ch.badgeInactive}
+                          </span>
+                        </td>
+                        <td className="py-2.5 pr-3">
                           {editRow ? (
                             <Input type="number" min={0} className="w-24 h-8 text-sm" value={editRow.available_hens} onChange={(e) => updateEditRow(hatch.id, 'available_hens', e.target.value)} />
                           ) : (
@@ -1191,7 +1208,30 @@ export function ChickenHatchManager({ onNavigateToOrder }: ChickenHatchManagerPr
                             </button>
                           )}
                         </td>
-                        {!isEditing ? (
+                        {isEditing ? (
+                          <td className="py-2.5 pr-3">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className={`h-8 px-2.5 text-xs ${lineIsActive ? 'text-red-600 hover:text-red-700 hover:bg-red-50' : 'text-green-600 hover:text-green-700 hover:bg-green-50'}`}
+                              onClick={() => {
+                                if (!editRow) return
+                                setBatchEditForm((prev) => prev ? {
+                                  ...prev,
+                                  rows: {
+                                    ...prev.rows,
+                                    [hatch.id]: {
+                                      ...prev.rows[hatch.id],
+                                      active: !prev.rows[hatch.id].active,
+                                    },
+                                  },
+                                } : prev)
+                              }}
+                            >
+                              {lineIsActive ? ch.buttonDeactivate : ch.buttonActivate}
+                            </Button>
+                          </td>
+                        ) : (
                           <>
                             <td className="py-2.5 pr-3">
                               <div className="space-y-0.5">
@@ -1202,8 +1242,6 @@ export function ChickenHatchManager({ onNavigateToOrder }: ChickenHatchManagerPr
                             <td className="hidden md:table-cell py-2.5 pr-3 text-sm text-neutral-500">{ch.labelAgeWeeks.replace('{weeks}', String(ageWeeks))}</td>
                             <td className="hidden md:table-cell py-2.5 pr-3 text-sm text-neutral-500">{ch.labelPrice.replace('{price}', String(price))}</td>
                           </>
-                        ) : (
-                          <></>
                         )}
                       </tr>
                     )

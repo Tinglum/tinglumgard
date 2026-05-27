@@ -114,6 +114,7 @@ export async function PATCH(
         }
         if (row.available_hens !== undefined) updates.available_hens = toNonNegativeInt(row.available_hens)
         if (row.available_roosters !== undefined) updates.available_roosters = toNonNegativeInt(row.available_roosters)
+        if (row.active !== undefined) updates.active = Boolean(row.active)
         if (row.notes !== undefined) updates.notes = row.notes
         if (hatchDueDate) updates.hatch_date = hatchDueDate
 
@@ -170,7 +171,7 @@ export async function PATCH(
       .select(`
         *,
         chicken_breeds(name, slug, accent_color, start_price_nok, weekly_increase_nok, adult_price_nok),
-        chicken_incubation_batches(id, batch_code, eggs_set_date, lock_down_date, hatch_due_date, total_eggs_set, notes, active, target_temperature, target_humidity)
+        chicken_incubation_batches(id, batch_code, eggs_set_date, lock_down_date, hatch_due_date, total_eggs_set, notes, active)
       `)
       .eq('incubation_batch_id', batchId)
 
