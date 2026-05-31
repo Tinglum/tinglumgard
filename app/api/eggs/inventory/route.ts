@@ -42,8 +42,10 @@ export async function GET(request: Request) {
     const filtered = applyCutoff
       ? (data || []).filter((row: any) => {
           const deliveryMondayLocal = new Date(`${row.delivery_monday}T00:00:00`)
-          const cutoff = new Date(deliveryMondayLocal)
-          cutoff.setHours(cutoff.getHours() - 8)
+          // Keep week visible through Sunday night. Cutoff = delivery Monday 00:00 UTC,
+          // which is Monday 01:00 CET / 02:00 CEST — slightly past Norwegian midnight,
+          // so ordering stays open through all of Sunday.
+          const cutoff = deliveryMondayLocal
           return now < cutoff
         })
       : (data || [])
