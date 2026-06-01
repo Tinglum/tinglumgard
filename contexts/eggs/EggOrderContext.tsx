@@ -40,6 +40,7 @@ interface OrderContextType {
   currentDraft: OrderDraft | null
   completedOrders: Order[]
   existingOrderTarget: ExistingEggOrderTarget | null
+  isHydrated: boolean
   startOrder: (items: OrderItemDraft[]) => void
   setDeliveryMethod: (method: DeliveryMethod) => void
   setShippingDetails: (details: {
@@ -62,6 +63,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
   const [currentDraft, setCurrentDraft] = useState<OrderDraft | null>(null)
   const [completedOrders, setCompletedOrders] = useState<Order[]>([])
   const [existingOrderTarget, setExistingOrderTargetState] = useState<ExistingEggOrderTarget | null>(null)
+  const [isHydrated, setIsHydrated] = useState(false)
 
   const serializeDraft = useCallback((draft: OrderDraft) => ({
     ...draft,
@@ -167,6 +169,8 @@ export function OrderProvider({ children }: { children: ReactNode }) {
         localStorage.removeItem(EXISTING_ORDER_TARGET_STORAGE_KEY)
       }
     }
+
+    setIsHydrated(true)
   }, [deserializeDraft])
 
   useEffect(() => {
@@ -325,6 +329,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
         currentDraft,
         completedOrders,
         existingOrderTarget,
+        isHydrated,
         startOrder,
         setDeliveryMethod,
         setShippingDetails,

@@ -25,7 +25,7 @@ interface ExistingEggOrderMatch {
 export default function EggPaymentPage() {
   const router = useRouter()
   const { lang: language, t } = useLanguage()
-  const { currentDraft, clearDraft, existingOrderTarget, setExistingOrderTarget, clearExistingOrderTarget } = useOrder()
+  const { currentDraft, clearDraft, existingOrderTarget, setExistingOrderTarget, clearExistingOrderTarget, isHydrated } = useOrder()
   const { clearCart } = useCart()
   const { user, isAuthenticated, isLoading: authLoading } = useAuth()
   const [isPaying, setIsPaying] = useState(false)
@@ -38,6 +38,7 @@ export default function EggPaymentPage() {
   const copy = t.eggs.payment
 
   useEffect(() => {
+    if (!isHydrated) return
     if (!currentDraft) {
       router.replace('/rugeegg/handlekurv')
       return
@@ -45,7 +46,7 @@ export default function EggPaymentPage() {
     if (!currentDraft.deliveryMethod) {
       router.replace('/rugeegg/bestill/levering')
     }
-  }, [currentDraft, router])
+  }, [currentDraft, isHydrated, router])
 
   const matchingExistingTarget = useMemo(() => {
     if (!currentDraft || !existingOrderTarget) return false

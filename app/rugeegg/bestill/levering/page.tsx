@@ -31,15 +31,16 @@ const deliveryOptions = [
 export default function EggDeliveryPage() {
   const router = useRouter()
   const { lang: language, t } = useLanguage()
-  const { currentDraft, setDeliveryMethod, setShippingDetails } = useOrder()
+  const { currentDraft, setDeliveryMethod, setShippingDetails, isHydrated } = useOrder()
   const [showAddressError, setShowAddressError] = useState(false)
   const copy = t.eggs.delivery
 
   useEffect(() => {
+    if (!isHydrated) return
     if (!currentDraft) {
       router.replace('/rugeegg/handlekurv')
     }
-  }, [currentDraft, router])
+  }, [currentDraft, isHydrated, router])
 
   useEffect(() => {
     if (!showAddressError || !currentDraft) return
