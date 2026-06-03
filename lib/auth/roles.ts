@@ -14,6 +14,11 @@ export function canAccessEggOps(session: SessionData | null | undefined): boolea
   return role === 'admin' || role === 'operations'
 }
 
+export function canAccessMilkOps(session: SessionData | null | undefined): boolean {
+  const role = getSessionRole(session)
+  return role === 'admin' || role === 'operations'
+}
+
 export function isAdminSession(session: SessionData | null | undefined): boolean {
   return getSessionRole(session) === 'admin'
 }

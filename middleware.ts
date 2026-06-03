@@ -44,12 +44,21 @@ function isEggOpsPath(pathname: string): boolean {
   )
 }
 
+function isMilkOpsPath(pathname: string): boolean {
+  return (
+    pathname === '/milk' ||
+    pathname.startsWith('/milk/') ||
+    pathname.startsWith('/api/milk')
+  )
+}
+
 export function middleware(request: NextRequest) {
   const host = request.headers.get('host') || ''
   const eggOpsHost = isEggOpsHost(host)
   const eggOpsPath = isEggOpsPath(request.nextUrl.pathname)
+  const milkOpsPath = isMilkOpsPath(request.nextUrl.pathname)
 
-  if (!eggOpsHost && !eggOpsPath) {
+  if (!eggOpsHost && !eggOpsPath && !milkOpsPath) {
     return NextResponse.next()
   }
 
