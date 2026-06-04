@@ -409,15 +409,20 @@ export async function POST(
 
     const deliveryFee = Math.max(0, Number(updatedOrder.delivery_fee_nok || 0));
     const totalAmountNok = Math.max(0, baseSubtotal + additionsSubtotal + deliveryFee);
-    const depositAmountNok = Math.max(
-      0,
-      Math.min(Math.round(Number(updatedOrder.deposit_amount_nok || 0)), Math.round(totalAmountNok))
-    );
+    // Preserve actual deposit paid — do NOT cap to new total.
+    // When deposit > total, the customer overpaid and is owed a refund.
+    const depositAmountNok = Math.max(0, Math.round(Number(updatedOrder.deposit_amount_nok || 0)));
     const remainderAmountNok = Math.max(0, Math.round(totalAmountNok - depositAmountNok));
     const remainderPaidNok = getCompletedRemainderPaidNok(updatedOrder.chicken_payments || []);
     const nextStatus = getNextStatus(updatedOrder, remainderAmountNok, remainderPaidNok);
 
+    // Flag overpayment if deposit exceeds new total
+    const overpaymentNok = Math.max(0, depositAmountNok - totalAmountNok);
+
     const noteLines = changes.slice();
+    if (overpaymentNok > 0) {
+      noteLines.push(`⚠️ Overpayment: customer paid ${depositAmountNok} NOK, new total is ${totalAmountNok} NOK → refund ${overpaymentNok} NOK`);
+    }
     if (adminNote) noteLines.push(`Admin note: ${adminNote}`);
     const fullNote = `[${new Date().toISOString().slice(0, 16)}] Bird adjustment: ${noteLines.join('; ')}`;
     const existingNotes = updatedOrder.admin_notes || '';
