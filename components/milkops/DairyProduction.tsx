@@ -3,11 +3,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import { cn } from '@/lib/utils'
 import { Plus, Loader2, ChefHat, Star, Clock, Beaker, ChevronDown, ChevronUp } from 'lucide-react'
-import type { DairyProductionBatch, ProductType, DairyRecipe } from '@/lib/milk/types'
-
-const TYPE_EMOJI: Record<ProductType, string> = {
-  cheese: '🧀', yoghurt: '🥛', butter: '🧈', cream: '🍦', kefir: '🥤', skyr: '🥣', other: '🍶',
-}
+import type { DairyProductionBatch, ProductType, DairyRecipe, ProductionStatus } from '@/lib/milk/types'
+import { PRODUCT_TYPES, PRODUCTION_TRANSITIONS, getProductTypeConfig } from '@/lib/milk/types'
 
 const STATUS_COLORS: Record<string, string> = {
   in_progress: 'bg-blue-100 text-blue-700',
@@ -16,6 +13,24 @@ const STATUS_COLORS: Record<string, string> = {
   consumed: 'bg-neutral-100 text-neutral-600',
   sold: 'bg-purple-100 text-purple-700',
   discarded: 'bg-red-100 text-red-600',
+}
+
+const STATUS_LABELS_NO: Record<string, string> = {
+  in_progress: 'Pågår',
+  aging: 'Modner',
+  ready: 'Klar',
+  consumed: 'Brukt',
+  sold: 'Solgt',
+  discarded: 'Kassert',
+}
+
+const STATUS_LABELS_EN: Record<string, string> = {
+  in_progress: 'In progress',
+  aging: 'Aging',
+  ready: 'Ready',
+  consumed: 'Consumed',
+  sold: 'Sold',
+  discarded: 'Discarded',
 }
 
 interface Props { lang: string }
@@ -28,7 +43,7 @@ export function DairyProduction({ lang }: Props) {
   const [expanded, setExpanded] = useState<string | null>(null)
 
   // Create form
-  const [formType, setFormType] = useState<ProductType>('cheese')
+  const [formType, setFormType] = useState<ProductType>('fresh_cheese')
   const [formRecipe, setFormRecipe] = useState('')
   const [formLiters, setFormLiters] = useState('')
   const [creating, setCreating] = useState(false)
@@ -100,6 +115,15 @@ export function DairyProduction({ lang }: Props) {
     await fetchData()
   }
 
+  const getTypeLabel = (type: ProductType) => {
+    const cfg = getProductTypeConfig(type)
+    return lang === 'no' ? cfg.labelNo : cfg.labelEn
+  }
+
+  const getTypeEmoji = (type: ProductType) => {
+    return getProductTypeConfig(type).emoji
+  }
+
   if (loading) return <div className="flex justify-center py-20"><Loader2 className="w-6 h-6 animate-spin text-neutral-400" /></div>
 
   const active = batches.filter((b) => ['in_progress', 'aging', 'ready'].includes(b.status))
@@ -125,8 +149,8 @@ export function DairyProduction({ lang }: Props) {
               <label className="text-xs text-neutral-500">{lang === 'no' ? 'Type' : 'Type'}</label>
               <select value={formType} onChange={(e) => setFormType(e.target.value as ProductType)}
                 className="mt-1 w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm">
-                {(['cheese','yoghurt','butter','cream','kefir','skyr','other'] as ProductType[]).map((t) => (
-                  <option key={t} value={t}>{TYPE_EMOJI[t]} {t.charAt(0).toUpperCase() + t.slice(1)}</option>
+                {PRODUCT_TYPES.map((t) => (
+                  <option key={t.id} value={t.id}>{t.emoji} {lang === 'no' ? t.labelNo : t.labelEn}</option>
                 ))}
               </select>
             </div>
@@ -166,20 +190,25 @@ export function DairyProduction({ lang }: Props) {
         <div className="space-y-2">
           {active.map((batch) => {
             const isExpanded = expanded === batch.id
+            const typeCfg = getProductTypeConfig(batch.product_type as ProductType)
+            const transitions = PRODUCTION_TRANSITIONS[batch.status as ProductionStatus] || []
+            // If the product type cannot age, filter out the 'aging' transition
+            const filteredTransitions = typeCfg.canAge ? transitions : transitions.filter((t) => t !== 'aging')
+
             return (
               <div key={batch.id} className="rounded-xl border border-neutral-200 bg-white overflow-hidden">
                 <button onClick={() => setExpanded(isExpanded ? null : batch.id)}
                   className="w-full flex items-center justify-between px-4 py-3 hover:bg-neutral-50">
                   <div className="flex items-center gap-3">
-                    <span className="text-xl">{TYPE_EMOJI[batch.product_type as ProductType] || '🍶'}</span>
+                    <span className="text-xl">{getTypeEmoji(batch.product_type as ProductType)}</span>
                     <div className="text-left">
                       <div className="text-sm font-medium text-neutral-900">{batch.batch_code}</div>
-                      <div className="text-[11px] text-neutral-400">{batch.milk_liters_used} L</div>
+                      <div className="text-[11px] text-neutral-400">{batch.milk_liters_used} L — {getTypeLabel(batch.product_type as ProductType)}</div>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className={cn('text-[11px] px-2 py-0.5 rounded-full font-medium', STATUS_COLORS[batch.status])}>
-                      {batch.status}
+                      {lang === 'no' ? STATUS_LABELS_NO[batch.status] : STATUS_LABELS_EN[batch.status]}
                     </span>
                     {batch.yield_percentage && (
                       <span className="text-xs text-neutral-500">{batch.yield_percentage}%</span>
@@ -190,32 +219,31 @@ export function DairyProduction({ lang }: Props) {
 
                 {isExpanded && (
                   <div className="border-t border-neutral-100 px-4 py-3 space-y-3">
-                    {/* Quick actions */}
+                    {/* Status transition buttons (forward + revert) */}
                     <div className="flex flex-wrap gap-2">
-                      {batch.status === 'in_progress' && (
-                        <button onClick={() => handleStatusChange(batch.id, 'aging')}
-                          className="text-xs px-3 py-1.5 rounded-lg bg-amber-100 text-amber-700 hover:bg-amber-200">
-                          {lang === 'no' ? '→ Start modning' : '→ Start aging'}
-                        </button>
-                      )}
-                      {batch.status === 'aging' && (
-                        <button onClick={() => handleStatusChange(batch.id, 'ready')}
-                          className="text-xs px-3 py-1.5 rounded-lg bg-green-100 text-green-700 hover:bg-green-200">
-                          {lang === 'no' ? '→ Klar' : '→ Ready'}
-                        </button>
-                      )}
-                      {batch.status === 'ready' && (
-                        <>
-                          <button onClick={() => handleStatusChange(batch.id, 'consumed')}
-                            className="text-xs px-3 py-1.5 rounded-lg bg-neutral-100 text-neutral-700 hover:bg-neutral-200">
-                            {lang === 'no' ? 'Brukt' : 'Consumed'}
+                      {filteredTransitions.map((targetStatus) => {
+                        const isRevert =
+                          (batch.status === 'ready' && targetStatus === 'aging') ||
+                          (batch.status === 'aging' && targetStatus === 'in_progress') ||
+                          (batch.status === 'consumed' && targetStatus === 'ready') ||
+                          (batch.status === 'sold' && targetStatus === 'ready') ||
+                          (batch.status === 'discarded' && targetStatus === 'in_progress')
+                        const label = lang === 'no' ? STATUS_LABELS_NO[targetStatus] : STATUS_LABELS_EN[targetStatus]
+                        return (
+                          <button
+                            key={targetStatus}
+                            onClick={() => handleStatusChange(batch.id, targetStatus)}
+                            className={cn(
+                              'text-xs px-3 py-1.5 rounded-lg transition-colors',
+                              isRevert
+                                ? 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200 border border-neutral-200'
+                                : cn(STATUS_COLORS[targetStatus], 'hover:opacity-80')
+                            )}
+                          >
+                            {isRevert ? `← ${label}` : `→ ${label}`}
                           </button>
-                          <button onClick={() => handleStatusChange(batch.id, 'sold')}
-                            className="text-xs px-3 py-1.5 rounded-lg bg-purple-100 text-purple-700 hover:bg-purple-200">
-                            {lang === 'no' ? 'Solgt' : 'Sold'}
-                          </button>
-                        </>
-                      )}
+                        )
+                      })}
                     </div>
 
                     {/* Yield input */}
@@ -276,12 +304,15 @@ export function DairyProduction({ lang }: Props) {
           {done.slice(0, 10).map((batch) => (
             <div key={batch.id} className="flex items-center justify-between rounded-lg border border-neutral-100 bg-neutral-50 px-3 py-2">
               <div className="flex items-center gap-2">
-                <span>{TYPE_EMOJI[batch.product_type as ProductType] || '🍶'}</span>
+                <span>{getTypeEmoji(batch.product_type as ProductType)}</span>
                 <span className="text-xs font-mono text-neutral-500">{batch.batch_code}</span>
+                <span className="text-[11px] text-neutral-400">{getTypeLabel(batch.product_type as ProductType)}</span>
               </div>
               <div className="flex items-center gap-2">
                 {batch.quality_score && <span className="text-xs text-amber-600">★{batch.quality_score}</span>}
-                <span className={cn('text-[11px] px-2 py-0.5 rounded-full font-medium', STATUS_COLORS[batch.status])}>{batch.status}</span>
+                <span className={cn('text-[11px] px-2 py-0.5 rounded-full font-medium', STATUS_COLORS[batch.status])}>
+                  {lang === 'no' ? STATUS_LABELS_NO[batch.status] : STATUS_LABELS_EN[batch.status]}
+                </span>
               </div>
             </div>
           ))}

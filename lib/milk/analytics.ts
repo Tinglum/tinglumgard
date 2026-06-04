@@ -2,7 +2,7 @@ import { supabaseAdmin } from '@/lib/supabase/server'
 
 export interface DailyTrend {
   date: string
-  total_liters: number
+  total_grams: number
   morning: number
   evening: number
 }
@@ -30,7 +30,7 @@ export async function getProductionTrends(days = 30): Promise<DailyTrend[]> {
 
   const { data, error } = await supabaseAdmin
     .from('milk_daily_sessions')
-    .select('milking_date, session_type, total_liters')
+    .select('milking_date, session_type, total_grams')
     .gte('milking_date', since.toISOString().slice(0, 10))
     .order('milking_date', { ascending: true })
 
@@ -39,18 +39,18 @@ export async function getProductionTrends(days = 30): Promise<DailyTrend[]> {
   const byDate = new Map<string, { total: number; morning: number; evening: number }>()
   for (const row of data) {
     const existing = byDate.get(row.milking_date) || { total: 0, morning: 0, evening: 0 }
-    const liters = Number(row.total_liters || 0)
-    existing.total += liters
-    if (row.session_type === 'morning') existing.morning += liters
-    else if (row.session_type === 'evening') existing.evening += liters
+    const grams = Number(row.total_grams || 0)
+    existing.total += grams
+    if (row.session_type === 'morning') existing.morning += grams
+    else if (row.session_type === 'evening') existing.evening += grams
     byDate.set(row.milking_date, existing)
   }
 
   return Array.from(byDate.entries()).map(([date, vals]) => ({
     date,
-    total_liters: Math.round(vals.total * 10) / 10,
-    morning: Math.round(vals.morning * 10) / 10,
-    evening: Math.round(vals.evening * 10) / 10,
+    total_grams: Math.round(vals.total),
+    morning: Math.round(vals.morning),
+    evening: Math.round(vals.evening),
   }))
 }
 

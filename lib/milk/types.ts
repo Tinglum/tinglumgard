@@ -15,15 +15,30 @@ export interface MilkGoat {
   updated_at: string
 }
 
+/** Goat from the goat-lineage Supabase project */
+export interface GoatLineageGoat {
+  id: string
+  name: string
+  sex: string
+  isAlive: boolean
+  earTag: string | null
+  dateOfBirth: string | null
+}
+
 // ─── Daily milking ──────────────────────────────────────────────────────────
 
 export type SessionType = 'morning' | 'evening' | 'extra'
+export type MilkingMethod = 'machine' | 'hand'
 
 export interface MilkDailySession {
   id: string
   milking_date: string
   session_type: SessionType
-  total_liters: number
+  milking_method: MilkingMethod
+  total_grams: number
+  gross_weight_grams: number
+  bottle_count: number
+  custom_tare_grams: number
   temperature_celsius: number | null
   notes: string | null
   created_by: string | null
@@ -38,57 +53,73 @@ export interface MilkSessionEntry {
   id: string
   session_id: string
   goat_id: string
-  liters: number
+  grams: number
   health_flag: HealthFlag
   health_notes: string | null
   created_at: string
   updated_at: string
 }
 
-// ─── Pipeline ───────────────────────────────────────────────────────────────
+// ─── Tare weight constants ─────────────────────────────────────────────────
 
-export type PipelineStatus = 'raw' | 'pasteurizing' | 'pasteurized' | 'bottling' | 'bottled' | 'fridged' | 'allocated' | 'discarded'
+export const BOTTLE_TARE_GRAMS = 213
 
-export const PIPELINE_ORDER: PipelineStatus[] = ['raw', 'pasteurizing', 'pasteurized', 'bottling', 'bottled', 'fridged']
-
-export const PIPELINE_NEXT: Record<PipelineStatus, PipelineStatus | null> = {
-  raw: 'pasteurizing',
-  pasteurizing: 'pasteurized',
-  pasteurized: 'bottling',
-  bottling: 'bottled',
-  bottled: 'fridged',
-  fridged: 'allocated',
-  allocated: null,
-  discarded: null,
+export function computeNetGrams(grossGrams: number, bottleCount: number, customTareGrams: number): number {
+  return Math.max(0, grossGrams - (bottleCount * BOTTLE_TARE_GRAMS) - customTareGrams)
 }
 
-export interface MilkBatch {
-  id: string
-  batch_code: string
-  source_date: string
-  source_session_ids: string[]
-  liters_raw: number
-  liters_remaining: number
-  pipeline_status: PipelineStatus
-  pasteurized_at: string | null
-  pasteurize_temp: number | null
-  pasteurize_minutes: number | null
-  bottled_at: string | null
-  bottle_count: number | null
-  bottle_size_ml: number | null
-  fridged_at: string | null
-  discarded_at: string | null
-  discard_reason: string | null
-  notes: string | null
-  created_by: string | null
-  updated_by: string | null
-  created_at: string
-  updated_at: string
+export function gramsToDeciliters(grams: number): number {
+  // Goat milk density ~1.032 g/ml, 1 dl = 100 ml
+  return Math.round(grams / 103.2 * 10) / 10
+}
+
+export function decilitersToGrams(dl: number): number {
+  return Math.round(dl * 103.2)
 }
 
 // ─── Recipes ────────────────────────────────────────────────────────────────
 
-export type ProductType = 'cheese' | 'yoghurt' | 'butter' | 'cream' | 'kefir' | 'skyr' | 'other'
+export type ProductType =
+  | 'fresh_cheese'      // Ferskost
+  | 'cottage_cheese'    // Cottage cheese
+  | 'brown_cheese'      // Brunost
+  | 'hard_cheese'       // Hardost (med løpe)
+  | 'semi_hard_cheese'  // Halvfast ost
+  | 'soft_cheese'       // Mykost
+  | 'blue_cheese'       // Blåmuggost
+  | 'chevre'            // Chèvre
+  | 'cream_cheese'      // Kremost
+  | 'washed_rind'       // Vasket skorpe
+  | 'yoghurt'
+  | 'butter'
+  | 'cream'
+  | 'kefir'
+  | 'skyr'
+  | 'other'
+
+export const PRODUCT_TYPES: { id: ProductType; emoji: string; labelNo: string; labelEn: string; canAge: boolean }[] = [
+  { id: 'fresh_cheese',     emoji: '🧀', labelNo: 'Ferskost',           labelEn: 'Fresh cheese',     canAge: false },
+  { id: 'cottage_cheese',   emoji: '🥣', labelNo: 'Cottage cheese',     labelEn: 'Cottage cheese',   canAge: false },
+  { id: 'brown_cheese',     emoji: '🟫', labelNo: 'Brunost',            labelEn: 'Brown cheese',     canAge: false },
+  { id: 'chevre',           emoji: '🐐', labelNo: 'Chèvre',             labelEn: 'Chèvre',           canAge: true },
+  { id: 'cream_cheese',     emoji: '🍦', labelNo: 'Kremost',            labelEn: 'Cream cheese',     canAge: false },
+  { id: 'soft_cheese',      emoji: '🧈', labelNo: 'Mykost',             labelEn: 'Soft cheese',      canAge: true },
+  { id: 'semi_hard_cheese', emoji: '🧀', labelNo: 'Halvfast ost',       labelEn: 'Semi-hard cheese', canAge: true },
+  { id: 'hard_cheese',      emoji: '🪨', labelNo: 'Hardost (med løpe)', labelEn: 'Hard cheese',      canAge: true },
+  { id: 'blue_cheese',      emoji: '🔵', labelNo: 'Blåmuggost',         labelEn: 'Blue cheese',      canAge: true },
+  { id: 'washed_rind',      emoji: '🟠', labelNo: 'Vasket skorpe',      labelEn: 'Washed rind',      canAge: true },
+  { id: 'yoghurt',          emoji: '🥛', labelNo: 'Yoghurt',            labelEn: 'Yoghurt',          canAge: false },
+  { id: 'butter',           emoji: '🧈', labelNo: 'Smør',               labelEn: 'Butter',           canAge: false },
+  { id: 'cream',            emoji: '🍦', labelNo: 'Fløte',              labelEn: 'Cream',            canAge: false },
+  { id: 'kefir',            emoji: '🥤', labelNo: 'Kefir',              labelEn: 'Kefir',            canAge: false },
+  { id: 'skyr',             emoji: '🥣', labelNo: 'Skyr',               labelEn: 'Skyr',             canAge: false },
+  { id: 'other',            emoji: '🍶', labelNo: 'Annet',              labelEn: 'Other',            canAge: false },
+]
+
+export function getProductTypeConfig(id: ProductType) {
+  return PRODUCT_TYPES.find((t) => t.id === id) || PRODUCT_TYPES[PRODUCT_TYPES.length - 1]
+}
+
 export type Difficulty = 'easy' | 'medium' | 'advanced'
 
 export interface RecipeIngredient {
@@ -132,6 +163,16 @@ export interface DairyRecipe {
 // ─── Production ─────────────────────────────────────────────────────────────
 
 export type ProductionStatus = 'in_progress' | 'aging' | 'ready' | 'consumed' | 'sold' | 'discarded'
+
+/** All valid status transitions — including backwards (revert) */
+export const PRODUCTION_TRANSITIONS: Record<ProductionStatus, ProductionStatus[]> = {
+  in_progress: ['aging', 'ready', 'discarded'],
+  aging: ['in_progress', 'ready', 'discarded'],
+  ready: ['aging', 'consumed', 'sold', 'discarded'],
+  consumed: ['ready'],
+  sold: ['ready'],
+  discarded: ['in_progress'],
+}
 
 export interface ProcessLogEntry {
   timestamp: string
@@ -182,8 +223,8 @@ export type DayStatus = 'open' | 'in_progress' | 'closed'
 export interface MilkOpsDayState {
   milking_date: string
   status: DayStatus
-  morning_liters: number
-  evening_liters: number
+  morning_grams: number
+  evening_grams: number
   closed_at: string | null
   closed_by: string | null
   reopened_at: string | null
@@ -202,9 +243,9 @@ export interface MilkDailyResponse {
   entries: (MilkSessionEntry & { goat_name?: string })[]
   goats: MilkGoat[]
   kpi: {
-    total_liters: number
-    morning_liters: number
-    evening_liters: number
+    total_grams: number
+    morning_grams: number
+    evening_grams: number
     goats_milked: number
     health_flags: number
     avg_7d: number
@@ -214,4 +255,4 @@ export interface MilkDailyResponse {
 
 // ─── Milk ops tab ───────────────────────────────────────────────────────────
 
-export type MilkOpsTab = 'milking' | 'pipeline' | 'production' | 'recipes' | 'inventory' | 'analytics'
+export type MilkOpsTab = 'milking' | 'production' | 'recipes' | 'inventory' | 'analytics'

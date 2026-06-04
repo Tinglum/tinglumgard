@@ -7,6 +7,7 @@ import type {
   MilkOpsDayState,
   MilkDailyResponse,
   SessionType,
+  MilkingMethod,
   HealthFlag,
 } from './types'
 
@@ -115,7 +116,7 @@ export async function getMilkDailyCollections(date?: string): Promise<MilkDailyR
   // KPIs
   const morningSession = sessions.find((s) => s.session_type === 'morning')
   const eveningSession = sessions.find((s) => s.session_type === 'evening')
-  const totalLiters = sessions.reduce((sum, s) => sum + Number(s.total_liters || 0), 0)
+  const totalGrams = sessions.reduce((sum, s) => sum + Number(s.total_grams || 0), 0)
   const uniqueGoats = new Set(entries.map((e) => e.goat_id))
   const healthFlags = entries.filter((e) => e.health_flag !== 'normal').length
 
@@ -127,16 +128,16 @@ export async function getMilkDailyCollections(date?: string): Promise<MilkDailyR
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
     const { data: recentSessions } = await supabaseAdmin
       .from('milk_daily_sessions')
-      .select('milking_date, total_liters')
+      .select('milking_date, total_grams')
       .gte('milking_date', thirtyDaysAgo.toISOString().slice(0, 10))
       .order('milking_date', { ascending: false })
 
     if (recentSessions && recentSessions.length > 0) {
-      // Group by date, sum liters per day
+      // Group by date, sum grams per day
       const dailyTotals = new Map<string, number>()
       for (const s of recentSessions) {
         const current = dailyTotals.get(s.milking_date) || 0
-        dailyTotals.set(s.milking_date, current + Number(s.total_liters || 0))
+        dailyTotals.set(s.milking_date, current + Number(s.total_grams || 0))
       }
       const sorted = Array.from(dailyTotals.entries()).sort((a, b) => b[0].localeCompare(a[0]))
       const last7 = sorted.slice(0, 7)
@@ -153,13 +154,13 @@ export async function getMilkDailyCollections(date?: string): Promise<MilkDailyR
     entries,
     goats: goatsResult,
     kpi: {
-      total_liters: totalLiters,
-      morning_liters: Number(morningSession?.total_liters || 0),
-      evening_liters: Number(eveningSession?.total_liters || 0),
+      total_grams: totalGrams,
+      morning_grams: Number(morningSession?.total_grams || 0),
+      evening_grams: Number(eveningSession?.total_grams || 0),
       goats_milked: uniqueGoats.size,
       health_flags: healthFlags,
-      avg_7d: Math.round(avg7d * 10) / 10,
-      avg_30d: Math.round(avg30d * 10) / 10,
+      avg_7d: Math.round(avg7d),
+      avg_30d: Math.round(avg30d),
     },
   }
 }
@@ -168,7 +169,11 @@ export async function upsertMilkSession(
   body: {
     milking_date?: string
     session_type?: SessionType
-    total_liters?: number
+    milking_method?: MilkingMethod
+    total_grams?: number
+    gross_weight_grams?: number
+    bottle_count?: number
+    custom_tare_grams?: number
     temperature_celsius?: number | null
     notes?: string | null
     id?: string
@@ -180,14 +185,18 @@ export async function upsertMilkSession(
   const sessionType = body.session_type || 'morning'
 
   if (body.id) {
+    const updates: Record<string, unknown> = { updated_by: actor }
+    if (body.total_grams !== undefined) updates.total_grams = body.total_grams
+    if (body.milking_method !== undefined) updates.milking_method = body.milking_method
+    if (body.gross_weight_grams !== undefined) updates.gross_weight_grams = body.gross_weight_grams
+    if (body.bottle_count !== undefined) updates.bottle_count = body.bottle_count
+    if (body.custom_tare_grams !== undefined) updates.custom_tare_grams = body.custom_tare_grams
+    if (body.temperature_celsius !== undefined) updates.temperature_celsius = body.temperature_celsius
+    if (body.notes !== undefined) updates.notes = body.notes?.trim() || null
+
     const { data, error } = await supabaseAdmin
       .from('milk_daily_sessions')
-      .update({
-        total_liters: body.total_liters ?? 0,
-        temperature_celsius: body.temperature_celsius ?? null,
-        notes: body.notes?.trim() || null,
-        updated_by: actor,
-      })
+      .update(updates)
       .eq('id', body.id)
       .select()
       .single()
@@ -201,7 +210,11 @@ export async function upsertMilkSession(
       {
         milking_date: date,
         session_type: sessionType,
-        total_liters: body.total_liters ?? 0,
+        milking_method: body.milking_method || 'hand',
+        total_grams: body.total_grams ?? 0,
+        gross_weight_grams: body.gross_weight_grams ?? 0,
+        bottle_count: body.bottle_count ?? 0,
+        custom_tare_grams: body.custom_tare_grams ?? 0,
         temperature_celsius: body.temperature_celsius ?? null,
         notes: body.notes?.trim() || null,
         created_by: actor,
@@ -221,7 +234,7 @@ export async function upsertSessionEntry(
   body: {
     session_id: string
     goat_id: string
-    liters?: number
+    grams?: number
     health_flag?: HealthFlag
     health_notes?: string | null
     id?: string
@@ -234,7 +247,7 @@ export async function upsertSessionEntry(
   const payload = {
     session_id: body.session_id,
     goat_id: body.goat_id,
-    liters: body.liters ?? 0,
+    grams: body.grams ?? 0,
     health_flag: body.health_flag || 'normal',
     health_notes: body.health_notes?.trim() || null,
   }
@@ -293,7 +306,7 @@ export async function updateDayStatus(
   // Compute totals from sessions
   const { data: sessions } = await supabaseAdmin
     .from('milk_daily_sessions')
-    .select('session_type, total_liters')
+    .select('session_type, total_grams')
     .eq('milking_date', milking_date)
 
   const morning = sessions?.find((s) => s.session_type === 'morning')
@@ -305,8 +318,8 @@ export async function updateDayStatus(
       {
         milking_date,
         status,
-        morning_liters: Number(morning?.total_liters || 0),
-        evening_liters: Number(evening?.total_liters || 0),
+        morning_grams: Number(morning?.total_grams || 0),
+        evening_grams: Number(evening?.total_grams || 0),
         ...extra,
       },
       { onConflict: 'milking_date' }

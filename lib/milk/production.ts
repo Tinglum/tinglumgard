@@ -1,6 +1,7 @@
 import { supabaseAdmin } from '@/lib/supabase/server'
 import type { SessionData } from '@/lib/auth/session'
 import type { DairyProductionBatch, ProductionStatus, ProductType, ProcessLogEntry } from './types'
+import { PRODUCTION_TRANSITIONS } from './types'
 
 export class ProductionError extends Error {
   status: number
@@ -155,11 +156,21 @@ export async function advanceProductionStatus(
   const actor = session?.name || 'anonymous'
   const current = await getProductionById(id)
 
+  // Validate transition using PRODUCTION_TRANSITIONS map
+  const allowed = PRODUCTION_TRANSITIONS[current.status]
+  if (!allowed || !allowed.includes(body.status)) {
+    throw new ProductionError(
+      `Cannot transition from '${current.status}' to '${body.status}'`,
+      400
+    )
+  }
+
   const updates: Record<string, unknown> = {
     status: body.status,
     updated_by: actor,
   }
 
+  // Forward transitions — set timestamps
   if (body.status === 'aging') updates.aging_start = updates.aging_start || new Date().toISOString().slice(0, 10)
   if (body.status === 'ready') updates.completed_at = new Date().toISOString()
   if (body.status === 'consumed') updates.consumed_at = new Date().toISOString()
@@ -169,6 +180,27 @@ export async function advanceProductionStatus(
     updates.discard_reason = body.discard_reason || null
   }
 
+  // Revert transitions — clear timestamps that were set by the status we're leaving
+  if (current.status === 'ready' && body.status === 'aging') {
+    updates.completed_at = null
+  }
+  if (current.status === 'consumed' && body.status === 'ready') {
+    updates.consumed_at = null
+    updates.consumed_notes = null
+  }
+  if (current.status === 'sold' && body.status === 'ready') {
+    updates.sold_at = null
+    updates.sold_price_nok = null
+    updates.sold_to = null
+  }
+  if (current.status === 'discarded' && body.status === 'in_progress') {
+    updates.discarded_at = null
+    updates.discard_reason = null
+  }
+  if (current.status === 'aging' && body.status === 'in_progress') {
+    updates.aging_start = null
+  }
+
   const { data, error } = await supabaseAdmin
     .from('dairy_production_batches')
     .update(updates)
@@ -176,9 +208,9 @@ export async function advanceProductionStatus(
     .select()
     .single()
 
-  if (error) throw new ProductionError(`Failed to advance status: ${error.message}`, 500)
+  if (error) throw new ProductionError(`Failed to update status: ${error.message}`, 500)
 
-  // Audit
+  // Audit — always log every transition
   await supabaseAdmin.from('dairy_production_audit').insert({
     production_id: id,
     previous_status: current.status,

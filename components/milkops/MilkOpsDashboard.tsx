@@ -5,7 +5,6 @@ import { cn } from '@/lib/utils'
 import { useLanguage } from '@/contexts/LanguageContext'
 import {
   Milk,
-  ArrowRightLeft,
   ChefHat,
   BookOpen,
   Package,
@@ -15,6 +14,7 @@ import {
   Sun,
   Moon,
   Plus,
+  Minus,
   Loader2,
   CheckCircle2,
   AlertTriangle,
@@ -26,9 +26,10 @@ import type {
   MilkSessionEntry,
   MilkOpsDayState,
   SessionType,
+  MilkingMethod,
   HealthFlag,
 } from '@/lib/milk/types'
-import { MilkPipeline } from './MilkPipeline'
+import { computeNetGrams, gramsToDeciliters, decilitersToGrams, BOTTLE_TARE_GRAMS } from '@/lib/milk/types'
 import { DairyProduction } from './DairyProduction'
 import { RecipeLibrary } from './RecipeLibrary'
 import { InventoryAging } from './InventoryAging'
@@ -46,9 +47,9 @@ interface DashboardState {
   entries: (MilkSessionEntry & { goat_name?: string })[]
   dayState: MilkOpsDayState | null
   kpi: {
-    total_liters: number
-    morning_liters: number
-    evening_liters: number
+    total_grams: number
+    morning_grams: number
+    evening_grams: number
     goats_milked: number
     health_flags: number
     avg_7d: number
@@ -82,7 +83,7 @@ const initialState: DashboardState = {
   sessions: [],
   entries: [],
   dayState: null,
-  kpi: { total_liters: 0, morning_liters: 0, evening_liters: 0, goats_milked: 0, health_flags: 0, avg_7d: 0, avg_30d: 0 },
+  kpi: { total_grams: 0, morning_grams: 0, evening_grams: 0, goats_milked: 0, health_flags: 0, avg_7d: 0, avg_30d: 0 },
   saving: {},
 }
 
@@ -123,7 +124,6 @@ function reducer(state: DashboardState, action: Action): DashboardState {
 
 const TABS: { id: MilkOpsTab; icon: typeof Milk; labelNo: string; labelEn: string }[] = [
   { id: 'milking', icon: Milk, labelNo: 'Melking', labelEn: 'Milking' },
-  { id: 'pipeline', icon: ArrowRightLeft, labelNo: 'Melkerør', labelEn: 'Pipeline' },
   { id: 'production', icon: ChefHat, labelNo: 'Produksjon', labelEn: 'Production' },
   { id: 'recipes', icon: BookOpen, labelNo: 'Oppskrifter', labelEn: 'Recipes' },
   { id: 'inventory', icon: Package, labelNo: 'Lager', labelEn: 'Inventory' },
@@ -165,6 +165,7 @@ export function MilkOpsDashboard() {
   const [state, dispatch] = useReducer(reducer, initialState)
   const { schedule } = useAutosave()
   const [showGoatModal, setShowGoatModal] = useState(false)
+  const [lineageGoats, setLineageGoats] = useState<{ id: string; name: string; ear_tag?: string }[]>([])
 
   // ── Fetch daily data ────────────────────────────────────────────────────
 
@@ -189,6 +190,21 @@ export function MilkOpsDashboard() {
     }
   }, [])
 
+  // ── Fetch goat lineage data ─────────────────────────────────────────────
+
+  useEffect(() => {
+    async function fetchLineage() {
+      try {
+        const res = await fetch('/api/milk/goat-lineage')
+        if (res.ok) {
+          const data = await res.json()
+          setLineageGoats(data.goats || [])
+        }
+      } catch {}
+    }
+    fetchLineage()
+  }, [])
+
   useEffect(() => {
     fetchDaily(state.date)
   }, [state.date, fetchDaily])
@@ -203,7 +219,7 @@ export function MilkOpsDashboard() {
 
   const isToday = state.date === todayOslo()
 
-  // ── Save session (total liters) ─────────────────────────────────────────
+  // ── Save session ────────────────────────────────────────────────────────
 
   const saveSession = async (sessionId: string, updates: Partial<MilkDailySession>) => {
     const key = `session-${sessionId}`
@@ -227,7 +243,7 @@ export function MilkOpsDashboard() {
 
   // ── Save entry (per-goat) ───────────────────────────────────────────────
 
-  const saveEntry = async (entry: { session_id: string; goat_id: string; liters: number; health_flag?: HealthFlag; health_notes?: string; id?: string }) => {
+  const saveEntry = async (entry: { session_id: string; goat_id: string; grams: number; health_flag?: HealthFlag; health_notes?: string; id?: string }) => {
     const key = `entry-${entry.goat_id}-${entry.session_id}`
     dispatch({ type: 'SET_SAVE_STATE', id: key, state: 'saving' })
     try {
@@ -274,9 +290,12 @@ export function MilkOpsDashboard() {
     })
   }
 
-  const formatLiters = (n: number) => {
-    return n.toFixed(1).replace('.0', '') + ' L'
+  const formatGrams = (g: number) => {
+    if (g >= 1000) return `${(g / 1000).toFixed(1).replace('.0', '')} kg`
+    return `${g} g`
   }
+
+  const formatDl = (g: number) => `${gramsToDeciliters(g)} dL`
 
   // ── Render ──────────────────────────────────────────────────────────────
 
@@ -289,7 +308,7 @@ export function MilkOpsDashboard() {
       <div className="sticky top-0 z-30 bg-neutral-50 pt-4 pb-3 border-b border-neutral-200">
         <div className="flex items-center justify-between mb-3">
           <h1 className="text-xl font-semibold text-neutral-900 tracking-tight">
-            🥛 {lang === 'no' ? 'Melkelogg' : 'Milk Log'}
+            {lang === 'no' ? 'Melkelogg' : 'Milk Log'}
           </h1>
           <div className="flex items-center gap-1 text-xs text-neutral-500">
             {state.dayState?.status === 'closed' && (
@@ -372,16 +391,17 @@ export function MilkOpsDashboard() {
           <div className="grid grid-cols-3 gap-2">
             <KpiCard
               label={lang === 'no' ? 'Totalt' : 'Total'}
-              value={formatLiters(state.kpi.total_liters)}
+              value={formatGrams(state.kpi.total_grams)}
+              sub={formatDl(state.kpi.total_grams)}
               accent
             />
             <KpiCard
               label={lang === 'no' ? 'Snitt 7d' : 'Avg 7d'}
-              value={formatLiters(state.kpi.avg_7d)}
+              value={formatGrams(state.kpi.avg_7d)}
             />
             <KpiCard
               label={lang === 'no' ? 'Snitt 30d' : 'Avg 30d'}
-              value={formatLiters(state.kpi.avg_30d)}
+              value={formatGrams(state.kpi.avg_30d)}
             />
           </div>
 
@@ -406,6 +426,11 @@ export function MilkOpsDashboard() {
                 const isMorning = session.session_type === 'morning'
                 const sessionEntries = state.entries.filter((e) => e.session_id === session.id)
                 const saveKey = `session-${session.id}`
+                const netGrams = computeNetGrams(
+                  session.gross_weight_grams || 0,
+                  session.bottle_count || 0,
+                  session.custom_tare_grams || 0
+                )
 
                 return (
                   <div
@@ -414,48 +439,310 @@ export function MilkOpsDashboard() {
                   >
                     {/* Session header */}
                     <div className="flex items-center justify-between px-4 py-3 bg-neutral-50 border-b border-neutral-100">
-                      <div className="flex items-center gap-2">
-                        {isMorning ? (
-                          <Sun className="w-4 h-4 text-amber-500" />
-                        ) : (
-                          <Moon className="w-4 h-4 text-indigo-500" />
-                        )}
-                        <span className="text-sm font-medium text-neutral-900">
-                          {isMorning
-                            ? lang === 'no' ? 'Morgen' : 'Morning'
-                            : lang === 'no' ? 'Kveld' : 'Evening'}
-                        </span>
+                      <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2">
+                          {isMorning ? (
+                            <Sun className="w-4 h-4 text-amber-500" />
+                          ) : (
+                            <Moon className="w-4 h-4 text-indigo-500" />
+                          )}
+                          <span className="text-sm font-medium text-neutral-900">
+                            {isMorning
+                              ? lang === 'no' ? 'Morgen' : 'Morning'
+                              : lang === 'no' ? 'Kveld' : 'Evening'}
+                          </span>
+                        </div>
+                        {/* Milking method toggle */}
+                        <div className="flex rounded-lg border border-neutral-200 overflow-hidden text-[11px]">
+                          <button
+                            onClick={() => {
+                              dispatch({ type: 'UPDATE_SESSION', session: { ...session, milking_method: 'machine' } })
+                              schedule(saveKey + '-method', () =>
+                                saveSession(session.id, { milking_method: 'machine' } as any)
+                              )
+                            }}
+                            className={cn(
+                              'px-2 py-1 transition-colors',
+                              session.milking_method === 'machine'
+                                ? 'bg-neutral-900 text-white'
+                                : 'text-neutral-500 hover:bg-neutral-100'
+                            )}
+                          >
+                            {lang === 'no' ? 'Maskin' : 'Machine'}
+                          </button>
+                          <button
+                            onClick={() => {
+                              dispatch({ type: 'UPDATE_SESSION', session: { ...session, milking_method: 'hand' } })
+                              schedule(saveKey + '-method', () =>
+                                saveSession(session.id, { milking_method: 'hand' } as any)
+                              )
+                            }}
+                            className={cn(
+                              'px-2 py-1 transition-colors',
+                              session.milking_method === 'hand'
+                                ? 'bg-neutral-900 text-white'
+                                : 'text-neutral-500 hover:bg-neutral-100'
+                            )}
+                          >
+                            {lang === 'no' ? 'Hand' : 'Hand'}
+                          </button>
+                        </div>
                       </div>
                       <div className="flex items-center gap-2">
                         <SaveIndicator state={state.saving[saveKey]} />
                         <span className="text-lg font-semibold text-neutral-900 tabular-nums">
-                          {formatLiters(Number(session.total_liters || 0))}
+                          {formatGrams(Number(session.total_grams || 0))}
                         </span>
                       </div>
                     </div>
 
-                    {/* Total liters input (quick mode — no goats) */}
-                    {state.goats.length === 0 ? (
+                    {/* Gross weight & tare section */}
+                    <div className="px-4 py-3 space-y-3 border-b border-neutral-100">
+                      {/* Gross weight */}
+                      <div className="flex items-center gap-3">
+                        <label className="text-xs text-neutral-500 w-28 shrink-0">
+                          {lang === 'no' ? 'Bruttovekt' : 'Gross weight'}
+                        </label>
+                        <div className="flex items-center gap-1.5 flex-1">
+                          <input
+                            type="number"
+                            inputMode="numeric"
+                            min="0"
+                            value={session.gross_weight_grams || ''}
+                            onChange={(e) => {
+                              const val = parseInt(e.target.value) || 0
+                              dispatch({
+                                type: 'UPDATE_SESSION',
+                                session: { ...session, gross_weight_grams: val },
+                              })
+                              schedule(saveKey + '-gross', () =>
+                                saveSession(session.id, { gross_weight_grams: val } as any)
+                              )
+                            }}
+                            className="w-24 rounded-lg border border-neutral-200 px-3 py-2 text-sm text-right tabular-nums focus:outline-none focus:ring-2 focus:ring-neutral-900/20"
+                            placeholder="0"
+                          />
+                          <span className="text-xs text-neutral-400">g</span>
+                        </div>
+                      </div>
+
+                      {/* Bottle count */}
+                      <div className="flex items-center gap-3">
+                        <label className="text-xs text-neutral-500 w-28 shrink-0">
+                          {lang === 'no' ? 'Flasker' : 'Bottles'}
+                        </label>
+                        <div className="flex items-center gap-2 flex-1">
+                          <button
+                            onClick={() => {
+                              const val = Math.max(0, (session.bottle_count || 0) - 1)
+                              dispatch({ type: 'UPDATE_SESSION', session: { ...session, bottle_count: val } })
+                              schedule(saveKey + '-bottles', () =>
+                                saveSession(session.id, { bottle_count: val } as any)
+                              )
+                            }}
+                            className="w-8 h-8 rounded-lg border border-neutral-200 flex items-center justify-center hover:bg-neutral-100 active:bg-neutral-200 transition-colors"
+                          >
+                            <Minus className="w-3.5 h-3.5" />
+                          </button>
+                          <span className="w-8 text-center text-sm font-medium tabular-nums">
+                            {session.bottle_count || 0}
+                          </span>
+                          <button
+                            onClick={() => {
+                              const val = (session.bottle_count || 0) + 1
+                              dispatch({ type: 'UPDATE_SESSION', session: { ...session, bottle_count: val } })
+                              schedule(saveKey + '-bottles', () =>
+                                saveSession(session.id, { bottle_count: val } as any)
+                              )
+                            }}
+                            className="w-8 h-8 rounded-lg border border-neutral-200 flex items-center justify-center hover:bg-neutral-100 active:bg-neutral-200 transition-colors"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                          </button>
+                          <span className="text-[11px] text-neutral-400 ml-1">
+                            ({BOTTLE_TARE_GRAMS}g x {session.bottle_count || 0} = {(session.bottle_count || 0) * BOTTLE_TARE_GRAMS}g)
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Custom tare */}
+                      <div className="flex items-center gap-3">
+                        <label className="text-xs text-neutral-500 w-28 shrink-0">
+                          {lang === 'no' ? 'Annen beholder' : 'Custom tare'}
+                        </label>
+                        <div className="flex items-center gap-1.5 flex-1">
+                          <input
+                            type="number"
+                            inputMode="numeric"
+                            min="0"
+                            value={session.custom_tare_grams || ''}
+                            onChange={(e) => {
+                              const val = parseInt(e.target.value) || 0
+                              dispatch({
+                                type: 'UPDATE_SESSION',
+                                session: { ...session, custom_tare_grams: val },
+                              })
+                              schedule(saveKey + '-tare', () =>
+                                saveSession(session.id, { custom_tare_grams: val } as any)
+                              )
+                            }}
+                            className="w-24 rounded-lg border border-neutral-200 px-3 py-2 text-sm text-right tabular-nums focus:outline-none focus:ring-2 focus:ring-neutral-900/20"
+                            placeholder="0"
+                          />
+                          <span className="text-xs text-neutral-400">g</span>
+                        </div>
+                      </div>
+
+                      {/* Net milk result */}
+                      <div className="flex items-center justify-between pt-2 border-t border-neutral-100">
+                        <span className="text-xs font-medium text-neutral-700">
+                          {lang === 'no' ? 'Netto melk' : 'Net milk'}
+                        </span>
+                        <span className="text-base font-semibold text-neutral-900 tabular-nums">
+                          {formatGrams(netGrams)}{' '}
+                          <span className="text-sm font-normal text-neutral-500">({formatDl(netGrams)})</span>
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Per-goat entries */}
+                    {state.goats.length > 0 ? (
+                      <div className="divide-y divide-neutral-100">
+                        <div className="px-4 py-2 bg-neutral-50/50">
+                          <span className="text-[11px] font-medium text-neutral-500 uppercase tracking-wide">
+                            {lang === 'no' ? 'Per geit' : 'Per goat'}
+                          </span>
+                        </div>
+                        {state.goats
+                          .filter((g) => g.status === 'active')
+                          .map((goat) => {
+                            const entry = sessionEntries.find((e) => e.goat_id === goat.id)
+                            const entryKey = `entry-${goat.id}-${session.id}`
+                            const entryGrams = Number(entry?.grams || 0)
+                            const entryDl = gramsToDeciliters(entryGrams)
+                            // Slider max: 20 dL (2060g) in 1 dL increments
+                            const sliderMax = 20
+
+                            return (
+                              <div key={goat.id} className="px-4 py-3 space-y-2">
+                                <div className="flex items-center gap-3">
+                                  <div
+                                    className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0"
+                                    style={{ backgroundColor: goat.accent_color }}
+                                  >
+                                    {goat.name.charAt(0).toUpperCase()}
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="text-sm font-medium text-neutral-900 truncate">
+                                      {goat.name}
+                                    </div>
+                                    {goat.tag_number && (
+                                      <div className="text-[11px] text-neutral-400">#{goat.tag_number}</div>
+                                    )}
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <input
+                                      type="number"
+                                      inputMode="decimal"
+                                      step="0.1"
+                                      min="0"
+                                      value={entryDl || ''}
+                                      onChange={(e) => {
+                                        const dlVal = parseFloat(e.target.value) || 0
+                                        const gramsVal = decilitersToGrams(dlVal)
+                                        const updatedEntry = {
+                                          session_id: session.id,
+                                          goat_id: goat.id,
+                                          grams: gramsVal,
+                                          health_flag: entry?.health_flag || ('normal' as HealthFlag),
+                                          id: entry?.id,
+                                        }
+                                        if (entry) {
+                                          dispatch({
+                                            type: 'UPDATE_ENTRY',
+                                            entry: { ...entry, grams: gramsVal, goat_name: goat.name },
+                                          })
+                                        }
+                                        schedule(entryKey, () => saveEntry(updatedEntry))
+                                      }}
+                                      className="w-16 rounded-lg border border-neutral-200 px-2 py-1.5 text-sm text-right tabular-nums focus:outline-none focus:ring-2 focus:ring-neutral-900/20"
+                                      placeholder="0.0"
+                                    />
+                                    <span className="text-xs text-neutral-400 w-4">dL</span>
+                                    <SaveIndicator state={state.saving[entryKey]} small />
+                                  </div>
+                                  {entry && entry.health_flag !== 'normal' && (
+                                    <span className="text-xs px-1.5 py-0.5 rounded bg-red-100 text-red-700">
+                                      !!!
+                                    </span>
+                                  )}
+                                </div>
+                                {/* Range slider — snaps to 1 dL increments */}
+                                <input
+                                  type="range"
+                                  min="0"
+                                  max={sliderMax}
+                                  step="1"
+                                  value={Math.round(entryDl)}
+                                  onChange={(e) => {
+                                    const dlVal = parseInt(e.target.value)
+                                    const gramsVal = decilitersToGrams(dlVal)
+                                    const updatedEntry = {
+                                      session_id: session.id,
+                                      goat_id: goat.id,
+                                      grams: gramsVal,
+                                      health_flag: entry?.health_flag || ('normal' as HealthFlag),
+                                      id: entry?.id,
+                                    }
+                                    if (entry) {
+                                      dispatch({
+                                        type: 'UPDATE_ENTRY',
+                                        entry: { ...entry, grams: gramsVal, goat_name: goat.name },
+                                      })
+                                    }
+                                    schedule(entryKey, () => saveEntry(updatedEntry))
+                                  }}
+                                  className="w-full h-2 bg-neutral-200 rounded-full appearance-none cursor-pointer accent-neutral-900"
+                                />
+                              </div>
+                            )
+                          })}
+                        {/* Session total from entries */}
+                        <div className="flex items-center justify-between px-4 py-3 bg-neutral-50">
+                          <span className="text-xs text-neutral-500">
+                            {lang === 'no' ? 'Sum fra geiter' : 'Sum from goats'}
+                          </span>
+                          <span className="text-sm font-semibold text-neutral-900 tabular-nums">
+                            {formatGrams(
+                              sessionEntries.reduce((sum, e) => sum + Number(e.grams || 0), 0)
+                            )}{' '}
+                            <span className="text-xs font-normal text-neutral-500">
+                              ({formatDl(sessionEntries.reduce((sum, e) => sum + Number(e.grams || 0), 0))})
+                            </span>
+                          </span>
+                        </div>
+                      </div>
+                    ) : (
+                      /* Quick mode — total grams input */
                       <div className="p-4">
                         <label className="text-xs text-neutral-500 mb-1 block">
-                          {lang === 'no' ? 'Totalt liter' : 'Total liters'}
+                          {lang === 'no' ? 'Totalt gram' : 'Total grams'}
                         </label>
                         <input
                           type="number"
-                          inputMode="decimal"
-                          step="0.1"
+                          inputMode="numeric"
                           min="0"
-                          value={session.total_liters || ''}
+                          value={session.total_grams || ''}
                           onChange={(e) => {
-                            const val = parseFloat(e.target.value) || 0
+                            const val = parseInt(e.target.value) || 0
                             dispatch({
                               type: 'UPDATE_SESSION',
-                              session: { ...session, total_liters: val },
+                              session: { ...session, total_grams: val },
                             })
-                            schedule(saveKey, () => saveSession(session.id, { total_liters: val }))
+                            schedule(saveKey, () => saveSession(session.id, { total_grams: val } as any))
                           }}
                           className="w-full rounded-lg border border-neutral-200 px-3 py-2.5 text-lg tabular-nums focus:outline-none focus:ring-2 focus:ring-neutral-900/20"
-                          placeholder="0.0"
+                          placeholder="0"
                         />
                         <textarea
                           value={session.notes || ''}
@@ -465,88 +752,13 @@ export function MilkOpsDashboard() {
                               session: { ...session, notes: e.target.value },
                             })
                             schedule(`${saveKey}-notes`, () =>
-                              saveSession(session.id, { notes: e.target.value })
+                              saveSession(session.id, { notes: e.target.value } as any)
                             )
                           }}
                           placeholder={lang === 'no' ? 'Notater...' : 'Notes...'}
                           rows={2}
                           className="mt-2 w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900/20 resize-none"
                         />
-                      </div>
-                    ) : (
-                      /* Per-goat entries */
-                      <div className="divide-y divide-neutral-100">
-                        {state.goats
-                          .filter((g) => g.status === 'active')
-                          .map((goat) => {
-                            const entry = sessionEntries.find((e) => e.goat_id === goat.id)
-                            const entryKey = `entry-${goat.id}-${session.id}`
-
-                            return (
-                              <div key={goat.id} className="flex items-center gap-3 px-4 py-3">
-                                <div
-                                  className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0"
-                                  style={{ backgroundColor: goat.accent_color }}
-                                >
-                                  {goat.name.charAt(0).toUpperCase()}
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <div className="text-sm font-medium text-neutral-900 truncate">
-                                    {goat.name}
-                                  </div>
-                                  {goat.tag_number && (
-                                    <div className="text-[11px] text-neutral-400">#{goat.tag_number}</div>
-                                  )}
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  <input
-                                    type="number"
-                                    inputMode="decimal"
-                                    step="0.1"
-                                    min="0"
-                                    value={entry?.liters ?? ''}
-                                    onChange={(e) => {
-                                      const val = parseFloat(e.target.value) || 0
-                                      const updatedEntry = {
-                                        session_id: session.id,
-                                        goat_id: goat.id,
-                                        liters: val,
-                                        health_flag: entry?.health_flag || ('normal' as HealthFlag),
-                                        id: entry?.id,
-                                      }
-                                      if (entry) {
-                                        dispatch({
-                                          type: 'UPDATE_ENTRY',
-                                          entry: { ...entry, liters: val, goat_name: goat.name },
-                                        })
-                                      }
-                                      schedule(entryKey, () => saveEntry(updatedEntry))
-                                    }}
-                                    className="w-20 rounded-lg border border-neutral-200 px-2 py-1.5 text-sm text-right tabular-nums focus:outline-none focus:ring-2 focus:ring-neutral-900/20"
-                                    placeholder="0.0"
-                                  />
-                                  <span className="text-xs text-neutral-400 w-3">L</span>
-                                  <SaveIndicator state={state.saving[entryKey]} small />
-                                </div>
-                                {entry && entry.health_flag !== 'normal' && (
-                                  <span className="text-xs px-1.5 py-0.5 rounded bg-red-100 text-red-700">
-                                    ⚠️
-                                  </span>
-                                )}
-                              </div>
-                            )
-                          })}
-                        {/* Session total */}
-                        <div className="flex items-center justify-between px-4 py-3 bg-neutral-50">
-                          <span className="text-xs text-neutral-500">
-                            {lang === 'no' ? 'Sum fra geiter' : 'Sum from goats'}
-                          </span>
-                          <span className="text-sm font-semibold text-neutral-900 tabular-nums">
-                            {formatLiters(
-                              sessionEntries.reduce((sum, e) => sum + Number(e.liters || 0), 0)
-                            )}
-                          </span>
-                        </div>
                       </div>
                     )}
                   </div>
@@ -581,7 +793,7 @@ export function MilkOpsDashboard() {
                     type: 'UPDATE_SESSION',
                     session: { ...session, notes: e.target.value },
                   })
-                  schedule('day-notes', () => saveSession(session.id, { notes: e.target.value }))
+                  schedule('day-notes', () => saveSession(session.id, { notes: e.target.value } as any))
                 }}
                 placeholder={lang === 'no' ? 'Uvanlig oppførsel, vær, sykdom...' : 'Unusual behavior, weather, illness...'}
                 rows={3}
@@ -590,9 +802,6 @@ export function MilkOpsDashboard() {
             </div>
           )}
         </div>
-      ) : (
-        state.tab === 'pipeline' ? (
-        <MilkPipeline lang={lang} date={state.date} />
       ) : state.tab === 'production' ? (
         <DairyProduction lang={lang} />
       ) : state.tab === 'recipes' ? (
@@ -601,8 +810,7 @@ export function MilkOpsDashboard() {
         <InventoryAging lang={lang} />
       ) : state.tab === 'analytics' ? (
         <MilkAnalytics lang={lang} />
-      ) : null
-      )}
+      ) : null}
 
       {/* Goat add modal */}
       {showGoatModal && (
@@ -621,7 +829,7 @@ export function MilkOpsDashboard() {
 
 // ─── Sub-components ─────────────────────────────────────────────────────────
 
-function KpiCard({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
+function KpiCard({ label, value, sub, accent }: { label: string; value: string; sub?: string; accent?: boolean }) {
   return (
     <div
       className={cn(
@@ -632,6 +840,11 @@ function KpiCard({ label, value, accent }: { label: string; value: string; accen
       <div className={cn('text-lg font-semibold tabular-nums', accent ? 'text-white' : 'text-neutral-900')}>
         {value}
       </div>
+      {sub && (
+        <div className={cn('text-[10px] tabular-nums', accent ? 'text-neutral-400' : 'text-neutral-400')}>
+          {sub}
+        </div>
+      )}
       <div className={cn('text-[11px]', accent ? 'text-neutral-400' : 'text-neutral-500')}>{label}</div>
     </div>
   )

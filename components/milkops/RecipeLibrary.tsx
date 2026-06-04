@@ -4,10 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { cn } from '@/lib/utils'
 import { Plus, Loader2, BookOpen, GitBranch, ChevronDown, ChevronUp, Trash2, Clock, Thermometer } from 'lucide-react'
 import type { DairyRecipe, ProductType, Difficulty, RecipeIngredient, RecipeStep } from '@/lib/milk/types'
-
-const TYPE_EMOJI: Record<ProductType, string> = {
-  cheese: '🧀', yoghurt: '🥛', butter: '🧈', cream: '🍦', kefir: '🥤', skyr: '🥣', other: '🍶',
-}
+import { PRODUCT_TYPES, getProductTypeConfig } from '@/lib/milk/types'
 
 interface Props { lang: string }
 
@@ -20,7 +17,7 @@ export function RecipeLibrary({ lang }: Props) {
 
   // Form
   const [formName, setFormName] = useState('')
-  const [formType, setFormType] = useState<ProductType>('cheese')
+  const [formType, setFormType] = useState<ProductType>('fresh_cheese')
   const [formDesc, setFormDesc] = useState('')
   const [formDifficulty, setFormDifficulty] = useState<Difficulty>('medium')
   const [formIngredients, setFormIngredients] = useState('')
@@ -40,7 +37,7 @@ export function RecipeLibrary({ lang }: Props) {
   useEffect(() => { fetchRecipes() }, [fetchRecipes])
 
   const resetForm = () => {
-    setFormName(''); setFormType('cheese'); setFormDesc(''); setFormDifficulty('medium')
+    setFormName(''); setFormType('fresh_cheese'); setFormDesc(''); setFormDifficulty('medium')
     setFormIngredients(''); setFormSteps(''); setFormAgingMin(''); setFormAgingMax(''); setFormYield('')
     setEditingId(null)
   }
@@ -130,8 +127,8 @@ export function RecipeLibrary({ lang }: Props) {
               <label className="text-xs text-neutral-500">Type</label>
               <select value={formType} onChange={(e) => setFormType(e.target.value as ProductType)}
                 className="mt-1 w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm">
-                {(['cheese','yoghurt','butter','cream','kefir','skyr','other'] as ProductType[]).map((t) => (
-                  <option key={t} value={t}>{TYPE_EMOJI[t]} {t}</option>
+                {PRODUCT_TYPES.map((t) => (
+                  <option key={t.id} value={t.id}>{t.emoji} {lang === 'no' ? t.labelNo : t.labelEn}</option>
                 ))}
               </select>
             </div>
@@ -197,7 +194,7 @@ export function RecipeLibrary({ lang }: Props) {
                 <button onClick={() => setExpanded(isExpanded ? null : recipe.id)}
                   className="w-full flex items-center justify-between px-4 py-3 hover:bg-neutral-50">
                   <div className="flex items-center gap-3">
-                    <span className="text-xl">{TYPE_EMOJI[recipe.product_type] || '🍶'}</span>
+                    <span className="text-xl">{getProductTypeConfig(recipe.product_type).emoji}</span>
                     <div className="text-left">
                       <div className="text-sm font-medium text-neutral-900">{recipe.name}</div>
                       <div className="text-[11px] text-neutral-400">v{recipe.version} · {recipe.difficulty}</div>

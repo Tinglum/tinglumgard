@@ -3,14 +3,12 @@
 import { useCallback, useEffect, useState } from 'react'
 import { cn } from '@/lib/utils'
 import { Loader2, TrendingUp, Beaker, Star } from 'lucide-react'
+import { PRODUCT_TYPES, getProductTypeConfig, gramsToDeciliters } from '@/lib/milk/types'
+import type { ProductType } from '@/lib/milk/types'
 
-interface DailyTrend { date: string; total_liters: number; morning: number; evening: number }
+interface DailyTrend { date: string; total_grams: number; morning: number; evening: number }
 interface YieldRow { product_type: string; batch_count: number; avg_yield_pct: number; total_milk_used: number; total_yield_kg: number }
 interface RecipeRow { recipe_id: string; recipe_name: string; product_type: string; batches_made: number; avg_quality: number | null; avg_yield_pct: number | null }
-
-const TYPE_EMOJI: Record<string, string> = {
-  cheese: '🧀', yoghurt: '🥛', butter: '🧈', cream: '🍦', kefir: '🥤', skyr: '🥣', other: '🍶',
-}
 
 interface Props { lang: string }
 
@@ -35,27 +33,35 @@ export function MilkAnalytics({ lang }: Props) {
 
   if (loading) return <div className="flex justify-center py-20"><Loader2 className="w-6 h-6 animate-spin text-neutral-400" /></div>
 
-  const maxLiters = Math.max(...trends.map((t) => t.total_liters), 1)
+  const maxGrams = Math.max(...trends.map((t) => t.total_grams), 1)
+
+  const formatGrams = (g: number) => {
+    if (g >= 1000) return `${(g / 1000).toFixed(1).replace('.0', '')} kg`
+    return `${g} g`
+  }
 
   // Weekly summary
-  const totalLast7 = trends.slice(-7).reduce((s, t) => s + t.total_liters, 0)
-  const totalLast30 = trends.reduce((s, t) => s + t.total_liters, 0)
-  const avgDaily = trends.length > 0 ? totalLast30 / trends.length : 0
+  const totalLast7 = trends.slice(-7).reduce((s, t) => s + t.total_grams, 0)
+  const totalLast30 = trends.reduce((s, t) => s + t.total_grams, 0)
+  const avgDaily = trends.length > 0 ? Math.round(totalLast30 / trends.length) : 0
 
   return (
     <div className="space-y-6 mt-4">
       {/* Summary cards */}
       <div className="grid grid-cols-3 gap-2">
         <div className="rounded-xl bg-neutral-900 text-white px-3 py-3 text-center">
-          <div className="text-lg font-semibold tabular-nums">{totalLast30.toFixed(1)} L</div>
+          <div className="text-lg font-semibold tabular-nums">{formatGrams(totalLast30)}</div>
+          <div className="text-[10px] text-neutral-400 tabular-nums">{gramsToDeciliters(totalLast30)} dL</div>
           <div className="text-[11px] text-neutral-400">30 {lang === 'no' ? 'dager' : 'days'}</div>
         </div>
         <div className="rounded-xl bg-white border border-neutral-200 px-3 py-3 text-center">
-          <div className="text-lg font-semibold tabular-nums">{totalLast7.toFixed(1)} L</div>
+          <div className="text-lg font-semibold tabular-nums">{formatGrams(totalLast7)}</div>
+          <div className="text-[10px] text-neutral-400 tabular-nums">{gramsToDeciliters(totalLast7)} dL</div>
           <div className="text-[11px] text-neutral-500">7 {lang === 'no' ? 'dager' : 'days'}</div>
         </div>
         <div className="rounded-xl bg-white border border-neutral-200 px-3 py-3 text-center">
-          <div className="text-lg font-semibold tabular-nums">{avgDaily.toFixed(1)} L</div>
+          <div className="text-lg font-semibold tabular-nums">{formatGrams(avgDaily)}</div>
+          <div className="text-[10px] text-neutral-400 tabular-nums">{gramsToDeciliters(avgDaily)} dL</div>
           <div className="text-[11px] text-neutral-500">{lang === 'no' ? 'snitt/dag' : 'avg/day'}</div>
         </div>
       </div>
@@ -73,11 +79,10 @@ export function MilkAnalytics({ lang }: Props) {
         ) : (
           <div className="flex items-end gap-[2px] h-32">
             {trends.map((day) => {
-              const morningPct = (day.morning / maxLiters) * 100
-              const eveningPct = (day.evening / maxLiters) * 100
-              const totalPct = (day.total_liters / maxLiters) * 100
+              const morningPct = (day.morning / maxGrams) * 100
+              const eveningPct = (day.evening / maxGrams) * 100
               return (
-                <div key={day.date} className="flex-1 flex flex-col justify-end h-full group relative" title={`${day.date}: ${day.total_liters} L`}>
+                <div key={day.date} className="flex-1 flex flex-col justify-end h-full group relative" title={`${day.date}: ${formatGrams(day.total_grams)}`}>
                   <div className="flex flex-col justify-end h-full">
                     <div className="bg-amber-300 rounded-t-sm" style={{ height: `${eveningPct}%` }} />
                     <div className="bg-amber-500 rounded-b-sm" style={{ height: `${morningPct}%` }} />
@@ -85,7 +90,7 @@ export function MilkAnalytics({ lang }: Props) {
                   {/* Tooltip on hover */}
                   <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 hidden group-hover:block z-10">
                     <div className="bg-neutral-900 text-white text-[10px] px-2 py-1 rounded whitespace-nowrap">
-                      {day.total_liters.toFixed(1)} L
+                      {formatGrams(day.total_grams)} ({gramsToDeciliters(day.total_grams)} dL)
                     </div>
                   </div>
                 </div>
@@ -109,20 +114,23 @@ export function MilkAnalytics({ lang }: Props) {
             </h3>
           </div>
           <div className="space-y-2">
-            {yields.map((row) => (
-              <div key={row.product_type} className="flex items-center justify-between py-1.5 border-b border-neutral-50 last:border-0">
-                <div className="flex items-center gap-2">
-                  <span>{TYPE_EMOJI[row.product_type] || '🍶'}</span>
-                  <span className="text-sm text-neutral-900 capitalize">{row.product_type}</span>
-                  <span className="text-[11px] text-neutral-400">({row.batch_count}x)</span>
+            {yields.map((row) => {
+              const cfg = getProductTypeConfig(row.product_type as ProductType)
+              return (
+                <div key={row.product_type} className="flex items-center justify-between py-1.5 border-b border-neutral-50 last:border-0">
+                  <div className="flex items-center gap-2">
+                    <span>{cfg.emoji}</span>
+                    <span className="text-sm text-neutral-900">{lang === 'no' ? cfg.labelNo : cfg.labelEn}</span>
+                    <span className="text-[11px] text-neutral-400">({row.batch_count}x)</span>
+                  </div>
+                  <div className="flex items-center gap-3 text-sm">
+                    <span className="text-neutral-500">{row.total_milk_used} L →</span>
+                    <span className="font-medium">{row.total_yield_kg} kg</span>
+                    <span className="text-emerald-600 font-medium">{row.avg_yield_pct}%</span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-3 text-sm">
-                  <span className="text-neutral-500">{row.total_milk_used} L →</span>
-                  <span className="font-medium">{row.total_yield_kg} kg</span>
-                  <span className="text-emerald-600 font-medium">{row.avg_yield_pct}%</span>
-                </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </div>
       )}
@@ -137,19 +145,22 @@ export function MilkAnalytics({ lang }: Props) {
             </h3>
           </div>
           <div className="space-y-2">
-            {recipes.map((row) => (
-              <div key={row.recipe_id} className="flex items-center justify-between py-1.5 border-b border-neutral-50 last:border-0">
-                <div className="flex items-center gap-2">
-                  <span>{TYPE_EMOJI[row.product_type] || '🍶'}</span>
-                  <span className="text-sm text-neutral-900">{row.recipe_name}</span>
-                  <span className="text-[11px] text-neutral-400">({row.batches_made}x)</span>
+            {recipes.map((row) => {
+              const cfg = getProductTypeConfig(row.product_type as ProductType)
+              return (
+                <div key={row.recipe_id} className="flex items-center justify-between py-1.5 border-b border-neutral-50 last:border-0">
+                  <div className="flex items-center gap-2">
+                    <span>{cfg.emoji}</span>
+                    <span className="text-sm text-neutral-900">{row.recipe_name}</span>
+                    <span className="text-[11px] text-neutral-400">({row.batches_made}x)</span>
+                  </div>
+                  <div className="flex items-center gap-3 text-sm">
+                    {row.avg_quality && <span className="text-amber-600">★ {row.avg_quality}</span>}
+                    {row.avg_yield_pct && <span className="text-emerald-600">{row.avg_yield_pct}%</span>}
+                  </div>
                 </div>
-                <div className="flex items-center gap-3 text-sm">
-                  {row.avg_quality && <span className="text-amber-600">★ {row.avg_quality}</span>}
-                  {row.avg_yield_pct && <span className="text-emerald-600">{row.avg_yield_pct}%</span>}
-                </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </div>
       )}
