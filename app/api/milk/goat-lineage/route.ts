@@ -25,7 +25,19 @@ export async function GET(request: NextRequest) {
         .eq('isAlive', true)
         .order('name', { ascending: true })
 
-      if (!error && data) {
+      if (!error && data && data.length > 0) {
+        // Sync lineage goats into local milk_goats table so FK works
+        for (const g of data) {
+          await supabaseAdmin
+            .from('milk_goats')
+            .upsert({
+              id: g.id,
+              name: g.name,
+              tag_number: g.earTag || null,
+              status: 'active',
+            }, { onConflict: 'id' })
+        }
+
         return NextResponse.json({
           source: 'goat-lineage',
           goats: data.map((g: any) => ({

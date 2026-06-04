@@ -110,7 +110,20 @@ function reducer(state: DashboardState, action: Action): DashboardState {
     case 'UPDATE_SESSION': {
       const sessions = state.sessions.map((s) => (s.id === action.session.id ? action.session : s))
       if (!sessions.find((s) => s.id === action.session.id)) sessions.push(action.session)
-      return { ...state, sessions }
+      // Recalculate KPI totals from sessions
+      const totalGrams = sessions.reduce((sum, s) => sum + Number(s.total_grams || 0), 0)
+      const morn = sessions.find((s) => s.session_type === 'morning')
+      const eve = sessions.find((s) => s.session_type === 'evening')
+      return {
+        ...state,
+        sessions,
+        kpi: {
+          ...state.kpi,
+          total_grams: totalGrams,
+          morning_grams: Number(morn?.total_grams || 0),
+          evening_grams: Number(eve?.total_grams || 0),
+        },
+      }
     }
     case 'UPDATE_ENTRY': {
       const entries = state.entries.map((e) => (e.id === action.entry.id ? action.entry : e))
