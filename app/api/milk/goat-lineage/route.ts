@@ -28,8 +28,11 @@ export async function GET(request: NextRequest) {
         .order('name', { ascending: true })
 
       // Only include goats born 2024 or earlier (or with no DOB — founders)
+      // Plus specific 2025 does that are milking: Lorelei, Celine, Trudi
+      const EXTRA_2025_IDS = ['lorelei', 'celine', 'trudi']
       const data = (allGoats || []).filter((g: any) => {
-        if (!g.dateOfBirth) return true // founders with no DOB
+        if (!g.dateOfBirth) return true
+        if (EXTRA_2025_IDS.includes(g.id)) return true
         return new Date(g.dateOfBirth).getFullYear() <= 2024
       })
 
