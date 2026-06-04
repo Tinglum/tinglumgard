@@ -18,12 +18,20 @@ export async function GET(request: NextRequest) {
       const glClient = createClient(glUrl, glKey, {
         auth: { autoRefreshToken: false, persistSession: false }
       })
-      const { data, error } = await glClient
+      // Get all alive females, then filter client-side
+      // (some founders have null dateOfBirth — those are old enough)
+      const { data: allGoats, error } = await glClient
         .from('Goat')
         .select('id, name, sex, isAlive, earTag, dateOfBirth')
         .eq('sex', 'FEMALE')
         .eq('isAlive', true)
         .order('name', { ascending: true })
+
+      // Only include goats born 2024 or earlier (or with no DOB — founders)
+      const data = (allGoats || []).filter((g: any) => {
+        if (!g.dateOfBirth) return true // founders with no DOB
+        return new Date(g.dateOfBirth).getFullYear() <= 2024
+      })
 
       if (!error && data && data.length > 0) {
         // Sync lineage goats into local milk_goats table so FK works
