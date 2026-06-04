@@ -18,6 +18,8 @@ import {
   Loader2,
   CheckCircle2,
   AlertTriangle,
+  X,
+  ChevronDown,
 } from 'lucide-react'
 import type {
   MilkOpsTab,
@@ -36,6 +38,12 @@ import { InventoryAging } from './InventoryAging'
 import { MilkAnalytics } from './MilkAnalytics'
 
 // ─── State ──────────────────────────────────────────────────────────────────
+
+interface LineageGoat {
+  id: string
+  name: string
+  ear_tag?: string
+}
 
 interface DashboardState {
   tab: MilkOpsTab
@@ -164,8 +172,8 @@ export function MilkOpsDashboard() {
   const { lang } = useLanguage()
   const [state, dispatch] = useReducer(reducer, initialState)
   const { schedule } = useAutosave()
-  const [showGoatModal, setShowGoatModal] = useState(false)
-  const [lineageGoats, setLineageGoats] = useState<{ id: string; name: string; ear_tag?: string }[]>([])
+  const [lineageGoats, setLineageGoats] = useState<LineageGoat[]>([])
+  const [addGoatDropdown, setAddGoatDropdown] = useState<string | null>(null) // sessionId
 
   // ── Fetch daily data ────────────────────────────────────────────────────
 
@@ -221,7 +229,7 @@ export function MilkOpsDashboard() {
 
   // ── Save session ────────────────────────────────────────────────────────
 
-  const saveSession = async (sessionId: string, updates: Partial<MilkDailySession>) => {
+  const saveSession = async (sessionId: string, updates: Record<string, unknown>) => {
     const key = `session-${sessionId}`
     dispatch({ type: 'SET_SAVE_STATE', id: key, state: 'saving' })
     try {
@@ -256,13 +264,43 @@ export function MilkOpsDashboard() {
       })
       if (!res.ok) throw new Error()
       const { entry: saved } = await res.json()
-      const goat = state.goats.find((g) => g.id === saved.goat_id)
-      dispatch({ type: 'UPDATE_ENTRY', entry: { ...saved, goat_name: goat?.name } })
+      const goatName = lineageGoats.find((g) => g.id === saved.goat_id)?.name || state.goats.find((g) => g.id === saved.goat_id)?.name
+      dispatch({ type: 'UPDATE_ENTRY', entry: { ...saved, goat_name: goatName } })
       dispatch({ type: 'SET_SAVE_STATE', id: key, state: 'saved' })
       if (navigator.vibrate) navigator.vibrate(30)
     } catch {
       dispatch({ type: 'SET_SAVE_STATE', id: key, state: 'error' })
     }
+  }
+
+  const removeEntry = async (entryId: string) => {
+    try {
+      await fetch(`/api/milk/entries/${entryId}`, { method: 'DELETE' })
+      dispatch({ type: 'REMOVE_ENTRY', id: entryId })
+    } catch {}
+  }
+
+  // ── Update session with recalculated total_grams ────────────────────────
+
+  const updateSessionWeight = (session: MilkDailySession, field: string, value: number) => {
+    const updated = { ...session, [field]: value }
+    const netGrams = computeNetGrams(
+      updated.gross_weight_grams || 0,
+      updated.bottle_count || 0,
+      updated.custom_tare_grams || 0
+    )
+    updated.total_grams = netGrams
+    dispatch({ type: 'UPDATE_SESSION', session: updated })
+    const saveKey = `session-${session.id}`
+    schedule(saveKey, () =>
+      saveSession(session.id, {
+        [field]: value,
+        total_grams: netGrams,
+        gross_weight_grams: updated.gross_weight_grams,
+        bottle_count: updated.bottle_count,
+        custom_tare_grams: updated.custom_tare_grams,
+      })
+    )
   }
 
   // ── Prefill day ─────────────────────────────────────────────────────────
@@ -297,6 +335,22 @@ export function MilkOpsDashboard() {
 
   const formatDl = (g: number) => `${gramsToDeciliters(g)} dL`
 
+  // ── Get goats participating in a session ─────────────────────────────────
+
+  const getSessionGoats = (sessionId: string) => {
+    const sessionEntries = state.entries.filter((e) => e.session_id === sessionId)
+    return sessionEntries.map((e) => ({
+      ...e,
+      name: e.goat_name || lineageGoats.find((g) => g.id === e.goat_id)?.name || '?',
+    }))
+  }
+
+  // Available lineage goats not yet added to this session
+  const getAvailableGoats = (sessionId: string) => {
+    const usedIds = state.entries.filter((e) => e.session_id === sessionId).map((e) => e.goat_id)
+    return lineageGoats.filter((g) => !usedIds.includes(g.id))
+  }
+
   // ── Render ──────────────────────────────────────────────────────────────
 
   const morningSession = state.sessions.find((s) => s.session_type === 'morning')
@@ -310,37 +364,21 @@ export function MilkOpsDashboard() {
           <h1 className="text-xl font-semibold text-neutral-900 tracking-tight">
             {lang === 'no' ? 'Melkelogg' : 'Milk Log'}
           </h1>
-          <div className="flex items-center gap-1 text-xs text-neutral-500">
-            {state.dayState?.status === 'closed' && (
-              <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-medium">
-                {lang === 'no' ? 'Avsluttet' : 'Closed'}
-              </span>
-            )}
-          </div>
         </div>
 
         {/* Date nav */}
         <div className="flex items-center justify-between">
-          <button
-            onClick={() => shiftDate(-1)}
-            className="p-2 rounded-lg hover:bg-neutral-200 active:bg-neutral-300 transition-colors"
-          >
+          <button onClick={() => shiftDate(-1)} className="p-2 rounded-lg hover:bg-neutral-200 active:bg-neutral-300 transition-colors">
             <ChevronLeft className="w-5 h-5" />
           </button>
           <button
             onClick={() => !isToday && dispatch({ type: 'SET_DATE', date: todayOslo() })}
-            className={cn(
-              'px-4 py-1.5 rounded-lg text-sm font-medium transition-colors',
-              isToday ? 'bg-neutral-900 text-white' : 'bg-neutral-200 text-neutral-700 hover:bg-neutral-300'
-            )}
+            className={cn('px-4 py-1.5 rounded-lg text-sm font-medium transition-colors', isToday ? 'bg-neutral-900 text-white' : 'bg-neutral-200 text-neutral-700 hover:bg-neutral-300')}
           >
             {formatDate(state.date)}
             {isToday && <span className="ml-1.5 text-neutral-400">{lang === 'no' ? '(i dag)' : '(today)'}</span>}
           </button>
-          <button
-            onClick={() => shiftDate(1)}
-            className="p-2 rounded-lg hover:bg-neutral-200 active:bg-neutral-300 transition-colors"
-          >
+          <button onClick={() => shiftDate(1)} className="p-2 rounded-lg hover:bg-neutral-200 active:bg-neutral-300 transition-colors">
             <ChevronRight className="w-5 h-5" />
           </button>
         </div>
@@ -349,16 +387,13 @@ export function MilkOpsDashboard() {
         <div className="flex gap-1 mt-3 overflow-x-auto scrollbar-hide -mx-4 px-4">
           {TABS.map((tab) => {
             const Icon = tab.icon
-            const active = state.tab === tab.id
             return (
               <button
                 key={tab.id}
                 onClick={() => dispatch({ type: 'SET_TAB', tab: tab.id })}
                 className={cn(
                   'flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium whitespace-nowrap transition-all',
-                  active
-                    ? 'bg-neutral-900 text-white shadow-sm'
-                    : 'text-neutral-600 hover:bg-neutral-200'
+                  state.tab === tab.id ? 'bg-neutral-900 text-white shadow-sm' : 'text-neutral-600 hover:bg-neutral-200'
                 )}
               >
                 <Icon className="w-3.5 h-3.5" />
@@ -378,10 +413,7 @@ export function MilkOpsDashboard() {
         <div className="py-20 text-center">
           <AlertTriangle className="w-8 h-8 text-amber-500 mx-auto mb-2" />
           <p className="text-sm text-neutral-600">{state.error}</p>
-          <button
-            onClick={() => fetchDaily(state.date)}
-            className="mt-3 text-sm text-neutral-900 underline"
-          >
+          <button onClick={() => fetchDaily(state.date)} className="mt-3 text-sm text-neutral-900 underline">
             {lang === 'no' ? 'Prøv igjen' : 'Retry'}
           </button>
         </div>
@@ -389,20 +421,9 @@ export function MilkOpsDashboard() {
         <div className="space-y-4 mt-4">
           {/* KPI cards */}
           <div className="grid grid-cols-3 gap-2">
-            <KpiCard
-              label={lang === 'no' ? 'Totalt' : 'Total'}
-              value={formatGrams(state.kpi.total_grams)}
-              sub={formatDl(state.kpi.total_grams)}
-              accent
-            />
-            <KpiCard
-              label={lang === 'no' ? 'Snitt 7d' : 'Avg 7d'}
-              value={formatGrams(state.kpi.avg_7d)}
-            />
-            <KpiCard
-              label={lang === 'no' ? 'Snitt 30d' : 'Avg 30d'}
-              value={formatGrams(state.kpi.avg_30d)}
-            />
+            <KpiCard label={lang === 'no' ? 'Totalt' : 'Total'} value={formatGrams(state.kpi.total_grams)} sub={formatDl(state.kpi.total_grams)} accent />
+            <KpiCard label={lang === 'no' ? 'Snitt 7d' : 'Avg 7d'} value={formatGrams(state.kpi.avg_7d)} />
+            <KpiCard label={lang === 'no' ? 'Snitt 30d' : 'Avg 30d'} value={formatGrams(state.kpi.avg_30d)} />
           </div>
 
           {/* Sessions */}
@@ -411,10 +432,8 @@ export function MilkOpsDashboard() {
               <p className="text-sm text-neutral-500 mb-3">
                 {lang === 'no' ? 'Ingen melkeøkter registrert.' : 'No milking sessions yet.'}
               </p>
-              <button
-                onClick={handlePrefill}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-neutral-900 text-white text-sm font-medium hover:bg-neutral-800 transition-colors"
-              >
+              <button onClick={handlePrefill}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-neutral-900 text-white text-sm font-medium hover:bg-neutral-800 transition-colors">
                 <Plus className="w-4 h-4" />
                 {lang === 'no' ? 'Start dagens melking' : "Start today's milking"}
               </button>
@@ -431,375 +450,238 @@ export function MilkOpsDashboard() {
                   session.bottle_count || 0,
                   session.custom_tare_grams || 0
                 )
+                const hasWeight = netGrams > 0
+                const netDl = gramsToDeciliters(netGrams)
+                const usedGrams = sessionEntries.reduce((s, e) => s + Number(e.grams || 0), 0)
+                const remainingGrams = Math.max(0, netGrams - usedGrams)
+                const availableGoats = getAvailableGoats(session.id)
 
                 return (
-                  <div
-                    key={session.id}
-                    className="rounded-xl border border-neutral-200 bg-white overflow-hidden"
-                  >
+                  <div key={session.id} className="rounded-xl border border-neutral-200 bg-white overflow-hidden">
                     {/* Session header */}
                     <div className="flex items-center justify-between px-4 py-3 bg-neutral-50 border-b border-neutral-100">
                       <div className="flex items-center gap-3">
-                        <div className="flex items-center gap-2">
-                          {isMorning ? (
-                            <Sun className="w-4 h-4 text-amber-500" />
-                          ) : (
-                            <Moon className="w-4 h-4 text-indigo-500" />
-                          )}
-                          <span className="text-sm font-medium text-neutral-900">
-                            {isMorning
-                              ? lang === 'no' ? 'Morgen' : 'Morning'
-                              : lang === 'no' ? 'Kveld' : 'Evening'}
-                          </span>
-                        </div>
+                        {isMorning ? <Sun className="w-4 h-4 text-amber-500" /> : <Moon className="w-4 h-4 text-indigo-500" />}
+                        <span className="text-sm font-medium text-neutral-900">
+                          {isMorning ? (lang === 'no' ? 'Morgen' : 'Morning') : (lang === 'no' ? 'Kveld' : 'Evening')}
+                        </span>
                         {/* Milking method toggle */}
                         <div className="flex rounded-lg border border-neutral-200 overflow-hidden text-[11px]">
-                          <button
-                            onClick={() => {
-                              dispatch({ type: 'UPDATE_SESSION', session: { ...session, milking_method: 'machine' } })
-                              schedule(saveKey + '-method', () =>
-                                saveSession(session.id, { milking_method: 'machine' } as any)
-                              )
-                            }}
-                            className={cn(
-                              'px-2 py-1 transition-colors',
-                              session.milking_method === 'machine'
-                                ? 'bg-neutral-900 text-white'
-                                : 'text-neutral-500 hover:bg-neutral-100'
-                            )}
-                          >
-                            {lang === 'no' ? 'Maskin' : 'Machine'}
-                          </button>
-                          <button
-                            onClick={() => {
-                              dispatch({ type: 'UPDATE_SESSION', session: { ...session, milking_method: 'hand' } })
-                              schedule(saveKey + '-method', () =>
-                                saveSession(session.id, { milking_method: 'hand' } as any)
-                              )
-                            }}
-                            className={cn(
-                              'px-2 py-1 transition-colors',
-                              session.milking_method === 'hand'
-                                ? 'bg-neutral-900 text-white'
-                                : 'text-neutral-500 hover:bg-neutral-100'
-                            )}
-                          >
-                            {lang === 'no' ? 'Hand' : 'Hand'}
-                          </button>
+                          {(['machine', 'hand'] as MilkingMethod[]).map((m) => (
+                            <button key={m}
+                              onClick={() => {
+                                dispatch({ type: 'UPDATE_SESSION', session: { ...session, milking_method: m } })
+                                schedule(saveKey + '-method', () => saveSession(session.id, { milking_method: m }))
+                              }}
+                              className={cn('px-2 py-1 transition-colors',
+                                session.milking_method === m ? 'bg-neutral-900 text-white' : 'text-neutral-500 hover:bg-neutral-100'
+                              )}
+                            >
+                              {m === 'machine' ? (lang === 'no' ? 'Maskin' : 'Machine') : (lang === 'no' ? 'Hånd' : 'Hand')}
+                            </button>
+                          ))}
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
                         <SaveIndicator state={state.saving[saveKey]} />
                         <span className="text-lg font-semibold text-neutral-900 tabular-nums">
-                          {formatGrams(Number(session.total_grams || 0))}
+                          {formatGrams(netGrams)}
                         </span>
                       </div>
                     </div>
 
-                    {/* Gross weight & tare section */}
+                    {/* Weight inputs */}
                     <div className="px-4 py-3 space-y-3 border-b border-neutral-100">
-                      {/* Gross weight */}
                       <div className="flex items-center gap-3">
-                        <label className="text-xs text-neutral-500 w-28 shrink-0">
-                          {lang === 'no' ? 'Bruttovekt' : 'Gross weight'}
-                        </label>
+                        <label className="text-xs text-neutral-500 w-28 shrink-0">{lang === 'no' ? 'Bruttovekt' : 'Gross weight'}</label>
                         <div className="flex items-center gap-1.5 flex-1">
-                          <input
-                            type="number"
-                            inputMode="numeric"
-                            min="0"
+                          <input type="number" inputMode="numeric" min="0"
                             value={session.gross_weight_grams || ''}
-                            onChange={(e) => {
-                              const val = parseInt(e.target.value) || 0
-                              dispatch({
-                                type: 'UPDATE_SESSION',
-                                session: { ...session, gross_weight_grams: val },
-                              })
-                              schedule(saveKey + '-gross', () =>
-                                saveSession(session.id, { gross_weight_grams: val } as any)
-                              )
-                            }}
+                            onChange={(e) => updateSessionWeight(session, 'gross_weight_grams', parseInt(e.target.value) || 0)}
                             className="w-24 rounded-lg border border-neutral-200 px-3 py-2 text-sm text-right tabular-nums focus:outline-none focus:ring-2 focus:ring-neutral-900/20"
-                            placeholder="0"
-                          />
+                            placeholder="0" />
                           <span className="text-xs text-neutral-400">g</span>
                         </div>
                       </div>
 
-                      {/* Bottle count */}
                       <div className="flex items-center gap-3">
-                        <label className="text-xs text-neutral-500 w-28 shrink-0">
-                          {lang === 'no' ? 'Flasker' : 'Bottles'}
-                        </label>
+                        <label className="text-xs text-neutral-500 w-28 shrink-0">{lang === 'no' ? 'Flasker' : 'Bottles'}</label>
                         <div className="flex items-center gap-2 flex-1">
-                          <button
-                            onClick={() => {
-                              const val = Math.max(0, (session.bottle_count || 0) - 1)
-                              dispatch({ type: 'UPDATE_SESSION', session: { ...session, bottle_count: val } })
-                              schedule(saveKey + '-bottles', () =>
-                                saveSession(session.id, { bottle_count: val } as any)
-                              )
-                            }}
-                            className="w-8 h-8 rounded-lg border border-neutral-200 flex items-center justify-center hover:bg-neutral-100 active:bg-neutral-200 transition-colors"
-                          >
+                          <button onClick={() => updateSessionWeight(session, 'bottle_count', Math.max(0, (session.bottle_count || 0) - 1))}
+                            className="w-8 h-8 rounded-lg border border-neutral-200 flex items-center justify-center hover:bg-neutral-100 active:bg-neutral-200 transition-colors">
                             <Minus className="w-3.5 h-3.5" />
                           </button>
-                          <span className="w-8 text-center text-sm font-medium tabular-nums">
-                            {session.bottle_count || 0}
-                          </span>
-                          <button
-                            onClick={() => {
-                              const val = (session.bottle_count || 0) + 1
-                              dispatch({ type: 'UPDATE_SESSION', session: { ...session, bottle_count: val } })
-                              schedule(saveKey + '-bottles', () =>
-                                saveSession(session.id, { bottle_count: val } as any)
-                              )
-                            }}
-                            className="w-8 h-8 rounded-lg border border-neutral-200 flex items-center justify-center hover:bg-neutral-100 active:bg-neutral-200 transition-colors"
-                          >
+                          <span className="w-8 text-center text-sm font-medium tabular-nums">{session.bottle_count || 0}</span>
+                          <button onClick={() => updateSessionWeight(session, 'bottle_count', (session.bottle_count || 0) + 1)}
+                            className="w-8 h-8 rounded-lg border border-neutral-200 flex items-center justify-center hover:bg-neutral-100 active:bg-neutral-200 transition-colors">
                             <Plus className="w-3.5 h-3.5" />
                           </button>
                           <span className="text-[11px] text-neutral-400 ml-1">
-                            ({BOTTLE_TARE_GRAMS}g x {session.bottle_count || 0} = {(session.bottle_count || 0) * BOTTLE_TARE_GRAMS}g)
+                            ({BOTTLE_TARE_GRAMS}g × {session.bottle_count || 0} = {(session.bottle_count || 0) * BOTTLE_TARE_GRAMS}g)
                           </span>
                         </div>
                       </div>
 
-                      {/* Custom tare */}
                       <div className="flex items-center gap-3">
-                        <label className="text-xs text-neutral-500 w-28 shrink-0">
-                          {lang === 'no' ? 'Annen beholder' : 'Custom tare'}
-                        </label>
+                        <label className="text-xs text-neutral-500 w-28 shrink-0">{lang === 'no' ? 'Annen beholder' : 'Custom tare'}</label>
                         <div className="flex items-center gap-1.5 flex-1">
-                          <input
-                            type="number"
-                            inputMode="numeric"
-                            min="0"
+                          <input type="number" inputMode="numeric" min="0"
                             value={session.custom_tare_grams || ''}
-                            onChange={(e) => {
-                              const val = parseInt(e.target.value) || 0
-                              dispatch({
-                                type: 'UPDATE_SESSION',
-                                session: { ...session, custom_tare_grams: val },
-                              })
-                              schedule(saveKey + '-tare', () =>
-                                saveSession(session.id, { custom_tare_grams: val } as any)
-                              )
-                            }}
+                            onChange={(e) => updateSessionWeight(session, 'custom_tare_grams', parseInt(e.target.value) || 0)}
                             className="w-24 rounded-lg border border-neutral-200 px-3 py-2 text-sm text-right tabular-nums focus:outline-none focus:ring-2 focus:ring-neutral-900/20"
-                            placeholder="0"
-                          />
+                            placeholder="0" />
                           <span className="text-xs text-neutral-400">g</span>
                         </div>
                       </div>
 
-                      {/* Net milk result */}
                       <div className="flex items-center justify-between pt-2 border-t border-neutral-100">
-                        <span className="text-xs font-medium text-neutral-700">
-                          {lang === 'no' ? 'Netto melk' : 'Net milk'}
-                        </span>
+                        <span className="text-xs font-medium text-neutral-700">{lang === 'no' ? 'Netto melk' : 'Net milk'}</span>
                         <span className="text-base font-semibold text-neutral-900 tabular-nums">
-                          {formatGrams(netGrams)}{' '}
-                          <span className="text-sm font-normal text-neutral-500">({formatDl(netGrams)})</span>
+                          {formatGrams(netGrams)} <span className="text-sm font-normal text-neutral-500">({formatDl(netGrams)})</span>
                         </span>
                       </div>
                     </div>
 
-                    {/* Per-goat entries */}
-                    {state.goats.length > 0 ? (
+                    {/* Per-goat section — only shows AFTER total weight is entered */}
+                    {hasWeight && (
                       <div className="divide-y divide-neutral-100">
-                        <div className="px-4 py-2 bg-neutral-50/50">
+                        <div className="px-4 py-2 bg-neutral-50/50 flex items-center justify-between">
                           <span className="text-[11px] font-medium text-neutral-500 uppercase tracking-wide">
                             {lang === 'no' ? 'Per geit' : 'Per goat'}
                           </span>
+                          {/* Add goat button */}
+                          <div className="relative">
+                            <button
+                              onClick={() => setAddGoatDropdown(addGoatDropdown === session.id ? null : session.id)}
+                              disabled={availableGoats.length === 0}
+                              className="inline-flex items-center gap-1 text-[11px] text-neutral-500 hover:text-neutral-900 disabled:opacity-30 disabled:cursor-not-allowed"
+                            >
+                              <Plus className="w-3 h-3" />
+                              {lang === 'no' ? 'Legg til geit' : 'Add goat'}
+                              <ChevronDown className="w-3 h-3" />
+                            </button>
+                            {/* Dropdown */}
+                            {addGoatDropdown === session.id && availableGoats.length > 0 && (
+                              <div className="absolute right-0 top-full mt-1 z-20 bg-white border border-neutral-200 rounded-lg shadow-lg max-h-60 overflow-y-auto min-w-48">
+                                {availableGoats.map((goat) => (
+                                  <button key={goat.id}
+                                    onClick={async () => {
+                                      setAddGoatDropdown(null)
+                                      // If only one goat, auto-fill with all milk
+                                      const isOnlyGoat = sessionEntries.length === 0
+                                      const grams = isOnlyGoat ? netGrams : 0
+                                      await saveEntry({
+                                        session_id: session.id,
+                                        goat_id: goat.id,
+                                        grams,
+                                        health_flag: 'normal',
+                                      })
+                                    }}
+                                    className="w-full text-left px-3 py-2 text-sm hover:bg-neutral-100 flex items-center gap-2"
+                                  >
+                                    <span className="w-6 h-6 rounded-full bg-neutral-200 flex items-center justify-center text-[10px] font-bold text-neutral-600">
+                                      {goat.name.charAt(0)}
+                                    </span>
+                                    {goat.name}
+                                    {goat.ear_tag && <span className="text-[10px] text-neutral-400">#{goat.ear_tag}</span>}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
                         </div>
-                        {state.goats
-                          .filter((g) => g.status === 'active')
-                          .map((goat) => {
-                            const entry = sessionEntries.find((e) => e.goat_id === goat.id)
-                            const entryKey = `entry-${goat.id}-${session.id}`
-                            const entryGrams = Number(entry?.grams || 0)
+
+                        {/* Goat entries */}
+                        {sessionEntries.length === 0 ? (
+                          <div className="px-4 py-6 text-center text-xs text-neutral-400">
+                            {lang === 'no' ? 'Legg til geiter for å fordele melken' : 'Add goats to distribute milk'}
+                          </div>
+                        ) : (
+                          sessionEntries.map((entry) => {
+                            const goatName = entry.goat_name || lineageGoats.find((g) => g.id === entry.goat_id)?.name || '?'
+                            const entryKey = `entry-${entry.goat_id}-${session.id}`
+                            const entryGrams = Number(entry.grams || 0)
                             const entryDl = gramsToDeciliters(entryGrams)
-                            // Slider max: 20 dL (2060g) in 1 dL increments
-                            const sliderMax = 20
+                            // Slider max = this goat's current share + remaining unallocated
+                            const sliderMaxGrams = entryGrams + remainingGrams
+                            const sliderMaxDl = Math.ceil(gramsToDeciliters(sliderMaxGrams))
 
                             return (
-                              <div key={goat.id} className="px-4 py-3 space-y-2">
+                              <div key={entry.id} className="px-4 py-3 space-y-2">
                                 <div className="flex items-center gap-3">
-                                  <div
-                                    className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0"
-                                    style={{ backgroundColor: goat.accent_color }}
-                                  >
-                                    {goat.name.charAt(0).toUpperCase()}
+                                  <div className="w-8 h-8 rounded-full bg-neutral-800 flex items-center justify-center text-white text-xs font-bold shrink-0">
+                                    {goatName.charAt(0).toUpperCase()}
                                   </div>
                                   <div className="flex-1 min-w-0">
-                                    <div className="text-sm font-medium text-neutral-900 truncate">
-                                      {goat.name}
-                                    </div>
-                                    {goat.tag_number && (
-                                      <div className="text-[11px] text-neutral-400">#{goat.tag_number}</div>
-                                    )}
+                                    <div className="text-sm font-medium text-neutral-900 truncate">{goatName}</div>
                                   </div>
                                   <div className="flex items-center gap-2">
-                                    <input
-                                      type="number"
-                                      inputMode="decimal"
-                                      step="0.1"
-                                      min="0"
+                                    <input type="number" inputMode="decimal" step="0.1" min="0"
                                       value={entryDl || ''}
                                       onChange={(e) => {
                                         const dlVal = parseFloat(e.target.value) || 0
                                         const gramsVal = decilitersToGrams(dlVal)
-                                        const updatedEntry = {
-                                          session_id: session.id,
-                                          goat_id: goat.id,
-                                          grams: gramsVal,
-                                          health_flag: entry?.health_flag || ('normal' as HealthFlag),
-                                          id: entry?.id,
-                                        }
-                                        if (entry) {
-                                          dispatch({
-                                            type: 'UPDATE_ENTRY',
-                                            entry: { ...entry, grams: gramsVal, goat_name: goat.name },
-                                          })
-                                        }
-                                        schedule(entryKey, () => saveEntry(updatedEntry))
+                                        dispatch({ type: 'UPDATE_ENTRY', entry: { ...entry, grams: gramsVal, goat_name: goatName } })
+                                        schedule(entryKey, () => saveEntry({ session_id: session.id, goat_id: entry.goat_id, grams: gramsVal, id: entry.id }))
                                       }}
                                       className="w-16 rounded-lg border border-neutral-200 px-2 py-1.5 text-sm text-right tabular-nums focus:outline-none focus:ring-2 focus:ring-neutral-900/20"
-                                      placeholder="0.0"
-                                    />
+                                      placeholder="0" />
                                     <span className="text-xs text-neutral-400 w-4">dL</span>
                                     <SaveIndicator state={state.saving[entryKey]} small />
+                                    <button onClick={() => removeEntry(entry.id)} className="p-1 rounded hover:bg-red-100 text-neutral-400 hover:text-red-500 transition-colors">
+                                      <X className="w-3.5 h-3.5" />
+                                    </button>
                                   </div>
-                                  {entry && entry.health_flag !== 'normal' && (
-                                    <span className="text-xs px-1.5 py-0.5 rounded bg-red-100 text-red-700">
-                                      !!!
-                                    </span>
-                                  )}
                                 </div>
-                                {/* Range slider — snaps to 1 dL increments */}
-                                <input
-                                  type="range"
-                                  min="0"
-                                  max={sliderMax}
-                                  step="1"
+                                {/* Slider — range is 0 to max available */}
+                                <input type="range" min="0" max={sliderMaxDl} step="1"
                                   value={Math.round(entryDl)}
                                   onChange={(e) => {
                                     const dlVal = parseInt(e.target.value)
                                     const gramsVal = decilitersToGrams(dlVal)
-                                    const updatedEntry = {
-                                      session_id: session.id,
-                                      goat_id: goat.id,
-                                      grams: gramsVal,
-                                      health_flag: entry?.health_flag || ('normal' as HealthFlag),
-                                      id: entry?.id,
-                                    }
-                                    if (entry) {
-                                      dispatch({
-                                        type: 'UPDATE_ENTRY',
-                                        entry: { ...entry, grams: gramsVal, goat_name: goat.name },
-                                      })
-                                    }
-                                    schedule(entryKey, () => saveEntry(updatedEntry))
+                                    dispatch({ type: 'UPDATE_ENTRY', entry: { ...entry, grams: gramsVal, goat_name: goatName } })
+                                    schedule(entryKey, () => saveEntry({ session_id: session.id, goat_id: entry.goat_id, grams: gramsVal, id: entry.id }))
                                   }}
-                                  className="w-full h-2 bg-neutral-200 rounded-full appearance-none cursor-pointer accent-neutral-900"
-                                />
+                                  className="w-full h-2 bg-neutral-200 rounded-full appearance-none cursor-pointer accent-neutral-900" />
                               </div>
                             )
-                          })}
-                        {/* Session total from entries */}
-                        <div className="flex items-center justify-between px-4 py-3 bg-neutral-50">
-                          <span className="text-xs text-neutral-500">
-                            {lang === 'no' ? 'Sum fra geiter' : 'Sum from goats'}
-                          </span>
-                          <span className="text-sm font-semibold text-neutral-900 tabular-nums">
-                            {formatGrams(
-                              sessionEntries.reduce((sum, e) => sum + Number(e.grams || 0), 0)
-                            )}{' '}
-                            <span className="text-xs font-normal text-neutral-500">
-                              ({formatDl(sessionEntries.reduce((sum, e) => sum + Number(e.grams || 0), 0))})
-                            </span>
-                          </span>
-                        </div>
-                      </div>
-                    ) : (
-                      /* Quick mode — total grams input */
-                      <div className="p-4">
-                        <label className="text-xs text-neutral-500 mb-1 block">
-                          {lang === 'no' ? 'Totalt gram' : 'Total grams'}
-                        </label>
-                        <input
-                          type="number"
-                          inputMode="numeric"
-                          min="0"
-                          value={session.total_grams || ''}
-                          onChange={(e) => {
-                            const val = parseInt(e.target.value) || 0
-                            dispatch({
-                              type: 'UPDATE_SESSION',
-                              session: { ...session, total_grams: val },
-                            })
-                            schedule(saveKey, () => saveSession(session.id, { total_grams: val } as any))
-                          }}
-                          className="w-full rounded-lg border border-neutral-200 px-3 py-2.5 text-lg tabular-nums focus:outline-none focus:ring-2 focus:ring-neutral-900/20"
-                          placeholder="0"
-                        />
-                        <textarea
-                          value={session.notes || ''}
-                          onChange={(e) => {
-                            dispatch({
-                              type: 'UPDATE_SESSION',
-                              session: { ...session, notes: e.target.value },
-                            })
-                            schedule(`${saveKey}-notes`, () =>
-                              saveSession(session.id, { notes: e.target.value } as any)
-                            )
-                          }}
-                          placeholder={lang === 'no' ? 'Notater...' : 'Notes...'}
-                          rows={2}
-                          className="mt-2 w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900/20 resize-none"
-                        />
+                          })
+                        )}
+
+                        {/* Session entry total */}
+                        {sessionEntries.length > 0 && (
+                          <div className="flex items-center justify-between px-4 py-3 bg-neutral-50">
+                            <span className="text-xs text-neutral-500">{lang === 'no' ? 'Fordelt' : 'Allocated'}</span>
+                            <div className="text-right">
+                              <span className="text-sm font-semibold text-neutral-900 tabular-nums">
+                                {formatGrams(usedGrams)} <span className="text-xs font-normal text-neutral-500">({formatDl(usedGrams)})</span>
+                              </span>
+                              {remainingGrams > 0 && (
+                                <div className="text-[11px] text-amber-600">
+                                  {formatGrams(remainingGrams)} {lang === 'no' ? 'ufordelt' : 'unallocated'}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
+
+                    {/* Notes */}
+                    <div className="p-4 border-t border-neutral-100">
+                      <textarea value={session.notes || ''}
+                        onChange={(e) => {
+                          dispatch({ type: 'UPDATE_SESSION', session: { ...session, notes: e.target.value } })
+                          schedule(`${saveKey}-notes`, () => saveSession(session.id, { notes: e.target.value }))
+                        }}
+                        placeholder={lang === 'no' ? 'Notater...' : 'Notes...'}
+                        rows={2}
+                        className="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900/20 resize-none" />
+                    </div>
                   </div>
                 )
               })}
-
-              {/* Add goats prompt if none */}
-              {state.goats.length === 0 && (
-                <button
-                  onClick={() => setShowGoatModal(true)}
-                  className="w-full text-center py-3 rounded-xl border border-dashed border-neutral-300 text-sm text-neutral-500 hover:bg-neutral-100 transition-colors"
-                >
-                  <Plus className="w-4 h-4 inline mr-1" />
-                  {lang === 'no' ? 'Legg til geiter for per-geit-sporing' : 'Add goats for per-goat tracking'}
-                </button>
-              )}
             </>
-          )}
-
-          {/* Quick notes for the day */}
-          {state.sessions.length > 0 && (
-            <div className="rounded-xl border border-neutral-200 bg-white p-4">
-              <h3 className="text-sm font-medium text-neutral-900 mb-2">
-                {lang === 'no' ? 'Dagens notater' : "Today's notes"}
-              </h3>
-              <textarea
-                value={state.sessions[0]?.notes || ''}
-                onChange={(e) => {
-                  const session = state.sessions[0]
-                  if (!session) return
-                  dispatch({
-                    type: 'UPDATE_SESSION',
-                    session: { ...session, notes: e.target.value },
-                  })
-                  schedule('day-notes', () => saveSession(session.id, { notes: e.target.value } as any))
-                }}
-                placeholder={lang === 'no' ? 'Uvanlig oppførsel, vær, sykdom...' : 'Unusual behavior, weather, illness...'}
-                rows={3}
-                className="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900/20 resize-none"
-              />
-            </div>
           )}
         </div>
       ) : state.tab === 'production' ? (
@@ -811,18 +693,6 @@ export function MilkOpsDashboard() {
       ) : state.tab === 'analytics' ? (
         <MilkAnalytics lang={lang} />
       ) : null}
-
-      {/* Goat add modal */}
-      {showGoatModal && (
-        <GoatAddModal
-          lang={lang}
-          onClose={() => setShowGoatModal(false)}
-          onSaved={() => {
-            setShowGoatModal(false)
-            fetchDaily(state.date)
-          }}
-        />
-      )}
     </div>
   )
 }
@@ -831,20 +701,9 @@ export function MilkOpsDashboard() {
 
 function KpiCard({ label, value, sub, accent }: { label: string; value: string; sub?: string; accent?: boolean }) {
   return (
-    <div
-      className={cn(
-        'rounded-xl px-3 py-3 text-center',
-        accent ? 'bg-neutral-900 text-white' : 'bg-white border border-neutral-200'
-      )}
-    >
-      <div className={cn('text-lg font-semibold tabular-nums', accent ? 'text-white' : 'text-neutral-900')}>
-        {value}
-      </div>
-      {sub && (
-        <div className={cn('text-[10px] tabular-nums', accent ? 'text-neutral-400' : 'text-neutral-400')}>
-          {sub}
-        </div>
-      )}
+    <div className={cn('rounded-xl px-3 py-3 text-center', accent ? 'bg-neutral-900 text-white' : 'bg-white border border-neutral-200')}>
+      <div className={cn('text-lg font-semibold tabular-nums', accent ? 'text-white' : 'text-neutral-900')}>{value}</div>
+      {sub && <div className={cn('text-[10px] tabular-nums', 'text-neutral-400')}>{sub}</div>}
       <div className={cn('text-[11px]', accent ? 'text-neutral-400' : 'text-neutral-500')}>{label}</div>
     </div>
   )
@@ -856,95 +715,4 @@ function SaveIndicator({ state, small }: { state?: 'saving' | 'saved' | 'error';
   if (state === 'saving') return <Loader2 className={cn(size, 'animate-spin text-neutral-400')} />
   if (state === 'saved') return <CheckCircle2 className={cn(size, 'text-emerald-500')} />
   return <AlertTriangle className={cn(size, 'text-red-500')} />
-}
-
-function GoatAddModal({
-  lang,
-  onClose,
-  onSaved,
-}: {
-  lang: string
-  onClose: () => void
-  onSaved: () => void
-}) {
-  const [name, setName] = useState('')
-  const [tagNumber, setTagNumber] = useState('')
-  const [breed, setBreed] = useState('')
-  const [saving, setSaving] = useState(false)
-
-  const handleSave = async () => {
-    if (!name.trim()) return
-    setSaving(true)
-    try {
-      const res = await fetch('/api/milk/goats', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: name.trim(), tag_number: tagNumber.trim() || null, breed: breed.trim() || null }),
-      })
-      if (res.ok) onSaved()
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40" onClick={onClose}>
-      <div
-        className="bg-white rounded-t-2xl sm:rounded-2xl w-full max-w-md p-6 space-y-4"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h2 className="text-lg font-semibold text-neutral-900">
-          {lang === 'no' ? 'Legg til geit' : 'Add goat'}
-        </h2>
-        <div>
-          <label className="text-xs text-neutral-500">{lang === 'no' ? 'Navn' : 'Name'} *</label>
-          <input
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className="mt-1 w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900/20"
-            placeholder={lang === 'no' ? 'F.eks. Luna' : 'E.g. Luna'}
-            autoFocus
-          />
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="text-xs text-neutral-500">{lang === 'no' ? 'Øremerke' : 'Tag #'}</label>
-            <input
-              type="text"
-              value={tagNumber}
-              onChange={(e) => setTagNumber(e.target.value)}
-              className="mt-1 w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900/20"
-              placeholder="40012"
-            />
-          </div>
-          <div>
-            <label className="text-xs text-neutral-500">{lang === 'no' ? 'Rase' : 'Breed'}</label>
-            <input
-              type="text"
-              value={breed}
-              onChange={(e) => setBreed(e.target.value)}
-              className="mt-1 w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900/20"
-              placeholder={lang === 'no' ? 'Norsk melkegeit' : 'Norwegian dairy goat'}
-            />
-          </div>
-        </div>
-        <div className="flex gap-3 pt-2">
-          <button
-            onClick={onClose}
-            className="flex-1 py-2.5 rounded-xl border border-neutral-200 text-sm font-medium text-neutral-700 hover:bg-neutral-50"
-          >
-            {lang === 'no' ? 'Avbryt' : 'Cancel'}
-          </button>
-          <button
-            onClick={handleSave}
-            disabled={!name.trim() || saving}
-            className="flex-1 py-2.5 rounded-xl bg-neutral-900 text-white text-sm font-medium hover:bg-neutral-800 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {saving ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : lang === 'no' ? 'Lagre' : 'Save'}
-          </button>
-        </div>
-      </div>
-    </div>
-  )
 }
