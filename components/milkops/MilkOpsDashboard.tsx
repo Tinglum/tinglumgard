@@ -458,6 +458,8 @@ export function MilkOpsDashboard() {
                 const isMorning = session.session_type === 'morning'
                 const sessionEntries = state.entries.filter((e) => e.session_id === session.id)
                 const saveKey = `session-${session.id}`
+                const milkerName = (session.milker_name || '').trim()
+                const milkerReady = milkerName.length > 0
                 const netGrams = computeNetGrams(
                   session.gross_weight_grams || 0,
                   session.bottle_count || 0,
@@ -505,12 +507,48 @@ export function MilkOpsDashboard() {
 
                     {/* Weight inputs */}
                     <div className="px-4 py-3 space-y-3 border-b border-neutral-100">
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between gap-3">
+                          <label className="text-xs font-medium text-neutral-700">
+                            {lang === 'no' ? 'Hvem melket?' : 'Who milked?'}
+                          </label>
+                          <span className={cn(
+                            'text-[11px]',
+                            milkerReady ? 'text-emerald-600' : 'text-amber-600'
+                          )}>
+                            {milkerReady
+                              ? (lang === 'no' ? 'Registrert' : 'Saved')
+                              : (lang === 'no' ? 'Obligatorisk' : 'Required')}
+                          </span>
+                        </div>
+                        <input
+                          type="text"
+                          value={session.milker_name || ''}
+                          onChange={(e) => {
+                            const value = e.target.value
+                            dispatch({ type: 'UPDATE_SESSION', session: { ...session, milker_name: value } })
+                            schedule(`${saveKey}-milker`, () => saveSession(session.id, { milker_name: value }))
+                          }}
+                          placeholder={lang === 'no' ? 'Navn på den som melket' : 'Name of the milker'}
+                          className="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900/20"
+                          required
+                        />
+                        {!milkerReady && (
+                          <p className="text-[11px] text-amber-700">
+                            {lang === 'no'
+                              ? 'Fyll inn navn før du registrerer vekt og melkefordeling.'
+                              : 'Enter the milker name before recording weights and milk allocation.'}
+                          </p>
+                        )}
+                      </div>
+
                       <div className="flex items-center gap-3">
                         <label className="text-xs text-neutral-500 w-28 shrink-0">{lang === 'no' ? 'Bruttovekt' : 'Gross weight'}</label>
                         <div className="flex items-center gap-1.5 flex-1">
                           <input type="number" inputMode="numeric" min="0"
                             value={session.gross_weight_grams || ''}
                             onChange={(e) => updateSessionWeight(session, 'gross_weight_grams', parseInt(e.target.value) || 0)}
+                            disabled={!milkerReady}
                             className="w-24 rounded-lg border border-neutral-200 px-3 py-2 text-sm text-right tabular-nums focus:outline-none focus:ring-2 focus:ring-neutral-900/20"
                             placeholder="0" />
                           <span className="text-xs text-neutral-400">g</span>
@@ -521,11 +559,13 @@ export function MilkOpsDashboard() {
                         <label className="text-xs text-neutral-500 w-28 shrink-0">{lang === 'no' ? 'Flasker' : 'Bottles'}</label>
                         <div className="flex items-center gap-2 flex-1">
                           <button onClick={() => updateSessionWeight(session, 'bottle_count', Math.max(0, (session.bottle_count || 0) - 1))}
+                            disabled={!milkerReady}
                             className="w-8 h-8 rounded-lg border border-neutral-200 flex items-center justify-center hover:bg-neutral-100 active:bg-neutral-200 transition-colors">
                             <Minus className="w-3.5 h-3.5" />
                           </button>
                           <span className="w-8 text-center text-sm font-medium tabular-nums">{session.bottle_count || 0}</span>
                           <button onClick={() => updateSessionWeight(session, 'bottle_count', (session.bottle_count || 0) + 1)}
+                            disabled={!milkerReady}
                             className="w-8 h-8 rounded-lg border border-neutral-200 flex items-center justify-center hover:bg-neutral-100 active:bg-neutral-200 transition-colors">
                             <Plus className="w-3.5 h-3.5" />
                           </button>
@@ -541,6 +581,7 @@ export function MilkOpsDashboard() {
                           <input type="number" inputMode="numeric" min="0"
                             value={session.custom_tare_grams || ''}
                             onChange={(e) => updateSessionWeight(session, 'custom_tare_grams', parseInt(e.target.value) || 0)}
+                            disabled={!milkerReady}
                             className="w-24 rounded-lg border border-neutral-200 px-3 py-2 text-sm text-right tabular-nums focus:outline-none focus:ring-2 focus:ring-neutral-900/20"
                             placeholder="0" />
                           <span className="text-xs text-neutral-400">g</span>
@@ -556,7 +597,7 @@ export function MilkOpsDashboard() {
                     </div>
 
                     {/* Per-goat section — only shows AFTER total weight is entered */}
-                    {hasWeight && (
+                    {milkerReady && hasWeight && (
                       <div className="divide-y divide-neutral-100">
                         <div className="px-4 py-2 bg-neutral-50/50 flex items-center justify-between">
                           <span className="text-[11px] font-medium text-neutral-500 uppercase tracking-wide">
@@ -683,6 +724,7 @@ export function MilkOpsDashboard() {
                     {/* Notes */}
                     <div className="p-4 border-t border-neutral-100">
                       <textarea value={session.notes || ''}
+                        disabled={!milkerReady}
                         onChange={(e) => {
                           dispatch({ type: 'UPDATE_SESSION', session: { ...session, notes: e.target.value } })
                           schedule(`${saveKey}-notes`, () => saveSession(session.id, { notes: e.target.value }))

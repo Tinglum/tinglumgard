@@ -1010,6 +1010,16 @@ async function fetchUpcomingDates() {
       .lte('pickup_monday', weekEndStr)
       .order('pickup_monday', { ascending: true });
 
+    const { data: wishlistRequests } = await supabaseAdmin
+      .from('egg_wishlist_requests')
+      .select(
+        'id, customer_name, delivery_monday, status, egg_wishlist_items(qty_requested, qty_remaining, egg_breeds(name))'
+      )
+      .in('status', ['open', 'partially_allocated'])
+      .gte('delivery_monday', weekStartStr)
+      .lte('delivery_monday', weekEndStr)
+      .order('delivery_monday', { ascending: true });
+
     // Helper to format order for response
     const formatOrder = (o: any, type: 'egg' | 'chicken' | 'pig') => ({
       id: o.id,
@@ -1022,8 +1032,35 @@ async function fetchUpcomingDates() {
       type,
     });
 
+    const formatWishlistRequest = (request: any) => {
+      const items = Array.isArray(request?.egg_wishlist_items) ? request.egg_wishlist_items : [];
+      const requestedQty = items.reduce((sum: number, item: any) => sum + Math.max(0, Number(item?.qty_requested || 0)), 0);
+      const remainingQty = items.reduce((sum: number, item: any) => sum + Math.max(0, Number(item?.qty_remaining || 0)), 0);
+      const breedNames = Array.from(
+        new Set(
+          items
+            .map((item: any) => String(item?.egg_breeds?.name || '').trim())
+            .filter(Boolean)
+        )
+      );
+
+      return {
+        id: request.id,
+        order_number: `wishlist:${request.id}`,
+        customer_name: request.customer_name || '',
+        delivery_method: 'wishlist',
+        status: request.status || 'open',
+        pickup_date: request.delivery_monday || null,
+        pickup_time: null,
+        type: 'wishlist',
+        requested_qty: requestedQty,
+        remaining_qty: remainingQty,
+        breed_names: breedNames,
+      };
+    };
+
     // Group by date helper
-    type OrderGroup = ReturnType<typeof formatOrder>;
+    type OrderGroup = ReturnType<typeof formatOrder> | ReturnType<typeof formatWishlistRequest>;
     const groupByDate = (orders: any[], dateField: string, type: 'egg' | 'chicken') => {
       const groups: Record<string, OrderGroup[]> = {};
       for (const o of orders || []) {
@@ -1080,12 +1117,22 @@ async function fetchUpcomingDates() {
     }
     const shipmentWeeks = splitByWeek(shipmentMap);
 
+    const wishlistMap: Record<string, any[]> = {};
+    for (const request of wishlistRequests || []) {
+      const date = request.delivery_monday;
+      if (!date) continue;
+      if (!wishlistMap[date]) wishlistMap[date] = [];
+      wishlistMap[date].push(formatWishlistRequest(request));
+    }
+    const wishlistWeeks = splitByWeek(wishlistMap);
+
     // Pending pig pickups (individual orders, no date)
     const pendingPigPickups = (pigOrders || []).map((o: any) => formatOrder(o, 'pig'));
 
     return {
       pickups: { thisWeek: pickupWeeks.thisWeek, nextWeek: pickupWeeks.nextWeek },
       shipments: { thisWeek: shipmentWeeks.thisWeek, nextWeek: shipmentWeeks.nextWeek },
+      wishlists: { thisWeek: wishlistWeeks.thisWeek, nextWeek: wishlistWeeks.nextWeek },
       pendingPigPickups,
     };
   } catch (err) {
@@ -1093,6 +1140,7 @@ async function fetchUpcomingDates() {
     return {
       pickups: { thisWeek: [], nextWeek: [] },
       shipments: { thisWeek: [], nextWeek: [] },
+      wishlists: { thisWeek: [], nextWeek: [] },
       pendingPigPickups: [],
     };
   }

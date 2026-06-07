@@ -9,6 +9,16 @@ import type { ProductType } from '@/lib/milk/types'
 interface DailyTrend { date: string; total_grams: number; morning: number; evening: number }
 interface YieldRow { product_type: string; batch_count: number; avg_yield_pct: number; total_milk_used: number; total_yield_kg: number }
 interface RecipeRow { recipe_id: string; recipe_name: string; product_type: string; batches_made: number; avg_quality: number | null; avg_yield_pct: number | null }
+interface MilkerRow {
+  milker_name: string
+  session_count: number
+  active_days: number
+  morning_sessions: number
+  evening_sessions: number
+  total_grams: number
+  avg_session_grams: number
+  last_session_date: string
+}
 
 interface Props { lang: string }
 
@@ -16,6 +26,7 @@ export function MilkAnalytics({ lang }: Props) {
   const [trends, setTrends] = useState<DailyTrend[]>([])
   const [yields, setYields] = useState<YieldRow[]>([])
   const [recipes, setRecipes] = useState<RecipeRow[]>([])
+  const [milkers, setMilkers] = useState<MilkerRow[]>([])
   const [loading, setLoading] = useState(true)
 
   const fetchData = useCallback(async () => {
@@ -24,7 +35,12 @@ export function MilkAnalytics({ lang }: Props) {
       fetch('/api/milk/analytics/trends?days=30'),
       fetch('/api/milk/analytics/yield'),
     ])
-    if (tRes.ok) { const d = await tRes.json(); setTrends(d.trends || []); setRecipes(d.recipes || []) }
+    if (tRes.ok) {
+      const d = await tRes.json()
+      setTrends(d.trends || [])
+      setRecipes(d.recipes || [])
+      setMilkers(d.milkers || [])
+    }
     if (yRes.ok) { const d = await yRes.json(); setYields(d.analysis || []) }
     setLoading(false)
   }, [])
@@ -103,6 +119,41 @@ export function MilkAnalytics({ lang }: Props) {
           <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-amber-300" />{lang === 'no' ? 'Kveld' : 'Evening'}</span>
         </div>
       </div>
+
+      {/* Yield analysis */}
+      {milkers.length > 0 && (
+        <div className="rounded-xl border border-neutral-200 bg-white p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Star className="w-4 h-4 text-neutral-400" />
+            <h3 className="text-sm font-medium text-neutral-900">
+              {lang === 'no' ? 'Melkere' : 'Milkers'}
+            </h3>
+          </div>
+          <div className="space-y-2">
+            {milkers.map((row) => (
+              <div key={row.milker_name} className="flex items-start justify-between gap-3 py-2 border-b border-neutral-50 last:border-0">
+                <div>
+                  <div className="text-sm font-medium text-neutral-900">{row.milker_name}</div>
+                  <div className="text-[11px] text-neutral-500">
+                    {row.session_count} {lang === 'no' ? 'økter' : 'sessions'} · {row.active_days} {lang === 'no' ? 'dager' : 'days'}
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="text-sm font-semibold text-neutral-900 tabular-nums">
+                    {formatGrams(row.total_grams)}
+                  </div>
+                  <div className="text-[11px] text-neutral-500">
+                    {lang === 'no' ? 'snitt' : 'avg'} {formatGrams(row.avg_session_grams)}
+                  </div>
+                  <div className="text-[11px] text-neutral-400">
+                    {row.morning_sessions}/{row.evening_sessions} {lang === 'no' ? 'morgen/kveld' : 'morning/evening'}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Yield analysis */}
       {yields.length > 0 && (

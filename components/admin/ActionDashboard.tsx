@@ -13,6 +13,7 @@ import {
   ChevronRight,
   CreditCard,
   Egg,
+  ListChecks,
   Mail,
   MessageSquare,
   Package,
@@ -261,6 +262,7 @@ export function ActionDashboard({
       <WeekScheduleSection
         upcomingDates={upcomingDates}
         onNavigateToOrder={onNavigateToOrder}
+        onWishlistClick={() => onNavigate('orders', 'wishlist')}
         onPickupOrderClick={(order: any) => setPickupModalOrder(order)}
         onShipmentOrderClick={(order: any) => {
           if (order.type === 'egg') {
@@ -996,9 +998,10 @@ function formatEmailActivityDate(dateValue: string, locale: string) {
   }).format(date);
 }
 
-function WeekScheduleSection({ upcomingDates, onNavigateToOrder, onPickupOrderClick, onShipmentOrderClick, lang, locale }: {
+function WeekScheduleSection({ upcomingDates, onNavigateToOrder, onWishlistClick, onPickupOrderClick, onShipmentOrderClick, lang, locale }: {
   upcomingDates: any;
   onNavigateToOrder?: (id: string) => void;
+  onWishlistClick?: (request: any) => void;
   onPickupOrderClick?: (order: any) => void;
   onShipmentOrderClick?: (order: any) => void;
   lang: string;
@@ -1008,10 +1011,12 @@ function WeekScheduleSection({ upcomingDates, onNavigateToOrder, onPickupOrderCl
 
   const pickups = upcomingDates?.pickups || { thisWeek: [], nextWeek: [] };
   const shipments = upcomingDates?.shipments || { thisWeek: [], nextWeek: [] };
+  const wishlists = upcomingDates?.wishlists || { thisWeek: [], nextWeek: [] };
   const pendingPigPickups = upcomingDates?.pendingPigPickups || [];
 
   const currentPickups = showNextWeek ? pickups.nextWeek : pickups.thisWeek;
   const currentShipments = showNextWeek ? shipments.nextWeek : shipments.thisWeek;
+  const currentWishlists = showNextWeek ? wishlists.nextWeek : wishlists.thisWeek;
 
   const thisWeekLabel = lang === 'no' ? 'Denne uken' : 'This week';
   const nextWeekLabel = lang === 'no' ? 'Neste uke' : 'Next week';
@@ -1042,7 +1047,7 @@ function WeekScheduleSection({ upcomingDates, onNavigateToOrder, onPickupOrderCl
         </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Pickups */}
         <div className="bg-white border border-neutral-200 rounded-xl p-6 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.06)]">
           <div className="flex items-center gap-3 mb-4">
@@ -1094,6 +1099,27 @@ function WeekScheduleSection({ upcomingDates, onNavigateToOrder, onPickupOrderCl
           ) : (
             <p className="text-sm font-light text-neutral-500">
               {lang === 'no' ? 'Ingen utsendinger' : 'No shipments'}
+            </p>
+          )}
+        </div>
+
+        {/* Wishlists */}
+        <div className="bg-rose-50/60 border border-rose-200 rounded-xl p-6 shadow-[0_10px_30px_-10px_rgba(244,63,94,0.18)]">
+          <div className="flex items-center gap-3 mb-4">
+            <ListChecks className="w-5 h-5 text-rose-600" />
+            <h3 className="text-lg font-light text-neutral-900">
+              {lang === 'no' ? 'Ønskelister' : 'Wishlists'}
+            </h3>
+          </div>
+          {currentWishlists.length > 0 ? (
+            <div className="space-y-4">
+              {currentWishlists.map((group: any) => (
+                <DateGroup key={group.date} group={group} onOrderClick={onWishlistClick} lang={lang} locale={locale} />
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm font-light text-neutral-500">
+              {lang === 'no' ? 'Ingen ønskelister' : 'No wishlists'}
             </p>
           )}
         </div>
@@ -1149,12 +1175,30 @@ const typeBadge: Record<string, { bg: string; text: string; labelNo: string; lab
   egg: { bg: 'bg-blue-100', text: 'text-blue-800', labelNo: 'Egg', labelEn: 'Egg' },
   chicken: { bg: 'bg-green-100', text: 'text-green-800', labelNo: 'Kylling', labelEn: 'Chicken' },
   pig: { bg: 'bg-amber-100', text: 'text-amber-800', labelNo: 'Gris', labelEn: 'Pig' },
+  wishlist: { bg: 'bg-rose-100', text: 'text-rose-800', labelNo: 'Ønskeliste', labelEn: 'Wishlist' },
 };
 
 function OrderRow({ order, onNavigateToOrder, onOrderClick, lang }: { order: any; onNavigateToOrder?: (id: string) => void; onOrderClick?: (order: any) => void; lang: string }) {
   const badge = typeBadge[order.type] || typeBadge.egg;
   const firstName = (order.customer_name || '').split(/\s+/)[0] || '';
   const locale = lang === 'no' ? 'nb-NO' : 'en-GB';
+  const isWishlist = order.type === 'wishlist';
+  const label = isWishlist
+    ? lang === 'no' ? 'Ønskeliste' : 'Wishlist'
+    : order.order_number;
+
+  const wishlistSummary = isWishlist
+    ? (() => {
+        const requestedQty = Number(order.requested_qty || 0);
+        const remainingQty = Number(order.remaining_qty || 0);
+        const breedNames = Array.isArray(order.breed_names) ? order.breed_names.filter(Boolean) : [];
+        const breedLabel = breedNames.length > 0 ? breedNames.slice(0, 2).join(', ') : lang === 'no' ? 'Valgte raser' : 'Selected breeds';
+        const qtyLabel = lang === 'no'
+          ? `${remainingQty || requestedQty} egg gjenstår`
+          : `${remainingQty || requestedQty} eggs pending`;
+        return `${breedLabel} · ${qtyLabel}`;
+      })()
+    : null;
 
   const pickupLabel = (() => {
     const date = order.pickup_date ? String(order.pickup_date).trim() : null;
@@ -1172,9 +1216,14 @@ function OrderRow({ order, onNavigateToOrder, onOrderClick, lang }: { order: any
       className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left hover:bg-neutral-50 transition-colors group"
     >
       <span className="text-sm font-medium text-neutral-900 group-hover:text-blue-700 transition-colors min-w-[120px]">
-        {order.order_number}
+        {label}
       </span>
-      <span className="text-sm text-neutral-600 truncate flex-1">{firstName}</span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-sm text-neutral-600 truncate">{firstName}</span>
+        {wishlistSummary && (
+          <span className="block text-xs text-neutral-500 truncate">{wishlistSummary}</span>
+        )}
+      </span>
       {pickupLabel && (
         <span className="text-xs text-neutral-400 whitespace-nowrap">{pickupLabel}</span>
       )}

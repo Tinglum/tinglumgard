@@ -145,6 +145,20 @@ type WishlistLookupMode =
   | { type: 'phone'; value: string }
   | { type: 'customerId'; value: string };
 
+type CustomerListEntry = {
+  customer_id: string;
+  email: string;
+  name: string;
+  phone: string | null;
+  first_order_date: string;
+  last_order_date: string;
+  total_orders: number;
+  completed_orders: number;
+  total_spent: number;
+  lifetime_value: number;
+  at_risk: boolean;
+};
+
 type SupportThreadReplyRow = {
   id: string;
   admin_name: string | null;
@@ -479,6 +493,51 @@ function resolveCustomerIdentity(order: UnifiedOrder): ResolvedCustomerIdentity 
     customerId: `order:${order.source}:${order.id}`,
     email: '',
     phone: '',
+  };
+}
+
+function resolveWishlistCustomerIdentity(request: WishlistRequestRow): ResolvedCustomerIdentity {
+  const email = normalizeEmail(request.customer_email);
+  const phone = normalizePhone(request.customer_phone);
+  const digits = phoneDigits(phone);
+  const rawCustomerId = String(request.customer_id || '').trim();
+
+  if (isUsableEmail(email)) {
+    return {
+      customerId: `email:${email}`,
+      email,
+      phone,
+    };
+  }
+
+  if (digits) {
+    return {
+      customerId: `phone:${digits}`,
+      email: '',
+      phone,
+    };
+  }
+
+  if (rawCustomerId.startsWith('email:') || rawCustomerId.startsWith('phone:') || rawCustomerId.startsWith('user:')) {
+    return {
+      customerId: rawCustomerId,
+      email,
+      phone,
+    };
+  }
+
+  if (rawCustomerId) {
+    return {
+      customerId: `user:${rawCustomerId}`,
+      email,
+      phone,
+    };
+  }
+
+  return {
+    customerId: `wishlist:${request.id}`,
+    email,
+    phone,
   };
 }
 
@@ -857,10 +916,32 @@ async function fetchAllUnifiedOrders(): Promise<UnifiedOrder[]> {
   });
 }
 
+async function fetchAllWishlistCustomerRows(): Promise<WishlistRequestRow[]> {
+  const selectClause =
+    'id, customer_id, customer_email, customer_name, customer_phone, order_id, source, priority, status, year, week_number, delivery_monday, notes, created_at, updated_at';
+  const { data, error } = await supabaseAdmin
+    .from('egg_wishlist_requests')
+    .select(selectClause)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    if (isMissingColumnOrRelationError(error)) return [];
+    throw error;
+  }
+
+  return ((data || []) as unknown as WishlistRequestRow[]).map((row) => ({
+    ...normalizeWishlistRequestRow(row),
+    egg_orders: null,
+    egg_wishlist_items: [],
+    egg_wishlist_events: [],
+  }));
+}
+
 async function fetchWishlistRequestsForCustomer(params: {
   email?: string;
   phoneDigits?: string;
   customerId?: string;
+  rawCustomerId?: string;
   eggOrderIds?: string[];
 }): Promise<WishlistRequestRow[]> {
   const requestMap = new Map<string, WishlistRequestRow>();
@@ -889,6 +970,10 @@ async function fetchWishlistRequestsForCustomer(params: {
 
   if (params.customerId) {
     lookups.push({ type: 'customerId', value: params.customerId });
+  }
+
+  if (params.rawCustomerId && params.rawCustomerId !== params.customerId) {
+    lookups.push({ type: 'customerId', value: params.rawCustomerId });
   }
 
   for (const lookup of lookups) {
@@ -965,8 +1050,11 @@ export async function GET(request: NextRequest) {
 }
 
 async function getCustomerList() {
-  const unifiedOrders = await fetchAllUnifiedOrders();
-  const customerMap = new Map<string, any>();
+  const [unifiedOrders, wishlistRows] = await Promise.all([
+    fetchAllUnifiedOrders(),
+    fetchAllWishlistCustomerRows(),
+  ]);
+  const customerMap = new Map<string, CustomerListEntry>();
 
   for (const order of unifiedOrders) {
     const identity = resolveCustomerIdentity(order);
@@ -987,7 +1075,7 @@ async function getCustomerList() {
       });
     }
 
-    const customer = customerMap.get(identity.customerId);
+    const customer = customerMap.get(identity.customerId)!;
     customer.total_orders += 1;
     if (isCompletedOrder(order)) customer.completed_orders += 1;
     if (isAtRiskOrder(order)) customer.at_risk = true;
@@ -1013,6 +1101,47 @@ async function getCustomerList() {
     }
   }
 
+  for (const request of wishlistRows) {
+    const identity = resolveWishlistCustomerIdentity(request);
+
+    if (!customerMap.has(identity.customerId)) {
+      customerMap.set(identity.customerId, {
+        customer_id: identity.customerId,
+        email: identity.email,
+        name: String(request.customer_name || 'Kunde').trim() || 'Kunde',
+        phone: identity.phone || null,
+        first_order_date: request.created_at,
+        last_order_date: request.created_at,
+        total_orders: 0,
+        completed_orders: 0,
+        total_spent: 0,
+        lifetime_value: 0,
+        at_risk: false,
+      });
+      continue;
+    }
+
+    const customer = customerMap.get(identity.customerId)!;
+    if (!customer.phone && identity.phone) {
+      customer.phone = identity.phone;
+    }
+    if (!customer.email && identity.email) {
+      customer.email = identity.email;
+    }
+    if ((!customer.name || customer.name === 'Kunde') && request.customer_name) {
+      customer.name = request.customer_name;
+    }
+
+    if (customer.total_orders === 0) {
+      if (new Date(request.created_at) < new Date(customer.first_order_date)) {
+        customer.first_order_date = request.created_at;
+      }
+      if (new Date(request.created_at) > new Date(customer.last_order_date)) {
+        customer.last_order_date = request.created_at;
+      }
+    }
+  }
+
   const customers = Array.from(customerMap.values()).sort((a, b) =>
     new Date(b.last_order_date).getTime() - new Date(a.last_order_date).getTime()
   );
@@ -1028,8 +1157,19 @@ async function getCustomerProfile(customerId: string) {
   const parsed = parseCustomerId(customerId);
   const allOrders = await fetchAllUnifiedOrders();
   const orders = allOrders.filter((order) => orderMatchesCustomer(order, parsed));
+  const eggOrderIds = orders.filter((order) => order.source === 'egg').map((order) => order.id);
+  const wishlistSeed = await fetchWishlistRequestsForCustomer({
+    email: parsed.email || undefined,
+    phoneDigits: parsed.phoneDigits || undefined,
+    customerId: customerId || undefined,
+    rawCustomerId: parsed.userId || undefined,
+    eggOrderIds,
+  }).catch((error) => {
+    logError('admin-customers-profile-wishlist-seed', error);
+    return [] as WishlistRequestRow[];
+  });
 
-  if (!orders || orders.length === 0) {
+  if ((!orders || orders.length === 0) && wishlistSeed.length === 0) {
     return NextResponse.json({ error: 'Customer not found' }, { status: 404 });
   }
 
@@ -1070,14 +1210,36 @@ async function getCustomerProfile(customerId: string) {
     (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
   )[0];
   const latestOrder = sortedOrders[0];
+  const sortedWishlistSeed = [...wishlistSeed].sort(
+    (a, b) => new Date(String(b.created_at || '')).getTime() - new Date(String(a.created_at || '')).getTime()
+  );
+  const earliestWishlist = [...wishlistSeed].sort(
+    (a, b) => new Date(String(a.created_at || '')).getTime() - new Date(String(b.created_at || '')).getTime()
+  )[0];
+  const latestWishlist = sortedWishlistSeed[0];
 
-  const bestName = sortedOrders.find((order) => order.customerName)?.customerName || 'Kunde';
-  const bestEmail = sortedOrders.find((order) => isUsableEmail(order.customerEmail))?.customerEmail || '';
-  const bestPhone = sortedOrders.find((order) => order.customerPhone)?.customerPhone || null;
+  const bestName =
+    sortedOrders.find((order) => order.customerName)?.customerName ||
+    sortedWishlistSeed.find((request) => String(request.customer_name || '').trim())?.customer_name ||
+    'Kunde';
+  const bestEmail =
+    sortedOrders.find((order) => isUsableEmail(order.customerEmail))?.customerEmail ||
+    sortedWishlistSeed.find((request) => isUsableEmail(normalizeEmail(request.customer_email)))?.customer_email ||
+    parsed.email ||
+    '';
+  const bestPhone =
+    sortedOrders.find((order) => order.customerPhone)?.customerPhone ||
+    sortedWishlistSeed.find((request) => normalizePhone(request.customer_phone))?.customer_phone ||
+    null;
   const bestPhoneDigits = phoneDigits(bestPhone);
   const pigOrderIds = sortedOrders.filter((order) => order.source === 'pig').map((order) => order.id);
-  const eggOrderIds = sortedOrders.filter((order) => order.source === 'egg').map((order) => order.id);
   const chickenOrderIds = sortedOrders.filter((order) => order.source === 'chicken').map((order) => order.id);
+  const firstActivityDate = [earliestOrder?.createdAt, earliestWishlist?.created_at]
+    .filter(Boolean)
+    .sort((a, b) => new Date(String(a)).getTime() - new Date(String(b)).getTime())[0] || null;
+  const lastActivityDate = [latestOrder?.createdAt, latestWishlist?.created_at]
+    .filter(Boolean)
+    .sort((a, b) => new Date(String(b)).getTime() - new Date(String(a)).getTime())[0] || null;
   // Run all independent queries in parallel to avoid Netlify function timeout.
   // NOTE: materializeLifecycleInstancesOnly() and reconcileEggPaymentDependentFlowInstances()
   // are intentionally NOT called here — they perform global write operations across all
@@ -1114,10 +1276,11 @@ async function getCustomerProfile(customerId: string) {
       email: bestEmail || parsed.email || undefined,
       phoneDigits: bestPhoneDigits || parsed.phoneDigits || undefined,
       customerId: customerId || undefined,
+      rawCustomerId: parsed.userId || undefined,
       eggOrderIds,
     }).catch((error) => {
       logError('admin-customers-profile-wishlist', error);
-      return [] as WishlistRequestRow[];
+      return wishlistSeed;
     }),
     fetchSupportThreadsForCustomer({
       parsed,
@@ -1255,8 +1418,8 @@ async function getCustomerProfile(customerId: string) {
     name: bestName,
     email: bestEmail,
     phone: bestPhone,
-    first_order_date: earliestOrder?.createdAt,
-    last_order_date: latestOrder?.createdAt,
+    first_order_date: firstActivityDate,
+    last_order_date: lastActivityDate,
     total_orders: totalOrders,
     completed_orders: completedOrders,
     total_spent: totalSpent,
@@ -1443,7 +1606,10 @@ async function getOrderDetail(source: 'pig' | 'egg' | 'chicken', orderId: string
 }
 
 async function getCustomerStats() {
-  const unifiedOrders = await fetchAllUnifiedOrders();
+  const [unifiedOrders, wishlistRows] = await Promise.all([
+    fetchAllUnifiedOrders(),
+    fetchAllWishlistCustomerRows(),
+  ]);
   const customerKeys = new Set<string>();
   const customerOrderCount = new Map<string, number>();
 
@@ -1453,6 +1619,11 @@ async function getCustomerStats() {
     customerKeys.add(identity.customerId);
     customerOrderCount.set(identity.customerId, (customerOrderCount.get(identity.customerId) || 0) + 1);
     totalRevenue += order.paidAmountNok;
+  }
+
+  for (const request of wishlistRows) {
+    const identity = resolveWishlistCustomerIdentity(request);
+    customerKeys.add(identity.customerId);
   }
 
   const repeatCount = Array.from(customerOrderCount.values()).filter((count) => count > 1).length;

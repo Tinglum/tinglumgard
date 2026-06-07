@@ -78,6 +78,29 @@ function todayDate(): string {
   return new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Oslo' })
 }
 
+function normalizeMilkerName(value?: string | null): string {
+  return String(value || '').trim()
+}
+
+function sessionNeedsMilkerName(session: {
+  session_type?: SessionType
+  total_grams?: number | null
+  gross_weight_grams?: number | null
+  bottle_count?: number | null
+  custom_tare_grams?: number | null
+  notes?: string | null
+}): boolean {
+  if (session.session_type !== 'morning' && session.session_type !== 'evening') return false
+
+  return (
+    Number(session.total_grams || 0) > 0 ||
+    Number(session.gross_weight_grams || 0) > 0 ||
+    Number(session.bottle_count || 0) > 0 ||
+    Number(session.custom_tare_grams || 0) > 0 ||
+    Boolean(String(session.notes || '').trim())
+  )
+}
+
 export async function getMilkDailyCollections(date?: string): Promise<MilkDailyResponse> {
   const targetDate = date || todayDate()
 
@@ -169,6 +192,7 @@ export async function upsertMilkSession(
   body: {
     milking_date?: string
     session_type?: SessionType
+    milker_name?: string | null
     milking_method?: MilkingMethod
     total_grams?: number
     gross_weight_grams?: number
@@ -183,10 +207,38 @@ export async function upsertMilkSession(
   const actor = session?.name || 'anonymous'
   const date = body.milking_date || todayDate()
   const sessionType = body.session_type || 'morning'
+  const normalizedMilkerName = body.milker_name !== undefined ? normalizeMilkerName(body.milker_name) : undefined
 
   if (body.id) {
+    const { data: current, error: currentError } = await supabaseAdmin
+      .from('milk_daily_sessions')
+      .select('*')
+      .eq('id', body.id)
+      .single()
+
+    if (currentError || !current) {
+      throw new MilkCollectionError(`Failed to load session: ${currentError?.message || 'Not found'}`, 500)
+    }
+
+    const nextSession = {
+      ...current,
+      total_grams: body.total_grams ?? current.total_grams,
+      milking_method: body.milking_method ?? current.milking_method,
+      gross_weight_grams: body.gross_weight_grams ?? current.gross_weight_grams,
+      bottle_count: body.bottle_count ?? current.bottle_count,
+      custom_tare_grams: body.custom_tare_grams ?? current.custom_tare_grams,
+      temperature_celsius: body.temperature_celsius ?? current.temperature_celsius,
+      notes: body.notes !== undefined ? body.notes?.trim() || null : current.notes,
+      milker_name: normalizedMilkerName ?? current.milker_name,
+    }
+
+    if (sessionNeedsMilkerName(nextSession) && !normalizeMilkerName(nextSession.milker_name)) {
+      throw new MilkCollectionError('Milker name is required before saving a recorded morning or evening session')
+    }
+
     const updates: Record<string, unknown> = { updated_by: actor }
     if (body.total_grams !== undefined) updates.total_grams = body.total_grams
+    if (body.milker_name !== undefined) updates.milker_name = normalizedMilkerName || ''
     if (body.milking_method !== undefined) updates.milking_method = body.milking_method
     if (body.gross_weight_grams !== undefined) updates.gross_weight_grams = body.gross_weight_grams
     if (body.bottle_count !== undefined) updates.bottle_count = body.bottle_count
@@ -204,12 +256,27 @@ export async function upsertMilkSession(
     return data
   }
 
+  if (
+    sessionNeedsMilkerName({
+      session_type: sessionType,
+      total_grams: body.total_grams ?? 0,
+      gross_weight_grams: body.gross_weight_grams ?? 0,
+      bottle_count: body.bottle_count ?? 0,
+      custom_tare_grams: body.custom_tare_grams ?? 0,
+      notes: body.notes ?? null,
+    }) &&
+    !normalizedMilkerName
+  ) {
+    throw new MilkCollectionError('Milker name is required before saving a recorded morning or evening session')
+  }
+
   const { data, error } = await supabaseAdmin
     .from('milk_daily_sessions')
     .upsert(
       {
         milking_date: date,
         session_type: sessionType,
+        milker_name: normalizedMilkerName || '',
         milking_method: body.milking_method || 'hand',
         total_grams: body.total_grams ?? 0,
         gross_weight_grams: body.gross_weight_grams ?? 0,
@@ -306,8 +373,25 @@ export async function updateDayStatus(
   // Compute totals from sessions
   const { data: sessions } = await supabaseAdmin
     .from('milk_daily_sessions')
-    .select('session_type, total_grams')
+    .select('session_type, total_grams, gross_weight_grams, bottle_count, custom_tare_grams, notes, milker_name')
     .eq('milking_date', milking_date)
+
+  if (status === 'closed') {
+    const missingMilker = (sessions || []).find((session) =>
+      sessionNeedsMilkerName({
+        session_type: session.session_type,
+        total_grams: session.total_grams,
+        gross_weight_grams: session.gross_weight_grams,
+        bottle_count: session.bottle_count,
+        custom_tare_grams: session.custom_tare_grams,
+        notes: session.notes,
+      }) && !normalizeMilkerName(session.milker_name)
+    )
+
+    if (missingMilker) {
+      throw new MilkCollectionError('Milker name is required for all recorded morning and evening sessions before closing the day')
+    }
+  }
 
   const morning = sessions?.find((s) => s.session_type === 'morning')
   const evening = sessions?.find((s) => s.session_type === 'evening')

@@ -24,6 +24,17 @@ export interface RecipeSuccess {
   avg_yield_pct: number | null
 }
 
+export interface MilkerStats {
+  milker_name: string
+  session_count: number
+  active_days: number
+  morning_sessions: number
+  evening_sessions: number
+  total_grams: number
+  avg_session_grams: number
+  last_session_date: string
+}
+
 export async function getProductionTrends(days = 30): Promise<DailyTrend[]> {
   const since = new Date()
   since.setDate(since.getDate() - days)
@@ -116,4 +127,59 @@ export async function getRecipeSuccessRates(): Promise<RecipeSuccess[]> {
     avg_quality: vals.qualityCount > 0 ? Math.round((vals.totalQuality / vals.qualityCount) * 10) / 10 : null,
     avg_yield_pct: vals.yieldCount > 0 ? Math.round((vals.totalYield / vals.yieldCount) * 10) / 10 : null,
   }))
+}
+
+export async function getMilkerStats(): Promise<MilkerStats[]> {
+  const { data, error } = await supabaseAdmin
+    .from('milk_daily_sessions')
+    .select('milker_name, session_type, total_grams, milking_date')
+    .in('session_type', ['morning', 'evening'])
+    .order('milking_date', { ascending: false })
+
+  if (error || !data) return []
+
+  const byMilker = new Map<string, {
+    sessionCount: number
+    activeDates: Set<string>
+    morningSessions: number
+    eveningSessions: number
+    totalGrams: number
+    lastSessionDate: string
+  }>()
+
+  for (const row of data) {
+    const milkerName = String(row.milker_name || '').trim()
+    if (!milkerName) continue
+
+    const existing = byMilker.get(milkerName) || {
+      sessionCount: 0,
+      activeDates: new Set<string>(),
+      morningSessions: 0,
+      eveningSessions: 0,
+      totalGrams: 0,
+      lastSessionDate: row.milking_date,
+    }
+
+    existing.sessionCount += 1
+    existing.activeDates.add(row.milking_date)
+    existing.totalGrams += Number(row.total_grams || 0)
+    if (row.session_type === 'morning') existing.morningSessions += 1
+    if (row.session_type === 'evening') existing.eveningSessions += 1
+    if (row.milking_date > existing.lastSessionDate) existing.lastSessionDate = row.milking_date
+
+    byMilker.set(milkerName, existing)
+  }
+
+  return Array.from(byMilker.entries())
+    .map(([milkerName, stats]) => ({
+      milker_name: milkerName,
+      session_count: stats.sessionCount,
+      active_days: stats.activeDates.size,
+      morning_sessions: stats.morningSessions,
+      evening_sessions: stats.eveningSessions,
+      total_grams: Math.round(stats.totalGrams),
+      avg_session_grams: stats.sessionCount > 0 ? Math.round(stats.totalGrams / stats.sessionCount) : 0,
+      last_session_date: stats.lastSessionDate,
+    }))
+    .sort((a, b) => b.total_grams - a.total_grams)
 }

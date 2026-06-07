@@ -34,6 +34,7 @@ export interface MilkDailySession {
   id: string
   milking_date: string
   session_type: SessionType
+  milker_name: string
   milking_method: MilkingMethod
   total_grams: number
   gross_weight_grams: number
