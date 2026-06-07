@@ -239,8 +239,8 @@ export function EggWishlistManager() {
         <h2 className="text-2xl font-semibold tracking-tight text-neutral-900">{lang === 'no' ? 'Egg ønskeliste' : 'Egg wishlist'}</h2>
         <p className="text-sm text-neutral-600">
           {lang === 'no'
-            ? 'Ukentlig manuell fordeling av ekstra egg. Ordreknyttede ønsker prioriteres foran frittstående.'
-            : 'Weekly manual allocation of extra eggs. Order-linked requests are prioritized ahead of standalone requests.'}
+            ? 'Her vises bare frittstående ønskelister uten tilknyttet ordre. Ordreknyttede ønsker håndteres fra ordremodalene.'
+            : 'Only standalone wishlist requests without a linked order are shown here. Order-linked requests are handled from the order modals.'}
         </p>
       </div>
 

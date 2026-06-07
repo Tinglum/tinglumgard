@@ -7,8 +7,6 @@ import {
 import { supabaseAdmin } from '@/lib/supabase/server'
 import { logError } from '@/lib/logger'
 
-const PICKUP_DELIVERY_METHODS = new Set(['farm_pickup', 'e6_pickup'])
-
 /**
  * Given a year/week, return the ISO year/week of the previous week,
  * handling new-year boundary correctly.
@@ -182,9 +180,6 @@ export async function GET(
     const year = Number(data.year || 0)
     const weekNumber = Number(data.week_number || 0)
     const deliveryMonday = String(data.delivery_monday || '').trim() || null
-    const deliveryMethod = String((data as any).delivery_method || '').trim()
-    const isPickup = PICKUP_DELIVERY_METHODS.has(deliveryMethod)
-
     let weeklyInventoryRows: unknown[] = []
     let prevWeeklyInventoryRows: unknown[] = []
     let adjustmentAvailability: Record<string, unknown> = {}
@@ -218,8 +213,8 @@ export async function GET(
         adjustmentAvailability[inventoryId] = buildAvailabilityValue(row, 'current')
       })
 
-      // Previous week — only for pickup orders
-      if (isPickup && deliveryMonday) {
+      // Previous week inventory can also be used when admins adjust shipped orders.
+      if (deliveryMonday) {
         const prev = getPreviousWeek(year, weekNumber)
         const prevDeliveryMonday = getPrevWeekDeliveryMonday(deliveryMonday)
         const prevInventoryRows = await fetchAdminEggWeekInventory({ year: prev.year, weekNumber: prev.week })

@@ -16,6 +16,7 @@ import {
   CheckCircle2,
   ChevronDown,
   ChevronRight,
+  Gift,
   Loader2,
   Mail,
   CreditCard,
@@ -23,6 +24,8 @@ import {
   User,
   Package,
   PackageCheck,
+  Star,
+  X,
 } from 'lucide-react'
 
 // ─── types ────────────────────────────────────────────────────────────────────
@@ -109,6 +112,44 @@ type EggAdjustInventoryRow = {
 type EggAdjustState = {
   quantity: number
 }
+
+type PickupWishlistItem = {
+  id: string
+  breed_id: string
+  qty_requested: number
+  qty_allocated: number
+  qty_remaining: number
+  egg_breeds?: { name?: string | null; price_per_egg?: number | null } | null
+}
+
+type PickupWishlistRequest = {
+  id: string
+  status: string
+  year: number
+  week_number: number
+  delivery_monday: string | null
+  notes: string | null
+  egg_wishlist_items?: PickupWishlistItem[]
+}
+
+type PickupWishlistAvailabilityEntry = {
+  remaining: number
+  source: 'actual_collected' | 'inventory_fallback'
+  actualCollected: number | null
+  eggsAllocated: number
+  collectionDaysRecorded: number
+}
+
+type PickupWishlistFulfillItem = {
+  wishlistItemId: string
+  breedId: string
+  breedName: string
+  qtyMax: number
+  qty: number
+  pricePerEggOre: number
+}
+
+const WISHLIST_DISCOUNT = 0.30
 
 type BirdAdjustmentState = {
   hensDelta: number
@@ -543,9 +584,15 @@ export function PickupFulfillmentModal({ order, onClose, onRefresh, onNavigateTo
   // ── full order data ────────────────────────────────────────────────────────
   const [fullOrder, setFullOrder] = useState<any>(null)
   const [fetchLoading, setFetchLoading] = useState(false)
+  const [linkedWishlistRequests, setLinkedWishlistRequests] = useState<PickupWishlistRequest[]>([])
+  const [linkedWishlistAvailability, setLinkedWishlistAvailability] = useState<Record<string, PickupWishlistAvailabilityEntry>>({})
+  const [wishlistFulfillMode, setWishlistFulfillMode] = useState(false)
+  const [wishlistFulfillItems, setWishlistFulfillItems] = useState<PickupWishlistFulfillItem[]>([])
+  const [wishlistFulfillSubmitting, setWishlistFulfillSubmitting] = useState(false)
 
   // ── section open state ─────────────────────────────────────────────────────
   const [sectionPickup, setSectionPickup] = useState(true)
+  const [sectionWishlist, setSectionWishlist] = useState(false)
   const [sectionAdjust, setSectionAdjust] = useState(false)
   const [sectionPayment, setSectionPayment] = useState(false)
 
@@ -625,6 +672,26 @@ export function PickupFulfillmentModal({ order, onClose, onRefresh, onNavigateTo
       if (!res.ok) throw new Error('Failed to fetch order')
       const data = await res.json()
 
+      if (order.type === 'egg') {
+        try {
+          const wishlistRes = await fetch(`/api/admin/eggs/orders/${order.id}/shipping`)
+          if (wishlistRes.ok) {
+            const wishlistData = await wishlistRes.json()
+            setLinkedWishlistRequests(wishlistData.wishlistRequests || [])
+            setLinkedWishlistAvailability(wishlistData.fulfillmentAvailability || {})
+          } else {
+            setLinkedWishlistRequests([])
+            setLinkedWishlistAvailability({})
+          }
+        } catch {
+          setLinkedWishlistRequests([])
+          setLinkedWishlistAvailability({})
+        }
+      } else {
+        setLinkedWishlistRequests([])
+        setLinkedWishlistAvailability({})
+      }
+
       if (order.type === 'pig') {
         setFullOrder(data.order)
         setBoxConfigs(data.boxConfigs || [])
@@ -674,7 +741,12 @@ export function PickupFulfillmentModal({ order, onClose, onRefresh, onNavigateTo
   useEffect(() => {
     if (open) {
       setFullOrder(null)
+      setLinkedWishlistRequests([])
+      setLinkedWishlistAvailability({})
+      setWishlistFulfillMode(false)
+      setWishlistFulfillItems([])
       setSectionPickup(true)
+      setSectionWishlist(false)
       setSectionAdjust(false)
       setSectionPayment(false)
       fetchOrder()
@@ -923,6 +995,102 @@ export function PickupFulfillmentModal({ order, onClose, onRefresh, onNavigateTo
     }
   }
 
+  const enterWishlistFulfillMode = () => {
+    const remainingByBreed = new Map<string, number>(
+      Object.entries(linkedWishlistAvailability).map(([breedId, entry]) => [
+        breedId,
+        Math.max(0, Number(entry?.remaining || 0)),
+      ])
+    )
+    const nextItems: PickupWishlistFulfillItem[] = []
+
+    for (const request of linkedWishlistRequests) {
+      for (const item of request.egg_wishlist_items || []) {
+        if (Number(item.qty_remaining || 0) <= 0) continue
+
+        const breedRemaining = remainingByBreed.has(item.breed_id)
+          ? remainingByBreed.get(item.breed_id) || 0
+          : Number(item.qty_remaining || 0)
+        const qtyMax = Math.min(Number(item.qty_remaining || 0), breedRemaining)
+        if (qtyMax <= 0) continue
+
+        nextItems.push({
+          wishlistItemId: item.id,
+          breedId: item.breed_id,
+          breedName: String(item.egg_breeds?.name || 'Ukjent rase'),
+          qtyMax,
+          qty: qtyMax,
+          pricePerEggOre: Number(item.egg_breeds?.price_per_egg || 0),
+        })
+
+        if (remainingByBreed.has(item.breed_id)) {
+          remainingByBreed.set(item.breed_id, Math.max(0, breedRemaining - qtyMax))
+        }
+      }
+    }
+
+    setWishlistFulfillItems(nextItems)
+    setWishlistFulfillMode(true)
+    setSectionWishlist(true)
+  }
+
+  const updateWishlistFulfillQty = (wishlistItemId: string, qty: number) => {
+    setWishlistFulfillItems((prev) =>
+      prev.map((item) =>
+        item.wishlistItemId === wishlistItemId
+          ? { ...item, qty: Math.min(item.qtyMax, Math.max(0, Math.round(qty))) }
+          : item
+      )
+    )
+  }
+
+  const handleFulfillWishlist = async () => {
+    if (!fullOrder) return
+    const activeItems = wishlistFulfillItems.filter((item) => item.qty > 0)
+    if (activeItems.length === 0) return
+
+    setWishlistFulfillSubmitting(true)
+    try {
+      const res = await fetch(`/api/admin/eggs/orders/${fullOrder.id}/actions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'fulfill_wishlist',
+          data: {
+            items: activeItems.map((item) => ({
+              wishlistItemId: item.wishlistItemId,
+              breedId: item.breedId,
+              qty: item.qty,
+            })),
+          },
+        }),
+      })
+      const result = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(result?.error || (no ? 'Feil ved tildeling' : 'Wishlist fulfillment failed'))
+
+      const totalOre = activeItems.reduce((sum, item) => {
+        const discountedOre = Math.round(item.pricePerEggOre * (1 - WISHLIST_DISCOUNT))
+        return sum + item.qty * discountedOre
+      }, 0)
+
+      toast({
+        title: no ? 'Betalingslink sendt' : 'Payment link sent',
+        description: no
+          ? `${fullOrder.customer_email} har fått e-post med betalingslink — kr ${Math.round(totalOre / 100)}`
+          : `Payment link sent to ${fullOrder.customer_email} — kr ${Math.round(totalOre / 100)}`,
+      })
+
+      setWishlistFulfillMode(false)
+      await fetchOrder()
+      onRefresh()
+      setSectionPayment(true)
+    } catch (err: any) {
+      toast({ title: no ? 'Feil' : 'Error', description: err.message, variant: 'destructive' })
+    } finally {
+      setWishlistFulfillSubmitting(false)
+    }
+  }
+
   const submitPigAdjust = async () => {
     if (!fullOrder) return
     setPigSaving(true)
@@ -1122,6 +1290,21 @@ export function PickupFulfillmentModal({ order, onClose, onRefresh, onNavigateTo
 
   const isEggPickup = order?.type === 'egg' && ['farm_pickup', 'e6_pickup'].includes(fullOrder?.delivery_method || '')
   const eggPickupNeedsRemainder = isEggPickup && remainder > 0
+  const wishlistFulfillTotalOre = wishlistFulfillItems
+    .filter((item) => item.qty > 0)
+    .reduce((sum, item) => {
+      const discountedOre = Math.round(item.pricePerEggOre * (1 - WISHLIST_DISCOUNT))
+      return sum + item.qty * discountedOre
+    }, 0)
+  const wishlistFulfillableItems = linkedWishlistRequests.flatMap((request) =>
+    (request.egg_wishlist_items || []).filter((item) => {
+      if (Number(item.qty_remaining || 0) <= 0) return false
+      const available = linkedWishlistAvailability[item.breed_id]?.remaining
+      return available === undefined ? true : available > 0
+    })
+  )
+  const hasLinkedWishlist = linkedWishlistRequests.length > 0
+  const hasFulfillableWishlist = wishlistFulfillableItems.length > 0
 
   const navigateToCustomerProfile = () => {
     if (!customerLookupId) return
@@ -1225,6 +1408,149 @@ export function PickupFulfillmentModal({ order, onClose, onRefresh, onNavigateTo
                 )}
               </div>
             </div>
+
+            {order?.type === 'egg' && hasLinkedWishlist && (
+              <SectionToggle
+                title={no ? 'Tilknyttet ønskeliste' : 'Linked wishlist'}
+                open={sectionWishlist}
+                onToggle={() => setSectionWishlist((v) => !v)}
+              >
+                <div className="space-y-4">
+                  {!wishlistFulfillMode ? (
+                    <>
+                      <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 space-y-3">
+                        {linkedWishlistRequests.map((request) => (
+                          <div key={request.id} className="space-y-2">
+                            <div className="flex items-center gap-2 text-xs text-amber-800">
+                              <Star className="h-3.5 w-3.5" />
+                              <span>
+                                {no ? 'Uke' : 'Week'} {request.week_number}/{request.year} — {request.status}
+                              </span>
+                            </div>
+                            {(request.egg_wishlist_items || []).map((item) => (
+                              <div key={item.id} className="flex items-center justify-between text-sm">
+                                <span className="text-neutral-900">{item.egg_breeds?.name || 'Ukjent'}</span>
+                                <span className="text-neutral-600 tabular-nums">
+                                  {item.qty_allocated}/{item.qty_requested}
+                                  {Number(item.qty_remaining || 0) > 0 && (
+                                    <span className="ml-1 text-amber-700">
+                                      ({item.qty_remaining} {no ? 'gjenstår' : 'remaining'})
+                                    </span>
+                                  )}
+                                </span>
+                              </div>
+                            ))}
+                            {request.notes ? (
+                              <p className="text-xs italic text-amber-700">{request.notes}</p>
+                            ) : null}
+                          </div>
+                        ))}
+                      </div>
+
+                      {hasFulfillableWishlist && (
+                        <Button
+                          variant="outline"
+                          onClick={enterWishlistFulfillMode}
+                          className="w-full border-amber-300 text-amber-800 hover:bg-amber-50 hover:border-amber-400"
+                        >
+                          <Gift className="mr-2 h-4 w-4" />
+                          {no ? 'Tildel ønskelisteegg' : 'Fulfill wishlist eggs'}
+                        </Button>
+                      )}
+                    </>
+                  ) : (
+                    <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-4 space-y-4">
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="text-sm font-semibold text-amber-900 flex items-center gap-1.5">
+                          <Gift className="h-4 w-4" />
+                          {no ? 'Tildel ekstra egg med 30% rabatt' : 'Fulfill extra eggs with 30% discount'}
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => setWishlistFulfillMode(false)}
+                          className="rounded p-1 text-amber-700 hover:text-amber-900"
+                          aria-label={no ? 'Avbryt' : 'Cancel'}
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+
+                      <p className="text-xs text-amber-800">
+                        {no
+                          ? 'Velg antall per rase. Kunden får e-post med Vipps-betalingslink.'
+                          : 'Choose qty per breed. The customer receives an email with a Vipps payment link.'}
+                      </p>
+
+                      <div className="space-y-3">
+                        {wishlistFulfillItems.map((item) => {
+                          const discountedOre = Math.round(item.pricePerEggOre * (1 - WISHLIST_DISCOUNT))
+                          const subtotalOre = item.qty * discountedOre
+                          return (
+                            <div key={item.wishlistItemId} className="space-y-1.5">
+                              <div className="flex items-center justify-between gap-3">
+                                <span className="text-sm font-medium text-neutral-900">{item.breedName}</span>
+                                <div className="flex items-center gap-2 text-xs">
+                                  {item.pricePerEggOre > 0 ? (
+                                    <span className="text-neutral-400 line-through">
+                                      kr {Math.round(item.pricePerEggOre / 100)}/egg
+                                    </span>
+                                  ) : null}
+                                  {discountedOre > 0 ? (
+                                    <span className="font-semibold text-green-700">
+                                      kr {Math.round(discountedOre / 100)}/egg
+                                    </span>
+                                  ) : null}
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-3">
+                                <Input
+                                  type="number"
+                                  min={0}
+                                  max={item.qtyMax}
+                                  value={item.qty}
+                                  onChange={(e) => updateWishlistFulfillQty(item.wishlistItemId, Number(e.target.value))}
+                                  className="w-24"
+                                />
+                                <span className="text-xs text-amber-700">
+                                  {no ? `maks ${item.qtyMax}` : `max ${item.qtyMax}`}
+                                </span>
+                                {subtotalOre > 0 ? (
+                                  <span className="ml-auto text-sm font-semibold text-neutral-900">
+                                    kr {Math.round(subtotalOre / 100)}
+                                  </span>
+                                ) : null}
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+
+                      <div className="flex items-center justify-between border-t border-amber-200 pt-3">
+                        <span className="text-sm font-medium text-neutral-700">
+                          {no ? 'Totalt å betale' : 'Total to pay'}
+                        </span>
+                        <span className="text-base font-bold text-neutral-900">
+                          kr {Math.round(wishlistFulfillTotalOre / 100)}
+                        </span>
+                      </div>
+
+                      <Button
+                        onClick={handleFulfillWishlist}
+                        disabled={wishlistFulfillSubmitting || wishlistFulfillTotalOre <= 0}
+                        className="w-full bg-amber-700 text-white hover:bg-amber-800"
+                      >
+                        {wishlistFulfillSubmitting ? (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                          <Mail className="mr-2 h-4 w-4" />
+                        )}
+                        {no ? 'Send betalingslink til kunde' : 'Send payment link to customer'}
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </SectionToggle>
+            )}
 
             {/* ── Section: Hentedag ── */}
             <SectionToggle

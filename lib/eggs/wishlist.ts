@@ -826,6 +826,7 @@ export async function listAdminEggWishlistRequests(filters: { year?: number; wee
   let query = supabaseAdmin
     .from('egg_wishlist_requests')
     .select(REQUEST_SELECT)
+    .is('order_id', null)
     .order('year', { ascending: true })
     .order('week_number', { ascending: true })
     .order('priority', { ascending: true })

@@ -1015,6 +1015,7 @@ async function fetchUpcomingDates() {
       .select(
         'id, customer_name, delivery_monday, status, egg_wishlist_items(qty_requested, qty_remaining, egg_breeds(name))'
       )
+      .is('order_id', null)
       .in('status', ['open', 'partially_allocated'])
       .gte('delivery_monday', weekStartStr)
       .lte('delivery_monday', weekEndStr)
