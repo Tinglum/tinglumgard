@@ -25,9 +25,8 @@ export async function PATCH(
       return NextResponse.json({ error: 'Invalid date format' }, { status: 400 });
     }
 
-    const validTimes = ['11:00', '17:00'];
-    if (!pickupTime || !validTimes.includes(pickupTime)) {
-      return NextResponse.json({ error: 'Invalid pickup time. Must be 11:00 or 17:00' }, { status: 400 });
+    if (!pickupTime || !/^\d{2}:\d{2}$/.test(pickupTime)) {
+      return NextResponse.json({ error: 'Invalid pickup time format. Use HH:MM' }, { status: 400 });
     }
 
     const { error } = await supabaseAdmin

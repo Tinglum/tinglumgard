@@ -156,8 +156,8 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
 
     if (body.pickupTime !== undefined) {
       const pickupTime = typeof body.pickupTime === 'string' ? body.pickupTime.trim() : null;
-      if (pickupTime && !['11:00', '17:00'].includes(pickupTime)) {
-        return NextResponse.json({ error: 'Invalid pickup time. Must be 11:00 or 17:00' }, { status: 400 });
+      if (pickupTime && !/^\d{2}:\d{2}$/.test(pickupTime)) {
+        return NextResponse.json({ error: 'Invalid pickup time format. Use HH:MM' }, { status: 400 });
       }
       updates.pickup_time = pickupTime || null;
     }
