@@ -598,7 +598,7 @@ export function PickupFulfillmentModal({ order, onClose, onRefresh, onNavigateTo
 
   // ── pickup day state ───────────────────────────────────────────────────────
   const [pickupDate, setPickupDate] = useState('')
-  const [pickupTime, setPickupTime] = useState<'11:00' | '17:00'>('11:00')
+  const [pickupTime, setPickupTime] = useState('11:00')
   const [pickupDaySaving, setPickupDaySaving] = useState(false)
   const [reminderSending, setReminderSending] = useState(false)
 
@@ -709,7 +709,7 @@ export function PickupFulfillmentModal({ order, onClose, onRefresh, onNavigateTo
       // Init pickup day from fetched data
       const fo = order.type === 'pig' ? data.order : data
       setPickupDate(fo.pickup_date || '')
-      setPickupTime((fo.pickup_time as '11:00' | '17:00') || '11:00')
+      setPickupTime(fo.pickup_time || '11:00')
 
       // Init chicken deltas
       if (order.type === 'chicken') {
@@ -1605,15 +1605,21 @@ export function PickupFulfillmentModal({ order, onClose, onRefresh, onNavigateTo
                     </div>
                     <div>
                       <label className="text-xs text-neutral-500 mb-1 block">{no ? 'Tid' : 'Time'}</label>
-                      <div className="flex gap-2">
-                        {(['11:00', '17:00'] as const).map((t) => (
+                      <div className="flex items-center gap-2">
+                        <Input
+                          type="time"
+                          value={pickupTime}
+                          onChange={(e) => setPickupTime(e.target.value)}
+                          className="w-28"
+                        />
+                        {['11:00', '17:00'].map((t) => (
                           <button
                             key={t}
                             onClick={() => setPickupTime(t)}
-                            className={`px-3 py-2 rounded-lg text-sm border transition-colors ${
+                            className={`px-2 py-2 rounded-lg text-xs border transition-colors ${
                               pickupTime === t
                                 ? 'bg-neutral-900 text-white border-neutral-900'
-                                : 'border-neutral-200 text-neutral-700 hover:bg-neutral-50'
+                                : 'border-neutral-200 text-neutral-500 hover:bg-neutral-50'
                             }`}
                           >
                             {t}
