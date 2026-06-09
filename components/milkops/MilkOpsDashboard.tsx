@@ -252,11 +252,10 @@ export function MilkOpsDashboard() {
         body: JSON.stringify(updates),
       })
       if (!res.ok) throw new Error()
-      const { row } = await res.json()
-      dispatch({ type: 'UPDATE_SESSION', session: row })
+      // Don't dispatch UPDATE_SESSION from server response — local state is already
+      // correct via optimistic onChange. Overwriting causes flickering when typing fast.
       dispatch({ type: 'SET_SAVE_STATE', id: key, state: 'saved' })
       if (navigator.vibrate) navigator.vibrate(30)
-      setTimeout(() => dispatch({ type: 'SET_SAVE_STATE', id: key, state: 'saved' }), 2000)
     } catch {
       dispatch({ type: 'SET_SAVE_STATE', id: key, state: 'error' })
     }
@@ -277,8 +276,11 @@ export function MilkOpsDashboard() {
       })
       if (!res.ok) throw new Error()
       const { entry: saved } = await res.json()
-      const goatName = lineageGoats.find((g) => g.id === saved.goat_id)?.name || state.goats.find((g) => g.id === saved.goat_id)?.name
-      dispatch({ type: 'UPDATE_ENTRY', entry: { ...saved, goat_name: goatName } })
+      // Only dispatch if this is a NEW entry (no id yet) — for updates, local state is already correct
+      if (!entry.id && saved?.id) {
+        const goatName = lineageGoats.find((g) => g.id === saved.goat_id)?.name || state.goats.find((g) => g.id === saved.goat_id)?.name
+        dispatch({ type: 'UPDATE_ENTRY', entry: { ...saved, goat_name: goatName } })
+      }
       dispatch({ type: 'SET_SAVE_STATE', id: key, state: 'saved' })
       if (navigator.vibrate) navigator.vibrate(30)
     } catch {
