@@ -1863,7 +1863,7 @@ async function sendRemainderReminder(orderId: string) {
       order_number: order.order_number,
       remainder_amount_nok: remainderNok,
       due_date: dueLabel,
-      order_url: `${APP_BASE_URL}/rugeegg/mine-bestillinger`,
+      order_url: buildCustomerOrderLink(APP_BASE_URL, 'egg', order.id),
     },
   })
 

@@ -4,6 +4,7 @@ import { getDayBeforeOfferAvailabilityForWeek } from '@/lib/eggs/day-before-offe
 import { supabaseAdmin } from '@/lib/supabase/server'
 import { dispatchEmail } from '@/lib/email/dispatch'
 import { renderManagedTemplate } from '@/lib/email/render'
+import { buildCustomerOrderLink } from '@/lib/email/links'
 import { logError } from '@/lib/logger'
 import { VIPPS_PENDING_EMAIL, PENDING_ORDER_EXPIRY_HOURS, APP_BASE_URL } from '@/lib/constants/app'
 
@@ -325,6 +326,8 @@ export async function GET(request: NextRequest) {
           week_number: order.week_number,
           remainder_amount_nok: `kr ${Math.round(order.remainder_amount / 100).toLocaleString('nb-NO')}`,
           due_date: dueDateLabel,
+          days_left: daysUntil,
+          order_url: buildCustomerOrderLink(appUrl, 'egg', order.id),
         },
       })
       const reminderHtml = renderedReminder?.html ?? buildReminderHtml({
