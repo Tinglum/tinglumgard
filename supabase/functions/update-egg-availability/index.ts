@@ -6,7 +6,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Client-Info, Apikey',
 };
 
-const END_DATE = new Date('2026-08-01');
+const END_DATE = new Date('2026-08-31');
 const NEAR_WEEKS = 6;
 const MID_WEEKS = 8;
 const NEAR_MIN = 10;

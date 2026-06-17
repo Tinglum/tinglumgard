@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const breedId: string = body.breed_id
     const eggsPerWeek: number = Number(body.eggs_per_week)
-    const untilStr: string = body.until || `${new Date().getFullYear()}-07-31`
+    const untilStr: string = body.until || `${new Date().getFullYear()}-08-31`
 
     if (!breedId) return NextResponse.json({ error: 'breed_id is required' }, { status: 400 })
     if (!Number.isInteger(eggsPerWeek) || eggsPerWeek < 0) {

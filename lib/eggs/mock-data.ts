@@ -134,7 +134,7 @@ export function generateMockInventory(): WeekInventory[] {
   const currentDate = new Date()
   const currentYear = currentDate.getFullYear()
   const currentWeek = getWeekNumber(currentDate)
-  const endDate = new Date('2026-08-01')
+  const endDate = new Date('2026-08-31')
   const msPerWeek = 7 * 24 * 60 * 60 * 1000
   const weeksToGenerate = Math.max(0, Math.ceil((endDate.getTime() - currentDate.getTime()) / msPerWeek))
 
