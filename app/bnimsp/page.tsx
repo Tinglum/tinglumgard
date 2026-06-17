@@ -2,7 +2,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { redirect } from 'next/navigation'
 import { Clock, ArrowRight } from 'lucide-react'
-import { getSession } from '@/lib/auth/session'
+import { getBnimspSession } from '@/lib/bnimsp/session'
 import { canViewBnimsp, canEditBnimsp } from '@/lib/bnimsp/access'
 import { loadContent } from '@/lib/bnimsp/content'
 import { groupByModule, totalMinutes, formatMinutes } from '@/lib/bnimsp/util'
@@ -13,7 +13,7 @@ import { AdminBar } from '@/components/bnimsp/AdminBar'
 export const dynamic = 'force-dynamic'
 
 export default async function BnimspOverviewPage() {
-  const session = await getSession()
+  const session = await getBnimspSession()
   if (!canViewBnimsp(session)) redirect('/bnimsp/login')
   const canEdit = canEditBnimsp(session)
 

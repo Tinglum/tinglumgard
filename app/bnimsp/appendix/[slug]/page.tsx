@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
-import { getSession } from '@/lib/auth/session'
+import { getBnimspSession } from '@/lib/bnimsp/session'
 import { canViewBnimsp, canEditBnimsp } from '@/lib/bnimsp/access'
 import { loadContent } from '@/lib/bnimsp/content'
 import { BniHeader } from '@/components/bnimsp/BniHeader'
@@ -10,7 +10,7 @@ import { AppendixBody } from '@/components/bnimsp/AppendixBody'
 export const dynamic = 'force-dynamic'
 
 export default async function AppendixDetailPage({ params }: { params: { slug: string } }) {
-  const session = await getSession()
+  const session = await getBnimspSession()
   if (!canViewBnimsp(session)) redirect('/bnimsp/login')
   const canEdit = canEditBnimsp(session)
 

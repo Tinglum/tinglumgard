@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getSession } from '@/lib/auth/session'
+import { getBnimspSession } from '@/lib/bnimsp/session'
 import { canEditBnimsp } from '@/lib/bnimsp/access'
 import { supabaseAdmin } from '@/lib/supabase/server'
 import { hashPassword } from '@/lib/bnimsp/password'
@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic'
 
 // Admin: list directors.
 export async function GET() {
-  const session = await getSession()
+  const session = await getBnimspSession()
   if (!canEditBnimsp(session)) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
   try {
     const { data, error } = await supabaseAdmin
@@ -26,7 +26,7 @@ export async function GET() {
 
 // Admin: create or update a director (sets/resets password when provided).
 export async function POST(request: NextRequest) {
-  const session = await getSession()
+  const session = await getBnimspSession()
   if (!canEditBnimsp(session)) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
   try {
     const body = await request.json().catch(() => ({}))

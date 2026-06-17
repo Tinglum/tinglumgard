@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation'
-import { getSession } from '@/lib/auth/session'
+import { getBnimspSession } from '@/lib/bnimsp/session'
 import { canViewBnimsp, canEditBnimsp, getBnimspRole } from '@/lib/bnimsp/access'
 import { loadContent } from '@/lib/bnimsp/content'
 import { BniHeader } from '@/components/bnimsp/BniHeader'
@@ -12,7 +12,7 @@ export default async function StudioPage({
 }: {
   searchParams: { s?: string }
 }) {
-  const session = await getSession()
+  const session = await getBnimspSession()
   if (!canViewBnimsp(session)) redirect('/bnimsp/login')
 
   const canEdit = canEditBnimsp(session)

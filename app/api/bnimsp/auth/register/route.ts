@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase/server'
-import { createSession, setSessionCookie } from '@/lib/auth/session'
+import { createSession } from '@/lib/auth/session'
+import { setBnimspSession } from '@/lib/bnimsp/session'
 import { hashPassword } from '@/lib/bnimsp/password'
 import { isBnimspAdminEmail } from '@/lib/bnimsp/admins'
 import { logError } from '@/lib/logger'
@@ -72,7 +73,7 @@ export async function POST(request: NextRequest) {
       role: 'director',
       bnimspAdmin: isBnimspAdminEmail(created.email),
     })
-    await setSessionCookie(token)
+    await setBnimspSession(token)
     return NextResponse.json({ ok: true, name: created.name || created.email })
   } catch (err) {
     logError('bnimsp-register', err)

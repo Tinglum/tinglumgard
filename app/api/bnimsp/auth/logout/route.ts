@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server'
-import { clearSessionCookie } from '@/lib/auth/session'
+import { clearBnimspSession } from '@/lib/bnimsp/session'
 
 export const dynamic = 'force-dynamic'
 
 export async function POST() {
-  await clearSessionCookie()
+  await clearBnimspSession()
   return NextResponse.json({ ok: true })
 }

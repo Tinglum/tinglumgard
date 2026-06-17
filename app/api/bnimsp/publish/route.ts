@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { getSession } from '@/lib/auth/session'
+import { getBnimspSession } from '@/lib/bnimsp/session'
 import { canEditBnimsp } from '@/lib/bnimsp/access'
 import { supabaseAdmin } from '@/lib/supabase/server'
 import { logError } from '@/lib/logger'
@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic'
 // Publish: copy every pending draft into published, then clear the drafts.
 export async function POST() {
   try {
-    const session = await getSession()
+    const session = await getBnimspSession()
     if (!canEditBnimsp(session)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
     }

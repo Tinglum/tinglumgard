@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { BookOpen, ArrowRight } from 'lucide-react'
-import { getSession } from '@/lib/auth/session'
+import { getBnimspSession } from '@/lib/bnimsp/session'
 import { canViewBnimsp, canEditBnimsp } from '@/lib/bnimsp/access'
 import { loadContent } from '@/lib/bnimsp/content'
 import { BniHeader } from '@/components/bnimsp/BniHeader'
@@ -9,7 +9,7 @@ import { BniHeader } from '@/components/bnimsp/BniHeader'
 export const dynamic = 'force-dynamic'
 
 export default async function AppendixIndexPage() {
-  const session = await getSession()
+  const session = await getBnimspSession()
   if (!canViewBnimsp(session)) redirect('/bnimsp/login')
   const { content } = await loadContent('published')
 

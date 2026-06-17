@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getSession } from '@/lib/auth/session'
+import { getBnimspSession } from '@/lib/bnimsp/session'
 import { canEditBnimsp } from '@/lib/bnimsp/access'
 import { supabaseAdmin } from '@/lib/supabase/server'
 import { loadContent } from '@/lib/bnimsp/content'
@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic'
 // if it does not exist yet.
 export async function PATCH(request: NextRequest, { params }: { params: { slug: string } }) {
   try {
-    const session = await getSession()
+    const session = await getBnimspSession()
     if (!canEditBnimsp(session)) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
 
     const body = await request.json().catch(() => ({}))

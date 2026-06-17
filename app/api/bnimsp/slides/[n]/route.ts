@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getSession } from '@/lib/auth/session'
+import { getBnimspSession } from '@/lib/bnimsp/session'
 import { canEditBnimsp } from '@/lib/bnimsp/access'
 import { supabaseAdmin } from '@/lib/supabase/server'
 import { loadContent, pickLayers } from '@/lib/bnimsp/content'
@@ -17,7 +17,7 @@ const EDITABLE: (keyof SlideLayers | 'title' | 'timing')[] = [
 // content if it does not exist yet, so the first edit after migration works.
 export async function PATCH(request: NextRequest, { params }: { params: { n: string } }) {
   try {
-    const session = await getSession()
+    const session = await getBnimspSession()
     if (!canEditBnimsp(session)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
     }

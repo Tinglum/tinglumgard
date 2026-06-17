@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { getSession } from '@/lib/auth/session'
+import { getBnimspSession } from '@/lib/bnimsp/session'
 import { canEditBnimsp } from '@/lib/bnimsp/access'
 import { supabaseAdmin } from '@/lib/supabase/server'
 import { seedContent, pickLayers } from '@/lib/bnimsp/content'
@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic'
 // Existing published content is left untouched unless ?force=1 is passed.
 export async function POST(request: Request) {
   try {
-    const session = await getSession()
+    const session = await getBnimspSession()
     if (!canEditBnimsp(session)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
     }
