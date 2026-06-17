@@ -62,9 +62,9 @@ export function EditableText({ value, editable, onSave, placeholder = 'Ikke fylt
   return (
     <div
       onClick={() => editable && setEditing(true)}
-      className={`group/edit relative ${editable ? 'cursor-text rounded-lg p-2 -m-2 transition-colors hover:bg-[var(--bni-red)]/5' : ''} ${className}`}
+      className={`group/edit relative ${editable ? 'cursor-text rounded-lg p-2 -m-2 transition-colors hover:bg-[var(--bni-red)]/5' : ''}`}
     >
-      <div className="bni-prose text-sm text-[var(--bni-ink)]" data-empty={placeholder}>
+      <div className={`bni-prose text-[var(--bni-ink)] ${className || 'text-sm'}`} data-empty={placeholder}>
         {value}
       </div>
       {editable && (

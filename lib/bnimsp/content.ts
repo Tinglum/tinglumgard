@@ -1,18 +1,11 @@
 import 'server-only'
 import { supabaseAdmin } from '@/lib/supabase/server'
 import seed from '@/app/bnimsp/_data/seed-content.json'
+import { LAYER_KEYS } from './types'
 import type { BnimspContent, Slide, SlideLayers, AppendixPage, ModuleDef } from './types'
 
-const LAYER_KEYS: (keyof SlideLayers)[] = [
-  'speakerNotes', 'inDepth', 'example', 'questions', 'cutTime',
-  'ninjaTip', 'remember', 'watchFor', 'commonMistakes', 'notes',
-]
-
 function emptyLayers(): SlideLayers {
-  return {
-    speakerNotes: '', inDepth: '', example: '', questions: '', cutTime: '',
-    ninjaTip: '', remember: '', watchFor: '', commonMistakes: '', notes: '',
-  }
+  return Object.fromEntries(LAYER_KEYS.map((k) => [k, ''])) as unknown as SlideLayers
 }
 
 /** The committed master content — also used to seed the DB and as offline fallback. */

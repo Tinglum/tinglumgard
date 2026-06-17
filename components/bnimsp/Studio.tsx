@@ -2,12 +2,16 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Image from 'next/image'
-import { Presentation, X, ChevronLeft, ChevronRight, PanelLeftClose, PanelLeftOpen, CheckCircle2 } from 'lucide-react'
+import {
+  Presentation, X, ChevronLeft, ChevronRight, PanelLeftClose, PanelLeftOpen,
+  CheckCircle2, Target, Flag,
+} from 'lucide-react'
 import type { BnimspContent, LayerKey, Slide } from '@/lib/bnimsp/types'
 import { groupByModule } from '@/lib/bnimsp/util'
 import { ModuleRail } from './ModuleRail'
 import { SlideStage } from './SlideStage'
-import { LayerPanel } from './LayerPanel'
+import { LayerStack, PrivateNotesCard, DELIVERY_BLOCKS, REFERENCE_BLOCKS } from './LayerPanel'
+import { EditableText } from './EditableText'
 import { PracticeTimer } from './PracticeTimer'
 
 interface Props {
@@ -32,7 +36,6 @@ export function Studio({ initialContent, canEdit, isDirector, initialN }: Props)
   const slide = slides.find((s) => s.n === currentN) || slides[0]
   const nextSlide = slides.find((s) => s.n === currentN + 1) || null
 
-  // Keep the URL shareable/deep-linkable without a full navigation.
   useEffect(() => {
     const url = new URL(window.location.href)
     url.searchParams.set('s', String(currentN))
@@ -41,7 +44,6 @@ export function Studio({ initialContent, canEdit, isDirector, initialN }: Props)
 
   const go = useCallback((n: number) => setCurrentN((c) => clamp(n, 1, total) || c), [total])
 
-  // Keyboard navigation + presenter toggle.
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       const tag = (e.target as HTMLElement)?.tagName
@@ -55,7 +57,6 @@ export function Studio({ initialContent, canEdit, isDirector, initialN }: Props)
     return () => window.removeEventListener('keydown', onKey)
   }, [currentN, go])
 
-  // Load private note for the current slide (director → DB, others → localStorage).
   useEffect(() => {
     if (currentN in noteCache) return
     let cancelled = false
@@ -83,8 +84,7 @@ export function Studio({ initialContent, canEdit, isDirector, initialN }: Props)
     noteTimer.current = setTimeout(() => {
       if (isDirector) {
         fetch(`/api/bnimsp/notes/${n}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
+          method: 'PUT', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ body: value }),
         }).catch(() => {})
       } else {
@@ -93,84 +93,105 @@ export function Studio({ initialContent, canEdit, isDirector, initialN }: Props)
     }, 600)
   }, [currentN, isDirector])
 
-  // Edit a master layer (admin) — optimistic, persists to the slide draft.
   const onEditLayer = useCallback(async (key: LayerKey | 'title' | 'timing', value: string) => {
     setSlides((prev) => prev.map((s) => (s.n === currentN ? { ...s, [key]: value } : s)))
     try {
       const res = await fetch(`/api/bnimsp/slides/${currentN}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ [key]: value }),
       })
-      if (res.ok) {
-        setSavedFlash(true)
-        setTimeout(() => setSavedFlash(false), 1500)
-      }
-    } catch { /* optimistic value stays; will reconcile on reload */ }
+      if (res.ok) { setSavedFlash(true); setTimeout(() => setSavedFlash(false), 1500) }
+    } catch { /* optimistic value stays */ }
   }, [currentN])
 
   if (presenter) {
     return (
       <PresenterView
-        slide={slide}
-        nextSlide={nextSlide}
-        total={total}
-        onPrev={() => go(currentN - 1)}
-        onNext={() => go(currentN + 1)}
-        onExit={() => setPresenter(false)}
+        slide={slide} nextSlide={nextSlide} total={total}
+        onPrev={() => go(currentN - 1)} onNext={() => go(currentN + 1)} onExit={() => setPresenter(false)}
       />
     )
   }
 
   return (
-    <div className="mx-auto grid max-w-[1400px] gap-6 px-4 py-6 sm:px-6 lg:grid-cols-[260px_minmax(0,1fr)]">
-      {/* Rail */}
-      <aside className={`${railOpen ? 'block' : 'hidden'} lg:block`}>
-        <div className="sticky top-20 max-h-[calc(100vh-6rem)] overflow-y-auto rounded-2xl border border-[var(--bni-line)] bg-white p-3">
-          <ModuleRail groups={groups} currentN={currentN} onSelect={go} />
-        </div>
-      </aside>
+    <div className="mx-auto w-full max-w-[2000px] px-3 py-5 sm:px-5 xl:px-8 2xl:text-[15px]">
+      <div className="grid gap-5 xl:gap-7 lg:grid-cols-[230px_minmax(0,1fr)] 2xl:grid-cols-[260px_minmax(0,1fr)]">
+        {/* Rail */}
+        <aside className={`${railOpen ? 'block' : 'hidden'} lg:block`}>
+          <div className="sticky top-20 max-h-[calc(100vh-6rem)] overflow-y-auto rounded-2xl border border-[var(--bni-line)] bg-white p-3">
+            <ModuleRail groups={groups} currentN={currentN} onSelect={go} />
+          </div>
+        </aside>
 
-      {/* Main */}
-      <div>
-        <div className="mb-4 flex items-center gap-2">
-          <button
-            onClick={() => setRailOpen((v) => !v)}
-            className="rounded-lg border border-[var(--bni-line)] bg-white p-2 text-[var(--bni-muted)] hover:bg-zinc-100 lg:hidden"
-            aria-label="Vis/skjul moduler"
-          >
-            {railOpen ? <PanelLeftClose className="h-4 w-4" /> : <PanelLeftOpen className="h-4 w-4" />}
-          </button>
-          <button
-            onClick={() => setPresenter(true)}
-            className="inline-flex items-center gap-2 rounded-lg bg-[var(--bni-ink)] px-4 py-2 text-sm font-semibold text-white hover:opacity-90"
-          >
-            <Presentation className="h-4 w-4" /> Presentatørmodus
-          </button>
-          <span className="hidden text-xs text-[var(--bni-muted)] sm:inline">
-            Piltaster for å bla · «P» for presentatør
-          </span>
-          {canEdit && savedFlash && (
-            <span className="ml-auto inline-flex items-center gap-1.5 text-xs font-medium text-green-700">
-              <CheckCircle2 className="h-3.5 w-3.5" /> Lagret som utkast
+        {/* Main */}
+        <div className="min-w-0">
+          {/* Toolbar */}
+          <div className="mb-4 flex flex-wrap items-center gap-2">
+            <button
+              onClick={() => setRailOpen((v) => !v)}
+              className="rounded-lg border border-[var(--bni-line)] bg-white p-2 text-[var(--bni-muted)] hover:bg-zinc-100 lg:hidden"
+              aria-label="Vis/skjul moduler"
+            >
+              {railOpen ? <PanelLeftClose className="h-4 w-4" /> : <PanelLeftOpen className="h-4 w-4" />}
+            </button>
+            <button
+              onClick={() => setPresenter(true)}
+              className="inline-flex items-center gap-2 rounded-lg bg-[var(--bni-ink)] px-4 py-2 text-sm font-semibold text-white hover:opacity-90"
+            >
+              <Presentation className="h-4 w-4" /> Presentatørmodus
+            </button>
+            <span className="hidden text-xs text-[var(--bni-muted)] sm:inline">
+              Piltaster for å bla · «P» for presentatør
             </span>
-          )}
-        </div>
+            {canEdit && savedFlash && (
+              <span className="ml-auto inline-flex items-center gap-1.5 text-xs font-medium text-green-700">
+                <CheckCircle2 className="h-3.5 w-3.5" /> Lagret som utkast
+              </span>
+            )}
+          </div>
 
-        <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,420px)]">
-          <div className="xl:sticky xl:top-20 xl:self-start">
-            <SlideStage slide={slide} total={total} onPrev={() => go(currentN - 1)} onNext={() => go(currentN + 1)} />
-          </div>
-          <div>
-            <LayerPanel
-              slide={slide}
-              editable={canEdit}
-              onEditLayer={onEditLayer}
-              privateNote={noteCache[currentN] ?? ''}
-              onPrivateNote={onPrivateNote}
-            />
+          {/* Content: slide + delivery (center) | understanding + tools (right) */}
+          <div className="grid gap-5 xl:gap-7 xl:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]">
+            <div className="min-w-0 space-y-4 xl:space-y-5">
+              <SlideStage slide={slide} total={total} onPrev={() => go(currentN - 1)} onNext={() => go(currentN + 1)} />
+              <GoalBanner slide={slide} editable={canEdit} onEditLayer={onEditLayer} />
+              <LayerStack slide={slide} blocks={DELIVERY_BLOCKS} editable={canEdit} onEditLayer={onEditLayer} />
+            </div>
+
+            <div className="min-w-0 space-y-3 xl:space-y-4">
+              <LayerStack slide={slide} blocks={REFERENCE_BLOCKS} editable={canEdit} onEditLayer={onEditLayer} />
+              <PrivateNotesCard value={noteCache[currentN] ?? ''} onChange={onPrivateNote} />
+            </div>
           </div>
         </div>
+      </div>
+    </div>
+  )
+}
+
+function GoalBanner({
+  slide, editable, onEditLayer,
+}: {
+  slide: Slide
+  editable: boolean
+  onEditLayer: (key: LayerKey, value: string) => Promise<void> | void
+}) {
+  if (!slide.goal && !slide.outcome && !editable) return null
+  return (
+    <div className="grid gap-3 sm:grid-cols-2">
+      <div className="rounded-xl border border-[var(--bni-line)] bg-white p-4">
+        <div className="mb-1.5 flex items-center gap-2">
+          <Target className="h-4 w-4 text-[var(--bni-red)]" />
+          <span className="text-xs font-bold uppercase tracking-wide text-[var(--bni-muted)]">Mål med sliden</span>
+        </div>
+        <EditableText value={slide.goal} editable={editable} onSave={(v) => onEditLayer('goal', v)} placeholder="—" />
+      </div>
+      <div className="rounded-xl border border-[var(--bni-line)] bg-white p-4">
+        <div className="mb-1.5 flex items-center gap-2">
+          <Flag className="h-4 w-4 text-emerald-600" />
+          <span className="text-xs font-bold uppercase tracking-wide text-[var(--bni-muted)]">Vi ønsker å oppnå</span>
+        </div>
+        <EditableText value={slide.outcome} editable={editable} onSave={(v) => onEditLayer('outcome', v)} placeholder="—" />
       </div>
     </div>
   )
@@ -184,7 +205,6 @@ function PresenterView({
 }) {
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-zinc-950 text-white">
-      {/* Top bar: timer + controls */}
       <div className="flex items-center justify-between gap-4 border-b border-white/10 px-5 py-3">
         <PracticeTimer timing={slide.timing} slideN={slide.n} />
         <div className="flex items-center gap-2">
@@ -201,13 +221,13 @@ function PresenterView({
         </div>
       </div>
 
-      {/* Body: slide + current notes / key points / next */}
-      <div className="grid min-h-0 flex-1 grid-cols-1 gap-5 overflow-hidden p-5 lg:grid-cols-[1.1fr_1fr]">
+      <div className="grid min-h-0 flex-1 grid-cols-1 gap-5 overflow-hidden p-5 lg:grid-cols-[1.05fr_1fr] xl:p-7">
         <div className="flex min-h-0 flex-col gap-4">
           <div className="overflow-hidden rounded-xl border border-white/10 bg-black">
             <Image src={slide.image} alt="" width={1600} height={900} className="h-auto w-full" priority />
           </div>
-          <h2 className="text-2xl font-extrabold leading-tight">{slide.title || `Slide ${slide.n}`}</h2>
+          <h2 className="text-2xl font-extrabold leading-tight xl:text-3xl">{slide.title || `Slide ${slide.n}`}</h2>
+          {slide.goal && <p className="text-sm text-zinc-300 xl:text-base">{slide.goal}</p>}
           {nextSlide && (
             <div className="mt-auto flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 p-3">
               <div className="relative h-12 w-20 shrink-0 overflow-hidden rounded-md">
@@ -222,12 +242,12 @@ function PresenterView({
         </div>
 
         <div className="min-h-0 overflow-y-auto pr-1">
-          <PresenterBlock label="Manus" body={slide.speakerNotes} big />
-          {slide.inDepth && <PresenterBlock label="Kjernepoeng" body={slide.inDepth} />}
+          <PresenterBlock label="Si dette" body={slide.sayThis} big />
+          {slide.doThis && <PresenterBlock label="Gjør dette" body={slide.doThis} />}
+          {slide.askGroup && <PresenterBlock label="Spør gruppen" body={slide.askGroup} />}
           {slide.ninjaTip && <PresenterBlock label="Ninja-tips" body={slide.ninjaTip} accent />}
-          {slide.remember && <PresenterBlock label="Husk dette" body={slide.remember} accent />}
-          {slide.watchFor && <PresenterBlock label="Vær obs på" body={slide.watchFor} accent />}
-          {slide.questions && <PresenterBlock label="Spør rommet" body={slide.questions} />}
+          {slide.understand && <PresenterBlock label="Forstå & forklar" body={slide.understand} />}
+          {slide.transition && <PresenterBlock label="Overgang" body={slide.transition} accent />}
         </div>
       </div>
     </div>
@@ -240,7 +260,7 @@ function PresenterBlock({ label, body, big, accent }: { label: string; body: str
       <div className={`mb-1.5 text-xs font-bold uppercase tracking-[0.14em] ${accent ? 'text-[var(--bni-red)]' : 'text-zinc-400'}`}>
         {label}
       </div>
-      <div className={`bni-prose ${big ? 'text-lg leading-relaxed' : 'text-sm leading-relaxed text-zinc-200'}`}>{body}</div>
+      <div className={`bni-prose ${big ? 'text-lg leading-relaxed xl:text-xl' : 'text-sm leading-relaxed text-zinc-200 xl:text-base'}`}>{body}</div>
     </div>
   )
 }

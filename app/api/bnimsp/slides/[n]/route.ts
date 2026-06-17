@@ -9,8 +9,8 @@ import type { SlideLayers } from '@/lib/bnimsp/types'
 export const dynamic = 'force-dynamic'
 
 const EDITABLE: (keyof SlideLayers | 'title' | 'timing')[] = [
-  'title', 'timing', 'speakerNotes', 'inDepth', 'example', 'questions', 'cutTime',
-  'ninjaTip', 'remember', 'watchFor', 'commonMistakes', 'notes',
+  'title', 'timing', 'goal', 'outcome', 'sayThis', 'doThis', 'askGroup', 'transition',
+  'understand', 'participant', 'ninjaTip', 'example', 'cutTime', 'teamAnchor', 'notes',
 ]
 
 // Save edits to a slide's DRAFT. Falls back to seeding the row from current
