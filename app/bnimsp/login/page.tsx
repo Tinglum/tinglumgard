@@ -110,6 +110,9 @@ export default function BnimspLoginPage() {
               required
               className="w-full rounded-lg border border-[var(--bni-line)] px-3 py-2 text-sm outline-none focus:border-[var(--bni-red)] focus:ring-2 focus:ring-[var(--bni-red)]/20"
             />
+            {isRegister && (
+              <p className="mt-1 text-xs text-[var(--bni-muted)]">Bruk din @bni.com-adresse.</p>
+            )}
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium" htmlFor="password">

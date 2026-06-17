@@ -20,6 +20,19 @@ export async function POST(request: NextRequest) {
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       return NextResponse.json({ error: 'Oppgi en gyldig e-postadresse' }, { status: 400 })
     }
+    // Self-signup is restricted to approved domains (default: bni.com).
+    const allowedDomains = (process.env.BNIMSP_SIGNUP_DOMAINS || 'bni.com')
+      .split(',')
+      .map((d) => d.trim().toLowerCase())
+      .filter(Boolean)
+    const domain = email.split('@')[1] || ''
+    if (!allowedDomains.includes(domain)) {
+      const label = allowedDomains.map((d) => `@${d}`).join(', ')
+      return NextResponse.json(
+        { error: `Kun ${label}-adresser kan opprette innlogging. Kontakt din nasjonale leder.` },
+        { status: 403 },
+      )
+    }
     if (password.length < 8) {
       return NextResponse.json({ error: 'Passordet må være minst 8 tegn' }, { status: 400 })
     }
