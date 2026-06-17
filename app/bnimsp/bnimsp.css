@@ -1,0 +1,31 @@
+/* BNI brand tokens, scoped so they never leak into the farm site. */
+.bni-scope {
+  --bni-red: #cf2030;
+  --bni-red-dark: #a81825;
+  --bni-ink: #18181b;
+  --bni-paper: #ffffff;
+  --bni-line: #e4e4e7;
+  --bni-muted: #71717a;
+}
+
+.bni-scope ::selection {
+  background: var(--bni-red);
+  color: #fff;
+}
+
+/* Readable rich-text rendering for multi-paragraph content fields. */
+.bni-prose {
+  white-space: pre-wrap;
+  line-height: 1.65;
+}
+.bni-prose:empty::before {
+  content: attr(data-empty);
+  color: var(--bni-muted);
+  font-style: italic;
+}
+
+/* Teleprompter scroll animation for practice mode. */
+@keyframes bni-teleprompter {
+  from { transform: translateY(0); }
+  to { transform: translateY(var(--bni-tp-distance, -100%)); }
+}

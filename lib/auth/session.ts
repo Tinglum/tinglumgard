@@ -19,7 +19,7 @@ export interface SessionData {
   email?: string;
   name?: string;
   isAdmin?: boolean;
-  role?: 'admin' | 'operations' | 'customer';
+  role?: 'admin' | 'operations' | 'customer' | 'director';
   isImpersonating?: boolean;
   impersonatorId?: string;
   impersonatorEmail?: string;
