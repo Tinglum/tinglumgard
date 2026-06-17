@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic'
 export default async function StudioPage({
   searchParams,
 }: {
-  searchParams: { s?: string }
+  searchParams: { s?: string; audience?: string }
 }) {
   const session = await getBnimspSession()
   if (!canViewBnimsp(session)) redirect('/bnimsp/login')
@@ -19,15 +19,17 @@ export default async function StudioPage({
   // Editors work against drafts so they see unpublished edits live.
   const { content } = await loadContent(canEdit ? 'draft' : 'published')
   const initialN = Number(searchParams.s) || 1
+  const audience = searchParams.audience === '1'
 
   return (
     <>
-      <BniHeader active="studio" name={session?.name} canEdit={canEdit} />
+      {!audience && <BniHeader active="studio" name={session?.name} canEdit={canEdit} />}
       <Studio
         initialContent={content}
         canEdit={canEdit}
         isDirector={getBnimspRole(session) === 'director'}
         initialN={initialN}
+        initialAudience={audience}
       />
     </>
   )

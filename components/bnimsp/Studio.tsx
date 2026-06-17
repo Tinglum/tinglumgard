@@ -19,9 +19,43 @@ interface Props {
   canEdit: boolean
   isDirector: boolean
   initialN: number
+  initialAudience?: boolean
 }
 
-export function Studio({ initialContent, canEdit, isDirector, initialN }: Props) {
+type PresenterMessage =
+  | { type: 'slide'; n: number }
+  | { type: 'exit' }
+
+interface ScreenLike {
+  availLeft?: number
+  availTop?: number
+  availWidth?: number
+  availHeight?: number
+  left?: number
+  top?: number
+  width?: number
+  height?: number
+}
+
+interface ScreenDetailsLike {
+  currentScreen: ScreenLike
+  screens: ScreenLike[]
+}
+
+declare global {
+  interface Window {
+    getScreenDetails?: () => Promise<ScreenDetailsLike>
+  }
+
+  interface Screen {
+    isExtended?: boolean
+  }
+}
+
+const PRESENTER_CHANNEL = 'bnimsp-presenter'
+const PRESENTER_STORAGE_KEY = 'bnimsp:presenter:event'
+
+export function Studio({ initialContent, canEdit, isDirector, initialN, initialAudience = false }: Props) {
   const [slides, setSlides] = useState<Slide[]>(initialContent.slides)
   const [currentN, setCurrentN] = useState(clamp(initialN, 1, initialContent.slides.length))
   const [presenter, setPresenter] = useState(false)
@@ -29,6 +63,8 @@ export function Studio({ initialContent, canEdit, isDirector, initialN }: Props)
   const [savedFlash, setSavedFlash] = useState(false)
   const [noteCache, setNoteCache] = useState<Record<number, string>>({})
   const noteTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const audienceWindowRef = useRef<Window | null>(null)
+  const channelRef = useRef<BroadcastChannel | null>(null)
 
   const total = slides.length
   const content = useMemo(() => ({ ...initialContent, slides }), [initialContent, slides])
@@ -45,17 +81,112 @@ export function Studio({ initialContent, canEdit, isDirector, initialN }: Props)
   const go = useCallback((n: number) => setCurrentN((c) => clamp(n, 1, total) || c), [total])
 
   useEffect(() => {
+    const channel = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel(PRESENTER_CHANNEL) : null
+    channelRef.current = channel
+
+    function onPresenterMessage(message: PresenterMessage) {
+      if (!initialAudience) return
+      if (message.type === 'slide') go(message.n)
+      if (message.type === 'exit') window.close()
+    }
+
+    function onChannelMessage(event: MessageEvent<PresenterMessage>) {
+      if (event.data) onPresenterMessage(event.data)
+    }
+
+    function onStorage(event: StorageEvent) {
+      if (event.key !== PRESENTER_STORAGE_KEY || !event.newValue) return
+      try {
+        const payload = JSON.parse(event.newValue) as { message?: PresenterMessage }
+        if (payload.message) onPresenterMessage(payload.message)
+      } catch {}
+    }
+
+    channel?.addEventListener('message', onChannelMessage)
+    window.addEventListener('storage', onStorage)
+
+    return () => {
+      channel?.removeEventListener('message', onChannelMessage)
+      channel?.close()
+      if (channelRef.current === channel) channelRef.current = null
+      window.removeEventListener('storage', onStorage)
+    }
+  }, [go, initialAudience])
+
+  const broadcast = useCallback((message: PresenterMessage) => {
+    channelRef.current?.postMessage(message)
+    try {
+      localStorage.setItem(PRESENTER_STORAGE_KEY, JSON.stringify({ message, at: Date.now() }))
+    } catch {}
+  }, [])
+
+  useEffect(() => {
+    if (!presenter || initialAudience) return
+    broadcast({ type: 'slide', n: currentN })
+  }, [broadcast, currentN, initialAudience, presenter])
+
+  useEffect(() => {
+    if (!initialAudience) return
+    document.documentElement.requestFullscreen?.().catch(() => {})
+  }, [initialAudience])
+
+  useEffect(() => {
+    return () => {
+      if (audienceWindowRef.current && !audienceWindowRef.current.closed) audienceWindowRef.current.close()
+    }
+  }, [])
+
+  const exitPresenterMode = useCallback(() => {
+    setPresenter(false)
+    broadcast({ type: 'exit' })
+    if (audienceWindowRef.current && !audienceWindowRef.current.closed) audienceWindowRef.current.close()
+    audienceWindowRef.current = null
+  }, [broadcast])
+
+  const enterPresenterMode = useCallback(async () => {
+    setPresenter(true)
+    broadcast({ type: 'slide', n: currentN })
+
+    const audienceUrl = new URL(window.location.href)
+    audienceUrl.searchParams.set('audience', '1')
+    audienceUrl.searchParams.set('s', String(currentN))
+
+    const targetScreen = await getAudienceScreen(window).catch(() => null)
+    const extendedDisplay = window.screen.isExtended ?? Boolean(targetScreen)
+    if (!extendedDisplay && !targetScreen) return
+
+    const features = popupFeatures(targetScreen)
+    const existing = audienceWindowRef.current
+    const audienceWindow = existing && !existing.closed
+      ? existing
+      : window.open(audienceUrl.toString(), 'bnimsp-audience', features)
+
+    if (!audienceWindow) return
+
+    audienceWindowRef.current = audienceWindow
+    try {
+      audienceWindow.location.replace(audienceUrl.toString())
+    } catch {}
+
+    if (targetScreen) moveWindowToScreen(audienceWindow, targetScreen)
+  }, [broadcast, currentN])
+
+  useEffect(() => {
     function onKey(e: KeyboardEvent) {
       const tag = (e.target as HTMLElement)?.tagName
       if (tag === 'INPUT' || tag === 'TEXTAREA') return
       if (e.key === 'ArrowRight') go(currentN + 1)
       else if (e.key === 'ArrowLeft') go(currentN - 1)
-      else if (e.key.toLowerCase() === 'p') setPresenter((v) => !v)
-      else if (e.key === 'Escape') setPresenter(false)
+      else if (e.key.toLowerCase() === 'p') {
+        if (presenter) exitPresenterMode()
+        else void enterPresenterMode()
+      } else if (e.key === 'Escape' && presenter) {
+        exitPresenterMode()
+      }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [currentN, go])
+  }, [currentN, enterPresenterMode, exitPresenterMode, go, presenter])
 
   useEffect(() => {
     if (currentN in noteCache) return
@@ -104,11 +235,15 @@ export function Studio({ initialContent, canEdit, isDirector, initialN }: Props)
     } catch { /* optimistic value stays */ }
   }, [currentN])
 
+  if (initialAudience) {
+    return <AudienceView slide={slide} />
+  }
+
   if (presenter) {
     return (
       <PresenterView
         slide={slide} nextSlide={nextSlide} total={total}
-        onPrev={() => go(currentN - 1)} onNext={() => go(currentN + 1)} onExit={() => setPresenter(false)}
+        onPrev={() => go(currentN - 1)} onNext={() => go(currentN + 1)} onExit={exitPresenterMode}
       />
     )
   }
@@ -135,7 +270,7 @@ export function Studio({ initialContent, canEdit, isDirector, initialN }: Props)
               {railOpen ? <PanelLeftClose className="h-4 w-4" /> : <PanelLeftOpen className="h-4 w-4" />}
             </button>
             <button
-              onClick={() => setPresenter(true)}
+              onClick={() => void enterPresenterMode()}
               className="inline-flex items-center gap-2 rounded-lg bg-[var(--bni-ink)] px-4 py-2 text-sm font-semibold text-white hover:opacity-90"
             >
               <Presentation className="h-4 w-4" /> Presentatørmodus
@@ -226,8 +361,12 @@ function PresenterView({
           <div className="overflow-hidden rounded-xl border border-white/10 bg-black">
             <Image src={slide.image} alt="" width={1600} height={900} className="h-auto w-full" priority />
           </div>
-          <h2 className="text-2xl font-extrabold leading-tight xl:text-3xl">{slide.title || `Slide ${slide.n}`}</h2>
-          {slide.goal && <p className="text-sm text-zinc-300 xl:text-base">{slide.goal}</p>}
+          {(slide.ninjaTip || slide.transition) && (
+            <div className="grid gap-3 md:grid-cols-2">
+              {slide.ninjaTip && <PresenterBlob label="Ninja-tips" body={slide.ninjaTip} />}
+              {slide.transition && <PresenterBlob label="Overgang" body={slide.transition} />}
+            </div>
+          )}
           {nextSlide && (
             <div className="mt-auto flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 p-3">
               <div className="relative h-12 w-20 shrink-0 overflow-hidden rounded-md">
@@ -245,10 +384,26 @@ function PresenterView({
           <PresenterBlock label="Si dette" body={slide.sayThis} big />
           {slide.doThis && <PresenterBlock label="Gjør dette" body={slide.doThis} />}
           {slide.askGroup && <PresenterBlock label="Spør gruppen" body={slide.askGroup} />}
-          {slide.ninjaTip && <PresenterBlock label="Ninja-tips" body={slide.ninjaTip} accent />}
           {slide.understand && <PresenterBlock label="Forstå & forklar" body={slide.understand} />}
-          {slide.transition && <PresenterBlock label="Overgang" body={slide.transition} accent />}
         </div>
+      </div>
+    </div>
+  )
+}
+
+function AudienceView({ slide }: { slide: Slide }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black p-3">
+      <div className="flex h-full w-full items-center justify-center">
+        <Image
+          key={slide.n}
+          src={slide.image}
+          alt={slide.title || `Slide ${slide.n}`}
+          width={1600}
+          height={900}
+          className="h-auto max-h-full w-full object-contain"
+          priority
+        />
       </div>
     </div>
   )
@@ -262,6 +417,58 @@ function PresenterBlock({ label, body, big, accent }: { label: string; body: str
       </div>
       <div className={`bni-prose ${big ? 'text-lg leading-relaxed xl:text-xl' : 'text-sm leading-relaxed text-zinc-200 xl:text-base'}`}>{body}</div>
     </div>
+  )
+}
+
+function PresenterBlob({ label, body }: { label: string; body: string }) {
+  return (
+    <div className="rounded-2xl border border-[var(--bni-red)]/40 bg-[var(--bni-red)]/10 p-4">
+      <div className="mb-1.5 text-xs font-bold uppercase tracking-[0.14em] text-[var(--bni-red)]">
+        {label}
+      </div>
+      <div className="bni-prose text-sm leading-relaxed text-zinc-100 xl:text-base">{body}</div>
+    </div>
+  )
+}
+
+function popupFeatures(target: ScreenLike | null) {
+  if (!target) return 'popup=yes'
+
+  const left = Math.round(target.availLeft ?? target.left ?? 0)
+  const top = Math.round(target.availTop ?? target.top ?? 0)
+  const width = Math.round(target.availWidth ?? target.width ?? 1600)
+  const height = Math.round(target.availHeight ?? target.height ?? 900)
+
+  return `popup=yes,left=${left},top=${top},width=${width},height=${height}`
+}
+
+function moveWindowToScreen(targetWindow: Window, target: ScreenLike) {
+  const left = Math.round(target.availLeft ?? target.left ?? 0)
+  const top = Math.round(target.availTop ?? target.top ?? 0)
+  const width = Math.round(target.availWidth ?? target.width ?? 1600)
+  const height = Math.round(target.availHeight ?? target.height ?? 900)
+
+  try {
+    targetWindow.moveTo(left, top)
+    targetWindow.resizeTo(width, height)
+  } catch {}
+}
+
+async function getAudienceScreen(hostWindow: Window) {
+  if (!hostWindow.screen.isExtended) return null
+
+  const details = await hostWindow.getScreenDetails?.()
+  if (!details) return null
+
+  return details.screens.find((entry) => !isSameScreen(entry, details.currentScreen)) || null
+}
+
+function isSameScreen(a: ScreenLike, b: ScreenLike) {
+  return (
+    (a.left ?? a.availLeft ?? 0) === (b.left ?? b.availLeft ?? 0) &&
+    (a.top ?? a.availTop ?? 0) === (b.top ?? b.availTop ?? 0) &&
+    (a.width ?? a.availWidth ?? 0) === (b.width ?? b.availWidth ?? 0) &&
+    (a.height ?? a.availHeight ?? 0) === (b.height ?? b.availHeight ?? 0)
   )
 }
 
