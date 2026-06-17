@@ -2,7 +2,7 @@
 
 import {
   Mic, ListChecks, MessageSquareQuote, CornerDownRight, BookOpen, Zap, Lightbulb,
-  Users, Scissors, Anchor, NotebookPen, Lock,
+  Users, Anchor, NotebookPen, Lock,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import type { LayerKey, Slide } from '@/lib/bnimsp/types'
@@ -31,8 +31,7 @@ export const REFERENCE_BLOCKS: BlockCfg[] = [
   { key: 'understand', label: 'Forstå & forklar', icon: BookOpen, accent: 'text-violet-600' },
   { key: 'ninjaTip', label: 'Ninja-tips', icon: Zap, accent: 'text-[var(--bni-red)]', tone: 'tip' },
   { key: 'example', label: 'Eksempel', icon: Lightbulb, accent: 'text-amber-500' },
-  { key: 'participant', label: 'For deltakerne', icon: Users, accent: 'text-sky-600' },
-  { key: 'cutTime', label: 'Hvis du må kutte tid', icon: Scissors, accent: 'text-[var(--bni-muted)]' },
+  { key: 'participant', label: 'For deltakerne (fallgruver)', icon: Users, accent: 'text-sky-600' },
   { key: 'teamAnchor', label: 'Teammanual-anker', icon: Anchor, accent: 'text-[var(--bni-muted)]', tone: 'muted' },
   { key: 'notes', label: 'Dine notater', icon: NotebookPen, accent: 'text-[var(--bni-muted)]' },
 ]

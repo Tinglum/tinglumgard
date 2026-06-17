@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic'
 
 const EDITABLE: (keyof SlideLayers | 'title' | 'timing')[] = [
   'title', 'timing', 'goal', 'outcome', 'sayThis', 'doThis', 'askGroup', 'transition',
-  'understand', 'participant', 'ninjaTip', 'example', 'cutTime', 'teamAnchor', 'notes',
+  'understand', 'participant', 'ninjaTip', 'example', 'teamAnchor', 'notes',
 ]
 
 // Save edits to a slide's DRAFT. Falls back to seeding the row from current

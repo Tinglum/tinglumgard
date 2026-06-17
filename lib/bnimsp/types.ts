@@ -26,10 +26,8 @@ export interface SlideLayers {
   participant: string
   /** A delivery move that lifts the slide (NINJA-TIPS). */
   ninjaTip: string
-  /** A concrete example or story to use (manual + EKSTRA EKSEMPEL). */
+  /** A concrete example story to use (EKSTRA EKSEMPEL). */
   example: string
-  /** What to do if you have to cut time (manual: Hvis du må kutte tid). */
-  cutTime: string
   /** Team-manual grounding for this slide (TEAMMANUAL-ANKER). */
   teamAnchor: string
   /** Freeform extra notes. Trainer-authored. */
@@ -41,7 +39,7 @@ export type LayerKey = keyof SlideLayers
 /** Ordered list of every layer key — single source of truth for loaders/APIs. */
 export const LAYER_KEYS: LayerKey[] = [
   'goal', 'outcome', 'sayThis', 'doThis', 'askGroup', 'transition',
-  'understand', 'participant', 'ninjaTip', 'example', 'cutTime', 'teamAnchor', 'notes',
+  'understand', 'participant', 'ninjaTip', 'example', 'teamAnchor', 'notes',
 ]
 
 export interface Slide extends SlideLayers {
