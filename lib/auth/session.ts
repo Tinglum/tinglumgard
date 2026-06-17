@@ -20,6 +20,8 @@ export interface SessionData {
   name?: string;
   isAdmin?: boolean;
   role?: 'admin' | 'operations' | 'customer' | 'director';
+  /** BNIMSP-scoped editor rights (does NOT grant farm-wide admin access). */
+  bnimspAdmin?: boolean;
   isImpersonating?: boolean;
   impersonatorId?: string;
   impersonatorEmail?: string;

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase/server'
 import { createSession, setSessionCookie } from '@/lib/auth/session'
 import { verifyPassword } from '@/lib/bnimsp/password'
+import { isBnimspAdminEmail } from '@/lib/bnimsp/admins'
 import { logError } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
@@ -38,6 +39,7 @@ export async function POST(request: NextRequest) {
       email: director.email,
       name: director.name || director.email,
       role: 'director',
+      bnimspAdmin: isBnimspAdminEmail(director.email),
     })
     await setSessionCookie(token)
     await supabaseAdmin
