@@ -11,8 +11,10 @@ export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname() || ''
   const isEggOpsApp =
     pathname === '/egg' || pathname.startsWith('/egg/') || pathname.startsWith('/drift/egg-ops')
+  // BNIMSP is a standalone, BNI-branded section — no Tinglumgård header/footer/background.
+  const isBnimsp = pathname === '/bnimsp' || pathname.startsWith('/bnimsp/')
 
-  if (isEggOpsApp) {
+  if (isEggOpsApp || isBnimsp) {
     return (
       <>
         <main className="relative min-h-screen">
