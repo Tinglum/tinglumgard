@@ -7,6 +7,7 @@ import { canViewBnimsp, canEditBnimsp } from '@/lib/bnimsp/access'
 import { loadContent } from '@/lib/bnimsp/content'
 import { groupByModule, totalMinutes, formatMinutes } from '@/lib/bnimsp/util'
 import { BniHeader } from '@/components/bnimsp/BniHeader'
+import { BniMark } from '@/components/bnimsp/BniMark'
 import { AdminBar } from '@/components/bnimsp/AdminBar'
 
 export const dynamic = 'force-dynamic'
@@ -28,10 +29,11 @@ export default async function BnimspOverviewPage() {
         <section className="mb-8 overflow-hidden rounded-3xl border border-[var(--bni-line)] bg-[var(--bni-ink)] text-white">
           <div className="grid gap-0 md:grid-cols-[1.3fr_1fr]">
             <div className="p-8 sm:p-10">
-              <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[var(--bni-red)]">
+              <BniMark variant="white" height={30} />
+              <p className="mt-5 text-sm font-semibold uppercase tracking-[0.2em] text-[var(--bni-red)]">
                 Train the Trainer
               </p>
-              <h1 className="mt-3 text-3xl font-extrabold leading-tight sm:text-4xl">
+              <h1 className="mt-2 text-3xl font-extrabold leading-tight sm:text-4xl">
                 {content.program.title}
               </h1>
               <p className="mt-3 max-w-md text-zinc-300">{content.program.subtitle}</p>

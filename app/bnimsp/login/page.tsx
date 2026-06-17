@@ -38,11 +38,9 @@ export default function BnimspLoginPage() {
   return (
     <div className="flex min-h-screen items-center justify-center px-4">
       <div className="w-full max-w-sm">
-        <div className="mb-8 text-center">
-          <div className="text-3xl">
-            <BniMark />
-          </div>
-          <p className="mt-3 text-sm text-[var(--bni-muted)]">
+        <div className="mb-8 flex flex-col items-center text-center">
+          <BniMark height={44} />
+          <p className="mt-4 text-sm text-[var(--bni-muted)]">
             Trenerportal · Nasjonal MSP 2026
           </p>
         </div>

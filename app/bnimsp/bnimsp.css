@@ -1,11 +1,15 @@
-/* BNI brand tokens, scoped so they never leak into the farm site. */
+/* BNI brand tokens, scoped so they never leak into the farm site.
+   Red sampled from the official BNI logo; type follows the BNI brand
+   standard (Helvetica Neue / Arial), complemented by black and grey. */
 .bni-scope {
   --bni-red: #cf2030;
   --bni-red-dark: #a81825;
-  --bni-ink: #18181b;
+  --bni-ink: #1a1a1a;
   --bni-paper: #ffffff;
   --bni-line: #e4e4e7;
-  --bni-muted: #71717a;
+  --bni-muted: #6a6a6e;
+  --bni-grey: #53565a; /* BNI supporting grey */
+  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
 }
 
 .bni-scope ::selection {
