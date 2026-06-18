@@ -41,7 +41,7 @@ export default async function AppendixHubPage() {
                 Alt du trenger for å levere MSP til standard
               </h1>
               <p className="mt-3 max-w-xl text-zinc-300">
-                Kjøreplaner, fasiliteringsgrep, språkbank, øvelser og sjekklister — samlet som ett oppslagsverk.
+                Kjøreplaner, fasiliteringsgrep, språkbank, øvelser og sjekklister - samlet som ett oppslagsverk.
                 Bygget for å hentes opp midt i leveransen.
               </p>
               <div className="mt-6 flex items-center gap-4 text-sm text-zinc-400">
