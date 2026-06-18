@@ -277,6 +277,7 @@ export function Studio({ initialContent, canEdit, isDirector, initialN, initialA
     return (
       <PresenterView
         slide={slide} nextSlide={nextSlide} total={total} content={content}
+        personalScript={ownsPersonalScript ? (personalCache[currentN]?.script ?? null) : null}
         onPrev={() => go(currentN - 1)} onNext={() => go(currentN + 1)} onExit={exitPresenterMode}
       />
     )
@@ -383,9 +384,10 @@ function GoalBanner({
 }
 
 function PresenterView({
-  slide, nextSlide, total, content, onPrev, onNext, onExit,
+  slide, nextSlide, total, content, personalScript, onPrev, onNext, onExit,
 }: {
   slide: Slide; nextSlide: Slide | null; total: number; content: BnimspContent
+  personalScript: string | null
   onPrev: () => void; onNext: () => void; onExit: () => void
 }) {
   return (
@@ -433,7 +435,7 @@ function PresenterView({
         </div>
 
         <div className="min-h-0 overflow-y-auto pr-1">
-          <PresenterBlock label="Si dette" body={slide.sayThis} big />
+          <PresenterBlock label="Si dette" body={slide.sayThis} html={personalScript} big />
           {slide.doThis && <PresenterBlock label="Gjør dette" body={slide.doThis} />}
           {slide.askGroup && <PresenterBlock label="Spør gruppen" body={slide.askGroup} />}
           {slide.understand && <PresenterBlock label="Forstå & forklar" body={slide.understand} />}
@@ -495,13 +497,17 @@ function AudienceView({ slide }: { slide: Slide }) {
   )
 }
 
-function PresenterBlock({ label, body, big, accent }: { label: string; body: string; big?: boolean; accent?: boolean }) {
+function PresenterBlock({ label, body, html, big, accent }: { label: string; body: string; html?: string | null; big?: boolean; accent?: boolean }) {
+  const size = big ? 'text-lg leading-relaxed xl:text-xl' : 'text-sm leading-relaxed text-zinc-200 xl:text-base'
   return (
     <div className={`mb-4 rounded-xl border p-4 ${accent ? 'border-[var(--bni-red)]/40 bg-[var(--bni-red)]/10' : 'border-white/10 bg-white/5'}`}>
-      <div className={`mb-1.5 text-xs font-bold uppercase tracking-[0.14em] ${accent ? 'text-[var(--bni-red)]' : 'text-zinc-400'}`}>
+      <div className={`mb-1.5 flex items-center gap-2 text-xs font-bold uppercase tracking-[0.14em] ${accent ? 'text-[var(--bni-red)]' : 'text-zinc-400'}`}>
         {label}
+        {html != null && <span className="rounded-full bg-[var(--bni-red)]/20 px-2 py-0.5 text-[9px] text-[var(--bni-red)]">din versjon</span>}
       </div>
-      <div className={`bni-prose ${big ? 'text-lg leading-relaxed xl:text-xl' : 'text-sm leading-relaxed text-zinc-200 xl:text-base'}`}>{body}</div>
+      {html != null
+        ? <div className={`${size} [&_p]:mb-3 [&_p:last-child]:mb-0`} dangerouslySetInnerHTML={{ __html: html }} />
+        : <div className={`bni-prose ${size}`}>{body}</div>}
     </div>
   )
 }
