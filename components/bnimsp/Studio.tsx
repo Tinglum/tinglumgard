@@ -151,31 +151,66 @@ export function Studio({ initialContent, canEdit, isDirector, initialN, initialA
   }, [broadcast])
 
   const enterPresenterMode = useCallback(async () => {
-    setPresenter(true)
-    broadcast({ type: 'slide', n: currentN })
-
     const audienceUrl = new URL(window.location.href)
     audienceUrl.searchParams.set('audience', '1')
     audienceUrl.searchParams.set('s', String(currentN))
 
     const targetScreen = await getAudienceScreen(window).catch(() => null)
     const extendedDisplay = window.screen.isExtended ?? Boolean(targetScreen)
-    if (!extendedDisplay && !targetScreen) return
+    if (!extendedDisplay && !targetScreen) {
+      setPresenter(true)
+      broadcast({ type: 'slide', n: currentN })
+      return
+    }
 
     const features = popupFeatures(targetScreen)
     const existing = audienceWindowRef.current
     const audienceWindow = existing && !existing.closed
       ? existing
-      : window.open(audienceUrl.toString(), 'bnimsp-audience', features)
+      : window.open('', 'bnimsp-audience', features)
 
     if (!audienceWindow) return
 
     audienceWindowRef.current = audienceWindow
+    if (!existing || existing.closed) {
+      try {
+        audienceWindow.document.write(`<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>BNI MSP Audience</title>
+    <style>
+      html, body {
+        margin: 0;
+        height: 100%;
+        background: #000;
+        color: #fff;
+        font-family: Arial, sans-serif;
+      }
+      body {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        font-size: 12px;
+      }
+    </style>
+  </head>
+  <body>Opening audience view...</body>
+</html>`)
+        audienceWindow.document.close()
+      } catch {}
+    }
     try {
       audienceWindow.location.replace(audienceUrl.toString())
     } catch {}
 
     if (targetScreen) moveWindowToScreen(audienceWindow, targetScreen)
+    audienceWindow.focus()
+
+    setPresenter(true)
+    broadcast({ type: 'slide', n: currentN })
   }, [broadcast, currentN])
 
   useEffect(() => {
