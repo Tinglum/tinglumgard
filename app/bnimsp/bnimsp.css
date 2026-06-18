@@ -69,6 +69,14 @@
   max-width: calc(var(--bni-next-max-h, 30vh) * 16 / 9);
   margin-inline: auto;
   aspect-ratio: 16 / 9;
+  transition: max-width 0.12s ease;
+}
+
+/* Compact range slider that adjusts the next-slide preview size. */
+.bni-size-slider {
+  accent-color: var(--bni-red);
+  height: 4px;
+  cursor: pointer;
 }
 
 /* Teleprompter scroll animation for practice mode. */

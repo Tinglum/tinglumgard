@@ -1,10 +1,11 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import type { CSSProperties } from 'react'
 import Image from 'next/image'
 import {
   Presentation, X, ChevronLeft, ChevronRight, PanelLeftClose, PanelLeftOpen,
-  CheckCircle2, Target, Flag,
+  CheckCircle2, Target, Flag, Maximize2,
 } from 'lucide-react'
 import type { BnimspContent, LayerKey, Slide } from '@/lib/bnimsp/types'
 import { groupByModule, totalMinutes, cumulativeStartMinutes } from '@/lib/bnimsp/util'
@@ -391,6 +392,15 @@ function PresenterView({
   personalScript: string | null
   onPrev: () => void; onNext: () => void; onExit: () => void
 }) {
+  const [nextPreviewVh, setNextPreviewVh] = useState(30)
+  useEffect(() => {
+    const saved = Number(localStorage.getItem('bnimsp:nextPreviewVh'))
+    if (saved >= 12 && saved <= 60) setNextPreviewVh(saved)
+  }, [])
+  const updatePreviewVh = (v: number) => {
+    setNextPreviewVh(v)
+    try { localStorage.setItem('bnimsp:nextPreviewVh', String(v)) } catch {}
+  }
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-zinc-950 text-white">
       <div className="flex items-center justify-between gap-4 border-b border-white/10 px-5 py-3">
@@ -411,7 +421,10 @@ function PresenterView({
         </div>
       </div>
 
-      <div className="bni-presenter-grid min-h-0 flex-1 gap-5 overflow-hidden p-5 xl:p-7">
+      <div
+        className="bni-presenter-grid min-h-0 flex-1 gap-5 overflow-hidden p-5 xl:p-7"
+        style={{ '--bni-next-max-h': `${nextPreviewVh}vh` } as CSSProperties}
+      >
         <div className="flex min-h-0 flex-col gap-4">
           <div className="relative min-h-0 flex-1 overflow-hidden rounded-xl border border-white/10 bg-black max-md:aspect-video max-md:flex-none">
             <Image src={slide.image} alt="" fill className="object-contain" sizes="60vw" priority />
@@ -426,7 +439,15 @@ function PresenterView({
             <div className="mt-auto rounded-xl border border-white/10 bg-white/5 p-3">
               <div className="mb-2 flex items-center gap-2 text-[11px] uppercase tracking-wide">
                 <span className="rounded bg-white/10 px-1.5 py-0.5 font-semibold text-zinc-300">Neste</span>
-                <span className="truncate font-medium text-zinc-200">{nextSlide.title || `Slide ${nextSlide.n}`}</span>
+                <span className="min-w-0 flex-1 truncate font-medium text-zinc-200">{nextSlide.title || `Slide ${nextSlide.n}`}</span>
+                <Maximize2 className="h-3.5 w-3.5 shrink-0 text-zinc-500" />
+                <input
+                  type="range" min={12} max={60} step={1} value={nextPreviewVh}
+                  onChange={(e) => updatePreviewVh(Number(e.target.value))}
+                  aria-label="Størrelse på neste-visning"
+                  title="Juster størrelsen på neste-visningen"
+                  className="bni-size-slider w-24 shrink-0"
+                />
               </div>
               <div className="bni-next-preview relative overflow-hidden rounded-lg border border-white/10 bg-black">
                 <Image src={nextSlide.image} alt="" fill className="object-cover" sizes="45vw" />
