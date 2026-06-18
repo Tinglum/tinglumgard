@@ -68,7 +68,7 @@ export function AdminBar({ source }: { source: 'db' | 'seed' }) {
           className="inline-flex items-center gap-1.5 rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-xs font-semibold text-amber-900 hover:bg-amber-100"
         >
           <Users className="h-3.5 w-3.5" />
-          Direktører
+          AD-er
         </button>
 
         {msg && (
@@ -83,11 +83,11 @@ export function AdminBar({ source }: { source: 'db' | 'seed' }) {
         )}
       </div>
 
-      {showDirectors && <DirectorForm onDone={() => setMsg({ kind: 'ok', text: 'Direktør lagret.' })} />}
+      {showDirectors && <DirectorForm onDone={() => setMsg({ kind: 'ok', text: 'AD lagret.' })} />}
 
       {source === 'seed' && (
         <p className="mt-2 text-xs text-amber-800">
-          Redigering, publisering og direktør-innlogging krever databasen. Kjør migrasjonen
+          Redigering, publisering og AD-innlogging krever databasen. Kjør migrasjonen
           <code className="mx-1 rounded bg-white px-1">20260617000000_bnimsp_train_the_trainer.sql</code>
           og trykk «Importer innhold til database».
         </p>
@@ -145,7 +145,7 @@ function DirectorForm({ onDone }: { onDone: () => void }) {
       <button type="submit" disabled={busy}
         className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--bni-red)] px-3 py-2 text-xs font-semibold text-white hover:bg-[var(--bni-red-dark)] disabled:opacity-50">
         {busy && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-        Lagre direktør
+        Lagre AD
       </button>
       {err && <span className="text-xs font-medium text-[var(--bni-red-dark)]">{err}</span>}
     </form>

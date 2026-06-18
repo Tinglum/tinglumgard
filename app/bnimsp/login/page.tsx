@@ -74,7 +74,7 @@ export default function BnimspLoginPage() {
               isRegister ? 'bg-[var(--bni-red)] text-white' : 'text-[var(--bni-muted)] hover:text-[var(--bni-ink)]'
             }`}
           >
-            Ny direktør
+            Ny AD
           </button>
         </div>
 
@@ -154,7 +154,7 @@ export default function BnimspLoginPage() {
                 </button>
               </>
             ) : (
-              <>Ny direktør?{' '}
+              <>Ny AD?{' '}
                 <button type="button" onClick={() => switchMode('register')} className="font-semibold text-[var(--bni-red)] hover:underline">
                   Opprett innlogging
                 </button>
