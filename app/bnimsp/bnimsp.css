@@ -28,6 +28,23 @@
   font-style: italic;
 }
 
+/* Director highlight in the personal script + markdown. */
+.bni-scope mark.bni-hl {
+  background: linear-gradient(transparent 8%, #ffe39a 8%, #ffe39a 92%, transparent 92%);
+  color: inherit;
+  padding: 0 0.05em;
+  border-radius: 2px;
+}
+
+/* Contenteditable personal-script paragraphs. */
+.bni-script p { margin: 0 0 0.7em; }
+.bni-script p:last-child { margin-bottom: 0; }
+.bni-script:empty::before {
+  content: 'Skriv din versjon av manuset her …';
+  color: var(--bni-muted);
+  font-style: italic;
+}
+
 /* Teleprompter scroll animation for practice mode. */
 @keyframes bni-teleprompter {
   from { transform: translateY(0); }

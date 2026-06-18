@@ -13,6 +13,10 @@ import { SlideStage } from './SlideStage'
 import { LayerStack, PrivateNotesCard, DELIVERY_BLOCKS, REFERENCE_BLOCKS } from './LayerPanel'
 import { EditableText } from './EditableText'
 import { PracticeTimer } from './PracticeTimer'
+import { PersonalScript } from './PersonalScript'
+
+interface PersonalState { notes: string; script: string | null }
+const DELIVERY_NO_SCRIPT = DELIVERY_BLOCKS.filter((b) => b.key !== 'sayThis')
 
 interface Props {
   initialContent: BnimspContent
@@ -61,8 +65,11 @@ export function Studio({ initialContent, canEdit, isDirector, initialN, initialA
   const [presenter, setPresenter] = useState(false)
   const [railOpen, setRailOpen] = useState(true)
   const [savedFlash, setSavedFlash] = useState(false)
-  const [noteCache, setNoteCache] = useState<Record<number, string>>({})
+  const [personalCache, setPersonalCache] = useState<Record<number, PersonalState>>({})
   const noteTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const scriptTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // Directors who can't edit the master get a personal, rewritable script.
+  const ownsPersonalScript = isDirector && !canEdit
   const audienceWindowRef = useRef<Window | null>(null)
   const channelRef = useRef<BroadcastChannel | null>(null)
 
@@ -189,40 +196,71 @@ export function Studio({ initialContent, canEdit, isDirector, initialN, initialA
   }, [currentN, enterPresenterMode, exitPresenterMode, go, presenter])
 
   useEffect(() => {
-    if (currentN in noteCache) return
+    if (currentN in personalCache) return
     let cancelled = false
     async function load() {
-      let body = ''
+      let state: PersonalState = { notes: '', script: null }
       if (isDirector) {
         try {
           const res = await fetch(`/api/bnimsp/notes/${currentN}`)
           const data = await res.json().catch(() => ({}))
-          body = data.body || ''
-        } catch { body = '' }
+          state = { notes: data.notes || '', script: data.script ?? null }
+        } catch { /* keep empty */ }
       } else {
-        body = localStorage.getItem(`bnimsp:note:${currentN}`) || ''
+        try {
+          const raw = localStorage.getItem(`bnimsp:personal:${currentN}`)
+          if (raw) state = JSON.parse(raw)
+        } catch { /* keep empty */ }
       }
-      if (!cancelled) setNoteCache((c) => ({ ...c, [currentN]: body }))
+      if (!cancelled) setPersonalCache((c) => ({ ...c, [currentN]: state }))
     }
     load()
     return () => { cancelled = true }
-  }, [currentN, isDirector, noteCache])
+  }, [currentN, isDirector, personalCache])
 
-  const onPrivateNote = useCallback((value: string) => {
-    setNoteCache((c) => ({ ...c, [currentN]: value }))
-    if (noteTimer.current) clearTimeout(noteTimer.current)
-    const n = currentN
-    noteTimer.current = setTimeout(() => {
+  // Persist one field of the per-director personal state (debounced).
+  const persist = useCallback((n: number, patch: Partial<PersonalState>, timer: typeof noteTimer) => {
+    if (timer.current) clearTimeout(timer.current)
+    timer.current = setTimeout(() => {
       if (isDirector) {
         fetch(`/api/bnimsp/notes/${n}`, {
           method: 'PUT', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ body: value }),
+          body: JSON.stringify(patch),
         }).catch(() => {})
       } else {
-        try { localStorage.setItem(`bnimsp:note:${n}`, value) } catch {}
+        try {
+          const prev: PersonalState = personalCache[n] || { notes: '', script: null }
+          localStorage.setItem(`bnimsp:personal:${n}`, JSON.stringify({ ...prev, ...patch }))
+        } catch { /* ignore */ }
       }
     }, 600)
-  }, [currentN, isDirector])
+  }, [isDirector, personalCache])
+
+  const onPrivateNote = useCallback((value: string) => {
+    const n = currentN
+    setPersonalCache((c) => ({ ...c, [n]: { notes: value, script: c[n]?.script ?? null } }))
+    persist(n, { notes: value }, noteTimer)
+  }, [currentN, persist])
+
+  const onScriptChange = useCallback((html: string) => {
+    const n = currentN
+    setPersonalCache((c) => ({ ...c, [n]: { notes: c[n]?.notes ?? '', script: html } }))
+    persist(n, { script: html }, scriptTimer)
+  }, [currentN, persist])
+
+  const onScriptRestore = useCallback(() => {
+    const n = currentN
+    setPersonalCache((c) => ({ ...c, [n]: { notes: c[n]?.notes ?? '', script: null } }))
+    if (scriptTimer.current) clearTimeout(scriptTimer.current)
+    if (isDirector) {
+      fetch(`/api/bnimsp/notes/${n}`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ script: null }),
+      }).catch(() => {})
+    } else {
+      try { localStorage.setItem(`bnimsp:personal:${n}`, JSON.stringify({ notes: personalCache[n]?.notes ?? '', script: null })) } catch {}
+    }
+  }, [currentN, isDirector, personalCache])
 
   const onEditLayer = useCallback(async (key: LayerKey | 'title' | 'timing', value: string) => {
     setSlides((prev) => prev.map((s) => (s.n === currentN ? { ...s, [key]: value } : s)))
@@ -290,12 +328,28 @@ export function Studio({ initialContent, canEdit, isDirector, initialN, initialA
             <div className="min-w-0 space-y-4 xl:space-y-5">
               <SlideStage slide={slide} total={total} onPrev={() => go(currentN - 1)} onNext={() => go(currentN + 1)} />
               <GoalBanner slide={slide} editable={canEdit} onEditLayer={onEditLayer} />
-              <LayerStack slide={slide} blocks={DELIVERY_BLOCKS} editable={canEdit} onEditLayer={onEditLayer} />
+              {ownsPersonalScript ? (
+                <>
+                  {currentN in personalCache && (
+                    <PersonalScript
+                      key={currentN}
+                      slideN={currentN}
+                      master={slide.sayThis}
+                      initialHtml={personalCache[currentN]?.script ?? null}
+                      onChange={onScriptChange}
+                      onRestore={onScriptRestore}
+                    />
+                  )}
+                  <LayerStack slide={slide} blocks={DELIVERY_NO_SCRIPT} editable={canEdit} onEditLayer={onEditLayer} />
+                </>
+              ) : (
+                <LayerStack slide={slide} blocks={DELIVERY_BLOCKS} editable={canEdit} onEditLayer={onEditLayer} />
+              )}
             </div>
 
             <div className="min-w-0 space-y-3 xl:space-y-4">
               <LayerStack slide={slide} blocks={REFERENCE_BLOCKS} editable={canEdit} onEditLayer={onEditLayer} />
-              <PrivateNotesCard value={noteCache[currentN] ?? ''} onChange={onPrivateNote} />
+              <PrivateNotesCard value={personalCache[currentN]?.notes ?? ''} onChange={onPrivateNote} />
             </div>
           </div>
         </div>
