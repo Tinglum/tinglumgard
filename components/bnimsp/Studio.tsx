@@ -410,9 +410,9 @@ function PresenterView({
         </div>
       </div>
 
-      <div className="grid min-h-0 flex-1 grid-cols-1 gap-5 overflow-hidden p-5 lg:grid-cols-[1.05fr_1fr] xl:p-7">
+      <div className="grid min-h-0 flex-1 grid-cols-1 gap-5 overflow-hidden p-5 md:grid-cols-[1fr_1.05fr] xl:p-7">
         <div className="flex min-h-0 flex-col gap-4">
-          <div className="relative min-h-0 flex-1 overflow-hidden rounded-xl border border-white/10 bg-black">
+          <div className="relative min-h-0 flex-1 overflow-hidden rounded-xl border border-white/10 bg-black max-md:aspect-video max-md:flex-none">
             <Image src={slide.image} alt="" fill className="object-contain" sizes="60vw" priority />
           </div>
           {(slide.ninjaTip || slide.transition) && (
