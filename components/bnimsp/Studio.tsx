@@ -254,7 +254,7 @@ export function Studio({ initialContent, canEdit, isDirector, initialN, initialA
         {/* Rail */}
         <aside className={`${railOpen ? 'block' : 'hidden'} lg:block`}>
           <div className="sticky top-20 max-h-[calc(100vh-6rem)] overflow-y-auto rounded-2xl border border-[var(--bni-line)] bg-white p-3">
-            <ModuleRail groups={groups} currentN={currentN} onSelect={go} />
+            <ModuleRail groups={groups} currentN={currentN} onSelect={go} breaks={content.breaks} />
           </div>
         </aside>
 

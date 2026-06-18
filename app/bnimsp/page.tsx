@@ -1,11 +1,11 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { redirect } from 'next/navigation'
-import { Clock, ArrowRight } from 'lucide-react'
+import { Clock, ArrowRight, Coffee } from 'lucide-react'
 import { getBnimspSession } from '@/lib/bnimsp/session'
 import { canViewBnimsp, canEditBnimsp } from '@/lib/bnimsp/access'
 import { loadContent } from '@/lib/bnimsp/content'
-import { groupByModule, totalMinutes, formatMinutes } from '@/lib/bnimsp/util'
+import { groupByModule, totalMinutes, formatMinutes, breakAfter } from '@/lib/bnimsp/util'
 import { BniHeader } from '@/components/bnimsp/BniHeader'
 import { BniMark } from '@/components/bnimsp/BniMark'
 import { AdminBar } from '@/components/bnimsp/AdminBar'
@@ -46,7 +46,7 @@ export default async function BnimspOverviewPage() {
                 </Link>
                 <span className="inline-flex items-center gap-1.5 text-sm text-zinc-300">
                   <Clock className="h-4 w-4" />
-                  {content.program.totalSlides} slides · {formatMinutes(total)}
+                  {content.program.totalSlides} slides · {content.program.durationLabel || formatMinutes(total)}
                 </span>
               </div>
             </div>
@@ -67,9 +67,11 @@ export default async function BnimspOverviewPage() {
 
         {/* Module map */}
         <section className="space-y-5">
-          {groups.map((g, gi) => (
+          {groups.map((g, gi) => {
+          const brk = breakAfter(content, g.module.range[1])
+          return (
+          <div key={g.module.id} className="space-y-5">
             <div
-              key={g.module.id}
               className="overflow-hidden rounded-2xl border border-[var(--bni-line)] bg-white"
             >
               <div className="flex items-center justify-between gap-4 border-b border-[var(--bni-line)] px-5 py-3">
@@ -117,7 +119,15 @@ export default async function BnimspOverviewPage() {
                 ))}
               </ul>
             </div>
-          ))}
+            {brk && (
+              <div className="flex items-center justify-center gap-2 rounded-xl border border-dashed border-[var(--bni-line)] bg-zinc-50 py-2.5 text-sm font-semibold text-[var(--bni-muted)]">
+                <Coffee className="h-4 w-4 text-[var(--bni-red)]" />
+                {brk.label} · {brk.minutes} min
+              </div>
+            )}
+          </div>
+          )
+          })}
         </section>
       </main>
     </>

@@ -64,6 +64,8 @@ export async function loadContent(mode: 'published' | 'draft' = 'published'): Pr
         modules: modules.length ? modules : seedContent().modules,
         slides,
         appendix: appendix.length ? appendix : seedContent().appendix,
+        // Breaks are program structure, not per-slide DB content.
+        breaks: seedContent().breaks,
       },
       source: 'db',
     }

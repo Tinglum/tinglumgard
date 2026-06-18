@@ -70,6 +70,15 @@ export interface ProgramMeta {
   title: string
   subtitle: string
   totalSlides: number
+  /** Human label for the total run time, e.g. "3 timer (inkl. pauser)". */
+  durationLabel?: string
+}
+
+/** A scheduled break, placed after a given slide. */
+export interface BreakDef {
+  afterSlide: number
+  minutes: number
+  label: string
 }
 
 export interface BnimspContent {
@@ -77,6 +86,7 @@ export interface BnimspContent {
   modules: ModuleDef[]
   slides: Slide[]
   appendix: AppendixPage[]
+  breaks?: BreakDef[]
 }
 
 /** Private, per-director note for a single slide. */

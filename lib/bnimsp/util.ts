@@ -1,4 +1,4 @@
-import type { BnimspContent, ModuleDef, Slide } from './types'
+import type { BnimspContent, BreakDef, ModuleDef, Slide } from './types'
 
 /** Parse a timing label like "ca. 5 min" or "ca. 3–4 min" → minutes (upper bound). */
 export function parseMinutes(timing: string): number {
@@ -32,6 +32,21 @@ export function groupByModule(content: BnimspContent): ModuleGroup[] {
   })
 }
 
-export function totalMinutes(content: BnimspContent): number {
+/** Content minutes only (sum of slide timings). */
+export function contentMinutes(content: BnimspContent): number {
   return content.slides.reduce((sum, s) => sum + parseMinutes(s.timing), 0)
+}
+
+/** Total program minutes including scheduled breaks. */
+export function totalMinutes(content: BnimspContent): number {
+  return contentMinutes(content) + breakMinutes(content)
+}
+
+export function breakMinutes(content: BnimspContent): number {
+  return (content.breaks || []).reduce((sum, b) => sum + b.minutes, 0)
+}
+
+/** The break scheduled immediately after a given slide number, if any. */
+export function breakAfter(content: BnimspContent, slideN: number): BreakDef | undefined {
+  return (content.breaks || []).find((b) => b.afterSlide === slideN)
 }

@@ -1,5 +1,7 @@
 'use client'
 
+import { Coffee } from 'lucide-react'
+import type { BreakDef } from '@/lib/bnimsp/types'
 import type { ModuleGroup } from '@/lib/bnimsp/util'
 import { formatMinutes } from '@/lib/bnimsp/util'
 
@@ -7,12 +9,15 @@ interface Props {
   groups: ModuleGroup[]
   currentN: number
   onSelect: (n: number) => void
+  breaks?: BreakDef[]
 }
 
-export function ModuleRail({ groups, currentN, onSelect }: Props) {
+export function ModuleRail({ groups, currentN, onSelect, breaks = [] }: Props) {
   return (
     <nav className="space-y-4">
-      {groups.map((g, gi) => (
+      {groups.map((g, gi) => {
+        const brk = breaks.find((b) => b.afterSlide === g.module.range[1])
+        return (
         <div key={g.module.id}>
           <div className="mb-1 flex items-center justify-between px-2">
             <span className="text-xs font-bold uppercase tracking-wide text-[var(--bni-muted)]">
@@ -46,8 +51,15 @@ export function ModuleRail({ groups, currentN, onSelect }: Props) {
               )
             })}
           </ul>
+          {brk && (
+            <div className="mx-2 mt-2 flex items-center gap-1.5 rounded-md border border-dashed border-[var(--bni-line)] bg-zinc-50 px-2 py-1 text-[11px] font-semibold text-[var(--bni-muted)]">
+              <Coffee className="h-3 w-3 text-[var(--bni-red)]" />
+              {brk.label} · {brk.minutes} min
+            </div>
+          )}
         </div>
-      ))}
+        )
+      })}
     </nav>
   )
 }
