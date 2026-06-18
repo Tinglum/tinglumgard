@@ -60,6 +60,17 @@
   }
 }
 
+/* Next-slide preview in presenter mode. A true 16:9 box that grows as large as
+   the screen allows: it fills the column width, but its height is capped to a
+   share of the viewport so it never crushes the current slide. Sized in CSS to
+   avoid Tailwind arbitrary-value classes that don't survive the build. */
+.bni-next-preview {
+  width: 100%;
+  max-width: calc(var(--bni-next-max-h, 30vh) * 16 / 9);
+  margin-inline: auto;
+  aspect-ratio: 16 / 9;
+}
+
 /* Teleprompter scroll animation for practice mode. */
 @keyframes bni-teleprompter {
   from { transform: translateY(0); }

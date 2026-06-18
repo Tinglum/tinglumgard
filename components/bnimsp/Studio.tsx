@@ -423,13 +423,13 @@ function PresenterView({
             </div>
           )}
           {nextSlide && (
-            <div className="mt-auto flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 p-3">
-              <div className="relative h-12 w-20 shrink-0 overflow-hidden rounded-md">
-                <Image src={nextSlide.image} alt="" fill className="object-cover" sizes="80px" />
+            <div className="mt-auto rounded-xl border border-white/10 bg-white/5 p-3">
+              <div className="mb-2 flex items-center gap-2 text-[11px] uppercase tracking-wide">
+                <span className="rounded bg-white/10 px-1.5 py-0.5 font-semibold text-zinc-300">Neste</span>
+                <span className="truncate font-medium text-zinc-200">{nextSlide.title || `Slide ${nextSlide.n}`}</span>
               </div>
-              <div className="min-w-0">
-                <div className="text-[11px] uppercase tracking-wide text-zinc-400">Neste</div>
-                <div className="truncate text-sm font-medium">{nextSlide.title || `Slide ${nextSlide.n}`}</div>
+              <div className="bni-next-preview relative overflow-hidden rounded-lg border border-white/10 bg-black">
+                <Image src={nextSlide.image} alt="" fill className="object-cover" sizes="45vw" />
               </div>
             </div>
           )}
