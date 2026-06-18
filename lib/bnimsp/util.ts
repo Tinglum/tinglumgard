@@ -50,3 +50,18 @@ export function breakMinutes(content: BnimspContent): number {
 export function breakAfter(content: BnimspContent, slideN: number): BreakDef | undefined {
   return (content.breaks || []).find((b) => b.afterSlide === slideN)
 }
+
+/**
+ * Minutes from the program start until the START of slide `n`
+ * (sum of all earlier slide timings + any breaks before it). Used by the
+ * presenter end-time tracker to know where you "should" be by the clock.
+ */
+export function cumulativeStartMinutes(content: BnimspContent, n: number): number {
+  const slideMin = content.slides
+    .filter((s) => s.n < n)
+    .reduce((sum, s) => sum + parseMinutes(s.timing), 0)
+  const breakMin = (content.breaks || [])
+    .filter((b) => b.afterSlide < n)
+    .reduce((sum, b) => sum + b.minutes, 0)
+  return slideMin + breakMin
+}

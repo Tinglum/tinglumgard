@@ -7,13 +7,14 @@ import {
   CheckCircle2, Target, Flag,
 } from 'lucide-react'
 import type { BnimspContent, LayerKey, Slide } from '@/lib/bnimsp/types'
-import { groupByModule } from '@/lib/bnimsp/util'
+import { groupByModule, totalMinutes, cumulativeStartMinutes } from '@/lib/bnimsp/util'
 import { ModuleRail } from './ModuleRail'
 import { SlideStage } from './SlideStage'
 import { LayerStack, PrivateNotesCard, DELIVERY_BLOCKS, REFERENCE_BLOCKS } from './LayerPanel'
 import { EditableText } from './EditableText'
 import { PracticeTimer } from './PracticeTimer'
 import { PersonalScript } from './PersonalScript'
+import { EndTimeTracker } from './EndTimeTracker'
 
 interface PersonalState { notes: string; script: string | null }
 const DELIVERY_NO_SCRIPT = DELIVERY_BLOCKS.filter((b) => b.key !== 'sayThis')
@@ -275,7 +276,7 @@ export function Studio({ initialContent, canEdit, isDirector, initialN, initialA
   if (presenter) {
     return (
       <PresenterView
-        slide={slide} nextSlide={nextSlide} total={total}
+        slide={slide} nextSlide={nextSlide} total={total} content={content}
         onPrev={() => go(currentN - 1)} onNext={() => go(currentN + 1)} onExit={exitPresenterMode}
       />
     )
@@ -382,16 +383,18 @@ function GoalBanner({
 }
 
 function PresenterView({
-  slide, nextSlide, total, onPrev, onNext, onExit,
+  slide, nextSlide, total, content, onPrev, onNext, onExit,
 }: {
-  slide: Slide; nextSlide: Slide | null; total: number
+  slide: Slide; nextSlide: Slide | null; total: number; content: BnimspContent
   onPrev: () => void; onNext: () => void; onExit: () => void
 }) {
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-zinc-950 text-white">
       <div className="flex items-center justify-between gap-4 border-b border-white/10 px-5 py-3">
         <PracticeTimer timing={slide.timing} slideN={slide.n} />
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
+          <EndTimeTracker programMin={totalMinutes(content)} cumStartMin={cumulativeStartMinutes(content, slide.n)} />
+          <div className="hidden h-8 w-px bg-white/10 sm:block" />
           <button onClick={onPrev} disabled={slide.n <= 1} className="rounded-lg bg-white/10 p-2 hover:bg-white/20 disabled:opacity-40" aria-label="Forrige">
             <ChevronLeft className="h-5 w-5" />
           </button>
