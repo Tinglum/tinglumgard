@@ -29,8 +29,8 @@ export const APPENDIX_CATEGORIES: AppendixCategory[] = [
 ]
 
 export const APPENDIX_META: Record<string, AppendixMeta> = {
-  'agenda-2-dagers-deltakere': { slug: 'agenda-2-dagers-deltakere', category: 'planer', icon: 'CalendarDays', order: 1, summary: 'Agenda for deltakerne - tider og mål for de to dagene.' },
-  'agenda-2-dagers':       { slug: 'agenda-2-dagers',       category: 'planer',       icon: 'ClipboardList', order: 2,  summary: 'Fasilitatorens komplette kjøreplan med fasilitering (kun fasilitator).', restrictTo: ['kennethtinglum@bni.com'] },
+  'agenda-2-dagers-deltakere': { slug: 'agenda-2-dagers-deltakere', category: 'planer', icon: 'CalendarDays', order: 1, summary: 'Kjøreplan for dagen - tider, mål og hvem som holder hva.' },
+  'agenda-2-dagers':       { slug: 'agenda-2-dagers',       category: 'planer',       icon: 'ClipboardList', order: 2,  summary: 'Komplett kjøreplan med tidsregnskap, feedback og hva Kenneth dekker (kun fasilitator).', restrictTo: ['kennethtinglum@bni.com'] },
   'leveringsprinsipp':     { slug: 'leveringsprinsipp',     category: 'grunnlag',     icon: 'Compass',      order: 1,  summary: 'Formålet med MSP og prinsippene som styrer hver eneste leveranse.' },
   'kjernebudskap':         { slug: 'kjernebudskap',         category: 'grunnlag',     icon: 'Megaphone',    order: 2,  summary: 'De fire setningene alt annet henger på.' },
   'resultater-dag-en':     { slug: 'resultater-dag-en',     category: 'grunnlag',     icon: 'Rocket',       order: 3,  summary: 'Hovedmålet: praktisk verdi fra dag én - uten å love garantert salg.' },
