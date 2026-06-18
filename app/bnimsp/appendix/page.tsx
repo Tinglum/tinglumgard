@@ -4,7 +4,7 @@ import { ArrowUpRight, Clock, Library } from 'lucide-react'
 import { getBnimspSession } from '@/lib/bnimsp/session'
 import { canViewBnimsp, canEditBnimsp } from '@/lib/bnimsp/access'
 import { loadContent } from '@/lib/bnimsp/content'
-import { APPENDIX_CATEGORIES, APPENDIX_META } from '@/lib/bnimsp/appendix-meta'
+import { APPENDIX_CATEGORIES, APPENDIX_META, appendixVisibleTo } from '@/lib/bnimsp/appendix-meta'
 import { readMinutes } from '@/lib/bnimsp/markdown'
 import { BniHeader } from '@/components/bnimsp/BniHeader'
 import { AppendixIcon } from '@/components/bnimsp/AppendixIcon'
@@ -18,7 +18,8 @@ export default async function AppendixHubPage() {
   const { content } = await loadContent('published')
 
   const bySlug = new Map(content.appendix.map((a) => [a.slug, a]))
-  const metas = Object.values(APPENDIX_META)
+  // Hide pages the current user isn't allowed to see (e.g. facilitator-only).
+  const metas = Object.values(APPENDIX_META).filter((m) => appendixVisibleTo(m, session?.email))
   const total = metas.filter((m) => bySlug.has(m.slug)).length
 
   return (

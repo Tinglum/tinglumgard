@@ -4,7 +4,7 @@ import { ArrowLeft, Clock } from 'lucide-react'
 import { getBnimspSession } from '@/lib/bnimsp/session'
 import { canViewBnimsp, canEditBnimsp } from '@/lib/bnimsp/access'
 import { loadContent } from '@/lib/bnimsp/content'
-import { APPENDIX_CATEGORIES, metaFor } from '@/lib/bnimsp/appendix-meta'
+import { APPENDIX_CATEGORIES, metaFor, appendixVisibleTo } from '@/lib/bnimsp/appendix-meta'
 import { extractHeadings, readMinutes } from '@/lib/bnimsp/markdown'
 import { BniHeader } from '@/components/bnimsp/BniHeader'
 import { AppendixBody } from '@/components/bnimsp/AppendixBody'
@@ -23,6 +23,9 @@ export default async function AppendixDetailPage({ params }: { params: { slug: s
   if (!page) notFound()
 
   const meta = metaFor(params.slug)
+  // Per-page visibility (e.g. the facilitator agenda is for one email only).
+  if (!appendixVisibleTo(meta, session?.email)) redirect('/bnimsp/appendix')
+
   const category = meta ? APPENDIX_CATEGORIES.find((c) => c.id === meta.category) : undefined
   const headings = extractHeadings(page.body)
 

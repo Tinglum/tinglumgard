@@ -15,6 +15,8 @@ export interface AppendixMeta {
   /** lucide icon name (resolved in the UI). */
   icon: string
   order: number
+  /** If set, only these (lowercased) emails may see this page. */
+  restrictTo?: string[]
 }
 
 export const APPENDIX_CATEGORIES: AppendixCategory[] = [
@@ -27,13 +29,14 @@ export const APPENDIX_CATEGORIES: AppendixCategory[] = [
 ]
 
 export const APPENDIX_META: Record<string, AppendixMeta> = {
-  'agenda-2-dagers':       { slug: 'agenda-2-dagers',       category: 'planer',       icon: 'CalendarDays', order: 1,  summary: 'Komplett 2-dagers Train-the-Trainer-kjøreplan, modul for modul.' },
+  'agenda-2-dagers-deltakere': { slug: 'agenda-2-dagers-deltakere', category: 'planer', icon: 'CalendarDays', order: 1, summary: 'Agenda for deltakerne — tider og mål for de to dagene.' },
+  'agenda-2-dagers':       { slug: 'agenda-2-dagers',       category: 'planer',       icon: 'ClipboardList', order: 2,  summary: 'Fasilitatorens komplette kjøreplan med fasilitering (kun fasilitator).', restrictTo: ['kennethtinglum@bni.com'] },
   'leveringsprinsipp':     { slug: 'leveringsprinsipp',     category: 'grunnlag',     icon: 'Compass',      order: 1,  summary: 'Formålet med MSP og prinsippene som styrer hver eneste leveranse.' },
   'kjernebudskap':         { slug: 'kjernebudskap',         category: 'grunnlag',     icon: 'Megaphone',    order: 2,  summary: 'De fire setningene alt annet henger på.' },
   'resultater-dag-en':     { slug: 'resultater-dag-en',     category: 'grunnlag',     icon: 'Rocket',       order: 3,  summary: 'Hovedmålet: praktisk verdi fra dag én — uten å love garantert salg.' },
   'teammanual-link':       { slug: 'teammanual-link',       category: 'grunnlag',     icon: 'BookMarked',   order: 4,  summary: 'Hvordan MSP henger sammen med Teammanualen og Kompasset.' },
-  'leveringsplan-3-timer': { slug: 'leveringsplan-3-timer', category: 'planer',       icon: 'Clock',        order: 2,  summary: 'Minutt-for-minutt kjøreplan for den fulle 3-timers leveransen.' },
-  'tidsvarianter':         { slug: 'tidsvarianter',         category: 'planer',       icon: 'Timer',        order: 3,  summary: '90- og 120-minutters varianter når du ikke har tre timer.' },
+  'leveringsplan-3-timer': { slug: 'leveringsplan-3-timer', category: 'planer',       icon: 'Clock',        order: 3,  summary: 'Minutt-for-minutt kjøreplan for den fulle 3-timers leveransen.' },
+  'tidsvarianter':         { slug: 'tidsvarianter',         category: 'planer',       icon: 'Timer',        order: 4,  summary: '90- og 120-minutters varianter når du ikke har tre timer.' },
   'standardgrep':          { slug: 'standardgrep',          category: 'fasilitering', icon: 'Wand2',        order: 1,  summary: 'Konsulentens standardgrep for diffuse, teoretiske eller trege rom.' },
   'coachingsporsmal':      { slug: 'coachingsporsmal',      category: 'fasilitering', icon: 'MessagesSquare', order: 2, summary: 'Spørsmålsbanken som gjør alt mer konkret og handlingsrettet.' },
   'spraakbank':            { slug: 'spraakbank',            category: 'fasilitering', icon: 'Quote',        order: 3,  summary: 'Teammanual-godkjente standardsetninger — det du faktisk sier.' },
@@ -46,4 +49,12 @@ export const APPENDIX_META: Record<string, AppendixMeta> = {
 
 export function metaFor(slug: string): AppendixMeta | undefined {
   return APPENDIX_META[slug]
+}
+
+/** Whether a page is visible to a given user email (per-page restriction). */
+export function appendixVisibleTo(meta: AppendixMeta | undefined, email: string | null | undefined): boolean {
+  if (!meta) return true
+  if (!meta.restrictTo || meta.restrictTo.length === 0) return true
+  const e = String(email || '').trim().toLowerCase()
+  return meta.restrictTo.some((r) => r.toLowerCase() === e)
 }
