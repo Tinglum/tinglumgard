@@ -147,26 +147,27 @@ export function Studio({ initialContent, canEdit, isDirector, initialN, initialA
   }, [broadcast])
 
   const enterPresenterMode = useCallback(async () => {
+    const audienceUrl = new URL('/bnimsp/audience', window.location.origin)
+    audienceUrl.searchParams.set('s', String(currentN))
+    const targetScreen = await getAudienceScreen(window).catch(() => null)
+
     const existing = audienceWindowRef.current
     const audienceWindow = existing && !existing.closed
       ? existing
-      : window.open('', 'bnimsp-audience', popupFeatures(null))
+      : window.open(audienceUrl.toString(), 'bnimsp-audience', popupFeatures(targetScreen))
 
     if (!audienceWindow) return
 
     audienceWindowRef.current = audienceWindow
-    renderAudienceLoading(audienceWindow)
-
-    const audienceUrl = new URL('/bnimsp/audience', window.location.origin)
-    audienceUrl.searchParams.set('s', String(currentN))
-
-    const targetScreen = await getAudienceScreen(window).catch(() => null)
+    if (existing && !existing.closed) {
+      renderAudienceLoading(audienceWindow)
+    }
 
     try {
       audienceWindow.location.replace(audienceUrl.toString())
     } catch {}
 
-    if (targetScreen) moveWindowToScreen(audienceWindow, targetScreen)
+    if (targetScreen) syncAudienceWindowFrame(audienceWindow, targetScreen)
     tryAudienceFullscreen(audienceWindow)
     audienceWindow.focus()
 
@@ -410,7 +411,7 @@ function PresenterView({
         </div>
       </div>
 
-      <div className="grid min-h-0 flex-1 grid-cols-1 gap-5 overflow-hidden p-5 md:grid-cols-[1fr_1.05fr] xl:p-7">
+      <div className="bni-presenter-grid min-h-0 flex-1 gap-5 overflow-hidden p-5 xl:p-7">
         <div className="flex min-h-0 flex-col gap-4">
           <div className="relative min-h-0 flex-1 overflow-hidden rounded-xl border border-white/10 bg-black max-md:aspect-video max-md:flex-none">
             <Image src={slide.image} alt="" fill className="object-contain" sizes="60vw" priority />
@@ -564,14 +565,25 @@ function tryAudienceFullscreen(targetWindow: Window) {
 }
 
 function popupFeatures(target: ScreenLike | null) {
-  if (!target) return 'popup=yes'
+  const features = [
+    'popup=yes',
+    'menubar=no',
+    'toolbar=no',
+    'location=no',
+    'status=no',
+    'scrollbars=no',
+    'resizable=yes',
+  ]
+
+  if (!target) return features.join(',')
 
   const left = Math.round(target.availLeft ?? target.left ?? 0)
   const top = Math.round(target.availTop ?? target.top ?? 0)
   const width = Math.round(target.availWidth ?? target.width ?? 1600)
   const height = Math.round(target.availHeight ?? target.height ?? 900)
 
-  return `popup=yes,left=${left},top=${top},width=${width},height=${height}`
+  features.push(`left=${left}`, `top=${top}`, `width=${width}`, `height=${height}`)
+  return features.join(',')
 }
 
 function moveWindowToScreen(targetWindow: Window, target: ScreenLike) {
@@ -583,6 +595,23 @@ function moveWindowToScreen(targetWindow: Window, target: ScreenLike) {
   try {
     targetWindow.moveTo(left, top)
     targetWindow.resizeTo(width, height)
+  } catch {}
+}
+
+function syncAudienceWindowFrame(targetWindow: Window, target: ScreenLike) {
+  const apply = () => moveWindowToScreen(targetWindow, target)
+
+  apply()
+  window.setTimeout(apply, 120)
+  window.setTimeout(apply, 500)
+  window.setTimeout(apply, 1200)
+
+  try {
+    targetWindow.addEventListener('load', () => {
+      apply()
+      window.setTimeout(apply, 120)
+      window.setTimeout(apply, 500)
+    }, { once: true })
   } catch {}
 }
 

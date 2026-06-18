@@ -45,6 +45,21 @@
   font-style: italic;
 }
 
+/* Presenter content grid: slide + script side by side on any reasonably wide
+   screen, stacked on narrow ones. Defined explicitly rather than as a Tailwind
+   arbitrary responsive class (md:grid-cols-[1fr_1.05fr]) because that variant
+   was not surviving the production build - it collapsed to one column and
+   pushed the script off-screen below the slide on scaled/high-DPI displays. */
+.bni-presenter-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+@media (min-width: 768px) {
+  .bni-presenter-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
+  }
+}
+
 /* Teleprompter scroll animation for practice mode. */
 @keyframes bni-teleprompter {
   from { transform: translateY(0); }
