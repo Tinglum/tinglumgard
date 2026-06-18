@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { usePathname } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 
 interface User {
@@ -29,6 +30,10 @@ const SESSION_EXPIRED_KEY = 'tinglum_session_expired';
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
+  // The BNIMSP section has its own auth (bnimsp_session) and must not be subject
+  // to the farm's reload-logout, 5-min timeout, or "session expired" toast.
+  const pathname = usePathname();
+  const isBnimsp = !!pathname && (pathname === '/bnimsp' || pathname.startsWith('/bnimsp/'));
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [timeoutId, setTimeoutId] = useState<NodeJS.Timeout | null>(null);
@@ -105,6 +110,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
+    if (isBnimsp) return; // BNIMSP isn't part of the farm session
     const expiredFlag = localStorage.getItem(SESSION_EXPIRED_KEY);
     if (!expiredFlag) return;
     localStorage.removeItem(SESSION_EXPIRED_KEY);
@@ -112,21 +118,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       title: 'Sesjonen er utlopet',
       description: 'Logg inn igjen for a fortsette.',
     });
-  }, [toast]);
+  }, [toast, isBnimsp]);
 
   // Check auth on mount
   useEffect(() => {
+    if (isBnimsp) { setIsLoading(false); return; } // skip farm reload-logout + auth check
     const navEntry = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined;
     if (navEntry?.type === 'reload') {
       logout('reload');
       return;
     }
     checkAuth();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isBnimsp]);
 
   // Setup activity listeners and timeout
   useEffect(() => {
-    if (!user) return;
+    if (isBnimsp || !user) return;
 
     // Check if session already timed out
     checkSessionTimeout();
@@ -154,7 +162,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         clearTimeout(timeoutId);
       }
     };
-  }, [user]);
+  }, [user, isBnimsp]);
 
   return (
     <AuthContext.Provider value={{ user, isAuthenticated: !!user, isLoading, checkAuth, logout }}>
