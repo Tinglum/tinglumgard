@@ -8,7 +8,7 @@ function emptyLayers(): SlideLayers {
   return Object.fromEntries(LAYER_KEYS.map((k) => [k, ''])) as unknown as SlideLayers
 }
 
-/** The committed master content — also used to seed the DB and as offline fallback. */
+/** The committed master content - also used to seed the DB and as offline fallback. */
 export function seedContent(): BnimspContent {
   return seed as unknown as BnimspContent
 }

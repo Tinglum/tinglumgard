@@ -62,7 +62,7 @@ export function PersonalScript({ slideN, master, initialHtml, onChange, onRestor
     try {
       range.surroundContents(mark)
     } catch {
-      // selection spans element boundaries — extract and re-wrap
+      // selection spans element boundaries - extract and re-wrap
       mark.appendChild(range.extractContents())
       range.insertNode(mark)
     }

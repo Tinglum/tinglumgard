@@ -133,11 +133,6 @@ export function Studio({ initialContent, canEdit, isDirector, initialN, initialA
   }, [broadcast, currentN, initialAudience, presenter])
 
   useEffect(() => {
-    if (!initialAudience) return
-    document.documentElement.requestFullscreen?.().catch(() => {})
-  }, [initialAudience])
-
-  useEffect(() => {
     return () => {
       if (audienceWindowRef.current && !audienceWindowRef.current.closed) audienceWindowRef.current.close()
     }
@@ -151,62 +146,27 @@ export function Studio({ initialContent, canEdit, isDirector, initialN, initialA
   }, [broadcast])
 
   const enterPresenterMode = useCallback(async () => {
-    const audienceUrl = new URL(window.location.href)
-    audienceUrl.searchParams.set('audience', '1')
-    audienceUrl.searchParams.set('s', String(currentN))
-
-    const targetScreen = await getAudienceScreen(window).catch(() => null)
-    const extendedDisplay = window.screen.isExtended ?? Boolean(targetScreen)
-    if (!extendedDisplay && !targetScreen) {
-      setPresenter(true)
-      broadcast({ type: 'slide', n: currentN })
-      return
-    }
-
-    const features = popupFeatures(targetScreen)
     const existing = audienceWindowRef.current
     const audienceWindow = existing && !existing.closed
       ? existing
-      : window.open('', 'bnimsp-audience', features)
+      : window.open('', 'bnimsp-audience', popupFeatures(null))
 
     if (!audienceWindow) return
 
     audienceWindowRef.current = audienceWindow
-    if (!existing || existing.closed) {
-      try {
-        audienceWindow.document.write(`<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <title>BNI MSP Audience</title>
-    <style>
-      html, body {
-        margin: 0;
-        height: 100%;
-        background: #000;
-        color: #fff;
-        font-family: Arial, sans-serif;
-      }
-      body {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-        font-size: 12px;
-      }
-    </style>
-  </head>
-  <body>Opening audience view...</body>
-</html>`)
-        audienceWindow.document.close()
-      } catch {}
-    }
+    renderAudienceLoading(audienceWindow)
+
+    const audienceUrl = new URL('/bnimsp/audience', window.location.origin)
+    audienceUrl.searchParams.set('s', String(currentN))
+
+    const targetScreen = await getAudienceScreen(window).catch(() => null)
+
     try {
       audienceWindow.location.replace(audienceUrl.toString())
     } catch {}
 
     if (targetScreen) moveWindowToScreen(audienceWindow, targetScreen)
+    tryAudienceFullscreen(audienceWindow)
     audienceWindow.focus()
 
     setPresenter(true)
@@ -408,14 +368,14 @@ function GoalBanner({
           <Target className="h-4 w-4 text-[var(--bni-red)]" />
           <span className="text-xs font-bold uppercase tracking-wide text-[var(--bni-muted)]">Mål med sliden</span>
         </div>
-        <EditableText value={slide.goal} editable={editable} onSave={(v) => onEditLayer('goal', v)} placeholder="—" />
+        <EditableText value={slide.goal} editable={editable} onSave={(v) => onEditLayer('goal', v)} placeholder="-" />
       </div>
       <div className="rounded-xl border border-[var(--bni-line)] bg-white p-4">
         <div className="mb-1.5 flex items-center gap-2">
           <Flag className="h-4 w-4 text-emerald-600" />
           <span className="text-xs font-bold uppercase tracking-wide text-[var(--bni-muted)]">Vi ønsker å oppnå</span>
         </div>
-        <EditableText value={slide.outcome} editable={editable} onSave={(v) => onEditLayer('outcome', v)} placeholder="—" />
+        <EditableText value={slide.outcome} editable={editable} onSave={(v) => onEditLayer('outcome', v)} placeholder="-" />
       </div>
     </div>
   )
@@ -481,8 +441,42 @@ function PresenterView({
 }
 
 function AudienceView({ slide }: { slide: Slide }) {
+  const [needsFullscreenPrompt, setNeedsFullscreenPrompt] = useState(false)
+
+  const requestFullscreenNow = useCallback(async () => {
+    const success = await requestWindowFullscreen(window)
+    setNeedsFullscreenPrompt(!success)
+  }, [])
+
+  useEffect(() => {
+    const syncFullscreen = () => {
+      setNeedsFullscreenPrompt(!Boolean(document.fullscreenElement))
+    }
+
+    const promptTimer = window.setTimeout(() => {
+      if (!document.fullscreenElement) setNeedsFullscreenPrompt(true)
+    }, 900)
+
+    document.addEventListener('fullscreenchange', syncFullscreen)
+    void requestFullscreenNow()
+
+    return () => {
+      window.clearTimeout(promptTimer)
+      document.removeEventListener('fullscreenchange', syncFullscreen)
+    }
+  }, [requestFullscreenNow])
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black p-3">
+      {needsFullscreenPrompt && (
+        <button
+          type="button"
+          onClick={() => void requestFullscreenNow()}
+          className="absolute right-4 top-4 z-10 rounded-full bg-white/12 px-4 py-2 text-sm font-semibold text-white backdrop-blur hover:bg-white/20"
+        >
+          Go Fullscreen
+        </button>
+      )}
       <div className="flex h-full w-full items-center justify-center">
         <Image
           key={slide.n}
@@ -520,6 +514,46 @@ function PresenterBlob({ label, body }: { label: string; body: string }) {
   )
 }
 
+function renderAudienceLoading(targetWindow: Window) {
+  try {
+    targetWindow.document.write(`<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>BNI MSP Audience</title>
+    <style>
+      html, body {
+        margin: 0;
+        height: 100%;
+        background: #000;
+        color: #fff;
+        font-family: Arial, sans-serif;
+      }
+      body {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        font-size: 12px;
+      }
+    </style>
+  </head>
+  <body>Opening audience view...</body>
+</html>`)
+    targetWindow.document.close()
+  } catch {}
+}
+
+function tryAudienceFullscreen(targetWindow: Window) {
+  try {
+    const onLoad = () => {
+      void requestWindowFullscreen(targetWindow)
+    }
+    targetWindow.addEventListener('load', onLoad, { once: true })
+  } catch {}
+}
+
 function popupFeatures(target: ScreenLike | null) {
   if (!target) return 'popup=yes'
 
@@ -543,13 +577,34 @@ function moveWindowToScreen(targetWindow: Window, target: ScreenLike) {
   } catch {}
 }
 
+async function requestWindowFullscreen(targetWindow: Window) {
+  try {
+    const doc = targetWindow.document
+    const root = doc.documentElement as typeof doc.documentElement & {
+      webkitRequestFullscreen?: () => Promise<void> | void
+    }
+    if (doc.fullscreenElement) return true
+    if (root.requestFullscreen) {
+      await root.requestFullscreen()
+      return true
+    }
+    if (root.webkitRequestFullscreen) {
+      await root.webkitRequestFullscreen()
+      return true
+    }
+  } catch {}
+  return false
+}
+
 async function getAudienceScreen(hostWindow: Window) {
-  if (!hostWindow.screen.isExtended) return null
-
   const details = await hostWindow.getScreenDetails?.()
-  if (!details) return null
+  if (details?.screens?.length) {
+    return details.screens.find((entry) => !isSameScreen(entry, details.currentScreen)) || null
+  }
 
-  return details.screens.find((entry) => !isSameScreen(entry, details.currentScreen)) || null
+  if (hostWindow.screen.isExtended === false) return null
+
+  return null
 }
 
 function isSameScreen(a: ScreenLike, b: ScreenLike) {

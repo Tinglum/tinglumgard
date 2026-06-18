@@ -18,7 +18,7 @@ export interface BlockCfg {
   big?: boolean
 }
 
-// The live delivery flow — sits under the slide, in reading order.
+// The live delivery flow - sits under the slide, in reading order.
 export const DELIVERY_BLOCKS: BlockCfg[] = [
   { key: 'sayThis', label: 'Si dette', icon: Mic, accent: 'text-[var(--bni-ink)]', big: true },
   { key: 'doThis', label: 'Gjør dette', icon: ListChecks, accent: 'text-emerald-600' },
@@ -26,7 +26,7 @@ export const DELIVERY_BLOCKS: BlockCfg[] = [
   { key: 'transition', label: 'Overgang', icon: CornerDownRight, accent: 'text-[var(--bni-muted)]' },
 ]
 
-// Understanding + tools — the reference column.
+// Understanding + tools - the reference column.
 export const REFERENCE_BLOCKS: BlockCfg[] = [
   { key: 'understand', label: 'Forstå & forklar', icon: BookOpen, accent: 'text-violet-600' },
   { key: 'ninjaTip', label: 'Ninja-tips', icon: Zap, accent: 'text-[var(--bni-red)]', tone: 'tip' },
@@ -64,7 +64,7 @@ function LayerCard({
         value={value}
         editable={editable}
         onSave={(next) => onEditLayer(cfg.key, next)}
-        placeholder={editable ? 'Klikk for å fylle ut.' : '—'}
+        placeholder={editable ? 'Klikk for å fylle ut.' : '-'}
         className={cfg.big ? 'text-[15px] leading-relaxed xl:text-base' : ''}
       />
     </div>
@@ -88,7 +88,7 @@ export function LayerStack({
   )
 }
 
-// Private, per-director notes — never part of the master content.
+// Private, per-director notes - never part of the master content.
 export function PrivateNotesCard({
   value, onChange,
 }: {

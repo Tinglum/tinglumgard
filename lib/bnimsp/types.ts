@@ -1,4 +1,4 @@
-// BNIMSP — Train-the-trainer content model.
+// BNIMSP - Train-the-trainer content model.
 // The page is the master copy of the trainer manual (Nasjonal MSP 2026).
 
 /**
@@ -11,7 +11,7 @@ export interface SlideLayers {
   goal: string
   /** What success looks like (#VI ØNSKER Å OPPNÅ#). */
   outcome: string
-  /** The spoken script — what the trainer says (Si dette). */
+  /** The spoken script - what the trainer says (Si dette). */
   sayThis: string
   /** Physical / practical actions to take (Gjør dette). */
   doThis: string
@@ -19,7 +19,7 @@ export interface SlideLayers {
   askGroup: string
   /** Bridge to the next slide (Overgang). */
   transition: string
-  /** In-depth understanding for the trainer — how/why to deliver it
+  /** In-depth understanding for the trainer - how/why to deliver it
    *  (Tenk på som trener + TRENERINSTRUKSJON / For erfaren konsulent). */
   understand: string
   /** What's going on for the participants (Tenk på for deltakerne). */
@@ -36,7 +36,7 @@ export interface SlideLayers {
 
 export type LayerKey = keyof SlideLayers
 
-/** Ordered list of every layer key — single source of truth for loaders/APIs. */
+/** Ordered list of every layer key - single source of truth for loaders/APIs. */
 export const LAYER_KEYS: LayerKey[] = [
   'goal', 'outcome', 'sayThis', 'doThis', 'askGroup', 'transition',
   'understand', 'participant', 'ninjaTip', 'example', 'teamAnchor', 'notes',
@@ -95,4 +95,3 @@ export interface UserSlideNote {
   body: string
   updatedAt: string
 }
-

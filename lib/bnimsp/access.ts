@@ -21,7 +21,7 @@ export function canViewBnimsp(session: SessionData | null | undefined): boolean 
 /**
  * Editors maintain the master content (click-to-edit, publish, manage directors):
  * farm admin/operations, or a director flagged as a BNIMSP admin (e.g. the
- * National Trainer) — the latter does NOT carry farm-wide admin rights.
+ * National Trainer) - the latter does NOT carry farm-wide admin rights.
  */
 export function canEditBnimsp(session: SessionData | null | undefined): boolean {
   const role = getBnimspRole(session)
