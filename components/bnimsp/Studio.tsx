@@ -419,10 +419,17 @@ function PresenterView({
   onPrev: () => void; onNext: () => void; onGo: (n: number) => void; onExit: () => void
 }) {
   const [nextPreviewVh, setNextPreviewVh] = useState(30)
+  const scriptScrollRef = useRef<HTMLDivElement | null>(null)
+
   useEffect(() => {
     const saved = Number(localStorage.getItem('bnimsp:nextPreviewVh'))
     if (saved >= 12 && saved <= 60) setNextPreviewVh(saved)
   }, [])
+
+  useEffect(() => {
+    scriptScrollRef.current?.scrollTo({ top: 0, behavior: 'auto' })
+  }, [slide.n])
+
   const updatePreviewVh = (v: number) => {
     setNextPreviewVh(v)
     try { localStorage.setItem('bnimsp:nextPreviewVh', String(v)) } catch {}
@@ -482,7 +489,7 @@ function PresenterView({
           )}
         </div>
 
-        <div className="min-h-0 overflow-y-auto pr-1">
+        <div ref={scriptScrollRef} className="min-h-0 overflow-y-auto pr-1">
           <PresenterBlock label="Si dette" body={slide.sayThis} html={personalScript} big />
           {slide.doThis && <PresenterBlock label="Gjør dette" body={slide.doThis} />}
           {slide.askGroup && <PresenterBlock label="Spør gruppen" body={slide.askGroup} />}
