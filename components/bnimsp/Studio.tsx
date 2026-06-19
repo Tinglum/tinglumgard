@@ -306,7 +306,7 @@ export function Studio({ initialContent, canEdit, isDirector, initialN, initialA
       <PresenterView
         slide={slide} nextSlide={nextSlide} total={total} content={content}
         personalScript={ownsPersonalScript ? (personalCache[currentN]?.script ?? null) : null}
-        onPrev={() => go(currentN - 1)} onNext={() => go(currentN + 1)} onExit={exitPresenterMode}
+        onPrev={() => go(currentN - 1)} onNext={() => go(currentN + 1)} onGo={go} onExit={exitPresenterMode}
       />
     )
   }
@@ -412,11 +412,11 @@ function GoalBanner({
 }
 
 function PresenterView({
-  slide, nextSlide, total, content, personalScript, onPrev, onNext, onExit,
+  slide, nextSlide, total, content, personalScript, onPrev, onNext, onGo, onExit,
 }: {
   slide: Slide; nextSlide: Slide | null; total: number; content: BnimspContent
   personalScript: string | null
-  onPrev: () => void; onNext: () => void; onExit: () => void
+  onPrev: () => void; onNext: () => void; onGo: (n: number) => void; onExit: () => void
 }) {
   const [nextPreviewVh, setNextPreviewVh] = useState(30)
   useEffect(() => {
@@ -437,7 +437,7 @@ function PresenterView({
           <button onClick={onPrev} disabled={slide.n <= 1} className="rounded-lg bg-white/10 p-2 hover:bg-white/20 disabled:opacity-40" aria-label="Forrige">
             <ChevronLeft className="h-5 w-5" />
           </button>
-          <span className="min-w-[64px] text-center text-sm tabular-nums text-zinc-400">{slide.n} / {total}</span>
+          <SlideJump current={slide.n} total={total} onGo={onGo} />
           <button onClick={onNext} disabled={slide.n >= total} className="rounded-lg bg-white/10 p-2 hover:bg-white/20 disabled:opacity-40" aria-label="Neste">
             <ChevronRight className="h-5 w-5" />
           </button>
@@ -542,6 +542,35 @@ function AudienceView({ slide }: { slide: Slide }) {
         />
       </div>
     </div>
+  )
+}
+
+function SlideJump({ current, total, onGo }: { current: number; total: number; onGo: (n: number) => void }) {
+  const [val, setVal] = useState(String(current))
+  useEffect(() => { setVal(String(current)) }, [current])
+  const commit = () => {
+    const n = parseInt(val, 10)
+    if (Number.isFinite(n) && n >= 1 && n <= total) onGo(n)
+    else setVal(String(current))
+  }
+  return (
+    <span className="inline-flex min-w-[64px] items-center justify-center gap-1 text-sm tabular-nums text-zinc-400">
+      <input
+        type="number" min={1} max={total} value={val}
+        onChange={(e) => setVal(e.target.value)}
+        onFocus={(e) => e.currentTarget.select()}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          e.stopPropagation()
+          if (e.key === 'Enter') { e.preventDefault(); commit(); e.currentTarget.blur() }
+          else if (e.key === 'Escape') { setVal(String(current)); e.currentTarget.blur() }
+        }}
+        aria-label="Gå til slide"
+        title="Skriv et slidenummer og trykk Enter"
+        className="bni-jump-input w-11 rounded-md border border-white/15 bg-white/10 px-1 py-1 text-center font-medium text-white outline-none focus:border-[var(--bni-red)] focus:bg-white/15"
+      />
+      <span className="text-zinc-500">/ {total}</span>
+    </span>
   )
 }
 

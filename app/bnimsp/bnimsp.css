@@ -72,6 +72,11 @@
   transition: max-width 0.12s ease;
 }
 
+/* Slide-jump number field in the presenter header: hide the native spinners. */
+.bni-jump-input::-webkit-inner-spin-button,
+.bni-jump-input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+.bni-jump-input { -moz-appearance: textfield; appearance: textfield; }
+
 /* Compact range slider that adjusts the next-slide preview size. */
 .bni-size-slider {
   accent-color: var(--bni-red);
