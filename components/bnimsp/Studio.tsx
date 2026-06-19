@@ -31,6 +31,9 @@ interface Props {
 type PresenterMessage =
   | { type: 'slide'; n: number }
   | { type: 'exit' }
+  // Sent by the audience window (e.g. when a clicker is focused there) so the
+  // presenter window stays the single source of truth for the current slide.
+  | { type: 'nav'; dir: number }
 
 interface ScreenLike {
   availLeft?: number
@@ -88,15 +91,22 @@ export function Studio({ initialContent, canEdit, isDirector, initialN, initialA
   }, [currentN])
 
   const go = useCallback((n: number) => setCurrentN((c) => clamp(n, 1, total) || c), [total])
+  const goBy = useCallback((dir: number) => setCurrentN((c) => clamp(c + dir, 1, total) || c), [total])
 
   useEffect(() => {
     const channel = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel(PRESENTER_CHANNEL) : null
     channelRef.current = channel
 
     function onPresenterMessage(message: PresenterMessage) {
-      if (!initialAudience) return
-      if (message.type === 'slide') go(message.n)
-      if (message.type === 'exit') window.close()
+      if (initialAudience) {
+        if (message.type === 'slide') go(message.n)
+        if (message.type === 'exit') window.close()
+      } else {
+        // Presenter window: honour nav requests forwarded from the audience
+        // window (clicker focused there). The resulting slide change is then
+        // broadcast back so the audience follows.
+        if (message.type === 'nav') goBy(message.dir)
+      }
     }
 
     function onChannelMessage(event: MessageEvent<PresenterMessage>) {
@@ -120,7 +130,7 @@ export function Studio({ initialContent, canEdit, isDirector, initialN, initialA
       if (channelRef.current === channel) channelRef.current = null
       window.removeEventListener('storage', onStorage)
     }
-  }, [go, initialAudience])
+  }, [go, goBy, initialAudience])
 
   const broadcast = useCallback((message: PresenterMessage) => {
     channelRef.current?.postMessage(message)
@@ -178,11 +188,27 @@ export function Studio({ initialContent, canEdit, isDirector, initialN, initialA
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      const tag = (e.target as HTMLElement)?.tagName
-      if (tag === 'INPUT' || tag === 'TEXTAREA') return
-      if (e.key === 'ArrowRight') go(currentN + 1)
-      else if (e.key === 'ArrowLeft') go(currentN - 1)
-      else if (e.key.toLowerCase() === 'p') {
+      const el = e.target as HTMLElement | null
+      if (el?.tagName === 'INPUT' || el?.tagName === 'TEXTAREA' || el?.isContentEditable) return
+      if (e.metaKey || e.ctrlKey || e.altKey) return
+
+      // Slide navigation. Covers arrow keys and presentation clickers, which
+      // typically emit PageDown/PageUp (some emit Space or arrows).
+      const next = e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === 'ArrowDown'
+        || (e.key === ' ' && (presenter || initialAudience))
+      const prev = e.key === 'ArrowLeft' || e.key === 'PageUp' || e.key === 'ArrowUp'
+      if (next || prev) {
+        e.preventDefault()
+        const dir = next ? 1 : -1
+        // The audience window forwards to the presenter; the presenter moves
+        // directly and then broadcasts the change back to the audience.
+        if (initialAudience) broadcast({ type: 'nav', dir })
+        else goBy(dir)
+        return
+      }
+
+      if (initialAudience) return
+      if (e.key.toLowerCase() === 'p') {
         if (presenter) exitPresenterMode()
         else void enterPresenterMode()
       } else if (e.key === 'Escape' && presenter) {
@@ -191,7 +217,7 @@ export function Studio({ initialContent, canEdit, isDirector, initialN, initialA
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [currentN, enterPresenterMode, exitPresenterMode, go, presenter])
+  }, [broadcast, enterPresenterMode, exitPresenterMode, goBy, initialAudience, presenter])
 
   useEffect(() => {
     if (currentN in personalCache) return
