@@ -1,7 +1,10 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { CheckCircle2, AlertTriangle, AlertCircle, Flag, Pencil } from 'lucide-react'
+import { CheckCircle2, AlertTriangle, AlertCircle, Flag, Pencil, Power, RotateCcw } from 'lucide-react'
+
+const END_TIME_KEY = 'bnimsp:endtime'
+const END_TIME_ENABLED_KEY = 'bnimsp:endtime:enabled'
 
 function fmt(ms: number): string {
   const neg = ms < 0
@@ -32,13 +35,17 @@ function endTimestampToday(hhmm: string): number {
  */
 export function EndTimeTracker({ programMin, cumStartMin }: { programMin: number; cumStartMin: number }) {
   const [endTime, setEndTime] = useState('')
+  const [enabled, setEnabled] = useState(true)
   const [editing, setEditing] = useState(false)
   const [now, setNow] = useState(Date.now())
 
   useEffect(() => {
-    const saved = localStorage.getItem('bnimsp:endtime') || ''
+    const saved = localStorage.getItem(END_TIME_KEY) || ''
+    const savedEnabled = localStorage.getItem(END_TIME_ENABLED_KEY)
+    const nextEnabled = savedEnabled !== '0'
     setEndTime(saved)
-    setEditing(!saved)
+    setEnabled(nextEnabled)
+    setEditing(nextEnabled && !saved)
   }, [])
 
   useEffect(() => {
@@ -46,25 +53,80 @@ export function EndTimeTracker({ programMin, cumStartMin }: { programMin: number
     return () => clearInterval(id)
   }, [])
 
+  function persist(nextTime: string, nextEnabled: boolean) {
+    try {
+      if (nextTime) localStorage.setItem(END_TIME_KEY, nextTime)
+      else localStorage.removeItem(END_TIME_KEY)
+      localStorage.setItem(END_TIME_ENABLED_KEY, nextEnabled ? '1' : '0')
+    } catch { /* ignore */ }
+  }
+
   function save(v: string) {
     setEndTime(v)
-    try { localStorage.setItem('bnimsp:endtime', v) } catch { /* ignore */ }
+    setEnabled(true)
+    persist(v, true)
     if (v) setEditing(false)
+  }
+
+  function reset() {
+    setEndTime('')
+    setEnabled(true)
+    setEditing(true)
+    persist('', true)
+  }
+
+  function turnOff() {
+    setEnabled(false)
+    setEditing(false)
+    persist(endTime, false)
+  }
+
+  function turnOn() {
+    setEnabled(true)
+    setEditing(!endTime)
+    persist(endTime, true)
+  }
+
+  if (!enabled) {
+    return (
+      <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 rounded-lg border border-white/15 bg-white/5 px-3 py-1.5 text-sm text-zinc-300">
+          <Power className="h-4 w-4" />
+          <span>Slutttid av</span>
+        </div>
+        <button
+          onClick={turnOn}
+          className="rounded-md p-1.5 text-zinc-400 hover:bg-white/10 hover:text-white"
+          title="Slå på slutttid"
+        >
+          <Flag className="h-3.5 w-3.5" />
+        </button>
+      </div>
+    )
   }
 
   if (!endTime || editing) {
     return (
-      <label className="flex items-center gap-2 rounded-lg border border-white/15 bg-white/5 px-3 py-1.5 text-sm">
-        <Flag className="h-4 w-4 text-zinc-300" />
-        <span className="text-zinc-300">Slutttid</span>
-        <input
-          type="time"
-          defaultValue={endTime}
-          onChange={(e) => e.target.value && save(e.target.value)}
-          className="bg-transparent text-white outline-none [color-scheme:dark]"
-          autoFocus
-        />
-      </label>
+      <div className="flex items-center gap-2">
+        <label className="flex items-center gap-2 rounded-lg border border-white/15 bg-white/5 px-3 py-1.5 text-sm">
+          <Flag className="h-4 w-4 text-zinc-300" />
+          <span className="text-zinc-300">Slutttid</span>
+          <input
+            type="time"
+            defaultValue={endTime}
+            onChange={(e) => e.target.value && save(e.target.value)}
+            className="bg-transparent text-white outline-none [color-scheme:dark]"
+            autoFocus
+          />
+        </label>
+        <button
+          onClick={turnOff}
+          className="rounded-md p-1.5 text-zinc-400 hover:bg-white/10 hover:text-white"
+          title="Slå av slutttid"
+        >
+          <Power className="h-3.5 w-3.5" />
+        </button>
+      </div>
     )
   }
 
@@ -100,6 +162,20 @@ export function EndTimeTracker({ programMin, cumStartMin }: { programMin: number
         title="Endre sluttid"
       >
         <Pencil className="h-3.5 w-3.5" />
+      </button>
+      <button
+        onClick={reset}
+        className="rounded-md p-1.5 text-zinc-400 hover:bg-white/10 hover:text-white"
+        title="Nullstill slutttid"
+      >
+        <RotateCcw className="h-3.5 w-3.5" />
+      </button>
+      <button
+        onClick={turnOff}
+        className="rounded-md p-1.5 text-zinc-400 hover:bg-white/10 hover:text-white"
+        title="Slå av slutttid"
+      >
+        <Power className="h-3.5 w-3.5" />
       </button>
     </div>
   )
