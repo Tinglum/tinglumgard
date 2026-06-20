@@ -1,5 +1,28 @@
 import { supabaseAdmin } from '@/lib/supabase/server'
 
+export interface GoatStat {
+  goat_id: string
+  name: string
+  tag_number: string | null
+  accent_color: string
+  status: string
+  total_grams: number
+  session_count: number
+  morning_grams: number
+  evening_grams: number
+  health_flags: Record<string, number>
+}
+
+export interface PipelineBucket { status: string; count: number; total_liters: number }
+export interface QualityBucket { score: number; count: number }
+export interface ProductionStatusBucket { status: string; count: number; total_yield_kg: number }
+export interface FunnelData {
+  collected_grams_90d: number
+  batched_liters: number
+  yield_kg: number
+  production_batch_count: number
+}
+
 export interface DailyTrend {
   date: string
   total_grams: number
@@ -182,4 +205,93 @@ export async function getMilkerStats(): Promise<MilkerStats[]> {
       last_session_date: stats.lastSessionDate,
     }))
     .sort((a, b) => b.total_grams - a.total_grams)
+}
+
+export async function getGoatStats(days = 30): Promise<GoatStat[]> {
+  const sinceStr = new Date(Date.now() - days * 864e5).toISOString().slice(0, 10)
+
+  const [{ data: goats }, { data: sessions }] = await Promise.all([
+    supabaseAdmin.from('milk_goats').select('id, name, tag_number, accent_color, status').order('display_order'),
+    supabaseAdmin.from('milk_daily_sessions').select('id, session_type').gte('milking_date', sinceStr),
+  ])
+  if (!goats?.length) return []
+
+  const sessionIds = (sessions || []).map(s => s.id)
+  const sessionTypeMap = new Map((sessions || []).map(s => [s.id, s.session_type]))
+
+  const goatMap = new Map<string, GoatStat>(
+    goats.map(g => [g.id, {
+      goat_id: g.id, name: g.name, tag_number: g.tag_number,
+      accent_color: g.accent_color || '#8B7355', status: g.status,
+      total_grams: 0, session_count: 0, morning_grams: 0, evening_grams: 0, health_flags: {},
+    }])
+  )
+
+  if (sessionIds.length) {
+    const { data: entries } = await supabaseAdmin
+      .from('milk_session_entries')
+      .select('goat_id, grams, health_flag, session_id')
+      .in('session_id', sessionIds)
+
+    for (const e of entries || []) {
+      const s = goatMap.get(e.goat_id)
+      if (!s) continue
+      const g = Number(e.grams || 0)
+      s.total_grams += g
+      s.session_count++
+      const type = sessionTypeMap.get(e.session_id)
+      if (type === 'morning') s.morning_grams += g
+      else if (type === 'evening') s.evening_grams += g
+      if (e.health_flag && e.health_flag !== 'normal') {
+        s.health_flags[e.health_flag] = (s.health_flags[e.health_flag] || 0) + 1
+      }
+    }
+  }
+
+  return Array.from(goatMap.values())
+    .map(g => ({ ...g, total_grams: Math.round(g.total_grams), morning_grams: Math.round(g.morning_grams), evening_grams: Math.round(g.evening_grams) }))
+    .sort((a, b) => b.total_grams - a.total_grams)
+}
+
+export async function getPipelineAnalytics(): Promise<{
+  milkPipeline: PipelineBucket[]
+  qualityDistribution: QualityBucket[]
+  productionByStatus: ProductionStatusBucket[]
+  funnel: FunnelData
+}> {
+  const since90 = new Date(Date.now() - 90 * 864e5).toISOString().slice(0, 10)
+
+  const [{ data: batches }, { data: prodBatches }, { data: sessions90 }] = await Promise.all([
+    supabaseAdmin.from('milk_batches').select('pipeline_status, liters_raw'),
+    supabaseAdmin.from('dairy_production_batches').select('status, quality_score, yield_kg, milk_liters_used'),
+    supabaseAdmin.from('milk_daily_sessions').select('total_grams').gte('milking_date', since90),
+  ])
+
+  const pipeMap = new Map<string, { count: number; liters: number }>()
+  for (const b of batches || []) {
+    const ex = pipeMap.get(b.pipeline_status) || { count: 0, liters: 0 }
+    ex.count++; ex.liters += Number(b.liters_raw || 0)
+    pipeMap.set(b.pipeline_status, ex)
+  }
+
+  const qualMap = new Map<number, number>()
+  const statusMap = new Map<string, { count: number; yield: number }>()
+  for (const pb of prodBatches || []) {
+    if (pb.quality_score) qualMap.set(pb.quality_score, (qualMap.get(pb.quality_score) || 0) + 1)
+    const ex = statusMap.get(pb.status) || { count: 0, yield: 0 }
+    ex.count++; ex.yield += Number(pb.yield_kg || 0)
+    statusMap.set(pb.status, ex)
+  }
+
+  return {
+    milkPipeline: Array.from(pipeMap.entries()).map(([status, v]) => ({ status, count: v.count, total_liters: Math.round(v.liters * 10) / 10 })),
+    qualityDistribution: Array.from({ length: 10 }, (_, i) => ({ score: i + 1, count: qualMap.get(i + 1) || 0 })),
+    productionByStatus: Array.from(statusMap.entries()).map(([status, v]) => ({ status, count: v.count, total_yield_kg: Math.round(v.yield * 100) / 100 })),
+    funnel: {
+      collected_grams_90d: Math.round((sessions90 || []).reduce((s, r) => s + Number(r.total_grams || 0), 0)),
+      batched_liters: Math.round((batches || []).reduce((s, b) => s + Number(b.liters_raw || 0), 0) * 10) / 10,
+      yield_kg: Math.round((prodBatches || []).reduce((s, pb) => s + Number(pb.yield_kg || 0), 0) * 100) / 100,
+      production_batch_count: prodBatches?.length || 0,
+    },
+  }
 }
