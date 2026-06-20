@@ -18,6 +18,9 @@ export const SESSION_COOKIE_OPTIONS = {
   path: '/',
 } as const;
 
+/** Admin sessions expire after 30 minutes without user activity. */
+export const ADMIN_SESSION_MAX_AGE_SECONDS = 60 * 30;
+
 /** Canonical public URL for the app. */
 export const APP_BASE_URL =
   process.env.NEXT_PUBLIC_APP_URL || 'https://tinglumgard.no';

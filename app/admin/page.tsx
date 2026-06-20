@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { ADMIN_SESSION_MAX_AGE_SECONDS } from '@/lib/constants/app';
 import {
   LayoutDashboard,
   ShoppingCart,
@@ -95,6 +96,9 @@ const EMAIL_SUB_TABS: EmailSubTab[] = [
   'setup',
 ];
 
+const ADMIN_SESSION_IDLE_TIMEOUT_MS = ADMIN_SESSION_MAX_AGE_SECONDS * 1000;
+const ADMIN_SESSION_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
+
 function isEmailSubTab(value: string): value is EmailSubTab {
   return EMAIL_SUB_TABS.includes(value as EmailSubTab);
 }
@@ -140,6 +144,9 @@ function readPersistedAdminUiState(): PersistedAdminUiState | null {
 export default function AdminPage() {
   const { t, lang } = useLanguage();
   const copy = t.adminPage;
+  const lastActivityAtRef = useRef<number>(Date.now());
+  const lastRefreshAtRef = useRef<number>(0);
+  const refreshInFlightRef = useRef(false);
 
   // Authentication
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -168,8 +175,16 @@ export default function AdminPage() {
   // Message badge
   const [unresolvedCount, setUnresolvedCount] = useState(0);
 
-  // Check if existing session cookie is valid on mount — avoids forcing
-  // a password re-entry on every page refresh while the 7-day cookie is alive.
+  const resetAdminSessionState = () => {
+    setIsAuthenticated(false);
+    setDeepLinkParsed(false);
+    setDeepLinkPigOrderId(null);
+    setDeepLinkEggOrderId(null);
+    setDeepLinkChickenOrderId(null);
+  };
+
+  // Keep an existing valid admin session on refresh instead of forcing
+  // a password re-entry when the current session is still active.
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -367,6 +382,92 @@ export default function AdminPage() {
     settingsSubTab,
   ]);
 
+  useEffect(() => {
+    if (!isAuthenticated || typeof window === 'undefined') return;
+
+    lastActivityAtRef.current = Date.now();
+
+    const refreshSession = async () => {
+      if (refreshInFlightRef.current) return;
+      refreshInFlightRef.current = true;
+
+      try {
+        const response = await fetch('/api/admin/session', {
+          method: 'POST',
+          cache: 'no-store',
+        });
+
+        if (response.status === 401) {
+          resetAdminSessionState();
+          return;
+        }
+
+        if (response.ok) {
+          lastRefreshAtRef.current = Date.now();
+        }
+      } catch {
+        // Ignore transient failures and keep the current session state.
+      } finally {
+        refreshInFlightRef.current = false;
+      }
+    };
+
+    const registerActivity = () => {
+      const now = Date.now();
+      lastActivityAtRef.current = now;
+
+      if (document.visibilityState !== 'visible') return;
+      if (now - lastRefreshAtRef.current < ADMIN_SESSION_REFRESH_INTERVAL_MS) return;
+
+      void refreshSession();
+    };
+
+    const logoutForInactivity = async () => {
+      try {
+        await fetch('/api/admin/logout', { method: 'POST' });
+      } catch {
+        // Best-effort logout.
+      } finally {
+        resetAdminSessionState();
+      }
+    };
+
+    const checkForIdleTimeout = () => {
+      if (Date.now() - lastActivityAtRef.current < ADMIN_SESSION_IDLE_TIMEOUT_MS) return;
+      void logoutForInactivity();
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        registerActivity();
+      }
+    };
+
+    const activityEvents: Array<keyof WindowEventMap> = [
+      'pointerdown',
+      'pointermove',
+      'keydown',
+      'touchstart',
+      'focus',
+    ];
+
+    for (const eventName of activityEvents) {
+      window.addEventListener(eventName, registerActivity, { passive: true });
+    }
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    void refreshSession();
+    const idleInterval = window.setInterval(checkForIdleTimeout, 30_000);
+
+    return () => {
+      for (const eventName of activityEvents) {
+        window.removeEventListener(eventName, registerActivity);
+      }
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.clearInterval(idleInterval);
+    };
+  }, [isAuthenticated]);
+
   // Dedicated session heartbeat — checks auth every 5 minutes independently
   // of the message badge poll. This avoids the badge poll driving logout.
   useEffect(() => {
@@ -375,7 +476,7 @@ export default function AdminPage() {
     const checkSession = async () => {
       try {
         const res = await fetch('/api/admin/session', { cache: 'no-store' });
-        if (res.status === 401) setIsAuthenticated(false);
+        if (res.status === 401) resetAdminSessionState();
       } catch {
         // Network error — don't log out
       }
@@ -607,11 +708,7 @@ export default function AdminPage() {
             <button
               onClick={async () => {
                 await fetch('/api/admin/logout', { method: 'POST' });
-                setIsAuthenticated(false);
-                setDeepLinkParsed(false);
-                setDeepLinkPigOrderId(null);
-                setDeepLinkEggOrderId(null);
-                setDeepLinkChickenOrderId(null);
+                resetAdminSessionState();
               }}
               className="shrink-0 px-3 py-2 sm:px-6 sm:py-3 border-2 border-neutral-200 text-neutral-900 rounded-xl text-xs sm:text-sm font-light hover:bg-neutral-50 hover:border-neutral-300 hover:-translate-y-0.5 hover:shadow-[0_10px_30px_-10px_rgba(0,0,0,0.1)] transition-all duration-300"
             >

@@ -28,11 +28,15 @@ export interface SessionData {
   impersonatorName?: string;
 }
 
-export async function createSession(data: SessionData): Promise<string> {
+interface CreateSessionOptions {
+  expiresIn?: string | number;
+}
+
+export async function createSession(data: SessionData, options?: CreateSessionOptions): Promise<string> {
   return new SignJWT(data as unknown as Record<string, unknown>)
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
-    .setExpirationTime('7d')
+    .setExpirationTime(options?.expiresIn ?? '7d')
     .sign(getSecretKey());
 }
 

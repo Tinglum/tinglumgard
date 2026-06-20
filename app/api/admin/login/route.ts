@@ -3,6 +3,7 @@ import { createSession } from '@/lib/auth/session';
 import { sanitizeReturnToPath } from '@/lib/email/links';
 import { cookies } from 'next/headers';
 import { logError } from '@/lib/logger';
+import { ADMIN_SESSION_MAX_AGE_SECONDS, SESSION_COOKIE_NAME, SESSION_COOKIE_OPTIONS } from '@/lib/constants/app';
 
 export async function POST(request: NextRequest) {
   try {
@@ -34,16 +35,13 @@ export async function POST(request: NextRequest) {
       name: 'Administrator',
     };
 
-    const token = await createSession(sessionData);
+    const token = await createSession(sessionData, { expiresIn: `${ADMIN_SESSION_MAX_AGE_SECONDS}s` });
 
     // Set cookie
     const cookieStore = await cookies();
-    cookieStore.set('tinglum_session', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 60 * 60 * 24 * 7, // 7 days
-      path: '/',
+    cookieStore.set(SESSION_COOKIE_NAME, token, {
+      ...SESSION_COOKIE_OPTIONS,
+      maxAge: ADMIN_SESSION_MAX_AGE_SECONDS,
     });
 
     return NextResponse.json({ success: true, redirectTo });
