@@ -9,6 +9,7 @@ interface DailyTrend { date: string; total_grams: number; morning: number; eveni
 interface YieldRow { product_type: string; batch_count: number; avg_yield_pct: number; total_milk_used: number; total_yield_kg: number }
 interface RecipeRow { recipe_id: string; recipe_name: string; product_type: string; batches_made: number; avg_quality: number | null; avg_yield_pct: number | null }
 interface MilkerRow { milker_name: string; session_count: number; active_days: number; morning_sessions: number; evening_sessions: number; total_grams: number; avg_session_grams: number; last_session_date: string }
+interface MilkerDetail { milker_name: string; this_month: { grams: number; sessions: number }; last_month: { grams: number; sessions: number }; best_session_grams: number; best_session_date: string | null; rank_this: number; rank_change: number | null }
 interface GoatStat { goat_id: string; name: string; tag_number: string | null; accent_color: string; status: string; total_grams: number; session_count: number; morning_grams: number; evening_grams: number; health_flags: Record<string, number>; weekly_totals: number[] }
 interface PipelineData {
   milkPipeline: { status: string; count: number; total_liters: number }[]
@@ -61,6 +62,26 @@ function fmt(g: number) {
   return `${g} g`
 }
 
+function ringArc(pct: number, cx: number, cy: number, r: number): string {
+  const clamped = Math.min(0.9999, Math.max(0.0001, pct))
+  const rad = (d: number) => (d - 90) * Math.PI / 180
+  const deg = clamped * 360
+  return [
+    `M ${(cx + r * Math.cos(rad(0))).toFixed(2)} ${(cy + r * Math.sin(rad(0))).toFixed(2)}`,
+    `A ${r} ${r} 0 ${deg > 180 ? 1 : 0} 1 ${(cx + r * Math.cos(rad(deg))).toFixed(2)} ${(cy + r * Math.sin(rad(deg))).toFixed(2)}`,
+  ].join(' ')
+}
+
+function milkerInitials(name: string): string {
+  return name.split(' ').map(p => p[0]).join('').slice(0, 2).toUpperCase()
+}
+
+function milkerColor(name: string): string {
+  const colors = ['#d97706','#0891b2','#7c3aed','#059669','#dc2626','#d946ef','#ea580c','#16a34a']
+  let h = 0; for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0
+  return colors[h % colors.length]
+}
+
 function donutSlice(cx: number, cy: number, r: number, ir: number, startDeg: number, endDeg: number): string {
   const rad = (d: number) => (d - 90) * Math.PI / 180
   const pt = (ang: number, radius: number) => ({ x: cx + radius * Math.cos(rad(ang)), y: cy + radius * Math.sin(rad(ang)) })
@@ -86,10 +107,14 @@ export function MilkAnalytics({ lang }: { lang: string }) {
   const [goats, setGoats] = useState<GoatStat[]>([])
   const [pipeline, setPipeline] = useState<PipelineData | null>(null)
   const [sessions, setSessions] = useState<SessionData | null>(null)
+  const [milkerDetails, setMilkerDetails] = useState<MilkerDetail[]>([])
+  const [h2hA, setH2hA] = useState('')
+  const [h2hB, setH2hB] = useState('')
   const [loading, setLoading] = useState(true)
   const [goatsLoading, setGoatsLoading] = useState(false)
   const [pipelineLoading, setPipelineLoading] = useState(false)
   const [sessionsLoading, setSessionsLoading] = useState(false)
+  const [milkerDetailsLoading, setMilkerDetailsLoading] = useState(false)
 
   const fetchBase = useCallback(async () => {
     setLoading(true)
@@ -126,10 +151,19 @@ export function MilkAnalytics({ lang }: { lang: string }) {
     setSessionsLoading(false)
   }, [sessions])
 
+  const fetchMilkerDetails = useCallback(async () => {
+    if (milkerDetails.length) return
+    setMilkerDetailsLoading(true)
+    const res = await fetch('/api/milk/analytics/milker-details')
+    if (res.ok) { const d = await res.json(); setMilkerDetails(d.details || []) }
+    setMilkerDetailsLoading(false)
+  }, [milkerDetails.length])
+
   useEffect(() => { fetchBase() }, [fetchBase])
   useEffect(() => { if (tab === 'goats') fetchGoats() }, [tab, fetchGoats])
   useEffect(() => { if (tab === 'pipeline') fetchPipeline() }, [tab, fetchPipeline])
   useEffect(() => { if (tab === 'sessions') fetchSessions() }, [tab, fetchSessions])
+  useEffect(() => { if (tab === 'milkers') fetchMilkerDetails() }, [tab, fetchMilkerDetails])
 
   // ── Computed from trends ─────────────────────────────────────────────────
   const trends30 = trends.slice(-30)
@@ -836,27 +870,240 @@ export function MilkAnalytics({ lang }: { lang: string }) {
         </div>
       )}
 
-      {/* ── MILKERS ───────────────────────────────────────────────────── */}
+      {/* ── MILKERS / COMPETITION ─────────────────────────────────────── */}
       {tab === 'milkers' && (
         <div className="space-y-4">
           {milkers.length === 0 ? <Empty text={lang === 'no' ? 'Ingen melkerdata' : 'No milker data'} /> : (
-            <div className="rounded-xl border border-neutral-200 bg-white p-4">
-              <div className="flex items-center gap-2 mb-3"><Star className="w-4 h-4 text-neutral-400" /><h3 className="text-sm font-medium text-neutral-900">{lang === 'no' ? 'Melkere' : 'Milkers'}</h3></div>
-              {milkers.map(row => (
-                <div key={row.milker_name} className="flex items-start justify-between gap-3 py-2.5 border-b border-neutral-50 last:border-0">
-                  <div>
-                    <div className="text-sm font-medium text-neutral-900">{row.milker_name}</div>
-                    <div className="text-[11px] text-neutral-500">{row.session_count} {lang === 'no' ? 'økter' : 'sessions'} · {row.active_days} {lang === 'no' ? 'dager' : 'days'}</div>
-                    <div className="text-[10px] text-neutral-400">{lang === 'no' ? 'Sist' : 'Last'}: {row.last_session_date}</div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-sm font-semibold text-neutral-900 tabular-nums">{fmt(row.total_grams)}</div>
-                    <div className="text-[11px] text-neutral-500">{lang === 'no' ? 'snitt' : 'avg'} {fmt(row.avg_session_grams)}</div>
-                    <div className="text-[10px] text-neutral-400">{row.morning_sessions}/{row.evening_sessions} M/E</div>
+            <>
+              {/* 1. MONTHLY LEADERBOARD */}
+              <div className="rounded-xl border border-neutral-200 bg-white p-4">
+                <div className="flex items-center gap-2 mb-4">
+                  <Award className="w-4 h-4 text-neutral-400" />
+                  <h3 className="text-sm font-medium text-neutral-900">{lang === 'no' ? 'Månedlig rangering' : 'Monthly leaderboard'}</h3>
+                  {milkerDetailsLoading && <Loader2 className="w-3 h-3 animate-spin text-neutral-300 ml-auto" />}
+                </div>
+                <div className="space-y-2">
+                  {(milkerDetails.length ? milkerDetails : milkers.map((m, i) => ({
+                    milker_name: m.milker_name, rank_this: i + 1, rank_change: null,
+                    this_month: { grams: 0, sessions: 0 }, last_month: { grams: 0, sessions: 0 },
+                    best_session_grams: 0, best_session_date: null,
+                  }))).map((d, i) => {
+                    const row = milkers.find(m => m.milker_name === d.milker_name)
+                    const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : null
+                    const delta = d.last_month.grams > 0 ? Math.round(((d.this_month.grams - d.last_month.grams) / d.last_month.grams) * 100) : null
+                    const color = milkerColor(d.milker_name)
+                    return (
+                      <div key={d.milker_name} className={`flex items-center gap-3 rounded-xl px-3 py-2.5 ${i === 0 ? 'bg-amber-50 border border-amber-100' : 'bg-neutral-50 border border-neutral-100'}`}>
+                        <div className="w-7 text-center">{medal || <span className="text-sm text-neutral-400 font-medium">{i + 1}</span>}</div>
+                        <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0" style={{ background: color }}>
+                          {milkerInitials(d.milker_name)}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-semibold text-neutral-900 truncate">{d.milker_name}</div>
+                          <div className="text-[10px] text-neutral-500">{row?.session_count || 0} {lang === 'no' ? 'økter totalt' : 'sessions total'}</div>
+                        </div>
+                        <div className="text-right flex-shrink-0">
+                          <div className="text-sm font-bold text-neutral-900 tabular-nums">
+                            {d.this_month.grams > 0 ? fmt(d.this_month.grams) : fmt(row?.total_grams || 0)}
+                          </div>
+                          {delta !== null && (
+                            <div className={`text-[10px] font-medium ${delta >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                              {delta >= 0 ? '↑' : '↓'} {Math.abs(delta)}%
+                            </div>
+                          )}
+                        </div>
+                        {d.rank_change !== null && (
+                          <div className={`text-[10px] font-bold w-5 text-center ${d.rank_change > 0 ? 'text-emerald-500' : d.rank_change < 0 ? 'text-red-500' : 'text-neutral-300'}`}>
+                            {d.rank_change > 0 ? `↑${d.rank_change}` : d.rank_change < 0 ? `↓${Math.abs(d.rank_change)}` : '–'}
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* 2. CONSISTENCY RINGS */}
+              <div className="rounded-xl border border-neutral-200 bg-white p-4">
+                <h3 className="text-sm font-medium text-neutral-900 mb-4">{lang === 'no' ? 'Konsistens (økt per aktiv dag)' : 'Consistency (sessions per active day)'}</h3>
+                <div className="flex flex-wrap gap-4 justify-around">
+                  {milkers.map(m => {
+                    const sessPerDay = m.active_days > 0 ? m.session_count / m.active_days : 0
+                    const pct = Math.min(1, sessPerDay / 2)
+                    const color = milkerColor(m.milker_name)
+                    const scoreLabel = sessPerDay >= 1.8 ? (lang === 'no' ? 'Utmerket' : 'Excellent') : sessPerDay >= 1.3 ? (lang === 'no' ? 'Bra' : 'Good') : (lang === 'no' ? 'OK' : 'OK')
+                    return (
+                      <div key={m.milker_name} className="flex flex-col items-center gap-1.5">
+                        <div className="relative w-14 h-14">
+                          <svg viewBox="0 0 60 60" className="w-14 h-14 -rotate-90">
+                            <circle cx="30" cy="30" r="22" fill="none" stroke="#f5f5f4" strokeWidth="6" />
+                            <path d={ringArc(pct, 30, 30, 22)} fill="none" stroke={color} strokeWidth="6" strokeLinecap="round" />
+                          </svg>
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <span className="text-[11px] font-bold" style={{ color }}>{Math.round(pct * 100)}%</span>
+                          </div>
+                        </div>
+                        <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[10px] font-bold" style={{ background: color }}>
+                          {milkerInitials(m.milker_name)}
+                        </div>
+                        <div className="text-[10px] text-neutral-600 font-medium text-center max-w-[64px] truncate">{m.milker_name.split(' ')[0]}</div>
+                        <div className="text-[9px] text-neutral-400">{scoreLabel}</div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* 3. PERSONAL RECORDS */}
+              {milkerDetails.length > 0 && (
+                <div className="rounded-xl border border-neutral-200 bg-white p-4">
+                  <h3 className="text-sm font-medium text-neutral-900 mb-3">{lang === 'no' ? 'Personlige rekorder' : 'Personal records'}</h3>
+                  <div className="space-y-2">
+                    {milkerDetails.map(d => {
+                      const color = milkerColor(d.milker_name)
+                      const row = milkers.find(m => m.milker_name === d.milker_name)
+                      return (
+                        <div key={d.milker_name} className="flex items-center gap-3 py-2 border-b border-neutral-50 last:border-0">
+                          <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0" style={{ background: color }}>
+                            {milkerInitials(d.milker_name)}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="text-sm font-medium text-neutral-900">{d.milker_name}</div>
+                            <div className="text-[10px] text-neutral-400">{row?.session_count} {lang === 'no' ? 'økter' : 'sessions'} · {lang === 'no' ? 'snitt' : 'avg'} {fmt(row?.avg_session_grams || 0)}</div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-sm font-bold text-amber-600 tabular-nums">🏆 {fmt(d.best_session_grams)}</div>
+                            <div className="text-[10px] text-neutral-400">{d.best_session_date || '–'}</div>
+                          </div>
+                        </div>
+                      )
+                    })}
                   </div>
                 </div>
-              ))}
-            </div>
+              )}
+
+              {/* 4. HEAD-TO-HEAD */}
+              {milkers.length >= 2 && (
+                <div className="rounded-xl border border-neutral-200 bg-white p-4">
+                  <h3 className="text-sm font-medium text-neutral-900 mb-3">{lang === 'no' ? 'Ansikt til ansikt' : 'Head to head'}</h3>
+                  <div className="flex gap-2 mb-4">
+                    {([h2hA, h2hB] as const).map((val, idx) => (
+                      <select key={idx} value={val}
+                        onChange={e => idx === 0 ? setH2hA(e.target.value) : setH2hB(e.target.value)}
+                        className="flex-1 text-sm border border-neutral-200 rounded-lg px-2 py-1.5 bg-white text-neutral-700 focus:outline-none focus:ring-1 focus:ring-amber-400">
+                        <option value="">{lang === 'no' ? '— Velg melker —' : '— Select milker —'}</option>
+                        {milkers.map(m => <option key={m.milker_name} value={m.milker_name}>{m.milker_name}</option>)}
+                      </select>
+                    ))}
+                  </div>
+                  {h2hA && h2hB && h2hA !== h2hB ? (() => {
+                    const a = milkers.find(m => m.milker_name === h2hA)!
+                    const b = milkers.find(m => m.milker_name === h2hB)!
+                    const da = milkerDetails.find(m => m.milker_name === h2hA)
+                    const db = milkerDetails.find(m => m.milker_name === h2hB)
+                    const colorA = milkerColor(h2hA), colorB = milkerColor(h2hB)
+                    const stats: { label: string; a: number | string; b: number | string; higherWins?: boolean }[] = [
+                      { label: lang === 'no' ? 'Total produksjon' : 'Total production', a: a.total_grams, b: b.total_grams, higherWins: true },
+                      { label: lang === 'no' ? 'Snitt per økt' : 'Avg per session', a: a.avg_session_grams, b: b.avg_session_grams, higherWins: true },
+                      { label: lang === 'no' ? 'Antall økter' : 'Sessions', a: a.session_count, b: b.session_count, higherWins: true },
+                      { label: lang === 'no' ? 'Aktive dager' : 'Active days', a: a.active_days, b: b.active_days, higherWins: true },
+                      { label: lang === 'no' ? 'Morgenøkter' : 'Morning sess.', a: a.morning_sessions, b: b.morning_sessions, higherWins: true },
+                      { label: lang === 'no' ? 'Kveldsøkter' : 'Evening sess.', a: a.evening_sessions, b: b.evening_sessions, higherWins: true },
+                      ...(da && db ? [{ label: lang === 'no' ? 'Beste økt' : 'Best session', a: da.best_session_grams, b: db.best_session_grams, higherWins: true }] : []),
+                      ...(da && db && (da.this_month.grams > 0 || db.this_month.grams > 0) ? [{ label: lang === 'no' ? 'Denne måneden' : 'This month', a: da.this_month.grams, b: db.this_month.grams, higherWins: true }] : []),
+                    ]
+                    return (
+                      <div>
+                        <div className="flex items-center gap-2 mb-3">
+                          <div className="flex-1 flex items-center gap-2">
+                            <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold" style={{ background: colorA }}>{milkerInitials(h2hA)}</div>
+                            <span className="font-semibold text-sm text-neutral-900">{h2hA.split(' ')[0]}</span>
+                          </div>
+                          <div className="text-xs text-neutral-400 font-medium">vs</div>
+                          <div className="flex-1 flex items-center justify-end gap-2">
+                            <span className="font-semibold text-sm text-neutral-900 text-right">{h2hB.split(' ')[0]}</span>
+                            <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold" style={{ background: colorB }}>{milkerInitials(h2hB)}</div>
+                          </div>
+                        </div>
+                        {stats.map(({ label, a: av, b: bv, higherWins }) => {
+                          const an = Number(av), bn = Number(bv)
+                          const aWins = higherWins ? an > bn : an < bn
+                          const bWins = higherWins ? bn > an : bn < an
+                          return (
+                            <div key={label} className="flex items-center gap-2 py-1.5 border-b border-neutral-50 last:border-0">
+                              <div className={`flex-1 text-sm font-semibold tabular-nums text-right ${aWins ? 'text-amber-600' : 'text-neutral-500'}`}>{typeof av === 'number' && av > 500 ? fmt(av) : av}</div>
+                              <div className="w-28 text-center text-[10px] text-neutral-400">{label}</div>
+                              <div className={`flex-1 text-sm font-semibold tabular-nums ${bWins ? 'text-amber-600' : 'text-neutral-500'}`}>{typeof bv === 'number' && bv > 500 ? fmt(bv) : bv}</div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )
+                  })() : (
+                    <p className="text-center text-sm text-neutral-400 py-2">{lang === 'no' ? 'Velg to ulike melkere' : 'Pick two different milkers'}</p>
+                  )}
+                </div>
+              )}
+
+              {/* 5. ACHIEVEMENT BADGES */}
+              <div className="rounded-xl border border-neutral-200 bg-white p-4">
+                <h3 className="text-sm font-medium text-neutral-900 mb-4">{lang === 'no' ? 'Merker & titler' : 'Badges & titles'}</h3>
+                {(() => {
+                  const maxGramsM = Math.max(...milkers.map(m => m.total_grams))
+                  const maxSessions = Math.max(...milkers.map(m => m.session_count))
+                  const maxMorning = Math.max(...milkers.map(m => m.morning_sessions))
+                  const maxEvening = Math.max(...milkers.map(m => m.evening_sessions))
+                  const maxBest = milkerDetails.length ? Math.max(...milkerDetails.map(d => d.best_session_grams)) : 0
+                  const mostGrowth = milkerDetails.length ? milkerDetails.reduce((best, d) => {
+                    const pct = d.last_month.grams > 0 ? (d.this_month.grams - d.last_month.grams) / d.last_month.grams : 0
+                    const bestPct = best.last_month.grams > 0 ? (best.this_month.grams - best.last_month.grams) / best.last_month.grams : 0
+                    return pct > bestPct ? d : best
+                  }, milkerDetails[0]) : null
+
+                  const BADGES: { key: string; emoji: string; no: string; en: string; color: string; test: (m: MilkerRow, d?: MilkerDetail) => boolean }[] = [
+                    { key: 'top', emoji: '🥛', no: 'Toppmelker', en: 'Top Producer', color: 'bg-amber-100 text-amber-800', test: m => m.total_grams === maxGramsM },
+                    { key: 'active', emoji: '⚡', no: 'Mest aktiv', en: 'Most Active', color: 'bg-blue-100 text-blue-800', test: m => m.session_count === maxSessions },
+                    { key: 'morning', emoji: '🌅', no: 'Morgen-mester', en: 'Morning Master', color: 'bg-orange-100 text-orange-800', test: m => m.morning_sessions === maxMorning && maxMorning > 0 },
+                    { key: 'evening', emoji: '🌙', no: 'Kveld-kongen', en: 'Evening King', color: 'bg-indigo-100 text-indigo-800', test: m => m.evening_sessions === maxEvening && maxEvening > 0 },
+                    { key: 'record', emoji: '💎', no: 'Rekord-holder', en: 'Record Holder', color: 'bg-purple-100 text-purple-800', test: (m, d) => !!d && d.best_session_grams === maxBest && maxBest > 0 },
+                    { key: 'growth', emoji: '📈', no: 'Mest vekst', en: 'Most Growth', color: 'bg-emerald-100 text-emerald-800', test: (m, d) => !!mostGrowth && !!d && d.milker_name === mostGrowth.milker_name && d.this_month.grams > d.last_month.grams },
+                    { key: 'hundred', emoji: '💯', no: '100 økter', en: '100 sessions', color: 'bg-neutral-100 text-neutral-700', test: m => m.session_count >= 100 },
+                    { key: 'streak7', emoji: '🔥', no: 'Vane-melker', en: 'Habit Milker', color: 'bg-red-100 text-red-800', test: m => m.active_days >= 14 },
+                  ]
+
+                  return (
+                    <div className="space-y-3">
+                      {milkers.map(m => {
+                        const d = milkerDetails.find(x => x.milker_name === m.milker_name)
+                        const earned = BADGES.filter(b => b.test(m, d))
+                        const color = milkerColor(m.milker_name)
+                        return (
+                          <div key={m.milker_name} className="flex items-start gap-3">
+                            <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0 mt-0.5" style={{ background: color }}>
+                              {milkerInitials(m.milker_name)}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="text-sm font-medium text-neutral-900 mb-1.5">{m.milker_name}</div>
+                              {earned.length > 0 ? (
+                                <div className="flex flex-wrap gap-1.5">
+                                  {earned.map(b => (
+                                    <span key={b.key} className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold ${b.color}`}>
+                                      {b.emoji} {lang === 'no' ? b.no : b.en}
+                                    </span>
+                                  ))}
+                                </div>
+                              ) : (
+                                <span className="text-[11px] text-neutral-400">{lang === 'no' ? 'Ingen merker ennå' : 'No badges yet'}</span>
+                              )}
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )
+                })()}
+              </div>
+            </>
           )}
         </div>
       )}

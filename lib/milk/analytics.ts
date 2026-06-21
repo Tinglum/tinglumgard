@@ -443,3 +443,69 @@ export async function getSessionAnalytics(days = 90): Promise<SessionStats> {
       .sort((a, b) => a.month.localeCompare(b.month)),
   }
 }
+
+export interface MilkerDetail {
+  milker_name: string
+  this_month: { grams: number; sessions: number }
+  last_month: { grams: number; sessions: number }
+  best_session_grams: number
+  best_session_date: string | null
+  rank_this: number
+  rank_change: number | null
+}
+
+export async function getMilkerDetails(): Promise<MilkerDetail[]> {
+  const now = new Date()
+  const thisMonthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`
+  const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+  const lastMonthStart = `${lastMonthDate.getFullYear()}-${String(lastMonthDate.getMonth() + 1).padStart(2, '0')}-01`
+
+  const [{ data: thisMonth }, { data: lastMonth }, { data: allSessions }] = await Promise.all([
+    supabaseAdmin.from('milk_daily_sessions').select('milker_name, total_grams').gte('milking_date', thisMonthStart).not('milker_name', 'is', null),
+    supabaseAdmin.from('milk_daily_sessions').select('milker_name, total_grams').gte('milking_date', lastMonthStart).lt('milking_date', thisMonthStart).not('milker_name', 'is', null),
+    supabaseAdmin.from('milk_daily_sessions').select('milker_name, total_grams, milking_date').not('milker_name', 'is', null).order('total_grams', { ascending: false }).limit(500),
+  ])
+
+  const aggregate = (rows: typeof thisMonth) => {
+    const m = new Map<string, { grams: number; sessions: number }>()
+    for (const r of rows || []) {
+      const n = String(r.milker_name || '').trim(); if (!n) continue
+      const ex = m.get(n) || { grams: 0, sessions: 0 }
+      ex.grams += Number(r.total_grams || 0); ex.sessions++
+      m.set(n, ex)
+    }
+    return m
+  }
+
+  const thisMap = aggregate(thisMonth)
+  const lastMap = aggregate(lastMonth)
+
+  const bestMap = new Map<string, { grams: number; date: string }>()
+  for (const r of allSessions || []) {
+    const n = String(r.milker_name || '').trim(); if (!n) continue
+    if (!bestMap.has(n)) bestMap.set(n, { grams: Number(r.total_grams || 0), date: r.milking_date })
+  }
+
+  const allNames = new Set([...Array.from(thisMap.keys()), ...Array.from(lastMap.keys()), ...Array.from(bestMap.keys())])
+  const thisRanked = Array.from(thisMap.entries()).sort((a, b) => b[1].grams - a[1].grams)
+  const lastRanked = Array.from(lastMap.entries()).sort((a, b) => b[1].grams - a[1].grams)
+  const thisRankMap = new Map(thisRanked.map(([n], i) => [n, i + 1]))
+  const lastRankMap = new Map(lastRanked.map(([n], i) => [n, i + 1]))
+
+  return Array.from(allNames).map(name => {
+    const t = thisMap.get(name) || { grams: 0, sessions: 0 }
+    const l = lastMap.get(name) || { grams: 0, sessions: 0 }
+    const best = bestMap.get(name)
+    const rankThis = thisRankMap.get(name) || 0
+    const rankLast = lastRankMap.get(name) || 0
+    return {
+      milker_name: name,
+      this_month: { grams: Math.round(t.grams), sessions: t.sessions },
+      last_month: { grams: Math.round(l.grams), sessions: l.sessions },
+      best_session_grams: best?.grams || 0,
+      best_session_date: best?.date || null,
+      rank_this: rankThis,
+      rank_change: rankThis > 0 && rankLast > 0 ? rankLast - rankThis : null,
+    }
+  }).sort((a, b) => b.this_month.grams - a.this_month.grams)
+}
