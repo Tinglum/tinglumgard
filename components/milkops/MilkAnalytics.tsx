@@ -165,35 +165,44 @@ export function MilkAnalytics({ lang }: { lang: string }) {
   useEffect(() => { if (tab === 'sessions') fetchSessions() }, [tab, fetchSessions])
   useEffect(() => { if (tab === 'milkers') fetchMilkerDetails() }, [tab, fetchMilkerDetails])
 
-  // ── Computed from trends ─────────────────────────────────────────────────
+  // ── Computed from trends (excluding zero-production days) ─────────────────
   const trends30 = trends.slice(-30)
-  const maxGrams = Math.max(...trends30.map(t => t.total_grams), 1)
-  const totalLast30 = trends30.reduce((s, t) => s + t.total_grams, 0)
-  const totalLast7 = trends30.slice(-7).reduce((s, t) => s + t.total_grams, 0)
-  const prevWeek7 = trends30.slice(-14, -7).reduce((s, t) => s + t.total_grams, 0)
-  const avgDaily = trends30.length > 0 ? Math.round(totalLast30 / trends30.length) : 0
+  const activeDays30 = trends30.filter(t => t.total_grams > 0)
+  const maxGrams = Math.max(...activeDays30.map(t => t.total_grams), 1)
+  const totalLast30 = activeDays30.reduce((s, t) => s + t.total_grams, 0)
+  const activeLast7 = activeDays30.filter((t, i) => i >= activeDays30.length - 7)
+  const totalLast7 = activeLast7.reduce((s, t) => s + t.total_grams, 0)
+  const prevWeekActive = activeDays30.filter((t, i) => i >= activeDays30.length - 14 && i < activeDays30.length - 7)
+  const prevWeek7 = prevWeekActive.reduce((s, t) => s + t.total_grams, 0)
+  const avgDaily = activeDays30.length > 0 ? Math.round(totalLast30 / activeDays30.length) : 0
   const weekDeltaPct = prevWeek7 > 0 ? Math.round(((totalLast7 - prevWeek7) / prevWeek7) * 100) : null
 
   const rollingAvg = trends30.map((_, i) => {
-    const slice = trends30.slice(Math.max(0, i - 6), i + 1)
-    return Math.round(slice.reduce((s, t) => s + t.total_grams, 0) / slice.length)
+    const slice = trends30.slice(Math.max(0, i - 6), i + 1).filter(t => t.total_grams > 0)
+    return slice.length > 0 ? Math.round(slice.reduce((s, t) => s + t.total_grams, 0) / slice.length) : 0
   })
 
   const dowMap = new Map<number, number[]>()
-  for (const t of trends) { const dow = new Date(t.date + 'T12:00:00').getDay(); const arr = dowMap.get(dow) || []; arr.push(t.total_grams); dowMap.set(dow, arr) }
+  for (const t of trends) {
+    if (t.total_grams === 0) continue
+    const dow = new Date(t.date + 'T12:00:00').getDay()
+    const arr = dowMap.get(dow) || []
+    arr.push(t.total_grams)
+    dowMap.set(dow, arr)
+  }
   const dowOrder = [1, 2, 3, 4, 5, 6, 0]
   const dowLabels = lang === 'no' ? ['Man', 'Tir', 'Ons', 'Tor', 'Fre', 'Lør', 'Søn'] : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
   const dowAvgs = dowOrder.map(d => { const vals = dowMap.get(d) || []; return vals.length ? Math.round(vals.reduce((s, v) => s + v, 0) / vals.length) : 0 })
   const maxDow = Math.max(...dowAvgs, 1)
 
-  const bestDay = trends.length ? trends.reduce((b, t) => t.total_grams > b.total_grams ? t : b) : null
+  const bestDay = activeDays30.length ? activeDays30.reduce((b, t) => t.total_grams > b.total_grams ? t : b) : null
   let bestWeekTotal = 0, bestWeekLabel = ''
-  for (let i = 6; i < trends.length; i++) {
-    const w = trends.slice(i - 6, i + 1).reduce((s, t) => s + t.total_grams, 0)
-    if (w > bestWeekTotal) { bestWeekTotal = w; bestWeekLabel = trends[i - 6].date.slice(5) + '–' + trends[i].date.slice(5) }
+  for (let i = 6; i < activeDays30.length; i++) {
+    const w = activeDays30.slice(i - 6, i + 1).reduce((s, t) => s + t.total_grams, 0)
+    if (w > bestWeekTotal) { bestWeekTotal = w; bestWeekLabel = activeDays30[i - 6].date.slice(5) + '–' + activeDays30[i].date.slice(5) }
   }
   let streak = 0
-  for (let i = trends.length - 1; i >= 0; i--) { if (trends[i].total_grams >= avgDaily) streak++; else break }
+  for (let i = activeDays30.length - 1; i >= 0; i--) { if (activeDays30[i].total_grams >= avgDaily) streak++; else break }
 
   // Production calendar heatmap: last 84 days (12 weeks), aligned to Mon
   const calDayMap = new Map(trends.map(t => [t.date, t.total_grams]))
@@ -211,10 +220,11 @@ export function MilkAnalytics({ lang }: { lang: string }) {
   const calWeeks: typeof calDays[] = []
   for (let w = 0; w < 12; w++) calWeeks.push(calDays.slice(w * 7, w * 7 + 7))
 
-  // Morning vs Evening weekly ratio (last 8 weeks from trends)
+  // Morning vs Evening weekly ratio (last 8 weeks from active days only)
   const meWeeks: { label: string; morningPct: number; eveningPct: number }[] = []
   for (let w = 7; w >= 0; w--) {
-    const slice = trends.slice(-(w + 1) * 7, w === 0 ? undefined : -w * 7)
+    const slice = activeDays30.slice(-(w + 1) * 7, w === 0 ? undefined : -w * 7)
+    if (slice.length === 0) continue
     const m = slice.reduce((s, t) => s + t.morning, 0)
     const e = slice.reduce((s, t) => s + t.evening, 0)
     const total = m + e
