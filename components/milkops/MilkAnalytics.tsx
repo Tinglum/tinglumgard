@@ -264,7 +264,7 @@ export function MilkAnalytics({ lang }: { lang: string }) {
       {tab === 'overview' && (
         <div className="space-y-4">
           {/* Summary row */}
-          <div className="grid grid-cols-4 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             <div className="rounded-xl bg-neutral-900 text-white px-3 py-3 text-center">
               <div className="text-base font-semibold tabular-nums">{fmt(totalLast30)}</div>
               <div className="text-[10px] text-neutral-400">{gramsToDeciliters(totalLast30)} dL</div>
@@ -390,7 +390,7 @@ export function MilkAnalytics({ lang }: { lang: string }) {
           {/* Day-of-week heatmap */}
           <div className="rounded-xl border border-neutral-200 bg-white p-4">
             <h3 className="text-sm font-medium text-neutral-900 mb-3">{lang === 'no' ? 'Produksjon per ukedag' : 'Production by weekday'}</h3>
-            <div className="grid grid-cols-7 gap-1.5">
+            <div className="grid grid-cols-4 sm:grid-cols-7 gap-1 sm:gap-1.5">
               {dowLabels.map((label, i) => {
                 const avg = dowAvgs[i]; const pct = avg / maxDow
                 return (
@@ -410,7 +410,7 @@ export function MilkAnalytics({ lang }: { lang: string }) {
           {/* Records */}
           <div className="rounded-xl border border-neutral-200 bg-white p-4">
             <div className="flex items-center gap-2 mb-3"><Award className="w-4 h-4 text-neutral-400" /><h3 className="text-sm font-medium text-neutral-900">{lang === 'no' ? 'Rekorder' : 'Records'}</h3></div>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3">
               {[
                 { icon: '🏆', label: lang === 'no' ? 'Beste dag' : 'Best day', value: bestDay ? fmt(bestDay.total_grams) : '–', sub: bestDay?.date || '' },
                 { icon: '📅', label: lang === 'no' ? 'Beste uke' : 'Best week', value: bestWeekTotal > 0 ? fmt(bestWeekTotal) : '–', sub: bestWeekLabel },
@@ -673,7 +673,7 @@ export function MilkAnalytics({ lang }: { lang: string }) {
                   <p className="text-sm text-neutral-400 text-center py-3">{lang === 'no' ? 'Ingen solgte batches ennå' : 'No sold batches yet'}</p>
                 ) : (
                   <>
-                    <div className="grid grid-cols-3 gap-2 mb-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-4">
                       <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-3 text-center">
                         <div className="text-lg font-bold text-emerald-800">{pipeline.revenue.total_nok.toLocaleString('no')} kr</div>
                         <div className="text-[10px] text-neutral-500 mt-0.5">{lang === 'no' ? 'Total inntekt' : 'Total revenue'}</div>
@@ -749,7 +749,7 @@ export function MilkAnalytics({ lang }: { lang: string }) {
               {/* Completion rate */}
               <div className="rounded-xl border border-neutral-200 bg-white p-4">
                 <h3 className="text-sm font-medium text-neutral-900 mb-4">{lang === 'no' ? 'Sesjonsdekning (90 dager)' : 'Session coverage (90 days)'}</h3>
-                <div className="grid grid-cols-4 gap-3 text-center">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 text-center">
                   {[
                     { val: sessions.completion.total_days, label: lang === 'no' ? 'Dager totalt' : 'Total days', bg: 'bg-neutral-50' },
                     { val: sessions.completion.complete_days, label: lang === 'no' ? 'Fulle dager (M+K)' : 'Complete (M+E)', bg: 'bg-emerald-50', color: 'text-emerald-700' },

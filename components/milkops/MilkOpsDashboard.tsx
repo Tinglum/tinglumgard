@@ -372,7 +372,7 @@ export function MilkOpsDashboard() {
   const eveningSession = state.sessions.find((s) => s.session_type === 'evening')
 
   return (
-    <div className="max-w-2xl mx-auto px-4 pb-24">
+    <div className="w-full max-w-none lg:max-w-6xl xl:max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 pb-24">
       {/* Header */}
       <div className="sticky top-0 z-30 bg-neutral-50 pt-4 pb-3 border-b border-neutral-200">
         <div className="flex items-center justify-between mb-3">
