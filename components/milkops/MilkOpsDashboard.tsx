@@ -20,6 +20,7 @@ import {
   AlertTriangle,
   X,
   ChevronDown,
+  Trash2,
 } from 'lucide-react'
 import type {
   MilkOpsTab,
@@ -187,6 +188,8 @@ export function MilkOpsDashboard() {
   const { schedule } = useAutosave()
   const [lineageGoats, setLineageGoats] = useState<LineageGoat[]>([])
   const [addGoatDropdown, setAddGoatDropdown] = useState<string | null>(null) // sessionId
+  const [deleteConfirm, setDeleteConfirm] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   // ── Fetch daily data ────────────────────────────────────────────────────
 
@@ -332,6 +335,25 @@ export function MilkOpsDashboard() {
     } catch {}
   }
 
+  // ── Delete day ───────────────────────────────────────────────────────────
+
+  const handleDeleteDay = async () => {
+    setDeleting(true)
+    try {
+      const res = await fetch(`/api/milk/daily/${state.date}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+      })
+      if (!res.ok) throw new Error()
+      setDeleteConfirm(false)
+      await fetchDaily(state.date)
+    } catch {
+      alert(lang === 'no' ? 'Kunne ikke slette dagen' : 'Failed to delete day')
+    } finally {
+      setDeleting(false)
+    }
+  }
+
   // ── Format ──────────────────────────────────────────────────────────────
 
   const formatDate = (d: string) => {
@@ -393,9 +415,20 @@ export function MilkOpsDashboard() {
             {formatDate(state.date)}
             {isToday && <span className="ml-1.5 text-neutral-400">{lang === 'no' ? '(i dag)' : '(today)'}</span>}
           </button>
-          <button onClick={() => shiftDate(1)} className="p-2 rounded-lg hover:bg-neutral-200 active:bg-neutral-300 transition-colors">
-            <ChevronRight className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-1">
+            <button onClick={() => shiftDate(1)} className="p-2 rounded-lg hover:bg-neutral-200 active:bg-neutral-300 transition-colors">
+              <ChevronRight className="w-5 h-5" />
+            </button>
+            {state.sessions.length > 0 && (
+              <button
+                onClick={() => setDeleteConfirm(true)}
+                className="p-2 rounded-lg text-red-600 hover:bg-red-100 active:bg-red-200 transition-colors"
+                title={lang === 'no' ? 'Slett dagen' : 'Delete day'}
+              >
+                <Trash2 className="w-5 h-5" />
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Tab bar */}
@@ -418,6 +451,42 @@ export function MilkOpsDashboard() {
           })}
         </div>
       </div>
+
+      {/* Delete confirmation modal */}
+      {deleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-xl shadow-lg max-w-sm mx-4 p-6 space-y-4">
+            <div className="flex items-center gap-3 text-red-600">
+              <Trash2 className="w-6 h-6" />
+              <h2 className="text-lg font-semibold">
+                {lang === 'no' ? 'Slett dagen?' : 'Delete day?'}
+              </h2>
+            </div>
+            <p className="text-sm text-neutral-600">
+              {lang === 'no'
+                ? 'Dette vil slette alle melkeøkter og data for ' + formatDate(state.date) + '. Dette kan ikke angres.'
+                : 'This will delete all milking sessions and data for ' + formatDate(state.date) + '. This cannot be undone.'}
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setDeleteConfirm(false)}
+                disabled={deleting}
+                className="flex-1 px-4 py-2 rounded-lg border border-neutral-200 text-neutral-700 font-medium hover:bg-neutral-50 disabled:opacity-50"
+              >
+                {lang === 'no' ? 'Avbryt' : 'Cancel'}
+              </button>
+              <button
+                onClick={handleDeleteDay}
+                disabled={deleting}
+                className="flex-1 px-4 py-2 rounded-lg bg-red-600 text-white font-medium hover:bg-red-700 disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {deleting && <Loader2 className="w-4 h-4 animate-spin" />}
+                {lang === 'no' ? 'Slett' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Content */}
       {state.loading ? (
