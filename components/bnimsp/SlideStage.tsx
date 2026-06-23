@@ -13,7 +13,7 @@ interface Props {
   canEdit?: boolean
 }
 
-export function SlideStage({ slide, total, onPrev, onNext }: Props) {
+export function SlideStage({ slide, total, onPrev, onNext, canEdit }: Props) {
   return (
     <div>
       <div className="group relative overflow-hidden rounded-2xl border border-[var(--bni-line)] bg-black shadow-sm">
