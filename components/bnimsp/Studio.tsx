@@ -5,12 +5,12 @@ import type { CSSProperties } from 'react'
 import Image from 'next/image'
 import {
   Presentation, X, ChevronLeft, ChevronRight, PanelLeftClose, PanelLeftOpen,
-  CheckCircle2, Target, Flag, Maximize2,
+  CheckCircle2, Target, Flag, Maximize2, Clock, Eye, EyeOff, Scissors,
 } from 'lucide-react'
-import type { BnimspContent, LayerKey, Slide } from '@/lib/bnimsp/types'
+import type { BnimspContent, LayerKey, Slide, TrainingFormat } from '@/lib/bnimsp/types'
 import { groupByModule, totalMinutes, cumulativeStartMinutes } from '@/lib/bnimsp/util'
 import { useUnsavedWarning } from '@/lib/bnimsp/hooks'
-import type { TrainingFormat } from '@/lib/bnimsp/format-types'
+import { resolveSlide, isIncluded, formatTotals, formatLabel, hasOverride } from '@/lib/bnimsp/format'
 import { ModuleRail } from './ModuleRail'
 import { SlideStage } from './SlideStage'
 import { LayerStack, PrivateNotesCard, DELIVERY_BLOCKS, REFERENCE_BLOCKS } from './LayerPanel'
@@ -18,7 +18,7 @@ import { EditableText } from './EditableText'
 import { PracticeTimer } from './PracticeTimer'
 import { PersonalScript } from './PersonalScript'
 import { EndTimeTracker } from './EndTimeTracker'
-import { TrainingFormatEditor } from './TrainingFormatEditor'
+import { FormatBar } from './FormatBar'
 
 interface PersonalState { notes: string; script: string | null }
 const DELIVERY_NO_SCRIPT = DELIVERY_BLOCKS.filter((b) => b.key !== 'sayThis')
@@ -86,11 +86,36 @@ export function Studio({ initialContent, canEdit, isDirector, initialN, initialA
   // Warn user if there's unsaved work before they navigate away.
   useUnsavedWarning(hasPendingSave)
 
-  const total = slides.length
-  const content = useMemo(() => ({ ...initialContent, slides }), [initialContent, slides])
+  // Remember the trainer's chosen format across visits (per browser).
+  useEffect(() => {
+    const saved = localStorage.getItem('bnimsp:format')
+    if (saved === 'full' || saved === '120min' || saved === '90min') setTrainingFormat(saved)
+  }, [])
+  const changeFormat = useCallback((fmt: TrainingFormat) => {
+    setTrainingFormat(fmt)
+    try { localStorage.setItem('bnimsp:format', fmt) } catch {}
+  }, [])
+
+  // Slides included in the active format (full = everything), with their
+  // script/task/timing resolved to the format-specific version.
+  const visibleSlides = useMemo(
+    () => slides.filter((s) => isIncluded(s, trainingFormat)).map((s) => resolveSlide(s, trainingFormat)),
+    [slides, trainingFormat],
+  )
+  const visibleNums = useMemo(() => visibleSlides.map((s) => s.n), [visibleSlides])
+  const totals = useMemo(() => formatTotals(slides, trainingFormat), [slides, trainingFormat])
+
+  const total = slides.length // absolute deck size (for "n / 40" labels)
+  const content = useMemo(
+    () => ({ ...initialContent, slides: visibleSlides }),
+    [initialContent, visibleSlides],
+  )
   const groups = useMemo(() => groupByModule(content), [content])
-  const slide = slides.find((s) => s.n === currentN) || slides[0]
-  const nextSlide = slides.find((s) => s.n === currentN + 1) || null
+  const rawSlide = slides.find((s) => s.n === currentN) || slides[0]
+  const slide = useMemo(() => resolveSlide(rawSlide, trainingFormat), [rawSlide, trainingFormat])
+  const nextN = visibleNums[visibleNums.indexOf(currentN) + 1]
+  const nextSlide = visibleSlides.find((s) => s.n === nextN) || null
+  const currentExcluded = !isIncluded(rawSlide, trainingFormat)
 
   useEffect(() => {
     const url = new URL(window.location.href)
@@ -98,8 +123,30 @@ export function Studio({ initialContent, canEdit, isDirector, initialN, initialA
     window.history.replaceState(null, '', url.toString())
   }, [currentN])
 
-  const go = useCallback((n: number) => setCurrentN((c) => clamp(n, 1, total) || c), [total])
-  const goBy = useCallback((dir: number) => setCurrentN((c) => clamp(c + dir, 1, total) || c), [total])
+  // Navigation works over the visible (filtered) slides only.
+  const go = useCallback((n: number) => {
+    setCurrentN(() => {
+      if (visibleNums.length === 0) return n
+      if (visibleNums.includes(n)) return n
+      // Snap to the nearest visible slide.
+      return visibleNums.reduce((best, v) => (Math.abs(v - n) < Math.abs(best - n) ? v : best), visibleNums[0])
+    })
+  }, [visibleNums])
+  const goBy = useCallback((dir: number) => {
+    setCurrentN((c) => {
+      if (visibleNums.length === 0) return c
+      const idx = visibleNums.indexOf(c)
+      if (idx === -1) return visibleNums[0]
+      return visibleNums[clamp(idx + dir, 0, visibleNums.length - 1)]
+    })
+  }, [visibleNums])
+
+  // If the current slide isn't part of the chosen format, jump to the nearest one.
+  useEffect(() => {
+    if (visibleNums.length > 0 && !visibleNums.includes(currentN)) {
+      setCurrentN(visibleNums.reduce((best, v) => (Math.abs(v - currentN) < Math.abs(best - currentN) ? v : best), visibleNums[0]))
+    }
+  }, [visibleNums, currentN])
 
   useEffect(() => {
     const channel = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel(PRESENTER_CHANNEL) : null
@@ -300,11 +347,29 @@ export function Studio({ initialContent, canEdit, isDirector, initialN, initialA
 
   const onEditLayer = useCallback(async (key: LayerKey | 'title' | 'timing', value: string) => {
     const oldSlide = slides.find((s) => s.n === currentN)
-    setSlides((prev) => prev.map((s) => (s.n === currentN ? { ...s, [key]: value } : s)))
+    // In a short format, edits to the delivery fields land on that format's
+    // variant; everything else (and all edits in "full") edits the master.
+    const fmt = trainingFormat
+    const scoped = fmt !== 'full' && (key === 'sayThis' || key === 'askGroup' || key === 'timing')
+
+    setSlides((prev) => prev.map((s) => {
+      if (s.n !== currentN) return s
+      if (scoped) {
+        const formats = { ...(s.formats || {}) }
+        formats[fmt] = { ...(formats[fmt] || {}), [key]: value }
+        return { ...s, formats }
+      }
+      return { ...s, [key]: value }
+    }))
+
     try {
       const res = await fetch(`/api/bnimsp/slides/${currentN}`, {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ [key]: value, updatedAt: oldSlide?.updated_at }),
+        body: JSON.stringify({
+          [key]: value,
+          ...(scoped ? { format: fmt } : {}),
+          updatedAt: oldSlide?.updated_at,
+        }),
       })
       if (res.ok) {
         setSavedFlash(true)
@@ -316,7 +381,33 @@ export function Studio({ initialContent, canEdit, isDirector, initialN, initialA
         window.location.reload()
       }
     } catch { /* optimistic value stays */ }
-  }, [currentN, slides])
+  }, [currentN, slides, trainingFormat])
+
+  // Include / exclude the current slide from the active short format.
+  const onToggleInclude = useCallback(async (include: boolean) => {
+    const fmt = trainingFormat
+    if (fmt === 'full') return
+    const oldSlide = slides.find((s) => s.n === currentN)
+    setSlides((prev) => prev.map((s) => {
+      if (s.n !== currentN) return s
+      const formats = { ...(s.formats || {}) }
+      formats[fmt] = { ...(formats[fmt] || {}), include }
+      return { ...s, formats }
+    }))
+    try {
+      const res = await fetch(`/api/bnimsp/slides/${currentN}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ include, format: fmt, updatedAt: oldSlide?.updated_at }),
+      })
+      if (res.ok) {
+        setSavedFlash(true)
+        setTimeout(() => setSavedFlash(false), 1500)
+      } else if (res.status === 409) {
+        setSlides((prev) => prev.map((s) => (s.n === currentN && oldSlide ? oldSlide : s)))
+        window.location.reload()
+      }
+    } catch { /* optimistic stays */ }
+  }, [currentN, slides, trainingFormat])
 
   if (initialAudience) {
     return <AudienceView slide={slide} />
@@ -327,20 +418,15 @@ export function Studio({ initialContent, canEdit, isDirector, initialN, initialA
       <PresenterView
         slide={slide} nextSlide={nextSlide} total={total} content={content}
         personalScript={ownsPersonalScript ? (personalCache[currentN]?.script ?? null) : null}
-        onPrev={() => go(currentN - 1)} onNext={() => go(currentN + 1)} onGo={go} onExit={exitPresenterMode}
+        onPrev={() => goBy(-1)} onNext={() => goBy(1)} onGo={go} onExit={exitPresenterMode}
       />
     )
   }
 
   return (
     <div className="mx-auto w-full max-w-[2000px] px-3 py-5 sm:px-5 xl:px-8 2xl:text-[15px]">
-      {/* Training format editor (directors only) */}
-      {isDirector && (
-        <TrainingFormatEditor
-          totalSlides={slides.length}
-          onFormatChange={setTrainingFormat}
-        />
-      )}
+      {/* Format switcher + live time budget */}
+      <FormatBar format={trainingFormat} onChange={changeFormat} totals={totals} />
 
       <div className="grid gap-5 xl:gap-7 lg:grid-cols-[230px_minmax(0,1fr)] 2xl:grid-cols-[260px_minmax(0,1fr)]">
         {/* Rail */}
@@ -380,7 +466,18 @@ export function Studio({ initialContent, canEdit, isDirector, initialN, initialA
           {/* Content: slide + delivery (center) | understanding + tools (right) */}
           <div className="grid gap-5 xl:gap-7 xl:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]">
             <div className="min-w-0 space-y-4 xl:space-y-5">
-<SlideStage slide={slide} total={total} onPrev={() => go(currentN - 1)} onNext={() => go(currentN + 1)} canEdit={canEdit} />
+              <SlideStage slide={slide} total={total} onPrev={() => goBy(-1)} onNext={() => goBy(1)} canEdit={canEdit} />
+              {trainingFormat !== 'full' && (
+                <FormatSlideStrip
+                  format={trainingFormat}
+                  slide={slide}
+                  rawSlide={rawSlide}
+                  canEdit={canEdit}
+                  excluded={currentExcluded}
+                  onToggleInclude={onToggleInclude}
+                  onEditTiming={(v) => onEditLayer('timing', v)}
+                />
+              )}
               <GoalBanner slide={slide} editable={canEdit} onEditLayer={onEditLayer} />
               {ownsPersonalScript ? (
                 <>
@@ -437,6 +534,94 @@ function GoalBanner({
         <EditableText value={slide.outcome} editable={editable} onSave={(v) => onEditLayer('outcome', v)} placeholder="-" />
       </div>
     </div>
+  )
+}
+
+// Per-slide controls shown only in a short format: include/exclude this slide,
+// set its format-specific pacing, and signal whether the delivery text below is
+// a trimmed variant or still inheriting the full version.
+function FormatSlideStrip({
+  format, slide, rawSlide, canEdit, excluded, onToggleInclude, onEditTiming,
+}: {
+  format: TrainingFormat
+  slide: Slide
+  rawSlide: Slide
+  canEdit: boolean
+  excluded: boolean
+  onToggleInclude: (include: boolean) => void
+  onEditTiming: (value: string) => void
+}) {
+  const label = formatLabel(format)
+  const scriptTrimmed = hasOverride(rawSlide, format, 'sayThis')
+  const taskTrimmed = hasOverride(rawSlide, format, 'askGroup')
+
+  return (
+    <div className={`rounded-xl border p-3 ${excluded ? 'border-[var(--bni-red)]/30 bg-[var(--bni-red)]/[0.04]' : 'border-blue-200 bg-blue-50/60'}`}>
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-[var(--bni-muted)]">
+          <Scissors className="h-3.5 w-3.5 text-blue-600" />
+          {label}-versjon
+        </span>
+
+        {/* Include / exclude this slide */}
+        {canEdit ? (
+          <button
+            onClick={() => onToggleInclude(excluded)}
+            className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-semibold transition-colors ${
+              excluded
+                ? 'border-[var(--bni-red)]/40 bg-white text-[var(--bni-red)] hover:bg-[var(--bni-red)]/5'
+                : 'border-blue-300 bg-white text-blue-700 hover:bg-blue-50'
+            }`}
+          >
+            {excluded ? <><Eye className="h-3.5 w-3.5" /> Ta med i {label.toLowerCase()}</> : <><EyeOff className="h-3.5 w-3.5" /> Utelat fra {label.toLowerCase()}</>}
+          </button>
+        ) : (
+          excluded && (
+            <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--bni-red)]">
+              <EyeOff className="h-3.5 w-3.5" /> Ikke med i {label.toLowerCase()}
+            </span>
+          )
+        )}
+
+        {/* Format-specific pacing */}
+        <span className="inline-flex items-center gap-1.5 text-xs text-[var(--bni-ink)]">
+          <Clock className="h-3.5 w-3.5 text-[var(--bni-red)]" />
+          {canEdit ? (
+            <span className="min-w-[64px]">
+              <EditableText value={slide.timing} editable onSave={(v) => onEditTiming(v)} placeholder="sett tid" className="text-xs" />
+            </span>
+          ) : (
+            slide.timing || '–'
+          )}
+        </span>
+
+        {/* What the trainer is looking at below */}
+        <span className="ml-auto flex items-center gap-1.5 text-[11px]">
+          <FmtTag on={scriptTrimmed} label="Si dette" />
+          <FmtTag on={taskTrimmed} label="Spør gruppen" />
+        </span>
+      </div>
+
+      {canEdit && !excluded && (
+        <p className="mt-2 text-[11px] leading-snug text-[var(--bni-muted)]">
+          Endringer i «Si dette» og «Spør gruppen» nedenfor lagres kun for {label.toLowerCase()}-versjonen.
+          Tomt felt arver fullversjonen, så du kan korte ned originalteksten.
+        </p>
+      )}
+    </div>
+  )
+}
+
+function FmtTag({ on, label }: { on: boolean; label: string }) {
+  return (
+    <span
+      className={`rounded-full px-2 py-0.5 font-semibold ${
+        on ? 'bg-blue-600 text-white' : 'bg-zinc-200 text-[var(--bni-muted)]'
+      }`}
+      title={on ? `${label}: tilpasset for dette formatet` : `${label}: arver fullversjonen`}
+    >
+      {label}: {on ? 'tilpasset' : 'arver'}
+    </span>
   )
 }
 

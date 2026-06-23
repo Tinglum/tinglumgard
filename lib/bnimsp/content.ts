@@ -29,6 +29,7 @@ function rowToSlide(row: any, useDraft: boolean): Slide {
     title: row.title || '',
     image: row.image || `/bnimsp/slides/slide-${String(row.n).padStart(2, '0')}.png`,
     timing: row.timing || '',
+    formats: blob.formats && typeof blob.formats === 'object' ? blob.formats : {},
     updated_at: row.updated_at,
     ...pickLayers(blob),
   }

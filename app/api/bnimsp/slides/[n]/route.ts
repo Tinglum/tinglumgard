@@ -4,7 +4,10 @@ import { canEditBnimsp } from '@/lib/bnimsp/access'
 import { supabaseAdmin } from '@/lib/supabase/server'
 import { loadContent, pickLayers } from '@/lib/bnimsp/content'
 import { logError } from '@/lib/logger'
-import { EDITABLE_SLIDE_FIELDS, FIELD_LIMITS } from '@/lib/bnimsp/types'
+import {
+  EDITABLE_SLIDE_FIELDS, FIELD_LIMITS, FORMAT_OVERRIDE_FIELDS, SHORT_FORMATS,
+} from '@/lib/bnimsp/types'
+import type { ShortFormat, SlideFormatOverride } from '@/lib/bnimsp/types'
 
 export const dynamic = 'force-dynamic'
 
@@ -12,6 +15,11 @@ export const dynamic = 'force-dynamic'
 // content if it does not exist yet, so the first edit after migration works.
 // Supports optimistic concurrency: if client provides updatedAt, we check it
 // against the server version and reject on mismatch.
+//
+// Two edit scopes:
+//  - Master ("full"): edits the top-level layer fields (default).
+//  - Format ("120min"/"90min"): when `format` is set, edits land in
+//    base.formats[format] (trimmed sayThis/askGroup/timing, include flag).
 export async function PATCH(request: NextRequest, { params }: { params: { n: string } }) {
   try {
     const session = await getBnimspSession()
@@ -25,8 +33,15 @@ export async function PATCH(request: NextRequest, { params }: { params: { n: str
     const body = await request.json().catch(() => ({}))
     const clientUpdatedAt = body.updatedAt ? String(body.updatedAt) : null
 
+    const format: ShortFormat | null =
+      typeof body.format === 'string' && (SHORT_FORMATS as readonly string[]).includes(body.format)
+        ? (body.format as ShortFormat)
+        : null
+
+    // Collect the edits relevant to the scope.
     const patch: Record<string, string> = {}
-    for (const key of EDITABLE_SLIDE_FIELDS) {
+    const fields = format ? FORMAT_OVERRIDE_FIELDS : EDITABLE_SLIDE_FIELDS
+    for (const key of fields) {
       if (typeof body[key] === 'string') {
         const val = body[key]
         const limit = FIELD_LIMITS[key as string] || 0
@@ -39,7 +54,9 @@ export async function PATCH(request: NextRequest, { params }: { params: { n: str
         patch[key] = val
       }
     }
-    if (Object.keys(patch).length === 0) {
+    // `include` is a format-only boolean (toggle a slide in/out of a format).
+    const hasInclude = format !== null && typeof body.include === 'boolean'
+    if (Object.keys(patch).length === 0 && !hasInclude) {
       return NextResponse.json({ error: 'No editable fields provided' }, { status: 400 })
     }
 
@@ -66,13 +83,30 @@ export async function PATCH(request: NextRequest, { params }: { params: { n: str
       const slide = content.slides.find((s) => s.n === n)
       if (!slide) return NextResponse.json({ error: 'Slide not found' }, { status: 404 })
       base = pickLayers(slide)
+      if (slide.formats) base.formats = slide.formats
     }
 
-    const title = patch.title ?? row?.title ?? ''
-    const timing = patch.timing ?? row?.timing ?? ''
-    for (const key of EDITABLE_SLIDE_FIELDS) {
-      if (key === 'title' || key === 'timing') continue
-      if (key in patch) base[key] = patch[key]
+    let title = row?.title ?? ''
+    let timing = row?.timing ?? ''
+
+    if (format) {
+      // Format-scoped edit: merge into base.formats[format].
+      const formats = { ...(base.formats || {}) }
+      const current: SlideFormatOverride = { ...(formats[format] || {}) }
+      for (const key of FORMAT_OVERRIDE_FIELDS) {
+        if (key in patch) current[key] = patch[key]
+      }
+      if (hasInclude) current.include = body.include
+      formats[format] = current
+      base.formats = formats
+    } else {
+      // Master edit: top-level layers + title/timing.
+      title = patch.title ?? title
+      timing = patch.timing ?? timing
+      for (const key of EDITABLE_SLIDE_FIELDS) {
+        if (key === 'title' || key === 'timing') continue
+        if (key in patch) base[key] = patch[key]
+      }
     }
 
     const moduleId = row?.module_id

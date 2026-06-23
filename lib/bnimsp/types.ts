@@ -64,6 +64,35 @@ export const FIELD_LIMITS: Record<string, number> = {
   notes: 10000,
 }
 
+/**
+ * Training-format variants. The "full" 3-hour program is the master content;
+ * shorter formats (120 / 90 min) are authored deltas on top of it: which slides
+ * to keep, and a trimmed script / task / pacing per slide. Empty string means
+ * "inherit the full version" so trainers start from the real script and cut it
+ * down rather than rewriting from scratch.
+ */
+export type TrainingFormat = 'full' | '120min' | '90min'
+
+/** The condensed formats (everything except the full master). */
+export const SHORT_FORMATS = ['120min', '90min'] as const
+export type ShortFormat = typeof SHORT_FORMATS[number]
+
+export interface SlideFormatOverride {
+  /** Keep this slide in the format. Defaults to true when unset. */
+  include?: boolean
+  /** Format-specific pacing, e.g. "ca. 2 min". Empty inherits the full timing. */
+  timing?: string
+  /** Trimmed script for this format. Empty inherits the full "Si dette". */
+  sayThis?: string
+  /** Trimmed task/question for this format. Empty inherits the full "Spør gruppen". */
+  askGroup?: string
+}
+
+export type SlideFormats = Partial<Record<ShortFormat, SlideFormatOverride>>
+
+/** Fields a format override may carry (used for API validation). */
+export const FORMAT_OVERRIDE_FIELDS = ['sayThis', 'askGroup', 'timing'] as const
+
 export interface Slide extends SlideLayers {
   /** 1-based slide number, stable identity. */
   n: number
@@ -73,6 +102,8 @@ export interface Slide extends SlideLayers {
   image: string
   /** Pacing target, e.g. "ca. 5 min". */
   timing: string
+  /** Per-format authored deltas (120 / 90 min). */
+  formats?: SlideFormats
   /** Last update timestamp, used for optimistic concurrency. */
   updated_at?: string
 }
