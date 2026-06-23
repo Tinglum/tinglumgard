@@ -64,7 +64,7 @@ export async function POST() {
       ]
 
       let slidesCount = 0
-      for (const upd of updates.filter((u) => u.table === 'bnimsp_slides')) {
+      for (const upd of updates.filter((u) => u.table === 'bnimsp_slides') as Array<{ n: number; published: any; draft: null; updated_at: string; updated_by: string }>) {
         const { error: upErr } = await supabaseAdmin
           .from('bnimsp_slides')
           .update({
@@ -73,7 +73,7 @@ export async function POST() {
             updated_at: upd.updated_at,
             updated_by: upd.updated_by,
           })
-          .eq('n', upd.n as number)
+          .eq('n', upd.n)
         if (upErr) {
           logError('bnimsp-publish-slide-fallback', upErr)
           continue
@@ -81,7 +81,7 @@ export async function POST() {
         slidesCount++
       }
 
-      for (const upd of updates.filter((u) => u.table === 'bnimsp_appendix')) {
+      for (const upd of updates.filter((u) => u.table === 'bnimsp_appendix') as Array<{ slug: string; published: any; draft: null; updated_at: string; updated_by: string }>) {
         const { error: upErr } = await supabaseAdmin
           .from('bnimsp_appendix')
           .update({
@@ -90,7 +90,7 @@ export async function POST() {
             updated_at: upd.updated_at,
             updated_by: upd.updated_by,
           })
-          .eq('slug', upd.slug as string)
+          .eq('slug', upd.slug)
         if (upErr) {
           logError('bnimsp-publish-appendix-fallback', upErr)
         }
