@@ -18,7 +18,7 @@ import { EditableText } from './EditableText'
 import { PracticeTimer } from './PracticeTimer'
 import { PersonalScript } from './PersonalScript'
 import { EndTimeTracker } from './EndTimeTracker'
-import { TrainingFormatSelector } from './TrainingFormatSelector'
+import { TrainingFormatEditor } from './TrainingFormatEditor'
 
 interface PersonalState { notes: string; script: string | null }
 const DELIVERY_NO_SCRIPT = DELIVERY_BLOCKS.filter((b) => b.key !== 'sayThis')
@@ -76,9 +76,6 @@ export function Studio({ initialContent, canEdit, isDirector, initialN, initialA
   const [personalCache, setPersonalCache] = useState<Record<number, PersonalState>>({})
   const [hasPendingSave, setHasPendingSave] = useState(false)
   const [trainingFormat, setTrainingFormat] = useState<TrainingFormat>('full')
-  const [selectedSlides, setSelectedSlides] = useState<Set<number>>(
-    new Set(initialContent.slides.map((s) => s.n))
-  )
   const noteTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const scriptTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   // Directors who can't edit the master get a personal, rewritable script.
@@ -89,57 +86,11 @@ export function Studio({ initialContent, canEdit, isDirector, initialN, initialA
   // Warn user if there's unsaved work before they navigate away.
   useUnsavedWarning(hasPendingSave)
 
-  // Load format preferences on mount
-  useEffect(() => {
-    if (!isDirector) return
-    const loadFormat = async () => {
-      try {
-        const res = await fetch('/api/bnimsp/format')
-        const data = await res.json()
-        if (data.activeFormat) setTrainingFormat(data.activeFormat)
-        if (Array.isArray(data.selectedSlides) && data.selectedSlides.length > 0) {
-          setSelectedSlides(new Set(data.selectedSlides))
-        }
-      } catch {
-        // Use defaults on error
-      }
-    }
-    loadFormat()
-  }, [isDirector])
-
-  // Filter slides based on format selection
-  const filteredSlides = useMemo(
-    () => slides.filter((s) => selectedSlides.has(s.n)),
-    [slides, selectedSlides]
-  )
-
-  const total = filteredSlides.length
-  const content = useMemo(() => ({ ...initialContent, slides: filteredSlides }), [initialContent, filteredSlides])
+  const total = slides.length
+  const content = useMemo(() => ({ ...initialContent, slides }), [initialContent, slides])
   const groups = useMemo(() => groupByModule(content), [content])
-  const slide = filteredSlides.find((s) => s.n === currentN) || filteredSlides[0]
-  const nextSlide = filteredSlides.find((s) => s.n === currentN + 1) || null
-
-  const handleSaveFormat = useCallback(
-    async (format: TrainingFormat, newSelectedSlides: Set<number>) => {
-      setTrainingFormat(format)
-      setSelectedSlides(newSelectedSlides)
-      // Adjust current slide if it was deselected
-      if (!newSelectedSlides.has(currentN)) {
-        const remaining = Array.from(newSelectedSlides).sort((a, b) => a - b)
-        if (remaining.length > 0) setCurrentN(remaining[0])
-      }
-      // Save to API
-      await fetch('/api/bnimsp/format', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          activeFormat: format,
-          selectedSlides: Array.from(newSelectedSlides).sort((a, b) => a - b),
-        }),
-      })
-    },
-    [currentN]
-  )
+  const slide = slides.find((s) => s.n === currentN) || slides[0]
+  const nextSlide = slides.find((s) => s.n === currentN + 1) || null
 
   useEffect(() => {
     const url = new URL(window.location.href)
@@ -383,13 +334,11 @@ export function Studio({ initialContent, canEdit, isDirector, initialN, initialA
 
   return (
     <div className="mx-auto w-full max-w-[2000px] px-3 py-5 sm:px-5 xl:px-8 2xl:text-[15px]">
-      {/* Training format selector (directors only) */}
+      {/* Training format editor (directors only) */}
       {isDirector && (
-        <TrainingFormatSelector
-          initialFormat={trainingFormat}
+        <TrainingFormatEditor
           totalSlides={slides.length}
           onFormatChange={setTrainingFormat}
-          onSave={handleSaveFormat}
         />
       )}
 
