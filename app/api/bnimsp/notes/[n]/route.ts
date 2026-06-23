@@ -61,6 +61,16 @@ export async function PUT(request: NextRequest, { params }: { params: { n: strin
   try {
     const incoming = await request.json().catch(() => ({}))
 
+    // Cap field sizes: prevent runaway blobs.
+    const NOTES_MAX = 20000
+    const SCRIPT_MAX = 30000
+    if (typeof incoming.notes === 'string' && incoming.notes.length > NOTES_MAX) {
+      return NextResponse.json({ error: `Notes exceeds ${NOTES_MAX} characters` }, { status: 400 })
+    }
+    if (typeof incoming.script === 'string' && incoming.script.length > SCRIPT_MAX) {
+      return NextResponse.json({ error: `Script exceeds ${SCRIPT_MAX} characters` }, { status: 400 })
+    }
+
     // Merge with existing so we can patch notes and script independently.
     const { data: existing } = await supabaseAdmin
       .from('bnimsp_user_notes')

@@ -42,6 +42,28 @@ export const LAYER_KEYS: LayerKey[] = [
   'understand', 'participant', 'ninjaTip', 'example', 'teamAnchor', 'notes',
 ]
 
+/** All editable slide fields: layers + metadata. Single source of truth for API validation. */
+export const EDITABLE_SLIDE_FIELDS = ['title', 'timing', ...LAYER_KEYS] as const
+export type EditableSlideField = typeof EDITABLE_SLIDE_FIELDS[number]
+
+/** Max field lengths to prevent runaway blobs. */
+export const FIELD_LIMITS: Record<string, number> = {
+  title: 200,
+  timing: 100,
+  goal: 5000,
+  outcome: 5000,
+  sayThis: 10000,
+  doThis: 5000,
+  askGroup: 5000,
+  transition: 3000,
+  understand: 8000,
+  participant: 5000,
+  ninjaTip: 3000,
+  example: 5000,
+  teamAnchor: 3000,
+  notes: 10000,
+}
+
 export interface Slide extends SlideLayers {
   /** 1-based slide number, stable identity. */
   n: number
@@ -51,6 +73,8 @@ export interface Slide extends SlideLayers {
   image: string
   /** Pacing target, e.g. "ca. 5 min". */
   timing: string
+  /** Last update timestamp, used for optimistic concurrency. */
+  updated_at?: string
 }
 
 export interface ModuleDef {

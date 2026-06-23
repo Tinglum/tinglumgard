@@ -3,12 +3,14 @@
 import Image from 'next/image'
 import { ChevronLeft, ChevronRight, Clock } from 'lucide-react'
 import type { Slide } from '@/lib/bnimsp/types'
+import { SlideVersionHistory } from './SlideVersionHistory'
 
 interface Props {
   slide: Slide
   total: number
   onPrev: () => void
   onNext: () => void
+  canEdit?: boolean
 }
 
 export function SlideStage({ slide, total, onPrev, onNext }: Props) {
@@ -54,6 +56,12 @@ export function SlideStage({ slide, total, onPrev, onNext }: Props) {
           </span>
         )}
       </div>
+
+      {canEdit && (
+        <div className="mt-2">
+          <SlideVersionHistory slideN={slide.n} />
+        </div>
+      )}
     </div>
   )
 }

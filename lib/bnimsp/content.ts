@@ -1,4 +1,5 @@
 import 'server-only'
+import { cache } from 'react'
 import { supabaseAdmin } from '@/lib/supabase/server'
 import seed from '@/app/bnimsp/_data/seed-content.json'
 import { LAYER_KEYS } from './types'
@@ -28,6 +29,7 @@ function rowToSlide(row: any, useDraft: boolean): Slide {
     title: row.title || '',
     image: row.image || `/bnimsp/slides/slide-${String(row.n).padStart(2, '0')}.png`,
     timing: row.timing || '',
+    updated_at: row.updated_at,
     ...pickLayers(blob),
   }
 }
@@ -36,8 +38,11 @@ function rowToSlide(row: any, useDraft: boolean): Slide {
  * Load content. Prefers the DB; falls back to the committed seed if the tables
  * are absent or empty (e.g. before the migration/seed has been applied).
  * `mode: 'draft'` returns pending edits for admin preview.
+ * Note: distinguished between "table not yet seeded" (expected fallback to seed)
+ * vs "actual query error" (logs and falls back, but this is abnormal).
+ * Memoized per request to avoid duplicate queries within the same render.
  */
-export async function loadContent(mode: 'published' | 'draft' = 'published'): Promise<{
+async function loadContentImpl(mode: 'published' | 'draft' = 'published'): Promise<{
   content: BnimspContent
   source: 'db' | 'seed'
 }> {
@@ -47,9 +52,23 @@ export async function loadContent(mode: 'published' | 'draft' = 'published'): Pr
       supabaseAdmin.from('bnimsp_modules').select('*').order('sort_order'),
       supabaseAdmin.from('bnimsp_appendix').select('*').order('sort_order'),
     ])
-    if (slidesRes.error || !slidesRes.data || slidesRes.data.length === 0) {
+
+    // Distinguish: tables missing/empty (ok, use seed) vs query error (log it).
+    if (slidesRes.error) {
+      if (slidesRes.error.code === 'PGRST116') {
+        // Table does not exist yet (expected before migration).
+        return { content: seedContent(), source: 'seed' }
+      }
+      // Actual error, not a missing-table: log it.
+      console.error('[bnimsp-content] Slides query failed:', slidesRes.error)
       return { content: seedContent(), source: 'seed' }
     }
+
+    if (!slidesRes.data || slidesRes.data.length === 0) {
+      // Tables exist but empty (before seeding), expected fallback.
+      return { content: seedContent(), source: 'seed' }
+    }
+
     const slides = slidesRes.data.map((r) => rowToSlide(r, mode === 'draft'))
     const modules: ModuleDef[] = (modulesRes.data || []).map((m) => ({
       id: m.id, title: m.title, range: [m.slide_from, m.slide_to],
@@ -69,10 +88,15 @@ export async function loadContent(mode: 'published' | 'draft' = 'published'): Pr
       },
       source: 'db',
     }
-  } catch {
+  } catch (err) {
+    console.error('[bnimsp-content] Unexpected error:', err)
     return { content: seedContent(), source: 'seed' }
   }
 }
+
+// Memoized per-request cache: avoids duplicate DB queries when the same content
+// is loaded multiple times in a single request/render cycle.
+export const loadContent = cache(loadContentImpl)
 
 /** True when at least one draft differs from published (used to show "unpublished changes"). */
 export async function hasUnpublishedChanges(): Promise<boolean> {

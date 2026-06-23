@@ -9,6 +9,8 @@ import {
 } from 'lucide-react'
 import type { BnimspContent, LayerKey, Slide } from '@/lib/bnimsp/types'
 import { groupByModule, totalMinutes, cumulativeStartMinutes } from '@/lib/bnimsp/util'
+import { useUnsavedWarning } from '@/lib/bnimsp/hooks'
+import type { TrainingFormat } from '@/lib/bnimsp/format-types'
 import { ModuleRail } from './ModuleRail'
 import { SlideStage } from './SlideStage'
 import { LayerStack, PrivateNotesCard, DELIVERY_BLOCKS, REFERENCE_BLOCKS } from './LayerPanel'
@@ -16,6 +18,7 @@ import { EditableText } from './EditableText'
 import { PracticeTimer } from './PracticeTimer'
 import { PersonalScript } from './PersonalScript'
 import { EndTimeTracker } from './EndTimeTracker'
+import { TrainingFormatSelector } from './TrainingFormatSelector'
 
 interface PersonalState { notes: string; script: string | null }
 const DELIVERY_NO_SCRIPT = DELIVERY_BLOCKS.filter((b) => b.key !== 'sayThis')
@@ -71,6 +74,11 @@ export function Studio({ initialContent, canEdit, isDirector, initialN, initialA
   const [railOpen, setRailOpen] = useState(true)
   const [savedFlash, setSavedFlash] = useState(false)
   const [personalCache, setPersonalCache] = useState<Record<number, PersonalState>>({})
+  const [hasPendingSave, setHasPendingSave] = useState(false)
+  const [trainingFormat, setTrainingFormat] = useState<TrainingFormat>('full')
+  const [selectedSlides, setSelectedSlides] = useState<Set<number>>(
+    new Set(initialContent.slides.map((s) => s.n))
+  )
   const noteTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const scriptTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   // Directors who can't edit the master get a personal, rewritable script.
@@ -78,11 +86,60 @@ export function Studio({ initialContent, canEdit, isDirector, initialN, initialA
   const audienceWindowRef = useRef<Window | null>(null)
   const channelRef = useRef<BroadcastChannel | null>(null)
 
-  const total = slides.length
-  const content = useMemo(() => ({ ...initialContent, slides }), [initialContent, slides])
+  // Warn user if there's unsaved work before they navigate away.
+  useUnsavedWarning(hasPendingSave)
+
+  // Load format preferences on mount
+  useEffect(() => {
+    if (!isDirector) return
+    const loadFormat = async () => {
+      try {
+        const res = await fetch('/api/bnimsp/format')
+        const data = await res.json()
+        if (data.activeFormat) setTrainingFormat(data.activeFormat)
+        if (Array.isArray(data.selectedSlides) && data.selectedSlides.length > 0) {
+          setSelectedSlides(new Set(data.selectedSlides))
+        }
+      } catch {
+        // Use defaults on error
+      }
+    }
+    loadFormat()
+  }, [isDirector])
+
+  // Filter slides based on format selection
+  const filteredSlides = useMemo(
+    () => slides.filter((s) => selectedSlides.has(s.n)),
+    [slides, selectedSlides]
+  )
+
+  const total = filteredSlides.length
+  const content = useMemo(() => ({ ...initialContent, slides: filteredSlides }), [initialContent, filteredSlides])
   const groups = useMemo(() => groupByModule(content), [content])
-  const slide = slides.find((s) => s.n === currentN) || slides[0]
-  const nextSlide = slides.find((s) => s.n === currentN + 1) || null
+  const slide = filteredSlides.find((s) => s.n === currentN) || filteredSlides[0]
+  const nextSlide = filteredSlides.find((s) => s.n === currentN + 1) || null
+
+  const handleSaveFormat = useCallback(
+    async (format: TrainingFormat, newSelectedSlides: Set<number>) => {
+      setTrainingFormat(format)
+      setSelectedSlides(newSelectedSlides)
+      // Adjust current slide if it was deselected
+      if (!newSelectedSlides.has(currentN)) {
+        const remaining = Array.from(newSelectedSlides).sort((a, b) => a - b)
+        if (remaining.length > 0) setCurrentN(remaining[0])
+      }
+      // Save to API
+      await fetch('/api/bnimsp/format', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          activeFormat: format,
+          selectedSlides: Array.from(newSelectedSlides).sort((a, b) => a - b),
+        }),
+      })
+    },
+    [currentN]
+  )
 
   useEffect(() => {
     const url = new URL(window.location.href)
@@ -245,17 +302,21 @@ export function Studio({ initialContent, canEdit, isDirector, initialN, initialA
   // Persist one field of the per-director personal state (debounced).
   const persist = useCallback((n: number, patch: Partial<PersonalState>, timer: typeof noteTimer) => {
     if (timer.current) clearTimeout(timer.current)
-    timer.current = setTimeout(() => {
-      if (isDirector) {
-        fetch(`/api/bnimsp/notes/${n}`, {
-          method: 'PUT', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(patch),
-        }).catch(() => {})
-      } else {
-        try {
+    setHasPendingSave(true)
+    timer.current = setTimeout(async () => {
+      try {
+        if (isDirector) {
+          const res = await fetch(`/api/bnimsp/notes/${n}`, {
+            method: 'PUT', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(patch),
+          })
+          if (!res.ok) throw new Error('Save failed')
+        } else {
           const prev: PersonalState = personalCache[n] || { notes: '', script: null }
           localStorage.setItem(`bnimsp:personal:${n}`, JSON.stringify({ ...prev, ...patch }))
-        } catch { /* ignore */ }
+        }
+      } finally {
+        setHasPendingSave(false)
       }
     }, 600)
   }, [isDirector, personalCache])
@@ -287,15 +348,24 @@ export function Studio({ initialContent, canEdit, isDirector, initialN, initialA
   }, [currentN, isDirector, personalCache])
 
   const onEditLayer = useCallback(async (key: LayerKey | 'title' | 'timing', value: string) => {
+    const oldSlide = slides.find((s) => s.n === currentN)
     setSlides((prev) => prev.map((s) => (s.n === currentN ? { ...s, [key]: value } : s)))
     try {
       const res = await fetch(`/api/bnimsp/slides/${currentN}`, {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ [key]: value }),
+        body: JSON.stringify({ [key]: value, updatedAt: oldSlide?.updated_at }),
       })
-      if (res.ok) { setSavedFlash(true); setTimeout(() => setSavedFlash(false), 1500) }
+      if (res.ok) {
+        setSavedFlash(true)
+        setTimeout(() => setSavedFlash(false), 1500)
+      } else if (res.status === 409) {
+        // Conflict: another editor changed this slide. Reload and notify.
+        setSlides((prev) => prev.map((s) => (s.n === currentN && oldSlide ? oldSlide : s)))
+        alert('Denne sliden ble redigert et annet sted. Endringene dine ble gjenopprettet. Last inn siden på nytt.')
+        window.location.reload()
+      }
     } catch { /* optimistic value stays */ }
-  }, [currentN])
+  }, [currentN, slides])
 
   if (initialAudience) {
     return <AudienceView slide={slide} />
@@ -313,6 +383,16 @@ export function Studio({ initialContent, canEdit, isDirector, initialN, initialA
 
   return (
     <div className="mx-auto w-full max-w-[2000px] px-3 py-5 sm:px-5 xl:px-8 2xl:text-[15px]">
+      {/* Training format selector (directors only) */}
+      {isDirector && (
+        <TrainingFormatSelector
+          initialFormat={trainingFormat}
+          totalSlides={slides.length}
+          onFormatChange={setTrainingFormat}
+          onSave={handleSaveFormat}
+        />
+      )}
+
       <div className="grid gap-5 xl:gap-7 lg:grid-cols-[230px_minmax(0,1fr)] 2xl:grid-cols-[260px_minmax(0,1fr)]">
         {/* Rail */}
         <aside className={`${railOpen ? 'block' : 'hidden'} lg:block`}>
@@ -351,7 +431,7 @@ export function Studio({ initialContent, canEdit, isDirector, initialN, initialA
           {/* Content: slide + delivery (center) | understanding + tools (right) */}
           <div className="grid gap-5 xl:gap-7 xl:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]">
             <div className="min-w-0 space-y-4 xl:space-y-5">
-              <SlideStage slide={slide} total={total} onPrev={() => go(currentN - 1)} onNext={() => go(currentN + 1)} />
+<SlideStage slide={slide} total={total} onPrev={() => go(currentN - 1)} onNext={() => go(currentN + 1)} canEdit={canEdit} />
               <GoalBanner slide={slide} editable={canEdit} onEditLayer={onEditLayer} />
               {ownsPersonalScript ? (
                 <>
