@@ -97,7 +97,21 @@
       "ninjaTip": "Åpningen skal ikke bevise at du kan mye. Den skal få rommet til å skjønne at de må være med.",
       "example": "På Zoom bruker du første minutt på å få alle til å endre navn til \"Fornavn, ekspertområde, team\". Det er ikke teknikk for teknikkens skyld. Det er en modell for tydelighet i BNI.",
       "teamAnchor": "Teammanualen legger vekt på at lederteam og verter skaper kvalitet før møtet starter. Bruk åpningen til å modellere positiv, profesjonell og tydelig møtekultur.",
-      "notes": ""
+      "notes": "",
+      "formats": {
+        "120min": {
+          "include": true,
+          "timing": "ca. 3 min",
+          "sayThis": "Velkommen til Membership Suksess Program. Jeg er Kenneth Tinglum – BNI-partner siden 2007 og National Trainer siden 2022. Jobben min i dag er ikke å inspirere dere i tre timer, men å gi dere en arbeidsmetode dere kan bruke fra neste møte. Målet med MSP: forstå hvordan BNI fungerer som system, og hvordan dere bruker systemet til å skape mer business for hverandre – gjennom en strukturert måte å lytte, hjelpe, gi referanser, følge opp og rapportere. Dette er praktisk trening med oppgaver underveis. Gjør dere oppgavene, får dere mye mer ut av det.",
+          "askGroup": "Hvem her har vært BNI-partner under tre måneder? Hvem mer enn ett år? Hvem har allerede gitt en referanse?"
+        },
+        "90min": {
+          "include": true,
+          "timing": "ca. 3 min",
+          "sayThis": "Velkommen til Membership Suksess Program. Jeg er Kenneth Tinglum, National Trainer i BNI Norge. Målet i dag: gi dere en arbeidsmetode dere kan bruke fra neste møte – hvordan dere bruker BNI-systemet til å skape business for hverandre gjennom å lytte, hjelpe, gi referanser og følge opp. Dette er praktisk: gjør oppgavene, så får dere mest ut av det.",
+          "askGroup": "Hvem har vært partner under tre måneder? Hvem har allerede gitt en referanse?"
+        }
+      }
     },
     {
       "n": 2,
@@ -116,7 +130,18 @@
       "ninjaTip": "En agenda er ikke en innholdsfortegnelse. Den er et løfte om at dagen henger sammen.",
       "example": "Si at agendaen ikke er en liste med temaer, men en progresjon. Først forstå, så øve, så forplikte seg.",
       "teamAnchor": "Møteagendaen har en hensikt og skal ikke improviseres bort. Hvert punkt skal hjelpe teamet å generere flere referanser og mer verdi.",
-      "notes": ""
+      "notes": "",
+      "formats": {
+        "120min": {
+          "include": true,
+          "timing": "ca. 2 min",
+          "sayThis": "Her er agendaen. Vi starter med BNI-fundamentet – hvorfor BNI finnes – for uten det blir resten bare teknikk. Så går vi inn i selve arbeidsmetoden, som er kjernen: BNI er ikke et sted du er synlig én gang i uka, men en metode du bruker hver uke for å skape muligheter for andre, og de for deg. Deretter verktøyene: ukens kundecase, 1-til-1, ukens taler, referanser, gjester og rapportering – og til slutt dine mål. Rekkefølgen er bevisst: først hvorfor, så metoden, så trening på verktøyene.",
+          "askGroup": "Hvilket område tror du blir viktigst for deg akkurat nå?"
+        },
+        "90min": {
+          "include": false
+        }
+      }
     },
     {
       "n": 3,
@@ -135,7 +160,15 @@
       "ninjaTip": "Før folk forstår metoden, tolker de alt som nettverksprat. Riktig forventning tidlig sparer deg for mye friksjon senere.",
       "example": "Fortell kort om forskjellen på et hyggelig nettverk og BNI: et nettverk kan gi tilfeldigheter, BNI skal gi repeterbar arbeidsmetode.",
       "teamAnchor": "Teammanualen beskriver BNI-systemet som rammeverk for grunnleggende policy, prosedyrer og program. MSP må derfor læres som system, ikke inspirasjonsforedrag.",
-      "notes": ""
+      "notes": "",
+      "formats": {
+        "120min": {
+          "include": false
+        },
+        "90min": {
+          "include": false
+        }
+      }
     },
     {
       "n": 4,
@@ -154,7 +187,21 @@
       "ninjaTip": "Visjon lander ikke når den høres stor ut. Den lander når den minner folk om noe de allerede har opplevd.",
       "example": "Eksempel 1 – regnskapet: En bedriftsleder nevner i en lunsj at regnskapet er et eneste rot. En vanlig selger tenker «kan jeg selge noe her?». En BNI-partner tenker «hvem kjenner jeg som kan hjelpe henne trygt?» - og kobler henne med regnskapsføreren på teamet. Det er å endre måten verden gjør business på, i praksis.\n\nEksempel 2 – på flyet: Sidemannen din klager på at nettsiden hans er håpløs. Du lager ikke nettsider. Men du kjenner Martin. «Vet du hva, i går møtte jeg en som lager nettsider - vil du at jeg setter dere i kontakt?» Visjonen er ikke en plakat på veggen. Den er den ene setningen.",
       "teamAnchor": "Visjonen og Givers Gain skal kobles til praktisk atferd: å åpne dører når vi hører reelle behov i hverdagen.",
-      "notes": ""
+      "notes": "",
+      "formats": {
+        "120min": {
+          "include": true,
+          "timing": "ca. 3 min",
+          "sayThis": "BNIs visjon er å endre måten verden gjør forretninger på. Det skjer ved at business ikke først og fremst skapes ved at jeg jakter kunder for meg selv, men ved at jeg hjelper folk jeg møter med å få kontakt med fagpersoner jeg stoler på. Når jeg møter noen med et problem, tenker jeg ikke bare «kan jeg selge noe?», men «hvem i teamet mitt kan hjelpe?». En referanse er en introduksjon, ikke en garanti. Derfor er BNI lokalt og globalt samtidig: vi jobber i team vi kjenner, med en metodikk som brukes over hele verden. BNI starter når du hører et behov og kobler det til en partner – ikke i appen.",
+          "askGroup": "Hvem har den siste uka hørt noen nevne et problem eller behov i en samtale?"
+        },
+        "90min": {
+          "include": true,
+          "timing": "ca. 3 min",
+          "sayThis": "BNIs visjon er å endre måten verden gjør forretninger på: business skapes ikke ved at jeg jakter egne kunder, men ved at jeg hjelper folk jeg møter med kontakt til fagpersoner jeg stoler på. Møter jeg noen med et problem, tenker jeg «hvem i teamet mitt kan hjelpe?». En referanse er en introduksjon, ikke en garanti. BNI starter når du hører et behov og kobler det til en partner.",
+          "askGroup": "Hvem har den siste uka hørt noen nevne et behov i en samtale?"
+        }
+      }
     },
     {
       "n": 5,
@@ -173,7 +220,21 @@
       "ninjaTip": "Utydelige målgrupper føles trygge å si høyt. Derfor må de gjøres konkrete før folk merker hvor svake de egentlig er.",
       "example": "Eksempel 1 – stor eller liten: Spør etter en bitteliten kunde du egentlig ikke vil ha, og du får en bitteliten kunde. Spør etter den store kunden du faktisk vil ha, og folk begynner å lete etter den store. Du får det du ber om - så be om det du vil ha.\n\nEksempel 2 – to rørleggere: Lik kompetanse, lik pris. Den ene sitter og venter på at telefonen skal ringe. Den andre har 20 partnere som hver uke hører nøyaktig hvilken kunde han leter etter. Forskjellen er ikke flaks. Forskjellen er et system.",
       "teamAnchor": "Partnerutvikling handler om å gjøre partnerne refererbare og nyttige for hverandre, ikke bare mer synlige.",
-      "notes": ""
+      "notes": "",
+      "formats": {
+        "120min": {
+          "include": true,
+          "timing": "ca. 4 min",
+          "sayThis": "La oss være konkrete. Du er flink i det du gjør, og kundene finnes der ute. Hvorfor har du likevel ikke all businessen du trenger? Sjelden fordi du er dårlig – som regel fordi for få vet nøyaktig hvem du hjelper, hvilke problemer du løser, og når de skal tenke på deg. Vet jeg bare at du er advokat, kan jeg ikke gi en god referanse. Vet jeg at du hjelper småbedriftseiere i konflikt med ansatte, kan jeg lytte etter noe konkret. I BNI er det ikke nok å være flink – du må bli refererbar: partnerne må forstå deg godt nok til å kjenne igjen en relevant situasjon, og stole nok på deg til å sette navnet sitt på en introduksjon.",
+          "askGroup": "Hva er forskjellen på å vite hva noen jobber med, og å vite når du skal referere dem?"
+        },
+        "90min": {
+          "include": true,
+          "timing": "ca. 4 min",
+          "sayThis": "Du er flink, og kundene finnes. Hvorfor har du likevel ikke nok business? Som regel fordi for få vet nøyaktig hvem du hjelper og hvilke problemer du løser. Vet jeg bare at du er advokat, kan jeg ikke referere deg godt. Vet jeg at du hjelper småbedrifter i konflikt med ansatte, kan jeg lytte etter det. I BNI er det ikke nok å være flink – du må bli refererbar.",
+          "askGroup": "Hva er forskjellen på å vite hva noen jobber med, og å vite når du skal referere dem?"
+        }
+      }
     },
     {
       "n": 6,
@@ -192,7 +253,21 @@
       "ninjaTip": "Givers Gain blir fort for mykt hvis det løsriveres fra behov. Behov gjør verdien forretningsmessig, ikke bare hyggelig.",
       "example": "Gi den referansen det er enklest å gi denne uka. Ikke vent på den perfekte anledningen og ikke regn på hvem du får noe tilbake fra. Givers Gain blir sterk når hele teamet tenker sånn, uke etter uke.",
       "teamAnchor": "Givers Gain skal leveres som kvalitet, behovsforståelse og gjensidig bidrag. Ikke som tilfeldige leads eller passiv venting.",
-      "notes": ""
+      "notes": "",
+      "formats": {
+        "120min": {
+          "include": true,
+          "timing": "ca. 4 min",
+          "sayThis": "Givers Gain er en kjerneverdi, men «gir jeg, så får jeg» er for svakt. Det betyr ikke blind giving eller å bytte mandag mot tirsdag. Det betyr at vi lytter med formål, i en bestemt sekvens: Først lærer vi i møtene og 1-til-1 hvilke problemer og behov hver partner kan løse – vi legger dem i vår «backpack of problems». Så tar vi den kunnskapen med ut i hverdagen og nettverkene våre utenfor BNI. Til slutt lytter vi spesifikt etter mennesker som har akkurat disse problemene, og da trekker vi partneren ut av ryggsekken og introduserer. Det er ikke «lytt etter hva som helst og håp» – det er «jeg lærte hvilke problemer Siri løser, så jeg lytter etter dem». Derfor henger Givers Gain og referanser tett sammen, og tilliten i rommet vokser.",
+          "askGroup": "Hva gjør du annerledes i hverdagen hvis du faktisk lever Givers Gain?"
+        },
+        "90min": {
+          "include": true,
+          "timing": "ca. 4 min",
+          "sayThis": "Givers Gain er mer enn «gir jeg, så får jeg». Det betyr å lytte med formål, i en sekvens: Først lærer vi i møtene og 1-til-1 hvilke problemer hver partner løser – vi legger dem i «backpacken» vår. Så tar vi den med ut i hverdagen. Til slutt lytter vi spesifikt etter folk som har akkurat de problemene, og trekker partneren ut av ryggsekken og introduserer. Ikke «lytt etter hva som helst og håp» – men «jeg vet hvilke problemer partneren min løser, så jeg lytter etter dem».",
+          "askGroup": "Hva gjør du annerledes hvis du lever Givers Gain?"
+        }
+      }
     },
     {
       "n": 7,
@@ -211,7 +286,18 @@
       "ninjaTip": "Når referanser starter, må energien opp. Hvis ikke høres kjernen ut som bare ett tema til.",
       "example": "Det er mulig å elske BNI uten å bruke BNI. Referansene viser om systemet faktisk er i bruk.",
       "teamAnchor": "Referanser er kjernen i BNI. Alt før dette punktet bygger opp til kvaliteten her.",
-      "notes": ""
+      "notes": "",
+      "formats": {
+        "120min": {
+          "include": true,
+          "timing": "ca. 2 min",
+          "sayThis": "Nå går vi inn i kjernen av BNI: referanser. Visjon, verdier og struktur er verktøy – referansen, skapt fra et reelt behov, er resultatet. Før jeg gir dere BNIs definisjon, vil jeg høre fra dere.",
+          "askGroup": "Hva er egentlig en referanse?"
+        },
+        "90min": {
+          "include": false
+        }
+      }
     },
     {
       "n": 8,
@@ -230,7 +316,21 @@
       "ninjaTip": "En definisjon sitter bedre når den kan bæres i tre enkle ord enn når den må huskes som en forklaring.",
       "example": "Eksempel 1 – skredderen (alternativ 1 vs 2): Du sitter ved siden av en fremmed på flyet. Hun sier: «Jeg skulle gjerne hatt tak i en skredder før et event.» Du har to valg. Alternativ 1: «Ja, det hadde vært fint.» Alternativ 2: «Vet du hva - i går møtte jeg en skredder. Jeg kjenner henne ikke så godt, men vil du at jeg setter dere i kontakt, så du får se om hun løser det du trenger?» Svaret er alltid alternativ 2. Det verste du kan få er et «nei takk».\n\nHusk definisjonen: En referanse er ikke en garanti og ikke en anbefaling. En referanse er en enkel introduksjon mellom et faktisk behov og en mulig løsning.\n\nEksempel 2 – din egen kunde: Det samme gjelder din beste kunde. Har kunden et reelt behov, og du sier «jeg kjenner en som kan akkurat dette, vil du at jeg introduserer deg?» - så får du en gullstjerne uansett hvordan møtet ender. Du tilbød en løsning. Det er aldri negativt.",
       "teamAnchor": "En referanse må ha reelt behov, aksept for kontakt og tydelig forventning. Uavklarte tips skal ikke læres som referanser.",
-      "notes": ""
+      "notes": "",
+      "formats": {
+        "120min": {
+          "include": true,
+          "timing": "ca. 4 min",
+          "sayThis": "«Referanse» er en dårlig oversettelse av «referral», så BNI har laget sin egen, presise definisjon. En referanse har to kriterier, og begge må være oppfylt: Én – en tredjepart har et reelt, eksisterende behov for det du leverer, akkurat nå (ikke en antakelse om at noen kanskje kunne hatt behov). To – personen ser frem til at du tar kontakt. Er begge på plass, har du en referanse. Mangler ett, har du et tips eller en mulighet – noe helt annet. En referanse er verken garanti eller anbefaling, men en introduksjon mellom et faktisk behov og en mulig løsning.",
+          "askGroup": "Hva er forskjellen på et navn, et tips og en referanse?"
+        },
+        "90min": {
+          "include": true,
+          "timing": "ca. 5 min",
+          "sayThis": "BNI har en presis definisjon av en referanse, med to kriterier som begge må være oppfylt: Én – en tredjepart har et reelt behov akkurat nå (ikke en antakelse). To – personen ser frem til at du tar kontakt. Begge på plass = referanse. Mangler ett = bare et tips. En referanse er verken garanti eller anbefaling, men en introduksjon mellom et faktisk behov og en mulig løsning.",
+          "askGroup": "Hva er forskjellen på et navn, et tips og en referanse?"
+        }
+      }
     },
     {
       "n": 9,
@@ -249,7 +349,21 @@
       "ninjaTip": "Samtykke før introduksjon beskytter ikke bare partneren. Det beskytter også giverens troverdighet.",
       "example": "Eksempel – stegene i praksis: En referanse starter alltid med at noen har et behov.\n1) Du hører behovet - i en samtale, en lunsj, på flyet.\n2) Du kobler behovet til en mulig løsning du kjenner.\n3) Du spør: «Vil du at jeg setter dere i kontakt?»\n4) Du introduserer de to partene.\n5) Du følger opp at møtet faktisk skjer.\nBehov → kobling → introduksjon → oppfølging. Hopper du over steg 5, dør de fleste referansene i stillhet.",
       "teamAnchor": "Trygg referanseprosess beskytter både giverens relasjon, mottakerens tid og kunden som får hjelp.",
-      "notes": ""
+      "notes": "",
+      "formats": {
+        "120min": {
+          "include": true,
+          "timing": "ca. 4 min",
+          "sayThis": "En referanse kan oppstå på tre måter, gradvis sterkere. Reactor – du reagerer: noen spør «kjenner du en som lager nettsider?», og du kobler. Promoter – du fanger opp: du overhører et behov og tar initiativ: «jeg kjenner en skredder, skal jeg introdusere?». Creator – du skaper: du kjenner teamet så godt at du ser muligheten selv. Når du gir referansen: sjekk først med partneren om de ønsker den (de kan vite noe du ikke vet om timing, geografi eller interessekonflikt), introduser de to, og følg opp at møtet faktisk skjer.",
+          "askGroup": "Hva bør stå i en god introduksjonsmail?"
+        },
+        "90min": {
+          "include": true,
+          "timing": "ca. 5 min",
+          "sayThis": "En referanse oppstår på tre måter, gradvis sterkere. Reactor: noen spør deg direkte, og du kobler. Promoter: du overhører et behov og tar initiativ. Creator: du kjenner teamet så godt at du ser muligheten selv. Når du gir referansen: sjekk med partneren først, introduser de to, og følg opp at møtet skjer.",
+          "askGroup": "Hva bør stå i en god introduksjonsmail?"
+        }
+      }
     },
     {
       "n": 10,
@@ -268,7 +382,18 @@
       "ninjaTip": "Gode anbefalinger bygger tillit fordi de er nøkterne. Overdrivelse gjør både deg og partneren svakere.",
       "example": "Varm introduksjon på e-post med hvorfor begge bør snakke sammen er sterkere enn å dele telefonnummer.",
       "teamAnchor": "Forsterking av referansen handler om kvalitet og tillit, ikke press.",
-      "notes": ""
+      "notes": "",
+      "formats": {
+        "120min": {
+          "include": true,
+          "timing": "ca. 3 min",
+          "sayThis": "Tre måter å forsterke en referanse på. Hjelp til med å avtale møtet – foreslå tidspunkt og gjør det lett å komme i gang, ikke bare «dere bør snakke sammen». Gi en anbefaling – bruk tilliten din uten å overdrive: «jeg kjenner Kenneth gjennom BNI og har sett hvordan han jobber». Delta selv på møtet – passer ikke alltid, men er sterkt når relasjonen til kunden er din og partneren ikke kjenner kunden. Poenget er kvalitet, ikke flest mulig: en god referanse er nyttig for kunden, nyttig for partneren og ryddig for giveren.",
+          "askGroup": "Når ville det vært riktig at giveren deltar på første møte?"
+        },
+        "90min": {
+          "include": false
+        }
+      }
     },
     {
       "n": 11,
@@ -287,7 +412,21 @@
       "ninjaTip": "Personlig merkevare blir tydelig først når folk skjønner at det er adferden din som blir referert, ikke markedsføringen din.",
       "example": "Partneren som alltid følger opp raskt blir enklere å referere enn partneren som bare holder gode presentasjoner.",
       "teamAnchor": "Personlig merkevare i BNI er synlig atferd, oppmøte, forberedelse, oppfølging og kvalitet i referanser.",
-      "notes": ""
+      "notes": "",
+      "formats": {
+        "120min": {
+          "include": true,
+          "timing": "ca. 3 min",
+          "sayThis": "Din personlige merkevare i BNI er ikke logoen, nettsiden eller presentasjonen din – og ikke hvor flink du sier at du er. Den er summen av det partnerne opplever at du gjør, uke etter uke: Møter du opp? Er du forberedt? Lytter du? Prøver du å hjelpe? Følger du opp? Holder du det du lover? Det er dette som gjør at noen tør sette navnet sitt på en introduksjon til deg. Når jeg gir deg en referanse, låner jeg deg tillit fra en relasjon jeg allerede har – følger du opp dårlig, skader det også meg. Personlig merkevare i BNI handler om refererbarhet.",
+          "askGroup": "Hva styrker tilliten til en partner – og hva svekker den?"
+        },
+        "90min": {
+          "include": true,
+          "timing": "ca. 3 min",
+          "sayThis": "Din personlige merkevare i BNI er ikke logo eller nettside – den er summen av det partnerne opplever at du gjør hver uke: Møter du opp? Er du forberedt? Lytter du? Følger du opp? Holder du det du lover? Det er dette som gjør at noen tør sette navnet sitt på en introduksjon til deg. Når jeg refererer deg, låner jeg deg min tillit – følger du opp dårlig, skader det også meg. Det handler om refererbarhet.",
+          "askGroup": "Hva styrker tilliten til en partner – og hva svekker den?"
+        }
+      }
     },
     {
       "n": 12,
@@ -306,7 +445,18 @@
       "ninjaTip": "Forberedelse blir tatt mer seriøst når det kobles til andres arbeid, ikke bare til din egen prestasjon.",
       "example": "Hvis alle i teamet møter med én forberedt referansemulighet, endres energien i møtet.",
       "teamAnchor": "Handlinger med positivt fortegn må kobles til rapportering og teamets ansvarskultur.",
-      "notes": ""
+      "notes": "",
+      "formats": {
+        "120min": {
+          "include": true,
+          "timing": "ca. 4 min",
+          "sayThis": "En enkel, men viktig liste med handlinger som gjør det lettere for andre å hjelpe deg. Forbered deg – tenk gjennom ukens kundecase, vit hva du skal be om og hvem du vil følge opp. Møt opp – ser ikke partnerne deg jevnlig, blir du ikke top of mind. Vær mentalt til stede – referansene dine fødes i andres presentasjoner. Prøv å hjelpe – partnerne merker om du prøver. Følg opp det du sier du skal gjøre. Og kommuniser menneskelig med den du gir referanser til – ikke bare trykk i appen.",
+          "askGroup": "Hvilken av disse handlingene vil du bli bedre på de neste fire ukene?"
+        },
+        "90min": {
+          "include": false
+        }
+      }
     },
     {
       "n": 13,
@@ -325,7 +475,15 @@
       "ninjaTip": "Noen slides skal ikke forklare mer. De skal skifte gir i rommet.",
       "example": "Bruk én setning, BNI er ikke hyggelige mennesker pluss håp, BNI er hyggelige mennesker pluss system.",
       "teamAnchor": "Overgangen fra fundament til arbeidsmetode må være klar, det er her deltakeren skjønner at BNI krever ukentlig atferd.",
-      "notes": ""
+      "notes": "",
+      "formats": {
+        "120min": {
+          "include": false
+        },
+        "90min": {
+          "include": false
+        }
+      }
     },
     {
       "n": 14,
@@ -344,7 +502,21 @@
       "ninjaTip": "Arbeidsmetode blir levende først når folk kjenner hvor i hverdagen de faktisk skal bruke den.",
       "example": "Etter ukesmøtet går du rett til partneren: \"Da du sa eiere med dårlig oversikt, tenkte jeg på en kunde. Kan vi ta 10 minutter etterpå?\"",
       "teamAnchor": "Agenda, 1-til-1, referanser og rapportering henger sammen. Verktøyene er motoren som skal skape referanser fra det som skjer i møtet.",
-      "notes": ""
+      "notes": "",
+      "formats": {
+        "120min": {
+          "include": true,
+          "timing": "ca. 6 min",
+          "sayThis": "Denne sliden viser BNI enkelt: møtet, 1-til-1, referanse – og tilbake til møtet. Det viktigste: BNI er en måte å gjøre business på, ikke noe du gjør én gang i uka. I ukesmøtet lærer vi hvilke problemer og behov hver partner kan løse, og legger dem i «backpacken». Vi tar den med ut og lytter aktivt etter mennesker som har akkurat disse problemene – ikke passiv lytting etter «noe som helst». 1-til-1 bruker vi for å kvalifisere og lande referansen riktig; det kan være fysisk, Zoom eller ti minutter på telefon – poenget er at samtalen leder til referansearbeid. Så gir vi referansen, følger opp og rapporterer. Uten handling er det bare et hyggelig nettverksmøte.",
+          "askGroup": "Hvis møtet ikke fører til 1-til-1, og 1-til-1 ikke fører til referanser, hva blir BNI da?"
+        },
+        "90min": {
+          "include": true,
+          "timing": "ca. 6 min",
+          "sayThis": "BNI enkelt: møtet, 1-til-1, referanse – og tilbake. Det viktigste: BNI er en måte å gjøre business på, ikke noe du gjør én gang i uka. I møtet lærer vi hvilke problemer hver partner løser og legger dem i «backpacken», tar den med ut, og lytter aktivt etter folk som har akkurat de problemene. 1-til-1 bruker vi for å lande referansen riktig. Så gir vi referansen, følger opp og rapporterer. Uten handling er det bare et hyggelig nettverksmøte.",
+          "askGroup": "Hvis møtet ikke fører til 1-til-1 og referanser, hva blir BNI da?"
+        }
+      }
     },
     {
       "n": 15,
@@ -363,7 +535,21 @@
       "ninjaTip": "Modeller skaper verdi når de avslører lekkasjen, ikke når de bare ser fine ut.",
       "example": "En partner som gjør alt riktig én uke er ikke problemet. Spørsmålet er om partneren gjør det igjen neste uke og neste måned.",
       "teamAnchor": "Teammanualens fokus på oppmøte, referanser, 1-til-1 og TFB støtter denne sirkelen. Gjentakelse over tid skaper resultatene.",
-      "notes": ""
+      "notes": "",
+      "formats": {
+        "120min": {
+          "include": true,
+          "timing": "ca. 3 min",
+          "sayThis": "Her er sirkelen igjen: møtet, 1-til-1, referanse, TFB, tilbake til møtet. Ingen av delene er kompliserte alene – å møte opp, ha en 1-til-1, gi en god introduksjon, rapportere. Det vanskelige er å gjøre det konsekvent, hver uke, for alle partnere, også når du har mye å gjøre og ikke får noe tilbake med en gang. BNI er som trening: trener du én gang og spør hvorfor du ikke er i form, er det feil spørsmål. Men det er ikke bare tregt – du kan få resultater raskt allerede første uke du lytter konkret, booker riktig 1-til-1 og følger opp.",
+          "askGroup": "Hvilken del av sirkelen svikter oftest i vanlige team?"
+        },
+        "90min": {
+          "include": true,
+          "timing": "ca. 3 min",
+          "sayThis": "Sirkelen: møtet, 1-til-1, referanse, TFB, tilbake til møtet. Ingen del er vanskelig alene – det vanskelige er å gjøre det konsekvent, hver uke, også når du ikke får noe tilbake med en gang. BNI er som trening: resultatene kommer når du gjør de riktige tingene ofte nok. Men det kan gå raskt – allerede første uke du lytter konkret, booker riktig 1-til-1 og følger opp.",
+          "askGroup": "Hvilken del av sirkelen svikter oftest?"
+        }
+      }
     },
     {
       "n": 16,
@@ -382,7 +568,15 @@
       "ninjaTip": "Verktøy uten problem blir administrasjon i hodet på folk. Knytt hvert verktøy til ett problem det løser.",
       "example": "En uforberedt partner sier \"jeg ønsker alle bedrifter\". En forberedt partner sier \"jeg ønsker daglige ledere i håndverksbedrifter som har vokst fra 3 til 10 ansatte\".",
       "teamAnchor": "Forberedelser er en del av teamkvaliteten. Dårlig forberedelse gjør andre partneres referansearbeid vanskeligere.",
-      "notes": ""
+      "notes": "",
+      "formats": {
+        "120min": {
+          "include": false
+        },
+        "90min": {
+          "include": false
+        }
+      }
     },
     {
       "n": 17,
@@ -401,7 +595,21 @@
       "ninjaTip": "Et kundecase er sterkt først når det er lett å bære videre i andres munn.",
       "example": "Eksempel – kundecase-formelen: «I forrige uke hadde jeg en kunde. De hadde dette problemet. Problemet var viktig, og slik løste vi det. Derfor leter jeg etter andre som har akkurat det samme problemet - innenfor denne kategorien.»\n\nDen casen gjør deg refererbar: minst én person i rommet skal tenke «oi, jeg kjenner noen med akkurat det» og gå bort til deg i pausen.",
       "teamAnchor": "Ukens kundecase skal gjøre partneren konkret refererbar denne uken, ved å koble kunde til et tydelig behov.",
-      "notes": ""
+      "notes": "",
+      "formats": {
+        "120min": {
+          "include": true,
+          "timing": "ca. 3 min",
+          "sayThis": "Ukens kundecase handler om å bli den partnerne vil hjelpe denne uken – ikke en gang i fremtiden. Sier jeg «jeg jobber med forsikring for privat og bedrift», er det for bredt; ingen får et konkret bilde. Sier jeg «denne uka vil jeg snakke med eiere av små håndverksbedrifter som har vokst fra 3 til 10 ansatte og er usikre på om forsikringene fortsatt dekker driften», kan folk begynne å se etter situasjonen. Kundecaset skal beskrive et behov, ikke bare en kunde – og trene partnerne i å kjenne igjen en situasjon, ikke huske en bransje. Jo tydeligere behovet er, jo lettere er det å referere deg.",
+          "askGroup": "Hva er enklest å referere – en yrkestittel eller et konkret problem med en konkret kunde?"
+        },
+        "90min": {
+          "include": true,
+          "timing": "ca. 3 min",
+          "sayThis": "Ukens kundecase: bli den partnerne vil hjelpe denne uka. «Jeg jobber med forsikring» er for bredt. «Denne uka vil jeg snakke med eiere av små håndverksbedrifter som har vokst fra 3 til 10 ansatte og er usikre på om forsikringene dekker driften» – nå kan folk se etter situasjonen. Beskriv et behov, ikke bare en kunde. Jo tydeligere behovet er, jo lettere er det å referere deg.",
+          "askGroup": "Hva er enklest å referere – en yrkestittel eller et konkret problem?"
+        }
+      }
     },
     {
       "n": 18,
@@ -420,7 +628,17 @@
       "ninjaTip": "Kontrast lærer raskere enn teori. Når folk hører forskjellen, slipper du å forklare den så lenge.",
       "example": "Eksempel 1 – borettslaget: «I fjor hjalp jeg Tretitten borettslag. De betalte alt for mye for strøm. Vi gikk gjennom avtalen, og de sparte en kvart million i året.» Konkret tall, konkret problem, og tydelig hvem du leter etter: andre borettslag og sameier. En slik case er lett å gjenta for en tredjepart - og det er nettopp det som gjør den refererbar.\n\nEksempel 2 – kontrasten: Sammenlign med «jeg hjelper bedrifter med å spare penger». Ingen vet hvilket behov de skal lytte etter. Tall + navn + kategori slår en generell setning hver eneste gang. Les gjerne den dårlige versjonen høyt først, så den gode - kontrasten lærer raskt.",
       "teamAnchor": "Gode presentasjoner må være korte, konkrete og bygget rundt behov som kan bli til referanser.",
-      "notes": ""
+      "notes": "",
+      "formats": {
+        "120min": {
+          "include": true,
+          "timing": "ca. 5 min",
+          "sayThis": "Dette eksempelet har fire deler du kan bruke igjen og igjen. Først: fang oppmerksomheten – «Jeg sparte et borettslag 250 000 kroner i året». Konkret og lett å høre. Så: beskriv problemet – de hadde solceller, men solgte overskuddsstrømmen altfor billig. Så: løsning og resultat – kort nok til at partnerne forstår at du løser behovet. Til slutt: be om referansen – «hjelp en styreleder i et borettslag å bli en helt ved å introdusere dem til meg». Ikke avslutt med «ta kontakt hvis du vet om noen» – det er for svakt. Be om en konkret introduksjon til en konkret type person."
+        },
+        "90min": {
+          "include": false
+        }
+      }
     },
     {
       "n": 19,
@@ -439,7 +657,15 @@
       "ninjaTip": "Et godt spørsmål på riktig tidspunkt gjør mer enn fem gode poenger.",
       "example": "Eksempel – 1-til-1 er lik referansearbeid: Målet med et 1-til-1 er ikke en hyggelig kaffeprat. Målet er at dere kommer nærmere en faktisk referanse. Bruker du verktøyene i møtet riktig, vet dere etterpå hvilken kunde, hvilket behov eller hvilken referansekilde dere skal lete etter for hverandre.",
       "teamAnchor": "1-til-1 er en del av BNI-kompasset og partnerutviklingen, men her brukes det også som referansemotor.",
-      "notes": ""
+      "notes": "",
+      "formats": {
+        "120min": {
+          "include": false
+        },
+        "90min": {
+          "include": false
+        }
+      }
     },
     {
       "n": 20,
@@ -458,7 +684,21 @@
       "ninjaTip": "Skjemaer får liv når de peker fremover. Dør de i utfylling, dør de i praksis.",
       "example": "Skjemaet hjelper deg å spørre: hvem er drømmekunden, hvem møter dem før deg, og hva skal jeg lytte etter?",
       "teamAnchor": "1-til-1-skjemaet støtter struktur og rettferdig partnerutvikling. Det er hjelp til tydelighet, ikke papirarbeid.",
-      "notes": ""
+      "notes": "",
+      "formats": {
+        "120min": {
+          "include": true,
+          "timing": "ca. 2 min",
+          "sayThis": "Dette er 1-til-1-skjemaet. Poenget er ikke å fylle det ut perfekt og arkivere det – det er at skjemaet tvinger frem tydelighet. Du må tenke gjennom hvem du er, hvilke behov du løser best, hvem du vil møte, og hvilke kunder som faktisk er gode for deg. For partnerne er dette gull: skal jeg hjelpe deg, må jeg vite hvem du vil møte, hva som skjer før de trenger deg, hvilke problemer de sier høyt, og hvilke referansekilder som står tett på dem. Mange oppdager at de ikke er så tydelige som de trodde.",
+          "askGroup": "Hvilket felt tror dere flest fyller ut for generelt?"
+        },
+        "90min": {
+          "include": true,
+          "timing": "ca. 2 min",
+          "sayThis": "1-til-1-skjemaet tvinger frem tydelighet. Du må tenke gjennom hvem du er, hvilke behov du løser, hvem du vil møte, og hvilke kunder som er gode for deg. For partnerne er det gull: skal jeg hjelpe deg, må jeg vite hvem du vil møte, hvilke problemer de sier høyt, og hvilke referansekilder som står tett på dem. Mange oppdager at de ikke er så tydelige som de trodde.",
+          "askGroup": "Hvilket felt fyller flest ut for generelt?"
+        }
+      }
     },
     {
       "n": 21,
@@ -477,7 +717,21 @@
       "ninjaTip": "Mange finner kunden. Færre finner kilden. Det er derfor denne sliden er viktigere enn den ser ut.",
       "example": "For en boligmegler er takstmann, bank, advokat, fotograf og flyttebyrå mulige referansekilder.",
       "teamAnchor": "Teammanualen og BNI-kompasset peker på kontaktsirkler og målrettede 1-til-1 som sentrale for nye partneres utvikling.",
-      "notes": ""
+      "notes": "",
+      "formats": {
+        "120min": {
+          "include": true,
+          "timing": "ca. 5 min",
+          "sayThis": "Her blir BNI praktisk nyttig. Skill mellom tre ting. Gode kunder: de som faktisk har et behov du løser. Gode referansekilder: folk eller ekspertområder som ofte møter kundene dine før du gjør det – er du eiendomsmegler, kan finansrådgivere, advokater og takstmenn være kilder. Kontaktsirkel: ekspertområdene i teamet som naturlig møter de samme behovene uten å konkurrere. Mesteparten av referansene dine kommer ofte fra kontaktsirkelen, fordi de møter situasjonene kundene dine står i før du gjør det. Fyller du dette ut godt, gir du teamet et kart, ikke bare en ønskeliste.",
+          "askGroup": "Hva var enklest – å beskrive kunder eller referansekilder?"
+        },
+        "90min": {
+          "include": true,
+          "timing": "ca. 6 min",
+          "sayThis": "Skill mellom tre ting. Gode kunder: de som har et behov du løser. Gode referansekilder: folk som møter kundene dine før deg – er du eiendomsmegler, kan finansrådgivere, advokater og takstmenn være kilder. Kontaktsirkel: ekspertområdene i teamet som møter de samme behovene uten å konkurrere. Mesteparten av referansene kommer ofte fra kontaktsirkelen. Fyller du dette ut godt, gir du teamet et kart, ikke bare en ønskeliste.",
+          "askGroup": "Hva er enklest – å beskrive kunder eller referansekilder?"
+        }
+      }
     },
     {
       "n": 22,
@@ -496,7 +750,17 @@
       "ninjaTip": "Verdi i et 1-til-1 oppstår ikke i praten. Den oppstår i det samtalen leder til etterpå.",
       "example": "Bruk skjemaet etter presentasjonen, ikke bare før. Skriv ned hvem du tenkte på og hva som må avklares.",
       "teamAnchor": "Arbeidsflaten i 1-til-1 må lede til faktisk handling: introduksjon, oppfølging eller ny avklaring.",
-      "notes": ""
+      "notes": "",
+      "formats": {
+        "120min": {
+          "include": true,
+          "timing": "ca. 4 min",
+          "sayThis": "1-til-1-skjemaet er ikke papirarbeid – det er en arbeidsflate. Når du har hørt en partners kundecase, bruk skjemaet til å stille bedre spørsmål: hvilke kunder er mest relevante nå, hvilke problemer skal jeg lytte etter, hvem i nettverket mitt møter disse kundene, hva sier jeg når jeg introduserer deg? Et godt 1-til-1 har tre nivåer: forstå ekspertisen og behovene de løser, finn konkrete referansemuligheter, og utfør og følg opp. Stopper det på nivå én, blir det hyggelig; kommer det til nivå tre, skaper vi business. Og det bør alltid lande en neste handling: hvem følges opp, hvem introduseres?"
+        },
+        "90min": {
+          "include": false
+        }
+      }
     },
     {
       "n": 23,
@@ -515,7 +779,18 @@
       "ninjaTip": "Folk beskriver lett hva de gjør. De blir refererbare først når de beskriver hva andre er lei av.",
       "example": "Eksempel – problem foran tilbud: Ikke list opp alt du tilbyr - vis problemene du løser. «Klesbutikker uten egen skredder som mister salg fordi plaggene ikke sitter» er mye sterkere enn «jeg syr og reparerer klær». Folk husker problemet de kjenner igjen hos noen, ikke tilbudslista di.",
       "teamAnchor": "Problem-språk er nødvendig for refererbarhet. Partnerne må lære hva de skal lytte etter.",
-      "notes": ""
+      "notes": "",
+      "formats": {
+        "120min": {
+          "include": true,
+          "timing": "ca. 3 min",
+          "sayThis": "Nå går dere sammen to og to i fem minutter: Hvilke problemer løser du? Ikke svar med hva du selger eller tittelen din. Er du elektriker, ikke si «jeg gjør elektrikerarbeid» – si «jeg hjelper huseiere som er frustrerte over gamle anlegg, dårlig kapasitet eller utrygge løsninger». Er du regnskapsfører, ikke si «jeg fører regnskap» – si «jeg hjelper bedriftseiere som ikke har oversikt og får dårlig samvittighet hver gang de åpner Altinn».",
+          "askGroup": "Hvem fikk en bedre formulering av problemet sitt gjennom øvelsen?"
+        },
+        "90min": {
+          "include": false
+        }
+      }
     },
     {
       "n": 24,
@@ -534,7 +809,21 @@
       "ninjaTip": "En ukens tale blir skarp når partnerne skjønner at de ikke skal beundre deg, men lære å gjenkjenne deg.",
       "example": "Ukens taler skal gjøre partnerne smartere på dine kunder, ikke imponert over CV-en din.",
       "teamAnchor": "Ukens taler er opplæring av teamet for å skape flere og bedre referanser. Ikke et eget show i agendaen.",
-      "notes": ""
+      "notes": "",
+      "formats": {
+        "120min": {
+          "include": true,
+          "timing": "ca. 3 min",
+          "sayThis": "Ukens taler er ikke et foredrag om deg eller en reklamepresentasjon – det er egentlig referrals x3. Du trener teamet i å høre et behov, kjenne igjen en situasjon og vite hvem de skal koble deg til. Bruker du tiden på å forklare alt selskapet gjør, blir folk kanskje imponert, men ikke bedre til å referere deg. Bruker du tiden på konkrete behov og korte kundecaser, får partnerne bilder i hodet og begynner å kjenne igjen situasjoner. Da gjør ukens tale jobben sin.",
+          "askGroup": "Hva er hensikten med ukens taler?"
+        },
+        "90min": {
+          "include": true,
+          "timing": "ca. 3 min",
+          "sayThis": "Ukens taler er ikke et foredrag om deg – det er referrals x3. Du trener teamet i å høre et behov, kjenne igjen en situasjon og vite hvem de skal koble deg til. Forklarer du alt selskapet gjør, blir folk imponert, men ikke bedre til å referere deg. Bruk tiden på konkrete behov og korte kundecaser, så får partnerne bilder i hodet.",
+          "askGroup": "Hva er hensikten med ukens taler?"
+        }
+      }
     },
     {
       "n": 25,
@@ -553,7 +842,19 @@
       "ninjaTip": "Oppmerksomhet fanges bedre av tydelige behov enn av brede presentasjoner.",
       "example": "Eksempel – tre korte slår én lang: Tre korte situasjoner med tydelige behov gir tre nye muligheter for referanser. Bruker du hele taletiden på én lang firmapresentasjon, mister du alle som ikke kjenner seg igjen i akkurat den ene historien.",
       "teamAnchor": "Struktur i ukens taler støtter agendaen og gjør det lettere å skape flere konkrete referansemuligheter i rommet.",
-      "notes": ""
+      "notes": "",
+      "formats": {
+        "120min": {
+          "include": true,
+          "timing": "ca. 3 min",
+          "sayThis": "En enkel struktur for ukens taler: fang oppmerksomheten, beskriv problemet, forklar hva dere fikset og resultatet, be om referansen – og gjør det tre ganger. X3 hindrer deg i å bruke hele talen på én lang forklaring; tre korte case er mer refererbart. Alle tre må starte i et behov partnerne kan høre ute i virkeligheten, ikke i en produktliste. Case 1: et typisk behov. Case 2: et behov som ofte overses. Case 3: en referansekilde eller situasjon de bør reagere på. Hver case ender med en tydelig forespørsel: ikke «alle som trenger markedsføring», men «daglig ledere i håndverksbedrifter som får kunder gjennom anbefalinger, men mangler system for å følge opp leads»."
+        },
+        "90min": {
+          "include": true,
+          "timing": "ca. 3 min",
+          "sayThis": "Struktur for ukens taler: fang oppmerksomheten, beskriv problemet, forklar hva dere fikset og resultatet, be om referansen – og gjør det tre ganger. Tre korte case er mer refererbart enn én lang forklaring. Alle tre må starte i et behov partnerne kan høre ute, ikke i en produktliste. Hver case ender med en tydelig forespørsel: ikke «alle som trenger markedsføring», men «daglig ledere i håndverksbedrifter som mangler system for å følge opp leads»."
+        }
+      }
     },
     {
       "n": 26,
@@ -572,7 +873,15 @@
       "ninjaTip": "Teknikk stjeler fort energi. Hold bare det som gjør adferden lettere, og slipp resten.",
       "example": "Hvis bio ikke er lagt inn, får introduksjonen lavere kvalitet. Hjelp den som skal introdusere deg.",
       "teamAnchor": "BNI+ og BNI Connect skal brukes som støtte til agenda, bio, taler og rapportering, uten at treningstiden blir teknisk support.",
-      "notes": ""
+      "notes": "",
+      "formats": {
+        "120min": {
+          "include": false
+        },
+        "90min": {
+          "include": false
+        }
+      }
     },
     {
       "n": 27,
@@ -591,7 +900,15 @@
       "ninjaTip": "Gjester blir behandlet bedre når de ses som mulig verdi, ikke bare som mulig medlem.",
       "example": "Eksempel – gjesten som mulighet: En gjest er ikke bare en mulig ny partner - det er et helt nytt ekspertområde og nettverk inn i rommet for én dag. Du og teamet kan både gi og få business fra gjestens kontaktsirkel.\n\nDerfor må mottakelsen være koreografert: én fast person tar imot gjesten ved døra og følger den gjennom møtet - ikke hele teamet på en gang, og ikke ingen.",
       "teamAnchor": "Gjester skal behandles presist og profesjonelt. MSP skal lære strategisk invitasjon, ikke ukontrollert rekruttering.",
-      "notes": ""
+      "notes": "",
+      "formats": {
+        "120min": {
+          "include": false
+        },
+        "90min": {
+          "include": false
+        }
+      }
     },
     {
       "n": 28,
@@ -610,7 +927,21 @@
       "ninjaTip": "Den sterkeste gjesteverdien er ofte tredelt: verdi nå, verdi senere, verdi rundt.",
       "example": "En god elektriker i teamet kan skape business for megler, takstmann, forsikring og interiør.",
       "teamAnchor": "Vekst er verdifullt når den styrker teamets referanseflyt og kontaktsirkler.",
-      "notes": ""
+      "notes": "",
+      "formats": {
+        "120min": {
+          "include": true,
+          "timing": "ca. 3 min",
+          "sayThis": "En gjest kan ha verdi på flere måter. Du eller flere i teamet kan gi og få business fra gjestens ekspertområde – mangler teamet en god advokat, elektriker eller forsikringsrådgiver, mangler dere også referansemuligheter. Blir gjesten partner, utvider hele teamet hvem de kan bli referert til. Selv om gjesten ikke blir partner, kan møtet skape verdi hvis de er relevante. En gjest kan også fylle et svakt ekspertområde eller erstatte en som har sluttet. Og gode gjester gir teamet oppmerksomhet i regionen. Men det handler om riktige gjester – relevante for teamets vekst og referanseflyt.",
+          "askGroup": "Hvilket ekspertområde ville gitt mest verdi til teamet ditt akkurat nå?"
+        },
+        "90min": {
+          "include": true,
+          "timing": "ca. 3 min",
+          "sayThis": "En gjest har verdi på flere måter: du eller teamet kan gi og få business fra ekspertområdet; blir gjesten partner, utvider hele teamet hvem de kan referere til; en gjest kan fylle et svakt ekspertområde eller erstatte en som har sluttet. Men det handler om riktige gjester – relevante for teamets vekst og referanseflyt, ikke pynt.",
+          "askGroup": "Hvilket ekspertområde ville gitt mest verdi til teamet ditt nå?"
+        }
+      }
     },
     {
       "n": 29,
@@ -629,7 +960,18 @@
       "ninjaTip": "Strategiske invitasjoner starter med hull i teamet, ikke navn i telefonboken.",
       "example": "Ikke inviter \"noen hyggelige\". Inviter den konkrete bransjen som gjør kontaktsirkelen mer komplett.",
       "teamAnchor": "Teammanualens veksttenkning er strategi: riktige ekspertområder, svake kontaktsirkler og teamets behov.",
-      "notes": ""
+      "notes": "",
+      "formats": {
+        "120min": {
+          "include": true,
+          "timing": "ca. 3 min",
+          "sayThis": "De riktige menneskene er sjelden tilfeldige. Det er lett å invitere noen vi liker, men ikke alltid strategisk. Start i kontaktsirkler: hvilke ekspertområder møter de samme behovene som deg uten å konkurrere? Hvem møter dine ideelle kunder før du gjør det? Jobber du med bolig, tenk megler, finans, forsikring, takst, håndverker, advokat. Jobber du med bedrift, tenk regnskap, IT, HR, juss, markedsføring, bank. Inviterer vi fra kontaktsirkler, bygger vi et team med bedre referanseveier.",
+          "askGroup": "Hvem i din kontaktsirkel kan du faktisk invitere denne uken?"
+        },
+        "90min": {
+          "include": false
+        }
+      }
     },
     {
       "n": 30,
@@ -648,7 +990,21 @@
       "ninjaTip": "Kontaktsirkler er mest nyttige når de blir neste samtale, ikke neste tegning.",
       "example": "Eksempel – kontaktsirkelen i praksis: Når du hører en partners case, tenk: «Hvem i min kontaktsirkel møter akkurat det behovet oftest?» Der ligger ofte den raskeste referanseveien. Ikke fordi resten av teamet er uviktig, men fordi denne delen av teamet ser de samme situasjonene oftere.",
       "teamAnchor": "Kontaktsirkler er en praktisk måte å bygge mer balanserte team og bedre referansekilder på.",
-      "notes": ""
+      "notes": "",
+      "formats": {
+        "120min": {
+          "include": true,
+          "timing": "ca. 3 min",
+          "sayThis": "Mesteparten av referansene dine kommer ofte fra din egen kontaktsirkel, fordi de møter de samme behovene fra en annen vinkel. En megler hører om flytting før andre, en bankrådgiver om finansiering, en advokat om arv og konflikt, en regnskapsfører om vekst og likviditet, en håndverker ser hva som skjer i bygg. Møter dere de samme behovene uten å konkurrere, har dere et naturlig grunnlag for referanser. Hele teamet er viktig, men kontaktsirkelen er ofte der den raskeste gjensidige forståelsen oppstår.",
+          "askGroup": "Hvem i teamet ditt møter dine kunder før deg?"
+        },
+        "90min": {
+          "include": true,
+          "timing": "ca. 3 min",
+          "sayThis": "Mesteparten av referansene dine kommer ofte fra kontaktsirkelen din, fordi de møter de samme behovene fra en annen vinkel: megleren hører om flytting, bankrådgiveren om finansiering, advokaten om konflikt, regnskapsføreren om vekst. Møter dere de samme behovene uten å konkurrere, har dere et naturlig grunnlag for referanser.",
+          "askGroup": "Hvem i teamet ditt møter dine kunder før deg?"
+        }
+      }
     },
     {
       "n": 31,
@@ -667,7 +1023,15 @@
       "ninjaTip": "Rapportering får tyngde når folk skjønner at det er slik teamet ser hva som faktisk virker.",
       "example": "Rapportering skaper kultur. Når det er normalt å rapportere bidrag, blir det også normalt å bidra.",
       "teamAnchor": "Rapportering er et styringsverktøy, ikke pynt. Det gir teamet synlighet på faktisk atferd.",
-      "notes": ""
+      "notes": "",
+      "formats": {
+        "120min": {
+          "include": false
+        },
+        "90min": {
+          "include": false
+        }
+      }
     },
     {
       "n": 32,
@@ -686,7 +1050,18 @@
       "ninjaTip": "Skill mellom registrering og anerkjennelse. Registrering gjør anerkjennelse mulig.",
       "example": "Hvis referanser ikke legges inn, mister teamet både læring, synlighet og grunnlag for anerkjennelse.",
       "teamAnchor": "BNI Connect og appen gjør aktivitet og verdi synlig. De må brukes konsekvent, fordi synlighet gjør læring og ansvarlighet mulig.",
-      "notes": ""
+      "notes": "",
+      "formats": {
+        "120min": {
+          "include": true,
+          "timing": "ca. 2 min",
+          "sayThis": "BNI Connect gir deg oversikt over bidragene du gir og verdien du mottar – kommende møter, ukens taler, gjester, aktivitet og rapportering. Det viktigste for MSP: bruk systemet til å rapportere 1-til-1, referanser, Takk For Business og gjester, så får teamet et faktisk bilde av hva som skjer. BNI er en av få nettverksorganisasjoner som kan dokumentere aktivitet og resultater – men bare hvis partnerne rapporterer. Systemet er ikke motoren; møtene, 1-til-1-ene og referansene er motoren. Systemet gjør den synlig, så teamet kan lære.",
+          "askGroup": "Hva skjer i et team hvis mange gjør aktivitet, men ingen rapporterer det?"
+        },
+        "90min": {
+          "include": false
+        }
+      }
     },
     {
       "n": 33,
@@ -705,7 +1080,15 @@
       "ninjaTip": "Oppfølging av referanser handler mindre om system og mer om relasjonsansvar enn folk først tror.",
       "example": "En referansegiver trenger å vite om det ble møte, ikke fordi de skal kontrollere deg, men fordi de eier relasjonen.",
       "teamAnchor": "Status på referanser er respekt for giverens relasjon og hjelper teamet å lære hva som virker.",
-      "notes": ""
+      "notes": "",
+      "formats": {
+        "120min": {
+          "include": false
+        },
+        "90min": {
+          "include": false
+        }
+      }
     },
     {
       "n": 34,
@@ -724,7 +1107,21 @@
       "ninjaTip": "Korte rapporteringer skaper energi fordi de gir oversikt uten å spise rytmen i møtet.",
       "example": "\"Jeg ga én referanse til Kari og inviterte én gjest\" er riktig. Historien om hele salgsprosessen tas utenfor rapporteringspunktet.",
       "teamAnchor": "Rapporteringspunktet gjelder gitte bidrag, kort og presist. Ikke intensjoner eller lange historier.",
-      "notes": ""
+      "notes": "",
+      "formats": {
+        "120min": {
+          "include": true,
+          "timing": "ca. 3 min",
+          "sayThis": "Rapporteringspunktet handler om dine bidrag den siste uken – kort og presist. Dette er ikke stedet for en lang historie om referansen eller hele salgsprosessen, og ikke for ting du planlegger å gjøre. Du rapporterer det du faktisk har gjort siden sist: «Jeg har hatt 1-til-1 med Kari, gitt en referanse til Per, invitert en gjest.» Når alle gjør dette kort, får teamet energi og oversikt. Når folk bruker for lang tid, mister agendaen kraft.",
+          "askGroup": "Hvorfor må dette punktet være så kort?"
+        },
+        "90min": {
+          "include": true,
+          "timing": "ca. 3 min",
+          "sayThis": "Rapporteringspunktet handler om dine bidrag siste uke – kort og presist. Ikke en lang historie, ikke ting du planlegger. Du rapporterer det du faktisk har gjort: «Jeg har hatt 1-til-1 med Kari, gitt en referanse til Per, invitert en gjest.» Når alle gjør det kort, får teamet energi og oversikt.",
+          "askGroup": "Hvorfor må dette punktet være så kort?"
+        }
+      }
     },
     {
       "n": 35,
@@ -743,7 +1140,18 @@
       "ninjaTip": "Når intensjoner får telle som bidrag, slutter tallene å bety noe.",
       "example": "\"Jeg skal invitere\" er ikke rapportering. \"Jeg inviterte\" er rapportering.",
       "teamAnchor": "Kun gitte bidrag skal rapporteres. Dette må sies tydelig for å beskytte kvaliteten i møtet.",
-      "notes": ""
+      "notes": "",
+      "formats": {
+        "120min": {
+          "include": true,
+          "timing": "ca. 2 min",
+          "sayThis": "Rapporteringspunktet gjelder kun gitte bidrag: antall referanser du har gitt og til hvem, gjester du har introdusert, skriftlig fremsnakk av en partner. Legg merke til hva som ikke hører hjemme her: «jeg tenker å invitere noen», «jeg skal kanskje ha en 1-til-1», «jeg har en mulig referanse jeg ikke har snakket om». Det er ikke rapportering ennå. Rapporterer vi intensjoner, mister tallene verdi. Vi skal ikke pynte på tallene – vi gjør jobben, rapporterer jobben, lærer av den og gjør det igjen.",
+          "askGroup": "Hva kan du gjøre denne uken som du faktisk kan rapportere neste møte?"
+        },
+        "90min": {
+          "include": false
+        }
+      }
     },
     {
       "n": 36,
@@ -762,7 +1170,21 @@
       "ninjaTip": "Mål uten atferd er håp. Atferd uten mål er travelt. Vi trenger begge.",
       "example": "250 000 kroner i BNI-omsetning krever en annen aktivitet enn \"jeg håper det blir bra\".",
       "teamAnchor": "Målsetting må knyttes til aktivitet, ikke bare ønsket om resultat.",
-      "notes": ""
+      "notes": "",
+      "formats": {
+        "120min": {
+          "include": true,
+          "timing": "ca. 2 min",
+          "sayThis": "Nå kommer vi til målsetting. En partner som følger arbeidsmetoden kan over tid skape en betydelig andel av nysalget gjennom BNI. Det viktigste er ikke å love et bestemt tall, men å forstå at resultater henger sammen med aktivitet over tid: vil du ha tilfeldig resultat, gjør tilfeldig aktivitet; vil du ha forutsigbart resultat, må du ha forutsigbar aktivitet. Vi gjør ikke BNI for BNIs skyld, men fordi metoden skaper bedre resultat for hver partner. Så: hva er målet ditt, og hvilken ukentlig atferd er du villig til å gjennomføre for å komme dit?",
+          "askGroup": "Hva er forskjellen på et håp og et mål?"
+        },
+        "90min": {
+          "include": true,
+          "timing": "ca. 2 min",
+          "sayThis": "Resultater henger sammen med aktivitet over tid: vil du ha tilfeldig resultat, gjør tilfeldig aktivitet; vil du ha forutsigbart resultat, må du ha forutsigbar aktivitet. Vi gjør ikke BNI for BNIs skyld, men fordi metoden skaper bedre resultat for hver partner. Spørsmålet er: hva er målet ditt, og hvilken ukentlig atferd er du villig til å gjennomføre for å komme dit?",
+          "askGroup": "Hva er forskjellen på et håp og et mål?"
+        }
+      }
     },
     {
       "n": 37,
@@ -781,7 +1203,19 @@
       "ninjaTip": "Et mål blir virkelig i det øyeblikket det tåler et tall, en dato og et etterprøvbart utfall.",
       "example": "Mål kan være omsetning, antall riktige møter, antall gjester, bedre refererbarhet eller styrking av kontaktsirkel.",
       "teamAnchor": "Personlige mål fungerer når de er konkrete nok til å styre ukentlig atferd.",
-      "notes": ""
+      "notes": "",
+      "formats": {
+        "120min": {
+          "include": true,
+          "timing": "ca. 3 min",
+          "sayThis": "Nå får dere fem minutter individuelt: Hva er ditt mål? Ikke skriv bare «mer business» – det er for svakt. Skriv et mål som kan styre atferden din, for eksempel: «250 000 kroner i ny omsetning gjennom BNI de neste 12 månedene», «12 relevante salgsmøter fra BNI-referanser innen seks måneder», eller «bli den mest refererbare partneren i min kontaktsirkel innen tre måneder». Målet kan handle om omsetning, møter, referanser eller kontaktsirkel – men det må være konkret nok til at du vet om du beveger deg mot det."
+        },
+        "90min": {
+          "include": true,
+          "timing": "ca. 3 min",
+          "sayThis": "Fem minutter individuelt: Hva er ditt mål? Ikke «mer business» – det er for svakt. Skriv et mål som styrer atferden din: «250 000 i ny omsetning gjennom BNI neste 12 måneder», «12 relevante salgsmøter fra referanser innen seks måneder», «bli den mest refererbare partneren i kontaktsirkelen min innen tre måneder». Det må være konkret nok til at du vet om du beveger deg mot det."
+        }
+      }
     },
     {
       "n": 38,
@@ -800,7 +1234,18 @@
       "ninjaTip": "Planer virker først når de er laget for en vanlig uke, ikke en idealuke.",
       "example": "Hvis målet er 12 salgsmøter, må du regne bakover: hvilke partnere må forstå deg, hvor ofte må du presentere case, hvilke 1-til-1 trengs?",
       "teamAnchor": "Planen må oversette mål til ukentlige handlinger: møte, 1-til-1, referanse, gjest og rapportering. Verktøyene skal brukes til å skape aktivitet og referanser nå.",
-      "notes": ""
+      "notes": "",
+      "formats": {
+        "120min": {
+          "include": true,
+          "timing": "ca. 4 min",
+          "sayThis": "Hvordan når du målet ditt? Ærlig talt: ikke ved å være positiv til BNI, men ved å gjøre arbeidsmetoden. Er målet omsetning, spør: hvor mange relevante referanser trenger jeg, hvor mange 1-til-1 må jeg ha, hvilke partnere må forstå meg bedre, hvilke gjester bør jeg få inn? Er målet bedre referanser, spør: er kundecasene mine tydelige nok, vet partnerne hvilke problemer de skal lytte etter, har jeg gitt dem gode introduksjonssetninger? Verktøyene er ikke pynt – møtet, kundecasene, 1-til-1-ene, ukens taler, referansene, gjestene og rapporteringen er motoren.",
+          "askGroup": "Hvem har skrevet en handling som kan gjøres allerede denne uken?"
+        },
+        "90min": {
+          "include": false
+        }
+      }
     },
     {
       "n": 39,
@@ -819,7 +1264,18 @@
       "ninjaTip": "Det som gjentas slår det som imponerer. Derfor er en enkel standard ofte sterkere enn en ambisiøs plan.",
       "example": "Én 1-til-1 i uken høres lite ut, men etter ett år er det 40 til 45 fokuserte samtaler.",
       "teamAnchor": "Power of One er en enkel minimumsrytme for aktivt partnerskap og et tydelig bidragsnivå for alle i teamet.",
-      "notes": ""
+      "notes": "",
+      "formats": {
+        "120min": {
+          "include": true,
+          "timing": "ca. 3 min",
+          "sayThis": "En enkel standard: delta på møtet, gjennomfør 1-til-1, gi referanser, introduser gjester. Mange kjenner dette som Power of One: ett møte, én 1-til-1 og én referanse i uka, pluss én gjest i måneden. Det er ikke en premie for de ekstra ivrige, men en god minimumsrytme for aktivt partnerskap. Et sunt team kan ikke bygges på at noen få bidrar og resten ser på – alle bør bidra tydelig og reelt hver uke. Møter du hver uke, holder du deg synlig; har du 1-til-1, bygger du forståelse; gir du referanser, bygger du verdi og tillit.",
+          "askGroup": "Hvilken av disse fire er enklest for deg? Hvilken er vanskeligst?"
+        },
+        "90min": {
+          "include": false
+        }
+      }
     },
     {
       "n": 40,
@@ -838,7 +1294,21 @@
       "ninjaTip": "En god avslutning oppsummerer ikke bare. Den flytter ansvar ut av rommet og inn i neste uke.",
       "example": "Be alle velge én konkret handling før neste møte, ikke en generell intensjon.",
       "teamAnchor": "Avslutningen skal sende deltakerne ut i handling med tydelig språk om bidrag, behov og arbeidsmetode.",
-      "notes": ""
+      "notes": "",
+      "formats": {
+        "120min": {
+          "include": true,
+          "timing": "ca. 3 min",
+          "sayThis": "Da er vi gjennom Membership Suksess Program. Oppsummert: BNI fungerer når du gjør arbeidsmetoden, ikke når du bare forstår den. Givers Gain betyr at alle skal bidra. Referanser starter med behov, ikke med hvem vi helst vil selge til. Verktøyene er der for å skape referanser fra det vi gjør i møtet og i 1-til-1-ene. Og vi gjør ikke BNI for BNIs skyld, men fordi det skaper bedre resultat for hver partner. Ikke prøv å gjøre alt perfekt fra i morgen – start med rytmen: møt forberedt, lytt etter problemer, finn partneren det er enklest å hjelpe, ta 1-til-1 som leder til handling, gi referanser riktig, følg opp, rapporter. Og bruk teamet ditt – BNI er ikke et soloprosjekt.",
+          "askGroup": "Hva er én konkret ting du kommer til å gjøre før neste BNI-møte?"
+        },
+        "90min": {
+          "include": true,
+          "timing": "ca. 3 min",
+          "sayThis": "Da er vi gjennom MSP. Oppsummert: BNI fungerer når du gjør arbeidsmetoden, ikke bare forstår den. Givers Gain betyr at alle skal bidra. Referanser starter med behov, ikke med hvem du vil selge til. Vi gjør ikke BNI for BNIs skyld, men fordi det skaper bedre resultat for hver partner. Ikke gjør alt perfekt fra i morgen – start med rytmen: møt forberedt, lytt etter problemer, ta 1-til-1 som leder til handling, gi referanser, følg opp, rapporter. Bruk teamet ditt.",
+          "askGroup": "Hva er én konkret ting du kommer til å gjøre før neste BNI-møte?"
+        }
+      }
     }
   ],
   "appendix": [
