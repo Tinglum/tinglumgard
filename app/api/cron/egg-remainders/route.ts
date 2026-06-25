@@ -5,6 +5,7 @@ import { supabaseAdmin } from '@/lib/supabase/server'
 import { dispatchEmail } from '@/lib/email/dispatch'
 import { renderManagedTemplate } from '@/lib/email/render'
 import { buildCustomerOrderLink } from '@/lib/email/links'
+import { sendOrderCancelledEmail } from '@/lib/email/order-resilience'
 import { logError } from '@/lib/logger'
 import { VIPPS_PENDING_EMAIL, PENDING_ORDER_EXPIRY_HOURS, APP_BASE_URL } from '@/lib/constants/app'
 
@@ -187,7 +188,7 @@ export async function GET(request: NextRequest) {
 
     const { data: pendingOrders, error: pendingError } = await supabaseAdmin
       .from('egg_orders')
-      .select('id, order_number, status, created_at, inventory_id, quantity, egg_order_additions(inventory_id, quantity)')
+      .select('id, order_number, customer_name, customer_email, status, created_at, manual_confirmation, inventory_id, quantity, egg_order_additions(inventory_id, quantity)')
       .eq('status', 'pending')
 
     if (pendingError) {
@@ -198,6 +199,7 @@ export async function GET(request: NextRequest) {
 
       for (const order of pendingOrders || []) {
         if (!order.created_at) continue
+        if (order.manual_confirmation) continue // Manually confirmed (payment owed) — never auto-cancel
         if (new Date(order.created_at) > cutoff) continue
 
         await releaseInventory(order.inventory_id, order.quantity)
@@ -213,6 +215,13 @@ export async function GET(request: NextRequest) {
             forfeited_at: new Date().toISOString(),
           })
           .eq('id', order.id)
+
+        await sendOrderCancelledEmail({
+          scope: 'egg',
+          order,
+          reasonText: 'Forskuddet ble ikke betalt innen fristen, så reservasjonen ble frigitt.',
+          sourcePath: 'cron.egg-remainders',
+        }).catch((e) => logError('egg-pending-cancel-email', e))
       }
     }
 

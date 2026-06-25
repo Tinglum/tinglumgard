@@ -37,7 +37,7 @@ export async function GET(
 
     const { data: order, error: orderError } = await supabaseAdmin
       .from('chicken_orders')
-      .select('id, order_number, status, quantity_hens, quantity_roosters, pickup_week, pickup_year, total_amount_nok, deposit_amount_nok, remainder_amount_nok, chicken_breeds(name)')
+      .select('id, order_number, status, payment_attempts, manual_confirmation, quantity_hens, quantity_roosters, pickup_week, pickup_year, total_amount_nok, deposit_amount_nok, remainder_amount_nok, chicken_breeds(name)')
       .eq('id', orderId)
       .single()
 
@@ -89,7 +89,7 @@ export async function GET(
 
     const { data: refreshedOrder, error: refreshedError } = await supabaseAdmin
       .from('chicken_orders')
-      .select('id, order_number, status, quantity_hens, quantity_roosters, pickup_week, pickup_year, total_amount_nok, deposit_amount_nok, remainder_amount_nok, chicken_breeds(name)')
+      .select('id, order_number, status, payment_attempts, manual_confirmation, quantity_hens, quantity_roosters, pickup_week, pickup_year, total_amount_nok, deposit_amount_nok, remainder_amount_nok, chicken_breeds(name)')
       .eq('id', orderId)
       .single()
 

@@ -694,6 +694,19 @@ export async function POST(request: NextRequest) {
 
       logInfo('Order status updated successfully');
 
+      // Full-upfront egg orders go straight to fully_paid on the deposit payment.
+      // Cancel any remainder-dependent reminder flows so customers don't get a
+      // "pay the remainder" reminder for an order that is already paid in full.
+      if (isEggPayment && newStatus === 'fully_paid') {
+        try {
+          await reconcileEggPaymentDependentFlowInstances(String(orderIdField), 'order_fully_paid');
+        } catch (cleanupError) {
+          logError('vipps-webhook-egg-deposit-flow-cleanup', cleanupError, {
+            orderId: String(orderIdField),
+          });
+        }
+      }
+
       const customerEmailForSend = normalizeEmail(order?.customer_email);
       if (order && customerEmailForSend && customerEmailForSend !== VIPPS_PENDING_EMAIL) {
         try {

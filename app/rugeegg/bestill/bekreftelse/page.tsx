@@ -8,7 +8,7 @@ import { useLanguage } from '@/contexts/LanguageContext'
 import { useCart } from '@/contexts/eggs/EggCartContext'
 import { useOrder } from '@/contexts/eggs/EggOrderContext'
 import { formatDate, formatPrice } from '@/lib/eggs/utils'
-import { CheckCircle2, Clock3, XCircle } from 'lucide-react'
+import { CheckCircle2, Clock3, XCircle, RefreshCcw, ShieldCheck, AlertTriangle } from 'lucide-react'
 
 type EggPaymentStatus = 'pending' | 'completed' | 'failed' | 'refunded'
 
@@ -40,8 +40,37 @@ export default function EggConfirmationPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [paymentStatus, setPaymentStatus] = useState<EggPaymentStatus>('pending')
   const [pollCount, setPollCount] = useState(0)
+  const [resilience, setResilience] = useState<'idle' | 'checking' | 'retry' | 'manual_confirmed'>('idle')
+  const [retrying, setRetrying] = useState(false)
   const confirmation = t.eggs.confirmation
   const orderNotFoundError = t.eggs.errors.orderNotFound
+
+  // After polling is exhausted without a completed payment, ask the backend to
+  // resolve the failure: it retries (too few attempts) or confirms manually.
+  useEffect(() => {
+    if (!orderId || paymentStatus === 'completed' || pollCount < 10 || resilience !== 'idle') return
+    setResilience('checking')
+    fetch(`/api/eggs/orders/${orderId}/manual-confirm`, { method: 'POST' })
+      .then(async (res) => {
+        if (res.ok) { setResilience('manual_confirmed'); return }
+        const data = await res.json().catch(() => ({}))
+        setResilience(data?.error === 'already_paid' ? 'idle' : 'retry')
+      })
+      .catch(() => setResilience('retry'))
+  }, [orderId, paymentStatus, pollCount, resilience])
+
+  const handleRetry = async () => {
+    if (!orderId) return
+    setRetrying(true)
+    try {
+      const res = await fetch(`/api/eggs/orders/${orderId}/deposit`, { method: 'POST' })
+      const data = res.ok ? await res.json() : null
+      if (data?.redirectUrl) { window.location.href = data.redirectUrl; return }
+    } catch {
+      // keep page usable
+    }
+    setRetrying(false)
+  }
 
   useEffect(() => {
     if (!orderId) return
@@ -128,20 +157,37 @@ export default function EggConfirmationPage() {
   }
 
   const statusTitle =
-    paymentStatus === 'completed'
-      ? confirmation.titleCompleted
-      : paymentStatus === 'failed'
-        ? confirmation.titleFailed
-        : confirmation.titlePending
+    resilience === 'manual_confirmed'
+      ? (language === 'no' ? 'Bestillingen er bekreftet' : 'Your order is confirmed')
+      : resilience === 'retry'
+        ? (language === 'no' ? 'Vipps-betalingen gikk ikke gjennom' : 'Vipps payment did not go through')
+        : paymentStatus === 'completed'
+          ? confirmation.titleCompleted
+          : paymentStatus === 'failed'
+            ? confirmation.titleFailed
+            : confirmation.titlePending
 
   const statusLead =
-    paymentStatus === 'completed'
-      ? confirmation.leadCompleted
-      : paymentStatus === 'failed'
-        ? confirmation.leadFailed
-        : confirmation.leadPending
+    resilience === 'manual_confirmed'
+      ? (language === 'no'
+          ? 'Vi har lagt inn bestillingen din manuelt — den er bekreftet og reservert.'
+          : 'We have entered your order manually — it is confirmed and reserved.')
+      : resilience === 'retry'
+        ? (language === 'no'
+            ? 'Bestillingen din er reservert. Prøv å betale på nytt.'
+            : 'Your order is reserved. Please try paying again.')
+        : paymentStatus === 'completed'
+          ? confirmation.leadCompleted
+          : paymentStatus === 'failed'
+            ? confirmation.leadFailed
+            : confirmation.leadPending
 
-  const StatusIcon = paymentStatus === 'completed' ? CheckCircle2 : paymentStatus === 'failed' ? XCircle : Clock3
+  const StatusIcon =
+    resilience === 'manual_confirmed' ? ShieldCheck
+      : resilience === 'retry' ? AlertTriangle
+        : paymentStatus === 'completed' ? CheckCircle2
+          : paymentStatus === 'failed' ? XCircle
+            : Clock3
 
   return (
     <div className="min-h-screen py-12">
@@ -193,7 +239,32 @@ export default function EggConfirmationPage() {
           </div>
         </GlassCard>
 
-        {paymentStatus !== 'completed' && (
+        {resilience === 'manual_confirmed' ? (
+          <GlassCard className="p-5 text-sm text-green-900 bg-green-50 border border-green-300">
+            {language === 'no'
+              ? 'Vipps-betalingen gikk dessverre ikke gjennom, men vi har lagt inn bestillingen din manuelt — den er bekreftet og reservert. Betalingen er ikke trukket ennå; vi tar kontakt for å avtale betaling, eller du kan ordne det ved levering. Du trenger ikke gjøre noe nå.'
+              : 'The Vipps payment did not go through, but we have entered your order manually — it is confirmed and reserved. No payment has been charged yet; we will be in touch to arrange payment. Nothing is required from you right now.'}
+          </GlassCard>
+        ) : resilience === 'retry' ? (
+          <GlassCard className="p-5 space-y-4">
+            <p className="text-sm text-neutral-700">
+              {language === 'no'
+                ? 'Det skjedde noe under Vipps-betalingen. Bestillingen din er reservert — prøv å betale på nytt.'
+                : 'Something went wrong during the Vipps payment. Your order is reserved — please try paying again.'}
+            </p>
+            <button
+              type="button"
+              onClick={handleRetry}
+              disabled={retrying}
+              className="btn-primary inline-flex items-center gap-2"
+            >
+              <RefreshCcw className={`w-4 h-4 ${retrying ? 'animate-spin' : ''}`} />
+              {retrying
+                ? (language === 'no' ? 'Åpner Vipps…' : 'Opening Vipps…')
+                : (language === 'no' ? 'Prøv å betale igjen' : 'Try paying again')}
+            </button>
+          </GlassCard>
+        ) : paymentStatus !== 'completed' && (
           <GlassCard className="p-5 text-sm text-neutral-700">
             {paymentStatus === 'failed' ? confirmation.failedHelp : confirmation.pendingHelp}
           </GlassCard>

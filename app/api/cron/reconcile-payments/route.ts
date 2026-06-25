@@ -4,6 +4,7 @@ import { vippsClient } from '@/lib/vipps/api-client'
 import { finalizeConfirmedEggOrder } from '@/lib/eggs/order-confirmation'
 import { logError } from '@/lib/logger'
 import { notifyInventoryOverallocation } from '@/lib/notifications/inventory-overallocation'
+import { sendOrderCancelledEmail } from '@/lib/email/order-resilience'
 
 function getCronAuth(request: NextRequest): {
   ok: boolean
@@ -190,27 +191,38 @@ async function reconcilePendingPayments(cutoff: string): Promise<ResultEntry[]> 
 async function cancelAbandonedCheckouts(cutoff: string): Promise<ResultEntry[]> {
   const results: ResultEntry[] = []
 
+  // Sessions reported as still "active" (SessionCreated / PaymentInitiated) are
+  // normally left alone, but a session that has been open this long is abandoned
+  // in practice (Vipps sessions expire) — cancel it so it stops lingering.
+  const hardCancelCutoff = new Date(Date.now() - 6 * 60 * 60 * 1000)
+  const isStillActiveSession = (state?: string) =>
+    state === 'PaymentInitiated' || state === 'SessionCreated'
+  const shouldKeepActiveSession = (state: string | undefined, createdAt: string | null | undefined) =>
+    isStillActiveSession(state) && (!createdAt || new Date(createdAt) > hardCancelCutoff)
+
   // --- Pig: draft orders with expired Vipps sessions ---
   try {
     const { data: orders } = await supabaseAdmin
       .from('orders')
-      .select('id, order_number, box_size, mangalitsa_preset_id, mangalitsa_preset:mangalitsa_box_presets(target_weight_kg), payments(id, vipps_session_id, idempotency_key, status)')
+      .select('id, order_number, created_at, customer_name, customer_email, manual_confirmation, box_size, mangalitsa_preset_id, mangalitsa_preset:mangalitsa_box_presets(target_weight_kg), payments(id, vipps_session_id, idempotency_key, status)')
       .in('status', ['draft', 'pending'])
       .lt('created_at', cutoff)
       .limit(50)
 
     for (const order of orders || []) {
+      if (order.manual_confirmation) continue // Manually confirmed (payment owed) — never auto-cancel
       const pendingPayment = (order.payments || []).find((p: any) => p.status === 'pending')
       if (!pendingPayment) continue // No payment = deferred, keep it
 
       try {
         const session = await resolveVippsSession(pendingPayment)
-        // If session still active (PaymentInitiated/SessionCreated), skip
-        if (session?.sessionState === 'PaymentSuccessful' || session?.sessionState === 'PaymentInitiated' || session?.sessionState === 'SessionCreated') continue
+        if (session?.sessionState === 'PaymentSuccessful') continue // succeeded — let reconcile handle it
+        if (shouldKeepActiveSession(session?.sessionState, order.created_at)) continue
 
-        // Session expired/terminated/not found → cancel
+        // Session expired/terminated/not found, or stale-active → cancel
         await supabaseAdmin.from('payments').update({ status: 'expired' }).eq('id', pendingPayment.id)
         await supabaseAdmin.from('orders').update({ status: 'cancelled' }).eq('id', order.id)
+        await sendOrderCancelledEmail({ scope: 'pig', order, sourcePath: 'cron.reconcile-payments' }).catch((e) => logError('cron-cancel-pig-email', e))
 
         // Restore inventory — mangalitsa uses preset target_weight_kg, standard uses box_size
         const preset = order.mangalitsa_preset as { target_weight_kg?: number } | null
@@ -234,21 +246,24 @@ async function cancelAbandonedCheckouts(cutoff: string): Promise<ResultEntry[]> 
   try {
     const { data: orders } = await supabaseAdmin
       .from('egg_orders')
-      .select('id, order_number, egg_payments(id, vipps_order_id, idempotency_key, status)')
+      .select('id, order_number, created_at, customer_name, customer_email, manual_confirmation, egg_payments(id, vipps_order_id, idempotency_key, status)')
       .eq('status', 'pending')
       .lt('created_at', cutoff)
       .limit(50)
 
     for (const order of orders || []) {
+      if (order.manual_confirmation) continue // Manually confirmed (payment owed) — never auto-cancel
       const pendingPayment = (order.egg_payments || []).find((p: any) => p.status === 'pending')
       if (!pendingPayment) continue // Deferred, keep
 
       try {
         const session = await resolveVippsSession(pendingPayment)
-        if (session?.sessionState === 'PaymentSuccessful' || session?.sessionState === 'PaymentInitiated' || session?.sessionState === 'SessionCreated') continue
+        if (session?.sessionState === 'PaymentSuccessful') continue // succeeded — let reconcile handle it
+        if (shouldKeepActiveSession(session?.sessionState, order.created_at)) continue
 
         await supabaseAdmin.from('egg_payments').update({ status: 'expired' }).eq('id', pendingPayment.id)
         await supabaseAdmin.from('egg_orders').update({ status: 'cancelled' }).eq('id', order.id)
+        await sendOrderCancelledEmail({ scope: 'egg', order, sourcePath: 'cron.reconcile-payments' }).catch((e) => logError('cron-cancel-egg-email', e))
         // Egg inventory is NOT allocated at checkout, so nothing to restore
 
         results.push({ id: order.id, scope: 'egg', action: 'cancelled', detail: order.order_number })
@@ -263,21 +278,24 @@ async function cancelAbandonedCheckouts(cutoff: string): Promise<ResultEntry[]> 
   try {
     const { data: orders } = await supabaseAdmin
       .from('chicken_orders')
-      .select('id, order_number, hatch_id, quantity_hens, quantity_roosters, chicken_order_additions(hatch_id, quantity_hens, quantity_roosters), chicken_payments(id, vipps_order_id, idempotency_key, status)')
+      .select('id, order_number, created_at, customer_name, customer_email, manual_confirmation, hatch_id, quantity_hens, quantity_roosters, chicken_order_additions(hatch_id, quantity_hens, quantity_roosters), chicken_payments(id, vipps_order_id, idempotency_key, status)')
       .eq('status', 'pending')
       .lt('created_at', cutoff)
       .limit(50)
 
     for (const order of orders || []) {
+      if (order.manual_confirmation) continue // Manually confirmed (payment owed) — never auto-cancel
       const pendingPayment = (order.chicken_payments || []).find((p: any) => p.status === 'pending')
       if (!pendingPayment) continue // Deferred, keep
 
       try {
         const session = await resolveVippsSession(pendingPayment)
-        if (session?.sessionState === 'PaymentSuccessful' || session?.sessionState === 'PaymentInitiated' || session?.sessionState === 'SessionCreated') continue
+        if (session?.sessionState === 'PaymentSuccessful') continue // succeeded — let reconcile handle it
+        if (shouldKeepActiveSession(session?.sessionState, order.created_at)) continue
 
         await supabaseAdmin.from('chicken_payments').update({ status: 'expired' }).eq('id', pendingPayment.id)
         await supabaseAdmin.from('chicken_orders').update({ status: 'cancelled' }).eq('id', order.id)
+        await sendOrderCancelledEmail({ scope: 'chicken', order, sourcePath: 'cron.reconcile-payments' }).catch((e) => logError('cron-cancel-chicken-email', e))
 
         // Restore hatch availability for main order line
         if (order.hatch_id) {

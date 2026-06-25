@@ -2266,6 +2266,16 @@ export function CustomerDatabase({
                                 {lang === 'en' ? 'Data mismatch' : 'Dataavvik'}
                               </span>
                             )}
+                            {Boolean(orderDets.manual_confirmation) && (
+                              <span className="rounded-full bg-purple-100 px-2 py-0.5 text-xs font-medium text-purple-700" title={lang === 'en' ? 'Vipps failed — confirmed manually, payment owed' : 'Vipps feilet — bekreftet manuelt, betaling utestående'}>
+                                {lang === 'en' ? 'Manually confirmed' : 'Manuelt bekreftet'}
+                              </span>
+                            )}
+                            {Boolean(orderDets.flagged_for_review) && (
+                              <span className="rounded-full bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-700" title={String(orderDets.flag_reason || (lang === 'en' ? 'Flagged for review' : 'Flagget for oppfølging'))}>
+                                {lang === 'en' ? 'Flagged' : 'Flagget'}
+                              </span>
+                            )}
                           </div>
                           <p className="mt-1 text-sm text-neutral-600">
                             {orderCreatedLabel}:{' '}

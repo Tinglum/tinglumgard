@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { CheckCircle, Package, Clock, CreditCard, Share2, Copy, ExternalLink, XCircle } from "lucide-react";
+import { CheckCircle, Package, Clock, CreditCard, Share2, Copy, ExternalLink, XCircle, RefreshCcw, ShieldCheck, AlertTriangle } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 
 type PaymentStatus = "pending" | "completed" | "failed";
@@ -48,6 +48,8 @@ export default function ConfirmationPage() {
   const [copiedReferralCode, setCopiedReferralCode] = useState(false);
   const [copiedShareLink, setCopiedShareLink] = useState(false);
   const [showCompletedState, setShowCompletedState] = useState(false);
+  const [resilience, setResilience] = useState<'idle' | 'checking' | 'retry' | 'manual_confirmed'>('idle');
+  const [retrying, setRetrying] = useState(false);
 
   const copy = t.confirmationPage;
 
@@ -115,6 +117,33 @@ export default function ConfirmationPage() {
 
     return () => clearInterval(pollInterval);
   }, [orderId, paymentStatus, pollCount]);
+
+  // After polling is exhausted without a completed payment, let the backend
+  // resolve the failure: retry (too few attempts) or confirm manually.
+  useEffect(() => {
+    if (!orderId || isPaymentDeferred || paymentStatus === "completed" || pollCount < 10 || resilience !== "idle") return;
+    setResilience("checking");
+    fetch(`/api/orders/${orderId}/manual-confirm`, { method: "POST" })
+      .then(async (res) => {
+        if (res.ok) { setResilience("manual_confirmed"); return; }
+        const data = await res.json().catch(() => ({}));
+        setResilience(data?.error === "already_paid" ? "idle" : "retry");
+      })
+      .catch(() => setResilience("retry"));
+  }, [orderId, isPaymentDeferred, paymentStatus, pollCount, resilience]);
+
+  async function handleRetryPayment() {
+    if (!orderId) return;
+    setRetrying(true);
+    try {
+      const res = await fetch(`/api/orders/${orderId}/deposit`, { method: "POST" });
+      const data = res.ok ? await res.json() : null;
+      if (data?.redirectUrl) { window.location.href = data.redirectUrl; return; }
+    } catch {
+      // keep page usable
+    }
+    setRetrying(false);
+  }
 
   const depositPercentage = 50;
 
@@ -357,6 +386,45 @@ export default function ConfirmationPage() {
           <h2 className="text-3xl font-light tracking-tight text-neutral-900 mb-8">{copy.nextStepsTitle}</h2>
 
           <div className="space-y-4">
+            {resilience === "manual_confirmed" && (
+              <div className={cn("p-4 rounded-xl border-2 border-green-500 bg-green-50")}>
+                <p className="text-green-900 font-semibold mb-2 flex items-center gap-2">
+                  <ShieldCheck className="w-5 h-5" />
+                  {lang === "no" ? "Bestillingen er bekreftet" : "Your order is confirmed"}
+                </p>
+                <p className="text-sm text-green-800 mt-1">
+                  {lang === "no"
+                    ? "Vipps-betalingen gikk dessverre ikke gjennom, men vi har lagt inn bestillingen din manuelt — den er bekreftet og reservert. Betalingen er ikke trukket ennå; vi tar kontakt for å avtale betaling. Du trenger ikke gjøre noe nå."
+                    : "The Vipps payment did not go through, but we have entered your order manually — it is confirmed and reserved. No payment has been charged yet; we will be in touch to arrange payment. Nothing is required from you right now."}
+                </p>
+              </div>
+            )}
+
+            {resilience === "retry" && (
+              <div className={cn("p-4 rounded-xl border-2 border-amber-500 bg-amber-50")}>
+                <p className="text-amber-900 font-semibold mb-2 flex items-center gap-2">
+                  <AlertTriangle className="w-5 h-5" />
+                  {lang === "no" ? "Vipps-betalingen gikk ikke gjennom" : "Vipps payment did not go through"}
+                </p>
+                <p className="text-sm text-amber-800 mt-1 mb-3">
+                  {lang === "no"
+                    ? "Bestillingen din er reservert — prøv å betale på nytt."
+                    : "Your order is reserved — please try paying again."}
+                </p>
+                <button
+                  type="button"
+                  onClick={handleRetryPayment}
+                  disabled={retrying}
+                  className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-neutral-900 text-white text-sm font-light uppercase tracking-wide disabled:opacity-60"
+                >
+                  <RefreshCcw className={cn("w-4 h-4", retrying && "animate-spin")} />
+                  {retrying
+                    ? (lang === "no" ? "Åpner Vipps…" : "Opening Vipps…")
+                    : (lang === "no" ? "Prøv å betale igjen" : "Try paying again")}
+                </button>
+              </div>
+            )}
+
             {isPaymentDeferred && displayPaymentState === "pending" && (
               <div className={cn("p-4 rounded-xl border-2 border-blue-500 bg-blue-50")}>
                 <p className="text-blue-900 font-semibold mb-2">
@@ -370,7 +438,7 @@ export default function ConfirmationPage() {
               </div>
             )}
 
-            {!isPaymentDeferred && displayPaymentState === "pending" && (
+            {!isPaymentDeferred && displayPaymentState === "pending" && (resilience === "idle" || resilience === "checking") && (
               <div className={cn("p-4 rounded-xl border-2 border-yellow-500 bg-yellow-50")}>
                 <p className="text-yellow-900 font-semibold mb-2">{copy.pendingTitle}</p>
                 <p className="text-sm text-yellow-800 mt-1">
@@ -388,7 +456,7 @@ export default function ConfirmationPage() {
               </div>
             )}
 
-            {displayPaymentState === "failed" && (
+            {displayPaymentState === "failed" && resilience === "idle" && (
               <div className={cn("p-4 rounded-xl border-2 border-red-500 bg-red-50")}>
                 <p className="text-red-900 font-semibold mb-2">{copy.failedBannerTitle}</p>
                 <p className="text-sm text-red-800 mt-1">

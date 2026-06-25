@@ -806,7 +806,7 @@ async function fetchPigOrdersRows(): Promise<PigOrderRow[]> {
   const detailed = await supabaseAdmin
     .from('orders')
     .select(
-      'id, user_id, order_number, customer_name, customer_email, customer_phone, status, created_at, total_amount, box_size, ribbe_choice, payments(amount_nok, status), order_extras(quantity, price_nok, total_price, unit_price, extras_catalog(name_no))'
+      'id, user_id, order_number, customer_name, customer_email, customer_phone, status, created_at, total_amount, box_size, ribbe_choice, flagged_for_review, flag_reason, manual_confirmation, payments(amount_nok, status), order_extras(quantity, price_nok, total_price, unit_price, extras_catalog(name_no))'
     );
 
   if (!detailed.error) {
@@ -835,7 +835,7 @@ async function fetchEggOrdersRows(): Promise<EggOrderRow[]> {
   const detailed = await supabaseAdmin
     .from('egg_orders')
     .select(
-      'id, user_id, order_number, customer_name, customer_email, customer_phone, status, created_at, total_amount, quantity, delivery_method, week_number, year, egg_breeds(name), egg_payments(amount_nok, status)'
+      'id, user_id, order_number, customer_name, customer_email, customer_phone, status, created_at, total_amount, quantity, delivery_method, week_number, year, flagged_for_review, flag_reason, manual_confirmation, egg_breeds(name), egg_payments(amount_nok, status)'
     );
 
   if (!detailed.error) {
@@ -869,7 +869,7 @@ async function fetchChickenOrdersRows(): Promise<ChickenOrderRow[]> {
   const detailed = await supabaseAdmin
     .from('chicken_orders')
     .select(
-      'id, user_id, order_number, customer_name, customer_email, customer_phone, status, created_at, total_amount_nok, quantity_hens, quantity_roosters, pickup_week, pickup_year, pickup_monday, age_weeks_at_pickup, delivery_method, delivery_fee_nok, deposit_amount_nok, remainder_amount_nok, remainder_due_date, price_per_hen_nok, price_per_rooster_nok, subtotal_nok, notes, admin_notes, shipping_address, shipping_postal_code, shipping_city, shipping_country, chicken_breeds(name), chicken_payments(amount_nok, status), chicken_order_additions(id, hatch_id, quantity_hens, quantity_roosters, subtotal_nok, price_per_hen_nok, chicken_breeds(name), chicken_hatches(hatch_date))'
+      'id, user_id, order_number, customer_name, customer_email, customer_phone, status, created_at, total_amount_nok, quantity_hens, quantity_roosters, pickup_week, pickup_year, pickup_monday, age_weeks_at_pickup, delivery_method, delivery_fee_nok, deposit_amount_nok, remainder_amount_nok, remainder_due_date, price_per_hen_nok, price_per_rooster_nok, subtotal_nok, notes, admin_notes, shipping_address, shipping_postal_code, shipping_city, shipping_country, flagged_for_review, flag_reason, manual_confirmation, chicken_breeds(name), chicken_payments(amount_nok, status), chicken_order_additions(id, hatch_id, quantity_hens, quantity_roosters, subtotal_nok, price_per_hen_nok, chicken_breeds(name), chicken_hatches(hatch_date))'
     );
 
   if (!detailed.error) {

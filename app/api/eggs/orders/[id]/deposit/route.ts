@@ -142,7 +142,10 @@ export async function POST(
 
     await supabaseAdmin
       .from('egg_orders')
-      .update({ vipps_deposit_order_id: vippsResult.sessionId })
+      .update({
+        vipps_deposit_order_id: vippsResult.sessionId,
+        payment_attempts: (Number(order.payment_attempts) || 0) + 1,
+      })
       .eq('id', order.id)
 
     return NextResponse.json({

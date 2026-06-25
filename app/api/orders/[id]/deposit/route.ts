@@ -188,11 +188,12 @@ export async function POST(
       );
     }
 
-    // Update order with Vipps session reference
+    // Update order with Vipps session reference and count this payment attempt.
     await supabaseAdmin
       .from('orders')
       .update({
         vipps_deposit_order_id: vippsResult.sessionId,
+        payment_attempts: (Number(order.payment_attempts) || 0) + 1,
       })
       .eq('id', order.id);
 

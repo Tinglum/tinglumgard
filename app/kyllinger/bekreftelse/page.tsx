@@ -5,7 +5,7 @@ import { useSearchParams } from 'next/navigation'
 import { useLanguage } from '@/contexts/LanguageContext'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
-import { CheckCircle, Clock, RefreshCcw, XCircle } from 'lucide-react'
+import { CheckCircle, Clock, RefreshCcw, XCircle, AlertTriangle, ShieldCheck } from 'lucide-react'
 
 export default function ChickenConfirmationPage() {
   const { t, lang } = useLanguage()
@@ -21,6 +21,9 @@ export default function ChickenConfirmationPage() {
   const [loading, setLoading] = useState(true)
   const [attempts, setAttempts] = useState(0)
   const [showCompletedState, setShowCompletedState] = useState(false)
+  const [retrying, setRetrying] = useState(false)
+  const [confirming, setConfirming] = useState(false)
+  const [manualConfirmed, setManualConfirmed] = useState(false)
 
   const formatCopy = (template: string, values: Record<string, string | number>) =>
     Object.entries(values).reduce(
@@ -35,7 +38,6 @@ export default function ChickenConfirmationPage() {
     }
 
     if (isPaymentDeferred) {
-      // Fetch order once for display, then stop
       fetch(`/api/chickens/orders/${orderId}/status`, { cache: 'no-store' })
         .then(res => res.ok ? res.json() : null)
         .then(found => { if (found) setOrder(found) })
@@ -55,7 +57,7 @@ export default function ChickenConfirmationPage() {
           const found = await res.json()
           setOrder(found)
 
-          if (found.status !== 'pending') {
+          if (found.status !== 'pending' || found.manual_confirmation) {
             setLoading(false)
             return
           }
@@ -83,43 +85,56 @@ export default function ChickenConfirmationPage() {
   }, [orderId])
 
   const isPaid = order?.status === 'deposit_paid' || order?.status === 'fully_paid'
-  const rawPaymentState = order?.status === 'cancelled' ? 'failed' : isPaid ? 'completed' : 'pending'
+  const isManual = Boolean(order?.manual_confirmation) || manualConfirmed
+  const paymentAttempts = Number(order?.payment_attempts || 0)
+  const isFailure = !loading && !isPaid && !isManual
+
+  // After a second failed attempt, confirm the order manually (payment owed).
+  useEffect(() => {
+    if (!orderId || !isFailure || confirming || manualConfirmed) return
+    if (paymentAttempts < 2) return
+
+    setConfirming(true)
+    fetch(`/api/chickens/orders/${orderId}/manual-confirm`, { method: 'POST' })
+      .then(res => res.ok ? res.json() : null)
+      .then(result => { if (result?.success) setManualConfirmed(true) })
+      .finally(() => setConfirming(false))
+  }, [orderId, isFailure, paymentAttempts, confirming, manualConfirmed])
 
   useEffect(() => {
-    if (rawPaymentState !== 'completed') {
+    if (!isPaid) {
       setShowCompletedState(false)
       return
     }
-
     setShowCompletedState(false)
     const timeoutId = setTimeout(() => setShowCompletedState(true), 2000)
     return () => clearTimeout(timeoutId)
-  }, [rawPaymentState])
+  }, [isPaid])
 
-  const displayPaymentState =
-    rawPaymentState === 'completed' && showCompletedState
-      ? 'completed'
-      : rawPaymentState === 'failed'
-        ? 'failed'
-        : 'pending'
-
-  const handleManualRefresh = async () => {
+  const handleRetry = async () => {
     if (!orderId) return
-
-    setLoading(true)
+    setRetrying(true)
     try {
-      const res = await fetch(`/api/chickens/orders/${orderId}/status`, { cache: 'no-store' })
-      if (res.ok) {
-        const found = await res.json()
-        setOrder(found)
+      const res = await fetch(`/api/chickens/orders/${orderId}/deposit`, { method: 'POST' })
+      const data = res.ok ? await res.json() : null
+      if (data?.redirectUrl) {
+        window.location.href = data.redirectUrl
+        return
       }
     } catch {
-      // Ignore manual refresh errors and keep page responsive.
-    } finally {
-      // Never leave user on infinite spinner after manual refresh.
-      setLoading(false)
+      // fall through — keep the page usable
     }
+    setRetrying(false)
   }
+
+  // Display state machine
+  const displayState: 'pending' | 'completed' | 'manual_confirmed' | 'retry' | 'manual_pending' | 'failed' =
+    isPaid && showCompletedState ? 'completed'
+      : isManual ? 'manual_confirmed'
+        : loading ? 'pending'
+          : isPaid ? 'pending'
+            : paymentAttempts >= 2 ? 'manual_pending'
+              : 'retry'
 
   if (!orderId) {
     return (
@@ -129,11 +144,24 @@ export default function ChickenConfirmationPage() {
     )
   }
 
+  const orderRecap = order && (
+    <div className="bg-neutral-50 rounded-lg p-4 text-sm text-left space-y-2 mt-4">
+      <p><strong>{confirmationCopy.orderLabel}:</strong> {order.order_number}</p>
+      <p><strong>{confirmationCopy.breedLabel}:</strong> {order.chicken_breeds?.name || confirmationCopy.unknownBreed}</p>
+      <p><strong>{confirmationCopy.hensLabel}:</strong> {order.quantity_hens}</p>
+      {order.quantity_roosters > 0 && (
+        <p><strong>{confirmationCopy.roostersLabel}:</strong> {order.quantity_roosters}</p>
+      )}
+      <p><strong>{confirmationCopy.pickupWeekLabel}:</strong> {summaryCopy.week} {order.pickup_week}, {order.pickup_year}</p>
+      <p><strong>{confirmationCopy.totalLabel}:</strong> {commonCopy.currency} {order.total_amount_nok}</p>
+    </div>
+  )
+
   return (
     <div className="min-h-screen bg-neutral-50 py-16">
       <div className="max-w-lg mx-auto px-4">
         <div className="bg-white rounded-xl shadow-sm border p-8 text-center">
-          {isPaymentDeferred && displayPaymentState === 'pending' ? (
+          {isPaymentDeferred && !isPaid && !isManual ? (
             <div className="space-y-4">
               <Clock className="w-12 h-12 text-blue-500 mx-auto" />
               <h1 className="text-2xl font-light text-neutral-900">
@@ -149,37 +177,20 @@ export default function ChickenConfirmationPage() {
                     : 'Your order has been registered and reserved. Vipps payment is temporarily down, so the deposit has not been charged yet. We will contact you when payment can be processed.'}
                 </p>
               </div>
-              {order && (
-                <div className="bg-neutral-50 rounded-lg p-4 text-sm text-left space-y-2 mt-4">
-                  <p><strong>{confirmationCopy.orderLabel}:</strong> {order.order_number}</p>
-                  <p><strong>{confirmationCopy.breedLabel}:</strong> {order.chicken_breeds?.name || confirmationCopy.unknownBreed}</p>
-                  <p><strong>{confirmationCopy.hensLabel}:</strong> {order.quantity_hens}</p>
-                  {order.quantity_roosters > 0 && (
-                    <p><strong>{confirmationCopy.roostersLabel}:</strong> {order.quantity_roosters}</p>
-                  )}
-                  <p><strong>{confirmationCopy.pickupWeekLabel}:</strong> {summaryCopy.week} {order.pickup_week}, {order.pickup_year}</p>
-                  <p><strong>{confirmationCopy.totalLabel}:</strong> {commonCopy.currency} {order.total_amount_nok}</p>
-                </div>
-              )}
+              {orderRecap}
             </div>
-          ) : displayPaymentState === 'pending' ? (
+          ) : displayState === 'pending' ? (
             <div className="space-y-4">
               <Clock className="w-12 h-12 text-amber-500 mx-auto animate-pulse" />
               <h1 className="text-2xl font-light text-neutral-900">{confirmationCopy.processingTitle}</h1>
               <p className="text-neutral-500">{loading ? confirmationCopy.processingBody : confirmationCopy.pendingBody}</p>
               {!loading && (
-                <>
-                  <p className="text-xs text-neutral-400">
-                    {formatCopy(confirmationCopy.statusChecks, { count: attempts })}
-                  </p>
-                  <Button variant="outline" onClick={handleManualRefresh} className="inline-flex items-center gap-2">
-                    <RefreshCcw className="h-4 w-4" />
-                    {confirmationCopy.checkAgain}
-                  </Button>
-                </>
+                <p className="text-xs text-neutral-400">
+                  {formatCopy(confirmationCopy.statusChecks, { count: attempts })}
+                </p>
               )}
             </div>
-          ) : displayPaymentState === 'completed' ? (
+          ) : displayState === 'completed' ? (
             <div className="space-y-4">
               <CheckCircle className="w-16 h-16 text-green-500 mx-auto" />
               <h1 className="text-2xl font-light text-neutral-900">{confirmationCopy.confirmedTitle}</h1>
@@ -198,6 +209,52 @@ export default function ChickenConfirmationPage() {
                   <p><strong>{confirmationCopy.remainderLabel}:</strong> {commonCopy.currency} {order.remainder_amount_nok}</p>
                 </div>
               )}
+            </div>
+          ) : displayState === 'manual_confirmed' ? (
+            <div className="space-y-4">
+              <ShieldCheck className="w-16 h-16 text-green-600 mx-auto" />
+              <h1 className="text-2xl font-light text-neutral-900">
+                {lang === 'no' ? 'Bestillingen er bekreftet' : 'Your order is confirmed'}
+              </h1>
+              <div className="bg-green-50 border border-green-300 rounded-lg p-4 text-sm text-green-900 text-left">
+                <p>
+                  {lang === 'no'
+                    ? 'Vipps-betalingen gikk dessverre ikke gjennom, men vi har lagt inn bestillingen din manuelt — den er bekreftet og reservert. Betalingen er ikke trukket ennå; vi tar kontakt for å avtale betaling, eller du kan ordne det ved henting. Du trenger ikke gjøre noe nå.'
+                    : 'The Vipps payment did not go through, but we have entered your order manually — it is confirmed and reserved. No payment has been charged yet; we will be in touch to arrange payment, or you can settle it at pickup. Nothing is required from you right now.'}
+                </p>
+              </div>
+              {orderRecap}
+            </div>
+          ) : displayState === 'manual_pending' ? (
+            <div className="space-y-4">
+              <Clock className="w-12 h-12 text-amber-500 mx-auto animate-pulse" />
+              <h1 className="text-2xl font-light text-neutral-900">
+                {lang === 'no' ? 'Bekrefter bestillingen din…' : 'Confirming your order…'}
+              </h1>
+              <p className="text-neutral-500">
+                {lang === 'no'
+                  ? 'Vi sikrer bestillingen din. Vent et øyeblikk.'
+                  : 'We are securing your order. One moment.'}
+              </p>
+            </div>
+          ) : displayState === 'retry' ? (
+            <div className="space-y-4">
+              <AlertTriangle className="w-12 h-12 text-amber-500 mx-auto" />
+              <h1 className="text-2xl font-light text-neutral-900">
+                {lang === 'no' ? 'Vipps-betalingen gikk ikke gjennom' : 'Vipps payment did not go through'}
+              </h1>
+              <p className="text-neutral-600">
+                {lang === 'no'
+                  ? 'Det skjedde noe under betalingen. Bestillingen din er reservert — prøv å betale på nytt.'
+                  : 'Something went wrong during payment. Your order is reserved — please try paying again.'}
+              </p>
+              <Button onClick={handleRetry} disabled={retrying} className="inline-flex items-center gap-2">
+                <RefreshCcw className={`h-4 w-4 ${retrying ? 'animate-spin' : ''}`} />
+                {retrying
+                  ? (lang === 'no' ? 'Åpner Vipps…' : 'Opening Vipps…')
+                  : (lang === 'no' ? 'Prøv å betale igjen' : 'Try paying again')}
+              </Button>
+              {orderRecap}
             </div>
           ) : (
             <div className="space-y-4">

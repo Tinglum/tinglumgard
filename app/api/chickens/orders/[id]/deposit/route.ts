@@ -127,6 +127,12 @@ export async function POST(
       return NextResponse.json({ error: 'Failed to create payment record' }, { status: 500 })
     }
 
+    // Count this payment attempt (drives the retry -> manual-confirm UX).
+    await supabaseAdmin
+      .from('chicken_orders')
+      .update({ payment_attempts: (Number(order.payment_attempts) || 0) + 1 })
+      .eq('id', order.id)
+
     return NextResponse.json({
       success: true,
       redirectUrl: vippsResult.checkoutFrontendUrl,
