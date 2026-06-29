@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getEggAdditionOfferState } from '@/lib/eggs/addition-offer'
-import { getDayBeforeOfferAvailabilityForWeek } from '@/lib/eggs/day-before-offer-availability'
+import { reconcileEggPaymentDependentFlowInstances } from '@/lib/email/lifecycle'
 import { supabaseAdmin } from '@/lib/supabase/server'
 import { dispatchEmail } from '@/lib/email/dispatch'
 import { renderManagedTemplate } from '@/lib/email/render'
@@ -246,6 +245,23 @@ export async function GET(request: NextRequest) {
       const remainderPaid = order.egg_payments?.some(
         (p: any) => p.payment_type === 'remainder' && p.status === 'completed'
       )
+      const remainderDueOre = Math.max(0, Number(order.remainder_amount || 0))
+
+      if (remainderDueOre <= 0) {
+        if (order.status !== 'fully_paid') {
+          await supabaseAdmin
+            .from('egg_orders')
+            .update({ status: 'fully_paid' })
+            .eq('id', order.id)
+
+          try {
+            await reconcileEggPaymentDependentFlowInstances(String(order.id), 'order_fully_paid')
+          } catch (cleanupError) {
+            logError('egg-reminders-full-upfront-flow-cleanup', cleanupError, { orderId: order.id })
+          }
+        }
+        continue
+      }
 
       if (!depositPaid || remainderPaid) continue
       if (!order.customer_email || order.customer_email === VIPPS_PENDING_EMAIL) continue
@@ -370,78 +386,9 @@ export async function GET(request: NextRequest) {
       remindersSent += 1
     }
 
-    const { data: paidOrders, error: paidError } = await supabaseAdmin
-      .from('egg_orders')
-      .select('id, order_number, customer_name, customer_email, status, week_number, delivery_monday, reminder_day_before_sent, egg_breeds(name)')
-      .in('status', ['fully_paid', 'preparing'])
-
-    if (paidError) {
-      logError('egg-day-before-fetch', paidError)
-    } else {
-      for (const order of paidOrders || []) {
-        if (!order.customer_email || order.customer_email === VIPPS_PENDING_EMAIL) continue
-        if (order.reminder_day_before_sent) continue
-
-        const deliveryDate = toDateOnly(order.delivery_monday)
-        const daysUntil = daysBetween(deliveryDate, today)
-        if (daysUntil !== 1) continue
-
-        const offerState = getEggAdditionOfferState(order.delivery_monday)
-        if (!offerState.useActualCollectedStock || offerState.actualCutoffHour !== 12) continue
-
-        const deliveryYear = Number.parseInt(String(order.delivery_monday || '').slice(0, 4), 10)
-        if (!deliveryYear || !order.week_number) continue
-
-        const availability = await getDayBeforeOfferAvailabilityForWeek({
-          year: deliveryYear,
-          weekNumber: Number(order.week_number || 0),
-          deliveryMonday: String(order.delivery_monday || ''),
-        })
-
-        if (availability.totalAvailable <= 0) continue
-
-        const renderedDayBefore = await renderManagedTemplate({
-          templateKey: 'egg.order.add_more.day_before',
-          locale: 'no',
-          variables: {
-            customer_name: order.customer_name,
-            order_id: order.id,
-            order_number: order.order_number,
-            breed_name: resolveBreedName(order.egg_breeds),
-            week_number: order.week_number,
-            app_url: appUrl,
-          },
-        })
-        const dayBeforeHtml = renderedDayBefore?.html ?? buildDayBeforeHtml({
-          customerName: order.customer_name,
-          orderId: order.id,
-          orderNumber: order.order_number,
-          breedName: resolveBreedName(order.egg_breeds),
-          weekNumber: order.week_number,
-          appUrl,
-        })
-        const dayBeforeSubject = renderedDayBefore?.subject ?? `Levering i morgen - ${order.order_number}`
-
-        await dispatchEmail({
-          to: order.customer_email,
-          subject: dayBeforeSubject,
-          html: dayBeforeHtml,
-          eggOrderId: order.id,
-          classification: 'transactional',
-          sourcePath: 'cron.egg-remainders',
-          templateKey: 'egg.order.add_more.day_before',
-          flowKey: 'egg.order.day_before',
-          sendImmediately: true,
-        })
-
-        await supabaseAdmin
-          .from('egg_orders')
-          .update({ reminder_day_before_sent: true })
-          .eq('id', order.id)
-
-        dayBeforeSent += 1
-      }
-    }
+    // Egg day-before add-more emails are scheduled and sent by the lifecycle
+    // runner. Leaving the legacy send path active here causes customers to get
+    // both the old cron message and the lifecycle-rendered version.
 
     // === CHICKEN REMAINDER REMINDERS ===
     const CHICKEN_REMINDER_DAYS = [7, 5, 3, 1]

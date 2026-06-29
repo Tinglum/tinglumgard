@@ -281,7 +281,7 @@ export function MilkOpsDashboard() {
       const { entry: saved } = await res.json()
       // Only dispatch if this is a NEW entry (no id yet) — for updates, local state is already correct
       if (!entry.id && saved?.id) {
-        const goatName = lineageGoats.find((g) => g.id === saved.goat_id)?.name || state.goats.find((g) => g.id === saved.goat_id)?.name
+        const goatName = goatNameById.get(saved.goat_id) || state.goats.find((g) => g.id === saved.goat_id)?.name
         dispatch({ type: 'UPDATE_ENTRY', entry: { ...saved, goat_name: goatName } })
       }
       dispatch({ type: 'SET_SAVE_STATE', id: key, state: 'saved' })
@@ -372,20 +372,42 @@ export function MilkOpsDashboard() {
 
   const formatDl = (g: number) => `${gramsToDeciliters(g)} dL`
 
+  const goatRoster: LineageGoat[] = (() => {
+    const merged = new Map<string, LineageGoat>()
+
+    for (const goat of state.goats) {
+      if (goat.status !== 'active') continue
+      merged.set(goat.id, {
+        id: goat.id,
+        name: goat.name,
+        ear_tag: goat.tag_number || undefined,
+      })
+    }
+
+    for (const goat of lineageGoats) {
+      merged.set(goat.id, goat)
+    }
+
+    return Array.from(merged.values()).sort((a, b) =>
+      a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
+    )
+  })()
+  const goatNameById = new Map(goatRoster.map((goat) => [goat.id, goat.name]))
+
   // ── Get goats participating in a session ─────────────────────────────────
 
   const getSessionGoats = (sessionId: string) => {
     const sessionEntries = state.entries.filter((e) => e.session_id === sessionId)
     return sessionEntries.map((e) => ({
       ...e,
-      name: e.goat_name || lineageGoats.find((g) => g.id === e.goat_id)?.name || '?',
+      name: e.goat_name || goatNameById.get(e.goat_id) || '?',
     }))
   }
 
-  // Available lineage goats not yet added to this session
+  // Available goats not yet added to this session
   const getAvailableGoats = (sessionId: string) => {
     const usedIds = state.entries.filter((e) => e.session_id === sessionId).map((e) => e.goat_id)
-    return lineageGoats.filter((g) => !usedIds.includes(g.id))
+    return goatRoster.filter((g) => !usedIds.includes(g.id))
   }
 
   // ── Render ──────────────────────────────────────────────────────────────
@@ -723,7 +745,7 @@ export function MilkOpsDashboard() {
                           </div>
                         ) : (
                           sessionEntries.map((entry) => {
-                            const goatName = entry.goat_name || lineageGoats.find((g) => g.id === entry.goat_id)?.name || '?'
+                            const goatName = entry.goat_name || goatNameById.get(entry.goat_id) || '?'
                             const entryKey = `entry-${entry.goat_id}-${session.id}`
                             const entryGrams = Number(entry.grams || 0)
                             const entryDl = gramsToDeciliters(entryGrams)

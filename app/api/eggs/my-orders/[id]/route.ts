@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth/session'
+import { reconcileEggPaymentDependentFlowInstances } from '@/lib/email/lifecycle'
+import { getEggDepositStatus } from '@/lib/eggs/notifications'
 import { finalizeConfirmedEggOrder } from '@/lib/eggs/order-confirmation'
 import { supabaseAdmin } from '@/lib/supabase/server'
 import { vippsClient } from '@/lib/vipps/api-client'
@@ -83,9 +85,10 @@ async function reconcileEggOrder(order: any) {
     }
 
     if (order.status === 'pending') {
+      const nextStatus = getEggDepositStatus(order)
       const { error: statusErr } = await supabaseAdmin
         .from('egg_orders')
-        .update({ status: 'deposit_paid' })
+        .update({ status: nextStatus })
         .eq('id', order.id)
 
       if (statusErr) {
@@ -93,9 +96,17 @@ async function reconcileEggOrder(order: any) {
         return order
       }
 
+      if (nextStatus === 'fully_paid') {
+        try {
+          await reconcileEggPaymentDependentFlowInstances(String(order.id), 'order_fully_paid')
+        } catch (cleanupError) {
+          logError('egg-my-order-self-heal-flow-cleanup', cleanupError, { orderId: order.id })
+        }
+      }
+
       return {
         ...order,
-        status: 'deposit_paid',
+        status: nextStatus,
       }
     }
 
@@ -143,9 +154,19 @@ async function reconcileEggOrder(order: any) {
 
     await supabaseAdmin
       .from('egg_orders')
-      .update({ status: 'deposit_paid' })
+      .update({ status: getEggDepositStatus(order) })
       .eq('id', order.id)
       .throwOnError()
+
+    const nextStatus = getEggDepositStatus(order)
+
+    if (nextStatus === 'fully_paid') {
+      try {
+        await reconcileEggPaymentDependentFlowInstances(String(order.id), 'order_fully_paid')
+      } catch (cleanupError) {
+        logError('egg-my-order-reconcile-flow-cleanup', cleanupError, { orderId: order.id })
+      }
+    }
 
     try {
       await finalizeConfirmedEggOrder(order.id)
@@ -162,7 +183,7 @@ async function reconcileEggOrder(order: any) {
 
     return {
       ...order,
-      status: 'deposit_paid',
+      status: nextStatus,
       ...(shippingUpdate ? shippingUpdate : {}),
       egg_payments: (order.egg_payments || []).map((payment: any) =>
         payment.id === depositPayment.id

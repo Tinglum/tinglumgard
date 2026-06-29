@@ -5,6 +5,39 @@ import { supabaseAdmin } from '@/lib/supabase/server'
 
 export const dynamic = 'force-dynamic'
 
+type ApiGoat = {
+  id: string
+  name: string
+  ear_tag?: string | null
+  date_of_birth?: string | null
+}
+
+async function getLocalActiveGoats(): Promise<ApiGoat[]> {
+  const { data } = await supabaseAdmin
+    .from('milk_goats')
+    .select('id, name, tag_number')
+    .eq('status', 'active')
+    .order('display_order', { ascending: true })
+    .order('name', { ascending: true })
+
+  return (data || []).map((g: any) => ({
+    id: g.id,
+    name: g.name,
+    ear_tag: g.tag_number,
+  }))
+}
+
+function mergeGoatLists(primary: ApiGoat[], secondary: ApiGoat[]): ApiGoat[] {
+  const merged = new Map<string, ApiGoat>()
+
+  for (const goat of secondary) merged.set(goat.id, goat)
+  for (const goat of primary) merged.set(goat.id, goat)
+
+  return Array.from(merged.values()).sort((a, b) =>
+    a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
+  )
+}
+
 export async function GET(request: NextRequest) {
   const access = await enforceMilkOpsAccess(request, { allowUnauthenticatedWhenDisabled: true })
   if (!access.ok) return access.response
@@ -49,14 +82,17 @@ export async function GET(request: NextRequest) {
             }, { onConflict: 'id' })
         }
 
+        const localGoats = await getLocalActiveGoats()
+        const lineageGoats: ApiGoat[] = data.map((g: any) => ({
+          id: g.id,
+          name: g.name,
+          ear_tag: g.earTag,
+          date_of_birth: g.dateOfBirth,
+        }))
+
         return NextResponse.json({
-          source: 'goat-lineage',
-          goats: data.map((g: any) => ({
-            id: g.id,
-            name: g.name,
-            ear_tag: g.earTag,
-            date_of_birth: g.dateOfBirth,
-          }))
+          source: 'goat-lineage+local',
+          goats: mergeGoatLists(lineageGoats, localGoats)
         })
       }
     } catch {
@@ -65,18 +101,10 @@ export async function GET(request: NextRequest) {
   }
 
   // Fallback: local milk_goats table
-  const { data } = await supabaseAdmin
-    .from('milk_goats')
-    .select('id, name, tag_number')
-    .eq('status', 'active')
-    .order('display_order', { ascending: true })
+  const goats = await getLocalActiveGoats()
 
   return NextResponse.json({
     source: 'local',
-    goats: (data || []).map((g: any) => ({
-      id: g.id,
-      name: g.name,
-      ear_tag: g.tag_number,
-    }))
+    goats
   })
 }
