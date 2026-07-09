@@ -190,6 +190,7 @@ export function MilkOpsDashboard() {
   const [addGoatDropdown, setAddGoatDropdown] = useState<string | null>(null) // sessionId
   const [deleteConfirm, setDeleteConfirm] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [entryDrafts, setEntryDrafts] = useState<Record<string, string>>({})
 
   // ── Fetch daily data ────────────────────────────────────────────────────
 
@@ -294,8 +295,36 @@ export function MilkOpsDashboard() {
   const removeEntry = async (entryId: string) => {
     try {
       await fetch(`/api/milk/entries/${entryId}`, { method: 'DELETE' })
+      clearEntryDraft(entryId)
       dispatch({ type: 'REMOVE_ENTRY', id: entryId })
     } catch {}
+  }
+
+  const updateEntryAllocation = (
+    sessionId: string,
+    entry: MilkSessionEntry & { goat_name?: string },
+    goatName: string,
+    gramsVal: number
+  ) => {
+    dispatch({ type: 'UPDATE_ENTRY', entry: { ...entry, grams: gramsVal, goat_name: goatName } })
+    const entryKey = `entry-${entry.goat_id}-${sessionId}`
+    schedule(entryKey, () => saveEntry({ session_id: sessionId, goat_id: entry.goat_id, grams: gramsVal, id: entry.id }))
+  }
+
+  const finalizeEntryDraft = (
+    sessionId: string,
+    entry: MilkSessionEntry & { goat_name?: string },
+    goatName: string
+  ) => {
+    const draftValue = entryDrafts[entry.id]
+    if (draftValue === undefined) return
+    const dlVal = parseDraftDlValue(draftValue)
+    if (draftValue.trim() === '') {
+      updateEntryAllocation(sessionId, entry, goatName, 0)
+    } else if (dlVal !== null) {
+      updateEntryAllocation(sessionId, entry, goatName, decilitersToGrams(dlVal))
+    }
+    clearEntryDraft(entry.id)
   }
 
   // ── Update session with recalculated total_grams ────────────────────────
@@ -371,6 +400,33 @@ export function MilkOpsDashboard() {
   }
 
   const formatDl = (g: number) => `${gramsToDeciliters(g)} dL`
+
+  const getDraftEntryValue = (entryId: string, grams: number) => {
+    if (entryDrafts[entryId] !== undefined) return entryDrafts[entryId]
+    const dl = gramsToDeciliters(grams)
+    return dl > 0 ? String(dl) : ''
+  }
+
+  const parseDraftDlValue = (value: string): number | null => {
+    const normalized = value.replace(',', '.').trim()
+    if (!normalized || normalized === '.') return null
+    const parsed = Number.parseFloat(normalized)
+    if (!Number.isFinite(parsed)) return null
+    return Math.max(0, parsed)
+  }
+
+  const setEntryDraft = (entryId: string, value: string) => {
+    setEntryDrafts((current) => ({ ...current, [entryId]: value }))
+  }
+
+  const clearEntryDraft = (entryId: string) => {
+    setEntryDrafts((current) => {
+      if (!(entryId in current)) return current
+      const next = { ...current }
+      delete next[entryId]
+      return next
+    })
+  }
 
   const goatRoster: LineageGoat[] = (() => {
     const merged = new Map<string, LineageGoat>()
@@ -749,6 +805,8 @@ export function MilkOpsDashboard() {
                             const entryKey = `entry-${entry.goat_id}-${session.id}`
                             const entryGrams = Number(entry.grams || 0)
                             const entryDl = gramsToDeciliters(entryGrams)
+                            const draftEntryValue = getDraftEntryValue(entry.id, entryGrams)
+                            const parsedDraftDl = parseDraftDlValue(draftEntryValue)
                             // Slider max = this goat's current share + remaining unallocated
                             const sliderMaxGrams = entryGrams + remainingGrams
                             const sliderMaxDl = Math.ceil(gramsToDeciliters(sliderMaxGrams))
@@ -764,13 +822,15 @@ export function MilkOpsDashboard() {
                                   </div>
                                   <div className="flex items-center gap-2">
                                     <input type="number" inputMode="decimal" step="0.1" min="0"
-                                      value={entryDl || ''}
+                                      value={draftEntryValue}
                                       onChange={(e) => {
-                                        const dlVal = parseFloat(e.target.value) || 0
-                                        const gramsVal = decilitersToGrams(dlVal)
-                                        dispatch({ type: 'UPDATE_ENTRY', entry: { ...entry, grams: gramsVal, goat_name: goatName } })
-                                        schedule(entryKey, () => saveEntry({ session_id: session.id, goat_id: entry.goat_id, grams: gramsVal, id: entry.id }))
+                                        const nextValue = e.target.value
+                                        setEntryDraft(entry.id, nextValue)
+                                        const dlVal = parseDraftDlValue(nextValue)
+                                        if (dlVal === null) return
+                                        updateEntryAllocation(session.id, entry, goatName, decilitersToGrams(dlVal))
                                       }}
+                                      onBlur={() => finalizeEntryDraft(session.id, entry, goatName)}
                                       className="w-16 rounded-lg border border-neutral-200 px-2 py-1.5 text-sm text-right tabular-nums focus:outline-none focus:ring-2 focus:ring-neutral-900/20"
                                       placeholder="0" />
                                     <span className="text-xs text-neutral-400 w-4">dL</span>
@@ -782,13 +842,13 @@ export function MilkOpsDashboard() {
                                 </div>
                                 {/* Slider — range is 0 to max available */}
                                 <input type="range" min="0" max={sliderMaxDl} step="1"
-                                  value={Math.round(entryDl)}
+                                  value={Math.round(parsedDraftDl ?? entryDl)}
                                   onChange={(e) => {
                                     const dlVal = parseInt(e.target.value)
-                                    const gramsVal = decilitersToGrams(dlVal)
-                                    dispatch({ type: 'UPDATE_ENTRY', entry: { ...entry, grams: gramsVal, goat_name: goatName } })
-                                    schedule(entryKey, () => saveEntry({ session_id: session.id, goat_id: entry.goat_id, grams: gramsVal, id: entry.id }))
+                                    setEntryDraft(entry.id, String(dlVal))
+                                    updateEntryAllocation(session.id, entry, goatName, decilitersToGrams(dlVal))
                                   }}
+                                  onBlur={() => finalizeEntryDraft(session.id, entry, goatName)}
                                   className="w-full h-2 bg-neutral-200 rounded-full appearance-none cursor-pointer accent-neutral-900" />
                               </div>
                             )
