@@ -71,9 +71,9 @@
     watchVideo: "Se video",
     learnMore: "Les mer om produktet",
     joinWaitlist: "Bli med på venteliste",
-    qualityHeadline: "Norsk kvalitet",
-    tagline: "Vakuumpakket, fryseklart, levert uke 48.",
-    reserveBeforeLate: "Reserver din pakke før det er for sent",
+    qualityHeadline: "Ekte gårdskvalitet",
+    tagline: "Vakuumpakket og fryseklart - levert i uke 48.",
+    reserveBeforeLate: "Bestill din kasse, før sesongen er fullbooket",
     description: "Gris fra Tinglum Gård i Namdalseid. Grisene vokser opp på gården gjennom 2026, slaktes lokalt i nov/des, og hentes fersk eller frossen.",
     localRaised: "Lokalt oppvokst",
     qualityGuarantee: "Kvalitetsgaranti",
@@ -113,13 +113,13 @@
     otherProductsLabel: "Mer fra gården",
     otherProductsTitle: "Se hva mer du kan sikre deg fra gården",
     otherProductsDescription:
-      "Mens du planlegger rugeegg eller kyllinger, kan du også se sesongens ullgris-kasser og de andre produktene fra Tinglum Gård.",
+      "Mens du er her, kan du også ta en titt på sesongens ullgris-kasser.",
     cards: {
       pigs: {
         badge: "Ullgris til jul",
         title: "Sikre ribbe til jul allerede nå",
         description:
-          "Vil du ha ribbe til jul, bacon med karakter og stykningsdeler det er verdt å glede seg til? Prøv delikatessen ullgris fra Tinglum Gård og reserver kassen tidlig.",
+          "Ribbe til jul, bacon med karakter, og stykningsdeler du faktisk gleder deg til. Det er ullgris fra Tinglum Gård. Reserver kassen din tidlig.",
         descriptionShort: "Reserver ullgris til jul før sesongens kasser blir tatt.",
         highlights: ["Ribbe til jul", "Ullgris til jul", "Prøv delikatessen ullgris"],
         meta: "Sesong 2026 • Begrenset antall kasser • Kun få kasser per gris",
@@ -192,7 +192,7 @@
     chooseYourBox: "Velg din kasse",
     choosePackage: "Velg din kasse",
     twoSizes: "To størrelser å velge mellom",
-    sameQuality: "Samme høye kvalitet uansett størrelse. Velg kassen som passer best for din husholdning.",
+    sameQuality: "Samme høye kvalitet uansett størrelse. Velg kassen som passer best for deg.",
     smallBox: "Mindre kasse",
     smallerPackage: "Mindre kasse",
     largeBox: "Større kasse",
@@ -227,7 +227,7 @@
   // Product detail page
   productDetail: {
     title: "Ullgris Kjøttpakke",
-    variation: "Innholdet varierer med tilgjengelighet, men dette er alltid med:",
+    variation: "Innholdet kan variere litt, men dette har vi alltid med:",
     categories: {
       ribbe: "Ribbe",
       sausages: "Pølser",
@@ -310,7 +310,7 @@
     badge: "OSS",
     commonQuestions: "Vanlige spørsmål",
     q1: "Hva får jeg i kassen?",
-    a1: "Fast struktur, små variasjoner er normalt. Du får ribbe, bacon, pølser, nakkekoteletter og skinkesteik. I tillegg legger vi med gode biter avhengig av tilgjengelighet. Alt er porsjonert, merket og vakuumpakket.",
+    a1: "Du får ribbe, bacon, pølser, nakkekoteletter og skinkesteik som fast innhold, i tillegg til noen gode ekstrabiter når det er tilgjengelig. Alt kommer porsjonert, merket og vakuumpakket.",
     q2: "Når får jeg leveringen?",
     a2: "Frossen kasse leveres i uke 48. Fersk kasse kan velges mot tillegg og leveres i slutten av uke 50 eller starten av uke 51.",
     q3: "Kan jeg endre bestillingen?",
@@ -320,15 +320,15 @@
     q5: "Hva er Mangalitsa?",
     a5: "Mangalitsa er en gammel ungarsk ullgrisrase kjent for ekstraordinær kjøttkvalitet. Grisen vokser sakte, lever utendørs og utvikler en dyp, nøtteaktig smak som skiller seg helt fra vanlig svinekjøtt. Vi er en av svært få produsenter i Norge.",
     q6: "Hva er så spesielt med Mangalitsa-fettet?",
-    a6: "Mangalitsa har et unikt intramuskulært fett med høyere andel enumettede fettsyrer enn vanlig gris, faktisk sammenlignbart med olivenolje. Det gir kjøttet en smørliknende mørhet og en rikdom i smak du ikke finner andre steder. Fettet smelter ved lavere temperatur, noe som gjør ribba saftigere, baconen mer smakfull, og stekefettet perfekt til å koke grønnsaker i eller lage saus av.",
+    a6: "Mangalitsa har mye fett inni selve muskelen, ikke bare utenpå. Fettet ligner faktisk på olivenolje i sammensetning, og gir kjøttet en smøraktig mørhet du kjenner igjen med en gang. Fordi fettet smelter ved lav temperatur, blir ribba saftigere, baconen mer smakfull, og stekefettet perfekt å bruke i saus eller til å steke grønnsaker i.",
     q7: "Hvor mye frysekapasitet trenger jeg?",
-    a7: "Regn med ca. 30 liter per 10 kg kjøtt. En 8 kg-kasse passer ofte i en fryseskuff, mens en 12 kg-kasse trenger mer plass.",
+    a7: "Regn med ca. 30 liter per 10 kg kjøtt. En vanlig fryseskuff rommer 8-10 kg uten problem, så de fleste av boksene våre passer fint i én skuff - velger du en større boks kan det være lurt å fordele innholdet på to skuffer.",
     q8: "Hvor lenge holder vakuumpakket kjøtt seg i fryseren?",
     a8: "Vakuumpakket og frossent holder kjøttet seg i 12-18 måneder uten kvalitetstap. Merkelappene på hver pakke viser innhold og dato, så du har full oversikt.",
     q9: "Hvordan fungerer forskuddsbetalingen?",
-    a9: "Du betaler 50 % ved bestilling som forskudd via Vipps. Restbeløpet faktureres før levering i uke 46. Forskuddet sikrer din plass og setter i gang produksjonen.",
+    a9: "Du betaler 50 % i forskudd via Vipps ved bestilling, og resten før levering (uke 46). Forskuddet sikrer din plass og setter i gang produksjonen.",
     q10: "Kan jeg dele en kasse med noen?",
-    a10: "Absolutt! Mange kunder deler en større kasse med familie eller venner. Velg en større kasse og del opp selv, alt er allerede porsjonert og merket, så det er enkelt å fordele.",
+    a10: "Ja, det går fint! Mange kunder deler en større kasse med familie eller venner. Velg en større kasse og del opp selv - alt er allerede porsjonert og merket, så det er enkelt å fordele.",
     q11: "Leverer dere utenfor Trøndelag?",
     a11: "Per i dag tilbyr vi henting på gården, utvalgte punkt langs E6 mellom Stjørdal og Namsos, og i Trondheim sentrum. Vi jobber med å utvide, men kan ikke love leveranse utenfor disse områdene ennå.",
     q12: "Hva om jeg har allergier eller spesielle ønsker?",
@@ -359,7 +359,7 @@
     showProductInfoAria: "Vis produktinfo",
     recipeCheckoutHintWithPiece: "Denne boksen er forhåndsvalgt fordi den matcher oppskriften. Du kan også velge en annen boks og legge til {piece} som ekstra.",
     recipeCheckoutHintGeneric: "Denne boksen er forhåndsvalgt fordi den matcher oppskriften. Du kan også velge en annen boks og legge til ønsket stykke som ekstra.",
-    recipeCheckoutHintNoBoxMatchWithPiece: "Stykket du prøver å legge til ({piece}) hører ikke til i noen fast boks. Velg gjerne boksen du ønsker, så legger vi til stykket som ekstra.",
+    recipeCheckoutHintNoBoxMatchWithPiece: "Stykket du prøver å legge til ({piece}) finnes ikke i noen av de faste boksene. Velg boksen du ønsker, så legger vi det til som ekstra.",
     recipeCheckoutHintNoBoxMatchGeneric: "Stykket du prøver å legge til hører ikke til i noen fast boks. Velg gjerne boksen du ønsker, så legger vi til stykket som ekstra.",
     recipeLabel: "Oppskrift",
     recipeMakeYourOwn: "Lag din egen {item}",
@@ -378,7 +378,7 @@
     // Short, card-friendly descriptions for selected extras (avoid ellipsis on cards).
     extraCardTeasers: {
       "extra-guanciale": "Restaurantkutt med høy verdi per gram. Perfekt til carbonara og amatriciana.",
-      "extra-secreto-presa-pluma": "Små, skjulte biffer med ekstrem marmorering. Secreto, presa og pluma samlet.",
+      "extra-secreto-presa-pluma": "Små, gjemte biffer med kraftig marmorering. Secreto, presa og pluma samlet.",
       "extra-tomahawk": "Steakhouse-kutt fra ullgris. Tykk kotelett med langt bein og fettkappe.",
       "extra-pancetta": "Buklist med fettlag og dybde. Ideell til pancetta eller premium bacon.",
       "extra-skinke-speking": "Stor skinke med fettkappe. Perfekt til langsteking eller speking.",
@@ -389,7 +389,7 @@
       atDelivery: "ved levering",
       total: "totalt",
       tooltip:
-        "Vi tar 50% nå for å reservere plass i sesongen, og 50% ved levering når boksen er klar.",
+        "Du betaler 50 % i forskudd nå, og resten før levering (uke 46).",
     },
 
     ribbeMeta: {
@@ -450,12 +450,14 @@
       "Anbefalt: Slakteren velger det beste ribbesnittet fra dagens slakt, med riktig fettbalanse for saftig resultat.",
     ribbeSpecialNote:
       "Mangalitsa-ribbe har høy fettmarmorering. Stek lavt og lenge, og bruk det smeltede fettet i saus, grønnsaker eller potetmos for maksimal smak.",
+    ribbeHeroCutNote:
+      "Ribba er hovedattraksjonen i denne boksen - valget du gjør her er det som virkelig setter preg på julemiddagen.",
     preSelected: "Forhåndsvalgt",
     recommended: "Anbefalt",
 
     // Extras
     extrasTitle: "Ekstra kjøttprodukter (valgfritt)",
-    extrasWarning: "Ekstra produkter kan ikke garanteres, og tilgangen er meget begrenset. Ved å betale restbeløpet/ferdigstille ordren sikrer du din plass i køen. Vi oppfyller bestillingene etter når restordre/ekstra bestillinger blir betalt.",
+    extrasWarning: "Ekstra produkter kan ikke garanteres, og tilgangen er svært begrenset. Når du betaler restbeløpet og fullfører bestillingen, sikrer du plassen din i køen. Vi leverer ekstra-bestillingene i den rekkefølgen de blir betalt.",
     quantity: "Mengde:",
 
     // Delivery
@@ -481,7 +483,7 @@
 
     // Terms
     depositNotRefundable: "Jeg forstår at forskuddet ikke refunderes.",
-    triggersProd: "Vi jobber med levende dyr, og bestilling av en kasse starter produksjonsplanlegging.",
+    triggersProd: "Vi jobber med levende dyr - når du bestiller en kasse, setter det i gang planleggingen vår.",
     agreeToTerms: "Jeg godtar",
     termsLink: "vilkårene for kjøpet",
 
@@ -507,12 +509,12 @@
     seeMyOrders: "Se mine bestillinger",
     shareTitle: "Del med en venn",
     shareBody:
-      "Gi venner rabatten videre fra Min side. Du kan også dele bestillingssiden direkte her.",
+      "Gi rabatten videre til venner fra Min side. Du kan også dele bestillingssiden direkte herfra.",
     shareCopy: "Kopier",
     shareCopied: "Kopiert",
 
     // Errors
-    somethingWentWrong: "Noe gikk galt. Vennligst prøv igjen.",
+    somethingWentWrong: "Noe gikk galt. Prøv igjen.",
   },
 
   // Eggs flows (browse, cart, checkout, orders)
@@ -2275,10 +2277,11 @@
     mangalitsaPriceTo: "Opp til 613 kr/kg",
     scarcityTitle: "Begrenset kapasitet",
     scarcityBody:
-      "Vi produserer kun det vi har kapasitet til. Når sesongen er full, stenger bestillingen til neste år.",
+      "Vi lager ikke mer enn vi har kapasitet til. Er sesongen full, må du vente til neste år.",
+    farmTrustLine: "Fra Tinglum Gård, Namdalseid - egne dyr, lokalt slakt.",
     valueTitle: "Dette får du",
-    valueHeading: "Trygt, planlagt og klart",
-    valueLead: "En kasse med struktur og kvalitet, laget for sesongen.",
+    valueHeading: "Trygt og godt gjennomtenkt",
+    valueLead: "En kasse bygget med omtanke, klar til sesongen.",
     valueCards: [
       {
         title: "Ferdig pakket",
@@ -2290,63 +2293,46 @@
       },
       {
         title: "Planlagt for året",
-        body: "En produksjon i året gir forutsigbarhet, bedre dyrevelferd og mindre sløsing.",
+        body: "Én årlig produksjon betyr bedre tid til dyrene og mindre svinn.",
       },
     ],
     contentsTitle: "Innhold i boksen",
-    contentsHeading: "Dette får du",
-    contentsLead: "Listen under viser hva som vanligvis ligger i boksen.",
-    contentsNote: "Innholdet kan variere litt fra gris til gris.",
+    contentsHeading: "Hva som er i hver boks",
+    contentsLead:
+      "Alle boksene deler samme grunninnhold, med ribbe i alle. Under ser du nøyaktig hva som følger med i hver av de fire kassene.",
+    contentsNote: "Vi gjør vårt beste for å følge denne fordelingen, men kan ikke garantere den helt nøyaktig - det avhenger av slaktingen og hvor store grisene blir.",
     contentsGuarantee:
       "Ribbe er alltid med. Se oppdelingsplanen for full oversikt over resten.",
     contentsLinkLabel: "Se oppdelingsplan",
     noBoxContentsConfigured: "Ingen boksinnhold er konfigurert ennå.",
     enhanceTitle: "Forsterk boksen din",
-    enhanceLead: "Legg til premium-stykker som ekstra",
+    enhanceLead: "Legg til ekstra godbiter i bestillingen",
     enhanceBody:
       "Dette er begrensede spesialstykker. Reserver boksen først, og legg til ekstra med ett klikk i bestillingen.",
     enhanceCta: "Legg til i bestilling",
     noFeaturedExtras: "Ingen premium ekstra er konfigurert ennå.",
-    contents: {
-      ribbe: {
-        title: "Ribbe",
-        items: ["Ribbe til jul, vakuumpakket"],
-      },
-      chops: {
-        title: "Koteletter",
-        items: ["Nakkekoteletter eller koteletter"],
-      },
-      bacon: {
-        title: "Bacon",
-        items: ["Skivet bacon"],
-      },
-      sausages: {
-        title: "Pølser",
-        items: ["Julepølser eller grillpølser"],
-      },
-      stew: {
-        title: "Grytekjøtt",
-        items: ["Grytekutt til langtidskok"],
-      },
-      surprises: {
-        title: "Overraskelser",
-        items: ["Et ekstra stykke når tilgjengelig"],
-      },
-    },
+    compareTitle: "Sammenlign kassene",
+    compareName: "Kasse",
+    compareWeight: "Vekt",
+    comparePrice: "Pris",
     sizesTitle: "Velg kasse",
-    sizesHeading: "To størrelser, samme kvalitet",
+    sizesHeading: "Fire kasser, samme kvalitet",
     sizesLead:
-      "Velg størrelse som passer husholdningen din. Totalsum vises, betaling deles i to.",
+      "Velg kassen som passer deg og din familie.",
     sizesNote: "Forskudd sikrer plassen din. Resten betales for levering.",
+    sizesFoundationNote:
+      "Alle boksene har det samme gode grunninnholdet, med ribbe i alle. Det som gjør hver boks unik, er spesialstykkene på toppen.",
+    boxContentsLabel: "Innholdet i boksen",
+    boxSpecialLabel: "Spesialstykkene i denne boksen",
+    boxRecipesLink: "Se oppskrifter",
+    addToCalendar: "Legg til i kalender",
     paymentSummary: "Slik betaler du",
     paymentDepositLabel: "Forskudd",
     paymentRemainderLabel: "Restsum for levering",
     paymentNote: "Vi sender betalingsinfo i god tid for levering.",
-    reserve8Label: "Reserver 8 kg",
-    reserve12Label: "Reserver 12 kg",
     timelineTitle: "Slik fungerer det",
     timelineHeading: "Fra reservasjon til levering",
-    timelineLead: "Enkle steg fra nå til desember.",
+    timelineLead: "Slik går veien fra reservasjon i dag til levering i desember.",
     timelineScarcity: "Bestilling stenger når sesongens kasser er reservert.",
     timelineSteps: [
       {
@@ -2370,16 +2356,16 @@
         body: "Valgfri fersk levering for deg som vil ha alt helt nytt.",
       },
     ],
-    storyTitle: "Hvorfor en gang i året",
+    storyTitle: "Hvorfor vi kun slakter én gang i året",
     storyHeading: "Sesongkasser som gir mening",
     storyLead:
-      "En årlig produksjon lar deg planlegge ribbe til jul, og lar oss holde alt lokalt og kontrollert.",
+      "Med én sesong i året kan du planlegge ribba til jul i god tid, og vi kan holde alt kortreist og under kontroll.",
     storyBody:
-      "Du får en kasse med struktur, og vi kan planlegge dyrehold, slakt og levering med ro og kvalitet.",
-    storyHighlight: "Kortreist, forutsigbart og fullt av julefavoritter.",
+      "Du får forutsigbarhet, og vi får tid til å gjøre alt riktig - fra dyrehold til levering.",
+    storyHighlight: "Kortreist mat, med ribbe og julefavoritter du kan glede deg til.",
     faqTitle: "Spørsmål",
     faqHeading: "Praktisk info",
-    faqLead: "Svar på det viktigste for deg som vil reservere nå.",
+    faqLead: "Her får du svar på det du lurer mest på før du reserverer.",
     faqItems: [
       {
         question: "Hvordan leveres kassene?",
@@ -2404,7 +2390,7 @@
     finalCtaEyebrow: "Begrenset tilbud",
     finalCtaHeading: "Reserver din kasse for sesongen",
     finalCtaBody:
-      "Når kassene er reservert, stenger vi bestilling til neste år.",
+      "Når kassene er reservert, stenger vi bestillingen til neste år.",
     finalCtaButton: "Reserver kasse",
   },
 
@@ -3417,6 +3403,7 @@
     allPriorities: "Alle prioriteter",
     loadingMessages: "Laster meldinger...",
     noMessagesFound: "Ingen meldinger funnet",
+    needsAttention: "Krever svar",
     backToMessages: "Tilbake til meldinger",
     markResolved: "Marker som løst",
     typeLabel: "Type:",
@@ -4182,21 +4169,21 @@
     pageTitle: 'Mangalitsa Ullgris - Premium',
     hero: {
       title: 'Kun 4 bokser per gris. Slaktes én gang i året.',
-      subtitle: 'Dette er ikke vanlig svinekjøtt. Dette er ullgris, bygget for smak, fettkappe og saftighet.',
+      subtitle: 'Dette er ullgris, ikke vanlig svin - fettkappe, saftighet og smak i en helt annen klasse.',
       scarcity: 'Når det er tomt, er det tomt.',
     },
     boxes: {
       premiumCuts: {
         name: 'Premium Cuts',
         tagline: 'Alt det kule',
-        audience: 'Matentusiast, kokk, "jeg vil ha det ingen andre har"',
-        description: 'Dette er boksen for deg som vil kjenne forskjellen med en gang. Svinekinn (guanciale), nakkekam (coppa) og de små "hemmelige" stykkene du aldri ser i butikk.',
-        whyPremium: 'Inneholder guanciale + lardo + slakterens hemmelighet - navn som signaliserer restaurant, ikke "vanlig svin".',
+        audience: 'For deg som er nysgjerrig på mat, og vil ha noe du ikke finner andre steder.',
+        description: 'Dette er boksen for deg som vil kjenne forskjellen med en gang. Svinekinn (guanciale), nakkekam (coppa) og de små godbitene slakteren vanligvis beholder selv.',
+        whyPremium: 'Inneholder guanciale, lardo og slakterens hemmelige favoritt - stykker du vanligvis bare finner på restaurant.',
       },
       bbqSteakhouse: {
         name: 'BBQ og Steakhouse',
         tagline: 'Helgemat og grill',
-        audience: 'Grill, smoker, helgemat, "wow på skjærefjøla"',
+        audience: 'For deg som elsker BBQ og vil imponere fra kjøkkenet.',
         description: 'Dette er helgeboksen. Tomahawk-koteletter, svine-entrecôte og bogstek. Laget for røyk, grill og lang tid.',
         whyPremium: 'Tykke koteletter med langt bein (tomahawk) og ribeye-lignende biffer med fettkappe.',
       },
@@ -4204,7 +4191,7 @@
         name: 'Julespesial',
         tagline: 'Ribbe + medisterpakka',
         audience: 'De som planlegger jul og vil ha "ekte" råvare',
-        description: 'Ribbe er ikke bare ribbe. Her får du ribbevalg + medisterpølser og medisterfarse av Mangalitsa. Dette er boksen du kjøper når du vil ha trygghet, tradisjon og et måltid som faktisk føles som en anledning.',
+        description: 'Ribbe er ikke bare ribbe. Her får du ribbevalg + medisterpølser og medisterfarse av Mangalitsa. Dette er boksen for deg som vil ha tradisjonen i behold, og en julemiddag som faktisk føles som noe stort.',
         whyPremium: 'Medister som faktisk smaker noe, fordi råvaren er ullgris med fettkappe.',
       },
       familieboks: {
@@ -4212,12 +4199,12 @@
         tagline: 'Matuke og gode middager',
         audience: 'Volum og fleksibilitet, men fortsatt premium råvare',
         description: 'Dette er matukeboksen. Bacon, koteletter, kjøttdeig med høyere fettprosent, og pølse. Alt du trenger for en uke med gode middager.',
-        whyPremium: 'Best kontroll på margin med deig og pølse, uten at boksen føles "billig".',
+        whyPremium: 'Du får mye kjøtt for pengene, uten at det går utover kvaliteten.',
       },
     },
     ribbeSelection: {
       title: 'Velg ribbetype',
-      subtitle: 'Alle bokser inkluderer 1,5 kg ribbevalg',
+      subtitle: 'Hver boks har 1,5 kg ribbe - du velger typen',
     },
     premiumProof: [
       'Skåret med fettkappe',
@@ -4230,7 +4217,7 @@
       reasons: [
         {
           title: 'Begrenset',
-          body: 'Kun 4 bokser per gris, og slaktes én gang i året. Når det er tomt, er det tomt.',
+          body: 'Bare 4 bokser per gris, slaktet én gang i året. Er sesongen full, er den full.',
         },
         {
           title: 'Lang oppvekst',
@@ -4255,14 +4242,9 @@
       ],
     },
     contrast: {
-      standard: 'Butikkgris er "magert og likt"',
-      mangalitsa: 'Ullgris er "marmorering, fettkappe, dybde"',
+      standard: 'Butikkgris er magert og forutsigbart.',
+      mangalitsa: 'Ullgris smaker forskjellig - marmorert, fyldig og med ordentlig dybde.',
     },
-    threeRules: [
-      'Kun 4 bokser per gris',
-      'Slaktes én gang i året',
-      'Ribbe til jul, og kjøtt du faktisk husker',
-    ],
     reserveBox: 'Reserver denne boksen',
     perKg: 'kr/kg',
     loading: 'Laster...',

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { GlassCard } from "@/components/GlassCard";
+import { fixMojibake } from "@/lib/utils/text";
 import {
   Accordion,
   AccordionContent,
@@ -18,6 +19,26 @@ interface InventoryData {
   isLowStock: boolean;
   isSoldOut: boolean;
   active: boolean;
+}
+
+interface MangalitsaPreset {
+  id: string;
+  slug: string;
+  name_no: string;
+  name_en: string;
+  short_pitch_no: string;
+  short_pitch_en: string;
+  target_weight_kg: number;
+  price_nok: number;
+  display_order?: number;
+  scarcity_message_no?: string | null;
+  scarcity_message_en?: string | null;
+  contents?: Array<{
+    content_name_no: string;
+    content_name_en: string;
+    display_order?: number;
+    is_hero?: boolean;
+  }>;
 }
 
 function Section({
@@ -48,13 +69,19 @@ function StickyCTABar({
   label,
   ctaLabel,
   ctaHref,
+  hidden,
 }: {
   label: string;
   ctaLabel: string;
   ctaHref: string;
+  hidden: boolean;
 }) {
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-neutral-200 bg-white/90 backdrop-blur md:hidden">
+    <div
+      className={`fixed bottom-0 left-0 right-0 z-40 border-t border-neutral-200 bg-white/90 backdrop-blur md:hidden transition-transform duration-300 ${
+        hidden ? "translate-y-full" : "translate-y-0"
+      }`}
+    >
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-6 py-3">
         <p className="text-xs font-semibold uppercase tracking-[0.25em] text-neutral-500">
           {label}
@@ -70,16 +97,58 @@ function StickyCTABar({
   );
 }
 
-function getFinitePrice(value: unknown): number | null {
-  const parsed = typeof value === "number" ? value : Number(value);
-  return Number.isFinite(parsed) ? parsed : null;
+// Builds a minimal .ics file for a timeline step and triggers a client-side download.
+function downloadCalendarEvent(title: string, description: string, date: Date) {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const stamp = (d: Date) =>
+    `${d.getUTCFullYear()}${pad(d.getUTCMonth() + 1)}${pad(d.getUTCDate())}T${pad(
+      d.getUTCHours()
+    )}${pad(d.getUTCMinutes())}00Z`;
+  const end = new Date(date.getTime() + 60 * 60 * 1000);
+  const ics = [
+    "BEGIN:VCALENDAR",
+    "VERSION:2.0",
+    "PRODID:-//Tinglum Gard//Ullgris//NO",
+    "BEGIN:VEVENT",
+    `UID:${date.getTime()}@tinglumgard.no`,
+    `DTSTAMP:${stamp(new Date())}`,
+    `DTSTART:${stamp(date)}`,
+    `DTEND:${stamp(end)}`,
+    `SUMMARY:${title}`,
+    `DESCRIPTION:${description}`,
+    "END:VEVENT",
+    "END:VCALENDAR",
+  ].join("\r\n");
+
+  const blob = new Blob([ics], { type: "text/calendar;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `${title.toLowerCase().replace(/\s+/g, "-")}.ics`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+// ISO week -> approximate date for the current season year. Weeks are Mon-based.
+function dateFromIsoWeek(year: number, week: number): Date {
+  const simple = new Date(Date.UTC(year, 0, 1 + (week - 1) * 7));
+  const dayOfWeek = simple.getUTCDay() || 7;
+  simple.setUTCDate(simple.getUTCDate() + (1 - dayOfWeek));
+  return simple;
+}
+
+function extractWeekNumber(week: string): number | null {
+  const match = week.match(/(\d+)/);
+  return match ? parseInt(match[1], 10) : null;
 }
 
 export default function ProductPage() {
   const { t, lang } = useLanguage();
   const copy = t.productPage;
   const locale = lang === "no" ? "nb-NO" : "en-US";
-  const [pricing, setPricing] = useState<any>(null);
+  const [presets, setPresets] = useState<MangalitsaPreset[]>([]);
   const [inventory, setInventory] = useState<InventoryData | null>(null);
   const [loadingInventory, setLoadingInventory] = useState(true);
   const [isScrolled, setIsScrolled] = useState(false);
@@ -92,18 +161,18 @@ export default function ProductPage() {
   }, []);
 
   useEffect(() => {
-    async function fetchPricing() {
+    async function fetchPresets() {
       try {
-        const res = await fetch("/api/config/pricing");
+        const res = await fetch("/api/mangalitsa/presets");
         if (res.ok) {
           const data = await res.json();
-          setPricing(data);
+          setPresets(data.presets || []);
         }
       } catch (error) {
-        console.error("Failed to fetch pricing:", error);
+        console.error("Failed to fetch presets:", error);
       }
     }
-    fetchPricing();
+    fetchPresets();
   }, []);
 
   useEffect(() => {
@@ -127,32 +196,27 @@ export default function ProductPage() {
   const isSoldOut = inventory?.isSoldOut ?? false;
   const isLowStock = inventory?.isLowStock ?? false;
 
-  const box8Price = getFinitePrice(pricing?.box_8kg_price);
-  const box12Price = getFinitePrice(pricing?.box_12kg_price);
-  const box8DepositPercentage = getFinitePrice(pricing?.box_8kg_deposit_percentage);
-  const box12DepositPercentage = getFinitePrice(pricing?.box_12kg_deposit_percentage);
-  const box8Deposit =
-    box8Price !== null && box8DepositPercentage !== null
-      ? Math.floor((box8Price * box8DepositPercentage) / 100)
-      : null;
-  const box12Deposit =
-    box12Price !== null && box12DepositPercentage !== null
-      ? Math.floor((box12Price * box12DepositPercentage) / 100)
-      : null;
-  const box8Balance = box8Price !== null && box8Deposit !== null ? box8Price - box8Deposit : null;
-  const box12Balance = box12Price !== null && box12Deposit !== null ? box12Price - box12Deposit : null;
-
-  const contents = useMemo(
-    () => [
-      copy.contents.ribbe,
-      copy.contents.chops,
-      copy.contents.bacon,
-      copy.contents.sausages,
-      copy.contents.stew,
-      copy.contents.surprises,
-    ],
-    [copy]
+  const sortedPresets = useMemo(
+    () => [...presets].sort((a, b) => (a.display_order || 0) - (b.display_order || 0)),
+    [presets]
   );
+
+  const [pastBoxGrid, setPastBoxGrid] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const grid = document.getElementById("velg-kasse");
+      if (!grid) return;
+      const rect = grid.getBoundingClientRect();
+      // Hide the sticky bar once the box grid (with its own per-card CTA) has scrolled past.
+      setPastBoxGrid(rect.bottom < window.innerHeight * 0.35);
+    };
+    handleScroll();
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  const seasonYear = new Date().getFullYear();
 
   return (
     <div className="min-h-screen bg-[#F7F5F2] text-[#1C1A16]">
@@ -228,6 +292,10 @@ export default function ProductPage() {
                   </span>
                 ))}
               </div>
+
+              <p className="pt-2 text-xs uppercase tracking-[0.3em] text-white/50">
+                {copy.farmTrustLine}
+              </p>
             </div>
 
             <GlassCard className="bg-white/10 border-white/20 backdrop-blur-xl text-white">
@@ -263,26 +331,18 @@ export default function ProductPage() {
                   <SectionLabel>{copy.sizesTitle}</SectionLabel>
                   <p className="text-sm text-white/65">{copy.sizesLead}</p>
                   <div className="space-y-2 text-sm text-white/80">
-                    <div className="flex items-center justify-between">
-                      <span>{t.product.box8}</span>
-                      <span className="tabular-nums">
-                        {box8Price !== null ? `${box8Price.toLocaleString(locale)} ${t.common.currency}` : t.common.loading}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span>{t.product.box12}</span>
-                      <span className="tabular-nums">
-                        {box12Price !== null ? `${box12Price.toLocaleString(locale)} ${t.common.currency}` : t.common.loading}
-                      </span>
-                    </div>
+                    {sortedPresets.length === 0 && (
+                      <span className="text-white/60">{t.common.loading}</span>
+                    )}
+                    {sortedPresets.map((preset) => (
+                      <div key={preset.id} className="flex items-center justify-between">
+                        <span>{fixMojibake(lang === "no" ? preset.name_no : preset.name_en)}</span>
+                        <span className="tabular-nums">
+                          {preset.price_nok.toLocaleString(locale)} {t.common.currency}
+                        </span>
+                      </div>
+                    ))}
                   </div>
-                </div>
-
-                <div className="border-t border-white/15 pt-6 space-y-2">
-                  <SectionLabel>{copy.scarcityTitle}</SectionLabel>
-                  <p className="text-sm text-white/65 leading-relaxed">
-                    {copy.scarcityBody}
-                  </p>
                 </div>
               </div>
             </GlassCard>
@@ -318,7 +378,7 @@ export default function ProductPage() {
       </Section>
 
       <Section id="innhold" className="bg-white">
-        <div className="mx-auto max-w-6xl px-6 space-y-10">
+        <div className="mx-auto max-w-6xl px-6 space-y-6">
           <div className="max-w-2xl space-y-3">
             <SectionLabel>{copy.contentsTitle}</SectionLabel>
             <h2 className="text-3xl sm:text-4xl font-light tracking-tight font-[family:var(--font-playfair)] text-neutral-900">
@@ -328,45 +388,17 @@ export default function ProductPage() {
               {copy.contentsLead}
             </p>
           </div>
-
-          <div className="grid gap-6 md:grid-cols-2">
-            {contents.map((item: { title: string; items: string[] }) => (
-              <GlassCard
-                key={item.title}
-                className="bg-white/80 backdrop-blur border-white/50 motion-safe:transition-transform motion-safe:hover:-translate-y-1"
-              >
-                <div className="p-6">
-                  <p className="text-xs uppercase tracking-[0.3em] text-neutral-500 font-semibold">
-                    {item.title}
-                  </p>
-                  <ul className="mt-5 space-y-3">
-                    {item.items.map((detail) => (
-                      <li key={detail} className="flex items-start gap-3 text-sm text-neutral-700">
-                        <span className="mt-2 h-1.5 w-1.5 rounded-full bg-neutral-400" />
-                        <span>{detail}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </GlassCard>
-            ))}
-          </div>
-
-          <div className="flex flex-col gap-4 rounded-2xl border border-neutral-200 bg-neutral-50 p-6 text-sm text-neutral-600">
-            <p>{copy.contentsNote}</p>
-            <p className="font-medium text-neutral-800">{copy.contentsGuarantee}</p>
-            <Link
-              href="/oppdelingsplan"
-              className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.3em] text-neutral-700 hover:text-neutral-900"
-            >
-              {copy.contentsLinkLabel}
-              <span aria-hidden>→</span>
-            </Link>
-          </div>
+          <Link
+            href="#velg-kasse"
+            className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.3em] text-neutral-700 hover:text-neutral-900"
+          >
+            {copy.sizesTitle}
+            <span aria-hidden>↓</span>
+          </Link>
         </div>
       </Section>
 
-      <Section id="velg-kasse" className="bg-[#F7F5F2]">
+      <Section id="velg-kasse" className="bg-[#F7F5F2] pb-28 md:pb-20">
         <div className="mx-auto max-w-6xl px-6 space-y-10">
           <div className="max-w-2xl space-y-3">
             <SectionLabel>{copy.sizesTitle}</SectionLabel>
@@ -376,7 +408,46 @@ export default function ProductPage() {
             <p className="text-base text-neutral-600 leading-relaxed">
               {copy.sizesLead}
             </p>
+            <p className="text-sm text-neutral-500 leading-relaxed">
+              {copy.sizesFoundationNote}
+            </p>
           </div>
+
+          {sortedPresets.length > 0 && (
+            <GlassCard className="bg-white/80 backdrop-blur border-white/50">
+              <div className="p-6">
+                <p className="text-xs uppercase tracking-[0.3em] text-neutral-500 font-semibold mb-4">
+                  {copy.compareTitle}
+                </p>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="text-left text-neutral-500 border-b border-neutral-200">
+                        <th className="py-2 pr-4 font-medium">{copy.compareName}</th>
+                        <th className="py-2 pr-4 font-medium">{copy.compareWeight}</th>
+                        <th className="py-2 font-medium text-right">{copy.comparePrice}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {sortedPresets.map((preset) => (
+                        <tr key={preset.id} className="border-b border-neutral-100 last:border-0">
+                          <td className="py-3 pr-4 text-neutral-900 font-medium">
+                            {fixMojibake(lang === "no" ? preset.name_no : preset.name_en)}
+                          </td>
+                          <td className="py-3 pr-4 text-neutral-600 tabular-nums">
+                            {preset.target_weight_kg} {t.common.kg}
+                          </td>
+                          <td className="py-3 text-right text-neutral-900 tabular-nums font-medium">
+                            {preset.price_nok.toLocaleString(locale)} {t.common.currency}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </GlassCard>
+          )}
 
           <GlassCard className="bg-white/80 backdrop-blur border-white/50">
             <div className="flex flex-wrap items-center justify-between gap-4 p-6">
@@ -409,108 +480,129 @@ export default function ProductPage() {
             </div>
           </GlassCard>
 
-          <div className="grid gap-6 lg:grid-cols-2">
-            <GlassCard className="bg-white/90 backdrop-blur border-white/60 motion-safe:transition-transform motion-safe:hover:-translate-y-1">
-              <div className="p-8 space-y-6">
-                <div className="space-y-3">
-                  <p className="text-xs uppercase tracking-[0.3em] text-neutral-500 font-semibold">
-                    {t.product.box8}
-                  </p>
-                  <p className="text-5xl font-light tracking-tight text-neutral-900">
-                    8 <span className="text-lg text-neutral-500">{t.common.kg}</span>
-                  </p>
-                  <p className="text-sm text-neutral-600">{t.product.perfectFor2to3}</p>
-                </div>
-
-                <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
-                  <p className="text-xs uppercase tracking-[0.3em] text-neutral-500 font-semibold">
-                    {t.product.totalPrice}
-                  </p>
-                  <p className="mt-2 text-3xl font-light text-neutral-900 tabular-nums">
-                    {box8Price !== null ? `${box8Price.toLocaleString(locale)} ${t.common.currency}` : t.common.loading}
-                  </p>
-                </div>
-
-                <details className="rounded-2xl border border-neutral-200 bg-white/70 p-4">
-                  <summary className="cursor-pointer list-none text-xs font-semibold uppercase tracking-[0.25em] text-neutral-600">
-                    {copy.paymentSummary}
-                  </summary>
-                  <div className="mt-3 space-y-2 text-sm text-neutral-600">
-                    <div className="flex items-center justify-between">
-                      <span>{copy.paymentDepositLabel}</span>
-                      <span className="tabular-nums">
-                        {box8Deposit !== null ? `${box8Deposit.toLocaleString(locale)} ${t.common.currency}` : t.common.loading}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span>{copy.paymentRemainderLabel}</span>
-                      <span className="tabular-nums">
-                        {box8Balance !== null ? `${box8Balance.toLocaleString(locale)} ${t.common.currency}` : t.common.loading}
-                      </span>
-                    </div>
-                    <p className="text-xs text-neutral-500">{copy.paymentNote}</p>
-                  </div>
-                </details>
-
-                <Link
-                  href="/bestill?size=8"
-                  className="inline-flex w-full items-center justify-center rounded-xl bg-neutral-900 px-6 py-4 text-xs font-bold uppercase tracking-[0.3em] text-white"
-                >
-                  {copy.reserve8Label}
-                </Link>
-              </div>
+          {sortedPresets.length === 0 && (
+            <GlassCard className="bg-white/80 backdrop-blur border-white/50">
+              <p className="p-8 text-sm text-neutral-500">{t.mangalitsa.noPresets}</p>
             </GlassCard>
+          )}
 
-            <GlassCard className="bg-neutral-900 text-white border-neutral-900 motion-safe:transition-transform motion-safe:hover:-translate-y-1">
-              <div className="p-8 space-y-6">
-                <div className="space-y-3">
-                  <p className="text-xs uppercase tracking-[0.3em] text-white/70 font-semibold">
-                    {t.product.box12}
-                  </p>
-                  <p className="text-5xl font-light tracking-tight">
-                    12 <span className="text-lg text-white/70">{t.common.kg}</span>
-                  </p>
-                  <p className="text-sm text-white/70">{t.product.idealFor4to6}</p>
-                </div>
+          <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-4">
+            {sortedPresets.map((preset) => {
+              const name = fixMojibake(lang === "no" ? preset.name_no : preset.name_en);
+              const pitch = fixMojibake(lang === "no" ? preset.short_pitch_no : preset.short_pitch_en);
+              const scarcity = fixMojibake(
+                (lang === "no" ? preset.scarcity_message_no : preset.scarcity_message_en) ?? ""
+              );
+              const deposit = Math.floor(preset.price_nok * 0.5);
+              const balance = preset.price_nok - deposit;
+              const sortedContents = [...(preset.contents || [])].sort(
+                (a, b) => (a.display_order || 0) - (b.display_order || 0)
+              );
+              const foundationItems = sortedContents
+                .filter((item) => !item.is_hero)
+                .map((item) => fixMojibake(lang === "no" ? item.content_name_no : item.content_name_en));
+              const specialItems = sortedContents
+                .filter((item) => item.is_hero)
+                .map((item) => fixMojibake(lang === "no" ? item.content_name_no : item.content_name_en));
 
-                <div className="rounded-2xl border border-white/15 bg-white/10 p-4">
-                  <p className="text-xs uppercase tracking-[0.3em] text-white/70 font-semibold">
-                    {t.product.totalPrice}
-                  </p>
-                  <p className="mt-2 text-3xl font-light tabular-nums">
-                    {box12Price !== null ? `${box12Price.toLocaleString(locale)} ${t.common.currency}` : t.common.loading}
-                  </p>
-                </div>
-
-                <details className="rounded-2xl border border-white/15 bg-white/5 p-4">
-                  <summary className="cursor-pointer list-none text-xs font-semibold uppercase tracking-[0.25em] text-white/70">
-                    {copy.paymentSummary}
-                  </summary>
-                  <div className="mt-3 space-y-2 text-sm text-white/70">
-                    <div className="flex items-center justify-between">
-                      <span>{copy.paymentDepositLabel}</span>
-                      <span className="tabular-nums">
-                        {box12Deposit !== null ? `${box12Deposit.toLocaleString(locale)} ${t.common.currency}` : t.common.loading}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span>{copy.paymentRemainderLabel}</span>
-                      <span className="tabular-nums">
-                        {box12Balance !== null ? `${box12Balance.toLocaleString(locale)} ${t.common.currency}` : t.common.loading}
-                      </span>
-                    </div>
-                    <p className="text-xs text-white/60">{copy.paymentNote}</p>
-                  </div>
-                </details>
-
-                <Link
-                  href="/bestill?size=12"
-                  className="inline-flex w-full items-center justify-center rounded-xl bg-white px-6 py-4 text-xs font-bold uppercase tracking-[0.3em] text-neutral-900"
+              return (
+                <GlassCard
+                  key={preset.id}
+                  className="bg-white/90 backdrop-blur border-white/60 motion-safe:transition-transform motion-safe:hover:-translate-y-1"
                 >
-                  {copy.reserve12Label}
-                </Link>
-              </div>
-            </GlassCard>
+                  <div className="p-8 space-y-6">
+                    <div className="space-y-3">
+                      <p className="text-xs uppercase tracking-[0.3em] font-semibold text-neutral-500">
+                        {name}
+                      </p>
+                      <p className="text-4xl font-light tracking-tight text-neutral-900">
+                        {preset.target_weight_kg}{" "}
+                        <span className="text-lg text-neutral-500">{t.common.kg}</span>
+                      </p>
+                      <p className="text-sm text-neutral-600">{pitch}</p>
+                    </div>
+
+                    {foundationItems.length > 0 && (
+                      <div className="space-y-2">
+                        <p className="text-xs uppercase tracking-[0.3em] font-semibold text-neutral-500">
+                          {copy.boxContentsLabel}
+                        </p>
+                        <ul className="space-y-1.5 text-sm text-neutral-700">
+                          {foundationItems.map((item) => (
+                            <li key={item} className="flex items-start gap-2">
+                              <span className="mt-1.5 h-1 w-1 flex-shrink-0 rounded-full bg-neutral-400" />
+                              <span>{item}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {specialItems.length > 0 && (
+                      <div className="rounded-2xl border-2 border-dashed border-neutral-300 bg-neutral-50 p-4 space-y-2">
+                        <p className="text-xs uppercase tracking-[0.3em] font-semibold text-neutral-500">
+                          {copy.boxSpecialLabel}
+                        </p>
+                        <ul className="space-y-1.5 text-sm font-medium text-neutral-900">
+                          {specialItems.map((item) => (
+                            <li key={item} className="flex items-start gap-2">
+                              <span className="mt-1.5 h-1 w-1 flex-shrink-0 rounded-full bg-neutral-900" />
+                              <span>{item}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
+                      <p className="text-xs uppercase tracking-[0.3em] font-semibold text-neutral-500">
+                        {t.product.totalPrice}
+                      </p>
+                      <p className="mt-2 text-3xl font-light tabular-nums text-neutral-900">
+                        {preset.price_nok.toLocaleString(locale)} {t.common.currency}
+                      </p>
+                    </div>
+
+                    <details className="rounded-2xl border border-neutral-200 bg-white/70 p-4">
+                      <summary className="cursor-pointer list-none text-xs font-semibold uppercase tracking-[0.25em] text-neutral-600">
+                        {copy.paymentSummary}
+                      </summary>
+                      <div className="mt-3 space-y-2 text-sm text-neutral-600">
+                        <div className="flex items-center justify-between">
+                          <span>{copy.paymentDepositLabel}</span>
+                          <span className="tabular-nums">
+                            {deposit.toLocaleString(locale)} {t.common.currency}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span>{copy.paymentRemainderLabel}</span>
+                          <span className="tabular-nums">
+                            {balance.toLocaleString(locale)} {t.common.currency}
+                          </span>
+                        </div>
+                        {scarcity && <p className="text-xs text-neutral-500">{scarcity}</p>}
+                      </div>
+                    </details>
+
+                    <div className="space-y-3">
+                      <Link
+                        href={`/bestill?preset=${preset.slug}`}
+                        className="inline-flex w-full items-center justify-center rounded-xl bg-neutral-900 px-6 py-4 text-xs font-bold uppercase tracking-[0.3em] text-white"
+                      >
+                        {t.mangalitsa.reserveBox}
+                      </Link>
+                      <Link
+                        href="/oppskrifter"
+                        className="inline-flex w-full items-center justify-center gap-2 text-xs font-semibold uppercase tracking-[0.25em] text-neutral-600 hover:text-neutral-900"
+                      >
+                        {copy.boxRecipesLink}
+                        <span aria-hidden>→</span>
+                      </Link>
+                    </div>
+                  </div>
+                </GlassCard>
+              );
+            })}
           </div>
 
           <p className="text-sm text-neutral-500">{copy.sizesNote}</p>
@@ -531,29 +623,39 @@ export default function ProductPage() {
 
           <div className="grid gap-6 lg:grid-cols-4">
             {copy.timelineSteps.map(
-              (step: { week: string; title: string; body: string }) => (
-                <GlassCard
-                  key={step.week}
-                  className="bg-white/80 backdrop-blur border-white/50 motion-safe:transition-transform motion-safe:hover:-translate-y-1"
-                >
-                  <div className="p-6 space-y-3">
-                    <p className="text-xs uppercase tracking-[0.3em] text-neutral-500 font-semibold">
-                      {step.week}
-                    </p>
-                    <h3 className="text-lg font-semibold text-neutral-900">
-                      {step.title}
-                    </h3>
-                    <p className="text-sm text-neutral-600 leading-relaxed">
-                      {step.body}
-                    </p>
-                  </div>
-                </GlassCard>
-              )
+              (step: { week: string; title: string; body: string }) => {
+                const weekNumber = extractWeekNumber(step.week);
+                const eventDate = weekNumber ? dateFromIsoWeek(seasonYear, weekNumber) : null;
+                return (
+                  <GlassCard
+                    key={step.week}
+                    className="bg-white/80 backdrop-blur border-white/50 motion-safe:transition-transform motion-safe:hover:-translate-y-1"
+                  >
+                    <div className="p-6 space-y-3">
+                      <p className="text-xs uppercase tracking-[0.3em] text-neutral-500 font-semibold">
+                        {step.week}
+                      </p>
+                      <h3 className="text-lg font-semibold text-neutral-900">
+                        {step.title}
+                      </h3>
+                      <p className="text-sm text-neutral-600 leading-relaxed">
+                        {step.body}
+                      </p>
+                      {eventDate && (
+                        <button
+                          type="button"
+                          onClick={() => downloadCalendarEvent(step.title, step.body, eventDate)}
+                          className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.2em] text-neutral-500 hover:text-neutral-900 transition-colors"
+                        >
+                          <span aria-hidden>+</span>
+                          {copy.addToCalendar}
+                        </button>
+                      )}
+                    </div>
+                  </GlassCard>
+                );
+              }
             )}
-          </div>
-
-          <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-6 text-sm text-neutral-600">
-            <p>{copy.timelineScarcity}</p>
           </div>
         </div>
       </Section>
@@ -649,6 +751,7 @@ export default function ProductPage() {
         label={copy.stickyTitle}
         ctaLabel={copy.stickyCta}
         ctaHref="#velg-kasse"
+        hidden={pastBoxGrid}
       />
     </div>
   );

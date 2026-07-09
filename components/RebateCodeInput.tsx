@@ -16,6 +16,7 @@ interface RebateCodeInputProps {
   onCodeRemoved: () => void;
   depositAmount: number;
   boxSize: number;
+  presetSlug?: string;
   customerPhone?: string;
   customerEmail?: string;
   className?: string;
@@ -26,6 +27,7 @@ export function RebateCodeInput({
   onCodeRemoved,
   depositAmount,
   boxSize,
+  presetSlug,
   customerPhone,
   customerEmail,
   className,
@@ -56,6 +58,7 @@ export function RebateCodeInput({
         body: JSON.stringify({
           code: code.trim(),
           boxSize,
+          presetSlug: presetSlug || undefined,
           depositAmount,
           customerPhone: customerPhone || '',
           customerEmail: customerEmail || '',

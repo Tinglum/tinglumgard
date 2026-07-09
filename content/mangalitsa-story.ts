@@ -3,11 +3,11 @@ export const mangalitsaStory = {
     whyExpensive: {
       title: 'Hva gjør Mangalitsa så unik?',
       subtitle:
-        'Mangalitsa er en sjelden arverase verdsatt av kokker for marmorering, fettkvalitet og dyp, vedvarende smak.',
+        'Mangalitsa er en sjelden, gammel gris-rase kjent blant kokker for marmorering, godt fett og en smak som varer.',
       reasons: [
         {
           title: 'Arverase',
-          body: 'Mangalitsa er en ungarsk arverase med tydelig identitet i kjøttet: mørkere farge, mer struktur og mer personlighet på tallerkenen.',
+          body: 'Mangalitsa er en ungarsk arverase med tydelig identitet i kjøttet: mørkere farge, mer struktur og en helt egen karakter når det ligger på tallerkenen.',
         },
         {
           title: 'Marmorering',
@@ -23,11 +23,11 @@ export const mangalitsaStory = {
         },
         {
           title: 'Langsom modning',
-          body: 'Rasen vokser og modnes saktere, noe som gir mer utviklet smak og en fyldigere munnfølelse.',
+          body: 'Grisen vokser sakte, og det gir tid til at smaken utvikler seg skikkelig.',
         },
         {
           title: 'Begrenset tilgang',
-          body: 'Små partier og få slakt i året gjør at hver levering føles som en sesongråvare, ikke en standardvare.',
+          body: 'Vi slakter få ganger i året, i små partier - derfor føles hver levering som noe eget, ikke som hyllevare.',
         },
       ],
     },

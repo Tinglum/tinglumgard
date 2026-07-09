@@ -135,6 +135,9 @@ export function MobileCheckout(props: MobileCheckoutProps) {
     : boxSize;
 
   const ribbeSpecialNote = t.checkout.ribbeSpecialNote;
+  const ribbeIsHeroCut = !!selectedPreset?.contents?.some(
+    (item: any) => item.is_hero && /ribbe/i.test(`${item.content_name_no} ${item.content_name_en}`)
+  );
   const ribbeOptions = [
     {
       id: 'tynnribbe',
@@ -251,7 +254,16 @@ export function MobileCheckout(props: MobileCheckoutProps) {
       ? (extra.description_en || extra.description_premium_en || extra.description_no)
       : (extra.description_no || extra.description_premium_no);
 
-    return stripToCardTeaser(fixMojibake(String(source || '')), 120);
+    const teaser = stripToCardTeaser(fixMojibake(String(source || '')), 120);
+    if (teaser) return teaser;
+
+    // No hardcoded teaser and no description on the product itself (e.g. a
+    // newly added Supabase extra) — fall back to its own name rather than
+    // rendering a blank card.
+    const fallbackName = lang === 'en'
+      ? (extra.name_en || extra.name_no)
+      : (extra.name_no || extra.name_en);
+    return fallbackName ? fixMojibake(String(fallbackName)) : '';
   };
 
   const formatCutSizeRange = (fromKg?: number | null, toKg?: number | null) => {
@@ -656,6 +668,9 @@ export function MobileCheckout(props: MobileCheckoutProps) {
           <div className="mt-4 rounded-2xl border border-[#E4DED5] bg-[#FBFAF7] p-4">
             <p className="text-xs leading-relaxed text-[#5E5A50]">{ribbeSpecialNote}</p>
           </div>
+          {ribbeIsHeroCut && (
+            <p className="mt-3 text-xs italic text-[#5E5A50]">{t.checkout.ribbeHeroCutNote}</p>
+          )}
           <div className="mt-5 space-y-4">
             {ribbeOptions.map((option) => (
               <button

@@ -628,7 +628,16 @@ export default function CheckoutPage() {
       ? (extra.description_no || extra.description_premium_no)
       : (extra.description_en || extra.description_premium_en || extra.description_no);
 
-    return stripToCardTeaser(fixMojibake(String(source || '')), 120);
+    const teaser = stripToCardTeaser(fixMojibake(String(source || '')), 120);
+    if (teaser) return teaser;
+
+    // No hardcoded teaser and no description on the product itself (e.g. a
+    // newly added Supabase extra) — fall back to its own name rather than
+    // rendering a blank card.
+    const fallbackName = lang === 'no'
+      ? (extra.name_no || extra.name_en)
+      : (extra.name_en || extra.name_no);
+    return fallbackName ? fixMojibake(String(fallbackName)) : '';
   }
 
   function splitExtraName(rawName: string) {
@@ -997,6 +1006,9 @@ export default function CheckoutPage() {
   const canProceedToStep2 = !!mangalitsaPreset;
   const canProceedToStep3 = ribbeChoice !== '';
   const ribbeSpecialNote = t.checkout.ribbeSpecialNote;
+  const ribbeIsHeroCut = !!mangalitsaPreset?.contents?.some(
+    (item) => item.is_hero && /ribbe/i.test(`${item.content_name_no} ${item.content_name_en}`)
+  );
   const ribbeOptions = [
     {
       id: 'tynnribbe',
@@ -1472,6 +1484,12 @@ export default function CheckoutPage() {
                     {ribbeSpecialNote}
                   </p>
                 </div>
+
+                {ribbeIsHeroCut && (
+                  <p className="mb-6 text-sm font-light text-neutral-600 italic">
+                    {t.checkout.ribbeHeroCutNote}
+                  </p>
+                )}
 
                 <div className="space-y-4">
                   {ribbeOptions.map((option, idx) => (
@@ -1951,6 +1969,7 @@ export default function CheckoutPage() {
                             <RebateCodeInput
                               depositAmount={baseDepositTotal}
                               boxSize={mangalitsaPreset.target_weight_kg}
+                              presetSlug={mangalitsaPreset.slug}
                               onCodeApplied={(data) => {
                                 setRebateData({
                                   code: data.code,

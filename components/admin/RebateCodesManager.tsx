@@ -65,10 +65,16 @@ export function RebateCodesManager() {
   const [validFrom, setValidFrom] = useState('');
   const [validUntil, setValidUntil] = useState('');
   const [minOrderAmount, setMinOrderAmount] = useState('');
-  const [applicable8kg, setApplicable8kg] = useState(true);
-  const [applicable9kg, setApplicable9kg] = useState(true);
-  const [applicable10kg, setApplicable10kg] = useState(true);
-  const [applicable12kg, setApplicable12kg] = useState(true);
+  // Mangalitsa box presets (slugs) — the current 4 real product options.
+  const PRESET_OPTIONS: { slug: string; label: string }[] = [
+    { slug: 'premium-cuts', label: 'Premium Cuts' },
+    { slug: 'bbq-steakhouse', label: 'BBQ og Steakhouse' },
+    { slug: 'julespesial', label: 'Julespesial' },
+    { slug: 'familieboks', label: 'Familieboks' },
+  ];
+  const [applicablePresets, setApplicablePresets] = useState<string[]>(
+    PRESET_OPTIONS.map((p) => p.slug)
+  );
   const [description, setDescription] = useState('');
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -94,11 +100,7 @@ export function RebateCodesManager() {
     setError(null);
 
     try {
-      const applicableTo = [];
-      if (applicable8kg) applicableTo.push('8kg');
-      if (applicable9kg) applicableTo.push('9kg');
-      if (applicable10kg) applicableTo.push('10kg');
-      if (applicable12kg) applicableTo.push('12kg');
+      const applicableTo = applicablePresets;
 
       const response = await fetch('/api/admin/rebate-codes', {
         method: 'POST',
@@ -131,10 +133,7 @@ export function RebateCodesManager() {
       setValidFrom('');
       setValidUntil('');
       setMinOrderAmount('');
-      setApplicable8kg(true);
-      setApplicable9kg(true);
-      setApplicable10kg(true);
-      setApplicable12kg(true);
+      setApplicablePresets(PRESET_OPTIONS.map((p) => p.slug));
       setDescription('');
       setShowCreateForm(false);
 
@@ -310,38 +309,22 @@ export function RebateCodesManager() {
             <div>
               <Label className="mb-2 block">{copy.appliesToLabel}</Label>
               <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <Checkbox
-                    id="8kg"
-                    checked={applicable8kg}
-                    onCheckedChange={(checked) => setApplicable8kg(checked as boolean)}
-                  />
-                  <Label htmlFor="8kg" className="cursor-pointer">{copy.applies8kg}</Label>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Checkbox
-                    id="12kg"
-                    checked={applicable12kg}
-                    onCheckedChange={(checked) => setApplicable12kg(checked as boolean)}
-                  />
-                  <Label htmlFor="12kg" className="cursor-pointer">{copy.applies12kg}</Label>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Checkbox
-                    id="9kg"
-                    checked={applicable9kg}
-                    onCheckedChange={(checked) => setApplicable9kg(checked as boolean)}
-                  />
-                  <Label htmlFor="9kg" className="cursor-pointer">9kg</Label>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Checkbox
-                    id="10kg"
-                    checked={applicable10kg}
-                    onCheckedChange={(checked) => setApplicable10kg(checked as boolean)}
-                  />
-                  <Label htmlFor="10kg" className="cursor-pointer">10kg</Label>
-                </div>
+                {PRESET_OPTIONS.map((preset) => (
+                  <div key={preset.slug} className="flex items-center gap-2">
+                    <Checkbox
+                      id={preset.slug}
+                      checked={applicablePresets.includes(preset.slug)}
+                      onCheckedChange={(checked) =>
+                        setApplicablePresets((prev) =>
+                          checked
+                            ? [...prev, preset.slug]
+                            : prev.filter((slug) => slug !== preset.slug)
+                        )
+                      }
+                    />
+                    <Label htmlFor={preset.slug} className="cursor-pointer">{preset.label}</Label>
+                  </div>
+                ))}
               </div>
             </div>
           </div>

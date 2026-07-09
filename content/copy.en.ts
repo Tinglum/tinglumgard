@@ -322,11 +322,11 @@
     q6: "What is so special about the Mangalitsa fat?",
     a6: "Mangalitsa has unique intramuscular fat with a higher proportion of monounsaturated fatty acids than regular pork, actually comparable to olive oil. This gives the meat a butter-like tenderness and a richness you won't find anywhere else. The fat melts at a lower temperature, which makes the ribs juicier, the bacon more flavourful, and the rendered fat perfect for cooking vegetables or making sauces.",
     q7: "How much freezer space do I need?",
-    a7: "Plan for roughly 30 litres per 10 kg of meat. An 8 kg box often fits in a freezer drawer, while a 12 kg box needs more space.",
+    a7: "Plan for roughly 30 litres per 10 kg of meat. A standard freezer drawer easily holds 8-10 kg, so most of our boxes fit in a single drawer - for a larger box, it can help to split the contents across two drawers.",
     q8: "How long does vacuum-packed meat last in the freezer?",
     a8: "Vacuum-packed and frozen, the meat keeps for 12-18 months without quality loss. Labels on each pack show contents and date, so you always have full overview.",
     q9: "How does the deposit payment work?",
-    a9: "You pay 50% at the time of order as a deposit via Vipps. The remaining balance is invoiced before delivery in week 46. The deposit secures your spot and kicks off production.",
+    a9: "You pay 50% as a deposit via Vipps when you order, and the rest before delivery (week 46). The deposit secures your spot and kicks off production.",
     q10: "Can I share a box with someone?",
     a10: "Absolutely! Many customers share a larger box with family or friends. Choose a bigger box and divide it yourselves, everything is already portioned and labeled, making it easy to split.",
     q11: "Do you deliver outside Trøndelag?",
@@ -340,7 +340,8 @@
     title: "Order",
     pageTitle: "Reserve your box",
     subtitle: "Reserve your box with Vipps",
-    selectSize: "Choose size, rib type and extra items. We'll send you a Vipps payment request after ordering.",
+    selectSize:
+      "Choose box, rib type and any extras. You pay 50% as a deposit now, and the rest before delivery (week 46).",
 
     // Steps
     stepSize: "Size",
@@ -388,7 +389,7 @@
       atDelivery: "at delivery",
       total: "total",
       tooltip:
-        "We charge 50% now to reserve your seasonal slot, and 50% at delivery when your box is ready.",
+        "You pay 50% as a deposit now, and the rest before delivery (week 46).",
     },
 
     ribbeMeta: {
@@ -449,6 +450,8 @@
       "Recommended: the butcher selects the best rib cut from the day, with the right fat balance for juicy results.",
     ribbeSpecialNote:
       "Mangalitsa ribs have high fat marbling. Cook low and slow, then use the rendered fat for sauces, vegetables or mash for maximum flavor.",
+    ribbeHeroCutNote:
+      "The ribs are the star of this box - the choice you make here is what really defines your Christmas dinner.",
     preSelected: "Pre-selected",
     recommended: "Recommended",
 
@@ -480,7 +483,7 @@
 
     // Terms
     depositNotRefundable: "I understand that the advance payment is non-refundable.",
-    triggersProd: "This triggers production planning.",
+    triggersProd: "We work with live animals - once you order a box, it sets our planning in motion.",
     agreeToTerms: "I agree to the",
     termsLink: "terms of purchase",
 
@@ -2275,6 +2278,7 @@
     scarcityTitle: "Limited capacity",
     scarcityBody:
       "We only produce what we can raise and handle. When the season is full, ordering closes until next year.",
+    farmTrustLine: "From Tinglum Gard, Namdalseid - our own animals, slaughtered locally.",
     valueTitle: "What you get",
     valueHeading: "Clear, planned, and ready",
     valueLead: "A box with structure and quality, built for the season.",
@@ -2293,8 +2297,9 @@
       },
     ],
     contentsTitle: "Box contents",
-    contentsHeading: "What you get",
-    contentsLead: "The cut list below shows what is usually included.",
+    contentsHeading: "What's in each box",
+    contentsLead:
+      "Every box shares the same foundation, with ribs always included. Below is exactly what comes in each of the four boxes.",
     contentsNote: "Contents may vary slightly from pig to pig.",
     contentsGuarantee:
       "Ribs are always included. See the butcher diagram for the full overview.",
@@ -2306,43 +2311,25 @@
       "These are limited cuts. Reserve your box first, then add extras during checkout with one click.",
     enhanceCta: "Add in checkout",
     noFeaturedExtras: "No featured extras configured yet.",
-    contents: {
-      ribbe: {
-        title: "Ribs",
-        items: ["Ribs for Christmas, vacuum packed"],
-      },
-      chops: {
-        title: "Chops",
-        items: ["Neck chops or chops"],
-      },
-      bacon: {
-        title: "Bacon",
-        items: ["Sliced bacon"],
-      },
-      sausages: {
-        title: "Sausages",
-        items: ["Christmas or grill sausages"],
-      },
-      stew: {
-        title: "Stew cuts",
-        items: ["Slow-cook cuts"],
-      },
-      surprises: {
-        title: "Surprises",
-        items: ["An extra cut when available"],
-      },
-    },
+    compareTitle: "Compare the boxes",
+    compareName: "Box",
+    compareWeight: "Weight",
+    comparePrice: "Price",
     sizesTitle: "Choose your box",
-    sizesHeading: "Two sizes, same quality",
+    sizesHeading: "Four boxes, same quality",
     sizesLead:
-      "Pick the size that fits your household. Total price is shown, payment is split in two.",
+      "Pick the box that fits your household. Total price is shown, payment is split in two.",
     sizesNote: "The deposit secures your spot. The remainder is paid before delivery.",
+    sizesFoundationNote:
+      "Every box shares the same solid foundation - ribs are always included. What makes each box unique is the special cuts on top.",
+    boxContentsLabel: "What's in the box",
+    boxSpecialLabel: "The special cuts in this box",
+    boxRecipesLink: "See recipes",
+    addToCalendar: "Add to calendar",
     paymentSummary: "How you pay",
     paymentDepositLabel: "Deposit",
     paymentRemainderLabel: "Remainder before delivery",
     paymentNote: "We send payment details well before delivery.",
-    reserve8Label: "Reserve 8 kg",
-    reserve12Label: "Reserve 12 kg",
     timelineTitle: "How it works",
     timelineHeading: "From reservation to delivery",
     timelineLead: "Simple steps from now to December.",
@@ -3414,6 +3401,7 @@
     allPriorities: "All priorities",
     loadingMessages: "Loading messages...",
     noMessagesFound: "No messages found",
+    needsAttention: "Needs a reply",
     backToMessages: "Back to messages",
     markResolved: "Mark resolved",
     typeLabel: "Type:",
@@ -4255,11 +4243,6 @@
       standard: 'Store pork is "lean and similar"',
       mangalitsa: 'Woolly pig is "marbling, fat cap, depth"',
     },
-    threeRules: [
-      'Only 4 boxes per pig',
-      'Slaughtered once a year',
-      'Ribs for Christmas, and meat you actually remember',
-    ],
     reserveBox: 'Reserve this box',
     perKg: 'NOK/kg',
     loading: 'Loading...',

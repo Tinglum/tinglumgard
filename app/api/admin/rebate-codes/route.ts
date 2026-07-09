@@ -79,7 +79,10 @@ export async function POST(request: NextRequest) {
         valid_from: validFrom || null,
         valid_until: validUntil || null,
         min_order_amount: minOrderAmount || null,
-        applicable_to: applicableTo || ['8kg', '9kg', '10kg', '12kg'],
+        // Default new codes to apply to all 4 current Mangalitsa presets
+        // (scoped by slug, which is unambiguous — unlike weight, since
+        // premium-cuts and julespesial both target 8kg).
+        applicable_to: applicableTo || ['premium-cuts', 'bbq-steakhouse', 'julespesial', 'familieboks'],
         description: description || '',
         created_by: session.name || session.email,
         is_active: true,

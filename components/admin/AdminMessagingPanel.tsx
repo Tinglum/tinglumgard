@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Send, X, Clock, AlertCircle, CheckCircle, MessageSquare, Filter, ChevronDown, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { needsAdminAttention } from '@/lib/messages/admin-attention';
 
 interface MessageReply {
   id: string;
@@ -446,7 +447,18 @@ export function AdminMessagingPanel({
               >
                 <div className="flex items-start justify-between mb-2">
                   <div className="flex-1">
-                    <h3 className="font-semibold text-gray-900">{msg.subject}</h3>
+                    <h3 className="font-semibold text-gray-900 flex items-center gap-1.5">
+                      {needsAdminAttention(msg) && (
+                        <span
+                          className="flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full bg-red-600 text-[10px] font-bold leading-none text-white"
+                          title={copy.needsAttention}
+                          aria-label={copy.needsAttention}
+                        >
+                          !
+                        </span>
+                      )}
+                      {msg.subject}
+                    </h3>
                     <p className="text-sm text-gray-600">
                       {onNavigateToCustomer && resolveCustomerId(msg) ? (
                         <button
