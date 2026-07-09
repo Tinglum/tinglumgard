@@ -53,6 +53,25 @@ export async function POST(
     const remainderPaidOre =
       (remainderPayments || []).reduce((sum, p: any) => sum + (p.amount_nok || 0) * 100, 0) || 0
 
+    const { data: depositPayments } = await supabaseAdmin
+      .from('egg_payments')
+      .select('amount_nok, status')
+      .eq('egg_order_id', order.id)
+      .eq('payment_type', 'deposit')
+      .eq('status', 'completed')
+
+    const depositPaidOre =
+      (depositPayments || []).reduce((sum, p: any) => sum + (p.amount_nok || 0) * 100, 0) || 0
+
+    const totalPaidOre = depositPaidOre + remainderPaidOre
+
+    // Payment-locked: block any decrease to existing additions regardless of status string.
+    // Combines a status check (belt-and-braces, extended to include 'preparing') with a
+    // payments-ground-truth check that stays correct even if `status` gets stuck (see incident
+    // where an order was fully paid but status was stuck at 'deposit_paid').
+    const isPaymentLocked =
+      ['fully_paid', 'preparing'].includes(order.status) || totalPaidOre >= order.total_amount
+
     const { data: existingAdditions, error: existingError } = await supabaseAdmin
       .from('egg_order_additions')
       .select('id, inventory_id, quantity, subtotal')
@@ -68,7 +87,7 @@ export async function POST(
       existingMap.set(row.inventory_id, { quantity: row.quantity, subtotal: row.subtotal })
     }
 
-    if (order.status === 'fully_paid') {
+    if (isPaymentLocked) {
       for (const inventoryId of Array.from(existingMap.keys())) {
         const existing = existingMap.get(inventoryId)
         if (!existing) continue
@@ -90,6 +109,15 @@ export async function POST(
     )
 
     if (inventoryIds.length === 0) {
+      // Empty submission would delete-all existing additions with no per-line guard above.
+      // If any existing additions would be wiped while the order is payment-locked, block it.
+      if (isPaymentLocked && (existingAdditions || []).length > 0) {
+        return NextResponse.json(
+          { error: 'Paid orders can only add eggs, not remove them' },
+          { status: 400 }
+        )
+      }
+
       const existingTotal = (existingAdditions || []).reduce((sum, row) => sum + row.subtotal, 0)
       const baseTotal = order.total_amount - existingTotal
       const nextRemainder = Math.max(0, baseTotal - order.deposit_amount)

@@ -107,10 +107,20 @@ async function reconcileEggOrder(order: any) {
       status: nextStatus,
     }
 
-    try {
-      await sendEggDepositConfirmationEmail(reconciledOrder, { sourcePath: '/api/eggs/my-orders' })
-    } catch (error) {
-      logError('egg-my-orders-deposit-email', error, { orderId: order.id })
+    if (!order.confirmation_email_sent_at) {
+      try {
+        const sent = await sendEggDepositConfirmationEmail(reconciledOrder, { sourcePath: '/api/eggs/my-orders' })
+        if (sent) {
+          const sentAt = new Date().toISOString()
+          await supabaseAdmin
+            .from('egg_orders')
+            .update({ confirmation_email_sent_at: sentAt })
+            .eq('id', order.id)
+          reconciledOrder.confirmation_email_sent_at = sentAt
+        }
+      } catch (error) {
+        logError('egg-my-orders-deposit-email', error, { orderId: order.id })
+      }
     }
 
     return reconciledOrder
@@ -187,10 +197,20 @@ async function reconcileEggOrder(order: any) {
       ),
     }
 
-    try {
-      await sendEggDepositConfirmationEmail(reconciledOrder, { sourcePath: '/api/eggs/my-orders' })
-    } catch (error) {
-      logError('egg-my-orders-deposit-email', error, { orderId: order.id })
+    if (!order.confirmation_email_sent_at) {
+      try {
+        const sent = await sendEggDepositConfirmationEmail(reconciledOrder, { sourcePath: '/api/eggs/my-orders' })
+        if (sent) {
+          const sentAt = new Date().toISOString()
+          await supabaseAdmin
+            .from('egg_orders')
+            .update({ confirmation_email_sent_at: sentAt })
+            .eq('id', order.id)
+          reconciledOrder.confirmation_email_sent_at = sentAt
+        }
+      } catch (error) {
+        logError('egg-my-orders-deposit-email', error, { orderId: order.id })
+      }
     }
 
     return reconciledOrder
@@ -208,6 +228,8 @@ export async function GET() {
   }
 
   try {
+    // confirmation_email_sent_at (from migration 20260624_payment_resilience.sql)
+    // is included via '*' below and gates the resend in reconcileEggOrder.
     const selectColumns =
       '*, egg_breeds(*), egg_payments(*), egg_order_additions(*, egg_breeds(*), egg_inventory(*))'
     const queries = []

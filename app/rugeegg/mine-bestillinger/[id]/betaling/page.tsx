@@ -416,7 +416,7 @@ export default function EggRemainderPage() {
               const selected = selectedQuantities[item.id] || 0
               const existingQty =
                 order.egg_order_additions?.find((addition) => addition.inventory_id === item.id)?.quantity || 0
-              const minQty = ['fully_paid', 'preparing'].includes(order.status || '') ? existingQty : 0
+              const minQty = existingQty
               const maxQty = Math.max(0, remaining + selected)
               const disabled = maxQty === 0 || !canAdd
               const basePrice = item.egg_breeds?.price_per_egg || 0
