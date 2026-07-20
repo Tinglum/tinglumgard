@@ -42,6 +42,7 @@ interface EggOrderPaymentView {
   status: string
   deposit_amount: number
   remainder_amount: number
+  total_amount: number
   admin_notes: string | null
   egg_payments?: EggPaymentRow[]
 }
@@ -697,8 +698,39 @@ async function adjustEggOrderLines(
     `Admin: adjusted egg lines - ${summaryParts.join(', ')}${overrideParts.length > 0 ? ` | override ${overrideParts.join(', ')}` : ''}${reason ? ` - ${reason}` : ''}`
   )
 
+  // Reconcile the new total against money already collected. When an adjustment
+  // drops the total below completed payments, the refund must become visible and
+  // durable — proven failures EGG50044464 (promised refund forgotten) and
+  // EGG43990773 (overage silently absorbed).
+  let refundOwedOre = 0
+  const { data: completedPayments } = await supabaseAdmin
+    .from('egg_payments')
+    .select('payment_type, status, amount_nok')
+    .eq('egg_order_id', orderId)
+    .in('payment_type', ['deposit', 'remainder'])
+    .eq('status', 'completed')
+
+  const paidOre = (completedPayments || []).reduce(
+    (sum, payment) => sum + (payment.amount_nok || 0) * 100,
+    0
+  )
+  if (paidOre > nextTotalAmount + 100) {
+    refundOwedOre = paidOre - nextTotalAmount
+    const { data: freshNotes } = await supabaseAdmin
+      .from('egg_orders')
+      .select('admin_notes')
+      .eq('id', orderId)
+      .single()
+    await appendAdminNote(
+      orderId,
+      freshNotes?.admin_notes ?? null,
+      `REFUND OWED: ${Math.round(refundOwedOre / 100)} kr — completed payments (${Math.round(paidOre / 100)} kr) exceed adjusted order total (${Math.round(nextTotalAmount / 100)} kr). Adjusted ${new Date().toISOString().slice(0, 10)}.`
+    )
+  }
+
   return NextResponse.json({
     success: true,
+    refundOwedOre,
     totals: {
       subtotal: nextSubtotal,
       total_amount: nextTotalAmount,
@@ -710,7 +742,7 @@ async function adjustEggOrderLines(
 async function getOrderForPaymentActions(orderId: string) {
   const { data: order, error } = await supabaseAdmin
     .from('egg_orders')
-    .select('id, order_number, status, deposit_amount, remainder_amount, admin_notes, egg_payments(*)')
+    .select('id, order_number, status, deposit_amount, remainder_amount, total_amount, admin_notes, egg_payments(*)')
     .eq('id', orderId)
     .single()
 
@@ -780,6 +812,20 @@ async function markPaymentCompleted(
       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0]
 
     if (!target) {
+      // Same ground-truth guard as the remainder branch: never record new money
+      // when completed payments already cover the order total.
+      const completedOre = payments.reduce((sum, payment) => {
+        if (payment.status !== 'completed') return sum
+        if (payment.payment_type !== 'deposit' && payment.payment_type !== 'remainder') return sum
+        return sum + (payment.amount_nok || 0) * 100
+      }, 0)
+      if (completedOre >= Number(order.total_amount || 0)) {
+        return NextResponse.json(
+          { error: 'Nothing is owed on this order — completed payments already cover the total' },
+          { status: 400 }
+        )
+      }
+
       const { data: inserted, error: insertError } = await supabaseAdmin
         .from('egg_payments')
         .insert({
@@ -807,16 +853,44 @@ async function markPaymentCompleted(
       }
     }
   } else {
-    const paidRemainderOre =
-      payments.reduce((sum, payment) => {
-        if (payment.payment_type !== 'remainder' || payment.status !== 'completed') return sum
-        return sum + (payment.amount_nok || 0) * 100
-      }, 0) || 0
+    // Re-fetch fresh order + payment ground truth immediately before computing
+    // the amount owed. The `order` object above (and its cached egg_payments)
+    // may be stale relative to concurrent admin edits — proven bug (EGG38224792):
+    // an admin adjusted order lines, then two minutes later this branch used
+    // the pre-adjustment remainder_amount and overcharged a completed payment.
+    const { data: freshOrder, error: freshOrderError } = await supabaseAdmin
+      .from('egg_orders')
+      .select('id, total_amount')
+      .eq('id', orderId)
+      .single()
 
-    const amountDueOre = Math.max(0, (order.remainder_amount || 0) - paidRemainderOre)
-    if (amountDueOre <= 0) {
-      return NextResponse.json({ error: 'Remainder already fully paid' }, { status: 400 })
+    if (freshOrderError || !freshOrder) {
+      return NextResponse.json({ error: 'Order not found' }, { status: 404 })
     }
+
+    const { data: freshPayments, error: freshPaymentsError } = await supabaseAdmin
+      .from('egg_payments')
+      .select('payment_type, status, amount_nok')
+      .eq('egg_order_id', orderId)
+      .in('payment_type', ['deposit', 'remainder'])
+      .eq('status', 'completed')
+
+    if (freshPaymentsError) {
+      return NextResponse.json({ error: 'Failed to load payments' }, { status: 500 })
+    }
+
+    const paidOre =
+      (freshPayments || []).reduce((sum, payment: any) => sum + (payment.amount_nok || 0) * 100, 0) || 0
+    const owedOre = Number(freshOrder.total_amount || 0) - paidOre
+
+    if (owedOre <= 0) {
+      return NextResponse.json(
+        { error: 'Nothing is owed on this order — completed payments already cover the total' },
+        { status: 400 }
+      )
+    }
+
+    const amountDueOre = owedOre
 
     const pending = [...payments]
       .filter((payment) => payment.payment_type === 'remainder' && payment.status !== 'completed')
