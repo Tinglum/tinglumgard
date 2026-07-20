@@ -591,7 +591,7 @@ export async function POST(request: NextRequest) {
     if (isChickenPayment) {
       const result = await supabaseAdmin
         .from("chicken_orders")
-        .select("*, chicken_breeds(*), chicken_hatches(hatch_date), chicken_order_additions(hatch_id, quantity_hens, quantity_roosters, price_per_hen_nok, subtotal_nok, chicken_breeds(name_no, name_en, name), chicken_hatches(hatch_date))")
+        .select("*, chicken_breeds(*), chicken_hatches(hatch_date), chicken_order_additions(hatch_id, quantity_hens, quantity_roosters, price_per_hen_nok, subtotal_nok, chicken_breeds(name), chicken_hatches(hatch_date))")
         .eq("id", resolvedPayment.chicken_order_id)
         .single();
       order = result.data;
@@ -632,6 +632,24 @@ export async function POST(request: NextRequest) {
 
     if (orderFetchErr || !order) {
       logError('vipps-webhook-fetch-order', orderFetchErr);
+      // The joined selects above can fail on relation/column issues while the order
+      // row itself is fine. The money logic below must NEVER run with a null order:
+      // the `|| 0` defaults make the remainder look paid and mark unpaid orders
+      // fully_paid (happened in prod 2026-07-14, CHICK26179296/CHICK48182672).
+      // Refetch without joins; if the row truly can't be loaded, throw so Vipps
+      // retries the callback instead of us guessing a payment status.
+      const bareTable = isChickenPayment ? "chicken_orders" : isEggPayment ? "egg_orders" : "orders";
+      const bareOrderId = isChickenPayment
+        ? resolvedPayment.chicken_order_id
+        : isEggPayment
+          ? resolvedPayment.egg_order_id
+          : resolvedPayment.order_id;
+      const bare = await supabaseAdmin.from(bareTable).select("*").eq("id", bareOrderId).single();
+      if (bare.error || !bare.data) {
+        logError('vipps-webhook-fetch-order-bare', bare.error, { bareTable, bareOrderId });
+        throw new Error('Order row unavailable for payment processing');
+      }
+      order = bare.data;
     }
 
     if (isChickenPayment && order) {
@@ -674,6 +692,7 @@ export async function POST(request: NextRequest) {
       }
 
       // If deposit covers the full amount (or remainder is zero), set status to fully_paid
+      // (order is guaranteed non-null here — see the bare refetch after the joined select)
       const depositAmount = Number(isChickenPayment ? (order?.deposit_amount_nok || 0) : (order?.deposit_amount || 0));
       const totalAmount = Number(isChickenPayment ? (order?.total_amount_nok || 0) : (order?.total_amount || 0));
       const remainderAmount = Number(isEggPayment ? (order?.remainder_amount || 0) : (order?.remainder_amount_nok || 0));
