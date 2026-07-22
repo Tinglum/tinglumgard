@@ -90,7 +90,15 @@ async function reconcileEggOrder(order: any) {
       logError('egg-my-orders-finalize-after-deposit', error)
     }
 
-    if (order.status !== nextStatus) {
+    // Only self-heal payment states. getEggDepositStatus can only ever return
+    // 'deposit_paid'/'fully_paid', so applying it unconditionally silently
+    // downgraded fulfillment statuses (shipped/delivered) back to 'fully_paid'
+    // on any customer page load — reverting properly-shipped orders, tracking
+    // number and all. Never touch a status past fully_paid.
+    const HEALABLE_STATUSES = new Set(['pending', 'deposit_paid', 'fully_paid'])
+    const shouldHeal = HEALABLE_STATUSES.has(order.status) && order.status !== nextStatus
+
+    if (shouldHeal) {
       const { error: statusErr } = await supabaseAdmin
         .from('egg_orders')
         .update({ status: nextStatus })
@@ -104,7 +112,7 @@ async function reconcileEggOrder(order: any) {
 
     const reconciledOrder = {
       ...order,
-      status: nextStatus,
+      status: shouldHeal ? nextStatus : order.status,
     }
 
     if (!order.confirmation_email_sent_at) {
