@@ -722,6 +722,7 @@
       statusPaid: "Paid",
       statusPreparing: "Preparing",
       statusShipped: "Shipped",
+      receiptButton: "Receipt",
       statusDelivered: "Delivered",
       statusForfeited: "Forfeited",
       statusCancelled: "Cancelled",

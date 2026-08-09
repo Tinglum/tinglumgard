@@ -9,6 +9,8 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { StepTimeline } from '@/components/orders/StepTimeline'
 import { cn } from '@/lib/utils'
 import { useToast } from '@/hooks/use-toast'
+import { FileText } from 'lucide-react'
+import { openChickenReceipt } from '@/lib/chickens/receipt'
 
 type ChickenOrderAddition = {
   id: string
@@ -734,9 +736,21 @@ export function ChickenOrderCard({ order, onPayRemainder, onPayDeposit, onRefres
               {breedLabel || common.defaultChickenName} - {myOrdersCopy.weekLabel} {order.pickup_week}, {order.pickup_year}
             </p>
           </div>
-          <span className={`px-3 py-1 rounded-full text-xs font-medium ${meta.className}`}>
-            {meta.label}
-          </span>
+          <div className="flex flex-col items-end gap-2">
+            <span className={`px-3 py-1 rounded-full text-xs font-medium ${meta.className}`}>
+              {meta.label}
+            </span>
+            {(order.chicken_payments || []).some((p) => p.status === 'completed') && (
+              <button
+                type="button"
+                onClick={() => openChickenReceipt(order, lang)}
+                className="inline-flex items-center gap-1.5 rounded-full border border-neutral-300 px-3 py-1 text-xs font-medium text-neutral-700 transition-colors hover:border-neutral-900 hover:text-neutral-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-900/20"
+              >
+                <FileText className="h-3.5 w-3.5" aria-hidden />
+                {lang === 'no' ? 'Kvittering' : 'Receipt'}
+              </button>
+            )}
+          </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

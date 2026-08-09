@@ -26,6 +26,7 @@ import {
 } from 'lucide-react'
 import { ExtrasUpsellModal } from '@/components/ExtrasUpsellModal'
 import { OrderModificationModal } from '@/components/OrderModificationModal'
+import { openPigReceipt } from '@/lib/pig/receipt'
 import { PaymentHistoryModal } from '@/components/PaymentHistoryModal'
 import { ContactAdminModal } from '@/components/ContactAdminModal'
 import { OrderTimelineModal } from '@/components/OrderTimelineModal'
@@ -115,6 +116,7 @@ export function PigOrderUnifiedCard({ order, canEdit, onPayRemainder, onPayDepos
   const completedDepositPayments = (order.payments || []).filter(
     (payment) => payment.payment_type === 'deposit' && payment.status === 'completed'
   )
+  const hasCompletedPayment = (order.payments || []).some((payment) => payment.status === 'completed')
   const completedRemainderPayments = (order.payments || []).filter(
     (payment) => payment.payment_type === 'remainder' && payment.status === 'completed'
   )
@@ -488,6 +490,16 @@ export function PigOrderUnifiedCard({ order, canEdit, onPayRemainder, onPayDepos
             <span className={`px-3 py-1 rounded-full text-xs font-medium ${statusMeta.className}`}>
               {statusMeta.label}
             </span>
+            {hasCompletedPayment && (
+              <button
+                type="button"
+                onClick={() => openPigReceipt(order, lang)}
+                className="inline-flex items-center gap-1.5 rounded-full border border-neutral-300 px-3 py-1 text-xs font-medium text-neutral-700 transition-colors hover:border-neutral-900 hover:text-neutral-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-900/20"
+              >
+                <Printer className="h-3.5 w-3.5" aria-hidden />
+                {lang === 'no' ? 'Kvittering' : 'Receipt'}
+              </button>
+            )}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="icon" className="h-9 w-9">

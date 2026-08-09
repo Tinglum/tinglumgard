@@ -722,6 +722,7 @@
       statusPaid: "Betalt",
       statusPreparing: "Klargjøres",
       statusShipped: "Sendt",
+      receiptButton: "Kvittering",
       statusDelivered: "Levert",
       statusForfeited: "Forfalt",
       statusCancelled: "Kansellert",

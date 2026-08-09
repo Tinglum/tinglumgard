@@ -5,7 +5,8 @@ import { useMemo, useState } from 'react'
 import { useLanguage } from '@/contexts/LanguageContext'
 import { GlassCard } from '@/components/eggs/GlassCard'
 import { formatDateFull, formatPrice } from '@/lib/eggs/utils'
-import { ArrowRight } from 'lucide-react'
+import { openEggReceipt } from '@/lib/eggs/receipt'
+import { ArrowRight, FileText } from 'lucide-react'
 import { StepTimeline } from '@/components/orders/StepTimeline'
 import { cn } from '@/lib/utils'
 import { useToast } from '@/hooks/use-toast'
@@ -16,6 +17,7 @@ type EggPayment = {
   amount_nok?: number
   paid_at?: string | null
   created_at?: string | null
+  vipps_order_id?: string | null
 }
 
 type EggOrderAddition = {
@@ -46,9 +48,11 @@ type EggOrder = {
   delivery_fee?: number
   tracking_number?: string | null
   marked_shipped_at?: string | null
+  marked_delivered_at?: string | null
   created_at?: string | null
   pickup_date?: string | null
   pickup_time?: string | null
+  customer_name?: string | null
   egg_breeds?: { name?: string; accent_color?: string } | null
   egg_payments?: EggPayment[]
   egg_order_additions?: EggOrderAddition[]
@@ -210,6 +214,7 @@ export function EggOrderUnifiedCard({ order, onPayDeposit }: { order: EggOrder; 
   const pendingAdditionDepositPayments = (order.egg_payments || []).filter(
     (payment) => payment.payment_type === 'addition_deposit' && payment.status === 'pending'
   )
+  const hasCompletedPayment = (order.egg_payments || []).some((payment) => payment.status === 'completed')
   const remainderPaidOre = completedRemainderPayments.reduce((sum, payment) => {
     return sum + (payment.amount_nok || 0) * 100
   }, 0)
@@ -519,9 +524,21 @@ export function EggOrderUnifiedCard({ order, onPayDeposit }: { order: EggOrder; 
             {formatDateFull(new Date(order.delivery_monday), lang)}
           </p>
         </div>
-        <span className={`px-3 py-1 rounded-full text-xs font-medium ${statusMeta.className}`}>
-          {statusMeta.label}
-        </span>
+        <div className="flex flex-col items-end gap-2">
+          <span className={`px-3 py-1 rounded-full text-xs font-medium ${statusMeta.className}`}>
+            {statusMeta.label}
+          </span>
+          {hasCompletedPayment && (
+            <button
+              type="button"
+              onClick={() => openEggReceipt(order, lang)}
+              className="inline-flex items-center gap-1.5 rounded-full border border-neutral-300 px-3 py-1 text-xs font-medium text-neutral-700 transition-colors hover:border-neutral-900 hover:text-neutral-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-900/20"
+            >
+              <FileText className="h-3.5 w-3.5" aria-hidden />
+              {ordersCopy.receiptButton}
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
