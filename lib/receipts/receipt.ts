@@ -264,9 +264,18 @@ export function renderReceiptHtml(model: ReceiptModel, lang: Lang): string {
 /** Opens the receipt in a new window and triggers the print/save-as-PDF dialog. */
 export function openReceipt(model: ReceiptModel, lang: Lang): void {
   const html = renderReceiptHtml(model, lang)
-  const win = window.open('', '_blank', 'noopener,noreferrer,width=900,height=1000')
-  if (!win) return
-  win.document.open()
-  win.document.write(html)
-  win.document.close()
+  // NB: do not pass 'noopener'/'noreferrer' here — those make window.open()
+  // return null, leaving a blank about:blank window we can't write into.
+  const win = window.open('', '_blank', 'width=900,height=1000')
+  if (win) {
+    win.document.open()
+    win.document.write(html)
+    win.document.close()
+    return
+  }
+  // Popup blocked: fall back to a data URL in a new tab so the user still gets the receipt.
+  const blob = new Blob([html], { type: 'text/html;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  window.open(url, '_blank')
+  setTimeout(() => URL.revokeObjectURL(url), 60000)
 }
