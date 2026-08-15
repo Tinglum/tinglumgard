@@ -58,13 +58,22 @@ export function QuestExperience() {
 
   useEffect(() => {
     const supabase = getQuestSupabase()
-    supabase.auth.getSession().then(({ data }) => {
+    const params = new URLSearchParams(window.location.search)
+    const tokenHash = params.get('token_hash')
+    const initialize = async () => {
+      if (tokenHash && params.get('type') === 'signup') {
+        const { error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type: 'signup' })
+        window.history.replaceState({}, '', '/quest')
+        if (error) setMessage('This confirmation link is invalid or has expired.')
+      }
+      const { data } = await supabase.auth.getSession()
       const accessToken = data.session?.access_token || ''
       setAccountName(String(data.session?.user.user_metadata?.display_name || ''))
       setToken(accessToken)
       if (!accessToken) setScreen('signin')
       else refresh(accessToken).catch((e) => { setMessage(e.message); setScreen('join') })
-    })
+    }
+    initialize().catch((error) => { setMessage(error instanceof Error ? error.message : 'Could not confirm account'); setScreen('signin') })
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => { if (session?.access_token) { setToken(session.access_token); setAccountName(String(session.user.user_metadata?.display_name || '')); refresh(session.access_token).catch(() => setScreen('join')) } })
     return () => listener.subscription.unsubscribe()
   }, [refresh])
@@ -97,9 +106,10 @@ export function QuestExperience() {
     setAuthBusy(true)
     try {
       if (authMode === 'signup') {
-        const { data, error } = await getQuestSupabase().auth.signUp({ email, password, options: { emailRedirectTo:'https://tinglumgard.no/quest', data:{display_name:name,full_name:name} } })
-        if (error) setMessage(error.message)
-        else if (!data.session) { setAccountName(name); setMessage(t.checkEmail); setAuthMode('login') }
+        const response = await fetch('/api/quest/register', { method:'POST', headers:{'content-type':'application/json'}, body:JSON.stringify({name,email,password}) })
+        const payload = await response.json()
+        if (!response.ok) setMessage(payload.error || 'Registration could not be completed.')
+        else { setAccountName(name); setMessage(t.checkEmail); setAuthMode('login') }
       } else {
         const { error } = await getQuestSupabase().auth.signInWithPassword({email,password})
         if (error) setMessage(error.message === 'Email not confirmed' ? t.checkEmail : error.message)
