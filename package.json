@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "check:encoding": "node scripts/check-encoding.mjs",
     "check:email-flows": "node scripts/check-post-order-flows.mjs",
-    "test:eggops-smoke": "node scripts/eggops-smoke.mjs"
+    "test:eggops-smoke": "node scripts/eggops-smoke.mjs",
+    "test:quest-content": "node scripts/validate-quest-content.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",

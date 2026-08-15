@@ -1,0 +1,4 @@
+import { NextRequest } from 'next/server'
+import { getLiveEvent,getLiveParticipant,saveLiveParticipant } from '@/lib/quest/live-store'
+import { QuestApiError,questError,requireQuestUser } from '@/lib/quest/server'
+export async function POST(request:NextRequest){try{const user=await requireQuestUser(request);const event=await getLiveEvent();const p=await getLiveParticipant(user.id);if(!p||!event||event.status!=='active'||event.released_section!==5||Object.keys(p.answers).length!==25)throw new QuestApiError('All 25 questions must be answered');p.section_scores=[0,0,0,0,0];Object.entries(p.answers).forEach(([id,key])=>{p.section_scores[Math.ceil(Number(id.slice(1))/5)-1]+='ABCDE'.indexOf(key)});p.total_score=p.section_scores.reduce((a,b)=>a+b,0);p.submitted_at=new Date().toISOString();p.last_seen_at=p.submitted_at;await saveLiveParticipant(p);return Response.json({result:p})}catch(error){return questError(error)}}

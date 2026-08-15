@@ -1,0 +1,4 @@
+import { NextRequest } from 'next/server'
+import { getLiveEvent,getLiveParticipant,saveLiveParticipant } from '@/lib/quest/live-store'
+import { QuestApiError,questError,requireQuestUser } from '@/lib/quest/server'
+export async function POST(request:NextRequest){try{const user=await requireQuestUser(request);const {questionId,answerKey}=await request.json();const n=Number(String(questionId).replace(/^Q/,''));const event=await getLiveEvent();const p=await getLiveParticipant(user.id);if(!p||!event||event.status!=='active'||p.submitted_at||n<1||n>event.released_section*5||!'ABCDE'.includes(answerKey))throw new QuestApiError('This question is not open',403);p.answers[questionId]=answerKey;p.last_seen_at=new Date().toISOString();await saveLiveParticipant(p);return Response.json({answer:{question_id:questionId,answer_key:answerKey}})}catch(error){return questError(error)}}
