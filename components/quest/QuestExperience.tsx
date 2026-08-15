@@ -37,6 +37,7 @@ export function QuestExperience() {
   const [offlineCompleted, setOfflineCompleted] = useState(false)
   const [sectionIntro, setSectionIntro] = useState<number | null>(null)
   const previousReleased = useRef<number | null>(null)
+  const answerSaveChain = useRef<Promise<void>>(Promise.resolve())
   const t = copy[locale]
 
   const api = useCallback(async (path: string, init?: RequestInit, accessToken = token) => {
@@ -52,6 +53,12 @@ export function QuestExperience() {
     const mapped: AnswerMap = {}
     next.attempt?.nutrition_answers?.forEach((answer) => { mapped[answer.question_id] = answer.answer_key })
     const local = JSON.parse(localStorage.getItem('nutrition-local-answers') || '{}') as AnswerMap
+    const queued = JSON.parse(localStorage.getItem('nutrition-answer-queue') || '[]') as Array<{attemptId:string;questionId:string;answerKey:string}>
+    const reconciled = Object.entries(local).reduce((items,[questionId,answerKey]) => {
+      if (mapped[questionId] === answerKey) return items
+      return [...items.filter((item) => item.questionId !== questionId), {attemptId:next.attempt.id,questionId,answerKey}]
+    }, queued)
+    if (reconciled.length) localStorage.setItem('nutrition-answer-queue',JSON.stringify(reconciled))
     setAnswers({...mapped,...local})
     setScreen((current) => current === 'loading' || current === 'signin' || current === 'join' ? 'intro' : current)
   }, [])
@@ -98,17 +105,18 @@ export function QuestExperience() {
   useEffect(() => {
     const sync = async () => {
       const raw = localStorage.getItem('nutrition-answer-queue')
-      if (!token) return
+      if (!token || offlineMode || !navigator.onLine) return
       const queued = JSON.parse(raw || '[]') as Array<{attemptId:string;questionId:string;answerKey:string}>
       const failed:Array<{attemptId:string;questionId:string;answerKey:string}>=[]
-      for(const item of queued){try{await api('/api/quest/answer',{method:'POST',body:JSON.stringify(item)})}catch{failed.push(item)}}
+      for(const item of queued){let saved=false;answerSaveChain.current=answerSaveChain.current.then(async()=>{try{await api('/api/quest/answer',{method:'POST',body:JSON.stringify(item)});saved=true}catch{}});await answerSaveChain.current;if(!saved)failed.push(item)}
       if(failed.length)localStorage.setItem('nutrition-answer-queue',JSON.stringify(failed));else localStorage.removeItem('nutrition-answer-queue')
       if(localStorage.getItem('nutrition-backup-pending')==='1'&&state?.attempt?.id){try{await api('/api/quest/backup',{method:'POST',body:JSON.stringify({attemptId:state.attempt.id,displayName:state.participant.display_name,answers:JSON.parse(localStorage.getItem('nutrition-local-answers')||'{}')})});localStorage.removeItem('nutrition-backup-pending')}catch{}}
       if(failed.length===0&&localStorage.getItem('nutrition-offline-completed')==='1'&&state?.attempt?.id){try{await api('/api/quest/submit',{method:'POST',body:JSON.stringify({attemptId:state.attempt.id})});localStorage.removeItem('nutrition-offline-completed');localStorage.removeItem('nutrition-offline-mode');localStorage.removeItem('nutrition-local-answers');setOfflineCompleted(false);setOfflineMode(false);await refresh()}catch{}}
     }
+    const interval = setInterval(sync,2000)
     window.addEventListener('online', sync); sync()
-    return () => window.removeEventListener('online', sync)
-  }, [api, token, state, refresh])
+    return () => { clearInterval(interval); window.removeEventListener('online', sync) }
+  }, [api, token, state, refresh, offlineMode])
 
   async function authenticate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); setMessage('')
@@ -179,7 +187,7 @@ export function QuestExperience() {
     const item = { attemptId:state.attempt.id, questionId, answerKey }
     const queue = JSON.parse(localStorage.getItem('nutrition-answer-queue') || '[]');localStorage.setItem('nutrition-answer-queue',JSON.stringify([...queue.filter((q:any)=>q.questionId!==questionId),item]))
     if(questionIndex<releasedQuestions.length-1)setTimeout(()=>{if(document.activeElement instanceof HTMLElement)document.activeElement.blur();setQuestionIndex((index)=>Math.min(index+1,releasedQuestions.length-1))},160)
-    if(!offlineMode&&navigator.onLine){try{await api('/api/quest/answer',{method:'POST',body:JSON.stringify(item)});const remaining=(JSON.parse(localStorage.getItem('nutrition-answer-queue')||'[]')as typeof queue).filter((q:any)=>q.questionId!==questionId);if(remaining.length)localStorage.setItem('nutrition-answer-queue',JSON.stringify(remaining));else localStorage.removeItem('nutrition-answer-queue')}catch{}}
+    if(!offlineMode&&navigator.onLine){answerSaveChain.current=answerSaveChain.current.then(async()=>{try{await api('/api/quest/answer',{method:'POST',body:JSON.stringify(item)});const remaining=(JSON.parse(localStorage.getItem('nutrition-answer-queue')||'[]')as typeof queue).filter((q:any)=>q.questionId!==questionId||q.answerKey!==answerKey);if(remaining.length)localStorage.setItem('nutrition-answer-queue',JSON.stringify(remaining));else localStorage.removeItem('nutrition-answer-queue')}catch{}});await answerSaveChain.current}
   }
 
   async function submit() {
