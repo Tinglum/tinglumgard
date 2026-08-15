@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server'
 import { sendViaMailgun } from '@/lib/email/provider-mailgun'
 import { supabaseAdmin } from '@/lib/supabase/server'
 import { questError, requireQuestUser } from '@/lib/quest/server'
-import { getLiveParticipant } from '@/lib/quest/live-store'
+import { getLiveParticipant, saveLiveParticipant } from '@/lib/quest/live-store'
 
 export async function POST(request: NextRequest) {
   try {
@@ -15,6 +15,15 @@ export async function POST(request: NextRequest) {
     const participant = await getLiveParticipant(user.id)
     if (!participant || participant.id !== attemptId) return Response.json({error:'Participant record not found'},{status:403})
     const displayName = participant.display_name
+    participant.answers = validAnswers
+    participant.section_scores = [0,0,0,0,0]
+    Object.entries(validAnswers).forEach(([questionId,answerKey]) => {
+      participant.section_scores[Math.ceil(Number(questionId.slice(1))/5)-1] += 'ABCDE'.indexOf(answerKey)
+    })
+    participant.total_score = participant.section_scores.reduce((sum,score)=>sum+score,0)
+    participant.submitted_at = participant.submitted_at || new Date().toISOString()
+    participant.last_seen_at = new Date().toISOString()
+    await saveLiveParticipant(participant)
     const backupKey = `nutrition_backup_${user.id}_${attemptId}`
     const { data: previous } = await supabaseAdmin.from('app_config').select('value').eq('key',backupKey).maybeSingle()
     const signature = JSON.stringify(validAnswers)

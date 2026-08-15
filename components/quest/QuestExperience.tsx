@@ -143,6 +143,17 @@ export function QuestExperience() {
   const releasedComplete = releasedQuestions.every((question) => answers[question.id])
   const allComplete = QUEST_ASSESSMENT.questions.every((question) => answers[question.id])
 
+  useEffect(() => {
+    if (!offlineMode || !state?.attempt?.id || Object.keys(answers).length !== 25) return
+    localStorage.setItem('nutrition-offline-completed','1')
+    localStorage.setItem('nutrition-backup-pending','1')
+    setOfflineCompleted(true)
+    if (!navigator.onLine) return
+    api('/api/quest/backup',{method:'POST',body:JSON.stringify({attemptId:state.attempt.id,answers})})
+      .then(()=>{localStorage.removeItem('nutrition-backup-pending');refresh().catch(()=>undefined)})
+      .catch(()=>undefined)
+  }, [answers,api,offlineMode,refresh,state])
+
   async function choose(questionId: string, answerKey: string) {
     if (!state?.attempt?.id) return
     const nextAnswers={...answers,[questionId]:answerKey};setAnswers(nextAnswers);localStorage.setItem('nutrition-local-answers',JSON.stringify(nextAnswers));setMessage('')
