@@ -155,11 +155,16 @@ export function QuestExperience() {
   const allComplete = QUEST_ASSESSMENT.questions.every((question) => answers[question.id])
 
   useEffect(() => {
+    if (screen === 'questions') window.scrollTo({ top: 0, behavior: 'auto' })
+  }, [questionIndex, screen, sectionIntro])
+
+  useEffect(() => {
     if (!state || offlineMode) return
     const priorRelease = previousReleased.current
     previousReleased.current = released
     const firstUnanswered = QUEST_ASSESSMENT.questions.findIndex((question) => question.order <= released * 5 && !answers[question.id])
     if (firstUnanswered >= 0 && firstUnanswered > questionIndex) setQuestionIndex(firstUnanswered)
+    if (priorRelease === null && firstUnanswered === -1 && released > 0) setQuestionIndex(Math.min(24,released * 5 - 1))
     if (priorRelease !== null && released > priorRelease) {
       const firstQuestionIndex = (released - 1) * 5
       setQuestionIndex(firstQuestionIndex)
