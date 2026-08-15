@@ -37,6 +37,58 @@ function resultGuidance(scores: number[], locale: QuestLocale) {
     : `Your answers suggest that ${strongest.section.title.en.toLowerCase()} is your strongest decision-making area right now. ${focus.section.title.en} offers the clearest room for development. ${focusAdvice} ${targetedAction} This reflects your answer pattern; it is not a diagnosis or individualized medical advice.`
 }
 
+function sectionGuidance(sectionIndex: number, score: number, answerRecords: QuestState['attempt']['nutrition_answers'], locale: QuestLocale) {
+  const section = QUEST_ASSESSMENT.sections[sectionIndex]
+  const sectionQuestions = QUEST_ASSESSMENT.questions.filter((question) => Math.ceil(question.order / 5) === section.order)
+  const scoredAnswers = sectionQuestions.map((question) => ({
+    question,
+    score: Number(answerRecords?.find((answer) => answer.question_id === question.id)?.score ?? 0),
+  }))
+  const lowest = [...scoredAnswers].sort((a, b) => a.score - b.score)[0]
+  const level = score <= 7 ? 0 : score <= 13 ? 1 : 2
+  const meanings = locale === 'nb'
+    ? [
+        'Svarmønsteret viser at dette området ennå ikke er en stabil del av ernæringshverdagen din. Det betyr ikke at noe er galt; det viser hvor mer struktur kan gi størst utslag.',
+        'Du har flere gode byggesteiner på plass, men de brukes ikke like konsekvent eller tilpasningsdyktig i alle situasjoner.',
+        'Dette er et sterkt område for deg. Svarene tyder på gode, bevisste valg som du i stor grad kan gjenta og tilpasse.',
+      ]
+    : [
+        'Your answer pattern suggests this area is not yet a reliable part of your nutrition routine. That does not mean something is wrong; it shows where more structure may have the greatest effect.',
+        'You have several useful foundations in place, but they are not yet applied consistently or adaptably in every situation.',
+        'This is a strong area for you. Your answers suggest thoughtful choices that you can largely repeat and adapt.',
+      ]
+  const guidance = [
+    {
+      en: { action: 'Build a simple meal framework you can repeat: decide in advance how regular meals will cover energy, protein, plants and your training demands.', benefit: 'Greater consistency can make daily choices easier and support steadier energy, recovery and performance.' },
+      nb: { action: 'Bygg en enkel måltidsramme du kan gjenta: bestem på forhånd hvordan vanlige måltider skal dekke energi, protein, planter og treningsbehov.', benefit: 'Større konsistens kan gjøre hverdagsvalgene enklere og støtte jevnere energi, restitusjon og prestasjon.' },
+    },
+    {
+      en: { action: 'Practise adjusting one familiar meal for a busy day, a training day and a rest day while preserving its nutritional purpose.', benefit: 'Better adaptability can help you stay well fuelled when appetite, schedule or activity changes.' },
+      nb: { action: 'Øv på å tilpasse ett kjent måltid til en travel dag, en treningsdag og en hviledag, samtidig som næringsformålet beholdes.', benefit: 'Bedre tilpasningsevne kan hjelpe deg å dekke behovene når appetitt, timeplan eller aktivitet endres.' },
+    },
+    {
+      en: { action: 'Review recurring nutritional gaps across your diet, food quality and supplement routine, and use qualified guidance or relevant testing where appropriate.', benefit: 'A more targeted approach can improve confidence that persistent needs are covered without relying on guesswork.' },
+      nb: { action: 'Gå gjennom tilbakevendende ernæringsmessige gap i kosthold, matkvalitet og tilskuddsrutine, og bruk kvalifisert veiledning eller relevant testing ved behov.', benefit: 'En mer målrettet tilnærming kan gi større trygghet for at vedvarende behov dekkes uten gjetting.' },
+    },
+    {
+      en: { action: 'Track a few useful signals—energy, digestion, recovery and performance—and change only one variable at a time.', benefit: 'Clearer feedback can help you distinguish what genuinely works for you from short-term noise.' },
+      nb: { action: 'Følg noen nyttige signaler – energi, fordøyelse, restitusjon og prestasjon – og endre bare én variabel om gangen.', benefit: 'Tydeligere tilbakemelding kan hjelpe deg å skille det som faktisk fungerer for deg fra kortsiktige svingninger.' },
+    },
+    {
+      en: { action: 'Choose one nutrition habit that supports strength and long-term function, then make it realistic enough to survive changing life demands.', benefit: 'A sustainable habit can protect capability and independence over time instead of depending on short bursts of motivation.' },
+      nb: { action: 'Velg én ernæringsvane som støtter styrke og langsiktig funksjon, og gjør den realistisk nok til å tåle skiftende krav i livet.', benefit: 'En bærekraftig vane kan støtte funksjon og selvstendighet over tid, i stedet for å avhenge av korte motivasjonsperioder.' },
+    },
+  ][sectionIndex][locale]
+  const focus = lowest && lowest.score < 4
+    ? (locale === 'nb'
+        ? `Svaret ditt på «${lowest.question.prompt.nb}» peker ut et konkret sted å begynne.`
+        : `Your response to “${lowest.question.prompt.en}” identifies a concrete place to begin.`)
+    : (locale === 'nb'
+        ? 'Svarene dine er ganske jevne i denne delen, så velg den handlingen som er enklest å gjøre konsekvent.'
+        : 'Your answers are fairly even in this section, so choose the action that is easiest to practise consistently.')
+  return { meaning: meanings[level], focus, ...guidance }
+}
+
 function eventOf(state: QuestState | null) {
   const value = state?.participant?.nutrition_events
   return Array.isArray(value) ? value[0] : value
@@ -58,6 +110,7 @@ export function QuestExperience() {
   const [connectionBusy, setConnectionBusy] = useState(false)
   const [offlineCompleted, setOfflineCompleted] = useState(false)
   const [showNextStep, setShowNextStep] = useState(false)
+  const [expandedResultSection, setExpandedResultSection] = useState<number | null>(null)
   const [sectionIntro, setSectionIntro] = useState<number | null>(null)
   const [waitingAtSection, setWaitingAtSection] = useState<number | null>(null)
   const previousReleased = useRef<number | null>(null)
@@ -273,7 +326,7 @@ export function QuestExperience() {
     const sectionScores = state.attempt.section_scores || [0,0,0,0,0]
     const feedback = state.attempt.feedback?.message
     const bookingUrl = state.attempt.booking_url || event.booking_url || process.env.NEXT_PUBLIC_QUEST_BOOKING_URL || `mailto:kennethtinglum@bni.com?subject=${encodeURIComponent(locale==='nb'?'Samtale om ernæringsfitness':'Nutrition Fitness follow-up session')}`
-    return shell(<section className="rounded-[2rem] bg-white p-6 shadow-sm sm:p-10"><p className="text-xs font-semibold uppercase tracking-[.2em] text-emerald-800">{t.score}</p><h1 className="my-4 text-6xl font-medium">{state.attempt.total_score} <span className="text-2xl text-neutral-400">/ 100</span></h1><div className="my-8 space-y-5">{QUEST_ASSESSMENT.sections.map((s,i)=><div key={s.id}><div className="mb-2 flex justify-between gap-4"><span>{s.title[locale]}</span><strong>{sectionScores[i]} / 20</strong></div><div className="h-2 overflow-hidden rounded-full bg-neutral-200"><div className="h-full bg-[#3f7354]" style={{width:`${sectionScores[i]*5}%`}} /></div></div>)}</div><h2 className="mb-3 text-2xl font-medium">{t.meaning}</h2><p className="text-neutral-600">{t.meaningBody}</p>{feedback&&<aside className="mt-8 rounded-2xl bg-[#edf3e9] p-5"><p className="mb-2 text-xs font-semibold uppercase tracking-[.16em] text-emerald-900">{t.feedback}</p><p className="whitespace-pre-wrap leading-relaxed">{feedback}</p></aside>}<button type="button" aria-expanded={showNextStep} onClick={()=>setShowNextStep((shown)=>!shown)} className="mt-8 w-full rounded-xl bg-[#173f2b] px-5 py-4 font-medium text-white">{t.learnMore}</button>{showNextStep&&<div className="quest-question-enter mt-5 rounded-2xl border border-[#cddbcf] bg-[#f7faf5] p-5 sm:p-7"><h2 className="mb-3 text-2xl font-medium">{t.nextStep}</h2><p className="leading-relaxed text-neutral-700">{resultGuidance(sectionScores,locale)}</p><a href={bookingUrl} target={bookingUrl.startsWith('http')?'_blank':undefined} rel={bookingUrl.startsWith('http')?'noreferrer':undefined} className="mt-6 block rounded-xl border border-[#173f2b] bg-white px-5 py-3 text-center font-medium text-[#173f2b]">{t.book}</a></div>}</section>)
+    return shell(<section className="rounded-[2rem] bg-white p-6 shadow-sm sm:p-10"><p className="text-xs font-semibold uppercase tracking-[.2em] text-emerald-800">{t.score}</p><h1 className="my-4 text-6xl font-medium">{state.attempt.total_score} <span className="text-2xl text-neutral-400">/ 100</span></h1><div className="my-8 space-y-3">{QUEST_ASSESSMENT.sections.map((s,i)=>{const expanded=expandedResultSection===i;const guidance=sectionGuidance(i,Number(sectionScores[i]||0),state.attempt.nutrition_answers,locale);return <div key={s.id} className="overflow-hidden rounded-2xl border border-neutral-200"><button type="button" aria-expanded={expanded} aria-controls={`section-result-${i}`} onClick={()=>setExpandedResultSection(expanded?null:i)} className="w-full p-4 text-left hover:bg-[#f7faf5] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#173f2b]"><div className="mb-2 flex items-center justify-between gap-4"><span className="font-medium">{s.title[locale]}</span><span className="flex shrink-0 items-center gap-3"><strong>{sectionScores[i]} / 20</strong><span aria-hidden="true" className="text-xl">{expanded?'−':'+'}</span></span></div><div className="h-2 overflow-hidden rounded-full bg-neutral-200"><div className="h-full bg-[#3f7354]" style={{width:`${sectionScores[i]*5}%`}} /></div></button>{expanded&&<div id={`section-result-${i}`} className="quest-question-enter border-t border-neutral-200 bg-[#f7faf5] p-5"><p className="leading-relaxed text-neutral-700">{guidance.meaning}</p><p className="mt-3 leading-relaxed text-neutral-700">{guidance.focus}</p><h3 className="mb-1 mt-5 font-semibold">{locale==='nb'?'Hva du kan utvikle':'What you can build'}</h3><p className="leading-relaxed text-neutral-700">{guidance.action}</p><h3 className="mb-1 mt-5 font-semibold">{locale==='nb'?'Hva du kan få igjen for det':'What you could gain'}</h3><p className="leading-relaxed text-neutral-700">{guidance.benefit}</p><p className="mt-5 text-sm text-neutral-500">{locale==='nb'?'Dette er en refleksjon basert på svarene dine, ikke en diagnose eller individuell medisinsk anbefaling.':'This is a reflection based on your answers, not a diagnosis or individualized medical advice.'}</p></div>}</div>})}</div><p className="mb-6 text-center text-sm text-neutral-500">{locale==='nb'?'Trykk på en del for å se din personlige tilbakemelding.':'Select any section to see your personalized feedback.'}</p><h2 className="mb-3 text-2xl font-medium">{t.meaning}</h2><p className="text-neutral-600">{t.meaningBody}</p>{feedback&&<aside className="mt-8 rounded-2xl bg-[#edf3e9] p-5"><p className="mb-2 text-xs font-semibold uppercase tracking-[.16em] text-emerald-900">{t.feedback}</p><p className="whitespace-pre-wrap leading-relaxed">{feedback}</p></aside>}<button type="button" aria-expanded={showNextStep} onClick={()=>setShowNextStep((shown)=>!shown)} className="mt-8 w-full rounded-xl bg-[#173f2b] px-5 py-4 font-medium text-white">{t.learnMore}</button>{showNextStep&&<div className="quest-question-enter mt-5 rounded-2xl border border-[#cddbcf] bg-[#f7faf5] p-5 sm:p-7"><h2 className="mb-3 text-2xl font-medium">{t.nextStep}</h2><p className="leading-relaxed text-neutral-700">{resultGuidance(sectionScores,locale)}</p><a href={bookingUrl} target={bookingUrl.startsWith('http')?'_blank':undefined} rel={bookingUrl.startsWith('http')?'noreferrer':undefined} className="mt-6 block rounded-xl border border-[#173f2b] bg-white px-5 py-3 text-center font-medium text-[#173f2b]">{t.book}</a></div>}</section>)
   }
   if (!offlineMode && (waitingAtSection === released || (releasedComplete && questionIndex >= releasedQuestions.length - 1)) && released < 5) return shell(<section className="rounded-[2rem] bg-white p-10 text-center shadow-sm"><p className="mb-3 text-xs font-semibold uppercase tracking-[.2em] text-emerald-800">{t.part} {released} / 5</p><div className="mx-auto mb-6 flex h-14 w-14 items-center justify-center rounded-full bg-[#edf3e9] text-2xl" aria-hidden="true">✓</div><h1 className="mb-4 text-4xl font-medium">{locale==='nb'?`Del ${released} er fullført`:`Part ${released} completed`}</h1><p>{locale==='nb'?`Venter på at fasilitatoren åpner del ${released+1}.`:`Waiting for the facilitator to open Part ${released+1}.`}</p><button onClick={()=>{setWaitingAtSection(null);setQuestionIndex(Math.max(0,questionIndex-1))}} className="mt-7 rounded-xl border border-neutral-300 px-5 py-3">{t.previous}</button></section>)
 
