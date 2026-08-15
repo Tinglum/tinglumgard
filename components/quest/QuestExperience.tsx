@@ -32,6 +32,8 @@ export function QuestExperience() {
   const [authMode, setAuthMode] = useState<'signup'|'login'>('signup')
   const [accountName, setAccountName] = useState('')
   const [authBusy, setAuthBusy] = useState(false)
+  const [offlineMode, setOfflineMode] = useState(false)
+  const [offlineCompleted, setOfflineCompleted] = useState(false)
   const t = copy[locale]
 
   const api = useCallback(async (path: string, init?: RequestInit, accessToken = token) => {
@@ -46,7 +48,8 @@ export function QuestExperience() {
     if (!next) { setScreen('join'); return }
     const mapped: AnswerMap = {}
     next.attempt?.nutrition_answers?.forEach((answer) => { mapped[answer.question_id] = answer.answer_key })
-    setAnswers(mapped)
+    const local = JSON.parse(localStorage.getItem('nutrition-local-answers') || '{}') as AnswerMap
+    setAnswers({...mapped,...local})
     setScreen((current) => current === 'loading' || current === 'signin' || current === 'join' ? 'intro' : current)
   }, [])
 
@@ -79,21 +82,30 @@ export function QuestExperience() {
   }, [refresh])
 
   useEffect(() => {
+    setOfflineMode(localStorage.getItem('nutrition-offline-mode') === '1')
+    setOfflineCompleted(localStorage.getItem('nutrition-offline-completed') === '1')
+  }, [])
+
+  useEffect(() => {
     if (!token || !state) return
     const id = setInterval(() => refresh().catch(() => undefined), 4000)
     return () => clearInterval(id)
   }, [refresh, state, token])
 
   useEffect(() => {
-    const sync = () => {
+    const sync = async () => {
       const raw = localStorage.getItem('nutrition-answer-queue')
-      if (!raw || !token) return
-      const queued = JSON.parse(raw) as Array<{attemptId:string;questionId:string;answerKey:string}>
-      Promise.all(queued.map((item) => api('/api/quest/answer', { method:'POST', body:JSON.stringify(item) }).catch(() => null))).then(() => localStorage.removeItem('nutrition-answer-queue'))
+      if (!token) return
+      const queued = JSON.parse(raw || '[]') as Array<{attemptId:string;questionId:string;answerKey:string}>
+      const failed:Array<{attemptId:string;questionId:string;answerKey:string}>=[]
+      for(const item of queued){try{await api('/api/quest/answer',{method:'POST',body:JSON.stringify(item)})}catch{failed.push(item)}}
+      if(failed.length)localStorage.setItem('nutrition-answer-queue',JSON.stringify(failed));else localStorage.removeItem('nutrition-answer-queue')
+      if(localStorage.getItem('nutrition-backup-pending')==='1'&&state?.attempt?.id){try{await api('/api/quest/backup',{method:'POST',body:JSON.stringify({attemptId:state.attempt.id,displayName:state.participant.display_name,answers:JSON.parse(localStorage.getItem('nutrition-local-answers')||'{}')})});localStorage.removeItem('nutrition-backup-pending')}catch{}}
+      if(failed.length===0&&localStorage.getItem('nutrition-offline-completed')==='1'&&state?.attempt?.id){try{await api('/api/quest/submit',{method:'POST',body:JSON.stringify({attemptId:state.attempt.id})});localStorage.removeItem('nutrition-offline-completed');localStorage.removeItem('nutrition-offline-mode');localStorage.removeItem('nutrition-local-answers');setOfflineCompleted(false);setOfflineMode(false);await refresh()}catch{}}
     }
     window.addEventListener('online', sync); sync()
     return () => window.removeEventListener('online', sync)
-  }, [api, token])
+  }, [api, token, state, refresh])
 
   async function authenticate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); setMessage('')
@@ -125,7 +137,7 @@ export function QuestExperience() {
   }
 
   const released = eventOf(state)?.released_section || 1
-  const releasedQuestions = useMemo(() => QUEST_ASSESSMENT.questions.filter((q) => q.order <= released * 5), [released])
+  const releasedQuestions = useMemo(() => offlineMode ? QUEST_ASSESSMENT.questions : QUEST_ASSESSMENT.questions.filter((q) => q.order <= released * 5), [released,offlineMode])
   const current = QUEST_ASSESSMENT.questions[questionIndex]
   const section = QUEST_ASSESSMENT.sections.find((s) => s.order === Math.ceil((current?.order || 1) / 5))
   const releasedComplete = releasedQuestions.every((question) => answers[question.id])
@@ -133,34 +145,36 @@ export function QuestExperience() {
 
   async function choose(questionId: string, answerKey: string) {
     if (!state?.attempt?.id) return
-    setAnswers((old) => ({...old, [questionId]:answerKey})); setSaving(true); setMessage('')
+    const nextAnswers={...answers,[questionId]:answerKey};setAnswers(nextAnswers);localStorage.setItem('nutrition-local-answers',JSON.stringify(nextAnswers));setMessage('')
     const item = { attemptId:state.attempt.id, questionId, answerKey }
-    try { await api('/api/quest/answer', {method:'POST',body:JSON.stringify(item)}) }
-    catch (e) { const queue = JSON.parse(localStorage.getItem('nutrition-answer-queue') || '[]'); localStorage.setItem('nutrition-answer-queue', JSON.stringify([...queue.filter((q:any)=>q.questionId!==questionId),item])); setMessage('Saved on this device. It will sync when the connection returns.') }
-    finally { setSaving(false) }
+    const queue = JSON.parse(localStorage.getItem('nutrition-answer-queue') || '[]');localStorage.setItem('nutrition-answer-queue',JSON.stringify([...queue.filter((q:any)=>q.questionId!==questionId),item]))
+    if(questionIndex<releasedQuestions.length-1)setTimeout(()=>setQuestionIndex((index)=>Math.min(index+1,releasedQuestions.length-1)),120)
+    if(!offlineMode&&navigator.onLine){try{await api('/api/quest/answer',{method:'POST',body:JSON.stringify(item)});const remaining=(JSON.parse(localStorage.getItem('nutrition-answer-queue')||'[]')as typeof queue).filter((q:any)=>q.questionId!==questionId);if(remaining.length)localStorage.setItem('nutrition-answer-queue',JSON.stringify(remaining));else localStorage.removeItem('nutrition-answer-queue')}catch{}}
   }
 
   async function submit() {
     if (!state?.attempt?.id || !allComplete) return
     setSaving(true)
-    try { await api('/api/quest/submit',{method:'POST',body:JSON.stringify({attemptId:state.attempt.id})}); await refresh() }
+    if(offlineMode){localStorage.setItem('nutrition-backup-pending','1');localStorage.setItem('nutrition-offline-completed','1');setOfflineCompleted(true);if(navigator.onLine){try{await api('/api/quest/backup',{method:'POST',body:JSON.stringify({attemptId:state.attempt.id,displayName:state.participant.display_name,answers})});localStorage.removeItem('nutrition-backup-pending')}catch{}}setSaving(false);return}
+    try { await api('/api/quest/submit',{method:'POST',body:JSON.stringify({attemptId:state.attempt.id})});localStorage.removeItem('nutrition-local-answers');await refresh() }
     catch (e) { setMessage(e instanceof Error ? e.message : 'Could not submit') } finally { setSaving(false) }
   }
 
-  const shell = (body: React.ReactNode) => <main className="min-h-screen bg-[#f3f0e8] px-4 py-5 text-[#17251d] sm:px-6 sm:py-10"><div className="mx-auto max-w-3xl"><header className="mb-7 flex items-center justify-between"><span className="text-xs font-semibold tracking-[.25em]">FITPRENEUR</span><div className="flex rounded-full bg-white p-1 shadow-sm"><button onClick={()=>setLocale('en')} aria-pressed={locale==='en'} className={`rounded-full px-3 py-1 text-sm ${locale==='en'?'bg-[#173f2b] text-white':''}`}>EN</button><button onClick={()=>setLocale('nb')} aria-pressed={locale==='nb'} className={`rounded-full px-3 py-1 text-sm ${locale==='nb'?'bg-[#173f2b] text-white':''}`}>NO</button></div></header>{body}</div></main>
+  const shell = (body: React.ReactNode) => <main className="min-h-screen bg-[#f3f0e8] px-4 py-5 text-[#17251d] sm:px-6 sm:py-10"><div className="mx-auto max-w-3xl"><header className="mb-7 flex flex-wrap items-center justify-between gap-3"><span className="text-xs font-semibold tracking-[.25em]">FITPRENEUR</span><div className="flex items-center gap-2"><button type="button" aria-pressed={offlineMode} onClick={()=>{setOfflineMode(true);localStorage.setItem('nutrition-offline-mode','1')}} className={`rounded-full px-3 py-2 text-xs font-medium ${offlineMode?'bg-amber-100 text-amber-900':'border border-neutral-300 bg-white'}`}>{locale==='nb'?'Ingen forbindelse':'No connection'}</button><div className="flex rounded-full bg-white p-1 shadow-sm"><button onClick={()=>setLocale('en')} aria-pressed={locale==='en'} className={`rounded-full px-3 py-1 text-sm ${locale==='en'?'bg-[#173f2b] text-white':''}`}>EN</button><button onClick={()=>setLocale('nb')} aria-pressed={locale==='nb'} className={`rounded-full px-3 py-1 text-sm ${locale==='nb'?'bg-[#173f2b] text-white':''}`}>NO</button></div></div></header>{body}</div></main>
   if (screen === 'loading') return shell(<p className="py-20 text-center">Loading…</p>)
   if (screen === 'signin') return shell(<section className="rounded-[2rem] bg-white p-6 shadow-sm sm:p-10"><p className="mb-3 text-xs font-semibold uppercase tracking-[.2em] text-emerald-800">Secure access</p><h1 className="mb-6 text-4xl font-medium">{authMode==='signup'?t.create:t.login}</h1><form onSubmit={authenticate}>{authMode==='signup'&&<label className="mb-4 block font-medium">{t.name}<input name="name" required maxLength={80} autoComplete="name" className="mt-2 w-full rounded-xl border border-neutral-300 px-4 py-4" /></label>}<label className="mb-4 block font-medium">{t.email}<input name="email" type="email" required autoComplete="email" className="mt-2 w-full rounded-xl border border-neutral-300 px-4 py-4" /></label><label className="mb-4 block font-medium">{t.password}<input name="password" type="password" minLength={8} required autoComplete={authMode==='signup'?'new-password':'current-password'} className="mt-2 w-full rounded-xl border border-neutral-300 px-4 py-4" /></label>{authMode==='signup'&&<label className="block font-medium">{locale==='nb'?'Bekreft passord':'Confirm password'}<input name="confirmPassword" type="password" minLength={8} required autoComplete="new-password" className="mt-2 w-full rounded-xl border border-neutral-300 px-4 py-4" /></label>}<p className="mb-5 mt-2 text-sm text-neutral-500">{t.emailHelp}</p><button disabled={authBusy} className="w-full rounded-xl bg-[#173f2b] px-5 py-4 font-medium text-white disabled:opacity-50">{authBusy?(locale==='nb'?'Vent litt …':'Please wait…'):(authMode==='signup'?t.create:t.login)}</button></form><button type="button" disabled={authBusy} onClick={()=>{setMessage('');setAuthMode(authMode==='signup'?'login':'signup')}} className="mt-5 w-full text-sm font-medium underline underline-offset-4 disabled:opacity-50">{authMode==='signup'?`${t.haveAccount} ${t.login}`:`${t.needAccount} ${t.create}`}</button>{message&&<p className="mt-4 rounded-xl bg-[#edf3e9] p-4" role="status">{message}</p>}</section>)
   if (screen === 'join') return shell(<section className="rounded-[2rem] bg-white p-6 shadow-sm sm:p-10"><h1 className="mb-6 text-4xl font-medium">Join the live session</h1><form onSubmit={join}><label className="mb-5 block font-medium">{t.code}<input name="code" required autoCapitalize="characters" className="mt-2 w-full rounded-xl border border-neutral-300 px-4 py-4 uppercase tracking-[.18em]" /></label><label className="mb-6 block font-medium">{t.name}<input name="displayName" required defaultValue={accountName} className="mt-2 w-full rounded-xl border border-neutral-300 px-4 py-4" /></label><button className="w-full rounded-xl bg-[#173f2b] px-5 py-4 font-medium text-white">{t.join}</button></form>{message&&<p className="mt-4 text-red-700" role="alert">{message}</p>}</section>)
   if (screen === 'intro') return shell(<section className="rounded-[2rem] bg-white p-6 shadow-sm sm:p-12"><p className="mb-4 text-xs font-semibold tracking-[.25em] text-emerald-800">{t.brand}</p><h1 className="mb-6 text-4xl font-medium sm:text-6xl">{t.title}</h1><p className="mb-4 text-lg">{t.intro}</p><p className="mb-7 text-neutral-600">{t.detail}</p><div className="mb-8 rounded-2xl bg-[#edf3e9] p-5 font-medium">{t.instruction}</div><button onClick={()=>{setQuestionIndex(0);setScreen('questions')}} className="w-full rounded-xl bg-[#173f2b] px-5 py-4 font-medium text-white">{t.start}</button></section>)
 
   const event = eventOf(state)
-  if (event?.status === 'paused') return shell(<section className="rounded-[2rem] bg-white p-10 text-center shadow-sm"><h1 className="mb-4 text-4xl font-medium">Pause</h1><p>{t.paused}</p></section>)
+  if (event?.status === 'paused' && !offlineMode) return shell(<section className="rounded-[2rem] bg-white p-10 text-center shadow-sm"><h1 className="mb-4 text-4xl font-medium">Pause</h1><p>{t.paused}</p></section>)
+  if (offlineCompleted && !state?.attempt?.submitted_at) return shell(<section className="rounded-[2rem] bg-white p-10 text-center shadow-sm"><h1 className="mb-4 text-4xl font-medium">{t.submitted}</h1><p>{t.resultWait}</p></section>)
   if (state?.attempt?.submitted_at) {
     if (!event?.results_released) return shell(<section className="rounded-[2rem] bg-white p-10 text-center shadow-sm"><h1 className="mb-4 text-4xl font-medium">{t.submitted}</h1><p>{t.resultWait}</p></section>)
     const sectionScores = state.attempt.section_scores || [0,0,0,0,0]
     return shell(<section className="rounded-[2rem] bg-white p-6 shadow-sm sm:p-10"><p className="text-xs font-semibold uppercase tracking-[.2em] text-emerald-800">{t.score}</p><h1 className="my-4 text-6xl font-medium">{state.attempt.total_score} <span className="text-2xl text-neutral-400">/ 100</span></h1><div className="my-8 space-y-5">{QUEST_ASSESSMENT.sections.map((s,i)=><div key={s.id}><div className="mb-2 flex justify-between gap-4"><span>{s.title[locale]}</span><strong>{sectionScores[i]} / 20</strong></div><div className="h-2 overflow-hidden rounded-full bg-neutral-200"><div className="h-full bg-[#3f7354]" style={{width:`${sectionScores[i]*5}%`}} /></div></div>)}</div><h2 className="mb-3 text-2xl font-medium">{t.meaning}</h2><p className="text-neutral-600">{t.meaningBody}</p></section>)
   }
-  if (releasedComplete && questionIndex >= releasedQuestions.length - 1 && released < 5) return shell(<section className="rounded-[2rem] bg-white p-10 text-center shadow-sm"><p className="mb-3 text-xs font-semibold uppercase tracking-[.2em] text-emerald-800">{t.part} {released} / 5</p><h1 className="mb-4 text-4xl font-medium">{t.waiting}</h1><p>{t.waitBody}</p><button onClick={()=>setQuestionIndex(Math.max(0,questionIndex-1))} className="mt-7 rounded-xl border border-neutral-300 px-5 py-3">{t.previous}</button></section>)
+  if (!offlineMode && releasedComplete && questionIndex >= releasedQuestions.length - 1 && released < 5) return shell(<section className="rounded-[2rem] bg-white p-10 text-center shadow-sm"><p className="mb-3 text-xs font-semibold uppercase tracking-[.2em] text-emerald-800">{t.part} {released} / 5</p><h1 className="mb-4 text-4xl font-medium">{t.waiting}</h1><p>{t.waitBody}</p><button onClick={()=>setQuestionIndex(Math.max(0,questionIndex-1))} className="mt-7 rounded-xl border border-neutral-300 px-5 py-3">{t.previous}</button></section>)
 
   return shell(<><div className="mb-5"><div className="mb-2 flex justify-between text-sm"><span>{t.part} {section?.order} / 5</span><span>{t.question} {current.order} {t.of} 25</span></div><div className="h-2 overflow-hidden rounded-full bg-[#d9ddd5]" role="progressbar" aria-valuemin={0} aria-valuemax={25} aria-valuenow={current.order}><div className="h-full bg-[#3f7354] transition-all" style={{width:`${current.order*4}%`}} /></div></div><section className="rounded-[2rem] bg-white p-5 shadow-sm sm:p-10"><p className="mb-4 text-sm font-medium uppercase tracking-[.14em] text-emerald-800">{section?.title[locale]}</p><h1 className="mb-3 text-2xl font-medium sm:text-4xl">{current.prompt[locale]}</h1>{current.context&&<p className="mb-5 text-neutral-500">{current.context[locale]}</p>}<fieldset className="space-y-3"><legend className="sr-only">Choose one answer</legend>{current.choices.map((choice)=><label key={choice.id} className={`flex min-h-[68px] cursor-pointer items-start gap-4 rounded-2xl border p-4 transition ${answers[current.id]===choice.id?'border-[#173f2b] bg-[#edf3e9] ring-2 ring-[#173f2b]':'border-neutral-200 hover:border-neutral-400'}`}><input type="radio" name={current.id} value={choice.id} checked={answers[current.id]===choice.id} onChange={()=>choose(current.id,choice.id)} className="mt-1 h-5 w-5 accent-[#173f2b]"/><span><strong className="mr-2 font-medium">{choice.id}</strong>{choice.text[locale]}</span></label>)}</fieldset>{message&&<p className="mt-4 text-sm text-amber-800" role="status">{message}</p>}<div className="mt-7 flex justify-between gap-3"><button disabled={questionIndex===0} onClick={()=>setQuestionIndex((i)=>Math.max(0,i-1))} className="rounded-xl border border-neutral-300 px-5 py-3 disabled:opacity-30">{t.previous}</button>{current.order===25?<button disabled={!allComplete||saving} onClick={submit} className="rounded-xl bg-[#173f2b] px-5 py-3 font-medium text-white disabled:opacity-40">{saving?t.save:t.submitted}</button>:<button disabled={!answers[current.id]||saving||questionIndex>=releasedQuestions.length-1} onClick={()=>setQuestionIndex((i)=>i+1)} className="rounded-xl bg-[#173f2b] px-5 py-3 font-medium text-white disabled:opacity-40">{saving?t.save:t.next}</button>}</div></section></>)
 }
