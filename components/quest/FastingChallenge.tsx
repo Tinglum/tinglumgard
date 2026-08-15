@@ -64,7 +64,7 @@ export function FastingChallenge({
           standardLead:
             "Et konservativt spor for de fleste kvalifiserte deltakere.",
           standardBody:
-            "Forbered deg med 16:8 i noen dager. Fast deretter fra middag mandag til middag tirsdag 7.–8., 14.–15. og 21.–22. september. Den siste avsluttes ved middagen på samlingen tirsdag 22. september.",
+            "Forbered deg med 16:8 i noen dager. Fast deretter fra middag søndag 6. september til middag mandag 7. september, og fra middag søndag 13. september til middag mandag 14. september. Den siste fasten går fra middag mandag 21. september til middagen på samlingen tirsdag 22. september.",
           advanced: "Avansert spor: utvidet faste",
           advancedLead:
             "For erfarne deltakere som består sikkerhetssjekken og har tålt forberedelsen godt.",
@@ -86,7 +86,7 @@ export function FastingChallenge({
           joined: "Sporet ditt er lagret",
           withdraw: "Trekk meg fra utfordringen",
           standardPlan:
-            "Følg 16:8-forberedelsen og de tre middag-til-middag-fastene 7.–8., 14.–15. og 21.–22. september. Noter signalene dine uten å jage et bestemt antall timer.",
+            "Følg 16:8-forberedelsen og de tre middag-til-middag-fastene 6.–7., 13.–14. og 21.–22. september. Noter signalene dine uten å jage et bestemt antall timer.",
           advancedPlan:
             "Planlegg søndag middag til tirsdag middag, og ikke øk varigheten underveis. Del planen med Kenneth før oppstart.",
           veryAdvancedPlan: "Planlegg lørdag middag til tirsdag middag, og ikke øk varigheten underveis. Del planen med Kenneth før oppstart.",
@@ -111,7 +111,7 @@ export function FastingChallenge({
           standard: "Standard track",
           standardLead: "A conservative route for most eligible participants.",
           standardBody:
-            "Prepare with 16:8 for several days. Then fast from Monday dinner to Tuesday dinner on September 7–8, 14–15 and 21–22. The final fast ends at the retreat dinner on Tuesday, September 22.",
+            "Prepare with 16:8 for several days. Then fast from dinner Sunday, September 6 to dinner Monday, September 7, and from dinner Sunday, September 13 to dinner Monday, September 14. The final fast runs from dinner Monday, September 21 to the retreat dinner on Tuesday, September 22.",
           advanced: "Advanced track: extended fasting",
           advancedLead:
             "For experienced participants who clear the safety check and tolerate the preparation well.",
@@ -133,7 +133,7 @@ export function FastingChallenge({
           joined: "Your track is saved",
           withdraw: "Withdraw from the challenge",
           standardPlan:
-            "Follow the 16:8 preparation and the three dinner-to-dinner fasts on September 7–8, 14–15 and 21–22. Record your signals without chasing a target number of hours.",
+            "Follow the 16:8 preparation and the three dinner-to-dinner fasts on September 6–7, 13–14 and 21–22. Record your signals without chasing a target number of hours.",
           advancedPlan:
             "Plan from Sunday dinner to Tuesday dinner and do not extend the duration. Share your plan with Kenneth before starting.",
           veryAdvancedPlan: "Plan from Saturday dinner to Tuesday dinner and do not extend the duration. Share your plan with Kenneth before starting.",
