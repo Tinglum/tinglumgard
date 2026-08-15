@@ -137,7 +137,7 @@ export function QuestExperience() {
     catch (e) { setMessage(e instanceof Error ? e.message : 'Could not join') }
   }
 
-  const released = eventOf(state)?.released_section || 1
+  const released = eventOf(state)?.released_section ?? 0
   const releasedQuestions = useMemo(() => offlineMode ? QUEST_ASSESSMENT.questions : QUEST_ASSESSMENT.questions.filter((q) => q.order <= released * 5), [released,offlineMode])
   const current = QUEST_ASSESSMENT.questions[questionIndex]
   const section = QUEST_ASSESSMENT.sections.find((s) => s.order === Math.ceil((current?.order || 1) / 5))
@@ -202,6 +202,7 @@ export function QuestExperience() {
 
   const event = eventOf(state)
   if (event?.status === 'paused' && !offlineMode) return shell(<section className="rounded-[2rem] bg-white p-10 text-center shadow-sm"><h1 className="mb-4 text-4xl font-medium">Pause</h1><p>{t.paused}</p></section>)
+  if (!offlineMode && released === 0) return shell(<section className="rounded-[2rem] bg-white p-10 text-center shadow-sm"><div className="mx-auto mb-6 h-12 w-12 animate-pulse rounded-full bg-[#edf3e9]" aria-hidden="true" /><h1 className="mb-4 text-4xl font-medium">{locale==='nb'?'Venter på oppstart':'Waiting to begin'}</h1><p>{locale==='nb'?'Fasilitatoren starter del 1 snart. Denne siden oppdateres automatisk.':'The facilitator will start Part 1 shortly. This page will update automatically.'}</p></section>)
   if (offlineCompleted && !state?.attempt?.submitted_at) return shell(<section className="rounded-[2rem] bg-white p-10 text-center shadow-sm"><h1 className="mb-4 text-4xl font-medium">{t.submitted}</h1><p>{t.resultWait}</p></section>)
   if (state?.attempt?.submitted_at) {
     if (!event?.results_released) return shell(<section className="rounded-[2rem] bg-white p-10 text-center shadow-sm"><h1 className="mb-4 text-4xl font-medium">{t.submitted}</h1><p>{t.resultWait}</p></section>)
