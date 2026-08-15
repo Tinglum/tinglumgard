@@ -127,6 +127,15 @@ button, .button {
   }
 }
 
+@keyframes questQuestionIn {
+  from { opacity: 0; transform: translateX(14px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.quest-question-enter {
+  animation: questQuestionIn 280ms ease-out both;
+}
+
 .fade-in-up {
   animation: fadeInUp 0.6s ease-out forwards;
 }
