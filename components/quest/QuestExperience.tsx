@@ -85,7 +85,10 @@ export function QuestExperience() {
   async function signIn(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); setMessage('')
     const email = String(new FormData(event.currentTarget).get('email') || '')
-    const { error } = await getQuestSupabase().auth.signInWithOtp({ email, options: { emailRedirectTo: `${window.location.origin}/quest` } })
+    const { error } = await getQuestSupabase().auth.signInWithOtp({
+      email,
+      options: { emailRedirectTo: 'https://tinglumgard.no/quest' },
+    })
     setMessage(error ? error.message : t.checkEmail)
   }
 
