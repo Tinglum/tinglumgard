@@ -2,7 +2,9 @@ import { supabaseAdmin } from '@/lib/supabase/server'
 
 export type LiveEvent = { id:string; name:string; join_code_label:string; status:'active'|'paused'|'ended'; released_section:number; results_released:boolean; created_at:string; updated_at:string }
 export type ParticipantFeedback = { message:string; updated_at:string; sent_at?:string; sent_by?:string }
-export type LiveParticipant = { id:string; user_id:string; event_id:string; display_name:string; last_seen_at:string; started_at:string; submitted_at?:string; answers:Record<string,string>; section_scores:number[]; total_score:number; feedback?:ParticipantFeedback }
+export type FastingChallengeTrack = 'standard' | 'advanced' | 'very_advanced'
+export type FastingChallengeEnrollment = { opted_in:boolean; track?:FastingChallengeTrack; status:'enrolled'|'withdrawn'|'completed'; acknowledgments:{ understands_not_medical_advice:boolean; agrees_to_stop_if_unwell:boolean; confirms_prior_experience:boolean }; opted_in_at?:string; withdrawn_at?:string; updated_at:string }
+export type LiveParticipant = { id:string; user_id:string; event_id:string; display_name:string; last_seen_at:string; started_at:string; submitted_at?:string; answers:Record<string,string>; section_scores:number[]; total_score:number; feedback?:ParticipantFeedback; fasting_challenge?:FastingChallengeEnrollment }
 const EVENT_KEY='nutrition_live_event'
 const participantKey=(userId:string)=>`nutrition_participant_${userId}`
 async function read<T>(key:string):Promise<T|null>{const {data,error}=await supabaseAdmin.from('app_config').select('value').eq('key',key).maybeSingle();if(error)throw error;if(!data?.value)return null;return (typeof data.value==='string'?JSON.parse(data.value):data.value) as T}
