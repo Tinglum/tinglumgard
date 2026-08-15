@@ -1,6 +1,6 @@
 'use client'
 
-import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { QUEST_ASSESSMENT, QuestLocale } from '@/lib/quest/assessment'
 import { getQuestSupabase } from '@/lib/quest/supabase-browser'
 
@@ -35,6 +35,8 @@ export function QuestExperience() {
   const [offlineMode, setOfflineMode] = useState(false)
   const [connectionBusy, setConnectionBusy] = useState(false)
   const [offlineCompleted, setOfflineCompleted] = useState(false)
+  const [sectionIntro, setSectionIntro] = useState<number | null>(null)
+  const previousReleased = useRef<number | null>(null)
   const t = copy[locale]
 
   const api = useCallback(async (path: string, init?: RequestInit, accessToken = token) => {
@@ -145,6 +147,22 @@ export function QuestExperience() {
   const allComplete = QUEST_ASSESSMENT.questions.every((question) => answers[question.id])
 
   useEffect(() => {
+    if (!state || offlineMode) return
+    const priorRelease = previousReleased.current
+    previousReleased.current = released
+    const firstUnanswered = QUEST_ASSESSMENT.questions.findIndex((question) => question.order <= released * 5 && !answers[question.id])
+    if (firstUnanswered >= 0 && firstUnanswered > questionIndex) setQuestionIndex(firstUnanswered)
+    if (priorRelease !== null && released > priorRelease) {
+      const firstQuestionIndex = (released - 1) * 5
+      setQuestionIndex(firstQuestionIndex)
+      setSectionIntro(released)
+    } else if (priorRelease === null && firstUnanswered >= 5 && firstUnanswered % 5 === 0) {
+      setQuestionIndex(firstUnanswered)
+      setSectionIntro(Math.floor(firstUnanswered / 5) + 1)
+    }
+  }, [answers, offlineMode, questionIndex, released, state])
+
+  useEffect(() => {
     if (!offlineMode || !state?.attempt?.id || Object.keys(answers).length !== 25) return
     localStorage.setItem('nutrition-offline-completed','1')
     localStorage.setItem('nutrition-backup-pending','1')
@@ -203,6 +221,10 @@ export function QuestExperience() {
   const event = eventOf(state)
   if (event?.status === 'paused' && !offlineMode) return shell(<section className="rounded-[2rem] bg-white p-10 text-center shadow-sm"><h1 className="mb-4 text-4xl font-medium">Pause</h1><p>{t.paused}</p></section>)
   if (!offlineMode && released === 0) return shell(<section className="rounded-[2rem] bg-white p-10 text-center shadow-sm"><div className="mx-auto mb-6 h-12 w-12 animate-pulse rounded-full bg-[#edf3e9]" aria-hidden="true" /><h1 className="mb-4 text-4xl font-medium">{locale==='nb'?'Venter på oppstart':'Waiting to begin'}</h1><p>{locale==='nb'?'Fasilitatoren starter del 1 snart. Denne siden oppdateres automatisk.':'The facilitator will start Part 1 shortly. This page will update automatically.'}</p></section>)
+  if (!offlineMode && sectionIntro) {
+    const introSection = QUEST_ASSESSMENT.sections.find((item) => item.order === sectionIntro)
+    return shell(<section className="rounded-[2rem] bg-white p-7 shadow-sm sm:p-12"><p className="mb-4 text-xs font-semibold uppercase tracking-[.2em] text-emerald-800">{t.part} {sectionIntro} / 5</p><h1 className="mb-5 text-4xl font-medium sm:text-5xl">{introSection?.title[locale]}</h1><p className="mb-8 text-lg leading-relaxed text-neutral-600">{introSection?.description[locale]}</p><button onClick={()=>{setQuestionIndex((sectionIntro-1)*5);setSectionIntro(null)}} className="w-full rounded-xl bg-[#173f2b] px-5 py-4 font-medium text-white">{locale==='nb'?`Start del ${sectionIntro}`:`Start Part ${sectionIntro}`}</button></section>)
+  }
   if (offlineCompleted && !state?.attempt?.submitted_at) return shell(<section className="rounded-[2rem] bg-white p-10 text-center shadow-sm"><h1 className="mb-4 text-4xl font-medium">{t.submitted}</h1><p>{t.resultWait}</p></section>)
   if (state?.attempt?.submitted_at) {
     if (!event?.results_released) return shell(<section className="rounded-[2rem] bg-white p-10 text-center shadow-sm"><h1 className="mb-4 text-4xl font-medium">{t.submitted}</h1><p>{t.resultWait}</p></section>)
