@@ -293,7 +293,19 @@ export function QuestExperience() {
     if (!state?.attempt?.id || !allComplete) return
     setSaving(true)
     if(offlineMode){localStorage.setItem('nutrition-backup-pending','1');localStorage.setItem('nutrition-offline-completed','1');setOfflineCompleted(true);if(navigator.onLine){try{await api('/api/quest/backup',{method:'POST',body:JSON.stringify({attemptId:state.attempt.id,displayName:state.participant.display_name,answers})});localStorage.removeItem('nutrition-backup-pending')}catch{}}setSaving(false);return}
-    try { await api('/api/quest/submit',{method:'POST',body:JSON.stringify({attemptId:state.attempt.id})});localStorage.removeItem('nutrition-local-answers');await refresh() }
+    try {
+      // Answers are saved one at a time as they are chosen; a failed request is
+      // swallowed so it cannot interrupt the session, which means the server can
+      // legitimately be missing an answer the participant can see ticked here.
+      // Push anything it is missing before submitting, so a dropped request does
+      // not strand someone on the last question.
+      try {
+        const payload = await api('/api/quest/state')
+        const recorded = new Set((payload.state?.attempt?.nutrition_answers || []).map((entry: { question_id: string }) => entry.question_id))
+        const unsynced = QUEST_ASSESSMENT.questions.filter((question) => answers[question.id] && !recorded.has(question.id))
+        for (const question of unsynced) await api('/api/quest/answer',{method:'POST',body:JSON.stringify({attemptId:state.attempt.id,questionId:question.id,answerKey:answers[question.id]})})
+      } catch {}
+      await api('/api/quest/submit',{method:'POST',body:JSON.stringify({attemptId:state.attempt.id})});localStorage.removeItem('nutrition-local-answers');await refresh() }
     catch (e) { setMessage(e instanceof Error ? e.message : 'Could not submit') } finally { setSaving(false) }
   }
 
