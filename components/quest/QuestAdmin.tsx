@@ -63,12 +63,14 @@ export function QuestAdmin() {
         {active && <div className="rounded-2xl bg-white px-5 py-3 shadow-sm"><span className="text-xs uppercase tracking-wider text-neutral-500">Join code</span><strong className="ml-3 text-xl tracking-[.16em]">{active.join_code_label}</strong></div>}
       </div>
       {error && <p role="alert" className="mb-6 rounded-xl bg-red-50 p-4 text-red-800">{error}</p>}
-      {!active ? <form onSubmit={createEvent} className="max-w-lg rounded-3xl bg-white p-6 shadow-sm">
-        <h2 className="mb-5 text-2xl font-medium">Create the live session</h2>
+      {(!active || active.status === 'ended') && <form onSubmit={createEvent} className="mb-7 max-w-lg rounded-3xl bg-white p-6 shadow-sm">
+        <h2 className="mb-5 text-2xl font-medium">{active ? 'Start a new session' : 'Create the live session'}</h2>
+        {active && <p className="mb-4 -mt-2 text-sm text-neutral-500">The session below has ended and stays here for review. Starting a new one begins a fresh dashboard and join code.</p>}
         <label className="mb-4 block text-sm font-medium">Event name<input name="name" required defaultValue="Fitpreneur Nutrition Lunch" className="mt-2 w-full rounded-xl border border-neutral-300 px-4 py-3" /></label>
         <label className="mb-5 block text-sm font-medium">Join code<input name="joinCode" required defaultValue="FIT2026" className="mt-2 w-full rounded-xl border border-neutral-300 px-4 py-3 uppercase" /></label>
-        <button disabled={busy} className="rounded-xl bg-[#173f2b] px-5 py-3 font-medium text-white disabled:opacity-50">Create session</button>
-      </form> : <>
+        <button disabled={busy} className="rounded-xl bg-[#173f2b] px-5 py-3 font-medium text-white disabled:opacity-50">{active ? 'Create new session' : 'Create session'}</button>
+      </form>}
+      {active && <>
         <section className="mb-7 grid gap-4 sm:grid-cols-4">
           {[['Participants', data?.participants.length || 0], ['Released', `${active.released_section} / 5`], ['Status', active.status], ['Results', active.results_released ? 'Released' : 'Hidden']].map(([label, value]) => <div key={label} className="rounded-2xl bg-white p-5 shadow-sm"><p className="text-xs uppercase tracking-wider text-neutral-500">{label}</p><p className="mt-2 text-2xl font-medium capitalize">{value}</p></div>)}
         </section>

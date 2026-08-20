@@ -1,0 +1,44 @@
+name: Fasting Reminders Cron
+
+on:
+  schedule:
+    - cron: "0 * * * *"
+  workflow_dispatch:
+
+jobs:
+  process-fasting-reminders:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Trigger fasting reminders processor
+        env:
+          CRON_BASE_URL: ${{ secrets.CRON_BASE_URL || vars.CRON_BASE_URL || 'https://main--tinglum.netlify.app' }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET || vars.CRON_SECRET }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${CRON_SECRET:-}" ]; then
+            echo "::error::CRON_SECRET is required for fasting reminders cron."
+            exit 1
+          fi
+
+          echo "Using CRON_BASE_URL=${CRON_BASE_URL}"
+
+          URL="${CRON_BASE_URL%/}/api/cron/fasting-reminders"
+          RESPONSE_FILE=/tmp/fasting-reminders-response.json
+
+          HTTP_CODE=$(curl --silent --show-error \
+            --request GET \
+            -H "x-cron-secret: $CRON_SECRET" \
+            --output "$RESPONSE_FILE" \
+            --write-out "%{http_code}" \
+            "${URL}?token=${CRON_SECRET}")
+
+          echo "HTTP status: $HTTP_CODE"
+          echo "Cron response:"
+          cat "$RESPONSE_FILE"
+
+          if [ "$HTTP_CODE" -ge 400 ]; then
+            echo "::error::Fasting reminders cron endpoint failed with HTTP $HTTP_CODE"
+            exit 1
+          fi
