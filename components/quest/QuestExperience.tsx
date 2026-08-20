@@ -247,7 +247,11 @@ export function QuestExperience() {
     const priorRelease = previousReleased.current
     previousReleased.current = released
     const firstUnanswered = QUEST_ASSESSMENT.questions.findIndex((question) => question.order <= released * 5 && !answers[question.id])
-    if (firstUnanswered >= 0 && firstUnanswered > questionIndex) setQuestionIndex(firstUnanswered)
+    // Only place the cursor on the first unanswered question when arriving/resuming.
+    // Running this on every render made it a magnet: navigating back to an answered
+    // question was instantly undone, and answering a question ahead of an
+    // already-answered one skipped over it.
+    if (priorRelease === null && firstUnanswered >= 0 && firstUnanswered > questionIndex) setQuestionIndex(firstUnanswered)
     if (priorRelease === null && firstUnanswered === -1 && released > 0) { setQuestionIndex(Math.min(24,released * 5 - 1)); if (released < 5) setWaitingAtSection(released) }
     if (priorRelease !== null && released > priorRelease) {
       const firstQuestionIndex = (released - 1) * 5
