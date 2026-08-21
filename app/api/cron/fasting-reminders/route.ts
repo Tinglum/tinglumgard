@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { dispatchEmail } from '@/lib/email/dispatch'
 import { supabaseAdmin } from '@/lib/supabase/server'
 import { listLiveParticipants } from '@/lib/quest/live-store'
+import { appendReminderLog } from '@/lib/quest/reminder-log'
 import { logError } from '@/lib/logger'
 import {
   FAST_OCCURRENCES,
@@ -97,9 +98,22 @@ export async function GET(request: NextRequest) {
         } catch (lookupError) {
           logError('fasting-reminders-user-lookup', lookupError, { userId: participant.user_id })
         }
-        if (!email) { skippedNoEmail += 1; continue }
-
         const copy = fastingReminderCopy(offset)
+        // Shared identity for every log entry about this one reminder.
+        const logBase = {
+          user_id: participant.user_id,
+          display_name: participant.display_name || '',
+          track,
+          occurrence: occurrence.index,
+          tag: copy.tag,
+          startDate: occurrence.startDate,
+        }
+        if (!email) {
+          skippedNoEmail += 1
+          await appendReminderLog({ at: new Date().toISOString(), email: '', result: 'skipped', detail: 'No email address on the account', ...logBase })
+          continue
+        }
+
         const html = buildFastingReminderHtml({
           displayName: participant.display_name || 'there',
           trackLabel: FASTING_TRACK_LABEL[track],
@@ -113,24 +127,32 @@ export async function GET(request: NextRequest) {
         })
         const subject = `${copy.subjectLead} — Fasting challenge`
 
-        await dispatchEmail({
-          to: email,
-          subject,
-          html,
-          classification: 'transactional',
-          locale: 'en',
-          sourcePath: 'cron.fasting-reminders',
-          templateKey: 'quest.fasting.reminder',
-          flowKey: `quest.fasting.reminder.${copy.tag}`,
-          sendImmediately: true,
-          idempotency: {
-            source: 'cron.fasting-reminders',
-            entity: 'quest_participant',
-            id: `${participant.user_id}:${track}:${occurrence.index}:${copy.tag}`,
-            template: 'quest.fasting.reminder',
-          },
-        })
+        try {
+          await dispatchEmail({
+            to: email,
+            subject,
+            html,
+            classification: 'transactional',
+            locale: 'en',
+            sourcePath: 'cron.fasting-reminders',
+            templateKey: 'quest.fasting.reminder',
+            flowKey: `quest.fasting.reminder.${copy.tag}`,
+            sendImmediately: true,
+            idempotency: {
+              source: 'cron.fasting-reminders',
+              entity: 'quest_participant',
+              id: `${participant.user_id}:${track}:${occurrence.index}:${copy.tag}`,
+              template: 'quest.fasting.reminder',
+            },
+          })
+        } catch (sendError) {
+          // Logging the failure must not abort the remaining participants.
+          logError('fasting-reminders-send', sendError, { userId: participant.user_id })
+          await appendReminderLog({ at: new Date().toISOString(), email, result: 'failed', detail: sendError instanceof Error ? sendError.message : 'Unknown send error', ...logBase })
+          continue
+        }
 
+        await appendReminderLog({ at: new Date().toISOString(), email, result: 'sent', ...logBase })
         remindersSent += 1
       }
     }

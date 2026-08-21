@@ -1,6 +1,7 @@
 import { supabaseAdmin } from '@/lib/supabase/server'
 
-export type LiveEvent = { id:string; name:string; join_code_label:string; status:'active'|'paused'|'ended'; released_section:number; results_released:boolean; created_at:string; updated_at:string; released_distribution?:number[] }
+export type AutoRelease = { enabled:boolean; minutes:number; nextAt?:string }
+export type LiveEvent = { id:string; name:string; join_code_label:string; status:'active'|'paused'|'ended'; released_section:number; results_released:boolean; created_at:string; updated_at:string; released_distribution?:number[]; auto_release?:AutoRelease }
 export type ParticipantFeedback = { message:string; updated_at:string; sent_at?:string; sent_by?:string }
 export type FastingChallengeTrack = 'standard' | 'advanced' | 'very_advanced'
 export type FastingChallengeEnrollment = { opted_in:boolean; track?:FastingChallengeTrack; status:'enrolled'|'withdrawn'|'completed'; acknowledgments:{ understands_not_medical_advice:boolean; agrees_to_stop_if_unwell:boolean; confirms_prior_experience:boolean }; opted_in_at?:string; withdrawn_at?:string; updated_at:string }
@@ -52,8 +53,51 @@ export async function ensureMigrated(){
   migrationDone=true
 }
 
+// ── Orphan recovery ───────────────────────────────────────────────────────
+// Sessions created before this file was scoped were overwritten in place, so
+// their event records are gone while their participants survive. Any event id
+// referenced by a participant but missing from the index is rebuilt here as a
+// minimal archived record, which is enough for the panel to list the cohort
+// and read its answers. Runs on the read path so a cohort cannot stay hidden.
+let reconciled=false
+async function reconcileOrphanEvents(){
+  if(reconciled)return
+  reconciled=true
+  const ids=(await read<string[]>(EVENT_INDEX_KEY))||[]
+  const known=new Set(ids)
+  const rows=await readRows('nutrition_participant_')
+  const orphans=new Map<string,LiveParticipant[]>()
+  for(const row of rows){
+    const p=parse<LiveParticipant>(row.value)
+    if(!p?.event_id||known.has(p.event_id))continue
+    orphans.set(p.event_id,[...(orphans.get(p.event_id)||[]),p])
+  }
+  if(!orphans.size)return
+  const recovered:string[]=[]
+  for(const [id,people] of Array.from(orphans.entries())){
+    if(await read<LiveEvent>(eventKey(id)))continue
+    const earliest=people.map((p:LiveParticipant)=>p.started_at).filter(Boolean).sort()[0]||new Date().toISOString()
+    const latest=people.map((p:LiveParticipant)=>p.last_seen_at).filter(Boolean).sort().pop()||earliest
+    await write(eventKey(id),{
+      id,
+      name:`Recovered session (${earliest.slice(0,10)})`,
+      join_code_label:'RECOVERED',
+      status:'ended',
+      released_section:5,
+      results_released:true,
+      created_at:earliest,
+      updated_at:latest,
+    } satisfies LiveEvent)
+    // Also copy any legacy-keyed participants across so the cohort reads back
+    // through the scoped path like every other session.
+    for(const person of people)await write(participantKey(id,person.user_id),person)
+    recovered.push(id)
+  }
+  if(recovered.length)await write(EVENT_INDEX_KEY,[...ids,...recovered])
+}
+
 // ── Events ────────────────────────────────────────────────────────────────
-export async function listEventIds():Promise<string[]>{await ensureMigrated();return (await read<string[]>(EVENT_INDEX_KEY))||[]}
+export async function listEventIds():Promise<string[]>{await ensureMigrated();await reconcileOrphanEvents();return (await read<string[]>(EVENT_INDEX_KEY))||[]}
 export async function getEventById(eventId:string):Promise<LiveEvent|null>{await ensureMigrated();return read<LiveEvent>(eventKey(eventId))}
 export async function listEvents():Promise<LiveEvent[]>{
   const ids=await listEventIds()
@@ -103,4 +147,22 @@ export async function listLiveParticipants(eventId?:string):Promise<LiveParticip
   }
   const all=Array.from(byId.values())
   return eventId?all.filter((p)=>p.event_id===eventId):all
+}
+
+// ── Session templates ─────────────────────────────────────────────────────
+// Saved name + join-code pairs so a recurring session can be started without
+// retyping it. Stored as one row rather than a row per template.
+export type SessionTemplate = { id:string; name:string; join_code_label:string; created_at:string }
+const TEMPLATES_KEY='nutrition_session_templates'
+export async function listTemplates():Promise<SessionTemplate[]>{await ensureMigrated();return (await read<SessionTemplate[]>(TEMPLATES_KEY))||[]}
+export async function saveTemplate(template:SessionTemplate){
+  const all=await listTemplates()
+  const next=[template,...all.filter((t)=>t.id!==template.id)].slice(0,20)
+  await write(TEMPLATES_KEY,next)
+  return next
+}
+export async function deleteTemplate(id:string){
+  const next=(await listTemplates()).filter((t)=>t.id!==id)
+  await write(TEMPLATES_KEY,next)
+  return next
 }
