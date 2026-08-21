@@ -218,7 +218,13 @@ export function QuestExperience() {
         const response = await fetch('/api/quest/register', { method:'POST', headers:{'content-type':'application/json'}, body:JSON.stringify({name,email,password}) })
         const payload = await response.json()
         if (!response.ok) setMessage(payload.error || 'Registration could not be completed.')
-        else { setAccountName(name); setMessage(t.checkEmail); setAuthMode('login') }
+        else {
+          // The account comes back ready to use, so sign straight in rather
+          // than sending someone to their inbox in the middle of a session.
+          setAccountName(name)
+          const { error } = await getQuestSupabase().auth.signInWithPassword({ email, password })
+          if (error) { setMessage(locale === 'nb' ? 'Kontoen er opprettet. Logg inn med passordet ditt.' : 'Account created. Sign in with your password.'); setAuthMode('login') }
+        }
       } else {
         const { error } = await getQuestSupabase().auth.signInWithPassword({email,password})
         if (error) setMessage(error.message === 'Email not confirmed' ? t.checkEmail : error.message)
