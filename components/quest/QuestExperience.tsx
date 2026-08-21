@@ -118,6 +118,7 @@ export function QuestExperience() {
   const [expandedQuestionWhy, setExpandedQuestionWhy] = useState<string | null>(null)
   const [sectionIntro, setSectionIntro] = useState<number | null>(null)
   const [navOpen, setNavOpen] = useState(false)
+  const navDetails = useRef<HTMLDetailsElement>(null)
   const [waitingAtSection, setWaitingAtSection] = useState<number | null>(null)
   const previousReleased = useRef<number | null>(null)
   const answerSaveChain = useRef<Promise<void>>(Promise.resolve())
@@ -242,13 +243,22 @@ export function QuestExperience() {
   // Every move to new content on a phone should start at the top with the
   // question list folded away, otherwise the disclosure and the previous
   // scroll position push the question off screen.
-  useEffect(() => {
-    if (screen !== 'questions') return
+  const collapseNavAndScrollTop = useCallback(() => {
     setNavOpen(false)
+    // Set the DOM property directly as well: if the browser opened the
+    // disclosure natively, React's own record of `open` can already match
+    // what it is about to render, so it would skip the update and leave the
+    // list covering the question.
+    if (navDetails.current) navDetails.current.open = false
     window.scrollTo({ top: 0, behavior: 'auto' })
     const heading = document.getElementById('quest-focus')
     if (heading instanceof HTMLElement) heading.focus({ preventScroll: true })
-  }, [questionIndex, screen, sectionIntro, waitingAtSection])
+  }, [])
+
+  useEffect(() => {
+    if (screen !== 'questions') return
+    collapseNavAndScrollTop()
+  }, [questionIndex, screen, sectionIntro, waitingAtSection, collapseNavAndScrollTop])
 
   // The cohort spread appears below the question list on the waiting screen,
   // which is off-screen on a phone, so nobody would notice it arrive.
@@ -371,7 +381,7 @@ export function QuestExperience() {
   let resultAddon: React.ReactNode = null
   const releasedLimit = offlineMode ? 25 : released * 5
   const firstUnansweredIndex = QUEST_ASSESSMENT.questions.findIndex((item) => item.order <= releasedLimit && !answers[item.id])
-  const goToQuestion = (index: number) => { cancelAutoAdvance(); setNavOpen(false); setWaitingAtSection(null); setSectionIntro(null); setMessage(''); setQuestionIndex(index) }
+  const goToQuestion = (index: number) => { cancelAutoAdvance(); setWaitingAtSection(null); setSectionIntro(null); setMessage(''); setQuestionIndex(index); collapseNavAndScrollTop() }
   const navInner = (
     <div className="max-h-[45vh] space-y-4 overflow-y-auto pr-1 lg:max-h-[calc(100vh-9rem)]">
       {QUEST_ASSESSMENT.sections.filter((item) => (item.order - 1) * 5 < releasedLimit).map((item) => (
@@ -396,7 +406,7 @@ export function QuestExperience() {
       ))}
     </div>
   )
-  const shell = (body: React.ReactNode, withNav = false) => <main className="min-h-screen bg-[#f3f0e8] px-4 py-5 text-[#17251d] sm:px-6 sm:py-10"><div className={`mx-auto ${withNav && releasedLimit > 0 ? 'max-w-6xl' : 'max-w-3xl'}`}><header className="mb-7 flex flex-wrap items-center justify-between gap-3"><span className="text-xs font-semibold tracking-[.25em]">FITPRENEUR</span><div className="flex items-center gap-2"><button type="button" aria-pressed={offlineMode} disabled={connectionBusy} onClick={toggleOfflineMode} className={`rounded-full px-3 py-2 text-xs font-medium disabled:opacity-60 ${offlineMode?'bg-amber-100 text-amber-900 ring-2 ring-amber-500':'border border-neutral-300 bg-white'}`}>{connectionBusy?t.reconnecting:t.noConnection}</button><div className="flex rounded-full bg-white p-1 shadow-sm"><button onClick={()=>setLocale('en')} aria-pressed={locale==='en'} className={`rounded-full px-3 py-1 text-sm ${locale==='en'?'bg-[#173f2b] text-white':''}`}>EN</button><button onClick={()=>setLocale('nb')} aria-pressed={locale==='nb'} className={`rounded-full px-3 py-1 text-sm ${locale==='nb'?'bg-[#173f2b] text-white':''}`}>NO</button></div></div></header>{withNav && releasedLimit > 0 ? <div className="lg:grid lg:grid-cols-[270px_minmax(0,1fr)] lg:gap-8 lg:items-start"><div><details open={navOpen} onToggle={(e)=>setNavOpen((e.currentTarget as HTMLDetailsElement).open)} className="mb-5 rounded-2xl bg-white p-4 shadow-sm lg:hidden"><summary className="cursor-pointer text-sm font-semibold">{t.navLabel}</summary><div className="mt-3">{navInner}</div></details><nav aria-label={t.navLabel} className="hidden rounded-2xl bg-white p-4 shadow-sm lg:sticky lg:top-6 lg:block"><p className="mb-3 text-xs font-semibold uppercase tracking-[.16em] text-emerald-800">{t.navLabel}</p>{navInner}</nav></div><div>{body}{resultAddon}</div></div> : <>{body}{resultAddon}</>}</div></main>
+  const shell = (body: React.ReactNode, withNav = false) => <main className="min-h-screen bg-[#f3f0e8] px-4 py-5 text-[#17251d] sm:px-6 sm:py-10"><div className={`mx-auto ${withNav && releasedLimit > 0 ? 'max-w-6xl' : 'max-w-3xl'}`}><header className="mb-7 flex flex-wrap items-center justify-between gap-3"><span className="text-xs font-semibold tracking-[.25em]">FITPRENEUR</span><div className="flex items-center gap-2"><button type="button" aria-pressed={offlineMode} disabled={connectionBusy} onClick={toggleOfflineMode} className={`rounded-full px-3 py-2 text-xs font-medium disabled:opacity-60 ${offlineMode?'bg-amber-100 text-amber-900 ring-2 ring-amber-500':'border border-neutral-300 bg-white'}`}>{connectionBusy?t.reconnecting:t.noConnection}</button><div className="flex rounded-full bg-white p-1 shadow-sm"><button onClick={()=>setLocale('en')} aria-pressed={locale==='en'} className={`rounded-full px-3 py-1 text-sm ${locale==='en'?'bg-[#173f2b] text-white':''}`}>EN</button><button onClick={()=>setLocale('nb')} aria-pressed={locale==='nb'} className={`rounded-full px-3 py-1 text-sm ${locale==='nb'?'bg-[#173f2b] text-white':''}`}>NO</button></div></div></header>{withNav && releasedLimit > 0 ? <div className="lg:grid lg:grid-cols-[270px_minmax(0,1fr)] lg:gap-8 lg:items-start"><div><details ref={navDetails} open={navOpen} onToggle={(e)=>setNavOpen((e.currentTarget as HTMLDetailsElement).open)} className="mb-5 rounded-2xl bg-white p-4 shadow-sm lg:hidden"><summary className="cursor-pointer text-sm font-semibold">{t.navLabel}</summary><div className="mt-3">{navInner}</div></details><nav aria-label={t.navLabel} className="hidden rounded-2xl bg-white p-4 shadow-sm lg:sticky lg:top-6 lg:block"><p className="mb-3 text-xs font-semibold uppercase tracking-[.16em] text-emerald-800">{t.navLabel}</p>{navInner}</nav></div><div>{body}{resultAddon}</div></div> : <>{body}{resultAddon}</>}</div></main>
   if (screen === 'loading') return shell(<p className="py-20 text-center">Loading…</p>)
   if (screen === 'signin') return shell(<section className="rounded-[2rem] bg-white p-6 shadow-sm sm:p-10"><p className="mb-3 text-xs font-semibold uppercase tracking-[.2em] text-emerald-800">Secure access</p><h1 className="mb-6 text-4xl font-medium">{authMode==='signup'?t.create:t.login}</h1><form onSubmit={authenticate}>{authMode==='signup'&&<label className="mb-4 block font-medium">{t.name}<input name="name" required maxLength={80} autoComplete="name" className="mt-2 w-full rounded-xl border border-neutral-300 px-4 py-4" /></label>}<label className="mb-4 block font-medium">{t.email}<input name="email" type="email" required autoComplete="email" className="mt-2 w-full rounded-xl border border-neutral-300 px-4 py-4" /></label><label className="mb-4 block font-medium">{t.password}<input name="password" type="password" minLength={8} required autoComplete={authMode==='signup'?'new-password':'current-password'} className="mt-2 w-full rounded-xl border border-neutral-300 px-4 py-4" /></label>{authMode==='signup'&&<label className="block font-medium">{locale==='nb'?'Bekreft passord':'Confirm password'}<input name="confirmPassword" type="password" minLength={8} required autoComplete="new-password" className="mt-2 w-full rounded-xl border border-neutral-300 px-4 py-4" /></label>}<p className="mb-5 mt-2 text-sm text-neutral-500">{t.emailHelp}</p><button disabled={authBusy} className="w-full rounded-xl bg-[#173f2b] px-5 py-4 font-medium text-white disabled:opacity-50">{authBusy?(locale==='nb'?'Vent litt …':'Please wait…'):(authMode==='signup'?t.create:t.login)}</button></form><button type="button" disabled={authBusy} onClick={()=>{setMessage('');setAuthMode(authMode==='signup'?'login':'signup')}} className="mt-5 w-full text-sm font-medium underline underline-offset-4 disabled:opacity-50">{authMode==='signup'?`${t.haveAccount} ${t.login}`:`${t.needAccount} ${t.create}`}</button>{message&&<p className="mt-4 rounded-xl bg-[#edf3e9] p-4" role="status">{message}</p>}</section>)
   if (screen === 'join') return shell(<section className="rounded-[2rem] bg-white p-6 shadow-sm sm:p-10"><h1 className="mb-6 text-4xl font-medium">Join the live session</h1><form onSubmit={join}><label className="mb-5 block font-medium">{t.code}<input name="code" required autoCapitalize="characters" className="mt-2 w-full rounded-xl border border-neutral-300 px-4 py-4 uppercase tracking-[.18em]" /></label><label className="mb-6 block font-medium">{t.name}<input name="displayName" required defaultValue={accountName} className="mt-2 w-full rounded-xl border border-neutral-300 px-4 py-4" /></label><button className="w-full rounded-xl bg-[#173f2b] px-5 py-4 font-medium text-white">{t.join}</button></form>{message&&<p className="mt-4 text-red-700" role="alert">{message}</p>}</section>)
