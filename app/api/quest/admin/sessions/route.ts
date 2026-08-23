@@ -2,9 +2,34 @@ import { NextRequest } from 'next/server'
 import { getEventById, getLiveEvent, listEvents, listLiveParticipants } from '@/lib/quest/live-store'
 import type { LiveParticipant } from '@/lib/quest/live-store'
 import { QuestApiError, questError, requireQuestAdmin } from '@/lib/quest/server'
+import { listOpenResponses, type OpenResponse } from '@/lib/quest/open-store'
 import { supabaseAdmin } from '@/lib/supabase/server'
 
 const SECTION_COUNT = 5
+// Not exported: a Next route file may only export handlers and route config.
+const OPEN_POOL_ID = 'open-assessments'
+
+function openPoolSummary(responses: OpenResponse[]) {
+  const submitted = responses.filter((r) => Boolean(r.submitted_at))
+  const averageSections = Array.from({ length: SECTION_COUNT }, (_, index) =>
+    submitted.length ? round1(submitted.reduce((sum, r) => sum + Number(r.section_scores?.[index] || 0), 0) / submitted.length) : 0,
+  )
+  return {
+    id: OPEN_POOL_ID,
+    name: 'Open assessments',
+    join_code_label: 'OPEN LINK',
+    status: 'active' as const,
+    released_section: 5,
+    results_released: true,
+    created_at: responses.map((r) => r.created_at).sort()[0] || new Date().toISOString(),
+    updated_at: responses.map((r) => r.updated_at).sort().pop() || new Date().toISOString(),
+    participant_count: responses.length,
+    submitted_count: submitted.length,
+    average_total: submitted.length ? round1(submitted.reduce((sum, r) => sum + Number(r.total_score || 0), 0) / submitted.length) : 0,
+    average_sections: averageSections,
+    is_current: false,
+  }
+}
 
 const round1 = (value: number) => Number(value.toFixed(1))
 
@@ -30,6 +55,29 @@ export async function GET(request: NextRequest) {
     await requireQuestAdmin()
     const eventId = request.nextUrl.searchParams.get('id')
     const currentEvent = await getLiveEvent()
+
+    // The open assessment has no event of its own — it is a rolling pool that
+    // anyone can complete at any time — so it is presented as one pseudo
+    // session kept deliberately apart from the live cohorts, whose numbers it
+    // must never contaminate.
+    if (eventId === OPEN_POOL_ID) {
+      const responses = (await listOpenResponses()).sort((a, b) => String(b.updated_at).localeCompare(String(a.updated_at)))
+      return Response.json({
+        session: openPoolSummary(responses),
+        participants: responses.map((r) => ({
+          id: r.token,
+          display_name: r.display_name || 'Anonymous',
+          email: r.email || null,
+          answers: r.answers || {},
+          answered_count: Object.keys(r.answers || {}).length,
+          section_scores: r.section_scores || [0, 0, 0, 0, 0],
+          total_score: r.total_score || 0,
+          submitted_at: r.submitted_at || null,
+          last_seen_at: r.updated_at,
+          fasting_challenge: r.fasting_challenge || null,
+        })),
+      })
+    }
 
     if (eventId) {
       const session = await getEventById(eventId)
@@ -90,7 +138,10 @@ export async function GET(request: NextRequest) {
       }),
     )
 
-    return Response.json({ sessions })
+    // Listed alongside the cohorts but never mixed into one: it is a standing
+    // pool rather than an event, and it has no join code or facilitator.
+    const openPool = openPoolSummary(await listOpenResponses())
+    return Response.json({ sessions: [...sessions, openPool] })
   } catch (error) {
     return questError(error)
   }
