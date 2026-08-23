@@ -153,13 +153,15 @@ export function OpenAssessment() {
   if (stage === 'loading') return shell(<p className="py-20 text-center">Loading…</p>)
 
   if (stage === 'intro') return shell(<section className={CARD}>
-    <h1 className="mb-6 text-4xl font-medium sm:text-5xl">What is your Nutrition Fitness?</h1>
-    <p className="mb-5 text-lg leading-relaxed">You have had your blood pressure taken. Probably your cholesterol too. Nobody has ever measured the thing that decides what you eat three times a day, every day, for the rest of your life.</p>
-    <p className="mb-5 text-lg leading-relaxed">That is what this is.</p>
-    <p className="mb-5 leading-relaxed text-neutral-700">It has nothing to do with what you weigh or how much nutrition you can recite. It measures how well you read your own body, how deliberately you fuel it, and how fast you adapt when something that worked stops working.</p>
-    <p className="mb-8 leading-relaxed text-neutral-700">Almost nobody comes out even across the five areas. The gap is the interesting part.</p>
+    <h1 className="mb-7 text-4xl font-medium sm:text-5xl">What is your Nutrition Fitness?</h1>
+    <p className="mb-4 text-xl leading-snug">You have had your blood pressure taken. Probably your cholesterol.</p>
+    <p className="mb-4 text-xl font-medium leading-snug">Nobody has ever measured how you decide what to eat.</p>
+    <p className="mb-6 text-lg leading-relaxed text-neutral-700">Three times a day. Every day. For the rest of your life. And not one person has ever looked at it.</p>
+    <p className="mb-4 leading-relaxed text-neutral-700">This is not about what you weigh, or how much nutrition you can recite. It is about how well you read your own body, how deliberately you fuel it, and how fast you move when something that used to work stops working.</p>
+    <p className="mb-6 text-lg font-medium leading-relaxed">That is trainable. Most people simply never trained it.</p>
+    <p className="mb-8 leading-relaxed text-neutral-700">Five areas. Almost nobody comes out even — and the gap is where the useful part is.</p>
     <button type="button" onClick={() => setStage('questions')} className="w-full rounded-xl bg-[#173f2b] px-5 py-5 text-lg font-medium text-white">Find out — 25 questions, 10 minutes</button>
-    <p className="mt-5 text-sm leading-relaxed text-neutral-500">Answer for how you have actually eaten these past 6–8 weeks, not how you mean to. Caught between two answers? Take the lower one — it makes your result worth having. Your progress saves as you go, so you can stop and come back.</p>
+    <p className="mt-5 text-sm leading-relaxed text-neutral-500">Answer for how you have actually eaten the last 6–8 weeks. Not how you mean to. Stuck between two? Take the lower one — it makes the result worth having. Saves as you go, so you can stop and come back.</p>
   </section>)
 
   if (stage === 'section') {
