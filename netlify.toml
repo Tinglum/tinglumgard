@@ -11,13 +11,13 @@ package = "@netlify/plugin-nextjs"
 
 [[redirects]]
   from = "/quest"
-  to = "https://quest.mynutritiontest.com/quest"
+  to = "https://quest.mynutritiontest.com/"
   status = 301
   force = true
 
 [[redirects]]
   from = "/quest/*"
-  to = "https://quest.mynutritiontest.com/quest/:splat"
+  to = "https://quest.mynutritiontest.com/:splat"
   status = 301
   force = true
 
