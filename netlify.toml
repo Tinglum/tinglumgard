@@ -8,3 +8,27 @@ publish = ".next"
 
 [[plugins]]
 package = "@netlify/plugin-nextjs"
+
+[[redirects]]
+  from = "/quest"
+  to = "https://quest.mynutritiontest.com/quest"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/quest/*"
+  to = "https://quest.mynutritiontest.com/quest/:splat"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/bnimsp"
+  to = "https://msp.tinglum.com/bnimsp"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/bnimsp/*"
+  to = "https://msp.tinglum.com/bnimsp/:splat"
+  status = 301
+  force = true
