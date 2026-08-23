@@ -154,12 +154,12 @@ export function OpenAssessment() {
 
   if (stage === 'intro') return shell(<section className={CARD}>
     <h1 className="mb-7 text-4xl font-medium sm:text-5xl">What is your Nutrition Fitness?</h1>
-    <p className="mb-4 text-xl leading-snug">You have had your blood pressure taken. Probably your cholesterol.</p>
-    <p className="mb-4 text-xl font-medium leading-snug">Nobody has ever measured how you decide what to eat.</p>
-    <p className="mb-6 text-lg leading-relaxed text-neutral-700">Three times a day. Every day. For the rest of your life. And not one person has ever looked at it.</p>
-    <p className="mb-4 leading-relaxed text-neutral-700">This is not about what you weigh, or how much nutrition you can recite. It is about how well you read your own body, how deliberately you fuel it, and how fast you move when something that used to work stops working.</p>
-    <p className="mb-6 text-lg font-medium leading-relaxed">That is trainable. Most people simply never trained it.</p>
-    <p className="mb-8 leading-relaxed text-neutral-700">Five areas. Almost nobody comes out even — and the gap is where the useful part is.</p>
+    <p className="mb-5 text-2xl leading-tight sm:text-3xl">You have around thirty thousand meals left.</p>
+    <p className="mb-7 text-2xl font-medium leading-tight sm:text-3xl">Nobody has ever measured how you decide them.</p>
+    <p className="mb-5 leading-relaxed text-neutral-700">Blood pressure, cholesterol, weight — all measured, all charted, all on a screen at your GP. The system that picks your food three times a day, every day, until the end? Never looked at once.</p>
+    <p className="mb-5 leading-relaxed text-neutral-700">This is not what you weigh, and it is not what you can recite. It is how well you read your own body, how deliberately you fuel it, and how fast you move when what used to work stops working.</p>
+    <p className="mb-5 text-lg font-medium leading-relaxed">And it is trained. Not genetic. Not your age. Not your metabolism. Trained — which means it can be trained differently, starting the moment you know where you stand.</p>
+    <p className="mb-8 leading-relaxed text-neutral-700">Five areas. Almost nobody comes out even. The low one is the interesting one.</p>
     <button type="button" onClick={() => setStage('questions')} className="w-full rounded-xl bg-[#173f2b] px-5 py-5 text-lg font-medium text-white">Find out — 25 questions, 10 minutes</button>
     <p className="mt-5 text-sm leading-relaxed text-neutral-500">Answer for how you have actually eaten the last 6–8 weeks. Not how you mean to. Stuck between two? Take the lower one — it makes the result worth having. Saves as you go, so you can stop and come back.</p>
   </section>)
