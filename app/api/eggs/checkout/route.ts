@@ -167,7 +167,13 @@ export async function POST(request: NextRequest) {
         remainder_due_date: isFullPayment ? null : remainderDueDate.toISOString().split('T')[0],
         notes: body.notes || null,
         status: 'pending',
-        inventory_reserved_at: now.toISOString(),
+        // Eggs are NOT reserved at checkout. Reservation (inventory allocation)
+        // happens only when the deposit payment completes, via
+        // finalizeConfirmedEggOrder. This means a failed/abandoned Vipps payment
+        // never holds stock, and the customer is told on Min side that their
+        // eggs are unreserved until they pay. inventory_reserved_at stays null
+        // until that claim succeeds. (The reconcile cron already assumes this.)
+        inventory_reserved_at: null,
         policy_version: 'v1-2026',
         shipping_address: body.shippingAddress || null,
         shipping_postal_code: body.shippingPostalCode || null,
@@ -182,20 +188,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to create order' }, { status: 500 })
     }
 
-    for (const item of items) {
-      const inventory = inventoryMap.get(item.inventoryId)
-      if (!inventory) continue
-
-      const nextAllocated = (inventory.eggs_allocated || 0) + item.quantity
-      const { error: updateError } = await supabaseAdmin
-        .from('egg_inventory')
-        .update({ eggs_allocated: nextAllocated })
-        .eq('id', inventory.id)
-
-      if (updateError) {
-        logError('egg-checkout-inventory-update', updateError)
-      }
-    }
+    // NOTE: inventory is intentionally NOT allocated here. Eggs are reserved
+    // only when the deposit payment completes (finalizeConfirmedEggOrder), so an
+    // unpaid order never holds stock. See the inventory_reserved_at comment above.
 
     const additions = items.slice(1).map((item) => {
       const inventory = inventoryMap.get(item.inventoryId)

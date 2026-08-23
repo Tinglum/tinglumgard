@@ -45,18 +45,13 @@ export default function EggConfirmationPage() {
   const confirmation = t.eggs.confirmation
   const orderNotFoundError = t.eggs.errors.orderNotFound
 
-  // After polling is exhausted without a completed payment, ask the backend to
-  // resolve the failure: it retries (too few attempts) or confirms manually.
+  // Eggs are NOT auto-reserved on a failed Vipps payment. Once polling is
+  // exhausted without a completed deposit, surface the "not reserved – pay to
+  // reserve" state so the customer can finish paying here or on Min side.
+  // (Reservation happens only when the deposit completes.)
   useEffect(() => {
     if (!orderId || paymentStatus === 'completed' || pollCount < 10 || resilience !== 'idle') return
-    setResilience('checking')
-    fetch(`/api/eggs/orders/${orderId}/manual-confirm`, { method: 'POST' })
-      .then(async (res) => {
-        if (res.ok) { setResilience('manual_confirmed'); return }
-        const data = await res.json().catch(() => ({}))
-        setResilience(data?.error === 'already_paid' ? 'idle' : 'retry')
-      })
-      .catch(() => setResilience('retry'))
+    setResilience('retry')
   }, [orderId, paymentStatus, pollCount, resilience])
 
   const handleRetry = async () => {
@@ -174,8 +169,8 @@ export default function EggConfirmationPage() {
           : 'We have entered your order manually — it is confirmed and reserved.')
       : resilience === 'retry'
         ? (language === 'no'
-            ? 'Bestillingen din er reservert. Prøv å betale på nytt.'
-            : 'Your order is reserved. Please try paying again.')
+            ? 'Bestillingen er lagt inn, men eggene er ikke reservert ennå fordi betalingen ikke gikk gjennom. Fullfør betalingen for å reservere dem.'
+            : 'Your order is placed, but the eggs are not reserved yet because the payment did not go through. Complete the payment to reserve them.')
         : paymentStatus === 'completed'
           ? confirmation.leadCompleted
           : paymentStatus === 'failed'
@@ -249,20 +244,25 @@ export default function EggConfirmationPage() {
           <GlassCard className="p-5 space-y-4">
             <p className="text-sm text-neutral-700">
               {language === 'no'
-                ? 'Det skjedde noe under Vipps-betalingen. Bestillingen din er reservert — prøv å betale på nytt.'
-                : 'Something went wrong during the Vipps payment. Your order is reserved — please try paying again.'}
+                ? 'Vipps-betalingen gikk ikke gjennom, så eggene er ikke reservert ennå. Fullfør betalingen for å reservere dem – ellers kan du gjøre det når som helst fra Min side.'
+                : 'The Vipps payment did not go through, so the eggs are not reserved yet. Complete the payment to reserve them – or you can do it any time from Min side.'}
             </p>
-            <button
-              type="button"
-              onClick={handleRetry}
-              disabled={retrying}
-              className="btn-primary inline-flex items-center gap-2"
-            >
-              <RefreshCcw className={`w-4 h-4 ${retrying ? 'animate-spin' : ''}`} />
-              {retrying
-                ? (language === 'no' ? 'Åpner Vipps…' : 'Opening Vipps…')
-                : (language === 'no' ? 'Prøv å betale igjen' : 'Try paying again')}
-            </button>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <button
+                type="button"
+                onClick={handleRetry}
+                disabled={retrying}
+                className="btn-primary inline-flex items-center gap-2 justify-center"
+              >
+                <RefreshCcw className={`w-4 h-4 ${retrying ? 'animate-spin' : ''}`} />
+                {retrying
+                  ? (language === 'no' ? 'Åpner Vipps…' : 'Opening Vipps…')
+                  : (language === 'no' ? 'Betal og reserver eggene' : 'Pay and reserve the eggs')}
+              </button>
+              <Link href="/min-side" className="btn-secondary inline-flex items-center justify-center">
+                {language === 'no' ? 'Gå til Min side' : 'Go to Min side'}
+              </Link>
+            </div>
           </GlassCard>
         ) : paymentStatus !== 'completed' && (
           <GlassCard className="p-5 text-sm text-neutral-700">

@@ -240,6 +240,9 @@ export function EggOrderUnifiedCard({ order, onPayDeposit }: { order: EggOrder; 
     remainderDue <= 0 || ['fully_paid', 'preparing', 'shipped', 'delivered'].includes(order.status)
   const hasNoRemainderStage = !hasLaterExtraBalance && Number(order.remainder_amount || 0) <= 0
   const fullyPaidNow = depositPaid && remainderDue <= 0
+  // Placed but the Vipps payment never completed: no deposit, eggs not reserved.
+  const isUnreservedUnpaid = order.status === 'pending' && !depositPaid
+  const depositIsFull = Number(order.remainder_amount || 0) <= 0
   const payBalanceLabel =
     hasLaterExtraBalance && remainderDue > 0
       ? (lang === 'no' ? 'Betal tillegg' : 'Pay extras')
@@ -541,6 +544,36 @@ export function EggOrderUnifiedCard({ order, onPayDeposit }: { order: EggOrder; 
         </div>
       </div>
 
+      {isUnreservedUnpaid && (
+        <div className="rounded-2xl border border-amber-300 bg-amber-50 p-5">
+          <p className="text-sm font-semibold text-amber-900">
+            {lang === 'no'
+              ? 'Bestillingen er lagt inn, men betalingen er ikke fullført'
+              : 'Your order is placed, but payment is not complete'}
+          </p>
+          <p className="mt-1.5 text-sm text-amber-800 leading-relaxed">
+            {lang === 'no'
+              ? 'Vipps-betalingen gikk ikke gjennom, så eggene er ikke reservert ennå. Eggene reserveres først når betalingen er fullført – fullfør betalingen under for å sikre dem før de blir tatt av andre.'
+              : 'The Vipps payment did not go through, so your eggs are not reserved yet. They are only reserved once payment completes – finish the payment below to secure them before someone else does.'}
+          </p>
+          {onPayDeposit && (
+            <button
+              onClick={() => onPayDeposit(order.id)}
+              className="btn-primary mt-4 inline-flex items-center gap-1.5 w-full justify-center sm:w-auto"
+            >
+              {lang === 'no'
+                ? depositIsFull
+                  ? 'Betal og reserver eggene'
+                  : 'Betal forskudd og reserver'
+                : depositIsFull
+                  ? 'Pay and reserve eggs'
+                  : 'Pay deposit and reserve'}
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="space-y-3">
           <div>
@@ -661,7 +694,7 @@ export function EggOrderUnifiedCard({ order, onPayDeposit }: { order: EggOrder; 
             )}
           </div>
           <div className="flex flex-wrap gap-2">
-            {!depositPaid && onPayDeposit && (
+            {!depositPaid && !isUnreservedUnpaid && onPayDeposit && (
               <button
                 onClick={() => onPayDeposit(order.id)}
                 className="btn-primary inline-flex items-center gap-1.5 w-full justify-center sm:w-auto"
