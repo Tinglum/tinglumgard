@@ -154,9 +154,10 @@ export function OpenAssessment() {
 
   if (stage === 'intro') return shell(<section className={CARD}>
     <h1 className="mb-7 text-4xl font-medium sm:text-5xl">What is your Nutrition Fitness?</h1>
-    <p className="mb-5 text-2xl leading-tight sm:text-3xl">Three meals a day. Who decided that?</p>
-    <p className="mb-7 text-2xl font-medium leading-tight sm:text-3xl">Not you — and nobody has ever asked whether it works for you.</p>
-    <p className="mb-5 leading-relaxed text-neutral-700">Blood pressure, cholesterol, weight — all measured, all charted, all sitting on a screen at your GP. The system deciding what you eat, and when, for the next twelve thousand days? Never looked at once.</p>
+    <p className="mb-4 text-2xl leading-tight sm:text-3xl">Three meals a day. Who decided that?</p>
+    <p className="mb-6 text-2xl font-medium leading-tight sm:text-3xl">Not a doctor. Not your body.</p>
+    <p className="mb-5 leading-relaxed text-neutral-700">Fixed shifts needed fixed mealtimes, so the factory clock set the pattern — and a century of advertising turned a work schedule into a rule about health. You inherited it whole, from people who were not thinking about you.</p>
+    <p className="mb-5 leading-relaxed text-neutral-700">Blood pressure, cholesterol, weight — all measured, all charted, all sitting on a screen at your GP. The pattern deciding what you eat, and when, for the next twelve thousand days? Never looked at once.</p>
     <p className="mb-5 leading-relaxed text-neutral-700">This is not what you weigh, and it is not what you can recite. It is how well you read your own body, how deliberately you fuel it, and how fast you move when what used to work stops working.</p>
     <p className="mb-5 text-lg font-medium leading-relaxed">And it is trained. Not genetic. Not your age. Not your metabolism. Trained — which means it can be trained differently, starting the moment you know where you stand.</p>
     <p className="mb-8 leading-relaxed text-neutral-700">Five areas. Almost nobody comes out even. The low one is the interesting one.</p>
