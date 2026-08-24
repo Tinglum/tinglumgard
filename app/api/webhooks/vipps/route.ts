@@ -11,6 +11,7 @@ import {
 import { renderManagedTemplate } from "@/lib/email/render";
 import { buildAdminOrderLink, buildCustomerOrderLink } from "@/lib/email/links";
 import { finalizeConfirmedEggOrder } from '@/lib/eggs/order-confirmation'
+import { reservePigBoxOnPayment, reserveChickenHatchesOnPayment } from '@/lib/reservations/reserve-on-payment'
 import { getEggDepositStatus, sendEggDepositConfirmationEmail } from '@/lib/eggs/notifications'
 import { notifyInventoryOverallocation } from '@/lib/notifications/inventory-overallocation'
 import {
@@ -686,6 +687,28 @@ export async function POST(request: NextRequest) {
             orderNumber: order.order_number || order.id,
             customerName: order.customer_name,
             errorMessage: finErr instanceof Error ? finErr.message : 'Unknown error',
+            source: 'vipps-webhook',
+          }).catch((e) => logError('vipps-webhook-notify-overallocation', e))
+        }
+      }
+
+      // Pig and chicken now reserve stock at payment (not checkout), mirroring
+      // eggs. Non-fatal: a reservation failure must never break payment
+      // confirmation — it alerts an admin about a paid-but-unreserved order.
+      if (!isEggPayment && order?.id) {
+        try {
+          if (isChickenPayment) {
+            await reserveChickenHatchesOnPayment(order)
+          } else {
+            await reservePigBoxOnPayment(order)
+          }
+        } catch (resErr) {
+          logError('vipps-webhook-reserve-on-payment', resErr, { orderId: order.id, scope: isChickenPayment ? 'chicken' : 'pig' })
+          notifyInventoryOverallocation({
+            orderId: order.id,
+            orderNumber: order.order_number || order.id,
+            customerName: order.customer_name,
+            errorMessage: resErr instanceof Error ? resErr.message : 'Unknown error',
             source: 'vipps-webhook',
           }).catch((e) => logError('vipps-webhook-notify-overallocation', e))
         }

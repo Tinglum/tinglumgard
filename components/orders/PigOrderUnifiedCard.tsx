@@ -552,6 +552,26 @@ export function PigOrderUnifiedCard({ order, canEdit, onPayRemainder, onPayDepos
           </div>
         </div>
 
+        {['draft', 'pending'].includes(order.status) && !depositPaid && (
+          <div className="rounded-2xl border border-amber-300 bg-amber-50 p-5">
+            <p className="text-sm font-semibold text-amber-900">
+              {lang === 'no'
+                ? 'Bestillingen er lagt inn, men betalingen er ikke fullført'
+                : 'Your order is placed, but payment is not complete'}
+            </p>
+            <p className="mt-1.5 text-sm text-amber-800 leading-relaxed">
+              {lang === 'no'
+                ? 'Vipps-betalingen gikk ikke gjennom, så kassen er ikke reservert ennå. Kassen reserveres først når betalingen er fullført – fullfør betalingen under for å sikre den.'
+                : 'The Vipps payment did not go through, so your box is not reserved yet. It is only reserved once payment completes – finish the payment below to secure it.'}
+            </p>
+            {onPayDeposit && (
+              <Button onClick={() => onPayDeposit(order.id)} className="btn-primary mt-4">
+                {lang === 'no' ? 'Betal og reserver kassen' : 'Pay and reserve the box'}
+              </Button>
+            )}
+          </div>
+        )}
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="space-y-3">
             <div>
@@ -667,7 +687,7 @@ export function PigOrderUnifiedCard({ order, canEdit, onPayRemainder, onPayDepos
         </div>
 
         <div className="mt-5 pt-5 border-t border-neutral-200 flex flex-wrap gap-2">
-          {!depositPaid && onPayDeposit && (
+          {!depositPaid && !['draft', 'pending'].includes(order.status) && onPayDeposit && (
             <Button onClick={() => onPayDeposit(order.id)} className="btn-primary">
               <CreditCard className="w-4 h-4 mr-1.5" />
               {lang === 'no' ? 'Betal depositum' : 'Pay deposit'}

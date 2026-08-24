@@ -753,6 +753,26 @@ export function ChickenOrderCard({ order, onPayRemainder, onPayDeposit, onRefres
           </div>
         </div>
 
+        {order.status === 'pending' && !depositPaid && (
+          <div className="rounded-2xl border border-amber-300 bg-amber-50 p-5">
+            <p className="text-sm font-semibold text-amber-900">
+              {lang === 'no'
+                ? 'Bestillingen er lagt inn, men betalingen er ikke fullført'
+                : 'Your order is placed, but payment is not complete'}
+            </p>
+            <p className="mt-1.5 text-sm text-amber-800 leading-relaxed">
+              {lang === 'no'
+                ? 'Vipps-betalingen gikk ikke gjennom, så kyllingene er ikke reservert ennå. De reserveres først når betalingen er fullført – fullfør betalingen under for å sikre dem.'
+                : 'The Vipps payment did not go through, so your chickens are not reserved yet. They are only reserved once payment completes – finish the payment below to secure them.'}
+            </p>
+            {onPayDeposit && (
+              <Button onClick={() => onPayDeposit(order.id)} className="btn-primary mt-4">
+                {lang === 'no' ? 'Betal og reserver kyllingene' : 'Pay and reserve the chickens'}
+              </Button>
+            )}
+          </div>
+        )}
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="space-y-3">
             <div>
@@ -998,7 +1018,7 @@ export function ChickenOrderCard({ order, onPayRemainder, onPayDeposit, onRefres
           />
         </div>
 
-        {(!depositPaid && onPayDeposit) && (
+        {(!depositPaid && order.status !== 'pending' && onPayDeposit) && (
           <div className="mt-5 pt-5 border-t border-neutral-200">
             <Button className="btn-primary" onClick={() => onPayDeposit(order.id)}>
               {lang === 'no' ? 'Betal depositum' : 'Pay deposit'}

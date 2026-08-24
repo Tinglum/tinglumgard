@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase/server'
 import { vippsClient } from '@/lib/vipps/api-client'
 import { finalizeConfirmedEggOrder } from '@/lib/eggs/order-confirmation'
+import { reservePigBoxOnPayment, reserveChickenHatchesOnPayment } from '@/lib/reservations/reserve-on-payment'
 import { logError } from '@/lib/logger'
 import { notifyInventoryOverallocation } from '@/lib/notifications/inventory-overallocation'
 import { sendOrderCancelledEmail } from '@/lib/email/order-resilience'
@@ -89,7 +90,16 @@ async function reconcilePendingPayments(cutoff: string): Promise<ResultEntry[]> 
         const paidAt = new Date().toISOString()
         await supabaseAdmin.from('payments').update({ status: 'completed', paid_at: paidAt, webhook_processed_at: paidAt }).eq('id', p.id).eq('status', 'pending')
         if (p.payment_type === 'deposit') {
-          const { data: order } = await supabaseAdmin.from('orders').select('remainder_amount_nok').eq('id', p.order_id).maybeSingle()
+          const { data: order } = await supabaseAdmin.from('orders')
+            .select('id, order_number, customer_name, status, box_size, effective_box_size, remainder_amount_nok, mangalitsa_preset:mangalitsa_box_presets(target_weight_kg)')
+            .eq('id', p.order_id).maybeSingle()
+          // Reserve stock at payment (mirrors the webhook), before flipping status.
+          if (order) {
+            try { await reservePigBoxOnPayment(order) } catch (resErr) {
+              logError('cron-reserve-pig', resErr, { orderId: order.id })
+              notifyInventoryOverallocation({ orderId: String(order.id), orderNumber: order.order_number || String(order.id), customerName: order.customer_name, errorMessage: resErr instanceof Error ? resErr.message : 'Unknown', source: 'cron-reconcile' }).catch((e) => logError('cron-reserve-pig-notify', e))
+            }
+          }
           const status = Number(order?.remainder_amount_nok || 0) <= 0 ? 'fully_paid' : 'deposit_paid'
           await supabaseAdmin.from('orders').update({ status }).eq('id', p.order_id)
         }
@@ -166,7 +176,16 @@ async function reconcilePendingPayments(cutoff: string): Promise<ResultEntry[]> 
         const paidAt = new Date().toISOString()
         await supabaseAdmin.from('chicken_payments').update({ status: 'completed', paid_at: paidAt, webhook_processed_at: paidAt }).eq('id', p.id).eq('status', 'pending')
         if (p.payment_type === 'deposit') {
-          const { data: order } = await supabaseAdmin.from('chicken_orders').select('remainder_amount_nok').eq('id', p.chicken_order_id).maybeSingle()
+          const { data: order } = await supabaseAdmin.from('chicken_orders')
+            .select('id, order_number, customer_name, status, hatch_id, quantity_hens, quantity_roosters, remainder_amount_nok, chicken_order_additions(hatch_id, quantity_hens, quantity_roosters)')
+            .eq('id', p.chicken_order_id).maybeSingle()
+          // Reserve stock at payment (mirrors the webhook), before flipping status.
+          if (order) {
+            try { await reserveChickenHatchesOnPayment(order) } catch (resErr) {
+              logError('cron-reserve-chicken', resErr, { orderId: order.id })
+              notifyInventoryOverallocation({ orderId: String(order.id), orderNumber: order.order_number || String(order.id), customerName: order.customer_name, errorMessage: resErr instanceof Error ? resErr.message : 'Unknown', source: 'cron-reconcile' }).catch((e) => logError('cron-reserve-chicken-notify', e))
+            }
+          }
           const status = Number(order?.remainder_amount_nok || 0) <= 0 ? 'fully_paid' : 'deposit_paid'
           await supabaseAdmin.from('chicken_orders').update({ status }).eq('id', p.chicken_order_id)
         }
@@ -224,15 +243,8 @@ async function cancelAbandonedCheckouts(cutoff: string): Promise<ResultEntry[]> 
         await supabaseAdmin.from('orders').update({ status: 'cancelled' }).eq('id', order.id)
         await sendOrderCancelledEmail({ scope: 'pig', order, sourcePath: 'cron.reconcile-payments' }).catch((e) => logError('cron-cancel-pig-email', e))
 
-        // Restore inventory — mangalitsa uses preset target_weight_kg, standard uses box_size
-        const preset = order.mangalitsa_preset as { target_weight_kg?: number } | null
-        const kgToRestore = Number(order.box_size || preset?.target_weight_kg || 0)
-        if (kgToRestore > 0) {
-          const { data: inv } = await supabaseAdmin.from('inventory').select('id, kg_remaining').eq('active', true).maybeSingle()
-          if (inv) {
-            await supabaseAdmin.from('inventory').update({ kg_remaining: inv.kg_remaining + kgToRestore }).eq('id', inv.id)
-          }
-        }
+        // No inventory to restore: pig boxes are reserved only at payment, and
+        // this path only cancels never-paid draft/pending orders (unreserved).
 
         results.push({ id: order.id, scope: 'pig', action: 'cancelled', detail: order.order_number })
       } catch (err) {
@@ -297,28 +309,8 @@ async function cancelAbandonedCheckouts(cutoff: string): Promise<ResultEntry[]> 
         await supabaseAdmin.from('chicken_orders').update({ status: 'cancelled' }).eq('id', order.id)
         await sendOrderCancelledEmail({ scope: 'chicken', order, sourcePath: 'cron.reconcile-payments' }).catch((e) => logError('cron-cancel-chicken-email', e))
 
-        // Restore hatch availability for main order line
-        if (order.hatch_id) {
-          const { data: hatch } = await supabaseAdmin.from('chicken_hatches').select('available_hens, available_roosters').eq('id', order.hatch_id).maybeSingle()
-          if (hatch) {
-            await supabaseAdmin.from('chicken_hatches').update({
-              available_hens: Number(hatch.available_hens || 0) + Number(order.quantity_hens || 0),
-              available_roosters: Number(hatch.available_roosters || 0) + Number(order.quantity_roosters || 0),
-            }).eq('id', order.hatch_id)
-          }
-        }
-
-        // Restore hatch availability for additions
-        for (const addition of order.chicken_order_additions || []) {
-          if (!addition.hatch_id) continue
-          const { data: hatch } = await supabaseAdmin.from('chicken_hatches').select('available_hens, available_roosters').eq('id', addition.hatch_id).maybeSingle()
-          if (hatch) {
-            await supabaseAdmin.from('chicken_hatches').update({
-              available_hens: Number(hatch.available_hens || 0) + Number(addition.quantity_hens || 0),
-              available_roosters: Number(hatch.available_roosters || 0) + Number(addition.quantity_roosters || 0),
-            }).eq('id', addition.hatch_id)
-          }
-        }
+        // No hatch stock to restore: chickens are reserved only at payment, and
+        // this path only cancels never-paid pending orders (unreserved).
 
         results.push({ id: order.id, scope: 'chicken', action: 'cancelled', detail: order.order_number })
       } catch (err) {

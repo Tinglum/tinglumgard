@@ -274,19 +274,11 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    for (const line of computedLines) {
-      const { error: updateError } = await supabaseAdmin
-        .from('chicken_hatches')
-        .update({
-          available_hens: Number(line.hatch.available_hens) - line.quantityHens,
-          available_roosters: Number(line.hatch.available_roosters) - line.quantityRoosters,
-        })
-        .eq('id', line.hatchId)
-
-      if (updateError) {
-        logError('chicken-checkout-hatch-update', { updateError, hatchId: line.hatchId })
-      }
-    }
+    // Hatch stock is NOT decremented at checkout — chickens are reserved only
+    // when the deposit payment completes (see the Vipps webhook). A failed or
+    // abandoned Vipps payment therefore never holds birds; the customer is told
+    // on Min side that the chickens are unreserved until they pay. The
+    // availability checks above still prevent obviously-sold-out checkouts.
 
     // Grant pork deposit discount benefit to chicken customers
     if (customerEmail && customerEmail !== VIPPS_PENDING_EMAIL) {

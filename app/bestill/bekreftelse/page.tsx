@@ -118,18 +118,13 @@ export default function ConfirmationPage() {
     return () => clearInterval(pollInterval);
   }, [orderId, paymentStatus, pollCount]);
 
-  // After polling is exhausted without a completed payment, let the backend
-  // resolve the failure: retry (too few attempts) or confirm manually.
+  // The box is NOT auto-reserved on a failed Vipps payment. Once polling is
+  // exhausted without a completed deposit, surface the "not reserved – pay to
+  // reserve" state so the customer can finish paying here or on Min side.
+  // (Reservation happens only when the deposit completes.)
   useEffect(() => {
     if (!orderId || isPaymentDeferred || paymentStatus === "completed" || pollCount < 10 || resilience !== "idle") return;
-    setResilience("checking");
-    fetch(`/api/orders/${orderId}/manual-confirm`, { method: "POST" })
-      .then(async (res) => {
-        if (res.ok) { setResilience("manual_confirmed"); return; }
-        const data = await res.json().catch(() => ({}));
-        setResilience(data?.error === "already_paid" ? "idle" : "retry");
-      })
-      .catch(() => setResilience("retry"));
+    setResilience("retry");
   }, [orderId, isPaymentDeferred, paymentStatus, pollCount, resilience]);
 
   async function handleRetryPayment() {
@@ -408,20 +403,25 @@ export default function ConfirmationPage() {
                 </p>
                 <p className="text-sm text-amber-800 mt-1 mb-3">
                   {lang === "no"
-                    ? "Bestillingen din er reservert — prøv å betale på nytt."
-                    : "Your order is reserved — please try paying again."}
+                    ? "Vipps-betalingen gikk ikke gjennom, så kassen er ikke reservert ennå. Fullfør betalingen for å reservere den – ellers kan du gjøre det når som helst fra Min side."
+                    : "The Vipps payment did not go through, so your box is not reserved yet. Complete the payment to reserve it – or you can do it any time from Min side."}
                 </p>
-                <button
-                  type="button"
-                  onClick={handleRetryPayment}
-                  disabled={retrying}
-                  className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-neutral-900 text-white text-sm font-light uppercase tracking-wide disabled:opacity-60"
-                >
-                  <RefreshCcw className={cn("w-4 h-4", retrying && "animate-spin")} />
-                  {retrying
-                    ? (lang === "no" ? "Åpner Vipps…" : "Opening Vipps…")
-                    : (lang === "no" ? "Prøv å betale igjen" : "Try paying again")}
-                </button>
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <button
+                    type="button"
+                    onClick={handleRetryPayment}
+                    disabled={retrying}
+                    className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-neutral-900 text-white text-sm font-light uppercase tracking-wide disabled:opacity-60"
+                  >
+                    <RefreshCcw className={cn("w-4 h-4", retrying && "animate-spin")} />
+                    {retrying
+                      ? (lang === "no" ? "Åpner Vipps…" : "Opening Vipps…")
+                      : (lang === "no" ? "Betal og reserver kassen" : "Pay and reserve the box")}
+                  </button>
+                  <Link href="/min-side" className="inline-flex items-center justify-center px-5 py-3 rounded-xl border border-neutral-300 text-neutral-900 text-sm font-light uppercase tracking-wide">
+                    {lang === "no" ? "Gå til Min side" : "Go to Min side"}
+                  </Link>
+                </div>
               </div>
             )}
 

@@ -147,9 +147,10 @@ export async function POST(request: NextRequest) {
 
     // Customer details are optional - they will be populated from Vipps after payment
 
-    // Check and atomically lock inventory before order creation.
-    // Using a conditional UPDATE (.gte guard) so concurrent checkouts can't both
-    // pass the availability check against the same stock snapshot.
+    // Availability CHECK only — the box is NOT reserved at checkout. Stock is
+    // locked atomically only when the deposit payment completes (see the Vipps
+    // webhook), so a failed/abandoned Vipps payment never holds a box. The
+    // customer is told on Min side that the box is unreserved until they pay.
     const inventory = await supabaseAdmin
       .from('inventory')
       .select('*')
@@ -160,19 +161,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Inventory unavailable' }, { status: 500 });
     }
 
-    const { data: lockedInventory, error: lockError } = await supabaseAdmin
-      .from('inventory')
-      .update({ kg_remaining: inventory.data.kg_remaining - effectiveBoxSize })
-      .eq('id', inventory.data.id)
-      .gte('kg_remaining', effectiveBoxSize) // only succeeds if stock hasn't changed
-      .select('id');
-
-    if (lockError) {
-      logError('checkout-inventory-lock', lockError);
-      return NextResponse.json({ error: 'Failed to reserve inventory' }, { status: 500 });
-    }
-
-    if (!lockedInventory || lockedInventory.length === 0) {
+    if (Number(inventory.data.kg_remaining) < effectiveBoxSize) {
       return NextResponse.json({ error: 'Sold out' }, { status: 409 });
     }
 

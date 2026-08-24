@@ -22,8 +22,6 @@ export default function ChickenConfirmationPage() {
   const [attempts, setAttempts] = useState(0)
   const [showCompletedState, setShowCompletedState] = useState(false)
   const [retrying, setRetrying] = useState(false)
-  const [confirming, setConfirming] = useState(false)
-  const [manualConfirmed, setManualConfirmed] = useState(false)
 
   const formatCopy = (template: string, values: Record<string, string | number>) =>
     Object.entries(values).reduce(
@@ -85,21 +83,14 @@ export default function ChickenConfirmationPage() {
   }, [orderId])
 
   const isPaid = order?.status === 'deposit_paid' || order?.status === 'fully_paid'
-  const isManual = Boolean(order?.manual_confirmation) || manualConfirmed
+  const isManual = Boolean(order?.manual_confirmation)
   const paymentAttempts = Number(order?.payment_attempts || 0)
   const isFailure = !loading && !isPaid && !isManual
 
-  // After a second failed attempt, confirm the order manually (payment owed).
-  useEffect(() => {
-    if (!orderId || !isFailure || confirming || manualConfirmed) return
-    if (paymentAttempts < 2) return
-
-    setConfirming(true)
-    fetch(`/api/chickens/orders/${orderId}/manual-confirm`, { method: 'POST' })
-      .then(res => res.ok ? res.json() : null)
-      .then(result => { if (result?.success) setManualConfirmed(true) })
-      .finally(() => setConfirming(false))
-  }, [orderId, isFailure, paymentAttempts, confirming, manualConfirmed])
+  // Chickens are NOT auto-reserved on a failed Vipps payment. We no longer
+  // auto-confirm the order manually; instead the failure state tells the
+  // customer the chickens are not reserved and to complete payment (here or on
+  // Min side). Reservation happens only when the deposit completes.
 
   useEffect(() => {
     if (!isPaid) {
@@ -133,8 +124,7 @@ export default function ChickenConfirmationPage() {
       : isManual ? 'manual_confirmed'
         : loading ? 'pending'
           : isPaid ? 'pending'
-            : paymentAttempts >= 2 ? 'manual_pending'
-              : 'retry'
+            : 'retry'
 
   if (!orderId) {
     return (
@@ -225,18 +215,6 @@ export default function ChickenConfirmationPage() {
               </div>
               {orderRecap}
             </div>
-          ) : displayState === 'manual_pending' ? (
-            <div className="space-y-4">
-              <Clock className="w-12 h-12 text-amber-500 mx-auto animate-pulse" />
-              <h1 className="text-2xl font-light text-neutral-900">
-                {lang === 'no' ? 'Bekrefter bestillingen din…' : 'Confirming your order…'}
-              </h1>
-              <p className="text-neutral-500">
-                {lang === 'no'
-                  ? 'Vi sikrer bestillingen din. Vent et øyeblikk.'
-                  : 'We are securing your order. One moment.'}
-              </p>
-            </div>
           ) : displayState === 'retry' ? (
             <div className="space-y-4">
               <AlertTriangle className="w-12 h-12 text-amber-500 mx-auto" />
@@ -245,14 +223,14 @@ export default function ChickenConfirmationPage() {
               </h1>
               <p className="text-neutral-600">
                 {lang === 'no'
-                  ? 'Det skjedde noe under betalingen. Bestillingen din er reservert — prøv å betale på nytt.'
-                  : 'Something went wrong during payment. Your order is reserved — please try paying again.'}
+                  ? 'Vipps-betalingen gikk ikke gjennom, så kyllingene er ikke reservert ennå. Fullfør betalingen for å reservere dem – ellers kan du gjøre det når som helst fra Min side.'
+                  : 'The Vipps payment did not go through, so the chickens are not reserved yet. Complete the payment to reserve them – or you can do it any time from Min side.'}
               </p>
               <Button onClick={handleRetry} disabled={retrying} className="inline-flex items-center gap-2">
                 <RefreshCcw className={`h-4 w-4 ${retrying ? 'animate-spin' : ''}`} />
                 {retrying
                   ? (lang === 'no' ? 'Åpner Vipps…' : 'Opening Vipps…')
-                  : (lang === 'no' ? 'Prøv å betale igjen' : 'Try paying again')}
+                  : (lang === 'no' ? 'Betal og reserver kyllingene' : 'Pay and reserve the chickens')}
               </Button>
               {orderRecap}
             </div>
