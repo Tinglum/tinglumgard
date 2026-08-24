@@ -158,10 +158,19 @@ export function OpenAssessment() {
     <p className="mb-6 text-2xl font-medium leading-tight sm:text-3xl">Not a doctor. Not your body.</p>
     <p className="mb-5 leading-relaxed text-neutral-700">Fixed shifts needed fixed mealtimes, so the factory clock set the pattern — and a century of advertising turned a work schedule into a rule about health. You inherited it whole, from people who were not thinking about you.</p>
     <p className="mb-5 leading-relaxed text-neutral-700">Blood pressure, cholesterol, weight — all measured, all charted, all sitting on a screen at your GP. The pattern deciding what you eat, and when, for the next twelve thousand days? Never looked at once.</p>
-    <p className="mb-5 leading-relaxed text-neutral-700">This is not what you weigh, and it is not what you can recite. It is how well you read your own body, how deliberately you fuel it, and how fast you move when what used to work stops working.</p>
-    <p className="mb-5 text-lg font-medium leading-relaxed">And it is trained. Not genetic. Not your age. Not your metabolism. Trained — which means it can be trained differently, starting the moment you know where you stand.</p>
-    <p className="mb-8 leading-relaxed text-neutral-700">Five areas. Almost nobody comes out even. The low one is the interesting one.</p>
+    <p className="mb-5 leading-relaxed text-neutral-700">This is not what you weigh or what you can recite. It is how well you read your own body, how deliberately you fuel it, and how fast you move when what used to work stops working.</p>
+    <p className="mb-6 text-lg font-medium leading-relaxed">And it is trained. Not genetic. Not your age. Not your metabolism. Trained — which means it can be trained differently, starting the moment you know where you stand.</p>
+    <div className="mb-6 rounded-2xl bg-[#edf3e9] p-5">
+      <p className="font-medium">You come out with:</p>
+      <ul className="mt-3 space-y-2 text-neutral-700">
+        <li>Your score, and where it sits across five separate areas</li>
+        <li>Every one of your 25 answers opened up — what each question was really measuring, and why it matters</li>
+        <li>The area quietly costing you the most, named</li>
+      </ul>
+    </div>
+    <p className="mb-8 text-lg leading-relaxed">Before you start, decide which of the five you think will be your weakest. Then find out whether you were right — almost nobody comes out even.</p>
     <button type="button" onClick={() => setStage('questions')} className="w-full rounded-xl bg-[#173f2b] px-5 py-5 text-lg font-medium text-white">Find out — 25 questions, 10 minutes</button>
+    <p className="mt-4 text-center text-sm font-medium text-neutral-600">No sign-up. No email needed to start.</p>
     <p className="mt-5 text-sm leading-relaxed text-neutral-500">Answer for how you have actually eaten the last 6–8 weeks. Not how you mean to. Stuck between two? Take the lower one — it makes the result worth having. Saves as you go, so you can stop and come back.</p>
   </section>)
 
@@ -203,6 +212,21 @@ export function OpenAssessment() {
           </div>
         })}
       </div>
+      {(() => {
+        // The intro promises the weakest area by name, so it has to be stated
+        // rather than left for the reader to work out from five bars.
+        const ranked = QUEST_ASSESSMENT.sections
+          .map((section, i) => ({ section, score: Number(result.section_scores?.[i] || 0) }))
+          .sort((a, b) => a.score - b.score)
+        const weakest = ranked[0]
+        const strongest = ranked[ranked.length - 1]
+        if (!weakest || !strongest) return null
+        return <div className="mb-6 rounded-2xl bg-[#edf3e9] p-5">
+          <p className="text-sm font-medium text-emerald-900">Where to put your attention</p>
+          <p className="mt-2 leading-relaxed"><strong>{weakest.section.title.en}</strong> came out lowest at {weakest.score} of 20. That is the area with the most room in it — not a failing, just the one where a change would buy you the most.</p>
+          <p className="mt-2 leading-relaxed text-neutral-700"><strong>{strongest.section.title.en}</strong> is your strongest at {strongest.score} of 20. Use it: the habits that already work there are the ones to borrow from.</p>
+        </div>
+      })()}
       <p className="text-neutral-600">This reflects the fitness of your nutrition decision-making, not a diagnosis or a measurement of your health. The aim is not perfection — it is to show where your nutrition skills are already strong and where more awareness, consistency or adaptability would give you more options.</p>
       {bookingUrl && <a href={bookingUrl} target="_blank" rel="noreferrer" className="mt-7 block rounded-xl border border-[#173f2b] bg-white px-5 py-4 text-center font-medium text-[#173f2b]">Book a conversation with Kenneth</a>}
     </section>
