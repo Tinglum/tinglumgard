@@ -154,12 +154,10 @@ export function OpenAssessment() {
 
   if (stage === 'intro') return shell(<section className={CARD}>
     <h1 className="mb-7 text-4xl font-medium sm:text-5xl">What is your Nutrition Fitness?</h1>
-    <p className="mb-4 text-2xl leading-tight sm:text-3xl">Three meals a day. Who decided that?</p>
-    <p className="mb-6 text-2xl font-medium leading-tight sm:text-3xl">Not a doctor. Not your body.</p>
-    <p className="mb-5 leading-relaxed text-neutral-700">Fixed shifts needed fixed mealtimes, so the factory clock set the pattern — and a century of advertising turned a work schedule into a rule about health. You inherited it whole, from people who were not thinking about you.</p>
-    <p className="mb-5 leading-relaxed text-neutral-700">Blood pressure, cholesterol, weight — all measured, all charted, all sitting on a screen at your GP. The pattern deciding what you eat, and when, for the next twelve thousand days? Never looked at once.</p>
-    <p className="mb-5 leading-relaxed text-neutral-700">This is not what you weigh or what you can recite. It is how well you read your own body, how deliberately you fuel it, and how fast you move when what used to work stops working.</p>
-    <p className="mb-6 text-lg font-medium leading-relaxed">And it is trained. Not genetic. Not your age. Not your metabolism. Trained — which means it can be trained differently, starting the moment you know where you stand.</p>
+    <p className="mb-6 text-2xl leading-snug sm:text-3xl">The way you eat shapes how you feel this afternoon, how clearly you think tomorrow, and how well you preserve your strength and independence over a lifetime.</p>
+    <p className="mb-5 leading-relaxed text-neutral-700">Yet most of us inherit our eating pattern—including the familiar rule of three meals a day—without ever asking whether it suits our body, schedule or goals. Fixed working hours helped establish fixed mealtimes, and decades of advertising made that routine feel like a rule about health.</p>
+    <p className="mb-5 leading-relaxed text-neutral-700">We routinely measure blood pressure, cholesterol and weight, but rarely examine the decision-making pattern that determines what we eat, when we eat it and how we respond when our needs change.</p>
+    <p className="mb-6 text-lg font-medium leading-relaxed">That is what Nutrition Fitness captures: your ability to read your body, fuel it deliberately and adapt when yesterday’s approach no longer works. It is a skill rather than a fixed trait, which means it can improve once you know where you stand.</p>
     <div className="mb-6 rounded-2xl bg-[#edf3e9] p-5">
       <p className="font-medium">You come out with:</p>
       <ul className="mt-3 space-y-2 text-neutral-700">
