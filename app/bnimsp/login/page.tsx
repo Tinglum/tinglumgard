@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Loader2 } from 'lucide-react'
 import { BniMark } from '@/components/bnimsp/BniMark'
@@ -115,9 +116,10 @@ export default function BnimspLoginPage() {
             )}
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium" htmlFor="password">
-              Passord
-            </label>
+            <div className="mb-1 flex items-center justify-between">
+              <label className="block text-sm font-medium" htmlFor="password">Passord</label>
+              {!isRegister && <Link href="/bnimsp/forgot-password" className="text-xs font-semibold text-[var(--bni-red)] hover:underline">Glemt passord?</Link>}
+            </div>
             <input
               id="password"
               type="password"
