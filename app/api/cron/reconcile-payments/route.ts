@@ -66,6 +66,40 @@ type ResultEntry = {
   detail?: string
 }
 
+async function reconcileCompletedEggOrderStatuses(): Promise<ResultEntry[]> {
+  const results: ResultEntry[] = []
+  const { data: orders, error } = await supabaseAdmin
+    .from('egg_orders')
+    .select('id, order_number, status, total_amount, egg_payments(amount_nok,status)')
+    .in('status', ['pending', 'deposit_paid'])
+    .limit(250)
+
+  if (error) {
+    logError('cron-reconcile-egg-status-query', error)
+    return [{ id: 'egg-status-audit', scope: 'egg', action: 'error', detail: error.message }]
+  }
+
+  for (const order of orders || []) {
+    const totalPaidOre = ((order.egg_payments as Array<{ amount_nok: number; status: string }> | null) || [])
+      .filter((payment) => payment.status === 'completed')
+      .reduce((sum, payment) => sum + Math.round(Number(payment.amount_nok || 0) * 100), 0)
+    if (totalPaidOre < Number(order.total_amount || 0)) continue
+
+    const { error: updateError } = await supabaseAdmin
+      .from('egg_orders')
+      .update({ status: 'fully_paid' })
+      .eq('id', order.id)
+      .in('status', ['pending', 'deposit_paid'])
+    if (updateError) {
+      logError('cron-reconcile-egg-status-update', updateError, { orderId: order.id })
+      results.push({ id: order.id, scope: 'egg', action: 'error', detail: updateError.message })
+    } else {
+      results.push({ id: order.id, scope: 'egg', action: 'status_repaired', detail: order.order_number })
+    }
+  }
+  return results
+}
+
 // ─── Reconcile pending payments ────────────────────────────────
 
 async function reconcilePendingPayments(cutoff: string): Promise<ResultEntry[]> {
@@ -334,14 +368,15 @@ export async function POST(request: NextRequest) {
   const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString()
   const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString()
 
-  const [reconciled, cancelled] = await Promise.all([
+  const [reconciled, cancelled, repairedStatuses] = await Promise.all([
     reconcilePendingPayments(fiveMinutesAgo),
     cancelAbandonedCheckouts(thirtyMinutesAgo),
+    reconcileCompletedEggOrderStatuses(),
   ])
 
   const reconciledCount = reconciled.filter((r) => r.action === 'reconciled').length
   const cancelledCount = cancelled.filter((r) => r.action === 'cancelled').length
-  const errors = [...reconciled, ...cancelled].filter((r) => r.action === 'error').length
+  const errors = [...reconciled, ...cancelled, ...repairedStatuses].filter((r) => r.action === 'error').length
 
   if (reconciledCount > 0 || cancelledCount > 0) {
     console.log(`Payment cron: ${reconciledCount} reconciled, ${cancelledCount} abandoned cancelled, ${errors} errors`)
@@ -352,6 +387,7 @@ export async function POST(request: NextRequest) {
     reconciled: reconciledCount,
     cancelled: cancelledCount,
     errors,
-    details: { reconciled, cancelled },
+    repairedStatuses: repairedStatuses.filter((r) => r.action === 'status_repaired').length,
+    details: { reconciled, cancelled, repairedStatuses },
   })
 }

@@ -1368,7 +1368,7 @@ async function markEggOrderShipped(
   const { data: order, error } = await supabaseAdmin
     .from('egg_orders')
     .select(
-      'id, order_number, customer_name, customer_email, status, delivery_method, admin_notes, tracking_number, quantity, price_per_egg, deposit_amount, remainder_amount, total_amount, week_number, delivery_monday, delivery_fee, egg_breeds(name), egg_order_additions(quantity, price_per_egg, subtotal, egg_breeds(name))'
+      'id, order_number, customer_name, customer_email, status, delivery_method, admin_notes, tracking_number, quantity, price_per_egg, deposit_amount, remainder_amount, total_amount, week_number, delivery_monday, delivery_fee, egg_breeds(name), egg_order_additions(quantity, price_per_egg, subtotal, egg_breeds(name)), egg_payments(amount_nok,status)'
     )
     .eq('id', orderId)
     .single()
@@ -1379,6 +1379,23 @@ async function markEggOrderShipped(
 
   if (order.delivery_method !== 'posten') {
     return NextResponse.json({ error: 'Only available for Posten orders' }, { status: 400 })
+  }
+
+  if (!['fully_paid', 'preparing'].includes(order.status)) {
+    const totalPaidOre = ((order.egg_payments as Array<{ amount_nok: number; status: string }> | null) || [])
+      .filter((payment) => payment.status === 'completed')
+      .reduce((sum, payment) => sum + Math.round(Number(payment.amount_nok || 0) * 100), 0)
+    if (totalPaidOre >= Number(order.total_amount || 0)) {
+      const { error: repairError } = await supabaseAdmin
+        .from('egg_orders')
+        .update({ status: 'fully_paid' })
+        .eq('id', order.id)
+      if (repairError) {
+        logError('admin-egg-shipping-payment-status-repair', repairError, { orderId: order.id })
+        return NextResponse.json({ error: 'Could not reconcile paid order status' }, { status: 500 })
+      }
+      order.status = 'fully_paid'
+    }
   }
 
   if (!['fully_paid', 'preparing'].includes(order.status)) {
