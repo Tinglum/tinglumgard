@@ -117,6 +117,10 @@ describe('storefront isolation', () => {
       'playwright.config.ts',
       'supabase/config.toml',
       'supabase/.gitignore',
+      // A CLI version cache that was committed before supabase/.gitignore
+      // existed, so it churned on every Supabase command. Untracked here; the
+      // file stays on disk and the CLI regenerates it.
+      'supabase/.temp/cli-latest',
       '.github/workflows/quality-guard.yml',
       '.gitignore',
     ])

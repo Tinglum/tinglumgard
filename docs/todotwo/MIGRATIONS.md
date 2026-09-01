@@ -57,6 +57,12 @@ If you would rather have a faithful copy of production in dev, run `supabase db 
 4. **Stay in the schema.** No `create`, `alter` or `drop` against anything outside `todotwo`, except the one-time grants in the bootstrap migration. Enforced by test.
 5. **Idempotent where safe.** `create ... if not exists` for anything that might race.
 6. **Grant explicitly.** "Automatically expose new tables" is off on the dev project, so a new table is invisible to PostgREST until the migration grants it. This is deliberate; do not switch the setting on.
+
+   Since `20260901090000`, the schema default for `authenticated` is `select` only. Any table needing writes must grant them itself:
+
+   ```sql
+   grant select, insert, update, delete on todotwo.<table> to authenticated;
+   ```
 7. **Enable RLS in the same migration** that creates the table, with policies. A table that ships without policies is readable by nobody, which is a safer failure than readable by everybody — but it is still a bug.
 
 ## Phase 0 migrations

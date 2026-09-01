@@ -32,7 +32,17 @@ There is no `using (true)` policy anywhere, and `anon` holds no grant on any tab
 
 **Sensitive fields are a separate table, not a column list.** `people` deliberately holds nothing a coordinator may not see. Emergency contacts and private notes live in `people_private`, which only admins have any policy on. This is why the coordinator's row policy can be simple: there is no column to filter. It also gives Phase 12's export and erasure work a single target.
 
-**The audit log is append-only.** Inserts arrive solely through `todotwo.audit_trigger()`, which is `security definer` and therefore not subject to policy. No update or delete policy exists for anyone, including admins — verified in `tests/todotwo/rls/policies.test.ts`. Sensitive keys are replaced with `[redacted]` by `todotwo.redact()` before anything is written; extend that list whenever a sensitive column is added.
+**The audit log is append-only, at two layers.** Inserts arrive solely through `todotwo.audit_trigger()`, which is `security definer` and therefore not subject to policy. No update or delete policy exists for anyone, including admins, **and** no role holds the INSERT, UPDATE or DELETE privilege. Sensitive keys are replaced with `[redacted]` by `todotwo.redact()` before anything is written; extend that list whenever a sensitive column is added.
+
+The second layer was added after a test failure. The bootstrap migration's `alter default privileges ... grant select, insert, update, delete` fired for every table created afterwards, `audit_log` included, so an admin's UPDATE was permitted to run and was stopped only by RLS reducing it to zero rows. Correct outcome, one layer too thin. `20260901090000_todotwo_audit_log_readonly.sql` revokes those privileges and narrows the default.
+
+**Consequence for later phases: grant write access explicitly.** New tables in `todotwo` now default to `select` for `authenticated`. A table that needs inserts or updates must say so in its own migration:
+
+```sql
+grant select, insert, update, delete on todotwo.tasks to authenticated;
+```
+
+If a write 403s with a permission error rather than an RLS empty result, this is why.
 
 ## The pattern Phase 1 will need
 
