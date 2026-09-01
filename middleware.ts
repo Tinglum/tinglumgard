@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 
+import { handleTodoTwoMiddleware } from '@/lib/todotwo/middleware'
+import { isTodoTwoPath } from '@/lib/todotwo/routes'
+
 function isEggOpsHost(host: string): boolean {
   const normalized = host.toLowerCase()
   return (
@@ -52,7 +55,14 @@ function isMilkOpsPath(pathname: string): boolean {
   )
 }
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
+  // TodoTwo is a self-contained module with its own auth and its own kill
+  // switch. It is handled first and returns immediately, so nothing below can
+  // change behaviour for it and it cannot change behaviour for anything below.
+  if (isTodoTwoPath(request.nextUrl.pathname)) {
+    return handleTodoTwoMiddleware(request)
+  }
+
   const host = request.headers.get('host') || ''
   const eggOpsHost = isEggOpsHost(host)
   const eggOpsPath = isEggOpsPath(request.nextUrl.pathname)

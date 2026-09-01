@@ -31,3 +31,46 @@ jobs:
 
       - name: Typecheck
         run: npm run typecheck
+
+  todotwo:
+    name: TodoTwo
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # The isolation guard diffs against main to prove no shared file
+          # outside the allowlist changed, so it needs real history.
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Unit tests plus the structural guards: no service-role client in a
+      # request path, no shared file touched outside the allowlist, every
+      # migration timestamped with a rollback block.
+      - name: TodoTwo unit tests and guards
+        run: npm test
+
+      # RLS tests need the development project. They skip cleanly when the
+      # secrets are absent, so forks and secret-less runs stay honest rather
+      # than green-by-omission.
+      - name: TodoTwo RLS policies
+        env:
+          NEXT_PUBLIC_TODOTWO_SUPABASE_URL: ${{ secrets.TODOTWO_SUPABASE_URL }}
+          NEXT_PUBLIC_TODOTWO_SUPABASE_ANON_KEY: ${{ secrets.TODOTWO_SUPABASE_ANON_KEY }}
+          TODOTWO_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.TODOTWO_SUPABASE_SERVICE_ROLE_KEY }}
+          TODOTWO_DEV_PROJECT_REF: ${{ vars.TODOTWO_DEV_PROJECT_REF }}
+        run: |
+          if [ -z "${NEXT_PUBLIC_TODOTWO_SUPABASE_URL:-}" ]; then
+            echo "::notice::TodoTwo RLS tests skipped — dev project secrets not configured."
+            exit 0
+          fi
+          npm run test:rls
