@@ -62,7 +62,7 @@ export function EmptyState({
 }
 
 export function ErrorState({
-  title = 'Noe gikk galt',
+  title = 'Something went wrong',
   description,
   onRetry,
   className,
@@ -89,7 +89,7 @@ export function ErrorState({
       ) : null}
       {onRetry ? (
         <Button variant="secondary" size="sm" onClick={onRetry}>
-          Prøv igjen
+          Try again
         </Button>
       ) : null}
     </div>
@@ -105,7 +105,7 @@ export function SkeletonLine({ className }: { className?: string }) {
   )
 }
 
-export function LoadingState({ rows = 3, label = 'Laster …' }: { rows?: number; label?: string }) {
+export function LoadingState({ rows = 3, label = 'Loading …' }: { rows?: number; label?: string }) {
   return (
     <div className="flex flex-col gap-3" role="status" aria-busy="true" aria-label={label}>
       {Array.from({ length: rows }).map((_, index) => (

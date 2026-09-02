@@ -23,16 +23,15 @@ export default function TodoTwoError({
   return (
     <div className="flex min-h-[60svh] items-center justify-center px-4">
       <div className="w-full max-w-md rounded-lg border border-[var(--tt-rule)] bg-[var(--tt-surface)] p-6">
-        <h1 className="text-lg font-semibold">Noe gikk galt</h1>
+        <h1 className="text-lg font-semibold">Something went wrong</h1>
         <p className="mt-2 text-sm text-[var(--tt-ink-2)]">
-          TodoTwo klarte ikke å vise denne siden. Prøv igjen — hvis det fortsetter, si fra til
-          Kenneth.
+          TodoTwo could not display this page. Try again — if it keeps happening, tell Kenneth.
         </p>
         {error.digest ? (
-          <p className="mt-3 font-mono text-xs text-[var(--tt-ink-3)]">Referanse: {error.digest}</p>
+          <p className="mt-3 font-mono text-xs text-[var(--tt-ink-3)]">Reference: {error.digest}</p>
         ) : null}
         <Button onClick={reset} className="mt-5">
-          Prøv igjen
+          Try again
         </Button>
       </div>
     </div>

@@ -18,8 +18,8 @@ test.describe('TodoTwo access', () => {
   test('offers passwordless sign-in and nothing else', async ({ page }) => {
     await page.goto('/todotwo/login')
 
-    await expect(page.getByLabel('E-postadresse')).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Send innloggingslenke' })).toBeVisible()
+    await expect(page.getByLabel('Email address')).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Send sign-in link' })).toBeVisible()
 
     // No password field anywhere — accounts are magic-link only.
     await expect(page.locator('input[type="password"]')).toHaveCount(0)
@@ -27,11 +27,11 @@ test.describe('TodoTwo access', () => {
 
   test('validates before sending', async ({ page }) => {
     await page.goto('/todotwo/login')
-    await page.getByRole('button', { name: 'Send innloggingslenke' }).click()
+    await page.getByRole('button', { name: 'Send sign-in link' }).click()
 
     // Next renders its own role="alert" route announcer, so scope to ours.
-    const alert = page.getByRole('alert').filter({ hasText: 'Innlogging mislyktes' })
-    await expect(alert).toContainText('Skriv inn e-postadressen din')
+    const alert = page.getByRole('alert').filter({ hasText: 'Sign-in failed' })
+    await expect(alert).toContainText('Enter your email address')
   })
 
   test('keeps the API closed to anonymous callers', async ({ request }) => {

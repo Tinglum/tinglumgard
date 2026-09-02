@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 
 import { LoginForm } from '@/app/todotwo/login/login-form'
 
-export const metadata: Metadata = { title: 'Logg inn' }
+export const metadata: Metadata = { title: 'Sign in' }
 
 export default function TodoTwoLoginPage({
   searchParams,
@@ -18,7 +18,7 @@ export default function TodoTwoLoginPage({
           </p>
           <h1 className="mt-1 text-2xl">TodoTwo</h1>
           <p className="mt-2 text-sm text-[var(--tt-ink-2)]">
-            Skriv inn e-postadressen din, så sender vi deg en innloggingslenke.
+            Enter your email address and we will send you a sign-in link.
           </p>
         </div>
 

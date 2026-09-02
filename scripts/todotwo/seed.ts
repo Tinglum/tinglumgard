@@ -54,19 +54,19 @@ const db = createClient(url, serviceRoleKey, {
 })
 
 const LOCATIONS = [
-  { slug: 'hovedhuset', name: 'Hovedhuset', kind: 'building', sort_order: 10 },
-  { slug: 'laven', name: 'Låven', kind: 'building', sort_order: 20 },
-  { slug: 'verkstedet', name: 'Verkstedet', kind: 'building', sort_order: 30 },
-  { slug: 'honsehuset', name: 'Hønsehuset', kind: 'building', sort_order: 40 },
-  { slug: 'geiteinnhegningen', name: 'Geiteinnhegningen', kind: 'enclosure', sort_order: 50 },
-  { slug: 'grisebeitet', name: 'Grisebeitet', kind: 'enclosure', sort_order: 60 },
-  { slug: 'drivhuset', name: 'Drivhuset', kind: 'building', sort_order: 70 },
-  { slug: 'hytta-nord', name: 'Hytta nord', kind: 'building', sort_order: 80 },
-  { slug: 'hytta-sor', name: 'Hytta sør', kind: 'building', sort_order: 90 },
-  { slug: 'jordet-ovre', name: 'Øvre jordet', kind: 'field', sort_order: 100 },
-  { slug: 'jordet-nedre', name: 'Nedre jordet', kind: 'field', sort_order: 110 },
-  { slug: 'skogen', name: 'Skogen', kind: 'forest', sort_order: 120 },
-  { slug: 'elva', name: 'Elva', kind: 'water', sort_order: 130 },
+  { slug: 'main-house', name: 'Main house', kind: 'building', sort_order: 10 },
+  { slug: 'barn', name: 'Barn', kind: 'building', sort_order: 20 },
+  { slug: 'workshop', name: 'Workshop', kind: 'building', sort_order: 30 },
+  { slug: 'chicken-coop', name: 'Chicken coop', kind: 'building', sort_order: 40 },
+  { slug: 'goat-enclosure', name: 'Goat enclosure', kind: 'enclosure', sort_order: 50 },
+  { slug: 'pig-pasture', name: 'Pig pasture', kind: 'enclosure', sort_order: 60 },
+  { slug: 'greenhouse', name: 'Greenhouse', kind: 'building', sort_order: 70 },
+  { slug: 'cabin-north', name: 'North cabin', kind: 'building', sort_order: 80 },
+  { slug: 'cabin-south', name: 'South cabin', kind: 'building', sort_order: 90 },
+  { slug: 'upper-field', name: 'Upper field', kind: 'field', sort_order: 100 },
+  { slug: 'lower-field', name: 'Lower field', kind: 'field', sort_order: 110 },
+  { slug: 'forest', name: 'Forest', kind: 'forest', sort_order: 120 },
+  { slug: 'river', name: 'River', kind: 'water', sort_order: 130 },
 ] as const
 
 async function main() {
@@ -84,18 +84,18 @@ async function main() {
       {
         key: 'farm.name',
         value: 'Tinglumgård',
-        description: 'Vist i overskrifter og e-post.',
+        description: 'Shown in headings and email.',
       },
       {
         key: 'farm.timezone',
         value: 'Europe/Oslo',
-        description: 'Referanse. Koden bruker FARM_TZ i lib/todotwo/time.ts.',
+        description: 'Reference only. Code uses FARM_TZ in lib/todotwo/time.ts.',
       },
       {
         key: 'seed.synthetic_only',
         value: true,
         description:
-          'Utviklingsdatabasen skal aldri inneholde ekte persondata. Se STANDING-RULES R5a.',
+          'The development database must never contain real personal data. See STANDING-RULES R5a.',
       },
     ],
     { onConflict: 'key' }

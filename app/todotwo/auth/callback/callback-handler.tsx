@@ -103,7 +103,7 @@ export function CallbackHandler() {
   return (
     <div className="flex min-h-[100svh] items-center justify-center px-4">
       <p className="text-sm text-[var(--tt-ink-2)]" role="status">
-        Logger deg inn …
+        Signing you in …
       </p>
     </div>
   )

@@ -40,7 +40,7 @@ export function TodoTwoShell({
           <p className="mt-1 text-lg font-semibold">TodoTwo</p>
         </div>
 
-        <nav className="flex flex-1 flex-col gap-1 p-3" aria-label="Hovedmeny">
+        <nav className="flex flex-1 flex-col gap-1 p-3" aria-label="Main menu">
           {items.map((item) => {
             const active = pathname === item.href
             return (
@@ -70,7 +70,7 @@ export function TodoTwoShell({
               className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm text-[var(--tt-ink-2)] transition-colors hover:bg-[var(--tt-surface-2)]"
             >
               <LogOut className="h-4 w-4" aria-hidden="true" />
-              Logg ut
+              Sign out
             </button>
           </form>
         </div>
@@ -87,7 +87,7 @@ export function TodoTwoShell({
           <form action={todoTwoRoutes.logout()} method="post">
             <button
               type="submit"
-              aria-label="Logg ut"
+              aria-label="Sign out"
               className="flex h-11 w-11 items-center justify-center rounded-md text-[var(--tt-ink-2)]"
             >
               <LogOut className="h-5 w-5" aria-hidden="true" />
@@ -99,7 +99,7 @@ export function TodoTwoShell({
 
         {primary.length > 1 ? (
           <nav
-            aria-label="Hovedmeny"
+            aria-label="Main menu"
             className="fixed inset-x-0 bottom-0 z-40 flex border-t border-[var(--tt-rule)] bg-[var(--tt-surface)] md:hidden"
           >
             {primary.map((item) => {

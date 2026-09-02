@@ -124,7 +124,7 @@ export async function requireTodoTwoApiUser(): Promise<ApiAuthResult> {
     return {
       ok: false,
       response: NextResponse.json(
-        { error: 'unauthenticated', message: 'Du må være innlogget.' },
+        { error: 'unauthenticated', message: 'You need to be signed in.' },
         { status: 401 }
       ),
     }
@@ -143,7 +143,7 @@ export async function requireApiRole(role: TodoTwoRole | TodoTwoRole[]): Promise
     return {
       ok: false,
       response: NextResponse.json(
-        { error: 'forbidden', message: 'Du har ikke tilgang til dette.' },
+        { error: 'forbidden', message: 'You do not have access to this.' },
         { status: 403 }
       ),
     }

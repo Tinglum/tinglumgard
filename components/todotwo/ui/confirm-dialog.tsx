@@ -15,8 +15,8 @@ export function ConfirmDialog({
   onOpenChange,
   title,
   description,
-  confirmLabel = 'Bekreft',
-  cancelLabel = 'Avbryt',
+  confirmLabel = 'Confirm',
+  cancelLabel = 'Cancel',
   destructive = false,
   onConfirm,
 }: {
@@ -74,7 +74,7 @@ export function ConfirmDialog({
                 buttonVariants({ variant: destructive ? 'danger' : 'primary', size: 'sm' })
               )}
             >
-              {pending ? 'Vent …' : confirmLabel}
+              {pending ? 'Wait …' : confirmLabel}
             </button>
           </div>
         </AlertDialog.Content>
