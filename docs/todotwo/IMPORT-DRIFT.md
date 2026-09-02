@@ -5,48 +5,48 @@ copies of one routine disagreed. The importer kept the most complete copy; these
 are the differences it discarded, for review.
 
 - **Tinglum Farm TASKS / Scheduled / Rip out Liam's hair** (unparsed-rule)
-  Kept verbatim, not converted to a rule: every other day
-- **Tinglum Farm TASKS / Scheduled / Post on Tinglum Farm Instagram** (missing-weekday)
-  Runs on SA, TH; no copy exists for MO, TU, WE, FR, SU.
+  Kept verbatim rather than guessed at: every other day
+- **Tinglum Farm TASKS / Scheduled / Post on Tinglum Farm Instagram** (schedule-kept)
+  Runs SA, TH only. Left as written — confirm this is the intended schedule rather than a gap.
 - **Tinglum Farm TASKS / Scheduled / Weigh the Pigs** (unparsed-rule)
-  Kept verbatim, not converted to a rule: jeden 1. Mo
+  Kept verbatim rather than guessed at: jeden 1. Mo
 - **Tinglum Farm TASKS / Every Week / Bi-Weekly garbage run** (unparsed-rule)
-  Kept verbatim, not converted to a rule: every other Wednesday at 2 pm
-- **Daily Animals / Pigs / Pigs** (subtask-count)
-  7 weekday copies with differing subtask counts (4, 3, 4, 3, 4, 3, 4); kept the copy with 4.
-- **Daily Animals / Pigs / Pigs** (subtask-wording)
-  Subtasks present in some copies but not the kept one: feed the piglets and hilary & eleonore | feed the piglets and hilary and eleonore
-- **Daily Animals / Goats / Goats** (subtask-wording)
-  Subtasks present in some copies but not the kept one: milk the goats
-- **Daily Animals / Chickens and Ducks / Chickens + Ducks** (subtask-count)
-  7 weekday copies with differing subtask counts (6, 6, 6, 7, 6, 6, 6); kept the copy with 7.
-- **Daily Animals / Chickens and Ducks / Chickens + Ducks** (subtask-wording)
-  Subtasks present in some copies but not the kept one: change the water of the ducks every other day
-- **Daily Animals / Cuddle with the animals / Cuddle time** (subtask-count)
-  7 weekday copies with differing subtask counts (4, 4, 4, 4, 4, 4, 3); kept the copy with 4.
-- **Daily Animals / Cuddle with the animals / Cuddle time** (subtask-wording)
-  Subtasks present in some copies but not the kept one: cuddle all the pigs and piglets | walk with the goats. scratch them. feed them one fist full of grain feed. (not more)
-- **Daily Housekeeping / Breakfast at 10am / Breakfast ready** (subtask-wording)
-  Subtasks present in some copies but not the kept one: make one warm dish, boiled eggs, fried eggs, sausage, bacon, moose meat patties, fried trout etc.
-- **Daily Housekeeping / Kitchen / Kitchen** (subtask-wording)
-  Subtasks present in some copies but not the kept one: start the dishwasher at the end of the day if it hasn’t been run | sweep the floor | take out trash if needed, new bag in
-- **Daily Housekeeping / Kitchen / Kitchen** (duplicate-weekday)
-  WE appears more than once across the copies of this routine.
-- **Daily Housekeeping / Bathroom / Bathroom** (missing-weekday)
-  Runs on WE, SU; no copy exists for MO, TU, TH, FR, SA.
-- **Daily Housekeeping / General / General** (subtask-count)
-  6 weekday copies with differing subtask counts (5, 1, 5, 5, 5, 5); kept the copy with 5.
-- **Daily Housekeeping / General / General** (subtask-wording)
-  Subtasks present in some copies but not the kept one: if needed, do a load of laundry, towels, and dirty gloves
-- **Daily Housekeeping / General / General** (missing-weekday)
-  Runs on MO, WE, TH, FR, SA, SU; no copy exists for TU.
-- **Daily Housekeeping / Plants / Garden** (subtask-wording)
-  Subtasks present in some copies but not the kept one: weeds
-- **Daily Housekeeping / Plants / Garden** (missing-weekday)
-  Runs on MO, WE, TH, FR, SA, SU; no copy exists for TU.
-- **Daily Housekeeping / Plants / Indoor Plants** (subtask-wording)
-  Subtasks present in some copies but not the kept one: spray the plants in the kitchen | check all the plants in the living rooms
-- **Daily Housekeeping / Plants / Indoor Plants** (missing-weekday)
-  Runs on TU, TH, SA; no copy exists for MO, WE, FR, SU.
-- **Daily Housekeeping / Mouse Terminator / Mousetraps reset for the day** (missing-weekday)
-  Runs on MO, WE, TH, FR, SA, SU; no copy exists for TU.
+  Kept verbatim rather than guessed at: every other Wednesday at 2 pm
+- **Daily Animals / Pigs / Pigs** (conflicting-instructions)
+  Same step, different instructions on different days — kept the longest, please check: Feed George and Teddy down by the river at the other bridge.
+- **Daily Animals / Goats / Goats** (subtasks-merged)
+  Merged the subtasks of 7 weekday copies; 1 step(s) existed on some days only and now run every day.
+- **Daily Animals / Goats / Goats** (conflicting-instructions)
+  Same step, different instructions on different days — kept the longest, please check: Check Fence | Food/water
+- **Daily Animals / Chickens and Ducks / Lights** (subtasks-merged)
+  Merged the subtasks of 2 weekday copies; 1 step(s) existed on some days only and now run every day.
+- **Daily Animals / Chickens and Ducks / Chickens + Ducks** (subtasks-merged)
+  Merged the subtasks of 7 weekday copies; 1 step(s) existed on some days only and now run every day.
+- **Daily Animals / Chickens and Ducks / Chickens + Ducks** (conflicting-instructions)
+  Same step, different instructions on different days — kept the longest, please check: Lights | Food/water | Eggs
+- **Daily Animals / Liam / Liam** (conflicting-instructions)
+  Same step, different instructions on different days — kept the longest, please check: Walk | Food/water
+- **Daily Animals / Cuddle with the animals / Cuddle time** (subtasks-merged)
+  Merged the subtasks of 7 weekday copies; 1 step(s) existed on some days only and now run every day.
+- **Daily Housekeeping / Kitchen / Kitchen** (duplicate-removed)
+  WE was listed more than once; the copies are now one rule.
+- **Daily Housekeeping / Kitchen / Kitchen** (gap-filled)
+  No copy existed for TU although the routine ran every other day. Now runs daily.
+- **Daily Housekeeping / Bathroom / Bathroom** (schedule-kept)
+  Runs WE, SU only. Left as written — confirm this is the intended schedule rather than a gap.
+- **Daily Housekeeping / General / General** (gap-filled)
+  No copy existed for TU although the routine ran every other day. Now runs daily.
+- **Daily Housekeeping / Plants / Garden** (subtasks-merged)
+  Merged the subtasks of 6 weekday copies; 1 step(s) existed on some days only and now run every day.
+- **Daily Housekeeping / Plants / Garden** (conflicting-instructions)
+  Same step, different instructions on different days — kept the longest, please check: Water | Weeding | Harvest
+- **Daily Housekeeping / Plants / Garden** (gap-filled)
+  No copy existed for TU although the routine ran every other day. Now runs daily.
+- **Daily Housekeeping / Plants / Indoor Plants** (subtasks-merged)
+  Merged the subtasks of 3 weekday copies; 1 step(s) existed on some days only and now run every day.
+- **Daily Housekeeping / Plants / Indoor Plants** (conflicting-instructions)
+  Same step, different instructions on different days — kept the longest, please check: Check all plants in the kitchen and living rooms | Spray the vegetables in the kitchen
+- **Daily Housekeeping / Plants / Indoor Plants** (schedule-kept)
+  Runs TU, TH, SA only. Left as written — confirm this is the intended schedule rather than a gap.
+- **Daily Housekeeping / Mouse Terminator / Mousetraps reset for the day** (gap-filled)
+  No copy existed for TU although the routine ran every other day. Now runs daily.

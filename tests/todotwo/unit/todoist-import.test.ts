@@ -6,6 +6,7 @@ import {
   buildRrule,
   cleanProjectName,
   isComplexRule,
+  isSameInstruction,
   timeOf,
   weekdayOf,
 } from '@/lib/todotwo/domain/todoist-import'
@@ -157,19 +158,37 @@ describe('collapsing weekday copies', () => {
     expect(plan.stats.tasksBeforeCollapse).toBe(14)
   })
 
-  it('reports a missing weekday rather than hiding it', () => {
+  it('fills a single missing weekday, which is an oversight not a schedule', () => {
+    const days = ['monday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
     const csv = [
       header,
       'section,General,,False,,,,,,',
-      row('task', 'General', 1, 'every monday'),
-      row('task', 'General', 1, 'every wednesday'),
+      ...days.map((d) => row('task', 'General', 1, `every ${d}`)),
     ].join('\n')
 
     const plan = buildImportPlan(parseCsv(csv), 'D Daily Housekeeping.csv')
-    const missing = plan.drift.find((d) => d.kind === 'missing-weekday')
+    const filled = plan.drift.find((d) => d.kind === 'gap-filled')
 
-    expect(missing).toBeDefined()
-    expect(missing?.detail).toContain('TU')
+    expect(filled).toBeDefined()
+    expect(filled?.detail).toContain('TU')
+    expect(filled?.fixed).toBe(true)
+    expect(plan.project.sections[0].tasks[0].rrule).toBe('RRULE:FREQ=DAILY')
+  })
+
+  it('leaves a two-day schedule alone and asks about it instead', () => {
+    const csv = [
+      header,
+      'section,Scheduled,,False,,,,,,',
+      row('task', 'Post on Instagram', 1, 'every thurs'),
+      row('task', 'Post on Instagram', 1, 'every saturday'),
+    ].join('\n')
+
+    const plan = buildImportPlan(parseCsv(csv), 'A Tinglum Farm TASKS.csv')
+    const kept = plan.drift.find((d) => d.kind === 'schedule-kept')
+
+    expect(kept).toBeDefined()
+    expect(kept?.fixed).toBe(false)
+    expect(plan.project.sections[0].tasks[0].rrule).toBe('RRULE:FREQ=WEEKLY;BYDAY=TH,SA')
   })
 
   it('reports a duplicated weekday', () => {
@@ -181,25 +200,36 @@ describe('collapsing weekday copies', () => {
     ].join('\n')
 
     const plan = buildImportPlan(parseCsv(csv), 'D Daily Housekeeping.csv')
-    expect(plan.drift.some((d) => d.kind === 'duplicate-weekday')).toBe(true)
+    expect(plan.drift.some((d) => d.kind === 'duplicate-removed')).toBe(true)
   })
 
-  it('keeps the most complete copy and reports what it dropped', () => {
+  it('unions subtasks so a step that exists on one day only survives', () => {
     const csv = [
       header,
       'section,Pigs,,False,,,,,,',
       row('task', 'Pigs', 1, 'every monday'),
       row('task', 'Feed the piglets', 2),
-      row('task', 'Feed the teenagers', 2),
       row('task', 'Pigs', 1, 'every tuesday'),
-      row('task', 'Feed the piglets', 2),
+      row('task', 'Feed the teenage pigs', 2),
     ].join('\n')
 
     const plan = buildImportPlan(parseCsv(csv), 'C Daily Animals.csv')
-    const task = plan.project.sections[0].tasks[0]
+    const titles = plan.project.sections[0].tasks[0].children.map((c) => c.title)
 
-    expect(task.children).toHaveLength(2)
-    expect(plan.drift.some((d) => d.kind === 'subtask-count')).toBe(true)
+    expect(titles).toContain('Feed the piglets')
+    expect(titles).toContain('Feed the teenage pigs')
+    expect(plan.drift.some((d) => d.kind === 'subtasks-merged')).toBe(true)
+  })
+
+  it('treats a reworded step as the same instruction', () => {
+    expect(
+      isSameInstruction(
+        'Feed the piglets and Hilary & Eleonore',
+        'Feed the piglets and Hilary and Eleonore'
+      )
+    ).toBe(true)
+
+    expect(isSameInstruction('Sweep the floor', 'Sweep the stairs')).toBe(false)
   })
 
   it('nests three levels deep, as the real export does', () => {

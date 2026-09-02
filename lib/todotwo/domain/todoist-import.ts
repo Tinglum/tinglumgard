@@ -47,9 +47,25 @@ export interface DriftNote {
   project: string
   section: string
   title: string
-  kind: 'subtask-count' | 'subtask-wording' | 'duplicate-weekday' | 'missing-weekday' | 'unparsed-rule'
+  kind:
+    | 'gap-filled'
+    | 'duplicate-removed'
+    | 'subtasks-merged'
+    | 'conflicting-instructions'
+    | 'schedule-kept'
+    | 'unparsed-rule'
   detail: string
+  /** true when the importer changed something; false when it only observed. */
+  fixed: boolean
 }
+
+/**
+ * A routine missing exactly one weekday is an oversight — four of the farm's
+ * routines are missing Tuesday and nothing else, and the Kitchen routine has
+ * two Wednesdays instead of a Tuesday. A routine running two or three days is a
+ * schedule, not a gap, so it is left alone and reported.
+ */
+const GAP_FILL_THRESHOLD = 6
 
 export interface ImportPlan {
   project: ImportProject
@@ -142,6 +158,126 @@ export function buildRrule(days: string[], time: string | null): string | null {
 
 function normaliseTitle(title: string): string {
   return title.toLowerCase().replace(/\s+/g, ' ').trim()
+}
+
+/** Words that carry no meaning when deciding whether two subtasks are the same. */
+const STOPWORDS = new Set([
+  'the', 'a', 'an', 'and', 'or', 'of', 'to', 'in', 'on', 'at', 'for', 'with', 'if', 'is', 'it',
+])
+
+function contentWords(title: string): Set<string> {
+  return new Set(
+    normaliseTitle(title)
+      .replace(/[^a-z0-9æøå ]/g, ' ')
+      .split(/\s+/)
+      .filter((w) => w.length > 1 && !STOPWORDS.has(w))
+  )
+}
+
+/**
+ * Are these two subtask titles the same instruction, worded differently?
+ *
+ * The export is full of near-misses: "Feed the piglets and Hilary & Eleonore"
+ * against "Feed the piglets and Hilary and Eleonore", and a warm dish listing
+ * "patties" one day and "moose meat patties" the next. Treating those as
+ * different subtasks would carry the drift into TodoTwo instead of removing it.
+ */
+export function isSameInstruction(a: string, b: string): boolean {
+  const left = normaliseTitle(a)
+  const right = normaliseTitle(b)
+  if (left === right) return true
+
+  const wordsA = contentWords(a)
+  const wordsB = contentWords(b)
+  if (wordsA.size === 0 || wordsB.size === 0) return false
+
+  let shared = 0
+  wordsA.forEach((w) => {
+    if (wordsB.has(w)) shared += 1
+  })
+
+  // Overlap against the smaller set: "make one warm dish, ... patties" is
+  // wholly contained in the version that also says "moose meat".
+  return shared / Math.min(wordsA.size, wordsB.size) >= 0.8
+}
+
+/**
+ * Merges the subtasks of every weekday copy into one list.
+ *
+ * Union, not "the most complete copy wins" — otherwise a subtask that exists
+ * only on Thursday is silently dropped. Where two copies word the same
+ * instruction differently, the longer wording is kept: it is almost always the
+ * more specific one.
+ */
+function mergeSubtasks(
+  copies: ImportTask[],
+  projectName: string,
+  sectionName: string,
+  parentTitle: string,
+  drift: DriftNote[]
+): ImportTask[] {
+  const merged: ImportTask[] = []
+  const conflicts: string[] = []
+  let addedFromLaterCopies = 0
+
+  copies.forEach((copy, copyIndex) => {
+    for (const child of copy.children) {
+      const existing = merged.find((m) => isSameInstruction(m.title, child.title))
+
+      if (!existing) {
+        merged.push({ ...child, children: [...child.children] })
+        if (copyIndex > 0) addedFromLaterCopies += 1
+        continue
+      }
+
+      // Keep the more specific wording.
+      if (child.title.length > existing.title.length) existing.title = child.title
+
+      // Instructions that genuinely differ cannot be reconciled by a machine:
+      // one copy says two scoops, another says one. Keep the longer and report.
+      if (child.description && existing.description && child.description !== existing.description) {
+        conflicts.push(existing.title)
+        if (child.description.length > existing.description.length) {
+          existing.description = child.description
+        }
+      } else if (child.description && !existing.description) {
+        existing.description = child.description
+      }
+
+      existing.children = mergeSubtasks(
+        [existing, child],
+        projectName,
+        sectionName,
+        existing.title,
+        drift
+      )
+    }
+  })
+
+  if (addedFromLaterCopies > 0) {
+    drift.push({
+      project: projectName,
+      section: sectionName,
+      title: parentTitle,
+      kind: 'subtasks-merged',
+      detail: `Merged the subtasks of ${copies.length} weekday copies; ${addedFromLaterCopies} step(s) existed on some days only and now run every day.`,
+      fixed: true,
+    })
+  }
+
+  const uniqueConflicts = Array.from(new Set(conflicts))
+  if (uniqueConflicts.length > 0) {
+    drift.push({
+      project: projectName,
+      section: sectionName,
+      title: parentTitle,
+      kind: 'conflicting-instructions',
+      detail: `Same step, different instructions on different days — kept the longest, please check: ${uniqueConflicts.join(' | ')}`,
+      fixed: false,
+    })
+  }
+
+  return merged
 }
 
 function slugify(name: string): string {
@@ -296,43 +432,16 @@ function collapseRoutines(
       continue
     }
 
-    // Most complete copy becomes canonical.
+    // Canonical shell: the copy with the most detail in its own description.
     const canonical = group.reduce((best, candidate) =>
-      candidate.children.length > best.children.length ? candidate : best
+      (candidate.description?.length ?? 0) > (best.description?.length ?? 0) ? candidate : best
     )
 
-    const counts = group.map((t) => t.children.length)
-    if (new Set(counts).size > 1) {
-      drift.push({
-        project: projectName,
-        section: sectionName,
-        title: canonical.title,
-        kind: 'subtask-count',
-        detail: `${group.length} weekday copies with differing subtask counts (${counts.join(', ')}); kept the copy with ${canonical.children.length}.`,
-      })
-    }
-
-    const wordings = new Set(
-      group.flatMap((t) => t.children.map((c) => normaliseTitle(c.title)))
-    )
-    const canonicalWordings = new Set(canonical.children.map((c) => normaliseTitle(c.title)))
-    const missing = Array.from(wordings).filter((w) => !canonicalWordings.has(w))
-    if (missing.length > 0) {
-      drift.push({
-        project: projectName,
-        section: sectionName,
-        title: canonical.title,
-        kind: 'subtask-wording',
-        detail: `Subtasks present in some copies but not the kept one: ${missing.slice(0, 5).join(' | ')}${missing.length > 5 ? ` (+${missing.length - 5} more)` : ''}`,
-      })
-    }
-
+    canonical.children = mergeSubtasks(group, projectName, sectionName, canonical.title, drift)
     canonical.rrule = ruleFor(group, projectName, sectionName, drift)
-    canonical.recurrenceText = group
-      .map((t) => t.recurrenceText)
-      .filter(Boolean)
-      .join(' / ')
-    canonical.children = collapseRoutines(canonical.children, projectName, sectionName, drift)
+    canonical.recurrenceText = Array.from(
+      new Set(group.map((t) => t.recurrenceText).filter(Boolean))
+    ).join(' / ')
 
     result.push(canonical)
   }
@@ -356,44 +465,63 @@ function ruleFor(
       section: sectionName,
       title: group[0].title,
       kind: 'unparsed-rule',
-      detail: `Kept verbatim, not converted to a rule: ${Array.from(new Set(complex)).join(' | ')}`,
+      detail: `Kept verbatim rather than guessed at: ${Array.from(new Set(complex)).join(' | ')}`,
+      fixed: false,
     })
     return null
   }
 
-  const days: string[] = []
+  const ALL_DAYS = ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU']
   const seen = new Set<string>()
+  const duplicates = new Set<string>()
   let time: string | null = null
 
   for (const text of texts) {
     const day = weekdayOf(text)
     if (day) {
-      if (seen.has(day)) {
-        drift.push({
-          project: projectName,
-          section: sectionName,
-          title: group[0].title,
-          kind: 'duplicate-weekday',
-          detail: `${day} appears more than once across the copies of this routine.`,
-        })
-      }
+      if (seen.has(day)) duplicates.add(day)
       seen.add(day)
-      days.push(day)
     }
     time = time ?? timeOf(text)
   }
 
-  if (days.length > 1 && days.length < 7) {
-    const all = ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU']
-    const absent = all.filter((d) => !seen.has(d))
+  if (seen.size === 0) return null
+
+  if (duplicates.size > 0) {
     drift.push({
       project: projectName,
       section: sectionName,
       title: group[0].title,
-      kind: 'missing-weekday',
-      detail: `Runs on ${Array.from(seen).join(', ')}; no copy exists for ${absent.join(', ')}.`,
+      kind: 'duplicate-removed',
+      detail: `${Array.from(duplicates).join(', ')} was listed more than once; the copies are now one rule.`,
+      fixed: true,
     })
   }
 
-  return buildRrule(days, time)
+  const missing = ALL_DAYS.filter((d) => !seen.has(d))
+
+  if (missing.length > 0 && seen.size >= GAP_FILL_THRESHOLD) {
+    // One weekday absent from an otherwise daily routine is an oversight.
+    missing.forEach((d) => seen.add(d))
+    drift.push({
+      project: projectName,
+      section: sectionName,
+      title: group[0].title,
+      kind: 'gap-filled',
+      detail: `No copy existed for ${missing.join(', ')} although the routine ran every other day. Now runs daily.`,
+      fixed: true,
+    })
+  } else if (missing.length > 0 && seen.size > 1) {
+    // Two or three days a week is a schedule, not a gap. Left alone.
+    drift.push({
+      project: projectName,
+      section: sectionName,
+      title: group[0].title,
+      kind: 'schedule-kept',
+      detail: `Runs ${Array.from(seen).join(', ')} only. Left as written — confirm this is the intended schedule rather than a gap.`,
+      fixed: false,
+    })
+  }
+
+  return buildRrule(Array.from(seen), time)
 }
