@@ -19,7 +19,8 @@
     "todotwo:migrate": "supabase db push",
     "todotwo:migrate:status": "supabase migration list",
     "todotwo:seed": "tsx scripts/todotwo/seed.ts",
-    "todotwo:create-admin": "tsx scripts/todotwo/create-admin.ts"
+    "todotwo:create-admin": "tsx scripts/todotwo/create-admin.ts",
+    "todotwo:import": "tsx scripts/todotwo/import-todoist.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",
