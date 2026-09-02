@@ -14,8 +14,11 @@ export function AppShell({ children }: { children: ReactNode }) {
   // BNIMSP is a standalone, BNI-branded section — no Tinglumgård header/footer/background.
   const isBnimsp = pathname === '/bnimsp' || pathname.startsWith('/bnimsp/')
   const isQuest = pathname === '/quest' || pathname.startsWith('/quest/')
+  // TodoTwo is an operational tool with its own shell, navigation and design
+  // tokens — the storefront header, footer and booking CTA do not belong on it.
+  const isTodoTwo = pathname === '/todotwo' || pathname.startsWith('/todotwo/')
 
-  if (isEggOpsApp || isBnimsp || isQuest) {
+  if (isEggOpsApp || isBnimsp || isQuest || isTodoTwo) {
     return (
       <>
         <main className="relative min-h-screen">

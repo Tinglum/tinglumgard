@@ -109,6 +109,10 @@ describe('storefront isolation', () => {
 
     const allowedShared = new Set([
       'middleware.ts',
+      // One line added to the existing operational-module exclusion list, so
+      // the storefront header and footer do not render over TodoTwo. Follows
+      // the pattern already used for /egg, /drift/egg-ops, /bnimsp and /quest.
+      'components/AppShell.tsx',
       'package.json',
       'package-lock.json',
       'vitest.config.mts',
