@@ -113,6 +113,10 @@ describe('storefront isolation', () => {
       // the storefront header and footer do not render over TodoTwo. Follows
       // the pattern already used for /egg, /drift/egg-ops, /bnimsp and /quest.
       'components/AppShell.tsx',
+      // TodoTwo added to the existing standalone-auth exemption beside /bnimsp
+      // and /quest, so the storefront's reload-logout and inactivity timer stop
+      // ejecting people mid-task.
+      'contexts/AuthContext.tsx',
       'package.json',
       'package-lock.json',
       'vitest.config.mts',
@@ -127,6 +131,11 @@ describe('storefront isolation', () => {
       'supabase/.temp/cli-latest',
       '.github/workflows/quality-guard.yml',
       '.gitignore',
+      // Phase 7 (PWA). One `headers()` entry matching only /todotwo/sw.js,
+      // sending Service-Worker-Allowed so the worker's scope can cover
+      // /todotwo itself and not just /todotwo/. No storefront path matches it.
+      // Reasoning in docs/todotwo/PWA.md.
+      'next.config.js',
     ])
 
     // Editor and agent tooling, untracked on main before this branch existed.

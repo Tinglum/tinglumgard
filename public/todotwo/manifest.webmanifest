@@ -1,0 +1,51 @@
+{
+  "name": "TodoTwo — Tinglumgård",
+  "short_name": "TodoTwo",
+  "description": "Work, tasks and people at Tinglumgård.",
+  "id": "/todotwo",
+  "scope": "/todotwo",
+  "start_url": "/todotwo",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f7f7f4",
+  "theme_color": "#2f5d45",
+  "lang": "en",
+  "dir": "ltr",
+  "categories": ["productivity", "utilities"],
+  "icons": [
+    {
+      "src": "/todotwo/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/todotwo/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/todotwo/icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Today",
+      "short_name": "Today",
+      "description": "What is due today.",
+      "url": "/todotwo",
+      "icons": [{ "src": "/todotwo/icons/shortcut-today-96.png", "sizes": "96x96", "type": "image/png" }]
+    },
+    {
+      "name": "Upcoming",
+      "short_name": "Upcoming",
+      "description": "The days ahead.",
+      "url": "/todotwo/upcoming",
+      "icons": [{ "src": "/todotwo/icons/shortcut-upcoming-96.png", "sizes": "96x96", "type": "image/png" }]
+    }
+  ]
+}

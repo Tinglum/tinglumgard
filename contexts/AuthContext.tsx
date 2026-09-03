@@ -35,7 +35,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const isBnimsp = !!pathname && (pathname === '/bnimsp' || pathname.startsWith('/bnimsp/'));
   const isQuest = !!pathname && (pathname === '/quest' || pathname.startsWith('/quest/'));
-  const usesStandaloneAuth = isBnimsp || isQuest;
+  // TodoTwo has its own Supabase Auth session. Without this exemption the farm's
+  // reload-logout and 5-minute inactivity timer fire while someone is using it
+  // and send them to '/' mid-task — including from the TodoTwo login screen,
+  // before they have had time to type an email address.
+  const isTodoTwo = !!pathname && (pathname === '/todotwo' || pathname.startsWith('/todotwo/'));
+  const usesStandaloneAuth = isBnimsp || isQuest || isTodoTwo;
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [timeoutId, setTimeoutId] = useState<NodeJS.Timeout | null>(null);
