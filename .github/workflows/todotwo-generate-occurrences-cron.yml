@@ -1,0 +1,44 @@
+name: TodoTwo Generate Occurrences Cron
+
+on:
+  schedule:
+    - cron: "0 4 * * *"
+  workflow_dispatch:
+
+jobs:
+  generate-occurrences:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Trigger TodoTwo occurrence generation
+        env:
+          CRON_BASE_URL: ${{ secrets.CRON_BASE_URL || vars.CRON_BASE_URL || 'https://main--tinglum.netlify.app' }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET || vars.CRON_SECRET }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${CRON_SECRET:-}" ]; then
+            echo "::error::CRON_SECRET is required for TodoTwo occurrence generation cron."
+            exit 1
+          fi
+
+          echo "Using CRON_BASE_URL=${CRON_BASE_URL}"
+
+          URL="${CRON_BASE_URL%/}/api/cron/todotwo-generate-occurrences"
+          RESPONSE_FILE=/tmp/todotwo-generate-occurrences-response.json
+
+          HTTP_CODE=$(curl --silent --show-error \
+            --request POST \
+            -H "x-cron-secret: $CRON_SECRET" \
+            --output "$RESPONSE_FILE" \
+            --write-out "%{http_code}" \
+            "${URL}")
+
+          echo "HTTP status: $HTTP_CODE"
+          echo "Cron response:"
+          cat "$RESPONSE_FILE"
+
+          if [ "$HTTP_CODE" -ge 400 ]; then
+            echo "::error::TodoTwo occurrence generation cron endpoint failed with HTTP $HTTP_CODE"
+            exit 1
+          fi

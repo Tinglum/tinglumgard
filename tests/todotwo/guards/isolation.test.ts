@@ -157,6 +157,9 @@ describe('storefront isolation', () => {
       file.startsWith('docs/todotwo/') ||
       file.startsWith('scripts/todotwo/') ||
       file.startsWith('public/todotwo/') ||
+      // TodoTwo's own cron workflows, named with the same todotwo- prefix as
+      // its cron routes so they are unambiguously this module's, not shared.
+      /^\.github\/workflows\/todotwo-.*\.yml$/.test(file) ||
       /^supabase\/migrations\/\d+_todotwo_/.test(file)
 
     const offenders = changed

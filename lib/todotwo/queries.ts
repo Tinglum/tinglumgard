@@ -719,3 +719,193 @@ export async function getAllPersonSkills(): Promise<PersonSkillRow[]> {
   return (data ?? []) as unknown as PersonSkillRow[]
 }
 
+
+// ---------------------------------------------------------------------------
+// Favorites — six built-in, computed views
+//
+// These are deliberately NOT rows in todotwo.saved_views. That table exists
+// for future user-customizable views, but these six are fixed, apply to every
+// person with zero setup, and need no per-person seeding or migration when a
+// new person joins. Computing them here also means a definition change is a
+// code change, not a data migration across everyone's saved_views rows.
+// ---------------------------------------------------------------------------
+
+export type FavoriteViewKey =
+  | 'overdue'
+  | 'assigned-today'
+  | 'assigned-tomorrow'
+  | 'unassigned-next-7'
+  | 'assigned-next-7'
+  | 'farm-wide'
+
+export interface FavoriteView {
+  key: FavoriteViewKey
+  label: string
+  count: number
+}
+
+async function taskIdsAssignedTo(db: ReturnType<typeof getTodoTwoClient>, personId: string): Promise<Set<string>> {
+  const { data, error } = await db
+    .from('task_assignments')
+    .select('task_id')
+    .eq('person_id', personId)
+    .is('unassigned_at', null)
+
+  if (error) throw new Error(`Could not load assignments: ${error.message}`)
+  return new Set(((data ?? []) as { task_id: string }[]).map((r) => r.task_id))
+}
+
+/**
+ * The six built-in Favorites views for the signed-in person. `isStaff` gates
+ * the one farm-wide view — matching how the rest of the app reserves
+ * everyone's-work visibility to staff (see getAllPersonSkills above, and the
+ * people/routines pages) — the other five are personal and available to
+ * anyone signed in.
+ */
+export async function getFavoriteViews(
+  personId: string,
+  isStaff: boolean,
+  today: FarmDate = farmToday()
+): Promise<FavoriteView[]> {
+  const db = getTodoTwoClient()
+  const in7 = addFarmDays(today, 7)
+  const tomorrow = addFarmDays(today, 1)
+
+  const { data, error } = await db
+    .from('tasks_resolved')
+    .select(SELECT)
+    .is('parent_task_id', null)
+    .in('status', OPEN_STATUSES)
+
+  if (error) throw new Error(`Could not load favorites: ${error.message}`)
+  const rows = (data ?? []) as unknown as TaskRow[]
+
+  const mine = await taskIdsAssignedTo(db, personId)
+
+  const overdue = rows.filter((t) => t.due_date && t.due_date < today)
+  const assignedToday = rows.filter((t) => t.due_date === today && mine.has(t.id))
+  const assignedTomorrow = rows.filter((t) => t.due_date === tomorrow && mine.has(t.id))
+  const next7 = rows.filter((t) => t.due_date && t.due_date > today && t.due_date <= in7)
+  const unassignedNext7 = next7.filter((t) => t.status === 'unassigned')
+  const assignedNext7 = next7.filter((t) => mine.has(t.id))
+
+  const views: FavoriteView[] = [
+    { key: 'overdue', label: 'Overdue Tasks', count: overdue.length },
+    { key: 'assigned-today', label: 'Assigned tasks due today', count: assignedToday.length },
+    { key: 'assigned-tomorrow', label: 'Assigned tasks due tomorrow', count: assignedTomorrow.length },
+    { key: 'unassigned-next-7', label: 'Unassigned tasks due next 7 days', count: unassignedNext7.length },
+    { key: 'assigned-next-7', label: 'Assigned tasks due next 7 days', count: assignedNext7.length },
+  ]
+
+  if (isStaff) {
+    const farmWide = rows.filter((t) => t.status === 'assigned' || t.status === 'accepted' || t.status === 'in_progress')
+    views.push({ key: 'farm-wide', label: "Tinglum Farm's assignments", count: farmWide.length })
+  }
+
+  return views
+}
+
+/** The task list for one Favorites view — backs /favorites/[key]. */
+export async function getFavoriteViewTasks(
+  key: FavoriteViewKey,
+  personId: string,
+  isStaff: boolean,
+  today: FarmDate = farmToday()
+): Promise<TaskRow[]> {
+  const db = getTodoTwoClient()
+  const in7 = addFarmDays(today, 7)
+  const tomorrow = addFarmDays(today, 1)
+
+  if (key === 'farm-wide' && !isStaff) {
+    throw new Error('Only staff may view farm-wide assignments')
+  }
+
+  const { data, error } = await db
+    .from('tasks_resolved')
+    .select(SELECT)
+    .is('parent_task_id', null)
+    .in('status', OPEN_STATUSES)
+
+  if (error) throw new Error(`Could not load favorites: ${error.message}`)
+  const rows = (data ?? []) as unknown as TaskRow[]
+
+  switch (key) {
+    case 'overdue':
+      return sortTasks(rows.filter((t) => t.due_date && t.due_date < today))
+    case 'assigned-today': {
+      const mine = await taskIdsAssignedTo(db, personId)
+      return sortTasks(rows.filter((t) => t.due_date === today && mine.has(t.id)))
+    }
+    case 'assigned-tomorrow': {
+      const mine = await taskIdsAssignedTo(db, personId)
+      return sortTasks(rows.filter((t) => t.due_date === tomorrow && mine.has(t.id)))
+    }
+    case 'unassigned-next-7':
+      return sortTasks(
+        rows.filter((t) => t.due_date && t.due_date > today && t.due_date <= in7 && t.status === 'unassigned')
+      )
+    case 'assigned-next-7': {
+      const mine = await taskIdsAssignedTo(db, personId)
+      return sortTasks(
+        rows.filter((t) => t.due_date && t.due_date > today && t.due_date <= in7 && mine.has(t.id))
+      )
+    }
+    case 'farm-wide':
+      return sortTasks(rows.filter((t) => t.status === 'assigned' || t.status === 'accepted' || t.status === 'in_progress'))
+    default:
+      return []
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Task handoff requests
+// ---------------------------------------------------------------------------
+
+export interface HandoffRequestRow {
+  id: string
+  task_id: string
+  task_title: string
+  to_person_id: string
+  to_full_name: string
+  to_preferred_name: string | null
+  requested_at: string
+}
+
+/** Pending handoff requests where this person is the current holder — theirs to decide. */
+export async function getPendingHandoffRequestsFor(personId: string): Promise<HandoffRequestRow[]> {
+  const db = getTodoTwoClient()
+
+  const { data, error } = await db
+    .from('task_handoff_requests')
+    .select('id, task_id, to_person_id, requested_at')
+    .eq('from_person_id', personId)
+    .eq('status', 'pending')
+    .order('requested_at')
+
+  if (error) throw new Error(`Could not load handoff requests: ${error.message}`)
+  const rows = (data ?? []) as { id: string; task_id: string; to_person_id: string; requested_at: string }[]
+  if (rows.length === 0) return []
+
+  const taskIds = Array.from(new Set(rows.map((r) => r.task_id)))
+  const toPersonIds = Array.from(new Set(rows.map((r) => r.to_person_id)))
+
+  const [{ data: tasks }, { data: people }] = await Promise.all([
+    db.from('tasks_resolved').select('id, title').in('id', taskIds),
+    db.from('people').select('id, full_name, preferred_name').in('id', toPersonIds),
+  ])
+
+  const titleOf = new Map(((tasks ?? []) as { id: string; title: string }[]).map((t) => [t.id, t.title]))
+  const personOf = new Map(
+    ((people ?? []) as { id: string; full_name: string; preferred_name: string | null }[]).map((p) => [p.id, p])
+  )
+
+  return rows.map((r) => ({
+    id: r.id,
+    task_id: r.task_id,
+    task_title: titleOf.get(r.task_id) ?? 'Untitled task',
+    to_person_id: r.to_person_id,
+    to_full_name: personOf.get(r.to_person_id)?.full_name ?? 'Someone',
+    to_preferred_name: personOf.get(r.to_person_id)?.preferred_name ?? null,
+    requested_at: r.requested_at,
+  }))
+}

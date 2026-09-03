@@ -4,6 +4,7 @@ import { ArrowLeft, Clock, Repeat } from 'lucide-react'
 
 import { StepList } from '@/components/todotwo/tasks/step-list'
 import { CompleteTaskButton } from '@/components/todotwo/tasks/complete-task-button'
+import { DuplicateTaskButton } from '@/components/todotwo/tasks/duplicate-task-button'
 import { Surface } from '@/components/todotwo/ui/states'
 import { requireTodoTwoUser } from '@/lib/todotwo/auth'
 import { getTaskDetail } from '@/lib/todotwo/queries'
@@ -82,7 +83,10 @@ export default async function TaskDetailPage({ params }: { params: { id: string 
         <StepList taskId={task.id} steps={steps} taskDone={done} />
       </Surface>
 
-      <CompleteTaskButton taskId={task.id} done={done} />
+      <div className="flex flex-wrap items-center gap-2">
+        <CompleteTaskButton taskId={task.id} done={done} />
+        <DuplicateTaskButton taskId={task.id} defaultDueDate={task.due_date} />
+      </div>
 
       {seriesRule ? (
         <p className="text-[12px] leading-relaxed text-[var(--tt-ink-3)]">
