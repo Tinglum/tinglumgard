@@ -1,3 +1,5 @@
+import Link from 'next/link'
+
 import { AddPersonForm } from '@/components/todotwo/people/add-person-form'
 import { Surface } from '@/components/todotwo/ui/states'
 import { requireRole } from '@/lib/todotwo/auth'
@@ -18,6 +20,17 @@ export default async function PeoplePage() {
         <p className="text-sm text-[var(--tt-ink-2)]">
           {people.length} on the farm. Adding an email lets that person sign in — their account is
           created the first time they do.
+        </p>
+        <p className="flex gap-3 text-[13px]">
+          <Link href={`${TODOTWO_BASE}/stays`} className="text-[var(--tt-accent)] underline-offset-4 hover:underline">
+            Stays &amp; arrivals
+          </Link>
+          <Link
+            href={`${TODOTWO_BASE}/accommodation`}
+            className="text-[var(--tt-accent)] underline-offset-4 hover:underline"
+          >
+            Accommodation
+          </Link>
         </p>
       </header>
 

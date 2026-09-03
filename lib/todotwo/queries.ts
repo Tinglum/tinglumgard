@@ -348,3 +348,374 @@ export async function getSeries(): Promise<SeriesRow[]> {
     rota: rotas.get(s.id) ?? [],
   }))
 }
+
+export interface StayRow {
+  id: string
+  person_id: string
+  full_name: string
+  preferred_name: string | null
+  arrival_date: string
+  arrival_certainty: string
+  departure_date: string | null
+  departure_certainty: string | null
+  status: string
+}
+
+/**
+ * Current stays plus arrivals in the next `days` days, each with the person's
+ * name attached. Used by the stays overview and by the add-stay picker.
+ */
+export async function getStays(days = 30): Promise<{ current: StayRow[]; upcoming: StayRow[] }> {
+  const db = getTodoTwoClient()
+
+  const { data: stays, error } = await db
+    .from('stays')
+    .select(
+      'id, person_id, arrival_date, arrival_certainty, departure_date, departure_certainty, status'
+    )
+    .in('status', ['current', 'upcoming'])
+    .order('arrival_date')
+
+  if (error) throw new Error(`Could not load stays: ${error.message}`)
+
+  const rows = (stays ?? []) as unknown as Omit<StayRow, 'full_name' | 'preferred_name'>[]
+  if (rows.length === 0) return { current: [], upcoming: [] }
+
+  const personIds = Array.from(new Set(rows.map((r) => r.person_id)))
+  const { data: people } = await db
+    .from('people')
+    .select('id, full_name, preferred_name')
+    .in('id', personIds)
+
+  const nameOf = new Map<string, { full_name: string; preferred_name: string | null }>()
+  for (const p of (people ?? []) as { id: string; full_name: string; preferred_name: string | null }[]) {
+    nameOf.set(p.id, p)
+  }
+
+  const withNames: StayRow[] = rows.map((r) => ({
+    ...r,
+    full_name: nameOf.get(r.person_id)?.full_name ?? 'Unknown',
+    preferred_name: nameOf.get(r.person_id)?.preferred_name ?? null,
+  }))
+
+  const cutoff = new Date()
+  cutoff.setDate(cutoff.getDate() + days)
+  const cutoffDate = cutoff.toISOString().slice(0, 10)
+
+  return {
+    current: withNames.filter((s) => s.status === 'current'),
+    upcoming: withNames.filter((s) => s.status === 'upcoming' && s.arrival_date <= cutoffDate),
+  }
+}
+
+export interface AccommodationRow {
+  id: string
+  name: string
+  kind: string
+  capacity: number
+  location_id: string | null
+}
+
+/** Every active accommodation unit, for pickers and the occupancy page. */
+export async function getAccommodations(): Promise<AccommodationRow[]> {
+  const db = getTodoTwoClient()
+
+  const { data, error } = await db
+    .from('accommodations')
+    .select('id, name, kind, capacity, location_id')
+    .is('deleted_at', null)
+    .eq('is_active', true)
+    .order('name')
+
+  if (error) throw new Error(`Could not load accommodations: ${error.message}`)
+
+  return (data ?? []) as unknown as AccommodationRow[]
+}
+
+export interface OccupancyRow {
+  assignment_id: string
+  accommodation_id: string
+  accommodation_name: string
+  accommodation_kind: string
+  location_id: string | null
+  stay_id: string
+  stay_status: string
+  person_id: string
+  full_name: string
+  preferred_name: string | null
+  start_date: string
+  end_date: string | null
+  arrival_date: string
+  arrival_certainty: string
+  departure_date: string | null
+  departure_certainty: string | null
+}
+
+/**
+ * Who is where, right now and coming up, from `todotwo.occupancy_resolved`.
+ * That view already carries the person and accommodation names and filters to
+ * current/upcoming stays, so this is a straight read.
+ */
+export async function getOccupancy(): Promise<OccupancyRow[]> {
+  const db = getTodoTwoClient()
+
+  const { data, error } = await db
+    .from('occupancy_resolved')
+    .select(
+      'assignment_id, accommodation_id, accommodation_name, accommodation_kind, location_id, stay_id, stay_status, person_id, full_name, preferred_name, start_date, end_date, arrival_date, arrival_certainty, departure_date, departure_certainty'
+    )
+    .order('start_date')
+
+  if (error) throw new Error(`Could not load occupancy: ${error.message}`)
+
+  return (data ?? []) as unknown as OccupancyRow[]
+}
+
+/** One accommodation's existing bookings, for the double-booking pre-check. */
+export async function getAssignmentsForAccommodation(
+  accommodationId: string
+): Promise<{ id: string; start_date: string; end_date: string | null }[]> {
+  const db = getTodoTwoClient()
+
+  const { data, error } = await db
+    .from('accommodation_assignments')
+    .select('id, start_date, end_date')
+    .eq('accommodation_id', accommodationId)
+    .order('start_date')
+
+  if (error) throw new Error(`Could not load assignments: ${error.message}`)
+
+  return (data ?? []) as unknown as { id: string; start_date: string; end_date: string | null }[]
+}
+
+// ---------------------------------------------------------------------------
+// Phase 4 — availability, time off & skills
+// ---------------------------------------------------------------------------
+
+export interface TimeOffRequestRow {
+  id: string
+  person_id: string
+  full_name: string
+  preferred_name: string | null
+  start_date: FarmDate
+  end_date: FarmDate
+  kind: string
+  reason: string | null
+  status: string
+  requested_at: string
+  decided_by_person_id: string | null
+  decided_at: string | null
+  decision_note: string | null
+}
+
+const TIME_OFF_SELECT =
+  'id, person_id, start_date, end_date, kind, reason, status, requested_at, decided_by_person_id, decided_at, decision_note, people:person_id (full_name, preferred_name)'
+
+interface TimeOffJoinRow {
+  id: string
+  person_id: string
+  start_date: string
+  end_date: string
+  kind: string
+  reason: string | null
+  status: string
+  requested_at: string
+  decided_by_person_id: string | null
+  decided_at: string | null
+  decision_note: string | null
+  people:
+    | { full_name: string; preferred_name: string | null }
+    | { full_name: string; preferred_name: string | null }[]
+    | null
+}
+
+function flattenTimeOff(row: TimeOffJoinRow): TimeOffRequestRow {
+  const person = Array.isArray(row.people) ? row.people[0] : row.people
+  return {
+    id: row.id,
+    person_id: row.person_id,
+    full_name: person?.full_name ?? 'Unknown',
+    preferred_name: person?.preferred_name ?? null,
+    start_date: row.start_date,
+    end_date: row.end_date,
+    kind: row.kind,
+    reason: row.reason,
+    status: row.status,
+    requested_at: row.requested_at,
+    decided_by_person_id: row.decided_by_person_id,
+    decided_at: row.decided_at,
+    decision_note: row.decision_note,
+  }
+}
+
+/**
+ * A single person's own time-off requests, most recent first. RLS limits this
+ * to the caller's own rows unless they hold a staff role.
+ */
+export async function getTimeOffRequestsForPerson(personId: string): Promise<TimeOffRequestRow[]> {
+  const db = getTodoTwoClient()
+
+  const { data, error } = await db
+    .from('time_off_requests')
+    .select(TIME_OFF_SELECT)
+    .eq('person_id', personId)
+    .order('requested_at', { ascending: false })
+
+  if (error) throw new Error(`Could not load time-off requests: ${error.message}`)
+
+  return ((data ?? []) as unknown as TimeOffJoinRow[]).map(flattenTimeOff)
+}
+
+/** Every pending time-off request, oldest first. Staff-only via RLS. */
+export async function getPendingTimeOffRequests(): Promise<TimeOffRequestRow[]> {
+  const db = getTodoTwoClient()
+
+  const { data, error } = await db
+    .from('time_off_requests')
+    .select(TIME_OFF_SELECT)
+    .eq('status', 'pending')
+    .order('requested_at', { ascending: true })
+
+  if (error) throw new Error(`Could not load pending time-off requests: ${error.message}`)
+
+  return ((data ?? []) as unknown as TimeOffJoinRow[]).map(flattenTimeOff)
+}
+
+export interface UnavailabilityRow {
+  id: string
+  start_date: FarmDate
+  end_date: FarmDate
+  kind: string
+}
+
+/**
+ * Integration point for the assignment engine (owned separately — see
+ * docs/todotwo/AVAILABILITY.md for the contract). Returns every APPROVED
+ * time-off row for one person whose date range overlaps [from, to],
+ * inclusive. An approved row here is a HARD CONSTRAINT: the person must not be
+ * assigned any task whose date falls within [start_date, end_date] of a
+ * returned row.
+ *
+ * Uses the same `todotwo` RLS client as everything else in this file — the
+ * assignment engine runs as a signed-in staff member (coordinator/admin), who
+ * can see every person's approved time off under RLS, never the service-role
+ * client (R2 forbids that in a request path).
+ */
+export async function getApprovedUnavailability(
+  personId: string,
+  range: { from: FarmDate; to: FarmDate }
+): Promise<UnavailabilityRow[]> {
+  const db = getTodoTwoClient()
+
+  const { data, error } = await db
+    .from('time_off_requests')
+    .select('id, start_date, end_date, kind')
+    .eq('person_id', personId)
+    .eq('status', 'approved')
+    .lte('start_date', range.to)
+    .gte('end_date', range.from)
+    .order('start_date', { ascending: true })
+
+  if (error) throw new Error(`Could not load approved unavailability: ${error.message}`)
+
+  return (data ?? []) as unknown as UnavailabilityRow[]
+}
+
+/**
+ * Same integration point as getApprovedUnavailability, but for every person
+ * at once, keyed by person_id. For a scheduler generating a whole day or week
+ * rather than checking one person at a time.
+ */
+export async function getUnavailabilityForDateRange(range: {
+  from: FarmDate
+  to: FarmDate
+}): Promise<Map<string, UnavailabilityRow[]>> {
+  const db = getTodoTwoClient()
+
+  const { data, error } = await db
+    .from('time_off_requests')
+    .select('id, person_id, start_date, end_date, kind')
+    .eq('status', 'approved')
+    .lte('start_date', range.to)
+    .gte('end_date', range.from)
+    .order('start_date', { ascending: true })
+
+  if (error) throw new Error(`Could not load unavailability: ${error.message}`)
+
+  const byPerson = new Map<string, UnavailabilityRow[]>()
+  for (const row of (data ?? []) as unknown as (UnavailabilityRow & { person_id: string })[]) {
+    const entry = { id: row.id, start_date: row.start_date, end_date: row.end_date, kind: row.kind }
+    const list = byPerson.get(row.person_id)
+    if (list) list.push(entry)
+    else byPerson.set(row.person_id, [entry])
+  }
+  return byPerson
+}
+
+export interface SkillRow {
+  id: string
+  name: string
+  slug: string
+  description: string | null
+  category: string
+}
+
+/** The skill catalogue, grouped by category in seed order. */
+export async function getSkills(): Promise<SkillRow[]> {
+  const db = getTodoTwoClient()
+
+  const { data, error } = await db
+    .from('skills')
+    .select('id, name, slug, description, category')
+    .is('deleted_at', null)
+    .order('sort_order')
+
+  if (error) throw new Error(`Could not load skills: ${error.message}`)
+
+  return (data ?? []) as unknown as SkillRow[]
+}
+
+export interface PersonSkillRow {
+  id: string
+  person_id: string
+  skill_id: string
+  claimed_level: string | null
+  admin_verified_level: string | null
+  trainer_person_id: string | null
+  trained_at: string | null
+  expires_at: string | null
+  notes: string | null
+  authorized_unsupervised: boolean
+}
+
+const PERSON_SKILL_SELECT =
+  'id, person_id, skill_id, claimed_level, admin_verified_level, trainer_person_id, trained_at, expires_at, notes, authorized_unsupervised'
+
+/**
+ * One person's skill claims and verifications. RLS limits this to the
+ * caller's own rows unless they hold a staff role.
+ */
+export async function getPersonSkills(personId: string): Promise<PersonSkillRow[]> {
+  const db = getTodoTwoClient()
+
+  const { data, error } = await db
+    .from('person_skills')
+    .select(PERSON_SKILL_SELECT)
+    .eq('person_id', personId)
+
+  if (error) throw new Error(`Could not load person skills: ${error.message}`)
+
+  return (data ?? []) as unknown as PersonSkillRow[]
+}
+
+/** Every person_skills row, for the staff verification view. Staff-only via RLS. */
+export async function getAllPersonSkills(): Promise<PersonSkillRow[]> {
+  const db = getTodoTwoClient()
+
+  const { data, error } = await db.from('person_skills').select(PERSON_SKILL_SELECT)
+
+  if (error) throw new Error(`Could not load all person skills: ${error.message}`)
+
+  return (data ?? []) as unknown as PersonSkillRow[]
+}
+
