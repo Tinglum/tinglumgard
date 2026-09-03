@@ -21,7 +21,7 @@ import dotenv from 'dotenv'
 import { createClient } from '@supabase/supabase-js'
 
 import { dispatchOutbox } from '../../lib/todotwo/notifications/dispatch'
-import { getResendConfig } from '../../lib/todotwo/notifications/resend'
+import { getMailerConfig } from '../../lib/todotwo/notifications/mailer'
 import { MAX_ATTEMPTS } from '../../lib/todotwo/notifications/retry'
 
 dotenv.config({ path: path.resolve(process.cwd(), '.env.local') })
@@ -75,8 +75,8 @@ async function main() {
     return
   }
 
-  if (!getResendConfig()) {
-    console.log('\n  RESEND_API_KEY or EMAIL_FROM is absent. Nothing will be sent and the queue')
+  if (!getMailerConfig()) {
+    console.log('\n  MAILGUN_API_KEY or MAILGUN_DOMAIN is absent. Nothing will be sent and the queue')
     console.log('  will be left exactly as it is.\n')
   }
 

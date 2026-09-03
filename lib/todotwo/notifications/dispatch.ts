@@ -1,5 +1,5 @@
 import { decideRetry, isDue, MAX_ATTEMPTS } from '@/lib/todotwo/notifications/retry'
-import { createResendSender, getResendConfig } from '@/lib/todotwo/notifications/resend'
+import { createMailgunSender, getMailerConfig } from '@/lib/todotwo/notifications/mailer'
 import type { OutboxRow, Sender } from '@/lib/todotwo/notifications/types'
 
 /**
@@ -17,7 +17,7 @@ import type { OutboxRow, Sender } from '@/lib/todotwo/notifications/types'
  *   the network call, so two overlapping runs cannot both take the same row,
  *   and the unique dedupe key means there was only ever one row to take.
  *
- *   Nothing pretends. With no Resend key the run reports skipped and touches
+ *   Nothing pretends. With Mailgun unconfigured the run reports skipped and touches
  *   nothing at all. There is no fake send and no silent success.
  */
 
@@ -57,13 +57,13 @@ export async function dispatchOutbox(
 
   let sender = options.sender
   if (!sender) {
-    const config = getResendConfig()
+    const config = getMailerConfig()
     if (!config) {
-      // Inert by design. The queue keeps filling and will drain the moment a
-      // verified sending domain and a key exist.
+      // Inert by design. The queue keeps filling and drains the moment
+      // MAILGUN_API_KEY and MAILGUN_DOMAIN are present.
       return { ...result, configured: false }
     }
-    sender = createResendSender(config)
+    sender = createMailgunSender()
   }
 
   const { data, error } = await db

@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { notificationDedupeKey } from '@/lib/todotwo/notifications/dedupe'
 import { dispatchOutbox } from '@/lib/todotwo/notifications/dispatch'
-import { isRetryableStatus } from '@/lib/todotwo/notifications/resend'
+import { isRetryableError } from '@/lib/todotwo/notifications/mailer'
 import { MAX_ATTEMPTS, RETRY_BACKOFF_MINUTES, decideRetry, isDue } from '@/lib/todotwo/notifications/retry'
 import type { Sender } from '@/lib/todotwo/notifications/types'
 
@@ -112,26 +112,46 @@ describe('retry decisions', () => {
   })
 
   it('always keeps the error text', () => {
-    expect(decideRetry({ attempts: 0, error: 'Resend 500: upstream', retryable: true, now }).lastError).toBe(
-      'Resend 500: upstream'
+    expect(decideRetry({ attempts: 0, error: 'Mailgun 500: upstream', retryable: true, now }).lastError).toBe(
+      'Mailgun 500: upstream'
     )
-    expect(decideRetry({ attempts: 0, error: 'Resend 422: bad address', retryable: false, now }).lastError).toBe(
-      'Resend 422: bad address'
+    expect(decideRetry({ attempts: 0, error: 'Mailgun 422: rejected address', retryable: false, now }).lastError).toBe(
+      'Mailgun 422: rejected address'
     )
   })
 })
 
-describe('which HTTP failures are worth repeating', () => {
+describe('which provider failures are worth repeating', () => {
   it('retries transient ones', () => {
-    for (const status of [408, 429, 500, 502, 503, 504]) {
-      expect(isRetryableStatus(status), `${status}`).toBe(true)
+    for (const error of [
+      'Mailgun 429: rate limited',
+      'Mailgun 500: internal error',
+      'Mailgun 502: bad gateway',
+      'Mailgun 503: unavailable',
+      'Mailgun 408: timeout',
+      'fetch failed',
+      'ECONNRESET',
+      'network error',
+    ]) {
+      expect(isRetryableError(error), error).toBe(true)
     }
   })
 
-  it('does not retry a rejected request', () => {
-    for (const status of [400, 401, 403, 404, 422]) {
-      expect(isRetryableStatus(status), `${status}`).toBe(false)
+  it('does not retry something that will fail identically forever', () => {
+    for (const error of [
+      'Mailgun 400: bad request',
+      'Mailgun 401: unauthorized',
+      'Mailgun 403: domain not verified',
+      'Mailgun 404: no such domain',
+      'Mailgun 422: rejected address',
+      'Email service not configured',
+    ]) {
+      expect(isRetryableError(error), error).toBe(false)
     }
+  })
+
+  it('treats an absent error as nothing to retry', () => {
+    expect(isRetryableError(undefined)).toBe(false)
   })
 })
 
@@ -215,7 +235,7 @@ function row(overrides: Partial<FakeRow> = {}): FakeRow {
 describe('dispatching the outbox', () => {
   const now = new Date('2026-09-04T10:00:00Z')
 
-  it('is inert with no Resend configuration and touches nothing', async () => {
+  it('is inert with no Mailgun configuration and touches nothing', async () => {
     const previousKey = process.env.RESEND_API_KEY
     const previousFrom = process.env.EMAIL_FROM
     delete process.env.RESEND_API_KEY
@@ -252,7 +272,7 @@ describe('dispatching the outbox', () => {
   it('records the error and schedules another attempt on a transient failure', async () => {
     const rows = [row()]
     const { db } = fakeDb(rows)
-    const sender: Sender = async () => ({ sent: false, retryable: true, error: 'Resend 503: down' })
+    const sender: Sender = async () => ({ sent: false, retryable: true, error: 'Mailgun 503: down' })
 
     const result = await dispatchOutbox(db, { now, sender })
 
@@ -266,13 +286,13 @@ describe('dispatching the outbox', () => {
   it('never throws a failure away', async () => {
     const rows = [row({ attempts: MAX_ATTEMPTS - 1 })]
     const { db } = fakeDb(rows)
-    const sender: Sender = async () => ({ sent: false, retryable: true, error: 'Resend 503: down' })
+    const sender: Sender = async () => ({ sent: false, retryable: true, error: 'Mailgun 503: down' })
 
     const result = await dispatchOutbox(db, { now, sender })
 
     expect(result.failed).toBe(1)
     expect(rows[0].status).toBe('failed')
-    expect((rows[0] as unknown as { last_error: string }).last_error).toBe('Resend 503: down')
+    expect((rows[0] as unknown as { last_error: string }).last_error).toBe('Mailgun 503: down')
   })
 
   it('claims a row before sending, so a second run cannot take it', async () => {

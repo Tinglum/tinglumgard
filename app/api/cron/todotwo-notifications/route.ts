@@ -92,7 +92,7 @@ export async function POST(request: NextRequest) {
       ...result,
       note: result.configured
         ? undefined
-        : 'RESEND_API_KEY or EMAIL_FROM is absent. The queue was left untouched.',
+        : 'MAILGUN_API_KEY or MAILGUN_DOMAIN is absent. The queue was left untouched.',
     })
   } catch (error) {
     return NextResponse.json(
