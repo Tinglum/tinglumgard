@@ -3,7 +3,7 @@
 Audit date: 2026-09-03
 Branch audited: `todotwo/phase-0-foundation` (head `ca6f368b`)
 Target: `https://tinglumgård.no/todotwo` (`https://xn--tinglumgrd-85a.no/todotwo`)
-Production Supabase ref: `ryqjwtzgkrrpxpdqgkbn` — **not touched by this audit. Nothing in it was queried, linked or migrated.**
+Production Supabase ref: `dofhlyvexecwlqmrzutd` — **not touched by this audit. Nothing in it was queried, linked or migrated.**
 
 This is a written runbook. Nothing in it has been executed against production.
 
@@ -27,7 +27,7 @@ The blockers are not code quality. They are that the deployment described in the
 So: **occurrence generation cannot run in production at all**, and **notification dispatch does not exist as a feature**. Section 5 below gives the workflow YAML as asked, but both workflows would `curl` a 404 today. Recurring routines would stop appearing once the last locally-generated horizon runs out.
 
 **B2 — The CLI generator hard-refuses production, and so does every other TodoTwo script.**
-`scripts/todotwo/{generate-occurrences,create-admin,seed,import-todoist}.ts` all carry `const PRODUCTION_REFS = new Set(['ryqjwtzgkrrpxpdqgkbn'])` and `process.exit(1)`. That guard is correct and should stay. But it means there is currently **no supported way to create the first administrator account on production**. `claim_person()` links an auth user to a waiting `todotwo.people` row — and nobody can insert the first `people` row, because inserting one requires being an admin, and there is no admin. Chicken and egg. This must be resolved by a deliberate one-time SQL insert (step 3.7) before anyone can sign in.
+`scripts/todotwo/{generate-occurrences,create-admin,seed,import-todoist}.ts` all carry `const PRODUCTION_REFS = new Set(['dofhlyvexecwlqmrzutd', 'dofhlyvexecwlqmrzutd'])` and `process.exit(1)`. That guard is correct and should stay. But it means there is currently **no supported way to create the first administrator account on production**. `claim_person()` links an auth user to a waiting `todotwo.people` row — and nobody can insert the first `people` row, because inserting one requires being an admin, and there is no admin. Chicken and egg. This must be resolved by a deliberate one-time SQL insert (step 3.7) before anyone can sign in.
 
 **B3 — `npm run todotwo:migrate` against production would be a disaster.**
 `todotwo:migrate` is `supabase db push`. `db push` applies *every* unrecorded file in `supabase/migrations/` to the linked project. That directory contains the storefront's history, including ad-hoc files, against a project that has never had a migration recorded because it was always managed by hand. Pushing it at production would attempt to re-run the entire storefront schema history against a live database holding Vipps payment records.
@@ -37,7 +37,7 @@ So: **occurrence generation cannot run in production at all**, and **notificatio
 **B4 — Co-locating TodoTwo with the live storefront project means minting `authenticated` JWTs in a project whose `public` schema has no working RLS.**
 Per `docs/todotwo/ARCHITECTURE.md` §2.1 (and the standing rules), the storefront has no Supabase Auth and no working RLS: every existing query goes through the service-role client. `auth.uid()` is null for every request today, so no policy in `public` has ever been exercised.
 
-TodoTwo introduces real Supabase Auth users to that project. Each Workawayer gets a genuine `authenticated` JWT. If PostgREST on the production project exposes `public` (it does by default) and `authenticated` holds the Supabase-default grants on those tables with RLS off or with policies that were never tested, then **every TodoTwo user can read `public.orders` and the Vipps payment rows directly from `https://ryqjwtzgkrrpxpdqgkbn.supabase.co/rest/v1/orders`**, bypassing the entire Next.js app.
+TodoTwo introduces real Supabase Auth users to that project. Each Workawayer gets a genuine `authenticated` JWT. If PostgREST on the production project exposes `public` (it does by default) and `authenticated` holds the Supabase-default grants on those tables with RLS off or with policies that were never tested, then **every TodoTwo user can read `public.orders` and the Vipps payment rows directly from `https://dofhlyvexecwlqmrzutd.supabase.co/rest/v1/orders`**, bypassing the entire Next.js app.
 
 I could not verify this either way, because verifying it means querying production, which I am forbidden to do. **This must be checked before anything else, and it is the single most important item in this document.** See §9, R1.
 
@@ -97,7 +97,7 @@ Also required, but reusing existing values:
 
 ## 3. Migrating the production Supabase project
 
-> **Read first.** Do not run `npx supabase link --project-ref ryqjwtzgkrrpxpdqgkbn`. Do not run `npm run todotwo:migrate`. See blocker B3. Every step below is executed by hand in the Supabase SQL editor, one file at a time, by a human who is looking at the result before continuing.
+> **Read first.** Do not run `npx supabase link --project-ref dofhlyvexecwlqmrzutd`. Do not run `npm run todotwo:migrate`. See blocker B3. Every step below is executed by hand in the Supabase SQL editor, one file at a time, by a human who is looking at the result before continuing.
 >
 > Take a fresh manual backup of the production project before step 3.1 and confirm PITR is on. If PITR is not available on the plan, do not proceed until a verified dump exists.
 
@@ -122,7 +122,7 @@ Filename order is also dependency order. Do not reorder, do not batch.
 
 ### 3.7 — Creating the first administrator (the step no script can do)
 
-Every `scripts/todotwo/*` refuses `ryqjwtzgkrrpxpdqgkbn`, correctly. So the first person row is inserted by hand, once, in the SQL editor, and never again:
+Every `scripts/todotwo/*` refuses `dofhlyvexecwlqmrzutd`, correctly. So the first person row is inserted by hand, once, in the SQL editor, and never again:
 
 ```sql
 -- One-time. Every subsequent person is added through the TodoTwo UI by an admin.
@@ -406,7 +406,7 @@ jobs:
 
 ### Pre-flight (before merging, and before flipping the flag)
 
-- [ ] B4 resolved: either TodoTwo has its own production Supabase project, or you have positively verified that `public` on `ryqjwtzgkrrpxpdqgkbn` is not readable by a bare `authenticated` JWT (§9, R1).
+- [ ] B4 resolved: either TodoTwo has its own production Supabase project, or you have positively verified that `public` on `dofhlyvexecwlqmrzutd` is not readable by a bare `authenticated` JWT (§9, R1).
 - [ ] Fresh production database backup taken; PITR confirmed on.
 - [ ] `npm run build` green locally.
 - [ ] `npm run typecheck` green.

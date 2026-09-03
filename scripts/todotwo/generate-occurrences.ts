@@ -14,7 +14,7 @@ import { generateOccurrences } from '../../lib/todotwo/generate'
 
 dotenv.config({ path: path.resolve(process.cwd(), '.env.local') })
 
-const PRODUCTION_REFS = new Set(['ryqjwtzgkrrpxpdqgkbn'])
+const PRODUCTION_REFS = new Set(['dofhlyvexecwlqmrzutd'])
 
 function fail(message: string): never {
   console.error(`\n  ${message}\n`)

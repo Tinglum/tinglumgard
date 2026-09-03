@@ -26,7 +26,7 @@ import { MAX_ATTEMPTS } from '../../lib/todotwo/notifications/retry'
 
 dotenv.config({ path: path.resolve(process.cwd(), '.env.local') })
 
-const PRODUCTION_REFS = new Set(['ryqjwtzgkrrpxpdqgkbn'])
+const PRODUCTION_REFS = new Set(['dofhlyvexecwlqmrzutd'])
 
 function fail(message: string): never {
   console.error(`\n  ${message}\n`)

@@ -15,7 +15,7 @@ import { createClient } from '@supabase/supabase-js'
 
 dotenv.config({ path: path.resolve(process.cwd(), '.env.local') })
 
-const PRODUCTION_REFS = new Set(['ryqjwtzgkrrpxpdqgkbn'])
+const PRODUCTION_REFS = new Set(['dofhlyvexecwlqmrzutd'])
 const VALID_ROLES = ['super_admin', 'farm_admin', 'coordinator', 'workawayer', 'applicant']
 
 function fail(message: string): never {

@@ -35,7 +35,7 @@ export type DefaultTestClient = ReturnType<typeof buildDefaultClient>
 const PRODUCTION_REFS = new Set([
   // The live Tinglumgård project. These tests create and delete data; they must
   // never point here, whatever the environment says.
-  'ryqjwtzgkrrpxpdqgkbn',
+  'dofhlyvexecwlqmrzutd',
 ])
 
 export interface RlsEnv {
