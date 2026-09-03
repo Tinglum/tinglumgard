@@ -26,6 +26,19 @@ export function SetPasswordForm({ returnTo }: { returnTo?: string }) {
         return
       }
 
+      // A recovery or invite link lands here seconds after the server-side
+      // middleware last touched this same session's cookies (it refreshes on
+      // every TodoTwo request — see lib/todotwo/middleware.ts). That refresh
+      // and this page's own client-side session can momentarily disagree
+      // about which access/refresh token pair is current, and updateUser()
+      // is strict about it: getUser() above already succeeded (it only needs
+      // a still-valid access token), but a password change can land in that
+      // narrow window and fail with a 403 even though the session is fine a
+      // moment later. Forcing a refresh here, before the form is usable,
+      // settles the client on the newest token pair so the real submission
+      // doesn't race it.
+      await supabase.auth.refreshSession()
+
       setStatus('idle')
     })()
   }, [])
@@ -47,7 +60,17 @@ export function SetPasswordForm({ returnTo }: { returnTo?: string }) {
 
     const supabase = getTodoTwoBrowserClient()
 
-    const { error: updateError } = await supabase.auth.updateUser({ password })
+    let { error: updateError } = await supabase.auth.updateUser({ password })
+
+    // Belt and braces alongside the refresh in the effect above: if the
+    // session was still mid-transition, one refresh-and-retry almost always
+    // clears it without bothering the person with an error for something
+    // that was never really their password.
+    if (updateError) {
+      await supabase.auth.refreshSession()
+      ;({ error: updateError } = await supabase.auth.updateUser({ password }))
+    }
+
     if (updateError) {
       setStatus('idle')
       setError('Could not set that password. Try again.')

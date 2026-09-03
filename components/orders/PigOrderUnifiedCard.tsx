@@ -367,7 +367,7 @@ export function PigOrderUnifiedCard({ order, canEdit, onPayRemainder, onPayDepos
         text: hasLaterChangeBalance
           ? (lang === 'en'
               ? `New changes (${currency} ${remainderDueNok.toLocaleString(locale)}) are ready to pay on My page.`
-              : `Nye endringer (${currency} ${remainderDueNok.toLocaleString(locale)}) er klare for betaling pa Min side.`)
+              : `Nye endringer (${currency} ${remainderDueNok.toLocaleString(locale)}) er klare for betaling på Min side.`)
           : copy.nextActionPaymentDue
               .replace('{currency}', currency)
               .replace('{amount}', remainderDueNok.toLocaleString(locale)),

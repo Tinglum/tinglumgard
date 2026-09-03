@@ -1,6 +1,7 @@
 import Link from 'next/link'
 
 import { RotaEditor } from '@/components/todotwo/tasks/rota-editor'
+import { FeedCheckToggle } from '@/components/todotwo/tasks/feed-check-toggle'
 import { EmptyState, Surface } from '@/components/todotwo/ui/states'
 import { requireRole } from '@/lib/todotwo/auth'
 import { getPeople, getSeries } from '@/lib/todotwo/queries'
@@ -69,6 +70,10 @@ export default async function RoutinesPage() {
               rota={routine.rota}
               upcomingCount={routine.upcomingCount}
             />
+          </div>
+
+          <div className="border-t border-[var(--tt-rule)] pt-4">
+            <FeedCheckToggle seriesId={routine.id} requiresFeedCheck={routine.requiresFeedCheck} />
           </div>
         </Surface>
       ))}

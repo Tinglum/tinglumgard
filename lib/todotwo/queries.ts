@@ -9,6 +9,13 @@ import { addFarmDays, farmToday, type FarmDate } from '@/lib/todotwo/time'
  * base table directly would show blanks for every generated routine.
  */
 
+export interface TaskAssignee {
+  id: string
+  fullName: string
+  preferredName: string | null
+  photoUrl: string | null
+}
+
 export interface TaskRow {
   id: string
   title: string
@@ -24,6 +31,77 @@ export interface TaskRow {
   parent_task_id: string | null
   estimated_minutes: number | null
   is_overridden: boolean
+  requires_feed_check: boolean
+  /** The task's current assignee, when one exists. Attached separately from
+   * tasks_resolved (assignment lives in task_assignments), see
+   * attachCurrentAssignees below. Undefined until attached; null once
+   * attached with no current assignee. */
+  assignee?: TaskAssignee | null
+}
+
+/**
+ * Batch-attaches each task's current assignee (task_assignments row with
+ * unassigned_at is null) to the given rows, mutating in place and returning
+ * the same array for convenience. Two round trips regardless of list size,
+ * same shape as taskIdsAssignedTo below.
+ */
+async function attachCurrentAssignees<T extends TaskRow>(
+  db: ReturnType<typeof getTodoTwoClient>,
+  rows: T[]
+): Promise<T[]> {
+  if (rows.length === 0) return rows
+
+  const taskIds = rows.map((r) => r.id)
+  const { data: assignmentRows, error: assignmentsError } = await db
+    .from('task_assignments')
+    .select('task_id, person_id')
+    .in('task_id', taskIds)
+    .is('unassigned_at', null)
+
+  if (assignmentsError) {
+    throw new Error(`Could not load assignments: ${assignmentsError.message}`)
+  }
+
+  const personIdByTask = new Map(
+    ((assignmentRows ?? []) as { task_id: string; person_id: string }[]).map((r) => [
+      r.task_id,
+      r.person_id,
+    ])
+  )
+
+  const personIds = Array.from(new Set(personIdByTask.values()))
+  if (personIds.length === 0) {
+    for (const row of rows) row.assignee = null
+    return rows
+  }
+
+  const { data: people, error: peopleError } = await db
+    .from('people')
+    .select('id, full_name, preferred_name, photo_url')
+    .in('id', personIds)
+
+  if (peopleError) throw new Error(`Could not load assignees: ${peopleError.message}`)
+
+  const personById = new Map(
+    (
+      (people ?? []) as {
+        id: string
+        full_name: string
+        preferred_name: string | null
+        photo_url: string | null
+      }[]
+    ).map((p) => [
+      p.id,
+      { id: p.id, fullName: p.full_name, preferredName: p.preferred_name, photoUrl: p.photo_url },
+    ])
+  )
+
+  for (const row of rows) {
+    const personId = personIdByTask.get(row.id)
+    row.assignee = personId ? (personById.get(personId) ?? null) : null
+  }
+
+  return rows
 }
 
 export interface TaskGroup {
@@ -32,7 +110,7 @@ export interface TaskGroup {
 }
 
 const SELECT =
-  'id, title, description, status, priority, due_date, due_at, all_day, project_id, section_id, series_id, parent_task_id, estimated_minutes, is_overridden'
+  'id, title, description, status, priority, due_date, due_at, all_day, project_id, section_id, series_id, parent_task_id, estimated_minutes, is_overridden, requires_feed_check'
 
 const OPEN_STATUSES = ['draft', 'unassigned', 'assigned', 'accepted', 'in_progress', 'blocked', 'not_completed']
 
@@ -63,7 +141,7 @@ export async function getToday(today: FarmDate = farmToday()): Promise<{
 
   if (error) throw new Error(`Could not load today: ${error.message}`)
 
-  const rows = (data ?? []) as unknown as TaskRow[]
+  const rows = await attachCurrentAssignees(db, (data ?? []) as unknown as TaskRow[])
 
   return {
     overdue: sortTasks(
@@ -97,7 +175,7 @@ export async function getUpcoming(
 
   if (error) throw new Error(`Could not load upcoming: ${error.message}`)
 
-  const rows = (data ?? []) as unknown as TaskRow[]
+  const rows = await attachCurrentAssignees(db, (data ?? []) as unknown as TaskRow[])
   const groups: TaskGroup[] = []
 
   for (let offset = 1; offset <= days; offset += 1) {
@@ -141,6 +219,32 @@ export async function getProjects(): Promise<ProjectSummary[]> {
     ...p,
     openCount: byProject.get(p.id) ?? 0,
   }))
+}
+
+export interface ProjectRow {
+  id: string
+  name: string
+  slug: string
+  startDate: string | null
+  dueDate: string | null
+}
+
+/** One project by id, for a project-scoped page's header. */
+export async function getProject(id: string): Promise<ProjectRow | null> {
+  const db = getTodoTwoClient()
+
+  const { data, error } = await db
+    .from('projects')
+    .select('id, name, slug, start_date, due_date')
+    .eq('id', id)
+    .is('deleted_at', null)
+    .maybeSingle()
+
+  if (error) throw new Error(`Could not load project: ${error.message}`)
+  if (!data) return null
+
+  const row = data as { id: string; name: string; slug: string; start_date: string | null; due_date: string | null }
+  return { id: row.id, name: row.name, slug: row.slug, startDate: row.start_date, dueDate: row.due_date }
 }
 
 export interface TaskStep {
@@ -395,6 +499,29 @@ export async function getCurrentAssignee(taskId: string): Promise<string | null>
   return (data?.person_id as string | undefined) ?? null
 }
 
+/** Same as getCurrentAssignee, but hydrated with display name and photo for
+ * the task detail page rather than just the id. */
+export async function getCurrentAssigneePerson(taskId: string): Promise<TaskAssignee | null> {
+  const db = getTodoTwoClient()
+  const personId = await getCurrentAssignee(taskId)
+  if (!personId) return null
+
+  const { data, error } = await db
+    .from('people')
+    .select('id, full_name, preferred_name, photo_url')
+    .eq('id', personId)
+    .maybeSingle()
+
+  if (error || !data) return null
+
+  return {
+    id: data.id as string,
+    fullName: data.full_name as string,
+    preferredName: (data.preferred_name as string | null) ?? null,
+    photoUrl: (data.photo_url as string | null) ?? null,
+  }
+}
+
 export interface SeriesRow {
   id: string
   title: string
@@ -404,6 +531,7 @@ export interface SeriesRow {
   stepCount: number
   upcomingCount: number
   rota: { id: string; name: string }[]
+  requiresFeedCheck: boolean
 }
 
 /** Every recurring routine, with its rota and how much is queued. */
@@ -412,17 +540,22 @@ export async function getSeries(): Promise<SeriesRow[]> {
 
   const { data: rows, error } = await db
     .from('task_series')
-    .select('id, title, description, rrule, project_id')
+    .select('id, title, description, rrule, project_id, requires_feed_check')
     .eq('is_active', true)
     .is('deleted_at', null)
     .order('title')
 
   if (error) throw new Error(`Could not load routines: ${error.message}`)
 
-  const series = (rows ?? []) as unknown as Omit<
-    SeriesRow,
-    'stepCount' | 'upcomingCount' | 'rota'
-  >[]
+  const series = (
+    (rows ?? []) as unknown as (Omit<
+      SeriesRow,
+      'stepCount' | 'upcomingCount' | 'rota' | 'requiresFeedCheck'
+    > & { requires_feed_check: boolean })[]
+  ).map(({ requires_feed_check, ...rest }) => ({
+    ...rest,
+    requiresFeedCheck: requires_feed_check,
+  }))
 
   const [{ data: steps }, { data: occurrences }, { data: rotaRows }, { data: people }] =
     await Promise.all([
@@ -942,7 +1075,7 @@ export async function getFavoriteViewTasks(
     .in('status', OPEN_STATUSES)
 
   if (error) throw new Error(`Could not load favorites: ${error.message}`)
-  const rows = (data ?? []) as unknown as TaskRow[]
+  const rows = await attachCurrentAssignees(db, (data ?? []) as unknown as TaskRow[])
 
   switch (key) {
     case 'overdue':
@@ -1187,6 +1320,114 @@ export async function getTaskTemplates(): Promise<TaskTemplateRow[]> {
     ...t,
     steps: stepsByTemplate.get(t.id) ?? [],
   }))
+}
+
+export interface ProjectTimelineTask {
+  id: string
+  title: string
+  status: string
+  dueDate: string | null
+  assigneeName: string | null
+}
+
+export interface ProjectTimelineDependency {
+  taskId: string
+  dependsOnTaskId: string
+}
+
+export interface ProjectTimeline {
+  from: string
+  to: string
+  tasks: ProjectTimelineTask[]
+  dependencies: ProjectTimelineDependency[]
+}
+
+/**
+ * A project's tasks within [from, to] (inclusive, farm-local dates), plus the
+ * dependency edges that run between them.
+ *
+ * Reads tasks_resolved so a routine occurrence shows its series title rather
+ * than a blank, but a project used for a multi-day effort has no series_id on
+ * its tasks in practice, so occurrence_date is not consulted here — due_date
+ * is the axis. Dependencies are filtered to both ends being in the returned
+ * task set: an edge to a task outside the window would have nothing to draw.
+ */
+export async function getProjectTimeline(
+  projectId: string,
+  from: string,
+  to: string
+): Promise<ProjectTimeline> {
+  const db = getTodoTwoClient()
+
+  const { data: taskRows, error } = await db
+    .from('tasks_resolved')
+    .select('id, title, status, due_date')
+    .eq('project_id', projectId)
+    .is('parent_task_id', null)
+    .is('deleted_at', null)
+    .gte('due_date', from)
+    .lte('due_date', to)
+    .order('due_date')
+
+  if (error) throw new Error(`Could not load project timeline: ${error.message}`)
+
+  const tasks = (taskRows ?? []) as { id: string; title: string; status: string; due_date: string | null }[]
+  const taskIds = tasks.map((t) => t.id)
+
+  if (taskIds.length === 0) {
+    return { from, to, tasks: [], dependencies: [] }
+  }
+
+  const [{ data: assignmentRows }, { data: dependencyRows }] = await Promise.all([
+    db
+      .from('task_assignments')
+      .select('task_id, person_id')
+      .in('task_id', taskIds)
+      .is('unassigned_at', null),
+    db
+      .from('task_dependencies')
+      .select('task_id, depends_on_task_id')
+      .in('task_id', taskIds)
+      .in('depends_on_task_id', taskIds),
+  ])
+
+  const personIdByTask = new Map<string, string>()
+  for (const row of (assignmentRows ?? []) as { task_id: string; person_id: string }[]) {
+    // A task can carry more than one active assignee; the timeline only has
+    // room for one name, so the first one seen is shown.
+    if (!personIdByTask.has(row.task_id)) personIdByTask.set(row.task_id, row.person_id)
+  }
+
+  const personIds = Array.from(new Set(personIdByTask.values()))
+  const nameByPerson = new Map<string, string>()
+  if (personIds.length > 0) {
+    const { data: people } = await db
+      .from('people')
+      .select('id, full_name, preferred_name')
+      .in('id', personIds)
+
+    for (const p of (people ?? []) as { id: string; full_name: string; preferred_name: string | null }[]) {
+      nameByPerson.set(p.id, p.preferred_name || p.full_name)
+    }
+  }
+
+  return {
+    from,
+    to,
+    tasks: tasks.map((t) => {
+      const personId = personIdByTask.get(t.id)
+      return {
+        id: t.id,
+        title: t.title,
+        status: t.status,
+        dueDate: t.due_date,
+        assigneeName: personId ? nameByPerson.get(personId) ?? null : null,
+      }
+    }),
+    dependencies: ((dependencyRows ?? []) as { task_id: string; depends_on_task_id: string }[]).map(
+      (d) => ({ taskId: d.task_id, dependsOnTaskId: d.depends_on_task_id })
+    ),
+  }
 }
 
 export interface SectionOption {

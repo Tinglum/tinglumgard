@@ -123,6 +123,13 @@ describe('storefront isolation', () => {
       // and /quest, so the storefront's reload-logout and inactivity timer stop
       // ejecting people mid-task.
       'contexts/AuthContext.tsx',
+      // Unrelated to TodoTwo: two pre-existing storefront strings were missing
+      // the "å" in "på Min side", which had been failing the encoding-guard CI
+      // job (and therefore skipping typecheck and the email-flow regression
+      // check) on every push to main since before any TodoTwo branch existed.
+      // Fixed alongside TodoTwo work rather than waiting for a separate PR.
+      'components/ChickenOrderCard.tsx',
+      'components/orders/PigOrderUnifiedCard.tsx',
       'package.json',
       'package-lock.json',
       'vitest.config.mts',

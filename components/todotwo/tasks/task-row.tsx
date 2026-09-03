@@ -10,6 +10,14 @@ import { copy } from '@/lib/todotwo/copy'
 import { getTodoTwoBrowserClient } from '@/lib/todotwo/db-browser'
 import { TODOTWO_BASE } from '@/lib/todotwo/routes'
 import { PRIORITY_COLOR, PriorityFlag } from '@/components/todotwo/ui/priority-flag'
+import { Avatar } from '@/components/todotwo/ui/avatar'
+
+export interface TaskRowAssignee {
+  id: string
+  fullName: string
+  preferredName: string | null
+  photoUrl: string | null
+}
 
 export interface TaskRowData {
   id: string
@@ -20,6 +28,8 @@ export interface TaskRowData {
   due_at: string | null
   series_id: string | null
   estimated_minutes: number | null
+  requires_feed_check?: boolean
+  assignee?: TaskRowAssignee | null
 }
 
 const UNDO_WINDOW_MS = 8000
@@ -49,6 +59,8 @@ export function TaskRow({
   const [pending, setPending] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
   const [undoUntil, setUndoUntil] = React.useState<number | null>(null)
+  // Evening animal routines: asked in place of the immediate optimistic tick.
+  const [asking, setAsking] = React.useState(false)
 
   const showUndo = undoUntil !== null && Date.now() < undoUntil
 
@@ -58,19 +70,17 @@ export function TaskRow({
     return () => clearTimeout(timer)
   }, [undoUntil])
 
-  async function toggle() {
-    if (pending) return
-    const next = !done
-
+  async function commit(next: boolean, hasEnoughFood: boolean | null) {
     setDone(next)
     setPending(true)
     setError(null)
+    setAsking(false)
 
     try {
       const supabase = getTodoTwoBrowserClient()
       const { error: rpcError } = await supabase.rpc(
         next ? 'complete_task' : 'uncomplete_task',
-        { p_task_id: task.id }
+        next ? { p_task_id: task.id, p_has_enough_food: hasEnoughFood } : { p_task_id: task.id }
       )
 
       if (rpcError) {
@@ -90,7 +100,22 @@ export function TaskRow({
     }
   }
 
-  return (
+  function toggle() {
+    if (pending) return
+    const next = !done
+
+    // Un-completing, or a task that carries no feed-check obligation, goes
+    // straight through as before. Completing one that does requires the
+    // question answered first — no optimistic tick until then.
+    if (next && task.requires_feed_check) {
+      setAsking(true)
+      return
+    }
+
+    void commit(next, null)
+  }
+
+  const row = (
     <li
       className={cn(
         'flex items-start gap-3 border-b border-[var(--tt-rule)] py-3 last:border-b-0',
@@ -127,6 +152,13 @@ export function TaskRow({
               className="h-3 w-3 shrink-0 text-[var(--tt-ink-3)]"
               aria-label="Recurring routine"
             />
+          ) : null}
+
+          {task.assignee ? (
+            <span className="inline-flex items-center gap-1 text-[12px] text-[var(--tt-ink-3)]">
+              <Avatar person={task.assignee} size={20} />
+              {task.assignee.preferredName?.trim() || task.assignee.fullName}
+            </span>
           ) : null}
         </div>
 
@@ -171,5 +203,44 @@ export function TaskRow({
         aria-hidden="true"
       />
     </li>
+  )
+
+  return asking ? (
+    <React.Fragment>
+      {row}
+      <li className="flex flex-col gap-2 border-b border-[var(--tt-rule)] bg-[var(--tt-surface-2,transparent)] py-3 last:border-b-0">
+        <p className="text-[13px] font-medium text-[var(--tt-ink)]">
+          Enough feed for the next two days?
+        </p>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => void commit(true, true)}
+            disabled={pending}
+            className="rounded-md bg-[var(--tt-accent)] px-3 py-1.5 text-[13px] font-medium text-[var(--tt-on-accent)] disabled:opacity-60"
+          >
+            Yes
+          </button>
+          <button
+            type="button"
+            onClick={() => void commit(true, false)}
+            disabled={pending}
+            className="rounded-md border border-[var(--tt-rule-strong)] px-3 py-1.5 text-[13px] font-medium disabled:opacity-60"
+          >
+            No
+          </button>
+          <button
+            type="button"
+            onClick={() => setAsking(false)}
+            disabled={pending}
+            className="px-3 py-1.5 text-[13px] text-[var(--tt-ink-3)] hover:underline"
+          >
+            Cancel
+          </button>
+        </div>
+      </li>
+    </React.Fragment>
+  ) : (
+    row
   )
 }

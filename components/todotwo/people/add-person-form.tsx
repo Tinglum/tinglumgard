@@ -19,6 +19,7 @@ export function AddPersonForm() {
   const router = useRouter()
   const [name, setName] = React.useState('')
   const [email, setEmail] = React.useState('')
+  const [photoUrl, setPhotoUrl] = React.useState('')
   const [role, setRole] = React.useState('workawayer')
   const [addStay, setAddStay] = React.useState(false)
   const [arrivalDate, setArrivalDate] = React.useState('')
@@ -55,7 +56,11 @@ export function AddPersonForm() {
 
       const { data: person, error: insertError } = await supabase
         .from('people')
-        .insert({ full_name: name.trim(), email: email.trim().toLowerCase() })
+        .insert({
+          full_name: name.trim(),
+          email: email.trim().toLowerCase(),
+          photo_url: photoUrl.trim() || null,
+        })
         .select('id')
         .single()
 
@@ -96,6 +101,7 @@ export function AddPersonForm() {
 
       setName('')
       setEmail('')
+      setPhotoUrl('')
       setAddStay(false)
       setArrivalDate('')
       setDepartureDate('')
@@ -140,6 +146,19 @@ export function AddPersonForm() {
             />
           </label>
         </div>
+
+        <label className="flex flex-col gap-1 text-[13px]">
+          Photo URL (optional)
+          <input
+            value={photoUrl}
+            onChange={(event) => setPhotoUrl(event.target.value)}
+            type="url"
+            inputMode="url"
+            placeholder="https://…"
+            className={field}
+            autoComplete="off"
+          />
+        </label>
 
         <label className="flex flex-col gap-1 text-[13px] sm:max-w-xs">
           Role
