@@ -1,5 +1,6 @@
 import { decideRetry, isDue, MAX_ATTEMPTS } from '@/lib/todotwo/notifications/retry'
 import { createMailgunSender, getMailerConfig } from '@/lib/todotwo/notifications/mailer'
+import { sendPushToPerson } from '@/lib/todotwo/notifications/push-sender'
 import type { OutboxRow, Sender } from '@/lib/todotwo/notifications/types'
 
 /**
@@ -33,6 +34,15 @@ export interface DispatchResult {
   /** Rows another run had already claimed. Normal, not an error. */
   skipped: number
   errors: { id: string; message: string }[]
+  /**
+   * Web Push is a second, best-effort channel alongside email for every row —
+   * there is only one channel value today (see notification_channel), so
+   * "does this row want push" reduces to "does this person have an active
+   * subscription", which sendPushToPerson already checks. A push failure
+   * never changes the row's status, attempts or retry schedule: email stays
+   * the channel of record and this count is purely informational.
+   */
+  pushSent: number
 }
 
 /** Minimal shape so this works with any Supabase client. */
@@ -53,6 +63,7 @@ export async function dispatchOutbox(
     retrying: 0,
     skipped: 0,
     errors: [],
+    pushSent: 0,
   }
 
   let sender = options.sender
@@ -68,7 +79,9 @@ export async function dispatchOutbox(
 
   const { data, error } = await db
     .from('notification_outbox')
-    .select('id, channel, recipient_email, subject, body, status, attempts, next_attempt_at, dedupe_key')
+    .select(
+      'id, person_id, channel, recipient_email, subject, body, status, attempts, next_attempt_at, dedupe_key'
+    )
     .eq('status', 'pending')
     .lt('attempts', MAX_ATTEMPTS)
     .lte('next_attempt_at', now.toISOString())
@@ -102,6 +115,21 @@ export async function dispatchOutbox(
     if (!claimed || claimed.length === 0) {
       result.skipped += 1
       continue
+    }
+
+    // Best-effort, independent of the email outcome below: a person who
+    // enabled push should hear about this even if, say, their email bounces,
+    // and a push failure must never touch the outbox row's retry state —
+    // email is still the record of what was attempted and whether it worked.
+    try {
+      const pushResult = await sendPushToPerson(db, row.person_id, {
+        title: row.subject,
+        body: row.body,
+      })
+      result.pushSent += pushResult.sent
+    } catch {
+      // sendPushToPerson already swallows per-subscription errors; this only
+      // guards against something unexpected (e.g. a missing table locally).
     }
 
     const outcome = await sender({

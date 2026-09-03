@@ -60,8 +60,9 @@ export function PendingHandoffList({ requests }: { requests: HandoffRequestRow[]
               <div className="min-w-0">
                 <p className="text-[15px]">{request.task_title}</p>
                 <p className="text-[13px] text-[var(--tt-ink-3)]">
-                  {(request.to_preferred_name || request.to_full_name)} would like to do this task — is it OK to
-                  give it away?
+                  {request.direction === 'offer'
+                    ? `${request.counterparty_preferred_name || request.counterparty_full_name} is offering you this task — want to take it?`
+                    : `${request.counterparty_preferred_name || request.counterparty_full_name} would like to do this task — is it OK to give it away?`}
                 </p>
               </div>
 
@@ -102,9 +103,13 @@ export function PendingHandoffList({ requests }: { requests: HandoffRequestRow[]
         title="Decline this handoff?"
         description={
           declineTarget
-            ? `"${declineTarget.task_title}" stays with you. ${
-                declineTarget.to_preferred_name || declineTarget.to_full_name
-              } will see this as declined.`
+            ? declineTarget.direction === 'offer'
+              ? `"${declineTarget.task_title}" stays with ${
+                  declineTarget.counterparty_preferred_name || declineTarget.counterparty_full_name
+                }. They will see this as declined.`
+              : `"${declineTarget.task_title}" stays with you. ${
+                  declineTarget.counterparty_preferred_name || declineTarget.counterparty_full_name
+                } will see this as declined.`
             : undefined
         }
         confirmLabel="Decline"

@@ -17,6 +17,10 @@
  *
  * Cache names are duplicated in lib/todotwo/pwa/constants.ts and a unit test
  * fails if the two drift.
+ *
+ * Also handles `push` and `notificationclick` (below, near the end of the
+ * file) for Web Push. That is unrelated to the caching above — no cache is
+ * read or written for a push — and just as hand-written for the same reason.
  */
 
 const CACHE_VERSION = 'v1'
@@ -220,4 +224,47 @@ self.addEventListener('fetch', (event) => {
 
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'TODOTWO_SKIP_WAITING') self.skipWaiting()
+})
+
+/**
+ * Web Push. The payload is JSON built by lib/todotwo/notifications/push-sender.ts:
+ * { title, body, url }. A malformed or missing payload still shows something
+ * rather than silently dropping the event — a push with no visible result is
+ * exactly the failure mode that gets a site's push permission revoked.
+ */
+self.addEventListener('push', (event) => {
+  let payload = {}
+  try {
+    payload = event.data ? event.data.json() : {}
+  } catch (error) {
+    payload = {}
+  }
+
+  const title = payload.title || 'TodoTwo'
+  const body = payload.body || ''
+  const url = payload.url || '/todotwo'
+
+  event.waitUntil(
+    self.registration.showNotification(title, {
+      body,
+      icon: '/todotwo/icons/icon-192.png',
+      badge: '/todotwo/icons/icon-192.png',
+      data: { url },
+    })
+  )
+})
+
+/** Focus an existing TodoTwo tab if there is one, otherwise open a new one. */
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close()
+  const url = (event.notification.data && event.notification.data.url) || '/todotwo'
+
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
+      for (const client of clients) {
+        if (client.url === url && 'focus' in client) return client.focus()
+      }
+      if (self.clients.openWindow) return self.clients.openWindow(url)
+    })
+  )
 })

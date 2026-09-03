@@ -15,6 +15,7 @@ export type NotificationStatus = (typeof NOTIFICATION_STATUSES)[number]
 /** The columns the dispatcher reads. Deliberately a subset of the table. */
 export interface OutboxRow {
   id: string
+  person_id: string
   channel: NotificationChannel
   recipient_email: string
   subject: string

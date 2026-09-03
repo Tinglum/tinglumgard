@@ -26,12 +26,20 @@ export default async function RoutinesPage() {
           {series.length} recurring routines. The instructions live here once — change them and
           every future day shows the change.
         </p>
-        <Link
-          href={`${TODOTWO_BASE}/routines/assign`}
-          className="self-start text-[13px] font-medium text-[var(--tt-accent)] hover:underline"
-        >
-          Assign with free text →
-        </Link>
+        <div className="flex gap-4">
+          <Link
+            href={`${TODOTWO_BASE}/routines/assign`}
+            className="self-start text-[13px] font-medium text-[var(--tt-accent)] hover:underline"
+          >
+            Assign with free text →
+          </Link>
+          <Link
+            href={`${TODOTWO_BASE}/routines/apply-template`}
+            className="self-start text-[13px] font-medium text-[var(--tt-accent)] hover:underline"
+          >
+            New from template →
+          </Link>
+        </div>
       </header>
 
       {series.length === 0 ? (
