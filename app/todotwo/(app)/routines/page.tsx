@@ -1,3 +1,5 @@
+import Link from 'next/link'
+
 import { RotaEditor } from '@/components/todotwo/tasks/rota-editor'
 import { EmptyState, Surface } from '@/components/todotwo/ui/states'
 import { requireRole } from '@/lib/todotwo/auth'
@@ -18,12 +20,18 @@ export default async function RoutinesPage() {
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-6">
-      <header className="flex flex-col gap-1">
+      <header className="flex flex-col gap-2">
         <h1 className="text-2xl">Routines</h1>
         <p className="text-sm text-[var(--tt-ink-2)]">
           {series.length} recurring routines. The instructions live here once — change them and
           every future day shows the change.
         </p>
+        <Link
+          href={`${TODOTWO_BASE}/routines/assign`}
+          className="self-start text-[13px] font-medium text-[var(--tt-accent)] hover:underline"
+        >
+          Assign with free text →
+        </Link>
       </header>
 
       {series.length === 0 ? (

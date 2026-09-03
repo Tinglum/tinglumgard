@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/todotwo/ui/button'
 import { Surface } from '@/components/todotwo/ui/states'
 import { getTodoTwoBrowserClient } from '@/lib/todotwo/db-browser'
+import { DATE_CERTAINTY_LABEL, type DateCertainty } from '@/lib/todotwo/domain/stays'
 
 /**
  * Adds a person, and with them the ability to sign in.
@@ -19,6 +20,11 @@ export function AddPersonForm() {
   const [name, setName] = React.useState('')
   const [email, setEmail] = React.useState('')
   const [role, setRole] = React.useState('workawayer')
+  const [addStay, setAddStay] = React.useState(false)
+  const [arrivalDate, setArrivalDate] = React.useState('')
+  const [arrivalCertainty, setArrivalCertainty] = React.useState('provisional')
+  const [departureDate, setDepartureDate] = React.useState('')
+  const [departureCertainty, setDepartureCertainty] = React.useState('provisional')
   const [pending, setPending] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
 
@@ -32,6 +38,14 @@ export function AddPersonForm() {
     }
     if (!email.trim()) {
       setError('Enter an email address, or they cannot sign in.')
+      return
+    }
+    if (addStay && !arrivalDate) {
+      setError('Enter an arrival date, or turn off "Add a stay".')
+      return
+    }
+    if (addStay && departureDate && departureDate < arrivalDate) {
+      setError('Departure cannot be before arrival.')
       return
     }
 
@@ -63,10 +77,28 @@ export function AddPersonForm() {
           setError(`Added, but the role did not stick: ${roleError.message}`)
           return
         }
+
+        if (addStay) {
+          const { error: stayError } = await supabase.from('stays').insert({
+            person_id: person.id as string,
+            arrival_date: arrivalDate,
+            arrival_certainty: arrivalCertainty,
+            departure_date: departureDate || null,
+            departure_certainty: departureDate ? departureCertainty : null,
+          })
+
+          if (stayError) {
+            setError(`Added, but the stay did not save: ${stayError.message}`)
+            return
+          }
+        }
       }
 
       setName('')
       setEmail('')
+      setAddStay(false)
+      setArrivalDate('')
+      setDepartureDate('')
       router.refresh()
     } finally {
       setPending(false)
@@ -121,6 +153,71 @@ export function AddPersonForm() {
             <option value="farm_admin">Farm administrator</option>
           </select>
         </label>
+
+        <label className="flex items-center gap-2 text-[13px]">
+          <input
+            type="checkbox"
+            checked={addStay}
+            onChange={(event) => setAddStay(event.target.checked)}
+            className="h-4 w-4"
+          />
+          Add a stay (arrival / departure)
+        </label>
+
+        {addStay ? (
+          <div className="grid gap-3 rounded-md border border-[var(--tt-rule)] p-3 sm:grid-cols-2">
+            <label className="flex flex-col gap-1 text-[13px]">
+              Arrival date
+              <input
+                type="date"
+                value={arrivalDate}
+                onChange={(event) => setArrivalDate(event.target.value)}
+                className={field}
+              />
+            </label>
+
+            <label className="flex flex-col gap-1 text-[13px]">
+              Arrival certainty
+              <select
+                value={arrivalCertainty}
+                onChange={(event) => setArrivalCertainty(event.target.value)}
+                className={field}
+              >
+                {(Object.keys(DATE_CERTAINTY_LABEL) as DateCertainty[]).map((c) => (
+                  <option key={c} value={c}>
+                    {DATE_CERTAINTY_LABEL[c]}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="flex flex-col gap-1 text-[13px]">
+              Departure date (optional)
+              <input
+                type="date"
+                value={departureDate}
+                onChange={(event) => setDepartureDate(event.target.value)}
+                className={field}
+              />
+            </label>
+
+            <label className="flex flex-col gap-1 text-[13px]">
+              Departure certainty
+              <select
+                value={departureCertainty}
+                onChange={(event) => setDepartureCertainty(event.target.value)}
+                disabled={!departureDate}
+                className={field}
+              >
+                {(Object.keys(DATE_CERTAINTY_LABEL) as DateCertainty[]).map((c) => (
+                  <option key={c} value={c}>
+                    {DATE_CERTAINTY_LABEL[c]}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+        ) : null}
 
         {error ? (
           <p role="alert" className="text-[13px] text-[var(--tt-danger)]">

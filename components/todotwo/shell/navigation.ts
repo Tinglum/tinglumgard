@@ -1,5 +1,9 @@
 import {
+  Award,
+  BedDouble,
+  Building2,
   CalendarDays,
+  CalendarOff,
   Home,
   ListTodo,
   Megaphone,
@@ -63,6 +67,36 @@ export const NAV_ITEMS: NavItem[] = [
     primary: true,
   },
   {
+    href: `${TODOTWO_BASE}/stays`,
+    label: 'Stays',
+    icon: BedDouble,
+    roles: ['super_admin', 'farm_admin', 'coordinator'],
+    primary: false,
+  },
+  {
+    href: `${TODOTWO_BASE}/accommodation`,
+    label: 'Accommodation',
+    icon: Building2,
+    roles: ['super_admin', 'farm_admin', 'coordinator'],
+    primary: false,
+  },
+  {
+    href: `${TODOTWO_BASE}/availability`,
+    label: 'Time off',
+    icon: CalendarOff,
+    // Everyone: a Workawayer requests their own; staff also see approvals here.
+    roles: null,
+    primary: false,
+  },
+  {
+    href: `${TODOTWO_BASE}/skills`,
+    label: 'Skills',
+    icon: Award,
+    // Everyone: a Workawayer claims their own; staff also verify here.
+    roles: null,
+    primary: false,
+  },
+  {
     href: `${TODOTWO_BASE}/innstillinger`,
     label: 'Settings',
     icon: Settings,
@@ -87,4 +121,8 @@ export const IMPLEMENTED_HREFS = new Set<string>([
   `${TODOTWO_BASE}/people`,
   `${TODOTWO_BASE}/routines`,
   `${TODOTWO_BASE}/announcements`,
+  `${TODOTWO_BASE}/stays`,
+  `${TODOTWO_BASE}/accommodation`,
+  `${TODOTWO_BASE}/availability`,
+  `${TODOTWO_BASE}/skills`,
 ])
