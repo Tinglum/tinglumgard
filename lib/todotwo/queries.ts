@@ -1105,6 +1105,81 @@ export async function getFavoriteViewTasks(
   }
 }
 
+export interface RosterTask {
+  id: string
+  title: string
+  status: string
+  dueAt: string | null
+}
+
+export interface RosterEntry {
+  personId: string | null
+  personName: string | null
+  photoUrl: string | null
+  tasks: RosterTask[]
+}
+
+/**
+ * Who is doing what on a given day, grouped by assignee.
+ *
+ * Distinct from getToday/getUpcoming (one person's own work) and from the
+ * farm-wide Favorites view (a flat list): this groups every task due on the
+ * date by who is currently assigned to it, one entry per person plus a
+ * trailing "Unassigned" entry. Open and completed tasks both show — the point
+ * is "who is on what today", not just what's left to do.
+ */
+export async function getRosterForDate(date: string): Promise<RosterEntry[]> {
+  const db = getTodoTwoClient()
+
+  const { data, error } = await db
+    .from('tasks_resolved')
+    .select(SELECT)
+    .is('parent_task_id', null)
+    .eq('due_date', date)
+
+  if (error) throw new Error(`Could not load roster: ${error.message}`)
+
+  const rows = await attachCurrentAssignees(db, (data ?? []) as unknown as TaskRow[])
+  const sorted = sortTasks(rows)
+
+  const byPerson = new Map<string, RosterEntry>()
+  const unassigned: RosterTask[] = []
+
+  for (const task of sorted) {
+    const rosterTask: RosterTask = {
+      id: task.id,
+      title: task.title,
+      status: task.status,
+      dueAt: task.due_at,
+    }
+
+    if (!task.assignee) {
+      unassigned.push(rosterTask)
+      continue
+    }
+
+    const existing = byPerson.get(task.assignee.id)
+    if (existing) {
+      existing.tasks.push(rosterTask)
+    } else {
+      byPerson.set(task.assignee.id, {
+        personId: task.assignee.id,
+        personName: task.assignee.preferredName?.trim() || task.assignee.fullName,
+        photoUrl: task.assignee.photoUrl,
+        tasks: [rosterTask],
+      })
+    }
+  }
+
+  const entries = Array.from(byPerson.values()).sort((a, b) =>
+    (a.personName ?? '').localeCompare(b.personName ?? '')
+  )
+
+  entries.push({ personId: null, personName: 'Unassigned', photoUrl: null, tasks: unassigned })
+
+  return entries
+}
+
 // ---------------------------------------------------------------------------
 // Task handoff requests
 // ---------------------------------------------------------------------------
