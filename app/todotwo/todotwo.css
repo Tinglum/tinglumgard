@@ -1,0 +1,98 @@
+/*
+ * TodoTwo design tokens.
+ *
+ * Scoped to .todotwo-root rather than :root on purpose. The shared
+ * components/ui primitives reference shadcn tokens (--primary, --background,
+ * --ring) that this repository never defines, so those components currently
+ * render unstyled. Defining the tokens globally would suddenly restyle every
+ * shadcn component across the live storefront, which Phase 0 must not do.
+ *
+ * TodoTwo therefore carries its own palette here and its own primitives in
+ * components/todotwo/ui. See docs/todotwo/ARCHITECTURE.md.
+ *
+ * Warm, rural, practical: spruce green against paper neutrals with a slight
+ * green bias, so it reads as farm equipment rather than SaaS dashboard.
+ */
+
+.todotwo-root {
+  --tt-ground: #f7f7f4;
+  --tt-surface: #ffffff;
+  --tt-surface-2: #eceee7;
+  --tt-ink: #191d18;
+  --tt-ink-2: #4c524a;
+  --tt-ink-3: #797f76;
+  --tt-rule: #dbded5;
+  --tt-rule-strong: #c3c8bb;
+
+  --tt-accent: #2f5d45;
+  --tt-accent-hover: #244836;
+  --tt-accent-soft: #e1eae3;
+  --tt-on-accent: #f7f7f4;
+
+  --tt-warn: #7e5310;
+  --tt-warn-soft: #f2e8d4;
+  --tt-danger: #7a3b34;
+  --tt-danger-soft: #f0e1de;
+
+  background-color: var(--tt-ground);
+  color: var(--tt-ink);
+  min-height: 100svh;
+}
+
+@media (prefers-color-scheme: dark) {
+  .todotwo-root {
+    --tt-ground: #121510;
+    --tt-surface: #1a1e18;
+    --tt-surface-2: #232821;
+    --tt-ink: #e8eae3;
+    --tt-ink-2: #b0b6ad;
+    --tt-ink-3: #838a7f;
+    --tt-rule: #2e342c;
+    --tt-rule-strong: #414839;
+
+    --tt-accent: #7fb392;
+    --tt-accent-hover: #9dc9ac;
+    --tt-accent-soft: #1d2b22;
+    --tt-on-accent: #121510;
+
+    --tt-warn: #d3a257;
+    --tt-warn-soft: #2b2317;
+    --tt-danger: #c98a80;
+    --tt-danger-soft: #2d1f1d;
+  }
+}
+
+/*
+ * The storefront sets body { font-weight: 300 } and a fluid font-size for its
+ * editorial voice. An operational tool needs steadier text, so TodoTwo resets
+ * both inside its own root only.
+ */
+.todotwo-root {
+  font-weight: 400;
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+.todotwo-root h1,
+.todotwo-root h2,
+.todotwo-root h3,
+.todotwo-root h4 {
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
+
+.todotwo-root :focus-visible {
+  outline: 2px solid var(--tt-accent);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .todotwo-root *,
+  .todotwo-root *::before,
+  .todotwo-root *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
