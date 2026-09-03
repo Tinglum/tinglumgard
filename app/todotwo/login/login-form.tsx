@@ -5,8 +5,6 @@ import { CheckCircle2 } from 'lucide-react'
 
 import { Button } from '@/components/todotwo/ui/button'
 import { ErrorState } from '@/components/todotwo/ui/states'
-import { getTodoTwoBrowserClient } from '@/lib/todotwo/db-browser'
-import { todoTwoRoutes } from '@/lib/todotwo/routes'
 
 const ERROR_MESSAGES: Record<string, string> = {
   no_code: 'The sign-in link was incomplete. Request a new one.',
@@ -40,45 +38,21 @@ export function LoginForm({
     setStatus('sending')
 
     try {
-      const supabase = getTodoTwoBrowserClient()
-      const callback = new URL(todoTwoRoutes.authCallback(), window.location.origin)
-      if (returnTo) callback.searchParams.set('returnTo', returnTo)
-
-      // An administrator adds a person by email before they can sign in.
-      // Asking first means a first-time Workawayer gets an account created for
-      // them, while a stranger who guesses this URL does not. The check answers
-      // only yes or no about an address they already typed.
-      const { data: invited, error: inviteError } = await supabase.rpc('email_is_invited', {
-        p_email: trimmed,
+      // Sign-in mail goes through Mailgun like everything else the farm sends,
+      // so the link is generated and posted server-side rather than by
+      // Supabase's built-in mailer. The route answers the same way whether or
+      // not the address has access, so nothing here can be used to work out who
+      // is on the farm.
+      const response = await fetch('/api/todotwo/auth/send-link', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: trimmed, returnTo }),
       })
 
-      if (inviteError) {
+      if (!response.ok) {
+        const body = (await response.json().catch(() => null)) as { message?: string } | null
         setStatus('idle')
-        setError('Could not check that address. Try again shortly.')
-        return
-      }
-
-      if (!invited) {
-        setStatus('idle')
-        setError('This email address does not have access to TodoTwo. Ask Kenneth to add you.')
-        return
-      }
-
-      const { error: signInError } = await supabase.auth.signInWithOtp({
-        email: trimmed,
-        options: {
-          emailRedirectTo: callback.toString(),
-          shouldCreateUser: true,
-        },
-      })
-
-      if (signInError) {
-        setStatus('idle')
-        setError(
-          signInError.status === 422
-            ? 'This email address does not have access to TodoTwo.'
-            : 'Could not send the sign-in link. Try again shortly.'
-        )
+        setError(body?.message ?? 'Could not send the sign-in link. Try again shortly.')
         return
       }
 

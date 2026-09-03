@@ -21,6 +21,12 @@ const REQUEST_PATH_DIRS = [
 const PRIVILEGED_ALLOWLIST = new Set(
   [
     'lib/todotwo/db-privileged.ts',
+    // Sign-in mail goes through Mailgun rather than Supabase's mailer, so the
+    // magic link is generated server-side. That is an auth-admin operation with
+    // no user session to act for — nobody is signed in yet — and it reads no
+    // table, so there is no query surface RLS would have protected. Its only
+    // caller rate-limits first and answers identically for unknown addresses.
+    'lib/todotwo/auth-admin.ts',
   ].map((p) => path.normalize(p))
 )
 
