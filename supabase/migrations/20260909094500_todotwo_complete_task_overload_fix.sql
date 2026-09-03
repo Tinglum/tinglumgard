@@ -1,0 +1,48 @@
+-- TodoTwo — fix an overload ambiguity introduced by the feed-check migration
+--
+-- 20260909084700_todotwo_complete_task_feed_check.sql added `p_has_enough_food`
+-- to complete_task() via `create or replace function`. Postgres identifies a
+-- function by name *and* argument types, so changing the signature does not
+-- replace the old two-argument version — it adds a second, separate overload
+-- alongside it. Any caller that invokes complete_task() with only
+-- (p_task_id, p_actual_minutes) — which is most existing callers, since the
+-- feed-check parameter is usually irrelevant — now hits PostgREST's
+-- "Could not choose the best candidate function" error, because both
+-- overloads match.
+--
+-- The fix is to drop the old two-argument overload explicitly. The three-
+-- argument version already behaves identically for a task that doesn't
+-- require a feed check (p_has_enough_food defaults to null and is never
+-- consulted), so nothing is lost.
+
+drop function if exists todotwo.complete_task(uuid, integer);
+
+-- ROLLBACK:
+--   create or replace function todotwo.complete_task(p_task_id uuid, p_actual_minutes integer default null)
+--   returns todotwo.tasks
+--   language plpgsql
+--   security definer
+--   set search_path = todotwo, public, pg_temp
+--   as $$
+--   declare
+--     v_task todotwo.tasks;
+--   begin
+--     if not (todotwo.is_staff() or todotwo.is_task_assignee(p_task_id)) then
+--       raise exception 'Not assigned to this task' using errcode = 'insufficient_privilege';
+--     end if;
+--     update todotwo.tasks
+--        set status = 'completed',
+--            completed_at = now(),
+--            completed_by_person_id = todotwo.current_person_id(),
+--            actual_minutes = coalesce(p_actual_minutes, actual_minutes)
+--      where id = p_task_id
+--        and status not in ('completed', 'verified', 'cancelled')
+--     returning * into v_task;
+--     if v_task.id is null then
+--       raise exception 'Task is already finished' using errcode = 'check_violation';
+--     end if;
+--     return v_task;
+--   end;
+--   $$;
+--   revoke all on function todotwo.complete_task(uuid, integer) from public, anon;
+--   grant execute on function todotwo.complete_task(uuid, integer) to authenticated;

@@ -8,6 +8,7 @@ import { DuplicateTaskButton } from '@/components/todotwo/tasks/duplicate-task-b
 import { OccurrenceActions } from '@/components/todotwo/tasks/occurrence-actions'
 import { OfferTaskButton } from '@/components/todotwo/tasks/offer-task-button'
 import { PrioritySelect } from '@/components/todotwo/tasks/priority-select'
+import { PrivateNote } from '@/components/todotwo/tasks/private-note'
 import { Surface } from '@/components/todotwo/ui/states'
 import { requireTodoTwoUser } from '@/lib/todotwo/auth'
 import {
@@ -105,8 +106,16 @@ export default async function TaskDetailPage({ params }: { params: { id: string 
         <StepList taskId={task.id} steps={steps} taskDone={done} />
       </Surface>
 
+      <Surface className="p-4">
+        <PrivateNote taskId={task.id} personId={principal.person.id} />
+      </Surface>
+
       <div className="flex flex-wrap items-center gap-2">
-        <CompleteTaskButton taskId={task.id} done={done} />
+        <CompleteTaskButton
+          taskId={task.id}
+          done={done}
+          requiresFeedCheck={task.requires_feed_check}
+        />
         <DuplicateTaskButton taskId={task.id} defaultDueDate={task.due_date} />
         {isCurrentAssignee ? (
           <OfferTaskButton taskId={task.id} candidates={offerCandidates} />

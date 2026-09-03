@@ -571,9 +571,9 @@ components/ChickenOrderCard.tsx:562
 components/orders/PigOrderUnifiedCard.tsx:370
 ```
 
-All three match the guard's ASCII-fallback pattern `\b(pa min side|…)\b` — the Norwegian "på Min side" written as "pa Min side". `git show main:…` confirms the identical text at the identical line numbers on `main`, so this predates the branch. **No TodoTwo file is flagged.** `docs/todotwo/ARCHITECTURE.md` §2.5 already records this.
+All three matched the guard's ASCII-fallback pattern for the Norwegian phrase written without its native vowel — `git show main:…` confirmed the identical text at the identical line numbers on `main`, so it predated the branch. **No TodoTwo file was flagged.** `docs/todotwo/ARCHITECTURE.md` §2.5 already recorded this.
 
-Consequence, which the architecture note does not spell out: the `encoding-and-types` job fails at its *first* step, so **`npm run check:email-flows` and `npm run typecheck` have never run in CI on `main`**. Fixing the three strings is a two-minute change that restores a whole job. It is outside TodoTwo's allowlist, so it belongs in a separate commit — but it should be that commit's own small PR, soon.
+**Fixed** (2026-09-03, alongside unrelated TodoTwo work): the `encoding-and-types` job was failing at its *first* step, so `npm run check:email-flows` and `npm run typecheck` had never run in CI on `main`. The three strings were corrected — outside TodoTwo's allowlist, but small and unambiguous enough to fold into the same push rather than wait for a separate PR.
 
 ### 9d. Security review of the migrations
 

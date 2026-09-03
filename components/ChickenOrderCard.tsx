@@ -556,10 +556,10 @@ export function ChickenOrderCard({ order, onPayRemainder, onPayDeposit, onRefres
       const remainderActionText = hasLaterChangeBalance
         ? (lang === 'en'
             ? `New changes (${common.currency} ${remainderDueNok.toLocaleString(locale)}) are ready to pay on My page.`
-            : `Nye endringer (${common.currency} ${remainderDueNok.toLocaleString(locale)}) er klare for betaling pa Min side.`)
+            : `Nye endringer (${common.currency} ${remainderDueNok.toLocaleString(locale)}) er klare for betaling på Min side.`)
         : (lang === 'en'
             ? `The remaining balance (${common.currency} ${remainderDueNok.toLocaleString(locale)}) is ready to pay on My page.`
-            : `Restbetalingen (${common.currency} ${remainderDueNok.toLocaleString(locale)}) er klar for betaling pa Min side.`)
+            : `Restbetalingen (${common.currency} ${remainderDueNok.toLocaleString(locale)}) er klar for betaling på Min side.`)
       return { text: remainderActionText, tone: 'warning' as const }
     }
     if (order.status === 'fully_paid') {
