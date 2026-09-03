@@ -1,17 +1,29 @@
-import { Surface } from '@/components/todotwo/ui/states'
+import { TaskRow } from '@/components/todotwo/tasks/task-row'
+import { EmptyState, Surface } from '@/components/todotwo/ui/states'
 import { copy, format, UI_LOCALE } from '@/lib/todotwo/copy'
 import { displayName, requireTodoTwoUser } from '@/lib/todotwo/auth'
-import { FARM_TZ, farmToday } from '@/lib/todotwo/time'
+import { getToday } from '@/lib/todotwo/queries'
+import { FARM_TZ, farmToday, formatFarm } from '@/lib/todotwo/time'
 import { TODOTWO_BASE } from '@/lib/todotwo/routes'
 
 export const dynamic = 'force-dynamic'
 
-export default async function TodoTwoHomePage() {
+function timeLabel(dueAt: string | null): string | null {
+  return dueAt ? formatFarm(new Date(dueAt), 'HH:mm') : null
+}
+
+export default async function TodayPage() {
   const principal = await requireTodoTwoUser(TODOTWO_BASE)
   const today = farmToday()
+  const { overdue, today: due, doneToday } = await getToday(today)
+
+  const totalMinutes = [...overdue, ...due].reduce(
+    (sum, task) => sum + (task.estimated_minutes ?? 0),
+    0
+  )
 
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
+    <div className="mx-auto flex w-full max-w-2xl flex-col gap-6">
       <header className="flex flex-col gap-1">
         <p className="text-[11px] uppercase tracking-[0.14em] text-[var(--tt-accent)]">
           {new Intl.DateTimeFormat(UI_LOCALE, {
@@ -24,38 +36,63 @@ export default async function TodoTwoHomePage() {
         <h1 className="text-2xl">
           {format(copy.overview.greeting, { name: displayName(principal.person) })}
         </h1>
+        <p className="text-sm text-[var(--tt-ink-2)]">
+          {due.length === 0 && overdue.length === 0
+            ? 'Nothing left today.'
+            : `${due.length + overdue.length} to do${totalMinutes > 0 ? ` · about ${totalMinutes} min` : ''}`}
+        </p>
       </header>
 
-      <Surface className="p-5">
-        <h2 className="text-sm font-semibold">{copy.overview.accountTitle}</h2>
-        <dl className="mt-3 grid gap-x-6 gap-y-2 text-sm sm:grid-cols-[auto_1fr]">
-          <dt className="text-[var(--tt-ink-3)]">{copy.overview.name}</dt>
-          <dd>{principal.person.fullName}</dd>
+      {overdue.length > 0 ? (
+        <section className="flex flex-col gap-2">
+          <h2 className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--tt-danger)]">
+            Overdue · {overdue.length}
+          </h2>
+          <Surface className="px-4">
+            <ul className="list-none">
+              {overdue.map((task) => (
+                <TaskRow key={task.id} task={task} timeLabel={timeLabel(task.due_at)} />
+              ))}
+            </ul>
+          </Surface>
+        </section>
+      ) : null}
 
-          <dt className="text-[var(--tt-ink-3)]">{copy.overview.email}</dt>
-          <dd>{principal.email ?? principal.person.email ?? '—'}</dd>
+      <section className="flex flex-col gap-2">
+        <h2 className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--tt-ink-3)]">
+          {copy.common.today}
+        </h2>
 
-          <dt className="text-[var(--tt-ink-3)]">{copy.overview.rolesLabel}</dt>
-          <dd>
-            {principal.roles.length > 0
-              ? principal.roles.map((role) => copy.roles[role] ?? role).join(', ')
-              : copy.overview.noRoles}
-          </dd>
+        {due.length === 0 ? (
+          <EmptyState
+            title="Nothing scheduled"
+            description="Recurring routines appear here each morning."
+          />
+        ) : (
+          <Surface className="px-4">
+            <ul className="list-none">
+              {due.map((task) => (
+                <TaskRow key={task.id} task={task} timeLabel={timeLabel(task.due_at)} />
+              ))}
+            </ul>
+          </Surface>
+        )}
+      </section>
 
-          <dt className="text-[var(--tt-ink-3)]">{copy.overview.farmDate}</dt>
-          <dd className="tabular-nums">
-            {today} <span className="text-[var(--tt-ink-3)]">({FARM_TZ})</span>
-          </dd>
-        </dl>
-      </Surface>
-
-      <Surface className="p-5">
-        <h2 className="text-sm font-semibold">Phase 0 complete</h2>
-        <p className="mt-2 text-sm text-[var(--tt-ink-2)]">
-          The foundation is in place: sign-in, database schema, access rules, tests and the on/off
-          switch. The task system arrives in Phase 1 and replaces this page.
-        </p>
-      </Surface>
+      {doneToday.length > 0 ? (
+        <section className="flex flex-col gap-2">
+          <h2 className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--tt-ink-3)]">
+            Done · {doneToday.length}
+          </h2>
+          <Surface className="px-4">
+            <ul className="list-none">
+              {doneToday.map((task) => (
+                <TaskRow key={task.id} task={task} timeLabel={timeLabel(task.due_at)} />
+              ))}
+            </ul>
+          </Surface>
+        </section>
+      ) : null}
     </div>
   )
 }

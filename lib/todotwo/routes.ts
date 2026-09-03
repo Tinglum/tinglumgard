@@ -9,6 +9,9 @@ export const TODOTWO_API_BASE = '/api/todotwo' as const
 
 export const todoTwoRoutes = {
   home: () => TODOTWO_BASE,
+  today: () => TODOTWO_BASE,
+  upcoming: () => `${TODOTWO_BASE}/upcoming`,
+  projects: () => `${TODOTWO_BASE}/projects`,
   login: () => `${TODOTWO_BASE}/login`,
   authCallback: () => `${TODOTWO_BASE}/auth/callback`,
   logout: () => `${TODOTWO_API_BASE}/auth/logout`,
