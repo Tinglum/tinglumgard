@@ -10,18 +10,30 @@ import { createClient } from '@supabase/supabase-js'
  * magic link without sending it is an auth-admin operation, and there is no
  * user session to act on behalf of — by definition, nobody is signed in yet.
  *
+ * Passkey login is the same category: the WebAuthn assertion is verified
+ * against a stored credential before any session exists, so there is nobody to
+ * act on behalf of yet either. findWebauthnCredentialById and
+ * bumpWebauthnCounter extend the exception to that lookup, and
+ * mintSessionForEmail turns a verified assertion into a real Supabase session.
+ *
  * What keeps it safe:
  *
- *   - It exposes exactly one operation, and that operation reads no table.
- *     There is no query surface here for RLS to have protected.
- *   - Its only caller is app/api/todotwo/auth/send-link, which rate-limits
- *     before calling and answers identically whether or not the address has
- *     access, so it is not a membership oracle.
- *   - The generated link is emailed to the address it belongs to. It is never
- *     returned to the caller.
+ *   - generateSignInLink / generateRecoveryLink read no table — there is no
+ *     query surface here for RLS to have protected — and the generated link is
+ *     emailed to the address it belongs to, or (for passkey login) redeemed
+ *     immediately server-side and never shown to anyone.
+ *   - findWebauthnCredentialById is looked up by credential_id, a large random
+ *     value minted by authenticator hardware, not a guessable human input like
+ *     an email address — so unlike an email-keyed lookup, this is not a
+ *     membership oracle. It is the same reasoning that moved email_is_invited
+ *     behind this exception rather than exposing it as an anon-callable SQL
+ *     function (see 20260903090400_todotwo_security_hardening.sql).
+ *   - The callers of the sign-in-link functions rate-limit before calling and
+ *     answer identically whether or not the address has access.
  *
- * If you find yourself wanting to add a second function here, that is the
- * signal to stop and use an RLS policy or a security-definer function instead.
+ * If you find yourself wanting to add a function that takes an email address
+ * or other guessable input and returns account-linked data, that is the signal
+ * to stop and use an RLS policy or a security-definer function instead.
  */
 
 let cached: ReturnType<typeof buildAuthAdminClient> | null = null
@@ -114,4 +126,137 @@ export async function emailIsInvited(email: string): Promise<boolean> {
 
   if (error) return false
   return data === true
+}
+
+/**
+ * A one-time password-reset link for an address, without sending it. Mirrors
+ * generateSignInLink but requests Supabase's `recovery` link type, which lands
+ * the person on the callback with a verified identity so set-password can call
+ * auth.updateUser without asking for their old password.
+ */
+export async function generateRecoveryLink(
+  email: string,
+  redirectTo: string
+): Promise<GeneratedLink | null> {
+  const supabase = client()
+
+  const recovery = await supabase.auth.admin.generateLink({
+    type: 'recovery',
+    email,
+    options: { redirectTo },
+  })
+
+  if (recovery.data?.properties?.action_link) {
+    return { actionLink: recovery.data.properties.action_link }
+  }
+
+  return null
+}
+
+export interface StoredWebauthnCredential {
+  credentialId: string
+  publicKey: string
+  counter: number
+  transports: string[] | null
+  personId: string
+  email: string
+}
+
+/**
+ * Looks up a passkey by its credential id, joined to the owning person's auth
+ * email. Safe as a broad service-role lookup (see the module doc comment):
+ * credential_id is not a guessable or enumerable value.
+ */
+export async function findWebauthnCredentialById(
+  credentialId: string
+): Promise<StoredWebauthnCredential | null> {
+  const supabase = client()
+
+  const { data: row, error } = await supabase
+    .schema('todotwo')
+    .from('webauthn_credentials')
+    .select('credential_id, public_key, counter, transports, person_id')
+    .eq('credential_id', credentialId)
+    .maybeSingle()
+
+  if (error || !row) return null
+
+  const { data: person, error: personError } = await supabase
+    .schema('todotwo')
+    .from('people')
+    .select('auth_user_id')
+    .eq('id', row.person_id as string)
+    .is('deleted_at', null)
+    .maybeSingle()
+
+  if (personError || !person?.auth_user_id) return null
+
+  const { data: authUser, error: authError } = await supabase.auth.admin.getUserById(
+    person.auth_user_id as string
+  )
+
+  if (authError || !authUser?.user?.email) return null
+
+  return {
+    credentialId: row.credential_id as string,
+    publicKey: row.public_key as string,
+    counter: Number(row.counter),
+    transports: (row.transports as string[] | null) ?? null,
+    personId: row.person_id as string,
+    email: authUser.user.email,
+  }
+}
+
+/**
+ * Bumps a passkey's stored counter after a successful assertion, only if the
+ * new value is strictly greater than what is stored — a stale or repeated
+ * counter is the standard signal of a cloned authenticator.
+ */
+export async function bumpWebauthnCounter(credentialId: string, counter: number): Promise<void> {
+  const supabase = client()
+
+  await supabase
+    .schema('todotwo')
+    .from('webauthn_credentials')
+    .update({ counter, last_used_at: new Date().toISOString() })
+    .eq('credential_id', credentialId)
+    .lt('counter', counter)
+}
+
+/**
+ * Mints a real Supabase session for an address that has just been verified by
+ * some other means (here, a WebAuthn assertion) — the standard technique for
+ * bridging a custom authentication method into Supabase auth. A magic link is
+ * generated but never sent or shown to anyone; only its token is redeemed
+ * immediately, server-side, against the anon-key client, which is the same
+ * client an end user's browser would use.
+ */
+export async function mintSessionForEmail(
+  email: string
+): Promise<{ accessToken: string; refreshToken: string } | null> {
+  const supabase = client()
+
+  const generated = await supabase.auth.admin.generateLink({ type: 'magiclink', email })
+  const hashedToken = generated.data?.properties?.hashed_token
+  if (!hashedToken) return null
+
+  const url = process.env.NEXT_PUBLIC_TODOTWO_SUPABASE_URL
+  const anonKey = process.env.NEXT_PUBLIC_TODOTWO_SUPABASE_ANON_KEY
+  if (!url || !anonKey) return null
+
+  const anonClient = createClient(url, anonKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  })
+
+  const { data, error } = await anonClient.auth.verifyOtp({
+    token_hash: hashedToken,
+    type: 'magiclink',
+  })
+
+  if (error || !data.session) return null
+
+  return {
+    accessToken: data.session.access_token,
+    refreshToken: data.session.refresh_token,
+  }
 }

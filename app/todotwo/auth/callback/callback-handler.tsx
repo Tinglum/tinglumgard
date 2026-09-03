@@ -3,18 +3,13 @@
 import * as React from 'react'
 
 import { getTodoTwoBrowserClient } from '@/lib/todotwo/db-browser'
-import { TODOTWO_BASE, todoTwoRoutes } from '@/lib/todotwo/routes'
+import { finishSignIn, safeReturnTo } from '@/lib/todotwo/finish-sign-in'
+import { todoTwoRoutes } from '@/lib/todotwo/routes'
 
 type Failure = 'no_code' | 'exchange_failed' | 'no_person'
 
 function failTo(reason: Failure): void {
   window.location.replace(`${todoTwoRoutes.login()}?error=${reason}`)
-}
-
-/** Only ever redirect within TodoTwo — an open redirect on the back of a
- *  legitimate login email is a phishing vector. */
-function safeReturnTo(value: string | null): string {
-  return value && value.startsWith(TODOTWO_BASE) ? value : TODOTWO_BASE
 }
 
 export function CallbackHandler() {
@@ -68,40 +63,16 @@ export function CallbackHandler() {
 
       // A valid Supabase user is not by itself permission to be here. Accounts
       // are created by an administrator and linked to a todotwo.people row;
-      // without that link, discard the session rather than leaving someone
-      // half-signed-in.
-      //
-      // Filter by auth_user_id explicitly: an admin's RLS policy returns every
-      // person, so an unfiltered maybeSingle() would error on multiple rows.
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-
-      if (!user) {
-        failTo('exchange_failed')
-        return
+      // finishSignIn discards the session and reports no_person when that
+      // link is missing, rather than leaving someone half-signed-in. It also
+      // routes to set-password when password_set is false, which covers both
+      // first-time confirmation and (since forgot-password forces returnTo to
+      // /todotwo/set-password) the password-recovery flow, with no special
+      // casing needed here.
+      const failure = await finishSignIn(returnTo)
+      if (failure) {
+        failTo(failure)
       }
-
-      // First sign-in: link this auth user to the person row an administrator
-      // prepared for their email. Idempotent, and it can only claim a row that
-      // matches the caller's own verified address and is not already linked.
-      await supabase.rpc('claim_person')
-
-      const { data: person } = await supabase
-        .from('people')
-        .select('id')
-        .eq('auth_user_id', user.id)
-        .is('deleted_at', null)
-        .maybeSingle()
-
-      if (!person) {
-        await supabase.auth.signOut()
-        failTo('no_person')
-        return
-      }
-
-      // replace() so the spent link does not sit in history.
-      window.location.replace(returnTo)
     })()
   }, [])
 

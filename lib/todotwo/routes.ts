@@ -11,8 +11,10 @@ export const todoTwoRoutes = {
   home: () => TODOTWO_BASE,
   today: () => TODOTWO_BASE,
   upcoming: () => `${TODOTWO_BASE}/upcoming`,
+  favorites: (key?: string) => (key ? `${TODOTWO_BASE}/favorites/${key}` : `${TODOTWO_BASE}/favorites`),
   projects: () => `${TODOTWO_BASE}/projects`,
   login: () => `${TODOTWO_BASE}/login`,
+  setPassword: () => `${TODOTWO_BASE}/set-password`,
   authCallback: () => `${TODOTWO_BASE}/auth/callback`,
   logout: () => `${TODOTWO_API_BASE}/auth/logout`,
 } as const

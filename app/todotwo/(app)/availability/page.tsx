@@ -1,9 +1,14 @@
 import { RequestTimeOffForm } from '@/components/todotwo/availability/request-time-off-form'
 import { MyTimeOffList } from '@/components/todotwo/availability/my-time-off-list'
 import { PendingApprovalsList } from '@/components/todotwo/availability/pending-approvals-list'
+import { PendingHandoffList } from '@/components/todotwo/onboarding/pending-handoff-list'
 import { Surface } from '@/components/todotwo/ui/states'
 import { requireTodoTwoUser } from '@/lib/todotwo/auth'
-import { getPendingTimeOffRequests, getTimeOffRequestsForPerson } from '@/lib/todotwo/queries'
+import {
+  getPendingHandoffRequestsFor,
+  getPendingTimeOffRequests,
+  getTimeOffRequestsForPerson,
+} from '@/lib/todotwo/queries'
 import { TODOTWO_BASE } from '@/lib/todotwo/routes'
 
 export const dynamic = 'force-dynamic'
@@ -14,9 +19,10 @@ export default async function AvailabilityPage() {
   const principal = await requireTodoTwoUser(`${TODOTWO_BASE}/availability`)
   const isStaff = principal.roles.some((role) => STAFF_ROLES.includes(role))
 
-  const [myRequests, pending] = await Promise.all([
+  const [myRequests, pending, handoffs] = await Promise.all([
     getTimeOffRequestsForPerson(principal.person.id),
     isStaff ? getPendingTimeOffRequests() : Promise.resolve([]),
+    getPendingHandoffRequestsFor(principal.person.id),
   ])
 
   return (
@@ -35,6 +41,13 @@ export default async function AvailabilityPage() {
           Your requests
         </h2>
         <MyTimeOffList requests={myRequests} />
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <h2 className="text-[13px] font-semibold uppercase tracking-[0.12em] text-[var(--tt-ink-3)]">
+          Task handoff requests
+        </h2>
+        <PendingHandoffList requests={handoffs} />
       </div>
 
       {isStaff ? (
