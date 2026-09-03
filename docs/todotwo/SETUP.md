@@ -29,6 +29,14 @@ TODOTWO_DEV_PROJECT_REF=cxuukixtooxyipdecbcb
 NEXT_PUBLIC_TODOTWO_SUPABASE_URL=https://cxuukixtooxyipdecbcb.supabase.co
 NEXT_PUBLIC_TODOTWO_SUPABASE_ANON_KEY=sb_publishable_…
 TODOTWO_SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOi…
+
+# Web Push. Optional — omitting both leaves the "Enable notifications" toggle
+# disabled and the cron dispatcher skips push silently, same as an unconfigured
+# Mailgun. Generate a pair with `npx web-push generate-vapid-keys`. Never put a
+# real production keypair in a committed file; each environment (dev, prod)
+# should have its own.
+NEXT_PUBLIC_TODOTWO_VAPID_PUBLIC_KEY=BKY0…
+TODOTWO_VAPID_PRIVATE_KEY=ZDe2…
 ```
 
 The anon slot holds the **new publishable key**; the service-role slot holds the **legacy `service_role` JWT**, matching the naming the rest of the repository uses. They are independent credentials used by different clients, so mixing the two key systems is not a conflict.

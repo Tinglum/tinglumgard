@@ -18,6 +18,16 @@ const publicSchema = z.object({
 })
 
 /**
+ * The VAPID public key, read separately from getPublicConfig() rather than
+ * folded into publicSchema: it gates one optional feature (push) rather than
+ * the whole module, so its absence should disable the "Enable notifications"
+ * toggle, not throw for every other TodoTwo page. Null means push is off.
+ */
+export function getVapidPublicKey(): string | null {
+  return process.env.NEXT_PUBLIC_TODOTWO_VAPID_PUBLIC_KEY || null
+}
+
+/**
  * Note: the service-role credential is deliberately absent here. It is read
  * only inside lib/todotwo/db-privileged.ts, so that exactly one file in the
  * codebase mentions it and the isolation guard test can enforce that.

@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils'
 import { copy } from '@/lib/todotwo/copy'
 import { getTodoTwoBrowserClient } from '@/lib/todotwo/db-browser'
 import { TODOTWO_BASE } from '@/lib/todotwo/routes'
+import { PRIORITY_COLOR, PriorityFlag } from '@/components/todotwo/ui/priority-flag'
 
 export interface TaskRowData {
   id: string
@@ -19,13 +20,6 @@ export interface TaskRowData {
   due_at: string | null
   series_id: string | null
   estimated_minutes: number | null
-}
-
-const PRIORITY_COLOR: Record<number, string> = {
-  1: 'var(--tt-danger)',
-  2: 'var(--tt-warn)',
-  3: 'var(--tt-accent)',
-  4: 'var(--tt-rule-strong)',
 }
 
 const UNDO_WINDOW_MS = 8000
@@ -125,6 +119,8 @@ export function TaskRow({
           <span className={cn('text-[15px] leading-snug', done && 'line-through')}>
             {task.title}
           </span>
+
+          <PriorityFlag priority={task.priority} />
 
           {task.series_id ? (
             <Repeat

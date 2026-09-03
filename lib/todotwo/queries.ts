@@ -240,6 +240,101 @@ export async function getTaskDetail(id: string): Promise<TaskDetail | null> {
   }
 }
 
+export interface AssignmentHistoryEntry {
+  personId: string
+  fullName: string
+  preferredName: string | null
+  occurrenceDate: string
+}
+
+/**
+ * The last `limit` distinct people who completed an occurrence of a series,
+ * most recent first — "who did this last time" for a human deciding who to
+ * ask next, and a fact the AI assignment parser could reference later.
+ *
+ * Reads task_assignments (every assignment ever made, including superseded
+ * ones marked unassigned_at) joined to completed occurrences of the series,
+ * then to people for display names. Distinct by person: someone who did a
+ * routine three times in the history window shows up once, at their most
+ * recent occurrence.
+ */
+export async function getAssignmentHistoryForSeries(
+  seriesId: string,
+  limit = 5
+): Promise<AssignmentHistoryEntry[]> {
+  const db = getTodoTwoClient()
+
+  const { data: completedTasks, error: tasksError } = await db
+    .from('tasks')
+    .select('id, occurrence_date')
+    .eq('series_id', seriesId)
+    .eq('status', 'completed')
+    .not('occurrence_date', 'is', null)
+    .order('occurrence_date', { ascending: false })
+
+  if (tasksError) throw new Error(`Could not load series history: ${tasksError.message}`)
+
+  const tasks = (completedTasks ?? []) as { id: string; occurrence_date: string }[]
+  if (tasks.length === 0) return []
+
+  const dateByTaskId = new Map(tasks.map((t) => [t.id, t.occurrence_date]))
+  const taskIds = tasks.map((t) => t.id)
+
+  const { data: assignmentRows, error: assignmentsError } = await db
+    .from('task_assignments')
+    .select('task_id, person_id')
+    .in('task_id', taskIds)
+
+  if (assignmentsError) throw new Error(`Could not load assignment history: ${assignmentsError.message}`)
+
+  // One entry per completed occurrence, in occurrence-date order — an
+  // occurrence with a hand-cleared assignment simply has no assignee to show.
+  const byOccurrence = new Map<string, string>() // task_id -> person_id, most recent assignment wins
+  for (const row of (assignmentRows ?? []) as { task_id: string; person_id: string }[]) {
+    // Later rows in the array are not guaranteed later in time, but any
+    // assignee at all is enough to attribute "who did this" for a completed
+    // task; ties are rare (reassignment on a completed task is not a normal
+    // flow) and picking the last one seen is acceptable here.
+    byOccurrence.set(row.task_id, row.person_id)
+  }
+
+  const seenPeople = new Set<string>()
+  const orderedPersonIds: string[] = []
+  const occurrenceDateByPerson = new Map<string, string>()
+
+  for (const task of tasks) {
+    const personId = byOccurrence.get(task.id)
+    if (!personId || seenPeople.has(personId)) continue
+    seenPeople.add(personId)
+    orderedPersonIds.push(personId)
+    occurrenceDateByPerson.set(personId, dateByTaskId.get(task.id)!)
+    if (orderedPersonIds.length >= limit) break
+  }
+
+  if (orderedPersonIds.length === 0) return []
+
+  const { data: people, error: peopleError } = await db
+    .from('people')
+    .select('id, full_name, preferred_name')
+    .in('id', orderedPersonIds)
+
+  if (peopleError) throw new Error(`Could not load people for history: ${peopleError.message}`)
+
+  const personById = new Map(
+    ((people ?? []) as { id: string; full_name: string; preferred_name: string | null }[]).map((p) => [p.id, p])
+  )
+
+  return orderedPersonIds.map((personId) => {
+    const person = personById.get(personId)
+    return {
+      personId,
+      fullName: person?.full_name ?? 'Unknown',
+      preferredName: person?.preferred_name ?? null,
+      occurrenceDate: occurrenceDateByPerson.get(personId)!,
+    }
+  })
+}
+
 export interface PersonRow {
   id: string
   full_name: string
@@ -278,6 +373,26 @@ export async function getPeople(): Promise<PersonRow[]> {
     ...person,
     roles: byPerson.get(person.id) ?? [],
   }))
+}
+
+/**
+ * The task's currently-assigned person, or null. RLS lets any assignee read
+ * their own assignment row (todotwo.is_task_assignee), so this resolves for
+ * whoever is actually holding the task.
+ */
+export async function getCurrentAssignee(taskId: string): Promise<string | null> {
+  const db = getTodoTwoClient()
+
+  const { data } = await db
+    .from('task_assignments')
+    .select('person_id')
+    .eq('task_id', taskId)
+    .is('unassigned_at', null)
+    .order('assigned_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  return (data?.person_id as string | undefined) ?? null
 }
 
 export interface SeriesRow {
@@ -861,37 +976,44 @@ export async function getFavoriteViewTasks(
 // Task handoff requests
 // ---------------------------------------------------------------------------
 
+export type HandoffDirection = 'offer' | 'ramp_transfer'
+
 export interface HandoffRequestRow {
   id: string
   task_id: string
   task_title: string
-  to_person_id: string
-  to_full_name: string
-  to_preferred_name: string | null
+  direction: HandoffDirection
+  /**
+   * The other party on the request — whoever is NOT the person this row was
+   * fetched for. For a pending decision (getPendingHandoffRequestsFor) that
+   * is the person who would gain/lose the task depending on direction; for
+   * an outstanding offer the caller made (getPendingOffersMadeBy) it is
+   * always the recipient being asked to accept.
+   */
+  counterparty_person_id: string
+  counterparty_full_name: string
+  counterparty_preferred_name: string | null
   requested_at: string
 }
 
-/** Pending handoff requests where this person is the current holder — theirs to decide. */
-export async function getPendingHandoffRequestsFor(personId: string): Promise<HandoffRequestRow[]> {
-  const db = getTodoTwoClient()
-
-  const { data, error } = await db
-    .from('task_handoff_requests')
-    .select('id, task_id, to_person_id, requested_at')
-    .eq('from_person_id', personId)
-    .eq('status', 'pending')
-    .order('requested_at')
-
-  if (error) throw new Error(`Could not load handoff requests: ${error.message}`)
-  const rows = (data ?? []) as { id: string; task_id: string; to_person_id: string; requested_at: string }[]
+async function hydrateHandoffRows(
+  db: ReturnType<typeof getTodoTwoClient>,
+  rows: {
+    id: string
+    task_id: string
+    direction: HandoffDirection
+    counterparty_person_id: string
+    requested_at: string
+  }[]
+): Promise<HandoffRequestRow[]> {
   if (rows.length === 0) return []
 
   const taskIds = Array.from(new Set(rows.map((r) => r.task_id)))
-  const toPersonIds = Array.from(new Set(rows.map((r) => r.to_person_id)))
+  const personIds = Array.from(new Set(rows.map((r) => r.counterparty_person_id)))
 
   const [{ data: tasks }, { data: people }] = await Promise.all([
     db.from('tasks_resolved').select('id, title').in('id', taskIds),
-    db.from('people').select('id, full_name, preferred_name').in('id', toPersonIds),
+    db.from('people').select('id, full_name, preferred_name').in('id', personIds),
   ])
 
   const titleOf = new Map(((tasks ?? []) as { id: string; title: string }[]).map((t) => [t.id, t.title]))
@@ -903,9 +1025,187 @@ export async function getPendingHandoffRequestsFor(personId: string): Promise<Ha
     id: r.id,
     task_id: r.task_id,
     task_title: titleOf.get(r.task_id) ?? 'Untitled task',
-    to_person_id: r.to_person_id,
-    to_full_name: personOf.get(r.to_person_id)?.full_name ?? 'Someone',
-    to_preferred_name: personOf.get(r.to_person_id)?.preferred_name ?? null,
+    direction: r.direction,
+    counterparty_person_id: r.counterparty_person_id,
+    counterparty_full_name: personOf.get(r.counterparty_person_id)?.full_name ?? 'Someone',
+    counterparty_preferred_name: personOf.get(r.counterparty_person_id)?.preferred_name ?? null,
     requested_at: r.requested_at,
   }))
+}
+
+/**
+ * Pending handoff requests this person must decide: ramp_transfer requests
+ * where they are the current holder (from_person_id), and voluntary offers
+ * addressed to them (to_person_id, direction = 'offer').
+ */
+export async function getPendingHandoffRequestsFor(personId: string): Promise<HandoffRequestRow[]> {
+  const db = getTodoTwoClient()
+
+  const [{ data: asHolder, error: holderError }, { data: asRecipient, error: recipientError }] =
+    await Promise.all([
+      db
+        .from('task_handoff_requests')
+        .select('id, task_id, to_person_id, requested_at, direction')
+        .eq('from_person_id', personId)
+        .eq('status', 'pending')
+        .eq('direction', 'ramp_transfer'),
+      db
+        .from('task_handoff_requests')
+        .select('id, task_id, from_person_id, requested_at, direction')
+        .eq('to_person_id', personId)
+        .eq('status', 'pending')
+        .eq('direction', 'offer'),
+    ])
+
+  if (holderError) throw new Error(`Could not load handoff requests: ${holderError.message}`)
+  if (recipientError) throw new Error(`Could not load handoff requests: ${recipientError.message}`)
+
+  const rows = [
+    ...(
+      (asHolder ?? []) as {
+        id: string
+        task_id: string
+        to_person_id: string
+        requested_at: string
+        direction: HandoffDirection
+      }[]
+    ).map((r) => ({
+      id: r.id,
+      task_id: r.task_id,
+      direction: r.direction,
+      counterparty_person_id: r.to_person_id,
+      requested_at: r.requested_at,
+    })),
+    ...(
+      (asRecipient ?? []) as {
+        id: string
+        task_id: string
+        from_person_id: string
+        requested_at: string
+        direction: HandoffDirection
+      }[]
+    ).map((r) => ({
+      id: r.id,
+      task_id: r.task_id,
+      direction: r.direction,
+      counterparty_person_id: r.from_person_id,
+      requested_at: r.requested_at,
+    })),
+  ].sort((a, b) => a.requested_at.localeCompare(b.requested_at))
+
+  return hydrateHandoffRows(db, rows)
+}
+
+/** Voluntary offers this person made that are still awaiting the recipient's decision. */
+export async function getPendingOffersMadeBy(personId: string): Promise<HandoffRequestRow[]> {
+  const db = getTodoTwoClient()
+
+  const { data, error } = await db
+    .from('task_handoff_requests')
+    .select('id, task_id, to_person_id, requested_at, direction')
+    .eq('from_person_id', personId)
+    .eq('status', 'pending')
+    .eq('direction', 'offer')
+    .order('requested_at')
+
+  if (error) throw new Error(`Could not load offered swaps: ${error.message}`)
+
+  const rows = (
+    (data ?? []) as {
+      id: string
+      task_id: string
+      to_person_id: string
+      requested_at: string
+      direction: HandoffDirection
+    }[]
+  ).map((r) => ({
+    id: r.id,
+    task_id: r.task_id,
+    direction: r.direction,
+    counterparty_person_id: r.to_person_id,
+    requested_at: r.requested_at,
+  }))
+
+  return hydrateHandoffRows(db, rows)
+}
+
+// ---------------------------------------------------------------------------
+// Task templates — reusable title/description + checklist bundles, applied
+// on demand via todotwo.apply_task_template(). See
+// supabase/migrations/20260908095200_todotwo_task_templates.sql.
+// ---------------------------------------------------------------------------
+
+export interface TaskTemplateStep {
+  id: string
+  title: string
+  sort_order: number
+}
+
+export interface TaskTemplateRow {
+  id: string
+  name: string
+  description: string | null
+  default_project_id: string | null
+  steps: TaskTemplateStep[]
+}
+
+export async function getTaskTemplates(): Promise<TaskTemplateRow[]> {
+  const db = getTodoTwoClient()
+
+  const { data: templates, error } = await db
+    .from('task_templates')
+    .select('id, name, description, default_project_id')
+    .is('deleted_at', null)
+    .order('name')
+
+  if (error) throw new Error(`Could not load templates: ${error.message}`)
+
+  const templateIds = (templates ?? []).map((t) => t.id as string)
+
+  const { data: steps } =
+    templateIds.length > 0
+      ? await db
+          .from('task_template_steps')
+          .select('id, template_id, title, sort_order')
+          .in('template_id', templateIds)
+          .order('sort_order')
+      : { data: [] as { id: string; template_id: string; title: string; sort_order: number }[] }
+
+  const stepsByTemplate = new Map<string, TaskTemplateStep[]>()
+  for (const step of (steps ?? []) as { id: string; template_id: string; title: string; sort_order: number }[]) {
+    const list = stepsByTemplate.get(step.template_id) ?? []
+    list.push({ id: step.id, title: step.title, sort_order: step.sort_order })
+    stepsByTemplate.set(step.template_id, list)
+  }
+
+  return ((templates ?? []) as {
+    id: string
+    name: string
+    description: string | null
+    default_project_id: string | null
+  }[]).map((t) => ({
+    ...t,
+    steps: stepsByTemplate.get(t.id) ?? [],
+  }))
+}
+
+export interface SectionOption {
+  id: string
+  project_id: string
+  name: string
+}
+
+/** Sections for every non-archived project, for the "apply a template" picker. */
+export async function getSections(): Promise<SectionOption[]> {
+  const db = getTodoTwoClient()
+
+  const { data, error } = await db
+    .from('sections')
+    .select('id, project_id, name')
+    .is('deleted_at', null)
+    .order('name')
+
+  if (error) throw new Error(`Could not load sections: ${error.message}`)
+
+  return (data ?? []) as SectionOption[]
 }
