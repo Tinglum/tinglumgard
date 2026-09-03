@@ -141,6 +141,7 @@ describe('storefront isolation', () => {
       file.startsWith('tests/todotwo/') ||
       file.startsWith('docs/todotwo/') ||
       file.startsWith('scripts/todotwo/') ||
+      file.startsWith('public/todotwo/') ||
       /^supabase\/migrations\/\d+_todotwo_/.test(file)
 
     const offenders = changed

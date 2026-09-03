@@ -1,4 +1,12 @@
-import { CalendarDays, Home, ListTodo, Settings, Users, type LucideIcon } from 'lucide-react'
+import {
+  CalendarDays,
+  Home,
+  ListTodo,
+  Megaphone,
+  Settings,
+  Users,
+  type LucideIcon,
+} from 'lucide-react'
 
 import { TODOTWO_BASE } from '@/lib/todotwo/routes'
 import type { TodoTwoRole } from '@/lib/todotwo/auth'
@@ -41,6 +49,13 @@ export const NAV_ITEMS: NavItem[] = [
     primary: true,
   },
   {
+    href: `${TODOTWO_BASE}/announcements`,
+    label: 'Notices',
+    icon: Megaphone,
+    roles: null,
+    primary: false,
+  },
+  {
     href: `${TODOTWO_BASE}/people`,
     label: 'People',
     icon: Users,
@@ -71,4 +86,5 @@ export const IMPLEMENTED_HREFS = new Set<string>([
   `${TODOTWO_BASE}/upcoming`,
   `${TODOTWO_BASE}/people`,
   `${TODOTWO_BASE}/routines`,
+  `${TODOTWO_BASE}/announcements`,
 ])

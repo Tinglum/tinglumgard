@@ -16,7 +16,7 @@
     "test:watch": "vitest",
     "test:rls": "vitest run --config vitest.rls.config.mts",
     "test:e2e": "playwright test",
-    "todotwo:migrate": "supabase db push",
+    "todotwo:migrate": "tsx scripts/todotwo/migrate.ts",
     "todotwo:migrate:status": "supabase migration list",
     "todotwo:seed": "tsx scripts/todotwo/seed.ts",
     "todotwo:create-admin": "tsx scripts/todotwo/create-admin.ts",
@@ -24,6 +24,7 @@
     "todotwo:generate": "tsx scripts/todotwo/generate-occurrences.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.123.0",
     "@hookform/resolvers": "^3.9.0",
     "@netlify/plugin-nextjs": "5.15.8",
     "@next/swc-wasm-nodejs": "13.5.1",
