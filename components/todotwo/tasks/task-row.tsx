@@ -10,6 +10,14 @@ import { copy } from '@/lib/todotwo/copy'
 import { getTodoTwoBrowserClient } from '@/lib/todotwo/db-browser'
 import { TODOTWO_BASE } from '@/lib/todotwo/routes'
 import { PRIORITY_COLOR, PriorityFlag } from '@/components/todotwo/ui/priority-flag'
+import { Avatar } from '@/components/todotwo/ui/avatar'
+
+export interface TaskRowAssignee {
+  id: string
+  fullName: string
+  preferredName: string | null
+  photoUrl: string | null
+}
 
 export interface TaskRowData {
   id: string
@@ -21,6 +29,7 @@ export interface TaskRowData {
   series_id: string | null
   estimated_minutes: number | null
   requires_feed_check?: boolean
+  assignee?: TaskRowAssignee | null
 }
 
 const UNDO_WINDOW_MS = 8000
@@ -143,6 +152,13 @@ export function TaskRow({
               className="h-3 w-3 shrink-0 text-[var(--tt-ink-3)]"
               aria-label="Recurring routine"
             />
+          ) : null}
+
+          {task.assignee ? (
+            <span className="inline-flex items-center gap-1 text-[12px] text-[var(--tt-ink-3)]">
+              <Avatar person={task.assignee} size={20} />
+              {task.assignee.preferredName?.trim() || task.assignee.fullName}
+            </span>
           ) : null}
         </div>
 

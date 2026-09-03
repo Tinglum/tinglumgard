@@ -9,6 +9,13 @@ import { addFarmDays, farmToday, type FarmDate } from '@/lib/todotwo/time'
  * base table directly would show blanks for every generated routine.
  */
 
+export interface TaskAssignee {
+  id: string
+  fullName: string
+  preferredName: string | null
+  photoUrl: string | null
+}
+
 export interface TaskRow {
   id: string
   title: string
@@ -25,6 +32,76 @@ export interface TaskRow {
   estimated_minutes: number | null
   is_overridden: boolean
   requires_feed_check: boolean
+  /** The task's current assignee, when one exists. Attached separately from
+   * tasks_resolved (assignment lives in task_assignments), see
+   * attachCurrentAssignees below. Undefined until attached; null once
+   * attached with no current assignee. */
+  assignee?: TaskAssignee | null
+}
+
+/**
+ * Batch-attaches each task's current assignee (task_assignments row with
+ * unassigned_at is null) to the given rows, mutating in place and returning
+ * the same array for convenience. Two round trips regardless of list size,
+ * same shape as taskIdsAssignedTo below.
+ */
+async function attachCurrentAssignees<T extends TaskRow>(
+  db: ReturnType<typeof getTodoTwoClient>,
+  rows: T[]
+): Promise<T[]> {
+  if (rows.length === 0) return rows
+
+  const taskIds = rows.map((r) => r.id)
+  const { data: assignmentRows, error: assignmentsError } = await db
+    .from('task_assignments')
+    .select('task_id, person_id')
+    .in('task_id', taskIds)
+    .is('unassigned_at', null)
+
+  if (assignmentsError) {
+    throw new Error(`Could not load assignments: ${assignmentsError.message}`)
+  }
+
+  const personIdByTask = new Map(
+    ((assignmentRows ?? []) as { task_id: string; person_id: string }[]).map((r) => [
+      r.task_id,
+      r.person_id,
+    ])
+  )
+
+  const personIds = Array.from(new Set(personIdByTask.values()))
+  if (personIds.length === 0) {
+    for (const row of rows) row.assignee = null
+    return rows
+  }
+
+  const { data: people, error: peopleError } = await db
+    .from('people')
+    .select('id, full_name, preferred_name, photo_url')
+    .in('id', personIds)
+
+  if (peopleError) throw new Error(`Could not load assignees: ${peopleError.message}`)
+
+  const personById = new Map(
+    (
+      (people ?? []) as {
+        id: string
+        full_name: string
+        preferred_name: string | null
+        photo_url: string | null
+      }[]
+    ).map((p) => [
+      p.id,
+      { id: p.id, fullName: p.full_name, preferredName: p.preferred_name, photoUrl: p.photo_url },
+    ])
+  )
+
+  for (const row of rows) {
+    const personId = personIdByTask.get(row.id)
+    row.assignee = personId ? (personById.get(personId) ?? null) : null
+  }
+
+  return rows
 }
 
 export interface TaskGroup {
@@ -64,7 +141,7 @@ export async function getToday(today: FarmDate = farmToday()): Promise<{
 
   if (error) throw new Error(`Could not load today: ${error.message}`)
 
-  const rows = (data ?? []) as unknown as TaskRow[]
+  const rows = await attachCurrentAssignees(db, (data ?? []) as unknown as TaskRow[])
 
   return {
     overdue: sortTasks(
@@ -98,7 +175,7 @@ export async function getUpcoming(
 
   if (error) throw new Error(`Could not load upcoming: ${error.message}`)
 
-  const rows = (data ?? []) as unknown as TaskRow[]
+  const rows = await attachCurrentAssignees(db, (data ?? []) as unknown as TaskRow[])
   const groups: TaskGroup[] = []
 
   for (let offset = 1; offset <= days; offset += 1) {
@@ -420,6 +497,29 @@ export async function getCurrentAssignee(taskId: string): Promise<string | null>
     .maybeSingle()
 
   return (data?.person_id as string | undefined) ?? null
+}
+
+/** Same as getCurrentAssignee, but hydrated with display name and photo for
+ * the task detail page rather than just the id. */
+export async function getCurrentAssigneePerson(taskId: string): Promise<TaskAssignee | null> {
+  const db = getTodoTwoClient()
+  const personId = await getCurrentAssignee(taskId)
+  if (!personId) return null
+
+  const { data, error } = await db
+    .from('people')
+    .select('id, full_name, preferred_name, photo_url')
+    .eq('id', personId)
+    .maybeSingle()
+
+  if (error || !data) return null
+
+  return {
+    id: data.id as string,
+    fullName: data.full_name as string,
+    preferredName: (data.preferred_name as string | null) ?? null,
+    photoUrl: (data.photo_url as string | null) ?? null,
+  }
 }
 
 export interface SeriesRow {
@@ -975,7 +1075,7 @@ export async function getFavoriteViewTasks(
     .in('status', OPEN_STATUSES)
 
   if (error) throw new Error(`Could not load favorites: ${error.message}`)
-  const rows = (data ?? []) as unknown as TaskRow[]
+  const rows = await attachCurrentAssignees(db, (data ?? []) as unknown as TaskRow[])
 
   switch (key) {
     case 'overdue':

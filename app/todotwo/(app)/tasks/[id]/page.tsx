@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { ArrowLeft, Clock, Repeat } from 'lucide-react'
 
+import { Avatar } from '@/components/todotwo/ui/avatar'
 import { StepList } from '@/components/todotwo/tasks/step-list'
 import { CompleteTaskButton } from '@/components/todotwo/tasks/complete-task-button'
 import { DuplicateTaskButton } from '@/components/todotwo/tasks/duplicate-task-button'
@@ -15,6 +16,7 @@ import {
   getTaskDetail,
   getAssignmentHistoryForSeries,
   getCurrentAssignee,
+  getCurrentAssigneePerson,
   getPeople,
 } from '@/lib/todotwo/queries'
 import { describeRule } from '@/lib/todotwo/domain/recurrence'
@@ -37,6 +39,7 @@ export default async function TaskDetailPage({ params }: { params: { id: string 
 
   const currentAssigneeId = await getCurrentAssignee(task.id)
   const isCurrentAssignee = currentAssigneeId !== null && currentAssigneeId === principal.person.id
+  const currentAssignee = currentAssigneeId ? await getCurrentAssigneePerson(task.id) : null
   const offerCandidates = isCurrentAssignee
     ? (await getPeople())
         .filter((p) => p.id !== currentAssigneeId)
@@ -61,6 +64,13 @@ export default async function TaskDetailPage({ params }: { params: { id: string 
         ) : null}
 
         <h1 className="text-2xl leading-tight">{task.title}</h1>
+
+        {currentAssignee ? (
+          <div className="flex items-center gap-2 text-[14px] text-[var(--tt-ink-2)]">
+            <Avatar person={currentAssignee} size={36} />
+            <span>{currentAssignee.preferredName?.trim() || currentAssignee.fullName}</span>
+          </div>
+        ) : null}
 
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[13px] text-[var(--tt-ink-3)]">
           {task.due_date ? (
