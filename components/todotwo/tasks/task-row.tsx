@@ -1,12 +1,14 @@
 'use client'
 
 import * as React from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Check, ChevronRight, Clock, Repeat } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
 import { copy } from '@/lib/todotwo/copy'
 import { getTodoTwoBrowserClient } from '@/lib/todotwo/db-browser'
+import { TODOTWO_BASE } from '@/lib/todotwo/routes'
 
 export interface TaskRowData {
   id: string
@@ -118,7 +120,7 @@ export function TaskRow({
         {done ? <Check className="h-4 w-4" aria-hidden="true" /> : null}
       </button>
 
-      <div className="min-w-0 flex-1">
+      <Link href={`${TODOTWO_BASE}/tasks/${task.id}`} className="min-w-0 flex-1">
         <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
           <span className={cn('text-[15px] leading-snug', done && 'line-through')}>
             {task.title}
@@ -147,16 +149,6 @@ export function TaskRow({
           ) : null}
 
           {task.estimated_minutes ? <span>{task.estimated_minutes} min</span> : null}
-
-          {showUndo ? (
-            <button
-              type="button"
-              onClick={toggle}
-              className="font-medium text-[var(--tt-accent)] underline underline-offset-2"
-            >
-              {copy.common.undo}
-            </button>
-          ) : null}
         </div>
 
         {error ? (
@@ -164,7 +156,19 @@ export function TaskRow({
             {error}
           </p>
         ) : null}
-      </div>
+      </Link>
+
+      {/* Outside the Link: a button nested in an anchor is invalid, and tapping
+          undo would navigate to the task instead of undoing it. */}
+      {showUndo ? (
+        <button
+          type="button"
+          onClick={toggle}
+          className="mt-1 shrink-0 text-[12px] font-medium text-[var(--tt-accent)] underline underline-offset-2"
+        >
+          {copy.common.undo}
+        </button>
+      ) : null}
 
       <ChevronRight
         className="mt-1 h-4 w-4 shrink-0 text-[var(--tt-rule-strong)]"

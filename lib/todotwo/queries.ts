@@ -143,24 +143,99 @@ export async function getProjects(): Promise<ProjectSummary[]> {
   }))
 }
 
-/** The steps of a task: series steps for an occurrence, subtasks otherwise. */
-export async function getTaskSteps(task: TaskRow): Promise<{ id: string; title: string; description: string | null }[]> {
+export interface TaskStep {
+  id: string
+  title: string
+  description: string | null
+  done: boolean
+  /** Series template step, versus a child task of a one-off. */
+  kind: 'series-step' | 'subtask'
+}
+
+export interface TaskDetail {
+  task: TaskRow
+  steps: TaskStep[]
+  seriesRule: string | null
+  projectName: string | null
+}
+
+/**
+ * One task with everything needed to work it.
+ *
+ * The steps come from two different places depending on what the task is: a
+ * generated occurrence borrows its steps from the series template, while a
+ * one-off owns its subtasks outright. Completion differs to match — a template
+ * step is ticked per occurrence in task_step_completions, a subtask carries its
+ * own status.
+ */
+export async function getTaskDetail(id: string): Promise<TaskDetail | null> {
   const db = getTodoTwoClient()
 
-  if (task.series_id) {
-    const { data } = await db
-      .from('task_series_steps')
-      .select('id, title, description')
-      .eq('series_id', task.series_id)
-      .is('deleted_at', null)
-      .order('sort_order')
-    return (data ?? []) as { id: string; title: string; description: string | null }[]
+  const { data: taskRow, error } = await db
+    .from('tasks_resolved')
+    .select(SELECT)
+    .eq('id', id)
+    .maybeSingle()
+
+  if (error) throw new Error(`Could not load task: ${error.message}`)
+  if (!taskRow) return null
+
+  const task = taskRow as unknown as TaskRow
+
+  let projectName: string | null = null
+  if (task.project_id) {
+    const { data: project } = await db
+      .from('projects')
+      .select('name')
+      .eq('id', task.project_id)
+      .maybeSingle()
+    projectName = (project?.name as string | undefined) ?? null
   }
 
-  const { data } = await db
+  if (task.series_id) {
+    const [{ data: stepRows }, { data: doneRows }, { data: series }] = await Promise.all([
+      db
+        .from('task_series_steps')
+        .select('id, title, description')
+        .eq('series_id', task.series_id)
+        .is('deleted_at', null)
+        .order('sort_order'),
+      db.from('task_step_completions').select('series_step_id').eq('task_id', task.id),
+      db.from('task_series').select('rrule').eq('id', task.series_id).maybeSingle(),
+    ])
+
+    const done = new Set(
+      ((doneRows ?? []) as { series_step_id: string }[]).map((r) => r.series_step_id)
+    )
+
+    return {
+      task,
+      projectName,
+      seriesRule: (series?.rrule as string | undefined) ?? null,
+      steps: ((stepRows ?? []) as { id: string; title: string; description: string | null }[]).map(
+        (s) => ({ ...s, done: done.has(s.id), kind: 'series-step' as const })
+      ),
+    }
+  }
+
+  const { data: children } = await db
     .from('tasks_resolved')
-    .select('id, title, description')
+    .select('id, title, description, status')
     .eq('parent_task_id', task.id)
     .order('sort_order')
-  return (data ?? []) as { id: string; title: string; description: string | null }[]
+
+  return {
+    task,
+    projectName,
+    seriesRule: null,
+    steps: ((children ?? []) as { id: string; title: string; description: string | null; status: string }[]).map(
+      (c) => ({
+        id: c.id,
+        title: c.title,
+        description: c.description,
+        done: c.status === 'completed' || c.status === 'verified',
+        kind: 'subtask' as const,
+      })
+    ),
+  }
 }
