@@ -34,10 +34,10 @@ export const NAV_ITEMS: NavItem[] = [
     primary: true,
   },
   {
-    href: `${TODOTWO_BASE}/projects`,
-    label: 'Projects',
+    href: `${TODOTWO_BASE}/routines`,
+    label: 'Routines',
     icon: CalendarDays,
-    roles: null,
+    roles: ['super_admin', 'farm_admin', 'coordinator'],
     primary: true,
   },
   {
@@ -66,4 +66,9 @@ export function navItemsForRoles(roles: TodoTwoRole[]): NavItem[] {
  * lands — a navigation item that leads nowhere is a placeholder, and Phase 0
  * forbids those.
  */
-export const IMPLEMENTED_HREFS = new Set<string>([TODOTWO_BASE, `${TODOTWO_BASE}/upcoming`])
+export const IMPLEMENTED_HREFS = new Set<string>([
+  TODOTWO_BASE,
+  `${TODOTWO_BASE}/upcoming`,
+  `${TODOTWO_BASE}/people`,
+  `${TODOTWO_BASE}/routines`,
+])

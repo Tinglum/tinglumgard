@@ -44,13 +44,31 @@ export function LoginForm({
       const callback = new URL(todoTwoRoutes.authCallback(), window.location.origin)
       if (returnTo) callback.searchParams.set('returnTo', returnTo)
 
+      // An administrator adds a person by email before they can sign in.
+      // Asking first means a first-time Workawayer gets an account created for
+      // them, while a stranger who guesses this URL does not. The check answers
+      // only yes or no about an address they already typed.
+      const { data: invited, error: inviteError } = await supabase.rpc('email_is_invited', {
+        p_email: trimmed,
+      })
+
+      if (inviteError) {
+        setStatus('idle')
+        setError('Could not check that address. Try again shortly.')
+        return
+      }
+
+      if (!invited) {
+        setStatus('idle')
+        setError('This email address does not have access to TodoTwo. Ask Kenneth to add you.')
+        return
+      }
+
       const { error: signInError } = await supabase.auth.signInWithOtp({
         email: trimmed,
         options: {
           emailRedirectTo: callback.toString(),
-          // Accounts are created by an administrator. A stranger who guesses
-          // the URL must not be able to make one for themselves.
-          shouldCreateUser: false,
+          shouldCreateUser: true,
         },
       })
 

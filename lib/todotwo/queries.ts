@@ -239,3 +239,112 @@ export async function getTaskDetail(id: string): Promise<TaskDetail | null> {
     ),
   }
 }
+
+export interface PersonRow {
+  id: string
+  full_name: string
+  preferred_name: string | null
+  email: string | null
+  auth_user_id: string | null
+  roles: string[]
+}
+
+/** Everyone currently on the farm, with their roles. */
+export async function getPeople(): Promise<PersonRow[]> {
+  const db = getTodoTwoClient()
+
+  const { data: people, error } = await db
+    .from('people')
+    .select('id, full_name, preferred_name, email, auth_user_id')
+    .is('deleted_at', null)
+    .eq('is_active', true)
+    .order('full_name')
+
+  if (error) throw new Error(`Could not load people: ${error.message}`)
+
+  const { data: roleRows } = await db
+    .from('role_assignments')
+    .select('person_id, role')
+    .is('revoked_at', null)
+
+  const byPerson = new Map<string, string[]>()
+  for (const row of (roleRows ?? []) as { person_id: string; role: string }[]) {
+    const list = byPerson.get(row.person_id)
+    if (list) list.push(row.role)
+    else byPerson.set(row.person_id, [row.role])
+  }
+
+  return ((people ?? []) as unknown as Omit<PersonRow, 'roles'>[]).map((person) => ({
+    ...person,
+    roles: byPerson.get(person.id) ?? [],
+  }))
+}
+
+export interface SeriesRow {
+  id: string
+  title: string
+  description: string | null
+  rrule: string
+  project_id: string | null
+  stepCount: number
+  upcomingCount: number
+  rota: { id: string; name: string }[]
+}
+
+/** Every recurring routine, with its rota and how much is queued. */
+export async function getSeries(): Promise<SeriesRow[]> {
+  const db = getTodoTwoClient()
+
+  const { data: rows, error } = await db
+    .from('task_series')
+    .select('id, title, description, rrule, project_id')
+    .eq('is_active', true)
+    .is('deleted_at', null)
+    .order('title')
+
+  if (error) throw new Error(`Could not load routines: ${error.message}`)
+
+  const series = (rows ?? []) as unknown as Omit<
+    SeriesRow,
+    'stepCount' | 'upcomingCount' | 'rota'
+  >[]
+
+  const [{ data: steps }, { data: occurrences }, { data: rotaRows }, { data: people }] =
+    await Promise.all([
+      db.from('task_series_steps').select('series_id').is('deleted_at', null),
+      db.from('tasks').select('series_id, status').not('series_id', 'is', null).is('deleted_at', null),
+      db.from('series_rota').select('series_id, person_id, position').order('position'),
+      db.from('people').select('id, full_name, preferred_name').is('deleted_at', null),
+    ])
+
+  const nameOf = new Map<string, string>()
+  for (const p of (people ?? []) as { id: string; full_name: string; preferred_name: string | null }[]) {
+    nameOf.set(p.id, p.preferred_name || p.full_name)
+  }
+
+  const stepCounts = new Map<string, number>()
+  for (const s of (steps ?? []) as { series_id: string }[]) {
+    stepCounts.set(s.series_id, (stepCounts.get(s.series_id) ?? 0) + 1)
+  }
+
+  const openCounts = new Map<string, number>()
+  for (const t of (occurrences ?? []) as { series_id: string; status: string }[]) {
+    if (['completed', 'verified', 'cancelled'].includes(t.status)) continue
+    openCounts.set(t.series_id, (openCounts.get(t.series_id) ?? 0) + 1)
+  }
+
+  const rotas = new Map<string, { id: string; name: string }[]>()
+  for (const r of (rotaRows ?? []) as { series_id: string; person_id: string }[]) {
+    const entry = { id: r.person_id, name: nameOf.get(r.person_id) ?? 'Unknown' }
+    const list = rotas.get(r.series_id)
+    if (list) list.push(entry)
+    else rotas.set(r.series_id, [entry])
+  }
+
+  return series.map((s) => ({
+    ...s,
+    stepCount: stepCounts.get(s.id) ?? 0,
+    upcomingCount: openCounts.get(s.id) ?? 0,
+    rota: rotas.get(s.id) ?? [],
+  }))
+}

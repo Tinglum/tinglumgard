@@ -82,6 +82,11 @@ export function CallbackHandler() {
         return
       }
 
+      // First sign-in: link this auth user to the person row an administrator
+      // prepared for their email. Idempotent, and it can only claim a row that
+      // matches the caller's own verified address and is not already linked.
+      await supabase.rpc('claim_person')
+
       const { data: person } = await supabase
         .from('people')
         .select('id')
