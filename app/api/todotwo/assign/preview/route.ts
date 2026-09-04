@@ -16,6 +16,14 @@ import {
   type PresetState,
 } from '@/lib/todotwo/domain/assignment-presets'
 import {
+  farmConstraints,
+  fairnessReport,
+  type ApprovedTimeOff,
+  type SkillAuthorization,
+  type StayWindow,
+  type TaskSkillRequirement,
+} from '@/lib/todotwo/domain/assignment-inputs'
+import {
   buildAssignmentPlan,
   fairnessSpread,
   type AssignableTask,
@@ -126,7 +134,7 @@ export async function POST(request: NextRequest) {
 
   let taskQuery = db
     .from('tasks_resolved')
-    .select('id, title, due_date, status, project_id, series_id')
+    .select('id, title, due_date, status, project_id, series_id, required_skill_id, estimated_minutes')
     .is('parent_task_id', null)
     .in('status', ['draft', 'unassigned'])
     .gte('due_date', parsed.from)
@@ -152,13 +160,39 @@ export async function POST(request: NextRequest) {
     status: string
     project_id: string | null
     series_id: string | null
+    required_skill_id: string | null
+    estimated_minutes: number | null
   }[]
 
   const openTasks = rows.filter((row): row is typeof row & { due_date: string } => row.due_date !== null)
 
-  const [{ data: projectRows }, { data: seriesRows }] = await Promise.all([
+  // The farm's own facts. These are not preferences a coordinator expresses
+  // this morning — they are what is already true about who is here, who is
+  // off, and who is signed off to work unsupervised.
+  const [
+    { data: projectRows },
+    { data: seriesRows },
+    { data: timeOffRows },
+    { data: stayRows },
+    { data: skillRows },
+    { data: skillNameRows },
+  ] = await Promise.all([
     db.from('projects').select('id, name'),
     db.from('task_series').select('id, title'),
+    db
+      .from('time_off_requests')
+      .select('id, person_id, start_date, end_date, kind, status')
+      .eq('status', 'approved')
+      .lte('start_date', parsed.to)
+      .gte('end_date', parsed.from),
+    db
+      .from('stays')
+      .select(
+        'id, person_id, arrival_date, arrival_certainty, departure_date, departure_certainty, status'
+      )
+      .lte('arrival_date', parsed.to),
+    db.from('person_skills').select('person_id, skill_id, authorized_unsupervised'),
+    db.from('skills').select('id, name'),
   ])
 
   const projectName = new Map(((projectRows ?? []) as { id: string; name: string }[]).map((p) => [p.id, p.name]))
@@ -202,6 +236,84 @@ export async function POST(request: NextRequest) {
     )
   }
 
+  // ---------------------------------------------------------------------
+  // The farm's own facts, turned into constraints before anyone's preferences.
+  // ---------------------------------------------------------------------
+  const skillName = new Map(
+    ((skillNameRows ?? []) as { id: string; name: string }[]).map((r) => [r.id, r.name])
+  )
+
+  const timeOff: ApprovedTimeOff[] = (
+    (timeOffRows ?? []) as {
+      id: string
+      person_id: string
+      start_date: string
+      end_date: string
+      kind: string
+    }[]
+  ).map((r) => ({
+    id: r.id,
+    personId: r.person_id,
+    startDate: r.start_date,
+    endDate: r.end_date,
+    kind: r.kind,
+  }))
+
+  const stays: StayWindow[] = (
+    (stayRows ?? []) as {
+      id: string
+      person_id: string
+      arrival_date: string
+      arrival_certainty: string
+      departure_date: string | null
+      departure_certainty: string | null
+      status: string
+    }[]
+  ).map((r) => ({
+    id: r.id,
+    personId: r.person_id,
+    arrivalDate: r.arrival_date,
+    arrivalCertainty: r.arrival_certainty as StayWindow['arrivalCertainty'],
+    departureDate: r.departure_date,
+    departureCertainty: r.departure_certainty as StayWindow['departureCertainty'],
+    status: r.status,
+  }))
+
+  const skillAuthorizations: SkillAuthorization[] = (
+    (skillRows ?? []) as {
+      person_id: string
+      skill_id: string
+      authorized_unsupervised: boolean
+    }[]
+  ).map((r) => ({
+    personId: r.person_id,
+    skillId: r.skill_id,
+    authorizedUnsupervised: r.authorized_unsupervised,
+  }))
+
+  const skillRequirements: TaskSkillRequirement[] = openTasks
+    .filter((row) => row.required_skill_id !== null)
+    .map((row) => ({
+      taskId: row.id,
+      title: row.title,
+      date: row.due_date,
+      skillId: row.required_skill_id as string,
+      skillName: skillName.get(row.required_skill_id as string) ?? null,
+    }))
+
+  const nameOf = (personId: string) =>
+    people.find((p) => p.id === personId)?.name ?? 'Someone'
+
+  const farm = farmConstraints({
+    window: { from: parsed.from, to: parsed.to },
+    peopleIds: people.map((p) => p.id),
+    nameOf,
+    timeOff,
+    stays,
+    skillRequirements,
+    skillAuthorizations,
+  })
+
   // Ticked boxes first: pure, deterministic, and independent of whether the
   // model is reachable at all.
   const presetResult = presetsToConstraints((parsed.presets as PresetState | undefined) ?? EMPTY_PRESETS, {
@@ -221,7 +333,12 @@ export async function POST(request: NextRequest) {
 
   // Concatenated, not chosen between: ticking a box and writing a sentence are
   // two ways of saying something, and both are meant to hold.
-  const constraints = [...presetResult.constraints, ...aiResult.constraints]
+  // Farm facts lead. The solver treats constraints as a set and does not care
+  // about order, but a coordinator reading "why was Amber skipped" should meet
+  // the things that were never up for negotiation before the ones they chose
+  // this morning.
+  const farmOnly = farm.sourced.map((s) => s.constraint)
+  const constraints = [...farmOnly, ...presetResult.constraints, ...aiResult.constraints]
   const unresolved = [...presetResult.unresolved, ...aiResult.unresolved]
 
   const plan = buildAssignmentPlan(assignableTasks, people, constraints)
@@ -230,6 +347,8 @@ export async function POST(request: NextRequest) {
     ok: true,
     summary: aiResult.summary,
     constraints,
+    farmConstraints: farm.sourced,
+    farmWarnings: farm.warnings,
     presetConstraints: presetResult.constraints,
     aiConstraints: aiResult.constraints,
     unresolved,
@@ -239,6 +358,11 @@ export async function POST(request: NextRequest) {
       load: plan.load,
       inertConstraints: plan.inertConstraints,
       fairnessSpread: fairnessSpread(plan),
+      fairness: fairnessReport(
+        plan.assignments,
+        plan.load,
+        new Map(openTasks.map((row) => [row.id, row.estimated_minutes]))
+      ),
     },
     taskCount: assignableTasks.length,
   })
