@@ -105,10 +105,12 @@ export const NAV_ITEMS: NavItem[] = [
     primary: false,
   },
   {
-    href: `${TODOTWO_BASE}/innstillinger`,
+    href: `${TODOTWO_BASE}/settings`,
     label: 'Settings',
     icon: Settings,
-    roles: ['super_admin', 'farm_admin'],
+    // Everyone: password, passkeys and notifications are personal. The one
+    // staff-only entry (task templates) is filtered inside the page itself.
+    roles: null,
     primary: false,
   },
 ]
@@ -134,4 +136,5 @@ export const IMPLEMENTED_HREFS = new Set<string>([
   `${TODOTWO_BASE}/accommodation`,
   `${TODOTWO_BASE}/availability`,
   `${TODOTWO_BASE}/skills`,
+  `${TODOTWO_BASE}/settings`,
 ])
