@@ -112,10 +112,25 @@ function MagicLinkFallback({ returnTo }: { returnTo?: string }) {
   )
 }
 
-function ForgotPassword() {
+/**
+ * Forgetting a password is the moment someone is least willing to guess at
+ * what the app is doing, so this says plainly what was sent, where, and how
+ * long it lasts — and offers the other way in when the first email does not
+ * turn up.
+ *
+ * The two kinds of link deliberately do not run side by side. Supabase issues
+ * one live token per person: asking for a sign-in link after a reset link
+ * silently retires the reset link, so someone holding both emails and picking
+ * the older one gets a dead link and no explanation. The fallback is therefore
+ * a deliberate second step behind the confirmation, never sent alongside the
+ * first, and the copy says outright that the newest email is the one that
+ * works.
+ */
+function ForgotPassword({ returnTo }: { returnTo?: string }) {
   const [open, setOpen] = React.useState(false)
   const [email, setEmail] = React.useState('')
   const [status, setStatus] = React.useState<'idle' | 'sending' | 'sent'>('idle')
+  const [linkStatus, setLinkStatus] = React.useState<'idle' | 'sending' | 'sent'>('idle')
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -135,6 +150,20 @@ function ForgotPassword() {
     setStatus('sent')
   }
 
+  async function sendMagicLinkInstead() {
+    setLinkStatus('sending')
+    try {
+      await fetch('/api/todotwo/auth/send-link', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim(), returnTo }),
+      })
+    } catch {
+      // Same vague response regardless.
+    }
+    setLinkStatus('sent')
+  }
+
   if (!open) {
     return (
       <button
@@ -149,22 +178,76 @@ function ForgotPassword() {
 
   if (status === 'sent') {
     return (
-      <p className="text-xs text-[var(--tt-ink-2)]">
-        If that address has access, a password reset link is on its way.
-      </p>
+      <div className="flex flex-col items-start gap-3 rounded-lg border border-[var(--tt-rule)] bg-[var(--tt-surface)] p-5">
+        <CheckCircle2 className="h-5 w-5 text-[var(--tt-accent)]" aria-hidden="true" />
+        <p className="text-sm font-medium">Check your email</p>
+        <p className="text-sm text-[var(--tt-ink-2)]">
+          If <strong>{email.trim()}</strong> has access, a password reset link is on its way. It is
+          valid for one hour and can only be used once.
+        </p>
+
+        {linkStatus === 'sent' ? (
+          <p className="text-sm text-[var(--tt-ink-2)]">
+            A sign-in link is on its way too. Use the <strong>newest</strong> email — asking for the
+            second link retires the first one.
+          </p>
+        ) : (
+          <>
+            <p className="text-xs text-[var(--tt-ink-3)]">
+              Nothing arriving? Check spam, or get a plain sign-in link instead — you can set a new
+              password once you are in.
+            </p>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={sendMagicLinkInstead}
+              disabled={linkStatus === 'sending'}
+            >
+              {linkStatus === 'sending' ? 'Sending …' : 'Send a sign-in link instead'}
+            </Button>
+          </>
+        )}
+
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => {
+            setStatus('idle')
+            setLinkStatus('idle')
+          }}
+        >
+          Use a different address
+        </Button>
+      </div>
     )
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex items-center gap-2">
-      <input
-        type="email"
-        value={email}
-        onChange={(event) => setEmail(event.target.value)}
-        placeholder="you@example.com"
-        className="min-h-[36px] flex-1 rounded-md border border-[var(--tt-rule-strong)] bg-[var(--tt-surface)] px-2 text-[13px] text-[var(--tt-ink)]"
-      />
-      <Button type="submit" size="sm" variant="ghost" disabled={status === 'sending'}>
+    <form
+      onSubmit={handleSubmit}
+      className="flex flex-col gap-3 rounded-lg border border-[var(--tt-rule)] bg-[var(--tt-surface)] p-4"
+      noValidate
+    >
+      <div className="flex flex-col gap-2">
+        <label htmlFor="todotwo-reset-email" className="text-sm font-medium">
+          Email address
+        </label>
+        <input
+          id="todotwo-reset-email"
+          type="email"
+          inputMode="email"
+          autoComplete="email"
+          autoCapitalize="none"
+          spellCheck={false}
+          required
+          value={email}
+          onChange={(event) => setEmail(event.target.value)}
+          placeholder="you@example.com"
+          className="min-h-[44px] rounded-md border border-[var(--tt-rule-strong)] bg-[var(--tt-surface)] px-3 text-[16px] text-[var(--tt-ink)] placeholder:text-[var(--tt-ink-3)]"
+        />
+      </div>
+
+      <Button type="submit" size="sm" block variant="secondary" disabled={status === 'sending'}>
         {status === 'sending' ? 'Sending …' : 'Send reset link'}
       </Button>
     </form>
@@ -327,7 +410,7 @@ export function LoginForm({
           {status === 'signing-in' ? 'Signing in …' : 'Sign in'}
         </Button>
 
-        <ForgotPassword />
+        <ForgotPassword returnTo={returnTo} />
       </form>
 
       {passkeySupported ? (

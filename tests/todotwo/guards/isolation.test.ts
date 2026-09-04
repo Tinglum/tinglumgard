@@ -130,6 +130,14 @@ describe('storefront isolation', () => {
       // Fixed alongside TodoTwo work rather than waiting for a separate PR.
       'components/ChickenOrderCard.tsx',
       'components/orders/PigOrderUnifiedCard.tsx',
+      // Also unrelated to TodoTwo: dead Vercel config from a January 2026
+      // hosting experiment, abandoned when the site moved to Netlify. Its
+      // deprecated "@secret" env syntax pointed at Vercel secrets that never
+      // existed, so the still-connected Vercel integration failed on every
+      // pull request and emailed the owner about it each time. Removed.
+      'vercel.json',
+      '.vercel-test',
+      'VERCEL_DEPLOYMENT.md',
       'package.json',
       'package-lock.json',
       'vitest.config.mts',

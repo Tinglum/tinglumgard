@@ -132,6 +132,20 @@ export function SetPasswordForm({ returnTo }: { returnTo?: string }) {
       <Button type="submit" block disabled={status === 'saving'}>
         {status === 'saving' ? 'Saving …' : 'Set password'}
       </Button>
+
+      {/*
+        A sign-in link already got this person in, so making them choose a
+        password before they can do anything is the app competing with the way
+        they just arrived. Setting one is worth offering, never worth blocking
+        on — and Settings keeps the offer open for later.
+      */}
+      <button
+        type="button"
+        onClick={() => window.location.replace(safeReturnTo(returnTo))}
+        className="text-xs text-[var(--tt-ink-3)] underline-offset-4 hover:underline"
+      >
+        Skip for now — you can set one later in Settings
+      </button>
     </form>
   )
 }
