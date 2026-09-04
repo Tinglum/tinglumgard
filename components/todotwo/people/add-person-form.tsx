@@ -21,6 +21,7 @@ export function AddPersonForm() {
   const [email, setEmail] = React.useState('')
   const [photoUrl, setPhotoUrl] = React.useState('')
   const [role, setRole] = React.useState('workawayer')
+  const [firstDay, setFirstDay] = React.useState('')
   const [addStay, setAddStay] = React.useState(false)
   const [arrivalDate, setArrivalDate] = React.useState('')
   const [arrivalCertainty, setArrivalCertainty] = React.useState('provisional')
@@ -60,6 +61,10 @@ export function AddPersonForm() {
           full_name: name.trim(),
           email: email.trim().toLowerCase(),
           photo_url: photoUrl.trim() || null,
+          // Anchors the onboarding ramp: no work for the first couple of
+          // days so they can shadow, then a gentle handover. Left null it
+          // never runs, which is how it sat unused until now.
+          farm_start_date: (firstDay || arrivalDate) || null,
         })
         .select('id')
         .single()
@@ -102,6 +107,7 @@ export function AddPersonForm() {
       setName('')
       setEmail('')
       setPhotoUrl('')
+      setFirstDay('')
       setAddStay(false)
       setArrivalDate('')
       setDepartureDate('')
@@ -173,6 +179,20 @@ export function AddPersonForm() {
           </select>
         </label>
 
+        <label className="flex flex-col gap-1 text-[13px] sm:max-w-xs">
+          First day (optional)
+          <input
+            type="date"
+            value={firstDay}
+            onChange={(event) => setFirstDay(event.target.value)}
+            className={field}
+          />
+          <span className="text-[12px] text-[var(--tt-ink-3)]">
+            New arrivals get their first couple of days to shadow before work is
+            assigned to them. Leave empty to skip that.
+          </span>
+        </label>
+
         <label className="flex items-center gap-2 text-[13px]">
           <input
             type="checkbox"
@@ -190,7 +210,13 @@ export function AddPersonForm() {
               <input
                 type="date"
                 value={arrivalDate}
-                onChange={(event) => setArrivalDate(event.target.value)}
+                onChange={(event) => {
+                  const next = event.target.value
+                  // Their first day is normally the day they turn up, and two
+                  // date fields a line apart is how one of them ends up wrong.
+                  if (!firstDay || firstDay === arrivalDate) setFirstDay(next)
+                  setArrivalDate(next)
+                }}
                 className={field}
               />
             </label>

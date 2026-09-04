@@ -468,6 +468,8 @@ export interface PersonRow {
   preferred_name: string | null
   email: string | null
   auth_user_id: string | null
+  /** Their first day. Anchors the onboarding ramp; null means no ramp. */
+  farm_start_date: string | null
   roles: string[]
 }
 
@@ -477,7 +479,7 @@ export async function getPeople(): Promise<PersonRow[]> {
 
   const { data: people, error } = await db
     .from('people')
-    .select('id, full_name, preferred_name, email, auth_user_id')
+    .select('id, full_name, preferred_name, email, auth_user_id, farm_start_date')
     .is('deleted_at', null)
     .eq('is_active', true)
     .order('full_name')
