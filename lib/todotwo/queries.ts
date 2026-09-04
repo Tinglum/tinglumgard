@@ -56,6 +56,9 @@ async function attachCurrentAssignees<T extends TaskRow>(
     .from('task_assignments')
     .select('task_id, person_id')
     .in('task_id', taskIds)
+    // 'supervisor' rows are oversight, not ownership. Only an 'assignee' row
+    // means somebody actually has the task.
+    .eq('role', 'assignee')
     .is('unassigned_at', null)
 
   if (assignmentsError) {
@@ -125,10 +128,25 @@ function sortTasks(tasks: TaskRow[]): TaskRow[] {
   })
 }
 
-/** Today's work, plus anything still open from before today. */
-export async function getToday(today: FarmDate = farmToday()): Promise<{
+/**
+ * The signed-in person's day: their own open work, plus the tasks due today
+ * that nobody has picked up.
+ *
+ * Deliberately not the whole farm's day. Everybody can read every task by
+ * design, but a Workawayer opening the app needs to see what they are doing —
+ * and what still needs someone — not twenty-odd rows belonging to other people.
+ *
+ * `personId` is passed in rather than resolved here, matching getFavoriteViews
+ * and the rest of this module: the query layer takes an identity, the page
+ * decides whose.
+ */
+export async function getToday(
+  personId: string,
+  today: FarmDate = farmToday()
+): Promise<{
   overdue: TaskRow[]
-  today: TaskRow[]
+  mine: TaskRow[]
+  unclaimed: TaskRow[]
   doneToday: TaskRow[]
 }> {
   const db = getTodoTwoClient()
@@ -141,18 +159,23 @@ export async function getToday(today: FarmDate = farmToday()): Promise<{
 
   if (error) throw new Error(`Could not load today: ${error.message}`)
 
+  // attachCurrentAssignees is the one assignee-lookup path in this module, and
+  // it answers both questions asked below: whose task is this, and does anyone
+  // have it at all (assignee === null).
   const rows = await attachCurrentAssignees(db, (data ?? []) as unknown as TaskRow[])
+
+  const isOpen = (t: TaskRow) => OPEN_STATUSES.includes(t.status)
+  const isMine = (t: TaskRow) => t.assignee?.id === personId
+  const dueToday = (t: TaskRow) => t.due_date === today
 
   return {
     overdue: sortTasks(
-      rows.filter((t) => t.due_date && t.due_date < today && OPEN_STATUSES.includes(t.status))
+      rows.filter((t) => t.due_date && t.due_date < today && isOpen(t) && isMine(t))
     ),
-    today: sortTasks(
-      rows.filter((t) => t.due_date === today && OPEN_STATUSES.includes(t.status))
-    ),
-    doneToday: sortTasks(
-      rows.filter((t) => t.due_date === today && !OPEN_STATUSES.includes(t.status))
-    ),
+    mine: sortTasks(rows.filter((t) => dueToday(t) && isOpen(t) && isMine(t))),
+    // Regardless of who they would normally fall to: nobody holds these.
+    unclaimed: sortTasks(rows.filter((t) => dueToday(t) && isOpen(t) && !t.assignee)),
+    doneToday: sortTasks(rows.filter((t) => dueToday(t) && !isOpen(t) && isMine(t))),
   }
 }
 

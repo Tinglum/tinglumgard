@@ -8,6 +8,7 @@ import { Check, ChevronRight, Clock, Repeat } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { copy } from '@/lib/todotwo/copy'
 import { getTodoTwoBrowserClient } from '@/lib/todotwo/db-browser'
+import { canUntick, isFinished } from '@/lib/todotwo/domain/task-status'
 import { TODOTWO_BASE } from '@/lib/todotwo/routes'
 import { PRIORITY_COLOR, PriorityFlag } from '@/components/todotwo/ui/priority-flag'
 import { Avatar } from '@/components/todotwo/ui/avatar'
@@ -53,9 +54,12 @@ export function TaskRow({
   onChanged?: () => void
 }) {
   const router = useRouter()
-  const [done, setDone] = React.useState(
-    task.status === 'completed' || task.status === 'verified'
-  )
+  const [done, setDone] = React.useState(isFinished(task.status))
+  // Only a 'completed' task can be handed back. A verified one has been signed
+  // off, and an awaiting_verification one is waiting on somebody else — both
+  // show as done, but clicking either would only earn a "Task is not
+  // completed" from the database, so the control says so by being inert.
+  const [untickable] = React.useState(canUntick(task.status))
   const [pending, setPending] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
   const [undoUntil, setUndoUntil] = React.useState<number | null>(null)
@@ -102,6 +106,7 @@ export function TaskRow({
 
   function toggle() {
     if (pending) return
+    if (done && !untickable) return
     const next = !done
 
     // Un-completing, or a task that carries no feed-check obligation, goes
@@ -125,9 +130,15 @@ export function TaskRow({
       <button
         type="button"
         onClick={toggle}
-        disabled={pending}
+        disabled={pending || (done && !untickable)}
         aria-pressed={done}
-        aria-label={done ? `Mark "${task.title}" as not done` : `Complete "${task.title}"`}
+        aria-label={
+          done
+            ? untickable
+              ? `Mark "${task.title}" as not done`
+              : `"${task.title}" is done and cannot be reopened here`
+            : `Complete "${task.title}"`
+        }
         className={cn(
           'mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 transition-colors',
           done

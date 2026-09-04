@@ -23,7 +23,7 @@ export function RosterDatePicker({ date }: { date: FarmDate }) {
         router.push(`${TODOTWO_BASE}/roster?date=${next}`)
       }}
       className="rounded-md border border-[var(--tt-rule-strong)] bg-[var(--tt-surface)] px-3 py-1.5 text-[14px] text-[var(--tt-ink)]"
-      aria-label="Roster date"
+      aria-label="Roster start date"
     />
   )
 }
