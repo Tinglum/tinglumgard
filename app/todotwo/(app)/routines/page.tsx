@@ -1,11 +1,13 @@
 import Link from 'next/link'
 
+import { ClearAssignments } from '@/components/todotwo/tasks/clear-assignments'
 import { RotaEditor } from '@/components/todotwo/tasks/rota-editor'
 import { FeedCheckToggle } from '@/components/todotwo/tasks/feed-check-toggle'
 import { EmptyState, Surface } from '@/components/todotwo/ui/states'
 import { requireRole } from '@/lib/todotwo/auth'
 import { getPeople, getSeries } from '@/lib/todotwo/queries'
 import { describeRule } from '@/lib/todotwo/domain/recurrence'
+import { farmToday } from '@/lib/todotwo/time'
 import { TODOTWO_BASE } from '@/lib/todotwo/routes'
 
 export const dynamic = 'force-dynamic'
@@ -42,6 +44,10 @@ export default async function RoutinesPage() {
           </Link>
         </div>
       </header>
+
+      <Surface className="p-4">
+        <ClearAssignments fromDate={farmToday()} />
+      </Surface>
 
       {series.length === 0 ? (
         <EmptyState title="No routines yet" description="Import or create one to get started." />

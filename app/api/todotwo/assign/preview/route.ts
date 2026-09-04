@@ -11,6 +11,11 @@ import {
   type RosterTask,
 } from '@/lib/todotwo/domain/assignment-ai'
 import {
+  EMPTY_PRESETS,
+  presetsToConstraints,
+  type PresetState,
+} from '@/lib/todotwo/domain/assignment-presets'
+import {
   buildAssignmentPlan,
   fairnessSpread,
   type AssignableTask,
@@ -21,11 +26,43 @@ export const dynamic = 'force-dynamic'
 
 const STAFF_ROLES = ['super_admin', 'farm_admin', 'coordinator'] as const
 
+const weekdaySchema = z.enum(['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'])
+
+/** The ticked constraints. Validated here, but built into Constraint objects by
+ *  the pure mapper in domain/assignment-presets.ts — no model call for these. */
+const presetsSchema = z.object({
+  daysOff: z
+    .array(
+      z.object({
+        id: z.string().max(64),
+        personId: z.string().uuid(),
+        weekdays: z.array(weekdaySchema).max(7),
+      })
+    )
+    .max(50),
+  taskExclusions: z
+    .array(
+      z.object({
+        id: z.string().max(64),
+        personId: z.string().uuid(),
+        taskGroupLabel: z.string().trim().max(200),
+      })
+    )
+    .max(50),
+  maxPerDay: z
+    .object({
+      personId: z.string().uuid().nullable(),
+      limit: z.number().int().min(1).max(100),
+    })
+    .nullable(),
+})
+
 const bodySchema = z.object({
   text: z.string().trim().max(2000),
   from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'YYYY-MM-DD'),
   to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'YYYY-MM-DD'),
   projectId: z.string().uuid().optional(),
+  presets: presetsSchema.optional(),
 })
 
 const WEEKDAY_CODES: Weekday[] = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA']
@@ -165,6 +202,13 @@ export async function POST(request: NextRequest) {
     )
   }
 
+  // Ticked boxes first: pure, deterministic, and independent of whether the
+  // model is reachable at all.
+  const presetResult = presetsToConstraints((parsed.presets as PresetState | undefined) ?? EMPTY_PRESETS, {
+    people,
+    tasks: rosterTasks,
+  })
+
   let aiResult
   try {
     aiResult = await parseConstraints(parsed.text, { people, tasks: rosterTasks })
@@ -175,13 +219,20 @@ export async function POST(request: NextRequest) {
     throw error
   }
 
-  const plan = buildAssignmentPlan(assignableTasks, people, aiResult.constraints)
+  // Concatenated, not chosen between: ticking a box and writing a sentence are
+  // two ways of saying something, and both are meant to hold.
+  const constraints = [...presetResult.constraints, ...aiResult.constraints]
+  const unresolved = [...presetResult.unresolved, ...aiResult.unresolved]
+
+  const plan = buildAssignmentPlan(assignableTasks, people, constraints)
 
   return NextResponse.json({
     ok: true,
     summary: aiResult.summary,
-    constraints: aiResult.constraints,
-    unresolved: aiResult.unresolved,
+    constraints,
+    presetConstraints: presetResult.constraints,
+    aiConstraints: aiResult.constraints,
+    unresolved,
     plan: {
       assignments: plan.assignments,
       unassignable: plan.unassignable,
