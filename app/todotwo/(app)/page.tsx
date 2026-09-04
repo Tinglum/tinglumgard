@@ -23,7 +23,10 @@ function timeLabel(dueAt: string | null): string | null {
 export default async function TodayPage() {
   const principal = await requireTodoTwoUser(TODOTWO_BASE)
   const today = farmToday()
-  const { overdue, mine, unclaimed, doneToday } = await getToday(principal.person.id, today)
+  const { overdue, mine, unclaimed, doneToday, olderOpenCount } = await getToday(
+    principal.person.id,
+    today
+  )
 
   const totalMinutes = [...overdue, ...mine].reduce(
     (sum, task) => sum + (task.estimated_minutes ?? 0),
@@ -93,6 +96,13 @@ export default async function TodayPage() {
           </Surface>
         )}
       </section>
+
+      {olderOpenCount > 0 ? (
+        <p className="text-[13px] text-[var(--tt-ink-3)]">
+          {olderOpenCount} older item{olderOpenCount === 1 ? '' : 's'} still open from more than a
+          month ago, not shown here.
+        </p>
+      ) : null}
 
       {unclaimed.length > 0 ? (
         <section className="flex flex-col gap-2">
