@@ -9,6 +9,7 @@ import {
   ListTodo,
   Megaphone,
   Settings,
+  UsersRound,
   Users,
   type LucideIcon,
 } from 'lucide-react'
@@ -45,6 +46,14 @@ export const NAV_ITEMS: NavItem[] = [
     icon: ListTodo,
     roles: null,
     primary: true,
+  },
+  {
+    href: `${TODOTWO_BASE}/roster`,
+    label: 'Roster',
+    icon: UsersRound,
+    // Everyone: who's doing what today is farm-wide, not staff-only visibility.
+    roles: null,
+    primary: false,
   },
   {
     href: `${TODOTWO_BASE}/routines`,
@@ -126,6 +135,7 @@ export function navItemsForRoles(roles: TodoTwoRole[]): NavItem[] {
 export const IMPLEMENTED_HREFS = new Set<string>([
   TODOTWO_BASE,
   `${TODOTWO_BASE}/upcoming`,
+  `${TODOTWO_BASE}/roster`,
   `${TODOTWO_BASE}/people`,
   `${TODOTWO_BASE}/routines`,
   `${TODOTWO_BASE}/projects`,
