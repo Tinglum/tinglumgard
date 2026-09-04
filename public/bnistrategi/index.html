@@ -1,0 +1,811 @@
+<!doctype html>
+<html lang="no">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BNI som arbeidsmetode</title>
+<meta name="description" content="Strategi- og kommunikasjonsdokument for BNI Norge — for konsulenter, teamledere og partnere.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=Spectral:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap">
+<style>
+  :root{
+    --bg:#FAF8F7;
+    --surface:#FFFFFF;
+    --surface-2:#F3EEEC;
+    --ink:#191413;
+    --ink-soft:#5C534F;
+    --line:#E4DCD8;
+    --line-strong:#D2C7C2;
+    --accent:#CF2030;
+    --accent-ink:#A5121F;
+    --accent-wash:#F7E6E7;
+    --caution:#9A6B12;
+    --caution-wash:#F6EEDD;
+    --shadow:0 1px 2px rgba(25,20,19,.04),0 8px 30px rgba(25,20,19,.06);
+    --frame:1180px;
+    --rail:250px;
+  }
+  :root:not([data-theme="light"]){
+    @media (prefers-color-scheme:dark){
+      --bg:#15100F;
+      --surface:#1D1716;
+      --surface-2:#241C1B;
+      --ink:#EFE8E5;
+      --ink-soft:#AA9D98;
+      --line:#332927;
+      --line-strong:#463A37;
+      --accent:#F0303F;
+      --accent-ink:#FF6E77;
+      --accent-wash:#2A1718;
+      --shadow:0 1px 2px rgba(0,0,0,.3),0 10px 34px rgba(0,0,0,.4);
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#15100F;
+    --surface:#1D1716;
+    --surface-2:#241C1B;
+    --ink:#EFE8E5;
+    --ink-soft:#AA9D98;
+    --line:#332927;
+    --line-strong:#463A37;
+    --accent:#F0303F;
+    --accent-ink:#FF6E77;
+    --accent-wash:#2A1718;
+    --caution:#E0AC55;
+    --caution-wash:#251C12;
+    --shadow:0 1px 2px rgba(0,0,0,.3),0 10px 34px rgba(0,0,0,.4);
+  }
+
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:"Spectral",Georgia,"Times New Roman",serif;
+    font-weight:400;
+    font-size:19px;
+    line-height:1.62;
+    margin:0;
+    -webkit-font-smoothing:antialiased;
+  }
+  .shell{max-width:var(--frame);margin:0 auto;padding:0 28px;
+    display:grid;grid-template-columns:var(--rail) minmax(0,1fr);gap:0}
+  .rail{position:sticky;top:0;align-self:start;max-height:100dvh;overflow:auto;
+    padding:30px 30px 40px 2px;border-right:1px solid var(--line);
+    display:flex;flex-direction:column;gap:22px}
+  .rail .rail-brand{display:flex;align-items:center;gap:9px;font-family:"Archivo";font-weight:800;font-size:15px;letter-spacing:-.01em;color:var(--ink)}
+  .rail .rail-label{font-family:"Archivo";font-size:11px;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:-8px}
+  .doc{min-width:0;padding:0 6px 0 48px}
+  .doc p,.doc .lede,.doc h2,.doc h3,.doc .sub,.doc .loopnote,.doc ul.clean,.doc .lines{max-width:66ch}
+  @media(max-width:900px){
+    .shell{grid-template-columns:1fr;padding:0 22px}
+    .rail{position:static;max-height:none;overflow:visible;border-right:none;border-bottom:1px solid var(--line);
+      padding:20px 0;flex-direction:row;align-items:center;justify-content:space-between;gap:14px}
+    .rail nav.toc,.rail .rail-label{display:none}
+    .doc{padding:0}
+  }
+
+  /* ---- Type ---- */
+  h1,h2,h3,.eyebrow,.label,.pill,.toc,.mast-meta,.role-tag,th,.cta{
+    font-family:"Archivo",system-ui,-apple-system,"Segoe UI",sans-serif;
+  }
+  .eyebrow{
+    font-size:12.5px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--accent-ink);
+  }
+  h1{
+    font-family:"Archivo";font-weight:800;
+    font-size:clamp(38px,7.5vw,62px);line-height:1.02;letter-spacing:-.02em;
+    text-wrap:balance;margin:.28em 0 0;
+  }
+  h2{
+    font-weight:800;font-size:clamp(26px,4.4vw,34px);line-height:1.08;letter-spacing:-.015em;
+    text-wrap:balance;margin:0;
+  }
+  h3{
+    font-weight:700;font-size:20px;line-height:1.2;letter-spacing:-.005em;
+    margin:2.1em 0 .1em;
+  }
+  p{margin:.85em 0}
+  strong{font-weight:600;color:var(--ink)}
+  em{font-style:italic}
+  a{color:var(--accent-ink);text-underline-offset:2px}
+
+  /* ---- Masthead ---- */
+  header.mast{
+    padding:clamp(22px,4vw,40px) 0 26px;
+    border-bottom:1px solid var(--line);
+  }
+  .brandline{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  .brandmark{
+    display:inline-flex;align-items:center;gap:9px;
+    font-family:"Archivo";font-weight:800;letter-spacing:-.01em;font-size:15px;color:var(--ink);
+  }
+  .dot{width:13px;height:13px;border-radius:50%;background:var(--accent);display:inline-block}
+  .brand-sep{width:1px;height:15px;background:var(--line-strong)}
+  .mast-eyebrow{font-family:"Archivo";font-size:12px;font-weight:600;letter-spacing:.15em;text-transform:uppercase;color:var(--ink-soft)}
+  .lede{
+    font-size:clamp(19px,2.4vw,22px);line-height:1.5;color:var(--ink-soft);
+    max-width:38ch;margin:.9em 0 0;font-weight:400;
+  }
+  .lede em{color:var(--ink);font-style:italic}
+  .mast-meta{
+    display:flex;gap:22px;flex-wrap:wrap;margin-top:26px;
+    font-size:12px;letter-spacing:.04em;color:var(--ink-soft);text-transform:uppercase;font-weight:600;
+  }
+  .mast-meta span{display:inline-flex;align-items:center;gap:7px}
+  .mast-meta .dot-sm{width:6px;height:6px;border-radius:50%;background:var(--accent)}
+
+  /* ---- Audience / how to use ---- */
+  .audience{
+    display:grid;grid-template-columns:repeat(3,1fr);gap:1px;
+    background:var(--line);border:1px solid var(--line);border-radius:12px;overflow:hidden;
+    margin:34px 0 10px;
+  }
+  .audience > div{background:var(--surface);padding:18px 18px 20px}
+  .audience .role-tag{
+    font-size:11.5px;font-weight:700;letter-spacing:.13em;text-transform:uppercase;color:var(--accent-ink);
+  }
+  .audience p{font-size:15px;line-height:1.45;margin:.5em 0 0;color:var(--ink-soft)}
+  @media(max-width:620px){.audience{grid-template-columns:1fr}}
+
+  /* ---- TOC ---- */
+  nav.toc{margin:30px 0 6px}
+  nav.toc ol{list-style:none;margin:0;padding:0;counter-reset:toc;
+    border-top:1px solid var(--line)}
+  nav.toc li{counter-increment:toc}
+  nav.toc a{
+    display:flex;gap:16px;align-items:baseline;
+    padding:12px 4px;border-bottom:1px solid var(--line);
+    color:var(--ink);text-decoration:none;transition:color .15s,padding .15s;
+  }
+  nav.toc a:hover{color:var(--accent-ink);padding-left:10px}
+  nav.toc a::before{
+    content:counter(toc,decimal-leading-zero);
+    font-family:"Archivo";font-weight:700;font-size:12px;color:var(--accent-ink);
+    letter-spacing:.05em;min-width:26px;
+  }
+  nav.toc .t{font-family:"Archivo";font-weight:600;font-size:16px;letter-spacing:-.01em}
+  .rail nav.toc{margin:0}
+  .rail nav.toc ol{border-top:none}
+  .rail nav.toc a{padding:6px 0;border-bottom:none;gap:9px;align-items:baseline}
+  .rail nav.toc a:hover{padding-left:5px}
+  .rail nav.toc a::before{min-width:19px;font-size:10.5px}
+  .rail nav.toc .t{font-size:13px;line-height:1.22;text-wrap:balance}
+
+  /* ---- Sections ---- */
+  section.part{padding:52px 0;border-bottom:1px solid var(--line)}
+  .part-head{margin-bottom:22px}
+  .part-num{
+    font-family:"Archivo";font-weight:700;font-size:12px;letter-spacing:.14em;
+    color:var(--accent-ink);text-transform:uppercase;display:block;margin-bottom:10px;
+  }
+  .sub{color:var(--ink-soft);font-size:16px;margin-top:.4em}
+
+  /* ---- Pull quote ---- */
+  .pq{
+    margin:34px 0;padding:2px 0 2px 26px;border-left:3px solid var(--accent);
+  }
+  .pq p{
+    font-family:"Archivo";font-weight:700;font-size:clamp(21px,3.2vw,27px);
+    line-height:1.22;letter-spacing:-.015em;color:var(--ink);margin:0;text-wrap:balance;
+  }
+  .pq .attrib{font-family:"Spectral";font-style:italic;font-weight:400;font-size:16px;color:var(--ink-soft);margin-top:.7em}
+
+  /* ---- Callout (definitions / principles) ---- */
+  .callout{
+    background:var(--surface);border:1px solid var(--line-strong);border-radius:14px;
+    padding:24px 26px;margin:28px 0;box-shadow:var(--shadow);position:relative;overflow:hidden;
+  }
+  .callout::before{content:"";position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--accent)}
+  .callout .label{
+    display:block;font-size:11.5px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--accent-ink);margin-bottom:9px;
+  }
+  .callout .big{
+    font-family:"Archivo";font-weight:700;font-size:20px;line-height:1.3;letter-spacing:-.01em;
+    color:var(--ink);margin:0;
+  }
+  .callout p.small{font-size:16px;color:var(--ink-soft);margin:.7em 0 0}
+  .callout.warn{background:var(--caution-wash)}
+  .callout.warn::before{background:var(--caution)}
+  .callout.warn .label{color:var(--caution)}
+  .callout.principle::before{background:var(--ink-soft)}
+  .callout.principle .label{color:var(--ink-soft)}
+  .callout.principle{background:var(--surface-2)}
+
+  /* two criteria list */
+  .crit{list-style:none;margin:14px 0 0;padding:0;display:flex;flex-direction:column;gap:12px}
+  .crit li{display:flex;gap:14px;align-items:flex-start;font-size:16.5px;line-height:1.4}
+  .crit .n{
+    flex:none;width:26px;height:26px;border-radius:50%;background:var(--accent);color:#fff;
+    font-family:"Archivo";font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center;margin-top:1px;
+  }
+
+  /* ---- Ladder (Reactor/Promoter/Creator) ---- */
+  .ladder{display:flex;flex-direction:column;gap:10px;margin:22px 0}
+  .rung{
+    display:grid;grid-template-columns:auto 1fr;gap:16px;align-items:baseline;
+    padding:14px 18px;background:var(--surface-2);border-radius:10px;
+    border-left:3px solid var(--line-strong);
+  }
+  .rung:nth-child(1){border-left-color:var(--line-strong)}
+  .rung:nth-child(2){border-left-color:color-mix(in srgb,var(--accent) 55%,var(--line-strong))}
+  .rung:nth-child(3){border-left-color:var(--accent)}
+  .rung .rn{font-family:"Archivo";font-weight:700;font-size:15px;letter-spacing:-.01em;color:var(--ink)}
+  .rung .rd{font-size:16px;color:var(--ink-soft);line-height:1.4}
+  .rung .rd em{color:var(--ink);font-style:normal;font-weight:600;font-family:"Spectral"}
+
+  /* ---- Work circle ---- */
+  .circle{
+    display:flex;gap:8px;align-items:stretch;margin:24px 0 10px;
+    overflow-x:auto;padding-bottom:8px;-webkit-overflow-scrolling:touch;
+  }
+  .circle .step{
+    flex:none;min-width:118px;background:var(--surface);border:1px solid var(--line-strong);
+    border-radius:11px;padding:14px 15px;display:flex;flex-direction:column;gap:6px;
+  }
+  .circle .sn{font-family:"Archivo";font-weight:700;font-size:11px;letter-spacing:.1em;color:var(--accent-ink)}
+  .circle .st{font-family:"Archivo";font-weight:700;font-size:15px;letter-spacing:-.01em;color:var(--ink);line-height:1.1}
+  .circle .sd{font-size:13px;color:var(--ink-soft);line-height:1.35}
+  .circle .arrow{flex:none;align-self:center;color:var(--accent);font-size:20px;font-family:"Archivo"}
+  .loopnote{font-size:14px;color:var(--ink-soft);font-style:italic;margin:.2em 0 0}
+
+  /* ---- Formel inline ---- */
+  .formel{
+    font-family:"Archivo";font-weight:700;font-size:clamp(15px,2.5vw,19px);letter-spacing:-.01em;
+    color:var(--ink);background:var(--accent-wash);border-radius:10px;padding:14px 18px;margin:18px 0;
+    text-align:center;line-height:1.5;
+  }
+  .formel .ar{color:var(--accent-ink);padding:0 6px}
+
+  /* ---- Roles ---- */
+  .roleblock{border-left:3px solid var(--accent);padding:2px 0 2px 22px;margin:26px 0}
+  .roleblock .role-tag{font-size:12px;font-weight:700;letter-spacing:.13em;text-transform:uppercase;color:var(--accent-ink)}
+  .roleblock h3{margin:.25em 0 .3em;font-size:19px}
+  .roleblock ul{margin:.4em 0 0;padding-left:1.1em}
+  .roleblock li{margin:.3em 0}
+
+  /* ---- Comparison table ---- */
+  .tablewrap{overflow-x:auto;margin:24px 0;border:1px solid var(--line-strong);border-radius:12px}
+  table{border-collapse:collapse;width:100%;min-width:560px;font-family:"Archivo"}
+  th,td{text-align:left;padding:13px 16px;border-bottom:1px solid var(--line);vertical-align:top}
+  thead th{
+    font-size:11.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-soft);
+    background:var(--surface-2);
+  }
+  tbody td{font-size:14px;line-height:1.35;color:var(--ink-soft)}
+  tbody td:first-child{font-weight:600;color:var(--ink)}
+  tbody tr:last-child td{border-bottom:none;background:var(--accent-wash)}
+  tbody tr:last-child td:first-child{color:var(--accent-ink)}
+
+  /* ---- Comparison cards ---- */
+  .cmp{margin:26px 0}
+  .cmp h3{display:flex;align-items:baseline;gap:12px;margin-top:0}
+  .cmp h3 .cn{font-family:"Archivo";font-weight:800;color:var(--accent-ink);font-size:15px}
+  .cmp .grid{display:flex;flex-direction:column;gap:9px;margin:12px 0 0}
+  .cmp .row{display:grid;grid-template-columns:130px 1fr;gap:14px;align-items:baseline}
+  .cmp .row .k{
+    font-family:"Archivo";font-size:11.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;
+    color:var(--ink-soft);padding-top:2px;
+  }
+  .cmp .row .v{font-size:16px;line-height:1.42}
+  .cmp .say{
+    margin-top:14px;background:var(--surface-2);border-radius:10px;padding:13px 16px;
+    font-style:italic;font-size:15.5px;line-height:1.42;color:var(--ink);
+  }
+  .cmp .say b{font-style:normal;font-family:"Archivo";font-weight:700;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--accent-ink);display:block;margin-bottom:4px}
+  @media(max-width:560px){.cmp .row{grid-template-columns:1fr;gap:2px}.cmp .row .k{padding-top:6px}}
+
+  /* ---- Simple lists ---- */
+  ul.clean{list-style:none;padding:0;margin:16px 0}
+  ul.clean li{padding:9px 0 9px 26px;border-bottom:1px solid var(--line);position:relative;font-size:16.5px;line-height:1.4}
+  ul.clean li::before{content:"";position:absolute;left:4px;top:17px;width:8px;height:8px;background:var(--accent);border-radius:2px}
+  ul.clean li:last-child{border-bottom:none}
+  ul.clean li b,ul.clean li strong{color:var(--ink)}
+
+  .lines{margin:18px 0;padding:0;list-style:none}
+  .lines li{
+    font-family:"Archivo";font-weight:600;font-size:17px;letter-spacing:-.01em;color:var(--ink);
+    padding:8px 0;border-bottom:1px solid var(--line);
+  }
+  .lines li:last-child{border-bottom:none;color:var(--accent-ink)}
+
+  /* ---- Closing ---- */
+  section.close{padding:58px 0 40px}
+  .close .defn{
+    background:var(--ink);color:var(--bg);border-radius:16px;padding:30px 30px 32px;margin:8px 0;
+  }
+  :root[data-theme="dark"] .close .defn,
+  :root:not([data-theme="light"]) .close .defn{background:#000}
+  .close .defn .label{color:var(--accent);font-family:"Archivo";font-size:11.5px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;display:block;margin-bottom:12px}
+  .close .defn p{font-family:"Spectral";font-size:20px;line-height:1.42;margin:0;color:#fff}
+  .close .mantra{
+    text-align:center;padding:40px 10px 6px;
+  }
+  .close .mantra p{
+    font-family:"Archivo";font-weight:800;font-size:clamp(24px,4.6vw,38px);line-height:1.08;
+    letter-spacing:-.02em;color:var(--ink);margin:0;text-wrap:balance;
+  }
+  .close .mantra .hl{color:var(--accent-ink)}
+  .close .nextstep{
+    max-width:60ch;margin:34px auto 0;text-align:center;font-size:16px;line-height:1.5;color:var(--ink-soft);
+    border-top:1px solid var(--line);padding-top:22px;
+  }
+
+  footer{border-top:1px solid var(--line);padding:28px 0 60px;color:var(--ink-soft);font-size:13px}
+  footer .brandmark{font-size:13px;margin-bottom:8px}
+
+  /* ---- Theme toggle ---- */
+  .themebtn{
+    position:fixed;top:16px;right:16px;z-index:50;
+    font-family:"Archivo";font-weight:600;font-size:12px;letter-spacing:.03em;
+    background:var(--surface);color:var(--ink-soft);border:1px solid var(--line-strong);
+    border-radius:999px;padding:7px 13px;cursor:pointer;display:inline-flex;align-items:center;gap:7px;
+    box-shadow:var(--shadow);transition:color .15s,border-color .15s;
+  }
+  .themebtn:hover{color:var(--accent-ink);border-color:var(--accent)}
+  .themebtn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  a:focus-visible,nav.toc a:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:3px}
+
+  /* ---- TLDR ---- */
+  .tldr{background:var(--surface-2);border:1px solid var(--line);border-radius:14px;padding:22px 24px;margin:28px 0 4px}
+  .tldr .eyebrow{display:block;margin-bottom:13px}
+  .tldr ul{list-style:none;margin:0;padding:0;display:grid;gap:9px}
+  .tldr li{padding-left:22px;position:relative;font-size:16px;line-height:1.42}
+  .tldr li::before{content:"";position:absolute;left:2px;top:9px;width:7px;height:7px;border-radius:50%;background:var(--accent)}
+
+  /* ---- Worked example ---- */
+  .example{border:1px solid var(--line-strong);border-radius:12px;padding:20px 22px;margin:20px 0;background:var(--surface)}
+  .example .label{display:block;font-family:"Archivo";font-size:11.5px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--accent-ink);margin-bottom:11px}
+  .example p{margin:.42em 0;font-size:16px;line-height:1.45}
+  .example .note{margin-top:13px;font-size:14.5px;color:var(--ink-soft);font-style:italic}
+
+  /* ---- Gloss ---- */
+  .gloss{font-size:14px;line-height:1.5;color:var(--ink-soft);background:var(--surface-2);border-radius:9px;padding:11px 15px;margin:14px 0}
+  .gloss strong{color:var(--ink)}
+
+  @media (prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
+  html{scroll-behavior:smooth}
+
+  @media print{
+    .themebtn,.rail{display:none!important}
+    .shell{display:block;max-width:none;padding:0}
+    .doc{padding:0;max-width:none}
+    body{background:#fff;color:#000;font-size:11pt;line-height:1.4}
+    .callout,.example,.cmp,.tldr,.circle,.tablewrap,.roleblock,.pq,.formel{break-inside:avoid;page-break-inside:avoid}
+    h2,h3{break-after:avoid}
+    a{color:#000;text-decoration:none}
+    .close .defn{background:#000!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  }
+</style>
+</head>
+<body>
+<button class="themebtn" id="themebtn" aria-label="Bytt fargetema">◐ Tema</button>
+
+<div class="shell">
+
+  <aside class="rail">
+    <div class="rail-brand"><span class="dot"></span>BNI&nbsp;NORGE</div>
+    <div class="rail-label">Innhold</div>
+    <nav class="toc" aria-label="Innhold">
+      <ol>
+        <li><a href="#del1"><span class="t">Hva BNI er</span></a></li>
+        <li><a href="#del2"><span class="t">Det er ikke nok å være flink</span></a></li>
+        <li><a href="#del3"><span class="t">Referansen</span></a></li>
+        <li><a href="#del4"><span class="t">Arbeidsmetoden</span></a></li>
+        <li><a href="#del5"><span class="t">Tillit er en sideeffekt</span></a></li>
+        <li><a href="#del6"><span class="t">Givers Gain i praksis</span></a></li>
+        <li><a href="#del7"><span class="t">De riktige menneskene</span></a></li>
+        <li><a href="#del8"><span class="t">BNI som utviklingsprogram</span></a></li>
+        <li><a href="#del9"><span class="t">Hva dette betyr for deg</span></a></li>
+        <li><a href="#del10"><span class="t">Slik forklarer vi BNI</span></a></li>
+      </ol>
+    </nav>
+  </aside>
+
+  <main class="doc">
+
+  <header class="mast">
+    <span class="eyebrow">Strategi &amp; kommunikasjon · Nasjonalt referansedokument</span>
+    <h1>BNI er en arbeidsmetode</h1>
+    <p class="lede">En felles forståelse av hva vi lærer bort, og hvorfor metoden skaper referanser, verdi og <em>målbar business</em>.</p>
+    <div class="mast-meta">
+      <span><span class="dot-sm"></span>Konsulenter</span>
+      <span><span class="dot-sm"></span>Teamledere</span>
+      <span><span class="dot-sm"></span>Partnere</span>
+    </div>
+
+    <div class="audience">
+      <div>
+        <span class="role-tag">Partner</span>
+        <p>Forstå hva du faktisk trener på — og hva du skal gjøre før neste møte.</p>
+      </div>
+      <div>
+        <span class="role-tag">Teamleder</span>
+        <p>Se hvilken arbeidsflyt agendaen skal beskytte, ledd for ledd.</p>
+      </div>
+      <div>
+        <span class="role-tag">Konsulent &amp; trener</span>
+        <p>Ett felles språk, én metode — å coache team og partnere mot resultat.</p>
+      </div>
+    </div>
+  </header>
+
+  <section class="tldr" aria-label="Kjernen på 30 sekunder">
+    <span class="eyebrow">Kjernen på 30 sekunder</span>
+    <ul>
+      <li><strong>BNI er en arbeidsmetode</strong> for å skape referanser, verdi og målbar business gjennom relasjoner — ikke et sted du bare møter opp.</li>
+      <li><strong>Gjør deg refererbar:</strong> lær teamet hvilket problem du løser, ikke hele bedriften din.</li>
+      <li><strong>Sirkelen:</strong> møte → 1-til-1 → referanse → business → rapportering, hver uke.</li>
+      <li><strong>En referanse</strong> = et reelt behov + en person som venter på kontakten. Ikke et tips.</li>
+      <li><strong>Tillit</strong> vokser frem som en sideeffekt av å gjøre metoden — den er verken målet eller et forkrav.</li>
+    </ul>
+  </section>
+
+  <!-- DEL 1 -->
+  <section class="part" id="del1">
+    <div class="part-head">
+      <span class="part-num">Del 1</span>
+      <h2>Hva BNI er — og hva det kan skape</h2>
+      <p class="sub">Nettverket er råstoffet. Arbeidsmetoden er motoren.</p>
+    </div>
+    <p><strong>BNI er en strukturert arbeidsmetode for å skape referanser, verdi og målbar business gjennom relasjoner og nettverk.</strong></p>
+    <p>Metoden starter enkelt: vi møter mennesker som har problemer og behov. Samtidig kjenner vi mennesker som kan løse mange av dem — også partnere vi nettopp har blitt kjent med. Når vi lærer å gjenkjenne behovene, huske de riktige problemløserne og koble dem sammen med en god introduksjon, skaper vi verdi: for den som trenger hjelp, for partneren vi introduserer, og for oss selv, fordi vi blir mennesker som skaper verdi i nettverket vårt.</p>
+    <p>Gjort godt, over tid, gir det deg flere kvalifiserte referanser, nye kunder og en målbar andel av omsetningen — samtidig som du bygger et sterkere profesjonelt nettverk og blir bedre til å bruke <em>alle</em> nettverkene dine.</p>
+
+    <h3>BNI starter når du hører et behov</h3>
+    <p>En kunde har ikke kontroll på økonomien. En venn oppdager fukt i det nye huset. En bedriftsleder gruer seg til en personalsamtale. En styreleder sier strømregningen er blitt et problem. En nettside får mye trafikk, men nesten ingen henvendelser.</p>
+    <p>Dette er øyeblikkene hvor BNI skjer. Den trente reaksjonen er ett spørsmål:</p>
+    <div class="pq"><p>«Hvem kjenner jeg som kan hjelpe denne personen?»</p></div>
+    <p>Når det blir en vane, lever BNI utenfor møtet. Da er ikke BNI noe du <em>går på</em>. Det blir en måte du jobber på.</p>
+
+    <h3>Slik forklarer mange det — og hvorfor det ikke helt stemmer</h3>
+    <p>Når partnere skal beskrive BNI, griper de ofte til det som <em>høres</em> riktigst ut ut fra det de tror: «det er et nettverk der vi møtes og presenterer oss», «et sted du blir synlig», «en gjeng bedrifter som kan selge for deg». Det er lett å forstå — men det beskriver rommet, ikke metoden, og det skaper feil forventning hos en ny partner.</p>
+    <p>BNI er ikke en minglearena, ikke en presentasjonsrunde, og partnerne dine er ikke selgere for bedriften din. <strong>BNI er noe du gjør</strong> — en arbeidsmetode som setter deg i stand til å hjelpe mennesker gjennom nettverket ditt, og som gir business tilbake når hele teamet jobber sånn.</p>
+  </section>
+
+  <!-- DEL 2 -->
+  <section class="part" id="del2">
+    <div class="part-head">
+      <span class="part-num">Del 2</span>
+      <h2>Det er ikke nok å være flink. Du må være refererbar.</h2>
+    </div>
+    <p>Å vite at «Anne er advokat» forteller meg hva hun <em>gjør</em>. Det forteller meg ikke <strong>når jeg skal tenke på henne</strong>. En partner blir refererbar når de andre forstår <strong>hva partneren hjelper kunden med</strong> godt nok til å kjenne igjen situasjonen ute i sin egen hverdag — hvilket problem partneren løser, og hvem som har det. Det handler om å forstå hva du løser, ikke om å kjenne deg godt.</p>
+    <p>Faglig dyktighet og refererbarhet er to forskjellige ting. Du kan være fantastisk i jobben din, men klarer ingen rundt deg å kjenne igjen når noen trenger deg, blir det vanskelig å skape referanser til deg.</p>
+    <div class="pq"><p>Du må være flink. Og du må være refererbar.</p></div>
+    <p>Du gjør deg ikke refererbar ved å lære partnerne hele businessen din. Du gjør det ved å lære dem <strong>hva de skal lytte etter</strong>: hva kunden sier før de vet at de trenger deg, hva de er frustrerte over, hva som nettopp skjedde, hva problemet koster, og hvem som møter disse menneskene før du gjør det.</p>
+    <p>Produkter, bransjelister og tekniske detaljer glemmes. <strong>Situasjoner og problemer er mulig å kjenne igjen.</strong> Det er derfor vi trener på kundecase.</p>
+  </section>
+
+  <!-- DEL 3 -->
+  <section class="part" id="del3">
+    <div class="part-head">
+      <span class="part-num">Del 3</span>
+      <h2>Referansen</h2>
+      <p class="sub">Behov først — og en god introduksjon, ikke en «trygg» en.</p>
+    </div>
+    <p>En referanse er ikke et navn. Ikke <em>«Du burde ringe Per.»</em> Ikke <em>«Jeg så en bedrift som kanskje trenger deg.»</em> «Referanse» er en dårlig oversettelse av <em>referral</em> og kan bety nesten hva som helst. Derfor har BNI en presis definisjon — med to kriterier, og begge må være oppfylt:</p>
+
+    <div class="callout">
+      <span class="label">Definisjonen</span>
+      <p class="big">En referanse er en enkel introduksjon mellom et faktisk behov og en mulig løsning. Ikke en garanti. Ikke en anbefaling.</p>
+      <ul class="crit">
+        <li><span class="n">1</span><span><strong>Et reelt, eksisterende behov — akkurat nå.</strong> Ikke en antakelse om at noen <em>kanskje</em> kunne trengt noe en gang.</span></li>
+        <li><span class="n">2</span><span><strong>Personen ser frem til at partneren tar kontakt</strong> — den har akseptert og forventer kontakten.</span></li>
+      </ul>
+      <p class="small">Mangler ett kriterium, har du et <em>tips</em> eller en <em>mulighet</em> — noe helt annet. Startpunktet er ikke hvem du vil ha som kunde. Startpunktet er at noen har et behov. Og det verste du kan få, er et «nei takk».</p>
+    </div>
+
+    <div class="callout warn">
+      <span class="label">Viktig presisering</span>
+      <p class="big">Det handler om en <em>god</em> introduksjon — ikke en «trygg» en.</p>
+      <p class="small">Verdien ligger i koblingen behov ↔ riktig problemløser, ikke i at du kjenner begge godt. En utmerket introduksjon kan gå mellom en person du nettopp møtte og en helt fersk BNI-partner som jobber med akkurat det problemet. Du sitter ved siden av en fremmed på flyet som trenger en skredder: <em>«Jeg kjenner henne ikke så godt, men vil du at jeg setter dere i kontakt?»</em> Det er en god referanse.</p>
+    </div>
+
+    <h3>Tre nivåer å referere fra</h3>
+    <p>De blir gradvis sterkere. De fleste starter som Reactor; over tid beveger man seg oppover.</p>
+    <div class="ladder">
+      <div class="rung"><span class="rn">Reactor</span><span class="rd">Du <em>reagerer</em> når noen spør deg direkte: «Kjenner du en som lager nettsider?»</span></div>
+      <div class="rung"><span class="rn">Promoter</span><span class="rd">Du <em>fanger opp</em> et behov og tar initiativ: «Artig at du nevner det — skal jeg introdusere dere?»</span></div>
+      <div class="rung"><span class="rn">Creator</span><span class="rd">Du <em>skaper</em> muligheten selv, fordi du kjenner teamet så godt at du ser den uten å bli spurt.</span></div>
+    </div>
+    <p>Alltid tre involverte: <strong>personen med behovet</strong>, <strong>partneren som åpner døren</strong>, <strong>partneren som løser problemet</strong>. Giveren gjør mer enn å sende informasjon — giveren setter sitt eget navn og sin egen relasjon bak koblingen. Derfor må referansen håndteres godt.</p>
+  </section>
+
+  <!-- DEL 4 -->
+  <section class="part" id="del4">
+    <div class="part-head">
+      <span class="part-num">Del 4</span>
+      <h2>Arbeidsmetoden</h2>
+      <p class="sub">Én sammenhengende sirkel — ikke løsrevne aktiviteter.</p>
+    </div>
+
+    <div class="circle" role="img" aria-label="Arbeidssirkelen: Møte, 1-til-1, referanse, business og TFB, rapportering — og rundt igjen">
+      <div class="step"><span class="sn">01</span><span class="st">Møte</span><span class="sd">Lytt etter hvem du kan hjelpe.</span></div>
+      <span class="arrow">→</span>
+      <div class="step"><span class="sn">02</span><span class="st">1-til-1</span><span class="sd">Gjør muligheten konkret.</span></div>
+      <span class="arrow">→</span>
+      <div class="step"><span class="sn">03</span><span class="st">Referanse</span><span class="sd">Lag en god introduksjon.</span></div>
+      <span class="arrow">→</span>
+      <div class="step"><span class="sn">04</span><span class="st">Business / TFB</span><span class="sd">Synliggjør resultatet.</span></div>
+      <span class="arrow">→</span>
+      <div class="step"><span class="sn">05</span><span class="st">Rapportering</span><span class="sd">Gjør bidraget synlig.</span></div>
+    </div>
+    <p class="loopnote">…og så begynner vi på nytt. Ingen av delene er kompliserte alene — kraften ligger i at de gjøres igjen og igjen.</p>
+    <p class="gloss"><strong>TFB</strong> = Takk For Business: takken som registreres når en referanse blir til faktisk omsetning. <strong>Givers Gain</strong> = BNIs kjerneverdi — den som gir, får.</p>
+
+    <h3>Ukens kundecase — trening i å gjenkjenne en referanse</h3>
+    <p>Ikke en bedriftspresentasjon. Målet er at partnerne forlater møtet med ett tydelig bilde av <strong>én situasjon de kan kjenne igjen denne uken</strong>. Et godt kundecase gjør fire ting: fang oppmerksomheten, beskriv problemet, vis løsningen og effekten, be om referansen.</p>
+    <div class="formel">FANG OPPMERKSOMHETEN <span class="ar">→</span> PROBLEM <span class="ar">→</span> LØSNING &amp; EFFEKT <span class="ar">→</span> BE OM REFERANSEN</div>
+    <div class="example">
+      <span class="label">Kundecaset i praksis</span>
+      <p><strong>Fang oppmerksomheten.</strong> «Jeg sparte et borettslag en kvart million i året.»</p>
+      <p><strong>Problemet.</strong> De hadde investert i solceller, men solgte overskuddsstrømmen altfor billig.</p>
+      <p><strong>Løsning &amp; effekt.</strong> Vi løste det — nå tjener de over 250 000 i året.</p>
+      <p><strong>Be om referansen.</strong> «Hjelp en styreleder i et borettslag å bli en helt — introduser dem til meg.»</p>
+      <p class="note">Tall + problem + hvem du leter etter. Lett nok til at en tredjepart kan gjenta den. Ikke avslutt med «ta kontakt hvis du vet om noen» — det er for svakt.</p>
+    </div>
+    <p>Det avgjørende punktet er <strong>gjenkjennelse</strong>. Partneren skal sitte i en samtale tre dager senere og tenke: <em>«Vent — dette er akkurat det elektrikeren snakket om på torsdag.»</em></p>
+    <p>Slik lytter vi i praksis: I møtet lærer vi hvilke <em>problemer</em> hver partner løser, og legger dem i <strong>ryggsekken</strong>. Så bærer vi den ut i hverdagen og lytter ikke etter «noe som helst», men <strong>spesifikt</strong> etter mennesker som har akkurat de problemene. Hører vi behovet, trekker vi ut den riktige partneren og introduserer. <strong>Ukens Taler</strong> har samme mål — det er <em>referrals × 3</em>: du lærer teamet flere kundesituasjoner, kundens språk og symptomene. Tre korte case slår én lang presentasjon.</p>
+
+    <h3>1-til-1 — motoren som gjør møtet om til referanser</h3>
+    <p>1-til-1 er ikke bare kaffe og kjemi. Relasjonen er ikke et forkrav — den vokser frem gjennom arbeidet. Målet er å forstå hva hverandre løser godt nok til å skape referanser. Noen ganger trenger dere en time, andre ganger ti minutter. Den viktigste 1-til-1-en er sjelden den lengste; det er den med partneren det er enklest å gi en referanse til <em>denne uka</em>.</p>
+    <p>Et godt 1-til-1 beveger seg gjennom tre nivåer:</p>
+    <div class="ladder">
+      <div class="rung"><span class="rn">Forstå</span><span class="rd">Hvem hjelper du, og hvilke problemer løser du?</span></div>
+      <div class="rung"><span class="rn">Identifiser</span><span class="rd">Hvem kjenner jeg som bør introduseres til deg?</span></div>
+      <div class="rung"><span class="rn">Handle &amp; følg opp</span><span class="rd">Hva gjør vi nå, og hvem gjør det først?</span></div>
+    </div>
+    <p><strong>Skjemaet er ikke papirarbeid — det er et kart.</strong> Det tvinger frem et avgjørende skille: <strong>kunden</strong> trenger løsningen din; <strong>referansekilden</strong> møter kunden din <em>før</em> deg, fra en annen vinkel (megler, bank, advokat, håndverker); <strong>kontaktsirkelen</strong> er ekspertområdene i teamet som arbeider rundt de samme menneskene uten å konkurrere. Mesteparten av referansene kommer fra kontaktsirkelen — fordi de menneskene ser situasjonene før du gjør.</p>
+
+    <h3>Oppfølgingen — og din personlige merkevare</h3>
+    <p>En god referanse slutter ikke når den registreres. Den begynner der. Dette <em>er</em> din personlige merkevare i BNI — ikke logoen, ikke nettsiden, ikke hvor flink du sier at du er. Din merkevare er <strong>mønsteret partnerne dine ser over tid</strong>: Møter du opp? Er du forberedt? Lytter du? Følger du opp? Behandler du menneskene de introduserer deg til slik at de har lyst til å åpne neste dør?</p>
+    <div class="pq"><p>Partnerne refererer mønsteret ditt, ikke løftene dine.</p></div>
+
+    <h3>Rapportering</h3>
+    <p>Ikke administrasjon. <em>Det vi rapporterer, blir synlig. Det som blir synlig, kan anerkjennes, læres av og forbedres.</em> Vi rapporterer <strong>kun gitte bidrag</strong> — «jeg inviterte», ikke «jeg skal invitere». «Jeg ga en referanse», ikke «jeg har kanskje en». Får intensjoner telle som bidrag, mister tallene verdi.</p>
+    <div class="pq"><p>Gjør jobben. Rapporter jobben. Lær av jobben. Gjør det igjen.</p></div>
+
+    <h3>Power of One — minimumsrytmen</h3>
+    <p>Vi møtes hver uke ikke fordi et møte i seg selv skaper business, men fordi <strong>rytme slår intensitet</strong>. Power of One er minimumsrytmen for aktivt partnerskap — ikke en premie for de ekstra ivrige:</p>
+    <div class="formel">ETT MØTE <span class="ar">·</span> ÉN 1-TIL-1 <span class="ar">·</span> ÉN REFERANSE I UKA <span class="ar">·</span> ÉN GJEST I MÅNEDEN</div>
+    <p>Én 1-til-1 i uka høres lite ut. Etter ett år er det 40–45 fokuserte samtaler. Vil du ha tilfeldige resultater, gjør du tilfeldig aktivitet; vil du ha forutsigbare resultater, trenger du forutsigbar aktivitet. Derfor kobles et BNI-mål alltid til ett spørsmål: <em>«Hvilken ukentlig atferd er jeg villig til å gjennomføre for å komme dit?»</em></p>
+  </section>
+
+  <!-- DEL 5 -->
+  <section class="part" id="del5">
+    <div class="part-head">
+      <span class="part-num">Del 5</span>
+      <h2>Tillit er en sideeffekt — ikke målet</h2>
+    </div>
+    <p>En <em>god</em> introduksjon krever ikke at du kjenner begge godt, og du trenger ikke ha bygget en relasjon før du kan referere. Her er den viktige tilføyelsen.</p>
+    <p>Over tid skjer det likevel noe mer. Når du gjør metoden uke etter uke — møter forberedt, følger opp, leverer — vokser det frem ekte tillit og dype relasjoner i teamet. Og når den tilliten først er der, låser den opp det høyeste nivået: <strong>Creator</strong>. Du kjenner partnerne så godt at du aktivt <em>skaper</em> referanser og kobler mennesker sammen.</p>
+    <div class="callout">
+      <span class="label">Vær presis på dette</span>
+      <p class="big">Den dype tilliten og vennskapene som oppstår, er ikke målet med BNI. De er en fantastisk sideeffekt av å gjøre metoden — ikke grunnen til at vi gjør den.</p>
+    </div>
+    <p>Forskjellen er avgjørende. Gjør du <strong>relasjonen</strong> til målet, ender du med et hyggelig nettverksmøte. Gjør du <strong>metoden</strong> til målet, får du referanser og business <em>nå</em> — og relasjonen vokser frem på kjøpet, over tid, som en bonus som gjør metoden enda kraftigere.</p>
+    <p>Så vi jager ikke tilliten. Vi gjør jobben. Rekkefølgen er: <strong>metode først, tillit som følge, Creator som resultat.</strong></p>
+  </section>
+
+  <!-- DEL 6 -->
+  <section class="part" id="del6">
+    <div class="part-head">
+      <span class="part-num">Del 6</span>
+      <h2>Givers Gain i praksis</h2>
+    </div>
+    <p>Givers Gain er <em>ikke</em> en byttehandel — ikke «jeg ga deg mandag, du skylder meg tirsdag», og ikke å produsere flest mulig navn for å rapportere aktivitet.</p>
+    <div class="pq"><p>Givers Gain handler om kvalitet, ikke kvantitet.</p></div>
+    <p>Jeg trener meg til å lytte etter problemer jeg kan hjelpe andre med. Jeg lærer hva partnerne løser godt nok til å vite når de er riktig løsning. Jeg kobler når jeg ser en reell mulighet, introduserer slik at begge relasjoner ivaretas, og følger opp. Jo mer synlig det er at du gir, jo mer får du — derfor rapporterer vi.</p>
+    <p>Når et helt team jobber slik, tenker partnerne på hverandre også utenfor møtet, og tilliten i teamet vokser som en følge. Da har Givers Gain blitt <strong>atferd</strong>, ikke en verdi på en plakat.</p>
+  </section>
+
+  <!-- DEL 7 -->
+  <section class="part" id="del7">
+    <div class="part-head">
+      <span class="part-num">Del 7</span>
+      <h2>De riktige menneskene er viktigere enn flest mennesker</h2>
+    </div>
+    <p>Målet er ikke et stort team fordi tallet ser bra ut. Målet er et sterkt team som skaper mer verdi. En riktig ny partner tilfører <strong>kompetanse, relasjoner og nye muligheter til å hjelpe</strong> — og styrker en kontaktsirkel så referanser kan bevege seg mellom flere ekspertområder.</p>
+    <div class="pq"><p>Gjester er ikke publikum.</p></div>
+    <p>Vi inviterer strategisk: mennesker som kan få verdi fra teamet og tilføre verdi til det. Strategisk invitasjon starter med <strong>hullet teamet har</strong>, ikke med hvem som er hyggelig. Vekst for vekstens skyld er ikke målet. Riktige mennesker styrker referanseflyten.</p>
+  </section>
+
+  <!-- DEL 8 -->
+  <section class="part" id="del8">
+    <div class="part-head">
+      <span class="part-num">Del 8</span>
+      <h2>BNI som utviklingsprogram</h2>
+      <p class="sub">Fordi arbeidsmetoden krever ferdigheter — som må trenes.</p>
+    </div>
+    <p>Partnerne trener på å lytte etter behov, gjøre egen ekspertise refererbar, stille gode spørsmål, forstå referansekilder, bygge kontaktsirkler, gjennomføre målrettede 1-til-1, gjøre gode introduksjoner og følge opp. Dette blir man ikke god på ved å høre om det én gang. Det må praktiseres. Derfor er BNI mer enn teamet — det er et <strong>læringssystem rundt arbeidsmetoden.</strong></p>
+    <p><strong>MSP</strong> skaper overgangen fra <em>«Jeg har blitt med i et nettverk»</em> til <em>«Jeg bruker en strukturert arbeidsmetode for å skape referanser, verdi og målbar business.»</em> Partneren skal gå ut og vite <strong>hva de skal gjøre før neste møte</strong>. Vi lover ikke omsetning første dag — men vi lærer heller ingen å sitte passive i seks måneder og vente. <strong>Resultater starter når handlingen starter.</strong> Og all trening måles på samme kriterium: <em>«Bra. Hva gjør du annerledes neste uke?»</em> Målet med læring i BNI er ikke mer informasjon. Det er bedre atferd.</p>
+
+    <h3>Fire kjente programmer — samme grunnlov</h3>
+    <p>Vi sammenligner ikke BNI med andre programmer for å låne status, men fordi det avslører hvilken <em>kategori</em> BNI hører hjemme i. Alle fire deler én pedagogisk grunnlov:</p>
+    <div class="callout principle">
+      <span class="label">Det pedagogiske prinsippet</span>
+      <p class="big">Du utvikler en ferdighet gjennom struktur, praksis, repetisjon, tilbakemelding og anvendelse i virkeligheten — ikke ved å høre om den én gang.</p>
+    </div>
+
+    <div class="cmp">
+      <h3><span class="cn">01</span> Dale Carnegie</h3>
+      <div class="grid">
+        <div class="row"><span class="k">Hva det er</span><span class="v">Trening i kommunikasjon, relasjoner, påvirkning og lederskap.</span></div>
+        <div class="row"><span class="k">Hvordan</span><span class="v">Deltakerne trener i gruppe, øver på egne situasjoner og anvender oppgaver på jobben <em>mellom</em> samlingene. Læringen skjer i mellomrommet.</span></div>
+        <div class="row"><span class="k">Parallellen</span><span class="v">Begge sender deg ut for å bruke det du lærte, og henter deg tilbake med erfaring.</span></div>
+        <div class="row"><span class="k">Forskjellen</span><span class="v">Der Dale Carnegie øver i konstruerte situasjoner, er BNIs «øving» samtidig reell business.</span></div>
+      </div>
+      <div class="say"><b>Sagt enkelt</b>«Dale Carnegie lærer deg ikke kommunikasjon ved å lese om det — du trener, du bruker det, du kommer tilbake. BNI gjør det samme med referanser. Forskjellen er at hos oss er øvelsen ekte business.»</div>
+    </div>
+
+    <div class="cmp">
+      <h3><span class="cn">02</span> Toastmasters</h3>
+      <div class="grid">
+        <div class="row"><span class="k">Hva det er</span><span class="v">Klubbasert utvikling av tale-, presentasjons- og lederferdigheter.</span></div>
+        <div class="row"><span class="k">Hvordan</span><span class="v">Faste roller, jevnlige møter, en utpekt evaluator som gir konkret tilbakemelding, mentoring og repetisjon.</span></div>
+        <div class="row"><span class="k">Parallellen</span><span class="v">Samme mekanikk — agenda, roller, ukesrytme, oppfølging — men rettet mot referanseferdighet.</span></div>
+        <div class="row"><span class="k">Forskjellen</span><span class="v">I Toastmasters er talen målet. I BNI er treningen koblet til reelle behov og faktisk omsetning.</span></div>
+      </div>
+      <div class="say"><b>Sagt enkelt</b>«Toastmasters gjør deg til en bedre taler ved at du taler, hver uke, med tilbakemelding. BNI gjør deg til en bedre referansebygger på samme måte — bare at resultatet vårt er business, ikke applaus.»</div>
+    </div>
+
+    <div class="cmp">
+      <h3><span class="cn">03</span> BI — lederutvikling</h3>
+      <div class="grid">
+        <div class="row"><span class="k">Hva det er</span><span class="v">Lederprogrammer der ledere utvikler sin egen lederevne over tid.</span></div>
+        <div class="row"><span class="k">Hvordan</span><span class="v">Teori kombinert med refleksjon, samspill og konkret anvendelse i egen arbeidshverdag mellom modulene.</span></div>
+        <div class="row"><span class="k">Parallellen</span><span class="v">Man investerer ikke for at BI skal lede bedriften — man investerer for å bli bedre selv. Slik er det med BNI også.</span></div>
+        <div class="row"><span class="k">Forskjellen</span><span class="v">Et lederprogram anvendes i egen bedrift, ofte alene. BNI anvendes i et team som jobber sammen om de samme mulighetene.</span></div>
+      </div>
+      <div class="say"><b>Sagt enkelt</b>«Ingen tar en lederutdanning for at skolen skal styre bedriften deres. De tar den for å bli en bedre leder selv. Ikke bli med i BNI for at BNI skal skaffe deg kunder — bli med for å bli den som skaper business gjennom nettverket sitt.»</div>
+    </div>
+
+    <div class="cmp">
+      <h3><span class="cn">04</span> Innovasjon Norge</h3>
+      <div class="grid">
+        <div class="row"><span class="k">Hva det er</span><span class="v">Virkemiddelapparat for innovasjon og bedriftsutvikling.</span></div>
+        <div class="row"><span class="k">Hvordan</span><span class="v">Bruker nettverk, samarbeid og kompetanse som bevisste virkemidler — kobler bedrifter til relasjoner de ikke hadde fra før.</span></div>
+        <div class="row"><span class="k">Parallellen</span><span class="v">Samme grunntanke: nettverket er et virkemiddel for vekst, ikke bare et sosialt gode.</span></div>
+        <div class="row"><span class="k">Forskjellen</span><span class="v">Der de bruker nettverk som ett av flere virkemidler, gjør BNI det om til en ukentlig arbeidsmetode du faktisk gjør.</span></div>
+      </div>
+      <div class="say"><b>Sagt enkelt</b>«Innovasjon Norge sier at bedrifter vokser gjennom nettverk og samarbeid. Vi er helt enige — vi har bare gjort det om til en metode du bruker hver uke, i stedet for et virkemiddel du søker om.»</div>
+    </div>
+
+    <h3>Hva gjør da BNI unikt?</h3>
+    <p>Ingen av de fire gjør alt på én gang. Det er <strong>kombinasjonen</strong> som er BNI: en metode, kompetanse, trening, et profesjonelt nettverk, en reell arena, tillit som vokser frem over tid, ansvarlighet og målbare resultater.</p>
+
+    <div class="tablewrap">
+      <table>
+        <thead>
+          <tr><th>Program</th><th>Ferdighet i</th><th>Kjernemekanikk</th><th>Arenaen</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Dale Carnegie</td><td>Kommunikasjon &amp; relasjoner</td><td>Trening + anvendelse mellom samlinger</td><td>Øvingen er konstruert</td></tr>
+          <tr><td>Toastmasters</td><td>Kommunikasjon &amp; presentasjon</td><td>Faste roller, praksis, tilbakemelding</td><td>Talen er målet</td></tr>
+          <tr><td>BI lederutvikling</td><td>Ledelse</td><td>Teori + refleksjon + anvendelse</td><td>I egen bedrift, alene</td></tr>
+          <tr><td>Innovasjon Norge</td><td>Bedriftsutvikling &amp; vekst</td><td>Nettverk &amp; samarbeid som virkemiddel</td><td>Nettverk som virkemiddel</td></tr>
+          <tr><td>BNI</td><td>Nettverksbasert forretningsutvikling</td><td>Ukentlig arbeidsmetode + trening + team</td><td>Ja — ekte behov og omsetning</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p><strong>Ett råd når du bruker sammenligningen:</strong> ikke ramse opp alle fire. Velg <em>én</em> som treffer rommet — Toastmasters hvis noen tenker BNI «bare er et møte», BI hvis noen forventer at BNI skal gjøre jobben for dem. Land alltid på BNIs forskjell: <strong>her er treningsarenaen samtidig virkelig.</strong></p>
+  </section>
+
+  <!-- DEL 9 -->
+  <section class="part" id="del9">
+    <div class="part-head">
+      <span class="part-num">Del 9</span>
+      <h2>Hva dette betyr for deg</h2>
+    </div>
+
+    <div class="roleblock">
+      <span class="role-tag">Partner</span>
+      <h3>Jobben er ikke å møte opp — det er å bruke metoden.</h3>
+      <ul>
+        <li>Kom forberedt, lytt, lær hvem partnerne kan hjelpe.</li>
+        <li>Gjør deg refererbar — beskriv problemer, ikke tittelen din.</li>
+        <li>Book 1-til-1, gjør introduksjonen riktig, følg opp, rapporter, gjør det igjen.</li>
+      </ul>
+    </div>
+
+    <div class="roleblock">
+      <span class="role-tag">Teamleder</span>
+      <h3>Agendaen er verktøyet — oppgaven er å beskytte arbeidsflyten.</h3>
+      <ul>
+        <li>Lytter folk? Skaper kundecasene gjenkjennelse?</li>
+        <li>Fører møtet til 1-til-1, og 1-til-1 til referanser?</li>
+        <li>Er referansene reelle? Følger partnerne opp? Rapporterer vi faktiske bidrag?</li>
+      </ul>
+    </div>
+
+    <div class="roleblock">
+      <span class="role-tag">Konsulent &amp; trener</span>
+      <h3>Oppgaven er ikke å administrere BNI — men å hjelpe team og partnere å mestre metoden.</h3>
+      <ul>
+        <li>Når noe ikke virker, finn hvor arbeidsflyten lekker.</li>
+        <li>For brede case? Uklar lytting? 1-til-1 som blir kaffeprat? Tips forvekslet med referanser?</li>
+        <li>Trening skal løse et problem i metoden — ikke bare være interessant.</li>
+      </ul>
+    </div>
+
+    <h3>Én nasjonal metode</h3>
+    <p>Vi kan bruke ulike historier, lokale eksempler og tilpasse språket til rommet. Men <strong>kjernen kan ikke skifte fra trener til trener eller region til region.</strong> Hva en referanse er, hva et 1-til-1 skal skape, hvorfor vi bruker kundecase, hva Givers Gain betyr, hva rapportering synliggjør — alt dette må være det samme. MSP, BNI-kompasset, mentorarbeidet, utdanningspunktene, teamledelsen og konsulentarbeidet skal trekke i samme retning. Da trener vi ikke forskjellige versjoner av BNI. Vi trener <strong>én arbeidsmetode, med stadig større ferdighet.</strong></p>
+  </section>
+
+  <!-- DEL 10 -->
+  <section class="part" id="del10">
+    <div class="part-head">
+      <span class="part-num">Del 10</span>
+      <h2>Slik forklarer vi BNI</h2>
+    </div>
+    <p>Ikke <em>«en gruppe bedrifter som presenterer seg for hverandre»</em>. Ikke <em>«30 selgere som skal selge for deg»</em>. Ikke <em>«kom på møtet, så får du referanser».</em></p>
+    <div class="callout">
+      <span class="label">Til en mulig partner</span>
+      <p class="big">«BNI er en strukturert arbeidsmetode for å skape business gjennom relasjoner og nettverk. Du blir en del av et team som lærer hvilke problemer hverandre kan løse. Hver uke trener dere på å gjenkjenne mennesker i nettverkene deres som har disse behovene, og koble dem til riktig partner med en god introduksjon. Samtidig lærer du å gjøre deg selv mer refererbar og bruke hele ditt eget nettverk bedre.»</p>
+    </div>
+
+    <h3>Hele BNI på noen få linjer</h3>
+    <ul class="lines">
+      <li>Lytt etter problemer.</li>
+      <li>Lær hvem som kan løse dem.</li>
+      <li>Bruk 1-til-1 til å gjøre muligheten konkret.</li>
+      <li>Lag en god introduksjon.</li>
+      <li>Følg opp.</li>
+      <li>Rapporter det du faktisk gjorde.</li>
+      <li>Lær. Gjør det igjen neste uke.</li>
+    </ul>
+
+    <h3>Kjernen</h3>
+    <ul class="clean">
+      <li>BNI handler ikke om å presentere businessen din — det handler om å gjøre deg <strong>refererbar</strong>.</li>
+      <li>Ikke om at partnerne skal selge for deg — men å lære dem <strong>hvilke problemer de skal gjenkjenne</strong>.</li>
+      <li>Ikke om flest mulig navn — en referanse har <strong>et reelt behov og en person som venter på kontakten</strong>.</li>
+      <li>Ikke om flest mulig i rommet — men <strong>de riktige menneskene som styrker referanseflyten</strong>.</li>
+      <li>Ikke om å vite mest mulig om BNI — men <strong>å gjøre arbeidsmetoden</strong>.</li>
+      <li>Ikke bare om nettverket du får — men ferdigheten til å bruke <strong>alle nettverkene dine bedre</strong>.</li>
+    </ul>
+  </section>
+
+  <!-- CLOSE -->
+  <section class="close">
+    <div class="defn">
+      <span class="label">Øverste nasjonale definisjon</span>
+      <p>BNI er en strukturert arbeidsmetode for å skape referanser, verdi og målbar business gjennom relasjoner og nettverk. Vi lærer hvilke problemer partnerne våre kan løse, lytter etter disse behovene hos mennesker vi møter, og kobler dem til riktig problemløser gjennom en god introduksjon.</p>
+    </div>
+    <div class="mantra">
+      <p>BNI fungerer ikke når du <span class="hl">forstår</span> metoden.<br>BNI fungerer når du <span class="hl">gjør</span> den.</p>
+    </div>
+    <p class="nextstep">Neste møte: kom forberedt med ett tydelig kundecase, lytt etter ett behov du kan koble, book den 1-til-1-en det er enklest å gi en referanse til — og rapporter det du faktisk gjorde.</p>
+  </section>
+
+  <footer>
+    <div class="brandmark"><span class="dot"></span>BNI&nbsp;NORGE</div>
+    Strategi- og kommunikasjonsdokument · Nasjonal arbeidsmetode · For konsulenter, teamledere og partnere.
+  </footer>
+
+  </main>
+</div>
+
+<script>
+  (function(){
+    var root=document.documentElement, btn=document.getElementById('themebtn');
+    var order=['system','light','dark'], labels={system:'◐ Tema',light:'☀ Lyst',dark:'☾ Mørkt'};
+    var cur='system';
+    try{var s=localStorage.getItem('bni-theme');if(s&&order.indexOf(s)>-1)cur=s;}catch(e){}
+    function apply(){
+      if(cur==='system')root.removeAttribute('data-theme');
+      else root.setAttribute('data-theme',cur);
+      btn.textContent=labels[cur];
+      try{localStorage.setItem('bni-theme',cur);}catch(e){}
+    }
+    apply();
+    btn.addEventListener('click',function(){
+      cur=order[(order.indexOf(cur)+1)%order.length];apply();
+    });
+  })();
+</script>
+</body>
+</html>

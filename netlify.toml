@@ -9,6 +9,15 @@ publish = ".next"
 [[plugins]]
 package = "@netlify/plugin-nextjs"
 
+# Dedicated subdomain for the BNI strategy & communication page.
+# bnistrategi.tinglum.com serves the standalone document on every path.
+# Requires the domain alias + DNS (CNAME bnistrategi -> the Netlify site).
+[[redirects]]
+  from = "https://bnistrategi.tinglum.com/*"
+  to = "/bnistrategi/index.html"
+  status = 200
+  force = true
+
 [[redirects]]
   from = "/quest"
   to = "https://quest.mynutritiontest.com/"
@@ -32,3 +41,9 @@ package = "@netlify/plugin-nextjs"
   to = "https://msp.tinglum.com/bnimsp/:splat"
   status = 301
   force = true
+
+# Also reachable at a clean /bnistrategi path on the primary domain.
+[[redirects]]
+  from = "/bnistrategi"
+  to = "/bnistrategi/index.html"
+  status = 200
