@@ -48,16 +48,34 @@ describe('even distribution', () => {
     expect(first.assignments).toEqual(second.assignments)
   })
 
-  it('starts from work people already have', () => {
+  it('starts from work people already have, but still takes turns', () => {
     const loaded = [
       { id: 'amber', name: 'Amber', existingLoad: 5 },
       { id: 'robert', name: 'Robert' },
       { id: 'sam', name: 'Sam' },
     ]
     const plan = buildAssignmentPlan(week('Kitchen'), loaded, [])
-    const amber = plan.assignments.filter((a) => a.personId === 'amber')
-    // Amber starts five ahead, so she should take little or nothing.
-    expect(amber.length).toBeLessThanOrEqual(1)
+    const counts = ['amber', 'robert', 'sam'].map(
+      (id) => plan.assignments.filter((a) => a.personId === id).length
+    )
+    const [amber] = counts
+
+    // This assertion used to be "Amber takes at most one". It cannot be, now
+    // that a job rotates: seven Kitchens across three people means everybody
+    // takes a turn before anyone takes a second, so Amber's share is two
+    // whatever she is already carrying. The deliberate trade is that nobody
+    // does the same job twice while somebody else has not done it at all —
+    // which was asked for explicitly — and a head start now buys the smallest
+    // share rather than exemption.
+    expect(amber).toBe(Math.min(...counts))
+    expect(amber).toBeLessThan(Math.max(...counts))
+
+    // The rotation itself: the first three Kitchens go to three people.
+    const firstThree = plan.assignments
+      .filter((a) => a.taskId.startsWith('Kitchen'))
+      .slice(0, 3)
+      .map((a) => a.personId)
+    expect(new Set(firstThree).size).toBe(3)
   })
 })
 
