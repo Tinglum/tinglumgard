@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils'
 import { Button } from '@/components/todotwo/ui/button'
 import { Surface } from '@/components/todotwo/ui/states'
 import type { Weekday } from '@/lib/todotwo/domain/assignment'
+import { FARM_PAIRINGS, FARM_SEPARATIONS } from '@/lib/todotwo/domain/farm-rules'
 import {
   EMPTY_PRESETS,
   WEEKDAY_ORDER,
@@ -218,26 +219,9 @@ export function AssignmentConsole({
    * because no constraint could carry them.
    */
   function applyFarmRules() {
-    updatePresets({
-      pairings: [
-        { id: 'farm-goats-rabbits', labels: ['Goats', 'Rabbits'] },
-        { id: 'farm-chickens-pigs', labels: ['Chickens + Ducks', 'Pigs'] },
-        // On his own, but still a bundle: one label ties Liam (Morning) to
-        // Liam (Evening), so the dog gets the same person all day.
-        { id: 'farm-liam', labels: ['Liam'] },
-      ],
-      separations: [
-        { id: 'farm-meals-apart', labelsA: ['Breakfast'], labelsB: ['Dinner'] },
-        {
-          // Liam is deliberately absent: feeding and walking the dog is a
-          // lighter round than the livestock, so his person can still cook.
-          id: 'farm-animals-not-meals',
-          labelsA: ['Goats', 'Rabbits', 'Chickens + Ducks', 'Pigs'],
-          labelsB: ['Breakfast', 'Dinner'],
-        },
-        { id: 'farm-meals-not-kitchen', labelsA: ['Breakfast', 'Dinner'], labelsB: ['Kitchen'] },
-      ],
-    })
+    // Shared with the nightly auto-assignment, so the button and the cron
+    // cannot drift apart. See lib/todotwo/domain/farm-rules.ts.
+    updatePresets({ pairings: FARM_PAIRINGS, separations: FARM_SEPARATIONS })
   }
 
   function updatePresets(next: Partial<PresetState>) {
