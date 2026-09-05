@@ -219,7 +219,12 @@ describeRls('row level security', () => {
       expect(after?.emergency_contact_phone).toBe('[redacted]')
     })
 
-    it('cannot be rewritten, even by an admin', async () => {
+    it('cannot be forged or altered, even by an admin', async () => {
+      // Deletion was opened up deliberately (20260912090000): the owner asked
+      // for full reach and accepted that an admin can erase the record of
+      // their own actions. Rewriting stays shut, because an admin who can
+      // alter an entry could forge a record of somebody ELSE acting, which is
+      // a different and worse thing than erasing your own tracks.
       const { data: rows } = await admin.db.from('audit_log').select('id').limit(1)
       const id = rows?.[0]?.id
       expect(id).toBeDefined()
@@ -230,8 +235,44 @@ describeRls('row level security', () => {
         .eq('id', id as number)
       expect(updateError).toBeTruthy()
 
-      const { error: deleteError } = await admin.db.from('audit_log').delete().eq('id', id as number)
-      expect(deleteError).toBeTruthy()
+      const { error: insertError } = await admin.db.from('audit_log').insert({
+        entity_table: 'people',
+        entity_id: workawayer.personId,
+        action: 'update',
+      } as never)
+      expect(insertError).toBeTruthy()
+    })
+
+    it('can be deleted by an admin, but not by anyone else', async () => {
+      const { error: workawayerError } = await workawayer.db
+        .from('audit_log')
+        .delete()
+        .neq('id', 0)
+      // A Workawayer holds no policy here at all: nothing matches, so nothing
+      // goes. Whether that surfaces as an error or as zero rows, the log must
+      // still be there afterwards.
+      const { count: afterWorkawayer } = await admin.db
+        .from('audit_log')
+        .select('id', { count: 'exact', head: true })
+      expect(afterWorkawayer ?? 0).toBeGreaterThan(0)
+      void workawayerError
+
+      const { data: rows } = await admin.db
+        .from('audit_log')
+        .select('id')
+        .order('occurred_at', { ascending: false })
+        .limit(1)
+      const id = rows?.[0]?.id
+      expect(id).toBeDefined()
+
+      const { error: deleteError } = await admin.db
+        .from('audit_log')
+        .delete()
+        .eq('id', id as number)
+      expect(deleteError).toBeNull()
+
+      const { data: gone } = await admin.db.from('audit_log').select('id').eq('id', id as number)
+      expect(gone ?? []).toHaveLength(0)
     })
   })
 
