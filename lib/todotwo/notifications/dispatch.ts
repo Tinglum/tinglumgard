@@ -35,7 +35,8 @@ export interface DispatchResult {
   skipped: number
   errors: { id: string; message: string }[]
   /**
-   * Web Push is a second, best-effort channel alongside email for every row —
+   * Web Push is the primary channel; email only fills in when push reached
+   * nobody for that row —
    * there is only one channel value today (see notification_channel), so
    * "does this row want push" reduces to "does this person have an active
    * subscription", which sendPushToPerson already checks. A push failure
@@ -117,19 +118,47 @@ export async function dispatchOutbox(
       continue
     }
 
-    // Best-effort, independent of the email outcome below: a person who
-    // enabled push should hear about this even if, say, their email bounces,
-    // and a push failure must never touch the outbox row's retry state —
-    // email is still the record of what was attempted and whether it worked.
+    // Push leads now. The farm asked for notifications on the phone rather
+    // than a mailbox nobody watches while carrying a feed bucket, so a person
+    // who has enabled push gets it there and gets no email for the same
+    // thing.
+    let pushed = 0
     try {
       const pushResult = await sendPushToPerson(db, row.person_id, {
         title: row.subject,
         body: row.body,
       })
-      result.pushSent += pushResult.sent
+      pushed = pushResult.sent
+      result.pushSent += pushed
     } catch {
       // sendPushToPerson already swallows per-subscription errors; this only
       // guards against something unexpected (e.g. a missing table locally).
+    }
+
+    // Email is the fallback, not the default: it goes only when push reached
+    // nobody. Somebody who has not enabled notifications, or is on a device
+    // that cannot take them, still hears about their day — dropping the
+    // message entirely would be a worse answer to "no more emails" than
+    // sending one.
+    if (pushed > 0) {
+      const { error: updateError } = await db
+        .from('notification_outbox')
+        .update({
+          status: 'sent',
+          attempts: row.attempts + 1,
+          sent_at: now.toISOString(),
+          last_error: null,
+          next_attempt_at: now.toISOString(),
+        })
+        .eq('id', row.id)
+
+      if (updateError) {
+        result.errors.push({ id: row.id, message: `Pushed but not recorded: ${updateError.message}` })
+        continue
+      }
+
+      result.sent += 1
+      continue
     }
 
     const outcome = await sender({
