@@ -117,6 +117,13 @@ const SELECT =
 
 const OPEN_STATUSES = ['draft', 'unassigned', 'assigned', 'accepted', 'in_progress', 'blocked', 'not_completed']
 
+/**
+ * How far back the home screen looks for overdue work. Long enough that a job
+ * missed over a busy fortnight still surfaces; short enough that the query
+ * does not grow without bound as years of daily routines accumulate.
+ */
+const OVERDUE_WINDOW_DAYS = 30
+
 function sortTasks(tasks: TaskRow[]): TaskRow[] {
   return [...tasks].sort((a, b) => {
     // Timed work first, in clock order; then untimed, by priority.
@@ -148,21 +155,52 @@ export async function getToday(
   mine: TaskRow[]
   unclaimed: TaskRow[]
   doneToday: TaskRow[]
+  /** Still-open work older than the window above. Counted, not listed. */
+  olderOpenCount: number
 }> {
   const db = getTodoTwoClient()
+  const floor = addFarmDays(today, -OVERDUE_WINDOW_DAYS)
 
-  const { data, error } = await db
-    .from('tasks_resolved')
-    .select(SELECT)
-    .is('parent_task_id', null)
-    .lte('due_date', today)
+  // Two bounded queries rather than one unbounded one. This used to select
+  // every task ever created with due_date <= today and filter in JavaScript:
+  // fine at a few hundred rows, but the farm now runs twice-daily animal
+  // routines, so it grows by several thousand a year and every one of them
+  // was being fetched and assignee-hydrated on every load of the home screen.
+  const [openResult, doneResult, staleResult] = await Promise.all([
+    db
+      .from('tasks_resolved')
+      .select(SELECT)
+      .is('parent_task_id', null)
+      .gte('due_date', floor)
+      .lte('due_date', today)
+      .in('status', OPEN_STATUSES),
+    db
+      .from('tasks_resolved')
+      .select(SELECT)
+      .is('parent_task_id', null)
+      .eq('due_date', today)
+      .not('status', 'in', `(${OPEN_STATUSES.join(',')})`),
+    // Anything still open from before the window. Not listed — a job from
+    // three months ago is not today's work — but counted, because silently
+    // swallowing it would be worse than saying it is there.
+    db
+      .from('tasks_resolved')
+      .select('id', { count: 'exact', head: true })
+      .is('parent_task_id', null)
+      .lt('due_date', floor)
+      .in('status', OPEN_STATUSES),
+  ])
 
+  const error = openResult.error ?? doneResult.error
   if (error) throw new Error(`Could not load today: ${error.message}`)
 
   // attachCurrentAssignees is the one assignee-lookup path in this module, and
   // it answers both questions asked below: whose task is this, and does anyone
   // have it at all (assignee === null).
-  const rows = await attachCurrentAssignees(db, (data ?? []) as unknown as TaskRow[])
+  const rows = await attachCurrentAssignees(db, [
+    ...((openResult.data ?? []) as unknown as TaskRow[]),
+    ...((doneResult.data ?? []) as unknown as TaskRow[]),
+  ])
 
   const isOpen = (t: TaskRow) => OPEN_STATUSES.includes(t.status)
   const isMine = (t: TaskRow) => t.assignee?.id === personId
@@ -176,6 +214,7 @@ export async function getToday(
     // Regardless of who they would normally fall to: nobody holds these.
     unclaimed: sortTasks(rows.filter((t) => dueToday(t) && isOpen(t) && !t.assignee)),
     doneToday: sortTasks(rows.filter((t) => dueToday(t) && !isOpen(t) && isMine(t))),
+    olderOpenCount: staleResult.count ?? 0,
   }
 }
 
@@ -468,6 +507,8 @@ export interface PersonRow {
   preferred_name: string | null
   email: string | null
   auth_user_id: string | null
+  /** Their first day. Anchors the onboarding ramp; null means no ramp. */
+  farm_start_date: string | null
   roles: string[]
 }
 
@@ -477,7 +518,7 @@ export async function getPeople(): Promise<PersonRow[]> {
 
   const { data: people, error } = await db
     .from('people')
-    .select('id, full_name, preferred_name, email, auth_user_id')
+    .select('id, full_name, preferred_name, email, auth_user_id, farm_start_date')
     .is('deleted_at', null)
     .eq('is_active', true)
     .order('full_name')

@@ -1,6 +1,7 @@
 import Link from 'next/link'
 
 import { AddPersonForm } from '@/components/todotwo/people/add-person-form'
+import { FirstDayControl } from '@/components/todotwo/people/first-day-control'
 import { Surface } from '@/components/todotwo/ui/states'
 import { requireRole } from '@/lib/todotwo/auth'
 import { getPeople } from '@/lib/todotwo/queries'
@@ -10,8 +11,14 @@ import { TODOTWO_BASE } from '@/lib/todotwo/routes'
 export const dynamic = 'force-dynamic'
 
 export default async function PeoplePage() {
-  await requireRole(['super_admin', 'farm_admin', 'coordinator'], `${TODOTWO_BASE}/people`)
+  const principal = await requireRole(
+    ['super_admin', 'farm_admin', 'coordinator'],
+    `${TODOTWO_BASE}/people`
+  )
   const people = await getPeople()
+  // people_admin_all is the only write policy on the table, so a coordinator
+  // can read this page but not change anyone on it.
+  const canEdit = principal.isAdmin
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-6">
@@ -59,6 +66,12 @@ export default async function PeoplePage() {
                     {copy.roles[role] ?? role}
                   </span>
                 ))}
+
+                <FirstDayControl
+                  personId={person.id}
+                  value={person.farm_start_date}
+                  canEdit={canEdit}
+                />
 
                 {person.auth_user_id ? null : (
                   <span className="rounded bg-[var(--tt-surface-2)] px-2 py-0.5 text-[11px] text-[var(--tt-ink-3)]">
