@@ -5,7 +5,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getPrivilegedClientForCronOnly } from '@/lib/todotwo/db-privileged'
 import { isTodoTwoEnabled } from '@/lib/todotwo/config'
 import { buildAssignmentPlan, type AssignableTask, type Weekday } from '@/lib/todotwo/domain/assignment'
-import { farmRuleConstraints } from '@/lib/todotwo/domain/farm-rules'
+import { rulesToConstraints, type AssignmentRule } from '@/lib/todotwo/domain/assignment-rules'
 import { farmConstraints, type ApprovedTimeOff, type StayWindow } from '@/lib/todotwo/domain/assignment-inputs'
 import { addFarmDays, farmToday } from '@/lib/todotwo/time'
 import { weekdayOfDate } from '@/lib/todotwo/domain/recurrence'
@@ -26,9 +26,10 @@ export const dynamic = 'force-dynamic'
  *   * Only genuinely unassigned tasks. An assignment somebody made by hand,
  *     or a swap two people agreed between themselves, is never overwritten —
  *     the day's plan is built from what is still spare.
- *   * The farm's standing arrangement applies (lib/todotwo/domain/farm-rules),
- *     the same rules the console's button uses, so an automatic round and a
- *     manual one produce the same shape of day.
+ *   * The farm's standing arrangement applies, read from
+ *     todotwo.assignment_rules — whatever is switched on in Routines at the
+ *     time. Rules are data, not code, so turning one off for a week is a
+ *     toggle rather than a deploy.
  *   * Approved time off, stay windows and skill sign-off are honoured, via
  *     the same farmConstraints() the preview uses. Somebody on an approved
  *     day off does not get handed work at four in the morning by a robot.
@@ -190,9 +191,22 @@ export async function POST(request: NextRequest) {
     })),
   })
 
+  // Whatever the farm currently has switched on. Turning a rule off in
+  // Routines takes effect on the next run without a deploy.
+  const { data: ruleRows } = await db
+    .from('assignment_rules')
+    .select('id, label, kind, payload, enabled, sort_order, source_text')
+    .eq('enabled', true)
+    .order('sort_order')
+
+  const resolved = rulesToConstraints(
+    (ruleRows ?? []) as AssignmentRule[],
+    tasks.map((t) => ({ id: t.id, title: t.title, groupLabel: t.groupLabel }))
+  )
+
   const plan = buildAssignmentPlan(tasks, people, [
     ...farm.sourced.map((s) => s.constraint),
-    ...farmRuleConstraints(),
+    ...resolved.constraints,
   ])
 
   let assigned = 0
@@ -217,6 +231,10 @@ export async function POST(request: NextRequest) {
     // coordinator needs to see, and it also lands in the evening digest.
     unassignable: plan.unassignable.length,
     unassignableReasons: plan.unassignable.slice(0, 10).map((u) => `${u.date} ${u.title}: ${u.reason}`),
+    rulesApplied: resolved.constraints.length,
+    // A rule that matched nothing today is usually a renamed routine rather
+    // than an intention, so it is reported rather than silently ignored.
+    rulesInert: resolved.inert.map((r) => `${r.label}: ${r.reason}`),
     failures,
   })
 }

@@ -90,7 +90,12 @@ interface Blocker {
  * the goat work, whether the series is called "Goats (Morning)" or the task is
  * simply titled "Goats".
  */
-export function taskMatchesLabel(task: AssignableTask, label: string): boolean {
+export function taskMatchesLabel(
+  // Only the two fields it actually reads, so a stored rule can be matched
+  // against a task shape that has no date attached yet.
+  task: { title: string; groupLabel: string | null },
+  label: string
+): boolean {
   const needle = label.trim().toLowerCase()
   if (!needle) return false
   return (

@@ -1,11 +1,13 @@
 import Link from 'next/link'
 
+import { AssignmentRulesManager } from '@/components/todotwo/routines/assignment-rules-manager'
 import { ClearAssignments } from '@/components/todotwo/tasks/clear-assignments'
 import { RotaEditor } from '@/components/todotwo/tasks/rota-editor'
 import { FeedCheckToggle } from '@/components/todotwo/tasks/feed-check-toggle'
 import { EmptyState, Surface } from '@/components/todotwo/ui/states'
 import { requireRole } from '@/lib/todotwo/auth'
 import { getPeople, getSeries } from '@/lib/todotwo/queries'
+import { getAssignmentRules } from '@/lib/todotwo/queries-rules'
 import { describeRule } from '@/lib/todotwo/domain/recurrence'
 import { farmToday } from '@/lib/todotwo/time'
 import { TODOTWO_BASE } from '@/lib/todotwo/routes'
@@ -13,9 +15,15 @@ import { TODOTWO_BASE } from '@/lib/todotwo/routes'
 export const dynamic = 'force-dynamic'
 
 export default async function RoutinesPage() {
-  await requireRole(['super_admin', 'farm_admin', 'coordinator'], `${TODOTWO_BASE}/routines`)
+  const principal = await requireRole(
+    ['super_admin', 'farm_admin', 'coordinator'],
+    `${TODOTWO_BASE}/routines`
+  )
 
-  const [series, people] = await Promise.all([getSeries(), getPeople()])
+  const [series, people, rules] = await Promise.all([getSeries(), getPeople(), getAssignmentRules()])
+  // assignment_rules_staff_write covers coordinators too, so anyone who can
+  // reach this page can change them.
+  const canEditRules = principal.isAdmin || principal.roles.includes('coordinator')
   const roster = people.map((person) => ({
     id: person.id,
     name: person.preferred_name || person.full_name,
@@ -44,6 +52,19 @@ export default async function RoutinesPage() {
           </Link>
         </div>
       </header>
+
+      <Surface className="flex flex-col gap-3 p-4">
+        <div className="flex flex-col gap-1">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--tt-ink-3)]">
+            Rules for automatic assignment
+          </p>
+          <p className="text-[13px] text-[var(--tt-ink-2)]">
+            The nightly round keeps the next four days assigned and follows whatever is switched on
+            here. Turning one off stops it from the next run; it is kept so you can turn it back on.
+          </p>
+        </div>
+        <AssignmentRulesManager rules={rules} canEdit={canEditRules} />
+      </Surface>
 
       <Surface className="p-4">
         <ClearAssignments fromDate={farmToday()} />
