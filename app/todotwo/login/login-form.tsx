@@ -126,17 +126,32 @@ function MagicLinkFallback({ returnTo }: { returnTo?: string }) {
  * first, and the copy says outright that the newest email is the one that
  * works.
  */
-function ForgotPassword({ returnTo }: { returnTo?: string }) {
+function ForgotPassword({
+  returnTo,
+  accountEmail,
+}: {
+  returnTo?: string
+  /** Whatever they already typed to sign in. Asking for it twice, one line
+   *  apart, is how people end up submitting an empty box. */
+  accountEmail: string
+}) {
   const [open, setOpen] = React.useState(false)
   const [email, setEmail] = React.useState('')
   const [status, setStatus] = React.useState<'idle' | 'sending' | 'sent'>('idle')
   const [linkStatus, setLinkStatus] = React.useState<'idle' | 'sending' | 'sent'>('idle')
+  const [error, setError] = React.useState<string | null>(null)
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const trimmed = email.trim()
-    if (!trimmed) return
+    if (!trimmed) {
+      // This used to `return` in silence, which looked exactly like a reset
+      // that had been sent and never arrived.
+      setError('Enter the email address you sign in with.')
+      return
+    }
 
+    setError(null)
     setStatus('sending')
     try {
       await fetch('/api/todotwo/auth/forgot-password', {
@@ -168,7 +183,11 @@ function ForgotPassword({ returnTo }: { returnTo?: string }) {
     return (
       <button
         type="button"
-        onClick={() => setOpen(true)}
+        onClick={() => {
+          // Carry over the address they already typed above.
+          setEmail((current) => current || accountEmail.trim())
+          setOpen(true)
+        }}
         className="text-xs text-[var(--tt-ink-2)] underline-offset-4 hover:underline"
       >
         Forgot password?
@@ -228,6 +247,8 @@ function ForgotPassword({ returnTo }: { returnTo?: string }) {
       className="flex flex-col gap-3 rounded-lg border border-[var(--tt-rule)] bg-[var(--tt-surface)] p-4"
       noValidate
     >
+      {error ? <ErrorState title="Nothing sent" description={error} /> : null}
+
       <div className="flex flex-col gap-2">
         <label htmlFor="todotwo-reset-email" className="text-sm font-medium">
           Email address
@@ -410,7 +431,7 @@ export function LoginForm({
           {status === 'signing-in' ? 'Signing in …' : 'Sign in'}
         </Button>
 
-        <ForgotPassword returnTo={returnTo} />
+        <ForgotPassword returnTo={returnTo} accountEmail={email} />
       </form>
 
       {passkeySupported ? (
