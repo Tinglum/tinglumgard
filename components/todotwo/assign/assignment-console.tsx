@@ -55,6 +55,10 @@ interface PreviewResponse {
   /** Split out so the preview can say which rule came from where. */
   presetConstraints: Constraint[]
   aiConstraints: Constraint[]
+  /** Facts about the farm — approved time off, stays, skill sign-off. Not
+   *  chosen this morning, so they are listed first and cannot be removed. */
+  farmConstraints: { constraint: Constraint; source: string; detail: string }[]
+  farmWarnings: { message: string }[]
   unresolved: UnresolvedReference[]
   plan: {
     assignments: Assignment[]
@@ -614,6 +618,12 @@ export function AssignmentConsole({
 
           {preview.constraints.length > 0 ? (
             <ul className="flex flex-col gap-1">
+              {(preview.farmConstraints ?? []).map((entry, i) => (
+                <li key={`farm-${i}`} className="text-[13px] text-[var(--tt-ink-2)]">
+                  • {entry.detail}{' '}
+                  <span className="text-[var(--tt-ink-3)]">(from the calendar)</span>
+                </li>
+              ))}
               {preview.presetConstraints.map((c, i) => (
                 <li key={`preset-${i}`} className="text-[13px] text-[var(--tt-ink-2)]">
                   • {describeConstraint(c, preview.plan.load)}{' '}
@@ -630,6 +640,17 @@ export function AssignmentConsole({
           ) : (
             <p className="text-[13px] text-[var(--tt-ink-3)]">No restrictions — an even split across everyone.</p>
           )}
+
+          {(preview.farmWarnings ?? []).length > 0 ? (
+            <div className="flex flex-col gap-1 rounded-md bg-[var(--tt-warn-soft)] p-3">
+              <p className="text-[12px] font-semibold text-[var(--tt-ink)]">Worth knowing</p>
+              {preview.farmWarnings.map((w, i) => (
+                <p key={`fw-${i}`} className="text-[13px] text-[var(--tt-ink-2)]">
+                  {w.message}
+                </p>
+              ))}
+            </div>
+          ) : null}
 
           {preview.unresolved.length > 0 ? (
             <div className="flex flex-col gap-2 rounded-md bg-[var(--tt-warn-soft)] p-3">
