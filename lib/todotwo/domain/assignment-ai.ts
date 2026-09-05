@@ -91,6 +91,18 @@ const rawConstraintSchema = z.discriminatedUnion('kind', [
     personName: z.string().nullable(),
     limit: z.number().int().min(1),
   }),
+  z.object({
+    /** "Same person does the goats and the rabbits", and by the same token
+     *  "morning and evening are always the same person". */
+    kind: z.literal('same_person'),
+    taskGroupLabels: z.array(z.string()).min(2),
+  }),
+  z.object({
+    /** "Breakfast and dinner are different people." */
+    kind: z.literal('different_people'),
+    taskGroupLabelsA: z.array(z.string()).min(1),
+    taskGroupLabelsB: z.array(z.string()).min(1),
+  }),
 ])
 
 const rawResultSchema = z.object({
@@ -301,6 +313,36 @@ export function resolveConstraints(
         constraints.push({ kind: 'max_per_day', personId: person.id, limit: c.limit })
         break
       }
+
+      case 'same_person': {
+        // Labels stay labels: the solver matches them by substring against a
+        // task's group and title, which is what lets one rule cover both the
+        // morning and the evening series without naming either.
+        const labels = c.taskGroupLabels.map((l) => l.trim()).filter(Boolean)
+        for (const label of labels) {
+          const { taskIds, suggestion } = resolveTaskGroup(label, context.tasks)
+          if (taskIds.length === 0) {
+            unresolved.push({ text: label, kind: 'task_group', suggestion })
+          }
+        }
+        if (labels.length >= 2) constraints.push({ kind: 'same_person', labels })
+        break
+      }
+
+      case 'different_people': {
+        const labelsA = c.taskGroupLabelsA.map((l) => l.trim()).filter(Boolean)
+        const labelsB = c.taskGroupLabelsB.map((l) => l.trim()).filter(Boolean)
+        for (const label of [...labelsA, ...labelsB]) {
+          const { taskIds, suggestion } = resolveTaskGroup(label, context.tasks)
+          if (taskIds.length === 0) {
+            unresolved.push({ text: label, kind: 'task_group', suggestion })
+          }
+        }
+        if (labelsA.length > 0 && labelsB.length > 0) {
+          constraints.push({ kind: 'different_people', labelsA, labelsB })
+        }
+        break
+      }
     }
   }
 
@@ -354,6 +396,15 @@ function buildPrompt(text: string, context: ParseContext): string {
     '- exclude_tasks: a person never does a named task group.',
     '- only_people: a named task group is restricted to specific people.',
     '- max_per_day: nobody (or one named person) does more than N tasks in a day.',
+    '- same_person: two or more task groups always fall to the same person on a given day',
+    '  ("whoever does the goats does the rabbits", "morning and evening are the same person" —',
+    '  for the latter, pair the morning group with the evening group).',
+    '- different_people: two sets of task groups must land on different people',
+    '  ("breakfast and dinner are separate people", "whoever does an animal round does neither meal").',
+    '',
+    'same_person and different_people take task group LABELS, not people. They are matched loosely, so',
+    '"Goats" catches both "Goats (Morning)" and "Goats (Evening)" — prefer the shortest label that picks',
+    'out the right family of work.',
     '',
     'A plain "divide all tasks evenly" with no restrictions produces an empty constraints array — that is',
     'already what the solver does by default.',
