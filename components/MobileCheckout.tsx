@@ -970,6 +970,7 @@ export function MobileCheckout(props: MobileCheckoutProps) {
                   <RebateCodeInput
                     depositAmount={baseDepositTotal}
                     boxSize={selectedPreset?.target_weight_kg || (boxSize ? parseInt(boxSize, 10) : 0)}
+                    presetSlug={selectedPreset?.slug}
                     onCodeApplied={(data) => {
                       setRebateData({
                         code: data.code,

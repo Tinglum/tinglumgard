@@ -1,5 +1,5 @@
 -- Migration: Update Premium Cuts and BBQ & Steakhouse box contents
--- Created: 2026-09-05
+-- Created: 2026-09-11
 --
 -- Changes (scoped strictly to box contents + oppdelingsplan catalog):
 --   Premium Cuts:      remove "Ribbevalg", add "Indrefilet" and "Culotte"
