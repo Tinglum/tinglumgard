@@ -102,6 +102,13 @@ export function RebateCodesManager() {
     try {
       const applicableTo = applicablePresets;
 
+      // datetime-local yields a naive local wall-clock string (no timezone).
+      // Convert to a proper UTC instant so the DB comparison against NOW()
+      // reflects the admin's actual local time — otherwise a "start now" code
+      // is treated as starting hours in the future (the UTC offset).
+      const toUtcIso = (value: string): string | null =>
+        value ? new Date(value).toISOString() : null;
+
       const response = await fetch('/api/admin/rebate-codes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -111,8 +118,8 @@ export function RebateCodesManager() {
           discountValue: parseFloat(discountValue),
           maxUses: maxUses ? parseInt(maxUses, 10) : null,
           maxUsesPerCustomer: parseInt(maxUsesPerCustomer, 10),
-          validFrom: validFrom || null,
-          validUntil: validUntil || null,
+          validFrom: toUtcIso(validFrom),
+          validUntil: toUtcIso(validUntil),
           minOrderAmount: minOrderAmount ? parseFloat(minOrderAmount) : null,
           applicableTo,
           description,
