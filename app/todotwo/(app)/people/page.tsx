@@ -51,7 +51,12 @@ export default async function PeoplePage() {
               className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-b border-[var(--tt-rule)] py-3 last:border-b-0"
             >
               <div className="min-w-0">
-                <p className="text-[15px]">{person.preferred_name || person.full_name}</p>
+                <Link
+                  href={`${TODOTWO_BASE}/people/${person.id}`}
+                  className="text-[15px] underline-offset-4 hover:underline"
+                >
+                  {person.preferred_name || person.full_name}
+                </Link>
                 <p className="truncate text-[13px] text-[var(--tt-ink-3)]">
                   {person.email ?? 'No email — cannot sign in'}
                 </p>
