@@ -150,7 +150,19 @@ export async function generateRecoveryLink(
     return { actionLink: recovery.data.properties.action_link }
   }
 
-  return null
+  // 'recovery' requires an existing auth user, and in TodoTwo one is not
+  // created until a person's first sign-in — an administrator adds a person
+  // row, and Supabase makes the account when they first come through a link.
+  // So for everyone who has never signed in, recovery fails with "User with
+  // this email not found" and, because this route answers the same way no
+  // matter what, they get a cheerful "a link is on its way" and no email,
+  // for ever.
+  //
+  // For someone with no account there is no password to reset: what they
+  // actually need is the way in. Fall back to the same invite/magiclink
+  // ladder generateSignInLink uses, which creates the account, and let the
+  // callback's password_set check land them on the set-password screen.
+  return generateSignInLink(email, redirectTo)
 }
 
 export interface StoredWebauthnCredential {
