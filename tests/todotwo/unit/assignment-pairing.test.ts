@@ -44,6 +44,8 @@ function day(date: string): AssignableTask[] {
     of('Chickens + Ducks (Evening)'),
     of('Pigs (Morning)'),
     of('Pigs (Evening)'),
+    of('Liam (Morning)'),
+    of('Liam (Evening)'),
     of('Breakfast ready'),
     of('Dinner'),
     of('Kitchen'),
@@ -53,6 +55,8 @@ function day(date: string): AssignableTask[] {
 const FARM_RULES: Constraint[] = [
   { kind: 'same_person', labels: ['Goats', 'Rabbits'] },
   { kind: 'same_person', labels: ['Chickens + Ducks', 'Pigs'] },
+  // One label, two tasks: morning and evening stay together.
+  { kind: 'same_person', labels: ['Liam'] },
   { kind: 'different_people', labelsA: ['Breakfast'], labelsB: ['Dinner'] },
   {
     kind: 'different_people',
@@ -71,7 +75,28 @@ describe('the pairing rules the farm actually uses', () => {
 
   it('assigns everything', () => {
     expect(plan.unassignable).toEqual([])
-    expect(plan.assignments).toHaveLength(11)
+    expect(plan.assignments).toHaveLength(13)
+  })
+
+  it('keeps Liam with one person morning and evening, from a single label', () => {
+    const liam = personFor(plan, 'Liam (Morning)')
+    expect(liam).toBeDefined()
+    expect(personFor(plan, 'Liam (Evening)')).toBe(liam)
+  })
+
+  it('lets the Liam person cook — he is lighter than a livestock round', () => {
+    // Deliberately NOT in the animals-vs-meals rule. This asserts the
+    // exception is real rather than accidental: nothing forbids the pairing.
+    const liam = personFor(plan, 'Liam (Morning)')
+    const cooks = [personFor(plan, 'Breakfast ready'), personFor(plan, 'Dinner')]
+    const forbidden = FARM_RULES.some(
+      (r) =>
+        r.kind === 'different_people' &&
+        r.labelsA.some((l) => l.toLowerCase().includes('liam'))
+    )
+    expect(forbidden).toBe(false)
+    expect(typeof liam).toBe('string')
+    expect(cooks.every((c) => typeof c === 'string')).toBe(true)
   })
 
   it('gives goats and rabbits to one person', () => {

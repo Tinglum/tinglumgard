@@ -158,8 +158,10 @@ export function presetsToConstraints(state: PresetState, context: PresetContext)
 
   for (const pairing of state.pairings ?? []) {
     const labels = pairing.labels.map((l) => l.trim()).filter(Boolean)
-    // One label bundles nothing with anything.
-    if (labels.length < 2) continue
+    // A single label is meaningful: "Liam" bundles Liam (Morning) with Liam
+    // (Evening), which is how a twice-daily routine stays with one person all
+    // day. Only an empty list bundles nothing.
+    if (labels.length === 0) continue
 
     // Warn about a label that matches no work in the window, the same way the
     // exclusion path does — a rule that binds nothing is nearly always a

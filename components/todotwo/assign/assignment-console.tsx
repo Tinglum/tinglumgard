@@ -222,10 +222,15 @@ export function AssignmentConsole({
       pairings: [
         { id: 'farm-goats-rabbits', labels: ['Goats', 'Rabbits'] },
         { id: 'farm-chickens-pigs', labels: ['Chickens + Ducks', 'Pigs'] },
+        // On his own, but still a bundle: one label ties Liam (Morning) to
+        // Liam (Evening), so the dog gets the same person all day.
+        { id: 'farm-liam', labels: ['Liam'] },
       ],
       separations: [
         { id: 'farm-meals-apart', labelsA: ['Breakfast'], labelsB: ['Dinner'] },
         {
+          // Liam is deliberately absent: feeding and walking the dog is a
+          // lighter round than the livestock, so his person can still cook.
           id: 'farm-animals-not-meals',
           labelsA: ['Goats', 'Rabbits', 'Chickens + Ducks', 'Pigs'],
           labelsB: ['Breakfast', 'Dinner'],
@@ -350,9 +355,10 @@ export function AssignmentConsole({
           </div>
 
           <p className="text-[12px] text-[var(--tt-ink-3)]">
-            That is: goats with rabbits, chickens and ducks with pigs, morning and evening the
-            same person; breakfast and dinner different people; whoever does an animal round
-            does neither meal; whoever cooks does not do the kitchen.
+            That is: goats with rabbits, chickens and ducks with pigs, Liam on his own &mdash;
+            each morning and evening the same person. Breakfast and dinner different people;
+            whoever does a livestock round does neither meal; whoever cooks does not do the
+            kitchen. Liam is light enough that his person can still cook.
           </p>
         </div>
 

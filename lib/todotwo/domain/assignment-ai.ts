@@ -95,7 +95,7 @@ const rawConstraintSchema = z.discriminatedUnion('kind', [
     /** "Same person does the goats and the rabbits", and by the same token
      *  "morning and evening are always the same person". */
     kind: z.literal('same_person'),
-    taskGroupLabels: z.array(z.string()).min(2),
+    taskGroupLabels: z.array(z.string()).min(1),
   }),
   z.object({
     /** "Breakfast and dinner are different people." */
@@ -325,7 +325,7 @@ export function resolveConstraints(
             unresolved.push({ text: label, kind: 'task_group', suggestion })
           }
         }
-        if (labels.length >= 2) constraints.push({ kind: 'same_person', labels })
+        if (labels.length >= 1) constraints.push({ kind: 'same_person', labels })
         break
       }
 
