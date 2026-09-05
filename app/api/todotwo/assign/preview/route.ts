@@ -63,6 +63,29 @@ const presetsSchema = z.object({
       limit: z.number().int().min(1).max(100),
     })
     .nullable(),
+  // "Goats and rabbits are one person's job." Labels, not ids, because the
+  // point is to catch a whole family of series — morning, evening, and
+  // whatever it gets renamed to next season.
+  pairings: z
+    .array(
+      z.object({
+        id: z.string().max(64),
+        labels: z.array(z.string().trim().max(200)).max(20),
+      })
+    )
+    .max(30)
+    .optional(),
+  // "Breakfast and dinner are different people."
+  separations: z
+    .array(
+      z.object({
+        id: z.string().max(64),
+        labelsA: z.array(z.string().trim().max(200)).max(20),
+        labelsB: z.array(z.string().trim().max(200)).max(20),
+      })
+    )
+    .max(30)
+    .optional(),
 })
 
 const bodySchema = z.object({

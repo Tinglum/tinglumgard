@@ -210,6 +210,36 @@ export function AssignmentConsole({
 
   const rosterNames = people.map((p) => ({ personId: p.id, name: p.name }))
 
+  /**
+   * The farm's standing arrangement, as one click.
+   *
+   * These are not clever defaults invented here — they are the rules the
+   * owner described, which the free-text parser used to drop on the floor
+   * because no constraint could carry them.
+   */
+  function applyFarmRules() {
+    updatePresets({
+      pairings: [
+        { id: 'farm-goats-rabbits', labels: ['Goats', 'Rabbits'] },
+        { id: 'farm-chickens-pigs', labels: ['Chickens + Ducks', 'Pigs'] },
+        // On his own, but still a bundle: one label ties Liam (Morning) to
+        // Liam (Evening), so the dog gets the same person all day.
+        { id: 'farm-liam', labels: ['Liam'] },
+      ],
+      separations: [
+        { id: 'farm-meals-apart', labelsA: ['Breakfast'], labelsB: ['Dinner'] },
+        {
+          // Liam is deliberately absent: feeding and walking the dog is a
+          // lighter round than the livestock, so his person can still cook.
+          id: 'farm-animals-not-meals',
+          labelsA: ['Goats', 'Rabbits', 'Chickens + Ducks', 'Pigs'],
+          labelsB: ['Breakfast', 'Dinner'],
+        },
+        { id: 'farm-meals-not-kitchen', labelsA: ['Breakfast', 'Dinner'], labelsB: ['Kitchen'] },
+      ],
+    })
+  }
+
   function updatePresets(next: Partial<PresetState>) {
     setPresets((current) => ({ ...current, ...next }))
     // A ticked box changes what the plan would be, so the plan on screen is no
@@ -252,6 +282,20 @@ export function AssignmentConsole({
             taskExclusions: presets.taskExclusions.filter((r) => r.id !== row.id),
           }),
       })),
+    ...(presets.pairings ?? []).map((row) => ({
+      key: `pair-${row.id}`,
+      label: `${row.labels.join(' and ')} — same person`,
+      remove: () =>
+        updatePresets({ pairings: (presets.pairings ?? []).filter((r) => r.id !== row.id) }),
+    })),
+    ...(presets.separations ?? []).map((row) => ({
+      key: `sep-${row.id}`,
+      label: `${row.labelsA.join('/')} and ${row.labelsB.join('/')} — different people`,
+      remove: () =>
+        updatePresets({
+          separations: (presets.separations ?? []).filter((r) => r.id !== row.id),
+        }),
+    })),
     ...(presets.maxPerDay
       ? [
           {
@@ -283,6 +327,40 @@ export function AssignmentConsole({
           Work goes to whoever is carrying the least, so there is nothing to switch on here.
           Everything below narrows that down.
         </p>
+
+        <div className="flex flex-col gap-2">
+          <p className="text-[13px] font-medium text-[var(--tt-ink)]">Who pairs with what</p>
+          <p className="text-[12px] text-[var(--tt-ink-3)]">
+            One person takes the whole round, morning and evening. Names match loosely, so
+            &ldquo;Goats&rdquo; covers both its morning and evening routines.
+          </p>
+
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => applyFarmRules()}
+              className="rounded-md border border-[var(--tt-rule-strong)] px-3 py-1.5 text-[13px] hover:border-[var(--tt-accent)]"
+            >
+              Use the farm&rsquo;s usual rules
+            </button>
+            {(presets.pairings ?? []).length > 0 || (presets.separations ?? []).length > 0 ? (
+              <button
+                type="button"
+                onClick={() => updatePresets({ pairings: [], separations: [] })}
+                className="rounded-md px-3 py-1.5 text-[13px] text-[var(--tt-ink-3)] underline-offset-4 hover:underline"
+              >
+                Clear them
+              </button>
+            ) : null}
+          </div>
+
+          <p className="text-[12px] text-[var(--tt-ink-3)]">
+            That is: goats with rabbits, chickens and ducks with pigs, Liam on his own &mdash;
+            each morning and evening the same person. Breakfast and dinner different people;
+            whoever does a livestock round does neither meal; whoever cooks does not do the
+            kitchen. Liam is light enough that his person can still cook.
+          </p>
+        </div>
 
         <div className="flex flex-col gap-2">
           <p className="text-[13px] font-medium text-[var(--tt-ink)]">Days off</p>

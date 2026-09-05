@@ -21,6 +21,21 @@ export type Constraint =
   | { kind: 'only_people'; taskIds: string[]; personIds: string[] }
   /** "Nobody does more than three things a day" */
   | { kind: 'max_per_day'; personId: string | null; limit: number }
+  /**
+   * "Whoever does the goats does the rabbits too", and by the same token
+   * "morning and evening are the same person" — bundle Goats (Morning) with
+   * Goats (Evening) and it falls out.
+   *
+   * Labels match a task's group (or its title) case-insensitively by
+   * substring, so ticking "Goats" catches both its morning and evening
+   * series without anyone having to name them exactly.
+   */
+  | { kind: 'same_person'; labels: string[] }
+  /**
+   * "Whoever does breakfast does not do dinner." Two sides that must land on
+   * different people on any given day.
+   */
+  | { kind: 'different_people'; labelsA: string[]; labelsB: string[] }
 
 export interface AssignableTask {
   id: string
@@ -69,6 +84,25 @@ interface Blocker {
 }
 
 /** Every reason a person cannot take a particular task. */
+/**
+ * Does this task belong to a named group? Substring, case-insensitive, against
+ * the group label first and the title second — someone ticking "Goats" means
+ * the goat work, whether the series is called "Goats (Morning)" or the task is
+ * simply titled "Goats".
+ */
+export function taskMatchesLabel(task: AssignableTask, label: string): boolean {
+  const needle = label.trim().toLowerCase()
+  if (!needle) return false
+  return (
+    (task.groupLabel ?? '').toLowerCase().includes(needle) ||
+    task.title.toLowerCase().includes(needle)
+  )
+}
+
+function matchesAny(task: AssignableTask, labels: string[]): boolean {
+  return labels.some((label) => taskMatchesLabel(task, label))
+}
+
 function blockersFor(
   person: AssignablePerson,
   task: AssignableTask,
@@ -145,34 +179,94 @@ export function buildAssignmentPlan(
     (a, b) => a.date.localeCompare(b.date) || a.title.localeCompare(b.title)
   )
 
+  // Work is handed out in bundles, not single tasks. A bundle is normally one
+  // task; a same_person rule makes it every task on that day matching the
+  // bundled labels, so "whoever does the goats does the rabbits" and "morning
+  // and evening are the same person" are the same mechanism.
+  const bundles = constraints.filter(
+    (c): c is Extract<Constraint, { kind: 'same_person' }> => c.kind === 'same_person'
+  )
+  const separations = constraints.filter(
+    (c): c is Extract<Constraint, { kind: 'different_people' }> => c.kind === 'different_people'
+  )
+
+  function bundleKeyFor(task: AssignableTask): string {
+    const index = bundles.findIndex((bundle) => matchesAny(task, bundle.labels))
+    // Bundled work is keyed per day: the same person all day, a fresh choice
+    // tomorrow, which is what keeps the rota rotating.
+    return index === -1 ? `task:${task.id}` : `bundle:${index}:${task.date}`
+  }
+
+  const units = new Map<string, AssignableTask[]>()
   for (const task of ordered) {
+    const key = bundleKeyFor(task)
+    const list = units.get(key)
+    if (list) list.push(task)
+    else units.set(key, [task])
+  }
+
+  // Which side of each separation rule a person is already on, per day.
+  const sideHeld = new Map<string, 'A' | 'B'>()
+  const sideKey = (personId: string, date: string, index: number) =>
+    `${personId}:${date}:${index}`
+
+  for (const [, group] of Array.from(units)) {
+    const date = group[0].date
     const eligible: AssignablePerson[] = []
     const rejected: Blocker[] = []
 
     for (const person of people) {
-      const blockers = blockersFor(person, task, constraints, assignedToday)
+      // A bundle only works if one person can take all of it.
+      const blockers = group.flatMap((task) =>
+        blockersFor(person, task, constraints, assignedToday)
+      )
+
+      // ...and if it does not put them on both sides of a separation rule.
+      separations.forEach((rule, index) => {
+        const wantsA = group.some((task) => matchesAny(task, rule.labelsA))
+        const wantsB = group.some((task) => matchesAny(task, rule.labelsB))
+        const held = sideHeld.get(sideKey(person.id, date, index))
+
+        if (wantsA && wantsB) {
+          blockers.push({
+            personId: person.id,
+            reason: 'these are meant to be different people',
+          })
+          usedConstraints.add(rule)
+        } else if ((wantsA && held === 'B') || (wantsB && held === 'A')) {
+          blockers.push({
+            personId: person.id,
+            reason: 'already on the other side of that pairing today',
+          })
+          usedConstraints.add(rule)
+        }
+      })
+
       if (blockers.length === 0) {
         eligible.push(person)
       } else {
         rejected.push(blockers[0])
         for (const constraint of constraints) {
-          if (blockersFor(person, task, [constraint], assignedToday).length > 0) {
-            usedConstraints.add(constraint)
-          }
+          const hit = group.some(
+            (task) => blockersFor(person, task, [constraint], assignedToday).length > 0
+          )
+          if (hit) usedConstraints.add(constraint)
         }
       }
     }
 
     if (eligible.length === 0) {
-      unassignable.push({
-        taskId: task.id,
-        title: task.title,
-        date: task.date,
-        reason:
-          rejected.length > 0
-            ? `Nobody available — ${rejected.map((r) => r.reason).join('; ')}`
-            : 'Nobody available',
-      })
+      for (const task of group) {
+        unassignable.push({
+          taskId: task.id,
+          title: task.title,
+          date: task.date,
+          reason:
+            rejected.length > 0
+              ? `Nobody available — ${rejected.map((r) => r.reason).join('; ')}`
+              : 'Nobody available',
+        })
+      }
       continue
     }
 
@@ -182,18 +276,33 @@ export function buildAssignmentPlan(
     })[0]
 
     const before = load.get(chosen.id) ?? 0
-    load.set(chosen.id, before + 1)
 
-    const dayKey = `${chosen.id}:${task.date}`
-    assignedToday.set(dayKey, (assignedToday.get(dayKey) ?? 0) + 1)
+    // Record which side of each separation this bundle put them on, so the
+    // rest of the day respects it.
+    separations.forEach((rule, index) => {
+      if (group.some((task) => matchesAny(task, rule.labelsA))) {
+        sideHeld.set(sideKey(chosen.id, date, index), 'A')
+      } else if (group.some((task) => matchesAny(task, rule.labelsB))) {
+        sideHeld.set(sideKey(chosen.id, date, index), 'B')
+      }
+    })
 
-    assignments.push({
-      taskId: task.id,
-      personId: chosen.id,
-      reason:
-        eligible.length === people.length
-          ? `fewest assigned so far (${before})`
-          : `fewest assigned so far (${before}) among the ${eligible.length} available`,
+    group.forEach((task, i) => {
+      load.set(chosen.id, (load.get(chosen.id) ?? 0) + 1)
+
+      const dayKey = `${chosen.id}:${task.date}`
+      assignedToday.set(dayKey, (assignedToday.get(dayKey) ?? 0) + 1)
+
+      assignments.push({
+        taskId: task.id,
+        personId: chosen.id,
+        reason:
+          group.length > 1
+            ? `bundled with ${group.length - 1} other${group.length > 2 ? 's' : ''} that day`
+            : eligible.length === people.length
+              ? `fewest assigned so far (${before + i})`
+              : `fewest assigned so far (${before + i}) among the ${eligible.length} available`,
+      })
     })
   }
 

@@ -43,16 +43,38 @@ export interface MaxPerDayPreset {
   limit: number
 }
 
+/**
+ * "Whoever does the goats does the rabbits too." Free text rather than task
+ * ids: the labels match a task's group or title by substring, so "Goats"
+ * covers both its morning and evening series, which is also how "morning and
+ * evening are always the same person" gets expressed.
+ */
+export interface PairingPreset {
+  id: string
+  labels: string[]
+}
+
+/** "Whoever does breakfast does not do dinner." */
+export interface SeparationPreset {
+  id: string
+  labelsA: string[]
+  labelsB: string[]
+}
+
 export interface PresetState {
   daysOff: DayOffPreset[]
   taskExclusions: TaskExclusionPreset[]
   maxPerDay: MaxPerDayPreset | null
+  pairings: PairingPreset[]
+  separations: SeparationPreset[]
 }
 
 export const EMPTY_PRESETS: PresetState = {
   daysOff: [],
   taskExclusions: [],
   maxPerDay: null,
+  pairings: [],
+  separations: [],
 }
 
 export interface PresetContext {
@@ -132,6 +154,37 @@ export function presetsToConstraints(state: PresetState, context: PresetContext)
       const person = requirePerson(state.maxPerDay.personId)
       if (person) constraints.push({ kind: 'max_per_day', personId: person.id, limit })
     }
+  }
+
+  for (const pairing of state.pairings ?? []) {
+    const labels = pairing.labels.map((l) => l.trim()).filter(Boolean)
+    // A single label is meaningful: "Liam" bundles Liam (Morning) with Liam
+    // (Evening), which is how a twice-daily routine stays with one person all
+    // day. Only an empty list bundles nothing.
+    if (labels.length === 0) continue
+
+    // Warn about a label that matches no work in the window, the same way the
+    // exclusion path does — a rule that binds nothing is nearly always a
+    // misspelling rather than an intention.
+    for (const label of labels) {
+      const { taskIds, suggestion } = resolveTaskGroup(label, context.tasks)
+      if (taskIds.length === 0) unresolved.push({ text: label, kind: 'task_group', suggestion })
+    }
+
+    constraints.push({ kind: 'same_person', labels })
+  }
+
+  for (const separation of state.separations ?? []) {
+    const labelsA = separation.labelsA.map((l) => l.trim()).filter(Boolean)
+    const labelsB = separation.labelsB.map((l) => l.trim()).filter(Boolean)
+    if (labelsA.length === 0 || labelsB.length === 0) continue
+
+    for (const label of [...labelsA, ...labelsB]) {
+      const { taskIds, suggestion } = resolveTaskGroup(label, context.tasks)
+      if (taskIds.length === 0) unresolved.push({ text: label, kind: 'task_group', suggestion })
+    }
+
+    constraints.push({ kind: 'different_people', labelsA, labelsB })
   }
 
   return { constraints, unresolved }
