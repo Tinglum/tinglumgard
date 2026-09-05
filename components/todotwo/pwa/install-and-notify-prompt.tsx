@@ -26,7 +26,19 @@ import { TODOTWO_SW_URL } from '@/lib/todotwo/pwa/constants'
  *             beforehand would be asking for something the browser cannot give.
  */
 
-const DISMISS_KEY = 'todotwo:pwa-onboarding-dismissed:v1'
+/**
+ * Dismissal lasts for the session, not for ever.
+ *
+ * Somebody who taps "Not now" in a browser tab is not saying "never" — they
+ * are saying "not this minute". Until the app is actually on their phone,
+ * every fresh visit asks again, because the whole point is that push cannot
+ * reach them until it is installed. Within a session it stays quiet, so a
+ * reload is not punished.
+ */
+const DISMISS_KEY = 'todotwo:pwa-onboarding-dismissed:v2'
+
+/** True once the browser has refused outright; nagging cannot undo that. */
+const NOTIFY_DENIED = 'todotwo:pwa-notify-denied:v1'
 
 interface InstallPromptEvent extends Event {
   prompt: () => Promise<void>
@@ -89,7 +101,8 @@ export function InstallAndNotifyPrompt({ vapidPublicKey }: { vapidPublicKey: str
 
   React.useEffect(() => {
     if (typeof window === 'undefined') return
-    if (window.localStorage.getItem(DISMISS_KEY) === '1') return
+    // Session-scoped: quiet for this visit, back on the next one.
+    if (window.sessionStorage.getItem(DISMISS_KEY) === '1') return
 
     void (async () => {
       const standalone = isStandalone()
@@ -97,7 +110,12 @@ export function InstallAndNotifyPrompt({ vapidPublicKey }: { vapidPublicKey: str
       // Already installed and already subscribed: nothing to ask for.
       if (standalone) {
         if (!('serviceWorker' in navigator) || !('PushManager' in window)) return
-        if (Notification.permission === 'denied') return
+        // A hard refusal cannot be undone from here, so asking again every
+        // visit would only be noise.
+        if (Notification.permission === 'denied') {
+          window.localStorage.setItem(NOTIFY_DENIED, '1')
+          return
+        }
         try {
           const registration = await navigator.serviceWorker.getRegistration(TODOTWO_SW_URL)
           const subscription = await registration?.pushManager.getSubscription()
@@ -117,7 +135,7 @@ export function InstallAndNotifyPrompt({ vapidPublicKey }: { vapidPublicKey: str
   }, [])
 
   function close() {
-    if (typeof window !== 'undefined') window.localStorage.setItem(DISMISS_KEY, '1')
+    if (typeof window !== 'undefined') window.sessionStorage.setItem(DISMISS_KEY, '1')
     setOpen(false)
   }
 
@@ -152,6 +170,7 @@ export function InstallAndNotifyPrompt({ vapidPublicKey }: { vapidPublicKey: str
       const permission = await Notification.requestPermission()
       if (permission !== 'granted') {
         setBlocked(permission === 'denied')
+        if (permission === 'denied') window.localStorage.setItem(NOTIFY_DENIED, '1')
         setBusy(false)
         return
       }
