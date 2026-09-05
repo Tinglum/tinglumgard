@@ -1,9 +1,11 @@
 import { ClaimTaskButton } from '@/components/todotwo/tasks/claim-task-button'
+import { OpenHelpRequests } from '@/components/todotwo/tasks/open-help-requests'
 import { TaskRow } from '@/components/todotwo/tasks/task-row'
 import { EmptyState, Surface } from '@/components/todotwo/ui/states'
 import { copy, format, UI_LOCALE } from '@/lib/todotwo/copy'
 import { displayName, requireTodoTwoUser } from '@/lib/todotwo/auth'
 import { getToday } from '@/lib/todotwo/queries'
+import { getOpenHelpRequests } from '@/lib/todotwo/queries-help'
 import { FARM_TZ, farmToday, formatFarm } from '@/lib/todotwo/time'
 import { TODOTWO_BASE } from '@/lib/todotwo/routes'
 
@@ -23,10 +25,10 @@ function timeLabel(dueAt: string | null): string | null {
 export default async function TodayPage() {
   const principal = await requireTodoTwoUser(TODOTWO_BASE)
   const today = farmToday()
-  const { overdue, mine, unclaimed, doneToday, olderOpenCount } = await getToday(
-    principal.person.id,
-    today
-  )
+  const [{ overdue, mine, unclaimed, doneToday, olderOpenCount }, helpRequests] = await Promise.all([
+    getToday(principal.person.id, today),
+    getOpenHelpRequests(principal.person.id),
+  ])
 
   const totalMinutes = [...overdue, ...mine].reduce(
     (sum, task) => sum + (task.estimated_minutes ?? 0),
@@ -96,6 +98,8 @@ export default async function TodayPage() {
           </Surface>
         )}
       </section>
+
+      <OpenHelpRequests requests={helpRequests} />
 
       {olderOpenCount > 0 ? (
         <p className="text-[13px] text-[var(--tt-ink-3)]">

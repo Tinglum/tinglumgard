@@ -4,7 +4,12 @@ import { NextRequest, NextResponse } from 'next/server'
 // app/api/cron/todotwo-notifications for the rationale.
 import { getPrivilegedClientForCronOnly } from '@/lib/todotwo/db-privileged'
 import { isTodoTwoEnabled } from '@/lib/todotwo/config'
-import { buildAssignmentPlan, type AssignableTask, type Weekday } from '@/lib/todotwo/domain/assignment'
+import {
+  buildAssignmentPlan,
+  type AssignableTask,
+  type RotationHistory,
+  type Weekday,
+} from '@/lib/todotwo/domain/assignment'
 import { rulesToConstraints, type AssignmentRule } from '@/lib/todotwo/domain/assignment-rules'
 import { farmConstraints, type ApprovedTimeOff, type StayWindow } from '@/lib/todotwo/domain/assignment-inputs'
 import { addFarmDays, farmToday } from '@/lib/todotwo/time'
@@ -41,6 +46,51 @@ export const dynamic = 'force-dynamic'
 
 /** Assign this far ahead. The fourth day is the point of the exercise. */
 const HORIZON_DAYS = 4
+
+/** How far back to look for who last did a job. */
+const ROTATION_LOOKBACK_DAYS = 60
+
+/**
+ * Recent turns per job, most recent first.
+ *
+ * Keyed the same way the solver rotates: a bundled round under its bundle
+ * name, everything else under its group label. The solver appends as it
+ * assigns, so a week planned in one go rotates like a week planned daily.
+ */
+async function loadRotationHistory(
+  db: ReturnType<typeof getPrivilegedClientForCronOnly>,
+  today: string,
+  seriesTitle: Map<string, string>
+): Promise<RotationHistory> {
+  const since = addFarmDays(today, -ROTATION_LOOKBACK_DAYS)
+
+  const { data } = await db
+    .from('tasks')
+    .select('id, title, series_id, due_date, task_assignments(person_id, unassigned_at)')
+    .gte('due_date', since)
+    .lt('due_date', today)
+    .order('due_date', { ascending: false })
+
+  const history: RotationHistory = {}
+
+  for (const row of (data ?? []) as {
+    title: string | null
+    series_id: string | null
+    task_assignments: { person_id: string; unassigned_at: string | null }[] | null
+  }[]) {
+    const key = (row.series_id ? seriesTitle.get(row.series_id) : null) ?? row.title
+    if (!key) continue
+
+    for (const a of row.task_assignments ?? []) {
+      // Somebody who was unassigned did not take that turn.
+      if (a.unassigned_at !== null) continue
+      const seq = history[key] ?? []
+      if (!seq.includes(a.person_id)) history[key] = [...seq, a.person_id]
+    }
+  }
+
+  return history
+}
 
 async function isAuthorized(request: NextRequest): Promise<{ ok: boolean; status: number; error?: string }> {
   const secret = process.env.CRON_SECRET
@@ -204,10 +254,17 @@ export async function POST(request: NextRequest) {
     tasks.map((t) => ({ id: t.id, title: t.title, groupLabel: t.groupLabel }))
   )
 
-  const plan = buildAssignmentPlan(tasks, people, [
-    ...farm.sourced.map((s) => s.constraint),
-    ...resolved.constraints,
-  ])
+  // Who has done each job lately. Without this every run starts blank, and a
+  // window containing one new day has every load at zero — so the alphabetical
+  // tie-break decides and the same person cooks dinner indefinitely.
+  const history = await loadRotationHistory(db, from, seriesTitle)
+
+  const plan = buildAssignmentPlan(
+    tasks,
+    people,
+    [...farm.sourced.map((s) => s.constraint), ...resolved.constraints],
+    history
+  )
 
   let assigned = 0
   const failures: { taskId: string; message: string }[] = []
@@ -232,6 +289,7 @@ export async function POST(request: NextRequest) {
     unassignable: plan.unassignable.length,
     unassignableReasons: plan.unassignable.slice(0, 10).map((u) => `${u.date} ${u.title}: ${u.reason}`),
     rulesApplied: resolved.constraints.length,
+    rotationTracked: Object.keys(history).length,
     // A rule that matched nothing today is usually a renamed routine rather
     // than an intention, so it is reported rather than silently ignored.
     rulesInert: resolved.inert.map((r) => `${r.label}: ${r.reason}`),

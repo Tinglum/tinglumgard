@@ -47,6 +47,18 @@ export interface AssignableTask {
   groupLabel: string | null
 }
 
+/**
+ * Who has done a given piece of work recently, most recent first, keyed by
+ * the same label the rotation is grouped under.
+ *
+ * Without this the solver has no memory. Balancing by total load looks like
+ * rotation when everyone starts level, but the nightly round plans one fresh
+ * day at a time with every load at zero, so the tie-break decides — and the
+ * tie-break is alphabetical. Left alone it gives the same person dinner every
+ * night, indefinitely.
+ */
+export type RotationHistory = Record<string, string[]>
+
 export interface AssignablePerson {
   id: string
   name: string
@@ -167,7 +179,8 @@ function blockersFor(
 export function buildAssignmentPlan(
   tasks: AssignableTask[],
   people: AssignablePerson[],
-  constraints: Constraint[]
+  constraints: Constraint[],
+  history: RotationHistory = {}
 ): AssignmentPlan {
   const load = new Map<string, number>()
   const assignedToday = new Map<string, number>()
@@ -194,6 +207,18 @@ export function buildAssignmentPlan(
   const separations = constraints.filter(
     (c): c is Extract<Constraint, { kind: 'different_people' }> => c.kind === 'different_people'
   )
+
+  /**
+   * What this unit rotates against. Bundled work rotates as a bundle — the
+   * goats-and-rabbits round is one turn, not four — and everything else
+   * rotates on its own group name so "Dinner" is the same job every day
+   * regardless of which occurrence row it is.
+   */
+  function rotationKeyFor(task: AssignableTask): string {
+    const index = bundles.findIndex((bundle) => matchesAny(task, bundle.labels))
+    if (index !== -1) return `bundle:${bundles[index].labels.join('+')}`
+    return task.groupLabel ?? task.title
+  }
 
   function bundleKeyFor(task: AssignableTask): string {
     const index = bundles.findIndex((bundle) => matchesAny(task, bundle.labels))
@@ -275,12 +300,65 @@ export function buildAssignmentPlan(
       continue
     }
 
-    const chosen = [...eligible].sort((a, b) => {
+    // Turn-taking first, then load, then name.
+    //
+    // "Nobody does the same job again until everyone else has had a turn"
+    // cannot come out of load balancing: somebody excluded from other work is
+    // permanently the least loaded, and a single-day window starts everyone at
+    // zero. So whoever did this particular job longest ago goes first, and
+    // whoever has never done it goes before all of them.
+    const rotationKey = rotationKeyFor(group[0])
+
+    // History arrives keyed by group label, because that is what a caller can
+    // read out of past assignments. A bundle has no such label of its own, so
+    // the first time one comes up its turns are gathered from the labels it
+    // contains — otherwise the goats-and-rabbits round would look like work
+    // nobody had ever done, every single run.
+    if (history[rotationKey] === undefined) {
+      const memberLabels = Array.from(
+        new Set(group.map((t) => t.groupLabel ?? t.title))
+      )
+      const merged: string[] = []
+      for (const label of memberLabels) {
+        for (const personId of history[label] ?? []) {
+          if (!merged.includes(personId)) merged.push(personId)
+        }
+      }
+      history[rotationKey] = merged
+    }
+
+    const recent = history[rotationKey] ?? []
+
+    // One cycle is everyone but the person about to take a turn. Anybody
+    // inside that window has had this job since the last time it came round
+    // to them, so they stand aside — which is precisely "nobody does it again
+    // until everyone else has".
+    //
+    // Rotation only decides WHO IS DUE. Among those who are, load still
+    // chooses, so a turn does not land on somebody already carrying twice
+    // what anybody else is.
+    const cycle = Math.max(0, eligible.length - 1)
+    const hadRecentTurn = new Set(recent.slice(0, cycle))
+    const due = eligible.filter((p) => !hadRecentTurn.has(p.id))
+    const pool = due.length > 0 ? due : eligible
+
+    const chosen = [...pool].sort((a, b) => {
       const diff = (load.get(a.id) ?? 0) - (load.get(b.id) ?? 0)
-      return diff !== 0 ? diff : a.name.localeCompare(b.name)
+      if (diff !== 0) return diff
+      // Longest since their last turn, then name, so it is never arbitrary.
+      const aSince = recent.indexOf(a.id)
+      const bSince = recent.indexOf(b.id)
+      const aRank = aSince === -1 ? Number.POSITIVE_INFINITY : aSince
+      const bRank = bSince === -1 ? Number.POSITIVE_INFINITY : bSince
+      if (aRank !== bRank) return bRank - aRank
+      return a.name.localeCompare(b.name)
     })[0]
 
     const before = load.get(chosen.id) ?? 0
+
+    // Remember this turn for the rest of the run, so a week planned in one go
+    // rotates the same way a week planned a day at a time does.
+    history[rotationKey] = [chosen.id, ...recent.filter((id) => id !== chosen.id)]
 
     // Record which side of each separation this bundle put them on, so the
     // rest of the day respects it.

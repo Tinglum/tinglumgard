@@ -7,10 +7,12 @@ import { StepList } from '@/components/todotwo/tasks/step-list'
 import { CompleteTaskButton } from '@/components/todotwo/tasks/complete-task-button'
 import { DuplicateTaskButton } from '@/components/todotwo/tasks/duplicate-task-button'
 import { OccurrenceActions } from '@/components/todotwo/tasks/occurrence-actions'
+import { AskForHelp } from '@/components/todotwo/tasks/ask-for-help'
 import { OfferTaskButton } from '@/components/todotwo/tasks/offer-task-button'
 import { PrioritySelect } from '@/components/todotwo/tasks/priority-select'
 import { PrivateNote } from '@/components/todotwo/tasks/private-note'
 import { Surface } from '@/components/todotwo/ui/states'
+import { getTodoTwoClient } from '@/lib/todotwo/db'
 import { requireTodoTwoUser } from '@/lib/todotwo/auth'
 import {
   getTaskDetail,
@@ -39,6 +41,15 @@ export default async function TaskDetailPage({ params }: { params: { id: string 
 
   const currentAssigneeId = await getCurrentAssignee(task.id)
   const isCurrentAssignee = currentAssigneeId !== null && currentAssigneeId === principal.person.id
+
+  // So the page offers "ask the group" or "you have asked", never both.
+  const { data: openAsk } = await getTodoTwoClient()
+    .from('task_help_requests')
+    .select('id')
+    .eq('task_id', params.id)
+    .eq('status', 'open')
+    .maybeSingle()
+  const hasOpenHelpRequest = openAsk !== null
   const currentAssignee = currentAssigneeId ? await getCurrentAssigneePerson(task.id) : null
   const offerCandidates = isCurrentAssignee
     ? (await getPeople())
@@ -131,6 +142,10 @@ export default async function TaskDetailPage({ params }: { params: { id: string 
           <OfferTaskButton taskId={task.id} candidates={offerCandidates} />
         ) : null}
       </div>
+
+      {isCurrentAssignee && !done ? (
+        <AskForHelp taskId={task.id} alreadyAsked={hasOpenHelpRequest} />
+      ) : null}
 
       {task.series_id ? (
         <div className="flex flex-wrap items-center gap-2">
