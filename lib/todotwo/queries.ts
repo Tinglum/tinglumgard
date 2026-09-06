@@ -78,8 +78,12 @@ async function attachCurrentAssignees<T extends TaskRow>(
     return rows
   }
 
+  // people_roster, not people. A Workawayer can only read their own `people`
+  // row, so reading that table here left every task but their own showing no
+  // assignee at all. The roster view carries exactly these four columns and is
+  // readable by every member; contact details stay behind people's policies.
   const { data: people, error: peopleError } = await db
-    .from('people')
+    .from('people_roster')
     .select('id, full_name, preferred_name, photo_url')
     .in('id', personIds)
 
@@ -579,8 +583,10 @@ export async function getCurrentAssigneePerson(taskId: string): Promise<TaskAssi
   const personId = await getCurrentAssignee(taskId)
   if (!personId) return null
 
+  // See attachCurrentAssignees: the roster view, so a Workawayer looking at a
+  // task somebody else holds sees who has it rather than a blank.
   const { data, error } = await db
-    .from('people')
+    .from('people_roster')
     .select('id, full_name, preferred_name, photo_url')
     .eq('id', personId)
     .maybeSingle()
