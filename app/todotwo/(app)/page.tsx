@@ -1,4 +1,5 @@
 import { ClaimTaskButton } from '@/components/todotwo/tasks/claim-task-button'
+import { FarmToday } from '@/components/todotwo/tasks/farm-today'
 import { OpenHelpRequests } from '@/components/todotwo/tasks/open-help-requests'
 import { TaskRow } from '@/components/todotwo/tasks/task-row'
 import { EmptyState, Surface } from '@/components/todotwo/ui/states'
@@ -25,7 +26,10 @@ function timeLabel(dueAt: string | null): string | null {
 export default async function TodayPage() {
   const principal = await requireTodoTwoUser(TODOTWO_BASE)
   const today = farmToday()
-  const [{ overdue, mine, unclaimed, doneToday, olderOpenCount }, helpRequests] = await Promise.all([
+  const [
+    { overdue, mine, unclaimed, doneToday, everyoneToday, olderOpenCount },
+    helpRequests,
+  ] = await Promise.all([
     getToday(principal.person.id, today),
     getOpenHelpRequests(principal.person.id),
   ])
@@ -98,6 +102,12 @@ export default async function TodayPage() {
           </Surface>
         )}
       </section>
+
+      <FarmToday
+        tasks={everyoneToday}
+        currentPersonId={principal.person.id}
+        timeLabel={timeLabel}
+      />
 
       <OpenHelpRequests requests={helpRequests} />
 
