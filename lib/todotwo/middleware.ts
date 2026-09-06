@@ -55,10 +55,38 @@ export async function handleTodoTwoMiddleware(request: NextRequest): Promise<Nex
     },
   })
 
-  // Revalidates the token and writes refreshed cookies through setAll above.
-  // Server components cannot set cookies, so if this does not happen here the
-  // session silently expires mid-visit.
-  await supabase.auth.getUser()
+  // Refresh, but only when there is something to refresh.
+  //
+  // This used to call getUser() unconditionally, which is a round trip to the
+  // auth server on every single request. Two costs, and the second is the one
+  // that bit us: every call is another chance to rotate the refresh token, and
+  // with rotation on, a token rotated here while a slow (cold-starting)
+  // function is still rendering with the previous one is how a working session
+  // turns into a login screen.
+  //
+  // So: read the session from the cookie — untrusted, but perfectly good for
+  // "is this about to expire?" — and only reach for the network when it is.
+  // Authorization is not decided here; getTodoTwoUser() revalidates properly
+  // on the page. This is only about keeping the cookie alive.
+  const {
+    data: { session },
+  } = await supabase.auth.getSession()
+
+  if (session) {
+    const expiresAt = session.expires_at ?? 0
+    const secondsLeft = expiresAt - Math.floor(Date.now() / 1000)
+
+    // A comfortable margin: long enough that a page render never begins with a
+    // token that dies mid-flight, short enough that we are not refreshing on
+    // every visit.
+    if (secondsLeft < 5 * 60) {
+      const { error } = await supabase.auth.refreshSession()
+      // A failed refresh is left alone deliberately. Clearing the cookie here
+      // would sign somebody out over a blip; leaving it means the page tries
+      // again, and a genuinely dead session fails there instead.
+      if (error) return response
+    }
+  }
 
   return response
 }
