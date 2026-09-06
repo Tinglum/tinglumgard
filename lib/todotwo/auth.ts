@@ -33,21 +33,45 @@ export interface TodoTwoPrincipal {
 const ADMIN_ROLES: TodoTwoRole[] = ['super_admin', 'farm_admin']
 
 /**
+ * Was this a real "you are not signed in", or just a bad moment?
+ *
+ * Supabase answers both with an error object, and the difference matters more
+ * than it looks. A rejected token means sign in again. A timeout, a 5xx, or a
+ * refresh that lost a race with the one middleware just did means *try again* —
+ * and if we mistake the second for the first we sign somebody out for having a
+ * weak signal. On a farm, that is most of the day.
+ */
+function isRejection(error: { status?: number; message?: string } | null): boolean {
+  if (!error) return false
+  // 401/403 is the auth server saying no. 400 is a malformed or spent token.
+  if (typeof error.status === 'number') return error.status >= 400 && error.status < 500
+  return /jwt|token|session|not authenticated/i.test(error.message ?? '')
+}
+
+/**
  * The signed-in TodoTwo principal, or null.
  *
  * Two round trips by design: the Supabase session establishes identity, then
  * the person row and roles are read through the RLS client so a caller can only
  * ever resolve to a person they are entitled to see — their own.
+ *
+ * The retry is not defensive padding. Token rotation is on, and the refresh
+ * that middleware performs at the edge and the render that happens in a
+ * (possibly cold-starting) function are far enough apart that the render can
+ * arrive holding the previous token. One retry, after the cookie has caught up,
+ * turns that into a non-event instead of a logout.
  */
 export async function getTodoTwoUser(): Promise<TodoTwoPrincipal | null> {
   const authClient = getTodoTwoAuthClient()
 
   // getUser() revalidates the token with Supabase. getSession() trusts the
   // cookie, which is not good enough for an authorization decision.
-  const {
-    data: { user },
-    error,
-  } = await authClient.auth.getUser()
+  let { data: { user }, error } = await authClient.auth.getUser()
+
+  if (error && !isRejection(error)) {
+    await new Promise((resolve) => setTimeout(resolve, 250))
+    ;({ data: { user }, error } = await authClient.auth.getUser())
+  }
 
   if (error || !user) return null
 
