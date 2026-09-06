@@ -155,6 +155,12 @@ export async function getToday(
   mine: TaskRow[]
   unclaimed: TaskRow[]
   doneToday: TaskRow[]
+  /**
+   * Everything due today that somebody holds — the whole farm, not just the
+   * reader. Costs nothing extra: these rows are already fetched and already
+   * assignee-hydrated for the lists above, and were being thrown away.
+   */
+  everyoneToday: TaskRow[]
   /** Still-open work older than the window above. Counted, not listed. */
   olderOpenCount: number
 }> {
@@ -214,6 +220,9 @@ export async function getToday(
     // Regardless of who they would normally fall to: nobody holds these.
     unclaimed: sortTasks(rows.filter((t) => dueToday(t) && isOpen(t) && !t.assignee)),
     doneToday: sortTasks(rows.filter((t) => dueToday(t) && !isOpen(t) && isMine(t))),
+    // Held by somebody — anybody. Unheld work is already the "up for grabs"
+    // list, and showing it twice would only make the screen longer.
+    everyoneToday: sortTasks(rows.filter((t) => dueToday(t) && Boolean(t.assignee))),
     olderOpenCount: staleResult.count ?? 0,
   }
 }
