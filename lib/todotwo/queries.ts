@@ -52,14 +52,20 @@ async function attachCurrentAssignees<T extends TaskRow>(
   if (rows.length === 0) return rows
 
   const taskIds = rows.map((r) => r.id)
-  const { data: assignmentRows, error: assignmentsError } = await db
-    .from('task_assignments')
-    .select('task_id, person_id')
-    .in('task_id', taskIds)
-    // 'supervisor' rows are oversight, not ownership. Only an 'assignee' row
-    // means somebody actually has the task.
-    .eq('role', 'assignee')
-    .is('unassigned_at', null)
+  const [{ data: assignmentRows, error: assignmentsError }, { data: people, error: peopleError }] =
+    await Promise.all([
+      db
+        .from('task_assignments')
+        .select('task_id, person_id')
+        .in('task_id', taskIds)
+        // 'supervisor' rows are oversight, not ownership. Only an 'assignee' row
+        // means somebody actually has the task.
+        .eq('role', 'assignee')
+        .is('unassigned_at', null),
+      // The roster is intentionally farm-visible and small. Fetching it beside
+      // assignments removes one full network round trip from every task list.
+      db.from('people_roster').select('id, full_name, preferred_name, photo_url'),
+    ])
 
   if (assignmentsError) {
     throw new Error(`Could not load assignments: ${assignmentsError.message}`)
@@ -72,8 +78,7 @@ async function attachCurrentAssignees<T extends TaskRow>(
     ])
   )
 
-  const personIds = Array.from(new Set(personIdByTask.values()))
-  if (personIds.length === 0) {
+  if (personIdByTask.size === 0) {
     for (const row of rows) row.assignee = null
     return rows
   }
@@ -82,11 +87,6 @@ async function attachCurrentAssignees<T extends TaskRow>(
   // row, so reading that table here left every task but their own showing no
   // assignee at all. The roster view carries exactly these four columns and is
   // readable by every member; contact details stay behind people's policies.
-  const { data: people, error: peopleError } = await db
-    .from('people_roster')
-    .select('id, full_name, preferred_name, photo_url')
-    .in('id', personIds)
-
   if (peopleError) throw new Error(`Could not load assignees: ${peopleError.message}`)
 
   const personById = new Map(
@@ -176,7 +176,7 @@ export async function getToday(
   // fine at a few hundred rows, but the farm now runs twice-daily animal
   // routines, so it grows by several thousand a year and every one of them
   // was being fetched and assignee-hydrated on every load of the home screen.
-  const [openResult, doneResult, staleResult] = await Promise.all([
+  const [openResult, doneResult, staleResult, recurringResult] = await Promise.all([
     db
       .from('tasks_resolved')
       .select(SELECT)
@@ -199,6 +199,7 @@ export async function getToday(
       .is('parent_task_id', null)
       .lt('due_date', floor)
       .in('status', OPEN_STATUSES),
+    db.from('task_series').select('id, rrule').eq('is_active', true).is('deleted_at', null),
   ])
 
   const error = openResult.error ?? doneResult.error
@@ -215,12 +216,8 @@ export async function getToday(
   const isOpen = (t: TaskRow) => OPEN_STATUSES.includes(t.status)
   const isMine = (t: TaskRow) => t.assignee?.id === personId
   const dueToday = (t: TaskRow) => t.due_date === today
-  const seriesIds = Array.from(new Set(rows.flatMap((t) => (t.series_id ? [t.series_id] : []))))
-  const { data: recurringRows } = seriesIds.length
-    ? await db.from('task_series').select('id, rrule').in('id', seriesIds)
-    : { data: [] }
   const weeklyIds = new Set(
-    ((recurringRows ?? []) as { id: string; rrule: string }[])
+    ((recurringResult.data ?? []) as { id: string; rrule: string }[])
       .filter((series) => /(?:^|;)FREQ=WEEKLY(?:;|$)/i.test(series.rrule.replace(/^RRULE:/i, '')))
       .map((series) => series.id)
   )

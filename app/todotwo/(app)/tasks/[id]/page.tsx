@@ -19,7 +19,6 @@ import {
   getTaskDetail,
   getAssignmentHistoryForSeries,
   getCurrentAssignee,
-  getCurrentAssigneePerson,
   getPeople,
 } from '@/lib/todotwo/queries'
 import { describeRule } from '@/lib/todotwo/domain/recurrence'
@@ -39,27 +38,31 @@ export default async function TaskDetailPage({ params }: { params: { id: string 
   const done = task.status === 'completed' || task.status === 'verified'
   const requiresFenceReading = /goats \(morning\)/i.test(task.title) && !steps.some((step) => /check fence/i.test(step.title) && step.done)
 
-  const history = task.series_id ? await getAssignmentHistoryForSeries(task.series_id) : []
-
-  const currentAssigneeId = await getCurrentAssignee(task.id)
+  const [history, currentAssigneeId, openAskResult, people] = await Promise.all([
+    task.series_id ? getAssignmentHistoryForSeries(task.series_id) : Promise.resolve([]),
+    getCurrentAssignee(task.id),
+    getTodoTwoClient().from('task_help_requests').select('id').eq('task_id', params.id).eq('status', 'open').maybeSingle(),
+    getPeople(),
+  ])
   const isCurrentAssignee = currentAssigneeId !== null && currentAssigneeId === principal.person.id
 
   // So the page offers "ask the group" or "you have asked", never both.
-  const { data: openAsk } = await getTodoTwoClient()
-    .from('task_help_requests')
-    .select('id')
-    .eq('task_id', params.id)
-    .eq('status', 'open')
-    .maybeSingle()
+  const openAsk = openAskResult.data
   const hasOpenHelpRequest = openAsk !== null
-  const currentAssignee = currentAssigneeId ? await getCurrentAssigneePerson(task.id) : null
+  const currentAssigneeRow = currentAssigneeId ? people.find((person) => person.id === currentAssigneeId) : null
+  const currentAssignee = currentAssigneeRow ? {
+    id: currentAssigneeRow.id,
+    fullName: currentAssigneeRow.full_name,
+    preferredName: currentAssigneeRow.preferred_name,
+    photoUrl: null,
+  } : null
   const offerCandidates = isCurrentAssignee
-    ? (await getPeople())
+    ? people
         .filter((p) => p.id !== currentAssigneeId)
         .map((p) => ({ id: p.id, full_name: p.full_name, preferred_name: p.preferred_name }))
     : []
   const assignmentPeople = principal.isAdmin
-    ? (await getPeople()).map((p) => ({ id: p.id, name: p.preferred_name || p.full_name }))
+    ? people.map((p) => ({ id: p.id, name: p.preferred_name || p.full_name }))
     : []
 
   return (
