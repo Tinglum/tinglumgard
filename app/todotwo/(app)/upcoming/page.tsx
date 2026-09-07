@@ -1,12 +1,10 @@
-import { TaskRow } from '@/components/todotwo/tasks/task-row'
 import { PersonalUpcomingPager } from '@/components/todotwo/tasks/personal-upcoming-pager'
+import { UpcomingTaskFilter } from '@/components/todotwo/tasks/upcoming-task-filter'
 import { EmptyState, Surface } from '@/components/todotwo/ui/states'
-import { UI_LOCALE } from '@/lib/todotwo/copy'
 import Link from 'next/link'
 
 import { requireTodoTwoUser } from '@/lib/todotwo/auth'
 import { getFavoriteViews, getUpcoming } from '@/lib/todotwo/queries'
-import { FARM_TZ, farmDayStart, formatFarm } from '@/lib/todotwo/time'
 import { todoTwoRoutes } from '@/lib/todotwo/routes'
 
 export const dynamic = 'force-dynamic'
@@ -59,43 +57,7 @@ export default async function UpcomingPage() {
         </Surface>
       </section>
 
-      <div className="flex flex-col gap-5">
-        <h2 className="text-lg font-semibold">Everyone else</h2>
-      {visibleGroups.map((group) => {
-        const otherTasks = group.tasks.filter((task) => task.assignee?.id !== principal.person.id)
-        return (
-        <section key={group.date} className="flex flex-col gap-2">
-          <h2 className="flex items-baseline gap-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--tt-ink-3)]">
-            {new Intl.DateTimeFormat(UI_LOCALE, {
-              weekday: 'long',
-              day: 'numeric',
-              month: 'short',
-              timeZone: FARM_TZ,
-            }).format(farmDayStart(group.date))}
-            <span className="font-normal normal-case tracking-normal">
-              {otherTasks.length > 0 ? `· ${otherTasks.length}` : ''}
-            </span>
-          </h2>
-
-          {otherTasks.length === 0 ? (
-            <p className="px-1 text-[13px] text-[var(--tt-ink-3)]">Nothing scheduled.</p>
-          ) : (
-            <Surface className="px-4">
-              <ul className="list-none">
-                {otherTasks.map((task) => (
-                  <TaskRow
-                    key={task.id}
-                    task={task}
-                    timeLabel={task.due_at ? formatFarm(new Date(task.due_at), 'HH:mm') : null}
-                  />
-                ))}
-              </ul>
-            </Surface>
-          )}
-        </section>
-        )
-      })}
-      </div>
+      <UpcomingTaskFilter groups={visibleGroups} personId={principal.person.id} />
 
       {total === 0 ? (
         <EmptyState title="Nothing ahead" description="Generated routines will appear here." />
