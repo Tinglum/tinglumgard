@@ -102,6 +102,26 @@ export async function generateSignInLink(
 }
 
 /**
+ * Ask Supabase Auth to deliver the link itself. This is the fallback when the
+ * farm's Mailgun account is unavailable or has reached its daily quota.
+ * The caller has already checked the invite list and rate limit.
+ */
+export async function sendProviderSignInLink(email: string, redirectTo: string): Promise<boolean> {
+  const url = process.env.NEXT_PUBLIC_TODOTWO_SUPABASE_URL
+  const anonKey = process.env.NEXT_PUBLIC_TODOTWO_SUPABASE_ANON_KEY
+  if (!url || !anonKey) return false
+
+  const anonClient = createClient(url, anonKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  })
+  const { error } = await anonClient.auth.signInWithOtp({
+    email,
+    options: { emailRedirectTo: redirectTo, shouldCreateUser: true },
+  })
+  return !error
+}
+
+/**
  * Records a sign-in attempt and reports whether it is within the limits.
  * Rate limiting lives in Postgres because Netlify functions are short-lived and
  * plural, which makes an in-process counter decorative.

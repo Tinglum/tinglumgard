@@ -1,7 +1,12 @@
 import { type NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 
-import { claimLinkRequest, emailIsInvited, generateSignInLink } from '@/lib/todotwo/auth-admin'
+import {
+  claimLinkRequest,
+  emailIsInvited,
+  generateSignInLink,
+  sendProviderSignInLink,
+} from '@/lib/todotwo/auth-admin'
 import { isTodoTwoEnabled } from '@/lib/todotwo/config'
 import { createMailgunSender, getMailerConfig } from '@/lib/todotwo/notifications/mailer'
 import { absoluteUrl } from '@/lib/todotwo/host'
@@ -78,17 +83,18 @@ export async function POST(request: NextRequest) {
       return accepted
     }
 
-    const mailer = getMailerConfig()
-    if (!mailer) {
-      console.error('[todotwo] cannot send sign-in link: Mailgun is not configured')
-      return accepted
-    }
-
     const returnTo =
       parsed.returnTo && parsed.returnTo.startsWith('/todotwo') ? parsed.returnTo : undefined
 
     const callback = new URL(absoluteUrl(todoTwoRoutes.authCallback()))
     if (returnTo) callback.searchParams.set('returnTo', returnTo)
+
+    const mailer = getMailerConfig()
+    if (!mailer) {
+      const delivered = await sendProviderSignInLink(email, callback.toString())
+      if (!delivered) console.error('[todotwo] both sign-in mail providers are unavailable')
+      return accepted
+    }
 
     const link = await generateSignInLink(email, callback.toString())
     if (!link) {
@@ -114,6 +120,8 @@ export async function POST(request: NextRequest) {
       // Logged without the address: server logs must not become a record of who
       // is on the farm either.
       console.error('[todotwo] sign-in link send failed', { error: result.error })
+      const delivered = await sendProviderSignInLink(email, callback.toString())
+      if (!delivered) console.error('[todotwo] fallback sign-in link send failed')
     }
   } catch (error) {
     console.error('[todotwo] sign-in link route failed', {
