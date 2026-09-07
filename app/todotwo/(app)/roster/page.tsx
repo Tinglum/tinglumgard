@@ -1,4 +1,5 @@
 import { RosterDatePicker } from '@/components/todotwo/roster/date-picker'
+import { UndoCompletionButton } from '@/components/todotwo/roster/undo-completion-button'
 import { EmptyState, Surface } from '@/components/todotwo/ui/states'
 import { Avatar } from '@/components/todotwo/ui/avatar'
 import { UI_LOCALE } from '@/lib/todotwo/copy'
@@ -59,7 +60,7 @@ export default async function RosterPage({
 }: {
   searchParams: Promise<{ date?: string }>
 }) {
-  await requireTodoTwoUser(todoTwoRoutes.roster())
+  const principal = await requireTodoTwoUser(todoTwoRoutes.roster())
 
   const { date: rawDate } = await searchParams
   const start: FarmDate = rawDate && isFarmDate(rawDate) ? rawDate : farmToday()
@@ -83,14 +84,14 @@ export default async function RosterPage({
         <RosterDatePicker date={start} />
       </header>
 
-      <RosterDay date={start} entries={firstEntries} />
-      <RosterDay date={second} entries={secondEntries} />
+      <RosterDay date={start} entries={firstEntries} currentPersonId={principal.person.id} />
+      <RosterDay date={second} entries={secondEntries} currentPersonId={principal.person.id} />
     </div>
   )
 }
 
 /** One labelled day: its heading, then a section per person with work on it. */
-function RosterDay({ date, entries }: { date: FarmDate; entries: RosterEntry[] }) {
+function RosterDay({ date, entries, currentPersonId }: { date: FarmDate; entries: RosterEntry[]; currentPersonId: string }) {
   const populated = entries.filter((entry) => entry.tasks.length > 0)
   const total = populated.reduce((sum, entry) => sum + entry.tasks.length, 0)
   const relative = relativeLabel(date)
@@ -112,7 +113,7 @@ function RosterDay({ date, entries }: { date: FarmDate; entries: RosterEntry[] }
       ) : (
         <div className="flex flex-col gap-4">
           {populated.map((entry) => (
-            <PersonBlock key={entry.personId ?? 'unassigned'} entry={entry} />
+            <PersonBlock key={entry.personId ?? 'unassigned'} entry={entry} currentPersonId={currentPersonId} />
           ))}
         </div>
       )}
@@ -121,7 +122,7 @@ function RosterDay({ date, entries }: { date: FarmDate; entries: RosterEntry[] }
 }
 
 /** One person's work for a day, with a done-of-outstanding tally. */
-function PersonBlock({ entry }: { entry: RosterEntry }) {
+function PersonBlock({ entry, currentPersonId }: { entry: RosterEntry; currentPersonId: string }) {
   const cancelled = entry.tasks.filter((task) => isCancelled(task.status)).length
   const countable = entry.tasks.length - cancelled
   const done = entry.tasks.filter((task) => isFinished(task.status)).length
@@ -178,6 +179,9 @@ function PersonBlock({ entry }: { entry: RosterEntry }) {
                 <span className="shrink-0 text-[11px] uppercase tracking-wide text-[var(--tt-ink-3)]">
                   {task.status.replace(/_/g, ' ')}
                 </span>
+                {entry.personId === currentPersonId && task.status === 'completed' ? (
+                  <UndoCompletionButton taskId={task.id} taskTitle={task.title} />
+                ) : null}
               </li>
             )
           })}
