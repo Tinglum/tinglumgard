@@ -19,7 +19,13 @@ export default async function UpcomingPage() {
     getFavoriteViews(principal.person.id, isStaff),
   ])
 
-  const total = groups.reduce((sum, g) => sum + g.tasks.length, 0)
+  const visibleGroups = groups.map((group, index) => ({
+    ...group,
+    // The automatic rota covers four upcoming days. Later generated
+    // occurrences are preparation data, not actionable work yet.
+    tasks: group.tasks.filter((task) => Boolean(task.assignee) || index < 4),
+  }))
+  const total = visibleGroups.reduce((sum, g) => sum + g.tasks.length, 0)
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-6">
@@ -30,7 +36,7 @@ export default async function UpcomingPage() {
         </p>
       </header>
 
-      <PersonalUpcomingPager groups={groups} personId={principal.person.id} />
+      <PersonalUpcomingPager groups={visibleGroups} personId={principal.person.id} />
 
       <section className="flex flex-col gap-2">
         <h2 className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--tt-ink-3)]">
@@ -55,7 +61,7 @@ export default async function UpcomingPage() {
 
       <div className="flex flex-col gap-5">
         <h2 className="text-lg font-semibold">Everyone else</h2>
-      {groups.map((group) => {
+      {visibleGroups.map((group) => {
         const otherTasks = group.tasks.filter((task) => task.assignee?.id !== principal.person.id)
         return (
         <section key={group.date} className="flex flex-col gap-2">
