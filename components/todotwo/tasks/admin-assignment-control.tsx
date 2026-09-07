@@ -18,6 +18,7 @@ export function AdminAssignmentControl({
   const router = useRouter()
   const [value, setValue] = React.useState(currentPersonId ?? '')
   const [saving, setSaving] = React.useState(false)
+  const [refreshing, startRefresh] = React.useTransition()
   const [error, setError] = React.useState<string | null>(null)
 
   async function change(next: string) {
@@ -34,7 +35,7 @@ export function AdminAssignmentControl({
       setError(rpcError.message)
       return
     }
-    router.refresh()
+    startRefresh(() => router.refresh())
   }
 
   return (
@@ -46,7 +47,7 @@ export function AdminAssignmentControl({
         <select
           id={`assignment-${taskId}`}
           value={value}
-          disabled={saving}
+          disabled={saving || refreshing}
           onChange={(event) => void change(event.target.value)}
           className="min-h-11 flex-1 rounded-md border border-[var(--tt-rule-strong)] bg-[var(--tt-surface)] px-3 text-sm"
         >

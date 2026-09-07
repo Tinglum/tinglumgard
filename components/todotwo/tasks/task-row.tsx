@@ -63,6 +63,7 @@ export function TaskRow({
   // completed" from the database, so the control says so by being inert.
   const [untickable] = React.useState(canUntick(task.status))
   const [pending, setPending] = React.useState(false)
+  const [refreshing, startRefresh] = React.useTransition()
   const [error, setError] = React.useState<string | null>(null)
   const [undoUntil, setUndoUntil] = React.useState<number | null>(null)
   // Evening animal routines: asked in place of the immediate optimistic tick.
@@ -97,7 +98,7 @@ export function TaskRow({
 
       setUndoUntil(next ? Date.now() + UNDO_WINDOW_MS : null)
       onChanged?.()
-      router.refresh()
+      startRefresh(() => router.refresh())
     } catch (caught) {
       setDone(!next)
       setError(caught instanceof Error ? caught.message : 'Could not save')
@@ -107,7 +108,7 @@ export function TaskRow({
   }
 
   function toggle() {
-    if (pending) return
+    if (pending || refreshing) return
     if (done && !untickable) return
     const next = !done
 
@@ -132,7 +133,7 @@ export function TaskRow({
       <button
         type="button"
         onClick={toggle}
-        disabled={pending || (done && !untickable)}
+        disabled={pending || refreshing || (done && !untickable)}
         aria-pressed={done}
         aria-label={
           done
@@ -233,7 +234,7 @@ export function TaskRow({
           <button
             type="button"
             onClick={() => void commit(true, true)}
-            disabled={pending}
+            disabled={pending || refreshing}
             className="rounded-md bg-[var(--tt-accent)] px-3 py-1.5 text-[13px] font-medium text-[var(--tt-on-accent)] disabled:opacity-60"
           >
             Yes
@@ -241,7 +242,7 @@ export function TaskRow({
           <button
             type="button"
             onClick={() => void commit(true, false)}
-            disabled={pending}
+            disabled={pending || refreshing}
             className="rounded-md border border-[var(--tt-rule-strong)] px-3 py-1.5 text-[13px] font-medium disabled:opacity-60"
           >
             No
@@ -249,7 +250,7 @@ export function TaskRow({
           <button
             type="button"
             onClick={() => setAsking(false)}
-            disabled={pending}
+            disabled={pending || refreshing}
             className="px-3 py-1.5 text-[13px] text-[var(--tt-ink-3)] hover:underline"
           >
             Cancel

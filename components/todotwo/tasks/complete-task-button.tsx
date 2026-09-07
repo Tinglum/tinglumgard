@@ -22,6 +22,7 @@ export function CompleteTaskButton({
 }) {
   const router = useRouter()
   const [pending, setPending] = React.useState(false)
+  const [refreshing, startRefresh] = React.useTransition()
   const [error, setError] = React.useState<string | null>(null)
   // Only asked when completing (not un-completing) a task that requires it.
   const [asking, setAsking] = React.useState(false)
@@ -41,7 +42,7 @@ export function CompleteTaskButton({
         return
       }
       setAsking(false)
-      router.refresh()
+      startRefresh(() => router.refresh())
     } finally {
       setPending(false)
     }
@@ -57,7 +58,7 @@ export function CompleteTaskButton({
         setError(rpcError.message)
         return
       }
-      router.refresh()
+      startRefresh(() => router.refresh())
     } finally {
       setPending(false)
     }
@@ -126,12 +127,12 @@ export function CompleteTaskButton({
     <div className="flex flex-col gap-2">
       <Button
         onClick={toggle}
-        disabled={pending}
+        disabled={pending || refreshing}
         variant={done ? 'secondary' : 'primary'}
         size="lg"
         block
       >
-        {pending ? copy.common.wait : done ? 'Mark as not done' : 'Complete task'}
+        {pending || refreshing ? copy.common.wait : done ? 'Mark as not done' : 'Complete task'}
       </Button>
       {error ? (
         <p role="alert" className="text-[13px] text-[var(--tt-danger)]">

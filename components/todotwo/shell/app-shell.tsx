@@ -3,7 +3,7 @@
 import * as React from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { LogOut } from 'lucide-react'
+import { Loader2, LogOut } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
 import { todoTwoRoutes } from '@/lib/todotwo/routes'
@@ -35,11 +35,32 @@ export function TodoTwoShell({
   children: React.ReactNode
 }) {
   const pathname = usePathname()
+  const [navigating, setNavigating] = React.useState(false)
+
+  React.useEffect(() => setNavigating(false), [pathname])
+  React.useEffect(() => {
+    function noticeNavigation(event: MouseEvent) {
+      const target = event.target as HTMLElement | null
+      const anchor = target?.closest('a')
+      if (!anchor || event.defaultPrevented || event.button !== 0 || anchor.target === '_blank') return
+      const url = new URL(anchor.href, window.location.href)
+      if (url.origin === window.location.origin && url.pathname.startsWith('/todotwo') && url.pathname !== window.location.pathname) {
+        setNavigating(true)
+      }
+    }
+    document.addEventListener('click', noticeNavigation, true)
+    return () => document.removeEventListener('click', noticeNavigation, true)
+  }, [])
   const items = navItemsForRoles(roles).filter((item) => IMPLEMENTED_HREFS.has(item.href))
   const primary = items.filter((item) => item.primary)
 
   return (
     <div className="flex min-h-[100svh] flex-col md:flex-row">
+      {navigating ? (
+        <div className="fixed inset-x-0 top-0 z-[100] flex h-1 overflow-hidden bg-[var(--tt-accent-soft)]" role="status" aria-label="Opening page">
+          <span className="h-full w-1/2 animate-pulse bg-[var(--tt-accent)]" />
+        </div>
+      ) : null}
       <aside className="hidden w-60 shrink-0 flex-col border-r border-[var(--tt-rule)] bg-[var(--tt-surface)] md:flex">
         <div className="border-b border-[var(--tt-rule)] px-5 py-5">
           <p className="text-[11px] uppercase tracking-[0.14em] text-[var(--tt-accent)]">
@@ -103,7 +124,10 @@ export function TodoTwoShell({
           </form>
         </header>
 
-        <main className="flex-1 px-4 pb-24 pt-5 md:px-8 md:pb-10 md:pt-8">{children}</main>
+        <main className={cn('flex-1 px-4 pb-24 pt-5 transition-opacity md:px-8 md:pb-10 md:pt-8', navigating && 'pointer-events-none opacity-70')}>
+          {navigating ? <div className="fixed right-4 top-4 z-[101] flex items-center gap-2 rounded-full bg-[var(--tt-surface)] px-3 py-2 text-xs shadow-lg"><Loader2 className="h-4 w-4 animate-spin" />Opening…</div> : null}
+          {children}
+        </main>
 
         {primary.length > 1 ? (
           <nav

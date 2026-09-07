@@ -38,6 +38,7 @@ export function StepList({
   const [steps, setSteps] = React.useState(initial)
   const [error, setError] = React.useState<string | null>(null)
   const [busy, setBusy] = React.useState<string | null>(null)
+  const [refreshing, startRefresh] = React.useTransition()
   const [fenceStep, setFenceStep] = React.useState<Step | null>(null)
 
   React.useEffect(() => setSteps(initial), [initial])
@@ -45,7 +46,7 @@ export function StepList({
   const doneCount = steps.filter((s) => s.done).length
 
   async function toggle(step: Step) {
-    if (busy) return
+    if (busy || refreshing) return
     setBusy(step.id)
     setError(null)
 
@@ -72,7 +73,7 @@ export function StepList({
         return
       }
 
-      router.refresh()
+      startRefresh(() => router.refresh())
     } catch (caught) {
       setSteps((current) => current.map((s) => (s.id === step.id ? { ...s, done: !next } : s)))
       setError(caught instanceof Error ? caught.message : 'Could not save')
@@ -113,7 +114,7 @@ export function StepList({
           Steps · {doneCount} of {steps.length}
         </p>
         {doneCount < steps.length && !taskDone ? (
-          <Button variant="ghost" size="sm" onClick={markAll} disabled={busy !== null}>
+          <Button variant="ghost" size="sm" onClick={markAll} disabled={busy !== null || refreshing}>
             Tick all
           </Button>
         ) : null}
@@ -142,7 +143,7 @@ export function StepList({
             <button
               type="button"
               onClick={() => requestToggle(step)}
-              disabled={busy === step.id}
+              disabled={busy !== null || refreshing}
               aria-pressed={step.done}
               aria-label={step.done ? `Undo "${step.title}"` : `Tick "${step.title}"`}
               className={cn(

@@ -22,6 +22,7 @@ export function GroceryList({ tasks }: { tasks: TaskRow[] }) {
   const router = useRouter()
   const [title, setTitle] = React.useState('')
   const [busy, setBusy] = React.useState<string | null>(null)
+  const [refreshing, startRefresh] = React.useTransition()
   const [error, setError] = React.useState<string | null>(null)
   const groups = tasks.reduce((result, task) => {
     const name = category(task.title)
@@ -43,7 +44,7 @@ export function GroceryList({ tasks }: { tasks: TaskRow[] }) {
     setBusy(null)
     if (!response.ok) return setError(result.error ?? 'Could not add the item.')
     setTitle('')
-    router.refresh()
+    startRefresh(() => router.refresh())
   }
 
   async function check(task: TaskRow) {
@@ -61,13 +62,13 @@ export function GroceryList({ tasks }: { tasks: TaskRow[] }) {
     })
     setBusy(null)
     if (completeError) return setError(completeError.message)
-    router.refresh()
+    startRefresh(() => router.refresh())
   }
 
   return <div className="flex flex-col gap-5">
     <form onSubmit={addItem} className="flex gap-2">
       <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Add milk, apples, soap…" className="min-h-11 flex-1 rounded-md border border-[var(--tt-rule-strong)] bg-[var(--tt-surface)] px-3 text-sm" />
-      <button disabled={busy === 'add' || !title.trim()} className="inline-flex min-h-11 items-center gap-1.5 rounded-md bg-[var(--tt-accent)] px-4 text-sm font-medium text-[var(--tt-on-accent)] disabled:opacity-50">
+      <button disabled={busy === 'add' || refreshing || !title.trim()} className="inline-flex min-h-11 items-center gap-1.5 rounded-md bg-[var(--tt-accent)] px-4 text-sm font-medium text-[var(--tt-on-accent)] disabled:opacity-50">
         {busy === 'add' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />} Add
       </button>
     </form>
@@ -76,7 +77,7 @@ export function GroceryList({ tasks }: { tasks: TaskRow[] }) {
     {Array.from(groups.entries()).map(([name, items]) => <section key={name} className="flex flex-col gap-2">
       <h2 className="text-[12px] font-semibold uppercase tracking-[0.1em] text-[var(--tt-ink-3)]">{name}</h2>
       <div className="overflow-hidden rounded-lg border border-[var(--tt-rule)] bg-[var(--tt-surface)]">
-        {items.map((task) => <button key={task.id} onClick={() => void check(task)} disabled={busy !== null} className="flex min-h-12 w-full items-center gap-3 border-b border-[var(--tt-rule)] px-4 text-left text-sm last:border-b-0 disabled:opacity-60">
+        {items.map((task) => <button key={task.id} onClick={() => void check(task)} disabled={busy !== null || refreshing} className="flex min-h-12 w-full items-center gap-3 border-b border-[var(--tt-rule)] px-4 text-left text-sm last:border-b-0 disabled:opacity-60">
           <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-[var(--tt-rule-strong)]">{busy === task.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5 opacity-0" />}</span>
           <span>{task.title}</span>
         </button>)}

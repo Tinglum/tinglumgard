@@ -21,6 +21,7 @@ export function AskForHelp({ taskId, alreadyAsked }: { taskId: string; alreadyAs
   const [open, setOpen] = React.useState(false)
   const [note, setNote] = React.useState('')
   const [pending, setPending] = React.useState(false)
+  const [refreshing, startRefresh] = React.useTransition()
   const [error, setError] = React.useState<string | null>(null)
 
   async function ask() {
@@ -48,7 +49,7 @@ export function AskForHelp({ taskId, alreadyAsked }: { taskId: string; alreadyAs
 
     setOpen(false)
     setNote('')
-    router.refresh()
+    startRefresh(() => router.refresh())
   }
 
   if (alreadyAsked) {
@@ -82,8 +83,8 @@ export function AskForHelp({ taskId, alreadyAsked }: { taskId: string; alreadyAs
         Everyone will see it. Until somebody takes it, it is still yours.
       </p>
       <div className="flex gap-2">
-        <Button size="sm" disabled={pending} onClick={ask}>
-          {pending ? 'Asking …' : 'Ask the group'}
+        <Button size="sm" disabled={pending || refreshing} onClick={ask}>
+          {pending ? 'Asking …' : refreshing ? 'Asked ✓' : 'Ask the group'}
         </Button>
         <Button size="sm" variant="ghost" disabled={pending} onClick={() => setOpen(false)}>
           Cancel

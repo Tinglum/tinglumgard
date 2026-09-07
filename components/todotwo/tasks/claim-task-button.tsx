@@ -17,6 +17,7 @@ import { getTodoTwoBrowserClient } from '@/lib/todotwo/db-browser'
 export function ClaimTaskButton({ taskId }: { taskId: string }) {
   const router = useRouter()
   const [pending, setPending] = React.useState(false)
+  const [refreshing, startRefresh] = React.useTransition()
   const [error, setError] = React.useState<string | null>(null)
 
   async function claim() {
@@ -34,18 +35,18 @@ export function ClaimTaskButton({ taskId }: { taskId: string }) {
           : 'Could not take that one. Try again.'
       )
       // Either way the list is now stale — someone else's name is on it.
-      router.refresh()
+      startRefresh(() => router.refresh())
       return
     }
 
-    router.refresh()
     setPending(false)
+    startRefresh(() => router.refresh())
   }
 
   return (
     <div className="flex flex-col items-end gap-1">
-      <Button size="sm" variant="secondary" onClick={claim} disabled={pending}>
-        {pending ? 'Taking …' : "I'll take it"}
+      <Button size="sm" variant="secondary" onClick={claim} disabled={pending || refreshing}>
+        {pending ? 'Taking …' : refreshing ? 'Taken ✓' : "I'll take it"}
       </Button>
       {error ? <p className="text-[11px] text-[var(--tt-danger)]">{error}</p> : null}
     </div>
