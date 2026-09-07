@@ -152,11 +152,13 @@ export function TaskRow({
         {done ? <Check className="h-4 w-4" aria-hidden="true" /> : null}
       </button>
 
-      <Link href={`${TODOTWO_BASE}/tasks/${task.id}`} className="min-w-0 flex-1">
+      <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-          <span className={cn('text-[15px] leading-snug', done && 'line-through')}>
-            {task.title}
-          </span>
+          <Link href={`${TODOTWO_BASE}/tasks/${task.id}`}>
+            <span className={cn('text-[15px] leading-snug', done && 'line-through')}>
+              {task.title}
+            </span>
+          </Link>
 
           <PriorityFlag priority={task.priority} />
 
@@ -199,7 +201,7 @@ export function TaskRow({
             {error}
           </p>
         ) : null}
-      </Link>
+      </div>
 
       {/* Outside the Link: a button nested in an anchor is invalid, and tapping
           undo would navigate to the task instead of undoing it. */}
