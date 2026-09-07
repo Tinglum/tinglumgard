@@ -10,6 +10,7 @@ import {
   Home,
   ListTodo,
   Megaphone,
+  Menu,
   Settings,
   UsersRound,
   Users,
@@ -75,6 +76,13 @@ export const NAV_ITEMS: NavItem[] = [
     href: `${TODOTWO_BASE}/routines`,
     label: 'Routines',
     icon: CalendarDays,
+    roles: null,
+    primary: false,
+  },
+  {
+    href: `${TODOTWO_BASE}/more`,
+    label: 'More',
+    icon: Menu,
     roles: null,
     primary: true,
   },
@@ -165,4 +173,5 @@ export const IMPLEMENTED_HREFS = new Set<string>([
   `${TODOTWO_BASE}/availability`,
   `${TODOTWO_BASE}/skills`,
   `${TODOTWO_BASE}/settings`,
+  `${TODOTWO_BASE}/more`,
 ])

@@ -53,6 +53,7 @@ export function TodoTwoShell({
   }, [])
   const items = navItemsForRoles(roles).filter((item) => IMPLEMENTED_HREFS.has(item.href))
   const primary = items.filter((item) => item.primary)
+  const desktopItems = items.filter((item) => item.href !== todoTwoRoutes.more())
 
   return (
     <div className="flex min-h-[100svh] flex-col md:flex-row">
@@ -70,7 +71,7 @@ export function TodoTwoShell({
         </div>
 
         <nav className="flex flex-1 flex-col gap-1 p-3" aria-label="Main menu">
-          {items.map((item) => {
+          {desktopItems.map((item) => {
             const active = pathname === item.href
             return (
               <Link
