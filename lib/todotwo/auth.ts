@@ -80,7 +80,9 @@ export const getTodoTwoUser = cache(async function getTodoTwoUser(): Promise<Tod
 
   const { data: person, error: personError } = await db
     .from('people')
-    .select('id, full_name, preferred_name, email, photo_url, role_assignments(role, revoked_at)')
+    .select(
+      'id, full_name, preferred_name, email, photo_url, role_assignments!role_assignments_person_id_fkey(role, revoked_at)'
+    )
     .eq('auth_user_id', user.id)
     .is('deleted_at', null)
     .is('role_assignments.revoked_at', null)
