@@ -24,6 +24,8 @@ export interface OutboxRow {
   attempts: number
   next_attempt_at: string
   dedupe_key: string
+  topic: string
+  reference_id: string | null
 }
 
 export interface SendResult {

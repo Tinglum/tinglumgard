@@ -1,4 +1,6 @@
 import { getTodoTwoClient } from '@/lib/todotwo/db'
+import { UI_LOCALE } from '@/lib/todotwo/copy'
+import { FARM_TZ, farmDayStart, farmToday } from '@/lib/todotwo/time'
 
 export interface ActivityItem {
   eventId: string
@@ -7,146 +9,95 @@ export interface ActivityItem {
   eventType: string
   title: string
   detail: string | null
-  taskId: string | null
+  href: string | null
 }
 
-export async function getActivityFeed(limit = 100): Promise<ActivityItem[]> {
+/** A recipient-specific inbox, deliberately not a raw farm audit log. */
+export async function getActivityFeed(personId: string, limit = 100): Promise<ActivityItem[]> {
   const db = getTodoTwoClient()
-  const { data, error } = await db.rpc('activity_feed', { p_limit: limit })
-
-  // Production installations may receive the web deploy before the optional
-  // audit-feed migration is applied. The ordinary tables already contain the
-  // timestamps needed for a useful feed, so keep Notifications working there
-  // instead of turning the whole page into an error screen.
-  if (error) return getActivityFeedFromOperationalTables(limit)
-
-  return ((data ?? []) as {
-    event_id: string
-    occurred_at: string
-    actor_name: string
-    event_type: string
-    title: string
-    detail: string | null
-    task_id: string | null
-  }[]).map((row) => ({
-    eventId: row.event_id,
-    occurredAt: row.occurred_at,
-    actorName: row.actor_name,
-    eventType: row.event_type,
-    title: row.title,
-    detail: row.detail,
-    taskId: row.task_id,
-  }))
-}
-
-async function getActivityFeedFromOperationalTables(limit: number): Promise<ActivityItem[]> {
-  const db = getTodoTwoClient()
-  const [tasksResult, helpResult, noticesResult, messagesResult] = await Promise.all([
+  const [{ data: assignmentRows }, { data: messageRows }] = await Promise.all([
     db
-      .from('tasks_resolved')
-      .select('id, series_id, occurrence_date, title, status, due_date, created_at, updated_at')
-      .order('updated_at', { ascending: false })
-      .limit(limit),
-    db
-      .from('task_help_requests')
-      .select('id, task_id, status, created_at, resolved_at')
-      .order('created_at', { ascending: false })
-      .limit(limit),
-    db
-      .from('announcements')
-      .select('id, title, created_at, updated_at, published_at')
-      .not('published_at', 'is', null)
-      .order('updated_at', { ascending: false })
-      .limit(limit),
+      .from('task_assignments')
+      .select('task_id, assigned_at')
+      .eq('person_id', personId)
+      .eq('role', 'assignee')
+      .is('unassigned_at', null)
+      .order('assigned_at', { ascending: false })
+      .limit(200),
     db
       .from('notification_outbox')
-      .select('id, subject, body, topic, created_at')
+      .select('id, subject, body, topic, reference_id, created_at')
+      .eq('person_id', personId)
       .order('created_at', { ascending: false })
       .limit(limit),
   ])
 
-  const taskTitles = new Map(
-    ((tasksResult.data ?? []) as { id: string; title: string | null }[]).map((task) => [
-      task.id,
-      task.title ?? 'Untitled task',
-    ])
-  )
+  const assignments = (assignmentRows ?? []) as { task_id: string; assigned_at: string }[]
+  const taskIds = assignments.map((row) => row.task_id)
+  const { data: taskRows } = taskIds.length
+    ? await db
+        .from('tasks_resolved')
+        .select('id, due_date, status')
+        .in('id', taskIds)
+        .not('due_date', 'is', null)
+        .gte('due_date', farmToday())
+    : { data: [] }
 
-  const tasks: ActivityItem[] = ((tasksResult.data ?? []) as {
-    id: string
-    series_id: string | null
-    occurrence_date: string | null
-    title: string | null
-    status: string
-    due_date: string | null
-    created_at: string
-    updated_at: string
-  }[]).map((task) => {
-    const newlyCreated = Math.abs(new Date(task.updated_at).getTime() - new Date(task.created_at).getTime()) < 5000
+  const assignmentByTask = new Map(assignments.map((row) => [row.task_id, row.assigned_at]))
+  const days = new Map<string, { count: number; occurredAt: string }>()
+  for (const task of (taskRows ?? []) as { id: string; due_date: string; status: string }[]) {
+    if (['completed', 'verified', 'cancelled'].includes(task.status)) continue
+    const assignedAt = assignmentByTask.get(task.id)
+    if (!assignedAt) continue
+    const current = days.get(task.due_date)
+    days.set(task.due_date, {
+      count: (current?.count ?? 0) + 1,
+      occurredAt: current && current.occurredAt > assignedAt ? current.occurredAt : assignedAt,
+    })
+  }
+
+  const dayItems: ActivityItem[] = Array.from(days.entries()).map(([date, day]) => {
+    const weekday = new Intl.DateTimeFormat(UI_LOCALE, {
+      weekday: 'long',
+      timeZone: FARM_TZ,
+    }).format(farmDayStart(date))
     return {
-      eventId: `task:${task.id}:${task.updated_at}`,
-      occurredAt: task.updated_at,
+      eventId: `day:${date}`,
+      occurredAt: day.occurredAt,
       actorName: 'TodoTwo',
-      eventType: newlyCreated ? 'tasks.insert' : 'tasks.update',
-      title: newlyCreated ? (task.series_id ? 'New day added' : 'New task added') : 'Task changed',
-      detail: `${task.title ?? 'Untitled task'}${task.due_date ? ` · ${task.due_date}` : ''}`,
-      taskId: task.id,
+      eventType: 'day-ready',
+      title: `${weekday} is ready`,
+      detail: `${day.count} assignment${day.count === 1 ? '' : 's'}. Tap to see your assignments.`,
+      href: '/todotwo/upcoming',
     }
   })
 
-  const help: ActivityItem[] = ((helpResult.data ?? []) as {
-    id: string
-    task_id: string
-    status: string
-    created_at: string
-    resolved_at: string | null
-  }[]).map((request) => ({
-    eventId: `help:${request.id}:${request.resolved_at ?? request.created_at}`,
-    occurredAt: request.resolved_at ?? request.created_at,
-    actorName: 'TodoTwo',
-    eventType: `task_help_requests.${request.status}`,
-    title:
-      request.status === 'open'
-        ? 'Help requested'
-        : request.status === 'taken'
-          ? 'Help request taken'
-          : 'Help request withdrawn',
-    detail: taskTitles.get(request.task_id) ?? 'Task',
-    taskId: request.task_id,
-  }))
-
-  const notices: ActivityItem[] = ((noticesResult.data ?? []) as {
-    id: string
-    title: string
-    created_at: string
-    updated_at: string
-  }[]).map((notice) => ({
-    eventId: `notice:${notice.id}:${notice.updated_at}`,
-    occurredAt: notice.updated_at,
-    actorName: 'TodoTwo',
-    eventType: 'announcements.update',
-    title: 'Farm notice',
-    detail: notice.title,
-    taskId: null,
-  }))
-
-  const messages: ActivityItem[] = ((messagesResult.data ?? []) as {
+  const messages: ActivityItem[] = ((messageRows ?? []) as {
     id: string
     subject: string
     body: string
     topic: string
+    reference_id: string | null
     created_at: string
-  }[]).map((message) => ({
-    eventId: `message:${message.id}`,
-    occurredAt: message.created_at,
-    actorName: 'TodoTwo',
-    eventType: `notification.${message.topic}`,
-    title: message.subject,
-    detail: message.body,
-    taskId: null,
-  }))
+  }[])
+    .filter((message) => message.topic !== 'day-ready')
+    .map((message) => ({
+      eventId: `message:${message.id}`,
+      occurredAt: message.created_at,
+      actorName: 'TodoTwo',
+      eventType: `notification.${message.topic}`,
+      title: message.subject,
+      detail: message.body,
+      href:
+        message.reference_id &&
+        (message.topic.startsWith('assignment-') || message.topic.startsWith('overdue'))
+          ? `/todotwo/tasks/${message.reference_id}`
+          : message.topic === 'help-request'
+            ? '/todotwo'
+            : null,
+    }))
 
-  return [...tasks, ...help, ...notices, ...messages]
+  return [...dayItems, ...messages]
     .sort((a, b) => new Date(b.occurredAt).getTime() - new Date(a.occurredAt).getTime())
     .slice(0, Math.min(Math.max(limit, 1), 200))
 }

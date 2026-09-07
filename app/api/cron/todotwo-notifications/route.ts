@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 
 import { dispatchOutbox } from '@/lib/todotwo/notifications/dispatch'
+import { enqueueRelevantNotifications } from '@/lib/todotwo/notifications/enqueue-relevant'
 // PRIVILEGED. The dispatcher marks rows sent or failed, and no user role holds
 // insert, update or delete on todotwo.notification_outbox — deliberately, so a
 // person cannot clear their own failed send. There is also no session here:
@@ -85,10 +86,12 @@ export async function POST(request: NextRequest) {
 
   try {
     const db = getPrivilegedClientForCronOnly()
+    const enqueued = await enqueueRelevantNotifications(db)
     const result = await dispatchOutbox(db, limit ? { limit } : {})
 
     return NextResponse.json({
       ok: true,
+      ...enqueued,
       ...result,
       note: result.configured
         ? undefined

@@ -21,8 +21,8 @@ function when(value: string): string {
 }
 
 export default async function NotificationsPage() {
-  await requireTodoTwoUser(`${TODOTWO_BASE}/notifications`)
-  const items = await getActivityFeed()
+  const principal = await requireTodoTwoUser(`${TODOTWO_BASE}/notifications`)
+  const items = await getActivityFeed(principal.person.id)
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-6">
@@ -56,14 +56,14 @@ export default async function NotificationsPage() {
                     ) : null}
                     <p className="mt-1 text-[11px] text-[var(--tt-ink-3)]">{item.actorName}</p>
                   </div>
-                  {item.taskId ? <ChevronRight className="mt-1 h-4 w-4 shrink-0 text-[var(--tt-rule-strong)]" /> : null}
+                  {item.href ? <ChevronRight className="mt-1 h-4 w-4 shrink-0 text-[var(--tt-rule-strong)]" /> : null}
                 </>
               )
 
               return (
                 <li key={item.eventId} className="border-b border-[var(--tt-rule)] last:border-b-0">
-                  {item.taskId ? (
-                    <Link href={`${TODOTWO_BASE}/tasks/${item.taskId}`} className="flex gap-3 py-3">
+                  {item.href ? (
+                    <Link href={item.href} className="flex gap-3 py-3">
                       {content}
                     </Link>
                   ) : (
@@ -78,4 +78,3 @@ export default async function NotificationsPage() {
     </div>
   )
 }
-

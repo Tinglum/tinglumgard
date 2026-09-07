@@ -14,6 +14,8 @@ import { rulesToConstraints, type AssignmentRule } from '@/lib/todotwo/domain/as
 import { farmConstraints, type ApprovedTimeOff, type StayWindow } from '@/lib/todotwo/domain/assignment-inputs'
 import { addFarmDays, farmToday } from '@/lib/todotwo/time'
 import { weekdayOfDate } from '@/lib/todotwo/domain/recurrence'
+import { enqueueRelevantNotifications } from '@/lib/todotwo/notifications/enqueue-relevant'
+import { dispatchOutbox } from '@/lib/todotwo/notifications/dispatch'
 
 export const dynamic = 'force-dynamic'
 
@@ -279,6 +281,12 @@ export async function POST(request: NextRequest) {
     else assigned += 1
   }
 
+  // The far edge of the window has just become actionable. Create one summary
+  // per person/day and deliver it now rather than waiting for a delayed
+  // scheduler run and sending one push per generated task.
+  const enqueued = await enqueueRelevantNotifications(db)
+  const notifications = await dispatchOutbox(db)
+
   return NextResponse.json({
     ok: true,
     window: { from, to },
@@ -294,5 +302,6 @@ export async function POST(request: NextRequest) {
     // than an intention, so it is reported rather than silently ignored.
     rulesInert: resolved.inert.map((r) => `${r.label}: ${r.reason}`),
     failures,
+    notifications: { queued: enqueued.queued, pushed: notifications.pushSent },
   })
 }

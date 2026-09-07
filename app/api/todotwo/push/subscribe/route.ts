@@ -46,6 +46,16 @@ export async function POST(request: NextRequest) {
 
   const db = getTodoTwoClient()
 
+  // Refresh keys for an existing subscription owned by this person. Browsers
+  // can rotate the key material while retaining the same endpoint; treating a
+  // unique conflict as success left the server holding credentials that could
+  // no longer deliver.
+  await db
+    .from('push_subscriptions')
+    .delete()
+    .eq('endpoint', parsed.endpoint)
+    .eq('person_id', authResult.principal.person.id)
+
   const { error } = await db.from('push_subscriptions').insert({
     person_id: authResult.principal.person.id,
     endpoint: parsed.endpoint,

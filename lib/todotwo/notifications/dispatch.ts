@@ -81,7 +81,7 @@ export async function dispatchOutbox(
   const { data, error } = await db
     .from('notification_outbox')
     .select(
-      'id, person_id, channel, recipient_email, subject, body, status, attempts, next_attempt_at, dedupe_key'
+      'id, person_id, channel, recipient_email, subject, body, status, attempts, next_attempt_at, dedupe_key, topic, reference_id'
     )
     .eq('status', 'pending')
     .lt('attempts', MAX_ATTEMPTS)
@@ -127,6 +127,12 @@ export async function dispatchOutbox(
       const pushResult = await sendPushToPerson(db, row.person_id, {
         title: row.subject,
         body: row.body,
+        url:
+          row.reference_id && (row.topic?.startsWith('assignment-') || row.topic?.startsWith('overdue'))
+            ? `/todotwo/tasks/${row.reference_id}`
+            : row.topic === 'day-ready'
+              ? '/todotwo/upcoming'
+              : '/todotwo',
       })
       pushed = pushResult.sent
       result.pushSent += pushed
