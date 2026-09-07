@@ -240,7 +240,11 @@ export async function getToday(
 }
 
 /** The shared Grocery List. Open items stay until somebody checks them off. */
-export async function getGroceryList(): Promise<{ project: ProjectSummary | null; tasks: TaskRow[] }> {
+export async function getGroceryList(): Promise<{
+  project: ProjectSummary | null
+  tasks: TaskRow[]
+  suggestions: string[]
+}> {
   const db = getTodoTwoClient()
   const { data: project, error: projectError } = await db
     .from('projects')
@@ -249,17 +253,38 @@ export async function getGroceryList(): Promise<{ project: ProjectSummary | null
     .is('deleted_at', null)
     .maybeSingle()
   if (projectError) throw new Error(`Could not load grocery list: ${projectError.message}`)
-  if (!project) return { project: null, tasks: [] }
-  const { data, error } = await db
-    .from('tasks_resolved')
-    .select(SELECT)
-    .eq('project_id', project.id)
-    .is('parent_task_id', null)
-    .in('status', OPEN_STATUSES)
-    .order('created_at')
-  if (error) throw new Error(`Could not load groceries: ${error.message}`)
-  const tasks = await attachCurrentAssignees(db, (data ?? []) as unknown as TaskRow[])
-  return { project: { ...project, openCount: tasks.length }, tasks }
+  if (!project) return { project: null, tasks: [], suggestions: [] }
+  const [openResult, historyResult] = await Promise.all([
+    db
+      .from('tasks_resolved')
+      .select(SELECT)
+      .eq('project_id', project.id)
+      .is('parent_task_id', null)
+      .in('status', OPEN_STATUSES)
+      .order('created_at'),
+    db
+      .from('tasks')
+      .select('title, created_at')
+      .eq('project_id', project.id)
+      .is('parent_task_id', null)
+      .is('deleted_at', null)
+      .not('title', 'is', null)
+      .order('created_at', { ascending: false })
+      .limit(250),
+  ])
+  if (openResult.error) throw new Error(`Could not load groceries: ${openResult.error.message}`)
+  if (historyResult.error) throw new Error(`Could not load grocery history: ${historyResult.error.message}`)
+  const tasks = await attachCurrentAssignees(db, (openResult.data ?? []) as unknown as TaskRow[])
+  const seen = new Set<string>()
+  const suggestions: string[] = []
+  for (const row of (historyResult.data ?? []) as { title: string | null }[]) {
+    const title = row.title?.trim()
+    const key = title?.toLocaleLowerCase()
+    if (!title || !key || seen.has(key)) continue
+    seen.add(key)
+    suggestions.push(title)
+  }
+  return { project: { ...project, openCount: tasks.length }, tasks, suggestions }
 }
 
 /** The next `days` days, one group per day, empty days included. */

@@ -18,7 +18,7 @@ function category(title: string) {
   return CATEGORIES.find((entry) => entry.words.test(title))?.name ?? 'Other'
 }
 
-export function GroceryList({ tasks }: { tasks: TaskRow[] }) {
+export function GroceryList({ tasks, suggestions }: { tasks: TaskRow[]; suggestions: string[] }) {
   const router = useRouter()
   const [title, setTitle] = React.useState('')
   const [busy, setBusy] = React.useState<string | null>(null)
@@ -67,7 +67,17 @@ export function GroceryList({ tasks }: { tasks: TaskRow[] }) {
 
   return <div className="flex flex-col gap-5">
     <form onSubmit={addItem} className="flex gap-2">
-      <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Add milk, apples, soap…" className="min-h-11 flex-1 rounded-md border border-[var(--tt-rule-strong)] bg-[var(--tt-surface)] px-3 text-sm" />
+      <input
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
+        list="grocery-history"
+        autoComplete="off"
+        placeholder="Add milk, apples, soap…"
+        className="min-h-11 flex-1 rounded-md border border-[var(--tt-rule-strong)] bg-[var(--tt-surface)] px-3 text-sm"
+      />
+      <datalist id="grocery-history">
+        {suggestions.map((item) => <option key={item.toLocaleLowerCase()} value={item} />)}
+      </datalist>
       <button disabled={busy === 'add' || refreshing || !title.trim()} className="inline-flex min-h-11 items-center gap-1.5 rounded-md bg-[var(--tt-accent)] px-4 text-sm font-medium text-[var(--tt-on-accent)] disabled:opacity-50">
         {busy === 'add' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />} Add
       </button>
