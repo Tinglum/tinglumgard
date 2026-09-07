@@ -18,7 +18,7 @@ function category(title: string) {
   return CATEGORIES.find((entry) => entry.words.test(title))?.name ?? 'Other'
 }
 
-export function GroceryList({ tasks, projectId, canAdd }: { tasks: TaskRow[]; projectId: string; canAdd: boolean }) {
+export function GroceryList({ tasks }: { tasks: TaskRow[] }) {
   const router = useRouter()
   const [title, setTitle] = React.useState('')
   const [busy, setBusy] = React.useState<string | null>(null)
@@ -34,12 +34,14 @@ export function GroceryList({ tasks, projectId, canAdd }: { tasks: TaskRow[]; pr
     if (!title.trim()) return
     setBusy('add')
     setError(null)
-    const { error: rpcError } = await getTodoTwoBrowserClient().rpc('create_task', {
-      p_title: title.trim(), p_description: null, p_project_id: projectId,
-      p_section_id: null, p_due_date: null, p_assignee_person_id: null,
+    const response = await fetch('/api/farm/groceries', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title }),
     })
+    const result = (await response.json().catch(() => ({}))) as { error?: string }
     setBusy(null)
-    if (rpcError) return setError(rpcError.message)
+    if (!response.ok) return setError(result.error ?? 'Could not add the item.')
     setTitle('')
     router.refresh()
   }
@@ -63,12 +65,12 @@ export function GroceryList({ tasks, projectId, canAdd }: { tasks: TaskRow[]; pr
   }
 
   return <div className="flex flex-col gap-5">
-    {canAdd ? <form onSubmit={addItem} className="flex gap-2">
+    <form onSubmit={addItem} className="flex gap-2">
       <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Add milk, apples, soap…" className="min-h-11 flex-1 rounded-md border border-[var(--tt-rule-strong)] bg-[var(--tt-surface)] px-3 text-sm" />
       <button disabled={busy === 'add' || !title.trim()} className="inline-flex min-h-11 items-center gap-1.5 rounded-md bg-[var(--tt-accent)] px-4 text-sm font-medium text-[var(--tt-on-accent)] disabled:opacity-50">
         {busy === 'add' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />} Add
       </button>
-    </form> : null}
+    </form>
     {error ? <p className="text-sm text-[var(--tt-danger)]">{error}</p> : null}
     {tasks.length === 0 ? <p className="rounded-lg border border-dashed border-[var(--tt-rule-strong)] p-6 text-center text-sm text-[var(--tt-ink-3)]">The list is empty.</p> : null}
     {Array.from(groups.entries()).map(([name, items]) => <section key={name} className="flex flex-col gap-2">
