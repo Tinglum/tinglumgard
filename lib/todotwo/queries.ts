@@ -215,6 +215,17 @@ export async function getToday(
   const isOpen = (t: TaskRow) => OPEN_STATUSES.includes(t.status)
   const isMine = (t: TaskRow) => t.assignee?.id === personId
   const dueToday = (t: TaskRow) => t.due_date === today
+  const seriesIds = Array.from(new Set(rows.flatMap((t) => (t.series_id ? [t.series_id] : []))))
+  const { data: recurringRows } = seriesIds.length
+    ? await db.from('task_series').select('id, rrule').in('id', seriesIds)
+    : { data: [] }
+  const weeklyIds = new Set(
+    ((recurringRows ?? []) as { id: string; rrule: string }[])
+      .filter((series) => /(?:^|;)FREQ=WEEKLY(?:;|$)/i.test(series.rrule.replace(/^RRULE:/i, '')))
+      .map((series) => series.id)
+  )
+  const osloHour = Number(new Intl.DateTimeFormat('en-GB', { hour: '2-digit', hourCycle: 'h23', timeZone: 'Europe/Oslo' }).format(new Date()))
+  const isReleased = (t: TaskRow) => !t.series_id || !weeklyIds.has(t.series_id) || osloHour >= 10
 
   return {
     overdue: sortTasks(
@@ -222,13 +233,36 @@ export async function getToday(
     ),
     mine: sortTasks(rows.filter((t) => dueToday(t) && isOpen(t) && isMine(t))),
     // Regardless of who they would normally fall to: nobody holds these.
-    unclaimed: sortTasks(rows.filter((t) => dueToday(t) && isOpen(t) && !t.assignee)),
+    unclaimed: sortTasks(rows.filter((t) => dueToday(t) && isOpen(t) && !t.assignee && isReleased(t))),
     doneToday: sortTasks(rows.filter((t) => dueToday(t) && !isOpen(t) && isMine(t))),
     // Held by somebody — anybody. Unheld work is already the "up for grabs"
     // list, and showing it twice would only make the screen longer.
     everyoneToday: sortTasks(rows.filter((t) => dueToday(t) && Boolean(t.assignee))),
     olderOpenCount: staleResult.count ?? 0,
   }
+}
+
+/** The shared Grocery List. Open items stay until somebody checks them off. */
+export async function getGroceryList(): Promise<{ project: ProjectSummary | null; tasks: TaskRow[] }> {
+  const db = getTodoTwoClient()
+  const { data: project, error: projectError } = await db
+    .from('projects')
+    .select('id, name, slug')
+    .eq('slug', 'grocery-list')
+    .is('deleted_at', null)
+    .maybeSingle()
+  if (projectError) throw new Error(`Could not load grocery list: ${projectError.message}`)
+  if (!project) return { project: null, tasks: [] }
+  const { data, error } = await db
+    .from('tasks_resolved')
+    .select(SELECT)
+    .eq('project_id', project.id)
+    .is('parent_task_id', null)
+    .in('status', OPEN_STATUSES)
+    .order('created_at')
+  if (error) throw new Error(`Could not load groceries: ${error.message}`)
+  const tasks = await attachCurrentAssignees(db, (data ?? []) as unknown as TaskRow[])
+  return { project: { ...project, openCount: tasks.length }, tasks }
 }
 
 /** The next `days` days, one group per day, empty days included. */

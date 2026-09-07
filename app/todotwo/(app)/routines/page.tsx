@@ -5,7 +5,7 @@ import { ClearAssignments } from '@/components/todotwo/tasks/clear-assignments'
 import { RotaEditor } from '@/components/todotwo/tasks/rota-editor'
 import { FeedCheckToggle } from '@/components/todotwo/tasks/feed-check-toggle'
 import { EmptyState, Surface } from '@/components/todotwo/ui/states'
-import { requireRole } from '@/lib/todotwo/auth'
+import { requireTodoTwoUser } from '@/lib/todotwo/auth'
 import { getPeople, getSeries } from '@/lib/todotwo/queries'
 import { getAssignmentRules } from '@/lib/todotwo/queries-rules'
 import { describeRule } from '@/lib/todotwo/domain/recurrence'
@@ -15,10 +15,7 @@ import { TODOTWO_BASE } from '@/lib/todotwo/routes'
 export const dynamic = 'force-dynamic'
 
 export default async function RoutinesPage() {
-  const principal = await requireRole(
-    ['super_admin', 'farm_admin', 'coordinator'],
-    `${TODOTWO_BASE}/routines`
-  )
+  const principal = await requireTodoTwoUser(`${TODOTWO_BASE}/routines`)
 
   const [series, people, rules] = await Promise.all([getSeries(), getPeople(), getAssignmentRules()])
   // assignment_rules_staff_write covers coordinators too, so anyone who can
@@ -37,7 +34,10 @@ export default async function RoutinesPage() {
           {series.length} recurring routines. The instructions live here once — change them and
           every future day shows the change.
         </p>
-        <div className="flex gap-4">
+        <p className="text-sm font-medium text-[var(--tt-accent)]">
+          Weekly routines stay unassigned and appear in Today’s “Up for grabs” list at 10:00 Norway time.
+        </p>
+        {canEditRules ? <div className="flex gap-4">
           <Link
             href={`${TODOTWO_BASE}/routines/assign`}
             className="self-start text-[13px] font-medium text-[var(--tt-accent)] hover:underline"
@@ -50,10 +50,10 @@ export default async function RoutinesPage() {
           >
             New from template →
           </Link>
-        </div>
+        </div> : null}
       </header>
 
-      <Surface className="flex flex-col gap-3 p-4">
+      {canEditRules ? <Surface className="flex flex-col gap-3 p-4">
         <div className="flex flex-col gap-1">
           <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--tt-ink-3)]">
             Rules for automatic assignment
@@ -64,11 +64,11 @@ export default async function RoutinesPage() {
           </p>
         </div>
         <AssignmentRulesManager rules={rules} canEdit={canEditRules} />
-      </Surface>
+      </Surface> : null}
 
-      <Surface className="p-4">
+      {canEditRules ? <Surface className="p-4">
         <ClearAssignments fromDate={farmToday()} />
-      </Surface>
+      </Surface> : null}
 
       {series.length === 0 ? (
         <EmptyState title="No routines yet" description="Import or create one to get started." />
@@ -90,18 +90,18 @@ export default async function RoutinesPage() {
             ) : null}
           </div>
 
-          <div className="border-t border-[var(--tt-rule)] pt-4">
+          {canEditRules ? <div className="border-t border-[var(--tt-rule)] pt-4">
             <RotaEditor
               seriesId={routine.id}
               people={roster}
               rota={routine.rota}
               upcomingCount={routine.upcomingCount}
             />
-          </div>
+          </div> : null}
 
-          <div className="border-t border-[var(--tt-rule)] pt-4">
+          {canEditRules ? <div className="border-t border-[var(--tt-rule)] pt-4">
             <FeedCheckToggle seriesId={routine.id} requiresFeedCheck={routine.requiresFeedCheck} />
-          </div>
+          </div> : null}
         </Surface>
       ))}
     </div>

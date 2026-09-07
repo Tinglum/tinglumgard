@@ -163,7 +163,18 @@ export async function POST(request: NextRequest) {
 
   // A task with no date cannot be placed in a day, and the whole point here is
   // "which day is covered".
-  const dated = rows.filter((r): r is typeof r & { due_date: string } => r.due_date !== null)
+  const seriesIds = Array.from(new Set(rows.flatMap((row) => row.series_id ? [row.series_id] : [])))
+  const { data: cadenceRows } = seriesIds.length
+    ? await db.from('task_series').select('id, rrule').in('id', seriesIds)
+    : { data: [] }
+  const weeklySeries = new Set(((cadenceRows ?? []) as { id: string; rrule: string }[])
+    .filter((series) => /(?:^|;)FREQ=WEEKLY(?:;|$)/i.test(series.rrule.replace(/^RRULE:/i, '')))
+    .map((series) => series.id))
+
+  // Weekly routines are a shared 10:00 pool. The automatic rota only covers
+  // daily work and one-off tasks; it must never pre-assign these occurrences.
+  const dated = rows.filter((r): r is typeof r & { due_date: string } =>
+    r.due_date !== null && (!r.series_id || !weeklySeries.has(r.series_id)))
 
   if (people.length === 0 || dated.length === 0) {
     return NextResponse.json({

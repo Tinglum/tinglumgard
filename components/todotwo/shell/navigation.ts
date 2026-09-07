@@ -6,6 +6,7 @@ import {
   CalendarDays,
   CalendarOff,
   FolderKanban,
+  ShoppingBasket,
   Home,
   ListTodo,
   Megaphone,
@@ -34,6 +35,13 @@ export interface NavItem {
 }
 
 export const NAV_ITEMS: NavItem[] = [
+  {
+    href: `${TODOTWO_BASE}/groceries`,
+    label: 'Groceries',
+    icon: ShoppingBasket,
+    roles: null,
+    primary: false,
+  },
   {
     href: TODOTWO_BASE,
     label: 'Today',
@@ -67,7 +75,7 @@ export const NAV_ITEMS: NavItem[] = [
     href: `${TODOTWO_BASE}/routines`,
     label: 'Routines',
     icon: CalendarDays,
-    roles: ['super_admin', 'farm_admin', 'coordinator'],
+    roles: null,
     primary: true,
   },
   {
@@ -146,6 +154,7 @@ export const IMPLEMENTED_HREFS = new Set<string>([
   TODOTWO_BASE,
   `${TODOTWO_BASE}/upcoming`,
   `${TODOTWO_BASE}/notifications`,
+  `${TODOTWO_BASE}/groceries`,
   `${TODOTWO_BASE}/roster`,
   `${TODOTWO_BASE}/people`,
   `${TODOTWO_BASE}/routines`,

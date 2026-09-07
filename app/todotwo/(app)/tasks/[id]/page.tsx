@@ -11,6 +11,7 @@ import { AskForHelp } from '@/components/todotwo/tasks/ask-for-help'
 import { OfferTaskButton } from '@/components/todotwo/tasks/offer-task-button'
 import { PrioritySelect } from '@/components/todotwo/tasks/priority-select'
 import { PrivateNote } from '@/components/todotwo/tasks/private-note'
+import { AdminAssignmentControl } from '@/components/todotwo/tasks/admin-assignment-control'
 import { Surface } from '@/components/todotwo/ui/states'
 import { getTodoTwoClient } from '@/lib/todotwo/db'
 import { requireTodoTwoUser } from '@/lib/todotwo/auth'
@@ -55,6 +56,9 @@ export default async function TaskDetailPage({ params }: { params: { id: string 
     ? (await getPeople())
         .filter((p) => p.id !== currentAssigneeId)
         .map((p) => ({ id: p.id, full_name: p.full_name, preferred_name: p.preferred_name }))
+    : []
+  const assignmentPeople = principal.isAdmin
+    ? (await getPeople()).map((p) => ({ id: p.id, name: p.preferred_name || p.full_name }))
     : []
 
   return (
@@ -122,6 +126,12 @@ export default async function TaskDetailPage({ params }: { params: { id: string 
       <Surface className="p-4">
         <PrioritySelect taskId={task.id} priority={task.priority} />
       </Surface>
+
+      {principal.isAdmin ? (
+        <Surface className="p-4">
+          <AdminAssignmentControl taskId={task.id} currentPersonId={currentAssigneeId} people={assignmentPeople} />
+        </Surface>
+      ) : null}
 
       <Surface className="p-4">
         <StepList taskId={task.id} steps={steps} taskDone={done} />
