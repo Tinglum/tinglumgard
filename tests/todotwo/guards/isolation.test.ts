@@ -127,6 +127,9 @@ describe('storefront isolation', () => {
       // Shared farm endpoint, deliberately narrow: authenticated TodoTwo
       // members may only add a title to the fixed Grocery List project.
       'app/api/farm/groceries/route.ts',
+      // Same narrow shared-list boundary: authenticated TodoTwo members can
+      // add an unassigned item only to the fixed Tinglum Farm TASKS project.
+      'app/api/farm/tasks/route.ts',
       // TodoTwo added to the existing standalone-auth exemption beside /bnimsp
       // and /quest, so the storefront's reload-logout and inactivity timer stop
       // ejecting people mid-task.

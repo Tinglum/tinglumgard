@@ -71,7 +71,7 @@ function getSpeechRecognitionCtor(): (new () => SpeechRecognitionLike) | null {
  * anything. See supabase/migrations/20260909083000_todotwo_quick_add.sql for
  * why this is staff-only for now.
  */
-export function QuickAdd() {
+export function QuickAdd({ canManageAll }: { canManageAll: boolean }) {
   const [open, setOpen] = React.useState(false)
   const [text, setText] = React.useState('')
   const [listening, setListening] = React.useState(false)
@@ -84,6 +84,7 @@ export function QuickAdd() {
   const [projects, setProjects] = React.useState<QuickAddProject[]>([])
   const [proposal, setProposal] = React.useState<ParsedQuickAddTask | null>(null)
   const [created, setCreated] = React.useState(false)
+  const [destination, setDestination] = React.useState<'farm' | 'personal'>('personal')
 
   const recognitionRef = React.useRef<SpeechRecognitionLike | null>(null)
 
@@ -161,7 +162,7 @@ export function QuickAdd() {
     setError(null)
 
     try {
-      const res = await fetch('/api/todotwo/quick-add/create', {
+      const res = await fetch(!canManageAll && destination === 'farm' ? '/api/farm/tasks' : '/api/todotwo/quick-add/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -170,6 +171,7 @@ export function QuickAdd() {
           projectId: proposal.projectId,
           dueDate: proposal.dueDate,
           assigneePersonId: proposal.assigneePersonId,
+          destination: canManageAll ? 'managed' : destination,
         }),
       })
 
@@ -279,6 +281,19 @@ export function QuickAdd() {
           </>
         ) : (
           <div className="flex flex-col gap-3">
+            {!canManageAll ? (
+              <fieldset className="grid grid-cols-2 gap-2">
+                <legend className="mb-1 text-[12px] text-[var(--tt-ink-3)]">Add to</legend>
+                <label className="flex min-h-11 items-center gap-2 rounded-md border border-[var(--tt-rule-strong)] px-3 text-sm">
+                  <input type="radio" name="destination" checked={destination === 'personal'} onChange={() => setDestination('personal')} />
+                  My agenda
+                </label>
+                <label className="flex min-h-11 items-center gap-2 rounded-md border border-[var(--tt-rule-strong)] px-3 text-sm">
+                  <input type="radio" name="destination" checked={destination === 'farm'} onChange={() => setDestination('farm')} />
+                  Tinglum Farm
+                </label>
+              </fieldset>
+            ) : null}
             <div className="flex flex-col gap-1">
               <label htmlFor="qa-title" className="text-[12px] text-[var(--tt-ink-3)]">
                 Title
@@ -318,7 +333,7 @@ export function QuickAdd() {
                 />
               </div>
 
-              <div className="flex flex-col gap-1">
+              {canManageAll ? <div className="flex flex-col gap-1">
                 <label htmlFor="qa-assignee" className="text-[12px] text-[var(--tt-ink-3)]">
                   Assign to
                 </label>
@@ -335,9 +350,9 @@ export function QuickAdd() {
                     </option>
                   ))}
                 </select>
-              </div>
+              </div> : null}
 
-              <div className="flex flex-col gap-1">
+              {canManageAll ? <div className="flex flex-col gap-1">
                 <label htmlFor="qa-project" className="text-[12px] text-[var(--tt-ink-3)]">
                   Project
                 </label>
@@ -354,7 +369,7 @@ export function QuickAdd() {
                     </option>
                   ))}
                 </select>
-              </div>
+              </div> : null}
             </div>
 
             <div className="flex gap-2">

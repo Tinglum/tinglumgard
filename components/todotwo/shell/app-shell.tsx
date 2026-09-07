@@ -11,11 +11,6 @@ import type { TodoTwoRole } from '@/lib/todotwo/auth'
 import { IMPLEMENTED_HREFS, navItemsForRoles } from '@/components/todotwo/shell/navigation'
 import { QuickAdd } from '@/components/todotwo/quick-add/quick-add'
 
-// Quick-add creates real, unreviewed tasks (see
-// supabase/migrations/20260909083000_todotwo_quick_add.sql), so the
-// affordance itself is gated to the same staff roles as the RPC underneath
-// it — hiding it for everyone else is a UX nicety, not the security boundary,
-// which RLS/the RPC's own todotwo.is_staff() check enforces regardless.
 const QUICK_ADD_ROLES: TodoTwoRole[] = ['super_admin', 'farm_admin', 'coordinator']
 
 /**
@@ -155,7 +150,7 @@ export function TodoTwoShell({
           </nav>
         ) : null}
 
-        {roles.some((role) => QUICK_ADD_ROLES.includes(role)) ? <QuickAdd /> : null}
+        <QuickAdd canManageAll={roles.some((role) => QUICK_ADD_ROLES.includes(role))} />
       </div>
     </div>
   )

@@ -3,7 +3,8 @@ import { z } from 'zod'
 
 import { isTodoTwoEnabled } from '@/lib/todotwo/config'
 import { getTodoTwoClient } from '@/lib/todotwo/db'
-import { requireApiRole } from '@/lib/todotwo/auth'
+import { requireTodoTwoApiUser } from '@/lib/todotwo/auth'
+import { farmToday } from '@/lib/todotwo/time'
 
 export const dynamic = 'force-dynamic'
 
@@ -22,6 +23,7 @@ const bodySchema = z.object({
     .nullable()
     .optional(),
   assigneePersonId: z.string().uuid().nullable().optional(),
+  destination: z.enum(['managed', 'farm', 'personal']).optional(),
 })
 
 /**
@@ -39,7 +41,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'not_found' }, { status: 404 })
   }
 
-  const authResult = await requireApiRole([...STAFF_ROLES])
+  const authResult = await requireTodoTwoApiUser()
   if (!authResult.ok) return authResult.response
 
   let parsed: z.infer<typeof bodySchema>
@@ -56,6 +58,18 @@ export async function POST(request: NextRequest) {
   }
 
   const db = getTodoTwoClient()
+  const isStaff = authResult.principal.roles.some((role) => STAFF_ROLES.includes(role as (typeof STAFF_ROLES)[number]))
+
+  if (!isStaff) {
+    const dueDate = parsed.dueDate ?? farmToday()
+    const { data: newTaskId, error } = await db.rpc('report_task', {
+      p_title: parsed.title,
+      p_description: parsed.description ?? null,
+      p_due_date: dueDate,
+    })
+    if (error) return NextResponse.json({ error: 'create_failed', message: error.message }, { status: 400 })
+    return NextResponse.json({ ok: true, taskId: newTaskId })
+  }
 
   const { data: newTaskId, error } = await db.rpc('create_task', {
     p_title: parsed.title,

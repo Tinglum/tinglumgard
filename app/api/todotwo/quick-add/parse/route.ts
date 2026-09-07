@@ -3,7 +3,7 @@ import { z } from 'zod'
 
 import { isTodoTwoEnabled } from '@/lib/todotwo/config'
 import { getTodoTwoClient } from '@/lib/todotwo/db'
-import { requireApiRole } from '@/lib/todotwo/auth'
+import { requireTodoTwoApiUser } from '@/lib/todotwo/auth'
 import { farmToday } from '@/lib/todotwo/time'
 import {
   QuickAddAiUnavailableError,
@@ -16,8 +16,6 @@ export const dynamic = 'force-dynamic'
 
 // See supabase/migrations/20260909083000_todotwo_quick_add.sql for why
 // create_task (and therefore quick-add end to end) is staff-only for now.
-const STAFF_ROLES = ['super_admin', 'farm_admin', 'coordinator'] as const
-
 const bodySchema = z.object({
   text: z.string().trim().min(1).max(1000),
 })
@@ -33,7 +31,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'not_found' }, { status: 404 })
   }
 
-  const authResult = await requireApiRole([...STAFF_ROLES])
+  const authResult = await requireTodoTwoApiUser()
   if (!authResult.ok) return authResult.response
 
   let parsed: z.infer<typeof bodySchema>
@@ -53,9 +51,8 @@ export async function POST(request: NextRequest) {
 
   const [{ data: peopleRows, error: peopleError }, { data: projectRows, error: projectError }] = await Promise.all([
     db
-      .from('people')
+      .from('people_roster')
       .select('id, full_name, preferred_name')
-      .is('deleted_at', null)
       .eq('is_active', true)
       .order('full_name'),
     db.from('projects').select('id, name').order('name'),
