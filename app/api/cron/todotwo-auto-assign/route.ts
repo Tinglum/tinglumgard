@@ -62,6 +62,7 @@ const ROTATION_LOOKBACK_DAYS = 60
 async function loadRotationHistory(
   db: ReturnType<typeof getPrivilegedClientForCronOnly>,
   today: string,
+  through: string,
   seriesTitle: Map<string, string>
 ): Promise<RotationHistory> {
   const since = addFarmDays(today, -ROTATION_LOOKBACK_DAYS)
@@ -70,7 +71,10 @@ async function loadRotationHistory(
     .from('tasks')
     .select('id, title, series_id, due_date, task_assignments(person_id, unassigned_at)')
     .gte('due_date', since)
-    .lt('due_date', today)
+    // Include assignments already committed inside the planning window. The
+    // cron normally fills one new day at the far edge; ignoring Wednesday
+    // while choosing Friday made the same person look available again.
+    .lte('due_date', through)
     .order('due_date', { ascending: false })
 
   const history: RotationHistory = {}
@@ -270,7 +274,7 @@ export async function POST(request: NextRequest) {
   // Who has done each job lately. Without this every run starts blank, and a
   // window containing one new day has every load at zero — so the alphabetical
   // tie-break decides and the same person cooks dinner indefinitely.
-  const history = await loadRotationHistory(db, from, seriesTitle)
+  const history = await loadRotationHistory(db, from, to, seriesTitle)
 
   const plan = buildAssignmentPlan(
     tasks,
