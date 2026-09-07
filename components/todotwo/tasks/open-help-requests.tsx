@@ -9,6 +9,7 @@ import { getTodoTwoBrowserClient } from '@/lib/todotwo/db-browser'
 
 export interface OpenHelpRequest {
   id: string
+  taskId: string
   taskTitle: string
   dueDate: string | null
   note: string | null

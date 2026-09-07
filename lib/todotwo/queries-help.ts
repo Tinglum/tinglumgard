@@ -59,6 +59,7 @@ export async function getOpenHelpRequests(viewerPersonId: string): Promise<OpenH
     return [
       {
         id: row.id,
+        taskId: row.task_id,
         taskTitle: t.title ?? 'Untitled',
         dueDate: t.due_date,
         note: row.note,

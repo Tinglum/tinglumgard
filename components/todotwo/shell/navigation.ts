@@ -1,5 +1,6 @@
 import {
   Award,
+  Bell,
   BedDouble,
   Building2,
   CalendarDays,
@@ -48,6 +49,13 @@ export const NAV_ITEMS: NavItem[] = [
     primary: true,
   },
   {
+    href: `${TODOTWO_BASE}/notifications`,
+    label: 'Notifications',
+    icon: Bell,
+    roles: null,
+    primary: true,
+  },
+  {
     href: `${TODOTWO_BASE}/roster`,
     label: 'Roster',
     icon: UsersRound,
@@ -81,7 +89,7 @@ export const NAV_ITEMS: NavItem[] = [
     label: 'People',
     icon: Users,
     roles: ['super_admin', 'farm_admin', 'coordinator'],
-    primary: true,
+    primary: false,
   },
   {
     href: `${TODOTWO_BASE}/stays`,
@@ -137,6 +145,7 @@ export function navItemsForRoles(roles: TodoTwoRole[]): NavItem[] {
 export const IMPLEMENTED_HREFS = new Set<string>([
   TODOTWO_BASE,
   `${TODOTWO_BASE}/upcoming`,
+  `${TODOTWO_BASE}/notifications`,
   `${TODOTWO_BASE}/roster`,
   `${TODOTWO_BASE}/people`,
   `${TODOTWO_BASE}/routines`,

@@ -1,4 +1,5 @@
 import { ClaimTaskButton } from '@/components/todotwo/tasks/claim-task-button'
+import { AskForHelp } from '@/components/todotwo/tasks/ask-for-help'
 import { FarmToday } from '@/components/todotwo/tasks/farm-today'
 import { OpenHelpRequests } from '@/components/todotwo/tasks/open-help-requests'
 import { TaskRow } from '@/components/todotwo/tasks/task-row'
@@ -39,6 +40,7 @@ export default async function TodayPage() {
     0
   )
   const myOpenCount = overdue.length + mine.length
+  const askedTaskIds = new Set(helpRequests.filter((request) => request.isMine).map((request) => request.taskId))
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-6">
@@ -71,7 +73,12 @@ export default async function TodayPage() {
           <Surface className="px-4">
             <ul className="list-none">
               {overdue.map((task) => (
-                <TaskRow key={task.id} task={task} timeLabel={timeLabel(task.due_at)} />
+                <TaskRow
+                  key={task.id}
+                  task={task}
+                  timeLabel={timeLabel(task.due_at)}
+                  helpAction={<AskForHelp taskId={task.id} alreadyAsked={askedTaskIds.has(task.id)} />}
+                />
               ))}
             </ul>
           </Surface>
@@ -96,7 +103,12 @@ export default async function TodayPage() {
           <Surface className="px-4">
             <ul className="list-none">
               {mine.map((task) => (
-                <TaskRow key={task.id} task={task} timeLabel={timeLabel(task.due_at)} />
+                <TaskRow
+                  key={task.id}
+                  task={task}
+                  timeLabel={timeLabel(task.due_at)}
+                  helpAction={<AskForHelp taskId={task.id} alreadyAsked={askedTaskIds.has(task.id)} />}
+                />
               ))}
             </ul>
           </Surface>

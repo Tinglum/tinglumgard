@@ -1,6 +1,7 @@
 'use client'
 
 import * as React from 'react'
+import { usePathname } from 'next/navigation'
 import { Bell, Download, Settings, X } from 'lucide-react'
 
 import { Button } from '@/components/todotwo/ui/button'
@@ -40,6 +41,27 @@ const DISMISS_KEY = 'todotwo:pwa-onboarding-dismissed:v2'
 /** True once the browser has refused outright; nagging cannot undo that. */
 const NOTIFY_DENIED = 'todotwo:pwa-notify-denied:v1'
 
+/**
+ * Screens this must never cover.
+ *
+ * The prompt is a full-screen overlay, and on the login page it sat directly
+ * on top of the form: every tap meant for "Sign in" hit the backdrop instead,
+ * so people simply could not get in. Nothing about the prompt was visibly
+ * broken, which is what made it nasty.
+ *
+ * The listener still has to live above the login page — beforeinstallprompt
+ * fires once and early, and a component mounted after sign-in has already
+ * missed it. So the event is still captured here; only the modal is withheld
+ * until somebody is actually through the door, which is also the first moment
+ * "put this on your phone" means anything to them.
+ */
+const AUTH_SCREENS = ['/todotwo/login', '/todotwo/auth', '/todotwo/set-password']
+
+function isAuthScreen(pathname: string | null): boolean {
+  if (!pathname) return false
+  return AUTH_SCREENS.some((base) => pathname === base || pathname.startsWith(`${base}/`))
+}
+
 interface InstallPromptEvent extends Event {
   prompt: () => Promise<void>
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>
@@ -69,6 +91,8 @@ function isIos(): boolean {
 }
 
 export function InstallAndNotifyPrompt({ vapidPublicKey }: { vapidPublicKey: string | null }) {
+  const pathname = usePathname()
+  const onAuthScreen = isAuthScreen(pathname)
   const [installEvent, setInstallEvent] = React.useState<InstallPromptEvent | null>(null)
   const [open, setOpen] = React.useState(false)
   const [stage, setStage] = React.useState<'install' | 'notify'>('install')
@@ -101,6 +125,8 @@ export function InstallAndNotifyPrompt({ vapidPublicKey }: { vapidPublicKey: str
 
   React.useEffect(() => {
     if (typeof window === 'undefined') return
+    // Never over the sign-in form. See isAuthScreen.
+    if (onAuthScreen) return
     // Session-scoped: quiet for this visit, back on the next one.
     if (window.sessionStorage.getItem(DISMISS_KEY) === '1') return
 
@@ -132,7 +158,7 @@ export function InstallAndNotifyPrompt({ vapidPublicKey }: { vapidPublicKey: str
       const timeout = window.setTimeout(() => setOpen(true), 1200)
       return () => window.clearTimeout(timeout)
     })()
-  }, [])
+  }, [onAuthScreen])
 
   function close() {
     if (typeof window !== 'undefined') window.sessionStorage.setItem(DISMISS_KEY, '1')
@@ -206,7 +232,8 @@ export function InstallAndNotifyPrompt({ vapidPublicKey }: { vapidPublicKey: str
     }
   }
 
-  if (!open) return null
+  // Belt and braces: even if something else opened it, it never covers sign-in.
+  if (!open || onAuthScreen) return null
 
   return (
     <div

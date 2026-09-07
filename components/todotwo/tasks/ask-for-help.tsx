@@ -62,7 +62,7 @@ export function AskForHelp({ taskId, alreadyAsked }: { taskId: string; alreadyAs
   if (!open) {
     return (
       <Button size="sm" variant="ghost" onClick={() => setOpen(true)} className="self-start">
-        Ask if anyone can take this
+        Can anyone take this for me?
       </Button>
     )
   }

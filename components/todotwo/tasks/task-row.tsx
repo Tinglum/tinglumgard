@@ -48,10 +48,12 @@ export function TaskRow({
   task,
   timeLabel,
   onChanged,
+  helpAction,
 }: {
   task: TaskRowData
   timeLabel: string | null
   onChanged?: () => void
+  helpAction?: React.ReactNode
 }) {
   const router = useRouter()
   const [done, setDone] = React.useState(isFinished(task.status))
@@ -189,6 +191,8 @@ export function TaskRow({
 
           {task.estimated_minutes ? <span>{task.estimated_minutes} min</span> : null}
         </div>
+
+        {helpAction ? <div className="mt-2">{helpAction}</div> : null}
 
         {error ? (
           <p role="alert" className="mt-1 text-[12px] text-[var(--tt-danger)]">
