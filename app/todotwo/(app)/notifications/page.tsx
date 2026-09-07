@@ -32,12 +32,12 @@ export default async function NotificationsPage() {
           <h1 className="text-2xl">Notifications</h1>
         </div>
         <p className="text-sm text-[var(--tt-ink-2)]">
-          Farm changes, new work, requests for help, and messages sent to you.
+          Your schedule summaries, help requests, handoffs, and urgent reminders.
         </p>
       </header>
 
       {items.length === 0 ? (
-        <EmptyState title="No notifications yet" description="Changes around the farm will appear here." />
+        <EmptyState title="You’re all caught up" description="Useful updates and requests will appear here." />
       ) : (
         <Surface className="px-4">
           <ul className="list-none">

@@ -7,13 +7,13 @@ edits, completions, and other people's assignments do not belong there.
 | Event | Recipient | In-app | Push | Opens |
 |---|---|---:|---:|---|
 | A new day has been generated and assigned | Each person with work that day | One summary per day | Yes, once | Upcoming assignments |
-| A task is assigned to or removed from someone within two days | That person | Yes | Yes | The task |
+| A task is assigned through the rota | That person | Included in the day summary | Included in the day summary | Upcoming assignments |
 | Someone asks “Can anyone take this?” | Everyone active except the requester | Yes | Yes | Today/help requests |
 | Someone takes a help request | The original requester | Yes | Yes | The task |
 | A direct handoff or swap is offered, accepted, or declined | The people involved | Yes | Yes | The task or pending offers |
 | A farm notice is published | Its intended audience | Yes | Yes for important/urgent; in-app only for info | The notice |
 | A task becomes overdue | The assignee; staff only after escalation threshold | Yes | Yes | The task |
-| Daily digest | Each person with work | Optional history entry | One scheduled summary, not one push per task | Today |
+| Daily digest | Each person with work | No separate entry | No separate push; the day summary replaces it | Today |
 | Feed or safety check fails | Responsible staff | Yes | Yes, urgent | The task |
 | Time off is approved or declined | The requester | Yes | Yes | Time off |
 
@@ -21,6 +21,8 @@ Rules:
 
 - One event produces at most one push per recipient and device.
 - A generated day produces “Friday is ready — 3 assignments. Tap to see your assignments,” never one message per generated task.
+- Assignment and unassignment churn is suppressed, including changes made while an admin rebuilds a rota.
+- The inbox keeps two weeks of actionable history and combines repeated reminders about the same item.
 - Completing ordinary work and editing routine text stay out of the inbox.
 - Every push has a useful destination inside TodoTwo.
 - Email is a fallback when a person has no working push subscription.

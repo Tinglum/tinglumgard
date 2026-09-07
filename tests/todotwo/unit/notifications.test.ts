@@ -164,6 +164,7 @@ describe('which provider failures are worth repeating', () => {
 
 interface FakeRow {
   id: string
+  person_id: string
   channel: 'email'
   recipient_email: string
   subject: string
@@ -172,6 +173,8 @@ interface FakeRow {
   attempts: number
   next_attempt_at: string
   dedupe_key: string
+  topic: string
+  reference_id: string | null
 }
 
 function fakeDb(rows: FakeRow[]) {
@@ -220,6 +223,7 @@ function fakeDb(rows: FakeRow[]) {
 function row(overrides: Partial<FakeRow> = {}): FakeRow {
   return {
     id: 'row-1',
+    person_id: 'person-1',
     channel: 'email',
     recipient_email: 'someone@todotwo.invalid',
     subject: 'The vet comes Thursday',
@@ -228,6 +232,8 @@ function row(overrides: Partial<FakeRow> = {}): FakeRow {
     attempts: 0,
     next_attempt_at: '2026-09-04T09:00:00Z',
     dedupe_key: 'announcement:a:b:email',
+    topic: 'announcement',
+    reference_id: null,
     ...overrides,
   }
 }
@@ -317,5 +323,18 @@ describe('dispatching the outbox', () => {
 
     expect(result.considered).toBe(0)
     expect(updates).toEqual([])
+  })
+
+  it('consumes per-task assignment notices without delivering them', async () => {
+    const rows = [row({ topic: 'assignment-assigned' })]
+    const { db } = fakeDb(rows)
+    const sender: Sender = vi.fn(async () => ({ sent: true, retryable: false }))
+
+    const result = await dispatchOutbox(db, { now, sender })
+
+    expect(result.considered).toBe(0)
+    expect(result.sent).toBe(0)
+    expect(sender).not.toHaveBeenCalled()
+    expect(rows[0].status).toBe('sent')
   })
 })

@@ -25,6 +25,9 @@ import type { OutboxRow, Sender } from '@/lib/todotwo/notifications/types'
 /** How long a claimed row is hidden from other runs while its send is in flight. */
 const LEASE_MINUTES = 15
 
+/** Individual rota changes are represented by one day summary in the inbox. */
+const SUPPRESSED_TOPICS = new Set(['assignment-assigned', 'assignment-unassigned', 'daily-digest'])
+
 export interface DispatchResult {
   configured: boolean
   considered: number
@@ -91,8 +94,28 @@ export async function dispatchOutbox(
 
   if (error) throw new Error(`Could not read the notification outbox: ${error.message}`)
 
-  const rows = ((data ?? []) as OutboxRow[]).filter((row) => isDue(row, now))
+  const dueRows = ((data ?? []) as OutboxRow[]).filter((row) => isDue(row, now))
+  const rows = dueRows.filter((row) => !SUPPRESSED_TOPICS.has(row.topic))
   result.considered = rows.length
+
+  // Old database triggers can still enqueue one row per assignment. Consume
+  // those rows without contacting a device; getActivityFeed builds the single
+  // useful "Friday is ready" summary from the person's current assignments.
+  for (const row of dueRows.filter((candidate) => SUPPRESSED_TOPICS.has(candidate.topic))) {
+    const { error: suppressError } = await db
+      .from('notification_outbox')
+      .update({
+        status: 'sent',
+        attempts: row.attempts + 1,
+        sent_at: now.toISOString(),
+        last_error: null,
+        next_attempt_at: now.toISOString(),
+      })
+      .eq('id', row.id)
+      .eq('status', 'pending')
+
+    if (suppressError) result.errors.push({ id: row.id, message: suppressError.message })
+  }
 
   for (const row of rows) {
     // Claim. Matching on attempts as well as status makes this a compare-and-set:

@@ -1,6 +1,15 @@
 import { getTodoTwoClient } from '@/lib/todotwo/db'
 import { UI_LOCALE } from '@/lib/todotwo/copy'
-import { FARM_TZ, farmDayStart, farmToday } from '@/lib/todotwo/time'
+import { addFarmDays, FARM_TZ, farmDayStart, farmToday } from '@/lib/todotwo/time'
+
+const INBOX_TOPICS = new Set([
+  'announcement',
+  'help-request',
+  'help-request-taken',
+  'overdue-escalation',
+  'overdue-reminder',
+  'task_handoff_request',
+])
 
 export interface ActivityItem {
   eventId: string
@@ -15,6 +24,8 @@ export interface ActivityItem {
 /** A recipient-specific inbox, deliberately not a raw farm audit log. */
 export async function getActivityFeed(personId: string, limit = 100): Promise<ActivityItem[]> {
   const db = getTodoTwoClient()
+  const today = farmToday()
+  const recentCutoff = new Date(Date.now() - 14 * 86_400_000).toISOString()
   const [{ data: assignmentRows }, { data: messageRows }] = await Promise.all([
     db
       .from('task_assignments')
@@ -28,8 +39,9 @@ export async function getActivityFeed(personId: string, limit = 100): Promise<Ac
       .from('notification_outbox')
       .select('id, subject, body, topic, reference_id, created_at')
       .eq('person_id', personId)
+      .gte('created_at', recentCutoff)
       .order('created_at', { ascending: false })
-      .limit(limit),
+      .limit(200),
   ])
 
   const assignments = (assignmentRows ?? []) as { task_id: string; assigned_at: string }[]
@@ -40,7 +52,8 @@ export async function getActivityFeed(personId: string, limit = 100): Promise<Ac
         .select('id, due_date, status')
         .in('id', taskIds)
         .not('due_date', 'is', null)
-        .gte('due_date', farmToday())
+        .gte('due_date', today)
+        .lte('due_date', addFarmDays(today, 3))
     : { data: [] }
 
   const assignmentByTask = new Map(assignments.map((row) => [row.task_id, row.assigned_at]))
@@ -72,6 +85,7 @@ export async function getActivityFeed(personId: string, limit = 100): Promise<Ac
     }
   })
 
+  const seenMessages = new Set<string>()
   const messages: ActivityItem[] = ((messageRows ?? []) as {
     id: string
     subject: string
@@ -80,7 +94,13 @@ export async function getActivityFeed(personId: string, limit = 100): Promise<Ac
     reference_id: string | null
     created_at: string
   }[])
-    .filter((message) => message.topic !== 'day-ready')
+    .filter((message) => {
+      if (!INBOX_TOPICS.has(message.topic)) return false
+      const key = `${message.topic}:${message.reference_id ?? message.subject}`
+      if (seenMessages.has(key)) return false
+      seenMessages.add(key)
+      return true
+    })
     .map((message) => ({
       eventId: `message:${message.id}`,
       occurredAt: message.created_at,
@@ -89,8 +109,7 @@ export async function getActivityFeed(personId: string, limit = 100): Promise<Ac
       title: message.subject,
       detail: message.body,
       href:
-        message.reference_id &&
-        (message.topic.startsWith('assignment-') || message.topic.startsWith('overdue'))
+        message.reference_id && message.topic.startsWith('overdue')
           ? `/todotwo/tasks/${message.reference_id}`
           : message.topic === 'help-request'
             ? '/todotwo'
