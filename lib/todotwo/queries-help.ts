@@ -28,8 +28,11 @@ export async function getOpenHelpRequests(viewerPersonId: string): Promise<OpenH
       .from('tasks_resolved')
       .select('id, title, due_date')
       .in('id', rows.map((r) => r.task_id)),
+    // The private people table only exposes a Workawayer's own row. The
+    // shared roster deliberately exposes just the display fields needed here,
+    // so an ask made by somebody else does not disappear from their Today.
     db
-      .from('people')
+      .from('people_roster')
       .select('id, full_name, preferred_name, photo_url')
       .in('id', rows.map((r) => r.asked_by_person_id)),
   ])
