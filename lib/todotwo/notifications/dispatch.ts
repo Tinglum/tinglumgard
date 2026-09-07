@@ -155,6 +155,8 @@ export async function dispatchOutbox(
             ? `/todotwo/tasks/${row.reference_id}`
             : row.topic === 'day-ready'
               ? '/todotwo/upcoming'
+              : row.topic === 'task_handoff_request'
+                ? '/todotwo/swaps'
               : '/todotwo',
       })
       pushed = pushResult.sent

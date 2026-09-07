@@ -1,5 +1,6 @@
 import { RosterDatePicker } from '@/components/todotwo/roster/date-picker'
 import { UndoCompletionButton } from '@/components/todotwo/roster/undo-completion-button'
+import Link from 'next/link'
 import { EmptyState, Surface } from '@/components/todotwo/ui/states'
 import { Avatar } from '@/components/todotwo/ui/avatar'
 import { UI_LOCALE } from '@/lib/todotwo/copy'
@@ -17,7 +18,7 @@ import {
   isFarmDate,
   type FarmDate,
 } from '@/lib/todotwo/time'
-import { todoTwoRoutes } from '@/lib/todotwo/routes'
+import { TODOTWO_BASE, todoTwoRoutes } from '@/lib/todotwo/routes'
 
 export const dynamic = 'force-dynamic'
 
@@ -84,14 +85,14 @@ export default async function RosterPage({
         <RosterDatePicker date={start} />
       </header>
 
-      <RosterDay date={start} entries={firstEntries} currentPersonId={principal.person.id} />
-      <RosterDay date={second} entries={secondEntries} currentPersonId={principal.person.id} />
+      <RosterDay date={start} entries={firstEntries} currentPersonId={principal.person.id} canUndoAll={principal.isAdmin} />
+      <RosterDay date={second} entries={secondEntries} currentPersonId={principal.person.id} canUndoAll={principal.isAdmin} />
     </div>
   )
 }
 
 /** One labelled day: its heading, then a section per person with work on it. */
-function RosterDay({ date, entries, currentPersonId }: { date: FarmDate; entries: RosterEntry[]; currentPersonId: string }) {
+function RosterDay({ date, entries, currentPersonId, canUndoAll }: { date: FarmDate; entries: RosterEntry[]; currentPersonId: string; canUndoAll: boolean }) {
   const populated = entries.filter((entry) => entry.tasks.length > 0)
   const total = populated.reduce((sum, entry) => sum + entry.tasks.length, 0)
   const relative = relativeLabel(date)
@@ -113,7 +114,7 @@ function RosterDay({ date, entries, currentPersonId }: { date: FarmDate; entries
       ) : (
         <div className="flex flex-col gap-4">
           {populated.map((entry) => (
-            <PersonBlock key={entry.personId ?? 'unassigned'} entry={entry} currentPersonId={currentPersonId} />
+            <PersonBlock key={entry.personId ?? 'unassigned'} entry={entry} currentPersonId={currentPersonId} canUndoAll={canUndoAll} />
           ))}
         </div>
       )}
@@ -122,7 +123,7 @@ function RosterDay({ date, entries, currentPersonId }: { date: FarmDate; entries
 }
 
 /** One person's work for a day, with a done-of-outstanding tally. */
-function PersonBlock({ entry, currentPersonId }: { entry: RosterEntry; currentPersonId: string }) {
+function PersonBlock({ entry, currentPersonId, canUndoAll }: { entry: RosterEntry; currentPersonId: string; canUndoAll: boolean }) {
   const cancelled = entry.tasks.filter((task) => isCancelled(task.status)).length
   const countable = entry.tasks.length - cancelled
   const done = entry.tasks.filter((task) => isFinished(task.status)).length
@@ -161,7 +162,8 @@ function PersonBlock({ entry, currentPersonId }: { entry: RosterEntry; currentPe
                   taskCancelled && 'opacity-60'
                 )}
               >
-                <span
+                <Link
+                  href={`${TODOTWO_BASE}/tasks/${task.id}`}
                   className={cn(
                     'min-w-0 flex-1 truncate text-[15px]',
                     (taskDone || taskCancelled) && 'line-through',
@@ -170,7 +172,7 @@ function PersonBlock({ entry, currentPersonId }: { entry: RosterEntry; currentPe
                   )}
                 >
                   {task.title}
-                </span>
+                </Link>
                 {task.dueAt ? (
                   <span className="shrink-0 text-[12px] tabular-nums text-[var(--tt-ink-3)]">
                     {formatFarm(new Date(task.dueAt), 'HH:mm')}
@@ -179,7 +181,7 @@ function PersonBlock({ entry, currentPersonId }: { entry: RosterEntry; currentPe
                 <span className="shrink-0 text-[11px] uppercase tracking-wide text-[var(--tt-ink-3)]">
                   {task.status.replace(/_/g, ' ')}
                 </span>
-                {entry.personId === currentPersonId && task.status === 'completed' ? (
+                {(canUndoAll || entry.personId === currentPersonId) && task.status === 'completed' ? (
                   <UndoCompletionButton taskId={task.id} taskTitle={task.title} />
                 ) : null}
               </li>

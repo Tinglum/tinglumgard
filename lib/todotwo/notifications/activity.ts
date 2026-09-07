@@ -111,6 +111,8 @@ export async function getActivityFeed(personId: string, limit = 100): Promise<Ac
       href:
         message.reference_id && message.topic.startsWith('overdue')
           ? `/todotwo/tasks/${message.reference_id}`
+          : message.topic === 'task_handoff_request'
+            ? '/todotwo/swaps'
           : message.topic === 'help-request'
             ? '/todotwo'
             : null,

@@ -12,6 +12,7 @@ export const todoTwoRoutes = {
   today: () => TODOTWO_BASE,
   upcoming: () => `${TODOTWO_BASE}/upcoming`,
   more: () => `${TODOTWO_BASE}/more`,
+  swaps: () => `${TODOTWO_BASE}/swaps`,
   roster: () => `${TODOTWO_BASE}/roster`,
   favorites: (key?: string) => (key ? `${TODOTWO_BASE}/favorites/${key}` : `${TODOTWO_BASE}/favorites`),
   projects: () => `${TODOTWO_BASE}/projects`,

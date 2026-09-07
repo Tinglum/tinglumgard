@@ -70,7 +70,7 @@ export function OfferTaskButton({
     return (
       <Button variant="secondary" size="sm" onClick={() => setOpen(true)}>
         <Handshake className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
-        Offer this task to someone
+        Swap / give this task
       </Button>
     )
   }
@@ -78,7 +78,7 @@ export function OfferTaskButton({
   return (
     <div className="flex flex-col gap-3 rounded-lg border border-[var(--tt-rule)] p-4">
       <p className="text-[13px] text-[var(--tt-ink-2)]">
-        They&apos;ll be asked to accept or decline. The task stays yours until they accept.
+        Choose who should take it. They&apos;ll get a notification to accept or decline, and the task stays yours until they accept.
       </p>
       <label className="flex flex-col gap-1 text-[13px]">
         Offer to
