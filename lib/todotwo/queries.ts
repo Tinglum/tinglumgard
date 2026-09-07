@@ -1129,18 +1129,34 @@ export async function getFavoriteViews(
   const in7 = addFarmDays(today, 7)
   const tomorrow = addFarmDays(today, 1)
 
-  const { data, error } = await db
-    .from('tasks_resolved')
-    .select(SELECT)
-    .is('parent_task_id', null)
-    .in('status', OPEN_STATUSES)
+  const [windowResult, overdueResult, mine, farmWideResult] = await Promise.all([
+    db
+      .from('tasks_resolved')
+      .select('id, status, due_date')
+      .is('parent_task_id', null)
+      .gte('due_date', today)
+      .lte('due_date', in7)
+      .in('status', OPEN_STATUSES),
+    db
+      .from('tasks_resolved')
+      .select('id', { count: 'exact', head: true })
+      .is('parent_task_id', null)
+      .lt('due_date', today)
+      .in('status', OPEN_STATUSES),
+    taskIdsAssignedTo(db, personId),
+    isStaff
+      ? db
+          .from('tasks_resolved')
+          .select('id', { count: 'exact', head: true })
+          .is('parent_task_id', null)
+          .in('status', ['assigned', 'accepted', 'in_progress'])
+      : Promise.resolve({ count: 0, error: null }),
+  ])
 
+  const error = windowResult.error ?? overdueResult.error ?? farmWideResult.error
   if (error) throw new Error(`Could not load favorites: ${error.message}`)
-  const rows = (data ?? []) as unknown as TaskRow[]
+  const rows = (windowResult.data ?? []) as { id: string; status: string; due_date: string | null }[]
 
-  const mine = await taskIdsAssignedTo(db, personId)
-
-  const overdue = rows.filter((t) => t.due_date && t.due_date < today)
   const assignedToday = rows.filter((t) => t.due_date === today && mine.has(t.id))
   const assignedTomorrow = rows.filter((t) => t.due_date === tomorrow && mine.has(t.id))
   const next7 = rows.filter((t) => t.due_date && t.due_date > today && t.due_date <= in7)
@@ -1148,7 +1164,7 @@ export async function getFavoriteViews(
   const assignedNext7 = next7.filter((t) => mine.has(t.id))
 
   const views: FavoriteView[] = [
-    { key: 'overdue', label: 'Overdue Tasks', count: overdue.length },
+    { key: 'overdue', label: 'Overdue Tasks', count: overdueResult.count ?? 0 },
     { key: 'assigned-today', label: 'Assigned tasks due today', count: assignedToday.length },
     { key: 'assigned-tomorrow', label: 'Assigned tasks due tomorrow', count: assignedTomorrow.length },
     { key: 'unassigned-next-7', label: 'Unassigned tasks due next 7 days', count: unassignedNext7.length },
@@ -1156,8 +1172,7 @@ export async function getFavoriteViews(
   ]
 
   if (isStaff) {
-    const farmWide = rows.filter((t) => t.status === 'assigned' || t.status === 'accepted' || t.status === 'in_progress')
-    views.push({ key: 'farm-wide', label: "Tinglum Farm's assignments", count: farmWide.length })
+    views.push({ key: 'farm-wide', label: "Tinglum Farm's assignments", count: farmWideResult.count ?? 0 })
   }
 
   return views

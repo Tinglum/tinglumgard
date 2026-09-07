@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
 import { NextResponse } from 'next/server'
+import { cache } from 'react'
 
 import { getTodoTwoAuthClient, getTodoTwoClient } from '@/lib/todotwo/db'
 import { todoTwoRoutes } from '@/lib/todotwo/routes'
@@ -61,7 +62,7 @@ function isRejection(error: { status?: number; message?: string } | null): boole
  * arrive holding the previous token. One retry, after the cookie has caught up,
  * turns that into a non-event instead of a logout.
  */
-export async function getTodoTwoUser(): Promise<TodoTwoPrincipal | null> {
+export const getTodoTwoUser = cache(async function getTodoTwoUser(): Promise<TodoTwoPrincipal | null> {
   const authClient = getTodoTwoAuthClient()
 
   // getUser() revalidates the token with Supabase. getSession() trusts the
@@ -79,20 +80,15 @@ export async function getTodoTwoUser(): Promise<TodoTwoPrincipal | null> {
 
   const { data: person, error: personError } = await db
     .from('people')
-    .select('id, full_name, preferred_name, email, photo_url')
+    .select('id, full_name, preferred_name, email, photo_url, role_assignments(role, revoked_at)')
     .eq('auth_user_id', user.id)
     .is('deleted_at', null)
+    .is('role_assignments.revoked_at', null)
     .maybeSingle()
 
   if (personError || !person) return null
 
-  const { data: roleRows } = await db
-    .from('role_assignments')
-    .select('role')
-    .eq('person_id', person.id)
-    .is('revoked_at', null)
-
-  const roles = ((roleRows ?? []) as { role: TodoTwoRole }[]).map((row) => row.role)
+  const roles = ((person.role_assignments ?? []) as { role: TodoTwoRole }[]).map((row) => row.role)
 
   return {
     authUserId: user.id,
@@ -107,7 +103,7 @@ export async function getTodoTwoUser(): Promise<TodoTwoPrincipal | null> {
     roles,
     isAdmin: roles.some((role) => ADMIN_ROLES.includes(role)),
   }
-}
+})
 
 /** For pages. Redirects to the login screen when unauthenticated. */
 export async function requireTodoTwoUser(returnTo?: string): Promise<TodoTwoPrincipal> {
