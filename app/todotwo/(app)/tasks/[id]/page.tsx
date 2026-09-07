@@ -37,6 +37,7 @@ export default async function TaskDetailPage({ params }: { params: { id: string 
 
   const { task, steps, seriesRule, projectName } = detail
   const done = task.status === 'completed' || task.status === 'verified'
+  const requiresFenceReading = /goats \(morning\)/i.test(task.title) && !steps.some((step) => /check fence/i.test(step.title) && step.done)
 
   const history = task.series_id ? await getAssignmentHistoryForSeries(task.series_id) : []
 
@@ -146,6 +147,7 @@ export default async function TaskDetailPage({ params }: { params: { id: string 
           taskId={task.id}
           done={done}
           requiresFeedCheck={task.requires_feed_check}
+          requiresFenceReading={requiresFenceReading}
         />
         <DuplicateTaskButton taskId={task.id} defaultDueDate={task.due_date} />
         {isCurrentAssignee ? (

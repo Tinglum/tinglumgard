@@ -18,6 +18,7 @@ import {
   Bird,
   Package,
   ListChecks,
+  Zap,
 } from 'lucide-react';
 import { ActionDashboard } from '@/components/admin/ActionDashboard';
 import { PigOrdersTable } from '@/components/admin/PigOrdersTable';
@@ -43,8 +44,9 @@ import { ChickenOrdersManager } from '@/components/admin/ChickenOrdersManager';
 import { EggWishlistManager } from '@/components/admin/EggWishlistManager';
 import { EggOpsDailyCollection } from '@/components/eggops/EggOpsDailyCollection';
 import { PigFunnelAnalytics } from '@/components/admin/PigFunnelAnalytics';
+import { FenceVoltageHistory } from '@/components/todotwo/admin/fence-voltage-history';
 
-type TabType = 'dashboard' | 'orders' | 'products' | 'customers' | 'settings';
+type TabType = 'dashboard' | 'orders' | 'products' | 'fences' | 'customers' | 'settings';
 
 // Orders sub-tabs
 type OrdersSubTab = 'pig' | 'egg' | 'wishlist' | 'chicken' | 'calendar';
@@ -76,7 +78,7 @@ interface PersistedAdminUiState {
 }
 
 const ADMIN_UI_STATE_KEY = 'tinglum-admin-ui-state-v1';
-const TAB_TYPES: TabType[] = ['dashboard', 'orders', 'products', 'customers', 'settings'];
+const TAB_TYPES: TabType[] = ['dashboard', 'orders', 'products', 'fences', 'customers', 'settings'];
 const ORDERS_SUB_TABS: OrdersSubTab[] = ['pig', 'egg', 'wishlist', 'chicken', 'calendar'];
 const PRODUCTS_L1_TABS: ProductsL1[] = ['mangalitsa', 'eggs', 'chickens'];
 const MANGALITSA_L2_TABS: MangalitsaL2[] = ['boxes', 'extras', 'cuts', 'recipes', 'inventory', 'funnel'];
@@ -694,6 +696,7 @@ export default function AdminPage() {
     { id: 'dashboard', label: lang === 'no' ? 'Oversikt' : 'Overview', icon: LayoutDashboard },
     { id: 'orders', label: lang === 'no' ? 'Bestillinger' : 'Orders', icon: ShoppingCart },
     { id: 'products', label: lang === 'no' ? 'Produkter' : 'Products', icon: Package },
+    { id: 'fences', label: lang === 'no' ? 'Gjerder' : 'Fences', icon: Zap },
     { id: 'customers', label: lang === 'no' ? 'Kunder' : 'Customers', icon: Users, badge: unresolvedCount || undefined },
     { id: 'settings', label: lang === 'no' ? 'Innstillinger' : 'Settings', icon: Settings },
   ];
@@ -937,6 +940,8 @@ export default function AdminPage() {
                 )}
           </div>
         )}
+
+        {activeTab === 'fences' && <FenceVoltageHistory />}
 
         {/* ═══════════ TAB 5: SETTINGS ═══════════ */}
         {activeTab === 'settings' && (

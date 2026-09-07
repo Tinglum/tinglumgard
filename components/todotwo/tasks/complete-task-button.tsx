@@ -6,22 +6,26 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/todotwo/ui/button'
 import { copy } from '@/lib/todotwo/copy'
 import { getTodoTwoBrowserClient } from '@/lib/todotwo/db-browser'
+import { FenceReadingDialog } from '@/components/todotwo/tasks/fence-reading-dialog'
 
 export function CompleteTaskButton({
   taskId,
   done,
   requiresFeedCheck = false,
+  requiresFenceReading = false,
 }: {
   taskId: string
   done: boolean
   /** Evening animal routines: must answer the feed-sufficiency question before completing. */
   requiresFeedCheck?: boolean
+  requiresFenceReading?: boolean
 }) {
   const router = useRouter()
   const [pending, setPending] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
   // Only asked when completing (not un-completing) a task that requires it.
   const [asking, setAsking] = React.useState(false)
+  const [askingFence, setAskingFence] = React.useState(false)
 
   async function complete(hasEnoughFood: boolean | null) {
     setPending(true)
@@ -68,8 +72,14 @@ export function CompleteTaskButton({
       setAsking(true)
       return
     }
+    if (requiresFenceReading) {
+      setAskingFence(true)
+      return
+    }
     void complete(null)
   }
+
+  if (askingFence) return <FenceReadingDialog taskId={taskId} onCancel={() => setAskingFence(false)} onSaved={async () => { setAskingFence(false); await complete(null) }} />
 
   if (asking) {
     return (

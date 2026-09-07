@@ -119,6 +119,11 @@ describe('storefront isolation', () => {
       // the storefront header and footer do not render over TodoTwo. Follows
       // the pattern already used for /egg, /drift/egg-ops, /bnimsp and /quest.
       'components/AppShell.tsx',
+      // The farm owner explicitly requested TodoTwo's fence-voltage history
+      // inside the existing /admin console rather than in a separate app.
+      'app/admin/page.tsx',
+      'app/api/admin/fence-readings/route.ts',
+      'app/api/farm/fence-readings/route.ts',
       // TodoTwo added to the existing standalone-auth exemption beside /bnimsp
       // and /quest, so the storefront's reload-logout and inactivity timer stop
       // ejecting people mid-task.

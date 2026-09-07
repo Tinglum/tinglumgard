@@ -7,6 +7,7 @@ import { Check } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/todotwo/ui/button'
 import { getTodoTwoBrowserClient } from '@/lib/todotwo/db-browser'
+import { FenceReadingDialog } from '@/components/todotwo/tasks/fence-reading-dialog'
 
 export interface Step {
   id: string
@@ -37,6 +38,7 @@ export function StepList({
   const [steps, setSteps] = React.useState(initial)
   const [error, setError] = React.useState<string | null>(null)
   const [busy, setBusy] = React.useState<string | null>(null)
+  const [fenceStep, setFenceStep] = React.useState<Step | null>(null)
 
   React.useEffect(() => setSteps(initial), [initial])
 
@@ -77,6 +79,14 @@ export function StepList({
     } finally {
       setBusy(null)
     }
+  }
+
+  function requestToggle(step: Step) {
+    if (!step.done && /check fence/i.test(step.title)) {
+      setFenceStep(step)
+      return
+    }
+    void toggle(step)
   }
 
   async function markAll() {
@@ -131,7 +141,7 @@ export function StepList({
           >
             <button
               type="button"
-              onClick={() => toggle(step)}
+              onClick={() => requestToggle(step)}
               disabled={busy === step.id}
               aria-pressed={step.done}
               aria-label={step.done ? `Undo "${step.title}"` : `Tick "${step.title}"`}
@@ -164,6 +174,7 @@ export function StepList({
           {error}
         </p>
       ) : null}
+      {fenceStep ? <FenceReadingDialog taskId={taskId} onCancel={() => setFenceStep(null)} onSaved={async () => { const step = fenceStep; setFenceStep(null); await toggle(step) }} /> : null}
     </div>
   )
 }
