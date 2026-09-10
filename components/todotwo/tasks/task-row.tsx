@@ -12,6 +12,8 @@ import { canUntick, isFinished } from '@/lib/todotwo/domain/task-status'
 import { TODOTWO_BASE } from '@/lib/todotwo/routes'
 import { PRIORITY_COLOR, PriorityFlag } from '@/components/todotwo/ui/priority-flag'
 import { Avatar } from '@/components/todotwo/ui/avatar'
+import { FenceReadingDialog } from '@/components/todotwo/tasks/fence-reading-dialog'
+import { taskNeedsFenceReading } from '@/lib/todotwo/domain/fence'
 
 export interface TaskRowAssignee {
   id: string
@@ -68,6 +70,7 @@ export function TaskRow({
   const [undoUntil, setUndoUntil] = React.useState<number | null>(null)
   // Evening animal routines: asked in place of the immediate optimistic tick.
   const [asking, setAsking] = React.useState(false)
+  const [askingFence, setAskingFence] = React.useState(false)
 
   const showUndo = undoUntil !== null && Date.now() < undoUntil
 
@@ -117,6 +120,14 @@ export function TaskRow({
     // question answered first — no optimistic tick until then.
     if (next && task.requires_feed_check) {
       setAsking(true)
+      return
+    }
+
+    // Same rule as the feed check: the reading is the point of the job, so it
+    // is taken before the tick lands, not after. Without this the morning goat
+    // round was finished from this list every day and nothing was ever logged.
+    if (next && taskNeedsFenceReading(task.title)) {
+      setAskingFence(true)
       return
     }
 
@@ -222,6 +233,26 @@ export function TaskRow({
       />
     </li>
   )
+
+  // The dialog is a fixed overlay, so it sits over the whole screen rather than
+  // in the list. Wrapped in a display:contents <li> only to keep the <ul> valid.
+  if (askingFence) {
+    return (
+      <React.Fragment>
+        {row}
+        <li className="contents">
+          <FenceReadingDialog
+            taskId={task.id}
+            onCancel={() => setAskingFence(false)}
+            onSaved={async () => {
+              setAskingFence(false)
+              await commit(true, null)
+            }}
+          />
+        </li>
+      </React.Fragment>
+    )
+  }
 
   return asking ? (
     <React.Fragment>

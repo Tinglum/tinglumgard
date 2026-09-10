@@ -20,6 +20,18 @@ export async function POST(request: NextRequest) {
   const { data: task } = await db.from('tasks_resolved').select('id, title, due_date, series_id').eq('id', body.taskId).maybeSingle()
   if (!task || !/goats \(morning\)/i.test(task.title as string)) return NextResponse.json({ error: 'This is not a morning goat task.' }, { status: 400 })
 
+  // Idempotent per task. The tick box on the list and the step on the detail
+  // page can both reach this, and two readings for one morning would quietly
+  // corrupt the history rather than fail loudly.
+  const { data: already } = await db
+    .from('audit_log')
+    .select('id')
+    .eq('entity_table', 'fence_readings')
+    .eq('entity_id', body.taskId)
+    .limit(1)
+    .maybeSingle()
+  if (already) return NextResponse.json({ ok: true, duplicate: true })
+
   const { error } = await db.from('audit_log').insert({
     actor_person_id: auth.principal.person.id,
     actor_auth_user_id: auth.principal.authUserId,
