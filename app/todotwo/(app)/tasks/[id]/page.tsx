@@ -14,6 +14,7 @@ import { PrivateNote } from '@/components/todotwo/tasks/private-note'
 import { AdminAssignmentControl } from '@/components/todotwo/tasks/admin-assignment-control'
 import { Surface } from '@/components/todotwo/ui/states'
 import { getTodoTwoClient } from '@/lib/todotwo/db'
+import { taskNeedsFenceReading } from '@/lib/todotwo/domain/fence'
 import { requireTodoTwoUser } from '@/lib/todotwo/auth'
 import {
   getTaskDetail,
@@ -36,7 +37,9 @@ export default async function TaskDetailPage({ params }: { params: { id: string 
 
   const { task, steps, seriesRule, projectName } = detail
   const done = task.status === 'completed' || task.status === 'verified'
-  const requiresFenceReading = /goats \(morning\)/i.test(task.title) && !steps.some((step) => /check fence/i.test(step.title) && step.done)
+  const requiresFenceReading =
+    taskNeedsFenceReading(task.title) &&
+    !steps.some((step) => /check fence/i.test(step.title) && step.done)
 
   const [history, currentAssigneeId, openAskResult, people] = await Promise.all([
     task.series_id ? getAssignmentHistoryForSeries(task.series_id) : Promise.resolve([]),
