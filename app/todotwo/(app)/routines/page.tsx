@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { AssignmentRulesManager } from '@/components/todotwo/routines/assignment-rules-manager'
 import { ClearAssignments } from '@/components/todotwo/tasks/clear-assignments'
 import { RotaEditor } from '@/components/todotwo/tasks/rota-editor'
+import { RoutineEditor } from '@/components/todotwo/tasks/routine-editor'
 import { FeedCheckToggle } from '@/components/todotwo/tasks/feed-check-toggle'
 import { EmptyState, Surface } from '@/components/todotwo/ui/states'
 import { requireTodoTwoUser } from '@/lib/todotwo/auth'
@@ -89,6 +90,18 @@ export default async function RoutinesPage() {
               </p>
             ) : null}
           </div>
+
+          {canEditRules ? <div className="border-t border-[var(--tt-rule)] pt-4">
+            <RoutineEditor
+              routine={{
+                id: routine.id,
+                title: routine.title,
+                description: routine.description,
+                rrule: routine.rrule,
+                steps: routine.steps,
+              }}
+            />
+          </div> : null}
 
           {canEditRules ? <div className="border-t border-[var(--tt-rule)] pt-4">
             <RotaEditor
