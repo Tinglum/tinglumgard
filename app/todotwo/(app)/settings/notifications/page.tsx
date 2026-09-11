@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 
+import { InstallAppCard } from '@/components/todotwo/settings/install-app-card'
 import { PushNotificationsManager } from '@/components/todotwo/settings/push-notifications-manager'
 import { requireTodoTwoUser } from '@/lib/todotwo/auth'
 import { getVapidPublicKey } from '@/lib/todotwo/config'
@@ -20,6 +21,8 @@ export default async function TodoTwoNotificationsSettingsPage() {
           right on this device.
         </p>
       </header>
+
+      <InstallAppCard />
 
       <PushNotificationsManager vapidPublicKey={getVapidPublicKey()} />
     </div>
