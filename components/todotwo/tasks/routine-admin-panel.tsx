@@ -40,9 +40,13 @@ export function RoutineAdminPanel({
         {label}
       </button>
 
-      {/* Kept mounted, so a part-written step survives a stray collapse. */}
-      <div hidden={!open} className="flex flex-col gap-4 pt-3">
-        {children}
+      {/* Kept mounted, so a part-written step survives a stray collapse.
+          `hidden` sits on its own element: Tailwind's `flex` utility is
+          declared after preflight's `[hidden]{display:none}` at the same
+          specificity, so putting both on one div leaves it stubbornly
+          visible. */}
+      <div hidden={!open}>
+        <div className="flex flex-col gap-4 pt-3">{children}</div>
       </div>
     </div>
   )
