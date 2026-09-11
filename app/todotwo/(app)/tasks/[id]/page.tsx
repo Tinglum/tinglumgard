@@ -4,6 +4,7 @@ import { ArrowLeft, Clock, Repeat } from 'lucide-react'
 
 import { Avatar } from '@/components/todotwo/ui/avatar'
 import { StepList } from '@/components/todotwo/tasks/step-list'
+import { TaskEditor } from '@/components/todotwo/tasks/task-editor'
 import { CompleteTaskButton } from '@/components/todotwo/tasks/complete-task-button'
 import { DuplicateTaskButton } from '@/components/todotwo/tasks/duplicate-task-button'
 import { OccurrenceActions } from '@/components/todotwo/tasks/occurrence-actions'
@@ -37,6 +38,7 @@ export default async function TaskDetailPage({ params }: { params: { id: string 
 
   const { task, steps, seriesRule, projectName } = detail
   const done = task.status === 'completed' || task.status === 'verified'
+  const canEditContent = principal.isAdmin || principal.roles.includes('coordinator')
   const requiresFenceReading =
     taskNeedsFenceReading(task.title) &&
     !steps.some((step) => /check fence/i.test(step.title) && step.done)
@@ -143,6 +145,31 @@ export default async function TaskDetailPage({ params }: { params: { id: string 
       <Surface className="p-4">
         <StepList taskId={task.id} steps={steps} taskDone={done} />
       </Surface>
+
+      {canEditContent ? (
+        <Surface className="p-4">
+          {task.series_id ? (
+            <p className="text-[13px] text-[var(--tt-ink-2)]">
+              This day belongs to a routine.{' '}
+              <Link href={`${TODOTWO_BASE}/routines`} className="underline">
+                Edit the routine
+              </Link>{' '}
+              to change its wording or steps on every future day.
+            </p>
+          ) : (
+            <TaskEditor
+              taskId={task.id}
+              title={task.title}
+              description={task.description}
+              steps={steps.map((step) => ({
+                id: step.id,
+                title: step.title,
+                description: step.description,
+              }))}
+            />
+          )}
+        </Surface>
+      ) : null}
 
       <Surface className="p-4">
         <PrivateNote taskId={task.id} personId={principal.person.id} />

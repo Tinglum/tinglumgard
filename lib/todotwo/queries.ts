@@ -657,12 +657,21 @@ export async function getCurrentAssigneePerson(taskId: string): Promise<TaskAssi
   }
 }
 
+export interface RoutineStep {
+  id: string
+  title: string
+  description: string | null
+}
+
 export interface SeriesRow {
   id: string
   title: string
   description: string | null
   rrule: string
   project_id: string | null
+  /** The steps themselves, so the routine can be edited in place rather than
+   *  only counted. Ordered by sort_order. */
+  steps: RoutineStep[]
   stepCount: number
   upcomingCount: number
   rota: { id: string; name: string }[]
@@ -694,7 +703,11 @@ export async function getSeries(): Promise<SeriesRow[]> {
 
   const [{ data: steps }, { data: occurrences }, { data: rotaRows }, { data: people }] =
     await Promise.all([
-      db.from('task_series_steps').select('series_id').is('deleted_at', null),
+      db
+        .from('task_series_steps')
+        .select('series_id, id, title, description, sort_order')
+        .is('deleted_at', null)
+        .order('sort_order'),
       db.from('tasks').select('series_id, status').not('series_id', 'is', null).is('deleted_at', null),
       db.from('series_rota').select('series_id, person_id, position').order('position'),
       db.from('people').select('id, full_name, preferred_name').is('deleted_at', null),
@@ -705,9 +718,17 @@ export async function getSeries(): Promise<SeriesRow[]> {
     nameOf.set(p.id, p.preferred_name || p.full_name)
   }
 
-  const stepCounts = new Map<string, number>()
-  for (const s of (steps ?? []) as { series_id: string }[]) {
-    stepCounts.set(s.series_id, (stepCounts.get(s.series_id) ?? 0) + 1)
+  const stepsBySeries = new Map<string, RoutineStep[]>()
+  for (const s of (steps ?? []) as {
+    series_id: string
+    id: string
+    title: string
+    description: string | null
+  }[]) {
+    const entry = { id: s.id, title: s.title, description: s.description }
+    const list = stepsBySeries.get(s.series_id)
+    if (list) list.push(entry)
+    else stepsBySeries.set(s.series_id, [entry])
   }
 
   const openCounts = new Map<string, number>()
@@ -724,12 +745,16 @@ export async function getSeries(): Promise<SeriesRow[]> {
     else rotas.set(r.series_id, [entry])
   }
 
-  return series.map((s) => ({
-    ...s,
-    stepCount: stepCounts.get(s.id) ?? 0,
-    upcomingCount: openCounts.get(s.id) ?? 0,
-    rota: rotas.get(s.id) ?? [],
-  }))
+  return series.map((s) => {
+    const ownSteps = stepsBySeries.get(s.id) ?? []
+    return {
+      ...s,
+      steps: ownSteps,
+      stepCount: ownSteps.length,
+      upcomingCount: openCounts.get(s.id) ?? 0,
+      rota: rotas.get(s.id) ?? [],
+    }
+  })
 }
 
 export interface StayRow {
