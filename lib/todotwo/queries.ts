@@ -669,6 +669,10 @@ export interface SeriesRow {
   description: string | null
   rrule: string
   project_id: string | null
+  /** The project this routine belongs to — animals, housekeeping, farm week.
+   *  It is what the Routines page groups its tabs by, so it travels with the
+   *  row rather than being looked up again in the page. */
+  projectName: string | null
   /** The steps themselves, so the routine can be edited in place rather than
    *  only counted. Ordered by sort_order. */
   steps: RoutineStep[]
@@ -694,7 +698,7 @@ export async function getSeries(): Promise<SeriesRow[]> {
   const series = (
     (rows ?? []) as unknown as (Omit<
       SeriesRow,
-      'stepCount' | 'upcomingCount' | 'rota' | 'requiresFeedCheck'
+      'stepCount' | 'upcomingCount' | 'rota' | 'requiresFeedCheck' | 'projectName' | 'steps'
     > & { requires_feed_check: boolean })[]
   ).map(({ requires_feed_check, ...rest }) => ({
     ...rest,
@@ -712,6 +716,11 @@ export async function getSeries(): Promise<SeriesRow[]> {
       db.from('series_rota').select('series_id, person_id, position').order('position'),
       db.from('people').select('id, full_name, preferred_name').is('deleted_at', null),
     ])
+
+  const { data: projectRows } = await db.from('projects').select('id, name').is('deleted_at', null)
+  const projectName = new Map(
+    ((projectRows ?? []) as { id: string; name: string }[]).map((p) => [p.id, p.name])
+  )
 
   const nameOf = new Map<string, string>()
   for (const p of (people ?? []) as { id: string; full_name: string; preferred_name: string | null }[]) {
@@ -749,6 +758,7 @@ export async function getSeries(): Promise<SeriesRow[]> {
     const ownSteps = stepsBySeries.get(s.id) ?? []
     return {
       ...s,
+      projectName: s.project_id ? (projectName.get(s.project_id) ?? null) : null,
       steps: ownSteps,
       stepCount: ownSteps.length,
       upcomingCount: openCounts.get(s.id) ?? 0,

@@ -6,6 +6,13 @@ import { Bell, Download, Settings, X } from 'lucide-react'
 
 import { Button } from '@/components/todotwo/ui/button'
 import { TODOTWO_SW_URL } from '@/lib/todotwo/pwa/constants'
+import {
+  consumeInstallPrompt,
+  isIos,
+  isStandalone,
+  onInstallPromptChange,
+  type InstallPromptEvent,
+} from '@/lib/todotwo/pwa/install-prompt'
 
 /**
  * Getting TodoTwo onto the phone, and notifications actually switched on.
@@ -62,11 +69,6 @@ function isAuthScreen(pathname: string | null): boolean {
   return AUTH_SCREENS.some((base) => pathname === base || pathname.startsWith(`${base}/`))
 }
 
-interface InstallPromptEvent extends Event {
-  prompt: () => Promise<void>
-  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>
-}
-
 function urlBase64ToUint8Array(base64: string): Uint8Array {
   const padding = '='.repeat((4 - (base64.length % 4)) % 4)
   const base64Safe = (base64 + padding).replace(/-/g, '+').replace(/_/g, '/')
@@ -74,20 +76,6 @@ function urlBase64ToUint8Array(base64: string): Uint8Array {
   const output = new Uint8Array(raw.length)
   for (let i = 0; i < raw.length; i += 1) output[i] = raw.charCodeAt(i)
   return output
-}
-
-function isStandalone(): boolean {
-  if (typeof window === 'undefined') return false
-  return (
-    window.matchMedia('(display-mode: standalone)').matches ||
-    // iOS Safari's own flag, which predates the standard.
-    (window.navigator as unknown as { standalone?: boolean }).standalone === true
-  )
-}
-
-function isIos(): boolean {
-  if (typeof navigator === 'undefined') return false
-  return /iphone|ipad|ipod/i.test(navigator.userAgent)
 }
 
 export function InstallAndNotifyPrompt({ vapidPublicKey }: { vapidPublicKey: string | null }) {
@@ -101,24 +89,24 @@ export function InstallAndNotifyPrompt({ vapidPublicKey }: { vapidPublicKey: str
   const [blocked, setBlocked] = React.useState(false)
   const [note, setNote] = React.useState<string | null>(null)
 
-  // Capture the install event as early as possible. This listener is the whole
-  // reason the component sits above the login page.
+  // The install offer is held by lib/todotwo/pwa/install-prompt, which starts
+  // listening at module load. beforeinstallprompt fires once and only reaches
+  // whoever is listening at that moment, so a component that owns the listener
+  // privately also owns installing — and when it stays closed, nothing else
+  // can offer it. Settings reads the same store.
   React.useEffect(() => {
     setIos(isIos())
 
-    const capture = (event: Event) => {
-      event.preventDefault()
-      setInstallEvent(event as InstallPromptEvent)
-    }
+    const stopWatching = onInstallPromptChange(setInstallEvent)
+
     const installed = () => {
       setStage('notify')
       setOpen(true)
     }
-
-    window.addEventListener('beforeinstallprompt', capture)
     window.addEventListener('appinstalled', installed)
+
     return () => {
-      window.removeEventListener('beforeinstallprompt', capture)
+      stopWatching()
       window.removeEventListener('appinstalled', installed)
     }
   }, [])
@@ -169,7 +157,7 @@ export function InstallAndNotifyPrompt({ vapidPublicKey }: { vapidPublicKey: str
     if (installEvent) {
       await installEvent.prompt()
       const choice = await installEvent.userChoice
-      setInstallEvent(null)
+      consumeInstallPrompt()
       if (choice.outcome === 'accepted') setStage('notify')
       return
     }
