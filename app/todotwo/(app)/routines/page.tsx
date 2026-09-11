@@ -4,6 +4,8 @@ import { AssignmentRulesManager } from '@/components/todotwo/routines/assignment
 import { ClearAssignments } from '@/components/todotwo/tasks/clear-assignments'
 import { RotaEditor } from '@/components/todotwo/tasks/rota-editor'
 import { RoutineEditor } from '@/components/todotwo/tasks/routine-editor'
+import { RoutineAdminPanel } from '@/components/todotwo/tasks/routine-admin-panel'
+import { RoutineTabs, type RoutineTab } from '@/components/todotwo/tasks/routine-tabs'
 import { FeedCheckToggle } from '@/components/todotwo/tasks/feed-check-toggle'
 import { EmptyState, Surface } from '@/components/todotwo/ui/states'
 import { requireTodoTwoUser } from '@/lib/todotwo/auth'
@@ -26,6 +28,85 @@ export default async function RoutinesPage() {
     id: person.id,
     name: person.preferred_name || person.full_name,
   }))
+
+  const card = (routine: (typeof series)[number]) => (
+    <Surface key={routine.id} className="flex flex-col gap-3 p-4">
+      <div className="flex flex-col gap-1">
+        <h2 className="text-[17px] font-semibold leading-snug">{routine.title}</h2>
+        <p className="text-[13px] text-[var(--tt-ink-3)]">
+          {describeRule(routine.rrule)}
+          {routine.stepCount > 0 ? ` · ${routine.stepCount} steps` : ''}
+          {routine.upcomingCount > 0 ? ` · ${routine.upcomingCount} days queued` : ''}
+        </p>
+        {routine.description ? (
+          <p className="mt-1 line-clamp-2 text-[13px] text-[var(--tt-ink-2)]">
+            {routine.description}
+          </p>
+        ) : null}
+      </div>
+
+      {canEditRules ? (
+        <RoutineAdminPanel>
+          <RoutineEditor
+            routine={{
+              id: routine.id,
+              title: routine.title,
+              description: routine.description,
+              rrule: routine.rrule,
+              steps: routine.steps,
+            }}
+          />
+
+          <div className="border-t border-[var(--tt-rule)] pt-4">
+            <RotaEditor
+              seriesId={routine.id}
+              people={roster}
+              rota={routine.rota}
+              upcomingCount={routine.upcomingCount}
+            />
+          </div>
+
+          <div className="border-t border-[var(--tt-rule)] pt-4">
+            <FeedCheckToggle seriesId={routine.id} requiresFeedCheck={routine.requiresFeedCheck} />
+          </div>
+        </RoutineAdminPanel>
+      ) : null}
+    </Surface>
+  )
+
+  // The projects the routines already belong to, in the order they are worth
+  // reading. Anything in a project not named here still gets a tab rather than
+  // vanishing, which matters the first time somebody adds one.
+  const PREFERRED: { project: string; label: string }[] = [
+    { project: 'Daily Animals', label: 'Animals' },
+    { project: 'Daily Housekeeping', label: 'Household' },
+    { project: 'Tinglum Farm TASKS', label: 'Tinglum Farm' },
+  ]
+
+  const byProject = new Map<string, typeof series>()
+  for (const routine of series) {
+    const key = routine.projectName ?? 'Other'
+    const list = byProject.get(key)
+    if (list) list.push(routine)
+    else byProject.set(key, [routine])
+  }
+
+  const ordered = [
+    ...PREFERRED.filter((entry) => byProject.has(entry.project)),
+    ...Array.from(byProject.keys())
+      .filter((name) => !PREFERRED.some((entry) => entry.project === name))
+      .map((name) => ({ project: name, label: name })),
+  ]
+
+  const tabs: RoutineTab[] = ordered.map((entry) => {
+    const group = byProject.get(entry.project) ?? []
+    return {
+      key: entry.project,
+      label: entry.label,
+      count: group.length,
+      content: <>{group.map(card)}</>,
+    }
+  })
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-6">
@@ -73,50 +154,10 @@ export default async function RoutinesPage() {
 
       {series.length === 0 ? (
         <EmptyState title="No routines yet" description="Import or create one to get started." />
-      ) : null}
+      ) : (
+        <RoutineTabs tabs={tabs} />
+      )}
 
-      {series.map((routine) => (
-        <Surface key={routine.id} className="flex flex-col gap-4 p-4">
-          <div className="flex flex-col gap-1">
-            <h2 className="text-[17px] font-semibold leading-snug">{routine.title}</h2>
-            <p className="text-[13px] text-[var(--tt-ink-3)]">
-              {describeRule(routine.rrule)}
-              {routine.stepCount > 0 ? ` · ${routine.stepCount} steps` : ''}
-              {routine.upcomingCount > 0 ? ` · ${routine.upcomingCount} days queued` : ''}
-            </p>
-            {routine.description ? (
-              <p className="mt-1 line-clamp-2 text-[13px] text-[var(--tt-ink-2)]">
-                {routine.description}
-              </p>
-            ) : null}
-          </div>
-
-          {canEditRules ? <div className="border-t border-[var(--tt-rule)] pt-4">
-            <RoutineEditor
-              routine={{
-                id: routine.id,
-                title: routine.title,
-                description: routine.description,
-                rrule: routine.rrule,
-                steps: routine.steps,
-              }}
-            />
-          </div> : null}
-
-          {canEditRules ? <div className="border-t border-[var(--tt-rule)] pt-4">
-            <RotaEditor
-              seriesId={routine.id}
-              people={roster}
-              rota={routine.rota}
-              upcomingCount={routine.upcomingCount}
-            />
-          </div> : null}
-
-          {canEditRules ? <div className="border-t border-[var(--tt-rule)] pt-4">
-            <FeedCheckToggle seriesId={routine.id} requiresFeedCheck={routine.requiresFeedCheck} />
-          </div> : null}
-        </Surface>
-      ))}
     </div>
   )
 }
