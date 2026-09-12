@@ -816,9 +816,9 @@ export async function getStays(days = 30): Promise<{ current: StayRow[]; upcomin
     preferred_name: nameOf.get(r.person_id)?.preferred_name ?? null,
   }))
 
-  const cutoff = new Date()
-  cutoff.setDate(cutoff.getDate() + days)
-  const cutoffDate = cutoff.toISOString().slice(0, 10)
+  // Farm-local, not UTC: between midnight and 02:00 Norwegian time the UTC
+  // date is still yesterday, which quietly shortened this window by a day.
+  const cutoffDate = addFarmDays(farmToday(), days)
 
   return {
     current: withNames.filter((s) => s.status === 'current'),
