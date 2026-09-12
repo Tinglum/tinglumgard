@@ -3,10 +3,16 @@ import { addFarmDays, farmDateTimeToInstant, type FarmDate } from '@/lib/todotwo
 /**
  * Expanding a routine into the days it actually falls on.
  *
- * A deliberately small RRULE subset: FREQ=DAILY and FREQ=WEEKLY with BYDAY,
- * plus BYHOUR/BYMINUTE. That is the entire vocabulary the importer emits, and a
- * narrow expander that is right beats a general one that is subtly wrong about
- * daylight saving.
+ * A deliberately small RRULE subset: FREQ=DAILY, FREQ=WEEKLY with BYDAY, and
+ * FREQ=MONTHLY with a single ordinal BYDAY such as 1SA, plus BYHOUR/BYMINUTE.
+ * A narrow expander that is right beats a general one that is subtly wrong
+ * about daylight saving.
+ *
+ * The monthly form was added for "make Liam's food on the first Saturday of
+ * the month" — batch cooking that follows the month rather than the week. It
+ * is deliberately one ordinal weekday and no more: BYMONTHDAY, intervals and
+ * multi-day monthly rules are not supported, and are rejected loudly rather
+ * than half-understood.
  *
  * Everything iterates over farm-local calendar days and only then converts to
  * an instant. That is what keeps a 07:00 routine at 07:00 on both sides of a
@@ -18,11 +24,19 @@ export type Weekday = 'MO' | 'TU' | 'WE' | 'TH' | 'FR' | 'SA' | 'SU'
 const WEEKDAY_ORDER: Weekday[] = ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU']
 
 export interface ParsedRule {
-  freq: 'DAILY' | 'WEEKLY'
+  freq: 'DAILY' | 'WEEKLY' | 'MONTHLY'
   byDay: Weekday[]
+  /**
+   * Which occurrence of `byDay[0]` within the month, for FREQ=MONTHLY.
+   * 1-5 counts forwards, -1 means the last one. Null for the other rules.
+   */
+  nth: number | null
   hour: number | null
   minute: number | null
 }
+
+/** e.g. "1SA" -> first Saturday, "-1FR" -> last Friday. */
+const ORDINAL_DAY = /^(-?[1-5])(MO|TU|WE|TH|FR|SA|SU)$/
 
 export class RecurrenceError extends Error {}
 
@@ -38,12 +52,29 @@ export function parseRrule(input: string): ParsedRule {
   }
 
   const freq = parts.get('FREQ')
-  if (freq !== 'DAILY' && freq !== 'WEEKLY') {
+  if (freq !== 'DAILY' && freq !== 'WEEKLY' && freq !== 'MONTHLY') {
     throw new RecurrenceError(`Unsupported FREQ: ${freq ?? '(none)'}`)
   }
 
+  let nth: number | null = null
   let byDay: Weekday[] = []
   const rawByDay = parts.get('BYDAY')
+
+  if (freq === 'MONTHLY') {
+    if (!rawByDay) throw new RecurrenceError('FREQ=MONTHLY requires BYDAY, such as BYDAY=1SA')
+    const match = ORDINAL_DAY.exec(rawByDay.trim())
+    if (!match) {
+      throw new RecurrenceError(
+        `FREQ=MONTHLY supports one ordinal weekday such as 1SA or -1FR, not: ${rawByDay}`
+      )
+    }
+    nth = Number(match[1])
+    byDay = [match[2] as Weekday]
+    const hourM = parts.has('BYHOUR') ? Number(parts.get('BYHOUR')) : null
+    const minuteM = parts.has('BYMINUTE') ? Number(parts.get('BYMINUTE')) : null
+    return { freq, byDay, nth, hour: hourM, minute: minuteM }
+  }
+
   if (rawByDay) {
     byDay = rawByDay.split(',').map((day) => {
       const trimmed = day.trim() as Weekday
@@ -68,7 +99,7 @@ export function parseRrule(input: string): ParsedRule {
     throw new RecurrenceError(`Invalid BYMINUTE: ${parts.get('BYMINUTE')}`)
   }
 
-  return { freq, byDay, hour, minute }
+  return { freq, byDay, nth, hour, minute }
 }
 
 /** The weekday of a farm-local date, without going through a timezone. */
@@ -104,6 +135,32 @@ export interface ExpandOptions {
   limit?: number
 }
 
+function daysInMonth(year: number, month: number): number {
+  // Day 0 of the next month is the last day of this one.
+  return new Date(Date.UTC(year, month, 0)).getUTCDate()
+}
+
+/**
+ * Is this date the nth given weekday of its own month?
+ *
+ * Counting forwards is just arithmetic on the day of the month: the 1st to the
+ * 7th is the first of any weekday, the 8th to the 14th the second, and so on.
+ * A negative n counts back from the end, so -1SA is the last Saturday — which
+ * is the fifth in some months and the fourth in others, and must not be
+ * confused with 5SA.
+ */
+function isNthWeekdayOfMonth(date: FarmDate, weekday: Weekday, nth: number): boolean {
+  if (weekdayOfDate(date) !== weekday) return false
+
+  const [year, month, day] = date.split('-').map(Number)
+
+  if (nth > 0) return Math.floor((day - 1) / 7) + 1 === nth
+
+  // Counting back: how many of this weekday remain after today.
+  const fromEnd = Math.floor((daysInMonth(year, month) - day) / 7) + 1
+  return fromEnd === -nth
+}
+
 export function expandSeries(options: ExpandOptions): Occurrence[] {
   const rule = parseRrule(options.rrule)
   const skip = new Set(options.exceptions ?? [])
@@ -122,7 +179,11 @@ export function expandSeries(options: ExpandOptions): Occurrence[] {
   const out: Occurrence[] = []
 
   while (cursor <= last && out.length < limit) {
-    const matches = rule.freq === 'DAILY' || rule.byDay.includes(weekdayOfDate(cursor))
+    const matches =
+      rule.freq === 'DAILY' ||
+      (rule.freq === 'MONTHLY'
+        ? isNthWeekdayOfMonth(cursor, rule.byDay[0], rule.nth ?? 1)
+        : rule.byDay.includes(weekdayOfDate(cursor)))
 
     if (matches && !skip.has(cursor)) {
       out.push({
@@ -154,6 +215,19 @@ export function describeRule(rrule: string): string {
       : ''
 
   if (rule.freq === 'DAILY') return `Every day${time}`
+
+  const dayNames: Record<Weekday, string> = {
+    MO: 'Monday', TU: 'Tuesday', WE: 'Wednesday', TH: 'Thursday',
+    FR: 'Friday', SA: 'Saturday', SU: 'Sunday',
+  }
+
+  if (rule.freq === 'MONTHLY') {
+    const ordinals: Record<number, string> = {
+      1: 'First', 2: 'Second', 3: 'Third', 4: 'Fourth', 5: 'Fifth',
+    }
+    const which = (rule.nth ?? 1) < 0 ? 'Last' : (ordinals[rule.nth ?? 1] ?? 'First')
+    return `${which} ${dayNames[rule.byDay[0]]} of the month${time}`
+  }
 
   const names: Record<Weekday, string> = {
     MO: 'Monday', TU: 'Tuesday', WE: 'Wednesday', TH: 'Thursday',

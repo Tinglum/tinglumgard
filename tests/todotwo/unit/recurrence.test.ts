@@ -11,13 +11,13 @@ import {
 describe('parsing', () => {
   it('reads the rules the importer emits', () => {
     expect(parseRrule('RRULE:FREQ=DAILY')).toEqual({
-      freq: 'DAILY', byDay: [], hour: null, minute: null,
+      freq: 'DAILY', byDay: [], nth: null, hour: null, minute: null,
     })
     expect(parseRrule('RRULE:FREQ=DAILY;BYHOUR=7;BYMINUTE=0')).toEqual({
-      freq: 'DAILY', byDay: [], hour: 7, minute: 0,
+      freq: 'DAILY', byDay: [], nth: null, hour: 7, minute: 0,
     })
     expect(parseRrule('RRULE:FREQ=WEEKLY;BYDAY=MO,WE')).toEqual({
-      freq: 'WEEKLY', byDay: ['MO', 'WE'], hour: null, minute: null,
+      freq: 'WEEKLY', byDay: ['MO', 'WE'], nth: null, hour: null, minute: null,
     })
   })
 
@@ -181,5 +181,64 @@ describe('descriptions', () => {
 
   it('degrades gracefully on a rule it cannot read', () => {
     expect(describeRule('RRULE:FREQ=MONTHLY')).toBe('Custom schedule')
+  })
+})
+
+describe('monthly, on an ordinal weekday', () => {
+  const first = (from: string, to: string, rule = 'RRULE:FREQ=MONTHLY;BYDAY=1SA') =>
+    expandSeries({ rrule: rule, from, to, startsOn: '2026-01-01' }).map((o) => o.date)
+
+  it('lands on the first Saturday of each month', () => {
+    // September 2026 opens on a Tuesday, October on a Thursday, November on a
+    // Sunday — three different shapes of month, so this is not one lucky case.
+    expect(first('2026-09-01', '2026-11-30')).toEqual([
+      '2026-09-05',
+      '2026-10-03',
+      '2026-11-07',
+    ])
+  })
+
+  it('does not confuse the fifth with the last', () => {
+    // October 2026 has five Saturdays; September has four. "Last" must follow
+    // the month, "fifth" must simply not exist when there is no fifth.
+    expect(first('2026-10-01', '2026-10-31', 'RRULE:FREQ=MONTHLY;BYDAY=-1SA')).toEqual([
+      '2026-10-31',
+    ])
+    expect(first('2026-10-01', '2026-10-31', 'RRULE:FREQ=MONTHLY;BYDAY=5SA')).toEqual([
+      '2026-10-31',
+    ])
+    expect(first('2026-09-01', '2026-09-30', 'RRULE:FREQ=MONTHLY;BYDAY=-1SA')).toEqual([
+      '2026-09-26',
+    ])
+    expect(first('2026-09-01', '2026-09-30', 'RRULE:FREQ=MONTHLY;BYDAY=5SA')).toEqual([])
+  })
+
+  it('keeps the time of day', () => {
+    const [occurrence] = expandSeries({
+      rrule: 'RRULE:FREQ=MONTHLY;BYDAY=1SA',
+      from: '2026-09-01',
+      to: '2026-09-30',
+      startsOn: '2026-01-01',
+      timeOfDay: '10:00',
+    })
+    expect(occurrence.date).toBe('2026-09-05')
+    expect(occurrence.at).not.toBeNull()
+  })
+
+  it('refuses the monthly forms it cannot honour, rather than guessing', () => {
+    expect(() => parseRrule('RRULE:FREQ=MONTHLY')).toThrow(RecurrenceError)
+    expect(() => parseRrule('RRULE:FREQ=MONTHLY;BYMONTHDAY=1')).toThrow(RecurrenceError)
+    expect(() => parseRrule('RRULE:FREQ=MONTHLY;BYDAY=SA')).toThrow(RecurrenceError)
+    expect(() => parseRrule('RRULE:FREQ=MONTHLY;BYDAY=1SA,3SA')).toThrow(RecurrenceError)
+  })
+
+  it('parses and describes the ordinal', () => {
+    expect(parseRrule('RRULE:FREQ=MONTHLY;BYDAY=1SA')).toMatchObject({
+      freq: 'MONTHLY',
+      byDay: ['SA'],
+      nth: 1,
+    })
+    expect(describeRule('RRULE:FREQ=MONTHLY;BYDAY=1SA')).toBe('First Saturday of the month')
+    expect(describeRule('RRULE:FREQ=MONTHLY;BYDAY=-1FR')).toBe('Last Friday of the month')
   })
 })
