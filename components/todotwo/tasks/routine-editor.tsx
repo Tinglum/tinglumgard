@@ -47,17 +47,55 @@ export interface EditableRoutine {
   steps: RoutineStep[]
 }
 
-/** Time of day is preserved across an edit: the picker only sets the days. */
-function readRule(rrule: string): { daily: boolean; days: string[]; suffix: string } {
+type Mode = 'daily' | 'weekly' | 'monthly'
+
+const ORDINALS: { value: number; label: string }[] = [
+  { value: 1, label: 'First' },
+  { value: 2, label: 'Second' },
+  { value: 3, label: 'Third' },
+  { value: 4, label: 'Fourth' },
+  { value: -1, label: 'Last' },
+]
+
+/**
+ * Time of day is preserved across an edit: the picker only sets the days.
+ *
+ * Monthly is handled here rather than being left to fall into the catch. A
+ * rule this could not read used to come back as "weekly, Mondays", so opening
+ * a monthly routine and saving anything at all — a typo in one step — would
+ * quietly turn it into a weekly one.
+ */
+function readRule(rrule: string): {
+  mode: Mode
+  days: string[]
+  nth: number
+  monthDay: string
+  suffix: string
+} {
   try {
     const parsed = parseRrule(rrule)
     const suffix =
-      parsed.hour !== null
-        ? `;BYHOUR=${parsed.hour};BYMINUTE=${parsed.minute ?? 0}`
-        : ''
-    return { daily: parsed.freq === 'DAILY', days: parsed.byDay, suffix }
+      parsed.hour !== null ? `;BYHOUR=${parsed.hour};BYMINUTE=${parsed.minute ?? 0}` : ''
+
+    if (parsed.freq === 'MONTHLY') {
+      return {
+        mode: 'monthly',
+        days: [],
+        nth: parsed.nth ?? 1,
+        monthDay: parsed.byDay[0] ?? 'SA',
+        suffix,
+      }
+    }
+
+    return {
+      mode: parsed.freq === 'DAILY' ? 'daily' : 'weekly',
+      days: parsed.byDay,
+      nth: 1,
+      monthDay: 'SA',
+      suffix,
+    }
   } catch {
-    return { daily: false, days: ['MO'], suffix: '' }
+    return { mode: 'weekly', days: ['MO'], nth: 1, monthDay: 'SA', suffix: '' }
   }
 }
 
@@ -68,8 +106,10 @@ export function RoutineEditor({ routine }: { routine: EditableRoutine }) {
   const [open, setOpen] = React.useState(false)
   const [title, setTitle] = React.useState(routine.title)
   const [description, setDescription] = React.useState(routine.description ?? '')
-  const [daily, setDaily] = React.useState(initial.daily)
+  const [mode, setMode] = React.useState<Mode>(initial.mode)
   const [days, setDays] = React.useState<string[]>(initial.days)
+  const [nth, setNth] = React.useState<number>(initial.nth)
+  const [monthDay, setMonthDay] = React.useState<string>(initial.monthDay)
   const [steps, setSteps] = React.useState<DraftStep[]>(() =>
     routine.steps.map((step) => ({
       id: step.id,
@@ -84,8 +124,10 @@ export function RoutineEditor({ routine }: { routine: EditableRoutine }) {
   function reset() {
     setTitle(routine.title)
     setDescription(routine.description ?? '')
-    setDaily(initial.daily)
+    setMode(initial.mode)
     setDays(initial.days)
+    setNth(initial.nth)
+    setMonthDay(initial.monthDay)
     setSteps(
       routine.steps.map((step) => ({
         id: step.id,
@@ -109,8 +151,8 @@ export function RoutineEditor({ routine }: { routine: EditableRoutine }) {
       setError('A routine needs a name.')
       return
     }
-    if (!daily && days.length === 0) {
-      setError('Pick at least one day, or choose every day.')
+    if (mode === 'weekly' && days.length === 0) {
+      setError('Pick at least one day, or choose another schedule.')
       return
     }
 
@@ -118,9 +160,12 @@ export function RoutineEditor({ routine }: { routine: EditableRoutine }) {
     setError(null)
 
     const ordered = WEEKDAYS.filter((d) => days.includes(d.code)).map((d) => d.code)
-    const rrule = daily
-      ? `RRULE:FREQ=DAILY${initial.suffix}`
-      : `RRULE:FREQ=WEEKLY;BYDAY=${ordered.join(',')}${initial.suffix}`
+    const rrule =
+      mode === 'daily'
+        ? `RRULE:FREQ=DAILY${initial.suffix}`
+        : mode === 'monthly'
+          ? `RRULE:FREQ=MONTHLY;BYDAY=${nth}${monthDay}${initial.suffix}`
+          : `RRULE:FREQ=WEEKLY;BYDAY=${ordered.join(',')}${initial.suffix}`
 
     const response = await fetch(`/api/todotwo/routines/${routine.id}`, {
       method: 'PATCH',
@@ -176,18 +221,50 @@ export function RoutineEditor({ routine }: { routine: EditableRoutine }) {
 
       <div className="flex flex-col gap-2 text-[13px]">
         Schedule
-        <div className="flex gap-4">
+        <div className="flex flex-wrap gap-4">
           <label className="flex items-center gap-1.5">
-            <input type="radio" checked={daily} onChange={() => setDaily(true)} />
+            <input type="radio" checked={mode === 'daily'} onChange={() => setMode('daily')} />
             Every day
           </label>
           <label className="flex items-center gap-1.5">
-            <input type="radio" checked={!daily} onChange={() => setDaily(false)} />
+            <input type="radio" checked={mode === 'weekly'} onChange={() => setMode('weekly')} />
             Certain days
+          </label>
+          <label className="flex items-center gap-1.5">
+            <input type="radio" checked={mode === 'monthly'} onChange={() => setMode('monthly')} />
+            Once a month
           </label>
         </div>
 
-        {!daily ? (
+        {mode === 'monthly' ? (
+          <div className="flex flex-wrap items-center gap-2">
+            <select
+              value={nth}
+              onChange={(e) => setNth(Number(e.target.value))}
+              className="min-h-9 rounded-md border border-[var(--tt-rule-strong)] bg-[var(--tt-surface)] px-2 text-[14px]"
+            >
+              {ORDINALS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+            <select
+              value={monthDay}
+              onChange={(e) => setMonthDay(e.target.value)}
+              className="min-h-9 rounded-md border border-[var(--tt-rule-strong)] bg-[var(--tt-surface)] px-2 text-[14px]"
+            >
+              {WEEKDAYS.map((d) => (
+                <option key={d.code} value={d.code}>
+                  {d.label}
+                </option>
+              ))}
+            </select>
+            <span className="text-[13px] text-[var(--tt-ink-3)]">of every month</span>
+          </div>
+        ) : null}
+
+        {mode === 'weekly' ? (
           <div className="flex flex-wrap gap-1.5">
             {WEEKDAYS.map((day) => {
               const on = days.includes(day.code)
