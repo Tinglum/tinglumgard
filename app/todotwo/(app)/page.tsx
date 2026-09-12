@@ -1,6 +1,7 @@
 import { ClaimTaskButton } from '@/components/todotwo/tasks/claim-task-button'
 import { AskForHelp } from '@/components/todotwo/tasks/ask-for-help'
 import { FarmToday } from '@/components/todotwo/tasks/farm-today'
+import { SnoozeTaskButton } from '@/components/todotwo/tasks/snooze-task-button'
 import { OpenHelpRequests } from '@/components/todotwo/tasks/open-help-requests'
 import { TaskRow } from '@/components/todotwo/tasks/task-row'
 import { EmptyState, Surface } from '@/components/todotwo/ui/states'
@@ -136,7 +137,9 @@ export default async function TodayPage() {
             Up for grabs · {unclaimed.length}
           </h2>
           <p className="text-[13px] text-[var(--tt-ink-2)]">
-            Due today with nobody on them. Take one and it is yours.
+            Due today with nobody on them. Taking one means taking charge of it — making sure it
+            gets done, not necessarily doing all of it yourself. If it should wait, move it to
+            tomorrow instead.
           </p>
           <Surface className="px-4">
             <ul className="list-none">
@@ -148,8 +151,9 @@ export default async function TodayPage() {
                   <div className="min-w-0 flex-1">
                     <TaskRow task={task} timeLabel={timeLabel(task.due_at)} />
                   </div>
-                  <div className="shrink-0 self-center pl-1">
+                  <div className="flex shrink-0 flex-col items-end gap-1 self-center pl-1">
                     <ClaimTaskButton taskId={task.id} />
+                    <SnoozeTaskButton taskId={task.id} />
                   </div>
                 </li>
               ))}
