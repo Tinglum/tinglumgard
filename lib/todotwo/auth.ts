@@ -62,12 +62,49 @@ function isRejection(error: { status?: number; message?: string } | null): boole
  * arrive holding the previous token. One retry, after the cookie has caught up,
  * turns that into a non-event instead of a logout.
  */
+const PERSON_SELECT =
+  'id, full_name, preferred_name, email, photo_url, role_assignments!role_assignments_person_id_fkey(role, revoked_at)'
+
+function personQuery(db: ReturnType<typeof getTodoTwoClient>, authUserId: string) {
+  return db
+    .from('people')
+    .select(PERSON_SELECT)
+    .eq('auth_user_id', authUserId)
+    .is('deleted_at', null)
+    .is('role_assignments.revoked_at', null)
+    .maybeSingle()
+}
+
 export const getTodoTwoUser = cache(async function getTodoTwoUser(): Promise<TodoTwoPrincipal | null> {
   const authClient = getTodoTwoAuthClient()
+  const db = getTodoTwoClient()
 
-  // getUser() revalidates the token with Supabase. getSession() trusts the
-  // cookie, which is not good enough for an authorization decision.
-  let { data: { user }, error } = await authClient.auth.getUser()
+  // Both of these used to be awaited one after the other, and both cross the
+  // Atlantic: the functions run in us-east-1 and the database is in
+  // eu-central-1, so two sequential calls is most of the wait before an
+  // authenticated page renders at all.
+  //
+  // getSession() reads the cookie and touches no network, so it can name the
+  // user before anybody has verified anything. That is enough to *start* the
+  // person lookup, which then runs alongside the verification rather than
+  // behind it.
+  //
+  // It is not enough to trust. The result is used only if getUser() then
+  // confirms the same user, and the query itself carries the caller's JWT, so
+  // PostgREST verifies the signature and RLS applies exactly as before. A
+  // forged or expired cookie buys a wasted query and nothing else.
+  const {
+    data: { session },
+  } = await authClient.auth.getSession()
+
+  const claimedId = session?.user?.id ?? null
+
+  const [userResult, speculative] = await Promise.all([
+    authClient.auth.getUser(),
+    claimedId ? personQuery(db, claimedId) : Promise.resolve(null),
+  ])
+
+  let { data: { user }, error } = userResult
 
   if (error && !isRejection(error)) {
     await new Promise((resolve) => setTimeout(resolve, 250))
@@ -76,17 +113,13 @@ export const getTodoTwoUser = cache(async function getTodoTwoUser(): Promise<Tod
 
   if (error || !user) return null
 
-  const db = getTodoTwoClient()
+  // The speculative row counts only when it is genuinely this user's. Any
+  // mismatch — no cookie, a stale one, a refresh mid-flight — falls back to
+  // the ordinary sequential lookup.
+  const personResult =
+    speculative && claimedId === user.id ? speculative : await personQuery(db, user.id)
 
-  const { data: person, error: personError } = await db
-    .from('people')
-    .select(
-      'id, full_name, preferred_name, email, photo_url, role_assignments!role_assignments_person_id_fkey(role, revoked_at)'
-    )
-    .eq('auth_user_id', user.id)
-    .is('deleted_at', null)
-    .is('role_assignments.revoked_at', null)
-    .maybeSingle()
+  const { data: person, error: personError } = personResult
 
   if (personError || !person) return null
 
