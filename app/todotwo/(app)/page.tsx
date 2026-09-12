@@ -59,11 +59,28 @@ export default async function TodayPage() {
         </h1>
         <p className="text-sm text-[var(--tt-ink-2)]">
           {myOpenCount === 0
-            ? unclaimed.length > 0
-              ? `Nothing on you today · ${unclaimed.length} up for grabs`
-              : 'Nothing on you today.'
+            ? 'Nothing on you today.'
             : `${myOpenCount} on you today${totalMinutes > 0 ? ` · about ${totalMinutes} min` : ''}`}
         </p>
+
+        {/* The count that used to be a clause at the end of the line above,
+            where it read as a footnote. Unclaimed work is the one thing on
+            this screen that is nobody's problem until somebody makes it
+            theirs, so it is the thing worth being large and worth being a
+            link. */}
+        {unclaimed.length > 0 ? (
+          <a
+            href="#up-for-grabs"
+            className="mt-1 flex items-baseline gap-2 self-start rounded-md text-[var(--tt-accent)] hover:underline"
+          >
+            <span className="text-3xl font-semibold leading-none tabular-nums">
+              {unclaimed.length}
+            </span>
+            <span className="text-sm">
+              up for grabs — nobody has {unclaimed.length === 1 ? 'it' : 'them'} yet
+            </span>
+          </a>
+        ) : null}
       </header>
 
       {overdue.length > 0 ? (
@@ -132,7 +149,9 @@ export default async function TodayPage() {
       ) : null}
 
       {unclaimed.length > 0 ? (
-        <section className="flex flex-col gap-2">
+        // scroll-mt keeps the heading clear of the sticky top bar when the
+        // count above jumps here.
+        <section id="up-for-grabs" className="flex scroll-mt-20 flex-col gap-2">
           <h2 className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--tt-ink-3)]">
             Up for grabs · {unclaimed.length}
           </h2>
