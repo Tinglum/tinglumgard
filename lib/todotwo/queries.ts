@@ -1,5 +1,6 @@
 import { getTodoTwoClient } from '@/lib/todotwo/db'
 import { addFarmDays, farmToday, type FarmDate } from '@/lib/todotwo/time'
+import { daysOffPair } from '@/lib/todotwo/domain/days-off'
 
 /**
  * Server-side reads for the task views.
@@ -625,7 +626,11 @@ export async function getPeopleDaysOff(): Promise<
   if (rulesResult.error) throw new Error(`Could not load days-off rules: ${rulesResult.error.message}`)
   const starts = new Map<string, import('@/lib/todotwo/domain/recurrence').Weekday>()
   for (const row of (rulesResult.data ?? []) as { payload: { personId?: string; weekdays?: import('@/lib/todotwo/domain/recurrence').Weekday[] } }[]) {
-    if (row.payload.personId && row.payload.weekdays?.[0]) starts.set(row.payload.personId, row.payload.weekdays[0])
+    const start = row.payload.weekdays?.[0]
+    if (row.payload.personId && start && row.payload.weekdays?.length === 2 &&
+        daysOffPair(start).every((day) => row.payload.weekdays?.includes(day))) {
+      starts.set(row.payload.personId, start)
+    }
   }
   return ((peopleResult.data ?? []) as { id: string; full_name: string; preferred_name: string | null }[])
     .map((p) => ({ id: p.id, name: p.preferred_name || p.full_name, daysOffStart: starts.get(p.id) ?? null }))

@@ -280,6 +280,11 @@ export async function POST(request: NextRequest) {
     (constraint): constraint is Extract<typeof constraint, { kind: 'same_person' }> => constraint.kind === 'same_person'
   )
   const participatingPeople = people.filter((person) => {
+    const unavailableEveryDay = resolved.constraints.some((constraint) =>
+      constraint.kind === 'unavailable_weekday' &&
+      constraint.personId === person.id &&
+      constraint.weekdays.length === 7)
+    if (unavailableEveryDay) return false
     const excludedTaskIds = new Set(
       resolved.constraints
         .filter((constraint): constraint is Extract<typeof constraint, { kind: 'exclude_tasks' }> =>
