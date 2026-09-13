@@ -2,10 +2,10 @@
  * The onboarding ramp: what a new person should be doing on each of their
  * first days on the farm.
  *
- * Days 0-1 (their start date and the day after): pure shadowing, zero tasks.
- * Day 2 (their 3rd calendar day): two household responsibilities.
- * Day 3 (their 4th calendar day): one complete animal shift.
- * Day 4 onward (their 5th calendar day): fully normal.
+ * Arrival day plus their first two full days: pure shadowing, zero tasks.
+ * Day offset 3: two household responsibilities.
+ * Day offset 4: one complete animal shift.
+ * Day offset 5 onward: fully normal.
  *
  * Deliberately pure and framework-free so it can be unit tested without a
  * database: given a day-offset and a set of candidate occurrences, decide
@@ -20,10 +20,10 @@ export type RampPhase = 'shadowing' | 'household' | 'animals' | 'normal'
 /** Which phase a person is in, given how many whole calendar days they've been on the farm. */
 export function rampPhaseForDayOffset(dayOffset: number): RampPhase {
   if (dayOffset < 0) return 'normal' // future start date shouldn't happen, but never block work
-  if (dayOffset <= 1) return 'shadowing' // day 0-1
-  if (dayOffset === 2) return 'household'
-  if (dayOffset === 3) return 'animals'
-  return 'normal' // day 4+ (5th calendar day onward)
+  if (dayOffset <= 2) return 'shadowing'
+  if (dayOffset === 3) return 'household'
+  if (dayOffset === 4) return 'animals'
+  return 'normal'
 }
 
 export interface OccurrenceCandidate {

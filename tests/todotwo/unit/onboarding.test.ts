@@ -8,18 +8,18 @@ import {
 } from '@/lib/todotwo/domain/onboarding'
 
 describe('rampPhaseForDayOffset', () => {
-  it('is shadowing on day 0 and 1', () => {
+  it('is shadowing on arrival day and the first two full days', () => {
     expect(rampPhaseForDayOffset(0)).toBe('shadowing')
     expect(rampPhaseForDayOffset(1)).toBe('shadowing')
+    expect(rampPhaseForDayOffset(2)).toBe('shadowing')
   })
 
-  it('gives household work on day three and an animal shift on day four', () => {
-    expect(rampPhaseForDayOffset(2)).toBe('household')
-    expect(rampPhaseForDayOffset(3)).toBe('animals')
+  it('gives household work at offset three and an animal shift at offset four', () => {
+    expect(rampPhaseForDayOffset(3)).toBe('household')
+    expect(rampPhaseForDayOffset(4)).toBe('animals')
   })
 
-  it('is normal from the fifth calendar day onward', () => {
-    expect(rampPhaseForDayOffset(4)).toBe('normal')
+  it('is normal from offset five onward', () => {
     expect(rampPhaseForDayOffset(5)).toBe('normal')
     expect(rampPhaseForDayOffset(100)).toBe('normal')
   })

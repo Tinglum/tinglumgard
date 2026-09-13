@@ -325,7 +325,7 @@ export async function POST(request: NextRequest) {
           .map((task) => task.date)
           .filter((date) => {
             const offset = Math.floor((Date.parse(date) - Date.parse(person.farm_start_date!)) / 86_400_000)
-            return offset >= 0 && offset <= 3
+            return offset >= 0 && offset <= 4
           })
         return dates.length ? [{ kind: 'unavailable_dates' as const, personId: person.id, dates }] : []
       }),
