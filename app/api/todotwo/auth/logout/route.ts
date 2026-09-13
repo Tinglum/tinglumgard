@@ -4,6 +4,7 @@ import { type NextRequest, NextResponse } from 'next/server'
 
 import { getPublicConfig } from '@/lib/todotwo/config'
 import { todoTwoRoutes } from '@/lib/todotwo/routes'
+import { IMPERSONATION_COOKIE } from '@/lib/todotwo/impersonation'
 
 export const dynamic = 'force-dynamic'
 
@@ -26,6 +27,7 @@ export async function POST(request: NextRequest) {
   })
 
   await supabase.auth.signOut()
+  cookieStore.set(IMPERSONATION_COOKIE, '', { path: '/todotwo', maxAge: 0 })
 
   return NextResponse.redirect(new URL(todoTwoRoutes.login(), request.nextUrl.origin), {
     status: 303,

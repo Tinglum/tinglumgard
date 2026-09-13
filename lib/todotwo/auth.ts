@@ -1,9 +1,11 @@
 import { redirect } from 'next/navigation'
 import { NextResponse } from 'next/server'
 import { cache } from 'react'
+import { cookies } from 'next/headers'
 
 import { getTodoTwoAuthClient, getTodoTwoClient } from '@/lib/todotwo/db'
 import { todoTwoRoutes } from '@/lib/todotwo/routes'
+import { IMPERSONATION_COOKIE, verifyImpersonation } from '@/lib/todotwo/impersonation'
 
 export const TODOTWO_ROLES = [
   'super_admin',
@@ -29,6 +31,7 @@ export interface TodoTwoPrincipal {
   person: TodoTwoPerson
   roles: TodoTwoRole[]
   isAdmin: boolean
+  impersonator: TodoTwoPerson | null
 }
 
 const ADMIN_ROLES: TodoTwoRole[] = ['super_admin', 'farm_admin']
@@ -125,7 +128,7 @@ export const getTodoTwoUser = cache(async function getTodoTwoUser(): Promise<Tod
 
   const roles = ((person.role_assignments ?? []) as { role: TodoTwoRole }[]).map((row) => row.role)
 
-  return {
+  const actual: TodoTwoPrincipal = {
     authUserId: user.id,
     email: user.email ?? null,
     person: {
@@ -137,6 +140,37 @@ export const getTodoTwoUser = cache(async function getTodoTwoUser(): Promise<Tod
     },
     roles,
     isAdmin: roles.some((role) => ADMIN_ROLES.includes(role)),
+    impersonator: null,
+  }
+
+  const targetId = actual.isAdmin
+    ? verifyImpersonation(cookies().get(IMPERSONATION_COOKIE)?.value)
+    : null
+  if (!targetId || targetId === actual.person.id) return actual
+
+  const { data: target, error: targetError } = await db
+    .from('people')
+    .select(PERSON_SELECT)
+    .eq('id', targetId)
+    .eq('is_active', true)
+    .is('deleted_at', null)
+    .is('role_assignments.revoked_at', null)
+    .maybeSingle()
+  if (targetError || !target) return actual
+  const targetRoles = ((target.role_assignments ?? []) as { role: TodoTwoRole }[]).map((row) => row.role)
+  return {
+    authUserId: actual.authUserId,
+    email: actual.email,
+    person: {
+      id: target.id as string,
+      fullName: target.full_name as string,
+      preferredName: (target.preferred_name as string | null) ?? null,
+      email: (target.email as string | null) ?? null,
+      photoUrl: (target.photo_url as string | null) ?? null,
+    },
+    roles: targetRoles,
+    isAdmin: targetRoles.some((role) => ADMIN_ROLES.includes(role)),
+    impersonator: actual.person,
   }
 })
 

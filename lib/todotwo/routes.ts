@@ -20,6 +20,8 @@ export const todoTwoRoutes = {
   setPassword: () => `${TODOTWO_BASE}/set-password`,
   authCallback: () => `${TODOTWO_BASE}/auth/callback`,
   logout: () => `${TODOTWO_API_BASE}/auth/logout`,
+  impersonate: () => `${TODOTWO_API_BASE}/auth/impersonate`,
+  stopImpersonating: () => `${TODOTWO_API_BASE}/auth/stop-impersonating`,
 } as const
 
 /** True when the path belongs to TodoTwo, including its API surface. */

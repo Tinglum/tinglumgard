@@ -23,10 +23,12 @@ const QUICK_ADD_ROLES: TodoTwoRole[] = ['super_admin', 'farm_admin', 'coordinato
 export function TodoTwoShell({
   personName,
   roles,
+  impersonatorName,
   children,
 }: {
   personName: string
   roles: TodoTwoRole[]
+  impersonatorName: string | null
   children: React.ReactNode
 }) {
   const pathname = usePathname()
@@ -102,6 +104,14 @@ export function TodoTwoShell({
       </aside>
 
       <div className="flex flex-1 flex-col">
+        {impersonatorName ? (
+          <div className="flex items-center justify-center gap-3 bg-[var(--tt-accent-soft)] px-4 py-2 text-sm">
+            <span>Viewing as <strong>{personName}</strong></span>
+            <form action={todoTwoRoutes.stopImpersonating()} method="post">
+              <button type="submit" className="font-semibold text-[var(--tt-accent)] underline">Return to {impersonatorName}</button>
+            </form>
+          </div>
+        ) : null}
         <header className="flex items-center justify-between border-b border-[var(--tt-rule)] bg-[var(--tt-surface)] px-4 py-3 md:hidden">
           <div>
             <p className="text-[10px] uppercase tracking-[0.14em] text-[var(--tt-accent)]">

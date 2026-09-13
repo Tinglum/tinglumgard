@@ -48,7 +48,7 @@ export default async function TodoTwoAppLayout({ children }: { children: React.R
       ) : (
         <UnclaimedNudge tasks={nudgeTasks} />
       )}
-      <TodoTwoShell personName={displayName(principal.person)} roles={principal.roles}>
+      <TodoTwoShell personName={displayName(principal.person)} roles={principal.roles} impersonatorName={principal.impersonator ? displayName(principal.impersonator) : null}>
         {children}
       </TodoTwoShell>
     </>

@@ -90,6 +90,15 @@ export default async function PersonPage({ params }: { params: { id: string } })
         )}
       </div>
 
+      {canEdit && person.id !== principal.person.id ? (
+        <form action="/api/todotwo/auth/impersonate" method="post">
+          <input type="hidden" name="personId" value={person.id} />
+          <button type="submit" className="min-h-[44px] rounded-md border border-[var(--tt-rule-strong)] bg-[var(--tt-surface)] px-4 text-sm font-medium hover:bg-[var(--tt-surface-2)]">
+            Log in as {person.preferred_name || person.full_name}
+          </button>
+        </form>
+      ) : null}
+
       {canEdit ? (
         <>
           <Surface className="p-4">
