@@ -3,9 +3,9 @@
  * first days on the farm.
  *
  * Days 0-1 (their start date and the day after): pure shadowing, zero tasks.
- * Days 2-3 (their 3rd and 4th calendar days): at most two household
- * responsibilities across the ramp period. Day 4 onward (their 5th calendar
- * day): fully normal, no special treatment.
+ * Day 2 (their 3rd calendar day): two household responsibilities.
+ * Day 3 (their 4th calendar day): one complete animal shift.
+ * Day 4 onward (their 5th calendar day): fully normal.
  *
  * Deliberately pure and framework-free so it can be unit tested without a
  * database: given a day-offset and a set of candidate occurrences, decide
@@ -15,13 +15,14 @@
 
 export const RAMP_COMBINED_TASK_CAP = 2
 
-export type RampPhase = 'shadowing' | 'ramping' | 'normal'
+export type RampPhase = 'shadowing' | 'household' | 'animals' | 'normal'
 
 /** Which phase a person is in, given how many whole calendar days they've been on the farm. */
 export function rampPhaseForDayOffset(dayOffset: number): RampPhase {
   if (dayOffset < 0) return 'normal' // future start date shouldn't happen, but never block work
   if (dayOffset <= 1) return 'shadowing' // day 0-1
-  if (dayOffset <= 3) return 'ramping' // 3rd and 4th calendar days
+  if (dayOffset === 2) return 'household'
+  if (dayOffset === 3) return 'animals'
   return 'normal' // day 4+ (5th calendar day onward)
 }
 

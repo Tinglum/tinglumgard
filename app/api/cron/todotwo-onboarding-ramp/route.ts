@@ -84,22 +84,12 @@ export async function POST(request: NextRequest) {
       )
       const phase = rampPhaseForDayOffset(dayOffset)
 
-      if (phase !== 'ramping') {
+      if (phase !== 'household' && phase !== 'animals') {
         results.push({ personId: person.id, phase, requested: 0 })
         continue
       }
 
       try {
-        // Count existing pending-or-accepted handoffs to this person, so a
-        // re-run today does not exceed the combined cap set earlier this week.
-        const { count: alreadyCount } = await db
-          .from('task_handoff_requests')
-          .select('id', { count: 'exact', head: true })
-          .eq('to_person_id', person.id)
-          .in('status', ['pending', 'accepted'])
-
-        const already = alreadyCount ?? 0
-
         // Candidate occurrences: open, dated, currently assigned tasks due
         // within the window, not this person's own, with no pending handoff
         // already on them (unique index also enforces this at insert time).
@@ -119,10 +109,13 @@ export async function POST(request: NextRequest) {
         const householdProjectIds = new Set(((projectRows ?? []) as { id: string; name: string; slug: string }[])
           .filter((p) => /house|home|kitchen|meal|clean/i.test(`${p.name} ${p.slug}`))
           .map((p) => p.id))
+        const animalProjectIds = new Set(((projectRows ?? []) as { id: string; name: string; slug: string }[])
+          .filter((p) => /animal/i.test(`${p.name} ${p.slug}`))
+          .map((p) => p.id))
 
         const { data: tasks } = await db
           .from('tasks_resolved')
-          .select('id, due_date, status, project_id')
+          .select('id, title, due_date, status, project_id')
           .eq('due_date', today)
           .eq('status', 'assigned')
 
@@ -135,8 +128,13 @@ export async function POST(request: NextRequest) {
           ((pendingHandoffs ?? []) as { task_id: string }[]).map((r) => r.task_id)
         )
 
-        const candidates: OccurrenceCandidate[] = ((tasks ?? []) as { id: string; due_date: string; project_id: string | null }[])
-          .filter((t) => t.project_id !== null && householdProjectIds.has(t.project_id) && !taskIdsWithPending.has(t.id))
+        const taskRows = (tasks ?? []) as { id: string; title: string; due_date: string; project_id: string | null }[]
+        const relevant = phase === 'household'
+          ? taskRows.filter((t) => t.project_id !== null && householdProjectIds.has(t.project_id))
+          : taskRows.filter((t) => t.project_id !== null && animalProjectIds.has(t.project_id))
+        const already = relevant.filter((t) => holderByTask.get(t.id) === person.id).length
+        const candidates: OccurrenceCandidate[] = relevant
+          .filter((t) => !taskIdsWithPending.has(t.id))
           .map((t) => {
             const holderPersonId = holderByTask.get(t.id)
             if (!holderPersonId || holderPersonId === person.id) return null
@@ -149,13 +147,30 @@ export async function POST(request: NextRequest) {
           })
           .filter((c): c is OccurrenceCandidate => c !== null)
 
-        const toOffer = selectHandoffCandidates(candidates, already)
+        let toOffer: OccurrenceCandidate[]
+        if (phase === 'household') {
+          toOffer = selectHandoffCandidates(candidates, already)
+        } else if (already > 0) {
+          toOffer = []
+        } else {
+          const byId = new Map(candidates.map((candidate) => [candidate.taskId, candidate]))
+          const shifts = [
+            ['Goats', 'Chickens + Ducks'],
+            ['Pigs', 'Rabbits'],
+          ].map((labels) => taskRows
+            .filter((task) => labels.some((label) => task.title.startsWith(label)))
+            .map((task) => byId.get(task.id))
+            .filter((candidate): candidate is OccurrenceCandidate => Boolean(candidate)))
+            .filter((shift) => shift.length >= 4)
+            .sort((a, b) => b.reduce((n, c) => n + c.holderLoadInWindow, 0) - a.reduce((n, c) => n + c.holderLoadInWindow, 0))
+          toOffer = shifts[0] ?? []
+        }
 
         let requested = 0
         for (const candidate of toOffer) {
-          const { error: rpcError } = await db.rpc('request_task_handoff', {
+          const { error: rpcError } = await db.rpc('assign_task', {
             p_task_id: candidate.taskId,
-            p_to_person_id: person.id,
+            p_person_id: person.id,
           })
           if (rpcError) {
             results.push({ personId: person.id, phase, requested, error: rpcError.message })
