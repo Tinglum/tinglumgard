@@ -1,10 +1,12 @@
 import { PersonalUpcomingPager } from '@/components/todotwo/tasks/personal-upcoming-pager'
 import { UpcomingTaskFilter } from '@/components/todotwo/tasks/upcoming-task-filter'
+import { DaysOffCalendar } from '@/components/todotwo/tasks/days-off-calendar'
 import { EmptyState, Surface } from '@/components/todotwo/ui/states'
 import Link from 'next/link'
 
 import { requireTodoTwoUser } from '@/lib/todotwo/auth'
-import { getFavoriteViews, getUpcoming } from '@/lib/todotwo/queries'
+import { getFavoriteViews, getPeopleDaysOff, getUpcoming } from '@/lib/todotwo/queries'
+import { farmToday } from '@/lib/todotwo/time'
 import { todoTwoRoutes } from '@/lib/todotwo/routes'
 
 export const dynamic = 'force-dynamic'
@@ -12,9 +14,10 @@ export const dynamic = 'force-dynamic'
 export default async function UpcomingPage() {
   const principal = await requireTodoTwoUser(todoTwoRoutes.upcoming())
   const isStaff = principal.isAdmin || principal.roles.includes('coordinator')
-  const [groups, favorites] = await Promise.all([
+  const [groups, favorites, peopleDaysOff] = await Promise.all([
     getUpcoming(7),
     getFavoriteViews(principal.person.id, isStaff),
+    getPeopleDaysOff(),
   ])
 
   const visibleGroups = groups.map((group, index) => ({
@@ -33,6 +36,8 @@ export default async function UpcomingPage() {
           {total === 0 ? 'Nothing scheduled this week.' : `${total} over the next 7 days`}
         </p>
       </header>
+
+      <DaysOffCalendar people={peopleDaysOff} personId={principal.person.id} from={farmToday()} />
 
       <PersonalUpcomingPager groups={visibleGroups} personId={principal.person.id} />
 

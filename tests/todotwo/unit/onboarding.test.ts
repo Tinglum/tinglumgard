@@ -13,12 +13,12 @@ describe('rampPhaseForDayOffset', () => {
     expect(rampPhaseForDayOffset(1)).toBe('shadowing')
   })
 
-  it('is ramping on day 2 and 3', () => {
+  it('is ramping on the third and fourth calendar days', () => {
     expect(rampPhaseForDayOffset(2)).toBe('ramping')
     expect(rampPhaseForDayOffset(3)).toBe('ramping')
   })
 
-  it('is normal from day 4 onward', () => {
+  it('is normal from the fifth calendar day onward', () => {
     expect(rampPhaseForDayOffset(4)).toBe('normal')
     expect(rampPhaseForDayOffset(5)).toBe('normal')
     expect(rampPhaseForDayOffset(100)).toBe('normal')

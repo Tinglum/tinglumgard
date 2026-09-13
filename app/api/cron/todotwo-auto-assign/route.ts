@@ -133,7 +133,7 @@ export async function POST(request: NextRequest) {
     await Promise.all([
       db
         .from('people')
-        .select('id, full_name, preferred_name')
+        .select('id, full_name, preferred_name, farm_start_date')
         .is('deleted_at', null)
         .eq('is_active', true)
         .order('full_name'),
@@ -153,7 +153,8 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  const people = ((peopleRows ?? []) as { id: string; full_name: string; preferred_name: string | null }[]).map(
+  const peopleRowsTyped = (peopleRows ?? []) as { id: string; full_name: string; preferred_name: string | null; farm_start_date: string | null }[]
+  const people = peopleRowsTyped.map(
     (p) => ({ id: p.id, name: p.preferred_name || p.full_name })
   )
 
@@ -271,6 +272,38 @@ export async function POST(request: NextRequest) {
     tasks.map((t) => ({ id: t.id, title: t.title, groupLabel: t.groupLabel }))
   )
 
+  // Let the ceiling follow the actual workload: average tasks per active
+  // person, rounded down, plus one. Thus 17 jobs among 8 people caps everyone
+  // at 3, while a quieter day tightens automatically instead of keeping an
+  // arbitrary farm-wide number forever.
+  const bundleRules = resolved.constraints.filter(
+    (constraint): constraint is Extract<typeof constraint, { kind: 'same_person' }> => constraint.kind === 'same_person'
+  )
+  const participatingPeople = people.filter((person) => {
+    const excludedTaskIds = new Set(
+      resolved.constraints
+        .filter((constraint): constraint is Extract<typeof constraint, { kind: 'exclude_tasks' }> =>
+          constraint.kind === 'exclude_tasks' && constraint.personId === person.id)
+        .flatMap((constraint) => constraint.taskIds)
+    )
+    return tasks.some((task) => !excludedTaskIds.has(task.id))
+  })
+  const divisor = Math.max(1, participatingPeople.length)
+  const unitsByDate = new Map<string, Set<string>>()
+  for (const task of tasks) {
+    const bundleIndex = bundleRules.findIndex((rule) => rule.labels.some((label) => {
+      const needle = label.trim().toLowerCase()
+      return needle && ((task.groupLabel ?? '').toLowerCase().includes(needle) || task.title.toLowerCase().includes(needle))
+    }))
+    const units = unitsByDate.get(task.date) ?? new Set<string>()
+    units.add(bundleIndex === -1 ? `task:${task.id}` : `bundle:${bundleIndex}`)
+    unitsByDate.set(task.date, units)
+  }
+  const limitsByDate = Object.fromEntries(
+    Array.from(unitsByDate, ([date, units]) => [date, Math.floor(units.size / divisor) + 1])
+  )
+  const dynamicDailyLimit = Math.max(...Object.values(limitsByDate))
+
   // Who has done each job lately. Without this every run starts blank, and a
   // window containing one new day has every load at zero — so the alphabetical
   // tie-break decides and the same person cooks dinner indefinitely.
@@ -279,7 +312,21 @@ export async function POST(request: NextRequest) {
   const plan = buildAssignmentPlan(
     tasks,
     people,
-    [...farm.sourced.map((s) => s.constraint), ...resolved.constraints],
+    [
+      ...farm.sourced.map((s) => s.constraint),
+      ...peopleRowsTyped.flatMap((person) => {
+        if (!person.farm_start_date) return []
+        const dates = tasks
+          .map((task) => task.date)
+          .filter((date) => {
+            const offset = Math.floor((Date.parse(date) - Date.parse(person.farm_start_date!)) / 86_400_000)
+            return offset >= 0 && offset <= 3
+          })
+        return dates.length ? [{ kind: 'unavailable_dates' as const, personId: person.id, dates }] : []
+      }),
+      { kind: 'max_per_day', personId: null, limit: dynamicDailyLimit, limitsByDate },
+      ...resolved.constraints,
+    ],
     history
   )
 
@@ -312,6 +359,7 @@ export async function POST(request: NextRequest) {
     unassignable: plan.unassignable.length,
     unassignableReasons: plan.unassignable.slice(0, 10).map((u) => `${u.date} ${u.title}: ${u.reason}`),
     rulesApplied: resolved.constraints.length,
+    dailyTaskLimits: limitsByDate,
     rotationTracked: Object.keys(history).length,
     // A rule that matched nothing today is usually a renamed routine rather
     // than an intention, so it is reported rather than silently ignored.

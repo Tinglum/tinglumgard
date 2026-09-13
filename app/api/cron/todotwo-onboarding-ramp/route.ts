@@ -21,8 +21,8 @@ export const dynamic = 'force-dynamic'
  * already the natural state — this run does not need to actively unassign
  * anything for them.
  *
- * Days 2-3 (ramping): request up to RAMP_COMBINED_TASK_CAP handoffs total
- * across the whole window, from whoever currently holds a soon-due occurrence,
+ * Days 2-3 (ramping): request up to RAMP_COMBINED_TASK_CAP household handoffs
+ * across those two days, from whoever currently holds one,
  * favouring the most-loaded holder to spread work. Idempotent across daily
  * runs: existing pending-or-accepted handoffs already addressed to this
  * person count against the cap before more are requested, and
@@ -32,8 +32,6 @@ export const dynamic = 'force-dynamic'
  * Day 4+: no special treatment — nothing to do here, normal assignment flow
  * (rota, manual assignment) applies as usual.
  */
-
-const RAMP_WINDOW_DAYS = 3 // look this many days ahead for candidate occurrences to offer
 
 async function isAuthorized(request: NextRequest): Promise<{ ok: boolean; status: number; error?: string }> {
   const secret = process.env.CRON_SECRET
@@ -102,8 +100,6 @@ export async function POST(request: NextRequest) {
 
         const already = alreadyCount ?? 0
 
-        const windowEnd = addFarmDays(today, RAMP_WINDOW_DAYS)
-
         // Candidate occurrences: open, dated, currently assigned tasks due
         // within the window, not this person's own, with no pending handoff
         // already on them (unique index also enforces this at insert time).
@@ -119,13 +115,16 @@ export async function POST(request: NextRequest) {
           loadByHolder.set(a.person_id, (loadByHolder.get(a.person_id) ?? 0) + 1)
         }
 
+        const { data: projectRows } = await db.from('projects').select('id, name, slug')
+        const householdProjectIds = new Set(((projectRows ?? []) as { id: string; name: string; slug: string }[])
+          .filter((p) => /house|home|kitchen|meal|clean/i.test(`${p.name} ${p.slug}`))
+          .map((p) => p.id))
+
         const { data: tasks } = await db
-          .from('tasks')
-          .select('id, due_date, status')
-          .gte('due_date', today)
-          .lte('due_date', windowEnd)
+          .from('tasks_resolved')
+          .select('id, due_date, status, project_id')
+          .eq('due_date', today)
           .eq('status', 'assigned')
-          .is('deleted_at', null)
 
         const { data: pendingHandoffs } = await db
           .from('task_handoff_requests')
@@ -136,8 +135,8 @@ export async function POST(request: NextRequest) {
           ((pendingHandoffs ?? []) as { task_id: string }[]).map((r) => r.task_id)
         )
 
-        const candidates: OccurrenceCandidate[] = ((tasks ?? []) as { id: string; due_date: string }[])
-          .filter((t) => !taskIdsWithPending.has(t.id))
+        const candidates: OccurrenceCandidate[] = ((tasks ?? []) as { id: string; due_date: string; project_id: string | null }[])
+          .filter((t) => t.project_id !== null && householdProjectIds.has(t.project_id) && !taskIdsWithPending.has(t.id))
           .map((t) => {
             const holderPersonId = holderByTask.get(t.id)
             if (!holderPersonId || holderPersonId === person.id) return null

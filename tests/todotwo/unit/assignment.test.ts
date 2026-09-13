@@ -187,6 +187,30 @@ describe('max per day', () => {
     expect(plan.unassignable).toHaveLength(1)
     expect(plan.unassignable[0].reason).toContain('already has 2')
   })
+
+  it('supports a workload-derived limit for each date', () => {
+    const monday = Array.from({ length: 5 }, (_, i) => ({ ...week(`M${i}`)[0], id: `m${i}` }))
+    const tuesday = Array.from({ length: 2 }, (_, i) => ({ ...week(`T${i}`)[1], id: `t${i}` }))
+    const plan = buildAssignmentPlan([...monday, ...tuesday], [{ id: 'solo', name: 'Solo' }], [
+      { kind: 'max_per_day', personId: null, limit: 5, limitsByDate: { '2026-09-07': 3, '2026-09-08': 1 } },
+    ])
+    expect(plan.assignments.filter((a) => a.taskId.startsWith('m'))).toHaveLength(3)
+    expect(plan.assignments.filter((a) => a.taskId.startsWith('t'))).toHaveLength(1)
+  })
+
+  it('counts a bundled morning and evening round as one daily responsibility', () => {
+    const tasks = [
+      { id: 'goats-am', title: 'Goats morning', groupLabel: 'Goats morning', date: '2026-09-07', weekday: 'MO' as const },
+      { id: 'goats-pm', title: 'Goats evening', groupLabel: 'Goats evening', date: '2026-09-07', weekday: 'MO' as const },
+      { id: 'dinner', title: 'Z dinner', groupLabel: 'Dinner', date: '2026-09-07', weekday: 'MO' as const },
+    ]
+    const plan = buildAssignmentPlan(tasks, [{ id: 'solo', name: 'Solo' }], [
+      { kind: 'same_person', labels: ['Goats'] },
+      { kind: 'max_per_day', personId: null, limit: 1 },
+    ])
+    expect(plan.assignments.map((a) => a.taskId)).toEqual(['goats-pm', 'goats-am'])
+    expect(plan.unassignable.map((u) => u.taskId)).toEqual(['dinner'])
+  })
 })
 
 describe('constraints that bind nothing', () => {

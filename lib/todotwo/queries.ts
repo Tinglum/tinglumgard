@@ -612,6 +612,25 @@ export async function getPeople(): Promise<PersonRow[]> {
   }))
 }
 
+/** The safe, shared roster data used for the 14-day days-off calendar. */
+export async function getPeopleDaysOff(): Promise<
+  { id: string; name: string; daysOffStart: import('@/lib/todotwo/domain/recurrence').Weekday | null }[]
+> {
+  const db = getTodoTwoClient()
+  const [peopleResult, rulesResult] = await Promise.all([
+    db.from('people_roster').select('id, full_name, preferred_name').eq('is_active', true).order('full_name'),
+    db.from('assignment_rules').select('payload').eq('kind', 'unavailable_weekday').eq('enabled', true),
+  ])
+  if (peopleResult.error) throw new Error(`Could not load days off: ${peopleResult.error.message}`)
+  if (rulesResult.error) throw new Error(`Could not load days-off rules: ${rulesResult.error.message}`)
+  const starts = new Map<string, import('@/lib/todotwo/domain/recurrence').Weekday>()
+  for (const row of (rulesResult.data ?? []) as { payload: { personId?: string; weekdays?: import('@/lib/todotwo/domain/recurrence').Weekday[] } }[]) {
+    if (row.payload.personId && row.payload.weekdays?.[0]) starts.set(row.payload.personId, row.payload.weekdays[0])
+  }
+  return ((peopleResult.data ?? []) as { id: string; full_name: string; preferred_name: string | null }[])
+    .map((p) => ({ id: p.id, name: p.preferred_name || p.full_name, daysOffStart: starts.get(p.id) ?? null }))
+}
+
 /**
  * The task's currently-assigned person, or null. RLS lets any assignee read
  * their own assignment row (todotwo.is_task_assignee), so this resolves for

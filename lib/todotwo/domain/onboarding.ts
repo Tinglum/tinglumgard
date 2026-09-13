@@ -3,12 +3,9 @@
  * first days on the farm.
  *
  * Days 0-1 (their start date and the day after): pure shadowing, zero tasks.
- * Days 2-3 (the 3rd and 4th calendar day): they pick up at most TWO tasks
- * TOTAL across both days combined — not two per day. The brief's phrasing was
- * ambiguous ("days 2-3 ... at most 2 tasks"), and this file resolves it as a
- * combined cap, enforced by counting existing pending-or-accepted handoffs
- * across the whole window before offering more (see rampStatusForDay below).
- * Day 4 onward (5th calendar day): fully normal, no special treatment.
+ * Days 2-3 (their 3rd and 4th calendar days): at most two household
+ * responsibilities across the ramp period. Day 4 onward (their 5th calendar
+ * day): fully normal, no special treatment.
  *
  * Deliberately pure and framework-free so it can be unit tested without a
  * database: given a day-offset and a set of candidate occurrences, decide
@@ -24,8 +21,8 @@ export type RampPhase = 'shadowing' | 'ramping' | 'normal'
 export function rampPhaseForDayOffset(dayOffset: number): RampPhase {
   if (dayOffset < 0) return 'normal' // future start date shouldn't happen, but never block work
   if (dayOffset <= 1) return 'shadowing' // day 0-1
-  if (dayOffset <= 3) return 'ramping' // day 2-3 (3rd/4th calendar day)
-  return 'normal' // day 4+ (5th day onward)
+  if (dayOffset <= 3) return 'ramping' // 3rd and 4th calendar days
+  return 'normal' // day 4+ (5th calendar day onward)
 }
 
 export interface OccurrenceCandidate {

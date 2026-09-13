@@ -20,7 +20,13 @@ export type Constraint =
   /** "Only Anna milks the goats" */
   | { kind: 'only_people'; taskIds: string[]; personIds: string[] }
   /** "Nobody does more than three things a day" */
-  | { kind: 'max_per_day'; personId: string | null; limit: number }
+  | {
+      kind: 'max_per_day'
+      personId: string | null
+      limit: number
+      /** Optional per-date limits used by the automatic rota. */
+      limitsByDate?: Record<string, number>
+    }
   /**
    * "Whoever does the goats does the rabbits too", and by the same token
    * "morning and evening are the same person" — bundle Goats (Morning) with
@@ -157,8 +163,9 @@ function blockersFor(
       case 'max_per_day': {
         if (constraint.personId !== null && constraint.personId !== person.id) break
         const key = `${person.id}:${task.date}`
-        if ((assignedToday.get(key) ?? 0) >= constraint.limit) {
-          blockers.push({ personId: person.id, reason: `already has ${constraint.limit} on ${task.date}` })
+        const limit = constraint.limitsByDate?.[task.date] ?? constraint.limit
+        if ((assignedToday.get(key) ?? 0) >= limit) {
+          blockers.push({ personId: person.id, reason: `already has ${limit} on ${task.date}` })
         }
         break
       }
@@ -370,12 +377,13 @@ export function buildAssignmentPlan(
       }
     })
 
-    group.forEach((task, i) => {
-      load.set(chosen.id, (load.get(chosen.id) ?? 0) + 1)
+    // A morning/evening animal bundle is one responsibility for workload and
+    // cap purposes even though both occurrences still need assignment rows.
+    load.set(chosen.id, before + 1)
+    const dayKey = `${chosen.id}:${date}`
+    assignedToday.set(dayKey, (assignedToday.get(dayKey) ?? 0) + 1)
 
-      const dayKey = `${chosen.id}:${task.date}`
-      assignedToday.set(dayKey, (assignedToday.get(dayKey) ?? 0) + 1)
-
+    group.forEach((task) => {
       assignments.push({
         taskId: task.id,
         personId: chosen.id,
@@ -383,8 +391,8 @@ export function buildAssignmentPlan(
           group.length > 1
             ? `bundled with ${group.length - 1} other${group.length > 2 ? 's' : ''} that day`
             : eligible.length === people.length
-              ? `fewest assigned so far (${before + i})`
-              : `fewest assigned so far (${before + i}) among the ${eligible.length} available`,
+              ? `fewest assigned so far (${before})`
+              : `fewest assigned so far (${before}) among the ${eligible.length} available`,
       })
     })
   }
