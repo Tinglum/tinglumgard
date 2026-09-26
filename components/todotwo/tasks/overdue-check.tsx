@@ -103,9 +103,12 @@ export function OverdueCheck({ tasks }: { tasks: NudgeTask[] }) {
             {pending === 'still_today' ? 'Saving …' : 'Not yet — I’m doing it today'}
           </Button>
 
-          <Button variant="ghost" disabled={pending !== null} onClick={() => act('tomorrow')}>
-            {pending === 'tomorrow' ? 'Saving …' : 'Move it to tomorrow'}
-          </Button>
+          {/* A daily routine cannot move: tomorrow already has its own. */}
+          {current.daily ? null : (
+            <Button variant="ghost" disabled={pending !== null} onClick={() => act('tomorrow')}>
+              {pending === 'tomorrow' ? 'Saving …' : 'Move it to tomorrow'}
+            </Button>
+          )}
         </div>
 
         {error ? <p className="mt-2 text-[13px] text-[var(--tt-danger)]">{error}</p> : null}

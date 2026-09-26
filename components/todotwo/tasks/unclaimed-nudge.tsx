@@ -87,13 +87,17 @@ export function UnclaimedNudge({ tasks }: { tasks: NudgeTask[] }) {
             {pending === 'someone_else' ? 'Saving …' : 'Someone else has taken charge'}
           </Button>
 
-          <Button
-            variant="ghost"
-            disabled={pending !== null}
-            onClick={() => answer('another_day')}
-          >
-            {pending === 'another_day' ? 'Saving …' : 'We’re doing this another day'}
-          </Button>
+          {/* Not for a daily routine: tomorrow already has its own, so moving
+              today's would make a duplicate and leave today with none. */}
+          {current.daily ? null : (
+            <Button
+              variant="ghost"
+              disabled={pending !== null}
+              onClick={() => answer('another_day')}
+            >
+              {pending === 'another_day' ? 'Saving …' : 'We’re doing this another day'}
+            </Button>
+          )}
         </div>
 
         <p className="mt-3 text-[12px] text-[var(--tt-ink-3)]">

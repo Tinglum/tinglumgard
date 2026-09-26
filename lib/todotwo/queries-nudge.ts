@@ -27,6 +27,23 @@ export interface NudgeTask {
   id: string
   title: string
   dueDate: string | null
+  /** A daily routine: it cannot move to another day, which has its own. */
+  daily: boolean
+}
+
+/** Which of these series repeat every day. */
+async function dailySeriesIds(
+  db: ReturnType<typeof getTodoTwoClient>,
+  seriesIds: (string | null)[]
+): Promise<Set<string>> {
+  const ids = Array.from(new Set(seriesIds.filter((id): id is string => Boolean(id))))
+  if (ids.length === 0) return new Set()
+  const { data } = await db.from('task_series').select('id, rrule').in('id', ids)
+  return new Set(
+    ((data ?? []) as { id: string; rrule: string }[])
+      .filter((row) => /FREQ=DAILY/i.test(row.rrule))
+      .map((row) => row.id)
+  )
 }
 
 /**
@@ -70,14 +87,14 @@ export async function getEndOfDayNudge(
 
   const { data: rows, error } = await db
     .from('tasks_resolved')
-    .select('id, title, due_date')
+    .select('id, title, due_date, series_id')
     .is('parent_task_id', null)
     .eq('due_date', today)
     .in('status', OPEN_STATUSES)
 
   if (error) throw new Error(`Could not load the evening check: ${error.message}`)
 
-  const candidates = (rows ?? []) as { id: string; title: string | null; due_date: string | null }[]
+  const candidates = (rows ?? []) as { id: string; title: string | null; due_date: string | null; series_id: string | null }[]
   if (candidates.length === 0) return []
 
   const ids = candidates.map((row) => row.id)
@@ -103,9 +120,16 @@ export async function getEndOfDayNudge(
   const held = new Set(((assignments ?? []) as { task_id: string }[]).map((r) => r.task_id))
   const done = new Set(((answered ?? []) as { task_id: string }[]).map((r) => r.task_id))
 
+  const daily = await dailySeriesIds(db, candidates.map((row) => row.series_id))
+
   return candidates
     .filter((row) => !held.has(row.id) && !done.has(row.id))
-    .map((row) => ({ id: row.id, title: row.title ?? 'Untitled task', dueDate: row.due_date }))
+    .map((row) => ({
+      id: row.id,
+      title: row.title ?? 'Untitled task',
+      dueDate: row.due_date,
+      daily: row.series_id !== null && daily.has(row.series_id),
+    }))
 }
 
 /**
@@ -128,7 +152,7 @@ export async function getOverduePrompt(
 
   const { data: rows, error } = await db
     .from('tasks_resolved')
-    .select('id, title, due_date, due_at')
+    .select('id, title, due_date, due_at, series_id')
     .is('parent_task_id', null)
     .lte('due_date', today)
     .in('status', OPEN_STATUSES)
@@ -136,7 +160,7 @@ export async function getOverduePrompt(
   if (error) throw new Error(`Could not load the evening check: ${error.message}`)
 
   const candidates = (
-    (rows ?? []) as { id: string; title: string | null; due_date: string | null; due_at: string | null }[]
+    (rows ?? []) as { id: string; title: string | null; due_date: string | null; due_at: string | null; series_id: string | null }[]
   ).filter((row) => {
     if (!row.due_date) return false
     if (row.due_date < today) return true
@@ -171,7 +195,19 @@ export async function getOverduePrompt(
   )
   const done = new Set(((answered ?? []) as { task_id: string }[]).map((r) => r.task_id))
 
+  const daily = await dailySeriesIds(db, candidates.map((row) => row.series_id))
+
   return candidates
     .filter((row) => mine.has(row.id) && !done.has(row.id))
-    .map((row) => ({ id: row.id, title: row.title ?? 'Untitled task', dueDate: row.due_date }))
+    .map((row) => ({
+      id: row.id,
+      title: row.title ?? 'Untitled task',
+      dueDate: row.due_date,
+      daily: row.series_id !== null && daily.has(row.series_id),
+    }))
+}
+
+/** For the Today page: which of these series are daily, so it can hide "Tomorrow". */
+export async function getDailySeriesIds(seriesIds: (string | null)[]): Promise<Set<string>> {
+  return dailySeriesIds(getTodoTwoClient(), seriesIds)
 }
