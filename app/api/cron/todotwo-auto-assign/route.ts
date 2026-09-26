@@ -227,7 +227,7 @@ export async function POST(request: NextRequest) {
   ] = await Promise.all([
     db
       .from('people')
-      .select('id, full_name, preferred_name, farm_start_date')
+      .select('id, full_name, preferred_name, farm_start_date, leave_date')
       .is('deleted_at', null)
       .eq('is_active', true)
       .order('full_name'),
@@ -254,7 +254,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: `Could not load: ${peopleError.message}` }, { status: 500 })
   }
 
-  const peopleRowsTyped = (peopleRows ?? []) as { id: string; full_name: string; preferred_name: string | null; farm_start_date: string | null }[]
+  const peopleRowsTyped = (peopleRows ?? []) as { id: string; full_name: string; preferred_name: string | null; farm_start_date: string | null; leave_date: string | null }[]
   const people = peopleRowsTyped.map(
     (p) => ({ id: p.id, name: p.preferred_name || p.full_name })
   )
@@ -293,6 +293,7 @@ export async function POST(request: NextRequest) {
       id: person.id,
       name: person.preferred_name || person.full_name,
       farmStartDate: person.farm_start_date,
+      leaveDate: person.leave_date,
       nonparticipant: nonparticipants.has(person.id),
       awayDates: away.get(person.id) ?? [],
     })),
