@@ -215,7 +215,15 @@ export async function POST(request: NextRequest) {
 
   const db = getPrivilegedClientForCronOnly()
   const from = farmToday()
-  const to = addFarmDays(from, HORIZON_DAYS)
+  // An operator can reach a little further for a one-off replan — "redo the
+  // next few days" when the nightly window stops a day short. Bounded to a
+  // week, because the round places real assignments and notifies people, and
+  // the nightly schedule never passes it, so the everyday behaviour is
+  // unchanged. Only callers holding the cron secret get here at all.
+  const requested = Number(request.nextUrl.searchParams.get('horizonDays'))
+  const horizon =
+    Number.isInteger(requested) && requested >= 1 && requested <= 7 ? requested : HORIZON_DAYS
+  const to = addFarmDays(from, horizon)
 
   // Everything that decides who is off comes first, because who is off
   // decides which already-assigned work has to be handed back before the
