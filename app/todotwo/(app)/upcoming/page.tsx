@@ -5,8 +5,7 @@ import { EmptyState, Surface } from '@/components/todotwo/ui/states'
 import Link from 'next/link'
 
 import { requireTodoTwoUser } from '@/lib/todotwo/auth'
-import { getFavoriteViews, getPeopleDaysOff, getUpcoming } from '@/lib/todotwo/queries'
-import { farmToday } from '@/lib/todotwo/time'
+import { getFavoriteViews, getDaysOffSchedule, getUpcoming } from '@/lib/todotwo/queries'
 import { todoTwoRoutes } from '@/lib/todotwo/routes'
 
 export const dynamic = 'force-dynamic'
@@ -14,10 +13,10 @@ export const dynamic = 'force-dynamic'
 export default async function UpcomingPage() {
   const principal = await requireTodoTwoUser(todoTwoRoutes.upcoming())
   const isStaff = principal.isAdmin || principal.roles.includes('coordinator')
-  const [groups, favorites, peopleDaysOff] = await Promise.all([
+  const [groups, favorites, daysOffSchedule] = await Promise.all([
     getUpcoming(7),
     getFavoriteViews(principal.person.id, isStaff),
-    getPeopleDaysOff(),
+    getDaysOffSchedule(),
   ])
 
   const visibleGroups = groups.map((group, index) => ({
@@ -37,7 +36,7 @@ export default async function UpcomingPage() {
         </p>
       </header>
 
-      <DaysOffCalendar people={peopleDaysOff} personId={principal.person.id} from={farmToday()} />
+      <DaysOffCalendar schedule={daysOffSchedule} personId={principal.person.id} showEveryone={isStaff} />
 
       <PersonalUpcomingPager groups={visibleGroups} personId={principal.person.id} />
 

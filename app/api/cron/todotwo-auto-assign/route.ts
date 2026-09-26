@@ -12,7 +12,13 @@ import {
 } from '@/lib/todotwo/domain/assignment'
 import { rulesToConstraints, type AssignmentRule } from '@/lib/todotwo/domain/assignment-rules'
 import { farmConstraints, type ApprovedTimeOff, type StayWindow } from '@/lib/todotwo/domain/assignment-inputs'
-import { addFarmDays, farmToday } from '@/lib/todotwo/time'
+import { addFarmDays, farmDaysBetween, farmToday } from '@/lib/todotwo/time'
+import {
+  awayDatesByPerson,
+  dayOffSchedule,
+  isWeeklyDaysOffPair,
+  rotaParticipants,
+} from '@/lib/todotwo/domain/days-off'
 import { weekdayOfDate } from '@/lib/todotwo/domain/recurrence'
 import { enqueueRelevantNotifications } from '@/lib/todotwo/notifications/enqueue-relevant'
 import { dispatchOutbox } from '@/lib/todotwo/notifications/dispatch'
@@ -223,26 +229,29 @@ export async function POST(request: NextRequest) {
   const skillName = new Map(((skillNameRows ?? []) as { id: string; name: string }[]).map((r) => [r.id, r.name]))
   const nameOf = (id: string) => people.find((p) => p.id === id)?.name ?? 'Someone'
 
+  const farmTimeOff = ((timeOffRows ?? []) as Record<string, string>[]).map((r) => ({
+    id: r.id,
+    personId: r.person_id,
+    startDate: r.start_date,
+    endDate: r.end_date,
+    kind: r.kind,
+  })) as ApprovedTimeOff[]
+  const farmStays: StayWindow[] = ((stayRows ?? []) as Record<string, string | null>[]).map((r) => ({
+    id: r.id as string,
+    personId: r.person_id as string,
+    arrivalDate: r.arrival_date as string,
+    arrivalCertainty: r.arrival_certainty as StayWindow['arrivalCertainty'],
+    departureDate: r.departure_date,
+    departureCertainty: r.departure_certainty as StayWindow['departureCertainty'],
+    status: r.status as string,
+  }))
+
   const farm = farmConstraints({
     window: { from, to },
     peopleIds: people.map((p) => p.id),
     nameOf,
-    timeOff: ((timeOffRows ?? []) as Record<string, string>[]).map((r) => ({
-      id: r.id,
-      personId: r.person_id,
-      startDate: r.start_date,
-      endDate: r.end_date,
-      kind: r.kind,
-    })) as ApprovedTimeOff[],
-    stays: ((stayRows ?? []) as Record<string, string | null>[]).map((r) => ({
-      id: r.id as string,
-      personId: r.person_id as string,
-      arrivalDate: r.arrival_date as string,
-      arrivalCertainty: r.arrival_certainty as StayWindow['arrivalCertainty'],
-      departureDate: r.departure_date,
-      departureCertainty: r.departure_certainty as StayWindow['departureCertainty'],
-      status: r.status as string,
-    })),
+    timeOff: farmTimeOff,
+    stays: farmStays,
     skillRequirements: dated
       .filter((r) => r.required_skill_id !== null)
       .map((r) => ({
@@ -267,10 +276,41 @@ export async function POST(request: NextRequest) {
     .eq('enabled', true)
     .order('sort_order')
 
-  const resolved = rulesToConstraints(
+  const resolvedRules = rulesToConstraints(
     (ruleRows ?? []) as AssignmentRule[],
     tasks.map((t) => ({ id: t.id, title: t.title, groupLabel: t.groupLabel }))
   )
+  // The old fixed weekly pairs are replaced by the headcount rotation below.
+  // Honouring both would give people two sets of days off and leave the farm
+  // short on exactly the days the rotation was built to protect.
+  const resolved = {
+    ...resolvedRules,
+    constraints: resolvedRules.constraints.filter((constraint) =>
+      !(constraint.kind === 'unavailable_weekday' && isWeeklyDaysOffPair(constraint.weekdays))),
+  }
+
+  // Days off by headcount: one person off on any date where five or more can
+  // work, nobody off otherwise. Same inputs as the Upcoming panel, so the day
+  // a person was shown as theirs is the day the rota leaves empty.
+  const nonparticipants = new Set(resolved.constraints.flatMap((constraint) =>
+    constraint.kind === 'unavailable_weekday' && constraint.weekdays.length === 7 ? [constraint.personId] : []))
+  const windowDays = farmDaysBetween(from, to) + 1
+  const away = awayDatesByPerson(farmTimeOff, farmStays, { from, to }, people.map((p) => p.id))
+  const rota = rotaParticipants(
+    peopleRowsTyped.map((person) => ({
+      id: person.id,
+      name: person.preferred_name || person.full_name,
+      farmStartDate: person.farm_start_date,
+      nonparticipant: nonparticipants.has(person.id),
+      awayDates: away.get(person.id) ?? [],
+    })),
+    from,
+    windowDays
+  )
+  const daysOff = dayOffSchedule(rota, from, windowDays)
+  const daysOffConstraints = daysOff.flatMap((day) =>
+    day.off ? [{ kind: 'unavailable_dates' as const, personId: day.off.id, dates: [day.date] }] : [])
+  const unavailableOn = new Map(rota.map((person) => [person.id, new Set(person.unavailableDates)]))
 
   // Let the ceiling follow the actual workload: average tasks per active
   // person, rounded down, plus one. Thus 17 jobs among 8 people caps everyone
@@ -293,7 +333,12 @@ export async function POST(request: NextRequest) {
     )
     return tasks.some((task) => !excludedTaskIds.has(task.id))
   })
-  const divisor = Math.max(1, participatingPeople.length)
+  // Per date, only the people actually working that day share the load: the
+  // one off, anyone away and anyone still on the ramp are not capacity. A
+  // farm-wide divisor would cap six people's worth of work at a level five
+  // cannot cover once somebody is off.
+  const workingOn = (date: string) => participatingPeople.filter((person) =>
+    !unavailableOn.get(person.id)?.has(date) && !daysOff.some((day) => day.date === date && day.off?.id === person.id)).length
   const unitsByDate = new Map<string, Set<string>>()
   for (const task of tasks) {
     const bundleIndex = bundleRules.findIndex((rule) => rule.labels.some((label) => {
@@ -305,7 +350,7 @@ export async function POST(request: NextRequest) {
     unitsByDate.set(task.date, units)
   }
   const limitsByDate = Object.fromEntries(
-    Array.from(unitsByDate, ([date, units]) => [date, Math.floor(units.size / divisor) + 1])
+    Array.from(unitsByDate, ([date, units]) => [date, Math.floor(units.size / Math.max(1, workingOn(date))) + 1])
   )
   const dynamicDailyLimit = Math.max(...Object.values(limitsByDate))
 
@@ -319,16 +364,11 @@ export async function POST(request: NextRequest) {
     people,
     [
       ...farm.sourced.map((s) => s.constraint),
-      ...peopleRowsTyped.flatMap((person) => {
-        if (!person.farm_start_date) return []
-        const dates = tasks
-          .map((task) => task.date)
-          .filter((date) => {
-            const offset = Math.floor((Date.parse(date) - Date.parse(person.farm_start_date!)) / 86_400_000)
-            return offset >= 0 && offset <= 4
-          })
-        return dates.length ? [{ kind: 'unavailable_dates' as const, personId: person.id, dates }] : []
-      }),
+      // Onboarding ramp: rotaParticipants marks a newcomer's first five days.
+      ...rota.flatMap((person) => person.unavailableDates.length
+        ? [{ kind: 'unavailable_dates' as const, personId: person.id, dates: person.unavailableDates }]
+        : []),
+      ...daysOffConstraints,
       { kind: 'max_per_day', personId: null, limit: dynamicDailyLimit, limitsByDate },
       ...resolved.constraints,
     ],
@@ -365,6 +405,7 @@ export async function POST(request: NextRequest) {
     unassignableReasons: plan.unassignable.slice(0, 10).map((u) => `${u.date} ${u.title}: ${u.reason}`),
     rulesApplied: resolved.constraints.length,
     dailyTaskLimits: limitsByDate,
+    daysOff: daysOff.map((day) => ({ date: day.date, available: day.available, off: day.off?.name ?? null })),
     rotationTracked: Object.keys(history).length,
     // A rule that matched nothing today is usually a renamed routine rather
     // than an intention, so it is reported rather than silently ignored.

@@ -5,7 +5,7 @@ import { Bell, BellOff } from 'lucide-react'
 
 import { Button } from '@/components/todotwo/ui/button'
 import { ErrorState, Surface } from '@/components/todotwo/ui/states'
-import { TODOTWO_SW_URL } from '@/lib/todotwo/pwa/constants'
+import { defaultPushEnv, disablePush, enablePush, getPushStatus } from '@/lib/todotwo/pwa/push'
 
 /**
  * Enable/disable Web Push for this browser.
@@ -22,37 +22,20 @@ import { TODOTWO_SW_URL } from '@/lib/todotwo/pwa/constants'
 
 type Status = 'checking' | 'unsupported' | 'disabled' | 'denied' | 'enabled'
 
-function urlBase64ToUint8Array(base64: string): Uint8Array {
-  const padding = '='.repeat((4 - (base64.length % 4)) % 4)
-  const base64Safe = (base64 + padding).replace(/-/g, '+').replace(/_/g, '/')
-  const raw = atob(base64Safe)
-  const output = new Uint8Array(raw.length)
-  for (let i = 0; i < raw.length; i += 1) output[i] = raw.charCodeAt(i)
-  return output
-}
-
 export function PushNotificationsManager({ vapidPublicKey }: { vapidPublicKey: string | null }) {
   const [status, setStatus] = React.useState<Status>('checking')
   const [busy, setBusy] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
 
+  // Everything below goes through lib/todotwo/pwa/push.ts, the same helper
+  // the onboarding prompt uses — they previously checked one registration and
+  // subscribed through another, which is why "enabled" never stuck.
   const refresh = React.useCallback(async () => {
-    if (!vapidPublicKey || typeof window === 'undefined' || !('serviceWorker' in navigator) || !('PushManager' in window)) {
+    if (!vapidPublicKey) {
       setStatus('unsupported')
       return
     }
-    if (Notification.permission === 'denied') {
-      setStatus('denied')
-      return
-    }
-
-    try {
-      const registration = await navigator.serviceWorker.getRegistration(TODOTWO_SW_URL)
-      const subscription = await registration?.pushManager.getSubscription()
-      setStatus(subscription ? 'enabled' : 'disabled')
-    } catch {
-      setStatus('disabled')
-    }
+    setStatus(await getPushStatus(defaultPushEnv()))
   }, [vapidPublicKey])
 
   React.useEffect(() => {
@@ -60,60 +43,27 @@ export function PushNotificationsManager({ vapidPublicKey }: { vapidPublicKey: s
   }, [refresh])
 
   async function handleEnable() {
-    if (!vapidPublicKey) return
     setError(null)
     setBusy(true)
-
-    try {
-      const permission = await Notification.requestPermission()
-      if (permission !== 'granted') {
-        setStatus(permission === 'denied' ? 'denied' : 'disabled')
-        setBusy(false)
-        return
-      }
-
-      const registration = await navigator.serviceWorker.ready
-      const subscription = await registration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
-      })
-
-      const json = subscription.toJSON()
-      const response = await fetch('/api/todotwo/push/subscribe', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ endpoint: json.endpoint, keys: json.keys }),
-      })
-
-      if (!response.ok) throw new Error('subscribe_failed')
-
+    const result = await enablePush(defaultPushEnv(), vapidPublicKey)
+    setBusy(false)
+    if (result.ok) {
       setStatus('enabled')
-    } catch {
-      setError('Could not enable notifications. Try again.')
-      setStatus('disabled')
-    } finally {
-      setBusy(false)
+      return
     }
+    if (result.reason === 'denied') {
+      setStatus('denied')
+      return
+    }
+    setError(result.message)
+    setStatus('disabled')
   }
 
   async function handleDisable() {
     setError(null)
     setBusy(true)
-
     try {
-      const registration = await navigator.serviceWorker.getRegistration(TODOTWO_SW_URL)
-      const subscription = await registration?.pushManager.getSubscription()
-
-      if (subscription) {
-        const endpoint = subscription.endpoint
-        await subscription.unsubscribe()
-        await fetch('/api/todotwo/push/unsubscribe', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ endpoint }),
-        }).catch(() => undefined)
-      }
-
+      await disablePush(defaultPushEnv())
       setStatus('disabled')
     } catch {
       setError('Could not turn off notifications. Try again.')
