@@ -5,7 +5,6 @@ import { usePathname } from 'next/navigation'
 import { Bell, Download, Settings, X } from 'lucide-react'
 
 import { Button } from '@/components/todotwo/ui/button'
-import { TODOTWO_SW_URL } from '@/lib/todotwo/pwa/constants'
 import {
   consumeInstallPrompt,
   isIos,
@@ -13,6 +12,8 @@ import {
   onInstallPromptChange,
   type InstallPromptEvent,
 } from '@/lib/todotwo/pwa/install-prompt'
+import { defaultPushEnv, enablePush, getPushStatus } from '@/lib/todotwo/pwa/push'
+import { isSnoozed, snoozeUntil } from '@/lib/todotwo/pwa/prompt-snooze'
 
 /**
  * Getting TodoTwo onto the phone, and notifications actually switched on.
@@ -35,15 +36,18 @@ import {
  */
 
 /**
- * Dismissal lasts for the session, not for ever.
+ * "Not now" is remembered on the device, for a while.
  *
- * Somebody who taps "Not now" in a browser tab is not saying "never" — they
- * are saying "not this minute". Until the app is actually on their phone,
- * every fresh visit asks again, because the whole point is that push cannot
- * reach them until it is installed. Within a session it stays quiet, so a
- * reload is not punished.
+ * It used to last for the session only. An installed PWA — iOS especially —
+ * starts a fresh session nearly every time it is opened, so "Not now" meant
+ * "until you next open the app", and the prompt came back again and again.
+ * Now it is a dated snooze in localStorage (see prompt-snooze.ts): a few days
+ * for installing, two weeks for notifications. Settings is always there for
+ * somebody who changes their mind sooner.
  */
-const DISMISS_KEY = 'todotwo:pwa-onboarding-dismissed:v2'
+const SNOOZE_KEY = 'todotwo:pwa-onboarding-snooze:v3'
+const INSTALL_SNOOZE_DAYS = 3
+const NOTIFY_SNOOZE_DAYS = 14
 
 /** True once the browser has refused outright; nagging cannot undo that. */
 const NOTIFY_DENIED = 'todotwo:pwa-notify-denied:v1'
@@ -67,15 +71,6 @@ const AUTH_SCREENS = ['/todotwo/login', '/todotwo/auth', '/todotwo/set-password'
 function isAuthScreen(pathname: string | null): boolean {
   if (!pathname) return false
   return AUTH_SCREENS.some((base) => pathname === base || pathname.startsWith(`${base}/`))
-}
-
-function urlBase64ToUint8Array(base64: string): Uint8Array {
-  const padding = '='.repeat((4 - (base64.length % 4)) % 4)
-  const base64Safe = (base64 + padding).replace(/-/g, '+').replace(/_/g, '/')
-  const raw = atob(base64Safe)
-  const output = new Uint8Array(raw.length)
-  for (let i = 0; i < raw.length; i += 1) output[i] = raw.charCodeAt(i)
-  return output
 }
 
 export function InstallAndNotifyPrompt({ vapidPublicKey }: { vapidPublicKey: string | null }) {
@@ -115,41 +110,54 @@ export function InstallAndNotifyPrompt({ vapidPublicKey }: { vapidPublicKey: str
     if (typeof window === 'undefined') return
     // Never over the sign-in form. See isAuthScreen.
     if (onAuthScreen) return
-    // Session-scoped: quiet for this visit, back on the next one.
-    if (window.sessionStorage.getItem(DISMISS_KEY) === '1') return
+    if (isSnoozed(window.localStorage, SNOOZE_KEY)) return
+
+    let cancelled = false
+    let timeout: number | undefined
 
     void (async () => {
       const standalone = isStandalone()
 
-      // Already installed and already subscribed: nothing to ask for.
       if (standalone) {
-        if (!('serviceWorker' in navigator) || !('PushManager' in window)) return
+        const env = defaultPushEnv()
+        if (!env) return
         // A hard refusal cannot be undone from here, so asking again every
         // visit would only be noise.
-        if (Notification.permission === 'denied') {
+        if (env.permission() === 'denied') {
           window.localStorage.setItem(NOTIFY_DENIED, '1')
           return
         }
-        try {
-          const registration = await navigator.serviceWorker.getRegistration(TODOTWO_SW_URL)
-          const subscription = await registration?.pushManager.getSubscription()
-          if (subscription) return
-        } catch {
-          // Fall through and offer it; a failed lookup is not a reason to hide.
-        }
+        // Already on for this device: stop. This looks at TodoTwo's OWN
+        // registration (not the storefront worker that may control Today) and
+        // re-sends the subscription to the server, so a device the server
+        // forgot is healed silently instead of re-prompting.
+        if ((await getPushStatus(env)) === 'enabled') return
+        if (cancelled) return
         setStage('notify')
       } else {
         setStage('install')
       }
 
       // A moment's grace so it does not land on top of a page still painting.
-      const timeout = window.setTimeout(() => setOpen(true), 1200)
-      return () => window.clearTimeout(timeout)
+      timeout = window.setTimeout(() => {
+        if (!cancelled) setOpen(true)
+      }, 1200)
     })()
+
+    return () => {
+      cancelled = true
+      if (timeout) window.clearTimeout(timeout)
+    }
   }, [onAuthScreen])
 
   function close() {
-    if (typeof window !== 'undefined') window.sessionStorage.setItem(DISMISS_KEY, '1')
+    if (typeof window !== 'undefined') {
+      snoozeUntil(
+        window.localStorage,
+        SNOOZE_KEY,
+        stage === 'notify' ? NOTIFY_SNOOZE_DAYS : INSTALL_SNOOZE_DAYS
+      )
+    }
     setOpen(false)
   }
 
@@ -172,52 +180,24 @@ export function InstallAndNotifyPrompt({ vapidPublicKey }: { vapidPublicKey: str
   }
 
   async function enableNotifications() {
-    if (!vapidPublicKey) {
-      setNote('Notifications are not configured on the server yet.')
-      return
-    }
-
     setBusy(true)
     setNote(null)
+    setBlocked(false)
 
-    try {
-      const permission = await Notification.requestPermission()
-      if (permission !== 'granted') {
-        setBlocked(permission === 'denied')
-        if (permission === 'denied') window.localStorage.setItem(NOTIFY_DENIED, '1')
-        setBusy(false)
-        return
-      }
+    // Shared with Settings → Notifications, so the two cannot diverge again.
+    const result = await enablePush(defaultPushEnv(), vapidPublicKey)
+    setBusy(false)
 
-      const registration = await navigator.serviceWorker.ready
-      const subscription = await registration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
-      })
-
-      const json = subscription.toJSON()
-      const response = await fetch('/api/todotwo/push/subscribe', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ endpoint: json.endpoint, keys: json.keys }),
-      })
-
-      if (response.status === 401) {
-        // Installed but signed out — the prompt lives above the login page, so
-        // this is a normal place to end up rather than a fault.
-        setNote('Sign in first, then turn notifications on — this will be waiting.')
-        setBusy(false)
-        return
-      }
-
-      if (!response.ok) throw new Error('subscribe_failed')
-
-      close()
-    } catch {
-      setNote('That did not work. Try again in a moment.')
-    } finally {
-      setBusy(false)
+    if (result.ok) {
+      setOpen(false)
+      return
     }
+    if (result.reason === 'denied') {
+      setBlocked(true)
+      window.localStorage.setItem(NOTIFY_DENIED, '1')
+      return
+    }
+    setNote(result.message)
   }
 
   // Belt and braces: even if something else opened it, it never covers sign-in.

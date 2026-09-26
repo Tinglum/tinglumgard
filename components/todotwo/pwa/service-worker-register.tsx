@@ -2,11 +2,7 @@
 
 import * as React from 'react'
 
-import {
-  TODOTWO_SW_FALLBACK_SCOPE,
-  TODOTWO_SW_SCOPE,
-  TODOTWO_SW_URL,
-} from '@/lib/todotwo/pwa/constants'
+import { ensureTodoTwoRegistration } from '@/lib/todotwo/pwa/push'
 
 /**
  * Registers the TodoTwo service worker. Renders nothing.
@@ -27,15 +23,12 @@ export function ServiceWorkerRegister() {
 
     const register = () => {
       if (cancelled) return
-      navigator.serviceWorker
-        .register(TODOTWO_SW_URL, { scope: TODOTWO_SW_SCOPE })
-        // The wide scope needs a Service-Worker-Allowed header on the script.
-        // If a CDN strips it the registration is rejected outright, so fall
-        // back to the default scope: everything under /todotwo/ still works
-        // offline, only the Today URL itself does not.
-        .catch(() => navigator.serviceWorker.register(TODOTWO_SW_URL, {
-          scope: TODOTWO_SW_FALLBACK_SCOPE,
-        }))
+      // Shared with push setup (lib/todotwo/pwa/push.ts) so the two can never
+      // end up talking about different registrations. In production this
+      // lands on scope /todotwo/ — Netlify does not send Service-Worker-Allowed
+      // for a static file — which is fine: push does not need the page to be
+      // controlled, only the registration to exist.
+      ensureTodoTwoRegistration({ serviceWorker: navigator.serviceWorker })
         .then((registration) => {
           // A new worker that is already waiting means the app was updated
           // while a tab stayed open. Take it immediately — TodoTwo has no
