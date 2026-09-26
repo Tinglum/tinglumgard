@@ -443,26 +443,6 @@ export async function POST(request: NextRequest) {
   // cannot cover once somebody is off.
   const workingOn = (date: string) => participatingPeople.filter((person) =>
     !unavailableOn.get(person.id)?.has(date) && !daysOff.some((day) => day.date === date && day.off?.id === person.id)).length
-  const unitsByDate = new Map<string, Set<string>>()
-  for (const task of tasks) {
-    const bundleIndex = bundleRules.findIndex((rule) => rule.labels.some((label) => {
-      const needle = label.trim().toLowerCase()
-      return needle && ((task.groupLabel ?? '').toLowerCase().includes(needle) || task.title.toLowerCase().includes(needle))
-    }))
-    const units = unitsByDate.get(task.date) ?? new Set<string>()
-    units.add(bundleIndex === -1 ? `task:${task.id}` : `bundle:${bundleIndex}`)
-    unitsByDate.set(task.date, units)
-  }
-  const limitsByDate = Object.fromEntries(
-    Array.from(unitsByDate, ([date, units]) => [date, Math.floor(units.size / Math.max(1, workingOn(date))) + 1])
-  )
-  const dynamicDailyLimit = Math.max(...Object.values(limitsByDate))
-
-  // Who has done each job lately. Without this every run starts blank, and a
-  // window containing one new day has every load at zero — so the alphabetical
-  // tie-break decides and the same person cooks dinner indefinitely.
-  const history = await loadRotationHistory(db, from, to, seriesTitle)
-
   // What people already hold in the window. Without this the solver sees only
   // tonight's decisions, and re-placing released work can stack a livestock
   // round on top of a dinner decided the night before. Finished work counts
@@ -492,6 +472,41 @@ export async function POST(request: NextRequest) {
     title: row.tasks.title ?? (row.tasks.series_id ? seriesTitle.get(row.tasks.series_id) ?? '' : ''),
     groupLabel: row.tasks.series_id ? seriesTitle.get(row.tasks.series_id) ?? null : null,
   }))
+
+  const unitsByDate = new Map<string, Set<string>>()
+  for (const task of tasks) {
+    const bundleIndex = bundleRules.findIndex((rule) => rule.labels.some((label) => {
+      const needle = label.trim().toLowerCase()
+      return needle && ((task.groupLabel ?? '').toLowerCase().includes(needle) || task.title.toLowerCase().includes(needle))
+    }))
+    const units = unitsByDate.get(task.date) ?? new Set<string>()
+    units.add(bundleIndex === -1 ? `task:${task.id}` : `bundle:${bundleIndex}`)
+    unitsByDate.set(task.date, units)
+  }
+  // Held work is part of the day's load too. Before the solver could see it
+  // the cap was worked out from unassigned jobs alone, as if everyone started
+  // the day empty — so once it did see it, a day with most jobs already
+  // placed got a cap of 1 and dinner could not be placed on anyone. A held
+  // bundle is one job, as it is everywhere else.
+  for (const item of heldWork) {
+    const units = unitsByDate.get(item.date)
+    if (!units) continue
+    const bundleIndex = bundleRules.findIndex((rule) => rule.labels.some((label) => {
+      const needle = label.trim().toLowerCase()
+      return needle && ((item.groupLabel ?? '').toLowerCase().includes(needle) || item.title.toLowerCase().includes(needle))
+    }))
+    units.add(bundleIndex === -1 ? `held:${item.personId}:${item.title}` : `bundle:${bundleIndex}`)
+  }
+  const limitsByDate = Object.fromEntries(
+    Array.from(unitsByDate, ([date, units]) => [date, Math.floor(units.size / Math.max(1, workingOn(date))) + 1])
+  )
+  const dynamicDailyLimit = Math.max(...Object.values(limitsByDate))
+
+  // Who has done each job lately. Without this every run starts blank, and a
+  // window containing one new day has every load at zero — so the alphabetical
+  // tie-break decides and the same person cooks dinner indefinitely.
+  const history = await loadRotationHistory(db, from, to, seriesTitle)
+
 
   const plan = buildAssignmentPlan(
     tasks,
