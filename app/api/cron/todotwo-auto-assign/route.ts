@@ -6,6 +6,7 @@ import { getPrivilegedClientForCronOnly } from '@/lib/todotwo/db-privileged'
 import { isTodoTwoEnabled } from '@/lib/todotwo/config'
 import {
   buildAssignmentPlan,
+  type HeldWork,
   type AssignableTask,
   type RotationHistory,
   type Weekday,
@@ -462,6 +463,36 @@ export async function POST(request: NextRequest) {
   // tie-break decides and the same person cooks dinner indefinitely.
   const history = await loadRotationHistory(db, from, to, seriesTitle)
 
+  // What people already hold in the window. Without this the solver sees only
+  // tonight's decisions, and re-placing released work can stack a livestock
+  // round on top of a dinner decided the night before. Finished work counts
+  // too: somebody who cooked today is still the cook today.
+  const { data: heldRows, error: heldError } = await db
+    .from('task_assignments')
+    .select('person_id, tasks!inner(due_date, title, status, deleted_at, parent_task_id, series_id)')
+    .is('unassigned_at', null)
+    .eq('role', 'assignee')
+    .gte('tasks.due_date', from)
+    .lte('tasks.due_date', to)
+    .is('tasks.deleted_at', null)
+    .is('tasks.parent_task_id', null)
+    .neq('tasks.status', 'cancelled')
+
+  if (heldError) {
+    return NextResponse.json({ error: `Could not load held work: ${heldError.message}` }, { status: 500 })
+  }
+
+  const heldWork: HeldWork[] = ((heldRows ?? []) as unknown as {
+    person_id: string
+    tasks: { due_date: string; title: string | null; series_id: string | null }
+  }[]).map((row) => ({
+    personId: row.person_id,
+    date: row.tasks.due_date,
+    // Occurrences carry no title of their own; the series name is the label.
+    title: row.tasks.title ?? (row.tasks.series_id ? seriesTitle.get(row.tasks.series_id) ?? '' : ''),
+    groupLabel: row.tasks.series_id ? seriesTitle.get(row.tasks.series_id) ?? null : null,
+  }))
+
   const plan = buildAssignmentPlan(
     tasks,
     people,
@@ -475,7 +506,8 @@ export async function POST(request: NextRequest) {
       { kind: 'max_per_day', personId: null, limit: dynamicDailyLimit, limitsByDate },
       ...resolved.constraints,
     ],
-    history
+    history,
+    heldWork
   )
 
   let assigned = 0

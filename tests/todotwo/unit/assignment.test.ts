@@ -230,3 +230,52 @@ describe('constraints that bind nothing', () => {
     expect(plan.inertConstraints).toEqual([])
   })
 })
+
+describe('work people already hold', () => {
+  const day = { date: '2026-09-28', weekday: 'MO' as const }
+  const people = [
+    { id: 'theo', name: 'Theo' },
+    { id: 'robbert', name: 'Robbert' },
+  ]
+  const livestockVsMeals = {
+    kind: 'different_people' as const,
+    labelsA: ['Goats', 'Rabbits'],
+    labelsB: ['Dinner'],
+  }
+  const goatsAndRabbits = { kind: 'same_person' as const, labels: ['Goats', 'Rabbits'] }
+  const released = [
+    { id: 'g-am', title: 'Goats (Morning)', groupLabel: 'Goats (Morning)', ...day },
+    { id: 'r-am', title: 'Rabbits (Morning)', groupLabel: 'Rabbits (Morning)', ...day },
+  ]
+
+  it('will not stack a livestock round on a dinner decided the night before', () => {
+    // The production case: Theo got Monday's dinner on one night; Monday's
+    // goats and rabbits were released and re-placed the next. Blind to the
+    // dinner, the solver gave him both.
+    // Stack the odds toward Theo — Robbert is busier and sorts first anyway —
+    // so only knowing about the held dinner can steer the round away from him.
+    const favourTheo = [
+      { id: 'theo', name: 'Theo', existingLoad: 0 },
+      { id: 'robbert', name: 'Robbert', existingLoad: 5 },
+    ]
+    const plan = buildAssignmentPlan(
+      released,
+      favourTheo,
+      [goatsAndRabbits, livestockVsMeals],
+      {},
+      [{ personId: 'theo', date: day.date, title: 'Dinner', groupLabel: 'Dinner' }]
+    )
+    expect(plan.assignments.map((a) => a.personId)).toEqual(['robbert', 'robbert'])
+  })
+
+  it('counts a held bundle as one job toward the daily cap, not four', () => {
+    const cap = { kind: 'max_per_day' as const, personId: null, limit: 2 }
+    const kitchen = [{ id: 'k', title: 'Kitchen', groupLabel: 'Kitchen', ...day }]
+    const heldRound = ['Goats (Morning)', 'Goats (Evening)', 'Rabbits (Morning)', 'Rabbits (Evening)'].map(
+      (title) => ({ personId: 'theo', date: day.date, title, groupLabel: title })
+    )
+    // Theo holds one round (one job); a cap of two still leaves room for one more.
+    const plan = buildAssignmentPlan(kitchen, [people[0]], [goatsAndRabbits, cap], {}, heldRound)
+    expect(plan.assignments.map((a) => a.personId)).toEqual(['theo'])
+  })
+})
