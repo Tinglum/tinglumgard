@@ -1,6 +1,12 @@
 import { getTodoTwoClient } from '@/lib/todotwo/db'
 import { addFarmDays, farmToday, type FarmDate } from '@/lib/todotwo/time'
-import { daysOffPair } from '@/lib/todotwo/domain/days-off'
+import {
+  awayDatesByPerson,
+  dayOffSchedule,
+  rotaParticipants,
+  type DayOffEntry,
+} from '@/lib/todotwo/domain/days-off'
+import type { StayWindow } from '@/lib/todotwo/domain/assignment-inputs'
 
 /**
  * Server-side reads for the task views.
@@ -613,27 +619,71 @@ export async function getPeople(): Promise<PersonRow[]> {
   }))
 }
 
-/** The safe, shared roster data used for the 14-day days-off calendar. */
-export async function getPeopleDaysOff(): Promise<
-  { id: string; name: string; daysOffStart: import('@/lib/todotwo/domain/recurrence').Weekday | null }[]
-> {
+/**
+ * Who is off on each of the next `days` days, under the headcount rotation.
+ *
+ * Every member sees the same farm-wide schedule because whether *you* are off
+ * depends on how many *others* can work. The cross-person inputs RLS would
+ * hide (farm start dates, approved time-off dates) come through
+ * rota_days_off_inputs(), which returns dates only.
+ */
+export async function getDaysOffSchedule(days = 14): Promise<DayOffEntry[]> {
   const db = getTodoTwoClient()
-  const [peopleResult, rulesResult] = await Promise.all([
-    db.from('people_roster').select('id, full_name, preferred_name').eq('is_active', true).order('full_name'),
+  const from = farmToday()
+  const to = addFarmDays(from, days - 1)
+  const [peopleResult, inputsResult, rulesResult, staysResult] = await Promise.all([
+    db.from('people_roster').select('id, full_name, preferred_name').eq('is_active', true),
+    db.rpc('rota_days_off_inputs', { p_from: from, p_to: to }),
     db.from('assignment_rules').select('payload').eq('kind', 'unavailable_weekday').eq('enabled', true),
+    db
+      .from('stays')
+      .select('id, person_id, arrival_date, arrival_certainty, departure_date, departure_certainty, status')
+      .lte('arrival_date', to),
   ])
   if (peopleResult.error) throw new Error(`Could not load days off: ${peopleResult.error.message}`)
+  if (inputsResult.error) throw new Error(`Could not load days-off inputs: ${inputsResult.error.message}`)
   if (rulesResult.error) throw new Error(`Could not load days-off rules: ${rulesResult.error.message}`)
-  const starts = new Map<string, import('@/lib/todotwo/domain/recurrence').Weekday>()
-  for (const row of (rulesResult.data ?? []) as { payload: { personId?: string; weekdays?: import('@/lib/todotwo/domain/recurrence').Weekday[] } }[]) {
-    const start = row.payload.weekdays?.[0]
-    if (row.payload.personId && start && row.payload.weekdays?.length === 2 &&
-        daysOffPair(start).every((day) => row.payload.weekdays?.includes(day))) {
-      starts.set(row.payload.personId, start)
-    }
-  }
-  return ((peopleResult.data ?? []) as { id: string; full_name: string; preferred_name: string | null }[])
-    .map((p) => ({ id: p.id, name: p.preferred_name || p.full_name, daysOffStart: starts.get(p.id) ?? null }))
+  if (staysResult.error) throw new Error(`Could not load stays: ${staysResult.error.message}`)
+
+  const inputs = new Map(
+    ((inputsResult.data ?? []) as { person_id: string; farm_start_date: string | null; time_off: { start: string; end: string }[] }[])
+      .map((row) => [row.person_id, row])
+  )
+  // Same test as the cron: a seven-day weekday rule means "not on the rota".
+  const nonparticipants = new Set(
+    ((rulesResult.data ?? []) as { payload: { personId?: string; weekdays?: string[] } }[])
+      .filter((row) => row.payload.personId && row.payload.weekdays?.length === 7)
+      .map((row) => row.payload.personId as string)
+  )
+  const people = ((peopleResult.data ?? []) as { id: string; full_name: string; preferred_name: string | null }[])
+    // A person the function did not return is deleted or inactive for rota purposes.
+    .filter((p) => inputs.has(p.id))
+  const timeOff = people.flatMap((p) => inputs.get(p.id)!.time_off.map((range) => ({
+    personId: p.id, startDate: range.start, endDate: range.end,
+  })))
+  const stays = ((staysResult.data ?? []) as Record<string, string | null>[]).map((r) => ({
+    id: r.id as string,
+    personId: r.person_id as string,
+    arrivalDate: r.arrival_date as string,
+    arrivalCertainty: r.arrival_certainty as StayWindow['arrivalCertainty'],
+    departureDate: r.departure_date,
+    departureCertainty: r.departure_certainty as StayWindow['departureCertainty'],
+    status: r.status as string,
+  }))
+  const away = awayDatesByPerson(timeOff, stays, { from, to }, people.map((p) => p.id))
+
+  const participants = rotaParticipants(
+    people.map((p) => ({
+      id: p.id,
+      name: p.preferred_name || p.full_name,
+      farmStartDate: inputs.get(p.id)!.farm_start_date,
+      nonparticipant: nonparticipants.has(p.id),
+      awayDates: away.get(p.id) ?? [],
+    })),
+    from,
+    days
+  )
+  return dayOffSchedule(participants, from, days)
 }
 
 /**
