@@ -4,6 +4,8 @@ import { z } from 'zod'
 import { isTodoTwoEnabled } from '@/lib/todotwo/config'
 import { getTodoTwoClient } from '@/lib/todotwo/db'
 import { requireApiRole } from '@/lib/todotwo/auth'
+import { getDaysOffSchedule } from '@/lib/todotwo/queries'
+import { farmDaysBetween } from '@/lib/todotwo/time'
 import {
   AssignmentAiUnavailableError,
   parseConstraints,
@@ -360,7 +362,13 @@ export async function POST(request: NextRequest) {
   // about order, but a coordinator reading "why was Amber skipped" should meet
   // the things that were never up for negotiation before the ones they chose
   // this morning.
-  const farmOnly = farm.sourced.map((s) => s.constraint)
+  // Days off by headcount are a farm fact too: the same schedule the nightly
+  // round and the Upcoming panel use, so a coordinator's plan cannot put
+  // work on the day somebody was promised off.
+  const daysOff = await getDaysOffSchedule(farmDaysBetween(parsed.from, parsed.to) + 1, parsed.from)
+  const daysOffConstraints = daysOff.flatMap((day) =>
+    day.off ? [{ kind: 'unavailable_dates' as const, personId: day.off.id, dates: [day.date] }] : [])
+  const farmOnly = [...farm.sourced.map((s) => s.constraint), ...daysOffConstraints]
   const constraints = [...farmOnly, ...presetResult.constraints, ...aiResult.constraints]
   const unresolved = [...presetResult.unresolved, ...aiResult.unresolved]
 
@@ -372,6 +380,7 @@ export async function POST(request: NextRequest) {
     constraints,
     farmConstraints: farm.sourced,
     farmWarnings: farm.warnings,
+    daysOff: daysOff.map((day) => ({ date: day.date, available: day.available, off: day.off?.name ?? null })),
     presetConstraints: presetResult.constraints,
     aiConstraints: aiResult.constraints,
     unresolved,

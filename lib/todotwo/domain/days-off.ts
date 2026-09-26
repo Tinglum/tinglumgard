@@ -227,3 +227,53 @@ export function breaksFor(schedule: DayOffEntry[], personId: string): { from: Fa
   }
   return breaks
 }
+
+// ---------------------------------------------------------------------------
+// Releasing work already held on a day off
+// ---------------------------------------------------------------------------
+
+/** Statuses where the work is over; nothing to hand back. */
+const FINISHED_STATUSES = new Set(['completed', 'verified', 'cancelled'])
+
+export interface HeldAssignment {
+  assignmentId: string
+  taskId: string
+  personId: string
+  /** Who created the row. Equal to personId when the person took it themselves. */
+  assignedByPersonId: string | null
+  role: string
+  unassignedAt: string | null
+  dueDate: FarmDate
+  taskStatus: string
+}
+
+/**
+ * Assignments to take back because their holder turned out to be off that day.
+ *
+ * The nightly round only places unassigned work, so a task assigned before a
+ * day off was known — the day was not in the schedule yet, or headcount
+ * changed — would otherwise stay with the person on their day off forever.
+ *
+ * Kept, deliberately:
+ *   * today — a day already under way. Pulling the morning round off
+ *     somebody at 04:00 and hoping the solver finds a taker is how animals go
+ *     unfed; today's rota stands and is fixed by people, not the cron;
+ *   * anything the person took themselves (claim_task / "I'll take charge",
+ *     or a task they created for themselves): assigned_by_person_id equals
+ *     person_id. Volunteering on your day off is allowed;
+ *   * finished work, ended rows, and non-assignee roles.
+ */
+export function assignmentsToRelease(
+  held: HeldAssignment[],
+  schedule: DayOffEntry[],
+  today: FarmDate
+): HeldAssignment[] {
+  const offOn = new Map(schedule.flatMap((day) => (day.off ? [[day.date, day.off.id] as const] : [])))
+  return held.filter((row) =>
+    row.dueDate > today &&
+    offOn.get(row.dueDate) === row.personId &&
+    row.role === 'assignee' &&
+    row.unassignedAt === null &&
+    row.assignedByPersonId !== row.personId &&
+    !FINISHED_STATUSES.has(row.taskStatus))
+}

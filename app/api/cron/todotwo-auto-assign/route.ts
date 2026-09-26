@@ -14,10 +14,13 @@ import { rulesToConstraints, type AssignmentRule } from '@/lib/todotwo/domain/as
 import { farmConstraints, type ApprovedTimeOff, type StayWindow } from '@/lib/todotwo/domain/assignment-inputs'
 import { addFarmDays, farmDaysBetween, farmToday } from '@/lib/todotwo/time'
 import {
+  assignmentsToRelease,
   awayDatesByPerson,
   dayOffSchedule,
   isWeeklyDaysOffPair,
   rotaParticipants,
+  type DayOffEntry,
+  type HeldAssignment,
 } from '@/lib/todotwo/domain/days-off'
 import { weekdayOfDate } from '@/lib/todotwo/domain/recurrence'
 import { enqueueRelevantNotifications } from '@/lib/todotwo/notifications/enqueue-relevant'
@@ -104,6 +107,84 @@ async function loadRotationHistory(
   return history
 }
 
+/**
+ * Takes back open work held by each date's off person, from tomorrow on.
+ *
+ * Never today: a day already under way is not re-planned by a robot at four
+ * in the morning. Releasing the morning round and hoping somebody claims it
+ * is how animals go unfed. Selection lives in assignmentsToRelease (pure,
+ * unit-tested); this only reads the rows and writes the result.
+ *
+ * Returns the ids of tasks that went back to 'unassigned'. A task someone
+ * else still holds keeps its status and is not re-placed.
+ */
+async function releaseDaysOffWork(
+  db: ReturnType<typeof getPrivilegedClientForCronOnly>,
+  daysOff: DayOffEntry[],
+  today: string,
+  through: string
+): Promise<string[]> {
+  const offPeople = Array.from(new Set(daysOff.flatMap((day) => (day.off && day.date > today ? [day.off.id] : []))))
+  if (offPeople.length === 0) return []
+
+  // Cheap: open tasks in the few days of the horizon, then only the off
+  // people's live assignee rows on those tasks.
+  const { data: taskRows } = await db
+    .from('tasks')
+    .select('id, due_date, status')
+    .is('deleted_at', null)
+    .gt('due_date', today)
+    .lte('due_date', through)
+    .not('status', 'in', '(completed,verified,cancelled)')
+  const tasks = new Map(((taskRows ?? []) as { id: string; due_date: string; status: string }[]).map((t) => [t.id, t]))
+  if (tasks.size === 0) return []
+
+  const { data: rows } = await db
+    .from('task_assignments')
+    .select('id, task_id, person_id, assigned_by_person_id, role, unassigned_at')
+    .in('task_id', Array.from(tasks.keys()))
+    .in('person_id', offPeople)
+    .is('unassigned_at', null)
+    .eq('role', 'assignee')
+
+  const held: HeldAssignment[] = ((rows ?? []) as {
+    id: string; task_id: string; person_id: string; assigned_by_person_id: string | null; role: string; unassigned_at: string | null
+  }[]).map((row) => ({
+    assignmentId: row.id,
+    taskId: row.task_id,
+    personId: row.person_id,
+    assignedByPersonId: row.assigned_by_person_id,
+    role: row.role,
+    unassignedAt: row.unassigned_at,
+    dueDate: tasks.get(row.task_id)!.due_date,
+    taskStatus: tasks.get(row.task_id)!.status,
+  }))
+
+  const releasedTaskIds: string[] = []
+  for (const row of assignmentsToRelease(held, daysOff, today)) {
+    const { error } = await db
+      .from('task_assignments')
+      .update({ unassigned_at: new Date().toISOString() })
+      .eq('id', row.assignmentId)
+      .is('unassigned_at', null)
+    if (error) continue
+
+    // Only back to the pool if nobody else is still on it: a pair job keeps
+    // its other holder, and its status with them.
+    const { count } = await db
+      .from('task_assignments')
+      .select('id', { count: 'exact', head: true })
+      .eq('task_id', row.taskId)
+      .eq('role', 'assignee')
+      .is('unassigned_at', null)
+    if ((count ?? 0) > 0) continue
+
+    await db.from('tasks').update({ status: 'unassigned' }).eq('id', row.taskId).eq('status', 'assigned')
+    releasedTaskIds.push(row.taskId)
+  }
+  return releasedTaskIds
+}
+
 async function isAuthorized(request: NextRequest): Promise<{ ok: boolean; status: number; error?: string }> {
   const secret = process.env.CRON_SECRET
   if (!secret) {
@@ -135,34 +216,111 @@ export async function POST(request: NextRequest) {
   const from = farmToday()
   const to = addFarmDays(from, HORIZON_DAYS)
 
-  const [{ data: peopleRows, error: peopleError }, { data: taskRows, error: taskError }] =
-    await Promise.all([
-      db
-        .from('people')
-        .select('id, full_name, preferred_name, farm_start_date')
-        .is('deleted_at', null)
-        .eq('is_active', true)
-        .order('full_name'),
-      db
-        .from('tasks_resolved')
-        .select('id, title, due_date, status, series_id, project_id, required_skill_id')
-        .is('parent_task_id', null)
-        .gte('due_date', from)
-        .lte('due_date', to)
-        .in('status', ['unassigned', 'draft']),
-    ])
+  // Everything that decides who is off comes first, because who is off
+  // decides which already-assigned work has to be handed back before the
+  // unassigned pool is read.
+  const [
+    { data: peopleRows, error: peopleError },
+    { data: timeOffRows },
+    { data: stayRows },
+    { data: ruleRows },
+  ] = await Promise.all([
+    db
+      .from('people')
+      .select('id, full_name, preferred_name, farm_start_date')
+      .is('deleted_at', null)
+      .eq('is_active', true)
+      .order('full_name'),
+    db
+      .from('time_off_requests')
+      .select('id, person_id, start_date, end_date, kind, status')
+      .eq('status', 'approved')
+      .lte('start_date', to)
+      .gte('end_date', from),
+    db
+      .from('stays')
+      .select('id, person_id, arrival_date, arrival_certainty, departure_date, departure_certainty, status')
+      .lte('arrival_date', to),
+    // Whatever the farm currently has switched on. Turning a rule off in
+    // Routines takes effect on the next run without a deploy.
+    db
+      .from('assignment_rules')
+      .select('id, label, kind, payload, enabled, sort_order, source_text')
+      .eq('enabled', true)
+      .order('sort_order'),
+  ])
 
-  if (peopleError || taskError) {
-    return NextResponse.json(
-      { error: `Could not load: ${peopleError?.message ?? taskError?.message}` },
-      { status: 500 }
-    )
+  if (peopleError) {
+    return NextResponse.json({ error: `Could not load: ${peopleError.message}` }, { status: 500 })
   }
 
   const peopleRowsTyped = (peopleRows ?? []) as { id: string; full_name: string; preferred_name: string | null; farm_start_date: string | null }[]
   const people = peopleRowsTyped.map(
     (p) => ({ id: p.id, name: p.preferred_name || p.full_name })
   )
+
+  const farmTimeOff = ((timeOffRows ?? []) as Record<string, string>[]).map((r) => ({
+    id: r.id,
+    personId: r.person_id,
+    startDate: r.start_date,
+    endDate: r.end_date,
+    kind: r.kind,
+  })) as ApprovedTimeOff[]
+  const farmStays: StayWindow[] = ((stayRows ?? []) as Record<string, string | null>[]).map((r) => ({
+    id: r.id as string,
+    personId: r.person_id as string,
+    arrivalDate: r.arrival_date as string,
+    arrivalCertainty: r.arrival_certainty as StayWindow['arrivalCertainty'],
+    departureDate: r.departure_date,
+    departureCertainty: r.departure_certainty as StayWindow['departureCertainty'],
+    status: r.status as string,
+  }))
+
+  // Days off by headcount: one person off on any date where five or more can
+  // work, nobody off otherwise. Same inputs as the Upcoming panel, so the day
+  // a person was shown as theirs is the day the rota leaves empty. A
+  // seven-day weekday rule means "not on the rota at all" (e.g. the owner).
+  const nonparticipants = new Set(((ruleRows ?? []) as AssignmentRule[]).flatMap((rule) => {
+    const weekdays = Array.isArray(rule.payload.weekdays) ? rule.payload.weekdays : []
+    return rule.kind === 'unavailable_weekday' && typeof rule.payload.personId === 'string' && weekdays.length === 7
+      ? [rule.payload.personId]
+      : []
+  }))
+  const windowDays = farmDaysBetween(from, to) + 1
+  const away = awayDatesByPerson(farmTimeOff, farmStays, { from, to }, people.map((p) => p.id))
+  const rota = rotaParticipants(
+    peopleRowsTyped.map((person) => ({
+      id: person.id,
+      name: person.preferred_name || person.full_name,
+      farmStartDate: person.farm_start_date,
+      nonparticipant: nonparticipants.has(person.id),
+      awayDates: away.get(person.id) ?? [],
+    })),
+    from,
+    windowDays
+  )
+  const daysOff = dayOffSchedule(rota, from, windowDays)
+  const daysOffConstraints = daysOff.flatMap((day) =>
+    day.off ? [{ kind: 'unavailable_dates' as const, personId: day.off.id, dates: [day.date] }] : [])
+  const unavailableOn = new Map(rota.map((person) => [person.id, new Set(person.unavailableDates)]))
+
+  // Hand back work assigned before the day off was known. Released tasks go
+  // back to 'unassigned' and are read with the rest of the pool just below,
+  // so the solver re-places them in this same run; only what it cannot place
+  // is left up for grabs. Idempotent: a second run finds nothing to release.
+  const releasedTaskIds = await releaseDaysOffWork(db, daysOff, from, to)
+
+  const { data: taskRows, error: taskError } = await db
+    .from('tasks_resolved')
+    .select('id, title, due_date, status, series_id, project_id, required_skill_id')
+    .is('parent_task_id', null)
+    .gte('due_date', from)
+    .lte('due_date', to)
+    .in('status', ['unassigned', 'draft'])
+
+  if (taskError) {
+    return NextResponse.json({ error: `Could not load: ${taskError.message}` }, { status: 500 })
+  }
 
   const rows = (taskRows ?? []) as {
     id: string
@@ -193,6 +351,8 @@ export async function POST(request: NextRequest) {
       window: { from, to },
       candidates: dated.length,
       assigned: 0,
+      released: releasedTaskIds.length,
+      reassigned: 0,
       note: people.length === 0 ? 'Nobody active to assign to.' : 'Nothing spare in the window.',
     })
   }
@@ -210,41 +370,13 @@ export async function POST(request: NextRequest) {
 
   // The same farm facts the preview screen applies, so an automatic round
   // cannot hand work to somebody who is away or not signed off for it.
-  const [{ data: timeOffRows }, { data: stayRows }, { data: skillRows }, { data: skillNameRows }] =
-    await Promise.all([
-      db
-        .from('time_off_requests')
-        .select('id, person_id, start_date, end_date, kind, status')
-        .eq('status', 'approved')
-        .lte('start_date', to)
-        .gte('end_date', from),
-      db
-        .from('stays')
-        .select('id, person_id, arrival_date, arrival_certainty, departure_date, departure_certainty, status')
-        .lte('arrival_date', to),
-      db.from('person_skills').select('person_id, skill_id, authorized_unsupervised'),
-      db.from('skills').select('id, name'),
-    ])
+  const [{ data: skillRows }, { data: skillNameRows }] = await Promise.all([
+    db.from('person_skills').select('person_id, skill_id, authorized_unsupervised'),
+    db.from('skills').select('id, name'),
+  ])
 
   const skillName = new Map(((skillNameRows ?? []) as { id: string; name: string }[]).map((r) => [r.id, r.name]))
   const nameOf = (id: string) => people.find((p) => p.id === id)?.name ?? 'Someone'
-
-  const farmTimeOff = ((timeOffRows ?? []) as Record<string, string>[]).map((r) => ({
-    id: r.id,
-    personId: r.person_id,
-    startDate: r.start_date,
-    endDate: r.end_date,
-    kind: r.kind,
-  })) as ApprovedTimeOff[]
-  const farmStays: StayWindow[] = ((stayRows ?? []) as Record<string, string | null>[]).map((r) => ({
-    id: r.id as string,
-    personId: r.person_id as string,
-    arrivalDate: r.arrival_date as string,
-    arrivalCertainty: r.arrival_certainty as StayWindow['arrivalCertainty'],
-    departureDate: r.departure_date,
-    departureCertainty: r.departure_certainty as StayWindow['departureCertainty'],
-    status: r.status as string,
-  }))
 
   const farm = farmConstraints({
     window: { from, to },
@@ -268,14 +400,6 @@ export async function POST(request: NextRequest) {
     })),
   })
 
-  // Whatever the farm currently has switched on. Turning a rule off in
-  // Routines takes effect on the next run without a deploy.
-  const { data: ruleRows } = await db
-    .from('assignment_rules')
-    .select('id, label, kind, payload, enabled, sort_order, source_text')
-    .eq('enabled', true)
-    .order('sort_order')
-
   const resolvedRules = rulesToConstraints(
     (ruleRows ?? []) as AssignmentRule[],
     tasks.map((t) => ({ id: t.id, title: t.title, groupLabel: t.groupLabel }))
@@ -289,28 +413,6 @@ export async function POST(request: NextRequest) {
       !(constraint.kind === 'unavailable_weekday' && isWeeklyDaysOffPair(constraint.weekdays))),
   }
 
-  // Days off by headcount: one person off on any date where five or more can
-  // work, nobody off otherwise. Same inputs as the Upcoming panel, so the day
-  // a person was shown as theirs is the day the rota leaves empty.
-  const nonparticipants = new Set(resolved.constraints.flatMap((constraint) =>
-    constraint.kind === 'unavailable_weekday' && constraint.weekdays.length === 7 ? [constraint.personId] : []))
-  const windowDays = farmDaysBetween(from, to) + 1
-  const away = awayDatesByPerson(farmTimeOff, farmStays, { from, to }, people.map((p) => p.id))
-  const rota = rotaParticipants(
-    peopleRowsTyped.map((person) => ({
-      id: person.id,
-      name: person.preferred_name || person.full_name,
-      farmStartDate: person.farm_start_date,
-      nonparticipant: nonparticipants.has(person.id),
-      awayDates: away.get(person.id) ?? [],
-    })),
-    from,
-    windowDays
-  )
-  const daysOff = dayOffSchedule(rota, from, windowDays)
-  const daysOffConstraints = daysOff.flatMap((day) =>
-    day.off ? [{ kind: 'unavailable_dates' as const, personId: day.off.id, dates: [day.date] }] : [])
-  const unavailableOn = new Map(rota.map((person) => [person.id, new Set(person.unavailableDates)]))
 
   // Let the ceiling follow the actual workload: average tasks per active
   // person, rounded down, plus one. Thus 17 jobs among 8 people caps everyone
@@ -376,6 +478,8 @@ export async function POST(request: NextRequest) {
   )
 
   let assigned = 0
+  let reassigned = 0
+  const released = new Set(releasedTaskIds)
   const failures: { taskId: string; message: string }[] = []
 
   for (const assignment of plan.assignments) {
@@ -385,7 +489,10 @@ export async function POST(request: NextRequest) {
     })
 
     if (error) failures.push({ taskId: assignment.taskId, message: error.message })
-    else assigned += 1
+    else {
+      assigned += 1
+      if (released.has(assignment.taskId)) reassigned += 1
+    }
   }
 
   // The far edge of the window has just become actionable. Create one summary
@@ -399,6 +506,10 @@ export async function POST(request: NextRequest) {
     window: { from, to },
     candidates: tasks.length,
     assigned,
+    // Handed back from somebody's day off, and how many of those found a new
+    // holder. The difference is what was left up for grabs.
+    released: releasedTaskIds.length,
+    reassigned,
     // Reported, not hidden: a day the rules cannot cover is something a
     // coordinator needs to see, and it also lands in the evening digest.
     unassignable: plan.unassignable.length,
