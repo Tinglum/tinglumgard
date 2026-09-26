@@ -402,9 +402,49 @@ export async function POST(request: NextRequest) {
     })),
   })
 
+  // What people already hold in the window. Without this the solver sees only
+  // tonight's decisions, and re-placing released work can stack a livestock
+  // round on top of a dinner decided the night before. Finished work counts
+  // too: somebody who cooked today is still the cook today.
+  const { data: heldRows, error: heldError } = await db
+    .from('task_assignments')
+    .select('person_id, tasks!inner(due_date, title, status, deleted_at, parent_task_id, series_id)')
+    .is('unassigned_at', null)
+    .eq('role', 'assignee')
+    .gte('tasks.due_date', from)
+    .lte('tasks.due_date', to)
+    .is('tasks.deleted_at', null)
+    .is('tasks.parent_task_id', null)
+    .neq('tasks.status', 'cancelled')
+
+  if (heldError) {
+    return NextResponse.json({ error: `Could not load held work: ${heldError.message}` }, { status: 500 })
+  }
+
+  const heldWork: HeldWork[] = ((heldRows ?? []) as unknown as {
+    person_id: string
+    tasks: { due_date: string; title: string | null; series_id: string | null }
+  }[]).map((row) => ({
+    personId: row.person_id,
+    date: row.tasks.due_date,
+    // Occurrences carry no title of their own; the series name is the label.
+    title: row.tasks.title ?? (row.tasks.series_id ? seriesTitle.get(row.tasks.series_id) ?? '' : ''),
+    groupLabel: row.tasks.series_id ? seriesTitle.get(row.tasks.series_id) ?? null : null,
+  }))
+
+  // Rules are resolved against held work as well as the jobs being placed.
+  // rulesToConstraints drops a separation when only one side of it appears,
+  // reasoning that nothing can clash — true when the solver was blind to held
+  // work, false now: a Kitchen somebody already holds and a Dinner being
+  // placed are exactly the clash "whoever cooks does not do the kitchen"
+  // exists to stop. Resolving against placements alone dropped that rule the
+  // first time dinner was re-placed on a night Kitchen was already handed out.
   const resolvedRules = rulesToConstraints(
     (ruleRows ?? []) as AssignmentRule[],
-    tasks.map((t) => ({ id: t.id, title: t.title, groupLabel: t.groupLabel }))
+    [
+      ...tasks.map((t) => ({ id: t.id, title: t.title, groupLabel: t.groupLabel })),
+      ...heldWork.map((h, index) => ({ id: `held:${index}`, title: h.title, groupLabel: h.groupLabel })),
+    ]
   )
   // The old fixed weekly pairs are replaced by the headcount rotation below.
   // Honouring both would give people two sets of days off and leave the farm
@@ -443,35 +483,6 @@ export async function POST(request: NextRequest) {
   // cannot cover once somebody is off.
   const workingOn = (date: string) => participatingPeople.filter((person) =>
     !unavailableOn.get(person.id)?.has(date) && !daysOff.some((day) => day.date === date && day.off?.id === person.id)).length
-  // What people already hold in the window. Without this the solver sees only
-  // tonight's decisions, and re-placing released work can stack a livestock
-  // round on top of a dinner decided the night before. Finished work counts
-  // too: somebody who cooked today is still the cook today.
-  const { data: heldRows, error: heldError } = await db
-    .from('task_assignments')
-    .select('person_id, tasks!inner(due_date, title, status, deleted_at, parent_task_id, series_id)')
-    .is('unassigned_at', null)
-    .eq('role', 'assignee')
-    .gte('tasks.due_date', from)
-    .lte('tasks.due_date', to)
-    .is('tasks.deleted_at', null)
-    .is('tasks.parent_task_id', null)
-    .neq('tasks.status', 'cancelled')
-
-  if (heldError) {
-    return NextResponse.json({ error: `Could not load held work: ${heldError.message}` }, { status: 500 })
-  }
-
-  const heldWork: HeldWork[] = ((heldRows ?? []) as unknown as {
-    person_id: string
-    tasks: { due_date: string; title: string | null; series_id: string | null }
-  }[]).map((row) => ({
-    personId: row.person_id,
-    date: row.tasks.due_date,
-    // Occurrences carry no title of their own; the series name is the label.
-    title: row.tasks.title ?? (row.tasks.series_id ? seriesTitle.get(row.tasks.series_id) ?? '' : ''),
-    groupLabel: row.tasks.series_id ? seriesTitle.get(row.tasks.series_id) ?? null : null,
-  }))
 
   const unitsByDate = new Map<string, Set<string>>()
   for (const task of tasks) {
