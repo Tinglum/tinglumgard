@@ -2,6 +2,7 @@ import { ClaimTaskButton } from '@/components/todotwo/tasks/claim-task-button'
 import { AskForHelp } from '@/components/todotwo/tasks/ask-for-help'
 import { FarmToday } from '@/components/todotwo/tasks/farm-today'
 import { SnoozeTaskButton } from '@/components/todotwo/tasks/snooze-task-button'
+import { getDailySeriesIds } from '@/lib/todotwo/queries-nudge'
 import { OpenHelpRequests } from '@/components/todotwo/tasks/open-help-requests'
 import { TaskRow } from '@/components/todotwo/tasks/task-row'
 import { EmptyState, Surface } from '@/components/todotwo/ui/states'
@@ -41,6 +42,9 @@ export default async function TodayPage() {
     0
   )
   const myOpenCount = overdue.length + mine.length
+  // A daily routine in up for grabs gets no "Tomorrow": tomorrow already has
+  // its own, and moving today's would only leave today with none.
+  const dailySeries = await getDailySeriesIds(unclaimed.map((task) => task.series_id))
   const askedTaskIds = new Set(helpRequests.filter((request) => request.isMine).map((request) => request.taskId))
 
   return (
@@ -172,7 +176,9 @@ export default async function TodayPage() {
                   </div>
                   <div className="flex shrink-0 flex-col items-end gap-1 self-center pl-1">
                     <ClaimTaskButton taskId={task.id} />
-                    <SnoozeTaskButton taskId={task.id} />
+                    {task.series_id && dailySeries.has(task.series_id) ? null : (
+                      <SnoozeTaskButton taskId={task.id} />
+                    )}
                   </div>
                 </li>
               ))}

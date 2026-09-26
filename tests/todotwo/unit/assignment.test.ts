@@ -320,3 +320,24 @@ describe('rules against held work, end to end', () => {
     expect(plan.assignments[0].personId).toBe('robbert')
   })
 })
+
+describe('a bundle somebody already holds part of', () => {
+  it('sends the rest of it to them, not to whoever rotation prefers', () => {
+    // 26 Sep: Aleksandra held Liam's morning; the evening came back to be
+    // placed on its own and went to Miguel — one dog, two people, one day.
+    const day = { date: '2026-09-26', weekday: 'SA' as const }
+    const evening = [{ id: 'liam-pm', title: 'Liam (Evening)', groupLabel: 'Liam (Evening)', ...day }]
+    const people = [
+      { id: 'aleksandra', name: 'Aleksandra', existingLoad: 9 },
+      { id: 'miguel', name: 'Miguel', existingLoad: 0 },
+    ]
+    const plan = buildAssignmentPlan(
+      evening,
+      people,
+      [{ kind: 'same_person', labels: ['Liam'] }],
+      { 'bundle:Liam': ['aleksandra'] },
+      [{ personId: 'aleksandra', date: day.date, title: 'Liam (Morning)', groupLabel: 'Liam (Morning)' }]
+    )
+    expect(plan.assignments.map((a) => a.personId)).toEqual(['aleksandra'])
+  })
+})

@@ -293,6 +293,18 @@ export function buildAssignmentPlan(
     assignedToday.set(dayKey, (assignedToday.get(dayKey) ?? 0) + units.size)
   })
 
+  // Who already holds part of a same-person bundle on a given day. Placing the
+  // rest of it anywhere else splits the job — Liam's morning with one person,
+  // his evening with another — which is exactly what the bundle rule forbids.
+  const bundleOwner = new Map<string, string>()
+  for (const item of held) {
+    const shape = { title: item.title, groupLabel: item.groupLabel }
+    const bundleIndex = bundles.findIndex((bundle) =>
+      bundle.labels.some((label) => taskMatchesLabel(shape, label))
+    )
+    if (bundleIndex !== -1) bundleOwner.set(`${bundleIndex}:${item.date}`, item.personId)
+  }
+
   for (const [, group] of Array.from(units)) {
     const date = group[0].date
     const eligible: AssignablePerson[] = []
@@ -393,7 +405,14 @@ export function buildAssignmentPlan(
     const cycle = Math.max(0, eligible.length - 1)
     const hadRecentTurn = new Set(recent.slice(0, cycle))
     const due = eligible.filter((p) => !hadRecentTurn.has(p.id))
-    const pool = due.length > 0 ? due : eligible
+    // The rest of a bundle somebody already holds part of goes to them, if the
+    // rules allow it. Rotation and load do not get a say: they decide who
+    // takes the job, and the job was already taken.
+    const bundleIndexForGroup = bundles.findIndex((bundle) => matchesAny(group[0], bundle.labels))
+    const owner =
+      bundleIndexForGroup === -1 ? undefined : bundleOwner.get(`${bundleIndexForGroup}:${date}`)
+    const ownerEligible = owner ? eligible.find((person) => person.id === owner) : undefined
+    const pool = ownerEligible ? [ownerEligible] : due.length > 0 ? due : eligible
 
     const chosen = [...pool].sort((a, b) => {
       const diff = (load.get(a.id) ?? 0) - (load.get(b.id) ?? 0)
