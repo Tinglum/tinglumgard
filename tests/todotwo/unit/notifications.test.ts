@@ -1,10 +1,9 @@
 import { describe, expect, it, vi } from 'vitest'
 
 import { notificationDedupeKey } from '@/lib/todotwo/notifications/dedupe'
-import { dispatchOutbox } from '@/lib/todotwo/notifications/dispatch'
+import { NO_DEVICE_ERROR, dispatchOutbox, type PushFn } from '@/lib/todotwo/notifications/dispatch'
 import { isRetryableError } from '@/lib/todotwo/notifications/mailer'
 import { MAX_ATTEMPTS, RETRY_BACKOFF_MINUTES, decideRetry, isDue } from '@/lib/todotwo/notifications/retry'
-import type { Sender } from '@/lib/todotwo/notifications/types'
 
 const PERSON = '11111111-1111-1111-1111-111111111111'
 const REFERENCE = '22222222-2222-2222-2222-222222222222'
@@ -240,86 +239,88 @@ function row(overrides: Partial<FakeRow> = {}): FakeRow {
 
 describe('dispatching the outbox', () => {
   const now = new Date('2026-09-04T10:00:00Z')
+  const reached = (sent: number, attempted = sent): PushFn => vi.fn(async () => ({ attempted, sent }))
 
-  it('is inert with no Mailgun configuration and touches nothing', async () => {
-    const previousKey = process.env.RESEND_API_KEY
-    const previousFrom = process.env.EMAIL_FROM
-    delete process.env.RESEND_API_KEY
-    delete process.env.EMAIL_FROM
-
+  it('is inert without push keys and touches nothing', async () => {
+    const previous = process.env.TODOTWO_VAPID_PRIVATE_KEY
+    delete process.env.TODOTWO_VAPID_PRIVATE_KEY
     try {
       const { db, updates } = fakeDb([row()])
       const result = await dispatchOutbox(db, { now })
-
       expect(result.configured).toBe(false)
-      expect(result.sent).toBe(0)
       expect(updates).toEqual([])
     } finally {
-      if (previousKey !== undefined) process.env.RESEND_API_KEY = previousKey
-      if (previousFrom !== undefined) process.env.EMAIL_FROM = previousFrom
+      if (previous !== undefined) process.env.TODOTWO_VAPID_PRIVATE_KEY = previous
     }
   })
 
-  it('marks a delivered notification sent, once', async () => {
+  it('marks a pushed notification sent, once', async () => {
     const rows = [row()]
     const { db, updates } = fakeDb(rows)
-    const sender: Sender = vi.fn(async () => ({ sent: true, retryable: false, providerId: 'x' }))
+    const push = reached(1)
 
-    const result = await dispatchOutbox(db, { now, sender })
+    const result = await dispatchOutbox(db, { now, push })
 
     expect(result.sent).toBe(1)
-    expect(sender).toHaveBeenCalledTimes(1)
+    expect(push).toHaveBeenCalledTimes(1)
     expect(rows[0].status).toBe('sent')
-    // Claim, then the final write.
-    expect(updates).toHaveLength(2)
+    expect(updates).toHaveLength(2) // claim, then the final write
     expect(updates[1].patch.sent_at).toBe(now.toISOString())
   })
 
-  it('records the error and schedules another attempt on a transient failure', async () => {
+  it('fails at once, without emailing, for somebody with no device', async () => {
+    // Push only: no fallback to email, and no point retrying a phone setting.
     const rows = [row()]
     const { db } = fakeDb(rows)
-    const sender: Sender = async () => ({ sent: false, retryable: true, error: 'Mailgun 503: down' })
 
-    const result = await dispatchOutbox(db, { now, sender })
+    const result = await dispatchOutbox(db, { now, push: reached(0, 0) })
+
+    expect(result.noDevice).toBe(1)
+    expect(result.failed).toBe(1)
+    expect(rows[0].status).toBe('failed')
+    expect((rows[0] as unknown as { last_error: string }).last_error).toBe(NO_DEVICE_ERROR)
+  })
+
+  it('retries when a device exists but did not take it', async () => {
+    const rows = [row()]
+    const { db } = fakeDb(rows)
+
+    const result = await dispatchOutbox(db, { now, push: reached(0, 1) })
 
     expect(result.retrying).toBe(1)
-    expect(result.failed).toBe(0)
     expect(rows[0].status).toBe('pending')
     expect(rows[0].attempts).toBe(1)
     expect(rows[0].next_attempt_at).toBe(new Date(now.getTime() + 5 * 60_000).toISOString())
   })
 
-  it('never throws a failure away', async () => {
+  it('never throws a failure away at the attempt ceiling', async () => {
     const rows = [row({ attempts: MAX_ATTEMPTS - 1 })]
     const { db } = fakeDb(rows)
-    const sender: Sender = async () => ({ sent: false, retryable: true, error: 'Mailgun 503: down' })
 
-    const result = await dispatchOutbox(db, { now, sender })
+    const result = await dispatchOutbox(db, { now, push: reached(0, 1) })
 
     expect(result.failed).toBe(1)
     expect(rows[0].status).toBe('failed')
-    expect((rows[0] as unknown as { last_error: string }).last_error).toBe('Mailgun 503: down')
+    expect((rows[0] as unknown as { last_error: string }).last_error).toMatch(/none of their devices/)
   })
 
   it('claims a row before sending, so a second run cannot take it', async () => {
     const rows = [row()]
     const { db } = fakeDb(rows)
 
-    // The first run claims and leaves it in flight.
-    const claimingSender: Sender = async () => {
-      // Simulate an overlapping run seeing the row mid-flight.
-      const second = await dispatchOutbox(db, { now, sender: async () => ({ sent: true, retryable: false }) })
+    const claimingPush: PushFn = async () => {
+      const second = await dispatchOutbox(db, { now, push: reached(1) })
       expect(second.sent).toBe(0)
-      return { sent: true, retryable: false }
+      return { attempted: 1, sent: 1 }
     }
 
-    const result = await dispatchOutbox(db, { now, sender: claimingSender })
+    const result = await dispatchOutbox(db, { now, push: claimingPush })
     expect(result.sent).toBe(1)
   })
 
   it('does nothing for an empty queue', async () => {
     const { db, updates } = fakeDb([])
-    const result = await dispatchOutbox(db, { now, sender: async () => ({ sent: true, retryable: false }) })
+    const result = await dispatchOutbox(db, { now, push: reached(1) })
 
     expect(result.considered).toBe(0)
     expect(updates).toEqual([])
@@ -328,13 +329,13 @@ describe('dispatching the outbox', () => {
   it('consumes per-task assignment notices without delivering them', async () => {
     const rows = [row({ topic: 'assignment-assigned' })]
     const { db } = fakeDb(rows)
-    const sender: Sender = vi.fn(async () => ({ sent: true, retryable: false }))
+    const push = reached(1)
 
-    const result = await dispatchOutbox(db, { now, sender })
+    const result = await dispatchOutbox(db, { now, push })
 
     expect(result.considered).toBe(0)
     expect(result.sent).toBe(0)
-    expect(sender).not.toHaveBeenCalled()
+    expect(push).not.toHaveBeenCalled()
     expect(rows[0].status).toBe('sent')
   })
 })

@@ -1,7 +1,6 @@
 import { decideRetry, isDue, MAX_ATTEMPTS } from '@/lib/todotwo/notifications/retry'
-import { createMailgunSender, getMailerConfig } from '@/lib/todotwo/notifications/mailer'
-import { sendPushToPerson } from '@/lib/todotwo/notifications/push-sender'
-import type { OutboxRow, Sender } from '@/lib/todotwo/notifications/types'
+import { getPushConfig, sendPushToPerson } from '@/lib/todotwo/notifications/push-sender'
+import type { OutboxRow } from '@/lib/todotwo/notifications/types'
 
 /**
  * Drains the notification outbox.
@@ -18,9 +17,28 @@ import type { OutboxRow, Sender } from '@/lib/todotwo/notifications/types'
  *   the network call, so two overlapping runs cannot both take the same row,
  *   and the unique dedupe key means there was only ever one row to take.
  *
- *   Nothing pretends. With Mailgun unconfigured the run reports skipped and touches
+ *   Nothing pretends. With push unconfigured the run reports skipped and touches
  *   nothing at all. There is no fake send and no silent success.
+ *
+ * Push only. The farm asked for notifications on the phone, not in a mailbox
+ * nobody watches while carrying a feed bucket, and email used to fill in
+ * whenever push reached nobody — which, with most phones never having turned
+ * push on, was most of the time. Now a row reaches a phone or it does not
+ * reach anyone, and the outbox says which rather than quietly emailing
+ * instead. Sign-in links and password resets are not in this outbox; they
+ * still go by email.
  */
+
+/** Sends one notification to every device a person has. Injectable for tests. */
+export type PushFn = (
+  db: Db,
+  personId: string,
+  payload: { title: string; body: string; url?: string }
+) => Promise<{ attempted: number; sent: number }>
+
+/** Written to last_error when a person has no device to send to. */
+export const NO_DEVICE_ERROR =
+  'No push device: this person has not turned notifications on. Email is off by choice.'
 
 /** How long a claimed row is hidden from other runs while its send is in flight. */
 const LEASE_MINUTES = 15
@@ -37,16 +55,10 @@ export interface DispatchResult {
   /** Rows another run had already claimed. Normal, not an error. */
   skipped: number
   errors: { id: string; message: string }[]
-  /**
-   * Web Push is the primary channel; email only fills in when push reached
-   * nobody for that row —
-   * there is only one channel value today (see notification_channel), so
-   * "does this row want push" reduces to "does this person have an active
-   * subscription", which sendPushToPerson already checks. A push failure
-   * never changes the row's status, attempts or retry schedule: email stays
-   * the channel of record and this count is purely informational.
-   */
+  /** Devices reached. One row can reach several devices. */
   pushSent: number
+  /** Rows for somebody with no device at all: recorded as failed, not emailed. */
+  noDevice: number
 }
 
 /** Minimal shape so this works with any Supabase client. */
@@ -54,7 +66,7 @@ type Db = { from: (table: string) => any }
 
 export async function dispatchOutbox(
   db: Db,
-  options: { limit?: number; now?: Date; sender?: Sender } = {}
+  options: { limit?: number; now?: Date; push?: PushFn } = {}
 ): Promise<DispatchResult> {
   const now = options.now ?? new Date()
   const limit = options.limit ?? 50
@@ -68,17 +80,14 @@ export async function dispatchOutbox(
     skipped: 0,
     errors: [],
     pushSent: 0,
+    noDevice: 0,
   }
 
-  let sender = options.sender
-  if (!sender) {
-    const config = getMailerConfig()
-    if (!config) {
-      // Inert by design. The queue keeps filling and drains the moment
-      // MAILGUN_API_KEY and MAILGUN_DOMAIN are present.
-      return { ...result, configured: false }
-    }
-    sender = createMailgunSender()
+  const push: PushFn = options.push ?? sendPushToPerson
+  if (!options.push && !getPushConfig()) {
+    // Inert by design: without VAPID keys nothing can be delivered, so the
+    // queue keeps filling and drains the moment the keys are present.
+    return { ...result, configured: false }
   }
 
   const { data, error } = await db
@@ -141,13 +150,10 @@ export async function dispatchOutbox(
       continue
     }
 
-    // Push leads now. The farm asked for notifications on the phone rather
-    // than a mailbox nobody watches while carrying a feed bucket, so a person
-    // who has enabled push gets it there and gets no email for the same
-    // thing.
-    let pushed = 0
+    let outcome: { attempted: number; sent: number } = { attempted: 0, sent: 0 }
+    let pushError: string | null = null
     try {
-      const pushResult = await sendPushToPerson(db, row.person_id, {
+      outcome = await push(db, row.person_id, {
         title: row.subject,
         body: row.body,
         url:
@@ -157,21 +163,15 @@ export async function dispatchOutbox(
               ? '/todotwo/upcoming'
               : row.topic === 'task_handoff_request'
                 ? '/todotwo/swaps'
-              : '/todotwo',
+                : '/todotwo',
       })
-      pushed = pushResult.sent
-      result.pushSent += pushed
-    } catch {
-      // sendPushToPerson already swallows per-subscription errors; this only
-      // guards against something unexpected (e.g. a missing table locally).
+    } catch (caught) {
+      pushError = caught instanceof Error ? caught.message : 'Push failed'
     }
 
-    // Email is the fallback, not the default: it goes only when push reached
-    // nobody. Somebody who has not enabled notifications, or is on a device
-    // that cannot take them, still hears about their day — dropping the
-    // message entirely would be a worse answer to "no more emails" than
-    // sending one.
-    if (pushed > 0) {
+    result.pushSent += outcome.sent
+
+    if (outcome.sent > 0) {
       const { error: updateError } = await db
         .from('notification_outbox')
         .update({
@@ -192,40 +192,35 @@ export async function dispatchOutbox(
       continue
     }
 
-    const outcome = await sender({
-      to: row.recipient_email,
-      subject: row.subject,
-      text: row.body,
-    })
-
-    if (outcome.sent) {
-      const { error: updateError } = await db
+    // Nobody to send to. Retrying cannot help — it is a setting on their
+    // phone, not a network fault — so this fails now, with a reason a person
+    // can read, rather than spending attempts or falling back to email.
+    if (!pushError && outcome.attempted === 0) {
+      const { error: noDeviceError } = await db
         .from('notification_outbox')
         .update({
-          status: 'sent',
+          status: 'failed',
           attempts: row.attempts + 1,
-          sent_at: now.toISOString(),
-          last_error: null,
+          last_error: NO_DEVICE_ERROR,
           next_attempt_at: now.toISOString(),
         })
         .eq('id', row.id)
 
-      if (updateError) {
-        // The message went out but the row still says pending. Recorded rather
-        // than swallowed: the lease means it will not be retried for fifteen
-        // minutes, which is time enough for a human to see this in the log.
-        result.errors.push({ id: row.id, message: `Sent but not recorded: ${updateError.message}` })
+      if (noDeviceError) {
+        result.errors.push({ id: row.id, message: noDeviceError.message })
         continue
       }
 
-      result.sent += 1
+      result.failed += 1
+      result.noDevice += 1
       continue
     }
 
+    // They have a device and it did not take: that is worth another try.
     const decision = decideRetry({
       attempts: row.attempts,
-      error: outcome.error ?? 'Unknown send failure',
-      retryable: outcome.retryable,
+      error: pushError ?? 'Push reached none of their devices',
+      retryable: true,
       now,
     })
 
