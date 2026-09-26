@@ -627,9 +627,19 @@ export async function getPeople(): Promise<PersonRow[]> {
  * hide (farm start dates, approved time-off dates) come through
  * rota_days_off_inputs(), which returns dates only.
  */
-export async function getDaysOffSchedule(days = 14): Promise<DayOffEntry[]> {
+export async function getDaysOffSchedule(days = 14, from: FarmDate = farmToday()): Promise<DayOffEntry[]> {
+  // rota_days_off_inputs refuses windows over a month (so it cannot become a
+  // bulk export). The rotation is a function of the date, so a longer window
+  // is simply read in month-sized pieces and joined.
+  const CHUNK = 31
+  if (days > CHUNK) {
+    const [head, tail] = await Promise.all([
+      getDaysOffSchedule(CHUNK, from),
+      getDaysOffSchedule(days - CHUNK, addFarmDays(from, CHUNK)),
+    ])
+    return [...head, ...tail]
+  }
   const db = getTodoTwoClient()
-  const from = farmToday()
   const to = addFarmDays(from, days - 1)
   const [peopleResult, inputsResult, rulesResult, staysResult] = await Promise.all([
     db.from('people_roster').select('id, full_name, preferred_name').eq('is_active', true),

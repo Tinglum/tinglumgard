@@ -121,3 +121,32 @@ describe('feeding the solver', () => {
     expect(away.get('a')).toEqual(['2026-09-28', '2026-09-29'])
   })
 })
+
+describe('releasing work held on a day off', () => {
+  it('releases only auto-assigned open work on a future day off', async () => {
+    const { assignmentsToRelease } = await import('@/lib/todotwo/domain/days-off')
+    const today = '2026-09-26'
+    const schedule = [
+      { date: '2026-09-26', available: 5, off: { id: 'theo', name: 'Theo' } },
+      { date: '2026-09-27', available: 5, off: { id: 'theo', name: 'Theo' } },
+      { date: '2026-09-28', available: 4, off: null },
+    ]
+    const row = (assignmentId: string, over: Record<string, unknown> = {}) => ({
+      assignmentId, taskId: `t-${assignmentId}`, personId: 'theo', assignedByPersonId: null,
+      role: 'assignee', unassignedAt: null, dueDate: '2026-09-27', taskStatus: 'assigned', ...over,
+    })
+    const held = [
+      row('auto'),
+      row('by-coordinator', { assignedByPersonId: 'coord' }),
+      row('self-claimed', { assignedByPersonId: 'theo' }),
+      row('completed', { taskStatus: 'completed' }),
+      row('today', { dueDate: '2026-09-26' }),
+      row('someone-else', { personId: 'miguel' }),
+      row('nobody-off', { dueDate: '2026-09-28' }),
+      row('ended', { unassignedAt: '2026-09-25T10:00:00Z' }),
+      row('helper', { role: 'helper' }),
+    ]
+    expect(assignmentsToRelease(held, schedule, today).map((r) => r.assignmentId))
+      .toEqual(['auto', 'by-coordinator'])
+  })
+})

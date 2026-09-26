@@ -4,6 +4,8 @@ import { z } from 'zod'
 import { isTodoTwoEnabled } from '@/lib/todotwo/config'
 import { getTodoTwoClient } from '@/lib/todotwo/db'
 import { requireApiRole } from '@/lib/todotwo/auth'
+import { getDaysOffSchedule } from '@/lib/todotwo/queries'
+import { farmDaysBetween } from '@/lib/todotwo/time'
 
 export const dynamic = 'force-dynamic'
 
@@ -61,7 +63,27 @@ export async function POST(request: NextRequest) {
   const applied: { taskId: string; personId: string }[] = []
   const failed: { taskId: string; personId: string; message: string }[] = []
 
+  // Re-checked here, not trusted from the preview: time off or headcount may
+  // have changed in between, and a stale plan must not put work on somebody's
+  // day off. Refused per row, like any other failure.
+  const { data: dueRows } = await db
+    .from('tasks')
+    .select('id, due_date')
+    .in('id', parsed.assignments.map((a) => a.taskId))
+  const dueOf = new Map(((dueRows ?? []) as { id: string; due_date: string | null }[]).map((r) => [r.id, r.due_date]))
+  const dates = Array.from(dueOf.values()).filter((d): d is string => Boolean(d)).sort()
+  const offOn = new Map<string, string>()
+  if (dates.length) {
+    const schedule = await getDaysOffSchedule(farmDaysBetween(dates[0], dates[dates.length - 1]) + 1, dates[0])
+    for (const day of schedule) if (day.off) offOn.set(day.date, day.off.id)
+  }
+
   for (const assignment of parsed.assignments) {
+    const due = dueOf.get(assignment.taskId)
+    if (due && offOn.get(due) === assignment.personId) {
+      failed.push({ ...assignment, message: `That person is off on ${due}.` })
+      continue
+    }
     const { error } = await db.rpc('assign_task', {
       p_task_id: assignment.taskId,
       p_person_id: assignment.personId,
