@@ -7,6 +7,8 @@ import { Button } from '@/components/todotwo/ui/button'
 import { getTodoTwoBrowserClient } from '@/lib/todotwo/db-browser'
 import type { PersonDetail } from '@/lib/todotwo/queries-person'
 
+import { releasedLine } from './remove-person'
+
 const ROLES = [
   { value: 'workawayer', label: 'Workawayer' },
   { value: 'coordinator', label: 'Coordinator' },
@@ -39,11 +41,13 @@ export function EditPersonForm({ person }: { person: PersonDetail }) {
   const [pending, setPending] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
   const [saved, setSaved] = React.useState(false)
+  const [released, setReleased] = React.useState<number | null>(null)
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setError(null)
     setSaved(false)
+    setReleased(null)
 
     if (!fullName.trim()) {
       setError('A name is required.')
@@ -63,7 +67,6 @@ export function EditPersonForm({ person }: { person: PersonDetail }) {
           phone: phone.trim() || null,
           photo_url: photoUrl.trim() || null,
           farm_start_date: firstDay || null,
-          is_active: isActive,
         })
         .eq('id', person.id)
 
@@ -74,6 +77,24 @@ export function EditPersonForm({ person }: { person: PersonDetail }) {
             : `Could not save: ${updateError.message}`
         )
         return
+      }
+
+      /*
+       * is_active goes through set_person_on_farm, never the plain update
+       * above: taking someone off the farm must also release their upcoming
+       * tasks, and only the function does both together. Only called on a
+       * real change, so saving an unrelated field never re-runs the release.
+       */
+      if (isActive !== person.is_active) {
+        const { data, error: farmError } = await supabase.rpc('set_person_on_farm', {
+          p_person_id: person.id,
+          p_on_farm: isActive,
+        })
+        if (farmError) {
+          setError(`Saved, but "on the farm" did not change: ${farmError.message}`)
+          return
+        }
+        if (!isActive) setReleased(typeof data === 'number' ? data : 0)
       }
 
       // Only touch roles when they actually changed, so an unrelated edit does
@@ -200,8 +221,8 @@ export function EditPersonForm({ person }: { person: PersonDetail }) {
         On the farm right now
       </label>
       <p className="-mt-2 text-[12px] text-[var(--tt-ink-3)]">
-        Turning this off leaves everything intact but takes them out of rotas and lists. It is the
-        usual way to handle someone who has gone home.
+        Turning this off takes them out of rotas and lists and hands their upcoming tasks back to
+        the pool. Their history stays intact.
       </p>
 
       {error ? (
@@ -209,7 +230,11 @@ export function EditPersonForm({ person }: { person: PersonDetail }) {
           {error}
         </p>
       ) : null}
-      {saved ? <p className="text-[13px] text-[var(--tt-accent)]">Saved.</p> : null}
+      {saved ? (
+        <p className="text-[13px] text-[var(--tt-accent)]">
+          Saved.{released !== null ? ` ${releasedLine(released)}` : ''}
+        </p>
+      ) : null}
 
       <Button type="submit" size="sm" disabled={pending} className="self-start">
         {pending ? 'Saving …' : 'Save changes'}

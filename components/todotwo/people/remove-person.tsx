@@ -36,6 +36,7 @@ export function RemovePerson({
   const [typed, setTyped] = React.useState('')
   const [confirmingRemove, setConfirmingRemove] = React.useState(false)
   const [released, setReleased] = React.useState<number | null>(null)
+  const [disableReleased, setDisableReleased] = React.useState<number | null>(null)
 
   const archived = person.deleted_at !== null
   const total =
@@ -46,21 +47,28 @@ export function RemovePerson({
     footprint.skills +
     footprint.privateNotes
 
+  /*
+   * Through set_person_on_farm rather than a bare update: disabling someone
+   * must also hand their upcoming tasks back to the pool, and doing both in
+   * one function means the flag and the release cannot get out of step.
+   */
   async function setDisabled(next: boolean) {
     setPending(true)
     setError(null)
+    setDisableReleased(null)
 
     const supabase = getTodoTwoBrowserClient()
-    const { error: updateError } = await supabase
-      .from('people')
-      .update({ is_active: !next })
-      .eq('id', person.id)
+    const { data, error: rpcError } = await supabase.rpc('set_person_on_farm', {
+      p_person_id: person.id,
+      p_on_farm: !next,
+    })
 
     setPending(false)
-    if (updateError) {
-      setError(`Could not do that: ${updateError.message}`)
+    if (rpcError) {
+      setError(`Could not do that: ${rpcError.message}`)
       return
     }
+    if (next) setDisableReleased(typeof data === 'number' ? data : 0)
     router.refresh()
   }
 
@@ -140,8 +148,13 @@ export function RemovePerson({
           <p className="text-[13px] text-[var(--tt-ink-2)]">
             {person.is_active
               ? 'Keeps them on the roster but out of rotas and assignment. For someone off sick or away for a while, who is coming back.'
-              : 'They are on the roster but not being given work. Nothing else has changed.'}
+              : 'They are on the roster but not being given work. Their upcoming tasks went back to the pool.'}
           </p>
+          {disableReleased !== null ? (
+            <p className="text-[13px] text-[var(--tt-accent)]">
+              {releasedLine(disableReleased)}
+            </p>
+          ) : null}
           <Button
             size="sm"
             variant="secondary"
@@ -295,4 +308,11 @@ export function RemovePerson({
       ) : null}
     </div>
   )
+}
+
+/** Shared wording for "their future work went back to the pool". */
+export function releasedLine(n: number) {
+  return n === 0
+    ? 'They had no future tasks to hand back.'
+    : `Removed from ${n} future task${n === 1 ? '' : 's'} — they're up for grabs now.`
 }
