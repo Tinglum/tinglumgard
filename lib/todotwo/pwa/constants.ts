@@ -20,7 +20,9 @@ export const TODOTWO_SW_URL = '/todotwo/sw.js' as const
  * The scope we want: it includes `/todotwo` itself, which the default scope of
  * a script in that directory (`/todotwo/`) does not — scope matching is a plain
  * string prefix. Widening it requires the `Service-Worker-Allowed` header set
- * in next.config.js.
+ * in next.config.js — which `next dev` sends but Netlify does NOT for this static
+ * file, so production always ends up on the fallback below. Push is unaffected:
+ * see lib/todotwo/pwa/push.ts.
  */
 export const TODOTWO_SW_SCOPE = '/todotwo' as const
 

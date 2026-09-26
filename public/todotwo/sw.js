@@ -257,7 +257,10 @@ self.addEventListener('push', (event) => {
 /** Focus an existing TodoTwo tab if there is one, otherwise open a new one. */
 self.addEventListener('notificationclick', (event) => {
   event.notification.close()
-  const url = (event.notification.data && event.notification.data.url) || '/todotwo'
+  const path = (event.notification.data && event.notification.data.url) || '/todotwo'
+  // client.url is absolute; the payload url is a path. Comparing the two raw
+  // never matched, so every tap opened a new window instead of focusing one.
+  const url = new URL(path, self.location.origin).href
 
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
