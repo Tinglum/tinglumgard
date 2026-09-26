@@ -585,6 +585,7 @@ export interface PersonRow {
   auth_user_id: string | null
   /** Their first day. Anchors the onboarding ramp; null means no ramp. */
   farm_start_date: string | null
+  leave_date: string | null
   roles: string[]
 }
 
@@ -594,7 +595,7 @@ export async function getPeople(): Promise<PersonRow[]> {
 
   const { data: people, error } = await db
     .from('people')
-    .select('id, full_name, preferred_name, email, auth_user_id, farm_start_date')
+    .select('id, full_name, preferred_name, email, auth_user_id, farm_start_date, leave_date')
     .is('deleted_at', null)
     .eq('is_active', true)
     .order('full_name')
@@ -656,7 +657,7 @@ export async function getDaysOffSchedule(days = 14, from: FarmDate = farmToday()
   if (staysResult.error) throw new Error(`Could not load stays: ${staysResult.error.message}`)
 
   const inputs = new Map(
-    ((inputsResult.data ?? []) as { person_id: string; farm_start_date: string | null; time_off: { start: string; end: string }[] }[])
+    ((inputsResult.data ?? []) as { person_id: string; farm_start_date: string | null; leave_date: string | null; time_off: { start: string; end: string }[] }[])
       .map((row) => [row.person_id, row])
   )
   // Same test as the cron: a seven-day weekday rule means "not on the rota".
@@ -687,6 +688,7 @@ export async function getDaysOffSchedule(days = 14, from: FarmDate = farmToday()
       id: p.id,
       name: p.preferred_name || p.full_name,
       farmStartDate: inputs.get(p.id)!.farm_start_date,
+      leaveDate: inputs.get(p.id)!.leave_date,
       nonparticipant: nonparticipants.has(p.id),
       awayDates: away.get(p.id) ?? [],
     })),

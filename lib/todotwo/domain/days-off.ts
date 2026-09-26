@@ -86,6 +86,12 @@ export interface RotaPersonFacts {
   nonparticipant: boolean
   /** Dates they are away: approved time off, or firmly outside their stay. */
   awayDates: FarmDate[]
+  /**
+   * The day they leave the farm. That day and every day after it count as
+   * away: nobody does the evening round on the day they catch a bus.
+   * Optional so callers that predate leave dates keep working.
+   */
+  leaveDate?: FarmDate | null
 }
 
 /**
@@ -134,6 +140,12 @@ export function rotaParticipants(people: RotaPersonFacts[], from: FarmDate, days
     .filter((person) => !person.nonparticipant)
     .map((person) => {
       const unavailable = new Set(person.awayDates)
+      if (person.leaveDate) {
+        for (let offset = 0; offset < days; offset += 1) {
+          const date = addFarmDays(from, offset)
+          if (date >= person.leaveDate) unavailable.add(date)
+        }
+      }
       if (person.farmStartDate) {
         for (let offset = 0; offset < days; offset += 1) {
           const date = addFarmDays(from, offset)

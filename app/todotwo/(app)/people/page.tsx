@@ -2,6 +2,7 @@ import Link from 'next/link'
 
 import { AddPersonForm } from '@/components/todotwo/people/add-person-form'
 import { FirstDayControl } from '@/components/todotwo/people/first-day-control'
+import { LeaveDateControl } from '@/components/todotwo/people/leave-date-control'
 import { Surface } from '@/components/todotwo/ui/states'
 import { requireRole } from '@/lib/todotwo/auth'
 import { getPeople } from '@/lib/todotwo/queries'
@@ -75,6 +76,12 @@ export default async function PeoplePage() {
                 <FirstDayControl
                   personId={person.id}
                   value={person.farm_start_date}
+                  canEdit={canEdit}
+                />
+
+                <LeaveDateControl
+                  personId={person.id}
+                  value={person.leave_date}
                   canEdit={canEdit}
                 />
 

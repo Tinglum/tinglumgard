@@ -150,3 +150,44 @@ describe('releasing work held on a day off', () => {
       .toEqual(['auto', 'by-coordinator'])
   })
 })
+
+describe('leave dates', () => {
+  it('keeps somebody off the rota from the day they leave, and every day after', () => {
+    const [leaver] = rotaParticipants(
+      [
+        {
+          id: 'l',
+          name: 'Leaver',
+          farmStartDate: null,
+          nonparticipant: false,
+          awayDates: [],
+          leaveDate: '2026-10-02',
+        },
+      ],
+      '2026-09-30',
+      5
+    )
+    // Working 30 Sep and 1 Oct; gone from 2 Oct, leaving day included.
+    expect(leaver.unavailableDates).toEqual(['2026-10-02', '2026-10-03', '2026-10-04'])
+  })
+
+  it('counts a leaver out of the headcount, so days off follow', () => {
+    const base = ['a', 'b', 'c', 'd', 'e'].map((id) => ({
+      id,
+      name: id,
+      farmStartDate: null,
+      nonparticipant: false,
+      awayDates: [] as string[],
+    }))
+    // Five available until "e" leaves on 2 Oct, then four: nobody can be off.
+    const rota = rotaParticipants(
+      [...base.slice(0, 4), { ...base[4], leaveDate: '2026-10-02' }],
+      '2026-09-30',
+      4
+    )
+    const schedule = dayOffSchedule(rota, '2026-09-30', 4)
+    expect(schedule.map((d) => d.available)).toEqual([5, 5, 4, 4])
+    expect(schedule[2].off).toBeNull()
+    expect(schedule[3].off).toBeNull()
+  })
+})
