@@ -6,6 +6,7 @@ import {
   buildAssignmentPlan,
   fairnessSpread,
 } from '@/lib/todotwo/domain/assignment'
+import { rulesToConstraints } from '@/lib/todotwo/domain/assignment-rules'
 
 const people = [
   { id: 'amber', name: 'Amber' },
@@ -277,5 +278,45 @@ describe('work people already hold', () => {
     // Theo holds one round (one job); a cap of two still leaves room for one more.
     const plan = buildAssignmentPlan(kitchen, [people[0]], [goatsAndRabbits, cap], {}, heldRound)
     expect(plan.assignments.map((a) => a.personId)).toEqual(['theo'])
+  })
+})
+
+describe('rules against held work, end to end', () => {
+  // The production case from 26 Sep: Kitchen was already handed to Miguel,
+  // then dinner came round to be placed. Only Dinner was being placed, so the
+  // "whoever cooks does not do the kitchen" rule had only one side among the
+  // placements and rule resolution dropped it as unable to clash.
+  const day = { date: '2026-09-27', weekday: 'SU' as const }
+  const cookVsKitchen = {
+    id: 'r1',
+    label: 'Whoever cooks does not do the kitchen',
+    kind: 'different_people' as const,
+    payload: { labelsA: ['Breakfast', 'Dinner'], labelsB: ['Kitchen'] },
+    enabled: true,
+    sort_order: 1,
+    source_text: null,
+  }
+  const dinner = [{ id: 'dinner', title: 'Dinner', groupLabel: 'Dinner', ...day }]
+  const held = [{ personId: 'miguel', date: day.date, title: 'Kitchen', groupLabel: 'Kitchen' }]
+  // Miguel is the easy pick — less loaded, and first alphabetically — so only
+  // the rule can steer dinner away from him.
+  const people = [
+    { id: 'miguel', name: 'Miguel', existingLoad: 0 },
+    { id: 'robbert', name: 'Robbert', existingLoad: 5 },
+  ]
+
+  it('drops the rule when resolved against placements alone (the bug)', () => {
+    const { constraints } = rulesToConstraints([cookVsKitchen], dinner)
+    const plan = buildAssignmentPlan(dinner, people, constraints, {}, held)
+    expect(plan.assignments[0].personId).toBe('miguel')
+  })
+
+  it('keeps the cook off the kitchen when held work is part of resolution', () => {
+    const { constraints } = rulesToConstraints([cookVsKitchen], [
+      ...dinner,
+      ...held.map((h, i) => ({ id: `held:${i}`, title: h.title, groupLabel: h.groupLabel })),
+    ])
+    const plan = buildAssignmentPlan(dinner, people, constraints, {}, held)
+    expect(plan.assignments[0].personId).toBe('robbert')
   })
 })
