@@ -183,11 +183,29 @@ function blockersFor(
  * than dependent on map ordering — two runs over the same data produce the same
  * rota, which matters when someone asks why they got Saturday again.
  */
+/**
+ * Work somebody already holds in the planning window.
+ *
+ * The solver used to start every run blind: it knew only the assignments it
+ * made that night. So when released work came back round to be placed again —
+ * somebody leaving, a day off moving a round — it could hand Theo Monday's
+ * goats on top of Monday's dinner, because Monday's dinner had been decided
+ * the night before and was invisible to it. Every day-level rule was affected:
+ * separations, the daily cap, and load.
+ */
+export interface HeldWork {
+  personId: string
+  date: string
+  title: string
+  groupLabel: string | null
+}
+
 export function buildAssignmentPlan(
   tasks: AssignableTask[],
   people: AssignablePerson[],
   constraints: Constraint[],
-  history: RotationHistory = {}
+  history: RotationHistory = {},
+  held: HeldWork[] = []
 ): AssignmentPlan {
   const load = new Map<string, number>()
   const assignedToday = new Map<string, number>()
@@ -246,6 +264,34 @@ export function buildAssignmentPlan(
   const sideHeld = new Map<string, 'A' | 'B'>()
   const sideKey = (personId: string, date: string, index: number) =>
     `${personId}:${date}:${index}`
+
+  // Seed the day-level state with what people already hold, so tonight's
+  // decisions respect yesterday's. Counted the way a new placement is: a held
+  // bundle is ONE unit toward the daily cap, not four — otherwise somebody
+  // holding the goats-and-rabbits round would look like they had four jobs
+  // and be refused work they could perfectly well take. Each held task also
+  // puts its holder on its side of every separation rule for that day.
+  const heldUnits = new Map<string, Set<string>>()
+  for (const item of held) {
+    const shape = { title: item.title, groupLabel: item.groupLabel }
+    separations.forEach((rule, index) => {
+      const key = sideKey(item.personId, item.date, index)
+      if (sideHeld.has(key)) return
+      if (rule.labelsA.some((label) => taskMatchesLabel(shape, label))) sideHeld.set(key, 'A')
+      else if (rule.labelsB.some((label) => taskMatchesLabel(shape, label))) sideHeld.set(key, 'B')
+    })
+    const bundleIndex = bundles.findIndex((bundle) =>
+      bundle.labels.some((label) => taskMatchesLabel(shape, label))
+    )
+    const unit = bundleIndex === -1 ? `task:${item.groupLabel ?? item.title}` : `bundle:${bundleIndex}`
+    const dayKey = `${item.personId}:${item.date}`
+    const units = heldUnits.get(dayKey) ?? new Set<string>()
+    units.add(unit)
+    heldUnits.set(dayKey, units)
+  }
+  heldUnits.forEach((units, dayKey) => {
+    assignedToday.set(dayKey, (assignedToday.get(dayKey) ?? 0) + units.size)
+  })
 
   for (const [, group] of Array.from(units)) {
     const date = group[0].date
