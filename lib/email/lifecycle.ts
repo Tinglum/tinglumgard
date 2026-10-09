@@ -1211,6 +1211,7 @@ async function getFlowMap(): Promise<Map<string, FlowDefinition>> {
       'egg.order.shipped.plus_one',
       'egg.hatch.followup',
       'egg.order.forfeited',
+      'egg.pickup.choose_day',
       'chicken.ready_for_pickup',
       'chicken.pickup.reminder',
       'chicken.choose_pickup_day',
@@ -1922,7 +1923,11 @@ async function materializeEggFlowInstances(flowMap: Map<string, FlowDefinition>,
         await reconcileEggPaymentDependentFlowInstances(orderId, 'order_no_longer_remainder_due');
       }
 
-      if (['deposit_paid', 'fully_paid', 'preparing'].includes(eggStatus)) {
+      // Add-more nudge is shipping-oriented ("sendes i morgen"); pickup orders must not get it.
+      if (
+        ['deposit_paid', 'fully_paid', 'preparing'].includes(eggStatus) &&
+        String((detailedOrder as any).delivery_method || '') === 'posten'
+      ) {
         const dayBeforeTarget = zonedDateTimeToUtc(
           addDays(deliveryYmdSafe, -1),
           EGG_DAY_BEFORE_ADD_MORE_HOUR,
@@ -2053,11 +2058,19 @@ async function materializeEggFlowInstances(flowMap: Map<string, FlowDefinition>,
         choosePickupDayFlow &&
         ['deposit_paid', 'fully_paid', 'preparing'].includes(eggStatus) &&
         ['farm_pickup', 'e6_pickup'].includes(String((detailedOrder as any).delivery_method || '')) &&
-        !(detailedOrder as any).pickup_date
+        !(order as any).pickup_date
       ) {
         const chooseYmd = addDays(deliveryYmdSafe, -7);
-        const chooseWhen = zonedDateTimeToUtc(chooseYmd, 8, 0, config.timezone);
-        if (chooseWhen.getTime() > Date.now()) {
+        const chooseTarget = zonedDateTimeToUtc(chooseYmd, 8, 0, config.timezone);
+        // Orders placed/paid inside the 7-day window: send now, as long as delivery hasn't started.
+        const deliveryStart = zonedDateTimeToUtc(deliveryYmdSafe, 0, 0, config.timezone);
+        const chooseWhen =
+          chooseTarget.getTime() > nowUtc.getTime()
+            ? chooseTarget
+            : nowUtc.getTime() < deliveryStart.getTime() + 3 * 24 * 60 * 60 * 1000
+              ? nowUtc
+              : null;
+        if (chooseWhen) {
           const chooseInserted = await insertFlowInstance({
             flowId: choosePickupDayFlow.id,
             flowKey: choosePickupDayFlow.flow_key,
@@ -2578,7 +2591,9 @@ async function processDueInstances(
       } else {
         const eggOrder = await fetchEggOrderForLifecycle(instance.entity_id);
         const eggStatus = String((eggOrder as { status?: string | null } | null)?.status || '');
-        const eligible = ['deposit_paid', 'fully_paid', 'preparing'].includes(eggStatus);
+        const eligible =
+          ['deposit_paid', 'fully_paid', 'preparing'].includes(eggStatus) &&
+          String((eggOrder as { delivery_method?: string | null } | null)?.delivery_method || '') === 'posten';
         if (!eggOrder || !eligible) {
           await updateFlowInstanceStatus(instance.id, {
             status: 'cancelled',
@@ -2722,6 +2737,26 @@ async function processDueInstances(
             ? `${chosenDateStr} ${timeLabel} ${chickenOrder.pickup_time}`
             : chosenDateStr,
         };
+      }
+    }
+
+    if (instance.flow_key === 'egg.pickup.choose_day') {
+      const { data: eggOrder } = await supabaseAdmin
+        .from('egg_orders')
+        .select('status, delivery_method, pickup_date')
+        .eq('id', instance.entity_id)
+        .maybeSingle();
+
+      const eligibleStatus = ['deposit_paid', 'fully_paid', 'preparing'].includes(String(eggOrder?.status || ''));
+      const isPickup = ['farm_pickup', 'e6_pickup'].includes(String(eggOrder?.delivery_method || ''));
+      if (!eggOrder || !eligibleStatus || !isPickup || eggOrder.pickup_date) {
+        await updateFlowInstanceStatus(instance.id, {
+          status: 'cancelled',
+          lastError: eggOrder?.pickup_date ? 'pickup_day_already_chosen' : 'egg_choose_pickup_day_not_eligible',
+          processedAt: new Date().toISOString(),
+        });
+        skipped += 1;
+        continue;
       }
     }
 
