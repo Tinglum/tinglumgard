@@ -167,7 +167,7 @@ export function summarizeChickenOrderLines(order: ChickenOrderLike): ChickenOrde
     const roosters = Math.max(0, Math.round(toNumber(addition?.quantity_roosters)));
     if (hens === 0 && roosters === 0) continue;
 
-    const pricePerHen = Math.max(0, toNumber(addition?.price_per_hen_nok) || basePricePerHen);
+    const pricePerHen = Math.max(0, toNumber(addition?.price_per_hen_nok ?? basePricePerHen));
     const pricePerRooster = Math.max(
       0,
       toNumber(addition?.price_per_rooster_nok) ||
@@ -179,7 +179,8 @@ export function summarizeChickenOrderLines(order: ChickenOrderLike): ChickenOrde
 
     lines.push({
       source: 'addition',
-      breedName: pickBreedName(addition?.chicken_breeds || null),
+      breedName: pickBreedName(addition?.chicken_breeds || null) +
+        (addition?.price_per_hen_nok != null && pricePerHen === 0 && explicitSubtotal === 0 && roosters === 0 ? ' (100 % rabatt / discount)' : ''),
       hens,
       roosters,
       ageWeeksAtPickup: resolveLineAgeWeeks(
@@ -189,7 +190,7 @@ export function summarizeChickenOrderLines(order: ChickenOrderLike): ChickenOrde
       ),
       pricePerHenNok: pricePerHen,
       pricePerRoosterNok: pricePerRooster,
-      subtotalNok: explicitSubtotal > 0 ? explicitSubtotal : computedSubtotal,
+      subtotalNok: addition?.subtotal_nok != null ? explicitSubtotal : computedSubtotal,
     });
   }
 

@@ -77,13 +77,15 @@ function buildChickenModel(order: ChickenReceiptOrder, lang: Lang): ReceiptModel
   ]
   for (const a of order.chicken_order_additions || []) {
     const subtotal =
-      Number(a.subtotal_nok || 0) > 0
-        ? Number(a.subtotal_nok || 0)
-        : Number(a.quantity_hens || 0) * Number(a.price_per_hen_nok || order.price_per_hen_nok || 0)
+      a.subtotal_nok != null
+        ? Number(a.subtotal_nok)
+        : Number(a.quantity_hens || 0) * Number(a.price_per_hen_nok ?? order.price_per_hen_nok ?? 0)
     if (Number(a.quantity_hens || 0) <= 0 && Number(a.quantity_roosters || 0) <= 0) continue
     lines.push({
       name: a.chicken_breeds?.name || (lang === 'no' ? 'Ekstra kyllinger' : 'Extra chickens'),
-      sub: lang === 'no' ? 'Tillegg' : 'Addition',
+      sub: subtotal === 0 && Number(a.price_per_hen_nok) === 0
+        ? (lang === 'no' ? '100 % rabatt' : '100% discount')
+        : (lang === 'no' ? 'Tillegg' : 'Addition'),
       qty: birdsQty(Number(a.quantity_hens || 0), Number(a.quantity_roosters || 0), lang),
       amountOre: subtotal * 100,
     })

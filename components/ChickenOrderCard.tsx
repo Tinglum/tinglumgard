@@ -212,7 +212,7 @@ export function ChickenOrderCard({ order, onPayRemainder, onPayDeposit, onRefres
       const additionSubtotal =
         Number(addition.subtotal_nok || 0) > 0
           ? Number(addition.subtotal_nok || 0)
-          : Number(addition.quantity_hens || 0) * Number(addition.price_per_hen_nok || order.price_per_hen_nok || 0)
+          : Number(addition.quantity_hens || 0) * Number(addition.price_per_hen_nok ?? order.price_per_hen_nok ?? 0)
       current.subtotalNok += additionSubtotal
       grouped.set(key, current)
     }
@@ -298,14 +298,16 @@ export function ChickenOrderCard({ order, onPayRemainder, onPayDeposit, onRefres
       const computedAge = getAgeWeeks(addition.chicken_hatches?.hatch_date || null, pickupDate)
       const ageWeeksAtPickup = explicitAge ?? (computedAge > 0 ? computedAge : null)
       const additionSubtotal =
-        Number(addition.subtotal_nok || 0) > 0
-          ? Number(addition.subtotal_nok || 0)
-          : Number(addition.quantity_hens || 0) * Number(addition.price_per_hen_nok || order.price_per_hen_nok || 0) +
+        addition.subtotal_nok != null
+          ? Number(addition.subtotal_nok)
+          : Number(addition.quantity_hens || 0) * Number(addition.price_per_hen_nok ?? order.price_per_hen_nok ?? 0) +
             Number(addition.quantity_roosters || 0) * Number(addition.price_per_rooster_nok || order.price_per_rooster_nok || 0)
 
       lines.push({
         key: addition.id || `addition-${index}`,
-        label: lang === 'en' ? 'Extra chickens' : 'Ekstra kyllinger',
+        label: addition.price_per_hen_nok != null && Number(addition.price_per_hen_nok) === 0 && additionSubtotal === 0
+          ? (lang === 'en' ? '100% discount' : '100 % rabatt')
+          : (lang === 'en' ? 'Extra chickens' : 'Ekstra kyllinger'),
         breedName: addition.chicken_breeds?.name || common.defaultChickenName,
         quantityLabel: formatBirdLine(Number(addition.quantity_hens || 0), Number(addition.quantity_roosters || 0)),
         amountNok: additionSubtotal,

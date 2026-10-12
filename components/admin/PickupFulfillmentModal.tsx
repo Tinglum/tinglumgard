@@ -2154,6 +2154,14 @@ function PaymentSummary({
       highlight: Number(order.remainder_amount || 0) > 0,
     })
   } else if (type === 'chicken') {
+    for (const addition of order.chicken_order_additions || []) {
+      if (addition.price_per_hen_nok != null && Number(addition.price_per_hen_nok) === 0 && Number(addition.subtotal_nok) === 0 && Number(addition.quantity_roosters || 0) === 0) {
+        rows.push({
+          label: `${relationName(addition.chicken_breeds)}: ${addition.quantity_hens} ${no ? 'høne, 100 % rabatt' : 'hen, 100% discount'}`,
+          value: formatMoney(0),
+        })
+      }
+    }
     rows.push({ label: no ? 'Totalt' : 'Total', value: formatMoney(Number(order.total_amount_nok || 0)) })
     rows.push({ label: no ? 'Depositum betalt' : 'Deposit paid', value: formatMoney(Number(order.deposit_amount_nok || 0)) })
     rows.push({
