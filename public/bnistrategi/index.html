@@ -469,15 +469,63 @@
   @media (prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
   html{scroll-behavior:smooth}
 
+
+  /* ---- PDF download link ---- */
+  a.pdf-link{
+    display:inline-flex;align-items:center;gap:8px;margin-top:14px;
+    font-family:"Archivo",sans-serif;font-weight:700;font-size:13px;letter-spacing:.02em;
+    color:var(--accent-ink);text-decoration:none;border:1px solid var(--line-strong);
+    border-radius:999px;padding:8px 14px;min-height:40px;background:var(--surface);transition:border-color .15s,color .15s;
+  }
+  a.pdf-link::before{content:"";width:12px;height:12px;flex:none;
+    background:currentColor;
+    -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M6 1v7M2.5 5 6 8.5 9.5 5M1.5 11h9' fill='none' stroke='%23000' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/contain no-repeat;
+            mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M6 1v7M2.5 5 6 8.5 9.5 5M1.5 11h9' fill='none' stroke='%23000' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/contain no-repeat}
+  a.pdf-link:hover{border-color:var(--accent)}
+  a.pdf-link:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+  /* ---- Print / PDF: same design, menu repeated on every page ---- */
   @media print{
-    .themebtn,.rail,.copybtn,.toc-btn{display:none!important}
-    .shell{display:block;max-width:none;padding:0}
-    .doc{padding:0;max-width:none}
-    body{background:#fff;color:#000;font-size:11pt;line-height:1.4}
-    .callout,.example,.cmp,.tldr,.circle,.tablewrap,.roleblock,.pq,.formel{break-inside:avoid;page-break-inside:avoid}
-    h2,h3{break-after:avoid}
-    a{color:#000;text-decoration:none}
-    .close .defn{background:#000!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    html,body{background:#fff!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    html{scroll-behavior:auto}
+    .themebtn,.copybtn,.toc-btn,.pdf-link{display:none!important}
+
+    /* Fixed elements repeat on every printed page: the rail becomes a running menu */
+    .rail{
+      display:flex!important;flex-direction:column;gap:18px;
+      position:fixed!important;top:0;left:0;bottom:0;width:196px;
+      margin:0!important;padding:4px 22px 0 0!important;
+      background:#fff!important;border-right:1px solid var(--line)!important;border-bottom:none!important;
+      max-height:none!important;overflow:visible!important;box-shadow:none!important;
+    }
+    .rail .rail-label{display:block!important}
+    .rail nav.toc,.rail.open nav.toc{
+      display:block!important;position:static!important;padding:0!important;
+      background:none!important;box-shadow:none!important;border:none!important;max-height:none!important;
+    }
+    .rail nav.toc a{padding:5px 0!important;border-bottom:none!important}
+    .rail nav.toc .t{font-size:12.5px!important}
+    .rail nav.toc a.active .t{color:var(--ink)!important;font-weight:600!important}
+
+    .shell{display:block!important;max-width:none!important;margin:0!important;padding:0 0 0 228px!important}
+    .doc{padding:0!important;max-width:none!important}
+    header.mast{padding-top:4px}
+
+    /* Each part starts on a new page */
+    section.part,section.close{break-before:page;page-break-before:always}
+    section.part{border-bottom:none;padding-top:4px}
+    .callout,.example,.cmp,.tldr,.circle,.tablewrap,.roleblock,.pq,.formel,.rung,.ladder,.crit,.res,.contact{break-inside:avoid;page-break-inside:avoid}
+    h2,h3,.part-head{break-after:avoid;page-break-after:avoid}
+    p:has(+ .ladder),p:has(+ .invite),p:has(+ ul),p:has(+ .formel){break-after:avoid;page-break-after:avoid}
+    p{orphans:3;widows:3}
+
+    /* Work circle as a 3 x 2 grid on paper */
+    .circle{display:grid!important;grid-template-columns:repeat(3,1fr);gap:10px!important;overflow:visible!important}
+    .circle .arrow{display:none!important}
+    .circle .step{min-width:0!important}
+
+    .say[data-copy]{padding:13px 16px!important}
+    .close .defn{-webkit-print-color-adjust:exact;print-color-adjust:exact}
   }
 </style>
 </head>
@@ -514,6 +562,7 @@
     <h1>BNI er en arbeidsmetode</h1>
     <p class="lede">En felles forståelse av hva BNI er, og hvorfor metoden skaper referanser, verdi og <em>målbar business</em>.</p>
     <p class="owner">Versjon 1.0, oktober 2026 · Ansvarlig: Kenneth Tinglum, National Trainer, BNI Norge</p>
+    <a class="pdf-link" href="/bnistrategi/BNI-er-en-arbeidsmetode.pdf" download>Last ned som PDF</a>
 
     <div class="audience">
       <a href="#rolle-partner">
@@ -931,6 +980,7 @@
           <li><a href="https://www.bniconnectglobal.com" target="_blank" rel="noopener">BNI Connect</a>: rapportering av 1-til-1, referanser, TFB og gjester. Finnes også som BNI-appen.</li>
           <li><a href="https://msp.tinglum.com/bnimsp" target="_blank" rel="noopener">Trenerportalen for MSP</a>: for konsulenter og trenere, krever innlogging.</li>
           <li>1-til-1-skjemaet, BNI-kompasset og teammanualen får du hos konsulenten i teamet ditt.</li>
+          <li class="pdf-link"><a href="/bnistrategi/BNI-er-en-arbeidsmetode.pdf" download>Dette dokumentet som PDF</a>, med klikkbar meny og bokmerker.</li>
         </ul>
       </div>
       <div class="res">
