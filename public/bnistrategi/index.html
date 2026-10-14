@@ -3,14 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>BNI er en arbeidsmetode · BNI Norge</title>
-<meta name="description" content="Strategi- og kommunikasjonsdokument for BNI Norge, for konsulenter, teamledere og partnere.">
-<meta name="robots" content="noindex">
+<title>BNI er en arbeidsmetode · Internt for konsulenter · BNI Norge</title>
+<meta name="description" content="Internt metodedokument for BNI Norge og konsulentene.">
+<meta name="robots" content="noindex, nofollow">
 <meta property="og:type" content="website">
 <meta property="og:locale" content="nb_NO">
 <meta property="og:site_name" content="BNI Norge">
 <meta property="og:title" content="BNI er en arbeidsmetode">
-<meta property="og:description" content="Slik skaper vi referanser, verdi og målbar business. Strategi og kommunikasjon for konsulenter, teamledere og partnere i BNI Norge.">
+<meta property="og:description" content="Internt metodedokument for BNI Norge og konsulentene: metoden, standarden og verktøyene.">
 <meta property="og:image" content="https://msp.tinglum.com/bnistrategi/og.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
@@ -258,13 +258,14 @@
   /* ---- Ladder (Reactor/Promoter/Creator) ---- */
   .ladder{display:flex;flex-direction:column;gap:10px;margin:22px 0}
   .rung{
-    display:grid;grid-template-columns:auto 1fr;gap:16px;align-items:baseline;
+    display:grid;grid-template-columns:10.5em 1fr;gap:16px;align-items:baseline;
     padding:14px 18px;background:var(--surface-2);border-radius:10px;
     border-left:3px solid var(--line-strong);
   }
   .rung:nth-child(1){border-left-color:var(--line-strong)}
   .rung:nth-child(2){border-left-color:color-mix(in srgb,var(--accent) 55%,var(--line-strong))}
-  .rung:nth-child(3){border-left-color:var(--accent)}
+  .rung:nth-child(n+3){border-left-color:var(--accent)}
+  @media(max-width:620px){.rung{grid-template-columns:1fr;gap:3px}}
   .rung .rn{font-family:"Archivo";font-weight:700;font-size:15px;letter-spacing:-.01em;color:var(--ink)}
   .rung .rd{font-size:16px;color:var(--ink-soft);line-height:1.4}
   .rung .rd em{color:var(--ink);font-style:normal;font-weight:600;font-family:"Spectral"}
@@ -470,6 +471,13 @@
   html{scroll-behavior:smooth}
 
 
+  /* ---- New-model tag ---- */
+  .tag-new{
+    display:inline-block;vertical-align:middle;margin-left:8px;transform:translateY(-2px);
+    font-family:"Archivo",sans-serif;font-weight:700;font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;
+    color:var(--accent-ink);background:var(--accent-wash);border-radius:999px;padding:4px 9px;
+  }
+
   /* ---- PDF download link ---- */
   a.pdf-link{
     display:inline-flex;align-items:center;gap:8px;margin-top:14px;
@@ -541,15 +549,18 @@
     <nav class="toc" id="toc" aria-label="Innhold">
       <ol>
         <li><a href="#del1"><span class="t">Hva BNI er</span></a></li>
-        <li><a href="#del2"><span class="t">Flink og refererbar</span></a></li>
-        <li><a href="#del3"><span class="t">Referansen</span></a></li>
-        <li><a href="#del4"><span class="t">Arbeidsmetoden</span></a></li>
-        <li><a href="#del5"><span class="t">Tillit kommer av metoden</span></a></li>
-        <li><a href="#del6"><span class="t">Givers Gain i praksis</span></a></li>
-        <li><a href="#del7"><span class="t">De riktige menneskene</span></a></li>
-        <li><a href="#del8"><span class="t">BNI som utviklingsprogram</span></a></li>
-        <li><a href="#del9"><span class="t">Hva dette betyr for deg</span></a></li>
-        <li><a href="#del10"><span class="t">Slik forklarer vi BNI</span></a></li>
+        <li><a href="#del2"><span class="t">Målbildet</span></a></li>
+        <li><a href="#del3"><span class="t">Refererbarhet</span></a></li>
+        <li><a href="#del4"><span class="t">Referansen</span></a></li>
+        <li><a href="#del5"><span class="t">Å gi en referanse</span></a></li>
+        <li><a href="#del6"><span class="t">Å motta en referanse</span></a></li>
+        <li><a href="#del7"><span class="t">Arbeidsmetoden</span></a></li>
+        <li><a href="#del8"><span class="t">Tillit</span></a></li>
+        <li><a href="#del9"><span class="t">Givers Gain</span></a></li>
+        <li><a href="#del10"><span class="t">Kontaktsirkelen</span></a></li>
+        <li><a href="#del11"><span class="t">BNI som utviklingsprogram</span></a></li>
+        <li><a href="#del12"><span class="t">Konsulentens verktøy</span></a></li>
+        <li><a href="#del13"><span class="t">Språket vi bruker</span></a></li>
         <li><a href="#ressurser"><span class="t">Ressurser og kilder</span></a></li>
       </ol>
     </nav>
@@ -558,27 +569,27 @@
   <main class="doc">
 
   <header class="mast">
-    <span class="eyebrow">Strategi og kommunikasjon</span>
+    <span class="eyebrow">Internt · For BNI Norge og konsulentene</span>
     <h1>BNI er en arbeidsmetode</h1>
-    <p class="lede">En felles forståelse av hva BNI er, og hvorfor metoden skaper referanser, verdi og <em>målbar business</em>.</p>
-    <p class="owner">Versjon 1.0, oktober 2026 · Ansvarlig: Kenneth Tinglum, National Trainer, BNI Norge</p>
+    <p class="lede">Metoden vi lærer bort, standarden vi holder, og verktøyene vi bruker for at partnerne skal lykkes med BNI som strategi og program.</p>
+    <p class="owner">Versjon 2.0, oktober 2026 · Ansvarlig: Kenneth Tinglum, National Trainer, BNI Norge · Teamledelsen får et eget dokument.</p>
     <a class="pdf-link" href="/bnistrategi/BNI-er-en-arbeidsmetode.pdf" download>Last ned som PDF</a>
 
     <div class="audience">
-      <a href="#rolle-partner">
-        <span class="role-tag">Partner</span>
-        <p>Hva du faktisk trener på, og hva du gjør før neste møte.</p>
-        <span class="go">Gå til din rolle <span aria-hidden="true">→</span></span>
+      <a href="#del13">
+        <span class="role-tag">Felles språk</span>
+        <p>Definisjonene og ordene alle konsulenter bruker likt, i hver region og hvert team.</p>
+        <span class="go">Gå til språket <span aria-hidden="true">→</span></span>
       </a>
-      <a href="#rolle-teamleder">
-        <span class="role-tag">Teamleder</span>
-        <p>Hvilken arbeidsflyt agendaen skal beskytte, ledd for ledd.</p>
-        <span class="go">Gå til din rolle <span aria-hidden="true">→</span></span>
+      <a href="#del3">
+        <span class="role-tag">Coaching av partnere</span>
+        <p>Modellene, de vanlige feilene og grepene som gjør en partner bedre uke for uke.</p>
+        <span class="go">Gå til modellene <span aria-hidden="true">→</span></span>
       </a>
-      <a href="#rolle-konsulent">
-        <span class="role-tag">Konsulent og trener</span>
-        <p>Ett felles språk og én metode for å coache team og partnere mot resultater.</p>
-        <span class="go">Gå til din rolle <span aria-hidden="true">→</span></span>
+      <a href="#del12">
+        <span class="role-tag">Diagnose av team</span>
+        <p>Varsellys og lekkasjekart: hvor arbeidsflyten svikter, og hva du gjør med det.</p>
+        <span class="go">Gå til verktøyene <span aria-hidden="true">→</span></span>
       </a>
     </div>
   </header>
@@ -587,11 +598,11 @@
     <span class="eyebrow">Kjernen på 30 sekunder</span>
     <ul>
       <li><strong>BNI er en arbeidsmetode</strong> for å skape referanser, verdi og målbar business gjennom relasjoner, brukt hver uke.</li>
-      <li><strong>Gjør deg refererbar:</strong> lær teamet hvilket problem du løser, så de kjenner det igjen fra samtaler de allerede har hatt.</li>
-      <li><strong>Se bakover:</strong> hvem har du snakket med den siste uka som har et problem en partner kan løse?</li>
-      <li><strong>Sirkelen:</strong> møte, 1-til-1, referanse, oppfølging, business og rapportering. Hver uke.</li>
-      <li><strong>En referanse</strong> har to kriterier: et reelt behov, og en person som venter på kontakten.</li>
-      <li><strong>Tillit</strong> trengs ikke for å gi en referanse. Den vokser frem av å gjøre metoden, og gjør deg over tid til Creator.</li>
+      <li><strong>Standarden:</strong> alle som har salg som hovedgreie, skal kunne lykkes når de bruker BNI som strategi og program, uavhengig av teamet.</li>
+      <li><strong>Målbildet:</strong> 4 til 5 timer i uka gir opp mot 50 prosent av omsetningen etter tre år.</li>
+      <li><strong>Se bakover:</strong> den beste referansen denne uka finnes i samtaler partneren allerede har hatt.</li>
+      <li><strong>En kvalifisert referanse</strong> har et reelt behov og en person som venter på kontakten. Å motta den godt er like viktig som å gi den.</li>
+      <li><strong>Tillit</strong> trengs ikke for å gi en referanse. Den vokser frem av metoden, og gjør partneren over tid til Creator.</li>
     </ul>
   </section>
 
@@ -606,37 +617,86 @@
       <span class="label">Definisjonen</span>
       <p class="big">BNI er en strukturert arbeidsmetode for å skape referanser, verdi og målbar business gjennom relasjoner og nettverk. Vi lærer hvilke problemer partnerne våre kan løse, kjenner igjen disse behovene hos mennesker vi har møtt, og kobler dem til riktig problemløser gjennom en god introduksjon.</p>
     </div>
-    <p>Metoden er enkel. Vi møter mennesker som har problemer og behov, og vi kjenner mennesker som kan løse mange av dem, også partnere vi nettopp har blitt kjent med. Når vi lærer å kjenne igjen behovene, huske hvem som løser dem og koble dem sammen med en god introduksjon, får tre parter noe ut av det: den som trengte hjelp, partneren vi introduserte, og vi selv, fordi vi blir mennesker som skaper verdi i nettverket vårt.</p>
-    <p>Brukt som en strategi, konsekvent og over tid, gir BNI deg flere kvalifiserte referanser, nye kunder og en målbar andel av omsetningen. Samtidig bygger du et sterkere profesjonelt nettverk og blir bedre til å bruke <em>alle</em> nettverkene dine.</p>
-    <p>Vi kan ikke garantere resultater. Men all vår erfaring tilsier at partnere som bruker BNI som en strategi, og ikke bare som et møte de går på, lykkes, uavhengig av bransje og utgangspunkt.</p>
+    <p>Dette dokumentet er for oss: BNI Norge og konsulentene. Det beskriver metoden slik vi lærer den bort, grundigere enn en partner trenger å lese den. Når vi er enige om innholdet her, sier vi det samme i MSP, i Kompasset, i utdanningspunktene og i hver coachingsamtale.</p>
+    <p>Metoden er enkel å forklare. Partnerne møter mennesker som har problemer og behov, og de kjenner mennesker som kan løse mange av dem, også partnere de nettopp har blitt kjent med. Når de lærer å kjenne igjen behovene, huske hvem som løser dem og koble dem sammen med en god introduksjon, får tre parter noe ut av det: den som trengte hjelp, partneren som ble introdusert, og den som koblet, fordi hen blir en som skaper verdi i nettverket sitt.</p>
 
-    <h3>BNI starter med et problem du allerede har hørt om</h3>
+    <h3>BNI starter med et problem partneren allerede har hørt om</h3>
     <p>Forrige uke fortalte en kunde at hen ikke har kontroll på økonomien. I helgen nevnte en venn at de har funnet fukt i det nye huset. På tirsdag sa en bedriftsleder at hen gruer seg til en personalsamtale. En styreleder klaget over strømregningen. En bekjent har en nettside med mye trafikk, men nesten ingen henvendelser.</p>
-    <p>Du har allerede hatt slike samtaler, og BNI handler om å bruke dem. Når du hører et kundecase i møtet, spør deg selv:</p>
+    <p>Alle partnere har hatt slike samtaler. Metoden handler om å bruke dem. Spørsmålet vi trener partnerne til å stille seg, er:</p>
     <div class="pq"><p>«Hvem har jeg snakket med den siste uka som har akkurat dette problemet?»</p></div>
     <p>Når spørsmålet blir en vane, lever BNI også utenfor møtet, som en måte å jobbe på.</p>
 
-    <h3>Slik forklarer mange BNI, og hvorfor det ikke stemmer helt</h3>
-    <p>Når partnere skal beskrive BNI, griper de ofte til det som høres riktigst ut ut fra det de har sett: «et nettverk der vi møtes og presenterer oss», «et sted du blir synlig», «en gjeng bedrifter som kan selge for deg». Beskrivelsene er lette å forstå, men de beskriver rommet og ikke metoden. En ny partner får da feil forventninger.</p>
-    <p>BNI er noe du gjør. Metoden setter deg i stand til å hjelpe mennesker gjennom nettverket ditt, og business kommer tilbake når hele teamet jobber slik. Partnerne dine selger ikke for deg. De lærer å kjenne igjen når noen trenger deg.</p>
+    <h3>Slik forklarer partnerne det ofte, og hvorfor det ikke stemmer helt</h3>
+    <p>Når partnere skal beskrive BNI, griper de ofte til det som høres riktigst ut ut fra det de har sett: «et nettverk der vi møtes og presenterer oss», «et sted du blir synlig», «en gjeng bedrifter som kan selge for deg». Beskrivelsene er lette å forstå, men de beskriver rommet og ikke metoden. En ny partner som hører dem, får feil forventninger, og feil forventninger er den vanligste grunnen til at noen gir opp etter et halvt år.</p>
+    <p>BNI er noe partneren gjør. Metoden setter hen i stand til å hjelpe mennesker gjennom nettverket sitt, og business kommer tilbake når partneren jobber slik over tid. Partnerne selger ikke for hverandre. De lærer å kjenne igjen når noen trenger en av de andre.</p>
+    <div class="example">
+      <span class="label">Slik coacher du</span>
+      <p><strong>Vanlig feil:</strong> Konsulenten river ned det partneren tror, og partneren går i forsvar.</p>
+      <p><strong>Grep:</strong> Flytt forståelsen med én setning: «Et nettverk handler om hvem du møter. En arbeidsmetode handler om hva du gjør hver uke.» Skeptikere overbevises av konkret nytte, ikke av entusiasme. Gi dem ett eksempel der metoden ga målbar business.</p>
+    </div>
   </section>
 
   <!-- DEL 2 -->
   <section class="part" id="del2">
     <div class="part-head">
       <span class="part-num">Del 2</span>
-      <h2>Du må være både flink og refererbar</h2>
+      <h2>Målbildet: hva suksess er</h2>
+      <p class="sub">Standarden vi holder, og tallene vi styrer mot.</p>
     </div>
-    <p>Å vite at «Anne er advokat» forteller meg hva hun gjør, men ikke <strong>når jeg skal tenke på henne</strong>. Du blir refererbar når partnerne forstår hva du hjelper kundene med, godt nok til å kjenne igjen situasjonen i sin egen hverdag: hvilket problem du løser, og hvem som har det. Det krever at de forstår hva du løser. Det krever ikke at de kjenner deg godt.</p>
-    <p>Faglig dyktighet og refererbarhet er to forskjellige ting. Du kan være fantastisk i jobben din, men hvis ingen rundt deg kjenner igjen når noen trenger deg, blir det vanskelig å gi deg referanser.</p>
-    <p>Du gjør deg refererbar ved å lære partnerne <strong>hva de skal kjenne igjen</strong>: hva kunden sier før hen vet at hen trenger deg, hva kunden er frustrert over, hva som nettopp har skjedd, hva problemet koster, og hvem som møter disse menneskene før du gjør.</p>
-    <p>Folk glemmer produkter, bransjelister og tekniske detaljer, men de kjenner igjen situasjoner og problemer. Derfor trener vi på kundecase.</p>
+    <div class="callout" data-copy>
+      <span class="label">Vår standard</span>
+      <p class="big">Alle som har salg som hovedgreie, skal kunne lykkes med BNI når de bruker det som en strategi og et program, uavhengig av hva teamet gjør eller har gjort.</p>
+      <p class="small">Partneren er ikke avhengig av teamet sitt. Hen kan selv bygge sin kontaktsirkel, invitere inn ekspertområdene som mangler og skape referanseflyt rundt seg. Et sterkt team gjør det lettere og raskere, men et svakt team er aldri grunnen til at en partner ikke lykkes.</p>
+    </div>
+    <p>Standarden gjelder det vi forventer internt, og det vi coacher mot. Overfor partnere og gjester sier vi det som erfaring: partnere som bruker BNI som strategi og program, lykkes. Vi lover ikke et bestemt resultat til den enkelte.</p>
+
+    <h3>Målbildet</h3>
+    <div class="formel">4 TIL 5 TIMER I UKA <span class="ar" aria-hidden="true">→</span> TRE ÅR <span class="ar" aria-hidden="true">→</span> OPP MOT 50 % AV OMSETNINGEN</div>
+    <p>Det er dette som skal til for at BNI fungerer som strategi og program. Tiden går til ukesmøtet, 1-til-1, forberedelse av kundecase og Ukens Taler, oppfølging av referanser partneren gir og mottar, og rapportering. Partnere som bruker en time i uka, får et nettverk. Partnere som bruker 4 til 5 timer, får en salgskanal.</p>
+    <p>Si tidsbruken tydelig til nye partnere fra første samtale. Når forventningen er klar fra start, faller færre fra, og det blir lettere å holde dem ansvarlige senere.</p>
+
+    <h3>Suksessformelen <span class="tag-new">Ny modell</span></h3>
+    <div class="formel">KVALIFISERTE REFERANSER <span class="ar" aria-hidden="true">×</span> ANDEL SOM BLIR KUNDER <span class="ar" aria-hidden="true">×</span> ORDREVERDI <span class="ar" aria-hidden="true">=</span> BUSINESS</div>
+    <p>Alle tre faktorene kan trenes, og hver har sine egne grep:</p>
+    <div class="ladder">
+      <div class="rung"><span class="rn">Referanser</span><span class="rd">Flere kvalifiserte referanser kommer av refererbarhet, en sterk kontaktsirkel, tydelige kundecase og navngitte forespørsler (Del 3, 5 og 10).</span></div>
+      <div class="rung"><span class="rn">Andel kunder</span><span class="rd">Hvor mange som blir kunder, avgjøres av mottaket: hvor raskt partneren tar kontakt, og hvordan første samtale gjennomføres (Del 6).</span></div>
+      <div class="rung"><span class="rn">Ordreverdi</span><span class="rd">Partneren får det hen ber om. Spør hen etter en bitteliten kunde, får hen en bitteliten kunde. Kundecasene må peke mot kundene partneren faktisk vil ha (Del 7).</span></div>
+    </div>
+    <p>Når en partner ikke får nok business, bruk formelen til å finne hvilken faktor som svikter, før du gir råd. De fleste råd treffer feil faktor.</p>
+
+    <h3>Fra mål til ukentlig atferd</h3>
+    <div class="ladder">
+      <div class="rung"><span class="rn">Mål</span><span class="rd">Med tall og tid. «Mer business» er for svakt til å styre noe. «250 000 kroner i ny omsetning gjennom BNI de neste 12 månedene» kan styre en uke.</span></div>
+      <div class="rung"><span class="rn">Regn bakover</span><span class="rd">Hvor mange kvalifiserte referanser trengs? Hvor mange 1-til-1? Hvilke partnere må forstå hen bedre? Hvilken kontaktsirkel må bygges?</span></div>
+      <div class="rung"><span class="rn">Tre handlinger</span><span class="rd">Tre ukentlige handlinger som kan gjøres i en vanlig uke, ikke i en idealuke.</span></div>
+    </div>
+    <div class="pq"><p>Mål uten atferd er håp. Atferd uten mål er bare travelt.</p></div>
+    <p>De første 90 dagene ligger i <strong>BNI-kompasset</strong>. Vår jobb er å sørge for at Kompasset faktisk brukes, og at partneren har et mål og tre ukentlige handlinger etter MSP.</p>
   </section>
 
   <!-- DEL 3 -->
   <section class="part" id="del3">
     <div class="part-head">
       <span class="part-num">Del 3</span>
+      <h2>Refererbarhet</h2>
+      <p class="sub">Partneren må være både flink og refererbar.</p>
+    </div>
+    <p>Å vite at «Anne er advokat» forteller hva hun gjør, men ikke <strong>når</strong> noen skal tenke på henne. En partner blir refererbar når de andre forstår hva hen hjelper kundene med, godt nok til å kjenne igjen situasjonen fra sin egen hverdag: hvilket problem partneren løser, og hvem som har det. Det krever at de forstår hva partneren løser. Det krever ikke at de kjenner partneren godt.</p>
+    <p>Faglig dyktighet og refererbarhet er to forskjellige ting. En partner kan være fantastisk i jobben sin, men hvis ingen rundt hen kjenner igjen når noen trenger hen, kommer det få referanser. Refererbarhet er en ferdighet, og den kan trenes.</p>
+    <p>Partneren gjør seg refererbar ved å lære de andre <strong>hva de skal kjenne igjen</strong>: hva kunden sier før hen vet at hen trenger hjelp, hva kunden er frustrert over, hva som nettopp har skjedd, hva problemet koster, og hvem som møter disse menneskene før partneren gjør. Folk glemmer produkter, bransjelister og tekniske detaljer, men de kjenner igjen situasjoner og problemer.</p>
+    <div class="example">
+      <span class="label">Slik coacher du</span>
+      <p><strong>Vanlig feil:</strong> Diffuse målgrupper. «Alle som trenger hjelp med økonomi» eller «små og mellomstore bedrifter». De føles trygge å si høyt, og derfor er de vanlige.</p>
+      <p><strong>Grep:</strong> Still de fire spørsmålene i rekkefølge: Hvem er kunden? Hvilket problem har de? Når oppstår problemet? Hva skal partnerne kjenne igjen? Press vennlig fra «alle» til «daglig leder i en småbedrift som ikke har kontroll på mva-fristene». Spesifikt er refererbart.</p>
+      <p><strong>Når partneren svarer med tittel:</strong> Avbryt vennlig og spør etter problemet bak. «Jeg fører regnskap» blir «jeg hjelper bedriftseiere som får dårlig samvittighet hver gang de åpner Altinn».</p>
+    </div>
+  </section>
+
+  <!-- DEL 4 -->
+  <section class="part" id="del4">
+    <div class="part-head">
+      <span class="part-num">Del 4</span>
       <h2>Referansen</h2>
       <p class="sub">Behov først, og en god introduksjon.</p>
     </div>
@@ -649,29 +709,91 @@
         <li><span class="n">1</span><span><strong>Et reelt behov, akkurat nå.</strong> En antakelse om at noen kanskje kan trenge noe en gang, er ikke nok.</span></li>
         <li><span class="n">2</span><span><strong>Personen ser frem til at partneren tar kontakt.</strong> Hen har sagt ja og venter på å bli kontaktet.</span></li>
       </ul>
-      <p class="small">Mangler ett av kriteriene, har du et tips eller en mulighet. Startpunktet er alltid at noen har et behov, og ikke hvem du helst vil ha som kunde. Det verste du kan få, er et «nei takk».</p>
+      <p class="small">Når begge kriteriene er oppfylt, kaller vi det en <strong>kvalifisert referanse</strong>. Mangler ett av dem, har partneren et tips eller en mulighet. Startpunktet er alltid at noen har et behov, og ikke hvem partneren helst vil ha som kunde. Det verste partneren kan få, er et «nei takk».</p>
     </div>
 
     <div class="callout warn">
       <span class="label">Viktig presisering</span>
       <p class="big">Det som teller, er at introduksjonen er <em>god</em>. Den trenger ikke være «trygg».</p>
-      <p class="small">Verdien ligger i koblingen mellom behovet og riktig problemløser, og du trenger ikke kjenne begge godt. En utmerket introduksjon kan gå mellom en person du nettopp har møtt og en helt fersk BNI-partner som jobber med akkurat det problemet. Du sitter ved siden av en fremmed på flyet som trenger en skredder: <em>«Jeg kjenner henne ikke så godt, men vil du at jeg setter dere i kontakt?»</em> Det er en god referanse.</p>
+      <p class="small">Verdien ligger i koblingen mellom behovet og riktig problemløser, og den som kobler trenger ikke kjenne begge godt. En utmerket introduksjon kan gå mellom en person partneren nettopp har møtt og en helt fersk BNI-partner som jobber med akkurat det problemet. Du sitter ved siden av en fremmed på flyet som trenger en skredder: <em>«Jeg kjenner henne ikke så godt, men vil du at jeg setter dere i kontakt?»</em> Det er en god referanse.</p>
     </div>
 
     <h3>Tre nivåer å referere fra</h3>
-    <p>Nivåene blir gradvis sterkere. Reactor og Promoter kan du være fra første uke. Creator tar tid.</p>
+    <p>Nivåene blir gradvis sterkere. Reactor og Promoter kan en partner være fra første uke. Creator tar tid.</p>
     <div class="ladder">
-      <div class="rung"><span class="rn">Reactor</span><span class="rd">Du <em>reagerer</em> når noen spør deg direkte: «Kjenner du noen som lager nettsider?»</span></div>
-      <div class="rung"><span class="rn">Promoter</span><span class="rd">Du <em>fanger opp</em> et behov og tar initiativ: «Artig at du nevner det. Skal jeg introdusere dere?»</span></div>
-      <div class="rung"><span class="rn">Creator</span><span class="rd">Du <em>skaper</em> muligheten selv, for partnere du kjenner, liker og stoler på. Det kommer først etter en god stund.</span></div>
+      <div class="rung"><span class="rn">Reactor</span><span class="rd">Partneren <em>reagerer</em> når noen spør direkte: «Kjenner du noen som lager nettsider?»</span></div>
+      <div class="rung"><span class="rn">Promoter</span><span class="rd">Partneren <em>fanger opp</em> et behov og tar initiativ: «Artig at du nevner det. Skal jeg introdusere dere?»</span></div>
+      <div class="rung"><span class="rn">Creator</span><span class="rd">Partneren <em>skaper</em> muligheten selv, for partnere hen kjenner, liker og stoler på. Det kommer først etter en god stund.</span></div>
     </div>
-    <p>En referanse har alltid tre parter: personen med behovet, partneren som åpner døren, og partneren som løser problemet. At en referanse ikke er en anbefaling, betyr at du ikke garanterer resultatet. Du står likevel inne for introduksjonen, fordi du setter ditt eget navn og din egen relasjon bak koblingen. Derfor må referansen håndteres godt.</p>
+    <p>En referanse har alltid tre parter: personen med behovet, partneren som åpner døren, og partneren som løser problemet. At en referanse ikke er en anbefaling, betyr at giveren ikke garanterer resultatet. Giveren står likevel inne for introduksjonen, fordi hen setter sitt eget navn og sin egen relasjon bak koblingen.</p>
+    <div class="example">
+      <span class="label">Slik coacher du</span>
+      <p><strong>Vanlig feil:</strong> Tips og navn får hete referanse, og tallene i rapporteringen mister verdi.</p>
+      <p><strong>Grep:</strong> Gjenta definisjonen til den nesten blir kjedelig. Bruk kontrasten: en antakelse om at noen kanskje kunne hatt et behov, er ikke en referanse. Still spørsmålene: Har personen et faktisk behov nå? Ser personen frem til at noen tar kontakt?</p>
+      <p><strong>Når partneren sier «jeg kjenner ham ikke godt nok»:</strong> Pek på skredderen på flyet. En god introduksjon krever ikke et nært forhold.</p>
+    </div>
   </section>
 
-  <!-- DEL 4 -->
-  <section class="part" id="del4">
+  <!-- DEL 5 -->
+  <section class="part" id="del5">
     <div class="part-head">
-      <span class="part-num">Del 4</span>
+      <span class="part-num">Del 5</span>
+      <h2>Å gi en referanse</h2>
+      <p class="sub">Fra behov til et møte som faktisk skjer.</p>
+    </div>
+    <p>En referanse som bare blir sendt videre, dør ofte i stillhet. Prosessen under beskytter alle tre parter og øker sjansen for at det blir business.</p>
+    <div class="ladder">
+      <div class="rung"><span class="rn">1. Hør behovet</span><span class="rd">I en samtale denne uka, eller i en samtale partneren kommer på under 2+3 i møtet.</span></div>
+      <div class="rung"><span class="rn">2. Sjekk med partneren</span><span class="rd">Er dette en referanse partneren ønsker? Hen kan vite noe giveren ikke vet om størrelse, geografi, timing eller interessekonflikt.</span></div>
+      <div class="rung"><span class="rn">3. Spør personen</span><span class="rd">«Vil du at jeg setter dere i kontakt?» Da er det andre kriteriet oppfylt.</span></div>
+      <div class="rung"><span class="rn">4. Introduser</span><span class="rd">Helst begge i samme e-post eller melding, med kort kontekst: hvorfor giveren kobler dem, hva behovet er, og hvem som tar neste steg.</span></div>
+      <div class="rung"><span class="rn">5. Følg opp</span><span class="rd">Sjekk at møtet faktisk skjer. Hopper giveren over dette steget, dør de fleste referansene.</span></div>
+    </div>
+    <h3>Tre måter å forsterke en referanse på</h3>
+    <ul>
+      <li><strong>Hjelp til å avtale møtet.</strong> Foreslå tidspunkt og avklar hvem som følger opp.</li>
+      <li><strong>Gi en troverdig anbefaling.</strong> Nøktern, ikke selgende. Overdriver giveren, mister både hen og partneren tillit.</li>
+      <li><strong>Bli med på første møte.</strong> Passer når kunden er stor, relasjonen er giverens, eller problemstillingen er kompleks.</li>
+    </ul>
+
+    <h3>Navngitt forespørsel <span class="tag-new">Ny modell</span></h3>
+    <p>Kundecaset ber om en type person. Den sterkeste forespørselen ber om en bestemt person. Et navn treffer hukommelsen direkte, og det er lett å svare ja eller nei. Den passer godt sammen med «se bakover», fordi partnerne kan sjekke navnet mot samtaler de allerede har hatt.</p>
+    <div class="formel">NAVN <span class="ar" aria-hidden="true">+</span> ROLLE <span class="ar" aria-hidden="true">+</span> VIRKSOMHET <span class="ar" aria-hidden="true">+</span> HVORFOR <span class="ar" aria-hidden="true">+</span> HVA DU BER OM</div>
+    <div class="example" data-copy>
+      <span class="label">Eksempel</span>
+      <p>«Jeg vil gjerne bli introdusert til Kari Hansen, daglig leder i Hansen Bygg. De har vokst fra fem til femten ansatte på to år, og jeg tror forsikringene ikke har fulgt med. Kjenner noen av dere Kari, og kan dere spørre om hun er åpen for en prat?»</p>
+    </div>
+  </section>
+
+  <!-- DEL 6 -->
+  <section class="part" id="del6">
+    <div class="part-head">
+      <span class="part-num">Del 6</span>
+      <h2>Å motta en referanse</h2>
+      <p class="sub">Like viktig som å gi en. Det er her business blir skapt eller tapt.</p>
+    </div>
+    <p>Når en partner mottar en referanse, har giveren lånt bort litt av tilliten sin. Hvordan mottakeren håndterer den, avgjør om det blir business, og om giveren gir flere. I suksessformelen er dette faktoren «andel som blir kunder».</p>
+    <h3>Mottakstrappen <span class="tag-new">Ny modell</span></h3>
+    <div class="ladder">
+      <div class="rung"><span class="rn">1. Ta kontakt</span><span class="rd">Samme dag, senest innen 24 timer. Behovet er ferskest nå, og personen venter på kontakten.</span></div>
+      <div class="rung"><span class="rn">2. Forbered deg</span><span class="rd">Spør giveren om kontekst: hva sa personen, hva er viktig for hen, hva bør partneren unngå?</span></div>
+      <div class="rung"><span class="rn">3. Lytt først</span><span class="rd">Første samtale handler om behovet, ikke om tilbudet. Partneren skal forstå problemet før hen foreslår en løsning.</span></div>
+      <div class="rung"><span class="rn">4. Hold giveren oppdatert</span><span class="rd">Fikk du kontakt? Ble det møte? Giveren eier relasjonen og trenger å vite.</span></div>
+      <div class="rung"><span class="rn">5. Oppdater status</span><span class="rd">I BNI Connect eller BNI-appen, hver gang status endrer seg.</span></div>
+      <div class="rung"><span class="rn">6. Takk</span><span class="rd">Registrer Takk For Business når det blir omsetning. Takk også når det ikke blir det.</span></div>
+    </div>
+    <p>Når det ikke blir business, er det helt greit, men giveren og teamet bør få vite hvorfor. Var det feil timing, feil behov, eller fikk partneren ikke kontakt? Var referansen svak? Svaret gjør hele teamet bedre.</p>
+    <div class="example">
+      <span class="label">Slik coacher du</span>
+      <p><strong>Vanlig feil:</strong> Referansen blir registrert og glemt. Partneren ringer etter en uke, behovet er løst et annet sted, og giveren slutter å gi.</p>
+      <p><strong>Grep:</strong> Knytt status og oppfølging til respekt for relasjonen, ikke til administrasjon. Spør i hver gjennomgang: Hvor mange referanser fikk du, og hvor mange kontaktet du innen 24 timer?</p>
+    </div>
+  </section>
+
+  <!-- DEL 7 -->
+  <section class="part" id="del7">
+    <div class="part-head">
+      <span class="part-num">Del 7</span>
       <h2>Arbeidsmetoden</h2>
       <p class="sub">Seks steg som henger sammen, hver uke.</p>
     </div>
@@ -691,6 +813,7 @@
     </div>
     <p class="loopnote">Så begynner vi på nytt. Hvert steg er enkelt. Resultatene kommer av å gjøre dem uke etter uke.</p>
     <p class="gloss"><strong>TFB</strong> betyr Takk For Business: takken som registreres når en referanse blir til omsetning. <strong>Givers Gain</strong> er BNIs kjerneverdi: den som gir, får, over tid og gjennom hele nettverket.</p>
+    <p>Svikten sitter sjelden i selve møtet. Folk møter opp. Den sitter i overgangene: fra møtet til 1-til-1, og fra 1-til-1 til en faktisk referanse.</p>
 
     <h3>Ukens kundecase lærer teamet å kjenne igjen en referanse</h3>
     <p>Et godt kundecase gir partnerne ett tydelig bilde av <strong>én situasjon de kan kjenne igjen fra samtaler de allerede har hatt</strong>. Det gjør fire ting: fanger oppmerksomheten, beskriver problemet, viser løsningen og effekten, og ber om referansen.</p>
@@ -704,114 +827,138 @@
       <p class="note">Caset har et tall, et problem og en tydelig målgruppe, og det er lett for en tredjepart å gjenta. Avslutt aldri med «ta kontakt hvis du vet om noen». Det er for svakt.</p>
     </div>
     <p>Det avgjørende er <strong>gjenkjennelse</strong>, og den skjer helst mens caset blir fortalt. Partneren skal tenke: <em>«Dette er jo akkurat det naboen min klaget over på lørdag.»</em></p>
-    <div class="callout principle">
-      <span class="label">Se bakover først</span>
-      <p class="big">Den beste referansen denne uka finner du i samtaler du allerede har hatt: den siste måneden, den siste uka, de siste dagene.</p>
-      <p class="small">Det er lettere å huske en samtale du har hatt enn å komme på en partner midt i en samtale som ennå ikke har skjedd. Behovet finnes allerede, så det første kriteriet for en referanse er oppfylt. Og du trenger ikke kjenne partneren godt for å koble dem.</p>
+    <div class="example">
+      <span class="label">Slik coacher du</span>
+      <p><strong>Vanlig feil:</strong> Kundecaset blir en salgspitch om hvor flink partneren er.</p>
+      <p><strong>Grep:</strong> Les en dårlig og en god versjon høyt etter hverandre. Kontrast lærer raskere enn forklaring. Spør: Hva er det tydeligste tegnet på at noen har dette problemet? Hvilken setning skal partnerne kjenne igjen?</p>
     </div>
-    <p>Slik bruker vi kundecaset. Mens en partner forteller, går vi gjennom samtalene vi har hatt nylig og spør: hvem hadde akkurat dette problemet? Har vi et navn, tar vi det med til et 1-til-1 eller tar kontakt samme dag. Det vi lærer om hva partnerne løser, tar vi også med oss videre i <strong>ryggsekken</strong>, men vi venter ikke på at den neste samtalen skal komme.</p>
+
+    <h3>Se bakover først</h3>
+    <div class="callout principle">
+      <span class="label">Prinsippet</span>
+      <p class="big">Den beste referansen denne uka finnes i samtaler partneren allerede har hatt: den siste måneden, den siste uka, de siste dagene.</p>
+      <p class="small">Det er lettere å huske en samtale man har hatt enn å komme på en partner midt i en samtale som ennå ikke har skjedd. Behovet finnes allerede, så det første kriteriet for en referanse er oppfylt. Og partneren trenger ikke kjenne den andre godt for å koble.</p>
+    </div>
+    <p>I agendaen er dette <strong>2+3</strong>: partnerne sitter og går gjennom listen sin. Mens en partner forteller et kundecase, går de andre gjennom samtalene de har hatt nylig og spør: hvem hadde akkurat dette problemet? Navnene tas med til et 1-til-1, eller partneren tar kontakt samme dag.</p>
+    <p>Det partnerne lærer om hva de andre løser, bærer de også med seg videre i <strong>ryggsekken</strong> fra MSP. Men de venter ikke på at den neste samtalen skal komme. Ryggsekken er det sekundære grepet. Se bakover er hovedgrepet.</p>
 
     <h3>Ukens Taler: tre kundecase i én tale</h3>
-    <p>Ukens Taler er den lengste anledningen du får til å hjelpe teamet å komme på noen de allerede har snakket med. Bruk tiden på tre korte kundecase i stedet for én lang presentasjon av bedriften:</p>
+    <p>Ukens Taler er den lengste anledningen partneren får til å hjelpe teamet å komme på noen de allerede har snakket med. Tre korte kundecase gir flere gjenkjennelser enn én lang presentasjon av bedriften:</p>
     <ul>
       <li><strong>Case 1:</strong> et typisk behov hos en typisk kunde.</li>
       <li><strong>Case 2:</strong> et behov som ofte blir oversett.</li>
       <li><strong>Case 3:</strong> en referansekilde, eller en situasjon der partnerne bør reagere der og da.</li>
     </ul>
-    <p>Hvert case følger formelen over og slutter med en tydelig forespørsel: hvem du vil møte, og hvilken setning partnerne kan bruke når de introduserer deg. Last opp presentasjonen i BNI+ på forhånd, skriv inn bioen din så den som introduserer deg kan gjøre en god jobb, test teknikken og hold tiden.</p>
+    <p>Hvert case følger formelen og slutter med en tydelig forespørsel, gjerne en navngitt en. Presentasjonen lastes opp i BNI+ på forhånd, bioen skrives inn så den som introduserer kan gjøre en god jobb, teknikken testes, og tiden holdes.</p>
+    <div class="example">
+      <span class="label">Slik coacher du</span>
+      <p><strong>Vanlig feil:</strong> Partneren vil vise alt hen kan, og budskapet drukner.</p>
+      <p><strong>Grep:</strong> Alt i talen skal svare på ett spørsmål: hva skal teamet kjenne igjen for å gi meg en referanse? Hold teknikk og BNI+-spørsmål utenfor treningen. Konsulenten er ikke IT-support.</p>
+    </div>
 
     <h3>1-til-1 gjør møtet om til referanser</h3>
-    <p>Et 1-til-1 er et arbeidsmøte. Målet er å forstå hva den andre løser, godt nok til at dere kan gi hverandre referanser begge veier. Relasjonen vokser frem gjennom arbeidet. Ta med deg navnene du kom på i møtet. Noen ganger trenger dere en time, andre ganger ti minutter. Det viktigste 1-til-1-et denne uka er sjelden det lengste. Det er det med partneren det er enklest å gi en referanse til.</p>
-    <p>Et godt 1-til-1 går gjennom tre nivåer:</p>
+    <p>Et 1-til-1 er et arbeidsmøte. Målet er at det skal gå referanser begge veier. Relasjonen vokser frem gjennom arbeidet, og partneren tar med seg navnene hen kom på i møtet. Noen ganger trenger det en time, andre ganger ti minutter på telefon. Det viktigste 1-til-1-et denne uka er sjelden det lengste. Det er det med partneren det er enklest å gi en referanse til.</p>
     <div class="ladder">
       <div class="rung"><span class="rn">Forstå</span><span class="rd">Hvem hjelper du, og hvilke problemer løser du?</span></div>
       <div class="rung"><span class="rn">Identifiser</span><span class="rd">Hvem har vi snakket med nylig som bør introduseres til den andre, begge veier?</span></div>
       <div class="rung"><span class="rn">Handle og følg opp</span><span class="rd">Hva gjør vi nå, og hvem gjør det først?</span></div>
     </div>
-    <p>1-til-1-skjemaet er et kart. Det skiller mellom tre ting: <strong>kunden</strong> trenger løsningen din, <strong>referansekilden</strong> møter kunden din før deg, fra en annen vinkel (megler, bank, advokat, håndverker), og <strong>kontaktsirkelen</strong> er ekspertområdene i teamet som jobber rundt de samme menneskene uten å konkurrere. De fleste referansene kommer fra kontaktsirkelen, fordi de menneskene ser situasjonene før deg.</p>
+    <p>Stopper samtalen på det første nivået, blir den hyggelig. På det andre nivået blir det forståelse. På det tredje nivået begynner det å bli business.</p>
+    <p>1-til-1-skjemaet er et kart. Det skiller mellom tre ting: <strong>kunden</strong> trenger løsningen, <strong>referansekilden</strong> møter kunden før partneren, fra en annen vinkel (megler, bank, advokat, håndverker), og <strong>kontaktsirkelen</strong> er ekspertområdene som jobber rundt de samme menneskene uten å konkurrere. De fleste referansene kommer fra kontaktsirkelen, fordi de menneskene ser situasjonene først.</p>
+    <div class="example">
+      <span class="label">Slik coacher du</span>
+      <p><strong>Vanlig feil:</strong> 1-til-1 blir kaffeprat, og skjemaet blir fylt ut og arkivert.</p>
+      <p><strong>Grep:</strong> «1-til-1 er lik referanse.» Gi partneren en fast avslutning: «Hva gjør vi etter denne samtalen, og hvem gjør det først?» Presenter skjemaet som tydelighet, ikke papirarbeid. Det feltet de fleste fyller ut for generelt, er målgruppen.</p>
+    </div>
 
-    <h3>Oppfølgingen er din personlige merkevare</h3>
-    <p>Når referansen er registrert, begynner oppfølgingen. Din personlige merkevare i BNI er mønsteret partnerne ser over tid. Møter du opp? Er du forberedt? Lytter du? Følger du opp? Behandler du menneskene de introduserer deg til slik at de får lyst til å åpne neste dør?</p>
-    <div class="pq"><p>Partnerne refererer det de ser deg gjøre.</p></div>
+    <h3>Oppfølgingen er partnerens personlige merkevare</h3>
+    <p>En partners merkevare i BNI er mønsteret de andre ser over tid. Møter hen opp? Er hen forberedt? Lytter hen i møtet? Følger hen opp? Behandler hen menneskene de introduserer slik at de får lyst til å åpne neste dør?</p>
+    <div class="pq"><p>Partnerne refererer det de ser hverandre gjøre.</p></div>
 
     <h3>Rapportering</h3>
-    <p>Rapportering er en del av metoden. Det vi rapporterer, blir synlig, og det som er synlig, kan anerkjennes, læres av og forbedres. Teamet ser hva som faktisk skaper referanser og business. Bidrag som synes, kan takkes for. Vi ser om vi gjør det vi har sagt. Og jo mer synlig det er at du gir, jo mer får du tilbake.</p>
-    <p>Vi rapporterer bare gitte bidrag: «jeg inviterte», og ikke «jeg skal invitere». «Jeg ga en referanse», og ikke «jeg har kanskje en». Teller intensjoner som bidrag, mister tallene verdien. Du rapporterer i BNI Connect eller BNI-appen: 1-til-1, referanser, Takk For Business og gjester.</p>
+    <p>Rapportering er en del av metoden. Det som rapporteres, blir synlig, og det som er synlig, kan anerkjennes, læres av og forbedres. Teamet ser hva som faktisk skaper referanser og business. Bidrag som synes, kan takkes for. Vi ser om partnerne gjør det de har sagt. Og jo mer synlig det er at en partner gir, jo mer får hen tilbake.</p>
+    <p>Vi rapporterer bare gitte bidrag: «jeg inviterte», og ikke «jeg skal invitere». «Jeg ga en referanse», og ikke «jeg har kanskje en». Teller intensjoner som bidrag, mister tallene verdien. Partnerne rapporterer i BNI Connect eller BNI-appen: 1-til-1, referanser, Takk For Business og gjester. Rapporteringspunktet i møtet er kort: hvem, hva, ferdig.</p>
     <div class="pq"><p>Gjør jobben. Rapporter jobben. Lær av jobben. Gjør det igjen.</p></div>
 
     <h3>Power of One er minimumsrytmen</h3>
     <p>Vi møtes hver uke fordi rytme slår intensitet. Power of One er minimumsrytmen som gjelder alle partnere:</p>
-    <div class="formel">ETT MØTE <span class="ar" aria-hidden="true">·</span> MINST ÉN 1-TIL-1 <span class="ar" aria-hidden="true">·</span> ÉN REFERANSE I UKA <span class="ar" aria-hidden="true">·</span> ÉN GJEST I MÅNEDEN</div>
-    <p>Minst én 1-til-1 i uka er forventningen, og flere er bedre. Én i uka høres lite ut, men etter ett år er det 40 til 45 fokuserte samtaler. Tilfeldig aktivitet gir tilfeldige resultater, og forutsigbare resultater krever forutsigbar aktivitet. Derfor kobles et BNI-mål alltid til spørsmålet: <em>«Hvilken ukentlig atferd er jeg villig til å gjennomføre for å komme dit?»</em></p>
-  </section>
-
-  <!-- DEL 5 -->
-  <section class="part" id="del5">
-    <div class="part-head">
-      <span class="part-num">Del 5</span>
-      <h2>Tillit kommer av å gjøre metoden</h2>
-    </div>
-    <p>Du kan gi en god referanse uten å kjenne begge partene godt, og uten å ha bygget en relasjon først. Over tid skjer det likevel mer. Når du gjør metoden uke etter uke, møter forberedt, følger opp og leverer, vokser det frem ekte tillit og dype relasjoner i teamet.</p>
-    <p>Først da blir det høyeste nivået mulig: <strong>Creator</strong>. Ingen blir Creator for noen de ikke kjenner, liker og stoler på, og derfor tar det tid, ofte lang tid. Når du er der, skaper du referanser og kobler mennesker aktivt, uten å bli spurt.</p>
-    <div class="callout">
-      <span class="label">Vær presis på dette</span>
-      <p class="big">Tilliten og vennskapene som oppstår, er en fantastisk sideeffekt av å gjøre metoden. Målet med BNI er referanser og business.</p>
-    </div>
-    <p>Rekkefølgen betyr mye. Gjør du relasjonen til målet, ender du med et hyggelig nettverksmøte. Gjør du metoden til målet, får du referanser og business nå, og relasjonene vokser frem på kjøpet og gjør metoden enda sterkere. Metoden kommer først, tilliten følger, og Creator blir resultatet.</p>
-  </section>
-
-  <!-- DEL 6 -->
-  <section class="part" id="del6">
-    <div class="part-head">
-      <span class="part-num">Del 6</span>
-      <h2>Givers Gain i praksis</h2>
-    </div>
-    <p>Givers Gain betyr at den som gir, får. Det skjer over tid og gjennom hele nettverket, så det du gir én partner, kommer ofte tilbake fra en annen. Derfor fungerer det dårlig som byttehandel, der du ga på mandag og venter noe tilbake på tirsdag, og det handler heller ikke om å produsere flest mulig navn for å rapportere aktivitet.</p>
-    <div class="pq"><p>Givers Gain er kvalitet, ikke kvantitet.</p></div>
-    <p>I praksis tenker jeg tilbake på samtalene jeg har hatt, og ser etter problemer jeg kan hjelpe andre med. Jeg lærer hva partnerne løser, godt nok til å vite når de er riktig løsning. Jeg kobler når jeg ser en reell mulighet, introduserer slik at begge relasjonene blir ivaretatt, og følger opp.</p>
-    <p>Når et helt team jobber slik, tenker partnerne på hverandre også utenfor møtet, og tilliten i teamet vokser. Da har Givers Gain blitt atferd.</p>
-  </section>
-
-  <!-- DEL 7 -->
-  <section class="part" id="del7">
-    <div class="part-head">
-      <span class="part-num">Del 7</span>
-      <h2>De riktige menneskene er viktigere enn flest mennesker</h2>
-    </div>
-    <p>Målet er et sterkt team som skaper mer verdi for partnerne. En riktig ny partner tilfører kompetanse, relasjoner og nye muligheter til å hjelpe, og styrker en kontaktsirkel slik at referansene kan bevege seg mellom flere ekspertområder.</p>
-    <div class="pq"><p>Hver gjest tar med seg et nytt nettverk inn i rommet.</p></div>
-    <p>Vi inviterer strategisk: mennesker som kan få verdi fra teamet og tilføre verdi til det. Invitasjonen starter med <strong>hullet teamet har</strong>, og ikke med hvem som er hyggelig. Riktige mennesker styrker referanseflyten.</p>
-
-    <h3>Slik inviterer du</h3>
-    <p>Start i kontaktsirkelen. Hvilket ekspertområde mangler teamet, og hvem kjenner du der? Invitasjonen trenger ikke være lang. Tre spørsmål holder:</p>
-    <ol class="invite">
-      <li>Vil du vokse?</li>
-      <li>Vil du knytte en relasjon til meg?</li>
-      <li>Vil du møte andre i teamet som tenker på samme måte?</li>
-    </ol>
-    <p>Besøks- og vekstdager er gode anledninger, men en riktig gjest er velkommen hver uke. Ta selv imot gjesten ved døra og følg vedkommende gjennom møtet.</p>
+    <div class="formel">ETT MØTE <span class="ar" aria-hidden="true">·</span> MINST ÉN 1-TIL-1 <span class="ar" aria-hidden="true">·</span> ÉN KVALIFISERT REFERANSE I UKA <span class="ar" aria-hidden="true">·</span> ÉN GJEST I MÅNEDEN</div>
+    <p>Teammanualen sier at forventningen er minimum ett 1-til-1-møte per uke. Én i uka høres lite ut, men etter ett år er det 40 til 45 fokuserte samtaler. Referansen skal være kvalifisert: et reelt behov og en person som venter på kontakten. Et tips for å fylle kvoten teller ikke. Tilfeldig aktivitet gir tilfeldige resultater, og forutsigbare resultater krever forutsigbar aktivitet.</p>
   </section>
 
   <!-- DEL 8 -->
   <section class="part" id="del8">
     <div class="part-head">
       <span class="part-num">Del 8</span>
+      <h2>Tillit kommer av å gjøre metoden</h2>
+    </div>
+    <p>En partner kan gi en god referanse uten å kjenne begge partene godt, og uten å ha bygget en relasjon først. Over tid skjer det likevel mer. Når partneren gjør metoden uke etter uke, møter forberedt, følger opp og leverer, vokser det frem ekte tillit og dype relasjoner i teamet.</p>
+    <p>Først da blir det høyeste nivået mulig: <strong>Creator</strong>. Ingen blir Creator for noen de ikke kjenner, liker og stoler på, og derfor tar det tid, ofte lang tid.</p>
+    <div class="callout">
+      <span class="label">Vær presis på dette</span>
+      <p class="big">Tilliten og vennskapene som oppstår, er en fantastisk sideeffekt av å gjøre metoden. Målet med BNI er referanser og business.</p>
+    </div>
+    <p>Rekkefølgen betyr mye. Gjør en partner relasjonen til målet, ender hen med et hyggelig nettverksmøte. Gjør hen metoden til målet, får hen referanser og business nå, og relasjonene vokser frem på kjøpet. Metoden kommer først, tilliten følger, og Creator blir resultatet.</p>
+  </section>
+
+  <!-- DEL 9 -->
+  <section class="part" id="del9">
+    <div class="part-head">
+      <span class="part-num">Del 9</span>
+      <h2>Givers Gain i praksis</h2>
+    </div>
+    <p>Givers Gain betyr at den som gir, får. Det skjer over tid og gjennom hele nettverket, så det en partner gir én, kommer ofte tilbake fra en annen. Derfor fungerer det dårlig som byttehandel, der noen ga på mandag og venter noe tilbake på tirsdag, og det handler heller ikke om å produsere flest mulig navn for å rapportere aktivitet.</p>
+    <div class="pq"><p>Givers Gain er kvalitet, ikke kvantitet.</p></div>
+    <p>I praksis går partneren tilbake til samtalene hen har hatt, og ser etter problemer hen kan hjelpe andre med. Hen lærer hva de andre løser, godt nok til å vite når de er riktig løsning, kobler når muligheten er reell, introduserer slik at begge relasjonene blir ivaretatt, og følger opp. Når et helt team jobber slik, blir Givers Gain atferd.</p>
+  </section>
+
+  <!-- DEL 10 -->
+  <section class="part" id="del10">
+    <div class="part-head">
+      <span class="part-num">Del 10</span>
+      <h2>Kontaktsirkelen og de riktige menneskene</h2>
+      <p class="sub">Partneren bygger sin egen referanseinfrastruktur.</p>
+    </div>
+    <p>Fordi standarden gjelder uavhengig av teamet, er kontaktsirkelen partnerens eget ansvar. Den består av ekspertområder som møter de samme kundene fra en annen vinkel, uten å konkurrere. En eiendomsmegler hører om flytting før mange andre. En bankrådgiver hører om finansiering. En regnskapsfører hører om vekst og likviditet. Mangler et av disse ekspertområdene i teamet, inviterer partneren dem inn selv.</p>
+    <p>Målet er et sterkt team som skaper mer verdi for partnerne. En riktig ny partner tilfører kompetanse, relasjoner og nye muligheter til å hjelpe, og styrker en kontaktsirkel slik at referansene kan bevege seg mellom flere ekspertområder.</p>
+    <div class="pq"><p>Hver gjest tar med seg et nytt nettverk inn i rommet.</p></div>
+
+    <h3>Slik inviterer partneren</h3>
+    <p>Start i kontaktsirkelen: hvilket ekspertområde mangler, og hvem kjenner partneren der? Invitasjonen trenger ikke være lang. Tre spørsmål holder:</p>
+    <ol class="invite">
+      <li>Vil du vokse?</li>
+      <li>Vil du knytte en relasjon til meg?</li>
+      <li>Vil du møte andre i teamet som tenker på samme måte?</li>
+    </ol>
+    <p>Besøks- og vekstdager er gode anledninger, men en riktig gjest er velkommen hver uke. Én fast person tar imot gjesten ved døra og følger vedkommende gjennom møtet.</p>
+    <div class="example">
+      <span class="label">Slik coacher du</span>
+      <p><strong>Vanlig feil:</strong> Partneren inviterer «noen hyggelige», og kontaktsirkelen blir ikke sterkere.</p>
+      <p><strong>Grep:</strong> Be om bransjer og ekspertområder før navn. «En venn» er ikke et svar. Spør: Hvem møter kundene dine før deg? Hvem av disse kan du invitere denne uka?</p>
+    </div>
+  </section>
+
+  <!-- DEL 11 -->
+  <section class="part" id="del11">
+    <div class="part-head">
+      <span class="part-num">Del 11</span>
       <h2>BNI som utviklingsprogram</h2>
       <p class="sub">Arbeidsmetoden krever ferdigheter, og ferdigheter må trenes.</p>
     </div>
-    <p>Partnerne trener på å kjenne igjen behov, gjøre egen ekspertise refererbar, stille gode spørsmål, forstå referansekilder, bygge kontaktsirkler, gjennomføre målrettede 1-til-1, lage gode introduksjoner og følge opp. Dette lærer man ved å gjøre det, mange ganger. Derfor har BNI et læringssystem rundt arbeidsmetoden.</p>
-    <p>MSP tar partneren fra <em>«Jeg har blitt med i et nettverk»</em> til <em>«Jeg bruker en strukturert arbeidsmetode for å skape referanser, verdi og målbar business.»</em> Etter MSP vet partneren hva hen skal gjøre før neste møte. Vi lover ikke omsetning første dag, men vi forventer handling fra første uke, for resultatene starter når handlingen starter. All trening måles på det samme spørsmålet: <em>«Bra. Hva gjør du annerledes neste uke?»</em> Målet med læring i BNI er bedre atferd.</p>
+    <p>BNI er et pensum. Partnerne trener på å kjenne igjen behov, gjøre egen ekspertise refererbar, stille gode spørsmål, forstå referansekilder, bygge kontaktsirkler, gjennomføre målrettede 1-til-1, lage gode introduksjoner, ta imot referanser og følge opp. Det er mye å lære for å bli god i BNI og i nettverking, og det læres ved å gjøre det mange ganger.</p>
+    <p>MSP tar partneren fra <em>«Jeg har blitt med i et nettverk»</em> til <em>«Jeg bruker en strukturert arbeidsmetode for å skape referanser, verdi og målbar business.»</em> Vi lover ikke omsetning første dag, men vi forventer handling fra første uke, for resultatene starter når handlingen starter. All trening måles på det samme spørsmålet: <em>«Bra. Hva gjør du annerledes neste uke?»</em></p>
 
     <h3>Læringssystemet rundt metoden</h3>
     <div class="ladder">
-      <div class="rung"><span class="rn">MSP</span><span class="rd">Gir forståelsen av metoden, og hva du skal gjøre før neste møte.</span></div>
-      <div class="rung"><span class="rn">Kompass og mentor</span><span class="rd">Får metoden i gang de første ukene: tydeligere kundecase, de første referansene, målrettede 1-til-1 og kontaktsirkelen.</span></div>
+      <div class="rung"><span class="rn">MSP</span><span class="rd">Gir forståelsen av metoden, et mål og tre ukentlige handlinger før neste møte.</span></div>
+      <div class="rung"><span class="rn">Kompasset</span><span class="rd">De første 90 dagene: tydeligere kundecase, de første referansene, målrettede 1-til-1 og kontaktsirkelen.</span></div>
+      <div class="rung"><span class="rn">Mentor</span><span class="rd">Hjelper partneren å få metoden i gang og følger med på varsellysene.</span></div>
       <div class="rung"><span class="rn">Utdannings&shy;punktet</span><span class="rd">Trener ferdighetene videre, fem minutter hver uke, og skal ende i en konkret handling.</span></div>
       <div class="rung"><span class="rn">Møte og 1-til-1</span><span class="rd">Treningsarenaen, der metoden brukes på ekte behov hver uke.</span></div>
     </div>
 
     <h3>Fire kjente programmer med samme grunnlov</h3>
-    <p>Sammenligningen viser hvilken kategori BNI hører hjemme i: utviklingsprogrammer. Alle fire bygger på den samme pedagogiske grunnloven:</p>
+    <p>Sammenligningen viser hvilken kategori BNI hører hjemme i: utviklingsprogrammer. Den er nyttig når en partner eller gjest tror at BNI bare er et møte, eller forventer at BNI skal gjøre jobben for dem. Alle fire bygger på den samme pedagogiske grunnloven:</p>
     <div class="callout principle">
       <span class="label">Det pedagogiske prinsippet</span>
       <p class="big">Du utvikler en ferdighet gjennom struktur, praksis, repetisjon, tilbakemelding og bruk i virkeligheten.</p>
@@ -823,7 +970,7 @@
         <div class="row"><span class="k">Hva det er</span><span class="v">Trening i kommunikasjon, ledelse og salg, siden 1912. Flaggskipet i Norge, «Kommunikasjon og ledelse», er et 12-ukers program.</span></div>
         <div class="row"><span class="k">Hvordan</span><span class="v">«Vi trener atferd, ikke bare teori.» Deltakerne er aktive mesteparten av tiden, jobber med virkelige situasjoner fra egen jobb med coaching og tilbakemelding, og gjør praksisoppgaver i hverdagen mellom samlingene.</span></div>
         <div class="row"><span class="k">Parallellen</span><span class="v">Begge trener atferd. Begge sender deg ut for å bruke det du har lært, og henter deg tilbake med erfaring.</span></div>
-        <div class="row"><span class="k">Forskjellen</span><span class="v">Dale Carnegie er et program med start og slutt, og du bruker det du lærer alene i din egen jobb. I BNI har treningen ingen sluttdato, og de du trener sammen med, skaper business for hverandre hver uke.</span></div>
+        <div class="row"><span class="k">Forskjellen</span><span class="v">Dale Carnegie er et program med start og slutt, og deltakeren bruker det alene i sin egen jobb. I BNI har treningen ingen sluttdato, og de man trener sammen med, skaper business for hverandre hver uke.</span></div>
       </div>
       <div class="say" data-copy><b>Sagt enkelt</b>«Dale Carnegie trener atferd: du øver, bruker det på jobben og kommer tilbake. BNI gjør det samme med referanser. Hos oss slutter treningen aldri, og teamet du trener med, skaper business for deg.»</div>
       <p class="src">Kilde: <a href="https://dalecarnegie.no" target="_blank" rel="noopener">dalecarnegie.no</a></p>
@@ -846,8 +993,8 @@
       <div class="grid">
         <div class="row"><span class="k">Hva det er</span><span class="v">Lederprogrammer fra Handelshøyskolen BI, ofte skreddersydd for en virksomhet.</span></div>
         <div class="row"><span class="k">Hvordan</span><span class="v">Faglig innhold kombineres med erfaringsdeling, refleksjon og utprøving i egen organisasjon. Målet er å endre hvordan lederen handler.</span></div>
-        <div class="row"><span class="k">Parallellen</span><span class="v">Lederen tar programmet for å bli bedre selv, og forventer ikke at BI skal lede virksomheten. På samme måte blir du med i BNI for å bli bedre til å skape business selv.</span></div>
-        <div class="row"><span class="k">Forskjellen</span><span class="v">Et lederprogram brukes i din egen organisasjon, ofte alene. BNI brukes i et team som jobber sammen om de samme mulighetene.</span></div>
+        <div class="row"><span class="k">Parallellen</span><span class="v">Lederen tar programmet for å bli bedre selv, og forventer ikke at BI skal lede virksomheten. På samme måte blir en partner med i BNI for å bli bedre til å skape business selv.</span></div>
+        <div class="row"><span class="k">Forskjellen</span><span class="v">Et lederprogram brukes i egen organisasjon, ofte alene. BNI brukes i et team som jobber sammen om de samme mulighetene.</span></div>
       </div>
       <div class="say" data-copy><b>Sagt enkelt</b>«Ingen tar en lederutdanning for at skolen skal styre bedriften deres. De tar den for å bli bedre ledere selv. Bli med i BNI for å bli den som skaper business gjennom nettverket sitt.»</div>
       <p class="src">Kilde: <a href="https://www.bi.no" target="_blank" rel="noopener">bi.no</a></p>
@@ -867,7 +1014,6 @@
 
     <h3>Hva er det som gjør BNI unikt?</h3>
     <p>Ingen av de fire gjør alt samtidig. BNI er kombinasjonen: en metode, kompetanse og trening, et profesjonelt nettverk, en reell arena, tillit som vokser frem over tid, ansvarlighet og målbare resultater.</p>
-
     <div class="tablewrap">
       <table>
         <thead>
@@ -885,58 +1031,132 @@
     <p>Et råd når du bruker sammenligningen: velg én som passer rommet, og ramse ikke opp alle fire. Toastmasters passer når noen tenker at BNI bare er et møte. BI passer når noen forventer at BNI skal gjøre jobben for dem. Avslutt med det som skiller BNI: treningsarenaen er samtidig virkelig.</p>
   </section>
 
-  <!-- DEL 9 -->
-  <section class="part" id="del9">
+  <!-- DEL 12 -->
+  <section class="part" id="del12">
     <div class="part-head">
-      <span class="part-num">Del 9</span>
-      <h2>Hva dette betyr for deg</h2>
+      <span class="part-num">Del 12</span>
+      <h2>Konsulentens verktøy</h2>
+      <p class="sub">Vår jobb er å hjelpe team og partnere å mestre metoden, ikke å administrere BNI.</p>
     </div>
 
+    <h3>Varsellys <span class="tag-new">Ny modell</span></h3>
+    <p>Resultatene, Takk For Business, kommer sent. Atferden kommer tidlig. Derfor følger vi med på atferden og griper inn ved dag 30, ikke ved halvårsgjennomgangen. Tallene finnes allerede i rapporteringen. Grensene under er et forslag som vi kalibrerer nasjonalt.</p>
+    <div class="tablewrap">
+      <table>
+        <thead>
+          <tr><th>Indikator</th><th>Grønt</th><th>Gult</th><th>Rødt</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>1-til-1</td><td>Minst én i uka</td><td>Ingen på to uker</td><td>Ingen på fire uker</td></tr>
+          <tr><td>Kvalifiserte referanser gitt</td><td>Én i uka når den finnes</td><td>Ingen på to uker</td><td>Ingen på fire uker</td></tr>
+          <tr><td>Mottatte referanser</td><td>Kontaktet innen 24 timer, status oppdatert</td><td>Kontaktet senere</td><td>Ikke kontaktet eller status ikke oppdatert</td></tr>
+          <tr><td>Kundecase</td><td>Konkret problem og målgruppe</td><td>Generelt («alle bedrifter»)</td><td>Mangler, eller er en bedriftspresentasjon</td></tr>
+          <tr><td>Navngitte forespørsler</td><td>Brukes jevnlig</td><td>Brukes sjelden</td><td>Aldri brukt</td></tr>
+          <tr><td>Takk For Business</td><td colspan="3">Etterslepende. Bruk den til å bekrefte at atferden virker, ikke til å varsle tidlig.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Lekkasjekartet <span class="tag-new">Ny modell</span></h3>
+    <p>Når noe ikke virker, finn hvor arbeidsflyten lekker før du gir råd. Symptomet partneren beskriver, er sjelden der problemet sitter.</p>
+    <div class="tablewrap">
+      <table>
+        <thead>
+          <tr><th>Symptom</th><th>Sannsynlig lekkasje</th><th>Grep</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Møter hver uke, men får få referanser</td><td>Ikke refererbar: kundecaset er for bredt</td><td>De fire spørsmålene (Del 3), problem foran tittel</td></tr>
+          <tr><td>Mange 1-til-1, få referanser</td><td>1-til-1 blir kaffeprat</td><td>Fast avslutning: «Hva gjør vi nå?» Ta med navnene fra 2+3</td></tr>
+          <tr><td>Høye tall i rapporteringen, lite business</td><td>Tips og intensjoner telles som bidrag</td><td>Definisjonen, kvalifisert referanse, kun gitte bidrag</td></tr>
+          <tr><td>Mottar referanser, få blir kunder</td><td>Svakt mottak</td><td>Mottakstrappen, kontakt innen 24 timer (Del 6)</td></tr>
+          <tr><td>Får referanser, men små kunder</td><td>Ber om feil kunde</td><td>Kundecase og navngitte forespørsler mot ønsket ordreverdi</td></tr>
+          <tr><td>Får lite fra teamet</td><td>Svak egen kontaktsirkel</td><td>Partneren bygger sirkelen selv og inviterer inn hullet (Del 10)</td></tr>
+          <tr><td>Gir lite til andre</td><td>Ser ikke bakover</td><td>2+3 i agendaen, «hvem har du snakket med den siste uka?»</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Standardgrep i rommet</h3>
+    <div class="ladder">
+      <div class="rung"><span class="rn">Diffus</span><span class="rd">Still de fire spørsmålene i rekkefølge: Hvem er kunden? Hvilket problem? Når oppstår det? Hva skal partnerne kjenne igjen?</span></div>
+      <div class="rung"><span class="rn">Teoretisk</span><span class="rd">«Dette er riktig. Men hva gjør du annerledes neste uke?»</span></div>
+      <div class="rung"><span class="rn">Policy</span><span class="rd">Parker vennlig: «Godt poeng. Det tar vi med teamkomiteen etter treningen.»</span></div>
+      <div class="rung"><span class="rn">Lav energi</span><span class="rd">Håndsopprekning, to og to i 60 sekunder, korte svar, en stående oppgave.</span></div>
+      <div class="rung"><span class="rn">Skeptisk</span><span class="rd">Forsvar ikke BNI. Spør: «Hva er målet med et nettverk uten referanser og uten å måle noe?» Gi ett konkret eksempel.</span></div>
+    </div>
+
+    <h3>Coachingspørsmål</h3>
+    <ul>
+      <li><strong>Kundecase:</strong> Hva er det tydeligste tegnet på at noen har dette problemet? Hvilken setning skal partnerne kjenne igjen?</li>
+      <li><strong>Referanse:</strong> Har personen et faktisk behov nå? Ser hen frem til kontakten? Har du sjekket med partneren? Hvem følger opp at møtet skjer?</li>
+      <li><strong>Se bakover:</strong> Hvem har du snakket med den siste uka som har et problem en av partnerne løser?</li>
+      <li><strong>Mottak:</strong> Hvor mange referanser fikk du, og hvor mange kontaktet du innen 24 timer?</li>
+      <li><strong>Handling:</strong> Hva gjør du med dette på neste møte? Hva er det minste steget du kan ta før vi ses igjen?</li>
+    </ul>
+
+    <h3>Hva vi forventer</h3>
     <div class="roleblock" id="rolle-partner">
-      <span class="role-tag">Partner</span>
-      <h3>Jobben din er å bruke metoden.</h3>
+      <span class="role-tag">Av partneren</span>
+      <h3>Bruk BNI som strategi og program, 4 til 5 timer i uka.</h3>
       <ul>
-        <li>Kom forberedt, og gå gjennom hvem du har snakket med den siste uka.</li>
-        <li>Gjør deg refererbar ved å beskrive problemene du løser.</li>
-        <li>Book 1-til-1, gjør introduksjonen riktig, følg opp, rapporter, og gjør det igjen.</li>
+        <li>Følg Power of One, med kvalifiserte referanser.</li>
+        <li>Kom forberedt med et tydelig kundecase, og gå gjennom samtalene fra den siste uka.</li>
+        <li>Ta kontakt med mottatte referanser innen 24 timer, og hold giveren oppdatert.</li>
+        <li>Bygg din egen kontaktsirkel, også når teamet mangler ekspertområder.</li>
       </ul>
     </div>
-
     <div class="roleblock" id="rolle-teamleder">
-      <span class="role-tag">Teamleder</span>
-      <h3>Agendaen er verktøyet. Oppgaven din er å beskytte arbeidsflyten.</h3>
+      <span class="role-tag">Av teamledelsen</span>
+      <h3>Agendaen er verktøyet. Oppgaven er å beskytte arbeidsflyten.</h3>
       <ul>
-        <li>Kommer partnerne med navn fra samtaler de allerede har hatt? Skaper kundecasene gjenkjennelse?</li>
-        <li>Fører møtet til 1-til-1, og 1-til-1 til referanser?</li>
-        <li>Er referansene reelle? Følger partnerne opp? Rapporterer vi faktiske bidrag?</li>
+        <li>Får 2+3 den tiden det trenger, så partnerne faktisk går gjennom listen?</li>
+        <li>Fører møtet til 1-til-1, og 1-til-1 til kvalifiserte referanser?</li>
+        <li>Teamledelsen får sitt eget dokument med detaljene.</li>
       </ul>
     </div>
-
     <div class="roleblock" id="rolle-konsulent">
-      <span class="role-tag">Konsulent og trener</span>
-      <h3>Oppgaven din er å hjelpe team og partnere å mestre metoden.</h3>
+      <span class="role-tag">Av oss som konsulenter</span>
+      <h3>Finn lekkasjen, tren på den, og følg opp.</h3>
       <ul>
-        <li>Når noe ikke virker, finn ut hvor arbeidsflyten lekker.</li>
-        <li>Er casene for brede? Kommer partnerne uten navn fra egne samtaler? Blir 1-til-1 til kaffeprat? Blir tips forvekslet med referanser?</li>
-        <li>Treningen skal løse et konkret problem i metoden.</li>
+        <li>Følg varsellysene, og grip inn ved dag 30.</li>
+        <li>Bruk lekkasjekartet før du gir råd.</li>
+        <li>Treningen skal løse et konkret problem i metoden. Den skal ikke bevise at BNI er bra, men lære partnerne å bruke BNI bra.</li>
       </ul>
     </div>
 
     <h3>Én nasjonal metode</h3>
-    <p>Historiene, eksemplene og språket kan tilpasses rommet. Kjernen er den samme fra trener til trener og fra region til region: hva en referanse er, hva et 1-til-1 skal skape, hvorfor vi bruker kundecase, hva Givers Gain betyr og hva rapporteringen synliggjør. MSP, BNI-kompasset, mentorarbeidet, utdanningspunktene, teamledelsen og konsulentarbeidet trekker i samme retning. Da trener hele landet én arbeidsmetode, med stadig større ferdighet.</p>
+    <p>Historiene, eksemplene og språket kan tilpasses rommet. Kjernen er den samme fra konsulent til konsulent og fra region til region: hva en referanse er, hva et 1-til-1 skal skape, hvorfor vi bruker kundecase, hva Givers Gain betyr og hva rapporteringen synliggjør. MSP, BNI-kompasset, mentorarbeidet, utdanningspunktene, teamledelsen og konsulentarbeidet trekker i samme retning. Teammanualen er kvalitetsfilteret: vi lærer ikke bort noe som går på tvers av struktur, agenda, roller, rapportering eller begrepsbruk.</p>
   </section>
 
-  <!-- DEL 10 -->
-  <section class="part" id="del10">
+  <!-- DEL 13 -->
+  <section class="part" id="del13">
     <div class="part-head">
-      <span class="part-num">Del 10</span>
-      <h2>Slik forklarer vi BNI</h2>
+      <span class="part-num">Del 13</span>
+      <h2>Språket vi bruker</h2>
+      <p class="sub">Standard før stil. Formuleringene under sier vi likt. Stilen vår får leve i eksemplene.</p>
     </div>
-    <p>Når du forklarer BNI til en mulig partner, start med hva hen skal gjøre, og hva hen får igjen for det.</p>
+    <ul class="clean">
+      <li><strong>Referanse:</strong> «En referanse er en enkel introduksjon mellom et faktisk behov og en mulig løsning. Ikke en garanti, ikke en anbefaling.»</li>
+      <li><strong>To kriterier:</strong> «En referanse har to kriterier, og begge må være oppfylt.»</li>
+      <li><strong>Startpunktet:</strong> «Startpunktet er at noen har et behov, og ikke hvem du helst vil ha som kunde.»</li>
+      <li><strong>Givers Gain:</strong> «Givers Gain er kvalitet, ikke kvantitet.»</li>
+      <li><strong>1-til-1:</strong> «1-til-1 er lik referanse. Hvert møte bør kunne ende i en referanse hver vei.»</li>
+      <li><strong>Kundecase:</strong> «I forrige uke hadde jeg en kunde. De hadde dette problemet. Slik løste vi det. Derfor leter jeg etter andre med akkurat det samme.»</li>
+      <li><strong>Rapportering:</strong> «Det som rapporteres, blir synlig, og det som er synlig, kan anerkjennes og forbedres.»</li>
+      <li><strong>Avslutning:</strong> «Hva gjør du med dette allerede neste møte?»</li>
+    </ul>
+    <div class="callout warn">
+      <span class="label">Unngå</span>
+      <p class="big">«Tips», «lead» og «kanskje noen som».</p>
+      <p class="small">Ordene undergraver definisjonen. Si «referanse», «behov» og «introduksjon».</p>
+    </div>
+
+    <h3>Slik forklarer vi BNI til en mulig partner</h3>
     <div class="callout" data-copy>
       <span class="label">Til en mulig partner</span>
       <p class="big">«BNI er en strukturert arbeidsmetode for å skape business gjennom relasjoner og nettverk. Du blir en del av et team som lærer hvilke problemer hverandre kan løse. Hver uke tenker dere tilbake på hvem dere har snakket med, finner dem som har disse behovene, og kobler dem til riktig partner med en god introduksjon. Samtidig lærer du å gjøre deg selv mer refererbar og å bruke hele ditt eget nettverk bedre.»</p>
     </div>
+    <p>Fortell også om tiden fra første samtale: BNI som strategi tar 4 til 5 timer i uka.</p>
 
     <h3>Hele BNI på noen få linjer</h3>
     <ul class="lines">
@@ -945,19 +1165,19 @@
       <li>Finn én person med et reelt problem.</li>
       <li>Bruk 1-til-1 til å gjøre muligheten konkret.</li>
       <li>Lag en god introduksjon.</li>
-      <li>Følg opp.</li>
-      <li>Rapporter det du faktisk gjorde.</li>
-      <li>Lær, og gjør det igjen neste uke.</li>
+      <li>Ta imot referanser innen 24 timer.</li>
+      <li>Følg opp, og rapporter det du faktisk gjorde.</li>
+      <li>Gjør det igjen neste uke.</li>
     </ul>
 
     <h3>Kjernen</h3>
     <ul class="clean">
-      <li>BNI gjør deg <strong>refererbar</strong>.</li>
-      <li>Partnerne lærer <strong>hvilke problemer de skal kjenne igjen</strong>, og hjelper folk videre til deg.</li>
-      <li>En referanse har <strong>et reelt behov og en person som venter på kontakten</strong>.</li>
-      <li><strong>De riktige menneskene</strong> i rommet styrker referanseflyten.</li>
-      <li>Du lykkes ved å <strong>gjøre arbeidsmetoden</strong>, uke etter uke.</li>
-      <li>Ferdigheten tar du med deg til <strong>alle nettverkene dine</strong>.</li>
+      <li>Alle med salg som hovedgreie <strong>skal kunne lykkes</strong> med BNI som strategi og program.</li>
+      <li>BNI gjør partneren <strong>refererbar</strong>.</li>
+      <li>Den beste referansen finnes i <strong>samtaler partneren allerede har hatt</strong>.</li>
+      <li>En kvalifisert referanse har <strong>et reelt behov og en person som venter på kontakten</strong>.</li>
+      <li>Å <strong>motta</strong> en referanse er like viktig som å gi en.</li>
+      <li>Partneren lykkes ved å <strong>gjøre arbeidsmetoden</strong>, uke etter uke.</li>
     </ul>
   </section>
 
@@ -970,7 +1190,7 @@
     <div class="mantra">
       <p>BNI fungerer ikke når du <span class="hl">forstår</span> metoden.<br>BNI fungerer når du <span class="hl">gjør</span> den.</p>
     </div>
-    <p class="nextstep">Før neste møte: gå gjennom samtalene dine den siste uka og finn én person med et reelt problem en partner kan løse. Kom med ett tydelig kundecase, book 1-til-1 med partneren det er enklest å gi en referanse til, og rapporter det du faktisk gjorde.</p>
+    <p class="nextstep">I hver coachingsamtale: finn lekkasjen, gi ett grep, og avtal én handling før neste møte.</p>
   </section>
 
   <!-- RESSURSER OG KILDER -->
@@ -983,28 +1203,29 @@
       <div class="res">
         <h3>Ressurser</h3>
         <ul>
-          <li><a href="https://bni.no" target="_blank" rel="noopener">bni.no</a>: BNI Norge, team og arrangementer.</li>
-          <li><a href="https://www.bniconnectglobal.com" target="_blank" rel="noopener">BNI Connect</a>: rapportering av 1-til-1, referanser, TFB og gjester. Finnes også som BNI-appen.</li>
-          <li><a href="https://msp.tinglum.com/bnimsp" target="_blank" rel="noopener">Trenerportalen for MSP</a>: for konsulenter og trenere, krever innlogging.</li>
-          <li>1-til-1-skjemaet, BNI-kompasset og teammanualen får du hos konsulenten i teamet ditt.</li>
+          <li><a href="https://msp.tinglum.com/bnimsp" target="_blank" rel="noopener">Trenerportalen for MSP</a>: lysbilder, manus, coachingspørsmål og trenerverktøy.</li>
+          <li>BNI Norge Teammanual 2025: struktur, agenda, roller og rapportering. Kvalitetsfilteret for alt vi lærer bort.</li>
+          <li>BNI-kompasset: de første 90 dagene for nye partnere.</li>
+          <li><a href="https://www.bniconnectglobal.com" target="_blank" rel="noopener">BNI Connect</a>: rapportering og tallene bak varsellysene.</li>
+          <li><a href="https://bni.no" target="_blank" rel="noopener">bni.no</a>: BNI Norge.</li>
           <li class="pdf-link"><a href="/bnistrategi/BNI-er-en-arbeidsmetode.pdf" download>Dette dokumentet som PDF</a>, med klikkbar meny og bokmerker.</li>
         </ul>
       </div>
       <div class="res">
         <h3>Kilder</h3>
         <ul>
-          <li>Nasjonal MSP 2026 (Membership Success Program), BNI Norge.</li>
-          <li>BNI Norges teammanual 2025. Den er intern, så spør konsulenten din.</li>
+          <li>Nasjonal MSP 2026 (Membership Success Program), med trenerveiledning, språkbank og standardgrep.</li>
+          <li>BNI Norge Teammanual 2025, versjon 1.12. Konfidensiell, for ledelsen og konsulenter.</li>
           <li>Sammenligningene bygger på organisasjonenes egne beskrivelser: <a href="https://dalecarnegie.no" target="_blank" rel="noopener">Dale Carnegie</a>, <a href="https://www.toastmasters.org/education" target="_blank" rel="noopener">Toastmasters</a>, <a href="https://www.bi.no" target="_blank" rel="noopener">BI</a> og <a href="https://www.innovasjonnorge.no" target="_blank" rel="noopener">Innovasjon Norge</a>.</li>
         </ul>
       </div>
     </div>
-    <p class="contact">Har du spørsmål eller innspill til dokumentet? Snakk med konsulenten i teamet ditt.</p>
+    <p class="contact">Innspill til dokumentet sendes til Kenneth Tinglum. Endringer i metoden avklares nasjonalt før de læres bort.</p>
   </section>
 
   <footer>
     <div class="brandmark"><span class="dot" aria-hidden="true"></span>BNI&nbsp;NORGE</div>
-    Strategi- og kommunikasjonsdokument for konsulenter, teamledere og partnere. Versjon 1.0, oktober 2026. Ansvarlig: Kenneth Tinglum, National Trainer, BNI Norge.
+    Internt metodedokument for BNI Norge og konsulentene. Versjon 2.0, oktober 2026. Ansvarlig: Kenneth Tinglum, National Trainer, BNI Norge. Konfidensielt.
   </footer>
 
   </main>
