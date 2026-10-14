@@ -143,7 +143,14 @@
     background:var(--line);border:1px solid var(--line);border-radius:12px;overflow:hidden;
     margin:34px 0 10px;
   }
-  .audience > div{background:var(--surface);padding:18px 18px 20px}
+  .audience > a{display:block;background:var(--surface);padding:18px 18px 20px;color:inherit;text-decoration:none;transition:background .15s}
+  .audience > a:hover{background:var(--surface-2)}
+  .audience > a:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+  .audience .go{display:block;margin-top:10px;font-family:"Archivo",sans-serif;font-size:12.5px;font-weight:700;color:var(--accent-ink)}
+  .roleblock{scroll-margin-top:24px}
+  .invite{list-style:none;counter-reset:inv;margin:18px 0;padding:0;display:grid;gap:12px}
+  .invite li{counter-increment:inv;display:flex;gap:14px;align-items:center;font-family:"Spectral",Georgia,serif;font-style:italic;font-size:clamp(18px,2.2vw,21px);color:var(--ink)}
+  .invite li::before{content:counter(inv);flex:none;display:inline-grid;place-items:center;width:26px;height:26px;border-radius:50%;background:var(--accent);color:#fff;font-family:"Archivo",sans-serif;font-style:normal;font-weight:700;font-size:12.5px}
   .audience .role-tag{
     font-size:11.5px;font-weight:700;letter-spacing:.13em;text-transform:uppercase;color:var(--accent-ink);
   }
@@ -239,7 +246,7 @@
 
   /* ---- Work circle ---- */
   .circle{
-    display:flex;gap:8px;align-items:stretch;margin:24px 0 10px;
+    display:flex;gap:6px;align-items:stretch;margin:24px 0 10px;
     overflow-x:auto;padding-bottom:8px;-webkit-overflow-scrolling:touch;
   }
   .circle .step{
@@ -411,25 +418,23 @@
     <span class="eyebrow">Strategi &amp; kommunikasjon · Nasjonalt referansedokument</span>
     <h1>BNI er en arbeidsmetode</h1>
     <p class="lede">En felles forståelse av hva vi lærer bort, og hvorfor metoden skaper referanser, verdi og <em>målbar business</em>.</p>
-    <div class="mast-meta">
-      <span><span class="dot-sm"></span>Konsulenter</span>
-      <span><span class="dot-sm"></span>Teamledere</span>
-      <span><span class="dot-sm"></span>Partnere</span>
-    </div>
 
     <div class="audience">
-      <div>
+      <a href="#rolle-partner">
         <span class="role-tag">Partner</span>
         <p>Forstå hva du faktisk trener på — og hva du skal gjøre før neste møte.</p>
-      </div>
-      <div>
+        <span class="go">Gå til din rolle →</span>
+      </a>
+      <a href="#rolle-teamleder">
         <span class="role-tag">Teamleder</span>
         <p>Se hvilken arbeidsflyt agendaen skal beskytte, ledd for ledd.</p>
-      </div>
-      <div>
+        <span class="go">Gå til din rolle →</span>
+      </a>
+      <a href="#rolle-konsulent">
         <span class="role-tag">Konsulent &amp; trener</span>
         <p>Ett felles språk, én metode — å coache team og partnere mot resultat.</p>
-      </div>
+        <span class="go">Gå til din rolle →</span>
+      </a>
     </div>
   </header>
 
@@ -456,7 +461,8 @@
       <p class="big">BNI er en strukturert arbeidsmetode for å skape referanser, verdi og målbar business gjennom relasjoner og nettverk. Vi lærer hvilke problemer partnerne våre kan løse, lytter etter disse behovene hos mennesker vi møter, og kobler dem til riktig problemløser gjennom en god introduksjon.</p>
     </div>
     <p>Metoden starter enkelt: vi møter mennesker som har problemer og behov. Samtidig kjenner vi mennesker som kan løse mange av dem — også partnere vi nettopp har blitt kjent med. Når vi lærer å gjenkjenne behovene, huske de riktige problemløserne og koble dem sammen med en god introduksjon, skaper vi verdi: for den som trenger hjelp, for partneren vi introduserer, og for oss selv, fordi vi blir mennesker som skaper verdi i nettverket vårt.</p>
-    <p>Gjort godt, over tid, gir det deg flere kvalifiserte referanser, nye kunder og en målbar andel av omsetningen — samtidig som du bygger et sterkere profesjonelt nettverk og blir bedre til å bruke <em>alle</em> nettverkene dine.</p>
+    <p>Brukt som en strategi, konsekvent og over tid, gir BNI deg flere kvalifiserte referanser, nye kunder og en målbar andel av omsetningen — samtidig som du bygger et sterkere profesjonelt nettverk og blir bedre til å bruke <em>alle</em> nettverkene dine.</p>
+    <p>Vi kan ikke garantere resultater. Men all vår erfaring tilsier at partnere som bruker BNI som en <strong>strategi</strong>, og ikke som et møte de går på, lykkes, uavhengig av bransje og utgangspunkt.</p>
 
     <h3>BNI starter når du hører et behov</h3>
     <p>En kunde har ikke kontroll på økonomien. En venn oppdager fukt i det nye huset. En bedriftsleder gruer seg til en personalsamtale. En styreleder sier strømregningen er blitt et problem. En nettside får mye trafikk, men nesten ingen henvendelser.</p>
@@ -553,7 +559,16 @@
       <p class="note">Tall + problem + hvem du leter etter. Lett nok til at en tredjepart kan gjenta den. Ikke avslutt med «ta kontakt hvis du vet om noen» — det er for svakt.</p>
     </div>
     <p>Det avgjørende punktet er <strong>gjenkjennelse</strong>. Partneren skal sitte i en samtale tre dager senere og tenke: <em>«Vent — dette er akkurat det elektrikeren snakket om på torsdag.»</em></p>
-    <p>Slik lytter vi i praksis: I møtet lærer vi hvilke <em>problemer</em> hver partner løser, og legger dem i <strong>ryggsekken</strong>. Så bærer vi den ut i hverdagen og lytter ikke etter «noe som helst», men <strong>spesifikt</strong> etter mennesker som har akkurat de problemene. Hører vi behovet, trekker vi ut den riktige partneren og introduserer. <strong>Ukens Taler</strong> har samme mål — det er <em>referrals × 3</em>: du lærer teamet flere kundesituasjoner, kundens språk og symptomene. Tre korte case slår én lang presentasjon.</p>
+    <p>Slik lytter vi i praksis: I møtet lærer vi hvilke <em>problemer</em> hver partner løser, og legger dem i <strong>ryggsekken</strong>. Så bærer vi den ut i hverdagen og lytter ikke etter «noe som helst», men <strong>spesifikt</strong> etter mennesker som har akkurat de problemene. Hører vi behovet, trekker vi ut den riktige partneren og introduserer.</p>
+
+    <h3>Ukens Taler — tre kundecase i én tale</h3>
+    <p>Ukens Taler er ikke et foredrag om deg eller bedriften din. Det er den lengste anledningen du får til å lære teamet hva de skal lytte etter. Bruk tiden på tre korte kundecase i stedet for én lang presentasjon:</p>
+    <ul>
+      <li><strong>Case 1:</strong> et typisk behov hos en typisk kunde.</li>
+      <li><strong>Case 2:</strong> et behov som ofte blir oversett.</li>
+      <li><strong>Case 3:</strong> en referansekilde, eller en situasjon der partnerne bør reagere der og da.</li>
+    </ul>
+    <p>Hver case følger formelen over og slutter med en tydelig forespørsel: hvem du vil møte, og hvilken setning partnerne kan bruke når de introduserer deg. Last opp presentasjonen i BNI+ på forhånd, skriv inn bio så den som introduserer deg kan gjøre en god jobb, test teknikken og hold tiden.</p>
 
     <h3>1-til-1 — motoren som gjør møtet om til referanser</h3>
     <p>1-til-1 er ikke bare kaffe og kjemi. Relasjonen er ikke et forkrav — den vokser frem gjennom arbeidet. Målet er å forstå hva hverandre løser godt nok til å skape referanser begge veier. Noen ganger trenger dere en time, andre ganger ti minutter. Den viktigste 1-til-1-en er sjelden den lengste; det er den med partneren det er enklest å gi en referanse til <em>denne uka</em>.</p>
@@ -570,7 +585,7 @@
     <div class="pq"><p>Partnerne refererer mønsteret ditt, ikke løftene dine.</p></div>
 
     <h3>Rapportering</h3>
-    <p>Rapportering er en del av metoden, ikke administrasjon. <em>Det vi rapporterer, blir synlig. Det som blir synlig, kan anerkjennes, læres av og forbedres.</em> Rapporteringen gir oss fire ting: <strong>læring</strong> (teamet ser hva som faktisk skaper referanser og business), <strong>anerkjennelse</strong> (bidrag som synes, kan takkes for), <strong>ansvarlighet</strong> (vi ser om vi gjør det vi har sagt) og <strong>synlig giving</strong> (jo mer synlig det er at du gir, jo mer får du tilbake). Vi rapporterer <strong>kun gitte bidrag</strong> — «jeg inviterte», ikke «jeg skal invitere». «Jeg ga en referanse», ikke «jeg har kanskje en». Får intensjoner telle som bidrag, mister tallene verdi.</p>
+    <p>Rapportering er en del av metoden, ikke administrasjon. <em>Det vi rapporterer, blir synlig. Det som blir synlig, kan anerkjennes, læres av og forbedres.</em> Rapporteringen gir oss fire ting: <strong>læring</strong> (teamet ser hva som faktisk skaper referanser og business), <strong>anerkjennelse</strong> (bidrag som synes, kan takkes for), <strong>ansvarlighet</strong> (vi ser om vi gjør det vi har sagt) og <strong>synlig giving</strong> (jo mer synlig det er at du gir, jo mer får du tilbake). Vi rapporterer <strong>kun gitte bidrag</strong> — «jeg inviterte», ikke «jeg skal invitere». «Jeg ga en referanse», ikke «jeg har kanskje en». Får intensjoner telle som bidrag, mister tallene verdi. Du rapporterer i BNI Connect eller BNI-appen: 1-til-1, referanser, Takk For Business og gjester.</p>
     <div class="pq"><p>Gjør jobben. Rapporter jobben. Lær av jobben. Gjør det igjen.</p></div>
 
     <h3>Power of One — minimumsrytmen</h3>
@@ -616,6 +631,14 @@
     <p>Målet er ikke et stort team fordi tallet ser bra ut. Målet er et sterkt team som skaper mer verdi. En riktig ny partner tilfører <strong>kompetanse, relasjoner og nye muligheter til å hjelpe</strong> — og styrker en kontaktsirkel så referanser kan bevege seg mellom flere ekspertområder.</p>
     <div class="pq"><p>Gjester er ikke publikum.</p></div>
     <p>Vi inviterer strategisk: mennesker som kan få verdi fra teamet og tilføre verdi til det. Strategisk invitasjon starter med <strong>hullet teamet har</strong>, ikke med hvem som er hyggelig. Vekst for vekstens skyld er ikke målet. Riktige mennesker styrker referanseflyten.</p>
+    <h3>Slik inviterer du</h3>
+    <p>Start i kontaktsirkelen: hvilket ekspertområde mangler teamet, og hvem kjenner du der? Invitasjonen trenger ikke være lang. Tre spørsmål holder:</p>
+    <ol class="invite">
+      <li>Vil du vokse?</li>
+      <li>Vil du knytte en relasjon til meg?</li>
+      <li>Vil du møte andre i teamet som tenker på samme måte?</li>
+    </ol>
+    <p>Besøks- og vekstdager er gode anledninger, men en riktig gjest er velkommen hver uke. Ta selv imot gjesten ved døra og følg vedkommende gjennom møtet.</p>
   </section>
 
   <!-- DEL 8 -->
@@ -627,6 +650,13 @@
     </div>
     <p>Partnerne trener på å lytte etter behov, gjøre egen ekspertise refererbar, stille gode spørsmål, forstå referansekilder, bygge kontaktsirkler, gjennomføre målrettede 1-til-1, gjøre gode introduksjoner og følge opp. Dette blir man ikke god på ved å høre om det én gang. Det må praktiseres. Derfor er BNI mer enn teamet — det er et <strong>læringssystem rundt arbeidsmetoden.</strong></p>
     <p><strong>MSP</strong> skaper overgangen fra <em>«Jeg har blitt med i et nettverk»</em> til <em>«Jeg bruker en strukturert arbeidsmetode for å skape referanser, verdi og målbar business.»</em> Partneren skal gå ut og vite <strong>hva de skal gjøre før neste møte</strong>. Vi lover ikke omsetning første dag — men vi lærer heller ingen å sitte passive i seks måneder og vente. <strong>Resultater starter når handlingen starter.</strong> Og all trening måles på samme kriterium: <em>«Bra. Hva gjør du annerledes neste uke?»</em> Målet med læring i BNI er ikke mer informasjon. Det er bedre atferd.</p>
+    <h3>Læringssystemet rundt metoden</h3>
+    <div class="ladder">
+      <div class="rung"><span class="rn">MSP</span><span class="rd">Gir forståelsen av metoden, og hva du skal gjøre før neste møte.</span></div>
+      <div class="rung"><span class="rn">Kompass &amp; mentor</span><span class="rd">Får metoden i gang de første ukene: tydeligere kundecase, de første referansene, målrettede 1-til-1 og kontaktsirkelen.</span></div>
+      <div class="rung"><span class="rn">Utdannings&shy;punktet</span><span class="rd">Trener ferdighetene videre, fem minutter hver uke. Skal ende i en handling, ikke bare ny informasjon.</span></div>
+      <div class="rung"><span class="rn">Møte &amp; 1-til-1</span><span class="rd">Treningsarenaen, der metoden brukes på ekte behov, hver uke.</span></div>
+    </div>
 
     <h3>Fire kjente programmer — samme grunnlov</h3>
     <p>Vi sammenligner ikke BNI med andre programmer for å låne status, men fordi det avslører hvilken <em>kategori</em> BNI hører hjemme i. Alle fire deler én pedagogisk grunnlov:</p>
@@ -638,12 +668,12 @@
     <div class="cmp">
       <h3><span class="cn">01</span> Dale Carnegie</h3>
       <div class="grid">
-        <div class="row"><span class="k">Hva det er</span><span class="v">Trening i kommunikasjon, relasjoner, påvirkning og lederskap.</span></div>
-        <div class="row"><span class="k">Hvordan</span><span class="v">Deltakerne trener i gruppe, øver på egne situasjoner og anvender oppgaver på jobben <em>mellom</em> samlingene. Læringen skjer i mellomrommet.</span></div>
-        <div class="row"><span class="k">Parallellen</span><span class="v">Begge sender deg ut for å bruke det du lærte, og henter deg tilbake med erfaring.</span></div>
-        <div class="row"><span class="k">Forskjellen</span><span class="v">Der Dale Carnegie øver i konstruerte situasjoner, er BNIs «øving» samtidig reell business.</span></div>
+        <div class="row"><span class="k">Hva det er</span><span class="v">Trening i kommunikasjon, ledelse og salg, siden 1912. Flaggskipet i Norge, «Kommunikasjon og ledelse», er et 12-ukers program.</span></div>
+        <div class="row"><span class="k">Hvordan</span><span class="v">«Vi trener atferd, ikke bare teori.» Deltakerne er aktive mesteparten av tiden, jobber med virkelige situasjoner fra egen jobb med coaching og tilbakemelding, og gjør praksisoppgaver i hverdagen <em>mellom</em> samlingene.</span></div>
+        <div class="row"><span class="k">Parallellen</span><span class="v">Begge trener atferd, ikke teori. Begge sender deg ut for å bruke det du lærte i virkeligheten, og henter deg tilbake med erfaring.</span></div>
+        <div class="row"><span class="k">Forskjellen</span><span class="v">Dale Carnegie er et program med start og slutt, og du bruker det du lærer alene i din egen jobb. I BNI har treningen ingen sluttdato, og menneskene du trener sammen med, skaper business for hverandre hver uke.</span></div>
       </div>
-      <div class="say"><b>Sagt enkelt</b>«Dale Carnegie lærer deg ikke kommunikasjon ved å lese om det — du trener, du bruker det, du kommer tilbake. BNI gjør det samme med referanser. Forskjellen er at hos oss er øvelsen ekte business.»</div>
+      <div class="say"><b>Sagt enkelt</b>«Dale Carnegie trener atferd, ikke teori: du øver, bruker det på jobben og kommer tilbake. BNI gjør det samme med referanser. Forskjellen er at treningen aldri slutter, og at teamet du trener med, skaper business for deg.»</div>
     </div>
 
     <div class="cmp">
@@ -688,7 +718,7 @@
           <tr><th>Program</th><th>Ferdighet i</th><th>Kjernemekanikk</th><th>Arenaen</th></tr>
         </thead>
         <tbody>
-          <tr><td>Dale Carnegie</td><td>Kommunikasjon &amp; relasjoner</td><td>Trening + anvendelse mellom samlinger</td><td>Øvingen er konstruert</td></tr>
+          <tr><td>Dale Carnegie</td><td>Kommunikasjon, ledelse &amp; salg</td><td>Coaching + praksis i egen jobb mellom samlinger</td><td>Egen jobb, i et program med sluttdato</td></tr>
           <tr><td>Toastmasters</td><td>Kommunikasjon &amp; presentasjon</td><td>Faste roller, praksis, tilbakemelding</td><td>Talen er målet</td></tr>
           <tr><td>BI lederutvikling</td><td>Ledelse</td><td>Teori + refleksjon + anvendelse</td><td>I egen bedrift, alene</td></tr>
           <tr><td>Innovasjon Norge</td><td>Bedriftsutvikling &amp; vekst</td><td>Nettverk &amp; samarbeid som virkemiddel</td><td>Nettverk som virkemiddel</td></tr>
@@ -706,7 +736,7 @@
       <h2>Hva dette betyr for deg</h2>
     </div>
 
-    <div class="roleblock">
+    <div class="roleblock" id="rolle-partner">
       <span class="role-tag">Partner</span>
       <h3>Jobben er ikke å møte opp — det er å bruke metoden.</h3>
       <ul>
@@ -716,7 +746,7 @@
       </ul>
     </div>
 
-    <div class="roleblock">
+    <div class="roleblock" id="rolle-teamleder">
       <span class="role-tag">Teamleder</span>
       <h3>Agendaen er verktøyet — oppgaven er å beskytte arbeidsflyten.</h3>
       <ul>
@@ -726,7 +756,7 @@
       </ul>
     </div>
 
-    <div class="roleblock">
+    <div class="roleblock" id="rolle-konsulent">
       <span class="role-tag">Konsulent &amp; trener</span>
       <h3>Oppgaven er ikke å administrere BNI — men å hjelpe team og partnere å mestre metoden.</h3>
       <ul>
