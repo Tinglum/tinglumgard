@@ -449,7 +449,7 @@
     butchersChoiceDescEnhanced:
       "Recommended: the butcher selects the best rib cut from the day, with the right fat balance for juicy results.",
     ribbeSpecialNote:
-      "Mangalitsa ribs have high fat marbling. Cook low and slow, then use the rendered fat for sauces, vegetables or mash for maximum flavor.",
+      "The pork belly comes without skin because the woolly pig is skinned. Mangalitsa has rich fat marbling that helps keep the meat juicy and gives it a full flavour. Cook low and slow, then use the rendered fat for sauces, vegetables or mash.",
     ribbeHeroCutNote:
       "The ribs are the star of this box - the choice you make here is what really defines your Christmas dinner.",
     preSelected: "Pre-selected",
@@ -2901,7 +2901,7 @@
     step2Title: "2. Choose rib type",
     ribbeHint: "Your box contains about {amount} kg of ribs. Choose type:",
     ribOptionTynnribbeName: "Thin ribs",
-    ribOptionTynnribbeDesc: "Classic ribs with bones - perfect for crispy crackling",
+    ribOptionTynnribbeDesc: "Classic ribs with bones - juicy meat without skin",
     ribOptionFamilieribbeName: "Family ribs",
     ribOptionFamilieribbeDesc:
       "Includes the loin with tenderloin - more meat, leaner cuts",

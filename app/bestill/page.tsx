@@ -5,13 +5,13 @@ import { useSearchParams } from 'next/navigation';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useIsMobile } from '@/hooks/useMediaQuery';
 import { cn } from '@/lib/utils';
-import { fixMojibake } from '@/lib/utils/text';
+import { displayCutName, fixMojibake } from '@/lib/utils/text';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Check, ExternalLink, Sparkles, Info, Minus, Plus, ChevronDown, Search, Shield } from 'lucide-react';
+import { Check, ExternalLink, Sparkles, Info, Minus, Plus, ChevronDown, Search } from 'lucide-react';
 import { ReferralCodeInput } from '@/components/ReferralCodeInput';
 import { RebateCodeInput } from '@/components/RebateCodeInput';
 import { MobileCheckout } from '@/components/MobileCheckout';
@@ -20,6 +20,7 @@ import { ExtraProductModal } from '@/components/ExtraProductModal';
 import { RecipeQuickViewModal } from '@/components/RecipeQuickViewModal';
 import { useToast } from '@/hooks/use-toast';
 import { usePageTrack } from '@/hooks/usePageTrack';
+import { FarmJourney } from '@/components/farm/FarmJourney';
 import {
   getDefaultExtraQuantity,
   getExtraStep,
@@ -47,8 +48,6 @@ function smoothScrollTo(element: HTMLElement | null, offset = 80) {
 }
 
 /* ── Step labels ── */
-const STEP_NAMES_NO = ['Velg kasse', 'Ribbetype', 'Tilvalg', 'Levering'] as const;
-const STEP_NAMES_EN = ['Choose box', 'Ribs', 'Extras', 'Delivery'] as const;
 
 interface MangalitsaPreset {
   id: string;
@@ -1144,10 +1143,10 @@ export default function CheckoutPage() {
     />
   ) : null;
 
-  // Mobile version - Keep existing design unchanged
+  // Both layouts share the farm design while retaining their checkout steps.
   if (isMobile) {
     return (
-      <div className="relative min-h-screen bg-[#F6F4EF] text-[#1E1B16]">
+      <div className="farm-checkout relative min-h-screen bg-[#F6F4EF] text-[#1E1B16]">
         <div className="pointer-events-none fixed inset-0 -z-10">
           <div className="absolute -top-24 right-0 h-72 w-72 rounded-full bg-[#E4F1F0] blur-3xl" />
           <div className="absolute top-40 -left-24 h-72 w-72 rounded-full bg-[#F4D7C1] blur-3xl" />
@@ -1164,10 +1163,10 @@ export default function CheckoutPage() {
             {t.nav.back}
           </Link>
 
-          <div className="mt-6 mb-8 rounded-[28px] border border-[#E4DED5] bg-white p-6 shadow-[0_18px_40px_rgba(30,27,22,0.12)]">
+          <div className="farm-checkout-mobile-intro mt-6 mb-8 rounded-[28px] border border-[#E4DED5] bg-white p-6">
             <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-[#6A6258]">{t.checkout.title}</p>
             <h1 className="mt-2 text-3xl font-semibold text-[#1E1B16] font-[family:var(--font-playfair)]">{t.checkout.pageTitle}</h1>
-            <p className="mt-3 text-sm text-[#5E5A50]">{t.mangalitsa.hero.subtitle}</p>
+            <p className="mt-3 text-sm text-[#5E5A50]">{lang === 'no' ? 'Tilpass boksen og leveringen. Du ser totalsummen før du betaler.' : 'Customise your box and delivery. Review the total before paying.'}</p>
             {cameFromRecipe && (
               <div className="mt-4 rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3">
                 <p className="text-xs font-light text-neutral-700">{recipeCheckoutHint}</p>
@@ -1223,9 +1222,9 @@ export default function CheckoutPage() {
     );
   }
 
-  // Desktop version - Nordic Minimal Design with Movement
+  // Desktop checkout keeps the live summary alongside the form.
   return (
-    <div className="min-h-screen bg-white">
+    <div className="farm-checkout min-h-screen bg-white">
       {/* Subtle parallax background layer */}
       <div className="fixed inset-0 pointer-events-none -z-10">
         <div
@@ -1237,7 +1236,7 @@ export default function CheckoutPage() {
         />
       </div>
 
-      <div className="max-w-6xl mx-auto px-6 lg:px-8 py-20">
+      <div className="farm-checkout-layout max-w-6xl mx-auto px-6 lg:px-8 py-10">
         {/* Header */}
         <div className="mb-12">
           <Link
@@ -1252,7 +1251,7 @@ export default function CheckoutPage() {
         </div>
 
         {/* Hero + Trust signals */}
-        <div className="mb-12">
+        <div className="farm-checkout-intro mb-12">
           <MetaLabel>{t.checkout.title}</MetaLabel>
           <h1 className="text-5xl font-normal tracking-tight text-neutral-900 mt-3 mb-4">
             {t.checkout.pageTitle}
@@ -1266,72 +1265,18 @@ export default function CheckoutPage() {
             </div>
           )}
 
-          {/* C) Trygghet block — warm trust signals */}
-          <div className="mt-8 max-w-2xl flex items-start gap-4 rounded-xl border border-neutral-200 bg-neutral-50/70 px-5 py-4">
-            <Shield className="w-5 h-5 text-neutral-400 flex-shrink-0 mt-0.5" />
-            <ul className="space-y-1.5 text-sm font-light text-neutral-600">
-              <li>{lang === 'no' ? 'Du reserverer med 50\u00A0% forskudd' : 'You reserve with 50% deposit'}</li>
-              <li>{lang === 'no' ? 'Rest betales før levering (uke 46)' : 'Remainder paid before delivery (week 46)'}</li>
-              <li>{lang === 'no' ? 'Vi produserer kun et begrenset antall\u00A0– når det er tomt er det tomt' : 'Limited production\u00A0– when it\u2019s gone, it\u2019s gone'}</li>
-            </ul>
-          </div>
+          <div className="farm-checkout-assurances"><span><Check size={14} />{lang === 'no' ? '50 % ved bestilling' : '50% when ordering'}</span><span>{lang === 'no' ? 'Resten før levering' : 'Balance before delivery'}</span><span>Vipps</span></div>
+          {mangalitsaPreset && <div className="farm-selection-receipt"><span><strong>{fixMojibake(lang === 'no' ? mangalitsaPreset.name_no : mangalitsaPreset.name_en)}</strong><small>{mangalitsaPreset.target_weight_kg} kg · {mangalitsaPreset.price_nok.toLocaleString(locale)} kr</small></span><button type="button" onClick={() => setStep(1)}>{t.common.edit}</button></div>}
         </div>
 
-        {/* Progress Steps — with active step label */}
-        <div className="mb-16">
-          {/* Current step label */}
-          <p className="text-center text-sm font-light text-neutral-500 mb-5">
-            {lang === 'no' ? `Steg ${step} av 4` : `Step ${step} of 4`}
-            <span className="mx-2 text-neutral-300">·</span>
-            <span className="text-neutral-700">
-              {(lang === 'no' ? STEP_NAMES_NO : STEP_NAMES_EN)[step - 1]}
-            </span>
-          </p>
-          <div className="flex items-center justify-center gap-2">
-            {[1, 2, 3, 4].map((s) => (
-              <div key={s} className="flex items-center gap-2">
-                <div className={cn(
-                  "w-12 h-12 rounded-full border-2 flex items-center justify-center font-light transition-all duration-500",
-                  step > s && "bg-neutral-900 border-neutral-900 text-white shadow-[0_10px_30px_-10px_rgba(0,0,0,0.3)]",
-                  step === s && "border-neutral-900 text-neutral-900 shadow-[0_15px_40px_-12px_rgba(0,0,0,0.2)] scale-110",
-                  step < s && "border-neutral-200 text-neutral-400"
-                )}>
-                  {step > s ? <Check className="w-5 h-5" /> : s}
-                </div>
-                {s < 4 && (
-                  <div className={cn(
-                    "w-16 h-1 rounded-full transition-all duration-500",
-                    step > s ? "bg-neutral-900" : "bg-neutral-200"
-                  )} />
-                )}
-              </div>
-            ))}
-          </div>
-          <div className="flex items-center justify-center gap-2 mt-6">
-            <div className="text-center w-12">
-              <p className="text-xs font-light text-neutral-500">{t.checkout.stepSize}</p>
-            </div>
-            <div className="w-16" />
-            <div className="text-center w-12">
-              <p className="text-xs font-light text-neutral-500">{t.checkout.stepRibbe}</p>
-            </div>
-            <div className="w-16" />
-            <div className="text-center w-12">
-              <p className="text-xs font-light text-neutral-500">{t.checkout.stepExtras}</p>
-            </div>
-            <div className="w-16" />
-            <div className="text-center w-12">
-              <p className="text-xs font-light text-neutral-500">{t.checkout.stepDelivery}</p>
-            </div>
-          </div>
-        </div>
+        <FarmJourney current={Math.min(step, 4) - 1} steps={[t.checkout.stepSize, t.checkout.stepRibbe, t.checkout.stepExtras, lang === 'no' ? 'Levering og betaling' : 'Delivery and payment'].map(label => ({ label }))} onStepChange={index => setStep(index + 1)} />
 
         <div className="md:flex md:gap-8 md:items-start">
           {/* Main Content */}
           <div ref={mainContentRef} className="md:flex-1 md:w-2/3 space-y-8 mb-8 md:mb-0">
 
             {/* Step 1: Box Size */}
-            <div ref={step1Ref} className="bg-white border border-neutral-200 rounded-xl p-8 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.08)] transition-all duration-500 hover:shadow-[0_30px_80px_-20px_rgba(0,0,0,0.12)]">
+            <div ref={step1Ref} data-active={step === 1} className="farm-checkout-stage bg-white border border-neutral-200 rounded-xl p-8 transition-all duration-500">
                 <div className="flex items-center justify-between mb-6">
                   <h2 className="text-2xl font-light text-neutral-900">
                   {t.checkout.choosePresetTitle}
@@ -1346,6 +1291,7 @@ export default function CheckoutPage() {
                 )}
               </div>
 
+              <p className="farm-stage-summary">{mangalitsaPreset ? `${fixMojibake(lang === 'no' ? mangalitsaPreset.name_no : mangalitsaPreset.name_en)} · ${mangalitsaPreset.target_weight_kg} kg` : t.checkout.choosePresetTitle}</p>
               <div className="grid md:grid-cols-2 gap-6">
                 {mangalitsaPresets.length === 0 && (
                   <div className="md:col-span-2 p-8 text-center text-sm font-light text-neutral-500 border border-neutral-200 rounded-xl">
@@ -1364,6 +1310,7 @@ export default function CheckoutPage() {
                   return (
                     <button
                       key={preset.id}
+                      aria-pressed={isSelected}
                       onClick={() => {
                         setMangalitsaPreset(preset);
                         setBoxSize(String(preset.target_weight_kg) as '8' | '9' | '10' | '12');
@@ -1397,7 +1344,7 @@ export default function CheckoutPage() {
                                       content.is_hero ? "text-neutral-900 font-normal" : "text-neutral-600"
                                     )}
                                   >
-                                    {fixMojibake(lang === 'no' ? content.content_name_no : content.content_name_en)}
+                                    {displayCutName(lang === 'no' ? content.content_name_no : content.content_name_en, lang)}
                                   </span>
                                   {formatCutSizeRange(content.cut_size_from_kg, content.cut_size_to_kg) && (
                                     <p className="text-[11px] font-light uppercase tracking-wide text-neutral-500 mt-1">
@@ -1458,7 +1405,7 @@ export default function CheckoutPage() {
 
             {/* Step 2: Ribbe Choice */}
             {mangalitsaPreset && (
-              <div ref={step2Ref} className={cn(
+              <div ref={step2Ref} data-active={step === 2} className={cn('farm-checkout-stage',
                 "bg-white border border-neutral-200 rounded-xl p-8 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.08)] transition-all duration-500",
                 step < 2 && "opacity-40 pointer-events-none",
                 step >= 2 && "hover:shadow-[0_30px_80px_-20px_rgba(0,0,0,0.12)]"
@@ -1478,6 +1425,7 @@ export default function CheckoutPage() {
                 <p className="text-sm font-light text-neutral-600 mb-6">
                   {t.mangalitsa.ribbeSelection.subtitle}
                 </p>
+                <p className="farm-stage-summary">{step > 2 ? ribbeOptions.find(option => option.id === ribbeChoice)?.name : lang === 'no' ? 'Neste valg: hvilken ribbe vil du ha?' : 'Next choice: which pork belly cut would you like?'}</p>
 
                 <div className="mb-6 p-5 rounded-xl border border-neutral-200 bg-neutral-50">
                   <p className="text-sm font-light text-neutral-700 leading-relaxed">
@@ -1556,7 +1504,7 @@ export default function CheckoutPage() {
 
             {/* Step 3: Extra Products */}
             {ribbeChoice && (
-              <div ref={step3Ref} className={cn(
+              <div ref={step3Ref} data-active={step === 3} className={cn('farm-checkout-stage',
                 "bg-white border border-neutral-200 rounded-xl p-8 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.08)] transition-all duration-500",
                 step < 3 && "opacity-40 pointer-events-none",
                 step >= 3 && "hover:shadow-[0_30px_80px_-20px_rgba(0,0,0,0.12)]"
@@ -1573,6 +1521,7 @@ export default function CheckoutPage() {
                   )}
                 </div>
 
+                <p className="farm-stage-summary">{step > 3 ? `${extraProducts.length} ${lang === 'no' ? 'tillegg' : 'extras'} · ${checkoutExtrasTotal.toLocaleString(locale)} kr` : lang === 'no' ? 'Valgfritt: legg til flere stykker etter ribbevalget.' : 'Optional: add more cuts after choosing your pork belly.'}</p>
                 <div className="mb-8 p-5 bg-neutral-50 border border-neutral-200 rounded-xl">
                   <p className="text-sm font-light text-neutral-600 leading-relaxed">
                     {lang === 'no'
@@ -1835,7 +1784,7 @@ export default function CheckoutPage() {
             className="w-full md:w-1/3 md:flex-shrink-0 md:self-start md:sticky md:top-28 transition-[margin] duration-300"
             style={!isMobile ? { marginTop: `${summaryOffset}px` } : undefined}
           >
-            <div className="bg-white border border-neutral-200 rounded-xl p-8 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.1)] transition-all duration-500 hover:shadow-[0_30px_80px_-20px_rgba(0,0,0,0.15)]">
+            <div className="farm-checkout-summary bg-white border border-neutral-200 rounded-xl p-8">
                 <h3 className="text-2xl font-light text-neutral-900 mb-6">
                   {t.checkout.summary}
                 </h3>

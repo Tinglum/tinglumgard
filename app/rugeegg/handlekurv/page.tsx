@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { useLanguage } from '@/contexts/LanguageContext'
+import { EggJourney } from '@/components/farm/FarmJourney'
 import { useCart } from '@/contexts/eggs/EggCartContext'
 import { useOrder } from '@/contexts/eggs/EggOrderContext'
 import { formatPrice, formatDate } from '@/lib/eggs/utils'
@@ -138,6 +139,7 @@ export default function CartPage() {
   return (
     <div className="min-h-screen overflow-x-hidden py-12">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-5xl">
+        <EggJourney current={0} />
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -206,6 +208,7 @@ export default function CartPage() {
                             <div className="flex items-center gap-3">
                               <button
                                 onClick={() => updateQuantity(item.breed.id, item.week.id, item.quantity - 1)}
+                                aria-label={language === 'no' ? `Færre egg av ${item.breed.name}` : `Fewer ${item.breed.name} eggs`}
                                 disabled={item.quantity <= 1}
                                 className="w-8 h-8 rounded-full glass-light flex items-center justify-center hover:glass-strong disabled:opacity-40 disabled:cursor-not-allowed transition-all focus-ring"
                               >
@@ -216,6 +219,7 @@ export default function CartPage() {
                               </span>
                               <button
                                 onClick={() => updateQuantity(item.breed.id, item.week.id, item.quantity + 1)}
+                                aria-label={language === 'no' ? `Flere egg av ${item.breed.name}` : `More ${item.breed.name} eggs`}
                                 disabled={item.quantity >= item.week.eggsAvailable}
                                 className="w-8 h-8 rounded-full glass-light flex items-center justify-center hover:glass-strong disabled:opacity-40 disabled:cursor-not-allowed transition-all focus-ring"
                               >
@@ -234,6 +238,7 @@ export default function CartPage() {
 
                             <button
                               onClick={() => removeFromCart(item.breed.id, item.week.id)}
+                              aria-label={language === 'no' ? `Fjern ${item.breed.name} fra handlekurven` : `Remove ${item.breed.name} from the cart`}
                               className="self-start rounded p-2 text-neutral-400 transition-colors hover:bg-error-50 hover:text-error-700 focus-ring sm:ml-4 sm:self-auto"
                             >
                               <Trash2 className="w-5 h-5" />

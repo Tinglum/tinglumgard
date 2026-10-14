@@ -70,8 +70,9 @@ export function ProductSectionSwitcher({ className }: { className?: string }) {
             <Link
               key={section}
               href={SECTION_META[section].href}
+              aria-current={isActive ? 'page' : undefined}
               className={cn(
-                'min-w-[140px] flex-1 rounded-xl border px-3 py-3 text-left transition-all duration-200',
+                'min-w-0 flex-1 rounded-xl border px-3 py-3 text-left transition-all duration-200',
                 isActive
                   ? 'border-neutral-900 bg-neutral-900 text-white shadow-[0_16px_32px_-18px_rgba(0,0,0,0.6)]'
                   : 'border-neutral-200 bg-white text-neutral-700 hover:-translate-y-0.5 hover:border-neutral-300 hover:text-neutral-900'

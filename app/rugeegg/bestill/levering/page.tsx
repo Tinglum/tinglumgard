@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { GlassCard } from '@/components/eggs/GlassCard'
 import { useLanguage } from '@/contexts/LanguageContext'
+import { EggJourney } from '@/components/farm/FarmJourney'
 import { useOrder } from '@/contexts/eggs/EggOrderContext'
 import { formatDate, formatPrice } from '@/lib/eggs/utils'
 import { ArrowRight, Truck, MapPin, Store } from 'lucide-react'
@@ -122,6 +123,7 @@ export default function EggDeliveryPage() {
   return (
     <div className="min-h-screen py-12">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-5xl space-y-8">
+        <EggJourney current={1} />
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-4xl font-normal text-neutral-900 mb-2">{copy.title}</h1>

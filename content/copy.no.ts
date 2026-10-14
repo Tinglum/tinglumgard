@@ -439,7 +439,7 @@
     selectRibbeType: "Velg ribbetype",
     boxContains: "Din boks inneholder ca. {size} kg ribbe. Velg type:",
     tynnribbe: "Tynnribbe",
-    tynnribbeDesc: "Klassisk ribbe med ribbein - perfekt sprøstekt svor",
+    tynnribbeDesc: "Klassisk ribbe med ribbein - saftig kjøtt uten svor",
     familieribbe: "Familieribbe",
     familieribbeDesc: "Inkluderer kotelettkammen med ytrefileten - mer og litt magrere kjøtt",
     porchetta: "Porchetta",
@@ -449,7 +449,7 @@
     butchersChoiceDescEnhanced:
       "Anbefalt: Slakteren velger det beste ribbesnittet fra dagens slakt, med riktig fettbalanse for saftig resultat.",
     ribbeSpecialNote:
-      "Mangalitsa-ribbe har høy fettmarmorering. Stek lavt og lenge, og bruk det smeltede fettet i saus, grønnsaker eller potetmos for maksimal smak.",
+      "Ribba leveres uten svor fordi ullgrisen flås. Mangalitsa har høy fettmarmorering som gjør det lettere å få saftig ribbe med fyldig smak. Stek lavt og lenge, og bruk det smeltede fettet i saus, grønnsaker eller potetmos.",
     ribbeHeroCutNote:
       "Ribba er hovedattraksjonen i denne boksen - valget du gjør her er det som virkelig setter preg på julemiddagen.",
     preSelected: "Forhåndsvalgt",
@@ -2903,7 +2903,7 @@
     step2Title: "2. Velg ribbe-type",
     ribbeHint: "Din kasse inneholder ca. {amount} kg ribbe. Velg hvilken type:",
     ribOptionTynnribbeName: "Tynnribbe",
-    ribOptionTynnribbeDesc: "Klassisk ribbe med ribbein - perfekt sprøstekt svor",
+    ribOptionTynnribbeDesc: "Klassisk ribbe med ribbein - saftig kjøtt uten svor",
     ribOptionFamilieribbeName: "Familieribbe",
     ribOptionFamilieribbeDesc:
       "Inkluderer kotelettkammen med ytrefileten - mer kjøtt, magrere kjøtt",

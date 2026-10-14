@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { ArrowRight, Clock, Users, ChefHat } from 'lucide-react'
-import { no as copyNo } from '@/content/copy.no'
+import { useLanguage } from '@/contexts/LanguageContext'
 
 interface Recipe {
   id: string
@@ -71,7 +71,7 @@ function RecipeCardSkeleton() {
 }
 
 export default function RecipesPage() {
-  const t = copyNo
+  const { t, lang } = useLanguage()
   const [recipes, setRecipes] = useState<Recipe[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -105,7 +105,7 @@ export default function RecipesPage() {
   const renderRecipeGrid = (items: Recipe[]) => (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
       {items.map((recipe) => {
-        const title = recipe.title_no
+        const title = lang === 'no' ? recipe.title_no : recipe.title_en
         const totalTime = recipe.prep_time_minutes + recipe.cook_time_minutes
 
         return (
@@ -114,7 +114,7 @@ export default function RecipesPage() {
             href={`/oppskrifter/${recipe.slug}`}
             className="group"
           >
-            <article className="rounded-xl overflow-hidden bg-white border border-neutral-100 hover:border-neutral-200 hover:shadow-lg transition-all duration-300">
+            <article className="farm-recipe-card rounded-xl overflow-hidden bg-white border border-neutral-100 transition-all duration-300">
               <div className="relative h-56 overflow-hidden">
                 <img
                   src={recipe.image_url || '/recipes/carbonara-guanciale.jpg'}
@@ -158,18 +158,6 @@ export default function RecipesPage() {
 
   return (
     <div className="min-h-screen bg-neutral-50">
-      {/* Header */}
-      <div className="bg-white border-b border-neutral-100">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-screen-xl py-4">
-          <Link
-            href="/"
-            className="text-sm font-light text-neutral-500 hover:text-neutral-800 transition-colors"
-          >
-            Tinglumgard
-          </Link>
-        </div>
-      </div>
-
       {/* Hero section */}
       <div className="bg-white border-b border-neutral-100">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-screen-xl py-16 sm:py-20">

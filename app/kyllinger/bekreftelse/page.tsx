@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { useLanguage } from '@/contexts/LanguageContext'
+import { OrderNextActions } from '@/components/farm/OrderNextActions'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
 import { CheckCircle, Clock, RefreshCcw, XCircle, AlertTriangle, ShieldCheck } from 'lucide-react'
@@ -246,11 +247,12 @@ export default function ChickenConfirmationPage() {
             <Link href="/kyllinger">
               <Button variant="outline">{confirmationCopy.backToChickens}</Button>
             </Link>
-            <Link href="/min-side">
+            <Link href={`/min-side?chickenOrderId=${encodeURIComponent(order?.id || orderId || '')}`}>
               <Button>{confirmationCopy.myOrders}</Button>
             </Link>
           </div>
         </div>
+        {order && orderId && <OrderNextActions product="chickens" orderId={order.id || orderId} orderNumber={order.order_number} />}
       </div>
     </div>
   )

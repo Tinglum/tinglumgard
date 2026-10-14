@@ -1,5 +1,10 @@
 // Text helpers shared across server/client components.
 
+export function displayCutName(value: string, language: 'no' | 'en'): string {
+  const name = fixMojibake(value);
+  return language === 'no' ? name.replace(/\s*\([^)]*\)/g, '').trim() : name;
+}
+
 const MOJIBAKE_MARKERS = [
   'Ã¥',
   'Ã¸',

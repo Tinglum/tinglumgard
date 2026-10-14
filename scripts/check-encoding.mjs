@@ -7,6 +7,7 @@ const EXCLUDE_DIRS = new Set([
   '.git',
   '.next',
   '.netlify',
+  '.claude/worktrees',
   'node_modules',
   'supabase/migrations',
 ]);

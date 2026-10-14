@@ -11,6 +11,7 @@ import { logError } from '@/lib/logger'
 import { useToast } from '@/hooks/use-toast'
 import { OtherProductsRow } from '@/components/OtherProductsRow'
 import { MobileProductDock } from '@/components/MobileProductDock'
+import { FarmJourney } from '@/components/farm/FarmJourney'
 
 interface SelectedHatchOption {
   id: string
@@ -279,8 +280,8 @@ export default function KyllingerPage() {
 
   return (
     <div className="min-h-screen bg-stone-50 pb-28 md:pb-10">
-      <section className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-screen-xl py-16 md:py-24">
-        <div className="text-center max-w-6xl mx-auto">
+      <section className="farm-browse-section container mx-auto px-4 sm:px-6 lg:px-8 max-w-screen-xl py-16 md:py-24">
+        <div className="farm-page-intro max-w-6xl mx-auto">
           <h1 className="text-5xl md:text-6xl font-normal tracking-tight text-neutral-900 mb-6 leading-tight">
             {chickens.pageTitle}
           </h1>
@@ -291,6 +292,10 @@ export default function KyllingerPage() {
       </section>
 
       <div className="max-w-6xl mx-auto px-4 py-10 space-y-10">
+        <FarmJourney current={!selectedWeek ? 0 : selectedOrderLines.length === 0 ? 1 : 2} steps={[{ label: lang === 'no' ? 'Henteuke' : 'Collection week' }, { label: lang === 'no' ? 'Kyllinger' : 'Chicks' }, { label: lang === 'no' ? 'Bestilling' : 'Order' }]} onStepChange={index => {
+          const target = index === 0 ? document.getElementById('chicken-calendar') : index === 1 ? weekOptionsRef.current : orderFormRef.current
+          target?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' })
+        }} />
         {loading ? (
           <div className="space-y-8 animate-pulse">
             <div className="rounded-xl border border-neutral-200 bg-white p-4">
@@ -331,7 +336,7 @@ export default function KyllingerPage() {
               </div>
             </section>
 
-            <section>
+            <section id="chicken-calendar" className="scroll-mt-24">
               <h2 className="text-2xl font-light text-neutral-900 mb-2">
                 {chickens.calendarTitle}
               </h2>
