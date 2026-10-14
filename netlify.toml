@@ -9,21 +9,14 @@ publish = ".next"
 [[plugins]]
 package = "@netlify/plugin-nextjs"
 
-# Dedicated subdomain for the BNI strategy & communication page.
-# Root is forced to the document. Other paths fall back to it only when no
-# static file exists (no force), so /bnistrategi/fonts, og.png and icons
-# are still served as files.
-# Requires the domain alias + DNS (CNAME bnistrategi -> the Netlify site).
-[[redirects]]
-  from = "https://bnistrategi.tinglum.com/"
-  to = "/bnistrategi/index.html"
-  status = 200
-  force = true
-
+# The BNI method document is internal (consultants only) and is served behind
+# the trainer-portal login at /bnimsp/strategi. Old addresses forward there.
+# Fonts and icons under /bnistrategi/ stay public files (not confidential).
 [[redirects]]
   from = "https://bnistrategi.tinglum.com/*"
-  to = "/bnistrategi/index.html"
-  status = 200
+  to = "https://msp.tinglum.com/bnimsp/strategi"
+  status = 301
+  force = true
 
 [[redirects]]
   from = "/quest"
@@ -49,8 +42,20 @@ package = "@netlify/plugin-nextjs"
   status = 301
   force = true
 
-# Also reachable at a clean /bnistrategi path on the primary domain.
 [[redirects]]
   from = "/bnistrategi"
-  to = "/bnistrategi/index.html"
-  status = 200
+  to = "https://msp.tinglum.com/bnimsp/strategi"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/bnistrategi/"
+  to = "https://msp.tinglum.com/bnimsp/strategi"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/bnistrategi/index.html"
+  to = "https://msp.tinglum.com/bnimsp/strategi"
+  status = 301
+  force = true

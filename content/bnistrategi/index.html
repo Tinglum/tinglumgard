@@ -6,16 +6,6 @@
 <title>BNI er en arbeidsmetode · Internt for konsulenter · BNI Norge</title>
 <meta name="description" content="Internt metodedokument for BNI Norge og konsulentene.">
 <meta name="robots" content="noindex, nofollow">
-<meta property="og:type" content="website">
-<meta property="og:locale" content="nb_NO">
-<meta property="og:site_name" content="BNI Norge">
-<meta property="og:title" content="BNI er en arbeidsmetode">
-<meta property="og:description" content="Internt metodedokument for BNI Norge og konsulentene: metoden, standarden og verktøyene.">
-<meta property="og:image" content="https://msp.tinglum.com/bnistrategi/og.png">
-<meta property="og:image:width" content="1200">
-<meta property="og:image:height" content="630">
-<meta property="og:image:alt" content="BNI er en arbeidsmetode">
-<meta name="twitter:card" content="summary_large_image">
 <meta name="theme-color" content="#CF2030">
 <link rel="icon" href="/bnistrategi/favicon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="/bnistrategi/apple-touch-icon.png">
@@ -310,8 +300,9 @@
   }
   tbody td{font-size:14px;line-height:1.35;color:var(--ink-soft)}
   tbody td:first-child{font-weight:600;color:var(--ink)}
-  tbody tr:last-child td{border-bottom:none;background:var(--accent-wash)}
-  tbody tr:last-child td:first-child{color:var(--accent-ink)}
+  tbody tr:last-child td{border-bottom:none}
+  table.compare tbody tr:last-child td{background:var(--accent-wash)}
+  table.compare tbody tr:last-child td:first-child{color:var(--accent-ink)}
 
   /* ---- Comparison cards ---- */
   .cmp{margin:26px 0}
@@ -471,6 +462,15 @@
   html{scroll-behavior:smooth}
 
 
+  /* ---- Language bank ---- */
+  .lexicon{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:18px 0 8px}
+  .lex{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px 18px;break-inside:avoid;page-break-inside:avoid}
+  .lex h4{margin:0 0 8px;font-family:"Archivo",sans-serif;font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--accent-ink)}
+  .lex ul{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+  .lex li{font-style:italic;font-size:15.5px;line-height:1.42;color:var(--ink)}
+  table.glossary td:first-child{white-space:nowrap;font-weight:600}
+  @media(max-width:700px){.lexicon{grid-template-columns:1fr} table.glossary td:first-child{white-space:normal}}
+
   /* ---- New-model tag ---- */
   .tag-new{
     display:inline-block;vertical-align:middle;margin-left:8px;transform:translateY(-2px);
@@ -573,7 +573,7 @@
     <h1>BNI er en arbeidsmetode</h1>
     <p class="lede">Metoden vi lærer bort, standarden vi holder, og verktøyene vi bruker for at partnerne skal lykkes med BNI som strategi og program.</p>
     <p class="owner">Versjon 2.0, oktober 2026 · Ansvarlig: Kenneth Tinglum, National Trainer, BNI Norge · Teamledelsen får et eget dokument.</p>
-    <a class="pdf-link" href="/bnistrategi/BNI-er-en-arbeidsmetode.pdf" download>Last ned som PDF</a>
+    <a class="pdf-link" href="/bnimsp/strategi/pdf" download>Last ned som PDF</a>
 
     <div class="audience">
       <a href="#del13">
@@ -1015,7 +1015,7 @@
     <h3>Hva er det som gjør BNI unikt?</h3>
     <p>Ingen av de fire gjør alt samtidig. BNI er kombinasjonen: en metode, kompetanse og trening, et profesjonelt nettverk, en reell arena, tillit som vokser frem over tid, ansvarlighet og målbare resultater.</p>
     <div class="tablewrap">
-      <table>
+      <table class="compare">
         <thead>
           <tr><th>Program</th><th>Ferdighet i</th><th>Kjernemekanikk</th><th>Arenaen</th></tr>
         </thead>
@@ -1133,22 +1133,176 @@
     <div class="part-head">
       <span class="part-num">Del 13</span>
       <h2>Språket vi bruker</h2>
-      <p class="sub">Standard før stil. Formuleringene under sier vi likt. Stilen vår får leve i eksemplene.</p>
+      <p class="sub">Standard før stil. Definisjonene sier vi likt. Stilen vår får leve i historiene.</p>
     </div>
-    <ul class="clean">
-      <li><strong>Referanse:</strong> «En referanse er en enkel introduksjon mellom et faktisk behov og en mulig løsning. Ikke en garanti, ikke en anbefaling.»</li>
-      <li><strong>To kriterier:</strong> «En referanse har to kriterier, og begge må være oppfylt.»</li>
-      <li><strong>Startpunktet:</strong> «Startpunktet er at noen har et behov, og ikke hvem du helst vil ha som kunde.»</li>
-      <li><strong>Givers Gain:</strong> «Givers Gain er kvalitet, ikke kvantitet.»</li>
-      <li><strong>1-til-1:</strong> «1-til-1 er lik referanse. Hvert møte bør kunne ende i en referanse hver vei.»</li>
-      <li><strong>Kundecase:</strong> «I forrige uke hadde jeg en kunde. De hadde dette problemet. Slik løste vi det. Derfor leter jeg etter andre med akkurat det samme.»</li>
-      <li><strong>Rapportering:</strong> «Det som rapporteres, blir synlig, og det som er synlig, kan anerkjennes og forbedres.»</li>
-      <li><strong>Avslutning:</strong> «Hva gjør du med dette allerede neste møte?»</li>
-    </ul>
-    <div class="callout warn">
-      <span class="label">Unngå</span>
-      <p class="big">«Tips», «lead» og «kanskje noen som».</p>
-      <p class="small">Ordene undergraver definisjonen. Si «referanse», «behov» og «introduksjon».</p>
+
+    <h3>Hvorfor språket betyr så mye</h3>
+    <p>Når fem konsulenter forklarer en referanse på fem måter, lærer partnerne fem forskjellige metoder. Ordene former atferden. Kaller vi et tips en referanse, rapporterer partnerne tips, og tallene slutter å bety noe. Sier vi «husk meg hvis du møter noen», venter partnerne på en samtale som kanskje aldri kommer. Sier vi «hvem har du snakket med den siste uka», går de gjennom samtalene de allerede har hatt.</p>
+    <p>Derfor har vi en felles språkbank. Formuleringene i den sier vi likt, ordrett når vi kan, i MSP, i Kompasset, i utdanningspunktene og i hver coachingsamtale. Stilen vår får leve i historiene og eksemplene, men aldri i definisjonene. Teammanualen er kvalitetsfilteret: vi bruker ingen begreper som går på tvers av den.</p>
+    <div class="callout principle">
+      <span class="label">Tommelfingerregelen</span>
+      <p class="big">Hvis en partner kan gjenta det du sa til en annen partner, og det fortsatt betyr det samme, har du brukt riktig språk.</p>
+    </div>
+
+    <h3>Ord vi bruker, og ord vi unngår</h3>
+    <div class="tablewrap">
+      <table>
+        <thead>
+          <tr><th>Vi sier</th><th>Vi unngår</th><th>Hvorfor</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Referanse, kvalifisert referanse</td><td>Tips, lead, «kanskje noen som»</td><td>Et tips mangler ett av de to kriteriene. «Lead» gjør en introduksjon mellom mennesker til en salgsmulighet for én part.</td></tr>
+          <tr><td>Behov, problem</td><td>«Alle bedrifter», «alle som trenger»</td><td>Et konkret problem kan kjennes igjen. En bred målgruppe kan ikke det.</td></tr>
+          <tr><td>Introduksjon</td><td>«Gi et navn», «sende videre»</td><td>En introduksjon kobler to mennesker med kontekst og forventning. Et navn gjør ikke det.</td></tr>
+          <tr><td>God introduksjon</td><td>Trygg introduksjon</td><td>Verdien ligger i koblingen mellom behov og løsning, ikke i hvor godt giveren kjenner begge.</td></tr>
+          <tr><td>«Hvem har du snakket med den siste uka?»</td><td>«Husk meg hvis du møter noen»</td><td>Det er lettere å huske en samtale man har hatt enn å komme på en partner i en samtale som ennå ikke har skjedd.</td></tr>
+          <tr><td>Arbeidsmetode, strategi, program</td><td>Nettverksmøte, mingling, frokostklubb</td><td>Ordene bestemmer forventningen. En arbeidsmetode krever atferd hver uke.</td></tr>
+          <tr><td>1-til-1, arbeidsmøte</td><td>Kaffeprat, bli-kjent-møte</td><td>Målet er referanser begge veier, ikke en hyggelig samtale.</td></tr>
+          <tr><td>Gitte bidrag</td><td>Planer og intensjoner («jeg skal»)</td><td>Bare det som er gjort, kan rapporteres. Ellers mister tallene verdien.</td></tr>
+          <tr><td>Takk For Business</td><td>«Det ble kanskje noe»</td><td>TFB registreres når en referanse faktisk har blitt omsetning.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Språkbanken</h3>
+    <p>Setningene under kommer fra MSP og fra arbeidet med dette dokumentet. Bruk dem ordrett.</p>
+    <div class="lexicon">
+      <div class="lex">
+        <h4>Referansen</h4>
+        <ul>
+          <li>«En referanse er en enkel introduksjon mellom et faktisk behov og en mulig løsning. Ikke en garanti, ikke en anbefaling.»</li>
+          <li>«En referanse har to kriterier, og begge må være oppfylt.»</li>
+          <li>«Startpunktet er at noen har et behov, og ikke hvem du helst vil ha som kunde.»</li>
+          <li>«Det verste du kan få, er et nei takk.»</li>
+          <li>«Introduksjonen må være god. Den trenger ikke være trygg.»</li>
+        </ul>
+      </div>
+      <div class="lex">
+        <h4>Se bakover</h4>
+        <ul>
+          <li>«Hvem har du snakket med den siste uka som har akkurat dette problemet?»</li>
+          <li>«Den beste referansen denne uka finnes i en samtale du allerede har hatt.»</li>
+        </ul>
+      </div>
+      <div class="lex">
+        <h4>Refererbarhet</h4>
+        <ul>
+          <li>«Det er ikke nok å være flink. Du må være refererbar.»</li>
+          <li>«Spesifikt er refererbart.»</li>
+          <li>«Du får det du ber om. Be om kunden du faktisk vil ha.»</li>
+        </ul>
+      </div>
+      <div class="lex">
+        <h4>Kundecase og Ukens Taler</h4>
+        <ul>
+          <li>«I forrige uke hadde jeg en kunde. De hadde dette problemet. Slik løste vi det. Derfor leter jeg etter andre med akkurat det samme.»</li>
+          <li>«Gjør det så enkelt at en tredjepart kan gjenta det.»</li>
+        </ul>
+      </div>
+      <div class="lex">
+        <h4>1-til-1</h4>
+        <ul>
+          <li>«1-til-1 er lik referanse. Hvert møte bør kunne ende i en referanse hver vei.»</li>
+          <li>«Målet er ikke en hyggelig kaffeprat. Målet er at dere vet hvem dere leter etter for hverandre.»</li>
+          <li>«Hva gjør vi etter denne samtalen, og hvem gjør det først?»</li>
+        </ul>
+      </div>
+      <div class="lex">
+        <h4>Å motta en referanse</h4>
+        <ul>
+          <li>«Ta kontakt samme dag, senest innen 24 timer.»</li>
+          <li>«Giveren har lånt deg litt av tilliten sin. Ta vare på den.»</li>
+        </ul>
+      </div>
+      <div class="lex">
+        <h4>Givers Gain og tillit</h4>
+        <ul>
+          <li>«Givers Gain er kvalitet, ikke kvantitet.»</li>
+          <li>«Jo mer du gir, og jo mer synlig det er at du gir, jo mer får du.»</li>
+          <li>«Du trenger ikke kjenne noen godt for å gi en god referanse.»</li>
+          <li>«Metoden kommer først, tilliten følger, og Creator blir resultatet.»</li>
+        </ul>
+      </div>
+      <div class="lex">
+        <h4>Rapportering</h4>
+        <ul>
+          <li>«Rapportering er ikke administrasjon. Det som rapporteres, blir synlig, og det som er synlig, kan anerkjennes og forbedres.»</li>
+          <li>«Vi skal ikke pynte på tallene. Vi gjør jobben, rapporterer jobben, lærer av jobben og gjør det igjen.»</li>
+        </ul>
+      </div>
+      <div class="lex">
+        <h4>Mål og rytme</h4>
+        <ul>
+          <li>«Mål uten atferd er håp. Atferd uten mål er bare travelt.»</li>
+          <li>«Tilfeldig aktivitet gir tilfeldige resultater.»</li>
+          <li>«BNI som strategi tar 4 til 5 timer i uka.»</li>
+        </ul>
+      </div>
+      <div class="lex">
+        <h4>Avslutning og trening</h4>
+        <ul>
+          <li>«BNI fungerer ikke når du forstår metoden. BNI fungerer når du gjør metoden.»</li>
+          <li>«Hva gjør du med dette allerede neste møte?»</li>
+          <li>«Hvis du bare lytter, får du litt. Hvis du gjør oppgavene, får du mye mer.»</li>
+          <li>«Treningen er ikke laget for å bevise at BNI er bra. Den er laget for å lære deg å bruke BNI bra.»</li>
+        </ul>
+      </div>
+    </div>
+
+    <h3>Når språket glipper i rommet</h3>
+    <p>Rett språket med en gang, men vennlig. Målet er at partneren hører forskjellen, ikke at hen føler seg tatt.</p>
+    <div class="tablewrap">
+      <table>
+        <thead>
+          <tr><th>Når partneren sier</th><th>Svarer vi</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>«Jeg har et tips til deg.»</td><td>«Har personen et behov nå, og vet hen at du tar kontakt? Da er det en referanse. Hvis ikke, la oss gjøre det til en.»</td></tr>
+          <tr><td>«Jeg vil ha alle bedrifter.»</td><td>De fire spørsmålene: Hvem er kunden? Hvilket problem har de? Når oppstår det? Hva skal partnerne kjenne igjen?</td></tr>
+          <tr><td>«Jeg skal invitere noen.» (i rapporteringen)</td><td>«Flott. Det rapporterer du neste uke, når du har gjort det.»</td></tr>
+          <tr><td>«Jeg kjenner ham ikke godt nok til å referere.»</td><td>«Du trenger ikke det. Har han et behov, og vil han bli kontaktet? Tenk på skredderen på flyet.»</td></tr>
+          <tr><td>«BNI er et nettverk.»</td><td>«Et nettverk handler om hvem du møter. En arbeidsmetode handler om hva du gjør hver uke.»</td></tr>
+          <tr><td>«Husk meg hvis dere møter noen.»</td><td>«Hvem har dere snakket med den siste uka som har dette problemet?»</td></tr>
+          <tr><td>«Det kommer ingenting fra teamet mitt.»</td><td>«Hvem i kontaktsirkelen din mangler i teamet, og hvem av dem kan du invitere denne uka?»</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Begrepsliste</h3>
+    <p>Alle begrepene i pensumet, med betydningen vi bruker.</p>
+    <div class="tablewrap">
+      <table class="glossary">
+        <thead>
+          <tr><th>Begrep</th><th>Betydning</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Referanse</td><td>En introduksjon mellom et faktisk behov og en mulig løsning.</td></tr>
+          <tr><td>Kvalifisert referanse</td><td>En referanse der begge kriteriene er oppfylt: et reelt behov nå, og en person som ser frem til kontakten.</td></tr>
+          <tr><td>Tips</td><td>En mulighet der ett av kriteriene mangler. Rapporteres ikke som referanse.</td></tr>
+          <tr><td>Navngitt forespørsel</td><td>En forespørsel om en bestemt person: navn, rolle, virksomhet, hvorfor og hva partneren ber om.</td></tr>
+          <tr><td>Takk For Business (TFB)</td><td>Registreres når en referanse har blitt omsetning.</td></tr>
+          <tr><td>Givers Gain</td><td>BNIs kjerneverdi: den som gir, får, over tid og gjennom hele nettverket.</td></tr>
+          <tr><td>Refererbarhet</td><td>At partnerne forstår hva en partner løser, godt nok til å kjenne igjen situasjonen.</td></tr>
+          <tr><td>Kontaktsirkel</td><td>Ekspertområder som jobber rundt de samme kundene uten å konkurrere. Partneren bygger sin egen.</td></tr>
+          <tr><td>Referansekilde</td><td>En person eller et ekspertområde som møter kunden før partneren gjør, fra en annen vinkel.</td></tr>
+          <tr><td>1-til-1</td><td>Arbeidsmøte mellom to partnere, med referanser begge veier som mål.</td></tr>
+          <tr><td>Kundecase</td><td>Ukentlig kort case: fang oppmerksomheten, problem, løsning og effekt, be om referansen.</td></tr>
+          <tr><td>Ukens Taler</td><td>Den lengste presentasjonen i møtet, bygget på tre kundecase.</td></tr>
+          <tr><td>2+3</td><td>Punktet i agendaen der partnerne sitter og går gjennom listen sin.</td></tr>
+          <tr><td>Se bakover</td><td>Hovedgrepet: finne referanser i samtaler partneren allerede har hatt.</td></tr>
+          <tr><td>Ryggsekken</td><td>Det partnerne lærer om hva de andre løser, og tar med seg videre. Det sekundære grepet.</td></tr>
+          <tr><td>Reactor, Promoter, Creator</td><td>Tre nivåer å referere fra: å reagere, å fange opp og å skape. Creator tar tid.</td></tr>
+          <tr><td>Power of One</td><td>Minimumsrytmen: ett møte, minst én 1-til-1 og én kvalifisert referanse i uka, og én gjest i måneden.</td></tr>
+          <tr><td>Suksessformelen</td><td>Kvalifiserte referanser × andel som blir kunder × ordreverdi = business.</td></tr>
+          <tr><td>Mottakstrappen</td><td>Seks steg for å ta imot en referanse, fra kontakt innen 24 timer til takk.</td></tr>
+          <tr><td>Varsellys</td><td>Atferdsindikatorer som viser tidlig om en partner er på vei til å lykkes.</td></tr>
+          <tr><td>Lekkasjekartet</td><td>Fra symptom til sannsynlig lekkasje og grep.</td></tr>
+          <tr><td>MSP</td><td>Membership Success Program: grunnopplæringen i metoden.</td></tr>
+          <tr><td>BNI-kompasset</td><td>De første 90 dagene for en ny partner.</td></tr>
+          <tr><td>Utdanningspunktet</td><td>Fem minutter med trening i hvert ukesmøte.</td></tr>
+          <tr><td>BNI Connect</td><td>Systemet der partnerne rapporterer 1-til-1, referanser, TFB og gjester.</td></tr>
+        </tbody>
+      </table>
     </div>
 
     <h3>Slik forklarer vi BNI til en mulig partner</h3>
@@ -1203,12 +1357,12 @@
       <div class="res">
         <h3>Ressurser</h3>
         <ul>
-          <li><a href="https://msp.tinglum.com/bnimsp" target="_blank" rel="noopener">Trenerportalen for MSP</a>: lysbilder, manus, coachingspørsmål og trenerverktøy.</li>
+          <li><a href="/bnimsp">Trenerportalen for MSP</a>: lysbilder, manus, coachingspørsmål og trenerverktøy.</li>
           <li>BNI Norge Teammanual 2025: struktur, agenda, roller og rapportering. Kvalitetsfilteret for alt vi lærer bort.</li>
           <li>BNI-kompasset: de første 90 dagene for nye partnere.</li>
           <li><a href="https://www.bniconnectglobal.com" target="_blank" rel="noopener">BNI Connect</a>: rapportering og tallene bak varsellysene.</li>
           <li><a href="https://bni.no" target="_blank" rel="noopener">bni.no</a>: BNI Norge.</li>
-          <li class="pdf-link"><a href="/bnistrategi/BNI-er-en-arbeidsmetode.pdf" download>Dette dokumentet som PDF</a>, med klikkbar meny og bokmerker.</li>
+          <li class="pdf-link"><a href="/bnimsp/strategi/pdf" download>Dette dokumentet som PDF</a>, med klikkbar meny og bokmerker.</li>
         </ul>
       </div>
       <div class="res">
