@@ -10,13 +10,20 @@ publish = ".next"
 package = "@netlify/plugin-nextjs"
 
 # Dedicated subdomain for the BNI strategy & communication page.
-# bnistrategi.tinglum.com serves the standalone document on every path.
+# Root is forced to the document. Other paths fall back to it only when no
+# static file exists (no force), so /bnistrategi/fonts, og.png and icons
+# are still served as files.
 # Requires the domain alias + DNS (CNAME bnistrategi -> the Netlify site).
+[[redirects]]
+  from = "https://bnistrategi.tinglum.com/"
+  to = "/bnistrategi/index.html"
+  status = 200
+  force = true
+
 [[redirects]]
   from = "https://bnistrategi.tinglum.com/*"
   to = "/bnistrategi/index.html"
   status = 200
-  force = true
 
 [[redirects]]
   from = "/quest"
