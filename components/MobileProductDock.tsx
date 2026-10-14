@@ -37,7 +37,7 @@ export function MobileProductDock() {
   }
 
   return (
-    <div className="pointer-events-none fixed inset-x-0 bottom-4 z-30 px-4 md:hidden">
+    <div className="farm-mobile-dock pointer-events-none fixed inset-x-0 bottom-4 z-30 px-4 md:hidden">
       <div className="pointer-events-auto mx-auto max-w-sm rounded-2xl border border-neutral-200 bg-white/95 p-2 shadow-[0_24px_70px_-24px_rgba(0,0,0,0.35)] backdrop-blur">
         <div className="grid grid-cols-3 gap-2">
           {(['pigs', 'eggs', 'chickens'] as ProductSection[]).map((section) => {
@@ -48,6 +48,7 @@ export function MobileProductDock() {
               <Link
                 key={section}
                 href={ITEMS[section].href}
+                aria-current={isActive ? 'page' : undefined}
                 className={cn(
                   'flex flex-col items-center justify-center rounded-xl px-2 py-2 text-center transition-colors',
                   isActive ? 'bg-neutral-900 text-white' : 'text-neutral-600'

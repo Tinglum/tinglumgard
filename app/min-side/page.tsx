@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { Package } from 'lucide-react';
+import { ArrowUpRight, MessageCircle, Package } from 'lucide-react';
 import Link from 'next/link';
 import { ReferralDashboard } from '@/components/ReferralDashboard';
 import { MessagingPanel } from '@/components/MessagingPanel';
@@ -548,8 +548,8 @@ export default function CustomerPortalPage() {
   if (!isAuthenticated) {
     return (
       // Fix #16: pt-14 sm:pt-20 prevents content from sitting under the fixed header
-      <div className="min-h-screen bg-white flex items-center justify-center px-6 pt-14 sm:pt-20">
-        <div className="text-center max-w-md bg-white border border-neutral-200 rounded-xl p-8 sm:p-12 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.1)]">
+      <div className="farm-auth-wall min-h-screen bg-white flex items-center justify-center px-6">
+        <div className="farm-auth-card text-center max-w-md bg-white border border-neutral-200 rounded-xl p-8 sm:p-12">
           <Package className="w-20 h-20 mx-auto mb-6 text-neutral-400" />
           <h1 className="text-4xl font-light tracking-tight text-neutral-900 mb-4">{t.minSide.loginRequired}</h1>
           <p className="font-light text-neutral-600 mb-8">{t.minSide.loginDesc}</p>
@@ -580,6 +580,7 @@ export default function CustomerPortalPage() {
           </Link>
         </div>
 
+        {activeTab === 'orders' && <div className="farm-account-guide"><div><h2>{lang === 'no' ? 'Status, betaling og oppfølging.' : 'Status, payments and follow-up.'}</h2><p>{lang === 'no' ? 'Åpne en bestilling for å se betalinger og leveringsinformasjon. Har du et spørsmål, send oss en melding herfra.' : 'Open an order to see payments and delivery information. If you have a question, send us a message here.'}</p></div><button type="button" onClick={() => setActiveTab('messages')}><MessageCircle size={17} />{lang === 'no' ? 'Send en melding' : 'Send a message'}<ArrowUpRight size={16} /></button></div>}
         {user?.isImpersonating && (
           <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm text-amber-900">{t.minSide.impersonationActive}</p>
@@ -674,7 +675,7 @@ export default function CustomerPortalPage() {
                 <p className="text-lg font-normal text-neutral-900 mb-2">{t.minSide.noOrders}</p>
                 <p className="text-sm text-neutral-500 mb-6">{t.minSide.noOrdersDesc}</p>
                 <div className="flex flex-wrap justify-center gap-3">
-                  <Link href="/bestill" className="btn-primary inline-flex">
+                  <Link href="/#bokser" className="btn-primary inline-flex">
                     {t.minSide.goToOrder}
                   </Link>
                   <Link href="/rugeegg/raser" className="btn-secondary inline-flex">

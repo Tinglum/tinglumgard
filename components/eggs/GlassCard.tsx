@@ -16,11 +16,10 @@ export function GlassCard({
   accentBorder,
   className,
 }: GlassCardProps) {
-  // All variants now use Nordic minimal design
-  const baseClasses = 'bg-white border border-neutral-200 rounded-xl shadow-[0_20px_60px_-15px_rgba(0,0,0,0.08)]'
+  const baseClasses = 'farm-card bg-white border border-neutral-200 rounded'
   const hoverClasses = interactive
-    ? 'cursor-pointer hover:shadow-[0_30px_80px_-20px_rgba(0,0,0,0.12)] hover:-translate-y-1'
-    : 'hover:shadow-[0_30px_80px_-20px_rgba(0,0,0,0.12)]'
+    ? 'cursor-pointer hover:border-neutral-400 motion-safe:hover:-translate-y-0.5'
+    : ''
 
   return (
     <div
@@ -28,10 +27,10 @@ export function GlassCard({
         baseClasses,
         'transition-all duration-300',
         hoverClasses,
-        accentBorder && 'border-l-4',
+        accentBorder && 'border-t-2',
         className
       )}
-      style={accentBorder ? { borderLeftColor: accentBorder } : undefined}
+      style={accentBorder ? { borderTopColor: accentBorder } : undefined}
     >
       {children}
     </div>

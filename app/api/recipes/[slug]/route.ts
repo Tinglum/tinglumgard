@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/server';
+import { withSkinlessRibbe } from '@/lib/recipes/skinless';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,7 +20,7 @@ export async function GET(
       return NextResponse.json({ error: 'Recipe not found' }, { status: 404 });
     }
 
-    return NextResponse.json({ recipe });
+    return NextResponse.json({ recipe: withSkinlessRibbe(recipe) });
   } catch {
     return NextResponse.json(
       { error: 'Failed to fetch recipe' },

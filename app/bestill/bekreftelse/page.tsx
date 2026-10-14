@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { CheckCircle, Package, Clock, CreditCard, Share2, Copy, ExternalLink, XCircle, RefreshCcw, ShieldCheck, AlertTriangle } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { OrderNextActions } from '@/components/farm/OrderNextActions';
 
 type PaymentStatus = "pending" | "completed" | "failed";
 
@@ -347,6 +348,7 @@ export default function ConfirmationPage() {
           </p>
         </div>
 
+        <OrderNextActions product="pig" orderId={order.id} orderNumber={order.order_number} />
         <div className="bg-white border border-neutral-200 rounded-xl p-8 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.08)] mb-6 transition-all duration-500 hover:shadow-[0_30px_80px_-20px_rgba(0,0,0,0.12)]">
           <h2 className="text-3xl font-light tracking-tight text-neutral-900 mb-8">{copy.detailsTitle}</h2>
 

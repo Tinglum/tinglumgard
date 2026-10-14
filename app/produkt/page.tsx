@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { GlassCard } from "@/components/GlassCard";
-import { fixMojibake } from "@/lib/utils/text";
+import { displayCutName, fixMojibake } from "@/lib/utils/text";
 import {
   Accordion,
   AccordionContent,
@@ -219,7 +219,7 @@ export default function ProductPage() {
   const seasonYear = new Date().getFullYear();
 
   return (
-    <div className="min-h-screen bg-[#F7F5F2] text-[#1C1A16]">
+    <div className="farm-product-story min-h-screen bg-[#F7F5F2] text-[#1C1A16]">
       <div
         className={`sticky top-0 z-50 border-b border-transparent transition-all duration-300 ${
           isScrolled ? "bg-white/85 backdrop-blur border-neutral-200 shadow-[0_10px_30px_-20px_rgba(0,0,0,0.35)]" : "bg-transparent"
@@ -249,7 +249,7 @@ export default function ProductPage() {
         </div>
       </div>
 
-      <section className="relative overflow-hidden bg-[#101012] text-white">
+      <section className="farm-product-hero relative overflow-hidden bg-[#101012] text-white">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.08),_transparent_55%)]" />
         <div className="absolute -right-32 -top-24 h-[380px] w-[380px] rounded-full bg-white/10 blur-[120px]" />
         <div className="absolute -bottom-40 left-8 h-[380px] w-[380px] rounded-full bg-white/5 blur-[140px]" />
@@ -270,7 +270,7 @@ export default function ProductPage() {
               <div className="flex flex-wrap gap-3 pt-2">
                 <Link
                   href="#velg-kasse"
-                  className="inline-flex items-center justify-center rounded-xl bg-white px-7 py-4 text-xs font-bold uppercase tracking-[0.3em] text-[#101012] shadow-[0_18px_40px_-20px_rgba(0,0,0,0.5)]"
+                  className="farm-button inline-flex items-center justify-center px-7 py-4"
                 >
                   {copy.heroCtaPrimary}
                 </Link>
@@ -500,10 +500,10 @@ export default function ProductPage() {
               );
               const foundationItems = sortedContents
                 .filter((item) => !item.is_hero)
-                .map((item) => fixMojibake(lang === "no" ? item.content_name_no : item.content_name_en));
+                .map((item) => displayCutName(lang === "no" ? item.content_name_no : item.content_name_en, lang));
               const specialItems = sortedContents
                 .filter((item) => item.is_hero)
-                .map((item) => fixMojibake(lang === "no" ? item.content_name_no : item.content_name_en));
+                .map((item) => displayCutName(lang === "no" ? item.content_name_no : item.content_name_en, lang));
 
               return (
                 <GlassCard

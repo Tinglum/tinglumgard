@@ -1,10 +1,12 @@
 import './globals.css';
 import '@/styles/mobile-prismatic.css';
+import '@/styles/farm-design.css';
 import type { Metadata } from 'next';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { AppShell } from '@/components/AppShell';
+import { farmDisplay, farmBody } from '@/lib/design/fonts';
 
 export const metadata: Metadata = {
   title: {
@@ -39,7 +41,7 @@ export default function RootLayout({
         {/* Fix #2: viewport-fit=cover activates env(safe-area-inset-*) on notched iPhones */}
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
       </head>
-      <body className="antialiased text-neutral-900">
+      <body className={`${farmDisplay.variable} ${farmBody.variable} antialiased text-neutral-900`}>
         <ThemeProvider>
           <LanguageProvider>
             <AuthProvider>

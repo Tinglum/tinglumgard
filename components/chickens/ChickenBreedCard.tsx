@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import { useLanguage } from '@/contexts/LanguageContext'
+import { Feather } from 'lucide-react'
 
 interface ChickenBreedCardProps {
   breed: {
@@ -30,13 +31,12 @@ export function ChickenBreedCard({ breed }: ChickenBreedCardProps) {
   const visualProfile = resolveBreedVisualProfile(breed)
   const imageCandidates = useMemo(() => {
     const candidates = [
-      visualProfile.realImageUrl || '',
       breed.image_url?.trim() || '',
-      visualProfile.placeholderImageUrl || '',
-    ].filter(Boolean)
+      visualProfile.realImageUrl || '',
+    ].filter(url => url && !isPlaceholderImage(url))
 
     return Array.from(new Set(candidates))
-  }, [breed.image_url, visualProfile.placeholderImageUrl, visualProfile.realImageUrl])
+  }, [breed.image_url, visualProfile.realImageUrl])
   const [imageIndex, setImageIndex] = useState(0)
 
   const imageSrc = imageCandidates[imageIndex] || ''
@@ -77,9 +77,7 @@ export function ChickenBreedCard({ breed }: ChickenBreedCardProps) {
             background: `linear-gradient(135deg, ${withAlpha(visualProfile.accentColor, 40)} 0%, ${withAlpha(visualProfile.accentColor, 18)} 100%)`,
           }}
         >
-          <span className="text-4xl font-semibold" style={{ color: visualProfile.accentColor }}>
-            {breed.name.charAt(0)}
-          </span>
+          <Feather size={72} strokeWidth={1.25} aria-hidden="true" style={{ color: visualProfile.accentColor }} />
         </div>
       )}
 
@@ -133,7 +131,6 @@ export function ChickenBreedCard({ breed }: ChickenBreedCardProps) {
 
 type BreedVisualProfile = {
   accentColor: string
-  placeholderImageUrl: string
   realImageUrl?: string
 }
 
@@ -170,6 +167,11 @@ const BREED_REAL_IMAGES: Record<string, string> = {
 const DEFAULT_PLACEHOLDER_IMAGE =
   'https://images.pexels.com/photos/1216482/pexels-photo-1216482.jpeg?auto=compress&cs=tinysrgb&w=1400'
 
+function isPlaceholderImage(url: string): boolean {
+  const source = url.split('?')[0]
+  return [...Object.values(BREED_PLACEHOLDER_IMAGES), DEFAULT_PLACEHOLDER_IMAGE].some(placeholder => placeholder.split('?')[0] === source)
+}
+
 function normalizeBreedKey(value: string): string {
   return value
     .toLowerCase()
@@ -191,7 +193,6 @@ function resolveBreedVisualProfile(breed: ChickenBreedCardProps['breed']): Breed
 
   return {
     accentColor: RUGE_EGG_BREED_COLORS[key] || breed.accent_color || '#6B7280',
-    placeholderImageUrl: BREED_PLACEHOLDER_IMAGES[key] || DEFAULT_PLACEHOLDER_IMAGE,
     realImageUrl: BREED_REAL_IMAGES[key],
   }
 }

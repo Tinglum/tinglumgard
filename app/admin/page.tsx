@@ -656,8 +656,8 @@ export default function AdminPage() {
 
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen flex items-center justify-center px-4 bg-white">
-        <div className="w-full max-w-md bg-white border border-neutral-200 rounded-xl p-6 sm:p-12 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.1)]">
+      <div className="farm-auth-wall min-h-screen flex items-center justify-center px-4 bg-white">
+        <div className="farm-auth-card w-full max-w-md bg-white border border-neutral-200 rounded-xl p-6 sm:p-12">
           <div className="flex items-center justify-center mb-6 sm:mb-8">
             <Lock className="w-12 h-12 sm:w-16 sm:h-16 text-neutral-400" />
           </div>

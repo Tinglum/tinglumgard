@@ -54,7 +54,7 @@ export const oppdelingsplanContent = {
             'Spare ribs format'
           ],
           weight: '4-5 kg total per gris',
-          preparation: 'Lang tid (3-4 timer), lav varme, sprø svor på slutten.',
+          preparation: 'Lang tid (3-4 timer), lav varme, saftig kjøtt uten svor.',
           premiumNote: 'Mangalitsa-ribbe har 3x mer fett enn vanlig. Dette er julen du husker.',
         },
         svinebog: {
@@ -125,7 +125,7 @@ export const oppdelingsplanContent = {
         {
           title: 'Tynnribbe',
           subtitle: 'Klassisk ribbe med ribbein',
-          points: ['Kun ribbein-området', 'Perfekt sprøstekt svor', 'God balanse kjøtt/fett'],
+          points: ['Kun ribbein-området', 'Saftig kjøtt uten svor', 'God balanse kjøtt/fett'],
           premium: false,
         },
         {
@@ -282,7 +282,7 @@ export const oppdelingsplanContent = {
             'Spare ribs format'
           ],
           weight: '4-5 kg total per pig',
-          preparation: 'Long time (3-4 hours), low heat, crispy crackling at the end.',
+          preparation: 'Long time (3-4 hours), low heat, juicy meat without skin.',
           premiumNote: 'Mangalitsa ribs have 3x more fat than regular. This is the Christmas you\'ll remember.',
         },
         svinebog: {
@@ -353,7 +353,7 @@ export const oppdelingsplanContent = {
         {
           title: 'Thin ribs',
           subtitle: 'Classic ribs with rib bones',
-          points: ['Rib section only', 'Perfect crispy crackling', 'Great meat/fat balance'],
+          points: ['Rib section only', 'Juicy meat without skin', 'Great meat/fat balance'],
           premium: false,
         },
         {

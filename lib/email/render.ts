@@ -452,7 +452,7 @@ type TipContent = {
 
 const PIG_TIPS: TipContent[] = [
   { title: 'Pr\u00f8v pulled pork!', text: 'Mangalitsa-kj\u00f8ttet har en unik marmorering som gir saftig, smaksrik pulled pork. Langsom steking p\u00e5 lav varme f\u00e5r fettet til \u00e5 smelte inn i kj\u00f8ttet.', link: `${APP_URL}/oppskrifter`, linkText: 'Se oppskrifter \u2192' },
-  { title: 'Ribbe med sprø svor', text: 'Mangalitsa-ribbe trenger lengre steketid enn vanlig ribbe. Start med 150\u00b0C i 3 timer, deretter 220\u00b0C for sprø svor. Resultatet er uforglemmelig.', link: `${APP_URL}/oppskrifter`, linkText: 'Se oppskrifter \u2192' },
+  { title: 'Saftig ribbe uten svor', text: 'Mangalitsa-ribbe trenger lengre steketid enn vanlig ribbe. Start med 150\u00b0C i 3 timer, stek videre til kjøttet er mørt. Ribba leveres uten svor fordi ullgrisen flås. Resultatet er uforglemmelig.', link: `${APP_URL}/oppskrifter`, linkText: 'Se oppskrifter \u2192' },
   { title: 'Det perfekte sm\u00f8rbr\u00f8d', text: 'Mangalitsa-skinke med tynt skj\u00e6rt br\u00f8d, sm\u00f8r og sennep \u2013 en enkel, men fantastisk lunsj. Det marmorerte kj\u00f8ttet gj\u00f8r hele forskjellen.', link: `${APP_URL}/oppskrifter`, linkText: 'Se oppskrifter \u2192' },
   { title: 'Slow-cooked ragout', text: 'Kutt Mangalitsa-bog i terninger og la det putre i 4\u20135 timer med r\u00f8dvin, tomater og rosmarin. Det intense fettet gir en silkemyk saus.', link: `${APP_URL}/oppskrifter`, linkText: 'Se oppskrifter \u2192' },
   { title: 'Grilltips for sommeren', text: 'Mangalitsa-koteletter p\u00e5 grillen? Middels varme, 5 minutter per side. La kj\u00f8ttet hvile 5 minutter f\u00f8r servering \u2013 s\u00e5 holder det p\u00e5 saftene.', link: `${APP_URL}/oppskrifter`, linkText: 'Se oppskrifter \u2192' },

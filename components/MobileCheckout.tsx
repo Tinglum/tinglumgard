@@ -4,13 +4,14 @@ import { useEffect, useRef, useState } from 'react';
 import { Check, ChevronLeft, ChevronRight, AlertCircle, Info, Minus, Plus } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { cn } from '@/lib/utils';
-import { fixMojibake } from '@/lib/utils/text';
+import { displayCutName, fixMojibake } from '@/lib/utils/text';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
 import { ExtraProductDetails } from '@/components/ExtraProductDetails';
 import { RecipeQuickViewModal } from '@/components/RecipeQuickViewModal';
 import { ReferralCodeInput } from '@/components/ReferralCodeInput';
 import { RebateCodeInput } from '@/components/RebateCodeInput';
+import { FarmJourney } from '@/components/farm/FarmJourney';
 import {
   getDefaultExtraQuantity,
   getExtraStep,
@@ -115,8 +116,9 @@ export function MobileCheckout(props: MobileCheckoutProps) {
     t.checkout.stepRibbe,
     t.checkout.stepExtras,
     t.checkout.stepDelivery,
+    lang === 'no' ? 'Se over' : 'Review',
   ];
-  const progressStep = Math.min(step, 4);
+  const progressStep = Math.min(step, checkoutStepLabels.length);
 
   const stepTitle = step === 1
     ? t.checkout.choosePresetTitle
@@ -128,7 +130,7 @@ export function MobileCheckout(props: MobileCheckoutProps) {
           ? t.checkout.step4Title || t.checkout.deliveryOptions
           : t.checkout.summary;
 
-  const sectionCard = "rounded-[30px] border border-[#E4DED5] bg-white p-6 shadow-[0_18px_40px_rgba(30,27,22,0.12)]";
+  const sectionCard = "farm-checkout-panel rounded border border-neutral-200 bg-white p-6";
   const labelText = "text-[10px] font-semibold uppercase tracking-[0.2em] text-[#6A6258]";
   const selectedWeight = selectedPreset?.target_weight_kg
     ? String(selectedPreset.target_weight_kg)
@@ -501,7 +503,7 @@ export function MobileCheckout(props: MobileCheckoutProps) {
 
   useEffect(() => {
     if (!stepRef.current) return;
-    stepRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' }); // scroll-mt handles header offset (#10)
+    stepRef.current.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
   }, [step]);
 
   useEffect(() => {
@@ -518,36 +520,12 @@ export function MobileCheckout(props: MobileCheckoutProps) {
 
   return (
     <div className="space-y-8 pb-36 text-[#1E1B16] font-[family:var(--font-manrope)]">
-      <div ref={stepRef} className={`${sectionCard} scroll-mt-[60px] sm:scroll-mt-[84px]`}>
-        <div className="flex items-center justify-between text-[10px] font-semibold uppercase tracking-[0.2em] text-[#6A6258]">
-          <span>{mobileCopy.step} {progressStep}/4</span>
-          {step > 1 && (
-            <button
-              type="button"
-              onClick={() => setStep(step - 1)}
-              className="inline-flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-[#0F6C6F]"
-            >
-              <ChevronLeft className="h-4 w-4" />
-              {t.nav.back}
-            </button>
-          )}
-        </div>
-        <h2 className="mt-3 text-2xl font-semibold text-[#1E1B16] leading-snug font-[family:var(--font-playfair)]">
+      <div ref={stepRef} className="farm-checkout-step-heading scroll-mt-[90px]">
+        <FarmJourney steps={checkoutStepLabels.map(label => ({ label }))} current={progressStep - 1} onStepChange={index => setStep(index + 1)} />
+        <h2 className="mt-6 text-2xl font-semibold text-[#1E1B16] leading-snug font-[family:var(--font-playfair)]">
           {stepTitle}
         </h2>
-        <div className="mt-4 flex gap-2">
-          {checkoutStepLabels.map((_, index) => (
-            <span
-              key={index}
-              className={`h-1.5 flex-1 rounded-full ${progressStep >= index + 1 ? 'bg-[#0F6C6F]' : 'bg-[#E9E1D6]'}`}
-            />
-          ))}
-        </div>
-        <div className="mt-3 flex items-center justify-between text-[10px] uppercase tracking-[0.2em] text-[#B0A79C]">
-          <span className="w-1/3 text-left truncate">{progressStep > 1 ? checkoutStepLabels[progressStep - 2] : ''}</span>
-          <span className="w-1/3 text-center font-semibold text-[#0F6C6F]">{checkoutStepLabels[progressStep - 1]}</span>
-          <span className="w-1/3 text-right truncate">{progressStep < checkoutStepLabels.length ? checkoutStepLabels[progressStep] : ''}</span>
-        </div>
+        {selectedPreset && step > 1 && <div className="farm-selection-receipt"><span><strong>{fixMojibake(lang === 'no' ? selectedPreset.name_no : selectedPreset.name_en)}</strong><small>{selectedWeight} kg · {Number(selectedPreset.price_nok).toLocaleString(locale)} {t.common.currency}</small></span><button type="button" onClick={() => setStep(1)}>{t.common.edit}</button></div>}
       </div>
 
       {step === 1 && (
@@ -574,6 +552,7 @@ export function MobileCheckout(props: MobileCheckoutProps) {
                 <button
                   key={preset.id}
                   onClick={() => setSelectedPreset(preset)}
+                  aria-pressed={isSelected}
                   className={`w-full rounded-[28px] border px-5 py-5 text-left transition-all ${
                     isSelected
                     ? 'border-[#0F6C6F] bg-[#0F6C6F] text-white'
@@ -633,7 +612,7 @@ export function MobileCheckout(props: MobileCheckoutProps) {
                           <li key={`${preset.id}-${item.id}`} className="flex items-start gap-2">
                             <span className={`mt-1.5 h-1.5 w-1.5 rounded-full ${isSelected ? 'bg-white' : 'bg-[#B35A2A]'}`} />
                             <div>
-                              <span>{fixMojibake(lang === 'en' ? item.content_name_en : item.content_name_no)}</span>
+                              <span>{displayCutName(lang === 'en' ? item.content_name_en : item.content_name_no, lang)}</span>
                               {formatCutSizeRange(item.cut_size_from_kg, item.cut_size_to_kg) && (
                                 <p className={`mt-1 text-[10px] uppercase tracking-[0.2em] ${isSelected ? 'text-white/65' : 'text-[#6A6258]'}`}>
                                   {formatCutSizeRange(item.cut_size_from_kg, item.cut_size_to_kg)}
@@ -1018,6 +997,7 @@ export function MobileCheckout(props: MobileCheckoutProps) {
 
       <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-[#E4DED5] bg-[#F6F4EF]/95 p-4 backdrop-blur">
         <div className="mx-auto flex max-w-md flex-col gap-2">
+          {selectedPreset && <div className="farm-mobile-payment-context"><span>{fixMojibake(lang === 'no' ? selectedPreset.name_no : selectedPreset.name_en)}</span><strong>{depositTotal.toLocaleString(locale)} {t.common.currency} {lang === 'no' ? 'nå' : 'now'}</strong></div>}
           {step < 5 ? (
             <button
               disabled={!canContinue}

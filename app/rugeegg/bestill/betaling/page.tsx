@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { GlassCard } from '@/components/eggs/GlassCard'
 import { useLanguage } from '@/contexts/LanguageContext'
+import { EggJourney } from '@/components/farm/FarmJourney'
 import { useOrder } from '@/contexts/eggs/EggOrderContext'
 import { useCart } from '@/contexts/eggs/EggCartContext'
 import { useAuth } from '@/contexts/AuthContext'
@@ -233,6 +234,7 @@ export default function EggPaymentPage() {
   return (
     <div className="min-h-screen overflow-x-hidden py-12">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-4xl space-y-8">
+        <EggJourney current={2} />
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <h1 className="text-4xl font-normal text-neutral-900 mb-2">{copy.title}</h1>
