@@ -4,6 +4,14 @@ const nextConfig = {
     ignoreDuringBuilds: true,
   },
   images: { unoptimized: true },
+  experimental: {
+    // The internal BNI method document is read from disk by these route
+    // handlers (it is kept out of public/ so only signed-in users get it).
+    outputFileTracingIncludes: {
+      '/bnimsp/strategi': ['./content/bnistrategi/**/*'],
+      '/bnimsp/strategi/pdf': ['./content/bnistrategi/**/*'],
+    },
+  },
   async headers() {
     return [
       {
