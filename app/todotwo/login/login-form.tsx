@@ -55,13 +55,14 @@ function MagicLinkFallback({ returnTo }: { returnTo?: string }) {
 
   if (!open) {
     return (
-      <button
+      <Button
         type="button"
         onClick={() => setOpen(true)}
-        className="text-xs text-[var(--tt-ink-3)] underline-offset-4 hover:underline"
+        variant="secondary"
+        block
       >
-        First time, or nothing above working? Email me a sign-in link
-      </button>
+        First time here? Get a sign-in link
+      </Button>
     )
   }
 
@@ -84,6 +85,13 @@ function MagicLinkFallback({ returnTo }: { returnTo?: string }) {
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-3 rounded-lg border border-[var(--tt-rule)] bg-[var(--tt-surface)] p-4" noValidate>
       {error ? <ErrorState title="Sign-in failed" description={error} /> : null}
+
+      <div>
+        <p className="text-sm font-medium">First-time sign-in</p>
+        <p className="mt-1 text-xs text-[var(--tt-ink-2)]">
+          Use the email address Kenneth added for you. We will email you a secure sign-in link.
+        </p>
+      </div>
 
       <div className="flex flex-col gap-2">
         <label htmlFor="todotwo-magic-email" className="text-sm font-medium">

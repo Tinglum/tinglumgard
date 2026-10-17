@@ -18,7 +18,7 @@ export default function TodoTwoLoginPage({
           </p>
           <h1 className="mt-1 text-2xl">TodoTwo</h1>
           <p className="mt-2 text-sm text-[var(--tt-ink-2)]">
-            Enter your email address and we will send you a sign-in link.
+            Sign in with your password, or choose the first-time option below.
           </p>
         </div>
 
