@@ -5,17 +5,21 @@ import {
   claimLinkRequest,
   emailIsInvited,
   generateSignInLink,
+  registerFirstTimePerson,
   sendProviderSignInLink,
 } from '@/lib/todotwo/auth-admin'
 import { isTodoTwoEnabled } from '@/lib/todotwo/config'
 import { createMailgunSender, getMailerConfig } from '@/lib/todotwo/notifications/mailer'
 import { absoluteUrl } from '@/lib/todotwo/host'
 import { todoTwoRoutes } from '@/lib/todotwo/routes'
+import { farmToday } from '@/lib/todotwo/time'
 
 export const dynamic = 'force-dynamic'
 
 const bodySchema = z.object({
   email: z.string().trim().min(3).max(320),
+  name: z.string().trim().min(1).max(160).optional(),
+  firstTime: z.boolean().optional(),
   returnTo: z.string().trim().max(200).optional(),
 })
 
@@ -78,7 +82,12 @@ export async function POST(request: NextRequest) {
       return accepted
     }
 
-    if (!(await emailIsInvited(email))) {
+    if (parsed.firstTime) {
+      if (!parsed.name || !(await registerFirstTimePerson(parsed.name, email, farmToday()))) {
+        console.error('[todotwo] first-time registration failed')
+        return accepted
+      }
+    } else if (!(await emailIsInvited(email))) {
       console.warn('[todotwo] sign-in link requested for an address with no access')
       return accepted
     }

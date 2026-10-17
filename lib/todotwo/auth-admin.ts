@@ -149,6 +149,69 @@ export async function emailIsInvited(email: string): Promise<boolean> {
 }
 
 /**
+ * First-time sign-in is also TodoTwo registration. Reuse a returning person's
+ * permanent row when possible, otherwise create a Workawayer starting today.
+ */
+export async function registerFirstTimePerson(
+  name: string,
+  email: string,
+  farmStartDate: string
+): Promise<boolean> {
+  const supabase = client().schema('todotwo')
+  const normalizedEmail = email.trim().toLowerCase()
+  const fullName = name.trim()
+  if (!fullName || !normalizedEmail) return false
+
+  const { data: existing, error: lookupError } = await supabase
+    .from('people')
+    .select('id, is_active, deleted_at')
+    .ilike('email', normalizedEmail)
+    .maybeSingle()
+  if (lookupError) return false
+
+  let personId = existing?.id as string | undefined
+  if (personId) {
+    const { error } = await supabase
+      .from('people')
+      .update({
+        full_name: fullName,
+        email: normalizedEmail,
+        is_active: true,
+        deleted_at: null,
+        leave_date: null,
+        farm_start_date: farmStartDate,
+      })
+      .eq('id', personId)
+    if (error) return false
+  } else {
+    const { data: created, error } = await supabase
+      .from('people')
+      .insert({ full_name: fullName, email: normalizedEmail, farm_start_date: farmStartDate })
+      .select('id')
+      .single()
+    if (error || !created) return false
+    personId = created.id as string
+  }
+
+  const { data: role, error: roleLookupError } = await supabase
+    .from('role_assignments')
+    .select('id')
+    .eq('person_id', personId)
+    .eq('role', 'workawayer')
+    .is('revoked_at', null)
+    .maybeSingle()
+  if (roleLookupError) return false
+  if (!role) {
+    const { error } = await supabase
+      .from('role_assignments')
+      .insert({ person_id: personId, role: 'workawayer' })
+    if (error) return false
+  }
+
+  return true
+}
+
+/**
  * A one-time password-reset link for an address, without sending it. Mirrors
  * generateSignInLink but requests Supabase's `recovery` link type, which lands
  * the person on the callback with a verified identity so set-password can call

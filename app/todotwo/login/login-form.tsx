@@ -16,6 +16,7 @@ const ERROR_MESSAGES: Record<string, string> = {
 
 function MagicLinkFallback({ returnTo }: { returnTo?: string }) {
   const [open, setOpen] = React.useState(false)
+  const [name, setName] = React.useState('')
   const [email, setEmail] = React.useState('')
   const [status, setStatus] = React.useState<'idle' | 'sending' | 'sent'>('idle')
   const [error, setError] = React.useState<string | null>(null)
@@ -25,8 +26,8 @@ function MagicLinkFallback({ returnTo }: { returnTo?: string }) {
     setError(null)
 
     const trimmed = email.trim()
-    if (!trimmed) {
-      setError('Enter your email address.')
+    if (!name.trim() || !trimmed) {
+      setError('Enter your name and email address.')
       return
     }
 
@@ -36,7 +37,7 @@ function MagicLinkFallback({ returnTo }: { returnTo?: string }) {
       const response = await fetch('/api/todotwo/auth/send-link', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: trimmed, returnTo }),
+        body: JSON.stringify({ name: name.trim(), email: trimmed, returnTo, firstTime: true }),
       })
 
       if (!response.ok) {
@@ -89,8 +90,24 @@ function MagicLinkFallback({ returnTo }: { returnTo?: string }) {
       <div>
         <p className="text-sm font-medium">First-time sign-in</p>
         <p className="mt-1 text-xs text-[var(--tt-ink-2)]">
-          Use the email address Kenneth added for you. We will email you a secure sign-in link.
+          Add yourself to TodoTwo. We will email you a secure sign-in link.
         </p>
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <label htmlFor="todotwo-first-name" className="text-sm font-medium">
+          Full name
+        </label>
+        <input
+          id="todotwo-first-name"
+          name="name"
+          type="text"
+          autoComplete="name"
+          required
+          value={name}
+          onChange={(event) => setName(event.target.value)}
+          className="min-h-[44px] rounded-md border border-[var(--tt-rule-strong)] bg-[var(--tt-surface)] px-3 text-[16px] text-[var(--tt-ink)]"
+        />
       </div>
 
       <div className="flex flex-col gap-2">
