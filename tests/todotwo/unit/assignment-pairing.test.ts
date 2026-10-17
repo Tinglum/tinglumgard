@@ -158,6 +158,48 @@ describe('bundles across days', () => {
       expect(personFor(plan, 'Breakfast ready', date)).not.toBe(goats)
     }
   })
+
+  it('mixes four-person animal partnerships instead of repeating two fixed pairs', () => {
+    const animalTasks = ['2026-09-07', '2026-09-08', '2026-09-09', '2026-09-10']
+      .flatMap((date) => day(date).filter((task) =>
+        /Goats|Rabbits|Chickens|Pigs/.test(task.title)
+      ))
+    const animalRules = FARM_RULES.slice(0, 2)
+    const plan = buildAssignmentPlan(animalTasks, people, animalRules)
+    const pairs = ['2026-09-07', '2026-09-08', '2026-09-09', '2026-09-10'].map((date) =>
+      [personFor(plan, 'Goats (Morning)', date), personFor(plan, 'Chickens + Ducks (Morning)', date)]
+        .sort()
+        .join('+')
+    )
+
+    expect(new Set(pairs).size).toBeGreaterThan(2)
+    expect(pairs[2]).not.toBe(pairs[0])
+    expect(pairs[3]).not.toBe(pairs[1])
+  })
+
+  it('uses recent teammate history when a nightly run plans only one day', () => {
+    const history = {
+      amber: ['robert'],
+      robert: ['amber'],
+      sam: ['tina'],
+      tina: ['sam'],
+    }
+    const plan = buildAssignmentPlan(
+      day('2026-09-07').filter((task) => /Goats|Rabbits|Chickens|Pigs/.test(task.title)),
+      people,
+      FARM_RULES.slice(0, 2),
+      {},
+      [],
+      history
+    )
+    const pair = [
+      personFor(plan, 'Goats (Morning)'),
+      personFor(plan, 'Chickens + Ducks (Morning)'),
+    ]
+
+    expect(pair.sort()).not.toEqual(['amber', 'robert'])
+    expect(pair.sort()).not.toEqual(['sam', 'tina'])
+  })
 })
 
 describe('when the rules cannot all hold', () => {

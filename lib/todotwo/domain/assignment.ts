@@ -65,6 +65,9 @@ export interface AssignableTask {
  */
 export type RotationHistory = Record<string, string[]>
 
+/** Recent partners for bundled team work, most recent first. */
+export type TeammateHistory = Record<string, string[]>
+
 export interface AssignablePerson {
   id: string
   name: string
@@ -205,7 +208,8 @@ export function buildAssignmentPlan(
   people: AssignablePerson[],
   constraints: Constraint[],
   history: RotationHistory = {},
-  held: HeldWork[] = []
+  held: HeldWork[] = [],
+  teammateHistory: TeammateHistory = {}
 ): AssignmentPlan {
   const load = new Map<string, number>()
   const assignedToday = new Map<string, number>()
@@ -303,6 +307,23 @@ export function buildAssignmentPlan(
       bundle.labels.some((label) => taskMatchesLabel(shape, label))
     )
     if (bundleIndex !== -1) bundleOwner.set(`${bundleIndex}:${item.date}`, item.personId)
+  }
+
+  // The two large animal rounds are team work. Remember who has already been
+  // selected for another large bundle that day so the second choice can vary
+  // the partnership instead of letting two independent job rotations create
+  // the same fixed pairs forever. Single-label bundles such as Liam are not a
+  // team round and therefore do not participate.
+  const teamOwnersByDate = new Map<string, string[]>()
+  for (const item of held) {
+    const shape = { title: item.title, groupLabel: item.groupLabel }
+    const bundleIndex = bundles.findIndex((bundle) =>
+      bundle.labels.some((label) => taskMatchesLabel(shape, label))
+    )
+    if (bundleIndex === -1 || bundles[bundleIndex].labels.length < 2) continue
+    const owners = teamOwnersByDate.get(item.date) ?? []
+    if (!owners.includes(item.personId)) owners.push(item.personId)
+    teamOwnersByDate.set(item.date, owners)
   }
 
   for (const [, group] of Array.from(units)) {
@@ -412,9 +433,32 @@ export function buildAssignmentPlan(
     const owner =
       bundleIndexForGroup === -1 ? undefined : bundleOwner.get(`${bundleIndexForGroup}:${date}`)
     const ownerEligible = owner ? eligible.find((person) => person.id === owner) : undefined
-    const pool = ownerEligible ? [ownerEligible] : due.length > 0 ? due : eligible
+    const isTeamBundle = bundleIndexForGroup !== -1 && bundles[bundleIndexForGroup].labels.length > 1
+    const teammatesToday = isTeamBundle ? teamOwnersByDate.get(date) ?? [] : []
+    const freshTeammates = eligible.filter((person) => !teammatesToday.includes(person.id))
+    // Once one team round is placed, partnership variety comes before the
+    // independent job queue. Otherwise four people settle into AB / CD on
+    // alternating days even though each individual bundle technically rotates.
+    const pool = ownerEligible
+      ? [ownerEligible]
+      : teammatesToday.length > 0
+        ? freshTeammates.length > 0 ? freshTeammates : eligible
+        : due.length > 0
+          ? due
+          : eligible
 
     const chosen = [...pool].sort((a, b) => {
+      if (teammatesToday.length > 0) {
+        const partnerRank = (personId: string) => {
+          const recentPartners = teammateHistory[personId] ?? []
+          const ranks = teammatesToday.map((partner) => recentPartners.indexOf(partner))
+          return ranks.some((rank) => rank === -1)
+            ? Number.POSITIVE_INFINITY
+            : Math.max(...ranks)
+        }
+        const pairDiff = partnerRank(b.id) - partnerRank(a.id)
+        if (pairDiff !== 0) return pairDiff
+      }
       const diff = (load.get(a.id) ?? 0) - (load.get(b.id) ?? 0)
       if (diff !== 0) return diff
       // Longest since their last turn, then name, so it is never arbitrary.
@@ -431,6 +475,20 @@ export function buildAssignmentPlan(
     // Remember this turn for the rest of the run, so a week planned in one go
     // rotates the same way a week planned a day at a time does.
     history[rotationKey] = [chosen.id, ...recent.filter((id) => id !== chosen.id)]
+
+    if (isTeamBundle) {
+      for (const partner of teammatesToday) {
+        teammateHistory[chosen.id] = [
+          partner,
+          ...(teammateHistory[chosen.id] ?? []).filter((id) => id !== partner),
+        ]
+        teammateHistory[partner] = [
+          chosen.id,
+          ...(teammateHistory[partner] ?? []).filter((id) => id !== chosen.id),
+        ]
+      }
+      teamOwnersByDate.set(date, [...teammatesToday, chosen.id])
+    }
 
     // Record which side of each separation this bundle put them on, so the
     // rest of the day respects it.

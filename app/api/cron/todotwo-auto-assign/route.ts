@@ -8,7 +8,9 @@ import {
   buildAssignmentPlan,
   type HeldWork,
   type AssignableTask,
+  type Constraint,
   type RotationHistory,
+  type TeammateHistory,
   type Weekday,
 } from '@/lib/todotwo/domain/assignment'
 import { rulesToConstraints, type AssignmentRule } from '@/lib/todotwo/domain/assignment-rules'
@@ -105,6 +107,58 @@ async function loadRotationHistory(
     }
   }
 
+  return history
+}
+
+/** Recent pairings between the farm's multi-label animal rounds. */
+async function loadTeammateHistory(
+  db: ReturnType<typeof getPrivilegedClientForCronOnly>,
+  today: string,
+  through: string,
+  seriesTitle: Map<string, string>,
+  bundleRules: Extract<Constraint, { kind: 'same_person' }>[]
+): Promise<TeammateHistory> {
+  const since = addFarmDays(today, -ROTATION_LOOKBACK_DAYS)
+  const teamRules = bundleRules.filter((rule) => rule.labels.length > 1)
+  if (teamRules.length < 2) return {}
+
+  const { data } = await db
+    .from('tasks')
+    .select('title, series_id, due_date, task_assignments(person_id, unassigned_at)')
+    .gte('due_date', since)
+    .lte('due_date', through)
+    .order('due_date', { ascending: false })
+
+  const ownersByDay = new Map<string, Map<number, string>>()
+  for (const row of (data ?? []) as {
+    title: string | null
+    series_id: string | null
+    due_date: string | null
+    task_assignments: { person_id: string; unassigned_at: string | null }[] | null
+  }[]) {
+    if (!row.due_date) continue
+    const label = (row.series_id ? seriesTitle.get(row.series_id) : null) ?? row.title ?? ''
+    const bundleIndex = teamRules.findIndex((rule) =>
+      rule.labels.some((candidate) => label.toLowerCase().includes(candidate.toLowerCase()))
+    )
+    if (bundleIndex === -1) continue
+    const assignee = row.task_assignments?.find((assignment) => assignment.unassigned_at === null)?.person_id
+    if (!assignee) continue
+    const day = ownersByDay.get(row.due_date) ?? new Map<number, string>()
+    day.set(bundleIndex, assignee)
+    ownersByDay.set(row.due_date, day)
+  }
+
+  const history: TeammateHistory = {}
+  for (const [, owners] of Array.from(ownersByDay)) {
+    const people = Array.from(new Set(owners.values()))
+    for (const person of people) {
+      for (const partner of people) {
+        if (partner === person || (history[person] ?? []).includes(partner)) continue
+        history[person] = [...(history[person] ?? []), partner]
+      }
+    }
+  }
   return history
 }
 
@@ -525,6 +579,7 @@ export async function POST(request: NextRequest) {
   // window containing one new day has every load at zero — so the alphabetical
   // tie-break decides and the same person cooks dinner indefinitely.
   const history = await loadRotationHistory(db, from, to, seriesTitle)
+  const teammateHistory = await loadTeammateHistory(db, from, to, seriesTitle, bundleRules)
 
 
   const plan = buildAssignmentPlan(
@@ -541,7 +596,8 @@ export async function POST(request: NextRequest) {
       ...resolved.constraints,
     ],
     history,
-    heldWork
+    heldWork,
+    teammateHistory
   )
 
   let assigned = 0
