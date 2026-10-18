@@ -8,6 +8,8 @@
  * person who ends up on dishes.
  */
 
+import { addFarmDays } from '@/lib/todotwo/time'
+
 export type Weekday = 'MO' | 'TU' | 'WE' | 'TH' | 'FR' | 'SA' | 'SU'
 
 export type Constraint =
@@ -446,13 +448,16 @@ export function buildAssignmentPlan(
     // Once one team round is placed, partnership variety comes before the
     // independent job queue. Otherwise four people settle into AB / CD on
     // alternating days even though each individual bundle technically rotates.
-    const pool = ownerEligible
+    const basePool = ownerEligible
       ? [ownerEligible]
       : teammatesToday.length > 0
         ? freshTeammates.length > 0 ? freshTeammates : eligible
         : due.length > 0
           ? due
           : eligible
+    const workedAnimalsYesterday = new Set(teamOwnersByDate.get(addFarmDays(date, -1)) ?? [])
+    const restedPool = basePool.filter((person) => !workedAnimalsYesterday.has(person.id))
+    const pool = ownerEligible || restedPool.length === 0 ? basePool : restedPool
 
     const chosen = [...pool].sort((a, b) => {
       if (teammatesToday.length > 0) {

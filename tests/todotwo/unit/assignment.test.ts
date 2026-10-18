@@ -292,6 +292,17 @@ describe('work people already hold', () => {
     const plan = buildAssignmentPlan(kitchen, [people[0]], [goatsAndRabbits, cap], {}, heldRound)
     expect(plan.assignments.map((a) => a.personId)).toEqual(['theo'])
   })
+
+  it('prefers someone who did not have an animal round yesterday', () => {
+    const plan = buildAssignmentPlan(
+      released.map((task) => ({ ...task, date: '2026-09-29', weekday: 'TU' as const })),
+      people,
+      [goatsAndRabbits],
+      {},
+      [{ personId: 'theo', date: '2026-09-28', title: 'Pigs (Morning)', groupLabel: 'Pigs' }]
+    )
+    expect(plan.assignments.every((assignment) => assignment.personId === 'robbert')).toBe(true)
+  })
 })
 
 describe('rules against held work, end to end', () => {
