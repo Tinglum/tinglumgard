@@ -149,6 +149,17 @@ describe('releasing work held on a day off', () => {
     expect(assignmentsToRelease(held, schedule, today).map((r) => r.assignmentId))
       .toEqual(['auto', 'by-coordinator'])
   })
+
+  it('releases future work when its holder has left or is away', async () => {
+    const { assignmentsToRelease } = await import('@/lib/todotwo/domain/days-off')
+    const held = [{
+      assignmentId: 'left', taskId: 'task', personId: 'miguel', assignedByPersonId: 'miguel',
+      role: 'assignee', unassignedAt: null, dueDate: '2026-10-20', taskStatus: 'assigned',
+    }]
+    const unavailable = new Map([['miguel', new Set(['2026-10-20'])]])
+    expect(assignmentsToRelease(held, [], '2026-10-18', unavailable).map((row) => row.assignmentId))
+      .toEqual(['left'])
+  })
 })
 
 describe('leave dates', () => {

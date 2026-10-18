@@ -269,6 +269,19 @@ describe('work people already hold', () => {
     expect(plan.assignments.map((a) => a.personId)).toEqual(['robbert', 'robbert'])
   })
 
+  it('relaxes a pairing rule when every available person is already on its other side', () => {
+    const dinner = [{ id: 'dinner', title: 'Dinner', groupLabel: 'Dinner', ...day }]
+    const plan = buildAssignmentPlan(
+      dinner,
+      [people[0]],
+      [livestockVsMeals],
+      {},
+      [{ personId: 'theo', date: day.date, title: 'Goats (Morning)', groupLabel: 'Goats' }]
+    )
+    expect(plan.assignments.map((a) => a.taskId)).toEqual(['dinner'])
+    expect(plan.unassignable).toEqual([])
+  })
+
   it('counts a held bundle as one job toward the daily cap, not four', () => {
     const cap = { kind: 'max_per_day' as const, personId: null, limit: 2 }
     const kitchen = [{ id: 'k', title: 'Kitchen', groupLabel: 'Kitchen', ...day }]

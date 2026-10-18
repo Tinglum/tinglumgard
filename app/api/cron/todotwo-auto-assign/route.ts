@@ -176,10 +176,14 @@ async function loadTeammateHistory(
 async function releaseDaysOffWork(
   db: ReturnType<typeof getPrivilegedClientForCronOnly>,
   daysOff: DayOffEntry[],
+  unavailableOn: Map<string, Set<string>>,
   today: string,
   through: string
 ): Promise<string[]> {
-  const offPeople = Array.from(new Set(daysOff.flatMap((day) => (day.off && day.date > today ? [day.off.id] : []))))
+  const offPeople = Array.from(new Set([
+    ...daysOff.flatMap((day) => (day.off && day.date > today ? [day.off.id] : [])),
+    ...Array.from(unavailableOn.keys()),
+  ]))
   if (offPeople.length === 0) return []
 
   // Cheap: open tasks in the few days of the horizon, then only the off
@@ -216,7 +220,7 @@ async function releaseDaysOffWork(
   }))
 
   const releasedTaskIds: string[] = []
-  for (const row of assignmentsToRelease(held, daysOff, today)) {
+  for (const row of assignmentsToRelease(held, daysOff, today, unavailableOn)) {
     const { error } = await db
       .from('task_assignments')
       .update({ unassigned_at: new Date().toISOString() })
@@ -367,12 +371,23 @@ export async function POST(request: NextRequest) {
   const daysOffConstraints = daysOff.flatMap((day) =>
     day.off ? [{ kind: 'unavailable_dates' as const, personId: day.off.id, dates: [day.date] }] : [])
   const unavailableOn = new Map(rota.map((person) => [person.id, new Set(person.unavailableDates)]))
+  const firmlyUnavailableOn = new Map<string, Set<string>>()
+  for (const person of peopleRowsTyped) {
+    const dates = new Set(away.get(person.id) ?? [])
+    if (person.leave_date) {
+      for (let offset = 0; offset < windowDays; offset += 1) {
+        const date = addFarmDays(from, offset)
+        if (date >= person.leave_date) dates.add(date)
+      }
+    }
+    if (dates.size > 0) firmlyUnavailableOn.set(person.id, dates)
+  }
 
   // Hand back work assigned before the day off was known. Released tasks go
   // back to 'unassigned' and are read with the rest of the pool just below,
   // so the solver re-places them in this same run; only what it cannot place
   // is left up for grabs. Idempotent: a second run finds nothing to release.
-  const releasedTaskIds = await releaseDaysOffWork(db, daysOff, from, to)
+  const releasedTaskIds = await releaseDaysOffWork(db, daysOff, firmlyUnavailableOn, from, to)
 
   const { data: taskRows, error: taskError } = await db
     .from('tasks_resolved')

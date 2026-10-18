@@ -329,6 +329,7 @@ export function buildAssignmentPlan(
   for (const [, group] of Array.from(units)) {
     const date = group[0].date
     const eligible: AssignablePerson[] = []
+    const eligibleWithoutSeparation: AssignablePerson[] = []
     const rejected: Blocker[] = []
 
     for (const person of people) {
@@ -336,6 +337,7 @@ export function buildAssignmentPlan(
       const blockers = group.flatMap((task) =>
         blockersFor(person, task, constraints, assignedToday)
       )
+      if (blockers.length === 0) eligibleWithoutSeparation.push(person)
 
       // ...and if it does not put them on both sides of a separation rule.
       separations.forEach((rule, index) => {
@@ -370,6 +372,11 @@ export function buildAssignmentPlan(
         }
       }
     }
+
+    // Pairing rules improve the rota, but must not leave essential work open
+    // when fewer than four people can work. Keep every hard rule (availability,
+    // skills and the daily cap), then allow one person to cover both sides.
+    if (eligible.length === 0) eligible.push(...eligibleWithoutSeparation)
 
     if (eligible.length === 0) {
       for (const task of group) {

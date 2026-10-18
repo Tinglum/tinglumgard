@@ -278,14 +278,18 @@ export interface HeldAssignment {
 export function assignmentsToRelease(
   held: HeldAssignment[],
   schedule: DayOffEntry[],
-  today: FarmDate
+  today: FarmDate,
+  unavailableOn: ReadonlyMap<string, ReadonlySet<string>> = new Map()
 ): HeldAssignment[] {
   const offOn = new Map(schedule.flatMap((day) => (day.off ? [[day.date, day.off.id] as const] : [])))
-  return held.filter((row) =>
-    row.dueDate > today &&
-    offOn.get(row.dueDate) === row.personId &&
-    row.role === 'assignee' &&
-    row.unassignedAt === null &&
-    row.assignedByPersonId !== row.personId &&
-    !FINISHED_STATUSES.has(row.taskStatus))
+  return held.filter((row) => {
+    const unavailable = unavailableOn.get(row.personId)?.has(row.dueDate) ?? false
+    const autoAssignedOnDayOff =
+      offOn.get(row.dueDate) === row.personId && row.assignedByPersonId !== row.personId
+    return row.dueDate > today &&
+      (unavailable || autoAssignedOnDayOff) &&
+      row.role === 'assignee' &&
+      row.unassignedAt === null &&
+      !FINISHED_STATUSES.has(row.taskStatus)
+  })
 }
