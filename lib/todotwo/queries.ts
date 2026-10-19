@@ -1735,7 +1735,6 @@ export async function getProjectTimeline(
     .select('id, title, status, due_date')
     .eq('project_id', projectId)
     .is('parent_task_id', null)
-    .is('deleted_at', null)
     .gte('due_date', from)
     .lte('due_date', to)
     .order('due_date')
