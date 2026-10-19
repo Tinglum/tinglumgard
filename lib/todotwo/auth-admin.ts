@@ -1,4 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
+import { addFarmDays } from '@/lib/todotwo/time'
+import { selectHandoffCandidates, type OccurrenceCandidate } from '@/lib/todotwo/domain/onboarding'
 
 /**
  * SERVICE-ROLE CLIENT IN A REQUEST PATH — a deliberate, narrow exception.
@@ -208,7 +210,75 @@ export async function registerFirstTimePerson(
     if (error) return false
   }
 
+  try {
+    await scheduleOnboardingRamp(supabase, personId, farmStartDate)
+  } catch (error) {
+    // Registration and the sign-in email must still succeed if rota planning
+    // is temporarily unavailable; the failure remains visible in server logs.
+    console.error('[todotwo] onboarding schedule failed', {
+      message: error instanceof Error ? error.message : 'unknown',
+    })
+  }
+
   return true
+}
+
+async function scheduleOnboardingRamp(
+  db: ReturnType<ReturnType<typeof client>['schema']>,
+  personId: string,
+  startDate: string
+): Promise<void> {
+  const householdDate = addFarmDays(startDate, 3)
+  const animalDate = addFarmDays(startDate, 4)
+  const [{ data: projects }, { data: tasks }, { data: assignments }] = await Promise.all([
+    db.from('projects').select('id, name, slug'),
+    db.from('tasks_resolved').select('id, title, due_date, project_id, status')
+      .in('due_date', [householdDate, animalDate]).eq('status', 'assigned'),
+    db.from('task_assignments').select('task_id, person_id').is('unassigned_at', null),
+  ])
+  const typedProjects = (projects ?? []) as { id: string; name: string; slug: string }[]
+  const householdProjects = new Set(typedProjects
+    .filter((project) => /house|home|kitchen|meal|clean/i.test(`${project.name} ${project.slug}`))
+    .map((project) => project.id))
+  const animalProjects = new Set(typedProjects
+    .filter((project) => /animal/i.test(`${project.name} ${project.slug}`))
+    .map((project) => project.id))
+  const rows = (tasks ?? []) as { id: string; title: string; due_date: string; project_id: string | null }[]
+  const holderByTask = new Map<string, string>()
+  const loadByHolder = new Map<string, number>()
+  for (const assignment of (assignments ?? []) as { task_id: string; person_id: string }[]) {
+    holderByTask.set(assignment.task_id, assignment.person_id)
+    loadByHolder.set(assignment.person_id, (loadByHolder.get(assignment.person_id) ?? 0) + 1)
+  }
+  const candidate = (task: typeof rows[number]): OccurrenceCandidate | null => {
+    const holderPersonId = holderByTask.get(task.id)
+    return !holderPersonId || holderPersonId === personId ? null : {
+      taskId: task.id, holderPersonId,
+      holderLoadInWindow: loadByHolder.get(holderPersonId) ?? 0,
+      dueDate: task.due_date,
+    }
+  }
+  const household = rows
+    .filter((task) => task.due_date === householdDate && task.project_id && householdProjects.has(task.project_id))
+    .map(candidate).filter((item): item is OccurrenceCandidate => item !== null)
+  const householdTasks = selectHandoffCandidates(household, 0)
+  const animalRows = rows.filter((task) =>
+    task.due_date === animalDate && task.project_id !== null && animalProjects.has(task.project_id))
+  const animalCandidates = new Map(animalRows.map((task) => [task.id, candidate(task)]))
+  const animalShift = [
+    ['Goats', 'Chickens + Ducks'],
+    ['Pigs', 'Rabbits'],
+  ].map((labels) => animalRows
+    .filter((task) => labels.some((label) => task.title.startsWith(label)))
+    .map((task) => animalCandidates.get(task.id))
+    .filter((item): item is OccurrenceCandidate => Boolean(item)))
+    .filter((shift) => shift.length >= 4)
+    .sort((a, b) => b.reduce((sum, item) => sum + item.holderLoadInWindow, 0) -
+      a.reduce((sum, item) => sum + item.holderLoadInWindow, 0))[0] ?? []
+  for (const task of [...householdTasks, ...animalShift]) {
+    const { error } = await db.rpc('assign_task', { p_task_id: task.taskId, p_person_id: personId })
+    if (error) throw new Error(`Could not schedule onboarding: ${error.message}`)
+  }
 }
 
 /**
