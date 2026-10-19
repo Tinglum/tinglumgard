@@ -1339,11 +1339,36 @@ export async function getFavoriteViewTasks(
     throw new Error('Only staff may view farm-wide assignments')
   }
 
-  const { data, error } = await db
+  let query = db
     .from('tasks_resolved')
     .select(SELECT)
     .is('parent_task_id', null)
-    .in('status', OPEN_STATUSES)
+
+  // Scope in Postgres before hydrating assignees. Loading every open task and
+  // filtering here eventually made the task-id lookup too large for PostgREST,
+  // which broke both the farm-wide and upcoming-unassigned Favorites pages.
+  switch (key) {
+    case 'overdue':
+      query = query.lt('due_date', today).in('status', OPEN_STATUSES)
+      break
+    case 'assigned-today':
+      query = query.eq('due_date', today).in('status', OPEN_STATUSES)
+      break
+    case 'assigned-tomorrow':
+      query = query.eq('due_date', tomorrow).in('status', OPEN_STATUSES)
+      break
+    case 'unassigned-next-7':
+      query = query.gt('due_date', today).lte('due_date', in7).eq('status', 'unassigned')
+      break
+    case 'assigned-next-7':
+      query = query.gt('due_date', today).lte('due_date', in7).in('status', OPEN_STATUSES)
+      break
+    case 'farm-wide':
+      query = query.in('status', ['assigned', 'accepted', 'in_progress'])
+      break
+  }
+
+  const { data, error } = await query
 
   if (error) throw new Error(`Could not load favorites: ${error.message}`)
   const rows = await attachCurrentAssignees(db, (data ?? []) as unknown as TaskRow[])

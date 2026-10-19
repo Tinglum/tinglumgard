@@ -457,7 +457,10 @@ export function buildAssignmentPlan(
           : eligible
     const workedAnimalsYesterday = new Set(teamOwnersByDate.get(addFarmDays(date, -1)) ?? [])
     const restedPool = basePool.filter((person) => !workedAnimalsYesterday.has(person.id))
-    const pool = ownerEligible || restedPool.length === 0 ? basePool : restedPool
+    // With only four people, strictly forbidding consecutive animal days
+    // forces the same two fixed pairs forever. At five or more there is enough
+    // cover to rest yesterday's animal team without sacrificing partner mix.
+    const pool = ownerEligible || restedPool.length === 0 || eligible.length <= 4 ? basePool : restedPool
 
     const chosen = [...pool].sort((a, b) => {
       if (teammatesToday.length > 0) {
