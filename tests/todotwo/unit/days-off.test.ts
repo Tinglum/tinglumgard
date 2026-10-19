@@ -40,16 +40,17 @@ describe('headcount days off', () => {
 
   it('a stand-in covers a block whose owner is on time off, and headcount is re-checked', () => {
     // Anchor+0/+1 is A's block. A is on holiday: six on the books, five can
-    // work, so one of the five (B, next in order) is off.
+    // work, so one of the five is off. C is preferred over B because B owns
+    // the following block and would otherwise receive four days in a row.
     const away = { a: [ROTATION_ANCHOR, addFarmDays(ROTATION_ANCHOR, 1)] }
-    expect(offIds(crew(6, away), ROTATION_ANCHOR, 4)).toEqual(['b', 'b', 'b', 'b'])
+    expect(offIds(crew(6, away), ROTATION_ANCHOR, 4)).toEqual(['c', 'c', 'b', 'b'])
     // With five on the books the holiday drops the farm to four: nobody off.
     expect(offIds(crew(5, away), ROTATION_ANCHOR, 4)).toEqual([null, null, 'b', 'b'])
   })
 
   it('time off landing mid-block only moves that one day', () => {
     const away = { b: [addFarmDays(ROTATION_ANCHOR, 3)] }
-    expect(offIds(crew(6, away), ROTATION_ANCHOR, 4)).toEqual(['a', 'a', 'b', 'c'])
+    expect(offIds(crew(6, away), ROTATION_ANCHOR, 4)).toEqual(['a', 'a', 'b', 'd'])
   })
 
   it('is a function of the date: later windows agree with earlier ones', () => {

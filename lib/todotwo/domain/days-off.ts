@@ -209,7 +209,16 @@ export function dayOffSchedule(participants: RotaParticipant[], from: FarmDate, 
     if (available > MINIMUM_CREW) {
       const block = Math.floor(farmDaysBetween(ROTATION_ANCHOR, date) / BLOCK_DAYS)
       const ownerIndex = mod(block, order.length)
-      for (let step = 0; step < order.length; step += 1) {
+      // If the owner is away, avoid their immediate neighbours first. The
+      // next neighbour owns the following two-day block and the previous one
+      // owned the preceding block; choosing either creates four consecutive
+      // days off. Julia hit exactly that when Miguel's departed-person block
+      // fell immediately before hers.
+      const steps = order.map((_, step) => step).sort((a, b) => {
+        const adjacent = (step: number) => step === 1 || step === order.length - 1
+        return Number(adjacent(a)) - Number(adjacent(b)) || a - b
+      })
+      for (const step of steps) {
         const candidate = order[(ownerIndex + step) % order.length]
         if (isAvailable(candidate, date)) {
           off = { id: candidate.id, name: candidate.name }
