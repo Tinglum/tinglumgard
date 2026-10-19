@@ -2,14 +2,19 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 import { Loader2 } from 'lucide-react'
 import { BniMark } from '@/components/bnimsp/BniMark'
 
 type Mode = 'login' | 'register'
 
+// Where to go after signing in. Only same-site /bnimsp paths are honoured, so
+// ?next= cannot be used to bounce users to another site.
+function returnTarget(): string {
+  const next = new URLSearchParams(window.location.search).get('next') || ''
+  return /^\/bnimsp(\/|$)/.test(next) ? next : '/bnimsp'
+}
+
 export default function BnimspLoginPage() {
-  const router = useRouter()
   const [mode, setMode] = useState<Mode>('login')
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
@@ -41,7 +46,10 @@ export default function BnimspLoginPage() {
         setError(data.error || (isRegister ? 'Registrering feilet' : 'Innlogging feilet'))
         return
       }
-      router.replace('/bnimsp')
+      // Full navigation (not router.replace): the fresh session cookie is read
+      // by a clean server render, and the target may be a route handler
+      // (e.g. /bnimsp/strategi) rather than a page.
+      window.location.assign(returnTarget())
     } catch {
       setError('Noe gikk galt. Prøv igjen.')
     } finally {

@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
-import { LogOut, BookOpen, Presentation, ListChecks } from 'lucide-react'
+import { LogOut, BookOpen, Presentation, ListChecks, FileText } from 'lucide-react'
 import { BniMark } from './BniMark'
 
 interface Props {
@@ -49,6 +49,15 @@ export function BniHeader({ active, name, canEdit }: Props) {
               <span className="hidden sm:inline">{label}</span>
             </Link>
           ))}
+          {/* Plain <a>: /bnimsp/strategi is a route handler serving the internal
+              method document, so it needs a full page load, not client routing. */}
+          <a
+            href="/bnimsp/strategi"
+            className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-[var(--bni-muted)] transition-colors hover:bg-zinc-100 hover:text-[var(--bni-ink)]"
+          >
+            <FileText className="h-4 w-4" />
+            <span className="hidden sm:inline">Metode</span>
+          </a>
         </nav>
         <div className="ml-auto flex items-center gap-3">
           {canEdit && (
