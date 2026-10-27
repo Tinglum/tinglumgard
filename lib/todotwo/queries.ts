@@ -1273,6 +1273,7 @@ export async function getFavoriteViews(
 ): Promise<FavoriteView[]> {
   const db = getTodoTwoClient()
   const in7 = addFarmDays(today, 7)
+  const in4 = addFarmDays(today, 4)
   const tomorrow = addFarmDays(today, 1)
 
   const [windowResult, overdueResult, mine, farmWideResult] = await Promise.all([
@@ -1306,14 +1307,16 @@ export async function getFavoriteViews(
   const assignedToday = rows.filter((t) => t.due_date === today && mine.has(t.id))
   const assignedTomorrow = rows.filter((t) => t.due_date === tomorrow && mine.has(t.id))
   const next7 = rows.filter((t) => t.due_date && t.due_date > today && t.due_date <= in7)
-  const unassignedNext7 = next7.filter((t) => t.status === 'unassigned')
+  const unassignedNext4 = next7.filter(
+    (t) => t.due_date && t.due_date <= in4 && t.status === 'unassigned'
+  )
   const assignedNext7 = next7.filter((t) => mine.has(t.id))
 
   const views: FavoriteView[] = [
     { key: 'overdue', label: 'Overdue Tasks', count: overdueResult.count ?? 0 },
     { key: 'assigned-today', label: 'Assigned tasks due today', count: assignedToday.length },
     { key: 'assigned-tomorrow', label: 'Assigned tasks due tomorrow', count: assignedTomorrow.length },
-    { key: 'unassigned-next-7', label: 'Unassigned tasks due next 7 days', count: unassignedNext7.length },
+    { key: 'unassigned-next-7', label: 'Unassigned tasks due next 4 days', count: unassignedNext4.length },
     { key: 'assigned-next-7', label: 'Assigned tasks due next 7 days', count: assignedNext7.length },
   ]
 
@@ -1333,6 +1336,7 @@ export async function getFavoriteViewTasks(
 ): Promise<TaskRow[]> {
   const db = getTodoTwoClient()
   const in7 = addFarmDays(today, 7)
+  const in4 = addFarmDays(today, 4)
   const tomorrow = addFarmDays(today, 1)
 
   if (key === 'farm-wide' && !isStaff) {
@@ -1358,7 +1362,7 @@ export async function getFavoriteViewTasks(
       query = query.eq('due_date', tomorrow).in('status', OPEN_STATUSES)
       break
     case 'unassigned-next-7':
-      query = query.gt('due_date', today).lte('due_date', in7).eq('status', 'unassigned')
+      query = query.gt('due_date', today).lte('due_date', in4).eq('status', 'unassigned')
       break
     case 'assigned-next-7':
       query = query.gt('due_date', today).lte('due_date', in7).in('status', OPEN_STATUSES)
@@ -1386,7 +1390,7 @@ export async function getFavoriteViewTasks(
     }
     case 'unassigned-next-7':
       return sortTasks(
-        rows.filter((t) => t.due_date && t.due_date > today && t.due_date <= in7 && t.status === 'unassigned')
+        rows.filter((t) => t.due_date && t.due_date > today && t.due_date <= in4 && t.status === 'unassigned')
       )
     case 'assigned-next-7': {
       const mine = await taskIdsAssignedTo(db, personId)

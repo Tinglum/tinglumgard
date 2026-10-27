@@ -12,7 +12,7 @@ const LABELS: Record<FavoriteViewKey, string> = {
   overdue: 'Overdue Tasks',
   'assigned-today': 'Assigned tasks due today',
   'assigned-tomorrow': 'Assigned tasks due tomorrow',
-  'unassigned-next-7': 'Unassigned tasks due next 7 days',
+  'unassigned-next-7': 'Unassigned tasks due next 4 days',
   'assigned-next-7': 'Assigned tasks due next 7 days',
   'farm-wide': "Tinglum Farm's assignments",
 }
