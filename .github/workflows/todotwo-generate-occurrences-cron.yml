@@ -42,3 +42,8 @@ jobs:
             echo "::error::TodoTwo occurrence generation cron endpoint failed with HTTP $HTTP_CODE"
             exit 1
           fi
+
+          if ! jq -e '.errors | length == 0' "$RESPONSE_FILE" >/dev/null; then
+            echo "::error::TodoTwo occurrence generation completed with one or more series errors."
+            exit 1
+          fi

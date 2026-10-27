@@ -57,6 +57,15 @@ describe('expansion', () => {
     expect(out.map((o) => o.date)).toEqual(['2026-09-02', '2026-09-07'])
   })
 
+  it('accepts the HH:mm:ss shape returned by Postgres time columns', () => {
+    const out = expandSeries({
+      ...base,
+      rrule: 'RRULE:FREQ=WEEKLY;BYDAY=TU',
+      timeOfDay: '10:00:00',
+    })
+    expect(out[0].at?.toISOString()).toBe('2026-09-01T08:00:00.000Z')
+  })
+
   it('never produces anything before the series began', () => {
     const out = expandSeries({
       rrule: 'RRULE:FREQ=DAILY',

@@ -170,11 +170,16 @@ export function expandSeries(options: ExpandOptions): Occurrence[] {
   let cursor = options.from < options.startsOn ? options.startsOn : options.from
   const last = options.endsOn && options.endsOn < options.to ? options.endsOn : options.to
 
-  const time =
+  const rawTime =
     options.timeOfDay ??
     (rule.hour !== null
       ? `${String(rule.hour).padStart(2, '0')}:${String(rule.minute ?? 0).padStart(2, '0')}`
       : null)
+  // Postgres `time` values are returned as HH:mm:ss; the farm-time boundary
+  // uses HH:mm. Preserve strict validation for every other shape.
+  const time = rawTime && /^\d{2}:\d{2}:\d{2}(?:\.\d+)?$/.test(rawTime)
+    ? rawTime.slice(0, 5)
+    : rawTime
 
   const out: Occurrence[] = []
 
