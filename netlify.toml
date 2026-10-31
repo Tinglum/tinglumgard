@@ -9,6 +9,21 @@ publish = ".next"
 [[plugins]]
 package = "@netlify/plugin-nextjs"
 
+# The goat lineage app (Tinglum/goat-lineage-app, its own Netlify site) is
+# served at /goat. That app is built with basePath "/goat", so paths pass
+# through unchanged.
+[[redirects]]
+  from = "/goat"
+  to = "https://goat-lineage-app.netlify.app/goat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/goat/*"
+  to = "https://goat-lineage-app.netlify.app/goat/:splat"
+  status = 200
+  force = true
+
 # Dedicated subdomain for the BNI strategy & communication page.
 # bnistrategi.tinglum.com serves the standalone document on every path.
 # Requires the domain alias + DNS (CNAME bnistrategi -> the Netlify site).
