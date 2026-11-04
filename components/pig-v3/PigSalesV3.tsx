@@ -11,11 +11,14 @@ import { displayCutName } from '@/lib/utils/text'
 import styles from './pig-sales-v3.module.css'
 import { FarmGallery } from './FarmGallery'
 
-type Part = 'nakke' | 'svinebog' | 'kotelettkam' | 'ribbeside' | 'skinke' | 'knoke'
+type Part = 'nakke' | 'svinebog' | 'kotelettkam' | 'ribbeside' | 'skinke' | 'knoke' | 'annet'
 type Content = { content_name_no: string; content_name_en: string; part_key?: string; cut_id?: string; cut_slug?: string; target_weight_kg?: number | null }
 type Preset = { id: string; slug: string; name_no: string; name_en: string; target_weight_kg: number; price_nok: number; contents?: Content[] }
 type Extra = { id: string; slug: string; name_no: string; name_en: string; part_key?: string; cut_id?: string; cut_slug?: string; price_nok: number; pricing_type: string; stock_quantity: number | null; product_type?: string; default_quantity?: number; fixed_quantity?: number; description_no?: string; description_en?: string }
 const sameCut = (item: Content, extra: Extra) => Boolean((item.cut_id && item.cut_id === extra.cut_id) || (item.cut_slug && item.cut_slug === extra.cut_slug))
+// Sausages, farse and mince are made from several parts, so they get their own group instead of sitting under the shoulder.
+const processedCut = /p[oø]lse|farse|kj[oø]ttdeig/i
+const groupPart = <T extends { part_key?: string; cut_slug?: string; slug?: string }>(item: T): T => processedCut.test(item.cut_slug || item.slug || '') ? { ...item, part_key: 'annet' } : item
 type Inventory = { boxesRemaining: number; isSoldOut: boolean }
 
 const boxNotes: Record<string, { no: string; en: string; image: string }> = {
@@ -31,6 +34,7 @@ const cuts: Record<Part, { no: string; en: string; textNo: string; textEn: strin
   ribbeside: { no: 'Ribbeside', en: 'Belly', textNo: 'Ribba leveres uten svor fordi ullgrisen flås. Mangalitsa har godt med fett som gir saftig kjøtt og fyldig smak. Her begynner ribbemiddagen, baconet og porchettaen.', textEn: 'The belly comes without skin because the woolly pig is skinned. Mangalitsa fat keeps the meat juicy and gives it a rich flavour. This is where pork belly, bacon and porchetta begin.', methodNo: 'Langsteking for saftig kjøtt', methodEn: 'Slow-roast for juicy meat', recipe: 'ullgris-ribbe-langstekt', image: '/recipes/norsk-ribbe-uten-svor.png' },
   skinke: { no: 'Skinke', en: 'Ham', textNo: 'Store stykker til stek, speking og middager til mange. Skinka har magrere kjøtt enn nakke og side.', textEn: 'Generous cuts for roasting, curing and feeding a crowd. Leaner than collar and belly.', methodNo: 'Stek hel eller spek', methodEn: 'Roast whole or cure', recipe: 'cure-ham', image: '/recipes/cure-ham.jpg' },
   knoke: { no: 'Knoke', en: 'Hock', textNo: 'Kraft, kjøtt og fylde til supper og gryter. La knoken småkoke til kjøttet slipper beinet.', textEn: 'Stock, tender meat and depth for soups and stews. Simmer until the meat leaves the bone.', methodNo: 'Småkok til den er mør', methodEn: 'Simmer until tender', recipe: 'knoke-kraft', image: '/recipes/knoke-kraft.jpg' },
+  annet: { no: 'Annet', en: 'Other', textNo: 'Pølser og kjøttdeig laget av Mangalitsa. Fettet gir saftige pølser og en kjøttdeig som holder seg mør i panna.', textEn: 'Sausages and mince made from Mangalitsa. The fat keeps sausages juicy and mince tender in the pan.', methodNo: 'Stek, grill eller form', methodEn: 'Fry, grill or shape', recipe: 'ullgris-polser-lok', image: '/recipes/ullgris-polser-lok.jpg' },
 }
 const polygonPart: Record<number, Part> = { 3: 'nakke', 8: 'svinebog', 5: 'kotelettkam', 7: 'ribbeside', 9: 'skinke', 10: 'knoke' }
 const order = ['familieboks', 'julespesial', 'bbq-steakhouse', 'premium-cuts']
@@ -61,6 +65,12 @@ export function PigSalesV3({ standalone = true }: { standalone?: boolean }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const pageRef = useRef<HTMLDivElement>(null)
   const menuButtonRef = useRef<HTMLButtonElement>(null)
+  const detailRef = useRef<HTMLElement>(null)
+  // On phones the detail panel sits below the list, so bring it into view after a tap.
+  const choosePart = (key: Part) => {
+    setPart(key)
+    if (window.matchMedia('(max-width: 767px)').matches) requestAnimationFrame(() => detailRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+  }
 
   useEffect(() => {
     const root = pageRef.current
@@ -144,12 +154,12 @@ export function PigSalesV3({ standalone = true }: { standalone?: boolean }) {
       if (catalogue.status === 'fulfilled' && Array.isArray(catalogue.value.presets)) {
         const boxes: Preset[] = catalogue.value.presets
         boxes.sort((a, b) => (order.indexOf(a.slug) < 0 ? 99 : order.indexOf(a.slug)) - (order.indexOf(b.slug) < 0 ? 99 : order.indexOf(b.slug)))
-        setPresets(boxes)
+        setPresets(boxes.map(box => ({ ...box, contents: box.contents?.map(groupPart) })))
         setSelectedSlug(current => boxes.some(box => box.slug === current) ? current : boxes[0]?.slug || '')
       } else setError(true)
       if (stock.status === 'fulfilled' && typeof stock.value.isSoldOut === 'boolean') setInventory(stock.value)
       else setInventoryError(true)
-      if (products.status === 'fulfilled' && Array.isArray(products.value.extras)) setExtras(products.value.extras.filter((extra: Extra) => (!extra.product_type || extra.product_type === 'pig_box') && !/\b(kje|geit|goat)\b/i.test(extra.name_no + ' ' + extra.name_en)))
+      if (products.status === 'fulfilled' && Array.isArray(products.value.extras)) setExtras(products.value.extras.map(groupPart).filter((extra: Extra) => (!extra.product_type || extra.product_type === 'pig_box')))
       else setExtrasError(true)
       setLoading(false)
     }
@@ -169,7 +179,6 @@ export function PigSalesV3({ standalone = true }: { standalone?: boolean }) {
   const toggleExtra = (slug: string) => setSelectedExtras(current => current.includes(slug) ? current.filter(item => item !== slug) : [...current, slug])
   const soldOut = inventory?.isSoldOut === true
   const activeCut = cuts[part]
-  const matchingBoxes = presets.filter(box => box.contents?.some(item => item.part_key === part))
   const contentsForCut = selected?.contents?.filter(item => item.part_key === part) || []
   const includedParts = new Set(selected?.contents?.map(item => item.part_key).filter(Boolean))
   const productsForPart = extras.filter(extra => extra.part_key === part)
@@ -177,6 +186,10 @@ export function PigSalesV3({ standalone = true }: { standalone?: boolean }) {
     item.part_key === part &&
     !productsForPart.some(extra => sameCut(item, extra)) &&
     items.findIndex(other => (other.cut_id || other.cut_slug || other.content_name_no) === (item.cut_id || item.cut_slug || item.content_name_no)) === index)
+  const cutKey = (item: Content) => item.cut_id || item.cut_slug || item.content_name_no
+  // Three groups, never mixed: in your box / paid add-ons / only in other boxes.
+  const availableExtras = extras.filter(extra => !selected?.contents?.some(item => sameCut(item, extra)))
+  const otherBoxCuts = boxOnlyCuts.filter(item => !contentsForCut.some(other => cutKey(other) === cutKey(item)))
   const meal = heroMeals[mealIndex]
   const cta = t('Bestill din boks nå', 'Order your box now')
   const faqs = [
@@ -243,52 +256,60 @@ export function PigSalesV3({ standalone = true }: { standalone?: boolean }) {
       </section>
 
       <section id="stykningsdeler" className={styles.explorer} aria-labelledby="cut-title">
-        <div className={styles.explorerHeading}><h2 id="cut-title">{t('VELG DITT STYKKE.', 'CHOOSE YOUR CUT.')}<br /><span>{t('SE HVA DU FÅR.', 'SEE WHAT YOU GET.')}</span></h2><p>{t('Utforsk stykningsdelene du kan kjøpe. Hakene viser nøyaktig hvilke stykker som følger med boksen du velger. Andre stykker kan legges til i bestillingen.', 'Explore the cuts you can buy. Checkmarks show exactly which cuts come with your selected box. Other cuts can be added at checkout.')}</p></div>
-        <div className={styles.explorerBody}>
+        <div className={styles.explorerHeading}><h2 id="cut-title">{t('SE HVA DU FÅR.', 'SEE WHAT YOU GET.')}<br /><span>{t('LEGG TIL DET DU VIL.', 'ADD WHAT YOU LIKE.')}</span></h2><p>{t('Alt i boksen vises til venstre. Tilgjengelige tillegg med pris vises til høyre. Du kan utforske stykningskartet lenger ned.', 'Everything in your box is shown on the left. Available extras and prices are shown on the right. You can explore the butcher chart below.')}</p></div>
+        {!!presets.length && <div className={styles.explorerControls}><label htmlFor="v3-explorer-box">{t('Valgt boks', 'Selected box')}<select id="v3-explorer-box" value={selectedSlug} onChange={event => setSelectedSlug(event.target.value)}>{presets.map(box => <option key={box.id} value={box.slug}>{name(box)}</option>)}</select></label><span className={styles.boxCutCount}><Check size={16} />{t(`${selected?.contents?.length || 0} stykker inkludert`, `${selected?.contents?.length || 0} cuts included`)}</span></div>}
+        {selected && <div className={styles.catalogueOverview}>
+          <article className={styles.inTheBox}>
+            <header><small>{t('Inkludert i prisen', 'Included in the price')}</small><h3>{t('I din boks', 'In your box')}</h3><p>{name(selected)} · {selected.target_weight_kg} kg</p></header>
+            <ul>{selected.contents?.map((item, index) => <li key={`${cutKey(item)}-${index}`}><span><Check size={15} aria-hidden /><strong>{contentName(item)}</strong></span><small>{item.target_weight_kg ? `${t('ca.', 'approx.')} ${item.target_weight_kg.toLocaleString(no ? 'nb-NO' : 'en-GB')} kg` : t('Inkludert', 'Included')}</small></li>)}</ul>
+          </article>
+          <article className={styles.addOnCatalogue}>
+            <header><small>{t('Pris kommer i tillegg', 'Added to the box price')}</small><h3>{t('Dette kan du legge til', 'Available extras')}</h3><p>{t('Velg her. Valgene følger med videre til bestillingen.', 'Choose here. Your selections continue to checkout.')}</p></header>
+            {extrasError ? <div role="alert" className={styles.catalogueError}><p>{t('Tilleggene kunne ikke hentes.', 'Extras could not be loaded.')}</p><button onClick={() => setAttempt(value => value + 1)}>{t('Prøv igjen', 'Try again')}</button></div> :
+              <ul>{availableExtras.map(extra => {
+                const unavailable = soldOut || (typeof extra.stock_quantity === 'number' && extra.stock_quantity <= 0)
+                const chosen = selectedExtras.includes(extra.slug)
+                const qty = getDefaultExtraQuantity(extra)
+                const perKg = extra.pricing_type === 'per_kg'
+                return <li key={extra.id}><div><small>{extra.part_key && extra.part_key in cuts ? no ? cuts[extra.part_key as Part].no : cuts[extra.part_key as Part].en : t('Annet', 'Other')}</small><strong>{displayCutName(no ? extra.name_no : extra.name_en, lang)}</strong><span>{perKg ? `${t('ca.', 'approx.')} ${qty.toLocaleString(no ? 'nb-NO' : 'en-GB')} kg · ${money(extra.price_nok)}/kg` : `${qty} ${t('stk', 'pcs')}`}</span></div><div className={styles.addOnAction}><b>{money(extra.price_nok * qty)}</b>{unavailable ? <span>{t('Utsolgt', 'Sold out')}</span> : <button aria-pressed={chosen} aria-label={t(`${chosen ? 'Fjern' : 'Legg til'} ${extra.name_no}`, `${chosen ? 'Remove' : 'Add'} ${extra.name_en}`)} onClick={() => toggleExtra(extra.slug)}>{chosen ? <><Check size={15} />{t('Valgt', 'Selected')}</> : <><Plus size={15} />{t('Legg til', 'Add')}</>}</button>}</div></li>
+              })}</ul>}
+          </article>
+        </div>}
+        <details className={styles.cutExplorer}>
+          <summary>{t('Utforsk hvor stykkene sitter på grisen', 'Explore where each cut comes from')}<ChevronDown size={19} /></summary>
+          <div className={styles.explorerBody}>
           <div className={styles.diagramColumn}>
-            {!!presets.length && <div className={styles.explorerControls}><label htmlFor="v3-explorer-box">{t('Utforsk boksen', 'Explore this box')}<select id="v3-explorer-box" value={selectedSlug} onChange={event => setSelectedSlug(event.target.value)}>{presets.map(box => <option key={box.id} value={box.slug}>{name(box)}</option>)}</select></label><span className={styles.boxCutCount}><Check size={16} />{t(`${selected?.contents?.length || 0} stykker i boksen`, `${selected?.contents?.length || 0} cuts in this box`)}</span></div>}
             <div className={styles.diagram}>
               <Image src="/pig-diagram3.png" alt={t('Illustrert stykningskart av Mangalitsa ullgris', 'Illustrated Mangalitsa pork butcher chart')} fill sizes="(max-width: 767px) 100vw, 62vw" />
               <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-label={t('Velg stykningsdel', 'Choose a cut')} className={styles.hitMap}>{PIG_CUT_POLYGONS.map((polygon, index) => {
                 const key = polygonPart[polygon.id]
                 const cutName = no ? cuts[key].no : cuts[key].en
-                return <polygon key={`${polygon.id}-${index}`} points={polygon.points} role="button" tabIndex={0} aria-pressed={part === key} aria-label={cutName} className={`${includedParts.has(key) ? styles.includedPart : ''} ${part === key ? styles.activePart : ''}`} onClick={() => setPart(key)} onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); setPart(key) } }}><title>{`${cutName}${includedParts.has(key) ? `: ${t('i valgt boks', 'in selected box')}` : ''}`}</title></polygon>
+                return <polygon key={`${polygon.id}-${index}`} points={polygon.points} role="button" tabIndex={0} aria-pressed={part === key} aria-label={cutName} className={`${includedParts.has(key) ? styles.includedPart : ''} ${part === key ? styles.activePart : ''}`} onClick={() => choosePart(key)} onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); setPart(key) } }}><title>{`${cutName}${includedParts.has(key) ? `: ${t('i valgt boks', 'in selected box')}` : ''}`}</title></polygon>
               })}</svg>
             </div>
-            <div className={styles.cutButtons} role="group" aria-label={t('Stykningsdeler', 'Pork cuts')}>{(Object.keys(cuts) as Part[]).map(key => <button key={key} aria-pressed={part === key} onClick={() => setPart(key)} className={part === key ? styles.selectedCut : ''}>{no ? cuts[key].no : cuts[key].en}{includedParts.has(key) && <Check size={11} aria-label={t('I valgt boks', 'In selected box')} />}</button>)}</div>
-            <div className={styles.diagramLegend}>{selected && <span><i />{t('I valgt boks', 'In selected box')}</span>}<span><i className={styles.activeLegend} />{t('Delen du utforsker', 'The cut you are exploring')}</span></div>
+            <div className={styles.diagramLegend}>{selected && <span><i />{t('I boksen', 'In the box')}</span>}<span><i className={styles.activeLegend} />{t('Valgt del', 'Selected part')}</span></div>
           </div>
-          <aside key={part} className={styles.cutDetail}>
+          <aside key={part} ref={detailRef} className={styles.cutDetail}>
             <div className={styles.cutText}>
-              <small className={styles.catalogueEyebrow}>{t('Fra denne delen av grisen', 'From this part of the pig')}</small>
+              <small className={styles.catalogueEyebrow}>{part === 'annet' ? t('Pølser og kjøttdeig', 'Sausages and mince') : t('Fra denne delen av grisen', 'From this part of the pig')}</small>
               <h3>{no ? activeCut.no : activeCut.en}</h3>
-              <p>{t('Stykker i boksen er inkludert i boksprisen. Tillegg prises separat.', 'Box cuts are included in the box price. Extras are priced separately.')}</p>
               {loading && <p role="status">{t('Henter stykningsdelene …', 'Loading cuts …')}</p>}
               {extrasError && <div role="alert"><p>{t('Tilleggene kunne ikke hentes. Boksinnholdet vises nedenfor.', 'Extras could not be loaded. Box contents are shown below.')}</p><button onClick={() => setAttempt(value => value + 1)}>{t('Prøv igjen', 'Try again')}</button></div>}
-              <ul className={styles.productCuts}>
-                {boxOnlyCuts.map((item, index) => {
-                  const matches = (other: Content) => (other.cut_id || other.cut_slug || other.content_name_no) === (item.cut_id || item.cut_slug || item.content_name_no)
-                  const included = contentsForCut.find(matches)
-                  const boxes = presets.filter(box => box.contents?.some(matches))
-                  return <li key={`box-${index}`} className={included ? styles.includedProduct : ''}><div className={styles.productCutHeading}><h4>{contentName(item)}</h4>{included && <span className={styles.includedBadge}><Check size={13} />{t('I boksen', 'Included')}</span>}</div>{included ? <small>{included.target_weight_kg ? `Ca. ${included.target_weight_kg.toLocaleString(no ? 'nb-NO' : 'en-GB')} kg · ` : ''}{t('Inkludert i boksprisen', 'Included in box price')}</small> : <div className={styles.boxProductOptions}><small>{t('Kjøpes i', 'Available in')}</small>{boxes.map(box => <button key={box.id} onClick={() => setSelectedSlug(box.slug)}>{name(box)}<ArrowRight size={13} /></button>)}</div>}</li>
+              <div className={styles.includedGroup}><h4>{t('I din boks', 'In your box')} <span>{selected ? name(selected) : ''}</span></h4>
+                {contentsForCut.length ? <ul className={styles.productCuts}>{contentsForCut.map((item, i) => <li key={i}><div className={styles.productCutHeading}><strong>{contentName(item)}</strong><Check size={16} /></div><small>{item.target_weight_kg ? `Ca. ${item.target_weight_kg.toLocaleString(no ? 'nb-NO' : 'en-GB')} kg · ` : ''}{t('Inkludert i boksprisen', 'Included in the box price')}</small>{(item.cut_slug === 'ribbevalg' || /ribbevalg/i.test(item.content_name_no)) && <small className={styles.ribbeNote}>{t('Du velger ribbetype når du bestiller.', 'You choose the rib type when you order.')}</small>}</li>)}</ul> : <p>{t('Ingen stykker fra denne delen i valgt boks.', 'No cuts from this part in the selected box.')}</p>}
+              </div>
+              {!!otherBoxCuts.length && <details className={styles.otherBoxes}><summary>{t(`Finnes bare i andre bokser (${otherBoxCuts.length})`, `Only in other boxes (${otherBoxCuts.length})`)}<ChevronDown size={16} /></summary><ul className={styles.productCuts}>
+                {otherBoxCuts.map(item => {
+                  const boxes = presets.filter(box => box.contents?.some(other => cutKey(other) === cutKey(item)))
+                  return <li key={cutKey(item)}><div className={styles.productCutHeading}><h4>{contentName(item)}</h4></div><div className={styles.boxProductOptions}><small>{t('Bytt boks til', 'Change box to')}</small>{boxes.map(box => <button key={box.id} onClick={() => setSelectedSlug(box.slug)}>{name(box)}<ArrowRight size={13} /></button>)}</div></li>
                 })}
-                {productsForPart.map(extra => {
-                  const included = contentsForCut.find(item => sameCut(item, extra))
-                  const unavailable = soldOut || (typeof extra.stock_quantity === 'number' && extra.stock_quantity <= 0)
-                  return <li key={extra.id} className={included ? styles.includedProduct : ''}>
-                    <div className={styles.productCutHeading}><h4>{displayCutName(no ? extra.name_no : extra.name_en, lang)}</h4>{included && <span className={styles.includedBadge}><Check size={13} />{t('I boksen', 'Included')}</span>}</div>
-                    {(no ? extra.description_no : extra.description_en) && <details className={styles.productDescription}><summary>{t('Om stykket', 'About this cut')}<ChevronDown size={14} /></summary><p>{no ? extra.description_no : extra.description_en}</p></details>}
-                    <div className={styles.productCutAction}>{included ? <small>{included.target_weight_kg ? `Ca. ${included.target_weight_kg.toLocaleString(no ? 'nb-NO' : 'en-GB')} kg · ` : ''}{t('Inkludert i boksprisen', 'Included in box price')}</small> : <><strong>{money(extra.price_nok)}<small> / {extra.pricing_type === 'per_kg' ? 'kg' : t('enhet', 'unit')}</small></strong>{unavailable ? <span>{t('Utsolgt', 'Sold out')}</span> : <button aria-pressed={selectedExtras.includes(extra.slug)} aria-label={t(`${selectedExtras.includes(extra.slug) ? 'Fjern' : 'Legg til'} ${extra.name_no}`, `${selectedExtras.includes(extra.slug) ? 'Remove' : 'Add'} ${extra.name_en}`)} onClick={() => toggleExtra(extra.slug)}>{selectedExtras.includes(extra.slug) ? <><Check size={15} />{t('Valgt', 'Selected')}</> : <>{t('Legg til', 'Add extra')}<Plus size={15} /></>}</button>}</>}</div>
-                  </li>
-                })}
-              </ul>
+              </ul></details>}
               {!loading && !extrasError && !productsForPart.length && !boxOnlyCuts.length && <p>{t('Ingen stykker fra denne delen er tilgjengelige som tillegg eller i valgt boks akkurat nå.', 'No cuts from this part are currently listed as extras or in your selected box.')}</p>}
-              {selected && <div className={styles.cutIncluded}><small>{t('Valgt boks', 'Selected box')}</small><b>{name(selected)}</b><a href="#din-boks">{t('Se boks og valgte tillegg', 'View box and selected extras')} ({chosenExtras.length})<ArrowDown size={17} /></a></div>}
-              {!!matchingBoxes.length && <div className={styles.matching}><small>{t('Denne delen finnes også i', 'This part is also found in')}</small>{matchingBoxes.map(box => <a href="#bokser" key={box.id} onClick={() => setSelectedSlug(box.slug)}>{name(box)}<ArrowUpRight size={15} /></a>)}</div>}
-              <details className={styles.cutCooking}><summary>{t('Slik bruker du kjøttet', 'How to cook this cut')}<ChevronDown size={16} /></summary><p>{no ? activeCut.textNo : activeCut.textEn}</p><Link href={`/oppskrifter/${activeCut.recipe}`}>{t('Se oppskriften', 'See the recipe')}<ArrowUpRight size={17} /></Link></details>
+              {selected && <div className={styles.cutIncluded}><small>{t('Valgt boks', 'Selected box')}</small><b>{name(selected)}</b><a href="#din-boks">{t('Se boks og valgte tillegg', 'View box and selected extras')} ({chosenExtras.length})<ArrowDown size={17} /></a></div>}              <details className={styles.cutCooking}><summary>{t('Slik bruker du kjøttet', 'How to cook this cut')}<ChevronDown size={16} /></summary><p>{no ? activeCut.textNo : activeCut.textEn}</p><Link href={`/oppskrifter/${activeCut.recipe}`}>{t('Se oppskriften', 'See the recipe')}<ArrowUpRight size={17} /></Link></details>
             </div>
           </aside>
         </div>
+        </details>
       </section>
 
       {selected && <section id="din-boks" className={styles.orderSummary} aria-labelledby="order-summary-title">
