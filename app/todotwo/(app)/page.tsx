@@ -1,6 +1,7 @@
 import { ClaimTaskButton } from '@/components/todotwo/tasks/claim-task-button'
 import { AskForHelp } from '@/components/todotwo/tasks/ask-for-help'
 import { FarmToday } from '@/components/todotwo/tasks/farm-today'
+import { WeeklyProjects } from '@/components/todotwo/tasks/weekly-projects'
 import { SnoozeTaskButton } from '@/components/todotwo/tasks/snooze-task-button'
 import { getDailySeriesIds } from '@/lib/todotwo/queries-nudge'
 import { OpenHelpRequests } from '@/components/todotwo/tasks/open-help-requests'
@@ -22,15 +23,13 @@ function timeLabel(dueAt: string | null): string | null {
 /**
  * Today, scoped to the person reading it.
  *
- * The page answers two questions and no others: what am I doing today, and
- * what still needs someone. Everyone else's work is readable elsewhere — it is
- * just not what this screen is for.
+ * Daily chores first, followed by the week's projects and shared ownership.
  */
 export default async function TodayPage() {
   const principal = await requireTodoTwoUser(TODOTWO_BASE)
   const today = farmToday()
   const [
-    { overdue, mine, unclaimed, doneToday, everyoneToday, olderOpenCount },
+    { overdue, mine, unclaimed, doneToday, everyoneToday, olderOpenCount, weeklyProjects },
     helpRequests,
   ] = await Promise.all([
     getToday(principal.person.id, today),
@@ -63,8 +62,8 @@ export default async function TodayPage() {
         </h1>
         <p className="text-sm text-[var(--tt-ink-2)]">
           {myOpenCount === 0
-            ? 'Nothing on you today.'
-            : `${myOpenCount} on you today${totalMinutes > 0 ? ` · about ${totalMinutes} min` : ''}`}
+            ? 'No daily chores assigned to you today.'
+            : `${myOpenCount} daily chores${totalMinutes > 0 ? ` · about ${totalMinutes} min` : ''}`}
         </p>
 
         {/* The count that used to be a clause at the end of the line above,
@@ -109,16 +108,16 @@ export default async function TodayPage() {
 
       <section className="flex flex-col gap-2">
         <h2 className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--tt-ink-3)]">
-          {copy.common.today}
+          Daily chores · Today
         </h2>
 
         {mine.length === 0 ? (
           <EmptyState
-            title="Nothing assigned to you today"
+            title="No daily chores assigned today"
             description={
               unclaimed.length > 0
                 ? 'Not a mistake — nobody has put you on anything today. Have a look at what is up for grabs below.'
-                : 'Nothing has your name on it today, and nothing is going spare either.'
+                : 'Check Weekly projects below to plan and claim work for this week.'
             }
           />
         ) : (
@@ -136,6 +135,8 @@ export default async function TodayPage() {
           </Surface>
         )}
       </section>
+
+      <WeeklyProjects tasks={weeklyProjects} personId={principal.person.id} today={today} />
 
       <FarmToday
         tasks={everyoneToday}

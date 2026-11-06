@@ -319,7 +319,7 @@ export async function POST(request: NextRequest) {
     .filter((series) => /(?:^|;)FREQ=WEEKLY(?:;|$)/i.test(series.rrule.replace(/^RRULE:/i, '')))
     .map((series) => series.id))
 
-  // Weekly routines are a shared 10:00 pool. The automatic rota only covers
+  // Weekly routines are a shared week-long project pool. The automatic rota only covers
   // daily work and one-off tasks; it must never pre-assign these occurrences.
   const dated = rows.filter((r): r is typeof r & { due_date: string } =>
     r.due_date !== null && (!r.series_id || !weeklySeries.has(r.series_id)))

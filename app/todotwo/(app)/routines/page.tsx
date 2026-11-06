@@ -117,7 +117,7 @@ export default async function RoutinesPage() {
           every future day shows the change.
         </p>
         <p className="text-sm font-medium text-[var(--tt-accent)]">
-          Weekly routines stay unassigned and appear in Today’s “Up for grabs” list at 10:00 Norway time.
+          Weekly routines stay unassigned and appear together in Today’s Weekly projects from Monday. Claim any project for the week ahead.
         </p>
         {canEditRules ? <div className="flex gap-4">
           <Link
