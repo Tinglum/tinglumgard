@@ -248,6 +248,17 @@
 .catalogueOverview header h3 { margin:7px 0 5px; font:600 34px/1 var(--v3-display),sans-serif; }
 .catalogueOverview header p { color:#66675a; font-size:12px; line-height:1.6; }
 .catalogueOverview ul { list-style:none; margin:0; padding:0; }
+.extraSort { display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:12px; padding-bottom:20px; font-size:12px; }
+.extraSort select { padding:10px; min-height:44px; max-width:100%; border:1px solid #d5cebf; background:transparent; color:inherit; }
+.extraInfo { text-align:left; font:600 14px/1.4 var(--v3-body),sans-serif; margin:6px 0; min-height:44px; padding:0; background:transparent; border:0; color:var(--ink); cursor:pointer; }
+.extraInfo:hover { text-decoration:underline; text-underline-offset:3px; }
+.extraInfo:focus-visible { outline:2px solid var(--red); outline-offset:3px; }
+.extraInfo>span { color:#7b563f; }
+.extraPopover { background:#faf6ed; color:#292b24; width:min(360px,calc(100vw - 32px)); max-height:min(480px,70dvh); overflow-y:auto; border:1px solid #d5cebf; border-radius:4px; padding:24px; font:400 14px/1.7 sans-serif; }
+.extraPopover h4 { font-size:20px; margin:0 0 12px; }
+.extraPopover p { margin-bottom:12px; }
+.extraPopover ul { padding-left:18px; margin:12px 0; list-style:disc; }
+.extraPopover small,.extraPopover strong { display:block; margin-top:10px; }
 .inTheBox li { display:flex; align-items:center; justify-content:space-between; gap:18px; padding:15px 0; border-bottom:1px solid #d5cebf; }
 .inTheBox li>span { display:flex; align-items:center; gap:10px; min-width:0; }
 .inTheBox li svg { flex:0 0 auto; color:#65744a; }

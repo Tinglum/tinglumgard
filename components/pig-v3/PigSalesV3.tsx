@@ -10,11 +10,12 @@ import { getDefaultExtraQuantity } from '@/lib/extras/fixedQuantities'
 import { displayCutName } from '@/lib/utils/text'
 import styles from './pig-sales-v3.module.css'
 import { FarmGallery } from './FarmGallery'
+import { ExtraDetails } from './ExtraDetails'
 
 type Part = 'nakke' | 'svinebog' | 'kotelettkam' | 'ribbeside' | 'skinke' | 'knoke' | 'annet'
 type Content = { content_name_no: string; content_name_en: string; part_key?: string; cut_id?: string; cut_slug?: string; target_weight_kg?: number | null }
 type Preset = { id: string; slug: string; name_no: string; name_en: string; target_weight_kg: number; price_nok: number; contents?: Content[] }
-type Extra = { id: string; slug: string; name_no: string; name_en: string; part_key?: string; cut_id?: string; cut_slug?: string; price_nok: number; pricing_type: string; stock_quantity: number | null; product_type?: string; default_quantity?: number; fixed_quantity?: number; description_no?: string; description_en?: string }
+type Extra = { id: string; slug: string; name_no: string; name_en: string; part_key?: string; cut_id?: string; cut_slug?: string; price_nok: number; pricing_type: string; stock_quantity: number | null; product_type?: string; default_quantity?: number; fixed_quantity?: number; description_no?: string; description_en?: string; kg_per_unit?: number; cut_size_from_kg?: number; cut_size_to_kg?: number; description_premium_no?: string; description_premium_en?: string; recipe_suggestions?: { title_no: string; title_en: string }[] }
 const sameCut = (item: Content, extra: Extra) => Boolean((item.cut_id && item.cut_id === extra.cut_id) || (item.cut_slug && item.cut_slug === extra.cut_slug))
 // Sausages, farse and mince are made from several parts, so they get their own group instead of sitting under the shoulder.
 const processedCut = /p[oø]lse|farse|kj[oø]ttdeig/i
@@ -22,10 +23,10 @@ const groupPart = <T extends { part_key?: string; cut_slug?: string; slug?: stri
 type Inventory = { boxesRemaining: number; isSoldOut: boolean }
 
 const boxNotes: Record<string, { no: string; en: string; image: string }> = {
-  familieboks: { no: 'Til hverdager, helger og en velfylt fryser.', en: 'For weekdays, weekends and a well-stocked freezer.', image: '/recipes/bog-langtid.jpg' },
+  familieboks: { no: 'Til hverdager, helger og en velfylt fryser.', en: 'For weekdays, weekends and a well-stocked freezer.', image: '/recipes/familieboks-chops-serving.png' },
   julespesial: { no: 'Ribba og resten av de gode julemiddagene.', en: 'Pork belly and all those Christmas dinners.', image: '/recipes/norsk-ribbe-uten-svor.png' },
   'bbq-steakhouse': { no: 'For deg som helst fyrer opp grillen.', en: 'For those who would rather fire up the grill.', image: '/recipes/tomahawk-chimichurri.jpg' },
-  'premium-cuts': { no: 'Små, ettertraktede stykker. Store muligheter.', en: 'Rare, sought-after cuts. Plenty of possibilities.', image: '/recipes/secreto-plancha.jpg' },
+  'premium-cuts': { no: 'Små, ettertraktede stykker. Store muligheter.', en: 'Rare, sought-after cuts. Plenty of possibilities.', image: '/recipes/premium-secreto-serving.png' },
 }
 const cuts: Record<Part, { no: string; en: string; textNo: string; textEn: string; methodNo: string; methodEn: string; recipe: string; image: string }> = {
   nakke: { no: 'Nakke', en: 'Collar', textNo: 'God marmorering og mye smak. Nakkekam kan stekes hel, grilles i skiver eller spekes til coppa.', textEn: 'Rich marbling and plenty of flavour. Roast it whole, grill thick slices or cure it as coppa.', methodNo: 'Grill eller langtidsstek', methodEn: 'Grill or slow-roast', recipe: 'neck-steak', image: '/recipes/neck-steak.jpg' },
@@ -60,6 +61,7 @@ export function PigSalesV3({ standalone = true }: { standalone?: boolean }) {
   const [mealIndex, setMealIndex] = useState(0)
   const [extras, setExtras] = useState<Extra[]>([])
   const [selectedExtras, setSelectedExtras] = useState<string[]>([])
+  const [extraSort, setExtraSort] = useState('part')
   const [extrasError, setExtrasError] = useState(false)
   const [showOrderBar, setShowOrderBar] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
@@ -188,7 +190,24 @@ export function PigSalesV3({ standalone = true }: { standalone?: boolean }) {
     items.findIndex(other => (other.cut_id || other.cut_slug || other.content_name_no) === (item.cut_id || item.cut_slug || item.content_name_no)) === index)
   const cutKey = (item: Content) => item.cut_id || item.cut_slug || item.content_name_no
   // Three groups, never mixed: in your box / paid add-ons / only in other boxes.
-  const availableExtras = extras.filter(extra => !selected?.contents?.some(item => sameCut(item, extra)))
+  const extraWeight = (extra: Extra) => {
+    const qty = getDefaultExtraQuantity(extra)
+    const kg = (value: number) => value.toLocaleString(no ? 'nb-NO' : 'en-GB')
+    if (extra.pricing_type === 'per_kg') return `${t('Ca.', 'Approx.')} ${kg(qty)} kg · ${money(extra.price_nok)}/kg`
+    const grams = extra.description_no?.match(/ca\.?\s*(\d+)\s*g\b/i)
+    const weight = extra.kg_per_unit && extra.kg_per_unit > 0 ? `${kg(extra.kg_per_unit * qty)} kg`
+      : grams ? `${kg(Number(grams[1]) * qty)} g`
+      : extra.cut_size_from_kg && extra.cut_size_to_kg ? `${kg(extra.cut_size_from_kg * qty)}–${kg(extra.cut_size_to_kg * qty)} kg`
+      : null
+    return `${qty} ${extra.slug === 'koteletter' ? t('pakke', 'pack') : t('stk', 'pcs')} · ${weight ? `${t('ca.', 'approx.')} ${weight}` : t('vekt bekreftes', 'weight to be confirmed')}`
+  }
+  const availableExtras = extras.filter(extra => !selected?.contents?.some(item => sameCut(item, extra))).sort((a, b) => {
+    const unavailable = (item: Extra) => typeof item.stock_quantity === 'number' && item.stock_quantity <= 0 ? 1 : 0
+    const stockOrder = unavailable(a) - unavailable(b)
+    const priceOrder = a.price_nok * getDefaultExtraQuantity(a) - b.price_nok * getDefaultExtraQuantity(b)
+    const titleOrder = (no ? a.name_no : a.name_en).localeCompare(no ? b.name_no : b.name_en, no ? 'nb' : 'en')
+    return stockOrder || (extraSort === 'price-asc' ? priceOrder : extraSort === 'price-desc' ? -priceOrder : extraSort === 'name' ? titleOrder : (a.part_key || 'zzz').localeCompare(b.part_key || 'zzz') || titleOrder)
+  })
   const otherBoxCuts = boxOnlyCuts.filter(item => !contentsForCut.some(other => cutKey(other) === cutKey(item)))
   const meal = heroMeals[mealIndex]
   const cta = t('Bestill din boks nå', 'Order your box now')
@@ -299,14 +318,14 @@ export function PigSalesV3({ standalone = true }: { standalone?: boolean }) {
             <ul>{selected.contents?.map((item, index) => <li key={`${cutKey(item)}-${index}`}><span><Check size={15} aria-hidden /><strong>{contentName(item)}</strong></span><small>{item.target_weight_kg ? `${t('ca.', 'approx.')} ${item.target_weight_kg.toLocaleString(no ? 'nb-NO' : 'en-GB')} kg` : t('Inkludert', 'Included')}</small></li>)}</ul>
           </article>
           <article className={styles.addOnCatalogue}>
+            <label className={styles.extraSort}>{t('Sorter tillegg', 'Sort extras')}<select value={extraSort} onChange={event => setExtraSort(event.target.value)}><option value="part">{t('Del av grisen', 'Part of the pig')}</option><option value="price-asc">{t('Laveste porsjonspris', 'Lowest portion price')}</option><option value="price-desc">{t('Høyeste porsjonspris', 'Highest portion price')}</option><option value="name">{t('Navn A–Å', 'Name A–Z')}</option></select></label>
             <header><small>{t('Pris kommer i tillegg', 'Added to the box price')}</small><h3>{t('Dette kan du legge til', 'Available extras')}</h3><p>{t('Velg her. Valgene følger med videre til bestillingen.', 'Choose here. Your selections continue to checkout.')}</p></header>
             {extrasError ? <div role="alert" className={styles.catalogueError}><p>{t('Tilleggene kunne ikke hentes.', 'Extras could not be loaded.')}</p><button onClick={() => setAttempt(value => value + 1)}>{t('Prøv igjen', 'Try again')}</button></div> :
               <ul>{availableExtras.map(extra => {
                 const unavailable = soldOut || (typeof extra.stock_quantity === 'number' && extra.stock_quantity <= 0)
                 const chosen = selectedExtras.includes(extra.slug)
                 const qty = getDefaultExtraQuantity(extra)
-                const perKg = extra.pricing_type === 'per_kg'
-                return <li key={extra.id}><div><small>{extra.part_key && extra.part_key in cuts ? no ? cuts[extra.part_key as Part].no : cuts[extra.part_key as Part].en : t('Annet', 'Other')}</small><strong>{displayCutName(no ? extra.name_no : extra.name_en, lang)}</strong><span>{perKg ? `${t('ca.', 'approx.')} ${qty.toLocaleString(no ? 'nb-NO' : 'en-GB')} kg · ${money(extra.price_nok)}/kg` : `${qty} ${t('stk', 'pcs')}`}</span></div><div className={styles.addOnAction}><b>{money(extra.price_nok * qty)}</b>{unavailable ? <span>{t('Utsolgt', 'Sold out')}</span> : <button aria-pressed={chosen} aria-label={t(`${chosen ? 'Fjern' : 'Legg til'} ${extra.name_no}`, `${chosen ? 'Remove' : 'Add'} ${extra.name_en}`)} onClick={() => toggleExtra(extra.slug)}>{chosen ? <><Check size={15} />{t('Valgt', 'Selected')}</> : <><Plus size={15} />{t('Legg til', 'Add')}</>}</button>}</div></li>
+                return <li key={extra.id}><div><small>{extra.part_key && extra.part_key in cuts ? no ? cuts[extra.part_key as Part].no : cuts[extra.part_key as Part].en : t('Annet', 'Other')}</small><ExtraDetails title={displayCutName(no ? extra.name_no : extra.name_en, lang)} label={t('Om stykket', 'About this cut')} description={(no ? extra.description_premium_no || extra.description_no : extra.description_premium_en || extra.description_en) || t('Et ekstra stykke til boksen din.', 'An extra cut for your box.')} ideas={(extra.recipe_suggestions || []).map(idea => no ? idea.title_no : idea.title_en)} weight={extraWeight(extra)} price={money(extra.price_nok * qty)} /><span>{extraWeight(extra)}</span></div><div className={styles.addOnAction}><b>{money(extra.price_nok * qty)}</b>{unavailable ? <span>{t('Utsolgt', 'Sold out')}</span> : <button aria-pressed={chosen} aria-label={t(`${chosen ? 'Fjern' : 'Legg til'} ${extra.name_no}`, `${chosen ? 'Remove' : 'Add'} ${extra.name_en}`)} onClick={() => toggleExtra(extra.slug)}>{chosen ? <><Check size={15} />{t('Valgt', 'Selected')}</> : <><Plus size={15} />{t('Legg til', 'Add')}</>}</button>}</div></li>
               })}</ul>}
           </article>
         </div>}
@@ -315,7 +334,7 @@ export function PigSalesV3({ standalone = true }: { standalone?: boolean }) {
       {selected && <section id="din-boks" className={styles.orderSummary} aria-labelledby="order-summary-title">
         <div><small>{t('Ditt valg', 'Your selection')}</small><h2 id="order-summary-title">{t('DIN BOKS. DINE TILLEGG.', 'YOUR BOX. YOUR EXTRAS.')}</h2><p>{t('Velg flere stykker i kartet over. Vi tar valgene med til bestillingen.', 'Choose more cuts in the chart above. We carry your choices into checkout.')}</p><a href="#stykningsdeler">{t('Utforsk flere stykker', 'Explore more cuts')}<ArrowUpRight size={18} /></a></div>
         <div className={styles.summaryReceipt}><div className={styles.summaryRow}><span><strong>{name(selected)}</strong><small>{selected.target_weight_kg} kg</small></span><b>{money(selected.price_nok)}</b></div>
-          {chosenExtras.map(extra => <div key={extra.id} className={styles.summaryRow}><span><strong>{displayCutName(no ? extra.name_no : extra.name_en, lang)}</strong><small>{getDefaultExtraQuantity(extra).toLocaleString(no ? 'nb-NO' : 'en-GB')} {extra.pricing_type === 'per_kg' ? 'kg' : t('enhet', 'unit')}</small></span><b>{money(extra.price_nok * getDefaultExtraQuantity(extra))}</b><button aria-label={t(`Fjern ${extra.name_no}`, `Remove ${extra.name_en}`)} onClick={() => toggleExtra(extra.slug)}><X size={16} /></button></div>)}
+          {chosenExtras.map(extra => <div key={extra.id} className={styles.summaryRow}><span><strong>{displayCutName(no ? extra.name_no : extra.name_en, lang)}</strong><small>{extraWeight(extra)}</small></span><b>{money(extra.price_nok * getDefaultExtraQuantity(extra))}</b><button aria-label={t(`Fjern ${extra.name_no}`, `Remove ${extra.name_en}`)} onClick={() => toggleExtra(extra.slug)}><X size={16} /></button></div>)}
           {!chosenExtras.length && <p>{t('Ingen tillegg valgt. Du kan også velge tillegg og endre mengder i bestillingen.', 'No extras selected. You can also select extras and change quantities at checkout.')}</p>}
           <div className={styles.summaryTotals} aria-live="polite"><span>{t('Boks og tillegg', 'Box and extras')}<strong>{money(total)}</strong></span><span>{t('Betales nå', 'Due now')}<strong>{money(Math.floor(selected.price_nok / 2))}</strong></span><span>{t('Rest før levering', 'Balance before delivery')}<strong>{money(total - Math.floor(selected.price_nok / 2))}</strong></span></div>
           <small>{t('Eventuell levering kommer i tillegg. Lagerstatus, mengder og endelig pris bekreftes i bestillingen.', 'Any delivery charge is additional. Stock, quantities and final price are confirmed at checkout.')}</small>
