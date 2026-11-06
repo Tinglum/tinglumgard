@@ -1,31 +1,35 @@
 import Link from 'next/link'
 import { CalendarRange } from 'lucide-react'
 
-import { EmptyState, Surface } from '@/components/todotwo/ui/states'
-import { requireRole } from '@/lib/todotwo/auth'
-import { getProjects } from '@/lib/todotwo/queries'
+import { Surface } from '@/components/todotwo/ui/states'
+import { requireTodoTwoUser } from '@/lib/todotwo/auth'
+import { getProjects, getToday } from '@/lib/todotwo/queries'
+import { farmToday } from '@/lib/todotwo/time'
+import { FarmTaskPlan } from '@/components/todotwo/tasks/weekly-projects'
 import { TODOTWO_BASE } from '@/lib/todotwo/routes'
 
 export const dynamic = 'force-dynamic'
 
 export default async function ProjectsPage() {
-  await requireRole(['super_admin', 'farm_admin', 'coordinator'], `${TODOTWO_BASE}/projects`)
+  const principal = await requireTodoTwoUser(`${TODOTWO_BASE}/projects`)
+  const today = farmToday()
+  const canManage = principal.isAdmin || principal.roles.includes('coordinator')
 
-  const projects = await getProjects()
+  const [projects, plan] = await Promise.all([canManage ? getProjects() : Promise.resolve([]), getToday(principal.person.id, today)])
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-6">
       <header className="flex flex-col gap-2">
         <h1 className="text-2xl">Projects</h1>
         <p className="text-sm text-[var(--tt-ink-2)]">
-          Multi-day efforts, separate from the daily routines — pick one for a timeline of what is
-          scheduled across the coming weeks.
+          Bigger farm jobs, separate from daily chores. Plan a week, set a definite or approximate deadline, or save an idea for later.
         </p>
       </header>
 
-      {projects.length === 0 ? (
-        <EmptyState title="No projects yet" description="Projects created from Todoist or the app will show up here." />
-      ) : (
+      <FarmTaskPlan kind="projects" tasks={plan.projects} personId={principal.person.id} today={today} canManageProjects={canManage} />
+
+      {projects.length > 0 ? (
+        <details><summary className="cursor-pointer py-3 text-sm font-semibold">Task lists and timelines</summary>
         <div className="flex flex-col gap-3">
           {projects.map((project) => (
             <Surface key={project.id} className="flex items-center justify-between gap-4 p-4">
@@ -45,7 +49,8 @@ export default async function ProjectsPage() {
             </Surface>
           ))}
         </div>
-      )}
+        </details>
+      ) : null}
     </div>
   )
 }

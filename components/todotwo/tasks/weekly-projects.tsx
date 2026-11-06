@@ -5,9 +5,11 @@ import { farmWeek } from '@/lib/todotwo/domain/weekly-projects'
 import { isFinished } from '@/lib/todotwo/domain/task-status'
 import { farmDayStart, formatFarm } from '@/lib/todotwo/time'
 import type { TaskRow as ProjectTask } from '@/lib/todotwo/queries'
+import { ProjectForm } from './project-form'
+import { plannedThisWeek, projectPlanLabel } from '@/lib/todotwo/domain/project-planning'
 
-export function FarmTaskPlan({ tasks, personId, today, kind }: {
-  tasks: ProjectTask[]; personId: string; today: string; kind: 'weekly' | 'projects'
+export function FarmTaskPlan({ tasks, personId, today, kind, canManageProjects = false }: {
+  tasks: ProjectTask[]; personId: string; today: string; kind: 'weekly' | 'projects'; canManageProjects?: boolean
 }) {
   const weekly = kind === 'weekly'
   const titleId = `${kind}-plan-title`
@@ -26,11 +28,12 @@ export function FarmTaskPlan({ tasks, personId, today, kind }: {
       .sort((a, b) => (a.due_date || week.end).localeCompare(b.due_date || week.end))
       .map(task => <div key={task.id} className="py-2">
         <p className={`text-[11px] ${task.due_date && task.due_date < today && !isFinished(task.status) ? 'text-[var(--tt-danger)]' : 'text-[var(--tt-ink-3)]'}`}>
-          {task.due_date ? `${task.due_date < today && !isFinished(task.status) ? 'Still to do · ' : ''}${formatFarm(farmDayStart(task.due_date), 'EEEE d MMM')}` : 'No planned date · appears in Today once claimed'}
+          {!weekly ? projectPlanLabel(task) : task.due_date ? `${task.due_date < today && !isFinished(task.status) ? 'Still to do · ' : ''}${formatFarm(farmDayStart(task.due_date), 'EEEE d MMM')}` : 'No planned date · appears in Today once claimed'}
         </p>
         <div className="flex items-center gap-3"><ul className="min-w-0 flex-1 list-none"><TaskRow task={task} timeLabel={null} /></ul>
           {!task.assignee && !isFinished(task.status) ? <ClaimTaskButton taskId={task.id} /> : null}
         </div>
+        {!weekly && (canManageProjects || task.created_by_person_id === personId || task.assignee?.id === personId) && <ProjectForm task={task} />}
       </div>)}</div>
   }
 
@@ -38,8 +41,14 @@ export function FarmTaskPlan({ tasks, personId, today, kind }: {
     <section aria-labelledby={titleId} className="flex flex-col gap-4">
       <header><h2 id={titleId} className="text-xl">{weekly ? 'Weekly Tinglum farm tasks' : 'Projects'}</h2>
         <p className="mt-1 text-xs text-[var(--tt-ink-3)]">{weekly ? `${formatFarm(farmDayStart(week.start), 'd MMM')}–${formatFarm(farmDayStart(week.end), 'd MMM')} · ` : ''}{done.length} completed this week · {open.length} open</p>
-        <p className="mt-2 text-sm text-[var(--tt-ink-2)]">{weekly ? 'Repeating farm tasks for the whole week, ready to claim from Monday.' : 'Bigger, one-off jobs, separate from the repeating weekly tasks.'} Claimed work also appears in Daily chores · Today on its planned day, or immediately if no date is set.</p>
+        <p className="mt-2 text-sm text-[var(--tt-ink-2)]">{weekly ? 'Repeating farm tasks for the whole week, ready to claim from Monday. Claimed work also appears in Today on its planned day.' : 'Bigger, one-off jobs. Choose a week, set a deadline, or save them for later. Claimed projects appear in Today when their date or planned week arrives; undated projects appear immediately.'}</p>
       </header>
+      {!weekly && <ProjectForm />}
+      {!weekly ? <>
+        {listProjectGroup('Planned for this week', open.filter(task => plannedThisWeek(task, today)))}
+        {listProjectGroup('Other dated projects', open.filter(task => !plannedThisWeek(task, today) && (task.planned_week || task.due_date)))}
+        {listProjectGroup('To do later', open.filter(task => !task.planned_week && !task.due_date))}
+      </> : <>
       <details><summary className="cursor-pointer py-2 text-sm font-semibold">{weekly ? 'My weekly farm tasks' : 'My projects'} · {mine.length}</summary>
         {mine.length ? list(mine) : <p className="mt-2 text-sm text-[var(--tt-ink-3)]">You have not claimed any {weekly ? 'weekly farm tasks' : 'projects'} yet.</p>}
       </details>
@@ -48,7 +57,12 @@ export function FarmTaskPlan({ tasks, personId, today, kind }: {
       </details>
       {overdue.length > 0 && <details><summary className="cursor-pointer py-2 text-sm font-semibold text-[var(--tt-danger)]">Needs attention from earlier weeks · {overdue.length}</summary>{list(overdue)}</details>}
       {others.length > 0 && <details><summary className="cursor-pointer py-2 text-sm font-semibold">Claimed by the team · {others.length}</summary>{list(others)}</details>}
+      </>}
       {done.length > 0 && <details><summary className="cursor-pointer py-2 text-sm font-semibold">Completed this week · {done.length}</summary>{list(done)}</details>}
     </section>
   </Surface>
+
+  function listProjectGroup(title: string, rows: ProjectTask[]) {
+    return <details><summary className="cursor-pointer py-3 text-sm font-semibold">{title} · {rows.length}</summary>{rows.length ? list(rows) : <p className="py-2 text-sm text-[var(--tt-ink-3)]">No projects here yet.</p>}</details>
+  }
 }

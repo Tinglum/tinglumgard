@@ -2,6 +2,7 @@ import { ClaimTaskButton } from '@/components/todotwo/tasks/claim-task-button'
 import { AskForHelp } from '@/components/todotwo/tasks/ask-for-help'
 import { FarmToday } from '@/components/todotwo/tasks/farm-today'
 import { FarmTaskPlan } from '@/components/todotwo/tasks/weekly-projects'
+import { MondayPlan } from '@/components/todotwo/tasks/monday-plan'
 import { SnoozeTaskButton } from '@/components/todotwo/tasks/snooze-task-button'
 import { getDailySeriesIds } from '@/lib/todotwo/queries-nudge'
 import { OpenHelpRequests } from '@/components/todotwo/tasks/open-help-requests'
@@ -86,6 +87,8 @@ export default async function TodayPage() {
         ) : null}
       </header>
 
+      <MondayPlan tasks={[...weeklyTasks, ...projects]} today={today} />
+
       {overdue.length > 0 ? (
         <section className="flex flex-col gap-2">
           <h2 className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--tt-danger)]">
@@ -137,7 +140,7 @@ export default async function TodayPage() {
       </section>
 
       <FarmTaskPlan kind="weekly" tasks={weeklyTasks} personId={principal.person.id} today={today} />
-      <FarmTaskPlan kind="projects" tasks={projects} personId={principal.person.id} today={today} />
+      <FarmTaskPlan kind="projects" tasks={projects} personId={principal.person.id} today={today} canManageProjects={principal.isAdmin || principal.roles.includes('coordinator')} />
 
       <FarmToday
         tasks={everyoneToday}

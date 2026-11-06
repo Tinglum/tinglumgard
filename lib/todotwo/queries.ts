@@ -1,6 +1,6 @@
 import { getTodoTwoClient } from '@/lib/todotwo/db'
 import { farmWeek, weeklyProjectSeries } from '@/lib/todotwo/domain/weekly-projects'
-import { addFarmDays, farmToday, type FarmDate } from '@/lib/todotwo/time'
+import { addFarmDays, farmToday, farmDayStart, formatFarm, type FarmDate } from '@/lib/todotwo/time'
 import {
   awayDatesByPerson,
   dayOffSchedule,
@@ -31,6 +31,10 @@ export interface TaskRow {
   status: string
   priority: number
   due_date: string | null
+  planned_week?: string | null
+  due_date_certainty?: 'definite' | 'approximate'
+  created_by_person_id?: string | null
+  completed_at?: string | null
   due_at: string | null
   all_day: boolean
   project_id: string | null
@@ -125,7 +129,7 @@ export interface TaskGroup {
 }
 
 const SELECT =
-  'id, title, description, status, priority, due_date, due_at, all_day, project_id, section_id, series_id, parent_task_id, estimated_minutes, is_overridden, requires_feed_check'
+  'id, title, description, status, priority, due_date, planned_week, due_date_certainty, created_by_person_id, completed_at, due_at, all_day, project_id, section_id, series_id, parent_task_id, estimated_minutes, is_overridden, requires_feed_check'
 
 const OPEN_STATUSES = ['draft', 'unassigned', 'assigned', 'accepted', 'in_progress', 'blocked', 'not_completed']
 
@@ -221,7 +225,7 @@ export async function getToday(
   const farmProjectId = projectResult.data?.id
   const projectTasks = farmProjectId ? await db.from('tasks_resolved').select(SELECT)
     .eq('project_id', farmProjectId).is('parent_task_id', null).is('series_id', null)
-    .in('status', OPEN_STATUSES) : { data: [], error: null }
+    .or(`status.in.(${OPEN_STATUSES.join(',')}),completed_at.gte.${farmDayStart(week.start).toISOString()}`) : { data: [], error: null }
   if (projectTasks.error) throw new Error(`Could not load farm projects: ${projectTasks.error.message}`)
 
   // attachCurrentAssignees is the one assignee-lookup path in this module, and
@@ -235,7 +239,7 @@ export async function getToday(
 
   const isOpen = (t: TaskRow) => OPEN_STATUSES.includes(t.status)
   const isMine = (t: TaskRow) => t.assignee?.id === personId
-  const dueToday = (t: TaskRow) => t.due_date === today || (!t.due_date && isProject(t))
+  const dueToday = (t: TaskRow) => t.due_date === today || (!t.due_date && isProject(t) && (!t.planned_week || t.planned_week <= week.start))
   const weeklyIds = weeklyProjectSeries((recurringResult.data ?? []) as { id: string; rrule: string }[])
   const isWeekly = (task: TaskRow) => Boolean(task.series_id && weeklyIds.has(task.series_id))
   const isProject = (task: TaskRow) => Boolean(!task.series_id && farmProjectId && task.project_id === farmProjectId)
@@ -250,7 +254,9 @@ export async function getToday(
     mine: sortTasks(dailyRows.filter((t) => dueToday(t) && isOpen(t) && isMine(t))),
     // Regardless of who they would normally fall to: nobody holds these.
     unclaimed: sortTasks(dailyRows.filter((t) => dueToday(t) && isOpen(t) && !t.assignee)),
-    doneToday: sortTasks(dailyRows.filter((t) => dueToday(t) && !isOpen(t) && isMine(t))),
+    doneToday: sortTasks(dailyRows.filter((t) => !isOpen(t) && isMine(t) && (
+      t.completed_at ? formatFarm(new Date(t.completed_at), 'yyyy-MM-dd') === today : dueToday(t)
+    ))),
     // Held by somebody — anybody. Unheld work is already the "up for grabs"
     // list, and showing it twice would only make the screen longer.
     everyoneToday: sortTasks(dailyRows.filter((t) => dueToday(t) && Boolean(t.assignee))),

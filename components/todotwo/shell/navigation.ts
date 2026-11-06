@@ -1,6 +1,7 @@
 import {
   Award,
   Bell,
+  BookOpen,
   BedDouble,
   Building2,
   CalendarDays,
@@ -37,6 +38,7 @@ export interface NavItem {
 }
 
 export const NAV_ITEMS: NavItem[] = [
+  { href: `${TODOTWO_BASE}/recipes`, label: 'Recipes', icon: BookOpen, roles: null, primary: false },
   {
     href: `${TODOTWO_BASE}/groceries`,
     label: 'Groceries',
@@ -98,7 +100,7 @@ export const NAV_ITEMS: NavItem[] = [
     href: `${TODOTWO_BASE}/projects`,
     label: 'Projects',
     icon: FolderKanban,
-    roles: ['super_admin', 'farm_admin', 'coordinator'],
+    roles: null,
     primary: false,
   },
   {
@@ -167,6 +169,7 @@ export function navItemsForRoles(roles: TodoTwoRole[]): NavItem[] {
  * forbids those.
  */
 export const IMPLEMENTED_HREFS = new Set<string>([
+  `${TODOTWO_BASE}/recipes`,
   TODOTWO_BASE,
   `${TODOTWO_BASE}/upcoming`,
   `${TODOTWO_BASE}/notifications`,

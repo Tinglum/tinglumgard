@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 import { ArrowLeft, Clock, Repeat } from 'lucide-react'
 
 import { Avatar } from '@/components/todotwo/ui/avatar'
@@ -27,6 +27,8 @@ import { describeRule } from '@/lib/todotwo/domain/recurrence'
 import { UI_LOCALE } from '@/lib/todotwo/copy'
 import { FARM_TZ, farmDayStart, formatFarm } from '@/lib/todotwo/time'
 import { TODOTWO_BASE } from '@/lib/todotwo/routes'
+import { projectPlanLabel } from '@/lib/todotwo/domain/project-planning'
+import { ProjectForm } from '@/components/todotwo/tasks/project-form'
 
 export const dynamic = 'force-dynamic'
 
@@ -34,7 +36,12 @@ export default async function TaskDetailPage({ params }: { params: { id: string 
   const principal = await requireTodoTwoUser(`${TODOTWO_BASE}/tasks/${params.id}`)
 
   const detail = await getTaskDetail(params.id)
-  if (!detail) notFound()
+  if (!detail) {
+    const { data: recipe } = await getTodoTwoClient().from('tasks').select('id, sections!inner(name)')
+      .eq('id', params.id).eq('sections.name', 'Recipes').is('deleted_at', null).maybeSingle()
+    if (recipe) redirect(`${TODOTWO_BASE}/recipes#${recipe.id}`)
+    notFound()
+  }
 
   const { task, steps, seriesRule, projectName } = detail
   const done = task.status === 'completed' || task.status === 'verified'
@@ -88,6 +95,8 @@ export default async function TaskDetailPage({ params }: { params: { id: string 
         ) : null}
 
         <h1 className="text-2xl leading-tight">{task.title}</h1>
+        {(task.planned_week || task.due_date_certainty === 'approximate') && <p className="text-sm text-[var(--tt-ink-2)]">{projectPlanLabel(task)}</p>}
+        {!task.series_id && projectName === 'Tinglum Farm TASKS' && (canEditContent || task.created_by_person_id === principal.person.id || isCurrentAssignee) && <ProjectForm task={task} />}
 
         {currentAssignee ? (
           <div className="flex items-center gap-2 text-[14px] text-[var(--tt-ink-2)]">
