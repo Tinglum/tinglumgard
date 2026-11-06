@@ -93,7 +93,7 @@ type FlowMatrixRow = {
 
 const DEFAULT_LIFECYCLE_CONFIG: LifecycleConfig = {
   timezone: 'Europe/Oslo',
-  pigRemainderDueDate: '2026-11-16',
+  pigRemainderDueDate: '2026-12-05',
   pigRemainderReminderDays: [30, 21, 14, 7, 3, 1],
   pigPostOrderExplainerDelayDays: 10,
   eggRemainderReminderDays: [11, 9, 7, 6],

@@ -197,7 +197,7 @@ export function EmailControlCenter({
   const [lifecycle, setLifecycle] = useState<any>(null);
   const [lifecycleConfig, setLifecycleConfig] = useState({
     timezone: 'Europe/Oslo',
-    pigRemainderDueDate: '2026-11-16',
+    pigRemainderDueDate: '2026-12-05',
     pigRemainderReminderDays: '30,21,14,7,3,1',
     pigPostOrderExplainerDelayDays: 10,
     eggRemainderReminderDays: '11,9,7,6',
@@ -416,7 +416,7 @@ export function EmailControlCenter({
     if (data?.config) {
       setLifecycleConfig({
         timezone: String(data.config.timezone || 'Europe/Oslo'),
-        pigRemainderDueDate: String(data.config.pigRemainderDueDate || '2026-11-16'),
+        pigRemainderDueDate: String(data.config.pigRemainderDueDate || '2026-12-05'),
         pigRemainderReminderDays: Array.isArray(data.config.pigRemainderReminderDays)
           ? data.config.pigRemainderReminderDays.join(',')
           : '30,21,14,7,3,1',

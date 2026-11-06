@@ -623,9 +623,9 @@ export default function ProductPage() {
 
           <div className="grid gap-6 lg:grid-cols-4">
             {copy.timelineSteps.map(
-              (step: { week: string; title: string; body: string }) => {
+              (step: { week: string; date?: string; title: string; body: string }) => {
                 const weekNumber = extractWeekNumber(step.week);
-                const eventDate = weekNumber ? dateFromIsoWeek(seasonYear, weekNumber) : null;
+                const eventDate = step.date ? new Date(`${step.date}T12:00:00`) : weekNumber ? dateFromIsoWeek(seasonYear, weekNumber) : null;
                 return (
                   <GlassCard
                     key={step.week}

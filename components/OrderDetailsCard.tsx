@@ -98,7 +98,7 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
     0
   ) || 0;
   const baseRemainder = Math.max(0, order.remainder_amount - extrasTotal);
-  const remainderDueDate = new Date('2026-11-16');
+  const remainderDueDate = new Date('2026-12-05');
   const formattedDueDate = remainderDueDate.toLocaleDateString(locale, {
     day: 'numeric',
     month: 'long',
@@ -278,7 +278,7 @@ export function OrderDetailsCard({ order, canEdit, onPayRemainder, onRefresh }: 
       return copy.estimatedReadyNow;
     }
 
-    return copy.estimatedWeekRange;
+    return order.fresh_delivery ? t.checkout.freshDelivery : copy.estimatedWeekRange;
   }
 
   return (
