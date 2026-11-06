@@ -11,7 +11,7 @@ describe('the weekly project plan', () => {
     expect(farmWeek('2026-11-08')).toEqual({ start: '2026-11-02', end: '2026-11-08' })
     expect(farmWeek('2027-01-01')).toEqual({ start: '2026-12-28', end: '2027-01-03' })
     expect(farmWeek('2026-10-25')).toEqual({ start: '2026-10-19', end: '2026-10-25' })
-    expect([...weeklyProjectSeries([{ id: 'weekly', rrule: 'RRULE:FREQ=WEEKLY;BYDAY=FR' }, { id: 'daily', rrule: 'FREQ=DAILY' }])]).toEqual(['weekly'])
+    expect(Array.from(weeklyProjectSeries([{ id: 'weekly', rrule: 'RRULE:FREQ=WEEKLY;BYDAY=FR' }, { id: 'daily', rrule: 'FREQ=DAILY' }]))).toEqual(['weekly'])
   })
 
   it('shows Friday projects on Monday, carries missed work, and keeps daily work separate', async () => {
