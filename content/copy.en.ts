@@ -211,10 +211,10 @@
     lowStock: "Low stock",
     soldOut: "Sold out",
     priceDeposit: "Pay now",
-    priceRemainder: "Balance at delivery",
+    priceRemainder: "Balance due 5 December",
     deposit50: "Advance payment (50%)",
-    remainderAtDelivery: "Balance at delivery",
-    balanceOnDelivery: "Balance at delivery",
+    remainderAtDelivery: "Balance due 5 December",
+    balanceOnDelivery: "Balance due 5 December",
     totalPrice: "Total price",
     seeDetails: "See contents",
     kg: "kg",
@@ -386,7 +386,7 @@
 
     pricingSplit: {
       now: "now",
-      atDelivery: "at delivery",
+      atDelivery: "5 December",
       total: "total",
       tooltip:
         "You pay 50% as a deposit now, and the rest before delivery (by 5 December).",

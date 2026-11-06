@@ -211,10 +211,10 @@
     lowStock: "Få igjen",
     soldOut: "Utsolgt",
     priceDeposit: "Betales nå",
-    priceRemainder: "Rest ved levering",
+    priceRemainder: "Rest 5. desember",
     deposit50: "Forskudd (50%)",
-    remainderAtDelivery: "Rest ved levering",
-    balanceOnDelivery: "Rest ved levering",
+    remainderAtDelivery: "Rest 5. desember",
+    balanceOnDelivery: "Rest 5. desember",
     totalPrice: "Totalpris",
     seeDetails: "Se innhold",
     kg: "kg",
@@ -386,7 +386,7 @@
 
     pricingSplit: {
       now: "nå",
-      atDelivery: "ved levering",
+      atDelivery: "5. desember",
       total: "totalt",
       tooltip:
         "Du betaler 50 % i forskudd nå, og resten før levering (senest 5. desember).",
@@ -505,7 +505,7 @@
     nextSteps: "Neste steg:",
     step1: "Du vil motta en Vipps-betalingsforespørsel for forskuddet (50% av totalbeløpet)",
     step2: "Du får en bekreftelse på e-post når forskuddet er mottatt",
-    step3: "Resterende beløp betales ved levering",
+    step3: "Resterende beløp betales senest 5. desember",
     seeMyOrders: "Se mine bestillinger",
     shareTitle: "Del med en venn",
     shareBody:
@@ -2886,7 +2886,7 @@
     nextStep1:
       "Du vil motta en Vipps-betalingsforespørsel for forskuddet (50% av totalbeløpet)",
     nextStep2: "Du får en bekreftelse på e-post når forskuddet er mottatt",
-    nextStep3: "Resterende beløp betales ved levering",
+    nextStep3: "Resterende beløp betales senest 5. desember",
     backToHome: "Tilbake til forsiden",
     viewOrders: "Se mine bestillinger",
     back: "Tilbake",
