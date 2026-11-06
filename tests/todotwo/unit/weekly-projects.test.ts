@@ -14,21 +14,22 @@ describe('the weekly project plan', () => {
     expect(Array.from(weeklyProjectSeries([{ id: 'weekly', rrule: 'RRULE:FREQ=WEEKLY;BYDAY=FR' }, { id: 'daily', rrule: 'FREQ=DAILY' }]))).toEqual(['weekly'])
   })
 
-  it('shows Friday projects on Monday, carries missed work, and keeps daily work separate', async () => {
+  it('separates recurring tasks from projects and puts claimed work into Today on its planned day', async () => {
     const task = (id: string, date: string | null, series: string | null, project: string | null = null, status = 'unassigned') => ({
       id, title: id, due_date: date, due_at: null, series_id: series, project_id: project, status, priority: 4,
     })
     const calls: { table: string; method: string; args: unknown[] }[] = []
     const answers: Record<string, unknown[]> = {
       tasks_resolved: [
-        { data: [task('morning goats', '2026-11-02', 'daily'), task('Friday cleanup', '2026-11-06', 'weekly'), task('missed workshop', '2026-10-27', 'weekly'), task('Friday goats', '2026-11-06', 'daily')] },
+        { data: [task('morning goats', '2026-11-02', 'daily'), task('Friday cleanup', '2026-11-06', 'weekly'), task('missed workshop', '2026-10-27', 'weekly'), task('Friday goats', '2026-11-06', 'daily'), task('Monday cleanup', '2026-11-02', 'weekly', 'farm', 'assigned'), task('Monday repair', '2026-11-02', null, 'farm', 'assigned')] },
         { data: [task('done project', '2026-11-02', 'weekly', null, 'completed')] },
         { count: 0 },
-        { data: [task('build shelving', null, null, 'farm')] },
+        { data: [task('build shelving', null, null, 'farm'), task('undated claimed project', null, null, 'farm', 'assigned'), task('future project', '2026-11-20', null, 'farm', 'assigned'), task('Monday repair', '2026-11-02', null, 'farm', 'assigned')] },
       ],
       task_series: [{ data: [{ id: 'daily', rrule: 'FREQ=DAILY' }, { id: 'weekly', rrule: 'FREQ=WEEKLY;BYDAY=FR' }] }],
       projects: [{ data: { id: 'farm' } }],
-      task_assignments: [{ data: [] }], people_roster: [{ data: [] }],
+      task_assignments: [{ data: ['Monday cleanup', 'Monday repair', 'undated claimed project', 'future project', 'Friday cleanup', 'done project'].map(task_id => ({ task_id, person_id: 'reader' })) }],
+      people_roster: [{ data: [{ id: 'reader', full_name: 'Reader', preferred_name: null, photo_url: null }] }],
     }
     from.mockImplementation((table: string) => {
       const result = answers[table].shift()
@@ -40,9 +41,11 @@ describe('the weekly project plan', () => {
       return builder
     })
     const day = await getToday('reader', '2026-11-02')
-    expect(day.weeklyProjects.map(row => row.id).sort()).toEqual(['Friday cleanup', 'build shelving', 'done project', 'missed workshop'].sort())
+    expect(day.weeklyTasks.map(row => row.id).sort()).toEqual(['Friday cleanup', 'Monday cleanup', 'done project', 'missed workshop'].sort())
+    expect(day.projects.map(row => row.id).sort()).toEqual(['build shelving', 'undated claimed project', 'future project', 'Monday repair'].sort())
     expect(day.unclaimed.map(row => row.id)).toEqual(['morning goats'])
-    expect(day.mine).toEqual([])
+    expect(day.mine.map(row => row.id).sort()).toEqual(['Monday cleanup', 'Monday repair', 'undated claimed project'].sort())
+    expect(day.doneToday.map(row => row.id)).toEqual(['done project'])
     expect(calls).toContainEqual({ table: 'tasks_resolved', method: 'lte', args: ['due_date', '2026-11-08'] })
   })
 })

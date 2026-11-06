@@ -1,7 +1,7 @@
 import { ClaimTaskButton } from '@/components/todotwo/tasks/claim-task-button'
 import { AskForHelp } from '@/components/todotwo/tasks/ask-for-help'
 import { FarmToday } from '@/components/todotwo/tasks/farm-today'
-import { WeeklyProjects } from '@/components/todotwo/tasks/weekly-projects'
+import { FarmTaskPlan } from '@/components/todotwo/tasks/weekly-projects'
 import { SnoozeTaskButton } from '@/components/todotwo/tasks/snooze-task-button'
 import { getDailySeriesIds } from '@/lib/todotwo/queries-nudge'
 import { OpenHelpRequests } from '@/components/todotwo/tasks/open-help-requests'
@@ -29,7 +29,7 @@ export default async function TodayPage() {
   const principal = await requireTodoTwoUser(TODOTWO_BASE)
   const today = farmToday()
   const [
-    { overdue, mine, unclaimed, doneToday, everyoneToday, olderOpenCount, weeklyProjects },
+    { overdue, mine, unclaimed, doneToday, everyoneToday, olderOpenCount, weeklyTasks, projects },
     helpRequests,
   ] = await Promise.all([
     getToday(principal.person.id, today),
@@ -117,7 +117,7 @@ export default async function TodayPage() {
             description={
               unclaimed.length > 0
                 ? 'Not a mistake — nobody has put you on anything today. Have a look at what is up for grabs below.'
-                : 'Check Weekly projects below to plan and claim work for this week.'
+                : 'Check Weekly Tinglum farm tasks and Projects below to plan and claim work.'
             }
           />
         ) : (
@@ -136,7 +136,8 @@ export default async function TodayPage() {
         )}
       </section>
 
-      <WeeklyProjects tasks={weeklyProjects} personId={principal.person.id} today={today} />
+      <FarmTaskPlan kind="weekly" tasks={weeklyTasks} personId={principal.person.id} today={today} />
+      <FarmTaskPlan kind="projects" tasks={projects} personId={principal.person.id} today={today} />
 
       <FarmToday
         tasks={everyoneToday}

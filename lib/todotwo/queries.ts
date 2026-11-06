@@ -149,8 +149,8 @@ function sortTasks(tasks: TaskRow[]): TaskRow[] {
 
 /**
  * The signed-in person's daily chores, plus a separate Monday–Sunday plan
- * for weekly routines and larger farm tasks. Project work stays out of the
- * daily lists and can be claimed ahead of its due day.
+ * for weekly routines and larger farm tasks. Claimed work also appears in
+ * today's list on its due day (or immediately if it has no planned date).
  *
  * Deliberately not the whole farm's day. Everybody can read every task by
  * design, but a Workawayer opening the app needs to see what they are doing —
@@ -167,7 +167,8 @@ export async function getToday(
   overdue: TaskRow[]
   mine: TaskRow[]
   unclaimed: TaskRow[]
-  weeklyProjects: TaskRow[]
+  weeklyTasks: TaskRow[]
+  projects: TaskRow[]
   doneToday: TaskRow[]
   /**
    * Everything due today that somebody holds — the whole farm, not just the
@@ -218,32 +219,31 @@ export async function getToday(
   const error = openResult.error ?? doneResult.error ?? recurringResult.error ?? projectResult.error
   if (error) throw new Error(`Could not load today: ${error.message}`)
   const farmProjectId = projectResult.data?.id
-  const undated = farmProjectId ? await db.from('tasks_resolved').select(SELECT)
-    .eq('project_id', farmProjectId).is('parent_task_id', null).is('due_date', null)
+  const projectTasks = farmProjectId ? await db.from('tasks_resolved').select(SELECT)
+    .eq('project_id', farmProjectId).is('parent_task_id', null).is('series_id', null)
     .in('status', OPEN_STATUSES) : { data: [], error: null }
-  if (undated.error) throw new Error(`Could not load weekly projects: ${undated.error.message}`)
+  if (projectTasks.error) throw new Error(`Could not load farm projects: ${projectTasks.error.message}`)
 
   // attachCurrentAssignees is the one assignee-lookup path in this module, and
   // it answers both questions asked below: whose task is this, and does anyone
   // have it at all (assignee === null).
-  const rows = await attachCurrentAssignees(db, [
+  const rows = await attachCurrentAssignees(db, Array.from(new Map([
     ...((openResult.data ?? []) as unknown as TaskRow[]),
     ...((doneResult.data ?? []) as unknown as TaskRow[]),
-    ...((undated.data ?? []) as unknown as TaskRow[]),
-  ])
+    ...((projectTasks.data ?? []) as unknown as TaskRow[]),
+  ].map(task => [task.id, task])).values()))
 
   const isOpen = (t: TaskRow) => OPEN_STATUSES.includes(t.status)
   const isMine = (t: TaskRow) => t.assignee?.id === personId
-  const dueToday = (t: TaskRow) => t.due_date === today
+  const dueToday = (t: TaskRow) => t.due_date === today || (!t.due_date && isProject(t))
   const weeklyIds = weeklyProjectSeries((recurringResult.data ?? []) as { id: string; rrule: string }[])
-  const isProject = (task: TaskRow) => Boolean(
-    (task.series_id && weeklyIds.has(task.series_id)) ||
-    (farmProjectId && task.project_id === farmProjectId)
-  )
-  const dailyRows = rows.filter(task => !isProject(task))
+  const isWeekly = (task: TaskRow) => Boolean(task.series_id && weeklyIds.has(task.series_id))
+  const isProject = (task: TaskRow) => Boolean(!task.series_id && farmProjectId && task.project_id === farmProjectId)
+  const dailyRows = rows.filter(task => (!isWeekly(task) && !isProject(task)) || Boolean(task.assignee))
 
   return {
-    weeklyProjects: sortTasks(rows.filter(isProject)),
+    weeklyTasks: sortTasks(rows.filter(isWeekly)),
+    projects: sortTasks(rows.filter(isProject)),
     overdue: sortTasks(
       dailyRows.filter((t) => t.due_date && t.due_date < today && isOpen(t) && isMine(t))
     ),

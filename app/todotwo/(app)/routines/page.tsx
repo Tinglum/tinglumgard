@@ -117,7 +117,7 @@ export default async function RoutinesPage() {
           every future day shows the change.
         </p>
         <p className="text-sm font-medium text-[var(--tt-accent)]">
-          Weekly routines stay unassigned and appear together in Today’s Weekly projects from Monday. Claim any project for the week ahead.
+          Weekly routines stay unassigned and appear together in Today’s Weekly Tinglum farm tasks from Monday. Claim work for the week ahead; it will also appear in your Today list on its planned day.
         </p>
         {canEditRules ? <div className="flex gap-4">
           <Link
