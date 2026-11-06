@@ -256,27 +256,10 @@ export function PigSalesV3({ standalone = true }: { standalone?: boolean }) {
       </section>
 
       <section id="stykningsdeler" className={styles.explorer} aria-labelledby="cut-title">
-        <div className={styles.explorerHeading}><h2 id="cut-title">{t('SE HVA DU FÅR.', 'SEE WHAT YOU GET.')}<br /><span>{t('LEGG TIL DET DU VIL.', 'ADD WHAT YOU LIKE.')}</span></h2><p>{t('Alt i boksen vises til venstre. Tilgjengelige tillegg med pris vises til høyre. Du kan utforske stykningskartet lenger ned.', 'Everything in your box is shown on the left. Available extras and prices are shown on the right. You can explore the butcher chart below.')}</p></div>
+        <div className={styles.explorerHeading}><h2 id="cut-title">{t('SE HVA DU FÅR.', 'SEE WHAT YOU GET.')}<br /><span>{t('LEGG TIL DET DU VIL.', 'ADD WHAT YOU LIKE.')}</span></h2><p>{t('Utforsk stykkene på grisen. Under kartet ser du alt som følger med boksen, og hvilke tillegg du kan velge.', 'Explore the cuts on the pig. Below the chart, see everything included in your box and the extras you can choose.')}</p></div>
         {!!presets.length && <div className={styles.explorerControls}><label htmlFor="v3-explorer-box">{t('Valgt boks', 'Selected box')}<select id="v3-explorer-box" value={selectedSlug} onChange={event => setSelectedSlug(event.target.value)}>{presets.map(box => <option key={box.id} value={box.slug}>{name(box)}</option>)}</select></label><span className={styles.boxCutCount}><Check size={16} />{t(`${selected?.contents?.length || 0} stykker inkludert`, `${selected?.contents?.length || 0} cuts included`)}</span></div>}
-        {selected && <div className={styles.catalogueOverview}>
-          <article className={styles.inTheBox}>
-            <header><small>{t('Inkludert i prisen', 'Included in the price')}</small><h3>{t('I din boks', 'In your box')}</h3><p>{name(selected)} · {selected.target_weight_kg} kg</p></header>
-            <ul>{selected.contents?.map((item, index) => <li key={`${cutKey(item)}-${index}`}><span><Check size={15} aria-hidden /><strong>{contentName(item)}</strong></span><small>{item.target_weight_kg ? `${t('ca.', 'approx.')} ${item.target_weight_kg.toLocaleString(no ? 'nb-NO' : 'en-GB')} kg` : t('Inkludert', 'Included')}</small></li>)}</ul>
-          </article>
-          <article className={styles.addOnCatalogue}>
-            <header><small>{t('Pris kommer i tillegg', 'Added to the box price')}</small><h3>{t('Dette kan du legge til', 'Available extras')}</h3><p>{t('Velg her. Valgene følger med videre til bestillingen.', 'Choose here. Your selections continue to checkout.')}</p></header>
-            {extrasError ? <div role="alert" className={styles.catalogueError}><p>{t('Tilleggene kunne ikke hentes.', 'Extras could not be loaded.')}</p><button onClick={() => setAttempt(value => value + 1)}>{t('Prøv igjen', 'Try again')}</button></div> :
-              <ul>{availableExtras.map(extra => {
-                const unavailable = soldOut || (typeof extra.stock_quantity === 'number' && extra.stock_quantity <= 0)
-                const chosen = selectedExtras.includes(extra.slug)
-                const qty = getDefaultExtraQuantity(extra)
-                const perKg = extra.pricing_type === 'per_kg'
-                return <li key={extra.id}><div><small>{extra.part_key && extra.part_key in cuts ? no ? cuts[extra.part_key as Part].no : cuts[extra.part_key as Part].en : t('Annet', 'Other')}</small><strong>{displayCutName(no ? extra.name_no : extra.name_en, lang)}</strong><span>{perKg ? `${t('ca.', 'approx.')} ${qty.toLocaleString(no ? 'nb-NO' : 'en-GB')} kg · ${money(extra.price_nok)}/kg` : `${qty} ${t('stk', 'pcs')}`}</span></div><div className={styles.addOnAction}><b>{money(extra.price_nok * qty)}</b>{unavailable ? <span>{t('Utsolgt', 'Sold out')}</span> : <button aria-pressed={chosen} aria-label={t(`${chosen ? 'Fjern' : 'Legg til'} ${extra.name_no}`, `${chosen ? 'Remove' : 'Add'} ${extra.name_en}`)} onClick={() => toggleExtra(extra.slug)}>{chosen ? <><Check size={15} />{t('Valgt', 'Selected')}</> : <><Plus size={15} />{t('Legg til', 'Add')}</>}</button>}</div></li>
-              })}</ul>}
-          </article>
-        </div>}
-        <details className={styles.cutExplorer}>
-          <summary>{t('Utforsk hvor stykkene sitter på grisen', 'Explore where each cut comes from')}<ChevronDown size={19} /></summary>
+        <div className={styles.cutExplorer}>
+          <h3>{t('Se hvor stykkene kommer fra', 'See where the cuts come from')}</h3><p>{t('Trykk på grisen for å utforske en del. Grønne områder finnes i valgt boks.', 'Choose a part of the pig to explore it. Green areas are included in your selected box.')}</p>
           <div className={styles.explorerBody}>
           <div className={styles.diagramColumn}>
             <div className={styles.diagram}>
@@ -309,7 +292,24 @@ export function PigSalesV3({ standalone = true }: { standalone?: boolean }) {
             </div>
           </aside>
         </div>
-        </details>
+        </div>
+        {selected && <div className={styles.catalogueOverview}>
+          <article className={styles.inTheBox}>
+            <header><small>{t('Inkludert i prisen', 'Included in the price')}</small><h3>{t('I din boks', 'In your box')}</h3><p>{name(selected)} · {selected.target_weight_kg} kg</p></header>
+            <ul>{selected.contents?.map((item, index) => <li key={`${cutKey(item)}-${index}`}><span><Check size={15} aria-hidden /><strong>{contentName(item)}</strong></span><small>{item.target_weight_kg ? `${t('ca.', 'approx.')} ${item.target_weight_kg.toLocaleString(no ? 'nb-NO' : 'en-GB')} kg` : t('Inkludert', 'Included')}</small></li>)}</ul>
+          </article>
+          <article className={styles.addOnCatalogue}>
+            <header><small>{t('Pris kommer i tillegg', 'Added to the box price')}</small><h3>{t('Dette kan du legge til', 'Available extras')}</h3><p>{t('Velg her. Valgene følger med videre til bestillingen.', 'Choose here. Your selections continue to checkout.')}</p></header>
+            {extrasError ? <div role="alert" className={styles.catalogueError}><p>{t('Tilleggene kunne ikke hentes.', 'Extras could not be loaded.')}</p><button onClick={() => setAttempt(value => value + 1)}>{t('Prøv igjen', 'Try again')}</button></div> :
+              <ul>{availableExtras.map(extra => {
+                const unavailable = soldOut || (typeof extra.stock_quantity === 'number' && extra.stock_quantity <= 0)
+                const chosen = selectedExtras.includes(extra.slug)
+                const qty = getDefaultExtraQuantity(extra)
+                const perKg = extra.pricing_type === 'per_kg'
+                return <li key={extra.id}><div><small>{extra.part_key && extra.part_key in cuts ? no ? cuts[extra.part_key as Part].no : cuts[extra.part_key as Part].en : t('Annet', 'Other')}</small><strong>{displayCutName(no ? extra.name_no : extra.name_en, lang)}</strong><span>{perKg ? `${t('ca.', 'approx.')} ${qty.toLocaleString(no ? 'nb-NO' : 'en-GB')} kg · ${money(extra.price_nok)}/kg` : `${qty} ${t('stk', 'pcs')}`}</span></div><div className={styles.addOnAction}><b>{money(extra.price_nok * qty)}</b>{unavailable ? <span>{t('Utsolgt', 'Sold out')}</span> : <button aria-pressed={chosen} aria-label={t(`${chosen ? 'Fjern' : 'Legg til'} ${extra.name_no}`, `${chosen ? 'Remove' : 'Add'} ${extra.name_en}`)} onClick={() => toggleExtra(extra.slug)}>{chosen ? <><Check size={15} />{t('Valgt', 'Selected')}</> : <><Plus size={15} />{t('Legg til', 'Add')}</>}</button>}</div></li>
+              })}</ul>}
+          </article>
+        </div>}
       </section>
 
       {selected && <section id="din-boks" className={styles.orderSummary} aria-labelledby="order-summary-title">
