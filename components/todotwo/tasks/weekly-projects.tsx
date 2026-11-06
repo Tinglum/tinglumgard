@@ -38,12 +38,12 @@ export function WeeklyProjects({ tasks, personId, today }: {
         <p className="mt-1 text-xs text-[var(--tt-ink-3)]">{formatFarm(farmDayStart(week.start), 'd MMM')}–{formatFarm(farmDayStart(week.end), 'd MMM')} · {done.length} of {current.length + done.length} done</p>
         <p className="mt-2 text-sm text-[var(--tt-ink-2)]">Plan the whole week from Monday. Claim a project now and make sure it gets done by its scheduled day. Daily chores are listed separately above.</p>
       </header>
-      <div><h3 className="text-sm font-semibold">My weekly projects · {mine.length}</h3>
+      <details><summary className="cursor-pointer py-2 text-sm font-semibold">My weekly projects · {mine.length}</summary>
         {mine.length ? list(mine) : <p className="mt-2 text-sm text-[var(--tt-ink-3)]">You have not claimed any projects for this week yet.</p>}
-      </div>
-      <div><h3 className="text-sm font-semibold">Up for grabs this week · {available.length}</h3>
+      </details>
+      <details><summary className="cursor-pointer py-2 text-sm font-semibold">Up for grabs this week · {available.length}</summary>
         {available.length ? list(available) : <p className="mt-2 text-sm text-[var(--tt-ink-3)]">Everything has an owner. Check the team’s projects below.</p>}
-      </div>
+      </details>
       {overdue.length > 0 && <details><summary className="cursor-pointer py-2 text-sm font-semibold text-[var(--tt-danger)]">Needs attention from earlier weeks · {overdue.length}</summary>{list(overdue)}</details>}
       {others.length > 0 && <details><summary className="cursor-pointer py-2 text-sm font-semibold">Claimed by the team · {others.length}</summary>{list(others)}</details>}
       {done.length > 0 && <details><summary className="cursor-pointer py-2 text-sm font-semibold">Completed this week · {done.length}</summary>{list(done)}</details>}
