@@ -258,7 +258,6 @@ export function PigSalesV3({ standalone = true }: { standalone?: boolean }) {
             <div className={styles.boxPhoto}><Image key={selected.slug} src={boxNotes[selected.slug]?.image || '/recipes/bog-langtid.jpg'} fill priority={selected.slug === 'julespesial'} sizes="(max-width: 767px) 100vw, 44vw" alt={t(`Matinspirasjon til ${name(selected)}`, `Cooking inspiration for ${name(selected)}`)} />{boxNotes[selected.slug]?.source && <a className={styles.photoCredit} href={boxNotes[selected.slug].source} target="_blank" rel="noreferrer">{t('Foto', 'Photo')}: {boxNotes[selected.slug].credit}</a>}<span className={styles.weightTag}>{selected.target_weight_kg}<small>kg</small></span><span className={styles.boxPhotoNote}>{t('Serveringsforslag', 'Serving suggestion')}</span></div>
             <div className={styles.boxInfo}>
               <div className={styles.boxTitle}><h3 aria-live="polite">{name(selected)}</h3><p>{boxNotes[selected.slug] ? no ? boxNotes[selected.slug].no : boxNotes[selected.slug].en : t('Ullgris fra Tinglum Gård.', 'Mangalitsa from Tinglum Farm.')}</p></div>
-              {selected.contents?.some(item => item.part_key === 'ribbeside') && <div className={styles.skinlessNote}><strong>{t('Ribba er uten svor', 'The belly comes without skin')}</strong><p>{t('Ullgrisen flås. Fettmarmoreringen gir saftig kjøtt og fyldig smak, men du får ikke sprø svor.', 'Our woolly pigs are skinned. Rich marbling gives juicy meat and full flavour, but there is no crackling.')}</p></div>}
               <div className={styles.contentsHeading}><strong>{t('Dette ligger i boksen', 'Inside your box')}</strong><span>{t('Trykk på et stykke for å lære mer', 'Choose a cut to learn more')}</span></div>
               <ul className={styles.contents}>{selected.contents?.map((item, index) => <li key={`${item.content_name_no}-${index}`}>{item.part_key && item.part_key in cuts ? <a href="#stykningsdeler" onClick={() => { setPart(item.part_key as Part) }}><span>{contentName(item)}</span><ArrowUpRight size={13} /></a> : <span>{contentName(item)}</span>}<small>{item.target_weight_kg ? `${item.target_weight_kg.toLocaleString(no ? 'nb-NO' : 'en-GB')} kg` : ''}</small></li>)}</ul>
               <small className={styles.weightNote}>{t('Omtrentlige vekter. Endelig innhold og leveringsvalg vises i bestillingen.', 'Approximate weights. Final contents and delivery options are shown at checkout.')}</small>
@@ -267,6 +266,12 @@ export function PigSalesV3({ standalone = true }: { standalone?: boolean }) {
               {soldOut ? <button disabled className={styles.primary}>{t('Utsolgt', 'Sold out')}</button> : <Link href={href} className={styles.primary}>{cta}<ArrowUpRight size={22} /></Link>}
               <p className={styles.checkoutNote}><Check size={13} />{t('Leveringsvalg og eventuell frakt vises før betaling.', 'Delivery options and any shipping charge are shown before payment.')}</p>
               {inventoryError && <p className={styles.weightNote}>{t('Lagerstatus kunne ikke hentes. Tilgjengelighet bekreftes i bestillingen.', 'Stock status could not be loaded. Availability is confirmed at checkout.')}</p>}
+              {selected.contents?.some(item => item.part_key === 'ribbeside') && (
+                <small className={styles.weightNote}>{t(
+                  'Den fine fettmarmoreringen gjør ribba saftig og smakfull. Ribba leveres uten svor.',
+                  'Fine marbling gives the pork belly its juiciness and rich flavour. It comes skinless.',
+                )}</small>
+              )}
             </div>
           </div>}
           <button className={styles.compareToggle} aria-expanded={compare} aria-controls="v3-comparison" onClick={() => setCompare(value => !value)}>{compare ? <Minus size={18} /> : <Plus size={18} />}{t('Sammenlign alle boksene', 'Compare all boxes')}</button>

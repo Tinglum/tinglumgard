@@ -167,8 +167,6 @@
 .heroReceipt { margin-top:16px; max-width:360px; font-size:12px; }
 .heroReceipt small { display:block; font-size:10px; line-height:1.6; color:var(--muted); margin-top:5px; }
 .boxTabs button .boxAudience { display:block; font-style:normal; font-size:11px; line-height:1.6; font-weight:400; margin-top:8px; }
-.skinlessNote { border-left:3px solid var(--red); background:#f1ecdf; padding:12px 15px; margin:16px 0; font-size:12px; }
-.skinlessNote p { font-size:12px; line-height:1.65; margin-top:4px; }
 .productDescription { margin-top:8px; }
 .productDescription summary { display:flex; align-items:center; gap:8px; cursor:pointer; font-size:12px; color:var(--muted); min-height:44px; }
 .productDescription p { font-size:12px; line-height:1.7; padding-bottom:12px; }
