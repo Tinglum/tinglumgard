@@ -147,13 +147,12 @@ export function ExtraProductDetails({ extra }: { extra: ExtraProductDetailsExtra
               const recipeDesc = normalizeDashes(fixMojibake(String(recipeDescSource || '')));
 
               return (
-                <button
-                  type="button"
+                <a
                   key={idx}
-                  onClick={() => {
-                    window.open(`/oppskrifter/${recipe.future_slug}`, '_blank');
-                  }}
-                  className="w-full text-left p-3 rounded-xl border border-neutral-200 hover:border-neutral-300 hover:shadow-[0_10px_30px_-10px_rgba(0,0,0,0.08)] transition-all duration-300 group"
+                  href={`/oppskrifter/${recipe.future_slug}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block w-full text-left p-3 rounded-xl border border-neutral-200 hover:border-neutral-300 hover:shadow-[0_10px_30px_-10px_rgba(0,0,0,0.08)] transition-all duration-300 group"
                 >
                   <div className="flex items-center justify-between mb-1">
                     <p className="text-sm font-normal text-neutral-900 group-hover:text-neutral-900">
@@ -164,7 +163,7 @@ export function ExtraProductDetails({ extra }: { extra: ExtraProductDetailsExtra
                   <p className="text-xs font-light text-neutral-500">
                     {recipeDesc}
                   </p>
-                </button>
+                </a>
               );
             })}
           </div>
