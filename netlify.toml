@@ -62,3 +62,14 @@ package = "@netlify/plugin-nextjs"
   from = "/bnistrategi"
   to = "/bnistrategi/index.html"
   status = 200
+
+# Partner training documents (open to share). Clean URLs to the static pages.
+[[redirects]]
+  from = "/bnitrening/bli-refererbar"
+  to = "/bnitrening/bli-refererbar/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/bnitrening/referanser-uten-a-tenke"
+  to = "/bnitrening/referanser-uten-a-tenke/index.html"
+  status = 200
