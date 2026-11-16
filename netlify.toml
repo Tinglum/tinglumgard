@@ -24,13 +24,13 @@ package = "@netlify/plugin-nextjs"
   status = 200
   force = true
 
-# Dedicated subdomain for the BNI strategy & communication page.
-# bnistrategi.tinglum.com serves the standalone document on every path.
-# Requires the domain alias + DNS (CNAME bnistrategi -> the Netlify site).
+# BNI documents now live on msp.tinglum.com (repo bni-msp-training). The
+# method document is internal (behind the portal login); the training
+# documents are open. Old addresses forward there.
 [[redirects]]
   from = "https://bnistrategi.tinglum.com/*"
-  to = "/bnistrategi/index.html"
-  status = 200
+  to = "https://msp.tinglum.com/bnimsp/strategi"
+  status = 301
   force = true
 
 [[redirects]]
@@ -57,19 +57,20 @@ package = "@netlify/plugin-nextjs"
   status = 301
   force = true
 
-# Also reachable at a clean /bnistrategi path on the primary domain.
 [[redirects]]
   from = "/bnistrategi"
-  to = "/bnistrategi/index.html"
-  status = 200
-
-# Partner training documents (open to share). Clean URLs to the static pages.
-[[redirects]]
-  from = "/bnitrening/bli-refererbar"
-  to = "/bnitrening/bli-refererbar/index.html"
-  status = 200
+  to = "https://msp.tinglum.com/bnimsp/strategi"
+  status = 301
+  force = true
 
 [[redirects]]
-  from = "/bnitrening/referanser-uten-a-tenke"
-  to = "/bnitrening/referanser-uten-a-tenke/index.html"
-  status = 200
+  from = "/bnistrategi/*"
+  to = "https://msp.tinglum.com/bnimsp/strategi"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/bnitrening/*"
+  to = "https://msp.tinglum.com/bnitrening/:splat"
+  status = 301
+  force = true
