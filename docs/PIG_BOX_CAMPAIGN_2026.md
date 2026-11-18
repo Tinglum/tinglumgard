@@ -1,6 +1,6 @@
 # Christmas pig box campaign — draft, not launched
 
-Updated 18 November 2026. Current checkout and landing changes are local and unpublished. The customer send requires Kenneth's approval of the finished preview. Neither customer campaign nor reminder is scheduled.
+Updated 18 November 2026. Checkout and landing changes are now published; see the publication record below. The customer send requires Kenneth's approval of the finished preview. Neither customer campaign nor reminder is scheduled.
 
 ## Confirmed commercial terms
 
@@ -32,11 +32,11 @@ Production campaign draft ID `5e7660ea-7f7b-4f0b-ba6c-802d626fee55`, manual audi
 
 The two authorized previews were sent through the production email queue to Kenneth's two addresses with a conspicuous preview banner, not as customer campaign messages. Mailgun confirmed both delivered (SMTP 250). Gmail copy ID `1a1ee960ff7e0e25`. No customer campaign queue entries were created.
 
-The proposed offer URL is `/?rebate=KUNDEJUL15&utm_source=customer_email&utm_medium=email&utm_campaign=ullgris_jul_2026#bokser`. The production rebate code has been created and activated at 30% of the original deposit. The LOCAL landing/checkout validates and carries the code, shows original/discounted prices and stores the offer and pickup choice in a session cookie. This code is not deployed yet; production links must not be described as fully tested.
+The proposed offer URL is `/?rebate=KUNDEJUL15&utm_source=customer_email&utm_medium=email&utm_campaign=ullgris_jul_2026#bokser`. The production rebate code has been created and activated at 30% of the original deposit. The LOCAL landing/checkout validates and carries the code, shows original/discounted prices and stores the offer and pickup choice in a session cookie. This code is deployed; the live landing and checkout path was checked after publication.
 
 Browser preview checked at 375, 768 and 1440px, including reduced motion and image loading. Mobile width = document width (375px). Only console error was the local preview server's missing favicon. This is browser QA, not cross-client Outlook rendering certification.
 
-## Implemented locally and checked
+## Implemented and published
 
 - Original box prices crossed out with discounted prices in red on the landing page. The large meal photograph at the top is retained. A discount notice appears inside the email-linked box section, explaining that 15% is deducted from the deposit at payment.
 - The email pickup parameter preselects farm, Trondheim, E6 or Majorstuen. A first-party session cookie remembers only the offer/referral code and pickup, with SameSite=Lax and Secure on HTTPS. URL parameters still carry the choices when cookies are unavailable. Customer changes persist into checkout.
@@ -47,14 +47,22 @@ Browser preview checked at 375, 768 and 1440px, including reduced motion and ima
 
 ## Production data changes already applied
 
-The two migrations dated 20261118125259 and 20261118125932 were applied: original box-price/referral-credit fields, Oslo delivery type, service-role-only paid referral redemption function and the corrected SQL reference concatenation. E6 price is now 400 NOK in app_config; Trondheim/Oslo fee is 200 NOK. KUNDEJUL15 is active with no expiry. These database changes are separate from the still-unpublished frontend/API code.
+The two migrations dated 20261118125259 and 20261118125932 were applied: original box-price/referral-credit fields, Oslo delivery type, service-role-only paid referral redemption function and the corrected SQL reference concatenation. E6 price is now 400 NOK in app_config; Trondheim/Oslo fee is 200 NOK. KUNDEJUL15 is active with no expiry. The corresponding frontend/API code is now published.
 
 Authorized tests V4, V5 and V6 were sent only to Kenneth's two addresses through Mailgun and recorded as preview-only emails. V4 delivery was confirmed for both; V5/V6 provider acceptance was confirmed. No customer campaign was queued or sent. Emails sent through Mailgun do not appear in Gmail Sent.
 
 ## Remaining before customer launch
 
-1. Isolate relevant code/assets from unrelated existing working-tree changes, build, deploy and verify the actual live landing-to-checkout path. The production API must include the offer, Oslo and paid-referral changes before customer launch.
+1. Website deployment and live verification are complete; see the publication record below.
 2. Keep the campaign draft and its personalization synchronized with the final template. Refresh complaints, opt-outs and paid orders before building the final audience. Current local selection remains 39 eligible, 24 excluded, 25 outside, eight location-held.
 3. Kenneth clarified that "send this all" meant a test to himself. There is no bulk-send approval. Obtain approval for the final customer campaign before enqueueing it.
 4. One reminder is drafted but neither scheduled nor approved for a specific interval. Recheck buyers/issues/opt-outs before any reminder. No recurring reminder.
 5. No verified pork testimonial is available; do not invent one. Farm video assets must be deployed before the farm-film link works on production. No numeric stock promise is authorized.
+
+## Published 18 November 2026
+
+Live Netlify deploy: `6afdb4db37b8df2b111aafe6`, based on isolated campaign commit `d6f47ec7` and production base `0034bd1c`. Main site and checkout returned HTTP 200. Browser verification on the live email link confirmed the 15% box discount, 1,085 NOK Familieboks deposit and remembered Majorstuen pickup at 200 NOK. The live order API created an authorized QA draft with 1,085 deposit + 1,750 remainder = 2,835 NOK including Oslo transport, pickup 21 December. No payment was started. The exact QA order, generated code and rebate usage were removed with transactional guards, including restoring its usage counter.
+
+Windows packaging required physical dependencies and normalization of Next 13 external require separators in the generated server ZIP; reproducible helper: `scripts/normalize-next-windows-bundle.py`. Production Node runtime remains nodejs22.x. The first staging bundle failed before production was changed; the corrected bundle was verified and published. Build success log and deployment IDs are recorded privately in `.codex-campaign/`.
+
+The email draft now carries current wording, breed-specific personalization and published-site metadata. It remains unscheduled, status draft, launch_blocked=true. No customer campaign emails were sent. Refresh eligibility and obtain explicit bulk-send approval before launch.
